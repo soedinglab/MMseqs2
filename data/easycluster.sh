@@ -26,7 +26,7 @@ fi
 
 if notExists "${TMP_PATH}/clu"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" cluster "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/clu_tmp" ${CLUSTER_PAR} \
+    "$MMSEQS" "${CLUSTER_MODULE}" "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/clu_tmp" ${CLUSTER_PAR} \
         || fail "Search died"
 fi
 

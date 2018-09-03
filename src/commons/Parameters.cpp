@@ -59,7 +59,7 @@ Parameters::Parameters():
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "compute more conservative, shorter alignments (scores and E-values not changed)", typeid(bool), (void *) &realign, "", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","list matches above this sequence identity (for clustering) [0.0,1.0]",typeid(float), (void *) &seqIdThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
-	PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID,"--score-bias", "Score bias", "Score bias when computing the SW alignment (in bits)",typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
+	    PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID,"--score-bias", "Score bias", "Score bias when computing the SW alignment (in bits)",typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID,"--alt-ali", "Alternative alignments","Show up to this many alternative alignments",typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
 
         // clustering
@@ -80,7 +80,7 @@ Parameters::Parameters():
         PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "Rescore diagonal with: 0: Hamming distance, 1: local alignment (score only) or 2: local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),
         PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID,"--filter-hits", "Remove hits by seq.id. and coverage", "filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_GLOBAL_ALIGNMENT(PARAM_GLOBAL_ALIGNMENT_ID,"--global-alignment", "In substitution scoring mode, performs global alignment along the diagonal", "Rescore the complete diagonal", typeid(bool), (void *) &globalAlignment, "", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by evalue (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$"),
+        PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by evalue (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
         PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "add internal id as comment to MSA", typeid(bool), (void*) &addInternalId, "",  MMseqsParameter::COMMAND_EXPERT),
@@ -110,7 +110,7 @@ Parameters::Parameters():
         PARAM_NEFF(PARAM_NEFF_ID, "--neff", "Neff", "Neff included into context state profile (1.0,20.0)", typeid(float), (void*) &neff, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_TAU(PARAM_TAU_ID, "--tau", "Tau", "Tau: context state pseudo count mixture (0.0,1.0)", typeid(float), (void*) &tau, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         //createtsv
-        PARAM_TARGET_COLUMN(PARAM_TARGET_COLUMN_ID, "--target-column", "Target column", "Select a target column",typeid(int),(void *) &targetTsvColumn, "^[0-9]*$"),
+        PARAM_TARGET_COLUMN(PARAM_TARGET_COLUMN_ID, "--target-column", "Target column", "Select a target column (default 1), 0 if no target id exists.",typeid(int),(void *) &targetTsvColumn, "^[0-9]*$"),
         PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_MISC),
         PARAM_FULL_HEADER(PARAM_FULL_HEADER_ID, "--full-header", "Add Full Header", "Replace DB ID by its corresponding Full Header", typeid(bool), (void*) &fullHeader, ""),
         // result2stats
@@ -119,7 +119,7 @@ Parameters::Parameters():
         // linearcluster
         PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "Kmer per sequence", "kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_INCLUDE_ONLY_EXTENDABLE(PARAM_INCLUDE_ONLY_EXTENDABLE_ID, "--include-only-extendable", "Include only extendable", "Include only extendable", typeid(bool), (void*) &includeOnlyExtendable, "", MMseqsParameter::COMMAND_CLUSTLINEAR),
-        PARAM_SKIP_N_REPEAT_KMER(PARAM_SKIP_N_REPEAT_KMER_ID, "--skip-n-repeat-kmer", "Skip sequence with n repeating k-mers", "Skip sequence with >= n exact repeating k-mers", typeid(int), (void*) &skipNRepeatKmer, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_CLUSTLINEAR),
+        PARAM_SKIP_N_REPEAT_KMER(PARAM_SKIP_N_REPEAT_KMER_ID, "--skip-n-repeat-kmer", "Skip sequence with n repeating k-mers", "Skip sequence with >= n exact repeating k-mers", typeid(int), (void*) &skipNRepeatKmer, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash", typeid(int), (void*) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","use MPI on compute grid with this MPI command (e.g. \"mpirun -np 42\")",typeid(std::string),(void *) &runner, "", MMseqsParameter::COMMAND_EXPERT),
@@ -1354,7 +1354,7 @@ void Parameters::setDefaults() {
     // createtsv
     firstSeqRepr = false;
     fullHeader = false;
-    targetTsvColumn = 0;
+    targetTsvColumn = 1;
 
     // lca
     lcaRanks = "";

@@ -55,7 +55,8 @@ int createtsv(int argc, const char **argv, const Command &command) {
     }
     writer->open();
 
-    const size_t targetColumn = par.targetTsvColumn;
+    const size_t targetColumn = (par.targetTsvColumn == 0) ? SIZE_T_MAX :  par.targetTsvColumn - 1;
+
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -93,16 +94,18 @@ int createtsv(int argc, const char **argv, const Command &command) {
 
             char *data = reader->getData(i);
             while (*data != '\0') {
-                size_t foundElements = Util::getWordsOfLine(data, columnPointer, 255);
-                if (foundElements < targetColumn) {
-                    Debug(Debug::WARNING) << "Not enough columns!" << "\n";
-                    continue;
+                if(targetColumn != SIZE_T_MAX){
+                    size_t foundElements = Util::getWordsOfLine(data, columnPointer, 255);
+                    if (foundElements < targetColumn) {
+                        Debug(Debug::WARNING) << "Not enough columns!" << "\n";
+                        continue;
+                    }
+                    Util::parseKey(columnPointer[targetColumn], dbKey);
                 }
-
-                Util::parseKey(columnPointer[targetColumn], dbKey);
-
                 std::string targetAccession;
-                if (targetDB != NULL) {
+                if(targetColumn == SIZE_T_MAX){
+                    targetAccession="";
+                } else if (targetDB != NULL) {
                     unsigned int targetKey = (unsigned int) strtoul(dbKey, NULL, 10);
                     size_t targetIndex = targetDB->getId(targetKey);
                     char *targetData = targetDB->getData(targetIndex);
