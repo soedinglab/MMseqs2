@@ -68,7 +68,7 @@ ProfileStates::~ProfileStates()
     delete prior;
 }
 
-int ProfileStates::readProfile(std::stringstream &in, float * profile,  float * normalizedProfile) {
+int ProfileStates::readProfile(std::stringstream &in, float * profile,  float * normalizedProfile, float &prior) {
     // Parse and check header information
     if (!reader.StreamStartsWith(in, "ContextProfile"))
     {
@@ -87,7 +87,7 @@ int ProfileStates::readProfile(std::stringstream &in, float * profile,  float * 
         names.push_back("0"); // default name
     }
 
-    reader.ReadDouble(line.c_str(), "PRIOR", "Unable to parse context profile 'PRIOR'!");
+    prior = reader.ReadDouble(line.c_str(), "PRIOR", "Unable to parse context profile 'PRIOR'!");
     line = reader.getline(in);
     if (strstr(line.c_str(), "COLOR")) {
         std::string coldef;
@@ -191,12 +191,19 @@ int ProfileStates::read(std::string libraryData) {
     {
         profiles[k]           = (float *)mem_align(16, 20 * sizeof(float));
         normalizedProfiles[k] = (float *)mem_align(16, 20 * sizeof(float));
-        readProfile(in, profiles[k], normalizedProfiles[k]);
-        prior[k] = 0.0;
-        for (size_t a = 0 ; a < 20 ; a++)
-            prior[k] += profiles[k][a] * background[a];
+        readProfile(in, profiles[k], normalizedProfiles[k],prior[k]);
         zPrior += prior[k];
 	
+    }
+
+    if (zPrior == 0.0)// In case prior is not def in the lib, approximate it by
+    {		      // projection on the bck proba
+	for (k = 0; k < alphSize && in.good(); ++k)
+    	{
+       		for (size_t a = 0 ; a < 20 ; a++)
+           		prior[k] += profiles[k][a] * background[a];
+        	zPrior += prior[k];
+	}
     }
 
     if (k != alphSize)
