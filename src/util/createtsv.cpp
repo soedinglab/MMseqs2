@@ -8,6 +8,9 @@
 #include <omp.h>
 #endif
 
+#ifndef SIZE_T_MAX
+#define SIZE_T_MAX ((size_t) -1)
+#endif
 int createtsv(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true, Parameters::PARSE_VARIADIC);
@@ -174,3 +177,4 @@ int createtsv(int argc, const char **argv, const Command &command) {
 
     return EXIT_SUCCESS;
 }
+#undef SIZE_T_MAX
