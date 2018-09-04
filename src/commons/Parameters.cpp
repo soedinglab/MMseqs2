@@ -960,9 +960,9 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                             *value = !*value;
                         } else {
                             *value = parseBool(pargv[argIdx+1]);
+                            argIdx++;
                         }
                         par[parIdx].wasSet = true;
-                        argIdx++;
                     } else {
                         Debug(Debug::ERROR) << "Wrong parameter type in parseParameters. Please inform the developers\n";
                         EXIT(EXIT_FAILURE);
