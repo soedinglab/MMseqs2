@@ -213,7 +213,7 @@ int createdb(int argn, const char **argv, const Command& command) {
 
         // Each file is identified by its first unshuffled entry
         // Intialize keyToFileAfterShuf to the sequential of the files
-        unsigned int * keyToFileAfterShuf =  new unsigned int[readerSequence.getSize()];
+        unsigned int * keyToFileAfterShuf = new unsigned int[readerSequence.getSize()];
         unsigned int firstEntryOfFile = 0;
         for (size_t i = 0; i < filenames.size(); i++) {
             unsigned int numEntriesInCurrFile = fileToNumEntries[i];
@@ -234,7 +234,6 @@ int createdb(int argn, const char **argv, const Command& command) {
             std::swap(lengthHeader[n_new], lengthHeader[n]);
             std::swap(keyToFileAfterShuf[n_new], keyToFileAfterShuf[n]);
         }
-        delete [] keyToFileAfterShuf;
         DBWriter out_writer_shuffled(data_filename.c_str(), index_filename.c_str());
         out_writer_shuffled.open();
         for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
@@ -267,11 +266,8 @@ int createdb(int argn, const char **argv, const Command& command) {
         out_hdr_writer_shuffled.close();
         readerHeader.close();
         fclose(lookupFile);
+        delete[] keyToFileAfterShuf;
     }
     return EXIT_SUCCESS;
 }
-
-
-
-
 
