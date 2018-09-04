@@ -38,5 +38,5 @@ int shellcompletion(int argc, const char** argv, const Command&) {
         Debug(Debug::INFO) << "\n";
     }
 
-    return EXIT_SUCCESS;
+    EXIT(EXIT_SUCCESS);
 }
