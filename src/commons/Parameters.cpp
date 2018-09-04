@@ -1104,23 +1104,25 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         case 0:
             printUsageMessage(command, outputFlags);
             Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";
-            printParameters(argc, pargv, par);
+            printParameters(command.cmd, argc, pargv, par);
             EXIT(EXIT_FAILURE);
     }
     if(printPar == true) {
-        printParameters(argc, pargv, par);
+        printParameters(command.cmd, argc, pargv, par);
     }
 }
 
-void Parameters::printParameters(int argc, const char* pargv[],
+void Parameters::printParameters(const std::string &module, int argc, const char* pargv[],
                                  const std::vector<MMseqsParameter> &par){
     if (Debug::debugLevel < Debug::INFO) {
         return;
     }
 
     Debug(Debug::INFO) << "Program call:\n";
-    for (int i = 0; i < argc; i++)
+    Debug(Debug::INFO) << module << " ";
+    for (int i = 0; i < argc; i++) {
         Debug(Debug::INFO) << pargv[i] << " ";
+    }
     Debug(Debug::INFO) << "\n\n";
 
     size_t maxWidth = 0;

@@ -412,7 +412,7 @@ public:
                          int outputFlags = 0);
     void printUsageMessage(const Command& command,
                            int outputFlag);
-    void printParameters(int argc, const char* pargv[],
+    void printParameters(const std::string &module, int argc, const char* pargv[],
                          const std::vector<MMseqsParameter> &par);
 	
 	std::vector<MMseqsParameter> removeParameter(const std::vector<MMseqsParameter>& par, const MMseqsParameter& x);

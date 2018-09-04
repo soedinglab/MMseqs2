@@ -420,7 +420,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 
     setKmerLengthAndAlphabet(par, seqDbr.getAminoAcidDBSize(), querySeqType);
     std::vector<MMseqsParameter>* params = command.params;
-    par.printParameters(argc, argv, *params);
+    par.printParameters(command.cmd, argc, argv, *params);
     Debug(Debug::INFO) << "Database type: " << seqDbr.getDbTypeName() << "\n";
 
     BaseMatrix *subMat;

@@ -96,7 +96,7 @@ int search(int argc, const char **argv, const Command& command) {
             par.realign = false;
         }
     }
-    par.printParameters(argc, argv, par.searchworkflow);
+    par.printParameters(command.cmd, argc, argv, par.searchworkflow);
     if (FileUtil::directoryExists(par.db4.c_str())==false){
         Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db4.c_str()) == false){
