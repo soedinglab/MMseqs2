@@ -30,7 +30,7 @@ int result2repseq(int argc, const char **argv, const Command &command) {
 #endif
 
         char dbKey[255];
-#pragma omp parallel for schedule(dynamic, 100)
+#pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < resultReader.getSize(); ++id) {
             Debug::printProgress(id);
 
