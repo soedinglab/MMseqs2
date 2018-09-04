@@ -13,13 +13,6 @@
 #include <omp.h>
 #endif
 
-struct compareEval {
-    bool operator()(const Matcher::result_t &lhs,
-                    const Matcher::result_t &rhs) const {
-        return lhs.eval < rhs.eval;
-    }
-};
-
 class IndexReader {
 public:
     DBReader<unsigned int> *reader;
@@ -318,7 +311,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
 
                 if (curRes.empty() == false) {
                     if (curRes.size() > 1) {
-                        std::sort(curRes.begin(), curRes.end(), compareEval());
+                        std::sort(curRes.begin(), curRes.end(), Matcher::compareHits);
                     }
 
                     for (size_t j = 0; j < curRes.size(); j++) {
