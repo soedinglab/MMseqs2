@@ -59,6 +59,12 @@ int search(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
+    // FIXME: use larger default k-mer size in target-profile case if memory is available
+    // overwrite default kmerSize for target-profile searches and parse parameters again
+    if (targetDbType == Sequence::HMM_PROFILE && par.PARAM_K.wasSet == false) {
+        par.kmerSize = 5;
+    }
+
     const bool isTranslatedNuclSearch =
                (queryDbType == Sequence::NUCLEOTIDES || targetDbType == Sequence::NUCLEOTIDES);
 
@@ -90,7 +96,7 @@ int search(int argc, const char **argv, const Command& command) {
             par.realign = false;
         }
     }
-    par.printParameters(argc, argv, par.searchworkflow);
+    par.printParameters(command.cmd, argc, argv, par.searchworkflow);
     if (FileUtil::directoryExists(par.db4.c_str())==false){
         Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db4.c_str()) == false){

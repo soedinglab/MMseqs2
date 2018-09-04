@@ -218,7 +218,7 @@ int createdb(int argn, const char **argv, const Command& command) {
         for (size_t i = 0; i < filenames.size(); i++) {
             unsigned int numEntriesInCurrFile = fileToNumEntries[i];
             for (unsigned int j = firstEntryOfFile; j < (firstEntryOfFile + numEntriesInCurrFile); ++j ) {
-                keyToFileAfterShuf[j] = firstEntryOfFile; // perhaps change to: numEntriesInCurrFile as identifier...
+                keyToFileAfterShuf[j] = i;
             }
             firstEntryOfFile += numEntriesInCurrFile;
         }
@@ -226,9 +226,6 @@ int createdb(int argn, const char **argv, const Command& command) {
 
         std::default_random_engine generator(0);
         std::uniform_int_distribution<unsigned int> distribution(0,readerSequence.getSize()-1);
-        for (unsigned int n=0; n < readerSequence.getSize(); n++){
-            keyToFileAfterShuf[n] = n;
-        }
         for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
             unsigned int n_new = distribution(generator);
             std::swap(indexSequence[n_new], indexSequence[n]);
@@ -260,8 +257,11 @@ int createdb(int argn, const char **argv, const Command& command) {
             *(tmpBuff-1) = '\t';
             fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
             fwrite(splitId.c_str(), sizeof(char), splitId.length(), lookupFile);
-            char newline='\n';
-            fwrite(&newline, sizeof(char), 1, lookupFile);
+            char tab = '\t';
+            fwrite(&tab, sizeof(char), 1, lookupFile);
+            tmpBuff = Itoa::u32toa_sse2(keyToFileAfterShuf[n], lookupBuffer);
+            *(tmpBuff-1) = '\n';
+            fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
             out_hdr_writer_shuffled.writeData(data, lengthHeader[n]-1, id);
         }
         out_hdr_writer_shuffled.close();

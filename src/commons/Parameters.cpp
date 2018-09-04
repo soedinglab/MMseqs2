@@ -866,6 +866,17 @@ int compileRegex(regex_t * regex, const char * regexText){
     return 0;
 }
 
+bool parseBool(const std::string &p) {
+    if (p == "true" || p == "TRUE" || p == "1") {
+        return true;
+    } else if (p == "false" || p == "FALSE" || p == "0") {
+        return false;
+    } else {
+        Debug(Debug::ERROR) << "Invalid boolean string " << p << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
+
 void Parameters::parseParameters(int argc, const char* pargv[],
                                  const Command& command,
                                  size_t requiredParameterCount,
@@ -944,10 +955,14 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         }
                         argIdx++;
                     } else if (typeid(bool) == par[parIdx].type) {
-                        bool * value = (bool *) par[parIdx].value;
+                        bool *value = (bool *) par[parIdx].value;
+                        if (argIdx + 1 == argc || pargv[argIdx+1][0] == '-') {
+                            *value = !*value;
+                        } else {
+                            *value = parseBool(pargv[argIdx+1]);
+                        }
                         par[parIdx].wasSet = true;
-                        // toggle Value
-                        *value = !*value;
+                        argIdx++;
                     } else {
                         Debug(Debug::ERROR) << "Wrong parameter type in parseParameters. Please inform the developers\n";
                         EXIT(EXIT_FAILURE);
@@ -1089,23 +1104,25 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         case 0:
             printUsageMessage(command, outputFlags);
             Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";
-            printParameters(argc, pargv, par);
+            printParameters(command.cmd, argc, pargv, par);
             EXIT(EXIT_FAILURE);
     }
     if(printPar == true) {
-        printParameters(argc, pargv, par);
+        printParameters(command.cmd, argc, pargv, par);
     }
 }
 
-void Parameters::printParameters(int argc, const char* pargv[],
+void Parameters::printParameters(const std::string &module, int argc, const char* pargv[],
                                  const std::vector<MMseqsParameter> &par){
     if (Debug::debugLevel < Debug::INFO) {
         return;
     }
 
     Debug(Debug::INFO) << "Program call:\n";
-    for (int i = 0; i < argc; i++)
+    Debug(Debug::INFO) << module << " ";
+    for (int i = 0; i < argc; i++) {
         Debug(Debug::INFO) << pargv[i] << " ";
+    }
     Debug(Debug::INFO) << "\n\n";
 
     size_t maxWidth = 0;
@@ -1432,7 +1449,9 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter>
         } else if (typeid(bool) == par[i].type){
             bool val = *((bool *)(par[i].value));
             if (val == true){
-                ss << par[i].name << " ";
+                ss << par[i].name << " 1 ";
+            } else {
+                ss << par[i].name << " 0 ";
             }
         } else {
             Debug(Debug::ERROR) << "Wrong parameter type. Please inform the developers!\n";
