@@ -55,11 +55,13 @@ int result2flat(int argc, const char **argv, const Command &command) {
         // write data
         char *data = dbr_data.getData(i);
         while (*data != '\0') {
+            // dbKeyBuffer can contain sequence
             Util::parseKey(data, dbKeyBuffer);
             const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
             char *header_data = targetdb_header.getDataByDBKey(dbKey);
             std::string dataStr;
-            if (par.useHeader == true && header_data != NULL) {
+            if (par.useHeader == true && header_data != NULL && dbr_data.getDbtype() == -1)
+            {
                 dataStr = Util::parseFastaHeader(header_data);
                 char *endLenData = Util::skipLine(data);
                 size_t keyLen = strlen(dbKeyBuffer);
