@@ -389,12 +389,12 @@ void Sequence::mapProfileState(const char * sequenze){
     MathUtil::NormalizeTo1(pav, Sequence::PROFILE_AA_SIZE);
 
     // log (S(i,k)) = log ( SUM_a p(i,a) * p(k,a) / f(a) )   k: column state, i: pos in ali, a: amino acid
-    if(profileStateMat->alphabetSize == 32){
+    if(profileStateMat->alphabetSize == 8){
         for (int i = 0; i < L; i++){
             for (int k = 0; k < profileStateMat->alphabetSize; k++) {
                 // compute log score for all 32 profile states
                 float sum = profileStateMat->scoreState(&profile[i * Sequence::PROFILE_AA_SIZE], pav, k);
-                float pssmVal = (sum) * 10.0*profileStateMat->getScoreNormalization();
+                float pssmVal = (sum) * 10.0 * profileStateMat->getScoreNormalization();
                 profile_score[i * profile_row_size + k] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
             }
         }
@@ -408,17 +408,16 @@ void Sequence::mapProfileState(const char * sequenze){
 
         // sort profile scores and index for KmerGenerator (prefilter step)
         for(int l = 0; l < this->L; l++){
-            unsigned int indexArray[32] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-                                            20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
-            Util::rankedDescSort32(&profile_score[l * profile_row_size], (unsigned int *) &indexArray);
-            memcpy(&profile_index[l * profile_row_size], &indexArray, 32 * sizeof(int) );
+            unsigned int indexArray[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+            Util::rankedDescSort8(&profile_score[l * profile_row_size], (unsigned int *) &indexArray);
+            memcpy(&profile_index[l * profile_row_size], &indexArray, 8 * sizeof(int) );
             // create consensus sequence
     //        int_sequence[l] = indexArray[0]; // index 0 is the highst scoring one
         }
 
         // write alignment profile
         for(int l = 0; l < this->L; l++){
-            for(size_t aa_num = 0; aa_num < 32; aa_num++) {
+            for(size_t aa_num = 0; aa_num < 8; aa_num++) {
                 unsigned int aa_idx = profile_index[l * profile_row_size + aa_num];
                 float scale = 5.0*profileStateMat->getScoreNormalization();
                 float score = static_cast<float>(profile_score[l * profile_row_size + aa_num]);

@@ -126,8 +126,31 @@ void Util::decomposeDomainByAminoAcid<size_t*>(size_t aaSize, size_t *seqSizes,
 
 
 
+// http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=8&algorithm=batcher&output=svg
+// sorting networks
+void Util::rankedDescSort8(short *val, unsigned int *index){
+#define SWAP(x,y){\
+if( val[x] < val[y] ){   \
+short tmp1 = val[x];    \
+val[x] = val[y];     \
+val[y] = tmp1;        \
+unsigned int tmp2 = index[x];      \
+index[x] = index[y]; \
+index[y] = tmp2;      \
+} \
+}
+    SWAP(0,4); SWAP(1,5); SWAP(2,6); SWAP(3,7);
+    SWAP(0,2); SWAP(1,3); SWAP(4,6); SWAP(5,7);
+    SWAP(2,4); SWAP(3,5); SWAP(0,1); SWAP(6,7);
+    SWAP(2,3); SWAP(4,5);
+    SWAP(1,4); SWAP(3,6);
+    SWAP(1,2); SWAP(3,4); SWAP(5,6);
+#undef SWAP
+}
 
-// http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=20&algorithm=batcher&output=svg
+
+
+// http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=32&algorithm=batcher&output=svg
 // sorting networks
 void Util::rankedDescSort32(short *val, unsigned int *index){
 #define SWAP(x,y){\

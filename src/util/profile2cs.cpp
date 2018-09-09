@@ -15,7 +15,7 @@
 
 int profile2cs(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.alphabetSize = 32;
+    par.alphabetSize = 8;
     par.parseParameters(argc, argv, command, 2,  true, 0, MMseqsParameter::COMMAND_PROFILE);
 
 #ifdef OPENMP
@@ -25,7 +25,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> profileReader(par.db1.c_str(), par.db1Index.c_str());
     profileReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    int alphabetSize[] = {32, 255};
+    int alphabetSize[] = {8, 255};
     for(size_t i = 0; i < 2; i++){
         std::string dbName = par.db2;
         std::string dbIndex = par.db2;

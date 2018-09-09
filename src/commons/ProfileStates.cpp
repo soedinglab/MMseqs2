@@ -11,6 +11,7 @@
 //#include <LibraryExpOpt7_10_polished.lib.h>
 //#include <LibraryMix.lib.h>
 #include <ExpOpt3_8_polished.cs32.lib.h>
+#include <libPolished_8.lib.h>
 #include <Library255_may17.lib.h>
 //#include <libPure_blosum62_255.lib.h>
 //#include <libPure_blosum62_32.lib.h>
@@ -28,6 +29,10 @@ ProfileStates::ProfileStates( int pAlphSize, double * pBack)
     //std::string libraryString((const char *) Library_Training2_run17_lib, Library_Training2_run17_lib_len);
     std::string libraryString;
     switch (pAlphSize){
+        case 8:
+            //libraryString=std::string((const char *)libPure_blosum62_32_lib, libPure_blosum62_32_lib_len);
+            libraryString=std::string((const char *)libPolished_8_lib, libPolished_8_lib_len);
+            break;
         case 32:
             //libraryString=std::string((const char *)libPure_blosum62_32_lib, libPure_blosum62_32_lib_len);
             libraryString=std::string((const char *)ExpOpt3_8_polished_cs32_lib, ExpOpt3_8_polished_cs32_lib_len);
