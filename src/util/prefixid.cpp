@@ -4,8 +4,6 @@
 #include "Util.h"
 #include "Debug.h"
 
-#include <fstream>
-
 #ifdef OPENMP
 #include <omp.h>
 #endif
