@@ -65,7 +65,7 @@ int createdb(int argn, const char **argv, const Command& command) {
     out_writer.open();
     out_hdr_writer.open();
 
-    unsigned int entries_num = 1;
+    unsigned int entries_num = 0;
     size_t count = 0;
     size_t sampleCount = 0;
 
