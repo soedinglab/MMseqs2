@@ -105,12 +105,12 @@ do
     notExists $TMP_PATH/searchOut.$offset.count && "$MMSEQS" result2stats $PROFILEDB $INPUT $TMP_PATH/pref_notSwapped.$offset $TMP_PATH/searchOut.$offset.count  --stat linecount $COMMONS
     notExists $TMP_PATH/searchOut.$offset.toKeep && "$MMSEQS" filterdb $TMP_PATH/searchOut.$offset.count $TMP_PATH/searchOut.$offset.toKeep --filter-column 1 --comparison-operator ge --comparison-value $MAX_SEQS $COMMONS
 
-    sort -k1,1 $TMP_PATH/searchOut.$offset.toKeep.index >$TMP_PATH/searchOut.$offset.toKeep.keys
+    awk '$3>1{print $1}' $TMP_PATH/searchOut.$offset.toKeep.index| sort -k1,1 >$TMP_PATH/searchOut.$offset.toKeep.keys
     join $TMP_PATH/searchOut.$offset.toKeep.keys $PROFILEDB.index >$PROFILEDB.index.tmp 
     mv -f $PROFILEDB.index.tmp $PROFILEDB.index # reduce the profile DB
     
     offset=$SEARCH_LIM # keep for the prefilter only the next hits
-    nProfiles=$(awk '{n=n+1}END{print n}' $PROFILEDB.index)
+    nProfiles=$(awk 'BEGIN{n=0}{n=n+1}END{print n}' $PROFILEDB.index)
     STEP=$((STEP+1))
 done
 
