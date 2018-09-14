@@ -13,7 +13,6 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 
-
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -162,7 +161,7 @@ int apply_by_entry(char* data, size_t size, unsigned int key, DBWriter& writer,
         if (plist[0].revents & POLLOUT) {
             ssize_t write_size = batch_size;
             if (size - written > 0) {
-                for(;;) {
+                for (;;) {
                     ssize_t w = write(fd[1], data + written, write_size);
                     if (w < 0) {
                         if (errno != EAGAIN) {
@@ -272,6 +271,8 @@ void free_local_environment(char** local_environ) {
 }
 
 int apply(int argc, const char **argv, const Command& command) {
+    MMseqsMPI::init(argc, argv);
+
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2, true, Parameters::PARSE_REST);
 
@@ -292,27 +293,28 @@ int apply(int argc, const char **argv, const Command& command) {
 #endif
 
     Debug(Debug::INFO) << "Start applying.\n";
-    for (int proc_idx = 0; proc_idx < par.threads; ++proc_idx) {
-        switch(fork()) {
+    for (int thread = 0; thread < par.threads; ++thread) {
+        switch (fork()) {
             default:
                 break;
             case -1:
                 Debug(Debug::ERROR) << "Could not fork worker process!\n";
                 EXIT(EXIT_FAILURE);
             case 0: {
-                int rank = 0;
-                int procs = 1;
+                int mpiRank = 0;
+                int mpiProcs = 1;
+
 #ifdef HAVE_MPI
                 while (shared_memory->ready == 0) {
                     usleep(10);
                 }
 
-                rank = shared_memory->mpiRank;
-                procs = shared_memory->mpiProc;
+                mpiRank = shared_memory->mpiRank;
+                mpiProcs = shared_memory->mpiProc;
                 std::pair<std::string, std::string> mpiDb = Util::createTmpFileNames(par.db2, par.db2Index, shared_memory->mpiRank);
-                std::pair<std::string, std::string> outDb = Util::createTmpFileNames(mpiDb.first, mpiDb.second, proc_idx);
+                std::pair<std::string, std::string> outDb = Util::createTmpFileNames(mpiDb.first, mpiDb.second, thread);
 #else
-                std::pair<std::string, std::string> outDb = Util::createTmpFileNames(par.db2, par.db2Index, proc_idx);
+                std::pair<std::string, std::string> outDb = Util::createTmpFileNames(par.db2, par.db2Index, thread);
 #endif
 
                 DBWriter writer(outDb.first.c_str(), outDb.second.c_str(), 1);
@@ -321,9 +323,8 @@ int apply(int argc, const char **argv, const Command& command) {
                 char **local_environ = local_environment();
 
                 ignore_signal(SIGPIPE);
-
                 for (size_t i = 0; i < reader.getSize(); ++i) {
-                    if (static_cast<ssize_t>(i) % (procs * par.threads) != (rank * procs + proc_idx)) {
+                    if (static_cast<ssize_t>(i) % (mpiProcs * par.threads) != (thread * mpiProcs + mpiRank)) {
                         continue;
                     }
 
@@ -358,7 +359,6 @@ int apply(int argc, const char **argv, const Command& command) {
         }
     }
 
-    MMseqsMPI::init(argc, argv);
 #ifdef HAVE_MPI
     shared_memory->mpiRank = MMseqsMPI::rank;
     shared_memory->mpiProc = MMseqsMPI::numProc;
@@ -391,7 +391,7 @@ int apply(int argc, const char **argv, const Command& command) {
 
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
-    if(MMseqsMPI::rank == MMseqsMPI::MASTER) {
+    if (MMseqsMPI::rank == MMseqsMPI::MASTER) {
         // master reduces results
         std::vector<std::pair<std::string, std::string>> splitFiles;
         for (int proc = 0; proc < MMseqsMPI::numProc; ++proc) {

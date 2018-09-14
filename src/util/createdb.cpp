@@ -270,4 +270,3 @@ int createdb(int argn, const char **argv, const Command& command) {
     }
     return EXIT_SUCCESS;
 }
-
