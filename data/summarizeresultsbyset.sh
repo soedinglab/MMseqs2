@@ -21,7 +21,7 @@ TMP_PATH="$5"
 
 if notExists "${TMP_PATH}/result_pos"; then
     # shellcheck disable=SC2086
-    "${MMSEQS}" filterdb "${RESULTDB}" "${TMP_PATH}/result_pos" --compute-positions "${TARGETDB}_orf_set_lookup" ${THREADS_PAR} \
+    "${MMSEQS}" filterdb "${RESULTDB}" "${TMP_PATH}/result_pos" --compute-positions "${TARGETDB}_nucl_orf_aligned_to_contig" ${THREADS_PAR} \
         || fail "filterdb failed"
 fi
 

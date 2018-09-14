@@ -36,9 +36,9 @@ if [ "$("${MMSEQS}" dbtype "${OUTDB}")" = "Nucleotide" ]; then
             || fail "extractorfs failed"
     fi
 
-    if notExists "${OUTDB}_aa_orf"; then
+    if notExists "${OUTDB}"; then
         # shellcheck disable=SC2086
-        "${MMSEQS}" translatenucs "${OUTDB}_nucl_orf" "${OUTDB}_aa_orf" ${TRANSLATENUCS_PAR} \
+        "${MMSEQS}" translatenucs "${OUTDB}_nucl_orf" "${OUTDB}" ${TRANSLATENUCS_PAR} \
             || fail "translatenucs failed"
     fi
 
@@ -54,22 +54,22 @@ if [ "$("${MMSEQS}" dbtype "${OUTDB}")" = "Nucleotide" ]; then
             || fail "filterdb failed"
     fi
 
-    if notExists "${OUTDB}_nucl_orf_to_set"; then
+    if notExists "${OUTDB}_member_to_set"; then
         # shellcheck disable=SC2086
-        "${MMSEQS}" filterdb "${OUTDB}_nucl_orf_to_contig" "${OUTDB}_nucl_orf_to_set" --mapping-file "${OUTDB}_nucl_contig_to_set.tsv" ${THREADS_PAR} \
+        "${MMSEQS}" filterdb "${OUTDB}_nucl_orf_to_contig" "${OUTDB}_member_to_set" --mapping-file "${OUTDB}_nucl_contig_to_set.tsv" ${THREADS_PAR} \
             || fail "filterdb failed"
     fi
 
-    if notExists "${OUTDB}_nucl_set_to_orf"; then
+    if notExists "${OUTDB}_set_to_member"; then
         # shellcheck disable=SC2086
-        "${MMSEQS}" swapdb "${OUTDB}_nucl_orf_to_set" "${OUTDB}_nucl_set_to_orf" ${SWAPDB_PAR} \
+        "${MMSEQS}" swapdb "${OUTDB}_member_to_set" "${OUTDB}_set_to_member" ${SWAPDB_PAR} \
             || fail "swapdb failed"
     fi
 
-    if notExists "${OUTDB}_nucl_set_size"; then
-    # shellcheck disable=SC2086
-    "${MMSEQS}" result2stats "${OUTDB}_nucl" "${OUTDB}_nucl" "${OUTDB}_nucl_set_to_orf" "${OUTDB}_nucl_set_size" ${RESULT2STATS_PAR} \
-        || fail "result2stats failed"
+    if notExists "${OUTDB}_set_size"; then
+        # shellcheck disable=SC2086
+        "${MMSEQS}" result2stats "${OUTDB}_nucl" "${OUTDB}_nucl" "${OUTDB}_set_to_member" "${OUTDB}_set_size" ${RESULT2STATS_PAR} \
+            || fail "result2stats failed"
     fi
 
 else

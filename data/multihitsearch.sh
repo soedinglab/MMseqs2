@@ -36,7 +36,7 @@ fi
 
 if notExists "${OUTPUT}"; then
     # shellcheck disable=SC2086
-    "${MMSEQS}" mergeresultsbyset "${QUERY}_member_lookup" "${TMP_PATH}/aggregate" "${OUTPUT}" ${THREADS_PAR} \
+    "${MMSEQS}" mergeresultsbyset "${QUERY}_set_to_member" "${TMP_PATH}/aggregate" "${OUTPUT}" ${THREADS_PAR} \
         || fail "mergesetresults failed"
 fi
 
