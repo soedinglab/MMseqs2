@@ -9,8 +9,8 @@
 Aggregation::Aggregation(const std::string &targetDbName, const std::string &resultDbName,
                          const std::string &outputDbName, unsigned int threads)
         : resultDbName(resultDbName), outputDbName(outputDbName), threads(threads) {
-    std::string sizeDbName = targetDbName + "_set_lookup";
-    std::string sizeDbIndex = targetDbName + "_set_lookup.index";
+    std::string sizeDbName = targetDbName + "_member_to_set";
+    std::string sizeDbIndex = targetDbName + "_member_to_set.index";
     targetSetReader = new DBReader<unsigned int>(sizeDbName.c_str(), sizeDbIndex.c_str());
     targetSetReader->open(DBReader<unsigned int>::NOSORT);
 }

@@ -106,7 +106,7 @@ int doRescorediagonal(Parameters &par,
     }
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
     for (size_t i = 0; i < iterations; i++) {
-        size_t start = (i * flushSize);
+        size_t start = dbFrom + (i * flushSize);
         size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
 #pragma omp parallel
         {
@@ -125,7 +125,7 @@ int doRescorediagonal(Parameters &par,
             shortResults.reserve(300);
 
 #pragma omp for schedule(dynamic, 1)
-            for (size_t id = dbFrom; id < (dbFrom + bucketSize); id++) {
+            for (size_t id = start; id < (start + bucketSize); id++) {
                 Debug::printProgress(id);
 
                 char *data = resultReader.getData(id);
@@ -226,7 +226,7 @@ int doRescorediagonal(Parameters &par,
                                 // compute seq.id if hit fulfills e-value but not by seqId criteria
                                 if (evalue <= par.evalThr) {
                                     int idCnt = 0;
-                                    for (int i = qStartPos; i < qEndPos; i++) {
+                                    for (int i = qStartPos; i <= qEndPos; i++) {
                                         idCnt += (querySeq[i] == targetSeq[dbStartPos+(i-qStartPos)]) ? 1 : 0;
                                     }
                                     unsigned int alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos, dbEndPos);
