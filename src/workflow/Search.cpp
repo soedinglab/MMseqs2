@@ -6,6 +6,7 @@
 #include "Parameters.h"
 
 #include "searchtargetprofile.sh.h"
+#include "searchslicemodetargetprofile.sh.h"
 #include "blastpgp.sh.h"
 #include "translated_search.sh.h"
 #include "blastp.sh.h"
@@ -127,7 +128,26 @@ int search(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("ALIGNMENT_DB_EXT", targetDbType == Sequence::PROFILE_STATE_SEQ ? ".255" : "");
 
-    if (targetDbType == Sequence::HMM_PROFILE) {
+    if (targetDbType == Sequence::HMM_PROFILE && par.sliceSearch) {
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter,USE_ONLY_SET_PARAMETERS).c_str());
+        cmd.addVariable("MAX_STEPS", std::to_string(30).c_str());
+        cmd.addVariable("MAX_RESULTS_PER_QUERY", std::to_string(par.maxResListLen).c_str());
+        size_t memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
+        cmd.addVariable("AVAIL_MEM", std::to_string(memoryLimit/1024).c_str());
+        cmd.addVariable("COMMONS", (std::string("--threads ") + std::to_string(par.threads)).c_str());
+        
+        if (isUngappedMode) {
+            par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
+            par.rescoreMode = originalRescoreMode;
+        } else {
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        }
+        
+        cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
+        FileUtil::writeFile(tmpDir + "/searchslicemodetargetprofile.sh", searchslicemodetargetprofile_sh, searchslicemodetargetprofile_sh_len);
+        program=std::string(tmpDir + "/searchslicemodetargetprofile.sh");
+    } else if (targetDbType == Sequence::HMM_PROFILE) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         // we need to align all hits in case of target Profile hits
         size_t maxResListLen = par.maxResListLen;

@@ -355,7 +355,7 @@ void Util::checkAllocation(void *pointer, std::string message) {
 }
 
 size_t Util::getPageSize() {
-    return sysconf(_SC_PAGE_SIZE);
+    return sysconf(_SC_PAGE_SIZE); // in bytes
 }
 
 size_t Util::getTotalMemoryPages() {
@@ -370,7 +370,7 @@ size_t Util::getTotalMemoryPages() {
     return phys_pages;
 }
 
-size_t Util::getTotalSystemMemory()
+size_t Util::getTotalSystemMemory() // in bytes
 {
     // check for real physical memory
     long pages = getTotalMemoryPages();

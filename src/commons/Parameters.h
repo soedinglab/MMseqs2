@@ -9,6 +9,9 @@
 #include <typeinfo>
 #include "Command.h"
 
+#define USE_ONLY_SET_PARAMETERS true // when createParameterString, generates
+                                     // flags only for the param set by the user
+                                     
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
 
@@ -229,6 +232,7 @@ public:
     int numIterations;
     float startSens;
     int sensSteps;
+    bool sliceSearch;
 
     // easysearch
     bool greedyBestHits;
@@ -540,6 +544,7 @@ public:
     PARAMETER(PARAM_NUM_ITERATIONS)
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEPS)
+    PARAMETER(PARAM_SLICE_SEARCH)
 
     // easysearch
     PARAMETER(PARAM_GREEDY_BEST_HITS)
