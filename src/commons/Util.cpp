@@ -625,6 +625,6 @@ std::string SSTR(double x) {
 template<>
 std::string SSTR(float x) {
     char buffer[32];
-    int n = sprintf(buffer, "%.3E", x);
+    int n = sprintf(buffer, "%.3f", x);
     return std::string(buffer, n);
 }
