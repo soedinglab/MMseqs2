@@ -70,7 +70,7 @@ ProfileStates::~ProfileStates()
     delete [] discProfScores;
     delete [] profiles;
     delete [] background;
-    delete prior;
+    free(prior);
 }
 
 int ProfileStates::readProfile(std::stringstream &in, float * profile,  float * normalizedProfile, float &prior) {
@@ -187,15 +187,15 @@ int ProfileStates::read(std::string libraryData) {
 
     profiles = new float*[alphSize];
     normalizedProfiles = new float*[alphSize];
-    prior = new float[alphSize];
+    prior = (float*) mem_align(ALIGN_FLOAT, alphSize * sizeof(float));
 
     // Read profiles
     size_t k;
     float zPrior = 0.0;
     for (k = 0; k < alphSize && in.good(); ++k)
     {
-        profiles[k]           = (float *)mem_align(16, 20 * sizeof(float));
-        normalizedProfiles[k] = (float *)mem_align(16, 20 * sizeof(float));
+        profiles[k]           = (float *)mem_align(ALIGN_FLOAT, 20 * sizeof(float));
+        normalizedProfiles[k] = (float *)mem_align(ALIGN_FLOAT, 20 * sizeof(float));
         readProfile(in, profiles[k], normalizedProfiles[k],prior[k]);
         zPrior += prior[k];
 	
