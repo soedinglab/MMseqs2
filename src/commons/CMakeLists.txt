@@ -1,5 +1,6 @@
 set(commons_header_files
         commons/A3MReader.h
+        commons/AminoAcidLookupTables.h
         commons/Command.h
         commons/CommandCaller.h
         commons/Concat.h

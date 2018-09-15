@@ -7,6 +7,7 @@
 #include <vector>
 #include <sstream>
 #include <map>
+#include <unordered_map>
 #include <limits>
 
 #include "MMseqsMPI.h"
@@ -299,5 +300,7 @@ public:
     static bool hasCoverage(float covThr, int covMode, float queryCov, float targetCov);
 
     static float computeSeqId(int seqIdMode, int aaIds, int qLen, int tLen, int alnLen);
+
+    static float averageValueOnAminoAcids(const std::unordered_map<char, float> &values, const char *seq);
 };
 #endif
