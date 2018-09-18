@@ -259,6 +259,15 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_THREADS);
     prefilter.push_back(PARAM_V);
 
+    // ungappedprefilter
+    ungappedprefilter.push_back(PARAM_SUB_MAT);
+    ungappedprefilter.push_back(PARAM_C);
+    ungappedprefilter.push_back(PARAM_COV_MODE);
+    ungappedprefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
+    ungappedprefilter.push_back(PARAM_MIN_DIAG_SCORE);
+    ungappedprefilter.push_back(PARAM_THREADS);
+    ungappedprefilter.push_back(PARAM_V);
+
     // clustering
     clust.push_back(PARAM_CLUSTER_MODE);
     clust.push_back(PARAM_MAXITERATIONS);

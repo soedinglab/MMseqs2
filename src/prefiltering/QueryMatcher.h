@@ -48,6 +48,18 @@ struct hit_t {
         return false;
     }
 
+    static bool compareHitsByEValueAndId(hit_t first, hit_t second){
+        if(first.pScore > second.pScore )
+            return true;
+        if(second.pScore > first.pScore )
+            return false;
+        if(first.seqId < second.seqId )
+            return true;
+        if(second.seqId < first.seqId )
+            return false;
+        return false;
+    }
+
     static bool compareHitsByDiagonalScore(hit_t first, hit_t second){
         return (first.prefScore > second.prefScore) ? true : false;
     }

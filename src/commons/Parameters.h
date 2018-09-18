@@ -448,6 +448,7 @@ public:
     PARAMETER(PARAM_RES_LIST_OFFSET)
     PARAMETER(PARAM_NO_PRELOAD)
     std::vector<MMseqsParameter> prefilter;
+    std::vector<MMseqsParameter> ungappedprefilter;
 
     // alignment
     PARAMETER(PARAM_ALIGNMENT_MODE)

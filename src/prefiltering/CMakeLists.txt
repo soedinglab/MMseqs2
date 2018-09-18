@@ -27,5 +27,6 @@ set(prefiltering_source_files
         prefiltering/ReducedMatrix.cpp
         prefiltering/SequenceLookup.cpp
         prefiltering/UngappedAlignment.cpp
+        prefiltering/ungappedprefilter.cpp
         PARENT_SCOPE
         )

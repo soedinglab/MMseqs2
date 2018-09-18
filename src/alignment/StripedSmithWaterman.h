@@ -144,24 +144,36 @@ public:
                         const int covMode, const float covThr,
                         const int32_t maskLen);
 
-    /*!	@function	Create the query profile using the query sequence.
-     @param	read	pointer to the query sequence; the query sequence needs to be numbers
-     @param	readLen	length of the query sequence
-     @param	mat	pointer to the substitution matrix; mat needs to be corresponding to the read sequence
-     @param	n	the square root of the number of elements in mat (mat has n*n elements)
-     @param	score_size	estimated Smith-Waterman score; if your estimated best alignment score is surely < 255 please set 0; if
-     your estimated best alignment score >= 255, please set 1; if you don't know, please set 2
-     @return	pointer to the query profile structure
-     @note	example for parameter read and mat:
-     If the query sequence is: ACGTATC, the sequence that read points to can be: 1234142
-     Then if the penalty for match is 2 and for mismatch is -2, the substitution matrix of parameter mat will be:
-     //A  C  G  T
-     2 -2 -2 -2 //A
-     -2  2 -2 -2 //C
-     -2 -2  2 -2 //G
-     -2 -2 -2  2 //T
-     mat is the pointer to the array {2, -2, -2, -2, -2, 2, -2, -2, -2, -2, 2, -2, -2, -2, -2, 2}
-     */
+
+    /*!	@function computed ungapped alignment score
+
+   @param	db_sequence	pointer to the target sequence; the target sequence needs to be numbers and corresponding to the mat parameter of
+   function ssw_init
+
+   @param	db_length	length of the target sequence
+   @return	max diagonal score
+   */
+   int ungapped_alignment(const int *db_sequence,
+                          int32_t db_length);
+
+  /*!	@function	Create the query profile using the query sequence.
+   @param	read	pointer to the query sequence; the query sequence needs to be numbers
+   @param	readLen	length of the query sequence
+   @param	mat	pointer to the substitution matrix; mat needs to be corresponding to the read sequence
+   @param	n	the square root of the number of elements in mat (mat has n*n elements)
+   @param	score_size	estimated Smith-Waterman score; if your estimated best alignment score is surely < 255 please set 0; if
+   your estimated best alignment score >= 255, please set 1; if you don't know, please set 2
+   @return	pointer to the query profile structure
+   @note	example for parameter read and mat:
+   If the query sequence is: ACGTATC, the sequence that read points to can be: 1234142
+   Then if the penalty for match is 2 and for mismatch is -2, the substitution matrix of parameter mat will be:
+   //A  C  G  T
+   2 -2 -2 -2 //A
+   -2  2 -2 -2 //C
+   -2 -2  2 -2 //G
+   -2 -2 -2  2 //T
+   mat is the pointer to the array {2, -2, -2, -2, -2, 2, -2, -2, -2, -2, 2, -2, -2, -2, -2, 2}
+   */
     void ssw_init(const Sequence *q, const int8_t *mat, const BaseMatrix *m, const int32_t alphabetSize,
                   const int8_t score_size);
 

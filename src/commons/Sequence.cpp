@@ -222,7 +222,21 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence) 
     } else if (this->seqType == Sequence::PROFILE_STATE_SEQ) {
         mapProfileStateSequence(sequence);
     }else if (this->seqType == Sequence::PROFILE_STATE_PROFILE) {
-        mapProfileState(sequence);
+        switch(subMat->alphabetSize) {
+            case 8:
+                mapProfileState<8>(sequence);
+                break;
+            case 32:
+                mapProfileState<32>(sequence);
+                break;
+            case 255:
+                mapProfileState<255>(sequence);
+                break;
+            default:
+                Debug(Debug::ERROR) << "ERROR: Invalid alphabet size type!\n";
+                EXIT(EXIT_FAILURE);
+                break;
+        }
     } else {
         Debug(Debug::ERROR) << "ERROR: Invalid sequence type!\n";
         EXIT(EXIT_FAILURE);
@@ -368,7 +382,7 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
 }
 
 
-
+template <int T>
 void Sequence::mapProfileState(const char * sequenze){
     mapProfile(sequenze, false);
 
@@ -389,7 +403,7 @@ void Sequence::mapProfileState(const char * sequenze){
     MathUtil::NormalizeTo1(pav, Sequence::PROFILE_AA_SIZE);
 
     // log (S(i,k)) = log ( SUM_a p(i,a) * p(k,a) / f(a) )   k: column state, i: pos in ali, a: amino acid
-    if(profileStateMat->alphabetSize == 8){
+    if(profileStateMat->alphabetSize == T){
         for (int i = 0; i < L; i++){
             for (int k = 0; k < profileStateMat->alphabetSize; k++) {
                 // compute log score for all 32 profile states
@@ -408,16 +422,28 @@ void Sequence::mapProfileState(const char * sequenze){
 
         // sort profile scores and index for KmerGenerator (prefilter step)
         for(int l = 0; l < this->L; l++){
-            unsigned int indexArray[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-            Util::rankedDescSort8(&profile_score[l * profile_row_size], (unsigned int *) &indexArray);
-            memcpy(&profile_index[l * profile_row_size], &indexArray, 8 * sizeof(int) );
+            unsigned int indexArray[T] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+            switch (T) {
+                case 8:
+                    Util::rankedDescSort8(&profile_score[l * profile_row_size], (unsigned int *) &indexArray);
+                    break;
+                case 32:
+                    Util::rankedDescSort32(&profile_score[l * profile_row_size], (unsigned int *) &indexArray);
+                    break;
+                default:
+                    Debug(Debug::ERROR) << "Sort for T of " << T << " is not defined \n";
+                    EXIT(EXIT_FAILURE);
+                    break;
+            }
+
+            memcpy(&profile_index[l * profile_row_size], &indexArray, T * sizeof(int) );
             // create consensus sequence
     //        int_sequence[l] = indexArray[0]; // index 0 is the highst scoring one
         }
 
         // write alignment profile
         for(int l = 0; l < this->L; l++){
-            for(size_t aa_num = 0; aa_num < 8; aa_num++) {
+            for(size_t aa_num = 0; aa_num < T; aa_num++) {
                 unsigned int aa_idx = profile_index[l * profile_row_size + aa_num];
                 float scale = 5.0*profileStateMat->getScoreNormalization();
                 float score = static_cast<float>(profile_score[l * profile_row_size + aa_num]);
@@ -493,15 +519,15 @@ void Sequence::printPSSM(){
 void Sequence::printProfileStatePSSM(){
     printf("Query profile of sequence %d\n", dbKey);
     printf("Pos ");
-    for(int aa = 0; aa < 32; aa++) {
-        printf("%3d ", aa);
+    for(int aa = 0; aa < subMat->alphabetSize; aa++) {
+        printf("%3c ", subMat->int2aa[aa]);
     }
     printf("\n");
     for(int i = 0; i < this->L; i++){
         printf("%3d ", i);
-        for(size_t aa = 0; aa < 32; aa++){
+        for(size_t aa = 0; aa < subMat->alphabetSize; aa++){
 //            printf("%3d ", profile_for_alignment[aa * L + i] );
-            printf("%3d ", profile_score[i * profile_row_size + aa] );
+            printf("%3d ", profile_score[i * profile_row_size + profile_index[i * profile_row_size+aa]] );
         }
         printf("\n");
     }

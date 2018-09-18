@@ -62,6 +62,7 @@ public:
     void mapProfile(const char *sequence, bool mapScores);
 
     // mixture of library and profile prob
+    template <int T>
     void mapProfileState(const char *sequence);
 
     // map the profile state sequence
