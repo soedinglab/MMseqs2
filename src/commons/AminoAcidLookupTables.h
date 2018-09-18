@@ -1,6 +1,7 @@
 #ifndef AMINOACIDLOOKUP_H
 #define AMINOACIDLOOKUP_H
 
+#include <unordered_map>
 
 
 class Doolittle {
