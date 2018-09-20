@@ -262,6 +262,7 @@ Parameters::Parameters():
     // ungappedprefilter
     ungappedprefilter.push_back(PARAM_SUB_MAT);
     ungappedprefilter.push_back(PARAM_C);
+    ungappedprefilter.push_back(PARAM_E);
     ungappedprefilter.push_back(PARAM_COV_MODE);
     ungappedprefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
     ungappedprefilter.push_back(PARAM_MIN_DIAG_SCORE);

@@ -193,7 +193,7 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
 #else
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads);
     resultWriter.open();
-    int status = doRescorealldiagonal(par, resultWriter);
+    int status = doRescorealldiagonal(par, qdbr, resultWriter, 0, qdbr.getSize());
     resultWriter.close();
 #endif
     return status;
