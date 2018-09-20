@@ -19,18 +19,8 @@
 #endif
 
 
-
-int doRescorealldiagonal(Parameters &par, DBWriter &resultWriter) {
-    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str());
-    qdbr.open(DBReader<unsigned int>::NOSORT);
+int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter &resultWriter, size_t dbStart, size_t dbSize) {
     int querySeqType = qdbr.getDbtype();
-    if (par.noPreload == false) {
-        qdbr.readMmapedDataInMemory();
-    }
-
-
-
     Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
     DBReader<unsigned int> *tdbr = NULL;
     bool sameDB = false;
@@ -102,7 +92,7 @@ int doRescorealldiagonal(Parameters &par, DBWriter &resultWriter) {
         std::string resultBuffer;
         resultBuffer.reserve(262144);
 #pragma omp for schedule(dynamic, 1)
-        for (size_t id = 0; id < qdbr.getSize(); id++) {
+        for (size_t id = dbStart; id < (dbStart+dbSize); id++) {
             Debug::printProgress(id);
             char *querySeqData = qdbr.getData(id);
             size_t queryKey = qdbr.getDbKey(id);
@@ -168,38 +158,44 @@ int doRescorealldiagonal(Parameters &par, DBWriter &resultWriter) {
 }
 
 int ungappedprefilter(int argc, const char **argv, const Command &command) {
-//    MMseqsMPI::init(argc, argv);
+    MMseqsMPI::init(argc, argv);
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
+    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
+    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str());
+    qdbr.open(DBReader<unsigned int>::NOSORT);
+    if (par.noPreload == false) {
+        qdbr.readMmapedDataInMemory();
+    }
 
 
-//#ifdef HAVE_MPI
-//    size_t dbFrom = 0;
-//    size_t dbSize = 0;
-//
-//    Util::decomposeDomainByAminoAcid(resultReader.getAminoAcidDBSize(), resultReader.getSeqLens(), resultReader.getSize(),
-//                                     MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
-//    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db3, par.db3Index, MMseqsMPI::rank);
-//    DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), par.threads);
-//    resultWriter.open();
-//    int status = doRescorediagonal(par, resultWriter, resultReader, dbFrom, dbSize);
-//    resultWriter.close();
-//
-//    MPI_Barrier(MPI_COMM_WORLD);
-//    if(MMseqsMPI::rank == 0) {
-//        std::vector<std::pair<std::string, std::string>> splitFiles;
-//        for(unsigned int proc = 0; proc < MMseqsMPI::numProc; ++proc){
-//            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, par.db3Index, proc);
-//            splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
-//        }
-//        DBWriter::mergeResults(par.db3, par.db3Index, splitFiles);
-//    }
-//#else
+#ifdef HAVE_MPI
+    size_t dbFrom = 0;
+    size_t dbSize = 0;
+
+    Util::decomposeDomainByAminoAcid(qdbr.getAminoAcidDBSize(), qdbr.getSeqLens(), qdbr.getSize(),
+                                     MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db3, par.db3Index, MMseqsMPI::rank);
+    DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), par.threads);
+    resultWriter.open();
+    int status = doRescorealldiagonal(par, qdbr, resultWriter, dbFrom, dbSize);
+    resultWriter.close();
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(MMseqsMPI::rank == 0) {
+        std::vector<std::pair<std::string, std::string>> splitFiles;
+        for(unsigned int proc = 0; proc < MMseqsMPI::numProc; ++proc){
+            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, par.db3Index, proc);
+            splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
+        }
+        DBWriter::mergeResults(par.db3, par.db3Index, splitFiles);
+    }
+#else
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads);
     resultWriter.open();
     int status = doRescorealldiagonal(par, resultWriter);
     resultWriter.close();
-//#endif
+#endif
     return status;
 }
 
