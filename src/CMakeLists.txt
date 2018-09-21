@@ -36,8 +36,7 @@ add_library(mmseqs-framework
         ${linclust_source_files}
         ${util_header_files}
         ${util_source_files}
-        ${workflow_source_files}
-        )
+        ${workflow_source_files})
 
 target_include_directories(mmseqs-framework PUBLIC ${CMAKE_BINARY_DIR}/generated)
 target_include_directories(mmseqs-framework PUBLIC ${PROJECT_BINARY_DIR}/generated)

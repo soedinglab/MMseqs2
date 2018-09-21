@@ -229,6 +229,9 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence) 
             case 32:
                 mapProfileState<32>(sequence);
                 break;
+            case 219:
+                mapProfileState<219>(sequence);
+                break;
             case 255:
                 mapProfileState<255>(sequence);
                 break;
@@ -403,7 +406,7 @@ void Sequence::mapProfileState(const char * sequenze){
     MathUtil::NormalizeTo1(pav, Sequence::PROFILE_AA_SIZE);
 
     // log (S(i,k)) = log ( SUM_a p(i,a) * p(k,a) / f(a) )   k: column state, i: pos in ali, a: amino acid
-    if(profileStateMat->alphabetSize != 255){
+    if(profileStateMat->alphabetSize != 255 && profileStateMat->alphabetSize != 219){
         for (int i = 0; i < L; i++){
             for (int k = 0; k < profileStateMat->alphabetSize; k++) {
                 // compute log score for all 32 profile states

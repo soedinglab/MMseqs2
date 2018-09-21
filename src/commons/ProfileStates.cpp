@@ -13,6 +13,8 @@
 #include <ExpOpt3_8_polished.cs32.lib.h>
 #include <libPolished_8.lib.h>
 #include <Library255_may17.lib.h>
+#include <cs219.lib.h>
+
 //#include <libPure_blosum62_255.lib.h>
 //#include <libPure_blosum62_32.lib.h>
 //#include <libPureMMorder20_blosum62_255.lib.h>
@@ -36,6 +38,11 @@ ProfileStates::ProfileStates( int pAlphSize, double * pBack)
         case 32:
             //libraryString=std::string((const char *)libPure_blosum62_32_lib, libPure_blosum62_32_lib_len);
             libraryString=std::string((const char *)ExpOpt3_8_polished_cs32_lib, ExpOpt3_8_polished_cs32_lib_len);
+            break;
+        case 219:
+            //libraryString=std::string((const char *)libPure_blosum62_255_lib, libPure_blosum62_255_lib_len);
+            //libraryString=std::string((const char *)libPureMMorder20_blosum62_255_lib, libPureMMorder20_blosum62_255_lib_len);
+            libraryString=std::string((const char *)cs219_lib, cs219_lib_len);
             break;
         case 255:
             //libraryString=std::string((const char *)libPure_blosum62_255_lib, libPure_blosum62_255_lib_len);
@@ -292,13 +299,10 @@ float ProfileStates::getScoreNormalization() {
 
     exp = 1.0 + (exp - 1.0)/2;
 
-    std::cout << "Score normalization : " << 1.0/exp << std::endl;
+    Debug(Debug::INFO) << "Score normalization : " << 1.0/exp << "\n";
 
     exp = 1.0;
-    std::cout << "TEST: set it to " <<  exp << std::endl;
     return exp;
-
-    return 1.0/exp;
 }
 
 void ProfileStates::discretize(const float* sequence, size_t length, std::string &result)
@@ -312,7 +316,8 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
     for (size_t i = 0 ; i<length ; i++)
     {
         float minDiffScore = FLT_MAX;
-        profileCol = (float *)sequence + i*Sequence::PROFILE_AA_SIZE;
+        profileCol = (float*)
+                &sequence[i * Sequence::PROFILE_AA_SIZE];
 
         float maxScore = -FLT_MIN;
 //        size_t maxScoreIndex = 0;
@@ -322,10 +327,19 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
                 std::cout<<profileCol[a]<<"\t";
         }*/
 
+//        for(size_t pos = 0; pos < 20; pos++){
+//            printf("%.3f\t", profileCol[pos]);
+//        }
+//        std::cout << std::endl;
         // S(profile, c_k)
         for (size_t k=0;k<alphSize;k++)
         {
-            repScore[k] = score(profileCol,profiles[k]);
+            repScore[k] = score(profileCol, profiles[k]);
+
+//            for(size_t pos = 0; pos < 20; pos++){
+//                printf("%.3f\t", profiles[k][pos]);
+//            }
+//            std::cout << repScore[k] << std::endl;
             if (repScore[k]>maxScore)
             {
                 maxScore = repScore[k];
@@ -369,7 +383,7 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
             for (size_t l=0;l<VECSIZE_FLOAT;l++){
                 curDiffScore+= curDiffScoreSimdFlt[l];
             }
-            
+
             if (curDiffScore < minDiffScore)
             {
                 minDiffScore = curDiffScore;
@@ -381,6 +395,34 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
     }
     free(repScore);
 }
+
+
+
+void ProfileStates::discretizeCs219(const float* sequence, size_t length, std::string &result)
+{
+    float curDiffScore;
+    float* profileCol;
+    float* repScore = (float*)mem_align(ALIGN_FLOAT, 256*sizeof(float));
+    memset(repScore, 0, sizeof(float)*256);
+    for (size_t i = 0 ; i<length ; i++)
+    {
+        float minDiffScore = FLT_MAX;
+        profileCol = (float*)
+                &sequence[i * Sequence::PROFILE_AA_SIZE];
+        // Calculate posterior probabilities given sequence window around 'i'
+        double max = -FLT_MAX;
+        size_t k_max = 0;
+        for (size_t k = 0; k < alphSize; ++k) {
+            repScore[k] = prior[k] * score(profiles[k], profileCol);
+            k_max = (repScore[k] > max ) ? k : k_max;
+            max   = (repScore[k] > max ) ? repScore[k] : max;
+        }
+        result.push_back(k_max);
+    }
+    free(repScore);
+}
+
+
 
 float ProfileStates::score(float* profileCol, size_t state)
 {

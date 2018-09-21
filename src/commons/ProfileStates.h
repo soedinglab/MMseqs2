@@ -40,6 +40,7 @@ public:
     int read(std::string libraryData);
     int readProfile(std::stringstream &in, float * profile, float * normalizedProfile, float &prior);
     void discretize(const float* sequence, size_t length, std::string &result);
+	void discretizeCs219(const float* sequence, size_t length, std::string &result);
     float getScoreNormalization();
 
     float* getProfile(size_t state)

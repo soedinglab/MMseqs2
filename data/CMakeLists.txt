@@ -42,7 +42,8 @@ set(COMPILED_RESOURCES
         libPure_blosum62_255.lib
         libPure_blosum62_32.lib
         libPolished_8.lib
-	searchslicemodetargetprofile.sh
+	    searchslicemodetargetprofile.sh
+        cs219.lib
         )
 
 set(GENERATED_OUTPUT_HEADERS "")

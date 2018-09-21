@@ -55,7 +55,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
         evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), &sMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
         subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,
-                                                     sMat.subMatrixPseudoCounts, 2.0, 0.0, 8);
+                                                     sMat.subMatrixPseudoCounts, 2.0, 0.0, 219);
         tinySubMat = new int8_t[sMat.alphabetSize*sMat.alphabetSize];
         for (int i = 0; i < sMat.alphabetSize; i++) {
             for (int j = 0; j < sMat.alphabetSize; j++) {
