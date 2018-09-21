@@ -43,6 +43,7 @@ public:
         unsigned int targetGeneCount = (unsigned int) strtoull(targetSizeReader->getDataByDBKey(targetSetKey), NULL, 10);
 
         double pvalThreshold = alpha / targetGeneCount;
+        const size_t numSets = targetSizeReader->getSize();
 
         std::string buffer;
         char keyBuffer[255];
@@ -50,14 +51,9 @@ public:
         buffer.append(keyBuffer, tmpBuff - keyBuffer - 1);
         buffer.append("\t");
 
-        // TODO why?
+        //edge case p0 = 0
         if (pvalThreshold == 0.0) {
-            buffer.append("1");
-            return buffer;
-        }
-
-        if (pvalThreshold == 1.0) {
-            buffer.append("0");
+            buffer.append(SSTR(numSets));
             return buffer;
         }
 
@@ -72,40 +68,46 @@ public:
             }
         }
 
-        if (std::isinf(r)) {
-            buffer.append("0");
+        if (r == 0) {
+            buffer.append(SSTR(numSets));
             return buffer;
         }
 
-        // above it seems k counts the pvals that are less than p0, N_Q counts number of ORFs in Query set
-        // below we sum up to N_Q(orfCount), as in clovisSR updated manuscript
+        if (std::isinf(r)) {
+            buffer.append("0");
+            return buffer;
+        }        
+
+        const double expMinusR = exp(-r);
+        
+        //edge case p0 = 1
+        if (pvalThreshold == 1.0) {
+            buffer.append(SSTR(expMinusR * numSets));
+            return buffer;
+        }
+
+
         unsigned int orfCount = (unsigned int) strtoull(querySizeReader->getDataByDBKey(querySetKey), NULL, 10); 
         double truncatedFisherPval = 0;
-        double log_ratio_r_to_factorial = 0;
+        double logRatioRToFactorial = 0;
         const double logR = log(r);
         const double log1MinusPvalThr = log(1.0 - pvalThreshold);
         for (size_t i = 0; i < orfCount; ++i) { 
             double logProbKGoodHits = 1;
-            double first_factor = (LBinCoeff(orfCount, (i + 1)) + (i + 1) * logPvalThr + (orfCount - (i +1)) * log1MinusPvalThr); 
+            double firstFactor = (LBinCoeff(orfCount, (i + 1)) + (i + 1) * logPvalThr + (orfCount - (i +1)) * log1MinusPvalThr); 
             for (size_t j = i + 2; j < orfCount + 1; ++j) { 
-                logProbKGoodHits += exp(LBinCoeff(orfCount, j) + j * logPvalThr + (orfCount - j) * log1MinusPvalThr - first_factor);
+                logProbKGoodHits += exp(LBinCoeff(orfCount, j) + j * logPvalThr + (orfCount - j) * log1MinusPvalThr - firstFactor);
             }
-            logProbKGoodHits = first_factor + log(logProbKGoodHits);
+            logProbKGoodHits = firstFactor + log(logProbKGoodHits);
             if (i > 0) {
-                log_ratio_r_to_factorial = log_ratio_r_to_factorial + logR - log(i);
+                logRatioRToFactorial = logRatioRToFactorial + logR - log(i);
             }
-            truncatedFisherPval += exp(log_ratio_r_to_factorial + logProbKGoodHits);
+            truncatedFisherPval += exp(logRatioRToFactorial + logProbKGoodHits);
         }
 
 
         
-        double updatedPval = exp(-r) * truncatedFisherPval;
-        if (r == 0) {
-            updatedPval = 1;
-        }
-
-        // TODO: find out if this is what we want
-        const size_t numSets = targetSizeReader->getSize();
+        double updatedPval = expMinusR * truncatedFisherPval;
         double updatedEval = updatedPval * numSets;
         buffer.append(SSTR(updatedEval));
         return buffer;
