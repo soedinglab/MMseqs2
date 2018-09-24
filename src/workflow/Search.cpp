@@ -128,12 +128,12 @@ int search(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("ALIGNMENT_DB_EXT", targetDbType == Sequence::PROFILE_STATE_SEQ ? ".255" : "");
 
-    if (targetDbType == Sequence::HMM_PROFILE && par.sliceSearch) {
+    if (targetDbType == Sequence::HMM_PROFILE && par.sliceSearch > 0) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter,USE_ONLY_SET_PARAMETERS).c_str());
         cmd.addVariable("MAX_STEPS", std::to_string(30).c_str());
         cmd.addVariable("MAX_RESULTS_PER_QUERY", std::to_string(par.maxResListLen).c_str());
         size_t memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
-        cmd.addVariable("AVAIL_MEM", std::to_string(memoryLimit/1024).c_str());
+        cmd.addVariable("AVAIL_MEM", std::to_string(par.sliceSearch * memoryLimit/1024).c_str());
         cmd.addVariable("COMMONS", (std::string("--threads ") + std::to_string(par.threads)).c_str());
         
         if (isUngappedMode) {
