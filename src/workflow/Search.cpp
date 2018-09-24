@@ -29,6 +29,8 @@ void setSearchDefaults(Parameters *p) {
 
 
 int search(int argc, const char **argv, const Command& command) {
+    MMseqsMPI::init(argc, argv);
+
     Parameters& par = Parameters::getInstance();
     setSearchDefaults(&par);
     par.overrideParameterDescription((Command &)command, par.PARAM_COV_MODE.uniqid, NULL, NULL, par.PARAM_COV_MODE.category | MMseqsParameter::COMMAND_EXPERT);
@@ -98,6 +100,7 @@ int search(int argc, const char **argv, const Command& command) {
         }
     }
     par.printParameters(command.cmd, argc, argv, par.searchworkflow);
+
     if (FileUtil::directoryExists(par.db4.c_str())==false){
         Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db4.c_str()) == false){
@@ -109,17 +112,23 @@ int search(int argc, const char **argv, const Command& command) {
     }
     size_t hash = par.hashParameter(par.filenames, par.searchworkflow);
     std::string tmpDir = par.db4+"/"+SSTR(hash);
-    if (FileUtil::directoryExists(tmpDir.c_str())==false) {
-        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
-            EXIT(EXIT_FAILURE);
+    if(MMseqsMPI::rank == 0) {
+        if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
+            if (FileUtil::makeDir(tmpDir.c_str()) == false) {
+                Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
+        FileUtil::symlinkAlias(tmpDir, "latest");
     }
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
-    FileUtil::symlinkAlias(tmpDir, "latest");
 
-    const int originalRescoreMode = par.rescoreMode;
+#ifdef HAVE_MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+
+const int originalRescoreMode = par.rescoreMode;
 
     CommandCaller cmd;
     cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");

@@ -24,5 +24,7 @@ void MMseqsMPI::init(int argc, const char **argv) {
     Debug(Debug::INFO) << "Rank: " << rank << " Size: " << numProc << "\n";
 }
 #else
-void MMseqsMPI::init(int, const char **) {}
+void MMseqsMPI::init(int, const char **) {
+    rank = 0;
+}
 #endif
