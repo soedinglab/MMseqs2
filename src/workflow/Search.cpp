@@ -154,7 +154,13 @@ const int originalRescoreMode = par.rescoreMode;
         }
         
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
-        FileUtil::writeFile(tmpDir + "/searchslicemodetargetprofile.sh", searchslicemodetargetprofile_sh, searchslicemodetargetprofile_sh_len);
+        if(MMseqsMPI::rank == 0) {
+            FileUtil::writeFile(tmpDir + "/searchslicemodetargetprofile.sh", searchslicemodetargetprofile_sh,
+                                searchslicemodetargetprofile_sh_len);
+        }
+#ifdef HAVE_MPI
+        MPI_Barrier(MPI_COMM_WORLD);
+#endif
         program=std::string(tmpDir + "/searchslicemodetargetprofile.sh");
     } else if (targetDbType == Sequence::HMM_PROFILE) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
@@ -170,7 +176,12 @@ const int originalRescoreMode = par.rescoreMode;
         }
         par.maxResListLen = maxResListLen;
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
-        FileUtil::writeFile(tmpDir + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
+        if(MMseqsMPI::rank == 0) {
+            FileUtil::writeFile(tmpDir + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
+        }
+#ifdef HAVE_MPI
+        MPI_Barrier(MPI_COMM_WORLD);
+#endif
         program=std::string(tmpDir + "/searchtargetprofile.sh");
     } else if (par.numIterations > 1) {
         for (size_t i = 0; i < par.searchworkflow.size(); i++) {
@@ -210,8 +221,12 @@ const int originalRescoreMode = par.rescoreMode;
             cmd.addVariable(std::string("PROFILE_PAR_" + SSTR(i)).c_str(),   par.createParameterString(par.result2profile).c_str());
             par.pca = 1.0;
         }
-
-        FileUtil::writeFile(tmpDir + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
+        if(MMseqsMPI::rank == 0) {
+            FileUtil::writeFile(tmpDir + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
+        }
+#ifdef HAVE_MPI
+        MPI_Barrier(MPI_COMM_WORLD);
+#endif
         program = std::string(tmpDir + "/blastpgp.sh");
     } else {
         if (par.sensSteps > 1){
@@ -252,12 +267,22 @@ const int originalRescoreMode = par.rescoreMode;
         } else {
             cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         }
-        FileUtil::writeFile(tmpDir + "/blastp.sh", blastp_sh, blastp_sh_len);
+        if(MMseqsMPI::rank == 0) {
+            FileUtil::writeFile(tmpDir + "/blastp.sh", blastp_sh, blastp_sh_len);
+        }
+#ifdef HAVE_MPI
+        MPI_Barrier(MPI_COMM_WORLD);
+#endif
         program = std::string(tmpDir + "/blastp.sh");
     }
 
     if (isTranslatedNuclSearch==true){
-        FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
+        if(MMseqsMPI::rank == 0) {
+            FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
+        }
+#ifdef HAVE_MPI
+        MPI_Barrier(MPI_COMM_WORLD);
+#endif
         cmd.addVariable("QUERY_NUCL", queryDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
         cmd.addVariable("TARGET_NUCL", targetDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
