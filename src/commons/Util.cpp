@@ -542,6 +542,26 @@ float Util::computeSeqId(int seqIdMode, int aaIds, int qLen, int tLen, int alnLe
     return 0.0;
 }
 
+
+
+float Util::averageValueOnAminoAcids(const std::unordered_map<char, float> &values, const char *seq) {
+    const char *seqPointer = seq;
+    float ret = values.at('0') + values.at('1'); // C ter and N ter values
+    std::unordered_map<char, float>::const_iterator k;
+
+    while (*seqPointer != '\0' && *seqPointer != '\n') {
+        if ((k = values.find(tolower(*seqPointer))) != values.end()) {
+            ret += k->second;
+        }
+
+        seqPointer++;
+    }
+
+    size_t seqLen = seqPointer - seq;
+    return ret / std::max(static_cast<size_t>(1), seqLen);
+}
+
+
 template<> std::string SSTR(char x) { return std::string(1, x); }
 template<> std::string SSTR(const std::string &x) { return x; }
 template<> std::string SSTR(const char* x) { return x; }
@@ -605,6 +625,6 @@ std::string SSTR(double x) {
 template<>
 std::string SSTR(float x) {
     char buffer[32];
-    int n = sprintf(buffer, "%.3E", x);
+    int n = sprintf(buffer, "%.3f", x);
     return std::string(buffer, n);
 }

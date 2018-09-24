@@ -22,7 +22,6 @@ set(util_source_files
         util/orftocontig.cpp
         util/filterdb.cpp
         util/gff2db.cpp
-        util/kmermatcher.cpp
         util/maskbygff.cpp
         util/mergeclusters.cpp
         util/mergeresultsbyset.cpp
@@ -31,7 +30,6 @@ set(util_source_files
         util/prefixid.cpp
         util/profile2cs.cpp
         util/profile2pssm.cpp
-        util/rescorediagonal.cpp
         util/result2flat.cpp
         util/result2msa.cpp
         util/result2profile.cpp

@@ -53,6 +53,7 @@ extern int profile2cs(int argc, const char **argv, const Command& command);
 extern int profile2pssm(int argc, const char **argv, const Command& command);
 extern int proteinaln2nucl(int argc, const char **argv, const Command& command);
 extern int rescorediagonal(int argc, const char **argv, const Command& command);
+extern int ungappedprefilter(int argc, const char **argv, const Command& command);
 extern int result2flat(int argc, const char **argv, const Command& command);
 extern int result2msa(int argc, const char **argv, const Command& command);
 extern int result2pp(int argc, const char **argv, const Command& command);

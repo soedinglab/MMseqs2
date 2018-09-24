@@ -10,6 +10,7 @@ include(AppendTargetProperty)
 add_subdirectory(alignment)
 add_subdirectory(clustering)
 add_subdirectory(commons)
+add_subdirectory(linclust)
 add_subdirectory(multihit)
 add_subdirectory(prefiltering)
 add_subdirectory(taxonomy)
@@ -32,6 +33,7 @@ add_library(mmseqs-framework
         ${multihit_source_files}
         ${taxonomy_header_files}
         ${taxonomy_source_files}
+        ${linclust_source_files}
         ${util_header_files}
         ${util_source_files}
         ${workflow_source_files})
@@ -43,6 +45,7 @@ target_include_directories(mmseqs-framework PUBLIC clustering)
 target_include_directories(mmseqs-framework PUBLIC commons)
 target_include_directories(mmseqs-framework PUBLIC multihit)
 target_include_directories(mmseqs-framework PUBLIC prefiltering)
+target_include_directories(mmseqs-framework PUBLIC linclust)
 target_include_directories(mmseqs-framework PUBLIC taxonomy)
 target_include_directories(mmseqs-framework PUBLIC util)
 target_include_directories(mmseqs-framework PUBLIC .)

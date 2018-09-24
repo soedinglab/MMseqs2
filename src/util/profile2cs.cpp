@@ -25,7 +25,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> profileReader(par.db1.c_str(), par.db1Index.c_str());
     profileReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    int alphabetSize[] = {8, 255};
+    int alphabetSize[] = {219, 255};
     for(size_t i = 0; i < 2; i++){
         std::string dbName = par.db2;
         std::string dbIndex = par.db2;
@@ -36,7 +36,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
         dbIndex += ".index";
         DBWriter writer(dbName.c_str(), dbIndex.c_str(), par.threads);
         writer.open();
-
+        size_t alphSize = alphabetSize[i];
         size_t entries = profileReader.getSize();
 
         SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0);
@@ -61,7 +61,11 @@ int profile2cs(int argc, const char **argv, const Command &command) {
 
                 unsigned int key = profileReader.getDbKey(i);
                 seq.mapSequence(i, key, profileReader.getData(i));
-                ps.discretize(seq.getProfile(), seq.L, result);
+                if(alphSize == 219){
+                    ps.discretizeCs219(seq.getProfile(), seq.L, result);
+                }else {
+                    ps.discretize(seq.getProfile(), seq.L, result);
+                }
                 
                 //std::cout<<result.size()<<" vs "<<seq.L<<std::endl;
                 

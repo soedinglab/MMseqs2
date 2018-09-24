@@ -1099,3 +1099,64 @@ s_align SmithWaterman::scoreIdentical(int *dbSeq, int L, EvalueComputation * eva
 	return r;
 }
 
+int SmithWaterman::ungapped_alignment(const int *db_sequence, int32_t db_length) {
+#define SWAP(tmp, arg1, arg2) tmp = arg1; arg1 = arg2; arg2 = tmp;
+
+	int i; // position in query bands (0,..,W-1)
+	int j; // position in db sequence (0,..,dbseq_length-1)
+	int element_count = (VECSIZE_INT * 4);
+	const int W = (profile->query_length + (element_count - 1)) / element_count; // width of bands in query and score matrix = hochgerundetes LQ/16
+
+	simd_int *p;
+	simd_int S;              // 16 unsigned bytes holding S(b*W+i,j) (b=0,..,15)
+	simd_int Smax = simdi_setzero();
+	simd_int Soffset; // all scores in query profile are shifted up by Soffset to obtain pos values
+	simd_int *s_prev, *s_curr; // pointers to Score(i-1,j-1) and Score(i,j), resp.
+	simd_int *qji;             // query profile score in row j (for residue x_j)
+	simd_int *s_prev_it, *s_curr_it;
+	simd_int *query_profile_it = (simd_int *) profile->profile_byte;
+	simd_int Zero = simdi_setzero();
+
+	// Load the score offset to all 16 unsigned byte elements of Soffset
+	Soffset = simdi8_set(profile->bias);
+	s_curr = vHStore;
+	s_prev = vHLoad;
+
+	memset(vHStore,0,W*sizeof(simd_int));
+	memset(vHLoad,0,W*sizeof(simd_int));
+
+	for (j = 0; j < db_length; ++j) // loop over db sequence positions
+	{
+
+		// Get address of query scores for row j
+		qji = query_profile_it + db_sequence[j] * W;
+
+		// Load the next S value
+		S = simdi_load(s_curr + W - 1);
+		S = simdi8_shiftl(S, 1);
+
+		// Swap s_prev and s_curr, smax_prev and smax_curr
+		SWAP(p, s_prev, s_curr);
+
+		s_curr_it = s_curr;
+		s_prev_it = s_prev;
+
+		for (i = 0; i < W; ++i) // loop over query band positions
+		{
+			// Saturated addition and subtraction to score S(i,j)
+			S = simdui8_adds(S, *(qji++)); // S(i,j) = S(i-1,j-1) + (q(i,x_j) + Soffset)
+			S = simdui8_subs(S, Soffset);       // S(i,j) = max(0, S(i,j) - Soffset)
+			simdi_store(s_curr_it++, S);       // store S to s_curr[i]
+			Smax = simdui8_max(Smax, S);       // Smax(i,j) = max(Smax(i,j), S(i,j))
+
+			// Load the next S and Smax values
+			S = simdi_load(s_prev_it++);
+		}
+	}
+	int score = simd_hmax((unsigned char *) &Smax, element_count);
+
+	/* return largest score */
+	return score;
+#undef SWAP
+}
+

@@ -29,7 +29,7 @@ const int8_t seed_7_spaced[]  = {1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1};
 const int8_t seed_9[]         = {1, 1, 1, 1, 1, 1, 1, 1, 1};
 const int8_t seed_9_spaced[]  = {1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1};
 const int8_t seed_10[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-const int8_t seed_10_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_10_spaced[] = {1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1};
 const int8_t seed_11[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 const int8_t seed_11_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 const int8_t seed_12[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
@@ -62,6 +62,7 @@ public:
     void mapProfile(const char *sequence, bool mapScores);
 
     // mixture of library and profile prob
+    template <int T>
     void mapProfileState(const char *sequence);
 
     // map the profile state sequence
