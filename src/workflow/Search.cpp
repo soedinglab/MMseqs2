@@ -100,19 +100,19 @@ int search(int argc, const char **argv, const Command& command) {
         }
     }
     par.printParameters(command.cmd, argc, argv, par.searchworkflow);
-
-    if (FileUtil::directoryExists(par.db4.c_str())==false){
-        Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
-        if (FileUtil::makeDir(par.db4.c_str()) == false){
-            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db4 << ".\n";
-            EXIT(EXIT_FAILURE);
-        } else {
-            Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
-        }
-    }
+    
     size_t hash = par.hashParameter(par.filenames, par.searchworkflow);
     std::string tmpDir = par.db4+"/"+SSTR(hash);
     if(MMseqsMPI::rank == 0) {
+        if (FileUtil::directoryExists(par.db4.c_str())==false){
+            Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
+            if (FileUtil::makeDir(par.db4.c_str()) == false){
+                Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db4 << ".\n";
+                EXIT(EXIT_FAILURE);
+            } else {
+                Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
+            }
+        }
         if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
             if (FileUtil::makeDir(tmpDir.c_str()) == false) {
                 Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
