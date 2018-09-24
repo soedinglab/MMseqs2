@@ -1343,7 +1343,7 @@ void Parameters::setDefaults() {
 
     //besthitperset
     simpleBestHit = false;
-    alpha = 0.001;
+    alpha = 1;
     shortOutput = false;
 
     // concatdbs
