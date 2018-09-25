@@ -92,7 +92,7 @@ do
     fi
 
     # keep only the top $MAX_RESULTS_PER_QUERY hits according to evalue
-    "$MMSEQS" filterdb "$TMP_PATH/searchOut.new" "$TMP_PATH/searchOut.new.sorted" --sort-entries 1 --filter-column 4 $COMMONS \
+    "$MMSEQS" filterdb "$TMP_PATH/searchOut.new" "$TMP_PATH/searchOut.new.sorted" --sort-entries 2 --filter-column 2 $COMMONS \
         || fail "Filter (sorting) died"
     rm -f "$TMP_PATH/searchOut.new"  "$TMP_PATH/searchOut.new.index"
     "$MMSEQS" filterdb "$TMP_PATH/searchOut.new.sorted" "$TMP_PATH/searchOut.new.sorted.trunc" --extract-lines "$MAX_RESULTS_PER_QUERY" $COMMONS \
