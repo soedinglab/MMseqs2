@@ -395,14 +395,19 @@ int result2profile(int argc, const char **argv, const Command &command) {
     int status = result2profile(resultReader, par, par.db4, 0, resultReader.getSize());
 #endif
 
-    FileUtil::symlinkAbs(par.hdr1, par.hdr4);
-    FileUtil::symlinkAbs(par.hdr1Index, par.hdr4Index);
+    if (MMseqsMPI::isMaster()) {
+        FileUtil::symlinkAbs(par.hdr1, par.hdr4);
+        FileUtil::symlinkAbs(par.hdr1Index, par.hdr4Index);
 
-    if (par.omitConsensus == false) {
-        FileUtil::symlinkAbs(par.hdr1, par.db4 + "_consensus_h");
-        FileUtil::symlinkAbs(par.hdr1Index, par.db4 + "_consensus_h.index");
+        if (par.omitConsensus == false) {
+            FileUtil::symlinkAbs(par.hdr1, par.db4 + "_consensus_h");
+            FileUtil::symlinkAbs(par.hdr1Index, par.db4 + "_consensus_h.index");
+        }
     }
-
+    
+#ifdef HAVE_MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
     resultReader.close();
 
     return status;
