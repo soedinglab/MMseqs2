@@ -66,7 +66,9 @@ public:
             delete index;
         }
     }
-
+    DBReader<unsigned int> * getReader(){
+        return reader;
+    }
 private:
     DBReader<unsigned int> *reader;
     DBReader<unsigned int> *index;
@@ -100,6 +102,78 @@ void printSeqBasedOnAln(std::string &out, const Sequence *seq, unsigned int offs
     }
 }
 
+
+/*
+query       Query sequence label
+target      Target sequenc label
+evalue      E-value
+gapopen     Number of gap opens
+pident      Percentage of identical matches
+nident      Number of identical matches
+qstart      1-based start position of alignment in query sequence
+qend        1-based end position of alignment in query sequence
+qlen        Query sequence length
+tstart      1-based start position of alignment in target sequence
+tend        1-based end position of alignment in target sequence
+tlen        Target sequence length
+alnlen      Number of alignment columns
+raw         Raw alignment score
+bits        Bit score
+cigar       Alignment as string M=letter pair, D=delete (gap in query), I=insert (gap in target)
+qseq        Full-length query sequence
+tseq        Full-length target sequence
+qheader     Header of Query sequence
+theader     Header of Target sequence
+qaln        Aligned query sequence with gaps
+taln        Aligned target sequence with gaps
+qframe      Query frame (-3 to +3)
+tframe      Target frame (-3 to +3)
+mismatch    Number of mismatches
+qcov        Fraction of query sequence covered by alignment
+tcov        Fraction of target sequence covered by alignment
+ */
+
+std::vector<int> getOutputFormat(std::string outformat, bool &needdatabase, bool &needbacktrace) {
+    std::vector<std::string> outformatSplit = Util::split(outformat, " ");
+    std::vector<int> formatCodes;
+    int code = 0;
+    for(size_t i = 0; i < outformatSplit.size(); i++){
+        if(outformatSplit[i].compare("query") == 0){ code = Parameters::OUTFMT_QUERY;}
+        else if(outformatSplit[i].compare("target") == 0){ code = Parameters::OUTFMT_TARGET;}
+        else if(outformatSplit[i].compare("evalue") == 0){ code = Parameters::OUTFMT_EVALUE;}
+        else if(outformatSplit[i].compare("gapopen") == 0){ code = Parameters::OUTFMT_GAPOPEN;}
+        else if(outformatSplit[i].compare("pident") == 0){ code = Parameters::OUTFMT_PIDENT;}
+        else if(outformatSplit[i].compare("nident") == 0){ code = Parameters::OUTFMT_NIDENT;}
+        else if(outformatSplit[i].compare("qstart") == 0){ code = Parameters::OUTFMT_QSTART;}
+        else if(outformatSplit[i].compare("qend") == 0){ code = Parameters::OUTFMT_QEND;}
+        else if(outformatSplit[i].compare("qlen") == 0){ code = Parameters::OUTFMT_QLEN;}
+        else if(outformatSplit[i].compare("tstart") == 0){ code = Parameters::OUTFMT_TSTART;}
+        else if(outformatSplit[i].compare("tend") == 0){ code = Parameters::OUTFMT_TEND;}
+        else if(outformatSplit[i].compare("tlen") == 0){ code = Parameters::OUTFMT_TLEN;}
+        else if(outformatSplit[i].compare("alnlen") == 0){ code = Parameters::OUTFMT_ALNLEN;}
+        else if(outformatSplit[i].compare("raw") == 0){ needdatabase = true; code = Parameters::OUTFMT_RAW;}
+        else if(outformatSplit[i].compare("bits") == 0){ code = Parameters::OUTFMT_BITS;}
+        else if(outformatSplit[i].compare("cigar") == 0){ needbacktrace = true; code = Parameters::OUTFMT_CIGAR;}
+        else if(outformatSplit[i].compare("qseq") == 0){ needdatabase = true; code = Parameters::OUTFMT_QSEQ;}
+        else if(outformatSplit[i].compare("tseq") == 0){ needdatabase = true; code = Parameters::OUTFMT_TSEQ;}
+        else if(outformatSplit[i].compare("qheader") == 0){ code = Parameters::OUTFMT_QHEADER;}
+        else if(outformatSplit[i].compare("theader") == 0){ code = Parameters::OUTFMT_THEADER;}
+        else if(outformatSplit[i].compare("qaln") == 0){ needbacktrace = true; needdatabase = true; code = Parameters::OUTFMT_QALN;}
+        else if(outformatSplit[i].compare("taln") == 0){ needbacktrace = true; needdatabase = true; code = Parameters::OUTFMT_TALN;}
+        else if(outformatSplit[i].compare("qframe") == 0){ code = Parameters::OUTFMT_QFRAME;}
+        else if(outformatSplit[i].compare("tframe") == 0){ code = Parameters::OUTFMT_TFRAME;}
+        else if(outformatSplit[i].compare("mismatch") == 0){ code = Parameters::OUTFMT_MISMATCH;}
+        else if(outformatSplit[i].compare("qcov") == 0){ code = Parameters::OUTFMT_QCOV;}
+        else if(outformatSplit[i].compare("tcov") == 0){ code = Parameters::OUTFMT_TCOV;}
+        else {
+            Debug(Debug::ERROR) << "Format code " << outformatSplit[i] << " does not exist.";
+            EXIT(EXIT_FAILURE);
+        }
+        formatCodes.push_back(code);
+    }
+    return formatCodes;
+}
+
 int convertalignments(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
@@ -109,10 +183,13 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     const bool sameDB = par.db1.compare(par.db2) == 0 ? true : false;
     const int format = par.formatAlignmentMode;
-    const bool needSequenceDB =
+    bool needSequenceDB =
             format == Parameters::FORMAT_ALIGNMENT_PAIRWISE
             || format == Parameters::FORMAT_ALIGNMENT_SAM;
-
+    bool needbacktrace = false;
+    std::vector<int> outcodes = getOutputFormat(par.outfmt, needSequenceDB, needbacktrace);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+    EvalueComputation * evaluer;
     if (needSequenceDB) {
         targetReader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         targetReader->open(DBReader<unsigned int>::NOSORT);
@@ -122,7 +199,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             queryReader = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
             queryReader->open(DBReader<unsigned int>::NOSORT);
         }
+        evaluer = new EvalueComputation(targetReader->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
+
     }
+
     Debug(Debug::INFO) << "Query Header file: " << par.db1 << "_h\n";
     HeaderIdReader qHeaderDbr(par.db1.c_str(), par.noPreload);
 
@@ -153,7 +233,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     resultWriter.open();
     Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
     bool isDb = par.dbOut;
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
 
 #pragma omp parallel num_threads(localThreads)
     {
@@ -168,11 +247,11 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
+        char buffer[1024];
 
         std::string result;
         result.reserve(1024*1024);
 
-        char buffer[1024];
         std::vector<Matcher::result_t> results;
         results.reserve(300);
 
@@ -182,19 +261,33 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
             unsigned int queryKey = alnDbr.getDbKey(i);
             char *data = alnDbr.getData(i);
-
+            char *querySeqData = NULL;
             if (needSequenceDB) {
-                querySeq->mapSequence(i, queryKey, queryReader->getDataByDBKey(queryKey));
+                querySeqData = queryReader->getDataByDBKey(queryKey);
+                querySeq->mapSequence(i, queryKey, querySeqData);
             }
+            size_t qHeaderId = qHeaderDbr.getReader()->getId(queryKey);
+            const char *qHeader = qHeaderDbr.getReader()->getData(qHeaderId);
+            size_t qHeaderLen = qHeaderDbr.getReader()->getSeqLens(qHeaderId);
+            std::string queryId = Util::parseFastaHeader(qHeader);
 
-            std::string queryId = qHeaderDbr.getId(queryKey);
             Matcher::readAlignmentResults(results, data, true);
             unsigned int missMatchCount;
+            unsigned int identical;
             for (size_t j = 0; j < results.size(); j++) {
                 const Matcher::result_t &res = results[j];
-                std::string targetId = tHeaderDbr->getId(res.dbKey);
+                if(res.backtrace.size() == 0 && needbacktrace == true){
+                    Debug(Debug::ERROR) << "Backtrace cigar is missing in the alignment result. Please recompute the alignment with the -a flag.\n"
+                                           "Command: mmseqs align " << par.db1 << " " << par.db2 << " " << par.db3 << " " << "alnNew -a\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                size_t tHeaderId = tHeaderDbr->getReader()->getId(res.dbKey);
+                const char *tHeader = tHeaderDbr->getReader()->getData(tHeaderId);
+                size_t tHeaderLen = tHeaderDbr->getReader()->getSeqLens(tHeaderId);
+                std::string targetId = Util::parseFastaHeader(tHeader);
                 unsigned int gapOpenCount = 0;
                 unsigned int alnLen = res.alnLength;
+
                 if (res.backtrace.size() > 0) {
                     size_t matchCount = 0;
                     alnLen = 0;
@@ -219,7 +312,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         }
                     }
 //                res.seqId = X / alnLen;
-                    unsigned int identical = static_cast<unsigned int>( res.seqId * static_cast<float>(alnLen) + 0.5 );
+                    identical = static_cast<unsigned int>( res.seqId * static_cast<float>(alnLen) + 0.5 );
+                    //res.alnLength = alnLen;
                     missMatchCount = static_cast<unsigned int>( matchCount - identical);
                 } else {
                     int adjustQstart = (res.qStartPos == -1) ? 0 : res.qStartPos;
@@ -232,20 +326,106 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
                 switch (format) {
                     case Parameters::FORMAT_ALIGNMENT_BLAST_TAB: {
-                        int count = snprintf(buffer, sizeof(buffer),
-                                             "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                                             queryId.c_str(), targetId.c_str(), res.seqId, alnLen,
-                                             missMatchCount, gapOpenCount,
-                                             res.qStartPos + 1, res.qEndPos + 1,
-                                             res.dbStartPos + 1, res.dbEndPos + 1,
-                                             res.eval, res.score);
-
-                        if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
-                            Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
-                            continue;
+                        if(outcodes.size()==0){
+                            int count = snprintf(buffer, sizeof(buffer),
+                                                 "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
+                                                 queryId.c_str(), targetId.c_str(), res.seqId, alnLen,
+                                                 missMatchCount, gapOpenCount,
+                                                 res.qStartPos + 1, res.qEndPos + 1,
+                                                 res.dbStartPos + 1, res.dbEndPos + 1,
+                                                 res.eval, res.score);
+                            if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
+                                Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
+                                continue;
+                            }
+                            result.append(buffer, count);
+                        }else{
+                            for(size_t i = 0; i < outcodes.size(); i++) {
+                                switch (outcodes[i]) {
+                                    case Parameters::OUTFMT_QUERY:
+                                        result.append(queryId);
+                                        break;
+                                    case Parameters::OUTFMT_TARGET:
+                                        result.append(targetId);
+                                        break;
+                                    case Parameters::OUTFMT_EVALUE:
+                                        result.append(SSTR(res.eval));
+                                        break;
+                                    case Parameters::OUTFMT_GAPOPEN:
+                                        result.append(SSTR(gapOpenCount));
+                                        break;
+                                    case Parameters::OUTFMT_PIDENT:
+                                        result.append(SSTR(res.seqId));
+                                        break;
+                                    case Parameters::OUTFMT_NIDENT:
+                                        result.append(SSTR(identical));
+                                        break;
+                                    case Parameters::OUTFMT_QSTART:
+                                        result.append(SSTR(res.qStartPos + 1));
+                                        break;
+                                    case Parameters::OUTFMT_QEND:
+                                        result.append(SSTR(res.qEndPos + 1));
+                                        break;
+                                    case Parameters::OUTFMT_QLEN:
+                                        result.append(SSTR(res.qLen));
+                                        break;
+                                    case Parameters::OUTFMT_TSTART:
+                                        result.append(SSTR(res.dbStartPos + 1));
+                                        break;
+                                    case Parameters::OUTFMT_TEND:
+                                        result.append(SSTR(res.dbEndPos + 1));
+                                        break;
+                                    case Parameters::OUTFMT_TLEN:
+                                        result.append(SSTR(res.dbLen));
+                                        break;
+                                    case Parameters::OUTFMT_ALNLEN:
+                                        result.append(SSTR(alnLen));
+                                        break;
+                                    case Parameters::OUTFMT_RAW:
+                                        result.append(SSTR(static_cast<int>(evaluer->computeRawScoreFromBitScore(res.score) +
+                                                                            0.5)));
+                                        break;
+                                    case Parameters::OUTFMT_BITS:
+                                        result.append(SSTR(res.score));
+                                        break;
+                                    case Parameters::OUTFMT_CIGAR:
+                                        result.append(SSTR(res.backtrace));
+                                        break;
+                                    case Parameters::OUTFMT_QSEQ:
+                                        result.append(querySeqData, res.qLen);
+                                        break;
+                                    case Parameters::OUTFMT_TSEQ:
+                                        result.append(targetReader->getDataByDBKey(res.dbKey), res.dbLen);
+                                        break;
+                                    case Parameters::OUTFMT_QHEADER:
+                                        result.append(qHeader, qHeaderLen-2);
+                                        break;
+                                    case Parameters::OUTFMT_THEADER:
+                                        result.append(tHeader, tHeaderLen-2);
+                                        break;
+                                    case Parameters::OUTFMT_QALN:
+                                        printSeqBasedOnAln(result, querySeq, res.qStartPos, Matcher::uncompressAlignment(res.backtrace), false);
+                                        break;
+                                    case Parameters::OUTFMT_TALN:
+                                        targetSeq->mapSequence(i, res.dbKey, targetReader->getDataByDBKey(res.dbKey));
+                                        printSeqBasedOnAln(result, targetSeq, res.dbStartPos, Matcher::uncompressAlignment(res.backtrace), true);
+                                        break;
+                                    case Parameters::OUTFMT_MISMATCH:
+                                        result.append(SSTR(missMatchCount));
+                                        break;
+                                    case Parameters::OUTFMT_QCOV:
+                                        result.append(SSTR(res.qcov));
+                                        break;
+                                    case Parameters::OUTFMT_TCOV:
+                                        result.append(SSTR(res.dbcov));
+                                        break;
+                                }
+                                if(i < outcodes.size() - 1){
+                                    result.push_back('\t');
+                                }
+                            }
+                            result.push_back('\n');
                         }
-
-                        result.append(buffer, count);
                         break;
                     }
                     case Parameters::FORMAT_ALIGNMENT_BLAST_WITH_LEN: {
@@ -326,6 +506,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             targetReader->close();
             delete targetReader;
         }
+        delete evaluer;
     }
 
     return EXIT_SUCCESS;

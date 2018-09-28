@@ -53,10 +53,39 @@ public:
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
     static const unsigned int ALIGNMENT_MODE_UNGAPPED = 4;
 
-    // format alignment
+    // convertalis alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
     static const int FORMAT_ALIGNMENT_PAIRWISE  = 1;
     static const int FORMAT_ALIGNMENT_BLAST_WITH_LEN = 2;
+    // outfmt
+    static const int OUTFMT_QUERY = 0;
+    static const int OUTFMT_TARGET = 1;
+    static const int OUTFMT_EVALUE = 2;
+    static const int OUTFMT_GAPOPEN = 3;
+    static const int OUTFMT_PIDENT = 4;
+    static const int OUTFMT_NIDENT = 5;
+    static const int OUTFMT_QSTART = 6;
+    static const int OUTFMT_QEND = 7;
+    static const int OUTFMT_QLEN = 8;
+    static const int OUTFMT_TSTART = 9;
+    static const int OUTFMT_TEND = 10;
+    static const int OUTFMT_TLEN = 11;
+    static const int OUTFMT_ALNLEN = 12;
+    static const int OUTFMT_RAW = 13;
+    static const int OUTFMT_BITS = 14;
+    static const int OUTFMT_CIGAR = 15;
+    static const int OUTFMT_QSEQ = 16;
+    static const int OUTFMT_TSEQ = 17;
+    static const int OUTFMT_QHEADER = 18;
+    static const int OUTFMT_THEADER = 19;
+    static const int OUTFMT_QALN = 20;
+    static const int OUTFMT_TALN = 21;
+    static const int OUTFMT_QFRAME = 22;
+    static const int OUTFMT_TFRAME = 23;
+    static const int OUTFMT_MISMATCH = 24;
+    static const int OUTFMT_QCOV = 25;
+    static const int OUTFMT_TCOV = 26;
+
     // NOT IMPLEMENTED YET
     static const int FORMAT_ALIGNMENT_SAM       = 99;
 
@@ -255,8 +284,9 @@ public:
     // convertprofiledb
     int profileMode;
 
-    // format alignment
+    // convertalis
     int formatAlignmentMode;            // BLAST_TAB, PAIRWISE or SAM
+    std::string outfmt;
     bool dbOut;
 
     // rescorediagonal
@@ -483,6 +513,7 @@ public:
 
     // format alignment
     PARAMETER(PARAM_FORMAT_MODE)
+    PARAMETER(PARAM_FORMAT_OUTPUT)
     PARAMETER(PARAM_DB_OUTPUT)
 
     // rescoremode
