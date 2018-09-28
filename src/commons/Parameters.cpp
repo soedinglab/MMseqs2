@@ -203,8 +203,12 @@ Parameters::Parameters():
         // convertkb
         PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB Columns", "list of indices of UniprotKB columns to be extracted", typeid(std::string), (void *) &kbColumns, ""),
         PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover Deleted", "Indicates if sequences are allowed to be be removed during updating", typeid(bool), (void*) &recoverDeleted, ""),
+        // lca
         PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA Ranks", "Ranks to return in LCA computation", typeid(std::string), (void*) &lcaRanks, ""),
         PARAM_BLACKLIST(PARAM_BLACKLIST_ID, "--blacklist", "Blacklisted Taxa", "Comma separted list of ignored taxa in LCA computation", typeid(std::string), (void*)&blacklist, "([0-9]+,)?[0-9]+"),
+        // expandaln
+        PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion Mode", "Which hits (still fullfilling the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void*) &expansionMode, "^[0-2]{1}$"),
+        // taxonomy
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA Mode", "LCA Mode: No LCA 0, Single Search LCA 1, 2bLCA 2", typeid(int), (void*) &lcaMode, "^[0-2]{1}$")
 {
     if (instance) {
@@ -696,6 +700,23 @@ Parameters::Parameters():
     lca.push_back(PARAM_BLACKLIST);
     lca.push_back(PARAM_THREADS);
     lca.push_back(PARAM_V);
+
+    // exapandaln
+    expandaln.push_back(PARAM_SUB_MAT);
+    expandaln.push_back(PARAM_GAP_OPEN);
+    expandaln.push_back(PARAM_GAP_EXTEND);
+    expandaln.push_back(PARAM_MAX_SEQ_LEN);
+    expandaln.push_back(PARAM_SCORE_BIAS);
+    expandaln.push_back(PARAM_NO_COMP_BIAS_CORR);
+    expandaln.push_back(PARAM_E);
+    expandaln.push_back(PARAM_MIN_SEQ_ID);
+    expandaln.push_back(PARAM_SEQ_ID_MODE);
+    expandaln.push_back(PARAM_C);
+    expandaln.push_back(PARAM_COV_MODE);
+    expandaln.push_back(PARAM_PCA);
+    expandaln.push_back(PARAM_PCB);
+    expandaln.push_back(PARAM_THREADS);
+    expandaln.push_back(PARAM_V);
 
     // WORKFLOWS
     searchworkflow = combineList(align, prefilter);
@@ -1415,6 +1436,9 @@ void Parameters::setDefaults() {
     // other sequences (plasmids, etc)
     // https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=28384
     blacklist = "12908,28384";
+
+    // expandaln
+    expansionMode = 1;
 
     // taxonomy
     lcaMode = 2;

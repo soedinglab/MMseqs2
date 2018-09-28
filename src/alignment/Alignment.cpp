@@ -364,7 +364,8 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         res.dbcov = 1.0f;
                         res.seqId = 1.0f;
                     }
-                    if(checkCriteriaAndAddHitToList(res, isIdentity, swResults)){
+                    if(checkCriteria(res, isIdentity, evalThr, seqIdThr, covMode, covThr)){
+                        swResults.emplace_back(res);
                         passedNum++;
                         totalPassedNum++;
                         rejected = 0;
@@ -407,7 +408,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     }
                 }
 
-                // put the contents of the swResults list into ffindex DB
+                // put the contents of the swResults list into a result DB
                 for (size_t result = 0; result < swResults.size(); result++) {
                     size_t len = Matcher::resultToBuffer(buffer, swResults[result], addBacktrace);
                     alnResultsOutString.append(buffer, len);
@@ -490,7 +491,7 @@ size_t Alignment::estimateHDDMemoryConsumption(int dbSize, int maxSeqs) {
 }
 
 
-bool Alignment::checkCriteriaAndAddHitToList(Matcher::result_t &res, bool isIdentity, std::vector<Matcher::result_t> &swHits){
+bool Alignment::checkCriteria(Matcher::result_t &res, bool isIdentity, double evalThr, double seqIdThr, int covMode, float covThr) {
     const bool evalOk = (res.eval <= evalThr); // -e
     const bool seqIdOK = (res.seqId >= seqIdThr); // --min-seq-id
     const bool covOK = Util::hasCoverage(covThr, covMode, res.qcov, res.dbcov);
@@ -503,7 +504,6 @@ bool Alignment::checkCriteriaAndAddHitToList(Matcher::result_t &res, bool isIden
           covOK
         ))
     {
-        swHits.push_back(res);
         return true;
     } else {
         return false;
@@ -529,8 +529,9 @@ void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &d
         for (int altAli = 0; altAli < altAlignment && nextAlignment; altAli++) {
             Matcher::result_t res = matcher.getSWResult(&dbSeq, INT_MAX, covMode, covThr, evalThr, swMode,
                                                         seqIdMode, isIdentity);
-            nextAlignment = checkCriteriaAndAddHitToList(res, isIdentity, swResults);
+            nextAlignment = checkCriteria(res, isIdentity, evalThr, seqIdThr, covMode, covThr);
             if (nextAlignment == true) {
+                swResults.emplace_back(res);
                 for (int pos = res.dbStartPos; pos < res.dbEndPos; pos++) {
                     dbSeq.int_sequence[pos] = xIndex;
                 }

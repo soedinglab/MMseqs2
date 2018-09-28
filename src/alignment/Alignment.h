@@ -36,6 +36,9 @@ public:
              const size_t dbFrom, const size_t dbSize,
              const unsigned int maxAlnNum, const unsigned int maxRejected);
 
+    static bool checkCriteria(Matcher::result_t &res, bool isIdentity, double evalThr, double seqIdThr, int covMode, float covThr);
+
+
 private:
     // sequence coverage threshold
     double covThr;
@@ -112,8 +115,6 @@ private:
     void setTargetSequence(Sequence &seq, unsigned int key);
 
     static size_t estimateHDDMemoryConsumption(int dbSize, int maxSeqs);
-
-    bool checkCriteriaAndAddHitToList(Matcher::result_t &result, bool isIdentity, std::vector<Matcher::result_t> &swHits);
 
     void computeAlternativeAlignment(unsigned int queryDbKey, Sequence &dbSeq,
                                      std::vector<Matcher::result_t> &vector, Matcher &matcher,

@@ -15,6 +15,7 @@ extern int combinepvalperset(int argc, const char **argv, const Command &command
 extern int concatdbs(int argc, const char **argv, const Command& command);
 extern int convert2fasta(int argc, const char **argv, const Command& command);
 extern int convertalignments(int argc, const char **argv, const Command& command);
+extern int convertca3m(int argc, const char **argv, const Command& command);
 extern int convertkb(int argc, const char **argv, const Command& command);
 extern int convertmsa(int argc, const char **argv, const Command& command);
 extern int convertprofiledb(int argc, const char **argv, const Command& command);
@@ -28,6 +29,7 @@ extern int diffseqdbs(int argc, const char **argv, const Command& command);
 extern int easycluster(int argc, const char **argv, const Command& command);
 extern int easylinclust(int argc, const char **argv, const Command& command);
 extern int easysearch(int argc, const char **argv, const Command& command);
+extern int expandaln(int argc, const char **argv, const Command& command);
 extern int extractalignedregion(int argc, const char **argv, const Command& command);
 extern int extractdomains(int argc, const char **argv, const Command& command);
 extern int extractorfs(int argc, const char **argv, const Command& command);

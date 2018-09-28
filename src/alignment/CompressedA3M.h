@@ -13,7 +13,9 @@ public:
     static std::string extractA3M(const char *data, size_t data_size,
                                   DBReader<unsigned int>& sequenceReader,
                                   DBReader<unsigned int>& headerReader);
+
+    static void extractMatcherResults(unsigned int &key, std::vector<Matcher::result_t> &results,
+                                      const char *data, size_t dataSize, DBReader<unsigned int>& sequenceReader, bool skipFirst);
 };
 
-
-#endif //MMSEQS_COMPRESSEDA3M_H
+#endif
