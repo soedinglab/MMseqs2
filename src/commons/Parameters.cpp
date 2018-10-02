@@ -301,6 +301,8 @@ Parameters::Parameters():
     // alignbykmer
     alignbykmer.push_back(PARAM_SUB_MAT);
     alignbykmer.push_back(PARAM_K);
+    alignbykmer.push_back(PARAM_SPACED_KMER_MODE);
+    alignbykmer.push_back(PARAM_SPACED_KMER_PATTERN);
     alignbykmer.push_back(PARAM_ALPH_SIZE);
     alignbykmer.push_back(PARAM_FILTER_HITS);
     alignbykmer.push_back(PARAM_C);
@@ -481,6 +483,7 @@ Parameters::Parameters():
     indexdb.push_back(PARAM_MAX_SEQ_LEN);
     indexdb.push_back(PARAM_MASK_RESIDUES);
     indexdb.push_back(PARAM_SPACED_KMER_MODE);
+    indexdb.push_back(PARAM_SPACED_KMER_PATTERN);
     indexdb.push_back(PARAM_S);
     indexdb.push_back(PARAM_K_SCORE);
     indexdb.push_back(PARAM_INCLUDE_HEADER);

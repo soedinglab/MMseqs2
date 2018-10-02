@@ -12,7 +12,8 @@
 #include <climits> // short_max
 #include <cstddef>
 
-Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC, const std::string& spacedKmerPattern) {
+Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC, const std::string& spacedKmerPattern)
+ : spacedKmerPattern(spacedKmerPattern) {
     this->int_sequence = new int[maxLen];
     this->int_consensus_sequence = new int[maxLen];
     this->aaBiasCorrection = aaBiasCorrection;

@@ -94,7 +94,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     #pragma omp parallel
     {
         Indexer idxer(static_cast<unsigned int>(indexTable->getAlphabetSize()), seq->getKmerSize());
-        Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false);
+        Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false, true, seq->getSpacedKmerPattern());
 
         KmerGenerator *generator = NULL;
         if (isProfile) {
@@ -198,7 +198,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     Debug(Debug::INFO) << "Index table: fill...\n";
     #pragma omp parallel
     {
-        Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false);
+        Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false, true, seq->getSpacedKmerPattern());
         Indexer idxer(static_cast<unsigned int>(indexTable->getAlphabetSize()), seq->getKmerSize());
         IndexEntryLocalTmp *buffer = new IndexEntryLocalTmp[seq->getMaxLen()];
 
