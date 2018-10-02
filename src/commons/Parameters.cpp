@@ -47,7 +47,7 @@ Parameters::Parameters():
         PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical Seq. Id.","artificially add entries of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_RES_LIST_OFFSET(PARAM_RES_LIST_OFFSET_ID,"--offset-result", "Offset result","Offset result list",typeid(int), (void *) &resListOffset, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_PRELOAD(PARAM_NO_PRELOAD_ID, "--no-preload", "No preload", "Do not preload database", typeid(bool), (void*) &noPreload, "", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_SPACED_KMER_PATTERN(PARAM_SPACED_KMER_PATTERN_ID, "--spaced-kmer-pattern", "Spaced k-mer pattern", "User-specified spaced k-mer pattern", typeid(std::string), (void *) &spacedKmerPattern, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SPACED_KMER_PATTERN(PARAM_SPACED_KMER_PATTERN_ID, "--spaced-kmer-pattern", "Spaced k-mer pattern", "User-specified spaced k-mer pattern", typeid(std::string), (void *) &spacedKmerPattern, "^1[01]*1$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
 
         // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "How to compute the alignment: 0: automatic; 1: only score and end_pos; 2: also start_pos and cov; 3: also seq.id; 4: only ungapped alignment",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
