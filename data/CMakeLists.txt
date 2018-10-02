@@ -42,7 +42,7 @@ set(COMPILED_RESOURCES
         libPure_blosum62_255.lib
         libPure_blosum62_32.lib
         libPolished_8.lib
-	    searchslicemodetargetprofile.sh
+        searchslicedtargetprofile.sh
         cs219.lib
         )
 
