@@ -167,6 +167,7 @@ public:
     size_t getMaxLen() { return maxLen; }
     unsigned int getKmerSize(){ return kmerSize; }
     bool isSpaced() { return spaced; }
+    const std::string& getSpacedKmerPattern() { return spacedKmerPattern; }
 
     // reverse the sequence for the match statistics calculation
     void reverse();
@@ -304,5 +305,8 @@ private:
     
     // should add pseudo-counts when loading the profile?
     bool shouldAddPC;
+
+    //spaced kmer pattern
+    const std::string spacedKmerPattern;
 };
 #endif
