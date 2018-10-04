@@ -12,7 +12,8 @@
 #include <climits> // short_max
 #include <cstddef>
 
-Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC) {
+Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC, const std::string& spacedKmerPattern)
+ : spacedKmerPattern(spacedKmerPattern) {
     this->int_sequence = new int[maxLen];
     this->int_consensus_sequence = new int[maxLen];
     this->aaBiasCorrection = aaBiasCorrection;
@@ -20,7 +21,12 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
     this->subMat = (BaseMatrix*)subMat;
     this->spaced = spaced;
     this->seqType = seqType;
-    std::pair<const char *, unsigned int> spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
+    std::pair<const char *, unsigned int> spacedKmerInformation;
+    if (spacedKmerPattern.size() == 0){
+        spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
+    } else {
+        spacedKmerInformation = parseSpacedPattern(kmerSize, spaced, spacedKmerPattern);
+    }
     this->spacedPattern = spacedKmerInformation.first;
     this->spacedPatternSize = spacedKmerInformation.second;
     this->kmerSize = kmerSize;
@@ -210,6 +216,35 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
     return std::make_pair<const char *, unsigned int>(pattern, static_cast<unsigned int>(pair.second));
 }
 
+std::pair<const char *, unsigned int> Sequence::parseSpacedPattern(unsigned int kmerSize, bool spaced, const std::string& spacedKmerPattern) {
+    bool spacedKmerPatternSpaced = false;
+    unsigned int spacedKmerPatternKmerSize = 0;
+    char* pattern = new char[spacedKmerPattern.size()];
+    for (size_t i = 0; i < spacedKmerPattern.size(); ++i) {
+        switch (spacedKmerPattern[i]) {
+            case '0':
+                spacedKmerPatternSpaced = true;
+                pattern[i] = 0;
+                break;
+            case '1':
+                spacedKmerPatternKmerSize += 1;
+                pattern[i] = 1;
+                break;
+            default:
+                Debug(Debug::ERROR) << "ERROR: Invalid character in user-specified k-mer pattern\n";
+                EXIT(EXIT_FAILURE);  
+                break;
+        }
+    }
+    if (spacedKmerPatternKmerSize != kmerSize){
+        Debug(Debug::ERROR) << "ERROR: User-specified k-mer pattern is not consistent with stated k-mer size\n";
+        EXIT(EXIT_FAILURE);        
+    } else if (spacedKmerPatternSpaced != spaced) {
+        Debug(Debug::ERROR) << "ERROR: User-specified k-mer pattern is not consistent with spaced k-mer true/false\n";
+        EXIT(EXIT_FAILURE);         
+    }
+    return std::make_pair<const char *, unsigned int>((const char *) pattern, spacedKmerPattern.size());
+}
 
 void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence) {
     this->id = id;

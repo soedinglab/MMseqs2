@@ -48,8 +48,8 @@ const int8_t seed_17_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 
 class Sequence {
 public:
-    Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat,
-             const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC = true);
+    Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, 
+             const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC = true, const std::string& spacedKmerPattern = "");
     ~Sequence();
 
     // Map char -> int
@@ -167,6 +167,7 @@ public:
     size_t getMaxLen() { return maxLen; }
     unsigned int getKmerSize(){ return kmerSize; }
     bool isSpaced() { return spaced; }
+    const std::string& getSpacedKmerPattern() { return spacedKmerPattern; }
 
     // reverse the sequence for the match statistics calculation
     void reverse();
@@ -211,6 +212,8 @@ public:
     int8_t *profile_for_alignment;
 
     std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
+
+    std::pair<const char *, unsigned int> parseSpacedPattern(unsigned int kmerSize, bool spaced, const std::string& spacedKmerPattern);    
 
     const unsigned char *getAAPosInSpacedPattern() { return aaPosInSpacedPattern; }
 
@@ -302,5 +305,8 @@ private:
     
     // should add pseudo-counts when loading the profile?
     bool shouldAddPC;
+
+    //spaced kmer pattern
+    const std::string spacedKmerPattern;
 };
 #endif

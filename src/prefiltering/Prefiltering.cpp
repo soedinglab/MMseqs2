@@ -26,6 +26,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         _3merSubMatrix(NULL),
         splits(par.split),
         kmerSize(par.kmerSize),
+        spacedKmerPattern(par.spacedKmerPattern),
         spacedKmer(par.spacedKmer != 0),
         alphabetSize(par.alphabetSize),
         maskMode(par.maskMode),
@@ -420,7 +421,7 @@ void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
     } else {
         Timer timer;
 
-        Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
+        Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
         int localKmerThr = (querySeqType == Sequence::HMM_PROFILE ||
                             querySeqType == Sequence::PROFILE_STATE_PROFILE ||
                             querySeqType == Sequence::NUCLEOTIDES ||
@@ -714,7 +715,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        Sequence seq(maxSeqLen, querySeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
+        Sequence seq(maxSeqLen, querySeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
 
         QueryMatcher matcher(indexTable, sequenceLookup, subMat, evaluer, tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
                              kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
@@ -912,7 +913,7 @@ double Prefiltering::setKmerThreshold(DBReader<unsigned int> *qdbr) {
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        Sequence seq(maxSeqLen, querySeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
+        Sequence seq(maxSeqLen, querySeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
 
         if (thread_idx == 0) {
             effectiveKmerSize = seq.getEffectiveKmerSize();

@@ -233,6 +233,7 @@ public:
     size_t resListOffset;                // Offsets result list
     bool   noPreload;                    // Do not preload database into memory
     float  scoreBias;			 // Add this bias to the score when computing the alignements
+    std::string spacedKmerPattern;             // User-specified kmer pattern
 
     // ALIGNMENT
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
@@ -477,6 +478,7 @@ public:
     PARAMETER(PARAM_INCLUDE_IDENTITY)
     PARAMETER(PARAM_RES_LIST_OFFSET)
     PARAMETER(PARAM_NO_PRELOAD)
+    PARAMETER(PARAM_SPACED_KMER_PATTERN)
     std::vector<MMseqsParameter> prefilter;
     std::vector<MMseqsParameter> ungappedprefilter;
 

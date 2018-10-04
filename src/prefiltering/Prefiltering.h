@@ -68,6 +68,7 @@ private:
     // parameter
     int splits;
     int kmerSize;
+    std::string spacedKmerPattern;
     bool spacedKmer;
     int alphabetSize;
     bool templateDBIsIndex;

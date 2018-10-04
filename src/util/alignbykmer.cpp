@@ -147,8 +147,8 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         size_t bucketSize = std::min(dbr_res.getSize() - (i * flushSize), flushSize);
 #pragma omp parallel
         {
-            Sequence query(par.maxSeqLen, querySeqType, subMat, par.kmerSize, true, false);
-            Sequence target(par.maxSeqLen, querySeqType, subMat, par.kmerSize, true, false);
+            Sequence query(par.maxSeqLen, querySeqType, subMat, par.kmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
+            Sequence target(par.maxSeqLen, querySeqType, subMat, par.kmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
             KmerGenerator kmerGenerator(par.kmerSize, subMat->alphabetSize, 70.0);
             kmerGenerator.setDivideStrategy(NULL, _2merSubMatrix);
             size_t lookupSize = MathUtil::ipow<size_t>(par.alphabetSize, par.kmerSize);

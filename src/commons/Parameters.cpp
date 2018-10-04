@@ -47,6 +47,8 @@ Parameters::Parameters():
         PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical Seq. Id.","artificially add entries of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_RES_LIST_OFFSET(PARAM_RES_LIST_OFFSET_ID,"--offset-result", "Offset result","Offset result list",typeid(int), (void *) &resListOffset, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_PRELOAD(PARAM_NO_PRELOAD_ID, "--no-preload", "No preload", "Do not preload database", typeid(bool), (void*) &noPreload, "", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SPACED_KMER_PATTERN(PARAM_SPACED_KMER_PATTERN_ID, "--spaced-kmer-pattern", "Spaced k-mer pattern", "User-specified spaced k-mer pattern", typeid(std::string), (void *) &spacedKmerPattern, "^1[01]*1$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+
         // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "How to compute the alignment: 0: automatic; 1: only score and end_pos; 2: also start_pos and cov; 3: also seq.id; 4: only ungapped alignment",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
@@ -257,6 +259,7 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_NO_PRELOAD);
     prefilter.push_back(PARAM_PCA);
     prefilter.push_back(PARAM_PCB);
+    prefilter.push_back(PARAM_SPACED_KMER_PATTERN);
     prefilter.push_back(PARAM_THREADS);
     prefilter.push_back(PARAM_V);
 
@@ -299,6 +302,8 @@ Parameters::Parameters():
     // alignbykmer
     alignbykmer.push_back(PARAM_SUB_MAT);
     alignbykmer.push_back(PARAM_K);
+    alignbykmer.push_back(PARAM_SPACED_KMER_MODE);
+    alignbykmer.push_back(PARAM_SPACED_KMER_PATTERN);
     alignbykmer.push_back(PARAM_ALPH_SIZE);
     alignbykmer.push_back(PARAM_FILTER_HITS);
     alignbykmer.push_back(PARAM_C);
@@ -480,6 +485,7 @@ Parameters::Parameters():
     indexdb.push_back(PARAM_MAX_SEQ_LEN);
     indexdb.push_back(PARAM_MASK_RESIDUES);
     indexdb.push_back(PARAM_SPACED_KMER_MODE);
+    indexdb.push_back(PARAM_SPACED_KMER_PATTERN);
     indexdb.push_back(PARAM_S);
     indexdb.push_back(PARAM_K_SCORE);
     indexdb.push_back(PARAM_INCLUDE_HEADER);
@@ -1183,6 +1189,7 @@ void Parameters::setDefaults() {
     splitMode = DETECT_BEST_DB_SPLIT;
     splitMemoryLimit = 0;
     splitAA = false;
+    spacedKmerPattern = "";
 
     // search workflow
     numIterations = 1;
