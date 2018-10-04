@@ -29,26 +29,31 @@ void setSearchDefaults(Parameters *p) {
 
 
 int search(int argc, const char **argv, const Command& command) {
-    MMseqsMPI::init(argc, argv);
-
-    Parameters& par = Parameters::getInstance();
+    Parameters &par = Parameters::getInstance();
     setSearchDefaults(&par);
-    par.overrideParameterDescription((Command &)command, par.PARAM_COV_MODE.uniqid, NULL, NULL, par.PARAM_COV_MODE.category | MMseqsParameter::COMMAND_EXPERT);
-    par.overrideParameterDescription((Command &)command, par.PARAM_C.uniqid, NULL, NULL, par.PARAM_C.category | MMseqsParameter::COMMAND_EXPERT);
-    par.overrideParameterDescription((Command &)command, par.PARAM_MIN_SEQ_ID.uniqid, NULL, NULL, par.PARAM_MIN_SEQ_ID.category | MMseqsParameter::COMMAND_EXPERT);
-    for (size_t i = 0; i < par.extractorfs.size(); i++){
-        par.overrideParameterDescription((Command &)command, par.extractorfs[i].uniqid, NULL, NULL, par.extractorfs[i].category | MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_COV_MODE.uniqid, NULL, NULL,
+                                     par.PARAM_COV_MODE.category | MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_C.uniqid, NULL, NULL,
+                                     par.PARAM_C.category | MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_MIN_SEQ_ID.uniqid, NULL, NULL,
+                                     par.PARAM_MIN_SEQ_ID.category | MMseqsParameter::COMMAND_EXPERT);
+    for (size_t i = 0; i < par.extractorfs.size(); i++) {
+        par.overrideParameterDescription((Command &) command, par.extractorfs[i].uniqid, NULL, NULL,
+                                         par.extractorfs[i].category | MMseqsParameter::COMMAND_EXPERT);
     }
-    for (size_t i = 0; i < par.translatenucs.size(); i++){
-        par.overrideParameterDescription((Command &)command, par.translatenucs[i].uniqid, NULL, NULL, par.translatenucs[i].category | MMseqsParameter::COMMAND_EXPERT);
+    for (size_t i = 0; i < par.translatenucs.size(); i++) {
+        par.overrideParameterDescription((Command &) command, par.translatenucs[i].uniqid, NULL, NULL,
+                                         par.translatenucs[i].category | MMseqsParameter::COMMAND_EXPERT);
     }
 
-    par.parseParameters(argc, argv, command, 4, false, 0, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+    par.parseParameters(argc, argv, command, 4, false, 0,
+                        MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
 
     const int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     const int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
     if (queryDbType == -1 || targetDbType == -1) {
-        Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
+        Debug(Debug::ERROR)
+                << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
 
@@ -69,11 +74,11 @@ int search(int argc, const char **argv, const Command& command) {
     }
 
     const bool isTranslatedNuclSearch =
-               (queryDbType == Sequence::NUCLEOTIDES || targetDbType == Sequence::NUCLEOTIDES);
+            (queryDbType == Sequence::NUCLEOTIDES || targetDbType == Sequence::NUCLEOTIDES);
 
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
     if (isUngappedMode && (queryDbType == Sequence::HMM_PROFILE || targetDbType == Sequence::HMM_PROFILE)) {
-        par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+        par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
         Debug(Debug::ERROR) << "Cannot use ungapped alignment mode with profile databases.\n";
         EXIT(EXIT_FAILURE);
     }
@@ -81,7 +86,7 @@ int search(int argc, const char **argv, const Command& command) {
     // validate and set parameters for iterative search
     if (par.numIterations > 1) {
         if (targetDbType == Sequence::HMM_PROFILE) {
-            par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+            par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
             Debug(Debug::ERROR) << "Iterative target-profile searches are not supported.\n";
             EXIT(EXIT_FAILURE);
         }
@@ -90,7 +95,8 @@ int search(int argc, const char **argv, const Command& command) {
         if (queryDbType == Sequence::HMM_PROFILE) {
             for (size_t i = 0; i < par.searchworkflow.size(); i++) {
                 if (par.searchworkflow[i].uniqid == par.PARAM_REALIGN.uniqid && par.searchworkflow[i].wasSet) {
-                    par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+                    par.printUsageMessage(command,
+                                          MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
                     Debug(Debug::ERROR) << "Cannot realign query profiles.\n";
                     EXIT(EXIT_FAILURE);
                 }
@@ -100,35 +106,28 @@ int search(int argc, const char **argv, const Command& command) {
         }
     }
     par.printParameters(command.cmd, argc, argv, par.searchworkflow);
-    
+    if (FileUtil::directoryExists(par.db4.c_str()) == false) {
+        Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
+        if (FileUtil::makeDir(par.db4.c_str()) == false) {
+            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db4 << ".\n";
+            EXIT(EXIT_FAILURE);
+        } else {
+            Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
+        }
+    }
     size_t hash = par.hashParameter(par.filenames, par.searchworkflow);
-    std::string tmpDir = par.db4+"/"+SSTR(hash);
-    if(MMseqsMPI::rank == 0) {
-        if (FileUtil::directoryExists(par.db4.c_str())==false){
-            Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
-            if (FileUtil::makeDir(par.db4.c_str()) == false){
-                Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db4 << ".\n";
-                EXIT(EXIT_FAILURE);
-            } else {
-                Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
-            }
+    std::string tmpDir = par.db4 + "/" + SSTR(hash);
+    if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
+        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
+            Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            EXIT(EXIT_FAILURE);
         }
-        if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
-            if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-                Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
-                EXIT(EXIT_FAILURE);
-            }
-        }
-        FileUtil::symlinkAlias(tmpDir, "latest");
     }
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
+    FileUtil::symlinkAlias(tmpDir, "latest");
 
-#ifdef HAVE_MPI
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
-
-const int originalRescoreMode = par.rescoreMode;
+    const int originalRescoreMode = par.rescoreMode;
 
     CommandCaller cmd;
     cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
@@ -138,13 +137,13 @@ const int originalRescoreMode = par.rescoreMode;
     cmd.addVariable("ALIGNMENT_DB_EXT", targetDbType == Sequence::PROFILE_STATE_SEQ ? ".255" : "");
 
     if (targetDbType == Sequence::HMM_PROFILE && par.sliceSearch > 0) {
-        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter,USE_ONLY_SET_PARAMETERS).c_str());
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter, USE_ONLY_SET_PARAMETERS).c_str());
         cmd.addVariable("MAX_STEPS", std::to_string(30).c_str());
         cmd.addVariable("MAX_RESULTS_PER_QUERY", std::to_string(par.maxResListLen).c_str());
         size_t memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
-        cmd.addVariable("AVAIL_MEM", std::to_string(par.sliceSearch * memoryLimit/1024).c_str());
+        cmd.addVariable("AVAIL_MEM", std::to_string(par.sliceSearch * memoryLimit / 1024).c_str());
         cmd.addVariable("COMMONS", (std::string("--threads ") + std::to_string(par.threads)).c_str());
-        
+
         if (isUngappedMode) {
             par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
             cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
@@ -152,16 +151,11 @@ const int originalRescoreMode = par.rescoreMode;
         } else {
             cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         }
-        
+
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
-        if(MMseqsMPI::rank == 0) {
-            FileUtil::writeFile(tmpDir + "/searchslicemodetargetprofile.sh", searchslicemodetargetprofile_sh,
-                                searchslicemodetargetprofile_sh_len);
-        }
-#ifdef HAVE_MPI
-        MPI_Barrier(MPI_COMM_WORLD);
-#endif
-        program=std::string(tmpDir + "/searchslicemodetargetprofile.sh");
+        FileUtil::writeFile(tmpDir + "/searchslicemodetargetprofile.sh", searchslicemodetargetprofile_sh,
+                            searchslicemodetargetprofile_sh_len);
+        program = std::string(tmpDir + "/searchslicemodetargetprofile.sh");
     } else if (targetDbType == Sequence::HMM_PROFILE) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         // we need to align all hits in case of target Profile hits
@@ -176,16 +170,12 @@ const int originalRescoreMode = par.rescoreMode;
         }
         par.maxResListLen = maxResListLen;
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
-        if(MMseqsMPI::rank == 0) {
-            FileUtil::writeFile(tmpDir + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
-        }
-#ifdef HAVE_MPI
-        MPI_Barrier(MPI_COMM_WORLD);
-#endif
-        program=std::string(tmpDir + "/searchtargetprofile.sh");
+        FileUtil::writeFile(tmpDir + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
+        program = std::string(tmpDir + "/searchtargetprofile.sh");
     } else if (par.numIterations > 1) {
         for (size_t i = 0; i < par.searchworkflow.size(); i++) {
-            if (par.searchworkflow[i].uniqid == par.PARAM_E_PROFILE.uniqid && par.searchworkflow[i].wasSet== false) {
+            if (par.searchworkflow[i].uniqid == par.PARAM_E_PROFILE.uniqid &&
+                par.searchworkflow[i].wasSet == false) {
                 par.evalProfile = 0.1;
             }
         }
@@ -195,7 +185,7 @@ const int originalRescoreMode = par.rescoreMode;
 
         float originalEval = par.evalThr;
         par.evalThr = par.evalProfile;
-        for (int i = 0; i < par.numIterations; i++){
+        for (int i = 0; i < par.numIterations; i++) {
             if (i == 0 && queryDbType != Sequence::HMM_PROFILE) {
                 par.realign = true;
             }
@@ -209,42 +199,42 @@ const int originalRescoreMode = par.rescoreMode;
                 par.evalThr = originalEval;
             }
 
-            cmd.addVariable(std::string("PREFILTER_PAR_" + SSTR(i)).c_str(), par.createParameterString(par.prefilter).c_str());
+            cmd.addVariable(std::string("PREFILTER_PAR_" + SSTR(i)).c_str(),
+                            par.createParameterString(par.prefilter).c_str());
             if (isUngappedMode) {
                 par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
-                cmd.addVariable(std::string("ALIGNMENT_PAR_" + SSTR(i)).c_str(), par.createParameterString(par.rescorediagonal).c_str());
+                cmd.addVariable(std::string("ALIGNMENT_PAR_" + SSTR(i)).c_str(),
+                                par.createParameterString(par.rescorediagonal).c_str());
                 par.rescoreMode = originalRescoreMode;
             } else {
-                cmd.addVariable(std::string("ALIGNMENT_PAR_" + SSTR(i)).c_str(), par.createParameterString(par.align).c_str());
+                cmd.addVariable(std::string("ALIGNMENT_PAR_" + SSTR(i)).c_str(),
+                                par.createParameterString(par.align).c_str());
             }
             par.pca = 0.0;
-            cmd.addVariable(std::string("PROFILE_PAR_" + SSTR(i)).c_str(),   par.createParameterString(par.result2profile).c_str());
+            cmd.addVariable(std::string("PROFILE_PAR_" + SSTR(i)).c_str(),
+                            par.createParameterString(par.result2profile).c_str());
             par.pca = 1.0;
         }
-        if(MMseqsMPI::rank == 0) {
-            FileUtil::writeFile(tmpDir + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
-        }
-#ifdef HAVE_MPI
-        MPI_Barrier(MPI_COMM_WORLD);
-#endif
+
+        FileUtil::writeFile(tmpDir + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
         program = std::string(tmpDir + "/blastpgp.sh");
     } else {
-        if (par.sensSteps > 1){
+        if (par.sensSteps > 1) {
             if (par.startSens > par.sensitivity) {
                 Debug(Debug::ERROR) << "--start-sens should not be greater -s.\n";
                 EXIT(EXIT_FAILURE);
             }
             cmd.addVariable("SENSE_0", SSTR(par.startSens).c_str());
-            float sensStepSize = (par.sensitivity - par.startSens)/ (static_cast<float>(par.sensSteps)-1);
-            for (int step = 1; step < par.sensSteps; step++){
+            float sensStepSize = (par.sensitivity - par.startSens) / (static_cast<float>(par.sensSteps) - 1);
+            for (int step = 1; step < par.sensSteps; step++) {
                 std::string stepKey = "SENSE_" + SSTR(step);
-                float stepSense =  par.startSens + sensStepSize * step;
+                float stepSense = par.startSens + sensStepSize * step;
                 std::stringstream stream;
                 stream << std::fixed << std::setprecision(1) << stepSense;
                 std::string value = stream.str();
                 cmd.addVariable(stepKey.c_str(), value.c_str());
             }
-            cmd.addVariable("STEPS", SSTR((int)par.sensSteps).c_str());
+            cmd.addVariable("STEPS", SSTR((int) par.sensSteps).c_str());
         } else {
             std::stringstream stream;
             stream << std::fixed << std::setprecision(1) << par.sensitivity;
@@ -254,8 +244,8 @@ const int originalRescoreMode = par.rescoreMode;
         }
 
         std::vector<MMseqsParameter> prefilterWithoutS;
-        for (size_t i = 0; i < par.prefilter.size(); i++){
-            if (par.prefilter[i].uniqid != par.PARAM_S.uniqid ){
+        for (size_t i = 0; i < par.prefilter.size(); i++) {
+            if (par.prefilter[i].uniqid != par.PARAM_S.uniqid) {
                 prefilterWithoutS.push_back(par.prefilter[i]);
             }
         }
@@ -267,25 +257,16 @@ const int originalRescoreMode = par.rescoreMode;
         } else {
             cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         }
-        if(MMseqsMPI::rank == 0) {
-            FileUtil::writeFile(tmpDir + "/blastp.sh", blastp_sh, blastp_sh_len);
-        }
-#ifdef HAVE_MPI
-        MPI_Barrier(MPI_COMM_WORLD);
-#endif
+        FileUtil::writeFile(tmpDir + "/blastp.sh", blastp_sh, blastp_sh_len);
         program = std::string(tmpDir + "/blastp.sh");
     }
 
-    if (isTranslatedNuclSearch==true){
-        if(MMseqsMPI::rank == 0) {
-            FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
-        }
-#ifdef HAVE_MPI
-        MPI_Barrier(MPI_COMM_WORLD);
-#endif
+    if (isTranslatedNuclSearch == true) {
+        FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
         cmd.addVariable("QUERY_NUCL", queryDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
         cmd.addVariable("TARGET_NUCL", targetDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
+        cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.onlythreads).c_str());
         cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");
@@ -294,5 +275,6 @@ const int originalRescoreMode = par.rescoreMode;
 
     // Should never get here
     assert(false);
+
     return 0;
 }

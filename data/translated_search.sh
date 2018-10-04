@@ -59,7 +59,7 @@ if notExists "$4/aln"; then
         || fail "Search step died"
 fi
 if notExists "$4/aln_offset"; then
-    "$MMSEQS" offsetalignment "$QUERY_ORF" "$TARGET_ORF" "$4/aln"  "$4/aln_offset" \
+    "$MMSEQS" offsetalignment "$QUERY_ORF" "$TARGET_ORF" "$4/aln"  "$4/aln_offset" ${OFFSETALIGNMENT_PAR} \
         || fail "Offset step died"
 fi
 (mv -f "$4/aln_offset" "$3" && mv -f "$4/aln_offset.index" "$3.index") \
