@@ -28,7 +28,7 @@ on_success:
       if (Test-Path "C:\Users\appveyor\.ssh\id_rs") {
           Remove-Item "C:\Users\appveyor\.ssh\id_rsa"
       }
-      if($env:appveyor_repo_branch -eq 'master') {
+      if(($env:appveyor_repo_branch -eq 'master') -and (-not (Test-Path env:APPVEYOR_PULL_REQUEST_NUMBER))) {
           $fileContent = "-----BEGIN RSA PRIVATE KEY-----`n"
           $fileContent += $env:PKEY.Replace(' ', "`n")
           $fileContent += "`n-----END RSA PRIVATE KEY-----`n"
