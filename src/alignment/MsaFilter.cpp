@@ -9,7 +9,8 @@
 #include "MathUtil.h"
 #include "MultipleAlignment.h"
 
-MsaFilter::MsaFilter(int maxSeqLen, int maxSetSize, SubstitutionMatrix *m){
+MsaFilter::MsaFilter(int maxSeqLen, int maxSetSize, SubstitutionMatrix *m, int gapOpen, int gapExtend) :
+    gapOpen(gapOpen), gapExtend(gapExtend) {
     this->m = m;
     this->maxSeqLen = maxSeqLen;
     this->maxSetSize = maxSetSize;
@@ -548,7 +549,7 @@ int MsaFilter::prune(int start, int end, float b, char * query, char *target) {
             score += (static_cast<float>(m->subMatrix[(int)query[pos]][(int)target[pos]]) ) * 0.3322;
             gap = false;
         } else if(query[pos] == MultipleAlignment::GAP  || target[pos] == MultipleAlignment::GAP) {
-            score -= (gap == false) ? static_cast<float>(Matcher::GAP_OPEN)* 0.3322 : static_cast<float>(Matcher::GAP_EXTEND) * 0.3322;
+            score -= (gap == false) ? static_cast<float>(gapOpen)* 0.3322 : static_cast<float>(gapExtend) * 0.3322;
             gap = true;
         }
         if (score < smin) {

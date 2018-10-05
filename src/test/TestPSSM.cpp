@@ -1586,7 +1586,7 @@ int main (int argc, const char * argv[])
     MultipleAlignment::MSAResult res(122, 122, counter, seqsCpy);
     MultipleAlignment::print(res, &subMat);
 
-    MsaFilter msaFilter(10000, counter, &subMat);
+    MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen, par.gapExtend);
     size_t filterSetSize = res.setSize;
     msaFilter.filter(res.setSize, res.centerLength, 0, 0, -20.0f, 90, 100,
                      (const char**)res.msaSequence, &filterSetSize);

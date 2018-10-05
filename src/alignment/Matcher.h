@@ -97,9 +97,6 @@ public:
 
     static std::string uncompressAlignment(const std::string &cbt);
 
-    // parameter for alignment
-    static const unsigned short GAP_OPEN = 11;
-    static const unsigned short GAP_EXTEND = 1;
 
     static size_t resultToBuffer(char * buffer, const result_t &result, bool addBacktrace, bool compress  = true);
 

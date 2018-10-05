@@ -123,7 +123,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
         }
     }
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-    EvalueComputation evaluer(aaResSize, &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
+    EvalueComputation evaluer(aaResSize, &subMat, par.gapOpen, par.gapExtend, true);
 
     Debug(Debug::INFO) << "Result database: " << parResultDbStr << "\n";
     DBReader<unsigned int> resultDbr(parResultDb, parResultDbIndex);

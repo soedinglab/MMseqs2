@@ -54,7 +54,7 @@ int alignall(int argc, const char **argv, const Command &command) {
         tdbr->readMmapedDataInMemory();
     }
 
-    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend, false);
 
     Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> dbr_res(par.db3.c_str(), par.db3Index.c_str());
@@ -73,7 +73,7 @@ int alignall(int argc, const char **argv, const Command &command) {
         {
             Matcher matcher(querySeqType, par.maxSeqLen, subMat,
                             &evaluer, par.compBiasCorrection,
-                            Matcher::GAP_OPEN, Matcher::GAP_EXTEND);
+                            par.gapOpen, par.gapExtend);
             Sequence query(par.maxSeqLen, querySeqType, subMat,
                            par.kmerSize, par.spacedKmer, par.compBiasCorrection);
             Sequence target(par.maxSeqLen, querySeqType, subMat,

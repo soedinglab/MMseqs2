@@ -215,7 +215,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         if((targetNucs == true || queryNucs == true ) && !(queryNucs == true && targetNucs == true)){
             isTranslatedSearch = true;
         }
-        evaluer = new EvalueComputation(targetReader->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
+        evaluer = new EvalueComputation(targetReader->getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend, true);
     }
 
     Debug(Debug::INFO) << "Query Header file: " << par.db1 << "_h\n";
