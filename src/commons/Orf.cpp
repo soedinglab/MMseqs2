@@ -43,16 +43,13 @@
 #include <cstdlib>
 #include <algorithm>
 
-//note: N->N, S->S, W->W, U->A, T->A
-static const char* iupacReverseComplementTable =
-"................................................................"
-".TVGH..CD..M.KN...YSAABW.R.......tvgh..cd..m.kn...ysaabw.r......"
-"................................................................"
-"................................................................";
 
-inline char complement(const char c) {
-    return iupacReverseComplementTable[static_cast<unsigned char>(c)];
-}
+const char* Orf::iupacReverseComplementTable =
+        "................................................................"
+        ".TVGH..CD..M.KN...YSAABW.R.......tvgh..cd..m.kn...ysaabw.r......"
+        "................................................................"
+        "................................................................";
+
 
 Orf::Orf(const unsigned int requestedGenCode, bool useAllTableStarts) {
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(requestedGenCode));
@@ -204,9 +201,9 @@ inline bool isIncomplete(const char* codon) {
 }
 
 inline bool isGapOrN(const char *codon) {
-    return codon[0] == 'N' || complement(codon[0]) == '.'
-        || codon[1] == 'N' || complement(codon[1]) == '.'
-        || codon[2] == 'N' || complement(codon[2]) == '.';
+    return codon[0] == 'N' || Orf::complement(codon[0]) == '.'
+        || codon[1] == 'N' || Orf::complement(codon[1]) == '.'
+        || codon[2] == 'N' || Orf::complement(codon[2]) == '.';
 }
 
 template <int N>

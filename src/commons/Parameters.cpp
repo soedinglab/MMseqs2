@@ -387,6 +387,7 @@ Parameters::Parameters():
 
     // format alignment
     convertalignments.push_back(PARAM_FORMAT_MODE);
+    convertalignments.push_back(PARAM_TRANSLATION_TABLE);
     convertalignments.push_back(PARAM_FORMAT_OUTPUT);
     convertalignments.push_back(PARAM_NO_PRELOAD);
     convertalignments.push_back(PARAM_DB_OUTPUT);

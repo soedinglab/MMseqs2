@@ -8,6 +8,9 @@
 
 class Orf
 {
+
+
+
 public:
     enum Strand {
         STRAND_PLUS = 1,
@@ -67,6 +70,13 @@ public:
     static Matcher::result_t getFromDatabase(const size_t id, DBReader<unsigned int> & contigsReader, DBReader<unsigned int> & orfHeadersReader);
 
     static SequenceLocation parseOrfHeader(char *data);
+
+    //note: N->N, S->S, W->W, U->A, T->A
+    static const char* iupacReverseComplementTable;
+
+    static inline char complement(const char c) {
+        return iupacReverseComplementTable[static_cast<unsigned char>(c)];
+    }
 
 private:
     size_t sequenceLength;

@@ -25,7 +25,7 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results,
             Orf::SequenceLocation tloc = Orf::parseOrfHeader(header);
             res.dbKey = tloc.id;
             res.dbStartPos = tloc.from + res.dbStartPos * 3;
-            res.dbEndPos = tloc.from + res.dbEndPos * 3;
+            res.dbEndPos = tloc.from + (res.dbEndPos + 1) * 3;
 
             if (tloc.strand == Orf::STRAND_MINUS) {
                 int start = res.dbStartPos;
@@ -35,7 +35,7 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results,
             res.dbLen = res.dbLen * 3;
         } else {
             res.qStartPos = qloc->from + res.qStartPos * 3;
-            res.qEndPos = qloc->from + res.qEndPos * 3;
+            res.qEndPos = qloc->from + (res.qEndPos+1) * 3;
 
             if (qloc->strand == Orf::STRAND_MINUS) {
                 int start = res.qStartPos;
