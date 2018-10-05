@@ -172,6 +172,7 @@ std::vector<int> getOutputFormat(std::string outformat, bool &needdatabase, bool
         else if(outformatSplit[i].compare("mismatch") == 0){ code = Parameters::OUTFMT_MISMATCH;}
         else if(outformatSplit[i].compare("qcov") == 0){ code = Parameters::OUTFMT_QCOV;}
         else if(outformatSplit[i].compare("tcov") == 0){ code = Parameters::OUTFMT_TCOV;}
+        else if(outformatSplit[i].compare("empty") == 0){ code = Parameters::OUTFMT_EMPTY;}
         else {
             Debug(Debug::ERROR) << "Format code " << outformatSplit[i] << " does not exist.";
             EXIT(EXIT_FAILURE);
@@ -463,6 +464,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         break;
                                     case Parameters::OUTFMT_TCOV:
                                         result.append(SSTR(res.dbcov));
+                                        break;
+                                    case Parameters::OUTFMT_EMPTY:
+                                        result.push_back('-');
                                         break;
                                 }
                                 if(i < outcodes.size() - 1){

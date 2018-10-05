@@ -85,6 +85,7 @@ public:
     static const int OUTFMT_MISMATCH = 24;
     static const int OUTFMT_QCOV = 25;
     static const int OUTFMT_TCOV = 26;
+    static const int OUTFMT_EMPTY = 27;
 
     // NOT IMPLEMENTED YET
     static const int FORMAT_ALIGNMENT_SAM       = 99;
