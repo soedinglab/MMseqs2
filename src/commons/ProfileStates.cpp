@@ -400,13 +400,13 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
 
 void ProfileStates::discretizeCs219(const float* sequence, size_t length, std::string &result)
 {
-    float curDiffScore;
+//    float curDiffScore;
     float* profileCol;
     float* repScore = (float*)mem_align(ALIGN_FLOAT, 256*sizeof(float));
     memset(repScore, 0, sizeof(float)*256);
     for (size_t i = 0 ; i<length ; i++)
     {
-        float minDiffScore = FLT_MAX;
+//        float minDiffScore = FLT_MAX;
         profileCol = (float*)
                 &sequence[i * Sequence::PROFILE_AA_SIZE];
         // Calculate posterior probabilities given sequence window around 'i'

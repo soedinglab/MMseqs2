@@ -563,7 +563,7 @@ void Sequence::printProfileStatePSSM(){
     printf("\n");
     for(int i = 0; i < this->L; i++){
         printf("%3d ", i);
-        for(size_t aa = 0; aa < subMat->alphabetSize; aa++){
+        for(int aa = 0; aa < subMat->alphabetSize; aa++){
 //            printf("%3d ", profile_for_alignment[aa * L + i] );
             printf("%3d ", profile_score[i * profile_row_size + profile_index[i * profile_row_size+aa]] );
         }

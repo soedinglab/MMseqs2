@@ -1115,7 +1115,6 @@ int SmithWaterman::ungapped_alignment(const int *db_sequence, int32_t db_length)
 	simd_int *qji;             // query profile score in row j (for residue x_j)
 	simd_int *s_prev_it, *s_curr_it;
 	simd_int *query_profile_it = (simd_int *) profile->profile_byte;
-	simd_int Zero = simdi_setzero();
 
 	// Load the score offset to all 16 unsigned byte elements of Soffset
 	Soffset = simdi8_set(profile->bias);
