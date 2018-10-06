@@ -159,7 +159,8 @@ int createdb(int argn, const char **argv, const Command& command) {
                                     break;
                             }
                         }
-                        if(cnt == e.sequence.l){
+                        float nuclDNAFraction = static_cast<float>(cnt)/static_cast<float>(e.sequence.l);
+                        if(nuclDNAFraction > 0.9){
                             isNuclCnt += true;
                         }
                     }
