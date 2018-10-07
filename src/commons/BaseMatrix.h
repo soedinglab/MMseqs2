@@ -44,6 +44,8 @@ public:
 
     static void print(double** matrix, char* int2aa, int size);
 
+    void initMatrixMemory(int alphSize);
+
     // generate the substitution matrix given the probability matrix, background probabilities and the alphabet size
     static void generateSubMatrix(double ** probMatrix, double ** subMatrix, float ** subMatrixPseudoCounts, int size, bool containsX);
 

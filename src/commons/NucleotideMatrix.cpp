@@ -5,8 +5,9 @@
 NucleotideMatrix::NucleotideMatrix(const char* /*scoringMatrixFileName_*/, float bitFactor, float scoreBias)
         : SubstitutionMatrix("nucleotide.out", bitFactor, scoreBias) {
 //    this->alphabetSize = 5;
-    setupLetterMapping();
     matrixName = "nucleotide.out";
+    setupLetterMapping();
+
 }
 
 
