@@ -46,7 +46,8 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
             subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
         } else {
             SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, par.alphabetSize, 2.0);
+            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa,
+                    sMat.alphabetSize, par.alphabetSize, 2.0);
             SubstitutionMatrix::print(subMat->subMatrix, subMat->int2aa, subMat->alphabetSize );
         }
     }

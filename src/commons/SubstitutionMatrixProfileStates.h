@@ -14,10 +14,47 @@ class SubstitutionMatrixProfileStates : public BaseMatrix {
                                     double **probMatrix, double * pBack,
                                     float **rMatrix, float bitFactor, float scoreBias,
                                     int libAlphabetSize) {
+        alphabetSize = 32;
+        int2aa[0] = 'A';
+        int2aa[1] = 'C';
+        int2aa[2] = 'D';
+        int2aa[3] = 'E';
+        int2aa[4] = 'F';
+        int2aa[5] = 'G';
+        int2aa[6] = 'H';
+        int2aa[7] = 'I';
+        int2aa[8] = 'K';
+        int2aa[9] = 'L';
+        int2aa[10] = 'M';
+        int2aa[11] = 'N';
+        int2aa[12] = 'P';
+        int2aa[13] = 'Q';
+        int2aa[14] = 'R';
+        int2aa[15] = 'S';
+        int2aa[16] = 'T';
+        int2aa[17] = 'V';
+        int2aa[18] = 'W';
+        int2aa[19] = 'Y';
+        int2aa[20] = 'X';
+        int2aa[21] = 'Z';
+        int2aa[22] = '[';
+        int2aa[23] = '\\';
+        int2aa[24] = ']';
+        int2aa[25] = '^';
+        int2aa[26] = '_';
+        int2aa[27] = '`';
+        int2aa[28] = 'a';
+        int2aa[29] = 'b';
+        int2aa[30] = 'c';
+        int2aa[31] = 'd';
+        initMatrixMemory(alphabetSize);
+
+        for (int i = 0; i < alphabetSize; ++i){
+            aa2int[(int)int2aa[i]] = i;
+        }
 
         this->matrixName = matrixName;
         this->origAlphabetSize = alphabetSize;
-        
         this->scoreBias = scoreBias;
         for(int i = 0; i < this->alphabetSize; i++) {
             for (int j = 0; j < this->alphabetSize; j++) {
@@ -34,8 +71,6 @@ class SubstitutionMatrixProfileStates : public BaseMatrix {
                 this->subMatrixPseudoCounts[i][j] = rMatrix[i][j];
             }
         }
-
-
         
         ps = new ProfileStates(libAlphabetSize,this->pBack);
         this->scoreNormalization = ps->getScoreNormalization();

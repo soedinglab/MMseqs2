@@ -8,6 +8,7 @@
 #include <fstream>
 #include <cmath>
 #include <climits>
+#include "simd.h"
 #include "blosum62.out.h"
 #include "nucleotide.out.h"
 
@@ -16,7 +17,6 @@
 SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
                                        float bitFactor, float scoreBias = -0.2) :
         scoringMatrixFileName(scoringMatrixFileName_) {
-    setupLetterMapping();
     if(strcmp(scoringMatrixFileName,"blosum62.out") != 0 && strcmp(scoringMatrixFileName,"nucleotide.out")!=0 ) {
         // read amino acid substitution matrix from file
         std::string fileName(scoringMatrixFileName);
@@ -30,10 +30,15 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
             }
             std::string str((std::istreambuf_iterator<char>(in)),
                             std::istreambuf_iterator<char>());
-            int alphabetSize = readProbMatrix(str);
-            if (alphabetSize < this->alphabetSize - 1) {
-                this->alphabetSize = alphabetSize;
+            std::pair<int, bool> alphSizeAndX = setAaMappingDetectAlphSize(str);
+            alphabetSize = alphSizeAndX.first;
+            initMatrixMemory(alphabetSize);
+            if(alphabetSize == -1){
+                Debug(Debug::ERROR) << "Could not estimate alphabet size.\n";
+                EXIT(EXIT_FAILURE);
             }
+            readProbMatrix(str, alphSizeAndX.second);
+
             in.close();
         }
         else {
@@ -43,18 +48,34 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
     } else if(strcmp(scoringMatrixFileName,"nucleotide.out") == 0){
         std::string submat((const char *)nucleotide_out,nucleotide_out_len);
         matrixName = "nucleotide.out";
-        int alphabetSize = readProbMatrix(submat);
+
+        std::pair<int, bool> alphSizeAndX = setAaMappingDetectAlphSize(submat);
+        alphabetSize = alphSizeAndX.first;
+        initMatrixMemory(alphabetSize);
+        if(alphabetSize == -1){
+            Debug(Debug::ERROR) << "Could not estimate alphabet size.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        readProbMatrix(submat, alphSizeAndX.second);
         if (alphabetSize < this->alphabetSize - 1) {
             this->alphabetSize = alphabetSize;
         }
     } else{
         std::string submat((const char *)blosum62_out,blosum62_out_len);
         matrixName = "blosum62.out";
-        int alphabetSize = readProbMatrix(submat);
+        std::pair<int, bool> alphSizeAndX = setAaMappingDetectAlphSize(submat);
+        alphabetSize = alphSizeAndX.first;
+        initMatrixMemory(alphabetSize);
+        if(alphabetSize == -1){
+            Debug(Debug::ERROR) << "Could not estimate alphabet size.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        readProbMatrix(submat, alphSizeAndX.second);
         if (alphabetSize < this->alphabetSize - 1) {
             this->alphabetSize = alphabetSize;
         }
     }
+    setupLetterMapping();
 
     //print(probMatrix, int2aa, alphabetSize);
     generateSubMatrix(this->probMatrix, this->subMatrixPseudoCounts,
@@ -131,8 +152,8 @@ void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m,
 
 
 void SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrection(short *profileScores,
-                                                             const size_t profileAASize,
-                                                             const int N, size_t alphabetSize) {
+                                                                 const size_t profileAASize,
+                                                                 const int N, size_t alphabetSize) {
 
     const int windowSize = 40;
 
@@ -174,7 +195,7 @@ void SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrection(short *profileS
 }
 
 void SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrectionAln(int8_t *profileScores,
-                                                             int N, size_t alphabetSize, BaseMatrix *subMat) {
+                                                                    int N, size_t alphabetSize, BaseMatrix *subMat) {
 
     const int windowSize = 40;
 
@@ -272,46 +293,46 @@ SubstitutionMatrix::~SubstitutionMatrix() {
 }
 
 void SubstitutionMatrix::setupLetterMapping(){
-        for(int letter = 0; letter < UCHAR_MAX; letter++){
-            char upperLetter = toupper(static_cast<char>(letter));
-            switch(upperLetter){
-                case 'A':
-                case 'T':
-                case 'G':
-                case 'C':
-                case 'D':
-                case 'E':
-                case 'F':
-                case 'H':
-                case 'I':
-                case 'K':
-                case 'L':
-                case 'M':
-                case 'N':
-                case 'P':
-                case 'Q':
-                case 'R':
-                case 'S':
-                case 'V':
-                case 'W':
-                case 'Y':
-                case 'X':
-                    this->aa2int[static_cast<int>(letter)] = this->aa2int[static_cast<int>(upperLetter)];
-                    break;
-                case 'J':
-                    this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'L'];
-                    break;
-                case 'U':
-                case 'O':
-                    this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'X'];
-                    break;
-                case 'Z': this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'E']; break;
-                case 'B': this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'D']; break;
-                default:
-                    this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'X'];
-                    break;
-            }
+    for(int letter = 0; letter < UCHAR_MAX; letter++){
+        char upperLetter = toupper(static_cast<char>(letter));
+        switch(upperLetter){
+            case 'A':
+            case 'T':
+            case 'G':
+            case 'C':
+            case 'D':
+            case 'E':
+            case 'F':
+            case 'H':
+            case 'I':
+            case 'K':
+            case 'L':
+            case 'M':
+            case 'N':
+            case 'P':
+            case 'Q':
+            case 'R':
+            case 'S':
+            case 'V':
+            case 'W':
+            case 'Y':
+            case 'X':
+                this->aa2int[static_cast<int>(letter)] = this->aa2int[static_cast<int>(upperLetter)];
+                break;
+            case 'J':
+                this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'L'];
+                break;
+            case 'U':
+            case 'O':
+                this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'X'];
+                break;
+            case 'Z': this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'E']; break;
+            case 'B': this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'D']; break;
+            default:
+                this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'X'];
+                break;
         }
+    }
 }
 
 int SubstitutionMatrix::parseAlphabet(char *word, char *int2aa, int *aa2int) {
@@ -321,8 +342,11 @@ int SubstitutionMatrix::parseAlphabet(char *word, char *int2aa, int *aa2int) {
     while (isalpha(*charReader)) {
         const char aa = *charReader;
         const int intAA = aa2int[static_cast<int>(aa)];
-        minAAInt = std::min(minAAInt, intAA);
+        minAAInt = std::max(minAAInt, intAA);
         charReader++;
+    }
+    if(minAAInt==-1){
+
     }
     char minAAChar = int2aa[minAAInt];
     // do alphbet reduction
@@ -337,15 +361,11 @@ int SubstitutionMatrix::parseAlphabet(char *word, char *int2aa, int *aa2int) {
     return minAAInt;
 }
 
-int SubstitutionMatrix::readProbMatrix(const std::string &matrixData) {
+int SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const bool containsX) {
     std::stringstream in(matrixData);
     std::string line;
     bool probMatrixStart = false;
-
     char *words[256];
-    int column_aa[32];
-    int column_aa_sorted[32];
-    int alphabetSize = 0;
     bool hasLambda = false;
     bool hasBackground = false;
     while (in.good()) {
@@ -367,36 +387,8 @@ int SubstitutionMatrix::readProbMatrix(const std::string &matrixData) {
             }
             continue;
         }
+
         if (wordCnt > 1 && probMatrixStart == false) {
-            for (size_t i = 0; i < wordCnt; i++) {
-                if (isalpha(words[i][0]) == false) {
-                    Debug(Debug::ERROR) << "Probability matrix must start with alphabet header.\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                column_aa[i] = parseAlphabet(words[i], int2aa, aa2int);
-            }
-            alphabetSize = wordCnt;
-            if (alphabetSize > 32) {
-                Debug(Debug::ERROR) << "Only alphabets with up to 32 letters are allowed.\n";
-                EXIT(EXIT_FAILURE);
-            }
-            memcpy(column_aa_sorted, column_aa, sizeof(int) * alphabetSize);
-            std::sort(column_aa_sorted, column_aa_sorted + alphabetSize);
-            int column_old_aa[32];
-            memcpy(column_old_aa, column_aa, sizeof(int) * alphabetSize);
-            std::map<int, int> mapping;
-            for (int i = 0; i < alphabetSize; i++) {
-                for (int j = 0; j < alphabetSize; j++) {
-                    if (column_aa_sorted[i] == column_aa[j]) {
-                        const char repAA = int2aa[column_aa[j]];
-                        for (size_t z = 'A'; z < 'Z'; z++) {
-                            aa2int[z] = (aa2int[z] == column_aa_sorted[i]) ? i : aa2int[z];
-                        }
-                        int2aa[i] = repAA;
-                        column_aa[j] = i;
-                    }
-                }
-            }
             probMatrixStart = true;
             continue;
         }
@@ -405,28 +397,25 @@ int SubstitutionMatrix::readProbMatrix(const std::string &matrixData) {
                 Debug(Debug::ERROR) << "First element in probability line must be an alphabet letter.\n";
                 EXIT(EXIT_FAILURE);
             }
-            int aa = parseAlphabet(words[0], int2aa, aa2int);
+            int aa = aa2int[toupper(words[0][0])];
             for (int i = 0; i < alphabetSize; i++) {
                 double f = strtod(words[i + 1], NULL);
-                probMatrix[aa][column_aa[i]] = f; // divided by 2 because we scale bit/2 ot bit
+                probMatrix[aa][i] = f; // divided by 2 because we scale bit/2 ot bit
             }
         }
     }
-    bool containsX = false;
     bool xIsPositive = false;
-    for (int i = 0; i < alphabetSize; i++) {
-        if (column_aa[i] == aa2int[(int)'X']) {
-            containsX = true;
-            for (int j = 0; j < alphabetSize; j++) {
-                int xIndex = aa2int[(int)'X'];
-                if ((probMatrix[xIndex][j] > 0) || (probMatrix[j][xIndex] > 0)) {
-                    xIsPositive = true;
-                    break;
-                }
+    if( containsX == true ){
+        for (int j = 0; j < alphabetSize; j++) {
+            int xIndex = aa2int[(int)'X'];
+            if ((probMatrix[xIndex][j] > 0) || (probMatrix[j][xIndex] > 0)) {
+                xIsPositive = true;
+                break;
             }
-            break;
         }
     }
+
+
     if (containsX == false) {
         Debug(Debug::ERROR) << "Please add X to your substitution matrix.\n";
         EXIT(EXIT_FAILURE);
@@ -445,7 +434,7 @@ int SubstitutionMatrix::readProbMatrix(const std::string &matrixData) {
             pBack[i] = pBack[i] * (1.0 - pBack[aa2int[(int)'X']]);
         }
     }
-        // Reconstruct Probability Sab=(Pab/Pa*Pb) -> Pab = exp(Sab) * Pa * Pb
+    // Reconstruct Probability Sab=(Pab/Pa*Pb) -> Pab = exp(Sab) * Pa * Pb
     for (int i = 0; i < alphabetSize; i++) {
         //smat[i] = smatData+((subMat.alphabetSize-1)*i);
         for (int j = 0; j < alphabetSize; j++) {
@@ -455,6 +444,41 @@ int SubstitutionMatrix::readProbMatrix(const std::string &matrixData) {
 
     return alphabetSize;
 }
+
+std::pair<int, bool> SubstitutionMatrix::setAaMappingDetectAlphSize(std::string &matrixData){
+    std::stringstream in(matrixData);
+    std::string line;
+    char *words[256];
+    int alphabetSize = 0;
+    bool containsX;
+    while (in.good()) {
+        getline(in, line);
+        size_t wordCnt = Util::getWordsOfLine((char *) line.c_str(), words, 256);
+
+        if (line[0] == '#') {
+            continue;
+        }
+        if (wordCnt > 1) {
+            for (size_t i = 0; i < wordCnt; i++) {
+                if (isalpha(words[i][0]) == false) {
+                    Debug(Debug::ERROR) << "Probability matrix must start with alphabet header.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                int aa = toupper(words[i][0]);
+                aa2int[aa] = i;
+                int2aa[i] = aa;
+                if (aa == 'X') {
+                    containsX = true;
+                }
+//                column_aa[i] = parseAlphabet(words[i], int2aa, aa2int);
+            }
+            alphabetSize = wordCnt;
+            return std::make_pair(alphabetSize, containsX);
+        }
+    }
+    return std::make_pair(-1, false);
+}
+
 
 
 

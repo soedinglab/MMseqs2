@@ -22,7 +22,7 @@ int main (int argc, const char * argv[])
     for(int i = 0; i<subMat.alphabetSize;i++)
         printf("(%d, %c) ",i,subMat.int2aa[i]);
     printf("\n");
-    ReducedMatrix redMat(subMat.probMatrix, subMat.subMatrixPseudoCounts, reductionAlphabetSize, subMat.getBitFactor());
+    ReducedMatrix redMat(subMat.probMatrix, subMat.subMatrixPseudoCounts, subMat.aa2int, subMat.int2aa, subMat.alphabetSize, reductionAlphabetSize, subMat.getBitFactor());
     std::cout << "\n";
     printf("Normal alphabet : ");
     for(int i = 0; i<subMat.alphabetSize;i++)

@@ -78,9 +78,12 @@ private:
 
         int parseAlphabet(char * word, char * int2aa, int * aa2int);
 
-        int readProbMatrix(const std::string &matrixData);
+        int readProbMatrix(const std::string &matrixData, const bool containsX);
 
         float bitFactor;
+
+        std::pair<int, bool>  setAaMappingDetectAlphSize(std::string &matrixData);
+
 };
 
 #endif

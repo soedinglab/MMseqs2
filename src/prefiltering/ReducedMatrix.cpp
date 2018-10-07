@@ -2,17 +2,24 @@
 #include "ReducedMatrix.h"
 #include "Util.h"
 
-ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reducedAlphabetSize, float bitFactor){
-    if(static_cast<int>(reducedAlphabetSize) >= alphabetSize) {
+ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
+                             int* aa2int, char* int2aa,
+                             size_t orgAlphabetSize,
+                             size_t reducedAlphabetSize, float bitFactor){
+    alphabetSize = orgAlphabetSize;
+    if(reducedAlphabetSize >= orgAlphabetSize) {
         Debug(Debug::ERROR) << "Reduced alphabet has to be smaller than the original one!";
         EXIT(EXIT_FAILURE);
     }
-
+    initMatrixMemory(alphabetSize);
     // swap the matrix and alphabet mappings
-    this->origAlphabetSize = this->alphabetSize;
-    this->orig_aa2int = this->aa2int;
-    this->orig_int2aa = this->int2aa;
+    this->origAlphabetSize = orgAlphabetSize;
+    this->orig_aa2int = new int[UCHAR_MAX];
+    memcpy(orig_aa2int, aa2int, sizeof(int) * UCHAR_MAX);
+    this->orig_int2aa = new char[alphabetSize];
+    memcpy(orig_int2aa, int2aa, sizeof(char) * alphabetSize);
     this->origSubMatrix = this->subMatrix;
+
     for(int i = 0; i < this->alphabetSize; i++) {
         for (int j = 0; j < this->alphabetSize; j++) {
             this->probMatrix[i][j] = probMatrix[i][j];
@@ -23,10 +30,10 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
     this->aa2int = new int['Z' + 1];
     this->int2aa = new char[origAlphabetSize];
     this->reducedAlphabet = new std::vector<char>();
-    for (size_t i = 0; i <= 'Z'; ++i) aa2int[i] = orig_aa2int[i];
+    for (size_t i = 0; i <= 'Z'; ++i) { this->aa2int[i] = orig_aa2int[i]; };
     for (size_t i = 0; i < origAlphabetSize; ++i){
-        int2aa[i] = orig_int2aa[i];
-        reducedAlphabet->push_back(int2aa[i]);
+        this->int2aa[i] = orig_int2aa[i];
+        reducedAlphabet->push_back(this->int2aa[i]);
     }
 
     double ** subMatrix_tmp=new double*[origAlphabetSize-1];
@@ -144,8 +151,8 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
 }
 
 ReducedMatrix::~ReducedMatrix(){
-    delete[] this->orig_aa2int;
-    delete[] this->orig_int2aa;
+    delete [] orig_int2aa;
+    delete [] orig_aa2int;
     for(int i = 0; i<alphabetSize;i++){
         delete[] origSubMatrix[i];
     }

@@ -9,7 +9,9 @@
 
 class ReducedMatrix : public BaseMatrix {
     public:
-        ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reducedAlphabetSize, float bitFactor);
+        ReducedMatrix(double **probMatrix, float ** rMatrix,
+                      int* aa2int, char* int2aa, size_t orgAlphabetSize,
+                      size_t reducedAlphabetSize, float bitFactor);
         virtual ~ReducedMatrix();
 
         void setupLetterMapping() {
