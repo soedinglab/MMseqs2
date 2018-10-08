@@ -21,7 +21,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                      const std::string &outDB, const std::string &outDBIndex,
                      const Parameters &par) :
 
-        covThr(par.covThr), covMode(par.covMode), seqIdMode(par.seqIdMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
+        covThr(par.covThr), canCovThr(par.covThr), covMode(par.covMode), seqIdMode(par.seqIdMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
         includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign), scoreBias(par.scoreBias),
         threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), qdbr(NULL), qSeqLookup(NULL),
@@ -40,6 +40,8 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
     if (realign == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_ONLY;
+        realignCov = par.cov;
+        covThr = 0.0;
         if (addBacktrace == false) {
             Debug(Debug::WARNING) << "Turn on backtrace for realign.\n";
             addBacktrace = true;
@@ -323,6 +325,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 matcher.initQuery(&qSeq);
                 // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list
                 std::vector<Matcher::result_t> swResults;
+                std::vector<Matcher::result_t> swRealignResults;
                 size_t passedNum = 0;
                 unsigned int rejected = 0;
 
@@ -343,7 +346,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                     setTargetSequence(dbSeq, dbKey);
                     // check if the sequences could pass the coverage threshold
-                    if(Util::canBeCovered(covThr, covMode, static_cast<float>(qSeq.L), static_cast<float>(dbSeq.L)) == false )
+                    if(Util::canBeCovered(canCovThr, covMode, static_cast<float>(qSeq.L), static_cast<float>(dbSeq.L)) == false )
                     {
                         rejected++;
                         data = Util::skipLine(data);
@@ -384,16 +387,21 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         const bool isIdentity = (queryDbKey == swResults[result].dbKey && (includeIdentity || sameQTDB)) ? true : false;
                         Matcher::result_t res = realigner->getSWResult(&dbSeq, INT_MAX, covMode, covThr, FLT_MAX,
                                                                        Matcher::SCORE_COV_SEQID, seqIdMode, isIdentity);
-                        swResults[result].backtrace  = res.backtrace;
-                        swResults[result].qStartPos  = res.qStartPos;
-                        swResults[result].qEndPos    = res.qEndPos;
-                        swResults[result].dbStartPos = res.dbStartPos;
-                        swResults[result].dbEndPos   = res.dbEndPos;
-                        swResults[result].alnLength  = res.alnLength;
-                        swResults[result].seqId      = res.seqId;
-                        swResults[result].qcov       = res.qcov;
-                        swResults[result].dbcov      = res.dbcov;
+                        const bool covOK = Util::hasCoverage(realignCov, covMode, res.qcov, res.dbcov);
+                        if(covOK == true|| isIdentity){
+                            swResults[result].backtrace  = res.backtrace;
+                            swResults[result].qStartPos  = res.qStartPos;
+                            swResults[result].qEndPos    = res.qEndPos;
+                            swResults[result].dbStartPos = res.dbStartPos;
+                            swResults[result].dbEndPos   = res.dbEndPos;
+                            swResults[result].alnLength  = res.alnLength;
+                            swResults[result].seqId      = res.seqId;
+                            swResults[result].qcov       = res.qcov;
+                            swResults[result].dbcov      = res.dbcov;
+                            swRealignResults.push_back(swResults[result]);
+                        }
                     }
+                    swResults = swRealignResults;
                     if(altAlignment> 0 ){
                         computeAlternativeAlignment(queryDbKey, dbSeq, swResults, matcher, FLT_MAX, Matcher::SCORE_COV_SEQID);
                     }

@@ -2,6 +2,8 @@
 #define ALIGNMENT_H
 
 #include <string>
+#include <list>
+
 
 #include "DBReader.h"
 #include "Parameters.h"
@@ -36,7 +38,10 @@ public:
 
 private:
     // sequence coverage threshold
-    const double covThr;
+    double covThr;
+
+    // sequence coverage threshold for canCov function (needed for realignment)
+    double canCovThr;
 
     // query or query+target coverage mode
     const int covMode;
@@ -58,6 +63,7 @@ private:
 
     // realign with different score matrix
     const bool realign;
+    float realignCov;
 
     bool sameQTDB;
 
