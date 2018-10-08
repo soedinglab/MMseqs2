@@ -27,10 +27,10 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
     }
     // initialize new matrices and alphabet mappings
     this->alphabetSize = reducedAlphabetSize;
-    this->aa2int = new int['Z' + 1];
+    this->aa2int = new int[UCHAR_MAX];
     this->int2aa = new char[origAlphabetSize];
     this->reducedAlphabet = new std::vector<char>();
-    for (size_t i = 0; i <= 'Z'; ++i) { this->aa2int[i] = orig_aa2int[i]; };
+    for (size_t i = 0; i < UCHAR_MAX; ++i) { this->aa2int[i] = orig_aa2int[i]; };
     for (size_t i = 0; i < origAlphabetSize; ++i){
         this->int2aa[i] = orig_int2aa[i];
         reducedAlphabet->push_back(this->int2aa[i]);
@@ -81,7 +81,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
                 this->int2aa[i]=reduced_aa;
             }
         }
-        for(int i =0; i < 'Z'; i++){
+        for(int i =0; i < UCHAR_MAX; i++){
             if(this->aa2int[i]==lost_int){
                 this->aa2int[i]=(int)reduced_int;
             }
@@ -99,7 +99,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
     for(size_t i = 0; i<reducedAlphabet->size(); i++){
         const char representative_aa = reducedAlphabet->at(i);
         Debug(Debug::INFO) << representative_aa << " ";
-        for(size_t j =0; j < 'Z'; j++){
+        for(size_t j =0; j < UCHAR_MAX; j++){
             if(this->aa2int[(int)j] == this->aa2int[(int)representative_aa]){
                 aa2int_new[j] = i;
             }

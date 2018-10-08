@@ -305,7 +305,7 @@ void DBWriter::alignToPageSize() {
 
 void DBWriter::checkClosed() {
     if (closed == true) {
-        Debug(Debug::ERROR) << "Trying to write to a closed database.\n";
+        Debug(Debug::ERROR) << "Trying to read a closed database. Datafile=" << dataFileName  << "\n";
         EXIT(EXIT_FAILURE);
     }
 }
