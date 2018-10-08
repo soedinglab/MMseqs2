@@ -2,6 +2,8 @@
 #define MMSEQS_TIMER_H
 
 #include <sys/time.h>
+#include <string>
+#include <sstream>
 
 class Timer {
 public:
