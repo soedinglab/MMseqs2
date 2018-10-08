@@ -250,7 +250,9 @@ public:
     float  seqIdThr;                     // sequence identity threshold for acceptance
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
-	
+	int    gapOpen;                      // gap open
+    int    gapExtend;                    // gap extend
+
     // workflow
     std::string runner;
 
@@ -496,6 +498,8 @@ public:
     PARAMETER(PARAM_MIN_SEQ_ID)
     PARAMETER(PARAM_SCORE_BIAS)
     PARAMETER(PARAM_ALT_ALIGNMENT)
+    PARAMETER(PARAM_GAP_OPEN)
+    PARAMETER(PARAM_GAP_EXTEND)
     std::vector<MMseqsParameter> align;
 
     // clustering

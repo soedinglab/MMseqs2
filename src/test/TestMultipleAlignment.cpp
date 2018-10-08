@@ -63,11 +63,11 @@ int main (int argc, const char * argv[])
     seqSet.push_back(&s3);
     seqSet.push_back(&s4);
     //seqSet.push_back(s5);
-    EvalueComputation evaluer(100000, &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
-    Matcher * aligner = new Matcher(Sequence::AMINO_ACIDS, 10000, &subMat, &evaluer, false, Matcher::GAP_OPEN, Matcher::GAP_EXTEND);
+    EvalueComputation evaluer(100000, &subMat, par.gapOpen, par.gapExtend, true);
+    Matcher * aligner = new Matcher(Sequence::AMINO_ACIDS, 10000, &subMat, &evaluer, false, par.gapOpen, par.gapExtend);
     MultipleAlignment msaAligner(1000, 10, &subMat, aligner);
     MultipleAlignment::MSAResult res = msaAligner.computeMSA(&s1, seqSet, true);
-    MsaFilter filter(1000, 10000, &subMat);
+    MsaFilter filter(1000, 10000, &subMat, par.gapOpen, par.gapExtend);
     size_t filterSetSize = res.setSize;
     filter.filter(res.setSize, res.centerLength, 0, 0, -20.0, 50, 100,
                      (const char**)res.msaSequence, &filterSetSize);

@@ -13,7 +13,7 @@ class MsaFilter {
 
 public:
 
-    MsaFilter(int maxSeqLen, int maxSetSize, SubstitutionMatrix *m);
+    MsaFilter(int maxSeqLen, int maxSetSize, SubstitutionMatrix *m, int gapOpen, int gapExtend);
 
     ~MsaFilter();
     /////////////////////////////////////////////////////////////////////////////////////
@@ -60,6 +60,9 @@ private:
 
     int maxSeqLen;
     int maxSetSize;
+    int gapOpen;
+    int gapExtend;
+
     // position-dependent maximum-sequence-identity threshold for filtering? (variable used in former version was idmax)
     int *Nmax;
     // minimum value of idmax[i-WFIL,i+WFIL]

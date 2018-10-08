@@ -65,7 +65,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         tdbr->readMmapedDataInMemory();
     }
 
-    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend, true);
 
     Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> dbr_res(par.db3.c_str(), par.db3Index.c_str());
@@ -418,20 +418,20 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                             score += subMat->subMatrix[query.int_sequence[i]][target.int_sequence[j]];
                         }
                         if (stretch > 0) {
-                            score -= Matcher::GAP_OPEN;
+                            score -= par.gapOpen;
                             if (strechtPath[stretch-1].i_start==strechtPath[stretch].i_end) {
                                 for (size_t pos = strechtPath[stretch].j_end; pos < strechtPath[stretch-1].j_start; pos++) {
 //                                    querystr.push_back('-');
 //                                    targetstr.push_back(subMat->int2aa[target.int_sequence[pos]]);
                                     bt.push_back('I');
-                                    score -= Matcher::GAP_EXTEND;
+                                    score -= par.gapExtend;
                                 }
                             } else {
                                 for (size_t pos = strechtPath[stretch].i_end; pos < strechtPath[stretch-1].i_start; pos++) {
 //                                    querystr.push_back(subMat->int2aa[query.int_sequence[pos]]);
 //                                    targetstr.push_back('-');
                                     bt.push_back('D');
-                                    score -= Matcher::GAP_EXTEND;
+                                    score -= par.gapExtend;
                                 }
                             }
                         }

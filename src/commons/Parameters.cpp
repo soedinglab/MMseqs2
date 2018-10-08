@@ -63,6 +63,8 @@ Parameters::Parameters():
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","list matches above this sequence identity (for clustering) [0.0,1.0]",typeid(float), (void *) &seqIdThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
 	    PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID,"--score-bias", "Score bias", "Score bias when computing the SW alignment (in bits)",typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID,"--alt-ali", "Alternative alignments","Show up to this many alternative alignments",typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID,"--gap-open", "Gap open cost","Gap open cost",typeid(int), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID,"--gap-extend", "Gap extension cost","Gap extension cost",typeid(int), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
 
         // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0: Setcover, 1: connected component, 2: Greedy clustering by sequence length  3: Greedy clustering by sequence length (low mem)",typeid(int), (void *) &clusteringMode, "[0-3]{1}$", MMseqsParameter::COMMAND_CLUST),
@@ -232,6 +234,8 @@ Parameters::Parameters():
     align.push_back(PARAM_PCA);
     align.push_back(PARAM_PCB);
     align.push_back(PARAM_SCORE_BIAS);
+    align.push_back(PARAM_GAP_OPEN);
+    align.push_back(PARAM_GAP_EXTEND);
     align.push_back(PARAM_THREADS);
     align.push_back(PARAM_V);
 
@@ -270,6 +274,8 @@ Parameters::Parameters():
     ungappedprefilter.push_back(PARAM_COV_MODE);
     ungappedprefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
     ungappedprefilter.push_back(PARAM_MIN_DIAG_SCORE);
+    ungappedprefilter.push_back(PARAM_GAP_OPEN);
+    ungappedprefilter.push_back(PARAM_GAP_EXTEND);
     ungappedprefilter.push_back(PARAM_THREADS);
     ungappedprefilter.push_back(PARAM_V);
 
@@ -296,6 +302,8 @@ Parameters::Parameters():
     rescorediagonal.push_back(PARAM_SORT_RESULTS);
     rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
     rescorediagonal.push_back(PARAM_NO_PRELOAD);
+    rescorediagonal.push_back(PARAM_GAP_OPEN);
+    rescorediagonal.push_back(PARAM_GAP_EXTEND);
     rescorediagonal.push_back(PARAM_THREADS);
     rescorediagonal.push_back(PARAM_V);
 
@@ -311,6 +319,8 @@ Parameters::Parameters():
     alignbykmer.push_back(PARAM_COV_MODE);
     alignbykmer.push_back(PARAM_MIN_SEQ_ID);
     alignbykmer.push_back(PARAM_INCLUDE_IDENTITY);
+    alignbykmer.push_back(PARAM_GAP_OPEN);
+    alignbykmer.push_back(PARAM_GAP_EXTEND);    
     alignbykmer.push_back(PARAM_THREADS);
     alignbykmer.push_back(PARAM_V);
 
@@ -350,6 +360,8 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_PCB);
     result2profile.push_back(PARAM_OMIT_CONSENSUS);
     result2profile.push_back(PARAM_NO_PRELOAD);
+    result2profile.push_back(PARAM_GAP_OPEN);
+    result2profile.push_back(PARAM_GAP_EXTEND);
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
 
@@ -391,6 +403,8 @@ Parameters::Parameters():
     convertalignments.push_back(PARAM_FORMAT_OUTPUT);
     convertalignments.push_back(PARAM_NO_PRELOAD);
     convertalignments.push_back(PARAM_DB_OUTPUT);
+    convertalignments.push_back(PARAM_GAP_OPEN);
+    convertalignments.push_back(PARAM_GAP_EXTEND);
     convertalignments.push_back(PARAM_THREADS);
     convertalignments.push_back(PARAM_V);
 
@@ -412,6 +426,8 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_SUMMARY_PREFIX);
     result2msa.push_back(PARAM_OMIT_CONSENSUS);
     result2msa.push_back(PARAM_SKIP_QUERY);
+    result2msa.push_back(PARAM_GAP_OPEN);
+    result2msa.push_back(PARAM_GAP_EXTEND);
     //result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
     result2msa.push_back(PARAM_V);
 
@@ -435,6 +451,8 @@ Parameters::Parameters():
     msa2profile.push_back(PARAM_FILTER_QSC);
     msa2profile.push_back(PARAM_FILTER_MAX_SEQ_ID);
     msa2profile.push_back(PARAM_FILTER_NDIFF);
+    msa2profile.push_back(PARAM_GAP_OPEN);
+    msa2profile.push_back(PARAM_GAP_EXTEND);
     msa2profile.push_back(PARAM_THREADS);
     msa2profile.push_back(PARAM_V);
 
@@ -575,6 +593,8 @@ Parameters::Parameters():
     swapresult.push_back(PARAM_SUB_MAT);
     swapresult.push_back(PARAM_E);
     swapresult.push_back(PARAM_SPLIT_MEMORY_LIMIT);
+    swapresult.push_back(PARAM_GAP_OPEN);
+    swapresult.push_back(PARAM_GAP_EXTEND);
     swapresult.push_back(PARAM_THREADS);
     swapresult.push_back(PARAM_V);
 
@@ -1225,6 +1245,8 @@ void Parameters::setDefaults() {
     maxAccept   = INT_MAX;
     seqIdThr = 0.0;
     altAlignment = 0;
+    gapOpen = 11;
+    gapExtend = 1;
     addBacktrace = false;
     realign = false;
     clusteringMode = SET_COVER;

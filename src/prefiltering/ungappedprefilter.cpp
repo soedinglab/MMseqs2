@@ -44,7 +44,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
     int8_t * tinySubMat;
     if (querySeqType == Sequence::NUCLEOTIDES) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
-        evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
+        evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend, false);
         tinySubMat = new int8_t[subMat->alphabetSize*subMat->alphabetSize];
         for (int i = 0; i < subMat->alphabetSize; i++) {
             for (int j = 0; j < subMat->alphabetSize; j++) {
@@ -53,7 +53,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         }
     } else if(targetSeqType == Sequence::PROFILE_STATE_SEQ ){
         SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-        evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), &sMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
+        evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), &sMat, par.gapOpen, par.gapExtend, false);
         subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,
                                                      sMat.subMatrixPseudoCounts, 2.0, 0.0, 219);
         tinySubMat = new int8_t[sMat.alphabetSize*sMat.alphabetSize];
@@ -65,7 +65,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
     } else {
         // keep score bias at 0.0 (improved ROC)
         subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-        evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
+        evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend, false);
         tinySubMat = new int8_t[subMat->alphabetSize*subMat->alphabetSize];
         for (int i = 0; i < subMat->alphabetSize; i++) {
             for (int j = 0; j < subMat->alphabetSize; j++) {

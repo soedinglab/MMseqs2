@@ -5,8 +5,6 @@
 #include "Parameters.h"
 #include "StripedSmithWaterman.h"
 
-const unsigned short Matcher::GAP_OPEN;
-const unsigned short Matcher::GAP_EXTEND;
 
 Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
                  bool aaBiasCorrection, int gapOpen, int gapExtend){

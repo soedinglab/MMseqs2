@@ -89,7 +89,7 @@ int doRescorediagonal(Parameters &par,
         scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
     }
 
-    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend, false);
     DistanceCalculator globalAliStat;
     if (par.globalAlignment) {
         globalAliStat.prepareGlobalAliParam(*subMat);
