@@ -19,7 +19,6 @@ notExists() {
 
 QUERY="$1"
 QUERY_ORF="$1"
-
 if [ -n "$QUERY_NUCL" ]; then
     if notExists "$4/q_orfs"; then
         # shellcheck disable=SC2086
@@ -52,16 +51,18 @@ if [ -n "$TARGET_NUCL" ]; then
     TARGET_ORF="$4/t_orfs"
 fi
 
-
 mkdir -p "$4/search"
 if notExists "$4/aln"; then
     "$SEARCH" "${QUERY}" "${TARGET}" "$4/aln" "$4/search" \
         || fail "Search step died"
 fi
+
 if notExists "$4/aln_offset"; then
+    # shellcheck disable=SC2086
     "$MMSEQS" offsetalignment "$QUERY_ORF" "$TARGET_ORF" "$4/aln"  "$4/aln_offset" ${OFFSETALIGNMENT_PAR} \
         || fail "Offset step died"
 fi
+
 (mv -f "$4/aln_offset" "$3" && mv -f "$4/aln_offset.index" "$3.index") \
     || fail "Could not move result to $3"
 
