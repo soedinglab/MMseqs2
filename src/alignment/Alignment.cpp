@@ -283,7 +283,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads);
     dbw.open();
 
-    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), this->m, gapOpen, gapExtend, true);
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), this->m, gapOpen, gapExtend);
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 1000000;
     if(totalMemory > prefdbr->getDataSize()){

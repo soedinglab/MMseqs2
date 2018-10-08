@@ -8,8 +8,40 @@
 
 class EvalueComputation {
 public:
-    EvalueComputation(size_t dbResCount, BaseMatrix * subMat,
-                      int gapOpen, int gapExtend, bool isGapped )
+    EvalueComputation(size_t dbResCount, BaseMatrix *subMat) : EvalueComputation(dbResCount, subMat, 0, 0, false) {}
+    EvalueComputation(size_t dbResCount, BaseMatrix *subMat, int gapOpen, int gapExtend) : EvalueComputation(dbResCount, subMat, gapOpen, gapExtend, true) {}
+
+    inline double computeBitScore(double score) {
+        return evaluer.bitScore(score, logK);
+    }
+
+    inline double computeRawScoreFromBitScore(double bitScore) {
+        return (logK + bitScore * std::log(2.0)) / evaluer.parameters().lambda;
+    }
+
+    int minScore(double evalue, size_t qL) {
+        // do log of evalue separately, to reduce the risk of overflow:
+        double s = (std::log(evaluer.parameters().K * area(60, qL)) - std::log(evalue)) / evaluer.parameters().lambda;
+        return std::ceil(std::max(1.0, s));
+    }
+
+    double area(double score, double seqLength){
+        return evaluer.area( score, seqLength, dbResCount );
+    }
+
+    inline double computeEvalue(double score, double seqLength) {
+        const double epa = evaluer.evaluePerArea( score );
+        const double a = area( score, seqLength );
+        return epa * a;
+    }
+
+    inline double computeLogEvalue(double score, double seqLength) {
+        double eval = std::max(computeEvalue(score, seqLength), std::numeric_limits<double>::min());
+        return log(eval);
+    }
+
+private:
+    EvalueComputation(size_t dbResCount, BaseMatrix * subMat, int gapOpen, int gapExtend, bool isGapped)
             : dbResCount(dbResCount)
     {
         const double lambdaTolerance = 0.01;
@@ -21,24 +53,24 @@ public:
 
         const static EvalueParameters defaultParameter[] = {
                 {"nucleotide.out", 7, 1, true, {1.0960171987681839, 0.33538787507026158,
-                                                2.0290734315292083, -0.46514786408422282,
-                                                2.0290734315292083, -0.46514786408422282,
-                                                5.0543294182155085, 15.130999712620039,
-                                                5.0543294182155085, 15.130999712620039,
-                                                5.0543962679167036, 15.129930117400917}},
+                                                       2.0290734315292083, -0.46514786408422282,
+                                                       2.0290734315292083, -0.46514786408422282,
+                                                       5.0543294182155085, 15.130999712620039,
+                                                       5.0543294182155085, 15.130999712620039,
+                                                       5.0543962679167036, 15.129930117400917}},
 
                 {"blosum62.out", 11, 1, true,  {0.27359865037097330642, 0.044620920658722244834,
-                                                1.5938724404943873658, -19.959867650284412122,
-                                                1.5938724404943873658, -19.959867650284412122,
-                                                30.455610143099914211, -622.28684628915891608,
-                                                30.455610143099914211, -622.28684628915891608,
-                                                29.602444874818868215, -601.81087985041381216}},
+                                                       1.5938724404943873658, -19.959867650284412122,
+                                                       1.5938724404943873658, -19.959867650284412122,
+                                                       30.455610143099914211, -622.28684628915891608,
+                                                       30.455610143099914211, -622.28684628915891608,
+                                                       29.602444874818868215, -601.81087985041381216}},
                 {"blosum62.out", 0,  0, false, {0.3207378152604042354,  0.13904657125294345166,
-                                                0.76221128839920349041, 0,
-                                                0.76221128839920349041, 0,
-                                                4.5269915477182944841,  0,
-                                                4.5269915477182944841,  0,
-                                                4.5269915477182944841,  0}}
+                                                       0.76221128839920349041, 0,
+                                                       0.76221128839920349041, 0,
+                                                       4.5269915477182944841,  0,
+                                                       4.5269915477182944841,  0,
+                                                       4.5269915477182944841,  0}}
         };
 
 
@@ -91,39 +123,6 @@ public:
         logK = log(evaluer.parameters().K);
     }
 
-    ~EvalueComputation(){
-    }
-
-    inline double computeBitScore(double score) {
-        return evaluer.bitScore(score, logK);
-    }
-
-    inline double computeRawScoreFromBitScore(double bitScore) {
-        return (logK + bitScore * std::log(2.0)) / evaluer.parameters().lambda;
-    }
-
-    int minScore(double evalue, size_t qL) {
-        // do log of evalue separately, to reduce the risk of overflow:
-        double s = (std::log(evaluer.parameters().K * area(60, qL)) - std::log(evalue)) / evaluer.parameters().lambda;
-        return std::ceil(std::max(1.0, s));
-    }
-
-    double area(double score, double seqLength){
-        return evaluer.area( score, seqLength, dbResCount );
-    }
-
-    inline double computeEvalue(double score, double seqLength) {
-        const double epa = evaluer.evaluePerArea( score );
-        const double a = area( score, seqLength );
-        return epa * a;
-    }
-
-    inline double computeLogEvalue(double score, double seqLength) {
-        double eval = std::max(computeEvalue(score, seqLength), std::numeric_limits<double>::min());
-        return log(eval);
-    }
-
-private:
     Sls::AlignmentEvaluer evaluer;
     const size_t dbResCount;
     double logK;

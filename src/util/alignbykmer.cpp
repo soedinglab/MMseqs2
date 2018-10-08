@@ -65,7 +65,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         tdbr->readMmapedDataInMemory();
     }
 
-    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend, true);
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
 
     Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> dbr_res(par.db3.c_str(), par.db3Index.c_str());

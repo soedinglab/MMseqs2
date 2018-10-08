@@ -63,7 +63,7 @@ int main (int argc, const char * argv[])
     seqSet.push_back(&s3);
     seqSet.push_back(&s4);
     //seqSet.push_back(s5);
-    EvalueComputation evaluer(100000, &subMat, par.gapOpen, par.gapExtend, true);
+    EvalueComputation evaluer(100000, &subMat, par.gapOpen, par.gapExtend);
     Matcher * aligner = new Matcher(Sequence::AMINO_ACIDS, 10000, &subMat, &evaluer, false, par.gapOpen, par.gapExtend);
     MultipleAlignment msaAligner(1000, 10, &subMat, aligner);
     MultipleAlignment::MSAResult res = msaAligner.computeMSA(&s1, seqSet, true);

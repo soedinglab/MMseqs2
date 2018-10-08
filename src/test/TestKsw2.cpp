@@ -343,7 +343,7 @@ int main (int argc, const char * argv[]) {
 
     NucleotideMatrix subMat("blosum62.out", 2.0, -0.0f);
     BandedNucleotideAligner aligner((BaseMatrix*)&subMat, 10000,  5, 1);
-    EvalueComputation evalueComputation(100000, &subMat, 7, 1, true );
+    EvalueComputation evalueComputation(100000, &subMat, 7, 1);
     
     
 //    SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(subMat);

@@ -274,8 +274,6 @@ Parameters::Parameters():
     ungappedprefilter.push_back(PARAM_COV_MODE);
     ungappedprefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
     ungappedprefilter.push_back(PARAM_MIN_DIAG_SCORE);
-    ungappedprefilter.push_back(PARAM_GAP_OPEN);
-    ungappedprefilter.push_back(PARAM_GAP_EXTEND);
     ungappedprefilter.push_back(PARAM_THREADS);
     ungappedprefilter.push_back(PARAM_V);
 
@@ -302,8 +300,6 @@ Parameters::Parameters():
     rescorediagonal.push_back(PARAM_SORT_RESULTS);
     rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
     rescorediagonal.push_back(PARAM_NO_PRELOAD);
-    rescorediagonal.push_back(PARAM_GAP_OPEN);
-    rescorediagonal.push_back(PARAM_GAP_EXTEND);
     rescorediagonal.push_back(PARAM_THREADS);
     rescorediagonal.push_back(PARAM_V);
 

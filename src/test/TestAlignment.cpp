@@ -87,7 +87,7 @@ int main (int argc, const char * argv[]) {
     int gap_extend = 1;
     float seqId = 1.0;
     int aaIds = 0;
-    EvalueComputation evalueComputation(100000, &subMat, gap_open, gap_extend, true );
+    EvalueComputation evalueComputation(100000, &subMat, gap_open, gap_extend);
     s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 10000, &evalueComputation, 0, 0.0, maskLen);
     if(alignment.cigar){
         std::cout << "Cigar" << std::endl;

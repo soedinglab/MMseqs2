@@ -89,16 +89,13 @@ int doRescorediagonal(Parameters &par,
         scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
     }
 
-    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend, false);
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat);
     DistanceCalculator globalAliStat;
     if (par.globalAlignment) {
         globalAliStat.prepareGlobalAliParam(*subMat);
     }
 
-
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
-
-
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 100000000;
     if (totalMemory > resultReader.getDataSize()) {
