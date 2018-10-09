@@ -132,9 +132,10 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${INPUT}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} \
             || fail "mergedbs died"
+        mv -f "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged.index"
+        mv -f "${TMP_PATH}/aln_merged_new.index" "${TMP_PATH}/aln_merged.index"
 
         rm -f "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_swap.index"
-        rm -f "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged_new.index"
         MERGED="${TMP_PATH}/aln_merged"
     fi
 
