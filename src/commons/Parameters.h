@@ -265,7 +265,7 @@ public:
     int numIterations;
     float startSens;
     int sensSteps;
-    float sliceSearch;
+    bool sliceSearch;
 
     // easysearch
     bool greedyBestHits;

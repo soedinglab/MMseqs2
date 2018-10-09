@@ -132,7 +132,7 @@ Parameters::Parameters():
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","Search iterations",typeid(int),(void *) &numIterations, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_START_SENS(PARAM_START_SENS_ID, "--start-sens", "Start sensitivity","start sensitivity",typeid(float),(void *) &startSens, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_SENS_STEPS(PARAM_SENS_STEPS_ID, "--sens-steps", "Search steps","Search steps performed from --start-sense and -s.",typeid(int),(void *) &sensSteps, "^[1-9]{1}$"),
-        PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Run a seq-profile search in slice mode","For bigger profile DB, run iteratively the search by greedily swapping the search results.",typeid(float),(void *) &sliceSearch, ""),
+        PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Run a seq-profile search in slice mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results.", typeid(bool),(void *) &sliceSearch, ""),
         // easysearch
         PARAM_GREEDY_BEST_HITS(PARAM_GREEDY_BEST_HITS_ID, "--greedy-best-hits", "Greedy best hits", "Choose the best hits greedily to cover the query.", typeid(bool), (void*)&greedyBestHits, ""),
         // Orfs
@@ -1226,7 +1226,7 @@ void Parameters::setDefaults() {
     numIterations = 1;
     startSens = 4;
     sensSteps = 1;
-    sliceSearch = 0.0;
+    sliceSearch = false;
 
     greedyBestHits = false;
 

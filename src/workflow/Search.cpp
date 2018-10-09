@@ -140,7 +140,7 @@ int search(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("ALIGNMENT_DB_EXT", targetDbType == Sequence::PROFILE_STATE_SEQ ? ".255" : "");
 
-    if (par.sliceSearch > 0) {
+    if (par.sliceSearch == true) {
         if (targetDbType != Sequence::HMM_PROFILE) {
             par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
             Debug(Debug::ERROR) << "Sliced search only works with profiles as targets.\n";
@@ -154,7 +154,7 @@ int search(int argc, const char **argv, const Command& command) {
         } else {
             memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
         }
-        cmd.addVariable("AVAIL_MEM", SSTR(par.sliceSearch * memoryLimit / 1024).c_str());
+        cmd.addVariable("AVAIL_MEM", SSTR(static_cast<size_t>(memoryLimit / 1024)).c_str());
 
         // --max-seqs and --offset-results are set inside the workflow
         std::vector<MMseqsParameter> prefilter;
@@ -163,11 +163,11 @@ int search(int argc, const char **argv, const Command& command) {
                 prefilter.push_back(par.prefilter[i]);
             }
         }
-
-        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilter).c_str());
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
+        cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
 
         program = tmpDir + "/searchslicedtargetprofile.sh";
         FileUtil::writeFile(program, searchslicedtargetprofile_sh, searchslicedtargetprofile_sh_len);
