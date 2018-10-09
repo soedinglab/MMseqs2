@@ -88,21 +88,14 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
             // write only elementLookup that are not found in rightDbr (id != UINT_MAX)
             {
                 char *data = (char *) leftData;
-                size_t dataLength = leftDbr.getSeqLens(id);
-
                 while (*data != '\0') {
-                    Util::parseKey(data, key);
-                    if (!Util::getLine(data, dataLength, lineBuffer, LINE_BUFFER_SIZE)) {
-                        Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
-                        data = Util::skipLine(data);
-                        continue;
-                    }
+                    char *start = data;
+                    data = Util::skipLine(data);
+                    Util::parseKey(start, key);
                     unsigned int elementIdx = std::strtoul(key, NULL, 10);
                     if (elementLookup[elementIdx]) {
-                        minusResultsOutString.append(lineBuffer);
-                        minusResultsOutString.append("\n");
+                        minusResultsOutString.append(start, data - start);
                     }
-                    data = Util::skipLine(data);
                 }
             }
             
