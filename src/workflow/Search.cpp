@@ -148,13 +148,13 @@ int search(int argc, const char **argv, const Command& command) {
         }
         cmd.addVariable("MAX_STEPS", SSTR(30).c_str());
         cmd.addVariable("MAX_RESULTS_PER_QUERY", SSTR(par.maxResListLen).c_str());
-        size_t memoryLimit;
+        size_t diskLimit;
         if (par.splitMemoryLimit > 0) {
-            memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+            diskLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
         } else {
-            memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
+            diskLimit = FileUtil::getFreeSpace(FileUtil::dirName(par.db4).c_str()) / 2;
         }
-        cmd.addVariable("AVAIL_MEM", SSTR(static_cast<size_t>(memoryLimit / 1024)).c_str());
+        cmd.addVariable("AVAIL_DISK", SSTR(static_cast<size_t>(diskLimit / 1024)).c_str());
 
         // --max-seqs and --offset-results are set inside the workflow
         std::vector<MMseqsParameter> prefilter;

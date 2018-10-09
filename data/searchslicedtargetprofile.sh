@@ -52,9 +52,9 @@ if notExists "${TMP_PATH}/profileDB"; then
     ln -s "${TARGET}.dbtype" "${PROFILEDB}.dbtype"
     sort -k1,1 "${TARGET}.index" > "${PROFILEDB}.index"
 
-    echo "${AVAIL_MEM}" > "${PROFILEDB}.params"
+    echo "${AVAIL_DISK}" > "${PROFILEDB}.params"
 else
-    read -r AVAIL_MEM < "${PROFILEDB}.params"
+    read -r AVAIL_DISK < "${PROFILEDB}.params"
 fi
 
 # echo call to trim whitespace wc produces
@@ -65,15 +65,20 @@ OFFSET=0
 STEP=0
 # MAX_STEPS is set by the workflow
 # shellcheck disable=SC2153
-while [ "$STEP" -lt "$MAX_STEPS" ] && [ "$NUM_PROFILES" -gt 0 ]; do
-    if [ ! -f "${TMP_PATH}/aln_${STEP}.checkpoint" ]; then
-        # Compute the max number of sequence according to the number of profiles
-        # 90 bytes/query-result line max.
-        MAX_SEQS="$((1024*(AVAIL_MEM/NUM_PROFILES)/90))"
-    else
+while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
+    if [ -f "${TMP_PATH}/aln_${STEP}.checkpoint" ]; then
         # restore values from previous run, in case it was aborted
-        read -r MAX_SEQS OFFSET < "${TMP_PATH}/aln_${STEP}.checkpoint"
+        read -r NUM_PROFILES OFFSET < "${TMP_PATH}/aln_${STEP}.checkpoint"
         continue
+    fi
+    
+    # Compute the max number of sequence according to the number of profiles
+    # 90 bytes/query-result line max.
+    MAX_SEQS="$((1024*(AVAIL_DISK/NUM_PROFILES)/90))"
+
+    # No more disk space allowed to use
+    if [ "${MAX_SEQS}" -eq 0 ]; then
+        break
     fi
 
     # Max result to go into the prefilter list
@@ -154,7 +159,7 @@ while [ "$STEP" -lt "$MAX_STEPS" ] && [ "$NUM_PROFILES" -gt 0 ]; do
     # shellcheck disable=SC2046,SC2005
     NUM_PROFILES="$(echo $(wc -l < "${PROFILEDB}.index"))"
     rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done" "${TMP_PATH}/aln_swap.done" "${TMP_PATH}/pref_keep.list"
-    printf "%d\\t%d\\n" "${MAX_SEQS}" "${OFFSET}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
+    printf "%d\\t%d\\n" "${NUM_PROFILES}" "${OFFSET}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
 
     STEP="$((STEP+1))"
 done
