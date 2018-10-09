@@ -25,6 +25,7 @@ void setSearchDefaults(Parameters *p) {
     p->orfStartMode = 0;
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
+    p->evalProfile = 0.1;
 }
 
 
@@ -173,14 +174,7 @@ int search(int argc, const char **argv, const Command& command) {
         FileUtil::writeFile(tmpDir + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
         program = std::string(tmpDir + "/searchtargetprofile.sh");
     } else if (par.numIterations > 1) {
-        for (size_t i = 0; i < par.searchworkflow.size(); i++) {
-            if (par.searchworkflow[i].uniqid == par.PARAM_E_PROFILE.uniqid &&
-                par.searchworkflow[i].wasSet == false) {
-                par.evalProfile = 0.1;
-            }
-        }
         cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
-        cmd.addVariable("PROFILE", SSTR((queryDbType == Sequence::HMM_PROFILE) ? 1 : 0).c_str());
         cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.subtractdbs).c_str());
 
         float originalEval = par.evalThr;
