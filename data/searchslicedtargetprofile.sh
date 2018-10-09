@@ -71,7 +71,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         read -r NUM_PROFILES OFFSET < "${TMP_PATH}/aln_${STEP}.checkpoint"
         continue
     fi
-    
+
     # Compute the max number of sequence according to the number of profiles
     # 90 bytes/query-result line max.
     MAX_SEQS="$((1024*(AVAIL_DISK/NUM_PROFILES)/90))"
@@ -133,21 +133,15 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         "$MMSEQS" mergedbs "${INPUT}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} \
             || fail "mergedbs died"
 
-        # shellcheck disable=SC2086
-        "$MMSEQS" filterdb "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" \
-            --sort-entries 2 --filter-column 2 ${THREADS_PAR} \
-            || fail "filterdb (sorting) died"
-
         rm -f "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_swap.index"
         rm -f "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged_new.index"
         MERGED="${TMP_PATH}/aln_merged"
     fi
 
-    # keep only the top MAX_RESULTS_PER_QUERY hits according to evalue
+    # keep only the top max-seqs hits according to the default alignment sorting criteria
     # shellcheck disable=SC2086
-    "$MMSEQS" filterdb "${MERGED}" "${TMP_PATH}/aln_merged_trunc" \
-        --extract-lines "$MAX_RESULTS_PER_QUERY" ${THREADS_PAR} \
-        || fail "filterdb (extract lines) died"
+    "$MMSEQS" sortresult "${MERGED}" "${TMP_PATH}/aln_merged_trunc" ${SORTRESULT_PAR} \
+        || fail "sortresult died"
     mv -f "${TMP_PATH}/aln_merged_trunc" "${TMP_PATH}/aln_merged"
     mv -f "${TMP_PATH}/aln_merged_trunc.index" "${TMP_PATH}/aln_merged.index"
 

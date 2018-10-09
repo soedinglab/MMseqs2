@@ -166,6 +166,7 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilter).c_str());
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        cmd.addVariable("SORTRESULT_PAR", par.createParameterString(par.sortresult).c_str());
         cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
         cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
 
