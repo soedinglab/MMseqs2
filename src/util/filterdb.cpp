@@ -161,19 +161,22 @@ int ffindexFilter::runFilter(){
 	const size_t LINE_BUFFER_SIZE = 1000000;
 #pragma omp parallel
 	{
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
+
 		char *lineBuffer = new char[LINE_BUFFER_SIZE];
 		char *columnValue = new char[LINE_BUFFER_SIZE];
 		char **columnPointer = new char*[column + 1];
+
 		std::string buffer = "";
 		buffer.reserve(LINE_BUFFER_SIZE);
+
 #pragma omp for schedule(dynamic, 10)
 		for (size_t id = 0; id < dataDb->getSize(); id++) {
-
 			Debug::printProgress(id);
-			int thread_idx = 0;
-#ifdef OPENMP
-			thread_idx = omp_get_thread_num();
-#endif
+
 			char *data = dataDb->getData(id);
             unsigned int queryKey = dataDb->getDbKey(id);
 			size_t dataLength = dataDb->getSeqLens(id);
@@ -183,13 +186,11 @@ int ffindexFilter::runFilter(){
             bool addSelfMatch = false;
 
 			while (*data != '\0') {
-                if (shouldAddSelfMatch)
-                {
+                if (shouldAddSelfMatch) {
                     char dbKeyBuffer[255 + 1];
                     Util::parseKey(data, dbKeyBuffer);
                     const unsigned int curKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
                     addSelfMatch = (queryKey == curKey);
-                    
                 }
                     
 				if(!Util::getLine(data, dataLength, lineBuffer, LINE_BUFFER_SIZE)) {
