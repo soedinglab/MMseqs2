@@ -37,13 +37,13 @@ if notExists "${TMP_PATH}/cluster.tsv"; then
         || fail "Convert Alignments died"
 fi
 
-if notExists "${TMP_PATH}/req_seq.fasta"; then
+if notExists "${TMP_PATH}/rep_seq.fasta"; then
     # shellcheck disable=SC2086
     "$MMSEQS" result2repseq "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/clu_rep" ${THREADS_PAR} \
             || fail "Result2repseq  died"
 
     # shellcheck disable=SC2086
-    "$MMSEQS" result2flat "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/clu_rep" "${TMP_PATH}/req_seq.fasta" --use-fasta-header ${VERBOSITY_PAR} \
+    "$MMSEQS" result2flat "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/clu_rep" "${TMP_PATH}/rep_seq.fasta" --use-fasta-header ${VERBOSITY_PAR} \
             || fail "result2flat died"
 fi
 
@@ -58,7 +58,7 @@ if notExists "${TMP_PATH}/all_seqs.fasta"; then
 fi
 
 mv "${TMP_PATH}/all_seqs.fasta"  "${RESULTS}_all_seqs.fasta"
-mv "${TMP_PATH}/req_seq.fasta"  "${RESULTS}_req_seq.fasta"
+mv "${TMP_PATH}/rep_seq.fasta"  "${RESULTS}_rep_seq.fasta"
 mv "${TMP_PATH}/cluster.tsv"  "${RESULTS}_cluster.tsv"
 
 if [ -n "${REMOVE_TMP}" ]; then
