@@ -67,6 +67,7 @@ extern int search(int argc, const char **argv, const Command& command);
 extern int sequence2profile(int argc, const char **argv, const Command& command);
 extern int shellcompletion(int argc, const char **argv, const Command& command);
 extern int shellcompletion(int argc, const char **argv, const Command& command);
+extern int sortresult(int argc, const char **argv, const Command& command);
 extern int splitdb(int argc, const char **argv, const Command& command);
 extern int subtractdbs(int argc, const char **argv, const Command& command);
 extern int suffixid(int argc, const char **argv, const Command& command);

@@ -718,12 +718,18 @@ Parameters::Parameters():
     expandaln.push_back(PARAM_THREADS);
     expandaln.push_back(PARAM_V);
 
+    sortresult.push_back(PARAM_MAX_SEQS);
+    sortresult.push_back(PARAM_THREADS);
+    sortresult.push_back(PARAM_V);
+
     // WORKFLOWS
     searchworkflow = combineList(align, prefilter);
     searchworkflow = combineList(searchworkflow, rescorediagonal);
     searchworkflow = combineList(searchworkflow, result2profile);
     searchworkflow = combineList(searchworkflow, extractorfs);
     searchworkflow = combineList(searchworkflow, translatenucs);
+    // needed for slice search, however all its parameters are already present in searchworkflow
+    // searchworkflow = combineList(searchworkflow, sortresult);
     searchworkflow.push_back(PARAM_NUM_ITERATIONS);
     searchworkflow.push_back(PARAM_START_SENS);
     searchworkflow.push_back(PARAM_SENS_STEPS);
