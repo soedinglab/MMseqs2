@@ -86,7 +86,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
 
     if notExists "${TMP_PATH}/pref.done"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" prefilter "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" \
+        ${RUNNER} "$MMSEQS" prefilter "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" \
             --max-seqs "${SEARCH_LIM}" --offset-result "${OFFSET}" ${PREFILTER_PAR} \
             || fail "prefilter died"
         touch "${TMP_PATH}/pref.done"
@@ -112,7 +112,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
 
     if notExists "${TMP_PATH}/aln.done"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" align "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
+        ${RUNNER} "$MMSEQS" align "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
             || fail "align died"
         rm -f "${TMP_PATH}/pref" "${TMP_PATH}/pref.index"
         touch "${TMP_PATH}/aln.done"
@@ -164,7 +164,6 @@ mv -f "${TMP_PATH}/aln_merged.index" "${RESULT}.index"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
-
     while [ "$STEP" -lt "$MAX_STEPS" ]; do
         if [ -f "${TMP_PATH}/aln_${STEP}.checkpoint" ]; then
             rm -f "${TMP_PATH}/aln_${STEP}.checkpoint"
