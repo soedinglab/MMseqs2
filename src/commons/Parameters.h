@@ -151,7 +151,8 @@ public:
     static const int COV_MODE_BIDIRECTIONAL  = 0;
     static const int COV_MODE_TARGET = 1;
     static const int COV_MODE_QUERY = 2;
-    static const int COV_MODE_LENGTH = 3;
+    static const int COV_MODE_LENGTH_QUERY = 3;
+    static const int COV_MODE_LENGTH_TARGET = 4;
 
     // seq. id mode
     static const int SEQ_ID_ALN_LEN  = 0;

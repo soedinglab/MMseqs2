@@ -569,7 +569,7 @@ std::string Util::removeWhiteSpace(std::string in) {
 }
 
 bool Util::canBeCovered(const float covThr, const int covMode, float queryLength, float targetLength) {
-    switch(covMode){
+    switch (covMode) {
         case Parameters::COV_MODE_BIDIRECTIONAL:
             return ((queryLength / targetLength >= covThr) && (targetLength / queryLength >= covThr));
         case Parameters::COV_MODE_QUERY:
@@ -577,29 +577,47 @@ bool Util::canBeCovered(const float covThr, const int covMode, float queryLength
         case Parameters::COV_MODE_TARGET:
             // No assumptions possible without the alignment length
             return true;
-        case Parameters::COV_MODE_LENGTH:
+        case Parameters::COV_MODE_LENGTH_QUERY:
             return ((targetLength / queryLength) >= covThr) && (targetLength / queryLength) <= 1.0;
+        case Parameters::COV_MODE_LENGTH_TARGET:
+            return ((queryLength / targetLength) >= covThr) && (queryLength / targetLength) <= 1.0;
         default:
             return true;
     }
 }
 
-bool Util::hasCoverage(float covThr, int covMode,
-                       float queryCov, float targetCov){
-    switch(covMode){
+bool Util::hasCoverage(float covThr, int covMode, float queryCov, float targetCov){
+    switch (covMode) {
         case Parameters::COV_MODE_BIDIRECTIONAL:
             return ((queryCov >= covThr) && (targetCov >= covThr));
         case Parameters::COV_MODE_QUERY:
             return (queryCov >= covThr);
         case Parameters::COV_MODE_TARGET:
             return (targetCov >= covThr);
-        case Parameters::COV_MODE_LENGTH:
+        case Parameters::COV_MODE_LENGTH_QUERY:
+        case Parameters::COV_MODE_LENGTH_TARGET:
             return true;
         default:
             return true;
     }
 }
 
+int Util::swapCoverageMode(int covMode) {
+    switch (covMode) {
+        case Parameters::COV_MODE_BIDIRECTIONAL:
+            return Parameters::COV_MODE_BIDIRECTIONAL;
+        case Parameters::COV_MODE_QUERY:
+            return Parameters::COV_MODE_TARGET;
+        case Parameters::COV_MODE_TARGET:
+            return Parameters::COV_MODE_QUERY;
+        case Parameters::COV_MODE_LENGTH_QUERY:
+            return Parameters::COV_MODE_LENGTH_TARGET;
+        case Parameters::COV_MODE_LENGTH_TARGET:
+            return Parameters::COV_MODE_LENGTH_QUERY;
+    }
+    Debug(Debug::ERROR) << "Unknown coverage mode " << covMode << ".\n";
+    EXIT(EXIT_FAILURE);
+}
 
 float Util::computeSeqId(int seqIdMode, int aaIds, int qLen, int tLen, int alnLen) {
     switch(seqIdMode) {

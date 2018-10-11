@@ -164,16 +164,19 @@ int search(int argc, const char **argv, const Command& command) {
         }
 
         // correct Eval threshold for inverted search
-        size_t queryDbSize = FileUtil::countLines((par.db1 + ".index").c_str());
-        size_t targetDbSize = FileUtil::countLines((par.db2 + ".index").c_str());
+        const size_t queryDbSize = FileUtil::countLines(par.db1Index.c_str());
+        const size_t targetDbSize = FileUtil::countLines(par.db2Index.c_str());
         par.evalThr *= ((float) queryDbSize)/targetDbSize;
 
+        int originalCovMode = par.covMode;
+        par.covMode = Util::swapCoverageMode(par.covMode);
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilter).c_str());
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("SORTRESULT_PAR", par.createParameterString(par.sortresult).c_str());
         cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
         cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
+        par.covMode = originalCovMode;
 
         program = tmpDir + "/searchslicedtargetprofile.sh";
         FileUtil::writeFile(program, searchslicedtargetprofile_sh, searchslicedtargetprofile_sh_len);
@@ -182,6 +185,8 @@ int search(int argc, const char **argv, const Command& command) {
         // we need to align all hits in case of target Profile hits
         size_t maxResListLen = par.maxResListLen;
         par.maxResListLen = INT_MAX;
+        int originalCovMode = par.covMode;
+        par.covMode = Util::swapCoverageMode(par.covMode);
         if (isUngappedMode) {
             par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
             cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
@@ -189,6 +194,7 @@ int search(int argc, const char **argv, const Command& command) {
         } else {
             cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         }
+        par.covMode = originalCovMode;
         par.maxResListLen = maxResListLen;
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         FileUtil::writeFile(tmpDir + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
