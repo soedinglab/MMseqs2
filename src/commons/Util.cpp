@@ -574,6 +574,9 @@ bool Util::canBeCovered(const float covThr, const int covMode, float queryLength
             return ((queryLength / targetLength >= covThr) && (targetLength / queryLength >= covThr));
         case Parameters::COV_MODE_QUERY:
             return ((targetLength / queryLength) >= covThr);
+        case Parameters::COV_MODE_TARGET:
+            // No assumptions possible without the alignment length
+            return true;
         case Parameters::COV_MODE_LENGTH:
             return ((targetLength / queryLength) >= covThr) && (targetLength / queryLength) <= 1.0;
         default:
