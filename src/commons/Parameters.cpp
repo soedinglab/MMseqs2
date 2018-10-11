@@ -710,6 +710,7 @@ Parameters::Parameters():
     lca.push_back(PARAM_V);
 
     // exapandaln
+    expandaln.push_back(PARAM_EXPANSION_MODE);
     expandaln.push_back(PARAM_SUB_MAT);
     expandaln.push_back(PARAM_GAP_OPEN);
     expandaln.push_back(PARAM_GAP_EXTEND);
@@ -801,6 +802,13 @@ Parameters::Parameters():
     mapworkflow.push_back(PARAM_SENS_STEPS);
     mapworkflow.push_back(PARAM_RUNNER);
     mapworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+
+    enrichworkflow = combineList(searchworkflow, prefilter);
+    enrichworkflow = combineList(enrichworkflow, subtractdbs);
+    enrichworkflow = combineList(enrichworkflow, align);
+    enrichworkflow = combineList(enrichworkflow, expandaln);
+    enrichworkflow = combineList(enrichworkflow, result2profile);
+    enrichworkflow.push_back(PARAM_NUM_ITERATIONS);
 
     //checkSaneEnvironment();
     setDefaults();

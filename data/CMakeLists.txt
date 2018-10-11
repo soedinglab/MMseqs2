@@ -18,6 +18,7 @@ set(COMPILED_RESOURCES
         multihitsearch.sh
         summarizeresultsbyset.sh
         search2m.sh
+        enrich.sh
         nucleotide.out
         blosum62.out
         CovSeqidQscPercMinDiag.out

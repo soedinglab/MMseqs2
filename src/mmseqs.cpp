@@ -75,6 +75,12 @@ std::vector<struct Command> commands = {
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:sequenceDB> <tmpDir>",
                 CITATION_MMSEQS2},
+        {"enrich",                enrich,              &par.enrichworkflow,       COMMAND_MAIN,
+                "Enrich a query set by searching iteratively through a profile sequence set.",
+                "",
+                "Milot Mirdita <milot@mirdita.de>",
+                "<i:queryDB> <i:targetDB> <o:alignmentDB> <tmpDir>",
+                CITATION_MMSEQS2},
 // Utility tools for format conversions
         {"createtsv",            createtsv,            &par.createtsv,        COMMAND_FORMAT_CONVERSION,
                 "Create tab-separated flat file from prefilter DB, alignment DB, cluster DB, or taxa DB",
