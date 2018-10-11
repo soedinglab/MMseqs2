@@ -67,10 +67,10 @@ int doExtractAlignedRegion(Parameters &par) {
                 char* seq = NULL;
                 if (qSeq) {
                     seq = qSeq + res.qStartPos;
-                    length = res.qEndPos - res.qStartPos;
+                    length = res.qEndPos - res.qStartPos+1;
                 } else if (par.extractMode == Parameters::EXTRACT_TARGET) {
                     seq = tdbr->getDataByDBKey(res.dbKey) + res.dbStartPos;
-                    length = res.dbEndPos - res.dbStartPos;
+                    length = res.dbEndPos - res.dbStartPos+1;
                 } else {
                     Debug(Debug::ERROR) << "Missing extraction type!\n";
                     EXIT(EXIT_FAILURE);
