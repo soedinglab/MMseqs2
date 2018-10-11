@@ -57,7 +57,8 @@ while [ $STEP -lt $NUM_IT ]; do
 
     if [ $STEP -gt 0 ]; then
         if notExists "$TMP_PATH/aln_$STEP.hasmerge"; then
-            "$MMSEQS" mergedbs "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP" \
+            # shellcheck disable=SC2086
+            "$MMSEQS" mergedbs "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP" ${VERBOSITY_PAR} \
                 || fail "Merge died"
             mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_0"
             mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_0.index"

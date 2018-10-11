@@ -196,6 +196,7 @@ int search(int argc, const char **argv, const Command& command) {
     } else if (par.numIterations > 1) {
         cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
         cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.subtractdbs).c_str());
+        cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
 
         float originalEval = par.evalThr;
         par.evalThr = par.evalProfile;
