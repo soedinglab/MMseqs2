@@ -7,6 +7,7 @@ set(workflow_source_files
         workflow/EasyLinclust.cpp
         workflow/Map.cpp
         workflow/Search.cpp
+        workflow/Search-2m.cpp
         workflow/Taxonomy.cpp
         workflow/CreateIndex.cpp
         PARENT_SCOPE

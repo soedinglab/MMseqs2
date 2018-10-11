@@ -82,6 +82,6 @@ extern int translateaa(int argc, const char **argv, const Command& command);
 extern int translatenucs(int argc, const char **argv, const Command& command);
 extern int tsv2db(int argc, const char **argv, const Command& command);
 extern int versionstring(int argc, const char **argv, const Command& command);
-
+extern int search2m(int argc, const char **argv, const Command& command);
 
 #endif

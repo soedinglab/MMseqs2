@@ -114,6 +114,13 @@ std::vector<struct Command> commands = {
                 "<i:queryDB> <i:targetDB> <i:targetTaxonMapping> <i:NcbiTaxdmpDir> <o:taxaDB> <tmpDir>",
                 CITATION_MMSEQS2
         },
+        {"search-2m",             search2m,             &par.taxonomy,             COMMAND_TAXONOMY,
+                "Compute taxonomy and lowest common ancestor for each sequence.",
+                NULL,
+                "Milot Mirdita <milot@mirdita.de>",
+                "<i:queryDB> <i:targetDB> <i:targetTaxonMapping> <i:NcbiTaxdmpDir> <o:taxaDB> <tmpDir>",
+                CITATION_MMSEQS2
+        },
         {"lca",                  lca,                  &par.lca,                  COMMAND_TAXONOMY,
                 "Compute the lowest common ancestor from a set of taxa.",
                 NULL,

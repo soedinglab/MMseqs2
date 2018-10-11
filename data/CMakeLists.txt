@@ -17,23 +17,9 @@ set(COMPILED_RESOURCES
         multihitdb.sh
         multihitsearch.sh
         summarizeresultsbyset.sh
+        search2m.sh
         nucleotide.out
-        blosum30.out
-        blosum35.out
-        blosum40.out
-        blosum45.out
-        blosum50.out
-        blosum55.out
-        blosum60.out
         blosum62.out
-        blosum65.out
-        blosum70.out
-        blosum75.out
-        blosum80.out
-        blosum85.out
-        blosum90.out
-        blosum95.out
-        blosum100.out
         CovSeqidQscPercMinDiag.out
         CovSeqidQscPercMinDiagTargetCov.out
         ExpOpt3_8_polished.cs32.lib
