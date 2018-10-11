@@ -8,6 +8,7 @@
 #include "QueryMatcher.h"
 #include "QueryMatcher.h"
 #include "NucleotideMatrix.h"
+#include "Alignment.h"
 
 #include <string>
 #include <vector>
@@ -15,8 +16,6 @@
 #ifdef OPENMP
 #include <omp.h>
 #endif
-
-
 
 int alignall(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Rescore diagonals.\n";
@@ -115,20 +114,13 @@ int alignall(int argc, const char **argv, const Command &command) {
                         target.mapSequence(id, targetKey, targetSeq);
 
                         const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB)) ? true : false;
-                        if(Util::canBeCovered(par.covThr, par.covMode, query.L, target.L)==false){
+                        if (Util::canBeCovered(par.covThr, par.covMode, query.L, target.L) == false) {
                             continue;
                         }
-                        double seqId = 0;
-                        double evalue = 0.0;
                         Matcher::result_t result = matcher.getSWResult(&target, INT_MAX, par.covMode, par.covThr, FLT_MAX,
                                                                        par.alignmentMode, par.seqIdMode, isIdentity);
-                        // query/target cov mode
-                        bool hasCov = Util::hasCoverage(par.covThr, par.covMode, result.qcov, result.dbcov);
-                        // --min-seq-id
-                        bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
-                        bool hasEvalue = (evalue <= par.evalThr);
-                        // --filter-hits
-                        if (isIdentity || (hasCov && hasSeqId && hasEvalue)) {
+                        // checkCriteria and Util::canBeCovered always work together
+                        if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, par.covMode, par.covThr)) {
                             size_t len = Matcher::resultToBuffer(tmpBuff, result, true, false);
                             resultWriter.writeAdd(buffer, queryIdLen + len, thread_idx);
                         }
