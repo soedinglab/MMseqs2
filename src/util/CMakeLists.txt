@@ -5,6 +5,7 @@ set(util_source_files
         util/clusthash.cpp
         util/convert2fasta.cpp
         util/convertalignments.cpp
+        util/convertca3m.cpp
         util/convertkb.cpp
         util/convertmsa.cpp
         util/convertprofiledb.cpp
@@ -16,6 +17,7 @@ set(util_source_files
         util/createsubdb.cpp
         util/createtsv.cpp
         util/diffseqdbs.cpp
+        util/expandaln.cpp
         util/extractalignedregion.cpp
         util/extractdomains.cpp
         util/extractorfs.cpp
@@ -38,6 +40,7 @@ set(util_source_files
         util/result2stats.cpp
         util/sequence2profile.cpp
         util/shellcompletion.cpp
+        util/sortresult.cpp
         util/splitdb.cpp
         util/subtractdbs.cpp
         util/summarizeheaders.cpp

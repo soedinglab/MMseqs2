@@ -146,6 +146,128 @@ std::string CompressedA3M::extractA3M(const char *data, size_t data_size,
     return output.str();
 }
 
+void CompressedA3M::extractMatcherResults(unsigned int &key, std::vector<Matcher::result_t> &results,
+        const char *data, size_t dataSize, DBReader<unsigned int> &sequenceReader, bool skipFirst) {
+    //read stuff till compressed part
+    char lastChar = '\0';
+    size_t index = 0;
+
+    //handle commentary line
+    if ((*data) == '#') {
+        while ((*data) != '\n') {
+            data++;
+            index++;
+        }
+
+        lastChar = '\n';
+        data++;
+        index++;
+    }
+
+    char inConsensus = 0;
+    size_t consensusLength = 0;
+    while (!(lastChar == '\n' && (*data) == ';') && index < dataSize) {
+        if ((*data) == '\n') {
+            inConsensus++;
+        }
+        else if (inConsensus == 1) {
+            consensusLength++;
+        }
+
+        lastChar = (*data);
+        data++;
+        index++;
+    }
+
+    std::string backtrace;
+    backtrace.reserve(consensusLength);
+
+    //get past ';'
+    data++;
+    index++;
+
+    size_t qLen = 0;
+    bool isFirst = true;
+    while (index < dataSize - 1) {
+        Matcher::result_t match;
+        match.seqId      = 0;
+        match.score      = 0;
+        match.eval       = 0;
+
+        unsigned int entryIndex;
+        readU32(&data, entryIndex);
+        index += 4;
+
+        match.dbKey = sequenceReader.getDbKey(entryIndex);
+        if (isFirst) {
+            key = match.dbKey;
+            qLen = sequenceReader.getSeqLens(entryIndex) - 2;
+            match.qLen = match.dbLen = qLen;
+        } else {
+            match.qLen = qLen;
+            match.dbLen = sequenceReader.getSeqLens(entryIndex) - 2;
+        }
+
+        unsigned short int startPos;
+        readU16(&data, startPos);
+        index += 2;
+
+        match.dbStartPos = startPos - 1;
+
+        unsigned short int nrBlocks;
+        readU16(&data, nrBlocks);
+        index += 2;
+
+        if (skipFirst && isFirst) {
+            data += 2 * nrBlocks;
+            index += 2 * nrBlocks;
+            isFirst = false;
+            continue;
+        }
+
+        match.qStartPos = 0;
+        unsigned int qAlnLength = 0;
+        unsigned int dbAlnLength = 0;
+        bool firstBlockM = false;
+        for (unsigned short int blockIdx = 0; blockIdx < nrBlocks; blockIdx++) {
+            unsigned char matchCount = (unsigned char) (*data);
+            data++;
+            index++;
+
+            qAlnLength += matchCount;
+            dbAlnLength += matchCount;
+            backtrace.append(matchCount, 'M');
+
+            if (matchCount != 0) {
+                firstBlockM = true;
+            }
+
+            char inDelCount = (*data);
+            data++;
+            index++;
+
+            if (firstBlockM == false) {
+                match.qStartPos -= inDelCount;
+            } else {
+                if (inDelCount > 0) {
+                    backtrace.append(inDelCount, 'D');
+                    qAlnLength += inDelCount;
+                } else if (inDelCount < 0) {
+                    backtrace.append(-inDelCount, 'I');
+                    dbAlnLength -= inDelCount;
+                }
+            }
+        }
+
+        match.backtrace = backtrace;
+        match.qEndPos = match.qStartPos + dbAlnLength - 1;
+        match.dbEndPos = match.dbStartPos + qAlnLength - 1;
+        results.emplace_back(match);
+        backtrace.clear();
+    }
+}
+
+
 
 std::string CompressedA3M::fromAlignmentResult(const std::vector<Matcher::result_t>& alignment, DBConcat& referenceDBr) {
     std::ostringstream out;
@@ -193,8 +315,8 @@ std::string CompressedA3M::fromAlignmentResult(const std::vector<Matcher::result
 
         // add the deletion at the begining of the sequence (local alignment)
         unsigned int firstGap = aln.qStartPos;
-        while (firstGap) // need to make as much 127-long deletion blocks as needed
-        {
+        // need to make as much 127-long deletion blocks as needed
+        while (firstGap) {
             unsigned int gapToWrite = -std::min((unsigned int) (127), firstGap);
             firstBlock.write(reinterpret_cast<const char *>(&zero),
                              sizeof(char)); // no match in this block,

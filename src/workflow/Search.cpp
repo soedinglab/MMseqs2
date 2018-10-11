@@ -6,7 +6,7 @@
 #include "Parameters.h"
 
 #include "searchtargetprofile.sh.h"
-#include "searchslicemodetargetprofile.sh.h"
+#include "searchslicedtargetprofile.sh.h"
 #include "blastpgp.sh.h"
 #include "translated_search.sh.h"
 #include "blastp.sh.h"
@@ -46,7 +46,10 @@ int search(int argc, const char **argv, const Command& command) {
         par.overrideParameterDescription((Command &) command, par.translatenucs[i].uniqid, NULL, NULL,
                                          par.translatenucs[i].category | MMseqsParameter::COMMAND_EXPERT);
     }
-
+    par.overrideParameterDescription((Command &) command, par.PARAM_THREADS.uniqid, NULL, NULL,
+                                     par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
+                                     par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
     par.parseParameters(argc, argv, command, 4, false, 0,
                         MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
 
@@ -137,26 +140,38 @@ int search(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("ALIGNMENT_DB_EXT", targetDbType == Sequence::PROFILE_STATE_SEQ ? ".255" : "");
 
-    if (targetDbType == Sequence::HMM_PROFILE && par.sliceSearch > 0) {
-        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter, USE_ONLY_SET_PARAMETERS).c_str());
-        cmd.addVariable("MAX_STEPS", std::to_string(30).c_str());
-        cmd.addVariable("MAX_RESULTS_PER_QUERY", std::to_string(par.maxResListLen).c_str());
-        size_t memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
-        cmd.addVariable("AVAIL_MEM", std::to_string(par.sliceSearch * memoryLimit / 1024).c_str());
-        cmd.addVariable("COMMONS", (std::string("--threads ") + std::to_string(par.threads)).c_str());
-
-        if (isUngappedMode) {
-            par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
-            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
-            par.rescoreMode = originalRescoreMode;
-        } else {
-            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+    if (par.sliceSearch == true) {
+        if (targetDbType != Sequence::HMM_PROFILE) {
+            par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+            Debug(Debug::ERROR) << "Sliced search only works with profiles as targets.\n";
+            EXIT(EXIT_FAILURE);
         }
+        cmd.addVariable("MAX_STEPS", SSTR(30).c_str());
+        cmd.addVariable("MAX_RESULTS_PER_QUERY", SSTR(par.maxResListLen).c_str());
+        size_t diskLimit;
+        if (par.splitMemoryLimit > 0) {
+            diskLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+        } else {
+            diskLimit = FileUtil::getFreeSpace(FileUtil::dirName(par.db4).c_str()) / 2;
+        }
+        cmd.addVariable("AVAIL_DISK", SSTR(static_cast<size_t>(diskLimit / 1024)).c_str());
 
+        // --max-seqs and --offset-results are set inside the workflow
+        std::vector<MMseqsParameter> prefilter;
+        for (size_t i = 0; i < par.prefilter.size(); i++){
+            if (par.prefilter[i].uniqid != par.PARAM_MAX_SEQS.uniqid && par.prefilter[i].uniqid != par.PARAM_RES_LIST_OFFSET.uniqid){
+                prefilter.push_back(par.prefilter[i]);
+            }
+        }
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilter).c_str());
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
-        FileUtil::writeFile(tmpDir + "/searchslicemodetargetprofile.sh", searchslicemodetargetprofile_sh,
-                            searchslicemodetargetprofile_sh_len);
-        program = std::string(tmpDir + "/searchslicemodetargetprofile.sh");
+        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        cmd.addVariable("SORTRESULT_PAR", par.createParameterString(par.sortresult).c_str());
+        cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
+        cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
+
+        program = tmpDir + "/searchslicedtargetprofile.sh";
+        FileUtil::writeFile(program, searchslicedtargetprofile_sh, searchslicedtargetprofile_sh_len);
     } else if (targetDbType == Sequence::HMM_PROFILE) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         // we need to align all hits in case of target Profile hits

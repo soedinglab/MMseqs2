@@ -265,7 +265,7 @@ public:
     int numIterations;
     float startSens;
     int sensSteps;
-    float sliceSearch;
+    bool sliceSearch;
 
     // easysearch
     bool greedyBestHits;
@@ -426,6 +426,9 @@ public:
     // lca
     std::string lcaRanks;
     std::string blacklist;
+
+    // exapandaln
+    int expansionMode;
 
     // taxonomy
     int lcaMode;
@@ -680,6 +683,9 @@ public:
     PARAMETER(PARAM_LCA_RANKS)
     PARAMETER(PARAM_BLACKLIST)
 
+    // exapandaln
+    PARAMETER(PARAM_EXPANSION_MODE)
+
     // taxonomy
     PARAMETER(PARAM_LCA_MODE)
 
@@ -711,7 +717,6 @@ public:
     std::vector<MMseqsParameter> clusthash;
     std::vector<MMseqsParameter> kmermatcher;
     std::vector<MMseqsParameter> linclustworkflow;
-    std::vector<MMseqsParameter> assemblerworkflow;
     std::vector<MMseqsParameter> easysearchworkflow;
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> mapworkflow;
@@ -747,6 +752,8 @@ public:
     std::vector<MMseqsParameter> summerizeresultsbyset;
     std::vector<MMseqsParameter> multihitdb;
     std::vector<MMseqsParameter> multihitsearch;
+    std::vector<MMseqsParameter> expandaln;
+    std::vector<MMseqsParameter> sortresult;
 
     std::vector<MMseqsParameter> combineList(const std::vector<MMseqsParameter> &par1,
                                              const std::vector<MMseqsParameter> &par2);
