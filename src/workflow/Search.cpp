@@ -22,7 +22,7 @@ void setSearchDefaults(Parameters *p) {
     p->evalThr = 0.001;
     p->includeHeader = true;
     //p->orfLongest = true;
-    p->orfStartMode = 0;
+    p->orfStartMode = 1;
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
     p->evalProfile = 0.1;
