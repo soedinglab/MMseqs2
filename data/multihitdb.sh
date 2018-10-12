@@ -24,11 +24,17 @@ if [ "$("${MMSEQS}" dbtype "${OUTDB}")" = "Nucleotide" ]; then
     mv -f "${OUTDB}.lookup" "${OUTDB}_nucl.lookup"
     mv -f "${OUTDB}.dbtype" "${OUTDB}_nucl.dbtype"
 
-    awk '{ print $1"\t"$3; }' "${OUTDB}_nucl.lookup" | sort -k1,1n -k2,2n > "${OUTDB}_nucl_contig_to_set.tsv"
-    mmseqs tsv2db "${OUTDB}_nucl_contig_to_set.tsv" "${OUTDB}_nucl_contig_to_set"
+    if notExists "${OUTDB}_nucl_contig_to_set"; then
+        awk '{ print $1"\t"$3; }' "${OUTDB}_nucl.lookup" | sort -k1,1n -k2,2n > "${OUTDB}_nucl_contig_to_set.tsv"
+        "${MMSEQS}" tsv2db "${OUTDB}_nucl_contig_to_set.tsv" "${OUTDB}_nucl_contig_to_set" \
+            || fail "tsv2db failed"
+    fi
 
-    awk '{ print $3"\t"$1; }' "${OUTDB}_nucl.lookup" | sort -k1,1n -k2,2n > "${OUTDB}_nucl_set_to_contig.tsv"
-    mmseqs tsv2db "${OUTDB}_nucl_set_to_contig.tsv" "${OUTDB}_nucl_set_to_contig"
+    if notExists "${OUTDB}_nucl_set_to_contig"; then
+        awk '{ print $3"\t"$1; }' "${OUTDB}_nucl.lookup" | sort -k1,1n -k2,2n > "${OUTDB}_nucl_set_to_contig.tsv"
+        "${MMSEQS}" tsv2db "${OUTDB}_nucl_set_to_contig.tsv" "${OUTDB}_nucl_set_to_contig" \
+            || fail "tsv2db failed"
+    fi
 
     if notExists "${OUTDB}_nucl_orf"; then
         # shellcheck disable=SC2086
@@ -44,7 +50,7 @@ if [ "$("${MMSEQS}" dbtype "${OUTDB}")" = "Nucleotide" ]; then
 
     # write extracted orfs locations on contig in alignment format
     if notExists "${OUTDB}_nucl_orf_aligned_to_contig"; then
-        "$MMSEQS" orftocontig "${OUTDB}_nucl" "${OUTDB}_nucl_orf" "${OUTDB}_nucl_orf_aligned_to_contig" \
+        "${MMSEQS}" orftocontig "${OUTDB}_nucl" "${OUTDB}_nucl_orf" "${OUTDB}_nucl_orf_aligned_to_contig" \
             || fail "orftocontig step died"
     fi
 
