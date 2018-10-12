@@ -204,6 +204,9 @@ Parameters::Parameters():
         PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB Columns", "list of indices of UniprotKB columns to be extracted", typeid(std::string), (void *) &kbColumns, ""),
         PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover Deleted", "Indicates if sequences are allowed to be be removed during updating", typeid(bool), (void*) &recoverDeleted, ""),
         // lca
+        PARAM_TAXON_LIST(PARAM_TAXON_LIST_ID, "--taxon-list", "Selected taxons", "taxonomy ID, possibly multiple separated by ','", typeid(std::string), (void*) &taxonList, ""),
+        PARAM_INVERT_SELECTION(PARAM_INVERT_SELECTION_ID, "--invert", "Invert selection", "Invert selection", typeid(bool), (void*)&invertSelection, ""),
+        // lca
         PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA Ranks", "Ranks to return in LCA computation", typeid(std::string), (void*) &lcaRanks, ""),
         PARAM_BLACKLIST(PARAM_BLACKLIST_ID, "--blacklist", "Blacklisted Taxa", "Comma separted list of ignored taxa in LCA computation", typeid(std::string), (void*)&blacklist, "([0-9]+,)?[0-9]+"),
         // expandaln
@@ -694,6 +697,10 @@ Parameters::Parameters():
     convertkb.push_back(PARAM_MAPPING_FILE);
     convertkb.push_back(PARAM_KB_COLUMNS);
     convertkb.push_back(PARAM_V);
+
+    // filtertaxdb
+    filtertaxdb.push_back(PARAM_TAXON_LIST);
+    filtertaxdb.push_back(PARAM_INVERT_SELECTION);
 
     // lca
     lca.push_back(PARAM_LCA_RANKS);
@@ -1434,6 +1441,10 @@ void Parameters::setDefaults() {
     firstSeqRepr = false;
     fullHeader = false;
     targetTsvColumn = 1;
+
+    // filtertaxdb
+    taxonList = "";
+    invertSelection = false;
 
     // lca
     lcaRanks = "";

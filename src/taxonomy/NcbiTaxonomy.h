@@ -32,6 +32,9 @@ public:
     std::map<std::string, std::string> AllRanks(TaxonNode *node);
     bool IsAncestor(int ancestor, int child);
 
+    TaxonNode* findNode(int taxonId);
+
+
 private:
     void InitLevels();
     void loadNodes(const std::string &nodesFile);
@@ -46,6 +49,7 @@ private:
     int RangeMinimumQuery(int i, int j);
     int lcaHelper(int i, int j);
     TaxonNode* Parent(int parentTaxon);
+
 
     std::map<int, TaxonNode> taxonTree;
     std::map<int, int> D;

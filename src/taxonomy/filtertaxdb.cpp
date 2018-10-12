@@ -4,14 +4,12 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "Util.h"
-#include "filterdb.h"
-#include <algorithm>
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-int lca(int argc, const char **argv, const Command& command) {
+int filtertaxdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
@@ -41,15 +39,7 @@ int lca(int argc, const char **argv, const Command& command) {
         Debug(Debug::ERROR) << "names.dmp, nodes.dmp, merged.dmp or delnodes.dmp from NCBI taxdump could not be found!\n";
         EXIT(EXIT_FAILURE);
     }
-    std::vector<std::pair<unsigned int, unsigned int>> mapping;
-    if(FileUtil::fileExists(std::string(par.db1 + "_mapping").c_str()) == false){
-        Debug(Debug::ERROR) << par.db1 + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
-        EXIT(EXIT_FAILURE);
-    }
-    bool isSorted = Util::readMapping( par.db1 + "_mapping", mapping);
-    if(isSorted == false){
-        std::stable_sort(mapping.begin(), mapping.end(), ffindexFilter::compareFirstInt());
-    }
+
 
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str());
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -61,13 +51,15 @@ int lca(int argc, const char **argv, const Command& command) {
 
     // a few NCBI taxa are blacklisted by default, they contain unclassified sequences (e.g. metagenomes) or other sequences (e.g. plasmids)
     // if we do not remove those, a lot of sequences would be classified as Root, even though they have a sensible LCA
-    std::vector<std::string> blacklist = Util::split(par.blacklist, ",");
-    const size_t taxaBlacklistSize = blacklist.size();
-    int* taxaBlacklist = new int[taxaBlacklistSize];
-    for (size_t i = 0; i < taxaBlacklistSize; ++i) {
-        taxaBlacklist[i] = Util::fast_atoi<int>(blacklist[i].c_str());
+    std::vector<std::string> list = Util::split(par.taxonList, ",");
+    const size_t taxListSize = list.size();
+    int* taxalist = new int[taxListSize];
+    for (size_t i = 0; i < taxListSize; ++i) {
+        taxalist[i] = Util::fast_atoi<int>(list[i].c_str());
     }
 
+
+    bool invertSelection = par.invertSelection;
     Debug(Debug::INFO) << "Loading NCBI taxonomy...\n";
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
 
@@ -75,7 +67,6 @@ int lca(int argc, const char **argv, const Command& command) {
     #pragma omp parallel
     {
         char *entry[255];
-        char buffer[1024];
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
@@ -96,8 +87,8 @@ int lca(int argc, const char **argv, const Command& command) {
             std::vector<int> taxa;
             while (*data != '\0') {
                 int taxon;
-                unsigned int id;
-                std::pair<unsigned int, unsigned int> val;
+                bool isAncestor = false;
+                size_t j;
                 std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
                 if (columns == 0) {
@@ -105,49 +96,43 @@ int lca(int argc, const char **argv, const Command& command) {
                     goto next;
                 }
 
-                id = Util::fast_atoi<unsigned int>(entry[0]);
+                taxon = Util::fast_atoi<unsigned int>(entry[0]);
+                writer.writeStart(thread_idx);
 
-                val.first = id;
-                mappingIt = std::upper_bound(
-                        mapping.begin(), mapping.end(), val,  ffindexFilter::compareToFirstInt);
-
-                if(mappingIt == mapping.end()){
-                    Debug(Debug::WARNING) << "No taxon mapping provided for id " << id << "\n";
-                    data = Util::skipLine(data);
-                    continue;
-                }
-                taxon = mappingIt->second;
 
                 // remove blacklisted taxa
-                for (size_t j = 0; j < taxaBlacklistSize; ++j) {
-                    if (t.IsAncestor(taxaBlacklist[j], taxon)) {
+                for (j = 0; j < taxListSize && isAncestor == false; ++j) {
+                    if(taxalist[j] == 0){
+                        isAncestor = std::max(isAncestor, (taxon == 0) ? true : false);
+                        continue;
+                    }
+                    if(taxon == 0){
+                        continue;
+                    }
+                    isAncestor = std::max(isAncestor, t.IsAncestor(taxalist[j], taxon));
+                }
+
+                if(invertSelection == true) {
+                    if (isAncestor == true) {
+                        goto next;
+                    } else if (isAncestor == false) {
+                        char * nextData = Util::skipLine(data);
+                        size_t dataSize = nextData - data;
+                        writer.writeAdd(data, dataSize, thread_idx);
+                    }
+                } else {
+                    if (isAncestor == true) {
+                        char * nextData = Util::skipLine(data);
+                        size_t dataSize = nextData - data;
+                        writer.writeAdd(data, dataSize, thread_idx);
+                    } else if (isAncestor == false) {
                         goto next;
                     }
                 }
-
-                taxa.emplace_back(taxon);
-
                 next:
                 data = Util::skipLine(data);
             }
-
-            TaxonNode* node = t.LCA(taxa);
-            if (node == NULL) {
-                snprintf(buffer, 1024, "0\tno rank\tunclassified\n");
-                writer.writeData(buffer, strlen(buffer), key, thread_idx);
-                continue;
-            }
-
-            if (ranks.empty() == false) {
-                std::string lcaRanks = Util::implode(t.AtRanks(node, ranks), ':');
-                snprintf(buffer, 1024, "%d\t%s\t%s\t%s\n",
-                         node->taxon, node->rank.c_str(), node->name.c_str(), lcaRanks.c_str());
-                writer.writeData(buffer, strlen(buffer), key, thread_idx);
-            } else {
-                snprintf(buffer, 1024, "%d\t%s\t%s\n",
-                         node->taxon, node->rank.c_str(), node->name.c_str());
-                writer.writeData(buffer, strlen(buffer), key, thread_idx);
-            }
+            writer.writeEnd(key, thread_idx);
         }
     };
 
@@ -156,7 +141,7 @@ int lca(int argc, const char **argv, const Command& command) {
     writer.close();
     reader.close();
 
-    delete[] taxaBlacklist;
+    delete[] taxalist;
 
     return EXIT_SUCCESS;
 }

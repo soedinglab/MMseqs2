@@ -6,6 +6,8 @@ set(taxonomy_header_files
 
 set(taxonomy_source_files
         taxonomy/lca.cpp
+        taxonomy/addtaxonomy.cpp
         taxonomy/NcbiTaxonomy.cpp
+        taxonomy/filtertaxdb.cpp
         PARENT_SCOPE
         )

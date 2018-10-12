@@ -11,7 +11,8 @@
 #include <omp.h>
 #endif
 
-int lca(int argc, const char **argv, const Command& command) {
+
+int addtaxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
@@ -19,20 +20,18 @@ int lca(int argc, const char **argv, const Command& command) {
     omp_set_num_threads(par.threads);
 #endif
 
-
-
     std::string nodesFile = par.db1 + "_nodes.dmp";
     std::string namesFile = par.db1 + "_names.dmp";
     std::string mergedFile = par.db1 + "_merged.dmp";
     std::string delnodesFile = par.db1 + "_delnodes.dmp";
     if (FileUtil::fileExists(nodesFile.c_str())
         && FileUtil::fileExists(namesFile.c_str())
-        && FileUtil::fileExists(mergedFile.c_str())
-        && FileUtil::fileExists(delnodesFile.c_str())) {
+           && FileUtil::fileExists(mergedFile.c_str())
+              && FileUtil::fileExists(delnodesFile.c_str())) {
     } else if (FileUtil::fileExists("nodes.dmp")
                && FileUtil::fileExists("names.dmp")
-               && FileUtil::fileExists("merged.dmp")
-               && FileUtil::fileExists("delnodes.dmp")) {
+		  && FileUtil::fileExists("merged.dmp")
+                     && FileUtil::fileExists("delnodes.dmp")) {
         nodesFile = "nodes.dmp";
         namesFile = "names.dmp";
         mergedFile = "merged.dmp";
@@ -50,6 +49,7 @@ int lca(int argc, const char **argv, const Command& command) {
     if(isSorted == false){
         std::stable_sort(mapping.begin(), mapping.end(), ffindexFilter::compareFirstInt());
     }
+    std::vector<std::string> ranks = Util::split(par.lcaRanks, ":");
 
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str());
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -57,26 +57,18 @@ int lca(int argc, const char **argv, const Command& command) {
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads);
     writer.open();
 
-    std::vector<std::string> ranks = Util::split(par.lcaRanks, ":");
-
-    // a few NCBI taxa are blacklisted by default, they contain unclassified sequences (e.g. metagenomes) or other sequences (e.g. plasmids)
-    // if we do not remove those, a lot of sequences would be classified as Root, even though they have a sensible LCA
-    std::vector<std::string> blacklist = Util::split(par.blacklist, ",");
-    const size_t taxaBlacklistSize = blacklist.size();
-    int* taxaBlacklist = new int[taxaBlacklistSize];
-    for (size_t i = 0; i < taxaBlacklistSize; ++i) {
-        taxaBlacklist[i] = Util::fast_atoi<int>(blacklist[i].c_str());
-    }
-
     Debug(Debug::INFO) << "Loading NCBI taxonomy...\n";
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
 
-    Debug(Debug::INFO) << "Computing LCA...\n";
+    Debug(Debug::INFO) << "Add taxonomy information ...\n";
+
     #pragma omp parallel
     {
         char *entry[255];
-        char buffer[1024];
+        char buffer[10000];
         unsigned int thread_idx = 0;
+        std::string resultData;
+        resultData.reserve(4096);
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
@@ -95,20 +87,16 @@ int lca(int argc, const char **argv, const Command& command) {
 
             std::vector<int> taxa;
             while (*data != '\0') {
-                int taxon;
-                unsigned int id;
-                std::pair<unsigned int, unsigned int> val;
-                std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
                 if (columns == 0) {
                     Debug(Debug::WARNING) << "Empty entry: " << i << "!";
-                    goto next;
+                    data = Util::skipLine(data);
+                    continue;
                 }
-
-                id = Util::fast_atoi<unsigned int>(entry[0]);
-
+                unsigned int id = Util::fast_atoi<unsigned int>(entry[0]);
+                std::pair<unsigned int, unsigned int> val;
                 val.first = id;
-                mappingIt = std::upper_bound(
+                std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt = std::upper_bound(
                         mapping.begin(), mapping.end(), val,  ffindexFilter::compareToFirstInt);
 
                 if(mappingIt == mapping.end()){
@@ -116,47 +104,37 @@ int lca(int argc, const char **argv, const Command& command) {
                     data = Util::skipLine(data);
                     continue;
                 }
-                taxon = mappingIt->second;
-
-                // remove blacklisted taxa
-                for (size_t j = 0; j < taxaBlacklistSize; ++j) {
-                    if (t.IsAncestor(taxaBlacklist[j], taxon)) {
-                        goto next;
-                    }
+                unsigned int taxon = mappingIt->second;
+                TaxonNode* node = t.findNode(taxon);
+                char * nextData = Util::skipLine(data);
+                size_t dataSize = nextData - data;
+                resultData.append(data, dataSize-1);
+                resultData.push_back('\t');
+                std::string lcaRanks = Util::implode(t.AtRanks(node, ranks), ':');
+                int len;
+                if (ranks.empty() == false) {
+                    len = snprintf(buffer, 10000, "%d\t%s\t%s\n",
+                                   node->taxon, node->rank.c_str(), node->name.c_str());
+                } else {
+                    len = snprintf(buffer, 10000, "%d\t%s\t%s\t%s\n",
+                         node->taxon, node->rank.c_str(), node->name.c_str(), lcaRanks.c_str());
                 }
-
-                taxa.emplace_back(taxon);
-
-                next:
+                if(len < 0){
+                    Debug(Debug::WARNING) << "Taxon record could not be written. Entry: " << i << "\t" << columns << "!\n";
+                    data = Util::skipLine(data);
+                    continue;
+                }
+                resultData.append(buffer, len),
                 data = Util::skipLine(data);
             }
-
-            TaxonNode* node = t.LCA(taxa);
-            if (node == NULL) {
-                snprintf(buffer, 1024, "0\tno rank\tunclassified\n");
-                writer.writeData(buffer, strlen(buffer), key, thread_idx);
-                continue;
-            }
-
-            if (ranks.empty() == false) {
-                std::string lcaRanks = Util::implode(t.AtRanks(node, ranks), ':');
-                snprintf(buffer, 1024, "%d\t%s\t%s\t%s\n",
-                         node->taxon, node->rank.c_str(), node->name.c_str(), lcaRanks.c_str());
-                writer.writeData(buffer, strlen(buffer), key, thread_idx);
-            } else {
-                snprintf(buffer, 1024, "%d\t%s\t%s\n",
-                         node->taxon, node->rank.c_str(), node->name.c_str());
-                writer.writeData(buffer, strlen(buffer), key, thread_idx);
-            }
+            writer.writeData(resultData.c_str(), resultData.size(), key, thread_idx);
+            resultData.clear();
         }
-    };
+    }
 
     Debug(Debug::INFO) << "\n";
 
     writer.close();
     reader.close();
-
-    delete[] taxaBlacklist;
-
     return EXIT_SUCCESS;
 }

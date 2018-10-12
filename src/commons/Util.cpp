@@ -17,8 +17,39 @@
 
 #include <fstream>
 #include <algorithm>
+#include "MemoryMapped.h"
 
 KSEQ_INIT(int, read)
+
+
+
+int Util::readMapping(std::string mappingFilename, std::vector<std::pair<unsigned int, unsigned int>> & mapping){
+    MemoryMapped indexData(mappingFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+    if (!indexData.isValid()){
+        Debug(Debug::ERROR) << "Could not open index file " << mappingFilename << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    size_t currPos = 0;
+    char* indexDataChar = (char *) indexData.getData();
+    char * cols[3];
+    size_t isSorted = true;
+    unsigned int prevId=0;
+    while (currPos < indexData.size()){
+        Util::getWordsOfLine(indexDataChar, cols, 2 );
+        unsigned int id = Util::fast_atoi<size_t>(cols[0]);
+        isSorted *= (id >= prevId);
+        unsigned int taxid = Util::fast_atoi<size_t>(cols[1]);
+        indexDataChar = Util::skipLine(indexDataChar);
+        mapping.push_back(std::make_pair(id, taxid));
+        currPos = indexDataChar - (char *) indexData.getData();
+
+        prevId = id;
+    }
+    indexData.close();
+
+    return isSorted;
+}
 
 size_t Util::countLines(const char *data, size_t length) {
     size_t newlines = 0;

@@ -402,6 +402,24 @@ TaxonNode* NcbiTaxonomy::Parent(int parentTaxon) {
     return &(it->second);
 }
 
+
+TaxonNode* NcbiTaxonomy::findNode(int taxonId) {
+    std::map<int, int>::iterator it1 = D.find(taxonId);
+    if (it1 == D.end()) {
+        Debug(Debug::ERROR) << "Invalid node!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    std::map<int, TaxonNode>::iterator it2 = taxonTree.find(it1->second);
+
+    if (it2 == taxonTree.end()) {
+        Debug(Debug::ERROR) << "Invalid Node " << taxonId << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    return &(it2->second);
+}
+
 std::map<std::string, std::string> NcbiTaxonomy::AllRanks(TaxonNode *node) {
     std::map<std::string, std::string> result;
     while (true) {

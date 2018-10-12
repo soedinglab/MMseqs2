@@ -9,27 +9,21 @@ notExists() {
 	[ ! -f "$1" ]
 }
 
+#pre processing
+[ -z "$MMSEQS" ] && echo "Please set the environment variable \$MMSEQS to your MMSEQS binary." && exit 1;
 # check amount of input variables
-[ "$#" -ne 6 ] && echo "Please provide <queryDB> <targetDB> <targetTaxMap> <ncbiTaxdumpDir> <outDB> <tmpDir>" && exit 1;
+[ "$#" -ne 4 ] && echo "Please provide <queryDB> <targetDB> <outDB> <tmp>" && exit 1;
 # check if files exists
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
-[ ! -f "$3" ] &&  echo "$3 not found!" && exit 1;
-if [ -n "${LCA_PAR}" ]; then
-    if [ ! -f "$4/names.dmp" ] || [ ! -f "$4/nodes.dmp" ] || [ ! -f "$4/merged.dmp" ] || [ ! -f "$4/delnodes.dmp" ]; then
-        echo "Required NCBI Taxonomy files missing!"
-        exit 1;
-    fi
-    NCBI_TAXDUMP="$4"
-fi
-[   -f "$5" ] &&  echo "$5 exists already!" && exit 1;
-[ ! -d "$6" ] &&  echo "tmp directory $6 not found!" && mkdir -p "$6";
+[   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
+[ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
+
 
 INPUT="$1"
 TARGET="$2"
-TAXON_MAPPING="$3"
-RESULTS="$5"
-TMP_PATH="$6"
+RESULTS="$3"
+TMP_PATH="$4"
 
 if [ ! -e "${TMP_PATH}/first" ]; then
     mkdir -p "${TMP_PATH}/tmp_hsp1"
@@ -75,19 +69,10 @@ if [ -n "${SEARCH2_PAR}" ]; then
     LCA_SOURCE="${TMP_PATH}/2b_ali"
 fi
 
-if [ ! -e "${TMP_PATH}/mapping" ]; then
-    "$MMSEQS" filterdb "${LCA_SOURCE}" "${TMP_PATH}/mapping" --filter-column 1 --mapping-file "${TAXON_MAPPING}" \
-        || fail "Second filterdb died"
-fi
-
-if [ ! -e "${TMP_PATH}/taxa" ]; then
-    "$MMSEQS" filterdb "${TMP_PATH}/mapping" "${TMP_PATH}/taxa" --filter-column 1 --trim-to-one-column \
-        || fail "Third filterdb died"
-fi
 
 if [ -n "${LCA_PAR}" ]; then
     # shellcheck disable=SC2086
-    "$MMSEQS" lca "${TMP_PATH}/taxa" "${NCBI_TAXDUMP}" "${RESULTS}" ${LCA_PAR} \
+    "$MMSEQS" lca "${TARGET}" "${LCA_SOURCE}" "${RESULTS}" ${LCA_PAR} \
         || fail "Lca died"
 else
     mv -f "${TMP_PATH}/taxa" "${RESULTS}"

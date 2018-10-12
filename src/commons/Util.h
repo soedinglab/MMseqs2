@@ -78,6 +78,9 @@ public:
     static char touchMemory(char* memory, size_t size);
 
     static size_t countLines(const char *data, size_t length);
+
+    static int readMapping(std::string mappingFilename, std::vector<std::pair<unsigned int, unsigned int> > & mapping);
+
     template<typename T>
     static inline T fast_atoi( const char * str )
     {

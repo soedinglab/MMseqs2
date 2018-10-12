@@ -7,19 +7,19 @@
 
 int taxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 6);
+    par.parseParameters(argc, argv, command, 4);
 
-    if(FileUtil::directoryExists(par.db6.c_str())==false){
-        Debug(Debug::INFO) << "Tmp " << par.db6 << " folder does not exist or is not a directory.\n";
-        if(FileUtil::makeDir(par.db6.c_str()) == false){
-            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db6 << ".\n";
+    if(FileUtil::directoryExists(par.db4.c_str())==false){
+        Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
+        if(FileUtil::makeDir(par.db4.c_str()) == false){
+            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db4 << ".\n";
             EXIT(EXIT_FAILURE);
         }else{
-            Debug(Debug::INFO) << "Created dir " << par.db6 << "\n";
+            Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
         }
     }
     size_t hash = par.hashParameter(par.filenames, par.taxonomy);
-    std::string tmpDir = par.db6+"/"+SSTR(hash);
+    std::string tmpDir = par.db4+"/"+SSTR(hash);
     if(FileUtil::directoryExists(tmpDir.c_str())==false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
             Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";

@@ -423,6 +423,10 @@ public:
     // summarize headers
     int headerType;
 
+    // filtertaxdb
+    std::string taxonList;
+    bool invertSelection;
+
     // lca
     std::string lcaRanks;
     std::string blacklist;
@@ -679,6 +683,10 @@ public:
     // clusterupdate
     PARAMETER(PARAM_RECOVER_DELETED)
 
+    // filtertaxdb
+    PARAMETER(PARAM_TAXON_LIST)
+    PARAMETER(PARAM_INVERT_SELECTION)
+
     // lca
     PARAMETER(PARAM_LCA_RANKS)
     PARAMETER(PARAM_BLACKLIST)
@@ -744,6 +752,7 @@ public:
     std::vector<MMseqsParameter> convertkb;
     std::vector<MMseqsParameter> tsv2db;
     std::vector<MMseqsParameter> lca;
+    std::vector<MMseqsParameter> filtertaxdb;
     std::vector<MMseqsParameter> taxonomy;
     std::vector<MMseqsParameter> profile2pssm;
     std::vector<MMseqsParameter> profile2cs;

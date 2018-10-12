@@ -117,15 +117,28 @@ std::vector<struct Command> commands = {
         {"search-2m",             search2m,             &par.taxonomy,             COMMAND_TAXONOMY,
                 "Compute taxonomy and lowest common ancestor for each sequence.",
                 NULL,
-                "Milot Mirdita <milot@mirdita.de>",
+                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> && Milot Mirdita <milot@mirdita.de>",
                 "<i:queryDB> <i:targetDB> <i:targetTaxonMapping> <i:NcbiTaxdmpDir> <o:taxaDB> <tmpDir>",
+                CITATION_MMSEQS2
+        },
+        {"addtaxonomy",             addtaxonomy,             &par.onlythreads,             COMMAND_TAXONOMY,
+                "Add taxonomy information to result database.",
+                NULL,
+                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+                " <i:targetDB> <i:resultDB> <o:resultDB>",
                 CITATION_MMSEQS2
         },
         {"lca",                  lca,                  &par.lca,                  COMMAND_TAXONOMY,
                 "Compute the lowest common ancestor from a set of taxa.",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",
-                "<i:taxaDB> <i:NcbiTaxdmpDir> <o:taxaDB>",
+                "<i:targetDB> <i:resultDB> <o:taxaDB>",
+                CITATION_MMSEQS2},
+        {"filtertaxdb",                  filtertaxdb,                  &par.filtertaxdb,                  COMMAND_TAXONOMY,
+                "Filter taxonomy database.",
+                NULL,
+                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+                "<i:targetDB> <i:taxaDB> <o:taxaDB>",
                 CITATION_MMSEQS2},
 // multi hit search
         {"multihitdb",           multihitdb,           &par.multihitdb,           COMMAND_MULTIHIT,
@@ -506,5 +519,5 @@ std::vector<struct Command> commands = {
                 NULL,
                 "",
                 "",
-                CITATION_MMSEQS2},
+                CITATION_MMSEQS2}
 };

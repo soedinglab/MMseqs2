@@ -40,6 +40,42 @@ public:
 	
 	int runFilter();
 
+	struct compareString {
+		bool operator() (const std::string& lhs, const std::string& rhs) const{
+			return (lhs.compare(rhs)<=0);
+		}
+	};
+
+	struct compareFirstString {
+		bool operator() (const std::pair<std::string, std::string>& lhs, const std::pair<std::string,std::string>& rhs) const{
+			return (lhs.first.compare(rhs.first)<=0);
+		}
+	};
+
+    struct compareFirstInt {
+        bool operator() (const std::pair<unsigned int, unsigned int>& lhs, const std::pair<unsigned int, unsigned int>& rhs) const{
+            return (lhs.first < rhs.first);
+        }
+    };
+
+	struct compareToFirstString {
+		bool operator() (const std::pair<std::string,std::string>& lhs,const std::string& rhs) const{
+			return (lhs.first.compare(rhs)<0);
+		}
+	};
+
+
+    struct compareToFirstInt {
+        bool operator() (const std::pair<unsigned int, unsigned int>& lhs,const unsigned int rhs) const{
+            return (lhs.first <= rhs);
+        }
+    };
+
+	static bool compareToFirstInt(const std::pair<unsigned int, unsigned int>& lhs, const std::pair<unsigned int, unsigned int>&  rhs){
+		return (lhs.first <= rhs.first);
+	}
+
+
 private:
 	std::string inDB;
 	std::string outDB;
@@ -73,23 +109,6 @@ private:
 	
 	int initFiles();
 	
-	struct compareString {
-		bool operator() (const std::string& lhs, const std::string& rhs) const{
-			return (lhs.compare(rhs)<=0);
-		}
-	};
-
-	struct compareFirstString {
-		bool operator() (const std::pair<std::string, std::string>& lhs, const std::pair<std::string,std::string>& rhs) const{
-			return (lhs.first.compare(rhs.first)<=0);
-		}
-	};
-
-	struct compareToFirstString {
-		bool operator() (const std::pair<std::string,std::string>& lhs,const std::string& rhs) const{
-			return (lhs.first.compare(rhs)<0);
-		}
-	};
 
 };
 
