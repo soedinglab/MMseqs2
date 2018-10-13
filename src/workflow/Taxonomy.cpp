@@ -5,8 +5,20 @@
 #include "CommandCaller.h"
 #include "taxonomy.sh.h"
 
+
+void setTaxonomyDefaults(Parameters *p) {
+    p->spacedKmer = true;
+    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
+    p->sensitivity = 5.7;
+    p->evalThr = 0.001;
+    p->orfStartMode = 0;
+    p->orfMinLength = 30;
+    p->orfMaxLength = 32734;
+}
+
 int taxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
+    setTaxonomyDefaults(&par);
     par.parseParameters(argc, argv, command, 4);
 
     if(FileUtil::directoryExists(par.db4.c_str())==false){
