@@ -14,7 +14,7 @@ int doExtractAlignedRegion(Parameters &par) {
     Debug(Debug::INFO) << "Query file: " << par.db1 << "\n";
     DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str());
     qdbr.open(DBReader<unsigned int>::NOSORT);
-    if (par.noPreload == false) {
+    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         qdbr.readMmapedDataInMemory();
     }
 
@@ -27,7 +27,7 @@ int doExtractAlignedRegion(Parameters &par) {
     } else {
         tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         tdbr->open(DBReader<unsigned int>::NOSORT);
-        if (par.noPreload == false) {
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             tdbr->readMmapedDataInMemory();
         }
     }

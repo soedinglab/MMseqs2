@@ -116,6 +116,13 @@ public:
     static const int PARSE_VARIADIC = 1;
     static const int PARSE_REST = 2;
 
+    // preload mode
+    static const int PRELOAD_MODE_AUTO = 0;
+    static const int PRELOAD_MODE_FREAD = 1;
+    static const int PRELOAD_MODE_MMAP = 2;
+    static const int PRELOAD_MODE_MMAP_TOUCH = 3;
+
+
     static std::string getSplitModeName(int splitMode) {
         switch (splitMode) {
             case 0: return "Target";
@@ -232,7 +239,7 @@ public:
     int    splitMemoryLimit;             // Maximum amount of memory a split can use
     bool   splitAA;                      // Split database by amino acid count instead
     size_t resListOffset;                // Offsets result list
-    bool   noPreload;                    // Do not preload database into memory
+    int    preloadMode;                  // Preload mode of database
     float  scoreBias;			 // Add this bias to the score when computing the alignements
     std::string spacedKmerPattern;             // User-specified kmer pattern
 
@@ -487,7 +494,7 @@ public:
     PARAMETER(PARAM_REMOVE_TMP_FILES)
     PARAMETER(PARAM_INCLUDE_IDENTITY)
     PARAMETER(PARAM_RES_LIST_OFFSET)
-    PARAMETER(PARAM_NO_PRELOAD)
+    PARAMETER(PARAM_PRELOAD_MODE)
     PARAMETER(PARAM_SPACED_KMER_PATTERN)
     std::vector<MMseqsParameter> prefilter;
     std::vector<MMseqsParameter> ungappedprefilter;

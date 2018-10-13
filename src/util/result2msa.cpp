@@ -32,7 +32,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
 
     DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str());
     qDbr.open(DBReader<unsigned int>::NOSORT);
-    if(par.noPreload == false){
+    if(par.preloadMode != Parameters::PRELOAD_MODE_MMAP){
         qDbr.readMmapedDataInMemory();
     }
     DBReader<unsigned int> queryHeaderReader(par.hdr1.c_str(), par.hdr1Index.c_str());

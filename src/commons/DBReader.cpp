@@ -48,7 +48,9 @@ void DBReader<T>::setDataFile(const char* dataFileName_)  {
 template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
     if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
+        Debug(Debug::INFO) << "Touch data file " << dataFileName << " ... ";
         magicBytes = Util::touchMemory(data, dataSize);
+        Debug(Debug::INFO) << "Done.";
     }
 }
 

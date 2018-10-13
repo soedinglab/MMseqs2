@@ -48,7 +48,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
         if (templateDBIsIndex == true) {
-            tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, par.noPreload == false);
+            bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+            tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, touch);
             if (tSeqLookup == NULL) {
                 Debug(Debug::WARNING) << "No unmasked index available. Falling back to sequence database.\n";
                 templateDBIsIndex = false;
@@ -56,7 +57,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 PrefilteringIndexReader::printSummary(tidxdbr);
                 PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
                 targetSeqType = meta.seqType;
-                tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, par.noPreload == false);
+                tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, touch);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
         }
@@ -71,7 +72,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         tDbr->open(DBReader<unsigned int>::NOSORT);
         targetSeqType = tDbr->getDbtype();
-        if (par.noPreload == false) {
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             tDbr->readMmapedDataInMemory();
             tDbr->mlock();
         }
@@ -84,7 +85,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     if (!sameDatabase) {
         qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
         qDbr->open(DBReader<unsigned int>::NOSORT);
-        if (par.noPreload == false) {
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             qDbr->readMmapedDataInMemory();
             qDbr->mlock();
         }

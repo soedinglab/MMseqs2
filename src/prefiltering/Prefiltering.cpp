@@ -43,7 +43,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
         aaBiasCorrection(par.compBiasCorrection != 0),
         covThr(par.covThr), covMode(par.covMode), includeIdentical(par.includeIdentity),
-        noPreload(par.noPreload),
+        preloadMode(par.preloadMode),
         threads(static_cast<unsigned int>(par.threads)) {
 #ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
@@ -56,16 +56,21 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
 
         int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
-        if (noPreload == false) {
+        if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
             dataMode |= DBReader<unsigned int>::USE_FREAD;
         }
         tdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), dataMode);
         tdbr->open(DBReader<unsigned int>::NOSORT);
+
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
         if (templateDBIsIndex == true) {
             // exchange reader with old reader
             tidxdbr = tdbr;
-            tdbr = PrefilteringIndexReader::openNewReader(tdbr, false);
+            bool touch = false;
+            if (preloadMode == Parameters::PRELOAD_MODE_MMAP_TOUCH) {
+                touch = true;
+            }
+            tdbr = PrefilteringIndexReader::openNewReader(tdbr, touch);
             PrefilteringIndexReader::printSummary(tidxdbr);
             PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
             kmerSize = data.kmerSize;
@@ -92,7 +97,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
         tdbr->open(DBReader<unsigned int>::NOSORT);
 
-        if (noPreload == false) {
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             tdbr->readMmapedDataInMemory();
             tdbr->mlock();
         }
@@ -222,7 +227,7 @@ void Prefiltering::reopenTargetDb() {
     tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open(DBReader<unsigned int>::NOSORT);
 
-    if (noPreload == false) {
+    if (preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         tdbr->readMmapedDataInMemory();
         tdbr->mlock();
     }

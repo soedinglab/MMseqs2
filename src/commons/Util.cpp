@@ -19,6 +19,10 @@
 #include <algorithm>
 #include "MemoryMapped.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 KSEQ_INIT(int, read)
 
 
@@ -414,13 +418,36 @@ size_t Util::getTotalSystemMemory() // in bytes
 }
 
 char Util::touchMemory(char *memory, size_t size) {
-    size_t pageSize = getPageSize();
-    char bytes = 0;
-    for(size_t i = 0; i < size; i+=pageSize){
-        bytes ^= memory[i];
+    int threadIdx = 0;
+#ifdef _OPENMP
+    int old_thread_ct = omp_get_max_threads();
+    if (old_thread_ct > 4)
+        omp_set_num_threads(4);
+    threadIdx = omp_get_max_threads();
+#endif
+
+    size_t page_size = getpagesize();
+    char buf[threadIdx][page_size];
+
+#pragma omp parallel
+    {
+#ifdef _OPENMP
+        threadIdx = omp_get_thread_num();
+#endif
+
+#pragma omp for schedule(dynamic)
+        for (size_t pos = 0; pos < size; pos += page_size) {
+            size_t this_page_size = size - pos;
+            if (this_page_size > page_size)
+                this_page_size = page_size;
+            memcpy(buf[threadIdx], memory + pos, this_page_size);
+        }
     }
 
-    return bytes;
+#ifdef _OPENMP
+    omp_set_num_threads(old_thread_ct);
+#endif
+    return buf[0][0];
 }
 
 

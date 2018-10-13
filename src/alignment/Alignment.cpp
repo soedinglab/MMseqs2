@@ -69,10 +69,11 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
         tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
         tidxdbr->open(DBReader<unsigned int>::NOSORT);
+        bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
 
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
         if (templateDBIsIndex == true) {
-            tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, par.noPreload == false);
+            tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr,touch);
             if (tSeqLookup == NULL) {
                 Debug(Debug::WARNING) << "No unmasked index available. Falling back to sequence database.\n";
                 templateDBIsIndex = false;
@@ -80,7 +81,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                 PrefilteringIndexReader::printSummary(tidxdbr);
                 PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
                 targetSeqType = meta.seqType;
-                tdbr = PrefilteringIndexReader::openNewReader(tidxdbr, par.noPreload == false);
+                tdbr = PrefilteringIndexReader::openNewReader(tidxdbr, touch);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
         }
@@ -95,7 +96,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     if (templateDBIsIndex == false) {
         tdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
         tdbr->open(DBReader<unsigned int>::NOSORT);
-        if (par.noPreload == false) {
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             tdbr->readMmapedDataInMemory();
             tdbr->mlock();
         }

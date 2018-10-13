@@ -46,7 +46,7 @@ Parameters::Parameters():
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "",MMseqsParameter::COMMAND_EXPERT),
         PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical Seq. Id.","artificially add entries of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_RES_LIST_OFFSET(PARAM_RES_LIST_OFFSET_ID,"--offset-result", "Offset result","Offset result list",typeid(int), (void *) &resListOffset, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_NO_PRELOAD(PARAM_NO_PRELOAD_ID, "--no-preload", "No preload", "Do not preload database", typeid(bool), (void*) &noPreload, "", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PRELOAD_MODE(PARAM_PRELOAD_MODE_ID, "--db-load-mode", "Preload mode", "Database preload mode 0: auto, 1: fread, 2: mmap, 3: mmap+touch", typeid(int), (void*) &preloadMode, "", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPACED_KMER_PATTERN(PARAM_SPACED_KMER_PATTERN_ID, "--spaced-kmer-pattern", "Spaced k-mer pattern", "User-specified spaced k-mer pattern", typeid(std::string), (void *) &spacedKmerPattern, "^1[01]*1$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
 
         // alignment
@@ -237,7 +237,7 @@ Parameters::Parameters():
     align.push_back(PARAM_MAX_REJECTED);
     align.push_back(PARAM_MAX_ACCEPT);
     align.push_back(PARAM_INCLUDE_IDENTITY);
-    align.push_back(PARAM_NO_PRELOAD);
+    align.push_back(PARAM_PRELOAD_MODE);
     align.push_back(PARAM_PCA);
     align.push_back(PARAM_PCB);
     align.push_back(PARAM_SCORE_BIAS);
@@ -267,7 +267,7 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_MIN_DIAG_SCORE);
     prefilter.push_back(PARAM_INCLUDE_IDENTITY);
     prefilter.push_back(PARAM_SPACED_KMER_MODE);
-    prefilter.push_back(PARAM_NO_PRELOAD);
+    prefilter.push_back(PARAM_PRELOAD_MODE);
     prefilter.push_back(PARAM_PCA);
     prefilter.push_back(PARAM_PCB);
     prefilter.push_back(PARAM_SPACED_KMER_PATTERN);
@@ -306,7 +306,7 @@ Parameters::Parameters():
     rescorediagonal.push_back(PARAM_INCLUDE_IDENTITY);
     rescorediagonal.push_back(PARAM_SORT_RESULTS);
     rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
-    rescorediagonal.push_back(PARAM_NO_PRELOAD);
+    rescorediagonal.push_back(PARAM_PRELOAD_MODE);
     rescorediagonal.push_back(PARAM_THREADS);
     rescorediagonal.push_back(PARAM_V);
 
@@ -362,7 +362,7 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_PCA);
     result2profile.push_back(PARAM_PCB);
     result2profile.push_back(PARAM_OMIT_CONSENSUS);
-    result2profile.push_back(PARAM_NO_PRELOAD);
+    result2profile.push_back(PARAM_PRELOAD_MODE);
     result2profile.push_back(PARAM_GAP_OPEN);
     result2profile.push_back(PARAM_GAP_EXTEND);
     result2profile.push_back(PARAM_THREADS);
@@ -382,7 +382,7 @@ Parameters::Parameters():
     result2pp.push_back(PARAM_PCA);
     result2pp.push_back(PARAM_PCB);
     result2pp.push_back(PARAM_OMIT_CONSENSUS);
-    result2pp.push_back(PARAM_NO_PRELOAD);
+    result2pp.push_back(PARAM_PRELOAD_MODE);
     result2pp.push_back(PARAM_THREADS);
     result2pp.push_back(PARAM_V);
     
@@ -404,7 +404,7 @@ Parameters::Parameters():
     convertalignments.push_back(PARAM_FORMAT_MODE);
     convertalignments.push_back(PARAM_TRANSLATION_TABLE);
     convertalignments.push_back(PARAM_FORMAT_OUTPUT);
-    convertalignments.push_back(PARAM_NO_PRELOAD);
+    convertalignments.push_back(PARAM_PRELOAD_MODE);
     convertalignments.push_back(PARAM_DB_OUTPUT);
     convertalignments.push_back(PARAM_GAP_OPEN);
     convertalignments.push_back(PARAM_GAP_EXTEND);
@@ -689,7 +689,7 @@ Parameters::Parameters():
 
     // extractalignedregion
     extractalignedregion.push_back(PARAM_EXTRACT_MODE);
-    extractalignedregion.push_back(PARAM_NO_PRELOAD);
+    extractalignedregion.push_back(PARAM_PRELOAD_MODE);
     extractalignedregion.push_back(PARAM_THREADS);
     extractalignedregion.push_back(PARAM_V);
 
@@ -1276,7 +1276,7 @@ void Parameters::setDefaults() {
     cascaded = true;
     clusterSteps = 3;
     resListOffset = 0;
-    noPreload = false;
+    preloadMode = 0;
     scoreBias = 0.0;
 
     // affinity clustering

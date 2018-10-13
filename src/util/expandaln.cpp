@@ -231,7 +231,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str());
     queryReader.open(DBReader<unsigned int>::NOSORT);
     const int queryDbType = queryReader.getDbtype();
-    if (par.noPreload == false) {
+    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         queryReader.readMmapedDataInMemory();
     }
 
@@ -239,7 +239,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str());
     targetReader.open(DBReader<unsigned int>::NOSORT);
     const int targetDbType = targetReader.getDbtype();
-    if (par.noPreload == false) {
+    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         targetReader.readMmapedDataInMemory();
     }
 
@@ -266,7 +266,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << "Expansion result database: " << par.db4 << "\n";
     DBReader<unsigned int> expansionReader(par.db4.c_str(), par.db4Index.c_str());
     expansionReader.open(DBReader<unsigned int>::NOSORT);
-    if (par.noPreload == false) {
+    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         expansionReader.readMmapedDataInMemory();
     }
 

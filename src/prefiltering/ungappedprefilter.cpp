@@ -30,7 +30,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
     } else {
         tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         tdbr->open(DBReader<unsigned int>::NOSORT);
-        if (par.noPreload == false) {
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             tdbr->readMmapedDataInMemory();
         }
     }
@@ -164,7 +164,7 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
     DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str());
     qdbr.open(DBReader<unsigned int>::NOSORT);
-    if (par.noPreload == false) {
+    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         qdbr.readMmapedDataInMemory();
     }
 

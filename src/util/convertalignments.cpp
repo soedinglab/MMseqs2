@@ -219,14 +219,15 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     }
 
     Debug(Debug::INFO) << "Query Header file: " << par.db1 << "_h\n";
-    HeaderIdReader qHeaderDbr(par.db1.c_str(), par.noPreload);
+    bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+    HeaderIdReader qHeaderDbr(par.db1.c_str(), touch);
 
     HeaderIdReader *tHeaderDbr;
     if(sameDB){
         tHeaderDbr = &qHeaderDbr;
     } else {
         Debug(Debug::INFO) << "Target Header file: " << par.db2 << "_h\n";
-        tHeaderDbr = new HeaderIdReader(par.db2.c_str(), par.noPreload);
+        tHeaderDbr = new HeaderIdReader(par.db2.c_str(), touch);
     }
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
