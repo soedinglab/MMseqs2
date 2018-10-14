@@ -56,6 +56,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
 
         int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
+        if(preloadMode == Parameters::PRELOAD_MODE_AUTO){
+            //TODO
+        }
         if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
             dataMode |= DBReader<unsigned int>::USE_FREAD;
         }
