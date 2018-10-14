@@ -57,7 +57,11 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 
         int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
         if(preloadMode == Parameters::PRELOAD_MODE_AUTO){
-            //TODO
+            if(sensitivity > 6.0){
+                preloadMode = Parameters::PRELOAD_MODE_FREAD;
+            }else{
+                preloadMode = Parameters::PRELOAD_MODE_MMAP_TOUCH;
+            }
         }
         if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
             dataMode |= DBReader<unsigned int>::USE_FREAD;
