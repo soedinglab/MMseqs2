@@ -85,4 +85,5 @@ extern int versionstring(int argc, const char **argv, const Command& command);
 extern int search2m(int argc, const char **argv, const Command& command);
 extern int addtaxonomy(int argc, const char **argv, const Command& command);
 extern int filtertaxdb(int argc, const char **argv, const Command& command);
+extern int diskspaceavail(int argc, const char **argv, const Command& command);
 #endif

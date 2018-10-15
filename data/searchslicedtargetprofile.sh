@@ -50,7 +50,7 @@ if notExists "${TMP_PATH}/profileDB"; then
     # symlink the profile DB that can be reduced at every iteration the search
     ln -s "${TARGET}" "${PROFILEDB}"
     ln -s "${TARGET}.dbtype" "${PROFILEDB}.dbtype"
-    sort -k1,1 "${TARGET}.index" > "${PROFILEDB}.index"
+    sort -k1,1 -n "${TARGET}.index" > "${PROFILEDB}.index"
 
     echo "${AVAIL_DISK}" > "${PROFILEDB}.params"
 else
@@ -72,13 +72,15 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         continue
     fi
 
-    # Compute the max number of sequence according to the number of profiles
-    # 90 bytes/query-result line max.
-    MAX_SEQS="$((1024*(AVAIL_DISK/NUM_PROFILES)/90))"
-
-    # No more disk space allowed to use
-    if [ "${MAX_SEQS}" -eq 0 ]; then
-        break
+    # Disk usage allowance not set by the user (i.e. AVAIL_DISK = 0),
+    # Compute it for optimal usage
+    if [ "${AVAIL_DISK}" -eq 0 ]; then
+        CURRENT_AVAIL_DISK_SPACE=$(($("$MMSEQS" diskspaceavail ${TMP_PATH})/2))
+        # Compute the max number of sequence according to the number of profiles
+        # 90 bytes/query-result line max.
+        MAX_SEQS="$(((1024*CURRENT_AVAIL_DISK_SPACE)/NUM_PROFILES/90))"
+    else
+        MAX_SEQS="$(((1024*AVAIL_DISK)/NUM_PROFILES/90))"
     fi
 
     # Max result to go into the prefilter list
@@ -106,7 +108,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
             --filter-column 1 --comparison-operator ge --comparison-value "${MAX_SEQS}" ${THREADS_PAR} \
             || fail "filterdb died"
         rm -f "${TMP_PATH}/pref_count" "${TMP_PATH}/pref_count.index"
-        awk '$3 > 1 { print $1 }' "${TMP_PATH}/pref_keep.index" | sort -k1,1 > "${TMP_PATH}/pref_keep.list"
+        awk '$3 > 1 { print $1 }' "${TMP_PATH}/pref_keep.index" | sort -k1,1 -n > "${TMP_PATH}/pref_keep.list"
         rm -f "${TMP_PATH}/pref_keep" "${TMP_PATH}/pref_keep.index"
     fi
 
@@ -119,7 +121,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     fi
 
     if notExists "${TMP_PATH}/aln_swap.done"; then
-        # note: we recover the right evalue, since it is computed according to the original target db
+        # note: the evalue has been corrected for inverted search by MMseqs wrapper
         # shellcheck disable=SC2086
         "$MMSEQS" swapresults "${TARGET}" "${INPUT}" "${TMP_PATH}/aln" "${TMP_PATH}/aln_swap" ${SWAP_PAR} \
             || fail "swapresults died"
