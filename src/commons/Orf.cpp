@@ -296,8 +296,7 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
                                                      : isInCodons<4>(codon, startCodonsHi, startCodonsLo));
             }
 
-            // do not start a new orf on the last codon
-            if(shouldStart && isLast == false) {
+            if(shouldStart) {
                 isInsideOrf[frame] = true;
                 hasStartCodon[frame] = true;
                 from[frame] = position;
@@ -319,8 +318,14 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
             if(isInsideOrf[frame] && (stop || isLast)) {
                 isInsideOrf[frame] = false;
 
-                // we include the stop codon here
-                size_t to = position + (isLast ? 3 : 0);
+                // we include the stop codon here --> inconsistent because stops are not included in other orfs
+                //size_t to = position + (isLast ? 3 : 0);
+                
+                // if final codon is the last in the frame or a stop codon - include it:
+                // size_t to = position + ((isLast || stop) ? 3 : 0);
+
+                // if final codon the last in the frame but not a stop - include it (stops are never included):
+                size_t to = position + ((isLast && !stop) ? 3 : 0);
 
                 // this could happen if the first codon is a stop codon
                 if(to == from[frame])
@@ -332,7 +337,7 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
                 // also ignore orfs shorter than the min size and longer than max
                 if ((countGaps[frame] > maxGaps)
                 || (countLength[frame] > maxLength)
-                || (countLength[frame] <= minLength)) {
+                || (countLength[frame] < minLength)) {
                     continue;
                 }
 
