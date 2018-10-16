@@ -237,6 +237,7 @@ public:
     int    split;                        // Split database in n equal chunks
     int    splitMode;                    // Split by query or target DB
     int    splitMemoryLimit;             // Maximum amount of memory a split can use
+    int    diskSpaceLimit;               // Disk space max usage for sliced reverse profile search
     bool   splitAA;                      // Split database by amino acid count instead
     size_t resListOffset;                // Offsets result list
     int    preloadMode;                  // Preload mode of database
@@ -487,6 +488,7 @@ public:
     PARAMETER(PARAM_SPLIT)
     PARAMETER(PARAM_SPLIT_MODE)
     PARAMETER(PARAM_SPLIT_MEMORY_LIMIT)
+    PARAMETER(PARAM_DISK_SPACE_LIMIT)
     PARAMETER(PARAM_SPLIT_AMINOACID)
     PARAMETER(PARAM_SUB_MAT)
     PARAMETER(PARAM_NO_COMP_BIAS_CORR)

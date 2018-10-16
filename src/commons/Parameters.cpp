@@ -39,6 +39,7 @@ Parameters::Parameters():
         PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "Splits input sets into N equally distributed chunks. The default value sets the best split automatically. createindex can only be used with split 1.",typeid(int),(void *) &split,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "0: split target db; 1: split query db;  2: auto, depending on main memory",typeid(int),(void *) &splitMode,  "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split Memory Limit", "Maximum system memory in megabyte that one split may use. Defaults (0) to all available system memory.", typeid(int), (void*) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*)$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set the maximum disk space (in Mb) to use for reverse profile searches. Defaults (0) to all available disk space in the temp folder.", typeid(int), (void*) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*)$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","Try to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","correct for locally biased amino acid composition [0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
@@ -741,6 +742,7 @@ Parameters::Parameters():
     searchworkflow.push_back(PARAM_START_SENS);
     searchworkflow.push_back(PARAM_SENS_STEPS);
     searchworkflow.push_back(PARAM_SLICE_SEARCH);
+    searchworkflow.push_back(PARAM_DISK_SPACE_LIMIT);
     searchworkflow.push_back(PARAM_RUNNER);
     searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
 
@@ -1232,6 +1234,7 @@ void Parameters::setDefaults() {
     split = AUTO_SPLIT_DETECTION;
     splitMode = DETECT_BEST_DB_SPLIT;
     splitMemoryLimit = 0;
+    diskSpaceLimit = 0;
     splitAA = false;
     spacedKmerPattern = "";
 

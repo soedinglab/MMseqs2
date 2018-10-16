@@ -150,12 +150,9 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("MAX_STEPS", SSTR(30).c_str());
         cmd.addVariable("MAX_RESULTS_PER_QUERY", SSTR(par.maxResListLen).c_str());
         size_t diskLimit;
-        if (par.splitMemoryLimit > 0) {
-            diskLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024; // in kb
-        } else {
-            // Will be set in the workflow to use as much as possible
-            diskLimit = 0;
-        }
+
+        // By default (0), diskSpaceLimit will be set in the workflow to use as much as possible
+        diskLimit = static_cast<size_t>(par.diskSpaceLimit) * 1024; // in kb
         cmd.addVariable("AVAIL_DISK", SSTR(static_cast<size_t>(diskLimit)).c_str());
 
         // --max-seqs and --offset-results are set inside the workflow
