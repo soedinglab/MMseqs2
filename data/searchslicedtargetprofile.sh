@@ -50,7 +50,7 @@ if notExists "${TMP_PATH}/profileDB"; then
     # symlink the profile DB that can be reduced at every iteration the search
     ln -s "${TARGET}" "${PROFILEDB}"
     ln -s "${TARGET}.dbtype" "${PROFILEDB}.dbtype"
-    sort -k1,1 -n "${TARGET}.index" > "${PROFILEDB}.index"
+    sort -k1,1 "${TARGET}.index" > "${PROFILEDB}.index"
 
     echo "${AVAIL_DISK}" > "${PROFILEDB}.params"
 else
@@ -108,7 +108,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
             --filter-column 1 --comparison-operator ge --comparison-value "${MAX_SEQS}" ${THREADS_PAR} \
             || fail "filterdb died"
         rm -f "${TMP_PATH}/pref_count" "${TMP_PATH}/pref_count.index"
-        awk '$3 > 1 { print $1 }' "${TMP_PATH}/pref_keep.index" | sort -k1,1 -n > "${TMP_PATH}/pref_keep.list"
+        awk '$3 > 1 { print $1 }' "${TMP_PATH}/pref_keep.index" | sort -k1,1 > "${TMP_PATH}/pref_keep.list"
         rm -f "${TMP_PATH}/pref_keep" "${TMP_PATH}/pref_keep.index"
     fi
 
@@ -134,9 +134,8 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${INPUT}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} \
             || fail "mergedbs died"
-        mv -f "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged.index"
+        mv -f "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged"
         mv -f "${TMP_PATH}/aln_merged_new.index" "${TMP_PATH}/aln_merged.index"
-
         rm -f "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_swap.index"
         MERGED="${TMP_PATH}/aln_merged"
     fi

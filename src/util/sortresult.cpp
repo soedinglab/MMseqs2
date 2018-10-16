@@ -54,7 +54,7 @@ int sortresult(int argc, const char **argv, const Command &command) {
                     prefResults.emplace_back(QueryMatcher::parsePrefilterHit(data));
                     format = 2;
                 } else {
-                    Debug(Debug::ERROR) << "Invalid input result format.\n";
+                    Debug(Debug::ERROR) << "Invalid input result format ("<<columns<<" columns).\n";
                     EXIT(EXIT_FAILURE);
                 }
                 data = Util::skipLine(data);
