@@ -75,8 +75,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     # Disk usage allowance not set by the user (i.e. AVAIL_DISK = 0),
     # Compute it for optimal usage
     if [ "${AVAIL_DISK}" -eq 0 ]; then
-        # shellcheck disable=SC2086
-        CURRENT_AVAIL_DISK_SPACE=$(($("$MMSEQS" diskspaceavail ${TMP_PATH})/2))
+        CURRENT_AVAIL_DISK_SPACE=$(($("$MMSEQS" diskspaceavail "${TMP_PATH}")/2))
         # Compute the max number of sequence according to the number of profiles
         # 90 bytes/query-result line max.
         MAX_SEQS="$(((1024*CURRENT_AVAIL_DISK_SPACE)/NUM_PROFILES/90))"
