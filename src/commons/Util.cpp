@@ -419,44 +419,42 @@ size_t Util::getTotalSystemMemory() // in bytes
 
 char Util::touchMemory(char *memory, size_t size) {
     int threadCnt = 1;
-#ifdef _OPENMP
-    int old_thread_ct = omp_get_max_threads();
-    if (old_thread_ct > 4)
-        omp_set_num_threads(4);
-    threadCnt = omp_get_max_threads();
+#ifdef OPENMP
+    const int totalThreadCnt = omp_get_max_threads();
+    if (totalThreadCnt > 4) {
+        threadCnt = 4;
+    }
 #endif
 
-    size_t page_size = getpagesize();
-    char ** buf = new char *[threadCnt];
-    for(int i = 0; i < threadCnt; i++){
-        buf[i]= new char[page_size];
+    size_t pageSize = getPageSize();
+    char **buffer = new char *[threadCnt];
+    for (int i = 0; i < threadCnt; i++) {
+        buffer[i] = new char[pageSize];
     }
 
-#pragma omp parallel
+#pragma omp parallel num_threads(threadCnt)
     {
         int threadIdx = 0;
-#ifdef _OPENMP
+#ifdef OPENMP
         threadIdx = omp_get_thread_num();
 #endif
 
 #pragma omp for schedule(dynamic)
-        for (size_t pos = 0; pos < size; pos += page_size) {
-            size_t this_page_size = size - pos;
-            if (this_page_size > page_size)
-                this_page_size = page_size;
-            memcpy(buf[threadIdx], memory + pos, this_page_size);
+        for (size_t pos = 0; pos < size; pos += pageSize) {
+            size_t currentPageSize = size - pos;
+            if (currentPageSize > pageSize) {
+                currentPageSize = pageSize;
+            }
+            memcpy(buffer[threadIdx], memory + pos, currentPageSize);
         }
     }
 
-#ifdef _OPENMP
-    omp_set_num_threads(old_thread_ct);
-#endif
-    char retVal=0;
-    for(size_t i = 0; i < threadCnt; i++){
-        retVal += buf[i][0];
-       delete [] buf[i];
+    char retVal = 0;
+    for (int i = 0; i < threadCnt; ++i) {
+        retVal += buffer[i][0];
+        delete[] buffer[i];
     }
-    delete [] buf;
+    delete[] buffer;
     return retVal;
 }
 
