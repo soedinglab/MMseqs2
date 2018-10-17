@@ -51,17 +51,18 @@ int indexdb(int argc, const char **argv, const Command &command) {
         }
     }
 
-    if (dbr.getDbtype() != Sequence::HMM_PROFILE && kScoreSet == false) {
+    const bool isProfileSearch = dbr.getDbtype() == Sequence::HMM_PROFILE;
+    if (isProfileSearch && kScoreSet == false) {
         par.kmerScore = 0;
     }
 
     // investigate if it makes sense to mask the profile consensus sequence
-    if (dbr.getDbtype() == Sequence::HMM_PROFILE) {
+    if (isProfileSearch == Sequence::HMM_PROFILE) {
         par.maskMode = 0;
     }
 
     // query seq type is actually unknown here, but if we pass HMM_PROFILE then its +20 k-score
-    int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, Sequence::AMINO_ACIDS, par.kmerScore, kmerSize);
+    const int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, par.kmerScore, kmerSize);
 
     DBReader<unsigned int> *hdbr = NULL;
     if (par.includeHeader == true) {

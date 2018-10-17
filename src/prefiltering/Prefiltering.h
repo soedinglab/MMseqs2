@@ -48,8 +48,7 @@ public:
                            const bool templateDBIsIndex, const size_t maxResListLen, const size_t memoryLimit,
                            int *kmerSize, int *split, int *splitMode);
 
-    static int getKmerThreshold(const float sensitivity, const int querySeqType,
-                                const int kmerScore, const int kmerSize);
+    static int getKmerThreshold(const float sensitivity, const bool isProfile, const int kmerScore, const int kmerSize);
 
 private:
     static const size_t BUFFER_SIZE = 1000000;
