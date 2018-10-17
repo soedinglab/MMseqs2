@@ -52,5 +52,6 @@ set(util_source_files
         util/tsv2db.cpp
         util/proteinaln2nucl.cpp
         util/versionstring.cpp
+        util/diskspaceavail.cpp
         PARENT_SCOPE
         )

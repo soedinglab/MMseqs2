@@ -72,13 +72,15 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         continue
     fi
 
-    # Compute the max number of sequence according to the number of profiles
-    # 90 bytes/query-result line max.
-    MAX_SEQS="$((1024*(AVAIL_DISK/NUM_PROFILES)/90))"
-
-    # No more disk space allowed to use
-    if [ "${MAX_SEQS}" -eq 0 ]; then
-        break
+    # Disk usage allowance not set by the user (i.e. AVAIL_DISK = 0),
+    # Compute it for optimal usage
+    if [ "${AVAIL_DISK}" -eq 0 ]; then
+        CURRENT_AVAIL_DISK_SPACE=$(($("$MMSEQS" diskspaceavail "${TMP_PATH}")/2))
+        # Compute the max number of sequence according to the number of profiles
+        # 90 bytes/query-result line max.
+        MAX_SEQS="$(((1024*CURRENT_AVAIL_DISK_SPACE)/NUM_PROFILES/90))"
+    else
+        MAX_SEQS="$(((1024*AVAIL_DISK)/NUM_PROFILES/90))"
     fi
 
     # Max result to go into the prefilter list
@@ -119,7 +121,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     fi
 
     if notExists "${TMP_PATH}/aln_swap.done"; then
-        # note: we recover the right evalue, since it is computed according to the original target db
+        # note: the evalue has been corrected for inverted search by MMseqs wrapper
         # shellcheck disable=SC2086
         "$MMSEQS" swapresults "${TARGET}" "${INPUT}" "${TMP_PATH}/aln" "${TMP_PATH}/aln_swap" ${SWAP_PAR} \
             || fail "swapresults died"
@@ -132,9 +134,8 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${INPUT}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} \
             || fail "mergedbs died"
-        mv -f "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged.index"
+        mv -f "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged"
         mv -f "${TMP_PATH}/aln_merged_new.index" "${TMP_PATH}/aln_merged.index"
-
         rm -f "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_swap.index"
         MERGED="${TMP_PATH}/aln_merged"
     fi
