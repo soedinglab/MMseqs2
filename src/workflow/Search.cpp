@@ -74,7 +74,7 @@ int search(int argc, const char **argv, const Command& command) {
 
     // FIXME: use larger default k-mer size in target-profile case if memory is available
     // overwrite default kmerSize for target-profile searches and parse parameters again
-    if (targetDbType == Sequence::HMM_PROFILE && par.PARAM_K.wasSet == false) {
+    if (par.sliceSearch == false && targetDbType == Sequence::HMM_PROFILE && par.PARAM_K.wasSet == false) {
         par.kmerSize = 5;
     }
 
