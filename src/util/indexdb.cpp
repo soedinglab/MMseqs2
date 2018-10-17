@@ -9,7 +9,7 @@
 #endif
 
 void setCreateIndexDefaults(Parameters *p) {
-    p->sensitivity = 5;
+    p->sensitivity = 5.7;
 }
 
 int indexdb(int argc, const char **argv, const Command &command) {
