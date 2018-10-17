@@ -23,7 +23,7 @@ int alignall(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Target database: " << par.db1 << "\n";
     DBReader<unsigned int> tdbr(par.db1.c_str(), par.db1Index.c_str());
     tdbr.open(DBReader<unsigned int>::NOSORT);
-    if (par.noPreload == false) {
+    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         tdbr.readMmapedDataInMemory();
     }
     const int targetSeqType = tdbr.getDbtype();
