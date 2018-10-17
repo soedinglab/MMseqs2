@@ -178,7 +178,7 @@ public:
     }
 
     // get list of DB sequences containing this k-mer
-    inline IndexEntryLocal *getDBSeqList(int kmer, size_t *matchedListSize) {
+    inline IndexEntryLocal *getDBSeqList(size_t kmer, size_t *matchedListSize) {
         const ptrdiff_t diff = offsets[kmer + 1] - offsets[kmer];
         *matchedListSize = static_cast<size_t>(diff);
         return (entries + offsets[kmer]);
