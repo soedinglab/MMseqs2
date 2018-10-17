@@ -305,16 +305,19 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
                 countLength[frame] = 0;
             }
 
-            if(isInsideOrf[frame]) {
-                countLength[frame]++;
+            const bool stop = (stopCodonCount > 4) ? isInCodons<8>(codon, stopCodonsHi, stopCodonsLo)
+                                                   : isInCodons<4>(codon, stopCodonsHi, stopCodonsLo);
 
+            if(isInsideOrf[frame]) {
+                if (! stop) {
+                    countLength[frame]++;
+                }
+                
                 if(isGapOrN(codon)) {
                     countGaps[frame]++;
                 }
             }
 
-            const bool stop = (stopCodonCount > 4) ? isInCodons<8>(codon, stopCodonsHi, stopCodonsLo)
-                                                   : isInCodons<4>(codon, stopCodonsHi, stopCodonsLo);
             if(isInsideOrf[frame] && (stop || isLast)) {
                 isInsideOrf[frame] = false;
 
