@@ -127,10 +127,6 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         querySeqType = qdbr->getDbtype();
     }
 
-    if (qdbr->getSize() <= threads) {
-        threads = qdbr->getSize();
-    }
-
     if (templateDBIsIndex == false) {
         querySeqType = qdbr->getDbtype();
         targetSeqType = tdbr->getDbtype();
@@ -277,7 +273,6 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     const unsigned int maxAlnNum, const unsigned int maxRejected) {
     size_t alignmentsNum = 0;
     size_t totalPassedNum = 0;
-
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads);
     dbw.open();
 
