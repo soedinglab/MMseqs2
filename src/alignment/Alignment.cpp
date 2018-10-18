@@ -131,11 +131,6 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         threads = qdbr->getSize();
     }
 
-#ifdef OPENMP
-    omp_set_num_threads(threads);
-    Debug(Debug::INFO) << "Using " << threads << " threads.\n";
-#endif
-
     if (templateDBIsIndex == false) {
         querySeqType = qdbr->getDbtype();
         targetSeqType = tdbr->getDbtype();

@@ -24,10 +24,6 @@ int indexdb(int argc, const char **argv, const Command &command) {
         EXIT(EXIT_FAILURE);
     }
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str());
     dbr.open(DBReader<unsigned int>::NOSORT);
     BaseMatrix *subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);

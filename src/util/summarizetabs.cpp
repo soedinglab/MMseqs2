@@ -127,10 +127,6 @@ std::vector<Domain> getEntries(unsigned int queryId, char *data, size_t length, 
 int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
                const std::pair<std::string, std::string>& resultdb,
                const size_t dbFrom, const size_t dbSize) {
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads));
     writer.open();
 

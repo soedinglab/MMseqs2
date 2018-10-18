@@ -15,10 +15,6 @@ int createseqfiledb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     DBReader<unsigned int> clusters(par.db2.c_str(), par.db2Index.c_str());
     clusters.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 

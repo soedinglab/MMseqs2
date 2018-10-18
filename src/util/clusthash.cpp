@@ -31,9 +31,6 @@ int clusthash(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setClustHashDefaults(&par);
     par.parseParameters(argc, argv, command, 2);
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, -0.2);
     ReducedMatrix redSubMat(subMat.probMatrix, subMat.subMatrixPseudoCounts, subMat.aa2int, subMat.int2aa, subMat.alphabetSize, par.alphabetSize, 2.0);

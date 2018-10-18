@@ -150,10 +150,6 @@ int concatdbs(int argc, const char **argv, const Command& command) {
     setDbConcatDefault(&par);
     par.parseParameters(argc, argv, command, 3);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     int datamode = DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX;
     DBConcat outDB(par.db1.c_str(), par.db1Index.c_str(),
                    par.db2.c_str(), par.db2Index.c_str(),

@@ -208,10 +208,6 @@ std::vector<Domain> mapMsa(const std::string &msa, const std::vector<Domain> &do
 int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
               const std::pair<std::string, std::string>& resultdb,
               const size_t dbFrom, const size_t dbSize) {
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0);
 
     std::string msaDataName = par.db2;

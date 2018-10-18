@@ -15,10 +15,6 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2,  true, 0, MMseqsParameter::COMMAND_PROFILE);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     DBReader<unsigned int> profileReader(par.db1.c_str(), par.db1Index.c_str());
     profileReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 

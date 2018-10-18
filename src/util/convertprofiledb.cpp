@@ -141,10 +141,6 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     DBReader<std::string> dataIn(par.db1.c_str(), par.db1Index.c_str());
     dataIn.open(DBReader<std::string>::NOSORT);
 

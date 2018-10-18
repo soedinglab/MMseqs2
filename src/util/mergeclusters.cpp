@@ -140,10 +140,6 @@ int mergeclusters(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true, true);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     std::list<std::string> clusterings;
     for (size_t i = 2; i < par.filenames.size(); i++) {
         clusterings.push_back(par.filenames[i]);

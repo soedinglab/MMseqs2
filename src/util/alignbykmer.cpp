@@ -27,10 +27,6 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setAlignByKmerDefaults(&par);
     par.parseParameters(argc, argv, command, 4);
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
 
     Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
     DBReader<unsigned int> *qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
