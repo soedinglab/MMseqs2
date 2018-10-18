@@ -76,6 +76,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             bool touch = false;
             if (preloadMode == Parameters::PRELOAD_MODE_MMAP_TOUCH) {
                 touch = true;
+                tidxdbr->readMmapedDataInMemory();
             }
             tdbr = PrefilteringIndexReader::openNewReader(tdbr, touch);
             PrefilteringIndexReader::printSummary(tidxdbr);
