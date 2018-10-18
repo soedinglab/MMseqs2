@@ -22,7 +22,7 @@ int multihitdb(int argc, const char **argv, const Command &command) {
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         Debug(Debug::INFO) << "Tmp " << tmpDir << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not crate tmp folder " << tmpDir << ".\n";
+            Debug(Debug::ERROR) << "Could not create tmp folder " << tmpDir << ".\n";
             EXIT(EXIT_FAILURE);
         } else {
             Debug(Debug::INFO) << "Created dir " << tmpDir << "\n";

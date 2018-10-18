@@ -43,7 +43,7 @@ int createindex(int argc, const char **argv, const Command& command) {
     if (FileUtil::directoryExists(par.db2.c_str())==false) {
         Debug(Debug::INFO) << "Tmp " << par.db2 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db2.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db2 << ".\n";
+            Debug(Debug::ERROR) << "Could not create tmp folder " << par.db2 << ".\n";
             return EXIT_FAILURE;
         } else {
             Debug(Debug::INFO) << "Created dir " << par.db2 << "\n";
