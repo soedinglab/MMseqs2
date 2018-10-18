@@ -134,6 +134,7 @@ Parameters::Parameters():
         PARAM_START_SENS(PARAM_START_SENS_ID, "--start-sens", "Start sensitivity","start sensitivity",typeid(float),(void *) &startSens, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_SENS_STEPS(PARAM_SENS_STEPS_ID, "--sens-steps", "Search steps","Search steps performed from --start-sense and -s.",typeid(int),(void *) &sensSteps, "^[1-9]{1}$"),
         PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Run a seq-profile search in slice mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results.", typeid(bool),(void *) &sliceSearch, ""),
+        PARAM_STRAND(PARAM_STRAND_ID, "--strand", "Strand selection", "Strand selection only works for DNA/DNA search 0: reverse, 1: forward, 2: both", typeid(bool),(void *) &strand, "^[0-2]{1}$"),
         // easysearch
         PARAM_GREEDY_BEST_HITS(PARAM_GREEDY_BEST_HITS_ID, "--greedy-best-hits", "Greedy best hits", "Choose the best hits greedily to cover the query.", typeid(bool), (void*)&greedyBestHits, ""),
         // Orfs
@@ -491,6 +492,12 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_THREADS);
     extractorfs.push_back(PARAM_V);
 
+    // extract frames
+    extractframes.push_back(PARAM_ORF_FORWARD_FRAMES);
+    extractframes.push_back(PARAM_ORF_REVERSE_FRAMES);
+    extractframes.push_back(PARAM_THREADS);
+    extractframes.push_back(PARAM_V);
+
     // orf to contig 
     orftocontig.push_back(PARAM_THREADS);
     orftocontig.push_back(PARAM_V);
@@ -743,6 +750,7 @@ Parameters::Parameters():
     searchworkflow.push_back(PARAM_START_SENS);
     searchworkflow.push_back(PARAM_SENS_STEPS);
     searchworkflow.push_back(PARAM_SLICE_SEARCH);
+    searchworkflow.push_back(PARAM_STRAND);
     searchworkflow.push_back(PARAM_DISK_SPACE_LIMIT);
     searchworkflow.push_back(PARAM_RUNNER);
     searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
@@ -1251,6 +1259,7 @@ void Parameters::setDefaults() {
     startSens = 4;
     sensSteps = 1;
     sliceSearch = false;
+    strand = 1;
 
     greedyBestHits = false;
 

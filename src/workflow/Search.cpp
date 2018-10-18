@@ -10,21 +10,37 @@
 #include "blastpgp.sh.h"
 #include "translated_search.sh.h"
 #include "blastp.sh.h"
+#include "blastn.sh.h"
 
 #include <iomanip>
 #include <climits>
 #include <cassert>
+
 
 void setSearchDefaults(Parameters *p) {
     p->spacedKmer = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
     p->sensitivity = 5.7;
     p->evalThr = 0.001;
-    p->includeHeader = true;
     //p->orfLongest = true;
     p->orfStartMode = 1;
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
+    p->evalProfile = 0.1;
+}
+
+
+
+void setNuclSearchDefaults(Parameters *p) {
+    p->spacedKmer = true;
+    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    //p->sensitivity = 5.7;
+    p->evalThr = 0.001;
+    //p->orfLongest = true;
+    p->exactKmerMatching = true;
+    p->strand = 2;
+    p->kmerSize = 15;
+    p->maxSeqLen = 32734;
     p->evalProfile = 0.1;
 }
 
@@ -67,11 +83,13 @@ int search(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
-    if (queryDbType == Sequence::NUCLEOTIDES && targetDbType == Sequence::NUCLEOTIDES) {
-        Debug(Debug::ERROR) << "Nucleotide-Nucleotide searches are not supported.\n";
-        EXIT(EXIT_FAILURE);
+    const bool isNuclSearch = (queryDbType == Sequence::NUCLEOTIDES && targetDbType == Sequence::NUCLEOTIDES);
+    if(isNuclSearch == true){
+        setNuclSearchDefaults(&par);
+    }else{
+        par.overrideParameterDescription((Command &) command, par.PARAM_STRAND.uniqid, NULL, NULL,
+                                         par.PARAM_STRAND.category | MMseqsParameter::COMMAND_EXPERT);
     }
-
     // FIXME: use larger default k-mer size in target-profile case if memory is available
     // overwrite default kmerSize for target-profile searches and parse parameters again
     if (par.sliceSearch == false && targetDbType == Sequence::HMM_PROFILE && par.PARAM_K.wasSet == false) {
@@ -79,7 +97,7 @@ int search(int argc, const char **argv, const Command& command) {
     }
 
     const bool isTranslatedNuclSearch =
-            (queryDbType == Sequence::NUCLEOTIDES || targetDbType == Sequence::NUCLEOTIDES);
+            isNuclSearch==false && (queryDbType == Sequence::NUCLEOTIDES || targetDbType == Sequence::NUCLEOTIDES);
 
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
     if (isUngappedMode && (queryDbType == Sequence::HMM_PROFILE || targetDbType == Sequence::HMM_PROFILE)) {
@@ -282,6 +300,8 @@ int search(int argc, const char **argv, const Command& command) {
         program = std::string(tmpDir + "/blastp.sh");
     }
 
+
+
     if (isTranslatedNuclSearch == true) {
         FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
         cmd.addVariable("QUERY_NUCL", queryDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
@@ -291,6 +311,28 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");
+    }else if(isNuclSearch== true){
+        FileUtil::writeFile(tmpDir + "/blastn.sh", blastn_sh, blastn_sh_len);
+        //  0: reverse, 1: forward, 2: both
+        switch (par.strand){
+            case 0:
+                par.forwardFrames= "";
+                par.reverseFrames= "1";
+                break;
+            case 1:
+                par.forwardFrames= "1";
+                par.reverseFrames= "";
+                break;
+            case 2:
+                par.forwardFrames= "1";
+                par.reverseFrames= "1";
+            break;
+        }
+        cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
+        cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.onlythreads).c_str());
+        cmd.addVariable("SEARCH", program.c_str());
+        program = std::string(tmpDir + "/blastn.sh");
+
     }
     cmd.execProgram(program.c_str(), par.filenames);
 

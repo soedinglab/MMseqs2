@@ -34,6 +34,7 @@ extern int expandaln(int argc, const char **argv, const Command& command);
 extern int extractalignedregion(int argc, const char **argv, const Command& command);
 extern int extractdomains(int argc, const char **argv, const Command& command);
 extern int extractorfs(int argc, const char **argv, const Command& command);
+extern int extractframes(int argc, const char **argv, const Command& command);
 extern int filterdb(int argc, const char **argv, const Command& command);
 extern int gff2db(int argc, const char **argv, const Command& command);
 extern int indexdb(int argc, const char **argv, const Command& command);

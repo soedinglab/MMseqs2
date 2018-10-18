@@ -16,27 +16,6 @@
 #include <omp.h>
 #endif
 
-const char newline = '\n';
-
-unsigned int getFrames(std::string frames) {
-    unsigned int result = 0;
-
-    std::vector<std::string> frame = Util::split(frames, ",");
-
-    if(std::find(frame.begin(), frame.end(), "1") != frame.end()) {
-        result |= Orf::FRAME_1;
-    }
-
-    if(std::find(frame.begin(), frame.end(), "2") != frame.end()) {
-        result |= Orf::FRAME_2;
-    }
-
-    if(std::find(frame.begin(), frame.end(), "3") != frame.end()) {
-        result |= Orf::FRAME_3;
-    }
-
-    return result;
-}
 
 int extractorfs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
@@ -59,8 +38,9 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
-    unsigned int forwardFrames = getFrames(par.forwardFrames);
-    unsigned int reverseFrames = getFrames(par.reverseFrames);
+    unsigned int forwardFrames = Orf::getFrames(par.forwardFrames);
+    unsigned int reverseFrames = Orf::getFrames(par.reverseFrames);
+    const char newline = '\n';
 
 #pragma omp parallel
     {

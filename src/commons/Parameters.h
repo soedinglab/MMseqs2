@@ -275,6 +275,7 @@ public:
     float startSens;
     int sensSteps;
     bool sliceSearch;
+    int strand;
 
     // easysearch
     bool greedyBestHits;
@@ -601,6 +602,8 @@ public:
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEPS)
     PARAMETER(PARAM_SLICE_SEARCH)
+    PARAMETER(PARAM_STRAND)
+
 
     // easysearch
     PARAMETER(PARAM_GREEDY_BEST_HITS)
@@ -723,6 +726,7 @@ public:
     std::vector<MMseqsParameter> createtsv;
     std::vector<MMseqsParameter> result2stats;
     std::vector<MMseqsParameter> extractorfs;
+    std::vector<MMseqsParameter> extractframes;
     std::vector<MMseqsParameter> orftocontig;
     std::vector<MMseqsParameter> splitdb;
     std::vector<MMseqsParameter> indexdb;

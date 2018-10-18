@@ -83,9 +83,6 @@ int lca(int argc, const char **argv, const Command& command) {
             char *data = reader.getData(i);
             size_t length = reader.getSeqLens(i);
 
-            if (length == 1) {
-                continue;
-            }
 
             std::vector<int> taxa;
             while (*data != '\0') {
@@ -123,6 +120,12 @@ int lca(int argc, const char **argv, const Command& command) {
 
                 next:
                 data = Util::skipLine(data);
+            }
+
+            if(length == 1){
+                snprintf(buffer, 1024, "0\tno rank\tunclassified\n");
+                writer.writeData(buffer, strlen(buffer), key, thread_idx);
+                continue;
             }
 
             TaxonNode* node = t.LCA(taxa);

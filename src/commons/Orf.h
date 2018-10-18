@@ -12,6 +12,29 @@ class Orf
 
 
 public:
+
+
+    static unsigned int getFrames(std::string frames) {
+        unsigned int result = 0;
+
+        std::vector<std::string> frame = Util::split(frames, ",");
+
+        if(std::find(frame.begin(), frame.end(), "1") != frame.end()) {
+            result |= Orf::FRAME_1;
+        }
+
+        if(std::find(frame.begin(), frame.end(), "2") != frame.end()) {
+            result |= Orf::FRAME_2;
+        }
+
+        if(std::find(frame.begin(), frame.end(), "3") != frame.end()) {
+            result |= Orf::FRAME_3;
+        }
+
+        return result;
+    }
+
+
     enum Strand {
         STRAND_PLUS = 1,
         STRAND_MINUS = -1
