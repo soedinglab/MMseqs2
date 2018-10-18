@@ -156,7 +156,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                memoryLimit, &kmerSize, &splits, &splitMode);
 
     if(targetSeqType != Sequence::NUCLEOTIDES){
-        kmerThr = getKmerThreshold(sensitivity, querySeqType, kmerScore, kmerSize);
+        const bool isProfileSearch = querySeqType == Sequence::HMM_PROFILE || targetSeqType == Sequence::HMM_PROFILE;
+        kmerThr = getKmerThreshold(sensitivity, isProfileSearch, kmerScore, kmerSize);
     }
     if (templateDBIsIndex == true) {
         if (splits != originalSplits) {
@@ -984,25 +985,24 @@ void Prefiltering::mergeFiles(const std::string &outDB, const std::string &outDB
     }
 }
 
-int Prefiltering::getKmerThreshold(const float sensitivity, const int querySeqType,
-                                   const int kmerScore, const int kmerSize) {
+int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile, const int kmerScore, const int kmerSize) {
     double kmerThrBest = kmerScore;
     if (kmerScore == INT_MAX) {
         if (kmerSize == 5) {
             float base = 123.75;
-            if (querySeqType == Sequence::HMM_PROFILE) {
+            if (isProfile) {
                 base += 17.0;
             }
             kmerThrBest = base - (sensitivity * 8.75);
         } else if (kmerSize == 6) {
             float base = 138.75;
-            if (querySeqType == Sequence::HMM_PROFILE) {
+            if (isProfile) {
                 base += 17.0;
             }
             kmerThrBest = base - (sensitivity * 8.75);
         } else if (kmerSize == 7) {
             float base = 154.75;
-            if (querySeqType == Sequence::HMM_PROFILE) {
+            if (isProfile) {
                 base += 17.0;
             }
             kmerThrBest = base - (sensitivity * 9.75);

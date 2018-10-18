@@ -12,10 +12,6 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true, true);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     DBReader<unsigned int> setReader(par.db1.c_str(), par.db1Index.c_str());
     setReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 

@@ -507,10 +507,6 @@ int filterdb(int argc, const char **argv, const Command& command) {
 	Parameters& par = Parameters::getInstance();
 	par.parseParameters(argc, argv, command, 2);
 
-#ifdef OPENMP
-	omp_set_num_threads(par.threads);
-#endif
-
     ffindexFilter filter(par);
     return filter.runFilter();
 }

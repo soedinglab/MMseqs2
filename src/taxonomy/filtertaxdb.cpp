@@ -13,12 +13,6 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
-
-
     std::string nodesFile = par.db1 + "_nodes.dmp";
     std::string namesFile = par.db1 + "_names.dmp";
     std::string mergedFile = par.db1 + "_merged.dmp";

@@ -21,10 +21,6 @@
 
 int result2msa(Parameters &par, const std::string &resultData, const std::string &resultIndex,
                const size_t dbFrom, const size_t dbSize, DBConcat *referenceDBr = NULL) {
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     if (par.compressMSA && referenceDBr == NULL) {
         Debug(Debug::ERROR) << "Need a sequence and header database for ca3m output!\n";
         EXIT(EXIT_FAILURE);

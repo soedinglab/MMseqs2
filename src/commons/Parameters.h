@@ -151,7 +151,8 @@ public:
     static const int COV_MODE_BIDIRECTIONAL  = 0;
     static const int COV_MODE_TARGET = 1;
     static const int COV_MODE_QUERY = 2;
-    static const int COV_MODE_LENGTH = 3;
+    static const int COV_MODE_LENGTH_QUERY = 3;
+    static const int COV_MODE_LENGTH_TARGET = 4;
 
     // seq. id mode
     static const int SEQ_ID_ALN_LEN  = 0;
@@ -772,6 +773,7 @@ public:
     std::vector<MMseqsParameter> multihitsearch;
     std::vector<MMseqsParameter> expandaln;
     std::vector<MMseqsParameter> sortresult;
+    std::vector<MMseqsParameter> enrichworkflow;
 
     std::vector<MMseqsParameter> combineList(const std::vector<MMseqsParameter> &par1,
                                              const std::vector<MMseqsParameter> &par2);

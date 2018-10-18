@@ -28,10 +28,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         localThreads = static_cast<int>(resultReader.getSize());
     }
 
-#ifdef OPENMP
-    omp_set_num_threads(localThreads);
-#endif
-
     DBReader<unsigned int> *tDbr = NULL;
     DBReader<unsigned int> *tidxdbr = NULL;
     SequenceLookup *tSeqLookup = NULL;
@@ -143,7 +139,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     const bool isFiltering = par.filterMsa != 0;
     int xAmioAcid = subMat.aa2int[(int)'X'];
 
-#pragma omp parallel
+#pragma omp parallel num_threads(localThreads)
     {
         Matcher matcher(qDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen, par.gapExtend);
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);

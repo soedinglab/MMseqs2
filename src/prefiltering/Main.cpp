@@ -18,10 +18,6 @@ int prefilter(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true, 0, MMseqsParameter::COMMAND_PREFILTER);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     Timer timer;
     Debug(Debug::INFO) << "Initialising data structures...\n";
 

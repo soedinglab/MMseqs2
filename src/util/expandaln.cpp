@@ -344,6 +344,10 @@ int expandaln(int argc, const char **argv, const Command& command) {
                         continue;
                     }
 
+                    if (Util::canBeCovered(par.covThr, par.covMode, resultBC.qLen, resultBC.dbLen) == false) {
+                        continue;
+                    }
+
                     rescoreResultByBacktrace(resultBC, qSeq, tSeq, subMat, compositionBias,
                                              evaluer, par.gapOpen, par.gapExtend, par.seqIdMode);
 
@@ -369,6 +373,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
                 }
                 finalResults = &expanded;
             }
+
             std::sort(finalResults->begin(), finalResults->end(), Matcher::compareHits);
 
             writer.writeStart(thread_idx);

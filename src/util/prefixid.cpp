@@ -11,10 +11,6 @@
 
 int addid(const std::string &db1, const std::string &db1Index, const std::string &db2, const std::string &db2Index, 
 const bool tsvOut, const std::string &mappingFile, const std::string &userStrToAdd, const bool isPrefix, const int threads) {
-#ifdef OPENMP
-    omp_set_num_threads(threads);
-#endif
-
     DBReader<unsigned int> reader(db1.c_str(), db1Index.c_str());
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 

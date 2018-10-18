@@ -42,10 +42,6 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
     reader.open(DBReader<unsigned int>::NOSORT);
 
@@ -58,6 +54,10 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads);
     headerWriter.open();
 
+    if ((par.orfStartMode == 1) && (par.contigStartMode < 2)) {
+        Debug(Debug::ERROR) << "Parameter combination is illegal, orf-start-mode 1 can only go with contig-start-mode 2\n";
+        EXIT(EXIT_FAILURE);
+    }
 
     unsigned int forwardFrames = getFrames(par.forwardFrames);
     unsigned int reverseFrames = getFrames(par.reverseFrames);

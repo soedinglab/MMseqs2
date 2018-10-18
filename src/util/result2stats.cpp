@@ -301,10 +301,6 @@ int result2stats(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     StatsComputer computeStats(par);
     return computeStats.run();
 }

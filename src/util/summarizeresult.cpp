@@ -22,10 +22,6 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
                 const std::pair<std::string, std::string> &resultdb,
                 const size_t dbFrom, const size_t dbSize) {
 #ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
-#ifdef OPENMP
     unsigned int totalThreads = par.threads;
 #else
     unsigned int totalThreads = 1;
