@@ -72,8 +72,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
             }
 
             const char* header = headerReader.getData(i);
-            size_t headerLength = headerReader.getSeqLens(i);
-
+            std::string headerAccession = Util::parseFastaHeader(header);
             orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, par.orfStartMode);
             for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
                 Orf::SequenceLocation loc = *it;
@@ -86,7 +85,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                 }
 
                 char buffer[LINE_MAX];
-                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d, %d]\n", (unsigned int)(headerLength - 2), header, key, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
 
                 headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
 
