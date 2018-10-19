@@ -613,5 +613,16 @@ int DBReader<T>::parseDbType(const char *name) {
     return dbtype;
 }
 
+template<typename T>
+void DBReader<T>::setData(char *data, size_t dataSize) {
+    this->data = data;
+    this->dataSize = dataSize;
+}
+
+template<typename T>
+void DBReader<T>::setMode(const int mode) {
+    this->dataMode = mode;
+}
+
 template class DBReader<unsigned int>;
 template class DBReader<std::string>;

@@ -11,6 +11,7 @@ set(commons_header_files
         commons/Debug.h
         commons/Domain.h
         commons/FileUtil.h
+        commons/HeaderIdReader.h
         commons/HeaderSummarizer.h
         commons/itoa.h
         commons/MathUtil.h

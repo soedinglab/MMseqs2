@@ -7,6 +7,7 @@
 #include "Orf.h"
 #include "AlignmentSymmetry.h"
 #include "Timer.h"
+#include "HeaderIdReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -14,7 +15,7 @@
 
 void updateOffset(char* data, std::vector<Matcher::result_t> &results,
                   const Orf::SequenceLocation *qloc,
-                  DBReader<unsigned int>& tHeaderDbr,
+                  HeaderIdReader& tHeaderDbr,
                   bool nucleotide) {
     size_t startPos = results.size();
     Matcher::readAlignmentResults(results, data, true);
@@ -22,8 +23,8 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results,
     for (size_t i = startPos; i < endPos; i++) {
         Matcher::result_t &res = results[i];
         if (qloc == NULL) {
-            size_t targetId = tHeaderDbr.getId(res.dbKey);
-            char *header = tHeaderDbr.getData(targetId);
+            size_t targetId = tHeaderDbr.getReader()->getId(res.dbKey);
+            char *header = tHeaderDbr.getReader()->getData(targetId);
             Orf::SequenceLocation tloc = Orf::parseOrfHeader(header);
             res.dbKey = tloc.id;
             int dbStartPos = (nucleotide) ? res.dbStartPos : res.dbStartPos * 3;
@@ -66,13 +67,20 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         return EXIT_FAILURE;
     }
 
-    Debug(Debug::INFO) << "Query database: " << par.hdr1 << "\n";
-    DBReader<unsigned int> qHeaderDbr(par.hdr1.c_str(), par.hdr1Index.c_str());
-    qHeaderDbr.open(DBReader<unsigned int>::NOSORT);
+    bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
+    HeaderIdReader qHeaderDbr(par.db1.c_str(), touch);
 
-    Debug(Debug::INFO) << "Target database: " << par.hdr2 << "\n";
-    DBReader<unsigned int> tHeaderDbr(par.hdr2.c_str(), par.hdr2Index.c_str());
-    tHeaderDbr.open(DBReader<unsigned int>::NOSORT);
+    Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
+    HeaderIdReader tHeaderDbr(par.db2.c_str(), touch);
+
+
+
+//    DBReader<unsigned int> qHeaderDbr(par.hdr1.c_str(), par.hdr1Index.c_str());
+//    qHeaderDbr.open(DBReader<unsigned int>::NOSORT);
+
+//    DBReader<unsigned int> tHeaderDbr(par.hdr2.c_str(), par.hdr2Index.c_str());
+//    tHeaderDbr.open(DBReader<unsigned int>::NOSORT);
 
     Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str());
@@ -101,8 +109,8 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         unsigned int *orfLookup = new unsigned int[maxOrfKey + 2]();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(localThreads) reduction(max:maxContigKey)
         for (size_t i = 0; i <= maxOrfKey; ++i) {
-            size_t queryId = qHeaderDbr.getId(i);
-            char *header = qHeaderDbr.getData(queryId);
+            size_t queryId = qHeaderDbr.getReader()->getId(i);
+            char *header = qHeaderDbr.getReader()->getData(queryId);
             Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
             orfLookup[i] = qloc.id;
             maxContigKey = std::max(maxContigKey, qloc.id);
@@ -174,9 +182,8 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     unsigned int orfKey = orfKeys[j];
                     size_t orfId = alnDbr.getId(orfKey);
                     char *data = alnDbr.getData(orfId);
-
-                    size_t queryId = qHeaderDbr.getId(orfKey);
-                    char *header = qHeaderDbr.getData(queryId);
+                    size_t queryId = qHeaderDbr.getReader()->getId(i);
+                    char *header = qHeaderDbr.getReader()->getData(queryId);
                     Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
                     updateOffset(data, results, &qloc, tHeaderDbr, isNucl);
                 }
@@ -213,8 +220,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         delete[] contigExists;
     }
 
-    qHeaderDbr.close();
-    tHeaderDbr.close();
     alnDbr.close();
 
     return EXIT_SUCCESS;

@@ -191,6 +191,10 @@ public:
         }
     };
 
+    void setData(char *data, size_t dataSize);
+
+    void setMode(const int mode);
+
 private:
 
     void checkClosed();

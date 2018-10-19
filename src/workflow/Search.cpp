@@ -4,7 +4,7 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "Parameters.h"
-
+#include "PrefilteringIndexReader.h"
 #include "searchtargetprofile.sh.h"
 #include "searchslicedtargetprofile.sh.h"
 #include "blastpgp.sh.h"
@@ -32,16 +32,18 @@ void setSearchDefaults(Parameters *p) {
 
 
 void setNuclSearchDefaults(Parameters *p) {
-    p->spacedKmer = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
-    //p->sensitivity = 5.7;
-    p->evalThr = 0.001;
     //p->orfLongest = true;
-    p->exactKmerMatching = true;
-    p->strand = 2;
-    p->kmerSize = 15;
+    if ( p->PARAM_EXACT_KMER_MATCHING.wasSet == false) {
+        p->exactKmerMatching = true;
+    }
+    if ( p->PARAM_STRAND.wasSet == false) {
+        p->strand = 2;
+    }
+    if ( p->PARAM_STRAND.wasSet == false) {
+        p->kmerSize = 15;
+    }
     p->maxSeqLen = 32734;
-    p->evalProfile = 0.1;
 }
 
 
@@ -303,6 +305,8 @@ int search(int argc, const char **argv, const Command& command) {
 
 
     if (isTranslatedNuclSearch == true) {
+        std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
+        cmd.addVariable("NO_TARGET_INDEX", (indexStr == "") ? "TRUE" : NULL);
         FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
         cmd.addVariable("QUERY_NUCL", queryDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
         cmd.addVariable("TARGET_NUCL", targetDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
@@ -326,7 +330,7 @@ int search(int argc, const char **argv, const Command& command) {
             case 2:
                 par.forwardFrames= "1";
                 par.reverseFrames= "1";
-            break;
+                break;
         }
         cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.onlythreads).c_str());
