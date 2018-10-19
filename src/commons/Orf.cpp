@@ -361,11 +361,12 @@ Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
             break;
         }
     }
-    if(found == false){
-        Debug(Debug::ERROR) << "Could not find Orf information in header.\n";
-        EXIT(EXIT_FAILURE);
-    }
     Orf::SequenceLocation loc;
+
+    if(found == false){
+        loc.id = UINT_MAX;
+        return loc;
+    }
     int strand;
     int hasIncompleteStart, hasIncompleteEnd;
     int retCode = sscanf(entry[col], "[Orf: %u, %zu, %zu, %d, %d, %d]", &loc.id, &loc.from, &loc.to, &strand, &hasIncompleteStart, &hasIncompleteEnd);

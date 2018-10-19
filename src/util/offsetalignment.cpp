@@ -26,13 +26,15 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results,
             size_t targetId = tHeaderDbr.getReader()->getId(res.dbKey);
             char *header = tHeaderDbr.getReader()->getData(targetId);
             Orf::SequenceLocation tloc = Orf::parseOrfHeader(header);
-            res.dbKey = tloc.id;
-            int dbStartPos = (nucleotide) ? res.dbStartPos : res.dbStartPos * 3;
-            res.dbStartPos = tloc.from + dbStartPos;
-            int dbEndPos = (nucleotide) ? res.dbEndPos + 1 : (res.dbEndPos + 1) * 3;
-            res.dbEndPos   = tloc.from + dbEndPos;
+            res.dbKey =   (tloc.id != UINT_MAX) ? tloc.id : res.dbKey;
+            size_t from = (tloc.id != UINT_MAX) ? tloc.from : 0;
 
-            if (tloc.strand == Orf::STRAND_MINUS) {
+            int dbStartPos = (nucleotide) ? res.dbStartPos : res.dbStartPos * 3;
+            res.dbStartPos = from + dbStartPos;
+            int dbEndPos = (nucleotide) ? res.dbEndPos + 1 : (res.dbEndPos + 1) * 3;
+            res.dbEndPos   = from + dbEndPos;
+
+            if (tloc.strand == Orf::STRAND_MINUS && tloc.id != UINT_MAX) {
                 int start = res.dbStartPos;
                 res.dbStartPos = res.dbEndPos;
                 res.dbEndPos = start;
@@ -40,12 +42,12 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results,
             res.dbLen = (nucleotide) ? res.dbLen :  res.dbLen * 3;
         } else {
             int qStartPos = (nucleotide) ? res.qStartPos  : res.qStartPos * 3;
-            int qEndPos = (nucleotide) ? (res.qEndPos+1)   : (res.qEndPos+1) * 3;
+            int qEndPos = (nucleotide) ? (res.qEndPos + 1)   : (res.qEndPos + 1) * 3;
+            size_t from = (qloc->id != UINT_MAX) ? qloc->from : 0;
+            res.qStartPos = from + qStartPos;
+            res.qEndPos = from + qEndPos;
 
-            res.qStartPos = qloc->from + qStartPos;
-            res.qEndPos = qloc->from + qEndPos;
-
-            if (qloc->strand == Orf::STRAND_MINUS) {
+            if (qloc->strand == Orf::STRAND_MINUS && qloc->id != UINT_MAX) {
                 int start = res.qStartPos;
                 res.qStartPos = res.qEndPos;
                 res.qEndPos = start;
@@ -112,8 +114,9 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             size_t queryId = qHeaderDbr.getReader()->getId(i);
             char *header = qHeaderDbr.getReader()->getData(queryId);
             Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
-            orfLookup[i] = qloc.id;
-            maxContigKey = std::max(maxContigKey, qloc.id);
+            unsigned int id = (qloc.id != UINT_MAX) ? qloc.id : queryId;
+            orfLookup[i] = id;
+            maxContigKey = std::max(maxContigKey, id);
         }
 
         Debug(Debug::INFO) << "Computing contig offsets...\n";
