@@ -127,6 +127,10 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         querySeqType = qdbr->getDbtype();
     }
 
+    if (qdbr->getSize() <= threads) {
+        threads = qdbr->getSize();
+    }
+
     if (templateDBIsIndex == false) {
         querySeqType = qdbr->getDbtype();
         targetSeqType = tdbr->getDbtype();
@@ -282,7 +286,8 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     if(totalMemory > prefdbr->getDataSize()){
         flushSize = dbSize;
     }
-#pragma omp parallel
+
+#pragma omp parallel num_threads(threads)
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
