@@ -16,6 +16,8 @@ int createindex(int argc, const char **argv, const Command& command) {
     par.orfMaxLength = 98202; // 32734 AA (just to be sure)
     par.kmerScore = 0; // extract all k-mers
     par.sensitivity = 7.5;
+    par.includeHeader = true;
+    par.maskMode = 2;
     par.overrideParameterDescription((Command &) command, par.PARAM_MASK_RESIDUES.uniqid, "0: w/o low complexity masking, 1: with low complexity masking, 2: add both masked and unmasked sequences to index", "^[0-2]{1}", par.PARAM_MASK_RESIDUES.category);
     par.parseParameters(argc, argv, command, 2);
     bool sensitivity = false;
