@@ -19,12 +19,8 @@
 int extractframes(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.overrideParameterDescription((Command &)command, par.PARAM_ORF_FORWARD_FRAMES.uniqid, "comma-seperated list of frames on the forward strand to be extracted", NULL,  par.PARAM_ORF_FORWARD_FRAMES.category);
-    par.overrideParameterDescription((Command &)command, par.PARAM_ORF_REVERSE_FRAMES.uniqid, "comma-seperated list of frames on the reverse strand to be extracted", NULL,  par.PARAM_ORF_FORWARD_FRAMES.category);
+    par.overrideParameterDescription((Command &)command, par.PARAM_ORF_REVERSE_FRAMES.uniqid, "comma-seperated list of frames on the reverse strand to be extracted", NULL,  par.PARAM_ORF_REVERSE_FRAMES.category);
     par.parseParameters(argc, argv, command, 2);
-
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
     reader.open(DBReader<unsigned int>::NOSORT);
