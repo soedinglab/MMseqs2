@@ -145,7 +145,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        char buffer[1024];
+        char * buffer = new char[65536];
 
         std::string ss;
         ss.reserve(1024);
@@ -161,7 +161,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < entryCount; ++i) {
             Debug::printProgress(i);
-
             unsigned int queryKey;
             if (queryDbType == Sequence::NUCLEOTIDES) {
                 queryKey = i;
@@ -197,6 +196,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             ss.clear();
             results.clear();
         }
+	delete [] buffer;
     }
     Debug(Debug::INFO) << "\n";
     resultWriter.close();
