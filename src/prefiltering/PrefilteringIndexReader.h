@@ -35,6 +35,7 @@ public:
     static unsigned int SCOREMATRIX3MER;
     static unsigned int DBRINDEX;
     static unsigned int HDRINDEX;
+    static unsigned int HDRDATA;
     static unsigned int GENERATOR;
 
     static bool checkIfIndexFile(DBReader<unsigned int> *reader);

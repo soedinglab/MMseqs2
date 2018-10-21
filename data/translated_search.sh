@@ -37,6 +37,7 @@ fi
 TARGET="$2"
 TARGET_ORF="$2"
 if [ -n "$TARGET_NUCL" ]; then
+if [ -n "$NO_TARGET_INDEX" ]; then
     if notExists "$4/t_orfs"; then
         # shellcheck disable=SC2086
         "$MMSEQS" extractorfs "$2" "$4/t_orfs" ${ORF_PAR} \
@@ -49,6 +50,7 @@ if [ -n "$TARGET_NUCL" ]; then
     fi
     TARGET="$4/t_orfs_aa"
     TARGET_ORF="$4/t_orfs"
+fi
 fi
 
 mkdir -p "$4/search"

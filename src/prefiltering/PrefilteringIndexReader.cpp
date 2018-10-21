@@ -5,7 +5,7 @@
 #include "FileUtil.h"
 #include "IndexBuilder.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION = "7";
+const char*  PrefilteringIndexReader::CURRENT_VERSION = "8";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
@@ -13,16 +13,16 @@ unsigned int PrefilteringIndexReader::SCOREMATRIX2MER = 3;
 unsigned int PrefilteringIndexReader::SCOREMATRIX3MER = 4;
 unsigned int PrefilteringIndexReader::DBRINDEX = 5;
 unsigned int PrefilteringIndexReader::HDRINDEX = 6;
-
-unsigned int PrefilteringIndexReader::ENTRIES = 7;
-unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 8;
-unsigned int PrefilteringIndexReader::ENTRIESNUM = 9;
-unsigned int PrefilteringIndexReader::SEQCOUNT = 10;
-unsigned int PrefilteringIndexReader::MASKEDSEQINDEXDATA = 11;
-unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 12;
-unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 13;
-unsigned int PrefilteringIndexReader::UNMASKEDSEQINDEXDATA = 14;
-unsigned int PrefilteringIndexReader::GENERATOR = 15;
+unsigned int PrefilteringIndexReader::HDRDATA = 7;
+unsigned int PrefilteringIndexReader::ENTRIES = 8;
+unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 9;
+unsigned int PrefilteringIndexReader::ENTRIESNUM = 10;
+unsigned int PrefilteringIndexReader::SEQCOUNT = 11;
+unsigned int PrefilteringIndexReader::MASKEDSEQINDEXDATA = 12;
+unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 13;
+unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 14;
+unsigned int PrefilteringIndexReader::UNMASKEDSEQINDEXDATA = 15;
+unsigned int PrefilteringIndexReader::GENERATOR = 16;
 
 extern const char* version;
 
@@ -178,6 +178,9 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
         data = DBReader<unsigned int>::serialize(*hdbr);
         writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*hdbr), HDRINDEX, 0);
         writer.alignToPageSize();
+        Debug(Debug::INFO) << "Write HDRDATA (" << HDRDATA << ")\n";
+        writer.writeData(hdbr->getData(),hdbr->getDataSize(), HDRDATA, 0);
+        writer.alignToPageSize();
         free(data);
     }
 
@@ -190,16 +193,24 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
 }
 
 DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<unsigned int>*dbr, const char* dataFileName, bool touch) {
-    size_t id = dbr->getId(HDRINDEX);
-    char *data = dbr->getData(id);
+    size_t indexId = dbr->getId(HDRINDEX);
+    char *indexData = dbr->getData(indexId);
     if (touch) {
-        dbr->touchData(id);
+        dbr->touchData(indexId);
     }
 
-    DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(data);
-    reader->setDataFile(dataFileName);
-    reader->open(DBReader<unsigned int>::NOSORT);
+    size_t dataId = dbr->getId(HDRDATA);
+    char *data = dbr->getData(dataId);
+    size_t dataSize = dbr->getSeqLens(dataId);
 
+    if (touch) {
+        dbr->touchData(dataId);
+    }
+
+    DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(indexData);
+    reader->open(DBReader<unsigned int>::NOSORT);
+    reader->setData(data, dataSize);
+    reader->setMode(DBReader<unsigned int>::USE_DATA);
     return reader;
 }
 
@@ -383,7 +394,7 @@ ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> 
 
 std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB) {
     for (size_t spaced = 0; spaced < 2; spaced++) {
-        for (size_t k = 5; k <= 7; k++) {
+        for (size_t k = 5; k <= 16; k++) {
             std::string outIndexName(pathToDB); // db.sk6
             std::string s = (spaced == true) ? "s" : "";
             outIndexName.append(".").append(s).append("k").append(SSTR(k));
@@ -392,7 +403,6 @@ std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB)
             }
         }
     }
-
     return "";
 }
 
