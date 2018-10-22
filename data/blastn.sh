@@ -25,7 +25,7 @@ TARGET="$2"
 TMP_PATH="$4"
 
 if [ -n "$NEEDTARGETSPLIT" ]; then
-    if notExists "$TMP_PATH/target_seqs"; then
+    if notExists "$TMP_PATH/target_seqs_split"; then
         "$MMSEQS" splitsequence "$TARGET" "$TMP_PATH/target_seqs_split" ${SPLITSEQUENCE_PAR}  \
             || fail "Split sequence died"
     fi

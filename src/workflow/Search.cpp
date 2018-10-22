@@ -43,7 +43,9 @@ void setNuclSearchDefaults(Parameters *p) {
     if ( p->PARAM_STRAND.wasSet == false) {
         p->kmerSize = 15;
     }
-    p->maxSeqLen = 32734;
+    if ( p->PARAM_MAX_SEQ_LEN.wasSet == false) {
+        p->maxSeqLen = 10000;
+    }
 }
 
 
@@ -335,9 +337,9 @@ int search(int argc, const char **argv, const Command& command) {
                 break;
         }
         //TODO
-
+        cmd.addVariable("SPLITSEQUENCE_PAR", par.createParameterString(par.splitsequence).c_str());
         cmd.addVariable("NEEDTARGETSPLIT","TRUE");
-        cmd.addVariable("NEEDQUERYSPLIT","TRUE");
+        //cmd.addVariable("NEEDQUERYSPLIT","TRUE");
         cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.onlythreads).c_str());
         cmd.addVariable("SEARCH", program.c_str());
