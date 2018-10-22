@@ -176,9 +176,12 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         results.reserve(300);
 
         size_t entryCount = alnDbr.getSize();
+        if (queryDbType == Sequence::NUCLEOTIDES) {
+            entryCount = maxContigKey + 1;
+        }
 
 #pragma omp for schedule(dynamic, 10)
-        for (size_t i = 0; i <= maxContigKey; ++i) {
+        for (size_t i = 0; i < entryCount; ++i) {
             Debug::printProgress(i);
             unsigned int queryKey;
             if (queryDbType == Sequence::NUCLEOTIDES) {
