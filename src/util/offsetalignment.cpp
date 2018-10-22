@@ -178,14 +178,12 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         size_t entryCount = alnDbr.getSize();
 
 #pragma omp for schedule(dynamic, 10)
-        for (size_t i = 0; i < entryCount; ++i) {
+        for (size_t i = 0; i <= maxContigKey; ++i) {
             Debug::printProgress(i);
             unsigned int queryKey;
             if (queryDbType == Sequence::NUCLEOTIDES) {
                 queryKey = i;
-                if (contigExists[i] == 0) {
-                    continue;
-                }
+                
                 unsigned int *orfKeys = &contigLookup[contigOffsets[i]];
                     size_t orfCount = contigOffsets[i + 1] - contigOffsets[i];
                 for (unsigned int j = 0; j < orfCount; ++j) {
