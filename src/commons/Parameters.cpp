@@ -1114,6 +1114,10 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 #ifdef OPENMP
     omp_set_num_threads(threads);
 #endif
+#ifndef OPENMP
+    threads = 1;
+#endif
+
 
     const size_t MAX_DB_PARAMETER = 6;
 
