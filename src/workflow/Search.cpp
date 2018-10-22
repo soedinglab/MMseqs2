@@ -322,6 +322,7 @@ int search(int argc, const char **argv, const Command& command) {
             case 0:
                 par.forwardFrames= "";
                 par.reverseFrames= "1";
+                cmd.addVariable("EXTRACTFRAMES","TRUE");
                 break;
             case 1:
                 par.forwardFrames= "1";
@@ -330,8 +331,13 @@ int search(int argc, const char **argv, const Command& command) {
             case 2:
                 par.forwardFrames= "1";
                 par.reverseFrames= "1";
+                cmd.addVariable("EXTRACTFRAMES","TRUE");
                 break;
         }
+        //TODO
+
+        cmd.addVariable("NEEDTARGETSPLIT","TRUE");
+        cmd.addVariable("NEEDQUERYSPLIT","TRUE");
         cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.onlythreads).c_str());
         cmd.addVariable("SEARCH", program.c_str());

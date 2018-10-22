@@ -729,6 +729,7 @@ public:
     std::vector<MMseqsParameter> extractframes;
     std::vector<MMseqsParameter> orftocontig;
     std::vector<MMseqsParameter> splitdb;
+    std::vector<MMseqsParameter> splitsequence;
     std::vector<MMseqsParameter> indexdb;
     std::vector<MMseqsParameter> createindex;
     std::vector<MMseqsParameter> convertalignments;

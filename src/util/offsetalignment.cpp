@@ -22,7 +22,7 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results,
     size_t endPos = results.size();
     for (size_t i = startPos; i < endPos; i++) {
         Matcher::result_t &res = results[i];
-        if (qloc == NULL) {
+        if (nucleotide == true|| qloc == NULL) {
             size_t targetId = tHeaderDbr.getReader()->getId(res.dbKey);
             char *header = tHeaderDbr.getReader()->getData(targetId);
             Orf::SequenceLocation tloc = Orf::parseOrfHeader(header);
@@ -33,14 +33,14 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results,
             res.dbStartPos = from + dbStartPos;
             int dbEndPos = (nucleotide) ? res.dbEndPos + 1 : (res.dbEndPos + 1) * 3;
             res.dbEndPos   = from + dbEndPos;
-
             if (tloc.strand == Orf::STRAND_MINUS && tloc.id != UINT_MAX) {
                 int start = res.dbStartPos;
                 res.dbStartPos = res.dbEndPos;
                 res.dbEndPos = start;
             }
             res.dbLen = (nucleotide) ? res.dbLen :  res.dbLen * 3;
-        } else {
+        }
+        if(qloc != NULL){
             int qStartPos = (nucleotide) ? res.qStartPos  : res.qStartPos * 3;
             int qEndPos = (nucleotide) ? (res.qEndPos + 1)   : (res.qEndPos + 1) * 3;
             size_t from = (qloc->id != UINT_MAX) ? qloc->from : 0;
@@ -112,9 +112,14 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(localThreads) reduction(max:maxContigKey)
         for (size_t i = 0; i <= maxOrfKey; ++i) {
             size_t queryId = qHeaderDbr.getReader()->getId(i);
+            if(queryId == UINT_MAX){
+                orfLookup[i] = UINT_MAX;
+                continue;
+            }
+            unsigned int queryKey = qHeaderDbr.getReader()->getDbKey(queryId);
             char *header = qHeaderDbr.getReader()->getData(queryId);
             Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
-            unsigned int id = (qloc.id != UINT_MAX) ? qloc.id : queryId;
+            unsigned int id = (qloc.id != UINT_MAX) ? qloc.id : queryKey;
             orfLookup[i] = id;
             maxContigKey = std::max(maxContigKey, id);
         }
@@ -123,7 +128,10 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         unsigned int *contigSizes = new unsigned int[maxContigKey + 2]();
         contigExists = new char[maxContigKey + 1]();
 #pragma omp parallel for schedule(static) num_threads(localThreads)
-        for (size_t i = 0; i <= maxOrfKey; ++i) {
+        for (size_t i = 0; i <= maxOrfKey ; ++i) {
+            if(orfLookup[i] == UINT_MAX){
+                continue;
+            }
             __sync_fetch_and_add(&(contigSizes[orfLookup[i]]), 1);
             contigExists[orfLookup[i]] = 1;
         }
@@ -134,6 +142,9 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         contigLookup = new unsigned int[maxOrfKey + 2]();
 #pragma omp parallel for schedule(static) num_threads(localThreads)
         for (size_t i = 0; i <= maxOrfKey; ++i) {
+            if(orfLookup[i] == UINT_MAX){
+                continue;
+            }
             size_t offset = __sync_fetch_and_add(&(contigOffsets[orfLookup[i]]), 1);
             contigLookup[offset] = i;
         }
@@ -165,9 +176,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         results.reserve(300);
 
         size_t entryCount = alnDbr.getSize();
-        if (queryDbType == Sequence::NUCLEOTIDES) {
-            entryCount = maxContigKey + 1;
-        }
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < entryCount; ++i) {
@@ -179,7 +187,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     continue;
                 }
                 unsigned int *orfKeys = &contigLookup[contigOffsets[i]];
-                size_t orfCount = contigOffsets[i + 1] - contigOffsets[i];
+                    size_t orfCount = contigOffsets[i + 1] - contigOffsets[i];
                 for (unsigned int j = 0; j < orfCount; ++j) {
                     unsigned int orfKey = orfKeys[j];
                     size_t orfId = alnDbr.getId(orfKey);
@@ -189,8 +197,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
                     updateOffset(data, results, &qloc, tHeaderDbr, isNucl);
                 }
-            }
-            if (targetDbType == Sequence::NUCLEOTIDES) {
+            }else if (targetDbType == Sequence::NUCLEOTIDES) {
                 queryKey = alnDbr.getDbKey(i);
                 char *data = alnDbr.getData(i);
                 updateOffset(data, results, NULL, tHeaderDbr, isNucl);

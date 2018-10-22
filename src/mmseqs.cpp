@@ -314,6 +314,13 @@ std::vector<struct Command> commands = {
                 "Milot Mirdita <milot@mirdita.de>",
                 "<i:sequenceDB> <o:sequenceDB_1..N>",
                 CITATION_MMSEQS2},
+
+        {"splitsequence",       splitsequence,             &par.splitsequence,             COMMAND_DB,
+                "Split sequences by length",
+                NULL,
+                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+                "<i:sequenceDB> <o:sequenceDB>",
+                CITATION_MMSEQS2},
         {"subtractdbs",          subtractdbs,          &par.subtractdbs,          COMMAND_DB,
                 "Generate a DB with entries of first DB not occurring in second DB",
                 NULL,

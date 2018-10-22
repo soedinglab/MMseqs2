@@ -43,6 +43,7 @@ set(util_source_files
         util/extractframes.cpp
         util/sortresult.cpp
         util/splitdb.cpp
+        util/splitsequence.cpp
         util/subtractdbs.cpp
         util/summarizeheaders.cpp
         util/summarizeresult.cpp

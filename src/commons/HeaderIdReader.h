@@ -14,7 +14,7 @@
 
 class HeaderIdReader {
 public:
-    HeaderIdReader(const std::string &dataName, bool noPreload)
+    HeaderIdReader(const std::string &dataName, bool preload)
             : reader(NULL), index(NULL) {
         std::string indexDB = PrefilteringIndexReader::searchForIndex(dataName.c_str());
         if (indexDB != "") {
@@ -28,7 +28,7 @@ public:
                 PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(index);
 
                 if (data.headers == 1) {
-                    reader = PrefilteringIndexReader::openNewHeaderReader(index, (dataName + "_h").c_str(), noPreload == false);
+                    reader = PrefilteringIndexReader::openNewHeaderReader(index, (dataName + "_h").c_str(), preload);
                 } else {
                     Debug(Debug::INFO) << "Index does not contain headers. Using normal database instead.\n";
                 }
@@ -45,7 +45,7 @@ public:
             reader->open(DBReader<unsigned int>::NOSORT);
 
 
-            if (noPreload == false) {
+            if (preload) {
                 reader->readMmapedDataInMemory();
                 reader->mlock();
             }

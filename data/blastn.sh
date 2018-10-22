@@ -20,16 +20,34 @@ notExists() {
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
 
-INPUT="$1"
+QUERY="$1"
 TARGET="$2"
 TMP_PATH="$4"
-if notExists "$TMP_PATH/seqs"; then
-    # shellcheck disable=SC2086
-    "$MMSEQS" extractframes "$INPUT" "$TMP_PATH/seqs" ${EXTRACT_FRAMES_PAR}  \
-        || fail "Extractframes died"
+
+if [ -n "$NEEDTARGETSPLIT" ]; then
+    if notExists "$TMP_PATH/target_seqs"; then
+        "$MMSEQS" splitsequence "$TARGET" "$TMP_PATH/target_seqs_split" ${SPLITSEQUENCE_PAR}  \
+            || fail "Split sequence died"
+    fi
+    TARGET="$TMP_PATH/target_seqs_split"
 fi
 
-QUERY="$TMP_PATH/seqs"
+if [ -n "$EXTRACTFRAMES" ]; then
+    if notExists "$TMP_PATH/query_seqs"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" extractframes "$QUERY" "$TMP_PATH/query_seqs" ${EXTRACT_FRAMES_PAR}  \
+            || fail "Extractframes died"
+    fi
+    QUERY="$TMP_PATH/query_seqs"
+fi
+
+if [ -n "$NEEDQUERYSPLIT" ]; then
+    if notExists "$TMP_PATH/query_seqs_split"; then
+        "$MMSEQS" splitsequence "$QUERY" "$TMP_PATH/query_seqs_split" ${SPLITSEQUENCE_PAR}  \
+        || fail "Split sequence died"
+    fi
+    QUERY="$TMP_PATH/query_seqs_split"
+fi
 
 mkdir -p "$4/search"
 if notExists "$4/aln"; then

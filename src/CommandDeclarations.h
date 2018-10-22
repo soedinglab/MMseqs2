@@ -71,6 +71,7 @@ extern int shellcompletion(int argc, const char **argv, const Command& command);
 extern int shellcompletion(int argc, const char **argv, const Command& command);
 extern int sortresult(int argc, const char **argv, const Command& command);
 extern int splitdb(int argc, const char **argv, const Command& command);
+extern int splitsequence(int argc, const char **argv, const Command& command);
 extern int subtractdbs(int argc, const char **argv, const Command& command);
 extern int suffixid(int argc, const char **argv, const Command& command);
 extern int summarizeheaders(int argc, const char **argv, const Command& command);

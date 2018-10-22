@@ -502,6 +502,11 @@ Parameters::Parameters():
     orftocontig.push_back(PARAM_THREADS);
     orftocontig.push_back(PARAM_V);
 
+    // splitsequence
+    splitsequence.push_back(PARAM_MAX_SEQ_LEN);
+    splitsequence.push_back(PARAM_THREADS);
+    splitsequence.push_back(PARAM_V);
+
     // splitdb
     splitdb.push_back(PARAM_SPLIT);
     splitdb.push_back(PARAM_SPLIT_AMINOACID);
