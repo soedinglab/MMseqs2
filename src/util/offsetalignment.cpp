@@ -186,7 +186,9 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             unsigned int queryKey;
             if (queryDbType == Sequence::NUCLEOTIDES) {
                 queryKey = i;
-                
+                if (contigExists[i] == 0) {
+                    continue;
+                }
                 unsigned int *orfKeys = &contigLookup[contigOffsets[i]];
                     size_t orfCount = contigOffsets[i + 1] - contigOffsets[i];
                 for (unsigned int j = 0; j < orfCount; ++j) {
