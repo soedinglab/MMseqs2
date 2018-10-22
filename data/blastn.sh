@@ -26,6 +26,7 @@ TMP_PATH="$4"
 
 if [ -n "$NEEDTARGETSPLIT" ]; then
     if notExists "$TMP_PATH/target_seqs_split"; then
+        # shellcheck disable=SC2086
         "$MMSEQS" splitsequence "$TARGET" "$TMP_PATH/target_seqs_split" ${SPLITSEQUENCE_PAR}  \
             || fail "Split sequence died"
     fi
@@ -43,6 +44,7 @@ fi
 
 if [ -n "$NEEDQUERYSPLIT" ]; then
     if notExists "$TMP_PATH/query_seqs_split"; then
+        # shellcheck disable=SC2086
         "$MMSEQS" splitsequence "$QUERY" "$TMP_PATH/query_seqs_split" ${SPLITSEQUENCE_PAR}  \
         || fail "Split sequence died"
     fi
