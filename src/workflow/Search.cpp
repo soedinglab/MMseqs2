@@ -40,7 +40,7 @@ void setNuclSearchDefaults(Parameters *p) {
     if ( p->PARAM_STRAND.wasSet == false) {
         p->strand = 2;
     }
-    if ( p->PARAM_STRAND.wasSet == false) {
+    if ( p->PARAM_K.wasSet == false) {
         p->kmerSize = 15;
     }
     if ( p->PARAM_MAX_SEQ_LEN.wasSet == false) {
