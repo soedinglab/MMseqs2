@@ -34,16 +34,31 @@ void setSearchDefaults(Parameters *p) {
 void setNuclSearchDefaults(Parameters *p) {
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     //p->orfLongest = true;
-    if ( p->PARAM_EXACT_KMER_MATCHING.wasSet == false) {
-        p->exactKmerMatching = true;
+
+    bool strandWasSet = false;
+    bool kmerSizeWasSet = false;
+    bool maxSeqLenWasSet = false;
+    for (size_t i = 0; i < p->searchworkflow.size(); i++) {
+        if (p->searchworkflow[i].uniqid == p->PARAM_STRAND.uniqid && p->searchworkflow[i].wasSet) {
+            strandWasSet = true;
+        }
+        if (p->searchworkflow[i].uniqid == p->PARAM_K.uniqid && p->searchworkflow[i].wasSet) {
+            kmerSizeWasSet = true;
+        }
+        if (p->searchworkflow[i].uniqid == p->PARAM_MAX_SEQ_LEN.uniqid && p->searchworkflow[i].wasSet) {
+            maxSeqLenWasSet = true;
+        }
+
     }
-    if ( p->PARAM_STRAND.wasSet == false) {
+
+    p->exactKmerMatching = true;
+    if ( strandWasSet == false) {
         p->strand = 2;
     }
-    if ( p->PARAM_K.wasSet == false) {
+    if ( kmerSizeWasSet == false) {
         p->kmerSize = 15;
     }
-    if ( p->PARAM_MAX_SEQ_LEN.wasSet == false) {
+    if ( maxSeqLenWasSet == false) {
         p->maxSeqLen = 10000;
     }
 }
