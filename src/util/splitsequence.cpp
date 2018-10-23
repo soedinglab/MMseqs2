@@ -68,11 +68,10 @@ int splitsequence(int argc, const char **argv, const Command& command) {
                 size_t len = std::min(par.maxSeqLen, seqLen - (split * par.maxSeqLen - split*sequenceOverlap));
                 sequenceWriter.writeStart(thread_idx);
                 size_t startPos = split * par.maxSeqLen - split*sequenceOverlap;
-                sequenceWriter.writeAdd(data + startPos, len, 0);
+                sequenceWriter.writeAdd(data + startPos, len, thread_idx);
                 char newLine = '\n';
-                sequenceWriter.writeAdd(&newLine, 1, 0);
-                sequenceWriter.writeEnd(key, 0, true);
-                std::string headerAccession = Util::parseFastaHeader(header);
+                sequenceWriter.writeAdd(&newLine, 1, thread_idx);
+                sequenceWriter.writeEnd(key, thread_idx, true);
                 snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d, %d]\n",
                          (unsigned int) (headerAccession.size()), headerAccession.c_str(), dbKey,
                          from + startPos, len, (loc.id != UINT_MAX) ? loc.strand : Orf::STRAND_PLUS, 1, 1);
