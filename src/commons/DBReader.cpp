@@ -624,5 +624,18 @@ void DBReader<T>::setMode(const int mode) {
     this->dataMode = mode;
 }
 
+template<typename T>
+size_t DBReader<T>::getOffset(size_t id) {
+    if (id >= size){
+        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
+        Debug(Debug::ERROR) << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){
+        id = local2id[id];
+    }
+    return index[id].offset;
+}
+
 template class DBReader<unsigned int>;
 template class DBReader<std::string>;

@@ -195,6 +195,8 @@ public:
 
     void setMode(const int mode);
 
+    size_t getOffset(size_t id);
+
 private:
 
     void checkClosed();

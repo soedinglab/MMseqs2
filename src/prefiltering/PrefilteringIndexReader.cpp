@@ -201,7 +201,8 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<un
 
     size_t dataId = dbr->getId(HDRDATA);
     char *data = dbr->getData(dataId);
-    size_t dataSize = dbr->getSeqLens(dataId);
+
+    size_t dataSize = dbr->getOffset(dataId + 1) - dbr->getOffset(dataId);
 
     if (touch) {
         dbr->touchData(dataId);
