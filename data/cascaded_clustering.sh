@@ -20,7 +20,7 @@ TMP_PATH="$3"
 SOURCE="$INPUT"
 
 mkdir -p "${TMP_PATH}/linclust"
-if notExists "${TMP_PATH}/aln_redundancy"; then
+if notExists "${TMP_PATH}/clu_redundancy"; then
     # shellcheck disable=SC2086
     "$MMSEQS" linclust "$INPUT" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/linclust" ${LINCLUST_PAR} \
         || fail "linclust died"
