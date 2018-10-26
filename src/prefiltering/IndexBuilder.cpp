@@ -168,7 +168,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                             << "Maybe the sequences length is less than 14 residues.\n";
         if (maskedResidues == true){
             Debug(Debug::ERROR) << " or contains only low complexity regions.";
-            Debug(Debug::ERROR) << "Use --mask-mode 0 to deactivate the low complexity filter.\n";
+            Debug(Debug::ERROR) << "Use --mask 0 to deactivate the low complexity filter.\n";
         }
         EXIT(EXIT_FAILURE);
     }
