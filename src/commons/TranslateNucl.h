@@ -320,14 +320,12 @@ public:
     int sm_BaseToIdx  [256];
 
 
-    int getCodonState (int state,
-                              unsigned char ch)
-    {
+    int getCodonState (int state, unsigned char ch) const {
         if (state < 0 || state > 4096) return 0;
         return (sm_NextState [state] + sm_BaseToIdx [(int) ch]);
     }
 
-    char getCodonResidue (int state)   {
+    char getCodonResidue (int state) const {
         if (state < 0 || state > 4096) return 0;
         return (m_AminoAcid[state]);
     }
@@ -487,7 +485,7 @@ public:
         }
     };
 
-    void translate(char *aa, const char *nucl, int L) {
+    void translate(char *aa, const char *nucl, int L) const {
         int state = 0;
         for (int i = 0;  i < L;  i += 3) {
             // loop through one codon at a time
@@ -501,7 +499,7 @@ public:
 //        std::cout << std::endl;
     }
 
-    char translateSingleCodon(const char *nucl){
+    char translateSingleCodon(const char *nucl) const {
         int state = 0;
         for (int k = 0;  k < 3;  ++k) {
             state = getCodonState(state, nucl[k]);

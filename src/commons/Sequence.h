@@ -156,7 +156,7 @@ public:
 
     void print(); // for debugging
 
-    int getId() { return id; }
+    int getId() const { return id; }
 
     int getCurrentPosition() { return currItPos; }
 
