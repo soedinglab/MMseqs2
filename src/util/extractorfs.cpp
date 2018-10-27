@@ -65,7 +65,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
             unsigned int key = reader.getDbKey(i);
             const char* data = reader.getData(i);
             size_t dataLength = reader.getSeqLens(i);
-
+            size_t sequenceLength = dataLength - 2;
             if(!orf.setSequence(data, dataLength - 2)) {
                 Debug(Debug::WARNING) << "Invalid sequence with index " << i << "!\n";
                 continue;
@@ -85,15 +85,24 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                 }
 
                 char buffer[LINE_MAX];
-                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
 
-                headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
-
-                sequenceWriter.writeStart(thread_idx);
                 std::pair<const char*, size_t> sequence = orf.getSequence(loc);
+                size_t fromPos = loc.from;
+                size_t toPos = loc.to;
+                if(loc.strand == Orf::STRAND_MINUS){
+                    fromPos = (sequenceLength -1) - loc.from;
+                    toPos   = (sequenceLength -1) - loc.to;
+                }
+                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(),
+                        key, fromPos, toPos, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+                sequenceWriter.writeStart(thread_idx);
                 sequenceWriter.writeAdd(sequence.first, sequence.second, thread_idx);
                 sequenceWriter.writeAdd(&newline, 1, thread_idx);
                 sequenceWriter.writeEnd(key, thread_idx);
+
+                headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
+
+
             }
             res.clear();
         }

@@ -68,20 +68,20 @@ int extractframes(int argc, const char **argv, const Command& command) {
                 case Orf::FRAME_1:
                     // -1 to ignore the null byte copy the new line
                     sequenceWriter.writeData(data, dataLength - 1, key, thread_idx);
-                    snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key,
-                            static_cast<size_t >(0), dataLength - 2, Orf::STRAND_PLUS, 1, 1);
+                    snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key,
+                            static_cast<size_t >(0), dataLength - 3, 1, 1);
                     headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
                     break;
                 case Orf::FRAME_2:
                     sequenceWriter.writeData(data + 1, dataLength - 2, key, thread_idx);
-                    snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key,
-                            static_cast<size_t >(1), dataLength - 3, Orf::STRAND_PLUS, 1, 1);
+                    snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key,
+                            static_cast<size_t >(1), dataLength - 4, 1, 1);
                     headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
                     break;
                 case Orf::FRAME_3:
                     sequenceWriter.writeData(data + 2, dataLength - 3, key, thread_idx);
-                    snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key,
-                            static_cast<size_t >(2), dataLength - 4, Orf::STRAND_PLUS, 1, 1);
+                    snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key,
+                            static_cast<size_t >(2), dataLength - 5, 1, 1);
                     headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
                     break;
             }
@@ -106,20 +106,20 @@ int extractframes(int argc, const char **argv, const Command& command) {
             switch (reverseFrames){
                 case Orf::FRAME_1:
                     sequenceWriter.writeData(reverseComplementStr.c_str(), reverseComplementStr.size(), key, thread_idx);
-                    snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key,
-                             static_cast<size_t >(0), reverseComplementStr.size() - 1, Orf::STRAND_MINUS, 1, 1);
+                    snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key,
+                             reverseComplementStr.size() - 2, static_cast<size_t >(0), 1, 1);
                     headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
                     break;
                 case Orf::FRAME_2:
                     sequenceWriter.writeData(reverseComplementStr.c_str()+1, reverseComplementStr.size()-1, key, thread_idx);
-                    snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key,
-                            static_cast<size_t >(1), reverseComplementStr.size() - 2, Orf::STRAND_MINUS, 1, 1);
+                    snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key,
+                             reverseComplementStr.size() - 3, static_cast<size_t >(1), 1, 1);
                     headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
                     break;
                 case Orf::FRAME_3:
                     sequenceWriter.writeData(reverseComplementStr.c_str()+2, reverseComplementStr.size()-2, key, thread_idx);
-                    snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key,
-                            static_cast<size_t >(2), reverseComplementStr.size() - 3, Orf::STRAND_MINUS, 1, 1);
+                    snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(), key,
+                             reverseComplementStr.size() - 4, static_cast<size_t >(2), 1, 1);
                     headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
                     break;
             }

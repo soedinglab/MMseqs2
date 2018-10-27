@@ -27,30 +27,29 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results,
             char *header = tHeaderDbr.getReader()->getData(targetId);
             Orf::SequenceLocation tloc = Orf::parseOrfHeader(header);
             res.dbKey =   (tloc.id != UINT_MAX) ? tloc.id : res.dbKey;
-            size_t from = (tloc.id != UINT_MAX) ? tloc.from : 0;
-
+            size_t from = (tloc.id != UINT_MAX) ? tloc.from : (tloc.strand == Orf::STRAND_MINUS) ?  0 : res.dbLen - 1;
             int dbStartPos = (nucleotide) ? res.dbStartPos : res.dbStartPos * 3;
-            res.dbStartPos = from + dbStartPos;
-            int dbEndPos = (nucleotide) ? res.dbEndPos + 1 : (res.dbEndPos + 1) * 3;
-            res.dbEndPos   = from + dbEndPos;
+            int dbEndPos =   (nucleotide) ? res.dbEndPos : res.dbEndPos * 3;
+
             if (tloc.strand == Orf::STRAND_MINUS && tloc.id != UINT_MAX) {
-                int start = res.dbStartPos;
-                res.dbStartPos = res.dbEndPos;
-                res.dbEndPos = start;
+                res.dbStartPos = from - dbStartPos;
+                res.dbEndPos   = from - dbEndPos;
+            }else{
+                res.dbStartPos = from + dbStartPos;
+                res.dbEndPos   = from + dbEndPos;
             }
             res.dbLen = (nucleotide) ? res.dbLen :  res.dbLen * 3;
         }
         if(qloc != NULL){
             int qStartPos = (nucleotide) ? res.qStartPos  : res.qStartPos * 3;
-            int qEndPos = (nucleotide) ? (res.qEndPos + 1)   : (res.qEndPos + 1) * 3;
-            size_t from = (qloc->id != UINT_MAX) ? qloc->from : 0;
-            res.qStartPos = from + qStartPos;
-            res.qEndPos = from + qEndPos;
-
+            int qEndPos = (nucleotide) ? res.qEndPos   : res.qEndPos * 3;
+            size_t from = (qloc->id != UINT_MAX) ? qloc->from :  (qloc->strand == Orf::STRAND_MINUS) ?  0 : res.qLen - 1;
             if (qloc->strand == Orf::STRAND_MINUS && qloc->id != UINT_MAX) {
-                int start = res.qStartPos;
-                res.qStartPos = res.qEndPos;
-                res.qEndPos = start;
+                res.qStartPos  = from - qStartPos;
+                res.qEndPos    = from - qEndPos;
+            }else{
+                res.qStartPos = from + qStartPos;
+                res.qEndPos   = from + qEndPos;
             }
             res.qLen = (nucleotide) ? res.qLen : res.qLen * 3;
         }
@@ -195,7 +194,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     unsigned int orfKey = orfKeys[j];
                     size_t orfId = alnDbr.getId(orfKey);
                     char *data = alnDbr.getData(orfId);
-                    size_t queryId = qHeaderDbr.getReader()->getId(i);
+                    size_t queryId = qHeaderDbr.getReader()->getId(orfKey);
                     char *header = qHeaderDbr.getReader()->getData(queryId);
                     Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
                     updateOffset(data, results, &qloc, tHeaderDbr, isNucl);
@@ -205,7 +204,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 char *data = alnDbr.getData(i);
                 updateOffset(data, results, NULL, tHeaderDbr, isNucl);
             }
-            std::stable_sort(results.begin(), results.end(), Matcher::compareHits);
+            //std::stable_sort(results.begin(), results.end(), Matcher::compareHits);
             for(size_t i = 0; i < results.size(); i++){
                 Matcher::result_t &res = results[i];
                 bool hasBacktrace = (res.backtrace.size() > 0);

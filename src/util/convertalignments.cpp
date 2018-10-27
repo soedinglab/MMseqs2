@@ -20,26 +20,36 @@
 
 void translateSeq(TranslateNucl & translateNucl, char * translatedSeq, std::string &revStr, char * seq, int startPos, int endPos, int len);
 
-void printSeqBasedOnAln(std::string &out, const Sequence *seq, unsigned int offset, const std::string &bt, bool reverse) {
+void printSeqBasedOnAln(std::string &out, const char *seq, unsigned int offset,
+                        const std::string &bt, bool reverse, bool isReverseStrand,
+                        bool translateSequence, TranslateNucl & translateNucl) {
     unsigned int seqPos = 0;
+    char codon[3];
     for (uint32_t i = 0; i < bt.size(); ++i) {
+        char seqChar = (isReverseStrand == true) ? Orf::complement( seq[offset  - seqPos] ) : seq[offset + seqPos];
+        if(translateSequence){
+            codon[0] = (isReverseStrand == true) ? Orf::complement( seq[offset  - seqPos] )   : seq[offset + seqPos];
+            codon[1] = (isReverseStrand == true) ? Orf::complement( seq[offset  - (seqPos+1)] ) : seq[offset + (seqPos+1)];
+            codon[2] = (isReverseStrand == true) ? Orf::complement( seq[offset  - (seqPos+2)] ) : seq[offset + (seqPos+2)];
+            seqChar=translateNucl.translateSingleCodon(codon);
+        }
         switch (bt[i]) {
             case 'M':
-                out.append(1, seq->subMat->int2aa[seq->int_sequence[offset + seqPos]]);
-                seqPos++;
+                out.append(1, seqChar);
+                seqPos += (translateSequence) ?  3 : 1;
                 break;
             case 'I':
                 if (reverse == true) {
                     out.append(1, '-');
                 } else {
-                    out.append(1, seq->subMat->int2aa[seq->int_sequence[offset + seqPos]]);
-                    seqPos++;
+                    out.append(1, seqChar);
+                    seqPos += (translateSequence) ?  3 : 1;
                 }
                 break;
             case 'D':
                 if (reverse == true) {
-                    out.append(1, seq->subMat->int2aa[seq->int_sequence[offset + seqPos]]);
-                    seqPos++;
+                    out.append(1, seqChar);
+                    seqPos += (translateSequence) ?  3 : 1;
                 } else {
                     out.append(1, '-');
                 }
@@ -191,13 +201,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
 #pragma omp parallel num_threads(localThreads)
     {
-        Sequence *querySeq;
-        Sequence *targetSeq;
-        if (needSequenceDB) {
-            querySeq = new Sequence(par.maxSeqLen, queryReader->getDbtype(), &subMat, 0, false, false, false);
-            targetSeq = new Sequence(par.maxSeqLen, targetReader->getDbtype(), &subMat, 0, false, false, false);
-        }
-
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
@@ -207,7 +210,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
         std::string result;
         result.reserve(1024*1024);
-        char * translatedSeq = new char[par.maxSeqLen];
+
+
         std::string revStr;
         revStr.reserve(par.maxSeqLen);
 
@@ -224,17 +228,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             if(needSequenceDB){
                 querySeqData = queryReader->getDataByDBKey(queryKey);
             }
-            if (needSequenceDB && isTranslatedSearch == false) {
-                querySeq->mapSequence(i, queryKey, querySeqData);
-            }
-            int qlen = 0;
-            if (isTranslatedSearch == true && queryNucs == true){
-                qlen = queryReader->getSeqLens(queryReader->getId(queryKey))-2;
-            }
-
-            if (isTranslatedSearch == true && queryNucs == false){
-                querySeq->mapSequence(i, queryKey, querySeqData);
-            }
 
             size_t qHeaderId = qHeaderDbr.getReader()->getId(queryKey);
             const char *qHeader = qHeaderDbr.getReader()->getData(qHeaderId);
@@ -250,11 +243,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                     Debug(Debug::ERROR) << "Backtrace cigar is missing in the alignment result. Please recompute the alignment with the -a flag.\n"
                                            "Command: mmseqs align " << par.db1 << " " << par.db2 << " " << par.db3 << " " << "alnNew -a\n";
                     EXIT(EXIT_FAILURE);
-                }
-
-                if(isTranslatedSearch == true && needSequenceDB == true && queryNucs == true){
-                    translateSeq(translateNucl, translatedSeq, revStr, querySeqData, res.qStartPos, res.qEndPos, qlen );
-                    querySeq->mapSequence(i, queryKey, translatedSeq);
                 }
 
                 size_t tHeaderId = tHeaderDbr->getReader()->getId(res.dbKey);
@@ -317,7 +305,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             result.append(buffer, count);
                         }else{
                             char * tseq;
-                            int tlen;
                             size_t tid;
                             for(size_t i = 0; i < outcodes.size(); i++) {
                                 switch (outcodes[i]) {
@@ -383,18 +370,16 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         result.append(tHeader, tHeaderLen-2);
                                         break;
                                     case Parameters::OUTFMT_QALN:
-                                        printSeqBasedOnAln(result, querySeq, (isTranslatedSearch == true && queryNucs == true) ? 0 : res.qStartPos, Matcher::uncompressAlignment(res.backtrace), false);
+                                        printSeqBasedOnAln(result, querySeqData, res.qStartPos,
+                                                           Matcher::uncompressAlignment(res.backtrace), false, (res.qStartPos > res.qEndPos),
+                                                           (isTranslatedSearch == true && queryNucs == true) ,translateNucl);
                                         break;
                                     case Parameters::OUTFMT_TALN:
                                         tid = targetReader->getId(res.dbKey);
-                                        tlen = targetReader->getSeqLens(tid)-2;
                                         tseq = targetReader->getData(tid);
-                                        if(isTranslatedSearch == true && targetNucs == true){
-                                            translateSeq(translateNucl, translatedSeq, revStr, tseq, res.dbStartPos, res.dbEndPos, tlen );
-                                            tseq = translatedSeq;
-                                        }
-                                        targetSeq->mapSequence(i, res.dbKey, tseq);
-                                        printSeqBasedOnAln(result, targetSeq, (isTranslatedSearch  && targetNucs == true) ? 0 : res.dbStartPos, Matcher::uncompressAlignment(res.backtrace), true);
+                                        printSeqBasedOnAln(result, tseq, res.dbStartPos,
+                                                           Matcher::uncompressAlignment(res.backtrace), true,  (res.dbStartPos > res.dbEndPos),
+                                                           (isTranslatedSearch == true && targetNucs == true), translateNucl);
                                         break;
                                     case Parameters::OUTFMT_MISMATCH:
                                         result.append(SSTR(missMatchCount));
@@ -435,31 +420,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         result.append(buffer, count);
                         break;
                     }
-                    case Parameters::FORMAT_ALIGNMENT_PAIRWISE: {
-                        int count = snprintf(buffer, sizeof(buffer),
-                                             ">%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                                             queryId.c_str(), targetId.c_str(), res.seqId, alnLen, missMatchCount,
-                                             gapOpenCount,
-                                             res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1,
-                                             res.eval, res.score);
-
-                        if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
-                            Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
-                            continue;
-                        }
-
-                        result.append(buffer, count);
-
-                        const std::string &backtrace = Matcher::uncompressAlignment(res.backtrace);
-                        printSeqBasedOnAln(result, querySeq, res.qStartPos, backtrace, false);
-                        result.append(1, '\n');
-
-                        targetSeq->mapSequence(i, res.dbKey, targetReader->getDataByDBKey(res.dbKey));
-
-                        printSeqBasedOnAln(result, targetSeq, res.dbStartPos, backtrace, true);
-                        result.append(1, '\n');
-                        break;
-                    }
                     case Parameters::FORMAT_ALIGNMENT_SAM:
                     default:
                         Debug(Debug::ERROR) << "Not implemented yet";
@@ -471,11 +431,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             results.clear();
             result.clear();
         }
-        if (needSequenceDB) {
-            delete querySeq;
-            delete targetSeq;
-        }
-        delete [] translatedSeq;
+
     }
     resultWriter.close();
 

@@ -500,6 +500,14 @@ public:
         }
 //        std::cout << std::endl;
     }
+
+    char translateSingleCodon(const char *nucl){
+        int state = 0;
+        for (int k = 0;  k < 3;  ++k) {
+            state = getCodonState(state, nucl[k]);
+        }
+        return getCodonResidue(state);
+    }
 };
 
 #endif //MMSEQS_TRANSLATE_H

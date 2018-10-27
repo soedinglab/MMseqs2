@@ -72,9 +72,15 @@ int splitsequence(int argc, const char **argv, const Command& command) {
                 char newLine = '\n';
                 sequenceWriter.writeAdd(&newLine, 1, thread_idx);
                 sequenceWriter.writeEnd(key, thread_idx, true);
-                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d, %d]\n",
+                size_t fromPos = from + startPos;
+                size_t toPos = (from + startPos) + (len - 1);
+                if(loc.id != UINT_MAX && loc.strand == Orf::STRAND_MINUS){
+                    fromPos = (seqLen - 1) - (from + startPos);
+                    toPos   = fromPos - len;
+                }
+                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n",
                          (unsigned int) (headerAccession.size()), headerAccession.c_str(), dbKey,
-                         from + startPos, len, (loc.id != UINT_MAX) ? loc.strand : Orf::STRAND_PLUS, 1, 1);
+                         fromPos, toPos, 1, 1);
                 headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
             }
         }
