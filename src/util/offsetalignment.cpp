@@ -204,7 +204,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 char *data = alnDbr.getData(i);
                 updateOffset(data, results, NULL, tHeaderDbr, isNucl);
             }
-            //std::stable_sort(results.begin(), results.end(), Matcher::compareHits);
+            std::stable_sort(results.begin(), results.end(), Matcher::compareHits);
             for(size_t i = 0; i < results.size(); i++){
                 Matcher::result_t &res = results[i];
                 bool hasBacktrace = (res.backtrace.size() > 0);
