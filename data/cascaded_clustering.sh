@@ -82,6 +82,7 @@ if [ -n "$REASSIGN" ]; then
     STEP=$((STEP-1))
     PARAM=ALIGNMENT${STEP}_PAR
     eval ALIGNMENT_PAR="\$$PARAM"
+    # shellcheck disable=SC2086
     $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$SOURCE" "$SOURCE" "${TMP_PATH}/clu" "${TMP_PATH}/aln" ${ALIGNMENT_REASSIGN_PAR} \
              || fail "align1 reassign died"
     "$MMSEQS" subtractdbs "${TMP_PATH}/clu" "${TMP_PATH}/aln" "${TMP_PATH}/clu_not_accepted" --e-profile 100000 \
@@ -96,11 +97,12 @@ if [ -n "$REASSIGN" ]; then
              || fail "createsubdb2 reassign died"
     PARAM=PREFILTER${STEP}_PAR
     eval PREFILTER_PAR="\$$PARAM"
+    # shellcheck disable=SC2086
     $RUNNER "$MMSEQS" prefilter  "${TMP_PATH}/seq_wrong_assigned" "${TMP_PATH}/seq_seeds" "${TMP_PATH}/seq_wrong_assigned_pref" ${PREFILTER_PAR} \
              || fail "Prefilter reassign died"
     "$MMSEQS" swapdb "${TMP_PATH}/seq_wrong_assigned_pref" "${TMP_PATH}/seq_wrong_assigned_pref_swaped" \
              || fail "swapdb2 reassign died"
-
+    # shellcheck disable=SC2086
     $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "${TMP_PATH}/seq_seeds" "${TMP_PATH}/seq_wrong_assigned" \
                                         "${TMP_PATH}/seq_wrong_assigned_pref_swaped" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln" ${ALIGNMENT_REASSIGN_PAR} \
              || fail "align2 reassign died"
