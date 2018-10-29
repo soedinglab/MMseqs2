@@ -90,7 +90,7 @@ tcov        Fraction of target sequence covered by alignment
  */
 
 std::vector<int> getOutputFormat(std::string outformat, bool &needdatabase, bool &needbacktrace) {
-    std::vector<std::string> outformatSplit = Util::split(outformat, " ");
+    std::vector<std::string> outformatSplit = Util::split(outformat, ",");
     std::vector<int> formatCodes;
     int code = 0;
     for(size_t i = 0; i < outformatSplit.size(); i++){
