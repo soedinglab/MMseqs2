@@ -62,7 +62,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> *hdbr = NULL;
     if (par.includeHeader == true) {
-        hdbr = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str());
+        hdbr = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str());
         hdbr->open(DBReader<unsigned int>::NOSORT);
     }
 
