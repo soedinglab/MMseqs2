@@ -59,7 +59,10 @@ int splitsequence(int argc, const char **argv, const Command& command) {
             size_t seqLen = dataLength -2;
             char* header = headerReader.getData(i);
             Orf::SequenceLocation loc = Orf::parseOrfHeader(header);
-            size_t from = (loc.id != UINT_MAX) ? loc.from  : 0;
+            size_t from = 0;
+            if(loc.id != UINT_MAX) {
+                from = (loc.strand==Orf::STRAND_MINUS)? loc.to : loc.from;
+            }
             unsigned int dbKey = (loc.id != UINT_MAX) ? loc.id : key;
             size_t splitCnt = (size_t) ceilf(static_cast<float>(seqLen) / static_cast<float>(par.maxSeqLen - sequenceOverlap));
             std::string headerAccession = Util::parseFastaHeader(header);
@@ -76,7 +79,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
                 size_t toPos = (from + startPos) + (len - 1);
                 if(loc.id != UINT_MAX && loc.strand == Orf::STRAND_MINUS){
                     fromPos = (seqLen - 1) - (from + startPos);
-                    toPos   = fromPos - len;
+                    toPos   = fromPos - std::min(fromPos, len);
                 }
                 snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n",
                          (unsigned int) (headerAccession.size()), headerAccession.c_str(), dbKey,

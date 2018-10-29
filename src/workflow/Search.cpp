@@ -354,7 +354,7 @@ int search(int argc, const char **argv, const Command& command) {
         //TODO
         cmd.addVariable("SPLITSEQUENCE_PAR", par.createParameterString(par.splitsequence).c_str());
         cmd.addVariable("NEEDTARGETSPLIT","TRUE");
-        //cmd.addVariable("NEEDQUERYSPLIT","TRUE");
+        cmd.addVariable("NEEDQUERYSPLIT","TRUE");
         cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.onlythreads).c_str());
         cmd.addVariable("SEARCH", program.c_str());
