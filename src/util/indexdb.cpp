@@ -23,7 +23,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
         Debug(Debug::ERROR) << "Please use the prefilter without a precomputed index if you do not have enough memory.";
         EXIT(EXIT_FAILURE);
     }
-
+    bool sameDB  = (par.db1 == par.db2);
     DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str());
     dbr.open(DBReader<unsigned int>::NOSORT);
     BaseMatrix *subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
@@ -60,20 +60,31 @@ int indexdb(int argc, const char **argv, const Command &command) {
     // query seq type is actually unknown here, but if we pass HMM_PROFILE then its +20 k-score
     const int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, par.kmerScore, kmerSize);
 
-    DBReader<unsigned int> *hdbr = NULL;
+    DBReader<unsigned int> *hdbr1 = NULL;
+    DBReader<unsigned int> *hdbr2 = NULL;
+
     if (par.includeHeader == true) {
-        hdbr = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str());
-        hdbr->open(DBReader<unsigned int>::NOSORT);
+        hdbr1 = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str());
+        hdbr1->open(DBReader<unsigned int>::NOSORT);
+        if(sameDB == false){
+            hdbr2 = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str());
+            hdbr2->open(DBReader<unsigned int>::NOSORT);
+        }
     }
 
-    PrefilteringIndexReader::createIndexFile(par.db2, &dbr, hdbr, subMat, par.maxSeqLen,
+    PrefilteringIndexReader::createIndexFile(par.db2, &dbr, hdbr1, hdbr2, subMat, par.maxSeqLen,
                                              par.spacedKmer, par.compBiasCorrection, subMat->alphabetSize,
                                              kmerSize, par.maskMode, kmerThr);
 
-    if (hdbr != NULL) {
-        hdbr->close();
-        delete hdbr;
+    if (hdbr1 != NULL) {
+        hdbr1->close();
+        delete hdbr1;
     }
+    if (hdbr2 != NULL) {
+        hdbr2->close();
+        delete hdbr2;
+    }
+
 
     delete subMat;
     dbr.close();

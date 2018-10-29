@@ -264,6 +264,17 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte)
     }
 }
 
+void DBWriter::writeIndexEntry(unsigned int key, size_t offset, size_t length, unsigned int thrIdx){
+    char buffer[1024];
+    size_t len = indexToBuffer(buffer, key, offset, length );
+    size_t written = fwrite(buffer, sizeof(char), len, indexFiles[thrIdx]);
+    if (written != len) {
+        Debug(Debug::ERROR) << "Could not write to data file " << indexFiles[thrIdx] << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
+
+
 void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, unsigned int thrIdx, bool addNullByte) {
     writeStart(thrIdx);
     writeAdd(data, dataSize, thrIdx);

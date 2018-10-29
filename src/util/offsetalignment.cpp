@@ -70,10 +70,10 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    HeaderIdReader qHeaderDbr(par.db1.c_str(), touch);
+    HeaderIdReader qHeaderDbr(par.db1.c_str(), PrefilteringIndexReader::HDR1INDEX, PrefilteringIndexReader::HDR1DATA, touch);
 
     Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-    HeaderIdReader tHeaderDbr(par.db2.c_str(), touch);
+    HeaderIdReader tHeaderDbr(par.db2.c_str(),  PrefilteringIndexReader::HDR1INDEX, PrefilteringIndexReader::HDR1DATA,  touch);
 
 
 

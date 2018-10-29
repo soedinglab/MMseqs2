@@ -34,17 +34,19 @@ public:
     static unsigned int SCOREMATRIX2MER;
     static unsigned int SCOREMATRIX3MER;
     static unsigned int DBRINDEX;
-    static unsigned int HDRINDEX;
-    static unsigned int HDRDATA;
+    static unsigned int HDR1INDEX;
+    static unsigned int HDR1DATA;
+    static unsigned int HDR2INDEX;
+    static unsigned int HDR2DATA;
     static unsigned int GENERATOR;
 
     static bool checkIfIndexFile(DBReader<unsigned int> *reader);
 
-    static void createIndexFile(const std::string &outDb, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr,
-                                BaseMatrix *subMat, int maxSeqLen, bool spacedKmer, bool compBiasCorrection,
+    static void createIndexFile(const std::string &outDb, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr1,
+                                DBReader<unsigned int> *hdbr2, BaseMatrix *subMat, int maxSeqLen, bool spacedKmer, bool compBiasCorrection,
                                 int alphabetSize, int kmerSize, int maskMode, int kmerThr);
 
-    static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int> *dbr, const char* dataFileName, bool touch);
+    static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int headerIdx, unsigned int dataIdx, bool touch);
 
     static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, bool touch);
 

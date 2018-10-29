@@ -2,7 +2,7 @@
 #define DBWRITER_H
 
 // Written by Martin Steinegger & Maria Hauser mhauser@genzentrum.lmu.de
-// 
+//
 // Manages ffindex DB write access.
 // For parallel write access, one ffindex DB per thread is generated.
 // After the parallel calculation is done, all ffindexes are merged into one.
@@ -15,51 +15,55 @@
 template <typename T> class DBReader;
 
 class DBWriter {
-    public:
-        static const size_t ASCII_MODE = 0;
-        static const size_t BINARY_MODE = 1;
-        static const size_t LEXICOGRAPHIC_MODE = 2;
+public:
+    static const size_t ASCII_MODE = 0;
+    static const size_t BINARY_MODE = 1;
+    static const size_t LEXICOGRAPHIC_MODE = 2;
 
 
-        DBWriter(const char* dataFileName, const char* indexFileName, unsigned int threads = 1, size_t mode = ASCII_MODE);
+    DBWriter(const char* dataFileName, const char* indexFileName, unsigned int threads = 1, size_t mode = ASCII_MODE);
 
-        ~DBWriter();
+    ~DBWriter();
 
-        void open(size_t bufferSize = 64 * 1024 * 1024);
+    void open(size_t bufferSize = 64 * 1024 * 1024);
 
-        void close(int dbType = -1);
-    
-        char* getDataFileName() { return dataFileName; }
-    
-        char* getIndexFileName() { return indexFileName; }
+    void close(int dbType = -1);
 
-        void writeStart(unsigned int thrIdx = 0);
-        void writeAdd(const char* data, size_t dataSize, unsigned int thrIdx = 0);
-        void writeEnd(unsigned int key, unsigned int thrIdx = 0, bool addNullByte = true);
+    char* getDataFileName() { return dataFileName; }
 
-        void writeData(const char *data, size_t dataSize, unsigned int key, unsigned int threadIdx = 0, bool addNullByte = true);
+    char* getIndexFileName() { return indexFileName; }
 
-        static size_t indexToBuffer(char *buff1, unsigned int key, size_t offsetStart, size_t len);
+    void writeStart(unsigned int thrIdx = 0);
+    void writeAdd(const char* data, size_t dataSize, unsigned int thrIdx = 0);
+    void writeEnd(unsigned int key, unsigned int thrIdx = 0, bool addNullByte = true);
 
-        void alignToPageSize();
+    void writeData(const char *data, size_t dataSize, unsigned int key, unsigned int threadIdx = 0, bool addNullByte = true);
 
-        void mergeFiles(DBReader<unsigned int>& qdbr,
-                        const std::vector<std::pair<std::string, std::string> >& files,
-                        const std::vector<std::string>& prefixes);
+    static size_t indexToBuffer(char *buff1, unsigned int key, size_t offsetStart, size_t len);
 
-        void sortDatafileByIdOrder(DBReader<unsigned int>& qdbr);
+    void alignToPageSize();
 
-        static void mergeResults(const std::string &outFileName, const std::string &outFileNameIndex,
-                                 const std::vector<std::pair<std::string, std::string>> &files,
-                                 bool lexicographicOrder = false);
+    void mergeFiles(DBReader<unsigned int>& qdbr,
+                    const std::vector<std::pair<std::string, std::string> >& files,
+                    const std::vector<std::string>& prefixes);
 
-        static void mergeResults(const char *outFileName, const char *outFileNameIndex,
-                                 const char **dataFileNames, const char **indexFileNames,
-                                 unsigned long fileCount, bool lexicographicOrder = false);
+    void sortDatafileByIdOrder(DBReader<unsigned int>& qdbr);
 
-        void mergeFilePair(const std::vector<std::pair<std::string, std::string>> fileNames);
+    static void mergeResults(const std::string &outFileName, const std::string &outFileNameIndex,
+                             const std::vector<std::pair<std::string, std::string>> &files,
+                             bool lexicographicOrder = false);
 
+    static void mergeResults(const char *outFileName, const char *outFileNameIndex,
+                             const char **dataFileNames, const char **indexFileNames,
+                             unsigned long fileCount, bool lexicographicOrder = false);
 
+    void mergeFilePair(const std::vector<std::pair<std::string, std::string>> fileNames);
+
+    void writeIndexEntry(unsigned int key, size_t offset, size_t length, unsigned int thrIdx);
+
+    size_t getOffset(unsigned int threadIdx){
+        return offsets[threadIdx];
+    }
 private:
     template <typename T>
     static void writeIndex(FILE *outFile, size_t indexSize, T *index, unsigned int *seqLen);
