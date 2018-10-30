@@ -79,8 +79,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
 
     //print(probMatrix, int2aa, alphabetSize);
     generateSubMatrix(this->probMatrix, this->subMatrixPseudoCounts,
-                      this->subMatrix, this->subMatrix2Bit,
-                      this->alphabetSize, true, bitFactor, scoreBias);
+                      this->subMatrix, this->alphabetSize, true, bitFactor, scoreBias);
     this->bitFactor = bitFactor;
 }
 

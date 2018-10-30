@@ -25,7 +25,8 @@
   GET_MACRO(__VA_ARGS__,FE_11,FE_10,FE_9,FE_8,FE_7,FE_6,FE_5,FE_4,FE_3,FE_2,FE_1)(action,__VA_ARGS__)
 
 QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLookup,
-                           BaseMatrix *m, EvalueComputation &evaluer, unsigned int *seqLens, short kmerThr,
+                           BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
+                           EvalueComputation &evaluer, unsigned int *seqLens, short kmerThr,
                            double kmerMatchProb, int kmerSize, size_t dbSize,
                            unsigned int maxSeqLen, unsigned int effectiveKmerSize,
                            size_t maxHitsPerQuery, bool aaBiasCorrection,
@@ -33,7 +34,8 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
                            bool takeOnlyBestKmer)
 : evaluer(evaluer)
 {
-    this->m = m;
+    this->kmerSubMat = kmerSubMat;
+    this->ungappedAlignmentSubMat = ungappedAlignmentSubMat;
     this->indexTable = indexTable;
     this->kmerSize = kmerSize;
     this->kmerThr = kmerThr;
@@ -67,7 +69,7 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
     // needed for p-value calc.
     this->logScoreFactorial=NULL;
     if (diagonalScoring == true) {
-        ungappedAlignment = new UngappedAlignment(maxSeqLen, m, sequenceLookup);
+        ungappedAlignment = new UngappedAlignment(maxSeqLen, ungappedAlignmentSubMat, sequenceLookup);
         this->seqLens = NULL;
     } else {
         this->mu = kmerMatchProb;
@@ -130,7 +132,7 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
     // bias correction
     if(aaBiasCorrection == true){
         if(querySeq->getSeqType() == Sequence::AMINO_ACIDS) {
-            SubstitutionMatrix::calcLocalAaBiasCorrection(m, querySeq->int_sequence, querySeq->L, compositionBias);
+            SubstitutionMatrix::calcLocalAaBiasCorrection(kmerSubMat, querySeq->int_sequence, querySeq->L, compositionBias);
         }else{
             memset(compositionBias, 0, sizeof(float) * querySeq->L);
         }
@@ -210,7 +212,7 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     unsigned short indexStart = 0;
     unsigned short indexTo = 0;
     Indexer idx(indexTable->getAlphabetSize(), kmerSize);
-    const int xIndex = m->aa2int[(int)'X'];
+    const int xIndex = kmerSubMat->aa2int[(int)'X'];
 
     while(seq->hasNextKmer()){
         const int * kmer = seq->nextKmer();

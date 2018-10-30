@@ -58,7 +58,8 @@ private:
     DBReader<unsigned int> *tdbr;
     DBReader<unsigned int> *tidxdbr;
 
-    BaseMatrix *subMat;
+    BaseMatrix *kmerSubMat;
+    BaseMatrix *ungappedSubMat;
     ScoreMatrix *_2merSubMatrix;
     ScoreMatrix *_3merSubMatrix;
     IndexTable *indexTable;

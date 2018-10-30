@@ -85,7 +85,7 @@ AlignmentEvaluer &g_)
 		return s_;
 	}
 	catch (...)
-	{
+	{ 
 		g_.d_params.d_params_flag=false;
 		throw;
 	};
@@ -169,7 +169,7 @@ double max_time_)//maximum allowed calculation time in seconds
 
 	try
 	{
-
+		
 
 		double CurrentTime1;
 		Sls::alp_data::get_current_time(CurrentTime1);
@@ -187,7 +187,7 @@ double max_time_)//maximum allowed calculation time in seconds
 		letterFreqs2_normalized,//normalized background frequencies of letters in sequence #2
 		function_name);//"assert_Gapless_input_parameters" is called from "function_name_" function
 
-
+		
 		if(max_time_<=0)
 		{
 			max_time_=60;
@@ -202,7 +202,7 @@ double max_time_)//maximum allowed calculation time in seconds
 							  alphabetSize_,
 							  max_time_);
 
-		if(local_max_stat_matrix.getTerminated())
+		if(local_max_stat_matrix.getTerminated()) 
 		{
 			throw error("Error - you have exceeded the calculation time or memory limit.\nThe error might indicate that the regime is linear or too close to linear to permit efficient computation.\nPossible solutions include changing the randomization seed, or increasing the allowed calculation time and the memory limit.\n",3);
 		};
@@ -229,7 +229,7 @@ double max_time_)//maximum allowed calculation time in seconds
 
 		d_params.K = local_max_stat_matrix.getK ();
 		d_params.K_error = calculation_error;
-
+			
 		d_params.C = local_max_stat_matrix.getC ();;
 		d_params.C_error = calculation_error;
 
@@ -306,12 +306,12 @@ double max_time_)//maximum allowed calculation time in seconds
 
 		d_params.m_AJSbs=sbs_arrays;
 
-		d_params.a
+		d_params.a 
 			= (d_params.a_I + d_params.a_J) * 0.5;
 
 		d_params.a_error = (d_params.a_I_error
 						+ d_params.a_J_error)*0.5;
-
+		
 		d_params.alpha = (d_params.alpha_I
 						+ d_params.alpha_J) * 0.5;
 
@@ -339,7 +339,7 @@ double max_time_)//maximum allowed calculation time in seconds
 
 	}
 	catch (...)
-	{
+	{ 
 		d_params.d_params_flag=false;
 		throw;
 	};
@@ -365,7 +365,8 @@ double eps_lambda_,//relative error for the parameter lambda
 double eps_K_,//relative error for the parameter K
 double max_time_,//maximum allowed calculation time in seconds
 double max_mem_,//maximum allowed memory usage in Mb
-long randomSeed_)//randomizaton seed
+long randomSeed_,//randomizaton seed
+double temperature_)
 {
 
 	struct_for_randomization *randomization_parameters=NULL;
@@ -390,31 +391,31 @@ long randomSeed_)//randomizaton seed
 		if(!(gapEpen1_>0))
 		{
 			d_params.d_params_flag=false;
-            std::cout << "Error - the parameter \"gapEpen1_\" in the function \""+function_name+"\" must be positive\n";
+			throw error("Error - the parameter \"gapEpen1_\" in the function \""+function_name+"\" must be positive\n",1);
 		};
 
 		if(!(gapEpen2_>0))
 		{
 			d_params.d_params_flag=false;
-            std::cout << "Error - the parameter \"gapEpen2_\" in the function \""+function_name+"\" must be positive\n";
+			throw error("Error - the parameter \"gapEpen2_\" in the function \""+function_name+"\" must be positive\n",1);
 		};
 
 		if(!(eps_lambda_>0))
 		{
 			d_params.d_params_flag=false;
-            std::cout << "Error - the parameter \"eps_lambda_\" in the function \""+function_name+"\" must be positive\n";
+			throw error("Error - the parameter \"eps_lambda_\" in the function \""+function_name+"\" must be positive\n",1);
 		};
 
 		if(!(eps_K_>0))
 		{
 			d_params.d_params_flag=false;
-            std::cout << "Error - the parameter \"eps_K_\" in the function \""+function_name+"\" must be positive\n";
+			throw error("Error - the parameter \"eps_K_\" in the function \""+function_name+"\" must be positive\n",1);
 		};
 
 		if(!(max_mem_>0))
 		{
 			d_params.d_params_flag=false;
-			std::cout<<"Error - the parameter \"max_mem_\" in the function \""+function_name+"\" must be positive\n";
+			throw error("Error - the parameter \"max_mem_\" in the function \""+function_name+"\" must be positive\n",1);
 		};
 
 		d_params.d_params_flag=false;
@@ -428,11 +429,11 @@ long randomSeed_)//randomizaton seed
 			GaplessCalculationTime=120;//the time is set to 120 seconds if not set as an input
 		};
 
-		//Gapless calculation may take only a portion of maximum allowed calculation time in the case of gapped calculation
+		//Gapless calculation may take only a portion of maximum allowed calculation time in the case of gapped calculation 
 		GaplessCalculationTime*=GaplessTimePortion;
 
 
-
+		
 		Njn::LocalMaxStatMatrix local_max_stat_matrix(alphabetSize_,
 							  substitutionScoreMatrix_,
 							  letterFreqs1_normalized,
@@ -440,10 +441,10 @@ long randomSeed_)//randomizaton seed
 							  alphabetSize_,
 							  GaplessCalculationTime);
 
-		if(local_max_stat_matrix.getTerminated())
+		if(local_max_stat_matrix.getTerminated()) 
 		{
-            std::cout <<"Error - you have exceeded the calculation time or memory limit.\nThe error might indicate that the regime is linear or too close to linear to permit efficient computation.\nPossible solutions include changing the randomization seed, or increasing the allowed calculation time and the memory limit.\n";
-        };
+			throw error("Error - you have exceeded the calculation time or memory limit.\nThe error might indicate that the regime is linear or too close to linear to permit efficient computation.\nPossible solutions include changing the randomization seed, or increasing the allowed calculation time and the memory limit.\n",3);
+		};
 
 		//calculation of a and sigma
 		double calculation_error=1e-6;
@@ -462,8 +463,12 @@ long randomSeed_)//randomizaton seed
 		double GaplessPreliminaryTime=CurrentTimeGaplessPreliminary-CurrentTime1;
 
 		//the choice for the importance sampling
-		long int gapOpen=alp_data::Tmin(gapOpen1_,gapOpen2_);
-		long int gapEpen=alp_data::Tmin(gapEpen1_,gapEpen2_);
+		//long int gapOpen=alp_data::Tmin(gapOpen1_,gapOpen2_);
+		//long int gapEpen=alp_data::Tmin(gapEpen1_,gapEpen2_);
+
+		long int gapEpen = alp_data::Tmin(gapEpen1_, gapEpen2_);
+		long int gapOpen = alp_data::Tmin(gapOpen1_ + gapEpen1_, gapOpen2_ + gapEpen2_) - gapEpen;
+
 
 		if(max_time_<=0)
 		{
@@ -491,7 +496,7 @@ long randomSeed_)//randomizaton seed
 			}
 			else
 			{
-				std::cout <<"Error - d_gapped_computation_parameters must be defined before calling AlignmentEvaluer::initGapped with max_time_<=0\n";
+				throw error("Error - d_gapped_computation_parameters must be defined before calling AlignmentEvaluer::initGapped with max_time_<=0\n",1);
 			};
 		};
 
@@ -512,6 +517,7 @@ long randomSeed_)//randomizaton seed
 		letterFreqs1_normalized,
 		letterFreqs2_normalized,
 
+		temperature_,
 		max_time_,//maximum allowed calculation time in seconds
 		max_mem_,//maximum allowed memory usage in MB
 		eps_lambda_,//relative error for lambda calculation
@@ -529,7 +535,7 @@ long randomSeed_)//randomizaton seed
 		if(max_time_>0)
 		{
 			d_gapped_computation_parameters.d_parameters_flag=true;
-
+			
 			d_gapped_computation_parameters.d_first_stage_preliminary_realizations_numbers_ALP=
 				sim_obj.d_alp_data->d_rand_all->d_first_stage_preliminary_realizations_numbers_ALP;
 
@@ -552,7 +558,7 @@ long randomSeed_)//randomizaton seed
 		sim_obj.m_GaplessA = d_params.gapless_a;
 		sim_obj.m_GaplessAError = d_params.gapless_a_error;
 
-
+		
 		sim_obj.m_G1=gapOpen1_+gapEpen1_;
 		sim_obj.m_G2=gapOpen2_+gapEpen2_;
 		sim_obj.m_G=alp_data::Tmin(sim_obj.m_G1,sim_obj.m_G2);
@@ -568,7 +574,7 @@ long randomSeed_)//randomizaton seed
 
 		d_params.K = sim_obj.m_K;
 		d_params.K_error = sim_obj.m_KError;
-
+			
 		d_params.C = sim_obj.m_C;
 		d_params.C_error = sim_obj.m_CError;
 
@@ -605,12 +611,12 @@ long randomSeed_)//randomizaton seed
 		d_params.m_AJSbs=sim_obj.m_AJSbs;
 
 
-		d_params.a
+		d_params.a 
 			= (d_params.a_I + d_params.a_J) * 0.5;
 
 		d_params.a_error = (d_params.a_I_error
 						+ d_params.a_J_error)*0.5;
-
+		
 		d_params.alpha = (d_params.alpha_I
 						+ d_params.alpha_J) * 0.5;
 
@@ -631,7 +637,7 @@ long randomSeed_)//randomizaton seed
 		d_params)||!isGood())
 		{
 			d_params.d_params_flag=false;
-			std::cout << "Error - computation of the Gumbel parameters is unsuccessful in the function \"void AlignmentEvaluer::initGapped\"\n";
+			throw error("Error - computation of the Gumbel parameters is unsuccessful in the function \"void AlignmentEvaluer::initGapped\"\n",1);
 		};
 
 		delete[]letterFreqs1_normalized;
@@ -640,7 +646,7 @@ long randomSeed_)//randomizaton seed
 
 	}
 	catch (...)
-	{
+	{ 
 		delete randomization_parameters;randomization_parameters=NULL;
 		d_params.d_params_flag=false;
 		throw;
@@ -828,11 +834,11 @@ const AlignmentEvaluerParameters &parameters_)
 		};
 	}
 	catch (...)
-	{
+	{ 
 		d_params.d_params_flag=false;
 		throw;
 	};
-
+	
 }
 
 void AlignmentEvaluer::initParameters(
@@ -973,11 +979,11 @@ const AlignmentEvaluerParametersWithErrors &parameters_)
 		};
 	}
 	catch (...)
-	{
+	{ 
 		d_params.d_params_flag=false;
 		throw;
 	};
-
+	
 }
 
 double AlignmentEvaluer::area(double score_,//pairwise alignment score
@@ -1008,24 +1014,17 @@ double seqlen2_) const//length of sequence #2
 	score_,
 	seqlen2_,
 	seqlen1_,
+
 	P,
+
 	E,
 
 	area_res,
-	pvalues_obj.a_normal,
-	pvalues_obj.b_normal,
-	pvalues_obj.h_normal,
-	pvalues_obj.N_normal,
-	pvalues_obj.p_normal,
 	area_is_1_flag,
 	compute_only_area);
 
-    if(area_res < 0.0){
-        //std::cerr << "Area computation for E-value computation failed. area_res=" << area_res << "\n";
-        return 0.0;
-    }else{
-		return area_res;
-    }
+
+	return area_res;
 
 }
 
@@ -1051,7 +1050,7 @@ double &evalueErr_) const//E-value error
 
 	pvalues_obj.calculate_P_values(
 		score_, seqlen2_, seqlen1_,
-		d_params,
+		d_params, 
 		pvalue_,
 		pvalueErr_,
 		evalue_,
@@ -1095,14 +1094,9 @@ double &evalue_) const//resulted E-value
 	evalue_,
 
 	area,
-	pvalues_obj.a_normal,
-	pvalues_obj.b_normal,
-	pvalues_obj.h_normal,
-	pvalues_obj.N_normal,
-	pvalues_obj.p_normal,
 	area_is_1_flag);
 
-
+	
 
 }
 

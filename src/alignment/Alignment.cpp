@@ -157,8 +157,8 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
     if (querySeqType == Sequence::NUCLEOTIDES) {
         m = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, scoreBias);
-        gapOpen = 7;
-        gapExtend = 1;
+        gapOpen = 5;
+        gapExtend = 2;
     } else if (querySeqType == Sequence::PROFILE_STATE_PROFILE){
         SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, scoreBias);
         this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 255);

@@ -28,7 +28,7 @@ void UngappedAlignment::processQuery(Sequence *seq,
                                    float *biasCorrection,
                                    CounterResult *results,
                                    size_t resultSize) {
-    short bias = createProfile(seq, biasCorrection, subMatrix->subMatrix2Bit, subMatrix->alphabetSize);
+    short bias = createProfile(seq, biasCorrection, subMatrix->subMatrix, subMatrix->alphabetSize);
     this->bias = bias;
     queryLen = seq->L;
     computeScores(queryProfile, seq->L, results, resultSize, bias);

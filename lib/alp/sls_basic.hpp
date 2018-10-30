@@ -30,7 +30,7 @@
 
 File name: sls_basic.hpp
 
-Author: Sergey Sheetlin
+Author: Sergey Sheetlin, Martin Frith
 
 Contents: Some basic functions and types
 
@@ -48,15 +48,14 @@ Contents: Some basic functions and types
 #endif
 
 #include <iomanip>
-#include <cmath>
-#include <string>
+#include <cmath>  // ?
+#include <math.h>
 #include <iostream>
-
+#include <string>
 
 namespace Sls { 
 
 	const double pi=3.1415926535897932384626433832795;
-	const double sqrtPi=sqrt(pi);
 	const double const_val=1/sqrt(2.0*pi);
 	const long int quick_tests_trials_number=100;
 
@@ -177,7 +176,7 @@ namespace Sls {
 		{
 			if(!pointer_)
 			{
-				std::cout << "Memory allocation error\n";
+                std::cout << "Memory allocation error\n";
 			};
 		}
 
@@ -187,8 +186,15 @@ namespace Sls {
 		static void get_current_time(
 		double &seconds_);
 
+		static long int random_seed_from_time();
+
 		static double one_minus_exp_function(
 		double y_);
+
+		static double normal_probability(double x_)
+		{
+			return 0.5*erfc(-sqrt(0.5)*x_);
+		}
 
 		static double normal_probability(
 		double x_,

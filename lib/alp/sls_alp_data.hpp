@@ -53,13 +53,9 @@ Contents: Contains input data
 
 
 #ifndef _MSC_VER //UNIX program
-#include <sys/time.h>
 #else
-#include <sys/timeb.h>
-
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
-
 #endif
 
 
@@ -249,6 +245,7 @@ namespace Sls {
 
 		long int epen_,
 
+		double temperature_,
 		long int number_of_AA_,
 		long int **smatr_,
 		double *RR1_,
@@ -313,6 +310,7 @@ namespace Sls {
 			std::string smatr_file_name_,//scoring matrix file name
 			std::string RR1_file_name_,//probabilities1 file name
 			std::string RR2_file_name_,//probabilities2 file name
+			double temperature_,
 			double max_time_,//maximum allowed calculation time in seconds
 			double max_mem_,//maximum allowed memory usage in MB
 			double eps_lambda_,//relative error for lambda calculation
@@ -336,6 +334,7 @@ namespace Sls {
 			const double *letterFreqs1_,
 			const double *letterFreqs2_,
 
+			double temperature_,
 			double max_time_,//maximum allowed calculation time in seconds
 			double max_mem_,//maximum allowed memory usage in MB
 			double eps_lambda_,//relative error for lambda calculation
@@ -372,6 +371,7 @@ namespace Sls {
 			long int epen1_,//gap extension penalty for a gap in the sequence #1
 			long int epen2_,//gap extension penalty for a gap in the sequence #2
 
+			double temperature_,
 			double max_time_,//maximum allowed calculation time in seconds
 			double max_mem_,//maximum allowed memory usage in MB
 			double eps_lambda_,//relative error for lambda calculation

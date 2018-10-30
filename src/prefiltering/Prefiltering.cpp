@@ -116,20 +116,24 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     // init the substitution matrices
     switch (querySeqType) {
         case Sequence::NUCLEOTIDES:
-            subMat = new NucleotideMatrix(scoringMatrixFile.c_str(), 1.0, 0.0);
-            alphabetSize = subMat->alphabetSize;
+            kmerSubMat = new NucleotideMatrix(scoringMatrixFile.c_str(), 1.0, 0.0);
+            ungappedSubMat = kmerSubMat;
+            alphabetSize = kmerSubMat->alphabetSize;
             break;
         case Sequence::AMINO_ACIDS:
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
-            alphabetSize = subMat->alphabetSize;
+            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
+            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false);
+            alphabetSize = kmerSubMat->alphabetSize;
             break;
         case Sequence::HMM_PROFILE:
             // needed for Background distributions
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
+            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
+            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false);
             break;
         case Sequence::PROFILE_STATE_PROFILE:
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, true);
-            alphabetSize = subMat->alphabetSize;
+            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, true);
+            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false);
+            alphabetSize = kmerSubMat->alphabetSize;
             break;
         default:
             Debug(Debug::ERROR) << "Query sequence type not implemented!\n";
@@ -211,8 +215,11 @@ Prefiltering::~Prefiltering() {
         tidxdbr->close();
         delete tidxdbr;
     }
+    if(kmerSubMat != ungappedSubMat){
+        delete ungappedSubMat;
+    }
+    delete kmerSubMat;
 
-    delete subMat;
 
     if (_2merSubMatrix != NULL && templateDBIsIndex == false) {
         ScoreMatrix::cleanup(_2merSubMatrix);
@@ -435,7 +442,7 @@ void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
     } else {
         Timer timer;
 
-        Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
+        Sequence tseq(maxSeqLen, targetSeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
         int localKmerThr = (querySeqType == Sequence::HMM_PROFILE ||
                             querySeqType == Sequence::PROFILE_STATE_PROFILE ||
                             querySeqType == Sequence::NUCLEOTIDES ||
@@ -449,14 +456,14 @@ void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
         SequenceLookup **unmaskedLookup = maskMode == 0 ? &sequenceLookup : NULL;
 
         Debug(Debug::INFO) << "Index table k-mer threshold: " << localKmerThr << "\n";
-        IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *subMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr);
+        IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *kmerSubMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr);
 
         if (diagonalScoring == false) {
             delete sequenceLookup;
             sequenceLookup = NULL;
         }
 
-        indexTable->printStatistics(subMat->int2aa);
+        indexTable->printStatistics(kmerSubMat->int2aa);
         tdbr->remapData();
         Debug(Debug::INFO) << "Time for index table init: " << timer.lap() << "\n";
     }
@@ -465,10 +472,10 @@ void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
     switch (querySeqType) {
         case Sequence::AMINO_ACIDS:
             // Do not add X
-            subMat->alphabetSize = subMat->alphabetSize - 1;
-            _2merSubMatrix = getScoreMatrix(*subMat, 2);
-            _3merSubMatrix = getScoreMatrix(*subMat, 3);
-            subMat->alphabetSize = alphabetSize;
+            kmerSubMat->alphabetSize = kmerSubMat->alphabetSize - 1;
+            _2merSubMatrix = getScoreMatrix(*kmerSubMat, 2);
+            _3merSubMatrix = getScoreMatrix(*kmerSubMat, 3);
+            kmerSubMat->alphabetSize = alphabetSize;
             break;
         case Sequence::HMM_PROFILE:
         case Sequence::PROFILE_STATE_PROFILE:
@@ -721,7 +728,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     Debug(Debug::INFO) << "Starting prefiltering scores calculation (step " << (split + 1) << " of " << splitCount << ")\n";
     Debug(Debug::INFO) << "Query db start  " << (queryFrom + 1) << " to " << queryFrom + querySize << "\n";
     Debug(Debug::INFO) << "Target db start  " << (dbFrom + 1) << " to " << dbFrom + dbSize << "\n";
-    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat);
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), kmerSubMat);
 
 #pragma omp parallel num_threads(localThreads)
     {
@@ -729,9 +736,10 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        Sequence seq(maxSeqLen, querySeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
+        Sequence seq(maxSeqLen, querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
 
-        QueryMatcher matcher(indexTable, sequenceLookup, subMat, evaluer, tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
+        QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
+                             evaluer, tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
                              kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
                              maxResults, aaBiasCorrection, diagonalScoring, minDiagScoreThr, takeOnlyBestKmer);
 
@@ -927,14 +935,14 @@ double Prefiltering::setKmerThreshold(DBReader<unsigned int> *qdbr) {
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        Sequence seq(maxSeqLen, querySeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
+        Sequence seq(maxSeqLen, querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
 
         if (thread_idx == 0) {
             effectiveKmerSize = seq.getEffectiveKmerSize();
         }
 
-        EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat);
-        QueryMatcher matcher(indexTable, sequenceLookup, subMat, evaluer, tdbr->getSeqLens(), kmerThr, 1.0,
+        EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), kmerSubMat);
+        QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat, ungappedSubMat, evaluer, tdbr->getSeqLens(), kmerThr, 1.0,
                              kmerSize, indexTable->getSize(), maxSeqLen, seq.getEffectiveKmerSize(),
                              150000, aaBiasCorrection, false, minDiagScoreThr, takeOnlyBestKmer);
         if(querySeqType == Sequence::HMM_PROFILE || querySeqType == Sequence::PROFILE_STATE_PROFILE ){

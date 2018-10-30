@@ -38,6 +38,9 @@ void setNuclSearchDefaults(Parameters *p) {
     bool strandWasSet = false;
     bool kmerSizeWasSet = false;
     bool maxSeqLenWasSet = false;
+    bool gapOpenWasSet = false;
+    bool gapExtendWasSet = false;
+
     for (size_t i = 0; i < p->searchworkflow.size(); i++) {
         if (p->searchworkflow[i].uniqid == p->PARAM_STRAND.uniqid && p->searchworkflow[i].wasSet) {
             strandWasSet = true;
@@ -48,7 +51,12 @@ void setNuclSearchDefaults(Parameters *p) {
         if (p->searchworkflow[i].uniqid == p->PARAM_MAX_SEQ_LEN.uniqid && p->searchworkflow[i].wasSet) {
             maxSeqLenWasSet = true;
         }
-
+        if (p->searchworkflow[i].uniqid == p->PARAM_GAP_OPEN.uniqid && p->searchworkflow[i].wasSet) {
+            gapOpenWasSet = true;
+        }
+        if (p->searchworkflow[i].uniqid == p->PARAM_GAP_OPEN.uniqid && p->searchworkflow[i].wasSet) {
+            gapExtendWasSet = true;
+        }
     }
 
     p->exactKmerMatching = true;
@@ -60,6 +68,12 @@ void setNuclSearchDefaults(Parameters *p) {
     }
     if ( maxSeqLenWasSet == false) {
         p->maxSeqLen = 10000;
+    }
+    if( gapOpenWasSet == false){
+        p->gapOpen = 5;
+    }
+    if( gapExtendWasSet == false){
+        p->gapExtend = 2;
     }
 }
 

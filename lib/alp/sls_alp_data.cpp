@@ -27,7 +27,7 @@
 
 File name: sls_alp_data.cpp
 
-Author: Sergey Sheetlin
+Author: Sergey Sheetlin, Martin Frith
 
 Contents: Input data for the ascending ladder points simulation
 
@@ -216,6 +216,7 @@ long int epen_,//gap extension penalty
 long int epen1_,//gap extension penalty for a gap in the sequence #1
 long int epen2_,//gap extension penalty for a gap in the sequence #2
 
+double temperature_,
 double max_time_,//maximum allowed calculation time in seconds
 double max_mem_,//maximum allowed memory usage in MB
 double eps_lambda_,//relative error for lambda calculation
@@ -228,23 +229,7 @@ bool insertions_after_deletions_)//if true, then insertions after deletions are 
 
 		if(!d_rand_flag&&rand_<0)
 		{
-			
-			rand_=(long int)time(NULL);
-			#ifndef _MSC_VER //UNIX program
-				struct timeval tv;
-				struct timezone tz;
-				gettimeofday(&tv, &tz);
-				rand_+=tv.tv_usec*10000000;
-			#else
-				struct _timeb timebuffer;
-				char *timeline;
-				_ftime( &timebuffer );
-				timeline = ctime( & ( timebuffer.time ) );
-				rand_+=timebuffer.millitm*10000000;
-			#endif
-
-			rand_=abs(rand_);
-
+			rand_=sls_basic::random_seed_from_time();
 			d_rand_flag=false;
 			
 		};
@@ -310,6 +295,7 @@ bool insertions_after_deletions_)//if true, then insertions after deletions are 
 
 			d_epen,
 
+			temperature_,
 			d_number_of_AA,
 			d_smatr,
 			d_RR1,
@@ -398,6 +384,7 @@ long int epen2_,//gap extension penalty for a gap in the sequence #2
 string smatr_file_name_,//scoring matrix file name
 string RR1_file_name_,//probabilities1 file name
 string RR2_file_name_,//probabilities2 file name
+double temperature_,
 double max_time_,//maximum allowed calculation time in seconds
 double max_mem_,//maximum allowed memory usage in MB
 double eps_lambda_,//relative error for lambda calculation
@@ -459,6 +446,7 @@ bool insertions_after_deletions_)//if true, then insertions after deletions are 
 		epen1_,//gap extension penalty for a gap in the sequence #1
 		epen2_,//gap extension penalty for a gap in the sequence #2
 
+		temperature_,
 		max_time_,//maximum allowed calculation time in seconds
 		max_mem_,//maximum allowed memory usage in MB
 		eps_lambda_,//relative error for lambda calculation
@@ -504,6 +492,7 @@ const long *const *substitutionScoreMatrix_,
 const double *letterFreqs1_,
 const double *letterFreqs2_,
 
+double temperature_,
 double max_time_,//maximum allowed calculation time in seconds
 double max_mem_,//maximum allowed memory usage in MB
 double eps_lambda_,//relative error for lambda calculation
@@ -597,6 +586,7 @@ double max_time_with_computation_parameters_)//maximum allowed time in seconds f
 		epen1_,//gap extension penalty for a gap in the sequence #1
 		epen2_,//gap extension penalty for a gap in the sequence #2
 
+		temperature_,
 		max_time_,//maximum allowed calculation time in seconds
 		max_mem_,//maximum allowed memory usage in MB
 		eps_lambda_,//relative error for lambda calculation
@@ -1144,6 +1134,7 @@ long int open_,
 
 long int epen_,
 
+double temperature_,
 long int number_of_AA_,
 long int **smatr_,
 double *RR1_,
@@ -1288,7 +1279,7 @@ double *RR2_)
 
 			//cout<<"\nUngapped lambda is "<<d_ungap_lambda<<endl;
 
-			d_lambda*=1.07;
+			d_lambda*=temperature_;
 		};
 
 
