@@ -117,15 +117,9 @@ Matcher::result_t Orf::getFromDatabase(const size_t id, DBReader<unsigned int> &
 
     size_t contigLen = contigLenWithEndings - 2; // remove \n\0
 
-    // orf search returns the position right after the orf, this keeps consitency with alignemnt format
-    // if strand == -1 (reverse), we need to recompute the coordinates with respect to the positive strand and swap them
-    size_t contigFromWithStrand = (orfLocOnContigParsed.strand > 0) ? orfLocOnContigParsed.from : (contigLen - orfLocOnContigParsed.from - 1);
-    size_t contigToWithStrand = (orfLocOnContigParsed.strand > 0) ? (orfLocOnContigParsed.to - 1) : (contigLen - orfLocOnContigParsed.to);
-
     // compute orf length
-    int orfLen = (orfLocOnContigParsed.strand > 0) ? (contigToWithStrand - contigFromWithStrand + 1) : (contigFromWithStrand - contigToWithStrand + 1);
-
-    Matcher::result_t orfToContigResult(contigKey, 1, 1, 0, 1, 0, orfLen, 0, (orfLen - 1), orfLen, contigFromWithStrand, contigToWithStrand, contigLen, "");
+    size_t orfLen = std::max(orfLocOnContigParsed.from, orfLocOnContigParsed.to) - std::min(orfLocOnContigParsed.from, orfLocOnContigParsed.to) + 1;
+    Matcher::result_t orfToContigResult(contigKey, 1, 1, 0, 1, 0, orfLen, 0, (orfLen - 1), orfLen, orfLocOnContigParsed.from, orfLocOnContigParsed.to, contigLen, "");
     return (orfToContigResult);
 }
 
@@ -167,7 +161,7 @@ bool Orf::setSequence(const char* seq, size_t length) {
 
 std::pair<const char *, size_t> Orf::getSequence(const SequenceLocation &location) {
     assert(location.to > location.from);
-    size_t length = location.to - location.from;
+    size_t length = (location.to - location.from) + 1;
     if(location.strand == Orf::STRAND_PLUS) {
         return sequence ? std::make_pair(sequence + location.from, length) : std::make_pair("", 0);
     } else {
@@ -326,14 +320,14 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
                 // if final codon is the last in the frame or a stop codon - include it:
                 // size_t to = position + ((isLast || stop) ? 3 : 0);
 
-                // if final codon the last in the frame but not a stop - include it (stops are never included):
-                size_t to = position + ((isLast && !stop) ? 3 : 0);
-
                 // this could happen if the first codon is a stop codon
-                if(to == from[frame])
+                if(countLength[frame] == 0 && stop)
                     continue;
+                // if final codon the last in the frame but not a stop - include it (stops are never included):
+                size_t to = position + ((isLast && stop == false) ? 2 : -1);
 
-                assert(to > from[frame]);
+                assert(to + 1 > from[frame]);
+                assert(to < sequenceLength);
 
                 // ignore orfs with too many gaps or unknown codons
                 // also ignore orfs shorter than the min size and longer than max
