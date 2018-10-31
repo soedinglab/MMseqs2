@@ -54,13 +54,13 @@ If your computer supports AVX2 use this (faster than SSE4.1, check by executing 
 
         wget https://mmseqs.com/latest/mmseqs-static_avx2.tar.gz 
         tar xvzf mmseqs-static_avx2.tar.gz
-        export PATH=$(pwd)/mmseqs/bin/:$PATH
+        export PATH=$(pwd)/mmseqs2/bin/:$PATH
         
 If your computer supports SSE4.1 use:
 
         wget https://mmseqs.com/latest/mmseqs-static_sse41.tar.gz 
         tar xvzf mmseqs-static_sse41.tar.gz
-        export PATH=$(pwd)/mmseqs/bin/:$PATH
+        export PATH=$(pwd)/mmseqs2/bin/:$PATH
 
 MMseqs comes with a bash command and parameter auto completion
 by pressing tab. The bash completion for subcommands and parameters can be installed by adding the following lines to your $HOME/.bash_profile:
@@ -148,7 +148,7 @@ To generate a TSV-style formatted output file from the ffindex output file, type
         
 To extract the representative sequences from the clustering result call:    
     
-        mmseqs result2repseq DB DB_clu DB_clu_rep
+        mmseqs result2repseq DB clu DB_clu_rep
         mmseqs result2flat DB DB DB_clu_rep DB_clu_rep.fasta  --use-fasta-header
 
 Read more about the format [here](https://github.com/soedinglab/mmseqs2/wiki#clustering-format).
