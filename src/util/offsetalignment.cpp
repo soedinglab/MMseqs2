@@ -60,8 +60,8 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 5);
 
-    const int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
-    const int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    const int queryDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    const int targetDbType = DBReader<unsigned int>::parseDbType(par.db3.c_str());
     if (queryDbType == -1 || targetDbType == -1) {
         Debug(Debug::ERROR)
                 << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
