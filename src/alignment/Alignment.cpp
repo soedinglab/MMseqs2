@@ -96,10 +96,6 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     if (templateDBIsIndex == false) {
         tdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
         tdbr->open(DBReader<unsigned int>::NOSORT);
-        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-            tdbr->readMmapedDataInMemory();
-            tdbr->mlock();
-        }
     }
 
     sameQTDB = (targetSeqDB.compare(querySeqDB) == 0);
@@ -122,9 +118,14 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         //    EXIT(EXIT_FAILURE);
         //}
 
-        qdbr->readMmapedDataInMemory();
-        qdbr->mlock();
         querySeqType = qdbr->getDbtype();
+    }
+
+    qdbr->readMmapedDataInMemory();
+    // make sure to touch target after query, so if there is not enough memory for the query, at least the targets
+    // might have had enough space left to be residung in the page cache
+    if (sameQTDB == false && templateDBIsIndex == false && par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+        tdbr->readMmapedDataInMemory();
     }
 
     if (qdbr->getSize() <= threads) {

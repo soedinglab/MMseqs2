@@ -47,7 +47,6 @@ public:
 
             if (preload) {
                 reader->readMmapedDataInMemory();
-                reader->mlock();
             }
         }
     }

@@ -68,10 +68,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         tDbr->open(DBReader<unsigned int>::NOSORT);
         targetSeqType = tDbr->getDbtype();
-        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-            tDbr->readMmapedDataInMemory();
-            tDbr->mlock();
-        }
     }
 
     DBReader<unsigned int> *qDbr = NULL;
@@ -83,7 +79,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         qDbr->open(DBReader<unsigned int>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             qDbr->readMmapedDataInMemory();
-            qDbr->mlock();
         }
 
         unsigned int *lengths = qDbr->getSeqLens();
@@ -103,6 +98,13 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         for (size_t i = 0; i < tDbr->getSize(); i++) {
             maxSequenceLength = std::max(lengths[i], maxSequenceLength);
         }
+    }
+
+    qDbr->readMmapedDataInMemory();
+    // make sure to touch target after query, so if there is not enough memory for the query, at least the targets
+    // might have had enough space left to be residung in the page cache
+    if (sameDatabase == false && templateDBIsIndex == false && par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+        tDbr->readMmapedDataInMemory();
     }
 
     DBWriter resultWriter(outpath.c_str(), std::string(outpath + ".index").c_str(), localThreads, DBWriter::BINARY_MODE);
