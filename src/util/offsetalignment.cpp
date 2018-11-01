@@ -122,6 +122,8 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         }
 
         Debug(Debug::INFO) << "Computing contig offsets...\n";
+        maxContigKey = sourceQueryHeaderDbr->getLastKey();
+
         unsigned int *contigSizes = new unsigned int[maxContigKey + 2]();
 #pragma omp parallel for schedule(static) num_threads(localThreads)
         for (size_t i = 0; i <= maxOrfKey ; ++i) {
@@ -131,9 +133,9 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             __sync_fetch_and_add(&(contigSizes[orfLookup[i]]), 1);
         }
         contigOffsets = contigSizes;
+
         AlignmentSymmetry::computeOffsetFromCounts(contigOffsets, maxContigKey + 1);
 
-        maxContigKey = sourceQueryHeaderDbr->getLastKey();
         contigExists = new char[maxContigKey + 1]();
 #pragma omp parallel for schedule(static) num_threads(localThreads)
         for (size_t i = 0; i < sourceQueryHeaderDbr->getSize(); ++i) {
