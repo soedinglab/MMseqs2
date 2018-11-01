@@ -53,7 +53,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     }
 
     // investigate if it makes sense to mask the profile consensus sequence
-    if (isProfileSearch == Sequence::HMM_PROFILE) {
+    if (isProfileSearch) {
         par.maskMode = 0;
     }
 
