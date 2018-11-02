@@ -425,7 +425,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         result.append(buffer, count);
                         break;
                     }
-                    case Parameters::FORMAT_ALIGNMENT_SAM:
                     default:
                         Debug(Debug::ERROR) << "Not implemented yet";
                         EXIT(EXIT_FAILURE);

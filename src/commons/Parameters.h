@@ -55,8 +55,8 @@ public:
 
     // convertalis alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
-    static const int FORMAT_ALIGNMENT_PAIRWISE  = 1;
     static const int FORMAT_ALIGNMENT_BLAST_WITH_LEN = 2;
+
     // outfmt
     static const int OUTFMT_QUERY = 0;
     static const int OUTFMT_TARGET = 1;
@@ -86,9 +86,6 @@ public:
     static const int OUTFMT_QCOV = 25;
     static const int OUTFMT_TCOV = 26;
     static const int OUTFMT_EMPTY = 27;
-
-    // NOT IMPLEMENTED YET
-    static const int FORMAT_ALIGNMENT_SAM       = 99;
 
     // convertprofiledb
     static const int PROFILE_MODE_HMM = 0;
