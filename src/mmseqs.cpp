@@ -397,7 +397,7 @@ std::vector<struct Command> commands = {
                 "Offset alignemnt by orf start position.",
                 NULL,
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
-                "<i:queryDB> <i:queryOrfDB> <i:targetDB> <i:alnDB> <o:alnDB>",
+                "<i:queryDB> <i:queryOrfDB> <i:targetDB> <i:targetOrfDB>  <i:alnDB> <o:alnDB>",
                 CITATION_MMSEQS2},
         {"proteinaln2nucl",          proteinaln2nucl,          &par.onlythreads,            COMMAND_DB,
                 "Map protein alignment to nucleotide alignment",

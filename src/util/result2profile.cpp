@@ -53,7 +53,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 PrefilteringIndexReader::printSummary(tidxdbr);
                 PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
                 targetSeqType = meta.seqType;
-                tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, touch);
+                tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, false, touch);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
         }

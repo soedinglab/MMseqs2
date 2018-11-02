@@ -8,54 +8,11 @@
 #include "Parameters.h"
 #include "AlignmentSymmetry.h"
 #include "PrefilteringIndexReader.h"
+#include "IndexReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
-
-class IndexReader {
-public:
-    DBReader<unsigned int> *reader;
-    IndexReader(const std::string &data) {
-        std::string index = data;
-        index.append(".index");
-
-        bool isIndex = false;
-        std::string indexData = PrefilteringIndexReader::searchForIndex(data);
-        if (indexData != "") {
-            Debug(Debug::INFO) << "Use index: " << indexData << "\n";
-            std::string indexIndex = indexData;
-            indexIndex.append(".index");
-            indexReader = new DBReader<unsigned int>(indexData.c_str(), indexIndex.c_str());
-            indexReader->open(DBReader<unsigned int>::NOSORT);
-            if ((isIndex = PrefilteringIndexReader::checkIfIndexFile(indexReader)) == true) {
-                reader = PrefilteringIndexReader::openNewReader(indexReader, false);
-            } else {
-                Debug(Debug::WARNING) << "Outdated index version. Please recompute it with 'createindex'!\n";
-                indexReader->close();
-                delete indexReader;
-                indexReader = NULL;
-            }
-        }
-
-        if (isIndex == false) {
-            reader = new DBReader<unsigned int>(data.c_str(), index.c_str(), DBReader<unsigned int>::USE_INDEX);
-            reader->open(DBReader<unsigned int>::NOSORT);
-        }
-    }
-
-    ~IndexReader() {
-        reader->close();
-        delete reader;
-
-        if (indexReader != NULL) {
-            indexReader->close();
-            delete indexReader;
-        }
-    }
-private:
-    DBReader<unsigned int> *indexReader = NULL;
-};
 
 int doswap(Parameters& par, bool isGeneralMode) {
     const char * parResultDb;
@@ -107,18 +64,18 @@ int doswap(Parameters& par, bool isGeneralMode) {
         resultReader.close();
     } else {
         Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-        IndexReader query(par.db1);
-        aaResSize = query.reader->getAminoAcidDBSize();
+        IndexReader query(par.db1, IndexReader::NEED_SEQUENCES, false);
+        aaResSize = query.sequenceReader->getAminoAcidDBSize();
 
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        IndexReader target(par.db2);
-        maxTargetId = target.reader->getLastKey();
+        IndexReader target(par.db2, IndexReader::NEED_SEQUENCES, false);
+        maxTargetId = target.sequenceReader->getLastKey();
 
         targetElementExists = new char[maxTargetId + 1];
         memset(targetElementExists, 0, sizeof(char) * (maxTargetId + 1));
 #pragma omp parallel for
-        for (size_t i = 0; i < target.reader->getSize(); ++i) {
-            unsigned int key = target.reader->getDbKey(i);
+        for (size_t i = 0; i < target.sequenceReader->getSize(); ++i) {
+            unsigned int key = target.sequenceReader->getDbKey(i);
             targetElementExists[key] = 1;
         }
     }

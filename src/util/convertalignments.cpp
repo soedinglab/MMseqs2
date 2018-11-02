@@ -4,28 +4,14 @@
 #include "Debug.h"
 #include "DBReader.h"
 #include "DBWriter.h"
-#include "PrefilteringIndexReader.h"
+#include "IndexReader.h"
 #include "FileUtil.h"
 #include "TranslateNucl.h"
-#include "HeaderIdReader.h"
 #include "Orf.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
-
-void translateSeq(const TranslateNucl &translateNucl, char *translatedSeq, std::string &revStr, char *seq, int startPos, int endPos, int len) {
-    int L = std::max(endPos, startPos) - std::min(endPos, startPos);
-    if (endPos < startPos) {
-        for (int pos = len - endPos -1; pos >= len - startPos; pos--) {
-            revStr.push_back(Orf::complement(seq[pos]));
-        }
-        translateNucl.translate(translatedSeq, revStr.c_str(), L + 1);
-    } else {
-        translateNucl.translate(translatedSeq, seq + std::min(startPos, endPos), L + 1);
-    }
-    revStr.clear();
-}
 
 void printSeqBasedOnAln(std::string &out, const char *seq, unsigned int offset,
                         const std::string &bt, bool reverse, bool isReverseStrand,
@@ -141,49 +127,38 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 
-    DBReader<unsigned int> *queryReader = NULL;
-    DBReader<unsigned int> *targetReader = NULL;
-
     const bool sameDB = par.db1.compare(par.db2) == 0 ? true : false;
     const int format = par.formatAlignmentMode;
+    const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
 
-    bool needSequenceDB =
-            format == Parameters::FORMAT_ALIGNMENT_PAIRWISE || format == Parameters::FORMAT_ALIGNMENT_SAM;
+    bool needSequenceDB = false;
     bool needbacktrace = false;
     const std::vector<int> outcodes = getOutputFormat(par.outfmt, needSequenceDB, needbacktrace);
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+    Debug(Debug::INFO) << "Query Header database: " << par.hdr1 << "\n";
+    const int indexReaderMode = IndexReader::NEED_HEADERS | (needSequenceDB ? IndexReader::NEED_SEQUENCES : 0);
+    IndexReader qDbr(par.db1.c_str(), indexReaderMode, touch);
+
+    IndexReader *tDbr;
+    if (sameDB) {
+        tDbr = &qDbr;
+    } else {
+        Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
+        tDbr = new IndexReader(par.db2.c_str(), indexReaderMode, touch);
+    }
+
     EvalueComputation *evaluer = NULL;
     bool isTranslatedSearch = false;
     bool queryNucs = false;
     bool targetNucs = false;
     if (needSequenceDB) {
-        targetReader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
-        targetReader->open(DBReader<unsigned int>::NOSORT);
-        if (sameDB == true) {
-            queryReader = targetReader;
-        } else {
-            queryReader = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
-            queryReader->open(DBReader<unsigned int>::NOSORT);
-        }
-        queryNucs = (Sequence::NUCLEOTIDES == queryReader->getDbtype());
-        targetNucs = (Sequence::NUCLEOTIDES == targetReader->getDbtype());
+        queryNucs = (Sequence::NUCLEOTIDES == qDbr.getDbtype());
+        targetNucs = (Sequence::NUCLEOTIDES == tDbr->getDbtype());
         if((targetNucs == true || queryNucs == true ) && !(queryNucs == true && targetNucs == true)){
             isTranslatedSearch = true;
         }
-        evaluer = new EvalueComputation(targetReader->getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
-    }
-
-    const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-    Debug(Debug::INFO) << "Query Header database: " << par.hdr1 << "\n";
-    HeaderIdReader qHeaderDbr(par.db1.c_str(),  PrefilteringIndexReader::HDR2INDEX, PrefilteringIndexReader::HDR2DATA, touch);
-
-    HeaderIdReader *tHeaderDbr = NULL;
-    if(sameDB){
-        tHeaderDbr = &qHeaderDbr;
-    } else {
-        Debug(Debug::INFO) << "Target Header database: " << par.hdr2 << "\n";
-        tHeaderDbr = new HeaderIdReader(par.db2.c_str(),  PrefilteringIndexReader::HDR2INDEX, PrefilteringIndexReader::HDR2DATA, touch);
+        SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+        evaluer = new EvalueComputation(tDbr->sequenceReader->getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
     }
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
@@ -229,12 +204,12 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             const unsigned int queryKey = alnDbr.getDbKey(i);
             char *querySeqData = NULL;
             if (needSequenceDB) {
-                querySeqData = queryReader->getDataByDBKey(queryKey);
+                querySeqData = qDbr.sequenceReader->getDataByDBKey(queryKey);
             }
 
-            size_t qHeaderId = qHeaderDbr.getReader()->getId(queryKey);
-            const char *qHeader = qHeaderDbr.getReader()->getData(qHeaderId);
-            size_t qHeaderLen = qHeaderDbr.getReader()->getSeqLens(qHeaderId);
+            size_t qHeaderId = qDbr.headerReader->getId(queryKey);
+            const char *qHeader = qDbr.headerReader->getData(qHeaderId);
+            size_t qHeaderLen = qDbr.headerReader->getSeqLens(qHeaderId);
             std::string queryId = Util::parseFastaHeader(qHeader);
 
             char *data = alnDbr.getData(i);
@@ -248,9 +223,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                     EXIT(EXIT_FAILURE);
                 }
 
-                size_t tHeaderId = tHeaderDbr->getReader()->getId(res.dbKey);
-                const char *tHeader = tHeaderDbr->getReader()->getData(tHeaderId);
-                size_t tHeaderLen = tHeaderDbr->getReader()->getSeqLens(tHeaderId);
+                size_t tHeaderId = tDbr->headerReader->getId(res.dbKey);
+                const char *tHeader = tDbr->headerReader->getData(tHeaderId);
+                size_t tHeaderLen = tDbr->headerReader->getSeqLens(tHeaderId);
                 std::string targetId = Util::parseFastaHeader(tHeader);
 
                 unsigned int gapOpenCount = 0;
@@ -290,7 +265,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                     const float bestMatchEstimate = static_cast<float>(std::min(res.qEndPos - adjustQstart, res.dbEndPos - adjustDBstart));
                     missMatchCount = static_cast<unsigned int>(bestMatchEstimate * (1.0f - res.seqId) + 0.5);
                 }
-
 
                 switch (format) {
                     case Parameters::FORMAT_ALIGNMENT_BLAST_TAB: {
@@ -362,7 +336,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         result.append(querySeqData, res.qLen);
                                         break;
                                     case Parameters::OUTFMT_TSEQ:
-                                        result.append(targetReader->getDataByDBKey(res.dbKey), res.dbLen);
+                                        result.append(tDbr->sequenceReader->getDataByDBKey(res.dbKey), res.dbLen);
                                         break;
                                     case Parameters::OUTFMT_QHEADER:
                                         result.append(qHeader, qHeaderLen-2);
@@ -373,16 +347,15 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                     case Parameters::OUTFMT_QALN:
                                         printSeqBasedOnAln(result, querySeqData, res.qStartPos,
                                                            Matcher::uncompressAlignment(res.backtrace), false, (res.qStartPos > res.qEndPos),
-                                                           (isTranslatedSearch == true && queryNucs == true) ,translateNucl);
+                                                           (isTranslatedSearch == true && queryNucs == true), translateNucl);
                                         break;
                                     case Parameters::OUTFMT_TALN: {
-                                        size_t tid = targetReader->getId(res.dbKey);
-                                        char *tseq = targetReader->getData(tid);
+                                        size_t tid = tDbr->sequenceReader->getId(res.dbKey);
+                                        char *tseq = tDbr->sequenceReader->getData(tid);
                                         printSeqBasedOnAln(result, tseq, res.dbStartPos,
                                                            Matcher::uncompressAlignment(res.backtrace), true,
                                                            (res.dbStartPos > res.dbEndPos),
-                                                           (isTranslatedSearch == true && targetNucs == true),
-                                                           translateNucl);
+                                                           (isTranslatedSearch == true && targetNucs == true), translateNucl);
 
                                         break;
                                     }
@@ -443,16 +416,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     }
 
     alnDbr.close();
-    if (sameDB == false) {
-        delete tHeaderDbr;
-    }
-
     if (needSequenceDB) {
-        queryReader->close();
-        delete queryReader;
         if (sameDB == false) {
-            targetReader->close();
-            delete targetReader;
+            delete tDbr;
         }
         delete evaluer;
     }

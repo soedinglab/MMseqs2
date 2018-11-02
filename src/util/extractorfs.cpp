@@ -90,8 +90,8 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                 size_t fromPos = loc.from;
                 size_t toPos = loc.to;
                 if(loc.strand == Orf::STRAND_MINUS){
-                    fromPos = (sequenceLength -1) - loc.from;
-                    toPos   = (sequenceLength -1) - loc.to;
+                    fromPos = (sequenceLength - 1) - loc.from;
+                    toPos   = (sequenceLength - 1) - loc.to;
                 }
                 snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(),
                         key, fromPos, toPos, loc.hasIncompleteStart, loc.hasIncompleteEnd);

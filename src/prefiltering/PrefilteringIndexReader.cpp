@@ -5,26 +5,27 @@
 #include "FileUtil.h"
 #include "IndexBuilder.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION = "9";
+const char*  PrefilteringIndexReader::CURRENT_VERSION = "10";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
 unsigned int PrefilteringIndexReader::SCOREMATRIX2MER = 3;
 unsigned int PrefilteringIndexReader::SCOREMATRIX3MER = 4;
 unsigned int PrefilteringIndexReader::DBRINDEX = 5;
-unsigned int PrefilteringIndexReader::ENTRIES = 6;
-unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 7;
-unsigned int PrefilteringIndexReader::ENTRIESNUM = 8;
-unsigned int PrefilteringIndexReader::SEQCOUNT = 9;
-unsigned int PrefilteringIndexReader::MASKEDSEQINDEXDATA = 10;
-unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 11;
-unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 12;
-unsigned int PrefilteringIndexReader::UNMASKEDSEQINDEXDATA = 13;
-unsigned int PrefilteringIndexReader::HDR1INDEX = 14;
-unsigned int PrefilteringIndexReader::HDR1DATA = 15;
-unsigned int PrefilteringIndexReader::HDR2INDEX = 16;
-unsigned int PrefilteringIndexReader::HDR2DATA = 17;
-unsigned int PrefilteringIndexReader::GENERATOR = 18;
+unsigned int PrefilteringIndexReader::DBRDATA  = 6;
+unsigned int PrefilteringIndexReader::ENTRIES = 7;
+unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 8;
+unsigned int PrefilteringIndexReader::ENTRIESNUM = 9;
+unsigned int PrefilteringIndexReader::SEQCOUNT = 10;
+unsigned int PrefilteringIndexReader::MASKEDSEQINDEXDATA = 11;
+unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 12;
+unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 13;
+unsigned int PrefilteringIndexReader::UNMASKEDSEQINDEXDATA = 14;
+unsigned int PrefilteringIndexReader::HDR1INDEX = 15;
+unsigned int PrefilteringIndexReader::HDR1DATA = 16;
+unsigned int PrefilteringIndexReader::HDR2INDEX = 17;
+unsigned int PrefilteringIndexReader::HDR2DATA = 18;
+unsigned int PrefilteringIndexReader::GENERATOR = 19;
 
 extern const char* version;
 
@@ -177,18 +178,23 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
     writer.alignToPageSize();
     free(data);
 
+    Debug(Debug::INFO) << "Write DBRDATA (" << DBRDATA << ")\n";
+    writer.writeData(dbr->getData(), dbr->getDataSize(), DBRDATA, 0);
+    writer.alignToPageSize();
+
     if (hdbr1 != NULL) {
         Debug(Debug::INFO) << "Write HDR1INDEX (" << HDR1INDEX << ")\n";
         data = DBReader<unsigned int>::serialize(*hdbr1);
         size_t offsetIndex = writer.getOffset(0);
         writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*hdbr1), HDR1INDEX, 0);
         writer.alignToPageSize();
+
         Debug(Debug::INFO) << "Write HDR1DATA (" << HDR1DATA << ")\n";
         size_t offsetData = writer.getOffset(0);
         writer.writeData(hdbr1->getData(), hdbr1->getDataSize(), HDR1DATA, 0);
         writer.alignToPageSize();
         free(data);
-        if(hdbr2 == NULL){
+        if (hdbr2 == NULL) {
             writer.writeIndexEntry(HDR2INDEX, offsetIndex, DBReader<unsigned int>::indexMemorySize(*hdbr1)+1, 0);
             writer.writeIndexEntry(HDR2DATA,  offsetData, hdbr1->getDataSize()+1, 0);
         }
@@ -234,16 +240,31 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<un
     return reader;
 }
 
-DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr, bool touch) {
+DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr, bool includeData, bool touch) {
     size_t id = dbr->getId(DBRINDEX);
     char *data = dbr->getData(id);
     if (touch) {
         dbr->touchData(id);
     }
 
+    if (includeData) {
+        id = dbr->getId(DBRDATA);
+        if (id == UINT_MAX) {
+            return NULL;
+        }
+        if (touch) {
+            dbr->touchData(id);
+        }
+
+        DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(data);
+        reader->open(DBReader<unsigned int>::NOSORT);
+        reader->setData(dbr->getData(id), dbr->getSeqLens(id));
+        reader->setMode(DBReader<unsigned int>::USE_DATA);
+        return reader;
+    }
+
     DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(data);
     reader->open(DBReader<unsigned int>::NOSORT);
-
     return reader;
 }
 

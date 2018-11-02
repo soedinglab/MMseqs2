@@ -62,7 +62,7 @@ fi
 
 if notExists "$4/aln_offset"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" offsetalignment "$1" "$QUERY_ORF" "$TARGET_ORF" "$4/aln"  "$4/aln_offset" ${OFFSETALIGNMENT_PAR} \
+    "$MMSEQS" offsetalignment "$1" "$QUERY_ORF" "$2" "$TARGET_ORF" "$4/aln"  "$4/aln_offset" ${OFFSETALIGNMENT_PAR} \
         || fail "Offset step died"
 fi
 

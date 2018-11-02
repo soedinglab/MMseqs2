@@ -23,7 +23,8 @@ int indexdb(int argc, const char **argv, const Command &command) {
         Debug(Debug::ERROR) << "Please use the prefilter without a precomputed index if you do not have enough memory.";
         EXIT(EXIT_FAILURE);
     }
-    bool sameDB  = (par.db1 == par.db2);
+
+    const bool sameDB = (par.db1 == par.db2);
     DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str());
     dbr.open(DBReader<unsigned int>::NOSORT);
     BaseMatrix *subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
@@ -52,7 +53,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
         par.kmerScore = 0;
     }
 
-    // investigate if it makes sense to mask the profile consensus sequence
+    // TODO: investigate if it makes sense to mask the profile consensus sequence
     if (isProfileSearch) {
         par.maskMode = 0;
     }
@@ -62,11 +63,10 @@ int indexdb(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> *hdbr1 = NULL;
     DBReader<unsigned int> *hdbr2 = NULL;
-
     if (par.includeHeader == true) {
         hdbr1 = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str());
         hdbr1->open(DBReader<unsigned int>::NOSORT);
-        if(sameDB == false){
+        if (sameDB == false) {
             hdbr2 = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str());
             hdbr2->open(DBReader<unsigned int>::NOSORT);
         }
@@ -76,15 +76,15 @@ int indexdb(int argc, const char **argv, const Command &command) {
                                              par.spacedKmer, par.compBiasCorrection, subMat->alphabetSize,
                                              kmerSize, par.maskMode, kmerThr);
 
-    if (hdbr1 != NULL) {
-        hdbr1->close();
-        delete hdbr1;
-    }
     if (hdbr2 != NULL) {
         hdbr2->close();
         delete hdbr2;
     }
 
+    if (hdbr1 != NULL) {
+        hdbr1->close();
+        delete hdbr1;
+    }
 
     delete subMat;
     dbr.close();

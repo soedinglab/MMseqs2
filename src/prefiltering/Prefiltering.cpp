@@ -78,7 +78,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                 touch = true;
                 tidxdbr->readMmapedDataInMemory();
             }
-            tdbr = PrefilteringIndexReader::openNewReader(tdbr, touch);
+            tdbr = PrefilteringIndexReader::openNewReader(tdbr, false, touch);
             PrefilteringIndexReader::printSummary(tidxdbr);
             PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
             kmerSize = data.kmerSize;

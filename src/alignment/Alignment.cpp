@@ -81,7 +81,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                 PrefilteringIndexReader::printSummary(tidxdbr);
                 PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
                 targetSeqType = meta.seqType;
-                tdbr = PrefilteringIndexReader::openNewReader(tidxdbr, touch);
+                tdbr = PrefilteringIndexReader::openNewReader(tidxdbr, false, touch);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
         }

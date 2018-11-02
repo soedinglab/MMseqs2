@@ -7,83 +7,103 @@
 #include "Orf.h"
 #include "AlignmentSymmetry.h"
 #include "Timer.h"
-#include "HeaderIdReader.h"
+#include "IndexReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-void updateOffset(char* data, std::vector<Matcher::result_t> &results,
-                  const Orf::SequenceLocation *qloc,
-                  HeaderIdReader& tHeaderDbr,
-                  bool nucleotide) {
+void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf::SequenceLocation *qloc, IndexReader& tOrfDBr, bool isNuclNucl) {
     size_t startPos = results.size();
     Matcher::readAlignmentResults(results, data, true);
     size_t endPos = results.size();
     for (size_t i = startPos; i < endPos; i++) {
         Matcher::result_t &res = results[i];
-        if (nucleotide == true|| qloc == NULL) {
-            size_t targetId = tHeaderDbr.getReader()->getId(res.dbKey);
-            char *header = tHeaderDbr.getReader()->getData(targetId);
+        if (isNuclNucl == true || qloc == NULL) {
+            size_t targetId = tOrfDBr.headerReader->getId(res.dbKey);
+            char *header = tOrfDBr.headerReader->getData(targetId);
+
             Orf::SequenceLocation tloc = Orf::parseOrfHeader(header);
-            res.dbKey =   (tloc.id != UINT_MAX) ? tloc.id : res.dbKey;
-            size_t from = (tloc.id != UINT_MAX) ? tloc.from : (tloc.strand == Orf::STRAND_MINUS) ?  0 : res.dbLen - 1;
-            int dbStartPos = (nucleotide) ? res.dbStartPos : res.dbStartPos * 3;
-            int dbEndPos =   (nucleotide) ? res.dbEndPos : res.dbEndPos * 3;
+            res.dbKey   = (tloc.id != UINT_MAX) ? tloc.id : res.dbKey;
+            size_t from = (tloc.id != UINT_MAX) ? tloc.from : (tloc.strand == Orf::STRAND_MINUS) ? 0 : res.dbLen - 1;
+
+            int dbStartPos = isNuclNucl ? res.dbStartPos : res.dbStartPos * 3;
+            int dbEndPos   = isNuclNucl ? res.dbEndPos : res.dbEndPos * 3;
 
             if (tloc.strand == Orf::STRAND_MINUS && tloc.id != UINT_MAX) {
                 res.dbStartPos = from - dbStartPos;
                 res.dbEndPos   = from - dbEndPos;
-            }else{
+            } else {
                 res.dbStartPos = from + dbStartPos;
                 res.dbEndPos   = from + dbEndPos;
             }
-            res.dbLen = (nucleotide) ? res.dbLen :  res.dbLen * 3;
         }
-        if(qloc != NULL){
-            int qStartPos = (nucleotide) ? res.qStartPos  : res.qStartPos * 3;
-            int qEndPos = (nucleotide) ? res.qEndPos   : res.qEndPos * 3;
-            size_t from = (qloc->id != UINT_MAX) ? qloc->from :  (qloc->strand == Orf::STRAND_MINUS) ?  0 : res.qLen - 1;
+        if (qloc != NULL) {
+            int qStartPos = isNuclNucl ? res.qStartPos : res.qStartPos * 3;
+            int qEndPos   = isNuclNucl ? res.qEndPos : res.qEndPos * 3;
+
+            size_t from = (qloc->id != UINT_MAX) ? qloc->from : (qloc->strand == Orf::STRAND_MINUS) ? 0 : res.qLen - 1;
+
             if (qloc->strand == Orf::STRAND_MINUS && qloc->id != UINT_MAX) {
                 res.qStartPos  = from - qStartPos;
                 res.qEndPos    = from - qEndPos;
-            }else{
-                res.qStartPos = from + qStartPos;
-                res.qEndPos   = from + qEndPos;
+            } else {
+                res.qStartPos  = from + qStartPos;
+                res.qEndPos    = from + qEndPos;
             }
-            res.qLen = (nucleotide) ? res.qLen : res.qLen * 3;
+        }
+    }
+}
+
+void updateLengths(std::vector<Matcher::result_t> &results, unsigned int qSourceLen, IndexReader* tSourceDbr) {
+    for (size_t i = 0; i < results.size(); ++i) {
+        Matcher::result_t &res = results[i];
+        if (qSourceLen != UINT_MAX) {
+            res.qLen = qSourceLen;
+        }
+        if (tSourceDbr != NULL) {
+            size_t targetId = tSourceDbr->sequenceReader->getId(res.dbKey);
+            res.dbLen = std::max(tSourceDbr->sequenceReader->getSeqLens(targetId), static_cast<size_t>(2)) - 2;
         }
     }
 }
 
 int offsetalignment(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 5);
+    par.parseParameters(argc, argv, command, 6);
 
-    const int queryDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
-    const int targetDbType = DBReader<unsigned int>::parseDbType(par.db3.c_str());
-    if (queryDbType == -1 || targetDbType == -1) {
-        Debug(Debug::ERROR)
-                << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
+    const bool touch = par.preloadMode != Parameters::PRELOAD_MODE_MMAP;
+
+    Debug(Debug::INFO) << "Query database: " << par.db2 << "\n";
+    IndexReader qOrfDbr(par.db2.c_str(), IndexReader::NEED_ALT_HEADERS, touch);
+    const int queryDbType = qOrfDbr.getDbtype();
+    if (queryDbType == -1) {
+        Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
     }
-
-    bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-    Debug(Debug::INFO) << "Source Query database: " << par.db1 << "\n";
-
-    DBReader<unsigned int> * sourceQueryHeaderDbr = NULL;
-    if (queryDbType == Sequence::NUCLEOTIDES) {
-        sourceQueryHeaderDbr = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), DBReader<unsigned int>::USE_INDEX);
-        sourceQueryHeaderDbr->open(DBReader<unsigned int>::NOSORT);
+    const bool queryNucl = queryDbType == Sequence::NUCLEOTIDES;
+    IndexReader *qSourceDbr = NULL;
+    if (queryNucl) {
+        Debug(Debug::INFO) << "Source Query database: " << par.db1 << "\n";
+        qSourceDbr = new IndexReader(par.db1.c_str(), IndexReader::NEED_SEQ_INDEX, touch);
     }
-    Debug(Debug::INFO) << "Query database: " << par.db2 << "\n";
-    HeaderIdReader qHeaderDbr(par.db2.c_str(), PrefilteringIndexReader::HDR1INDEX, PrefilteringIndexReader::HDR1DATA, touch);
 
-    Debug(Debug::INFO) << "Target database: " << par.db3 << "\n";
-    HeaderIdReader tHeaderDbr(par.db3.c_str(),  PrefilteringIndexReader::HDR1INDEX, PrefilteringIndexReader::HDR1DATA,  touch);
+    Debug(Debug::INFO) << "Target database: " << par.db4 << "\n";
+    IndexReader tOrfDbr(par.db4.c_str(), IndexReader::NEED_ALT_HEADERS, touch);
+    const int targetDbType = tOrfDbr.getDbtype();
+    if (targetDbType == -1) {
+        Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
+        return EXIT_FAILURE;
+    }
+    const bool targetNucl = targetDbType == Sequence::NUCLEOTIDES;
+    IndexReader *tSourceDbr = NULL;
+    if (targetNucl) {
+        Debug(Debug::INFO) << "Source Target database: " << par.db3 << "\n";
+        tSourceDbr = new IndexReader(par.db3.c_str(), IndexReader::NEED_SEQ_INDEX, touch);
+    }
 
-    Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
-    DBReader<unsigned int> alnDbr(par.db4.c_str(), par.db4Index.c_str());
+    Debug(Debug::INFO) << "Result database: " << par.db5 << "\n";
+    DBReader<unsigned int> alnDbr(par.db5.c_str(), par.db5Index.c_str());
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
 #ifdef OPENMP
@@ -109,21 +129,20 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         unsigned int *orfLookup = new unsigned int[maxOrfKey + 2]();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(localThreads)
         for (size_t i = 0; i <= maxOrfKey; ++i) {
-            size_t queryId = qHeaderDbr.getReader()->getId(i);
+            size_t queryId = qOrfDbr.headerReader->getId(i);
             if(queryId == UINT_MAX){
                 orfLookup[i] = UINT_MAX;
                 continue;
             }
-            unsigned int queryKey = qHeaderDbr.getReader()->getDbKey(queryId);
-            char *header = qHeaderDbr.getReader()->getData(queryId);
+            unsigned int queryKey = qOrfDbr.headerReader->getDbKey(queryId);
+            char *header = qOrfDbr.headerReader->getData(queryId);
             Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
             unsigned int id = (qloc.id != UINT_MAX) ? qloc.id : queryKey;
             orfLookup[i] = id;
         }
 
         Debug(Debug::INFO) << "Computing contig offsets...\n";
-        maxContigKey = sourceQueryHeaderDbr->getLastKey();
-
+        maxContigKey = qSourceDbr->sequenceReader->getLastKey();
         unsigned int *contigSizes = new unsigned int[maxContigKey + 2]();
 #pragma omp parallel for schedule(static) num_threads(localThreads)
         for (size_t i = 0; i <= maxOrfKey ; ++i) {
@@ -138,8 +157,8 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 
         contigExists = new char[maxContigKey + 1]();
 #pragma omp parallel for schedule(static) num_threads(localThreads)
-        for (size_t i = 0; i < sourceQueryHeaderDbr->getSize(); ++i) {
-            contigExists[sourceQueryHeaderDbr->getDbKey(i)] = 1;
+        for (size_t i = 0; i < qSourceDbr->sequenceReader->getSize(); ++i) {
+            contigExists[qSourceDbr->sequenceReader->getDbKey(i)] = 1;
         }
 
         Debug(Debug::INFO) << "Computing contig lookup...\n";
@@ -161,10 +180,12 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         Debug(Debug::INFO) << "Time for contig lookup: " << timer.lap() << "\n";
     }
 
-    Debug(Debug::INFO) << "Writing results to: " << par.db5 << "\n";
-    DBWriter resultWriter(par.db5.c_str(), par.db5Index.c_str(), localThreads);
+    Debug(Debug::INFO) << "Writing results to: " << par.db6 << "\n";
+    DBWriter resultWriter(par.db6.c_str(), par.db6Index.c_str(), localThreads);
     resultWriter.open();
-    bool isNucl = queryDbType == Sequence::NUCLEOTIDES && targetDbType == Sequence::NUCLEOTIDES;
+
+    const bool isNuclNucl = queryNucl && targetNucl;
+
 #pragma omp parallel num_threads(localThreads)
     {
         unsigned int thread_idx = 0;
@@ -199,16 +220,22 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     unsigned int orfKey = orfKeys[j];
                     size_t orfId = alnDbr.getId(orfKey);
                     char *data = alnDbr.getData(orfId);
-                    size_t queryId = qHeaderDbr.getReader()->getId(orfKey);
-                    char *header = qHeaderDbr.getReader()->getData(queryId);
+                    size_t queryId = qOrfDbr.headerReader->getId(orfKey);
+                    char *header = qOrfDbr.headerReader->getData(queryId);
                     Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
-                    updateOffset(data, results, &qloc, tHeaderDbr, isNucl);
+                    updateOffset(data, results, &qloc, tOrfDbr, isNuclNucl);
                 }
-            }else if (targetDbType == Sequence::NUCLEOTIDES) {
+            } else if (targetDbType == Sequence::NUCLEOTIDES) {
                 queryKey = alnDbr.getDbKey(i);
                 char *data = alnDbr.getData(i);
-                updateOffset(data, results, NULL, tHeaderDbr, isNucl);
+                updateOffset(data, results, NULL, tOrfDbr, isNuclNucl);
             }
+            unsigned int qLen = UINT_MAX;
+            if (qSourceDbr != NULL) {
+                size_t queryId = qSourceDbr->sequenceReader->getId(queryKey);
+                qLen = std::max(qSourceDbr->sequenceReader->getSeqLens(queryId), static_cast<size_t>(2)) - 2;
+            }
+            updateLengths(results, qLen, tSourceDbr);
             std::stable_sort(results.begin(), results.end(), Matcher::compareHits);
             for(size_t i = 0; i < results.size(); i++){
                 Matcher::result_t &res = results[i];
@@ -220,7 +247,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             ss.clear();
             results.clear();
         }
-        delete [] buffer;
+        delete[] buffer;
     }
     Debug(Debug::INFO) << "\n";
     resultWriter.close();
@@ -237,9 +264,12 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         delete[] contigExists;
     }
 
-    if(sourceQueryHeaderDbr != NULL){
-        sourceQueryHeaderDbr->close();
-        delete sourceQueryHeaderDbr;
+    if(tSourceDbr != NULL){
+        delete tSourceDbr;
+    }
+
+    if(qSourceDbr != NULL){
+        delete qSourceDbr;
     }
     alnDbr.close();
 

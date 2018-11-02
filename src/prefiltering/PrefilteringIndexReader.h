@@ -34,6 +34,7 @@ public:
     static unsigned int SCOREMATRIX2MER;
     static unsigned int SCOREMATRIX3MER;
     static unsigned int DBRINDEX;
+    static unsigned int DBRDATA;
     static unsigned int HDR1INDEX;
     static unsigned int HDR1DATA;
     static unsigned int HDR2INDEX;
@@ -48,7 +49,7 @@ public:
 
     static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int headerIdx, unsigned int dataIdx, bool touch);
 
-    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, bool touch);
+    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, bool includeData, bool touch);
 
     static SequenceLookup *getMaskedSequenceLookup(DBReader<unsigned int> *dbr, bool touch);
 
