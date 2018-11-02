@@ -24,7 +24,7 @@ public:
     };
     DBReader(const char* dataFileName, const char* indexFileName, int mode = USE_DATA|USE_INDEX);
 
-    DBReader(Index* index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey);
+    DBReader(Index* index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey, int dbType);
 
     void setDataFile(const char* dataFileName);
 
@@ -215,6 +215,7 @@ private:
     size_t dataSize;
     // amino acid size
     size_t aaDbSize;
+    // Last Key in Index
     T lastKey;
     // flag to check if db was closed
     int closed;

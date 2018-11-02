@@ -26,9 +26,9 @@ DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int
 {}
 
 template <typename T>
-DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey) :
+DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey, int dbType) :
         data(NULL), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL),
-        size(size), dataSize(0), aaDbSize(aaDbSize), lastKey(lastKey), closed(1), dbtype(-1),
+        size(size), dataSize(0), aaDbSize(aaDbSize), lastKey(lastKey), closed(1), dbtype(dbType),
         index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
         dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
 {}
@@ -567,6 +567,8 @@ char* DBReader<unsigned int>::serialize(const DBReader<unsigned int> &idx) {
     p += sizeof(size_t);
     memcpy(p, &idx.lastKey, sizeof(unsigned int));
     p += sizeof(unsigned int);
+    memcpy(p, &idx.dbtype, sizeof(int));
+    p += sizeof(int);
     memcpy(p, idx.index, idx.size * sizeof(DBReader<unsigned int>::Index));
     p += idx.size * sizeof(DBReader<unsigned int>::Index);
     memcpy(p, idx.seqLens, idx.size * sizeof(unsigned int));
@@ -583,11 +585,13 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data) {
     p += sizeof(size_t);
     size_t lastKey = *((unsigned int*)p);
     p += sizeof(unsigned int);
+    size_t dbType = *((int*)p);
+    p += sizeof(int);
     DBReader<unsigned int>::Index *idx = (DBReader<unsigned int>::Index *)p;
     p += size * sizeof(DBReader<unsigned int>::Index);
     unsigned int *seqLens = (unsigned int *)p;
 
-    return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize, lastKey);
+    return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize, lastKey, dbType);
 }
 
 template <typename T>
