@@ -83,10 +83,12 @@ template <typename T> DBReader<T>::~DBReader(){
 template <typename T> bool DBReader<T>::open(int accessType){
     // count the number of entries
     this->accessType = accessType;
-    bool isSortedById = false;
+    if (dataFileName != NULL) {
+        dbtype = parseDbType(dataFileName);
+    }
+
     if (dataMode & USE_DATA) {
         FILE* dataFile = fopen(dataFileName, "r");
-        dbtype = parseDbType(dataFileName);
         if (dataFile == NULL) {
             Debug(Debug::ERROR) << "Could not open data file " << dataFileName << "!\n";
             EXIT(EXIT_FAILURE);
@@ -96,6 +98,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         dataMapped = true;
     }
 
+    bool isSortedById = false;
     if (externalData == false) {
         if(FileUtil::fileExists(indexFileName)==false){
             Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "!\n";
