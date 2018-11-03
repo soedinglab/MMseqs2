@@ -133,7 +133,7 @@ MMseqs2 provides many additional search modes:
  * Fast ungapped alignment searches to find [very similar sequence matches](https://github.com/soedinglab/MMseqs2/wiki#mapping-very-similar-sequences-using-mmseqs-map)
  * Searches against [profile databases such as the PFAM](https://github.com/soedinglab/MMseqs2/wiki#how-to-create-a-target-profile-database-from-pfam)
 
-Many modes can also be combined. You can for example, do a translated nucleotide against protein profile search.
+Many modes can also be combined. You can, for example, do a translated nucleotide against protein profile search.
 
 ## How to cluster 
 Before clustering, convert your database into the MMseqs2 database format:
@@ -177,7 +177,7 @@ MMseqs2 stores an index table and two auxiliary arrays, which have a total size 
 For a database containing `N` sequences with an average length `L`, the memory consumption of the index table is `(7 × N × L) byte` .
 Note that the memory consumption grows linearly with the number of the sequences `N` in the database.
 
-The two auxiliary arrays consume `(8 × a^k) byte`, with `a` being the size of the amino acid alphabet (usually 21 including the unknown amino acid X) and the k-mer size `k`.
+The two auxiliary arrays consume `(8 × a^k) byte`, with `a` being the size of the amino acid alphabet (usually 20, the unknown amino acid X is excluded) and the k-mer size `k`.
 
 ### How to run MMseqs2 on multiple servers using MPI
 MMseqs2 can run on multiple cores and servers using OpenMP and Message Passing Interface (MPI).
