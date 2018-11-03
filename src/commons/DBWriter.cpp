@@ -445,7 +445,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
 
     if (lexicographicOrder == false) {
         // sort the index
-        DBReader<unsigned int> indexReader(indexFileNames[0], indexFileNames[0], DBReader<unsigned int>::USE_INDEX);
+        DBReader<unsigned int> indexReader(dataFileNames[0], indexFileNames[0], DBReader<unsigned int>::USE_INDEX);
         indexReader.open(DBReader<unsigned int>::NOSORT);
         DBReader<unsigned int>::Index *index = indexReader.getIndex();
         FILE *index_file  = fopen(outFileNameIndex, "w");
@@ -454,7 +454,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         indexReader.close();
 
     } else {
-        DBReader<std::string> indexReader(indexFileNames[0], indexFileNames[0], DBReader<std::string>::USE_INDEX);
+        DBReader<std::string> indexReader(dataFileNames[0], indexFileNames[0], DBReader<std::string>::USE_INDEX);
         indexReader.open(DBReader<std::string>::SORT_BY_ID);
         DBReader<std::string>::Index *index = indexReader.getIndex();
         FILE *index_file  = fopen(outFileNameIndex, "w");
