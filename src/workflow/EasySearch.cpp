@@ -19,7 +19,7 @@ void setEasySearchDefaults(Parameters *p) {
 int easysearch(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setEasySearchDefaults(&par);
-
+    par.overrideParameterDescription((Command &) command, par.PARAM_ADD_BACKTRACE.uniqid, NULL, NULL, par.PARAM_ADD_BACKTRACE.category | MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &) command, par.PARAM_MAX_REJECTED.uniqid, NULL, NULL,
                                      par.PARAM_MAX_REJECTED.category | MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &) command, par.PARAM_DB_OUTPUT.uniqid, NULL, NULL,
@@ -28,7 +28,11 @@ int easysearch(int argc, const char **argv, const Command &command) {
                                      par.PARAM_OVERLAP.category | MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &) command, par.PARAM_DB_OUTPUT.uniqid, NULL, NULL,
                                      par.PARAM_DB_OUTPUT.category | MMseqsParameter::COMMAND_EXPERT);
-
+    par.overrideParameterDescription((Command &) command, par.PARAM_RESCORE_MODE.uniqid, NULL, NULL,
+                                     par.PARAM_RESCORE_MODE.category | MMseqsParameter::COMMAND_EXPERT);
+    for (size_t i = 0; i < par.createdb.size(); i++){
+        par.overrideParameterDescription((Command &)command, par.createdb[i].uniqid, NULL, NULL, par.createdb[i].category | MMseqsParameter::COMMAND_EXPERT);
+    }
     for (size_t i = 0; i < par.extractorfs.size(); i++){
         par.overrideParameterDescription((Command &)command, par.extractorfs[i].uniqid, NULL, NULL, par.extractorfs[i].category | MMseqsParameter::COMMAND_EXPERT);
     }
@@ -38,7 +42,6 @@ int easysearch(int argc, const char **argv, const Command &command) {
     for (size_t i = 0; i < par.result2profile.size(); i++){
         par.overrideParameterDescription((Command &)command, par.result2profile[i].uniqid, NULL, NULL, par.result2profile[i].category | MMseqsParameter::COMMAND_EXPERT);
     }
-
     par.overrideParameterDescription((Command &) command, par.PARAM_THREADS.uniqid, NULL, NULL,
                                      par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
