@@ -82,48 +82,6 @@ qcov        Fraction of query sequence covered by alignment
 tcov        Fraction of target sequence covered by alignment
  */
 
-std::vector<int> getOutputFormat(std::string outformat, bool &needdatabase, bool &needbacktrace) {
-    std::vector<std::string> outformatSplit = Util::split(outformat, ",");
-    std::vector<int> formatCodes;
-    int code = 0;
-    for (size_t i = 0; i < outformatSplit.size(); ++i) {
-        if(outformatSplit[i].compare("query") == 0){ code = Parameters::OUTFMT_QUERY;}
-        else if (outformatSplit[i].compare("target") == 0){ code = Parameters::OUTFMT_TARGET;}
-        else if (outformatSplit[i].compare("evalue") == 0){ code = Parameters::OUTFMT_EVALUE;}
-        else if (outformatSplit[i].compare("gapopen") == 0){ code = Parameters::OUTFMT_GAPOPEN;}
-        else if (outformatSplit[i].compare("pident") == 0){ code = Parameters::OUTFMT_PIDENT;}
-        else if (outformatSplit[i].compare("nident") == 0){ code = Parameters::OUTFMT_NIDENT;}
-        else if (outformatSplit[i].compare("qstart") == 0){ code = Parameters::OUTFMT_QSTART;}
-        else if (outformatSplit[i].compare("qend") == 0){ code = Parameters::OUTFMT_QEND;}
-        else if (outformatSplit[i].compare("qlen") == 0){ code = Parameters::OUTFMT_QLEN;}
-        else if (outformatSplit[i].compare("tstart") == 0){ code = Parameters::OUTFMT_TSTART;}
-        else if (outformatSplit[i].compare("tend") == 0){ code = Parameters::OUTFMT_TEND;}
-        else if (outformatSplit[i].compare("tlen") == 0){ code = Parameters::OUTFMT_TLEN;}
-        else if (outformatSplit[i].compare("alnlen") == 0){ code = Parameters::OUTFMT_ALNLEN;}
-        else if (outformatSplit[i].compare("raw") == 0){ needdatabase = true; code = Parameters::OUTFMT_RAW;}
-        else if (outformatSplit[i].compare("bits") == 0){ code = Parameters::OUTFMT_BITS;}
-        else if (outformatSplit[i].compare("cigar") == 0){ needbacktrace = true; code = Parameters::OUTFMT_CIGAR;}
-        else if (outformatSplit[i].compare("qseq") == 0){ needdatabase = true; code = Parameters::OUTFMT_QSEQ;}
-        else if (outformatSplit[i].compare("tseq") == 0){ needdatabase = true; code = Parameters::OUTFMT_TSEQ;}
-        else if (outformatSplit[i].compare("qheader") == 0){ code = Parameters::OUTFMT_QHEADER;}
-        else if (outformatSplit[i].compare("theader") == 0){ code = Parameters::OUTFMT_THEADER;}
-        else if (outformatSplit[i].compare("qaln") == 0){ needbacktrace = true; needdatabase = true; code = Parameters::OUTFMT_QALN;}
-        else if (outformatSplit[i].compare("taln") == 0){ needbacktrace = true; needdatabase = true; code = Parameters::OUTFMT_TALN;}
-        else if (outformatSplit[i].compare("qframe") == 0){ code = Parameters::OUTFMT_QFRAME;}
-        else if (outformatSplit[i].compare("tframe") == 0){ code = Parameters::OUTFMT_TFRAME;}
-        else if (outformatSplit[i].compare("mismatch") == 0){ code = Parameters::OUTFMT_MISMATCH;}
-        else if (outformatSplit[i].compare("qcov") == 0){ code = Parameters::OUTFMT_QCOV;}
-        else if (outformatSplit[i].compare("tcov") == 0){ code = Parameters::OUTFMT_TCOV;}
-        else if (outformatSplit[i].compare("empty") == 0){ code = Parameters::OUTFMT_EMPTY;}
-        else {
-            Debug(Debug::ERROR) << "Format code " << outformatSplit[i] << " does not exist.";
-            EXIT(EXIT_FAILURE);
-        }
-        formatCodes.push_back(code);
-    }
-    return formatCodes;
-}
-
 int convertalignments(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
@@ -134,7 +92,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     bool needSequenceDB = false;
     bool needbacktrace = false;
-    const std::vector<int> outcodes = getOutputFormat(par.outfmt, needSequenceDB, needbacktrace);
+    const std::vector<int> outcodes = Parameters::getOutputFormat(par.outfmt, needSequenceDB, needbacktrace);
 
     Debug(Debug::INFO) << "Query Header database: " << par.hdr1 << "\n";
     const int indexReaderMode = IndexReader::NEED_HEADERS | (needSequenceDB ? IndexReader::NEED_SEQUENCES : 0);

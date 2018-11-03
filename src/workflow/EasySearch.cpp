@@ -48,6 +48,16 @@ int easysearch(int argc, const char **argv, const Command &command) {
                                      par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
     par.parseParameters(argc, argv, command, 4);
 
+    bool needBacktrace = false;
+    {
+        bool needSequenceDB = false;
+        Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace);
+    }
+    if (needBacktrace) {
+        Debug(Debug::INFO) << "Alignment backtraces will be computed, since they were requested by output format.\n";
+        par.addBacktrace = true;
+    }
+
     if (FileUtil::directoryExists(par.db4.c_str()) == false) {
         Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db4.c_str()) == false) {

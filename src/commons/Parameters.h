@@ -86,6 +86,7 @@ public:
     static const int OUTFMT_QCOV = 25;
     static const int OUTFMT_TCOV = 26;
     static const int OUTFMT_EMPTY = 27;
+    static std::vector<int> getOutputFormat(const std::string &outformat, bool &needdatabase, bool &needbacktrace);
 
     // convertprofiledb
     static const int PROFILE_MODE_HMM = 0;
