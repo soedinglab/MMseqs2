@@ -403,13 +403,14 @@ Parameters::Parameters():
     result2stats.push_back(PARAM_V);
 
     // format alignment
+    convertalignments.push_back(PARAM_SUB_MAT);
     convertalignments.push_back(PARAM_FORMAT_MODE);
-    convertalignments.push_back(PARAM_TRANSLATION_TABLE);
     convertalignments.push_back(PARAM_FORMAT_OUTPUT);
-    convertalignments.push_back(PARAM_PRELOAD_MODE);
-    convertalignments.push_back(PARAM_DB_OUTPUT);
+    convertalignments.push_back(PARAM_TRANSLATION_TABLE);
     convertalignments.push_back(PARAM_GAP_OPEN);
     convertalignments.push_back(PARAM_GAP_EXTEND);
+    convertalignments.push_back(PARAM_DB_OUTPUT);
+    convertalignments.push_back(PARAM_PRELOAD_MODE);
     convertalignments.push_back(PARAM_THREADS);
     convertalignments.push_back(PARAM_V);
 

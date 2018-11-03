@@ -7,6 +7,7 @@
 #include "IndexReader.h"
 #include "FileUtil.h"
 #include "TranslateNucl.h"
+#include "Sequence.h"
 #include "Orf.h"
 
 #ifdef OPENMP
@@ -147,17 +148,21 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         tDbr = new IndexReader(par.db2.c_str(), indexReaderMode, touch);
     }
 
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
     EvalueComputation *evaluer = NULL;
-    bool isTranslatedSearch = false;
     bool queryNucs = false;
     bool targetNucs = false;
+    bool isTranslatedSearch = false;
+    bool queryProfile = false;
+    bool targetProfile = false;
     if (needSequenceDB) {
-        queryNucs = (Sequence::NUCLEOTIDES == qDbr.getDbtype());
-        targetNucs = (Sequence::NUCLEOTIDES == tDbr->getDbtype());
+        queryNucs = qDbr.getDbtype() == Sequence::NUCLEOTIDES;
+        targetNucs = tDbr->getDbtype() == Sequence::NUCLEOTIDES;
         if((targetNucs == true || queryNucs == true ) && !(queryNucs == true && targetNucs == true)){
             isTranslatedSearch = true;
         }
-        SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+        queryProfile = qDbr.getDbtype() == Sequence::HMM_PROFILE;
+        targetProfile = tDbr->getDbtype() == Sequence::HMM_PROFILE;
         evaluer = new EvalueComputation(tDbr->sequenceReader->getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
     }
 
@@ -194,8 +199,11 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         std::string result;
         result.reserve(1024*1024);
 
-        std::string revStr;
-        revStr.reserve(par.maxSeqLen);
+        std::string queryProfData;
+        queryProfData.reserve(1024);
+
+        std::string targetProfData;
+        targetProfData.reserve(1024);
 
 #pragma omp  for schedule(dynamic, 10)
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
@@ -203,8 +211,13 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
             const unsigned int queryKey = alnDbr.getDbKey(i);
             char *querySeqData = NULL;
+            queryProfData.clear();
             if (needSequenceDB) {
-                querySeqData = qDbr.sequenceReader->getDataByDBKey(queryKey);
+                size_t qId = qDbr.sequenceReader->getId(queryKey);
+                querySeqData = qDbr.sequenceReader->getData(qId);
+                if (queryProfile) {
+                    Sequence::extractProfileConsensus(querySeqData, subMat, queryProfData);
+                }
             }
 
             size_t qHeaderId = qDbr.headerReader->getId(queryKey);
@@ -282,6 +295,15 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             }
                             result.append(buffer, count);
                         } else {
+                            char *targetSeqData = NULL;
+                            targetProfData.clear();
+                            if (needSequenceDB) {
+                                size_t tId = tDbr->sequenceReader->getId(res.dbKey);
+                                targetSeqData = tDbr->sequenceReader->getData(tId);
+                                if (targetProfile) {
+                                    Sequence::extractProfileConsensus(targetSeqData, subMat, targetProfData);
+                                }
+                            }
                             for(size_t i = 0; i < outcodes.size(); i++) {
                                 switch (outcodes[i]) {
                                     case Parameters::OUTFMT_QUERY:
@@ -333,10 +355,18 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         result.append(SSTR(res.backtrace));
                                         break;
                                     case Parameters::OUTFMT_QSEQ:
-                                        result.append(querySeqData, res.qLen);
+                                        if (queryProfile) {
+                                            result.append(queryProfData.c_str(), res.qLen);
+                                        } else {
+                                            result.append(querySeqData, res.qLen);
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TSEQ:
-                                        result.append(tDbr->sequenceReader->getDataByDBKey(res.dbKey), res.dbLen);
+                                        if (targetProfile) {
+                                            result.append(targetProfData.c_str(), res.dbLen);
+                                        } else {
+                                            result.append(targetSeqData, res.dbLen);
+                                        }
                                         break;
                                     case Parameters::OUTFMT_QHEADER:
                                         result.append(qHeader, qHeaderLen-2);
@@ -345,18 +375,28 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         result.append(tHeader, tHeaderLen-2);
                                         break;
                                     case Parameters::OUTFMT_QALN:
-                                        printSeqBasedOnAln(result, querySeqData, res.qStartPos,
-                                                           Matcher::uncompressAlignment(res.backtrace), false, (res.qStartPos > res.qEndPos),
-                                                           (isTranslatedSearch == true && queryNucs == true), translateNucl);
+                                        if (queryProfile) {
+                                            printSeqBasedOnAln(result, queryProfData.c_str(), res.qStartPos,
+                                                               Matcher::uncompressAlignment(res.backtrace), false, (res.qStartPos > res.qEndPos),
+                                                               (isTranslatedSearch == true && queryNucs == true), translateNucl);
+                                        } else {
+                                            printSeqBasedOnAln(result, querySeqData, res.qStartPos,
+                                                               Matcher::uncompressAlignment(res.backtrace), false, (res.qStartPos > res.qEndPos),
+                                                               (isTranslatedSearch == true && queryNucs == true), translateNucl);
+                                        }
                                         break;
                                     case Parameters::OUTFMT_TALN: {
-                                        size_t tid = tDbr->sequenceReader->getId(res.dbKey);
-                                        char *tseq = tDbr->sequenceReader->getData(tid);
-                                        printSeqBasedOnAln(result, tseq, res.dbStartPos,
-                                                           Matcher::uncompressAlignment(res.backtrace), true,
-                                                           (res.dbStartPos > res.dbEndPos),
-                                                           (isTranslatedSearch == true && targetNucs == true), translateNucl);
-
+                                        if (targetProfile) {
+                                            printSeqBasedOnAln(result, targetProfData.c_str(), res.dbStartPos,
+                                                               Matcher::uncompressAlignment(res.backtrace), true,
+                                                               (res.dbStartPos > res.dbEndPos),
+                                                               (isTranslatedSearch == true && targetNucs == true), translateNucl);
+                                        } else {
+                                            printSeqBasedOnAln(result, targetSeqData, res.dbStartPos,
+                                                               Matcher::uncompressAlignment(res.backtrace), true,
+                                                               (res.dbStartPos > res.dbEndPos),
+                                                               (isTranslatedSearch == true && targetNucs == true), translateNucl);
+                                        }
                                         break;
                                     }
                                     case Parameters::OUTFMT_MISMATCH:
