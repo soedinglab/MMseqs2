@@ -169,7 +169,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             Debug(Debug::WARNING) << "Required split count does not match index table split count. Recomputing index table!\n";
             reopenTargetDb();
         } else if (kmerThr < minKmerThr) {
-            Debug(Debug::WARNING) << "Required k-mer threshold ( " << kmerThr
+            Debug(Debug::WARNING) << "Required k-mer threshold (" << kmerThr
                                   << ") does not match index table k-mer threshold (" << minKmerThr << "). "
                                   << "Recomputing index table!\n";
             reopenTargetDb();
