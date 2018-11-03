@@ -37,8 +37,7 @@ int easylinclust(int argc, const char **argv, const Command &command) {
         }
     }
 
-    size_t hash = par.hashParameter(par.filenames, par.easysearchworkflow);
-
+    size_t hash = par.hashParameter(par.filenames, *command.params);
     std::string tmpDir = par.db3 + "/" + SSTR(hash);
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {

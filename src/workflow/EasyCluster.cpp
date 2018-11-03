@@ -38,9 +38,7 @@ int easycluster(int argc, const char **argv, const Command &command) {
             Debug(Debug::INFO) << "Created dir " << par.db3 << "\n";
         }
     }
-
-    size_t hash = par.hashParameter(par.filenames, par.easysearchworkflow);
-
+    size_t hash = par.hashParameter(par.filenames, *command.params);
     std::string tmpDir = par.db3 + "/" + SSTR(hash);
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
@@ -58,7 +56,7 @@ int easycluster(int argc, const char **argv, const Command &command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     std::string createdbParam = par.createParameterString(par.createdb);
     cmd.addVariable("CREATEDB_PAR", createdbParam.c_str());
-    std::string clusterParam = par.createParameterString(par.clusteringWorkflow, true);
+    std::string clusterParam = par.createParameterString(par.clusterworkflow, true);
     cmd.addVariable("CLUSTER_PAR", clusterParam.c_str());
     cmd.addVariable("CLUSTER_MODULE", "cluster");
     cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());

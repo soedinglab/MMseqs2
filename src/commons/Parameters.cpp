@@ -764,6 +764,7 @@ Parameters::Parameters():
     // easysearch
     easysearchworkflow = combineList(searchworkflow, convertalignments);
     easysearchworkflow = combineList(easysearchworkflow, summarizeresult);
+    easysearchworkflow = combineList(easysearchworkflow, createdb);
     easysearchworkflow.push_back(PARAM_GREEDY_BEST_HITS);
 
     // createindex workflow
@@ -778,15 +779,21 @@ Parameters::Parameters():
     linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
     linclustworkflow.push_back(PARAM_RUNNER);
 
+    // easylinclustworkflow
+    easylinclustworkflow = combineList(linclustworkflow, createdb);
+
     // clustering workflow
-    clusteringWorkflow = combineList(prefilter, align);
-    clusteringWorkflow = combineList(clusteringWorkflow, rescorediagonal);
-    clusteringWorkflow = combineList(clusteringWorkflow, clust);
-    clusteringWorkflow.push_back(PARAM_CASCADED);
-    clusteringWorkflow.push_back(PARAM_CLUSTER_STEPS);
-    clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
-    clusteringWorkflow.push_back(PARAM_RUNNER);
-    clusteringWorkflow = combineList(clusteringWorkflow, linclustworkflow);
+    clusterworkflow = combineList(prefilter, align);
+    clusterworkflow = combineList(clusterworkflow, rescorediagonal);
+    clusterworkflow = combineList(clusterworkflow, clust);
+    clusterworkflow.push_back(PARAM_CASCADED);
+    clusterworkflow.push_back(PARAM_CLUSTER_STEPS);
+    clusterworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    clusterworkflow.push_back(PARAM_RUNNER);
+    clusterworkflow = combineList(clusterworkflow, linclustworkflow);
+
+    // easyclusterworkflow
+    easyclusterworkflow = combineList(clusterworkflow, createdb);
 
     // taxonomy
     taxonomy = combineList(searchworkflow, lca);
@@ -804,7 +811,7 @@ Parameters::Parameters():
     multihitsearch = combineList(searchworkflow, besthitbyset);
 
     clusterUpdateSearch = removeParameter(searchworkflow, PARAM_MAX_SEQS);
-    clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
+    clusterUpdateClust = removeParameter(clusterworkflow, PARAM_MAX_SEQS);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
     clusterUpdate.push_back(PARAM_USESEQID);
     clusterUpdate.push_back(PARAM_RECOVER_DELETED);

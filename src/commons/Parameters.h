@@ -736,11 +736,13 @@ public:
     std::vector<MMseqsParameter> gff2ffindex;
     std::vector<MMseqsParameter> clusthash;
     std::vector<MMseqsParameter> kmermatcher;
+    std::vector<MMseqsParameter> easylinclustworkflow;
     std::vector<MMseqsParameter> linclustworkflow;
     std::vector<MMseqsParameter> easysearchworkflow;
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> mapworkflow;
-    std::vector<MMseqsParameter> clusteringWorkflow;
+    std::vector<MMseqsParameter> easyclusterworkflow;
+    std::vector<MMseqsParameter> clusterworkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;
     std::vector<MMseqsParameter> clusterUpdateClust;
     std::vector<MMseqsParameter> mergeclusters;
