@@ -5,7 +5,7 @@
 #include "FileUtil.h"
 #include "IndexBuilder.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION = "10";
+const char*  PrefilteringIndexReader::CURRENT_VERSION = "11";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
@@ -37,19 +37,38 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     return (strncmp(version, CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
 }
 
+std::string PrefilteringIndexReader::indexName(const std::string &outDB, bool hasSpacedKmer, int kmerSize) {
+    std::string result(outDB);
+    std::string spaced = (hasSpacedKmer == true) ? "s" : "";
+    result.append(".").append(spaced).append("k").append(SSTR(kmerSize));
+    return result;
+}
+
 void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader<unsigned int> *dbr,
                                               DBReader<unsigned int> *hdbr1, DBReader<unsigned int> *hdbr2,
-                                              BaseMatrix * subMat, int maxSeqLen, bool hasSpacedKmer,
+                                              BaseMatrix *subMat, int maxSeqLen, bool hasSpacedKmer,
                                               bool compBiasCorrection, int alphabetSize, int kmerSize,
                                               int maskMode, int kmerThr) {
-    std::string outIndexName(outDB);
-    std::string spaced = (hasSpacedKmer == true) ? "s" : "";
-    outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
-
-    DBWriter writer(outIndexName.c_str(), std::string(outIndexName).append(".index").c_str(), 1, DBWriter::BINARY_MODE);
+    DBWriter writer(outDB.c_str(), std::string(outDB).append(".index").c_str(), 1, DBWriter::BINARY_MODE);
     writer.open();
 
+    Debug(Debug::INFO) << "Write VERSION (" << VERSION << ")\n";
+    writer.writeData((char *) CURRENT_VERSION, strlen(CURRENT_VERSION) * sizeof(char), VERSION, 0);
+    writer.alignToPageSize();
+
+    Debug(Debug::INFO) << "Write META (" << META << ")\n";
+    const int biasCorr = compBiasCorrection ? 1 : 0;
+    const int mask = maskMode > 0;
+    const int spacedKmer = (hasSpacedKmer) ? 1 : 0;
+    const int headers1 = (hdbr1 != NULL) ? 1 : 0;
+    const int headers2 = (hdbr2 != NULL) ? 1 : 0;
     const int seqType = dbr->getDbtype();
+    int metadata[] = {maxSeqLen, kmerSize, biasCorr, alphabetSize, mask, spacedKmer, kmerThr, seqType, headers1, headers2};
+    char *metadataptr = (char *) &metadata;
+    writer.writeData(metadataptr, sizeof(metadata), META, 0);
+    writer.alignToPageSize();
+    printMeta(metadata);
+
     if (seqType != Sequence::HMM_PROFILE && seqType != Sequence::PROFILE_STATE_SEQ) {
         int alphabetSize = subMat->alphabetSize;
         subMat->alphabetSize = subMat->alphabetSize-1;
@@ -83,6 +102,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
                                (maskMode == 1 || maskMode == 2) ? &maskedLookup : NULL,
                                (maskMode == 0 || maskMode == 2) ? &unmaskedLookup : NULL,
                                *subMat, &seq, dbr, 0, dbr->getSize(), kmerThr);
+    indexTable->printStatistics(subMat->int2aa);
 
     SequenceLookup *sequenceLookup = maskedLookup;
     if (sequenceLookup == NULL) {
@@ -93,8 +113,6 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
         EXIT(EXIT_FAILURE);
     }
 
-    indexTable->printStatistics(subMat->int2aa);
-
     // save the entries
     Debug(Debug::INFO) << "Write ENTRIES (" << ENTRIES << ")\n";
     char *entries = (char *) indexTable->getEntries();
@@ -104,7 +122,6 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
 
     // save the size
     Debug(Debug::INFO) << "Write ENTRIESOFFSETS (" << ENTRIESOFFSETS << ")\n";
-
     char *offsets = (char*)indexTable->getOffsets();
     size_t offsetsSize = (indexTable->getTableSize() + 1) * sizeof(size_t);
     writer.writeData(offsets, offsetsSize, ENTRIESOFFSETS, 0);
@@ -137,36 +154,20 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
         delete unmaskedLookup;
     }
 
-    // meta data
     // ENTRIESNUM
     Debug(Debug::INFO) << "Write ENTRIESNUM (" << ENTRIESNUM << ")\n";
     uint64_t entriesNum = indexTable->getTableEntriesNum();
     char *entriesNumPtr = (char *) &entriesNum;
     writer.writeData(entriesNumPtr, 1 * sizeof(uint64_t), ENTRIESNUM, 0);
     writer.alignToPageSize();
+
     // SEQCOUNT
     Debug(Debug::INFO) << "Write SEQCOUNT (" << SEQCOUNT << ")\n";
     size_t tablesize = {indexTable->getSize()};
     char *tablesizePtr = (char *) &tablesize;
     writer.writeData(tablesizePtr, 1 * sizeof(size_t), SEQCOUNT, 0);
     writer.alignToPageSize();
-
     delete indexTable;
-
-    Debug(Debug::INFO) << "Write META (" << META << ")\n";
-    int mask = maskMode > 0;
-    int spacedKmer = (hasSpacedKmer) ? 1 : 0;
-    int headers1 = (hdbr1 != NULL) ? 1 : 0;
-    int headers2 = (hdbr1 != NULL) ? 1 : 0;
-    int metadata[] = {kmerSize, alphabetSize, mask, spacedKmer, kmerThr, seqType, headers1, headers2};
-    char *metadataptr = (char *) &metadata;
-    writer.writeData(metadataptr, sizeof(metadata), META, 0);
-    writer.alignToPageSize();
-    printMeta(metadata);
-
-    Debug(Debug::INFO) << "Write VERSION (" << VERSION << ")\n";
-    writer.writeData((char *) CURRENT_VERSION, strlen(CURRENT_VERSION) * sizeof(char), VERSION, 0);
-    writer.alignToPageSize();
 
     Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << SCOREMATRIXNAME << ")\n";
     writer.writeData(subMat->getMatrixName().c_str(), subMat->getMatrixName().length(), SCOREMATRIXNAME, 0);
@@ -358,13 +359,16 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *
 }
 
 void PrefilteringIndexReader::printMeta(int *metadata_tmp) {
-    Debug(Debug::INFO) << "KmerSize:     " << metadata_tmp[0] << "\n";
-    Debug(Debug::INFO) << "AlphabetSize: " << metadata_tmp[1] << "\n";
-    Debug(Debug::INFO) << "Masked:       " << metadata_tmp[2] << "\n";
-    Debug(Debug::INFO) << "Spaced:       " << metadata_tmp[3] << "\n";
-    Debug(Debug::INFO) << "KmerScore:    " << metadata_tmp[4] << "\n";
-    Debug(Debug::INFO) << "SequenceType: " << metadata_tmp[5] << "\n";
-    Debug(Debug::INFO) << "Headers:      " << metadata_tmp[6] << "\n";
+    Debug(Debug::INFO) << "MaxSeqLength: " << metadata_tmp[0] << "\n";
+    Debug(Debug::INFO) << "KmerSize:     " << metadata_tmp[1] << "\n";
+    Debug(Debug::INFO) << "CompBiasCorr: " << metadata_tmp[2] << "\n";
+    Debug(Debug::INFO) << "AlphabetSize: " << metadata_tmp[3] << "\n";
+    Debug(Debug::INFO) << "Masked:       " << metadata_tmp[4] << "\n";
+    Debug(Debug::INFO) << "Spaced:       " << metadata_tmp[5] << "\n";
+    Debug(Debug::INFO) << "KmerScore:    " << metadata_tmp[6] << "\n";
+    Debug(Debug::INFO) << "SequenceType: " << metadata_tmp[7] << "\n";
+    Debug(Debug::INFO) << "Headers1:     " << metadata_tmp[8] << "\n";
+    Debug(Debug::INFO) << "Headers2:     " << metadata_tmp[9] << "\n";
 }
 
 void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
@@ -385,13 +389,16 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
     int *meta = (int *)dbr->getDataByDBKey(META);
 
     PrefilteringIndexData data;
-    data.kmerSize = meta[0];
-    data.alphabetSize = meta[1];
-    data.mask = meta[2];
-    data.spacedKmer = meta[3];
-    data.kmerThr = meta[4];
-    data.seqType = meta[5];
-    data.headers = meta[6];
+    data.maxSeqLength = meta[0];
+    data.kmerSize = meta[1];
+    data.compBiasCorr = meta[2];
+    data.alphabetSize = meta[3];
+    data.mask = meta[4];
+    data.spacedKmer = meta[5];
+    data.kmerThr = meta[6];
+    data.seqType = meta[7];
+    data.headers1 = meta[8];
+    data.headers2 = meta[9];
 
     return data;
 }

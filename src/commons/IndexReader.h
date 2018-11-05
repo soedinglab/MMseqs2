@@ -25,10 +25,12 @@ public:
                 }
 
                 if (mode & NEED_HEADERS) {
-                    if (data.headers == 1) {
-                        const int indexMode = mode & NEED_ALT_HEADERS ? PrefilteringIndexReader::HDR1INDEX : PrefilteringIndexReader::HDR2INDEX;
-                        const int dataMode  = mode & NEED_ALT_HEADERS ? PrefilteringIndexReader::HDR1DATA  : PrefilteringIndexReader::HDR2DATA;
-                        headerReader = PrefilteringIndexReader::openNewHeaderReader(index, indexMode, dataMode, preload);
+                    if (data.headers2 == 1 && mode & NEED_ALT_HEADERS) {
+                        headerReader = PrefilteringIndexReader::openNewHeaderReader(index,
+                                PrefilteringIndexReader::HDR1INDEX, PrefilteringIndexReader::HDR1DATA, preload);
+                    } else if (data.headers1 == 1) {
+                        headerReader = PrefilteringIndexReader::openNewHeaderReader(index,
+                                PrefilteringIndexReader::HDR2INDEX, PrefilteringIndexReader::HDR2DATA, preload);
                     } else {
                         Debug(Debug::INFO) << "Index does not contain headers. Using normal database instead.\n";
                     }

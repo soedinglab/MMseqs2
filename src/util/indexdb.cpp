@@ -12,6 +12,33 @@ void setCreateIndexDefaults(Parameters *p) {
     p->sensitivity = 5.7;
 }
 
+bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, const int dbtype) {
+    PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
+    if (meta.compBiasCorr != (par.compBiasCorrection == 1))
+        return false;
+    if (meta.maxSeqLength != static_cast<int>(par.maxSeqLen))
+        return false;
+    if (meta.seqType != dbtype)
+        return false;
+    if (meta.alphabetSize != par.alphabetSize)
+        return false;
+    if (meta.kmerSize != par.kmerSize)
+        return false;
+    if (meta.mask != (par.maskMode > 0))
+        return false;
+    if (meta.kmerThr != par.kmerScore)
+        return false;
+    if (meta.spacedKmer != par.spacedKmer)
+        return false;
+    if (par.scoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
+        return false;
+    if (meta.headers1 != par.includeHeader)
+        return false;
+    if (meta.headers2 == 1 && par.includeHeader && (par.db1 != par.db2))
+        return true;
+    return true;
+}
+
 int indexdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setCreateIndexDefaults(&par);
@@ -29,7 +56,6 @@ int indexdb(int argc, const char **argv, const Command &command) {
     dbr.open(DBReader<unsigned int>::NOSORT);
     BaseMatrix *subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
 
-    int kmerSize = par.kmerSize;
     int split = 1;
     int splitMode = Parameters::TARGET_DB_SPLIT;
 
@@ -39,7 +65,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
-    Prefiltering::setupSplit(dbr, subMat->alphabetSize, dbr.getDbtype(), par.threads, false, par.maxResListLen, memoryLimit, &kmerSize, &split, &splitMode);
+    Prefiltering::setupSplit(dbr, subMat->alphabetSize, dbr.getDbtype(), par.threads, false, par.maxResListLen, memoryLimit, &par.kmerSize, &split, &splitMode);
 
     bool kScoreSet = false;
     for (size_t i = 0; i < par.indexdb.size(); i++) {
@@ -59,7 +85,21 @@ int indexdb(int argc, const char **argv, const Command &command) {
     }
 
     // query seq type is actually unknown here, but if we pass HMM_PROFILE then its +20 k-score
-    const int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, par.kmerScore, kmerSize);
+    par.kmerScore = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, par.kmerScore, par.kmerSize);
+
+    std::string indexDB = PrefilteringIndexReader::indexName(par.db2, par.spacedKmer, par.kmerSize);
+    if (par.checkCompatible) {
+        Debug(Debug::INFO) << "Check index " << indexDB << "\n";
+        DBReader<unsigned int> index(indexDB.c_str(), (indexDB + ".index").c_str());
+        index.open(DBReader<unsigned int>::NOSORT);
+        if (PrefilteringIndexReader::checkIfIndexFile(&index) && isIndexCompatible(index, par, dbr.getDbtype())) {
+            Debug(Debug::INFO) << "Index is already up to date and compatible. Force recreation with --check-compatibility 0 parameter.\n";
+            return EXIT_SUCCESS;
+        } else {
+            Debug(Debug::WARNING) << "Index is incompatbile and will be recreated.\n";
+        }
+    }
+    EXIT(EXIT_SUCCESS);
 
     DBReader<unsigned int> *hdbr1 = NULL;
     DBReader<unsigned int> *hdbr2 = NULL;
@@ -72,9 +112,9 @@ int indexdb(int argc, const char **argv, const Command &command) {
         }
     }
 
-    PrefilteringIndexReader::createIndexFile(par.db2, &dbr, hdbr1, hdbr2, subMat, par.maxSeqLen,
+    PrefilteringIndexReader::createIndexFile(indexDB, &dbr, hdbr1, hdbr2, subMat, par.maxSeqLen,
                                              par.spacedKmer, par.compBiasCorrection, subMat->alphabetSize,
-                                             kmerSize, par.maskMode, kmerThr);
+                                             par.kmerSize, par.maskMode, par.kmerScore);
 
     if (hdbr2 != NULL) {
         hdbr2->close();

@@ -356,6 +356,7 @@ public:
 
     // indexdb
     bool includeHeader;
+    bool checkCompatible;
 
     // createdb
     int identifierOffset;
@@ -619,6 +620,7 @@ public:
 
     // indexdb
     PARAMETER(PARAM_INCLUDE_HEADER)
+    PARAMETER(PARAM_CHECK_COMPATIBLE)
 
     // createdb
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs

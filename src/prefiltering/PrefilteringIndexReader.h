@@ -7,13 +7,16 @@
 #include <string>
 
 struct PrefilteringIndexData {
+    int maxSeqLength;
     int kmerSize;
+    int compBiasCorr;
     int alphabetSize;
     int mask;
     int spacedKmer;
     int kmerThr;
     int seqType;
-    int headers;
+    int headers1;
+    int headers2;
 };
 
 
@@ -42,6 +45,7 @@ public:
     static unsigned int GENERATOR;
 
     static bool checkIfIndexFile(DBReader<unsigned int> *reader);
+    static std::string indexName(const std::string &outDB, bool hasSpacedKmer, int kmerSize);
 
     static void createIndexFile(const std::string &outDb, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr1,
                                 DBReader<unsigned int> *hdbr2, BaseMatrix *subMat, int maxSeqLen, bool spacedKmer, bool compBiasCorrection,
