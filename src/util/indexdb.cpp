@@ -1,5 +1,6 @@
 #include "DBReader.h"
 #include "Util.h"
+#include "FileUtil.h"
 #include "PrefilteringIndexReader.h"
 #include "Prefiltering.h"
 #include "Parameters.h"
@@ -90,7 +91,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     par.kmerScore = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, par.kmerScore, par.kmerSize);
 
     std::string indexDB = PrefilteringIndexReader::indexName(par.db2, par.spacedKmer, par.kmerSize);
-    if (par.checkCompatible) {
+    if (par.checkCompatible && FileUtil::fileExists(indexDB.c_str())) {
         Debug(Debug::INFO) << "Check index " << indexDB << "\n";
         DBReader<unsigned int> index(indexDB.c_str(), (indexDB + ".index").c_str());
         index.open(DBReader<unsigned int>::NOSORT);
@@ -101,7 +102,6 @@ int indexdb(int argc, const char **argv, const Command &command) {
             Debug(Debug::WARNING) << "Index is incompatbile and will be recreated.\n";
         }
     }
-    EXIT(EXIT_SUCCESS);
 
     DBReader<unsigned int> *hdbr1 = NULL;
     DBReader<unsigned int> *hdbr2 = NULL;

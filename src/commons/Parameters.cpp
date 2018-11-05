@@ -1338,7 +1338,7 @@ void Parameters::setDefaults() {
 
     // indexdb
     includeHeader = false;
-    checkCompatible = true;
+    checkCompatible = false;
 
     // createdb
     splitSeqByLen = true;
