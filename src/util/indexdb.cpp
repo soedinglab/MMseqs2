@@ -34,6 +34,8 @@ bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, con
         return false;
     if (meta.headers1 != par.includeHeader)
         return false;
+    if (par.spacedKmerPattern != PrefilteringIndexReader::getSpacedPattern(&index))
+        return false;
     if (meta.headers2 == 1 && par.includeHeader && (par.db1 != par.db2))
         return true;
     return true;
@@ -113,8 +115,8 @@ int indexdb(int argc, const char **argv, const Command &command) {
     }
 
     PrefilteringIndexReader::createIndexFile(indexDB, &dbr, hdbr1, hdbr2, subMat, par.maxSeqLen,
-                                             par.spacedKmer, par.compBiasCorrection, subMat->alphabetSize,
-                                             par.kmerSize, par.maskMode, par.kmerScore);
+                                             par.spacedKmer, par.spacedKmerPattern, par.compBiasCorrection,
+                                             subMat->alphabetSize, par.kmerSize, par.maskMode, par.kmerScore);
 
     if (hdbr2 != NULL) {
         hdbr2->close();

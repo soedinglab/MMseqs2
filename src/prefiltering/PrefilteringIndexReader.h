@@ -43,13 +43,15 @@ public:
     static unsigned int HDR2INDEX;
     static unsigned int HDR2DATA;
     static unsigned int GENERATOR;
+    static unsigned int SPACEDPATTERN;
 
     static bool checkIfIndexFile(DBReader<unsigned int> *reader);
     static std::string indexName(const std::string &outDB, bool hasSpacedKmer, int kmerSize);
 
     static void createIndexFile(const std::string &outDb, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr1,
-                                DBReader<unsigned int> *hdbr2, BaseMatrix *subMat, int maxSeqLen, bool spacedKmer, bool compBiasCorrection,
-                                int alphabetSize, int kmerSize, int maskMode, int kmerThr);
+                                DBReader<unsigned int> *hdbr2, BaseMatrix *subMat, int maxSeqLen,
+                                bool spacedKmer, const std::string &spacedKmerPattern,
+                                bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode, int kmerThr);
 
     static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int headerIdx, unsigned int dataIdx, bool touch);
 
@@ -66,6 +68,8 @@ public:
     static PrefilteringIndexData getMetadata(DBReader<unsigned int> *dbr);
 
     static std::string getSubstitutionMatrixName(DBReader<unsigned int> *dbr);
+
+    static std::string getSpacedPattern(DBReader<unsigned int> *dbr);
 
     static ScoreMatrix *get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch);
 

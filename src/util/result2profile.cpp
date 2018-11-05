@@ -32,7 +32,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     DBReader<unsigned int> *tidxdbr = NULL;
     SequenceLookup *tSeqLookup = NULL;
     bool templateDBIsIndex = false;
-    std::string scoringMatrixFile = par.scoringMatrixFile;
 
     int targetSeqType = -1;
     std::string indexDB = PrefilteringIndexReader::searchForIndex(par.db2);
@@ -53,8 +52,10 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 PrefilteringIndexReader::printSummary(tidxdbr);
                 PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
                 targetSeqType = meta.seqType;
+                par.maxSeqLen = meta.maxSeqLength;
+                par.compBiasCorrection = meta.compBiasCorr;
+                par.scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
                 tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, false, touch);
-                scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
         }
 
@@ -121,7 +122,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
-    SubstitutionMatrix subMat(scoringMatrixFile.c_str(), 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
     ProbabilityMatrix probMatrix(subMat);
 
     Debug(Debug::INFO) << "Start computing profiles.\n";

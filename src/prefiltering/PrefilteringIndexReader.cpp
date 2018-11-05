@@ -5,7 +5,7 @@
 #include "FileUtil.h"
 #include "IndexBuilder.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION = "11";
+const char*  PrefilteringIndexReader::CURRENT_VERSION = "12";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
@@ -26,6 +26,7 @@ unsigned int PrefilteringIndexReader::HDR1DATA = 16;
 unsigned int PrefilteringIndexReader::HDR2INDEX = 17;
 unsigned int PrefilteringIndexReader::HDR2DATA = 18;
 unsigned int PrefilteringIndexReader::GENERATOR = 19;
+unsigned int PrefilteringIndexReader::SPACEDPATTERN = 20;
 
 extern const char* version;
 
@@ -46,7 +47,8 @@ std::string PrefilteringIndexReader::indexName(const std::string &outDB, bool ha
 
 void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader<unsigned int> *dbr,
                                               DBReader<unsigned int> *hdbr1, DBReader<unsigned int> *hdbr2,
-                                              BaseMatrix *subMat, int maxSeqLen, bool hasSpacedKmer,
+                                              BaseMatrix *subMat, int maxSeqLen,
+                                              bool hasSpacedKmer, const std::string &spacedKmerPattern,
                                               bool compBiasCorrection, int alphabetSize, int kmerSize,
                                               int maskMode, int kmerThr) {
     DBWriter writer(outDB.c_str(), std::string(outDB).append(".index").c_str(), 1, DBWriter::BINARY_MODE);
@@ -90,7 +92,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
         ScoreMatrix::cleanup(s2);
     }
 
-    Sequence seq(maxSeqLen, seqType, subMat, kmerSize, hasSpacedKmer, compBiasCorrection);
+    Sequence seq(maxSeqLen, seqType, subMat, kmerSize, hasSpacedKmer, compBiasCorrection, true, spacedKmerPattern);
     // remove x (not needed in index)
     int adjustAlphabetSize = (seqType == Sequence::NUCLEOTIDES || seqType == Sequence::AMINO_ACIDS)
                              ? alphabetSize -1: alphabetSize;
@@ -172,6 +174,12 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
     Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << SCOREMATRIXNAME << ")\n";
     writer.writeData(subMat->getMatrixName().c_str(), subMat->getMatrixName().length(), SCOREMATRIXNAME, 0);
     writer.alignToPageSize();
+
+    if (spacedKmerPattern != "") {
+        Debug(Debug::INFO) << "Write SPACEDPATTERN (" << SPACEDPATTERN << ")\n";
+        writer.writeData(spacedKmerPattern.c_str(), spacedKmerPattern.length(), SPACEDPATTERN, 0);
+        writer.alignToPageSize();
+    }
 
     Debug(Debug::INFO) << "Write DBRINDEX (" << DBRINDEX << ")\n";
     char* data = DBReader<unsigned int>::serialize(*dbr);
@@ -406,7 +414,15 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
 std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<unsigned int> *dbr) {
     return std::string(dbr->getDataByDBKey(SCOREMATRIXNAME));
 }
-//
+
+std::string PrefilteringIndexReader::getSpacedPattern(DBReader<unsigned int> *dbr) {
+    size_t id = dbr->getId(SPACEDPATTERN);
+    if (id == UINT_MAX) {
+        return "";
+    }
+    return std::string(dbr->getData(id));
+}
+
 ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch) {
     PrefilteringIndexData meta = getMetadata(dbr);
     size_t id = dbr->getId(SCOREMATRIX2MER);

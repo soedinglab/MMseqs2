@@ -80,10 +80,10 @@ private:
     const std::string outDB;
     const std::string outDBIndex;
 
-    const size_t maxSeqLen;
+    size_t maxSeqLen;
     int querySeqType;
     int targetSeqType;
-    const bool compBiasCorrection;
+    bool compBiasCorrection;
 
     int altAlignment;
 

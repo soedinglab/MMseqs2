@@ -86,6 +86,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             targetSeqType = data.seqType;
             spacedKmer   = (data.spacedKmer == 1) ? true : false;
             indexMasked = data.mask;
+            maxSeqLen = data.maxSeqLength;
+            aaBiasCorrection = data.compBiasCorr;
 
             if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::HMM_PROFILE) {
                 Debug(Debug::ERROR) << "Query-profiles cannot be searched against a target-profile database!\n";
@@ -94,6 +96,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 
             splits = 1;
             spacedKmer = data.spacedKmer != 0;
+            spacedKmerPattern = PrefilteringIndexReader::getSpacedPattern(tidxdbr);
             minKmerThr = data.kmerThr;
             scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
         } else {
