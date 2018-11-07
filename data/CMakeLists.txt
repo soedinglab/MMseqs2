@@ -12,6 +12,7 @@ set(COMPILED_RESOURCES
         update_clustering.sh
         searchtargetprofile.sh
         createindex.sh
+        createtaxdb.sh
         translated_search.sh
         taxonomy.sh
         multihitdb.sh
