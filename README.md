@@ -1,9 +1,7 @@
 # MMseqs2: ultra fast and sensitive protein search and clustering suite
 MMseqs2 (Many-against-Many sequence searching) is a software suite to search and cluster huge proteins/nucleotide sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux, MacOS, and (as beta version, via cygwin) Windows. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 can run 10000 times faster than BLAST. At 100 times its speed it achieves almost the same sensitivity. It can perform profile searches with the same sensitivity as PSI-BLAST at over 400 times its speed.
 
-The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!)
-
-Please cite: 
+##  Publications
 
 [Steinegger M and Soeding J. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi: 10.1038/nbt.3988 (2017)](https://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3988.html).
 
@@ -20,13 +18,11 @@ Please cite:
 ## News
 Keep posted about MMseqs2/Linclust updates by following Martin on [Twitter](https://twitter.com/thesteinegger).
 
-08/10/2018 ECCB tutorial of MMseqs2 is available [here](https://github.com/soedinglab/metaG-ECCB18-partII).
+08/10/2018 ECCB18 tutorial of MMseqs2 is available [here](https://github.com/soedinglab/metaG-ECCB18-partII).
 
 07/07/2018 Linclust has just been published at [Nature Communications](https://www.nature.com/articles/s41467-018-04964-5).
 
 17/10/2017 MMseqs2 has just been published at [Nature Biotechnology](https://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3988.html).
-
-19/12/2016 MMseqs2 has a mascot now. "Little Marv" was lovingly crafted by Yuna Kwon. Thank you so much.
 
 ## Installation
 MMseqs2 can be used by compiling from source, downloading a statically compiled version, using [Homebrew](https://github.com/Homebrew/brew), [conda](https://github.com/conda/conda) or [Docker](https://github.com/moby/moby). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux or `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
@@ -37,9 +33,9 @@ MMseqs2 can be used by compiling from source, downloading a statically compiled 
      # latest versions
      brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs2.rb --HEAD
      # static build sse4.1
-     wget https://mmseqs.com/latest/mmseqs-static_sse41.tar.gz; tar -xvfz mmseqs-static_sse41.tar.gz; export PATH=$(pwd)/mmseqs2/bin/:$PATH
+     wget https://mmseqs.com/latest/mmseqs-static_sse41.tar.gz; tar xvfz mmseqs-static_sse41.tar.gz; export PATH=$(pwd)/mmseqs2/bin/:$PATH
      # static build AVX2
-     wget https://mmseqs.com/latest/mmseqs-static_avx2.tar.gz; tar -xvfz mmseqs-static_avx2.tar.gz; export PATH=$(pwd)/mmseqs2/bin/:$PATH
+     wget https://mmseqs.com/latest/mmseqs-static_avx2.tar.gz; tar xvfz mmseqs-static_avx2.tar.gz; export PATH=$(pwd)/mmseqs2/bin/:$PATH
 
 The AVX2 version is faster than SSE4.1, check if AVX2 is supported by executing `cat /proc/cpuinfo | grep avx2` on Linux and `sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2` on MacOS).
 We also provide static binaries for MacOS and Windows at [mmseqs.com/latest](https://mmseqs.com/latest).
@@ -125,9 +121,10 @@ Use the option `--format-output "query,target,qaln,taln"` to return query and ta
 MMseqs2 provides many additional search modes:
  * Iterative sequences-profile searches (like PSI-BLAST) with the `--num-iterations` parameter
  * [Translated searches](https://github.com/soedinglab/MMseqs2/wiki#translated-sequence-searching) of nucleotides against proteins or proteins against nucleotides
- * [Iterative increasing sensitivity searches](https://github.com/soedinglab/MMseqs2/wiki#how-to-find-the-best-hit-the-fastest-way) to find only the best hits.
+ * [Iterative increasing sensitivity searches](https://github.com/soedinglab/MMseqs2/wiki#how-to-find-the-best-hit-the-fastest-way) to find only the best hits faster
+ * [Taxonomic assignment](https://github.com/soedinglab/MMseqs2/wiki#taxonomy-assignment-using-mmseqs-taxonomy) using 2bLCA or LCA
  * Fast ungapped alignment searches to find [very similar sequence matches](https://github.com/soedinglab/MMseqs2/wiki#mapping-very-similar-sequences-using-mmseqs-map)
- * Searches against [profile databases such as the PFAM](https://github.com/soedinglab/MMseqs2/wiki#how-to-create-a-target-profile-database-from-pfam)
+ * Very fast and sensitive Searches against [profile databases such as the PFAM](https://github.com/soedinglab/MMseqs2/wiki#how-to-create-a-target-profile-database-from-pfam)
 
 Many modes can also be combined. You can, for example, do a translated nucleotide against protein profile search.
 
@@ -160,7 +157,7 @@ To extract the representative sequences from the clustering result call:
 Read more about the format [here](https://github.com/soedinglab/mmseqs2/wiki#clustering-format).
 
 ### Documentation 
-More documentation can be found [here](https://github.com/soedinglab/MMseqs2/wiki) and a tutorial of MMseqs2 is aviable [here](https://github.com/soedinglab/metaG-ECCB18-partII).
+The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). We provide a tutorial of MMseqs2 [here](https://github.com/soedinglab/metaG-ECCB18-partII).
 
 ### Memory Requirements
 When using MMseqs2 the available memory limits the size of database you will be able to compute in one go.
