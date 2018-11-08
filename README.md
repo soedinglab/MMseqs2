@@ -9,6 +9,7 @@ Please cite:
 
 [Steinegger M and Soeding J. Clustering huge protein sequence sets in linear time. Nature Communications, doi: 10.1038/s41467-018-04964-5 (2018)](https://www.nature.com/articles/s41467-018-04964-5).
 
+[![BioConda Install](https://img.shields.io/conda/dn/bioconda/mmseqs2.svg?style=flag&label=BioConda%20install)](https://anaconda.org/bioconda/mmseqs2)
 ![alt tag](https://codeship.com/projects/58db4570-5f19-0134-0f23-2e28d2b4319e/status?branch=master)
 ![alt tag](https://ci.appveyor.com/api/projects/status/lq8nxeb0j8v38d1a?svg=true)
 ![alt tag](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)
@@ -19,6 +20,8 @@ Please cite:
 ## News
 Keep posted about MMseqs2/Linclust updates by following Martin on [Twitter](https://twitter.com/thesteinegger).
 
+08/10/2018 ECCB tutorial of MMseqs2 is available [here](https://github.com/soedinglab/metaG-ECCB18-partII).
+
 07/07/2018 Linclust has just been published at [Nature Communications](https://www.nature.com/articles/s41467-018-04964-5).
 
 17/10/2017 MMseqs2 has just been published at [Nature Biotechnology](https://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3988.html).
@@ -26,8 +29,29 @@ Keep posted about MMseqs2/Linclust updates by following Martin on [Twitter](http
 19/12/2016 MMseqs2 has a mascot now. "Little Marv" was lovingly crafted by Yuna Kwon. Thank you so much.
 
 ## Installation
-MMseqs2 can be used by compiling from source, downloading a statically compiled version, using [Homebrew](https://github.com/Homebrew/brew) or [Docker](https://github.com/moby/moby). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux or `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
+MMseqs2 can be used by compiling from source, downloading a statically compiled version, using [Homebrew](https://github.com/Homebrew/brew), [conda](https://github.com/conda/conda) or [Docker](https://github.com/moby/moby). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux or `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
+     
+     brew install mmseqs2
+     conda install -c biocore mmseqs2 
+     docker pull soedinglab/mmseqs2
+     # latest versions
+     brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs2.rb --HEAD
+     # static build sse4.1
+     wget https://mmseqs.com/latest/mmseqs-static_sse41.tar.gz; tar -xvfz mmseqs-static_sse41.tar.gz; export PATH=$(pwd)/mmseqs2/bin/:$PATH
+     # static build AVX2
+     wget https://mmseqs.com/latest/mmseqs-static_avx2.tar.gz; tar -xvfz mmseqs-static_avx2.tar.gz; export PATH=$(pwd)/mmseqs2/bin/:$PATH
 
+The AVX2 version faster than SSE4.1, check if AVX2 is supported by executing `cat /proc/cpuinfo | grep avx2` on Linux and `sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2` on MacOS).
+We also provide static binaries for MacOS and Windows at [mmseqs.com/latest](https://mmseqs.com/latest).
+
+MMseqs2 comes with a bash command and parameter auto completion, which can be activated by adding the following lines to your $HOME/.bash_profile:
+
+<pre>
+        if [ -f /<b>Path to MMseqs2</b>/util/bash-completion.sh ]; then
+            source /<b>Path to MMseqs2</b>/util/bash-completion.sh
+        fi
+</pre>
+         
 ### Compile from source
 Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which should improve its performance. To compile MMseqs2 `git`, `g++` (4.6 or higher) and `cmake` (3.0 or higher) are needed. Afterwards, the MMseqs2 binary will be located in the `build/bin/` directory.
 
@@ -44,53 +68,25 @@ Compiling MMseqs2 from source has the advantage that it will be optimized to the
 
         CXX="$(brew --prefix)/bin/g++-8" cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=. ..
                 
-### Install static Linux version
-The following command will download the lastest MMseqs2 Linux version, extract it and set the `PATH` variable.
-
-If your computer supports AVX2 use this (faster than SSE4.1, check by executing `cat /proc/cpuinfo | grep avx2` on Linux and `sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2` on MacOS):
-
-        wget https://mmseqs.com/latest/mmseqs-static_avx2.tar.gz 
-        tar xvzf mmseqs-static_avx2.tar.gz
-        export PATH=$(pwd)/mmseqs2/bin/:$PATH
         
-If your computer supports SSE4.1 use:
-
-        wget https://mmseqs.com/latest/mmseqs-static_sse41.tar.gz 
-        tar xvzf mmseqs-static_sse41.tar.gz
-        export PATH=$(pwd)/mmseqs2/bin/:$PATH
-
-MMseqs2 comes with a bash command and parameter auto completion, which can be activated by adding the following lines to your $HOME/.bash_profile:
-
-<pre>
-        if [ -f /<b>Path to MMseqs2</b>/util/bash-completion.sh ]; then
-            source /<b>Path to MMseqs2</b>/util/bash-completion.sh
-        fi
-</pre>
-
-We also provide static binaries for MacOS and Windows at [mmseqs.com/latest](https://mmseqs.com/latest).
-
-### Install with Homebrew
-You can install the latest stable MMseqs2 version for MacOS through [Homebrew](https://github.com/Homebrew/brew) or [Linuxbrew](https://github.com/Linuxbrew/brew) by executing the following:
-
-        brew install mmseqs2
-
-Or the latest development version with:
-
-        brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs2.rb --HEAD
-
-This will also automatically install the bash completion (you might have to execute `brew install bash-completion` first).
-
-### Use the Docker image
-You can either pull the official docker image by running:
-
-        docker pull soedinglab/mmseqs2
-
-Or build the docker image from the git repository by executing:
+## Easy workflows 
+We provide easy workflows to search and cluster data. The `easy-search` takes fasta/fastq file as input and search them against a targetDB.
         
-        git clone https://github.com/soedinglab/MMseqs2.git
-        cd MMseqs2
-        docker build -t mmseqs2 .
-
+        mmseqs createdb examples/DB.fasta targetDB
+        mmseqs easy-search examples/QUERY.fasta targetDB alnRes tmp 
+        
+MMseqs2 has two ways of clustering `easy-cluster` and `easy-linclust`. 
+`easy-cluster` in default is a cascaded clustering algorithm and can be called like this: 
+        
+        mmseqs easy-cluster examples/DB.fasta clusterRes tmp         
+        
+`easy-linclust` is a clustering algorithm which scales linear with input size. Recommended for huge data.
+                
+        mmseqs easy-linclust examples/DB.fasta clusterRes tmp     
+        
+The previous easy workflows are a shorthand to deal directly with FASTA files as input and output. MMseqs2 provides many modules to transform, filter and search.
+However, these modules do not use the FASTA format internally. So we recommend to use the internal modules instead of the easy workflows.
+       
 ## How to search
 You can use the query database "QUERY.fasta" and target database "DB.fasta" in the examples folder to test the search workflow. First, you need to convert the FASTA files into the MMseqs2 database format.
 
@@ -162,6 +158,9 @@ To extract the representative sequences from the clustering result call:
         mmseqs result2flat DB DB DB_clu_rep DB_clu_rep.fasta --use-fasta-header
 
 Read more about the format [here](https://github.com/soedinglab/mmseqs2/wiki#clustering-format).
+
+### Documentation 
+More documentation can be found [here](https://github.com/soedinglab/MMseqs2/wiki) and a tutorial of MMseqs2 is aviable [here](https://github.com/soedinglab/metaG-ECCB18-partII).
 
 ### Memory Requirements
 When using MMseqs2 the available memory limits the size of database you will be able to compute in one go.
