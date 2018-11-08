@@ -1,5 +1,5 @@
 # MMseqs2: ultra fast and sensitive protein search and clustering suite
-MMseqs2 (Many-against-Many sequence searching) is a software suite to search and cluster huge protein sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux, MacOS, and (as beta version, via cygwin) Windows. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 can run 10000 times faster than BLAST. At 100 times its speed it achieves almost the same sensitivity. It can perform profile searches with the same sensitivity as PSI-BLAST at over 400 times its speed.
+MMseqs2 (Many-against-Many sequence searching) is a software suite to search and cluster huge proteins/nucleotide sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux, MacOS, and (as beta version, via cygwin) Windows. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 can run 10000 times faster than BLAST. At 100 times its speed it achieves almost the same sensitivity. It can perform profile searches with the same sensitivity as PSI-BLAST at over 400 times its speed.
 
 The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!)
 
@@ -41,7 +41,7 @@ MMseqs2 can be used by compiling from source, downloading a statically compiled 
      # static build AVX2
      wget https://mmseqs.com/latest/mmseqs-static_avx2.tar.gz; tar -xvfz mmseqs-static_avx2.tar.gz; export PATH=$(pwd)/mmseqs2/bin/:$PATH
 
-The AVX2 version faster than SSE4.1, check if AVX2 is supported by executing `cat /proc/cpuinfo | grep avx2` on Linux and `sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2` on MacOS).
+The AVX2 version is faster than SSE4.1, check if AVX2 is supported by executing `cat /proc/cpuinfo | grep avx2` on Linux and `sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2` on MacOS).
 We also provide static binaries for MacOS and Windows at [mmseqs.com/latest](https://mmseqs.com/latest).
 
 MMseqs2 comes with a bash command and parameter auto completion, which can be activated by adding the following lines to your $HOME/.bash_profile:
@@ -70,22 +70,22 @@ Compiling MMseqs2 from source has the advantage that it will be optimized to the
                 
         
 ## Easy workflows 
-We provide easy workflows to search and cluster data. The `easy-search` takes fasta/fastq file as input and search them against a targetDB.
+We provide easy workflows to search and cluster. The `easy-search` searches a fasta/fastq input against a targetDB.
         
         mmseqs createdb examples/DB.fasta targetDB
         mmseqs easy-search examples/QUERY.fasta targetDB alnRes tmp 
         
 MMseqs2 has two ways of clustering `easy-cluster` and `easy-linclust`. 
-`easy-cluster` in default is a cascaded clustering algorithm and can be called like this: 
+
+`easy-cluster` in default clusters an fasta/fastq input using an cascaded clustering algorithm.
         
         mmseqs easy-cluster examples/DB.fasta clusterRes tmp         
         
-`easy-linclust` is a clustering algorithm which scales linear with input size. Recommended for huge data.
+`easy-linclust` clusters an fasta/fastq input. The runtime scales linear with input size. Recommended for huge data.
                 
         mmseqs easy-linclust examples/DB.fasta clusterRes tmp     
         
-The previous easy workflows are a shorthand to deal directly with FASTA files as input and output. MMseqs2 provides many modules to transform, filter and search.
-However, these modules do not use the FASTA format internally. So we recommend to use the internal modules instead of the easy workflows.
+The previous easy workflows are a shorthand to deal directly with FASTA files as input and output. MMseqs2 provides many modules to transform, filter, execute external programs and search. However, these modules do not use the FASTA format internally. So we recommend to use the internal modules instead of the easy workflows.
        
 ## How to search
 You can use the query database "QUERY.fasta" and target database "DB.fasta" in the examples folder to test the search workflow. First, you need to convert the FASTA files into the MMseqs2 database format.
