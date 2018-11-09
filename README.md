@@ -89,30 +89,28 @@ You can use the query database "QUERY.fasta" and target database "DB.fasta" in t
         mmseqs createdb examples/QUERY.fasta queryDB
         mmseqs createdb examples/DB.fasta targetDB
         
-If the target database will be used several times, we recommend to precompute an index of `targetDB` as this saves overhead computations. The index should be created on a computer that has the at least the same amount of memory as the computer that performs the search.
-
-Transfer of large database files via NFS quickly becomes time-limiting for MMseqs2. Therefore, ideally the database and database index file should be stored on a fast local drive.
+If the target database will be used several times, we recommend to precompute an index of `targetDB` as this saves overhead computations. The index should be created on a computer that has the at least the same amount of memory as the computer that performs the search. 
 
         mmseqs createindex targetDB tmp
 
-MMseqs2 will create, if it does not exist already, a temporary directory `tmp` in which intermediate results are stored. You can also specify a different path, for example on a local drive to reduce load on a shared filesystem or to provide a fast local drive.
-
-:exclamation: In MPI mode all databases and temporary directory need to be accessible by all nodes.
-
-The `mmseqs search` searches the `queryDB` against the `targetDB`. The sensitivity can be adjusted with `-s` parameter and should be adapted based on your use case (see [setting sensitivity -s parameter](https://github.com/soedinglab/mmseqs2/wiki#set-sensitivity--s-parameter)). If you require the exact alignment information in later steps add the option `-a`, without this parameter MMseqs2 will automatically decide if the exact alignment boundaries need to be saved to disk.
-
-Please ensure that, in case of large input databases, the `tmp` directory provides enough free space.
-Our user guide provides or information about [disk space requirements](https://github.com/soedinglab/mmseqs2/wiki#prefiltering-module).
+MMseqs2 stores intermediate results in `tmp`. Using a fast local drive can reduce load on a shared filesystem and increase speed.
 
 To run the search execute:
 
         mmseqs search queryDB targetDB resultDB tmp
 
+The sensitivity of the `search` can be adjusted with `-s` parameter and should be adapted based on your use case (see [setting sensitivity -s parameter](https://github.com/soedinglab/mmseqs2/wiki#set-sensitivity--s-parameter)). 
+
+If you require the exact alignment information (Sequence identity, alignment string, ...) in later steps add the option `-a`, without this parameter MMseqs2 will automatically decide if the exact alignment criteria to optimize computational time.
+
+Please ensure that, in case of large input databases, the `tmp` directory provides enough free space.
+Our user guide provides or information about [disk space requirements](https://github.com/soedinglab/mmseqs2/wiki#prefiltering-module).
+
 Then convert the result database into a BLAST-tab formatted database (format: qId, tId, seqIdentity, alnLen, mismatchCnt, gapOpenCnt, qStart, qEnd, tStart, tEnd, eVal, bitScore).
 
         mmseqs convertalis queryDB targetDB resultDB resultDB.m8
 
-Use the option `--format-output "query,target,qaln,taln"` to return query and target accession and the pairwise alignments in tab separated format. You can choose many different [output columns](https://github.com/soedinglab/mmseqs2/wiki#custom-alignment-format-with-convertalis) in the `convertalis` module. Make sure that you used the option `-a` to search (`mmseqs search ... -a`).
+The output can be customized wit the `--format-output` option e.g.  `--format-output "query,target,qaln,taln"` returns the query and target accession and the pairwise alignments in tab separated format. You can choose many different [output columns](https://github.com/soedinglab/mmseqs2/wiki#custom-alignment-format-with-convertalis) in the `convertalis` module. Make sure that you used the option `-a` to search (`mmseqs search ... -a`).
 
         mmseqs convertalis queryDB targetDB resultDB resultDB.pair --format-output "query,target,qaln,taln"
 
@@ -160,34 +158,20 @@ Read more about the format [here](https://github.com/soedinglab/mmseqs2/wiki#clu
 The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). We provide a tutorial of MMseqs2 [here](https://github.com/soedinglab/metaG-ECCB18-partII).
 
 ### Memory Requirements
-When using MMseqs2 the available memory limits the size of database you will be able to compute in one go.
-We recommend at least 128 GB of RAM so you can compute databases up to 30.000.000 entries.
-MMseqs2 will automatically subdivide the target database if less memory is available. Runtimes will slightly increase in this case.
+MMseqs2 checks the avialalbe memory of the computer and automatically divide the target database in part to fit in memory. Splitting the database will increas the runtime slightly.
 
-You can calculate the memory requirements in bytes for `L` columns and `N` rows using the following formula:
+The memory consumption grows linearly with the number of residues in the database. The following formular can be used to estimate the index size.  
         
         M = (7 × N × L) byte + (8 × a^k) byte
 
-MMseqs2 stores an index table and two auxiliary arrays, which have a total size of `M byte`.
-
-For a database containing `N` sequences with an average length `L`, the memory consumption of the index table is `(7 × N × L) byte` .
-Note that the memory consumption grows linearly with the number of the sequences `N` in the database.
-
-The two auxiliary arrays consume `(8 × a^k) byte`, with `a` being the size of the amino acid alphabet (usually 20, the unknown amino acid X is excluded) and the k-mer size `k`.
+Where `L` avaerage sequence length and `N` is the database size
 
 ### How to run MMseqs2 on multiple servers using MPI
 MMseqs2 can run on multiple cores and servers using OpenMP and Message Passing Interface (MPI).
 MPI assigns database splits to each compute node and each node computes them using multiple cores (OpenMP).
-Most of the resource demanding modules of MMseqs2 such as `prefilter` or `align` can take advantage of MPI to speed up the computation.
-
-To parallelize the time-consuming k-mer matching and gapless alignment stages `prefilter` among multiple servers, two different modes are available. In the first, MMseqs2 can split the target sequence set into approximately equal-sized chunks, and each server searches all queries against its chunk. Alternatively, the query sequence set is split into equal-sized chunks and each server searches its query chunk against the entire target set. Splitting the target database is less time-efficient due to the slow, IO-limited merging of results. But it reduces the memory required on each server to `(7 × N L/#chunks) byte + (a^k × 8) byte` and allows users to search through huge databases on servers with moderate memory sizes. If the number of chunks is larger than the number of servers, chunks will be distributed among servers and processed sequentially. By default, MMseqs2 automatically decides which mode to pick based on the available memory (assume that all machines have the same amount of memory). 
 
 Make sure that MMseqs2 was compiled with MPI by using the `-DHAVE_MPI=1` flag (`cmake -DHAVE_MPI=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..`). Our precompiled static version of MMseqs2 can not use MPI.
 
-To search with multiple server call the `search` workflow with the MPI command exported in the RUNNER environment variable. The databases and temporary folder have to be shared between all nodes (e.g. through NFS):
+To search with multiple server call the `search` or `cluster` workflow with the MPI command exported in the RUNNER environment variable. The databases and temporary folder have to be shared between all nodes (e.g. through NFS):
 
         RUNNER="mpirun -np 42" mmseqs search queryDB targetDB resultDB tmp
-
-The same requirements apply to clustering or any of the other workflows:
-
-        RUNNER="mpirun -np 42" mmseqs cluster DB clu tmp
