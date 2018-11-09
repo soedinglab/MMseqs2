@@ -197,6 +197,8 @@ public:
 
     size_t getOffset(size_t id);
 
+    size_t findNextOffsetid(size_t id);
+
 private:
 
     void checkClosed();

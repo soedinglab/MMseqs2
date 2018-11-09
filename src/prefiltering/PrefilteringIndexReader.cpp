@@ -236,7 +236,9 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<un
     size_t dataId = dbr->getId(dataIdx);
     char *data = dbr->getData(dataId);
 
-    size_t dataSize = dbr->getOffset(dataId + 1) - dbr->getOffset(dataId);
+    size_t currDataOffset = dbr->getOffset(dataId);
+    size_t nextDataOffset = dbr->findNextOffsetid(dataId);
+    size_t dataSize = nextDataOffset-currDataOffset;
 
     if (touch) {
         dbr->touchData(dataId);
@@ -267,7 +269,10 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned
 
         DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(data);
         reader->open(DBReader<unsigned int>::NOSORT);
-        reader->setData(dbr->getData(id), dbr->getSeqLens(id));
+        size_t currDataOffset = reader->getOffset(id);
+        size_t nextDataOffset = reader->findNextOffsetid(id);
+        size_t dataSize = nextDataOffset-currDataOffset;
+        reader->setData(dbr->getData(id), dataSize);
         reader->setMode(DBReader<unsigned int>::USE_DATA);
         return reader;
     }
