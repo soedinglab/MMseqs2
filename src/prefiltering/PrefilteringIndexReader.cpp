@@ -269,8 +269,8 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned
 
         DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(data);
         reader->open(DBReader<unsigned int>::NOSORT);
-        size_t currDataOffset = reader->getOffset(id);
-        size_t nextDataOffset = reader->findNextOffsetid(id);
+        size_t currDataOffset = dbr->getOffset(id);
+        size_t nextDataOffset = dbr->findNextOffsetid(id);
         size_t dataSize = nextDataOffset-currDataOffset;
         reader->setData(dbr->getData(id), dataSize);
         reader->setMode(DBReader<unsigned int>::USE_DATA);
