@@ -397,6 +397,38 @@ typedef __m128i simd_int;
 #endif //SIMD_INT
 #endif //SSE
 
+#ifdef NEON
+inline uint16_t simd_hmax16(const __m128i buffer) {
+    uint16x4_t tmp;
+    tmp = vmax_u16(vget_low_u16(vreinterpretq_u16_m128i(buffer)), vget_high_u16(vreinterpretq_u16_m128i(buffer)));
+    tmp = vpmax_u16(tmp, tmp);
+    tmp = vpmax_u16(tmp, tmp);
+    return vget_lane_u16(tmp, 0);
+}
+
+inline uint8_t simd_hmax8(const __m128i buffer) {
+    uint8x8_t tmp;
+    tmp = vmax_u8(vget_low_u8(vreinterpretq_u8_m128i(buffer)), vget_high_u8(vreinterpretq_u8_m128i(buffer)));
+    tmp = vpmax_u8(tmp, tmp);
+    tmp = vpmax_u8(tmp, tmp);
+    tmp = vpmax_u8(tmp, tmp);
+    return vget_lane_u8(tmp, 0);
+}
+#if 0
+template <typename F>
+inline F simd_hmax(const F * in, unsigned int n);
+
+inline uint16_t simd_hmax16(const __m128i buffer) {
+    SIMDVec* tmp = (SIMDVec*)&buffer;
+    return simd_hmax<uint16_t>((uint16_t*)tmp->m128_u16, 8);
+}
+
+inline uint8_t simd_hmax8(const __m128i buffer) {
+    SIMDVec* tmp = (SIMDVec*)&buffer;
+    return simd_hmax<uint8_t>((uint8_t*)tmp->m128_u8, 16);
+}
+#endif
+#else
 inline uint16_t simd_hmax16(const __m128i buffer)
 {
     __m128i tmp1 = _mm_subs_epu16(_mm_set1_epi16((short)65535), buffer);
@@ -411,6 +443,7 @@ inline uint8_t simd_hmax8(const __m128i buffer)
     __m128i tmp3 = _mm_minpos_epu16(tmp2);
     return (int8_t)(255 -(int8_t) _mm_cvtsi128_si32(tmp3));
 }
+#endif
 
 #ifdef AVX2
 inline uint16_t simd_hmax16_avx(const __m256i buffer){
