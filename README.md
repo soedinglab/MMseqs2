@@ -8,10 +8,10 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 [Steinegger M and Soeding J. Clustering huge protein sequence sets in linear time. Nature Communications, doi: 10.1038/s41467-018-04964-5 (2018)](https://www.nature.com/articles/s41467-018-04964-5).
 
 [![BioConda Install](https://img.shields.io/conda/dn/bioconda/mmseqs2.svg?style=flag&label=BioConda%20install)](https://anaconda.org/bioconda/mmseqs2)
-![alt tag](https://codeship.com/projects/58db4570-5f19-0134-0f23-2e28d2b4319e/status?branch=master)
-![alt tag](https://ci.appveyor.com/api/projects/status/lq8nxeb0j8v38d1a?svg=true)
-![alt tag](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)
-![alt tag](https://zenodo.org/badge/DOI/10.5281/zenodo.840208.svg)
+![Codeship CI](https://codeship.com/projects/58db4570-5f19-0134-0f23-2e28d2b4319e/status?branch=master)
+![AppVeyor CI](https://ci.appveyor.com/api/projects/status/lq8nxeb0j8v38d1a?svg=true)
+![Travis CI](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)
+![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.840208.svg)
 
 <p align="center"><img src="https://raw.githubusercontent.com/soedinglab/mmseqs2/master/mmseqs2_logo.png" height="256" /></p>
 
@@ -66,22 +66,22 @@ Compiling MMseqs2 from source has the advantage that it will be optimized to the
                 
         
 ## Easy workflows 
-We provide easy workflows to search and cluster. The `easy-search` searches a fasta/fastq input against a targetDB.
+We provide `easy` workflows to search and cluster. The `easy-search` searches directly with a FASTA/FASTQ file against a either another FASTA/FASTQ file or an already existing MMseqs2 target database.
         
         mmseqs createdb examples/DB.fasta targetDB
         mmseqs easy-search examples/QUERY.fasta targetDB alnRes tmp 
         
-MMseqs2 has two ways of clustering `easy-cluster` and `easy-linclust`. 
+For clustering, MMseqs2 `easy-cluster` and `easy-linclust` are available.
 
-`easy-cluster` in default clusters an fasta/fastq input using an cascaded clustering algorithm.
+`easy-cluster` by default clusters the entries of a FASTA/FASTQ file using a cascaded clustering algorithm.
         
         mmseqs easy-cluster examples/DB.fasta clusterRes tmp         
         
-`easy-linclust` clusters an fasta/fastq input. The runtime scales linear with input size. Recommended for huge data.
+`easy-linclust` clusters the entries of a FASTA/FASTQ file. The runtime scales linearly with input size. This mode is recommended for huge datasets.
                 
         mmseqs easy-linclust examples/DB.fasta clusterRes tmp     
         
-The previous easy workflows are a shorthand to deal directly with FASTA files as input and output. MMseqs2 provides many modules to transform, filter, execute external programs and search. However, these modules do not use the FASTA format internally. So we recommend to use the internal modules instead of the easy workflows.
+These `easy` workflows are a shorthand to deal directly with FASTA/FASTQ files as input and output. MMseqs2 provides many modules to transform, filter, execute external programs and search. However, these modules use the MMseqs2 database formats, instead of the FASTA/FASTQ format. For optimal efficiency, we recommend to use MMseqs2 workflows and modules directly.
        
 ## How to search
 You can use the query database "QUERY.fasta" and target database "DB.fasta" in the examples folder to test the search workflow. First, you need to convert the FASTA files into the MMseqs2 database format.
@@ -110,7 +110,7 @@ Then convert the result database into a BLAST-tab formatted database (format: qI
 
         mmseqs convertalis queryDB targetDB resultDB resultDB.m8
 
-The output can be customized wit the `--format-output` option e.g.  `--format-output "query,target,qaln,taln"` returns the query and target accession and the pairwise alignments in tab separated format. You can choose many different [output columns](https://github.com/soedinglab/mmseqs2/wiki#custom-alignment-format-with-convertalis) in the `convertalis` module. Make sure that you used the option `-a` to search (`mmseqs search ... -a`).
+The output can be customized wit the `--format-output` option e.g. `--format-output "query,target,qaln,taln"` returns the query and target accession and the pairwise alignments in tab separated format. You can choose many different [output columns](https://github.com/soedinglab/mmseqs2/wiki#custom-alignment-format-with-convertalis) in the `convertalis` module. Make sure that you used the option `-a` during the search (`mmseqs search ... -a`).
 
         mmseqs convertalis queryDB targetDB resultDB resultDB.pair --format-output "query,target,qaln,taln"
 
@@ -158,20 +158,20 @@ Read more about the format [here](https://github.com/soedinglab/mmseqs2/wiki#clu
 The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). We provide a tutorial of MMseqs2 [here](https://github.com/soedinglab/metaG-ECCB18-partII).
 
 ### Memory Requirements
-MMseqs2 checks the avialalbe memory of the computer and automatically divide the target database in part to fit in memory. Splitting the database will increas the runtime slightly.
+MMseqs2 checks the avialalbe memory of the computer and automatically divide the target database in part to fit in memory. Splitting the database will increase the runtime slightly.
 
-The memory consumption grows linearly with the number of residues in the database. The following formular can be used to estimate the index size.  
+The memory consumption grows linearly with the number of residues in the database. The following formula can be used to estimate the index size.  
         
         M = (7 × N × L) byte + (8 × a^k) byte
 
-Where `L` avaerage sequence length and `N` is the database size
+Where `L` is the average sequence length and `N` is the database size.
 
 ### How to run MMseqs2 on multiple servers using MPI
 MMseqs2 can run on multiple cores and servers using OpenMP and Message Passing Interface (MPI).
-MPI assigns database splits to each compute node and each node computes them using multiple cores (OpenMP).
+MPI assigns database splits to each compute node, which are then computed with multiple cores (OpenMP).
 
-Make sure that MMseqs2 was compiled with MPI by using the `-DHAVE_MPI=1` flag (`cmake -DHAVE_MPI=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..`). Our precompiled static version of MMseqs2 can not use MPI.
+Make sure that MMseqs2 was compiled with MPI by using the `-DHAVE_MPI=1` flag (`cmake -DHAVE_MPI=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..`). Our precompiled static version of MMseqs2 can not use MPI. The version string of MMseqs2 will have a `-MPI` suffix, if it was build successfully with MPI support.
 
-To search with multiple server call the `search` or `cluster` workflow with the MPI command exported in the RUNNER environment variable. The databases and temporary folder have to be shared between all nodes (e.g. through NFS):
+To search with multiple servers call the `search` or `cluster` workflow with the MPI command exported in the RUNNER environment variable. The databases and temporary folder have to be shared between all nodes (e.g. through NFS):
 
         RUNNER="mpirun -np 42" mmseqs search queryDB targetDB resultDB tmp
