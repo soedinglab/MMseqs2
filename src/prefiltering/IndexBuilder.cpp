@@ -6,7 +6,7 @@ char* getScoreLookup(BaseMatrix &matrix) {
     idScoreLookup = new char[matrix.alphabetSize];
     for (int aa = 0; aa < matrix.alphabetSize; aa++){
         short score = matrix.subMatrix[aa][aa];
-        if (score > CHAR_MAX || score < CHAR_MIN) {
+        if (score > SCHAR_MAX || score < SCHAR_MIN) {
             Debug(Debug::WARNING) << "Truncating substitution matrix diagonal score!";
         }
         idScoreLookup[aa] = (char) score;

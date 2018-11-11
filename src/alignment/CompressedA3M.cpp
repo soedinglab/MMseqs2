@@ -80,9 +80,9 @@ std::string CompressedA3M::extractA3M(const char *data, size_t data_size,
     index++;
 
     while (index < data_size - 1) {
-        unsigned int entry_index;
-        unsigned short int nr_blocks;
-        unsigned short int start_pos;
+        uint32_t entry_index;
+        uint16_t nr_blocks;
+        uint16_t start_pos;
 
         readU32(&data, entry_index);
         index += 4;
@@ -194,7 +194,7 @@ void CompressedA3M::extractMatcherResults(unsigned int &key, std::vector<Matcher
         match.score      = 0;
         match.eval       = 0;
 
-        unsigned int entryIndex;
+        uint32_t entryIndex;
         readU32(&data, entryIndex);
         index += 4;
 
@@ -242,7 +242,7 @@ void CompressedA3M::extractMatcherResults(unsigned int &key, std::vector<Matcher
                 firstBlockM = true;
             }
 
-            char inDelCount = (*data);
+            signed char inDelCount = (*data);
             data++;
             index++;
 

@@ -2,8 +2,16 @@
 #include <assert.h>
 #include "ksw2.h"
 
+#ifdef NEON
+#include "sse2neon.h"
+#define __SSE2__
+#define KSW_SSE2_ONLY
+#endif
+
 #ifdef __SSE2__
+#ifndef NEON
 #include <emmintrin.h>
+#endif
 
 #ifdef KSW_SSE2_ONLY
 #undef __SSE4_1__

@@ -49,7 +49,12 @@
 #ifdef AVX
 #define SSE
 #endif
-#include <xmmintrin.h> //TODO SSE
+
+#ifdef NEON
+#include "sse2neon.h"
+#else
+#include <xmmintrin.h>
+#endif
 
 #ifdef AVX512
 #include <zmmintrin.h.h> // AVX512
@@ -282,6 +287,7 @@ typedef __m256 simd_float;
 #ifdef SSE
 uint16_t simd_hmax16(const __m128i buffer);
 uint8_t simd_hmax8(const __m128i buffer);
+#ifndef NEON
 #include <smmintrin.h>  //SSE4.1
 // double support
 #ifndef SIMD_DOUBLE
@@ -305,6 +311,7 @@ typedef __m128d simd_double;
 #define simdf64_andnot(x,y) _mm_andnot_pd(x,y)
 #define simdf64_xor(x,y)    _mm_xor_pd(x,y)
 #endif //SIMD_DOUBLE
+#endif
 
 // float support
 #ifndef SIMD_FLOAT

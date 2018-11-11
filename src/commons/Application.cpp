@@ -4,7 +4,10 @@
 #include "DistanceCalculator.h"
 #include "Timer.h"
 
+#ifndef NEON
 #include <CpuInfo.h>
+#endif
+
 #include <iomanip>
 
 extern const char* binary_name;
@@ -19,6 +22,7 @@ extern std::vector<struct Command> commands;
 extern std::vector<Categories> categories;
 
 void checkCpu() {
+#ifndef NEON
     CpuInfo info;
     if(info.HW_x64 == false) {
         Debug(Debug::ERROR) << "64 bit system is required to run MMseqs.\n";
@@ -40,6 +44,7 @@ void checkCpu() {
         }
         EXIT(EXIT_FAILURE);
     }
+#endif
 #endif
 }
 

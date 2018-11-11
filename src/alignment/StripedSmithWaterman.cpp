@@ -707,7 +707,7 @@ void SmithWaterman::ssw_init (const Sequence* q,
 			compositionBias = (static_cast<int8_t>(compositionBias) < profile->composition_bias[i])
 							  ? compositionBias  :  profile->composition_bias[i];
 		}
-		compositionBias = std::min(compositionBias, 0);
+		compositionBias = std::min(compositionBias, static_cast<int32_t>(0));
 //		std::cout << compositionBias << std::endl;
 	}else{
 		memset(profile->composition_bias, 0, q->L* sizeof(int8_t));

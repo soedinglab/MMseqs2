@@ -22,7 +22,12 @@ THE SOFTWARE.
  */
 // SSE2 implementation according to http://0x80.pl/articles/sse-itoa.html
 // Modifications: (1) fix incorrect digits (2) accept all ranges (3) write to user provided buffer.
+#ifdef NEON
+#include "sse2neon.h"
+#else
 #include <emmintrin.h>
+#endif
+
 #include <stdint.h>
 #include "itoa.h"
 
