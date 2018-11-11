@@ -201,7 +201,6 @@ protected:
 
     // result hit buffer
     //CacheFriendlyOperations * diagonalMatcher;
-    static const unsigned int L2_CACH_SIZE = 262144;
     unsigned int activeCounter;
 #define CacheFriendlyOperations(x)  CacheFriendlyOperations<x> * cachedOperation##x
     CacheFriendlyOperations(2);

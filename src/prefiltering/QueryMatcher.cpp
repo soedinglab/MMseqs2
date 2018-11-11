@@ -413,27 +413,28 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
 }
 
 void QueryMatcher::initDiagonalMatcher(size_t dbsize, unsigned int maxDbMatches) {
+    uint64_t l2CacheSize = Util::getL2CacheSize();
 #define INIT(x)   cachedOperation##x = new CacheFriendlyOperations<x>(dbsize, maxDbMatches/x); \
                   activeCounter = x;
-    if(dbsize/2 < L2_CACH_SIZE){
+    if(dbsize/2 < l2CacheSize){
         INIT(2)
-    }else if(dbsize/4 < L2_CACH_SIZE){
+    }else if(dbsize/4 < l2CacheSize){
         INIT(4)
-    }else if(dbsize/8 < L2_CACH_SIZE){
+    }else if(dbsize/8 < l2CacheSize){
         INIT(8)
-    }else if(dbsize/16 < L2_CACH_SIZE){
+    }else if(dbsize/16 < l2CacheSize){
         INIT(16)
-    }else if(dbsize/32 < L2_CACH_SIZE){
+    }else if(dbsize/32 < l2CacheSize){
         INIT(32)
-    }else if(dbsize/64 < L2_CACH_SIZE){
+    }else if(dbsize/64 < l2CacheSize){
         INIT(64)
-    }else if(dbsize/128 < L2_CACH_SIZE){
+    }else if(dbsize/128 < l2CacheSize){
         INIT(128)
-    }else if(dbsize/256 < L2_CACH_SIZE){
+    }else if(dbsize/256 < l2CacheSize){
         INIT(256)
-    }else if(dbsize/512 < L2_CACH_SIZE){
+    }else if(dbsize/512 < l2CacheSize){
         INIT(512)
-    }else if(dbsize/1024 < L2_CACH_SIZE){
+    }else if(dbsize/1024 < l2CacheSize){
         INIT(1024)
     }else {
         INIT(2048)
