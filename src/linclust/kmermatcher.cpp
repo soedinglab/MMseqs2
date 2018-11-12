@@ -744,7 +744,7 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
 void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTyp) {
     if(seqTyp == Sequence::NUCLEOTIDES){
         if(parameters.kmerSize == 0) {
-            parameters.kmerSize = 22;
+            parameters.kmerSize = std::max(15, static_cast<int>(log(static_cast<float>(aaDbSize))/log(4)));
             parameters.alphabetSize = 5;
 
         }
