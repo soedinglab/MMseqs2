@@ -19,6 +19,7 @@
 int splitsequence(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.maxSeqLen = 10000;
+    par.sequenceOverlap = 300;
     par.parseParameters(argc, argv, command, 2);
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
@@ -33,7 +34,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads);
     headerWriter.open();
 
-    size_t sequenceOverlap = 300;
+    size_t sequenceOverlap = par.sequenceOverlap;
 
 #pragma omp parallel
     {

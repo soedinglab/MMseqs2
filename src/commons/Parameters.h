@@ -363,6 +363,9 @@ public:
     bool splitSeqByLen;
     bool shuffleDatabase;
 
+    // splitsequence
+    int sequenceOverlap;
+
     // convert2fasta
     bool useHeaderFile;
 
@@ -630,6 +633,9 @@ public:
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)
+
+    // split sequence
+    PARAMETER(PARAM_SEQUENCE_OVERLAP)
 
     // gff2db
     PARAMETER(PARAM_GFF_TYPE)

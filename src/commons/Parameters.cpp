@@ -156,6 +156,8 @@ Parameters::Parameters():
         PARAM_DONT_SPLIT_SEQ_BY_LEN(PARAM_DONT_SPLIT_SEQ_BY_LEN_ID,"--dont-split-seq-by-len", "Split Seq. by len", "Dont split sequences by --max-seq-len",typeid(bool),(void *) &splitSeqByLen, ""),
         PARAM_DONT_SHUFFLE(PARAM_DONT_SHUFFLE_ID,"--dont-shuffle", "Do not shuffle input database", "Do not shuffle input database",typeid(bool),(void *) &shuffleDatabase, ""),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "use the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
+        // splitsequence
+        PARAM_SEQUENCE_OVERLAP(PARAM_SEQUENCE_OVERLAP_ID, "--sequence-overlap", "Overlap between sequences", "overlap between sequences",typeid(int),(void *) &sequenceOverlap, "^(0|[1-9]{1}[0-9]*)$"),
         // gff2db
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
         // translatenucs
@@ -506,6 +508,7 @@ Parameters::Parameters():
 
     // splitsequence
     splitsequence.push_back(PARAM_MAX_SEQ_LEN);
+    splitsequence.push_back(PARAM_SEQUENCE_OVERLAP);
     splitsequence.push_back(PARAM_THREADS);
     splitsequence.push_back(PARAM_V);
 
@@ -1402,6 +1405,9 @@ void Parameters::setDefaults() {
 
     // createdb
     identifierOffset = 0;
+
+    // split sequence
+    sequenceOverlap = 0;
 
     // convert2fasta
     useHeaderFile = false;
