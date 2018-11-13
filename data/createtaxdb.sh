@@ -42,7 +42,7 @@ if [ "$DOWNLOAD_DATA" -eq "1" ]; then
 fi
 # create mapping
 if notExists "${TMP_PATH}/targetDB_mapping.complete"; then
-    awk 'NR == FNR { f[$1] = $2 } $2 in f { print $1"\t"f[$2] }' \
+    awk 'NR == FNR { f[$1] = $2; next } $2 in f { print $1"\t"f[$2] }' \
         "$MAPPINGFILE" "${TAXDBNAME}.lookup" > "${TMP_PATH}/targetDB_mapping"
     touch "${TMP_PATH}/targetDB_mapping.complete"
 fi
@@ -53,6 +53,7 @@ cp -f "${NCBITAXINFO}/names.dmp"     "${TAXDBNAME}_names.dmp"
 cp -f "${NCBITAXINFO}/nodes.dmp"     "${TAXDBNAME}_nodes.dmp"
 cp -f "${NCBITAXINFO}/merged.dmp"    "${TAXDBNAME}_merged.dmp"
 cp -f "${NCBITAXINFO}/delnodes.dmp"  "${TAXDBNAME}_delnodes.dmp"
+echo "Database created"
 
 if [ -n "$REMOVE_TMP" ]; then
    echo "Remove temporary files"
