@@ -48,11 +48,11 @@ if notExists "${TMP_PATH}/targetDB_mapping.complete"; then
 fi
 
 # finalize database
-mv -f "${NCBITAXINFO}/names.dmp"     "${TAXDBNAME}_names.dmp"
-mv -f "${NCBITAXINFO}/nodes.dmp"     "${TAXDBNAME}_nodes.dmp"
-mv -f "${NCBITAXINFO}/merged.dmp"    "${TAXDBNAME}_merged.dmp"
-mv -f "${NCBITAXINFO}/delnodes.dmp"  "${TAXDBNAME}_delnodes.dmp"
-mv -f "${TMP_PATH}/targetDB_mapping" "${TAXDBNAME}_mapping"
+cp -f "${TMP_PATH}/targetDB_mapping" "${TAXDBNAME}_mapping"
+cp -f "${NCBITAXINFO}/names.dmp"     "${TAXDBNAME}_names.dmp"
+cp -f "${NCBITAXINFO}/nodes.dmp"     "${TAXDBNAME}_nodes.dmp"
+cp -f "${NCBITAXINFO}/merged.dmp"    "${TAXDBNAME}_merged.dmp"
+cp -f "${NCBITAXINFO}/delnodes.dmp"  "${TAXDBNAME}_delnodes.dmp"
 
 if [ -n "$REMOVE_TMP" ]; then
    echo "Remove temporary files"
@@ -62,5 +62,6 @@ if [ -n "$REMOVE_TMP" ]; then
       rm -f "${TMP_PATH}/ncbi_download.complete" "${TMP_PATH}/targetDB_mapping.complete"
    fi
    rm -f "${TMP_PATH}/targetDB_mapping.complete"
+   rm -f "${TMP_PATH}/targetDB_mapping"
    rm -f createtaxdb.sh
 fi
