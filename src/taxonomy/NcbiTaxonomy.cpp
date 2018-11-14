@@ -413,6 +413,9 @@ TaxonNode* NcbiTaxonomy::findNode(int taxonId) {
         EXIT(EXIT_FAILURE);
     }
 
+    if (it1->second == -1) {
+        return NULL;
+    }
     std::map<int, TaxonNode>::iterator it2 = taxonTree.find(it1->second);
 
     if (it2 == taxonTree.end()) {

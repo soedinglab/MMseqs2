@@ -102,6 +102,11 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
                 }
                 unsigned int taxon = mappingIt->second;
                 TaxonNode* node = t.findNode(taxon);
+                if(node == NULL){
+                    Debug(Debug::WARNING) << "Deleted node " << taxon << "!\n";
+                    data = Util::skipLine(data);
+                    continue;
+                }
                 char * nextData = Util::skipLine(data);
                 size_t dataSize = nextData - data;
                 resultData.append(data, dataSize-1);
