@@ -64,7 +64,7 @@ int lca(int argc, const char **argv, const Command& command) {
 
     Debug(Debug::INFO) << "Loading NCBI taxonomy...\n";
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
-
+    size_t taxonNotFound=0;
     Debug(Debug::INFO) << "Computing LCA...\n";
     #pragma omp parallel
     {
@@ -102,8 +102,8 @@ int lca(int argc, const char **argv, const Command& command) {
                 mappingIt = std::upper_bound(
                         mapping.begin(), mapping.end(), val,  ffindexFilter::compareToFirstInt);
 
-                if(mappingIt == mapping.end()){
-                    Debug(Debug::WARNING) << "No taxon mapping provided for id " << id << "\n";
+                if (mappingIt->first != val.first) {
+                    __sync_fetch_and_add(&taxonNotFound, 1);
                     data = Util::skipLine(data);
                     continue;
                 }
@@ -147,8 +147,8 @@ int lca(int argc, const char **argv, const Command& command) {
             }
         }
     };
-
     Debug(Debug::INFO) << "\n";
+    Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " entries  not found.\n";
 
     writer.close();
     reader.close();

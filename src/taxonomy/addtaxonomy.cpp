@@ -57,6 +57,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
 
     Debug(Debug::INFO) << "Add taxonomy information ...\n";
+    size_t taxonNotFound=0;
 
     #pragma omp parallel
     {
@@ -95,8 +96,9 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
                 std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt = std::upper_bound(
                         mapping.begin(), mapping.end(), val,  ffindexFilter::compareToFirstInt);
 
-                if(mappingIt == mapping.end()){
-                    Debug(Debug::WARNING) << "No taxon mapping provided for id " << id << "\n";
+                if (mappingIt->first != val.first) {
+                     __sync_fetch_and_add(&taxonNotFound, 1);
+//                    Debug(Debug::WARNING) << "No taxon mapping provided for id " << id << "\n";
                     data = Util::skipLine(data);
                     continue;
                 }
@@ -132,8 +134,8 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
             resultData.clear();
         }
     }
-
     Debug(Debug::INFO) << "\n";
+    Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " entries  not found.\n";
 
     writer.close();
     reader.close();
