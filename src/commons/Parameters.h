@@ -762,6 +762,7 @@ public:
     std::vector<MMseqsParameter> createseqfiledb;
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> onlythreads;
+    std::vector<MMseqsParameter> offsetalignment;
     std::vector<MMseqsParameter> subtractdbs;
     std::vector<MMseqsParameter> diff;
     std::vector<MMseqsParameter> concatdbs;

@@ -611,6 +611,8 @@ Parameters::Parameters():
     onlythreads.push_back(PARAM_THREADS);
     onlythreads.push_back(PARAM_V);
 
+    offsetalignment.push_back(PARAM_THREADS);
+    offsetalignment.push_back(PARAM_V);
     // swap results
     swapresult.push_back(PARAM_SUB_MAT);
     swapresult.push_back(PARAM_E);
