@@ -22,6 +22,7 @@ set(util_source_files
         util/extractdomains.cpp
         util/extractorfs.cpp
         util/orftocontig.cpp
+        util/touchdb.cpp
         util/filterdb.cpp
         util/gff2db.cpp
         util/maskbygff.cpp

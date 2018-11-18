@@ -51,6 +51,7 @@ extern int multihitdb(int argc, const char **argv, const Command& command);
 extern int multihitsearch(int argc, const char **argv, const Command& command);
 extern int offsetalignment(int argc, const char **argv, const Command& command);
 extern int orftocontig(int argc, const char **argv, const Command& command);
+extern int touchdb(int argc, const char **argv, const Command& command);
 extern int prefilter(int argc, const char **argv, const Command& command);
 extern int prefixid(int argc, const char **argv, const Command& command);
 extern int profile2cs(int argc, const char **argv, const Command& command);
