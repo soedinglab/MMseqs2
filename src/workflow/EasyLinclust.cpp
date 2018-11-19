@@ -63,7 +63,7 @@ int easylinclust(int argc, const char **argv, const Command &command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     std::string createdbParam = par.createParameterString(par.createdb);
     cmd.addVariable("CREATEDB_PAR", createdbParam.c_str());
-    std::string clusterParam = par.createParameterString(par.linclustworkflow, true);
+    std::string clusterParam = par.createParameterString(par.easylinclustworkflow, true);
     cmd.addVariable("CLUSTER_PAR", clusterParam.c_str());
     cmd.addVariable("CLUSTER_MODULE", "linclust");
     cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());

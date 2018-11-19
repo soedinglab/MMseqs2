@@ -64,7 +64,7 @@ int easycluster(int argc, const char **argv, const Command &command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     std::string createdbParam = par.createParameterString(par.createdb);
     cmd.addVariable("CREATEDB_PAR", createdbParam.c_str());
-    std::string clusterParam = par.createParameterString(par.clusterworkflow, true);
+    std::string clusterParam = par.createParameterString(par.easyclusterworkflow, true);
     cmd.addVariable("CLUSTER_PAR", clusterParam.c_str());
     cmd.addVariable("CLUSTER_MODULE", "cluster");
     cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
