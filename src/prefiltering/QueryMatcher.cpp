@@ -159,7 +159,7 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
         if(resultSize < counterResultSize/2){
             unsigned int maxDiagonalScoreThr = (UCHAR_MAX - ungappedAlignment->getQueryBias());
             bool scoreIsTruncated = (diagonalThr >= maxDiagonalScoreThr) ? true : false;
-            int elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
+            size_t elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
             if(scoreIsTruncated == true){
                 memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
                 std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, scoreSizes, foundDiagonals + resultSize, elementsCntAboveDiagonalThr, ungappedAlignment, maxDiagonalScoreThr);
@@ -501,8 +501,8 @@ size_t QueryMatcher::radixSortByScoreSize(const unsigned int * scoreSizes,
     return aboveThresholdCnt;
 }
 
-std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, unsigned int * scoreSizes, CounterResult *results, int resultSize,
-                               UngappedAlignment *align, int lowerBoundScore) {
+std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, unsigned int * scoreSizes, CounterResult *results,
+        size_t resultSize, UngappedAlignment *align, int lowerBoundScore) {
     size_t elements = 0;
     unsigned char * query = new unsigned char[querySeq->L];
     for(int pos = 0; pos < querySeq->L; pos++ ){
@@ -515,7 +515,7 @@ std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, u
     maxSelfScore = (maxSelfScore-lowerBoundScore);
     maxSelfScore = std::max(1, maxSelfScore);
     float fltMaxSelfScore = static_cast<float>(maxSelfScore);
-    for (int i = 0; i < resultSize && results[i].count >= lowerBoundScore; i++) {
+    for (size_t i = 0; i < resultSize && results[i].count >= lowerBoundScore; i++) {
         unsigned int newScore = align->scoreSingelSequenceByCounterResult(results[i]);
         newScore -= lowerBoundScore;
         float score = static_cast<float>(std::min(newScore, static_cast<unsigned int>(USHRT_MAX)));

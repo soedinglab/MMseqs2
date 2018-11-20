@@ -291,7 +291,7 @@ protected:
                               const CounterResult *results, const size_t resultSize);
 
     std::pair<size_t, unsigned int> rescoreHits(Sequence * querySeq, unsigned int *scoreSizes, CounterResult *results,
-                                                int resultSize, UngappedAlignment *align, int lowerBoundScore);
+                                                size_t resultSize, UngappedAlignment *align, int lowerBoundScore);
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
