@@ -814,6 +814,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     if (splitCount > 1 && splitMode == Parameters::TARGET_DB_SPLIT) {
         DBReader<unsigned int> resultReader(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
         resultReader.open(DBReader<unsigned int>::NOSORT);
+        resultReader.readMmapedDataInMemory();
         DBWriter resultWriter((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), localThreads);
         resultWriter.open();
         resultWriter.sortDatafileByIdOrder(resultReader);
