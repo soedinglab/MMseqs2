@@ -162,10 +162,9 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
             int elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
             if(scoreIsTruncated == true){
                 memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
-                std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, scoreSizes, foundDiagonals + resultSize, resultSize, ungappedAlignment, maxDiagonalScoreThr);
+                std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, scoreSizes, foundDiagonals + resultSize, elementsCntAboveDiagonalThr, ungappedAlignment, maxDiagonalScoreThr);
                 size_t newResultSize = rescoreResult.first;
                 unsigned int maxSelfScoreMinusDiag = rescoreResult.second;
-
                 elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals, 0, foundDiagonals + resultSize, newResultSize);
                 queryResult = getResult(foundDiagonals, elementsCntAboveDiagonalThr, maxHitsPerQuery,
                                         querySeq->L, identityId, 0, ungappedAlignment, true, maxSelfScoreMinusDiag);
@@ -502,7 +501,7 @@ size_t QueryMatcher::radixSortByScoreSize(const unsigned int * scoreSizes,
     return aboveThresholdCnt;
 }
 
-std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, unsigned int * scoreSizes,CounterResult *results, int resultSize,
+std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, unsigned int * scoreSizes, CounterResult *results, int resultSize,
                                UngappedAlignment *align, int lowerBoundScore) {
     size_t elements = 0;
     unsigned char * query = new unsigned char[querySeq->L];
