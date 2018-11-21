@@ -8,9 +8,23 @@
 #include <omp.h>
 #endif
 
-double LBinCoeff(int M, int k) {
-    return lgamma(M + 1) - lgamma(M - k + 1) - lgamma(k + 1);
+
+double LBinCoeff(double* lookup, int M, int k) {
+    return lookup[M + 1] - lookup[M - k + 1] - lookup[k + 1];
 }
+
+// Precompute coefficients logB[i] = log(B[i])
+void precomputeLogB(const unsigned int orfCount, const double pvalThreshold, double* lGammaLookup, double *logB) { 
+    double logPvalThr = log(pvalThreshold);
+    double log1MinusPvalThr = log(1 - pvalThreshold);
+    logB[orfCount - 1] = orfCount * logPvalThr;
+    for (int i = (orfCount - 2); i >= 0; i--){
+        int k = i + 1;
+        double log_newTerm = LBinCoeff(lGammaLookup, orfCount, k) + k * logPvalThr + (orfCount - k) * log1MinusPvalThr;
+        logB[i] = logB[i + 1] + log(1 + exp(log_newTerm - logB[i+1]));
+    }
+}
+
 
 class PvalueAggregator : public Aggregation {
 public:
@@ -27,9 +41,34 @@ public:
         sizeDBIndex = targetDbName + "_set_size.index";
         targetSizeReader = new DBReader<unsigned int>(sizeDBName.c_str(), sizeDBIndex.c_str());
         targetSizeReader->open(DBReader<unsigned int>::NOSORT);
+
+        unsigned int maxOrfCount = 0;
+        for (size_t i = 0; i < querySizeReader->getSize(); ++i) { 
+            unsigned int currentCount = (unsigned int) std::strtoull(querySizeReader->getData(i), NULL, 10);
+            if (currentCount > maxOrfCount) {
+                maxOrfCount = currentCount;
+            };
+        }
+
+        lGammaLookup = new double[maxOrfCount + 2];
+        for (size_t i = 0; i < maxOrfCount + 2; ++i) { 
+            lGammaLookup[i] = lgamma(i);
+        }
+
+        logBiLookup = new double*[threads];
+        for (size_t i = 0; i < threads; ++i) {
+            logBiLookup[i] = new double[maxOrfCount];
+        }
     }
 
     ~PvalueAggregator() {
+        for (size_t i = 0; i < threads; ++i) {
+            delete[] logBiLookup[i];
+        }
+        delete[] logBiLookup;
+
+        delete[] lGammaLookup;
+
         targetSizeReader->close();
         delete targetSizeReader;
 
@@ -37,13 +76,17 @@ public:
         delete querySizeReader;
     }
 
+    void prepareInput(unsigned int querySetKey, unsigned int thread_idx) {
+        unsigned int orfCount = (unsigned int) strtoull(querySizeReader->getDataByDBKey(querySetKey), NULL, 10);
+        precomputeLogB(orfCount, alpha/(orfCount + 1), lGammaLookup, logBiLookup[thread_idx]);
+    }
+
     //Get all result of a single Query Set VS a Single Target Set and return the multiple-match p-value for it
     std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey,
-                               unsigned int targetSetKey) {
-        unsigned int targetGeneCount = (unsigned int) strtoull(targetSizeReader->getDataByDBKey(targetSetKey), NULL, 10);
-
-        double pvalThreshold = alpha / targetGeneCount;
-        const size_t numSets = targetSizeReader->getSize();
+                               unsigned int targetSetKey, unsigned int thread_idx) {
+        unsigned int orfCount = (unsigned int) strtoull(querySizeReader->getDataByDBKey(querySetKey), NULL, 10); 
+        double pvalThreshold = alpha / (orfCount + 1);
+        const size_t numTargetSets = targetSizeReader->getSize();
 
         std::string buffer;
         char keyBuffer[255];
@@ -53,7 +96,7 @@ public:
 
         //edge case p0 = 0
         if (pvalThreshold == 0.0) {
-            buffer.append(SSTR(numSets));
+            buffer.append(SSTR(numTargetSets));
             return buffer;
         }
 
@@ -69,7 +112,7 @@ public:
         }
 
         if (r == 0) {
-            buffer.append(SSTR(numSets));
+            buffer.append(SSTR(numTargetSets));
             return buffer;
         }
 
@@ -82,33 +125,19 @@ public:
         
         //edge case p0 = 1
         if (pvalThreshold == 1.0) {
-            buffer.append(SSTR(expMinusR * numSets));
+            buffer.append(SSTR(expMinusR * numTargetSets));
             return buffer;
         }
 
 
-        unsigned int orfCount = (unsigned int) strtoull(querySizeReader->getDataByDBKey(querySetKey), NULL, 10); 
         double truncatedFisherPval = 0;
-        double logRatioRToFactorial = 0;
         const double logR = log(r);
-        const double log1MinusPvalThr = log(1.0 - pvalThreshold);
         for (size_t i = 0; i < orfCount; ++i) { 
-            double logProbKGoodHits = 1;
-            double firstFactor = (LBinCoeff(orfCount, (i + 1)) + (i + 1) * logPvalThr + (orfCount - (i +1)) * log1MinusPvalThr); 
-            for (size_t j = i + 2; j < orfCount + 1; ++j) { 
-                logProbKGoodHits += exp(LBinCoeff(orfCount, j) + j * logPvalThr + (orfCount - j) * log1MinusPvalThr - firstFactor);
-            }
-            logProbKGoodHits = firstFactor + log(logProbKGoodHits);
-            if (i > 0) {
-                logRatioRToFactorial = logRatioRToFactorial + logR - log(i);
-            }
-            truncatedFisherPval += exp(logRatioRToFactorial + logProbKGoodHits);
+            truncatedFisherPval += exp(i*logR - lGammaLookup[i+1] + logBiLookup[thread_idx][i]);
         }
-
-
         
         double updatedPval = expMinusR * truncatedFisherPval;
-        double updatedEval = updatedPval * numSets;
+        double updatedEval = updatedPval * numTargetSets;
         buffer.append(SSTR(updatedEval));
         return buffer;
     }
@@ -117,6 +146,8 @@ private:
     double alpha;
     DBReader<unsigned int> *querySizeReader;
     DBReader<unsigned int> *targetSizeReader;
+    double* lGammaLookup;
+    double** logBiLookup;
 };
 
 int combinepvalperset(int argc, const char **argv, const Command &command) {

@@ -70,11 +70,13 @@ int Aggregation::run() {
 
             unsigned int key = reader.getDbKey(i);
             buildMap(reader.getData(i), dataToMerge);
+            prepareInput(key, thread_idx);
+            
             for (std::map<unsigned int, std::vector<std::vector<std::string>>>::const_iterator it = dataToMerge.begin();
                  it != dataToMerge.end(); ++it) {
                 unsigned int targetKey = it->first;
                 std::vector<std::vector<std::string>> columns = it->second;
-                buffer.append(aggregateEntry(columns, key, targetKey));
+                buffer.append(aggregateEntry(columns, key, targetKey, thread_idx));
                 buffer.append("\n");
             }
             writer.writeData(buffer.c_str(), buffer.length(), key, thread_idx);

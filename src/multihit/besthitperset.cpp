@@ -23,7 +23,10 @@ public :
         delete targetSizeReader;
     }
 
-    std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int, unsigned int targetSetKey)  {
+
+    void prepareInput(unsigned int, unsigned int) {}
+
+    std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int, unsigned int targetSetKey, unsigned int)  {
         std::string buffer;
         buffer.reserve(1024);
 
