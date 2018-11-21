@@ -18,10 +18,6 @@ int profile2cs(int argc, const char **argv, const Command &command) {
     par.alphabetSize = 8;
     par.parseParameters(argc, argv, command, 2,  true, 0, MMseqsParameter::COMMAND_PROFILE);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     DBReader<unsigned int> profileReader(par.db1.c_str(), par.db1Index.c_str());
     profileReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 

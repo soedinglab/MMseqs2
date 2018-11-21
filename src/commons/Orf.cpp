@@ -117,15 +117,9 @@ Matcher::result_t Orf::getFromDatabase(const size_t id, DBReader<unsigned int> &
 
     size_t contigLen = contigLenWithEndings - 2; // remove \n\0
 
-    // orf search returns the position right after the orf, this keeps consitency with alignemnt format
-    // if strand == -1 (reverse), we need to recompute the coordinates with respect to the positive strand and swap them
-    size_t contigFromWithStrand = (orfLocOnContigParsed.strand > 0) ? orfLocOnContigParsed.from : (contigLen - orfLocOnContigParsed.from - 1);
-    size_t contigToWithStrand = (orfLocOnContigParsed.strand > 0) ? (orfLocOnContigParsed.to - 1) : (contigLen - orfLocOnContigParsed.to);
-
     // compute orf length
-    int orfLen = (orfLocOnContigParsed.strand > 0) ? (contigToWithStrand - contigFromWithStrand + 1) : (contigFromWithStrand - contigToWithStrand + 1);
-
-    Matcher::result_t orfToContigResult(contigKey, 1, 1, 0, 1, 0, orfLen, 0, (orfLen - 1), orfLen, contigFromWithStrand, contigToWithStrand, contigLen, "");
+    size_t orfLen = std::max(orfLocOnContigParsed.from, orfLocOnContigParsed.to) - std::min(orfLocOnContigParsed.from, orfLocOnContigParsed.to) + 1;
+    Matcher::result_t orfToContigResult(contigKey, 1, 1, 0, 1, 0, orfLen, 0, (orfLen - 1), orfLen, orfLocOnContigParsed.from, orfLocOnContigParsed.to, contigLen, "");
     return (orfToContigResult);
 }
 
@@ -167,8 +161,7 @@ bool Orf::setSequence(const char* seq, size_t length) {
 
 std::pair<const char *, size_t> Orf::getSequence(const SequenceLocation &location) {
     assert(location.to > location.from);
-    
-    size_t length = location.to - location.from;
+    size_t length = (location.to - location.from) + 1;
     if(location.strand == Orf::STRAND_PLUS) {
         return sequence ? std::make_pair(sequence + location.from, length) : std::make_pair("", 0);
     } else {
@@ -202,8 +195,8 @@ inline bool isIncomplete(const char* codon) {
 
 inline bool isGapOrN(const char *codon) {
     return codon[0] == 'N' || Orf::complement(codon[0]) == '.'
-        || codon[1] == 'N' || Orf::complement(codon[1]) == '.'
-        || codon[2] == 'N' || Orf::complement(codon[2]) == '.';
+           || codon[1] == 'N' || Orf::complement(codon[1]) == '.'
+           || codon[2] == 'N' || Orf::complement(codon[2]) == '.';
 }
 
 template <int N>
@@ -224,12 +217,12 @@ inline bool isInCodons(const char* sequence, simd_int codons, simd_int) {
     shuf = simdi_and(mask, shuf);
     // FFFF 0000 0000 0000
     simd_int test = simdi32_eq(shuf, codons);
-    #ifndef AVX2
+#ifndef AVX2
     if(N > 4) {
         simd_int test2 = simdi32_eq(shuf, codons2);
         return (simdi8_movemask(test) != 0) && (simdi8_movemask(test2) != 0);
     }
-    #endif
+#endif
     return simdi8_movemask(test) != 0;
 }
 
@@ -282,12 +275,12 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
             // ANY_TO_STOP returns the longest fragment
             // LAST_START_TO_STOP retruns last encountered start to stop,
             // no start codons in the middle
-           
+
             bool shouldStart;
             if((startMode == START_TO_STOP)) {
-                shouldStart = isInsideOrf[frame] == false 
-                            && ((startCodonCount > 4) ? isInCodons<8>(codon, startCodonsHi, startCodonsLo)
-                                                      : isInCodons<4>(codon, startCodonsHi, startCodonsLo));
+                shouldStart = isInsideOrf[frame] == false
+                              && ((startCodonCount > 4) ? isInCodons<8>(codon, startCodonsHi, startCodonsLo)
+                                                        : isInCodons<4>(codon, startCodonsHi, startCodonsLo));
             } else if(startMode == ANY_TO_STOP) {
                 shouldStart = isInsideOrf[frame] == false;
             } else {
@@ -312,7 +305,7 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
                 if (! stop) {
                     countLength[frame]++;
                 }
-                
+
                 if(isGapOrN(codon)) {
                     countGaps[frame]++;
                 }
@@ -323,24 +316,24 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
 
                 // we include the stop codon here --> inconsistent because stops are not included in other orfs
                 //size_t to = position + (isLast ? 3 : 0);
-                
+
                 // if final codon is the last in the frame or a stop codon - include it:
                 // size_t to = position + ((isLast || stop) ? 3 : 0);
 
-                // if final codon the last in the frame but not a stop - include it (stops are never included):
-                size_t to = position + ((isLast && !stop) ? 3 : 0);
-
                 // this could happen if the first codon is a stop codon
-                if(to == from[frame])
+                if(countLength[frame] == 0 && stop)
                     continue;
+                // if final codon the last in the frame but not a stop - include it (stops are never included):
+                size_t to = position + ((isLast && stop == false) ? 2 : -1);
 
-                assert(to > from[frame]);
+                assert(to + 1 > from[frame]);
+                assert(to < sequenceLength);
 
                 // ignore orfs with too many gaps or unknown codons
                 // also ignore orfs shorter than the min size and longer than max
                 if ((countGaps[frame] > maxGaps)
-                || (countLength[frame] > maxLength)
-                || (countLength[frame] < minLength)) {
+                    || (countLength[frame] > maxLength)
+                    || (countLength[frame] < minLength)) {
                     continue;
                 }
 
@@ -349,6 +342,7 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
         }
     }
 }
+
 
 Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
     char * entry[255];
@@ -361,20 +355,20 @@ Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
             break;
         }
     }
-    if(found == false){
-        Debug(Debug::ERROR) << "Could not find Orf information in header.\n";
-        EXIT(EXIT_FAILURE);
-    }
     Orf::SequenceLocation loc;
-    int strand;
+
+    if(found == false){
+        loc.id = UINT_MAX;
+        return loc;
+    }
     int hasIncompleteStart, hasIncompleteEnd;
-    int retCode = sscanf(entry[col], "[Orf: %u, %zu, %zu, %d, %d, %d]", &loc.id, &loc.from, &loc.to, &strand, &hasIncompleteStart, &hasIncompleteEnd);
+    int retCode = sscanf(entry[col], "[Orf: %u, %zu, %zu, %d, %d]", &loc.id, &loc.from, &loc.to, &hasIncompleteStart, &hasIncompleteEnd);
     loc.hasIncompleteStart = hasIncompleteStart;
     loc.hasIncompleteEnd = hasIncompleteEnd;
     if(retCode < 5) {
         Debug(Debug::ERROR) << "Could not parse Orf " << entry[col] << ".\n";
         EXIT(EXIT_FAILURE);
     }
-    loc.strand =  static_cast<Orf::Strand>(strand);
+    loc.strand = (loc.from > loc.to) ? Orf::STRAND_MINUS : Orf::STRAND_PLUS;
     return loc;
 }

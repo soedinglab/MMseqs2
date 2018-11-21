@@ -64,8 +64,8 @@ Parameters::Parameters():
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","list matches above this sequence identity (for clustering) [0.0,1.0]",typeid(float), (void *) &seqIdThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
 	    PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID,"--score-bias", "Score bias", "Score bias when computing the SW alignment (in bits)",typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID,"--alt-ali", "Alternative alignments","Show up to this many alternative alignments",typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
-        PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID,"--gap-open", "Gap open cost","Gap open cost",typeid(int), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
-        PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID,"--gap-extend", "Gap extension cost","Gap extension cost",typeid(int), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID,"--gap-open", "Gap open cost","Gap open cost",typeid(int), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID,"--gap-extend", "Gap extension cost","Gap extension cost",typeid(int), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
 
         // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0: Setcover, 1: connected component, 2: Greedy clustering by sequence length  3: Greedy clustering by sequence length (low mem)",typeid(int), (void *) &clusteringMode, "[0-3]{1}$", MMseqsParameter::COMMAND_CLUST),
@@ -79,8 +79,8 @@ Parameters::Parameters():
         // create profile (HMM)
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "0: HMM (HHsuite) 1: PSSM or 2: HMMER3",typeid(int),(void *) &profileMode,  "^[0-2]{1}$"),
         // convertalignments
-        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format 0: BLAST-TAB, 1: PAIRWISE, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
-        PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID,"--format-output", "Format alignment output", "format output 'query target evalue gapopen pident nident qstart qend qlen tstart tend tlen alnlen raw bits cigar qseq tseq qheader theader qaln taln qframe tframe mismatch qcov tcov'", typeid(std::string), (void*) &outfmt, ""),
+        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format 0: BLAST-TAB, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
+        PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID,"--format-output", "Format alignment output", "format output 'query,target,evalue,gapopen,pident,nident,qstart,qend,qlen,tstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov'", typeid(std::string), (void*) &outfmt, ""),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database Output", "Output a result db instead of a text file", typeid(bool), (void*) &dbOut, ""),
         // rescorediagonal
         PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "Rescore diagonal with: 0: Hamming distance, 1: local alignment (score only) or 2: local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),
@@ -133,7 +133,8 @@ Parameters::Parameters():
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","Search iterations",typeid(int),(void *) &numIterations, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_START_SENS(PARAM_START_SENS_ID, "--start-sens", "Start sensitivity","start sensitivity",typeid(float),(void *) &startSens, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_SENS_STEPS(PARAM_SENS_STEPS_ID, "--sens-steps", "Search steps","Search steps performed from --start-sense and -s.",typeid(int),(void *) &sensSteps, "^[1-9]{1}$"),
-        PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Run a seq-profile search in slice mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results.", typeid(bool),(void *) &sliceSearch, ""),
+        PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Run a seq-profile search in slice mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results.", typeid(bool),(void *) &sliceSearch, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_STRAND(PARAM_STRAND_ID, "--strand", "Strand selection", "Strand selection only works for DNA/DNA search 0: reverse, 1: forward, 2: both", typeid(int), (void *) &strand, "^[0-2]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // easysearch
         PARAM_GREEDY_BEST_HITS(PARAM_GREEDY_BEST_HITS_ID, "--greedy-best-hits", "Greedy best hits", "Choose the best hits greedily to cover the query.", typeid(bool), (void*)&greedyBestHits, ""),
         // Orfs
@@ -148,12 +149,15 @@ Parameters::Parameters():
         PARAM_USE_ALL_TABLE_STARTS(PARAM_USE_ALL_TABLE_STARTS_ID,"--use-all-table-starts", "Use all table starts", "use all alteratives for a start codon in the genetic table, if false - only ATG (AUG)",typeid(bool),(void *) &useAllTableStarts, ""),
         // indexdb
         PARAM_INCLUDE_HEADER(PARAM_INCLUDE_HEADER_ID, "--include-headers", "Include Header", "Include the header index into the index", typeid(bool), (void *) &includeHeader, ""),
+        PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check Compatible", "Skip recreating an index if it is compatible with the specified parameters", typeid(bool), (void*) &checkCompatible, "", COMMAND_EXPERT),
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_DONT_SPLIT_SEQ_BY_LEN(PARAM_DONT_SPLIT_SEQ_BY_LEN_ID,"--dont-split-seq-by-len", "Split Seq. by len", "Dont split sequences by --max-seq-len",typeid(bool),(void *) &splitSeqByLen, ""),
         PARAM_DONT_SHUFFLE(PARAM_DONT_SHUFFLE_ID,"--dont-shuffle", "Do not shuffle input database", "Do not shuffle input database",typeid(bool),(void *) &shuffleDatabase, ""),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "use the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
+        // splitsequence
+        PARAM_SEQUENCE_OVERLAP(PARAM_SEQUENCE_OVERLAP_ID, "--sequence-overlap", "Overlap between sequences", "overlap between sequences",typeid(int),(void *) &sequenceOverlap, "^(0|[1-9]{1}[0-9]*)$"),
         // gff2db
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
         // translatenucs
@@ -402,13 +406,14 @@ Parameters::Parameters():
     result2stats.push_back(PARAM_V);
 
     // format alignment
+    convertalignments.push_back(PARAM_SUB_MAT);
     convertalignments.push_back(PARAM_FORMAT_MODE);
-    convertalignments.push_back(PARAM_TRANSLATION_TABLE);
     convertalignments.push_back(PARAM_FORMAT_OUTPUT);
-    convertalignments.push_back(PARAM_PRELOAD_MODE);
-    convertalignments.push_back(PARAM_DB_OUTPUT);
+    convertalignments.push_back(PARAM_TRANSLATION_TABLE);
     convertalignments.push_back(PARAM_GAP_OPEN);
     convertalignments.push_back(PARAM_GAP_EXTEND);
+    convertalignments.push_back(PARAM_DB_OUTPUT);
+    convertalignments.push_back(PARAM_PRELOAD_MODE);
     convertalignments.push_back(PARAM_THREADS);
     convertalignments.push_back(PARAM_V);
 
@@ -491,9 +496,21 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_THREADS);
     extractorfs.push_back(PARAM_V);
 
+    // extract frames
+    extractframes.push_back(PARAM_ORF_FORWARD_FRAMES);
+    extractframes.push_back(PARAM_ORF_REVERSE_FRAMES);
+    extractframes.push_back(PARAM_THREADS);
+    extractframes.push_back(PARAM_V);
+
     // orf to contig 
     orftocontig.push_back(PARAM_THREADS);
     orftocontig.push_back(PARAM_V);
+
+    // splitsequence
+    splitsequence.push_back(PARAM_MAX_SEQ_LEN);
+    splitsequence.push_back(PARAM_SEQUENCE_OVERLAP);
+    splitsequence.push_back(PARAM_THREADS);
+    splitsequence.push_back(PARAM_V);
 
     // splitdb
     splitdb.push_back(PARAM_SPLIT);
@@ -512,6 +529,7 @@ Parameters::Parameters():
     indexdb.push_back(PARAM_S);
     indexdb.push_back(PARAM_K_SCORE);
     indexdb.push_back(PARAM_INCLUDE_HEADER);
+    indexdb.push_back(PARAM_CHECK_COMPATIBLE);
     indexdb.push_back(PARAM_SPLIT);
     indexdb.push_back(PARAM_SPLIT_MEMORY_LIMIT);
     indexdb.push_back(PARAM_THREADS);
@@ -593,6 +611,8 @@ Parameters::Parameters():
     onlythreads.push_back(PARAM_THREADS);
     onlythreads.push_back(PARAM_V);
 
+    offsetalignment.push_back(PARAM_THREADS);
+    offsetalignment.push_back(PARAM_V);
     // swap results
     swapresult.push_back(PARAM_SUB_MAT);
     swapresult.push_back(PARAM_E);
@@ -743,6 +763,7 @@ Parameters::Parameters():
     searchworkflow.push_back(PARAM_START_SENS);
     searchworkflow.push_back(PARAM_SENS_STEPS);
     searchworkflow.push_back(PARAM_SLICE_SEARCH);
+    searchworkflow.push_back(PARAM_STRAND);
     searchworkflow.push_back(PARAM_DISK_SPACE_LIMIT);
     searchworkflow.push_back(PARAM_RUNNER);
     searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
@@ -750,6 +771,7 @@ Parameters::Parameters():
     // easysearch
     easysearchworkflow = combineList(searchworkflow, convertalignments);
     easysearchworkflow = combineList(easysearchworkflow, summarizeresult);
+    easysearchworkflow = combineList(easysearchworkflow, createdb);
     easysearchworkflow.push_back(PARAM_GREEDY_BEST_HITS);
 
     // createindex workflow
@@ -764,15 +786,21 @@ Parameters::Parameters():
     linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
     linclustworkflow.push_back(PARAM_RUNNER);
 
+    // easylinclustworkflow
+    easylinclustworkflow = combineList(linclustworkflow, createdb);
+
     // clustering workflow
-    clusteringWorkflow = combineList(prefilter, align);
-    clusteringWorkflow = combineList(clusteringWorkflow, rescorediagonal);
-    clusteringWorkflow = combineList(clusteringWorkflow, clust);
-    clusteringWorkflow.push_back(PARAM_CASCADED);
-    clusteringWorkflow.push_back(PARAM_CLUSTER_STEPS);
-    clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
-    clusteringWorkflow.push_back(PARAM_RUNNER);
-    clusteringWorkflow = combineList(clusteringWorkflow, linclustworkflow);
+    clusterworkflow = combineList(prefilter, align);
+    clusterworkflow = combineList(clusterworkflow, rescorediagonal);
+    clusterworkflow = combineList(clusterworkflow, clust);
+    clusterworkflow.push_back(PARAM_CASCADED);
+    clusterworkflow.push_back(PARAM_CLUSTER_STEPS);
+    clusterworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    clusterworkflow.push_back(PARAM_RUNNER);
+    clusterworkflow = combineList(clusterworkflow, linclustworkflow);
+
+    // easyclusterworkflow
+    easyclusterworkflow = combineList(clusterworkflow, createdb);
 
     // taxonomy
     taxonomy = combineList(searchworkflow, lca);
@@ -790,7 +818,7 @@ Parameters::Parameters():
     multihitsearch = combineList(searchworkflow, besthitbyset);
 
     clusterUpdateSearch = removeParameter(searchworkflow, PARAM_MAX_SEQS);
-    clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
+    clusterUpdateClust = removeParameter(clusterworkflow, PARAM_MAX_SEQS);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
     clusterUpdate.push_back(PARAM_USESEQID);
     clusterUpdate.push_back(PARAM_RECOVER_DELETED);
@@ -1101,6 +1129,10 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 #ifdef OPENMP
     omp_set_num_threads(threads);
 #endif
+#ifndef OPENMP
+    threads = 1;
+#endif
+
 
     const size_t MAX_DB_PARAMETER = 6;
 
@@ -1251,6 +1283,7 @@ void Parameters::setDefaults() {
     startSens = 4;
     sensSteps = 1;
     sliceSearch = false;
+    strand = 1;
 
     greedyBestHits = false;
 
@@ -1310,6 +1343,7 @@ void Parameters::setDefaults() {
 
     // indexdb
     includeHeader = false;
+    checkCompatible = false;
 
     // createdb
     splitSeqByLen = true;
@@ -1317,7 +1351,7 @@ void Parameters::setDefaults() {
 
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
-    outfmt = "query target pident alnlen mismatch gapopen qstart qend tstart tend evalue bits";
+    outfmt = "query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits";
     dbOut = false;
 
     // rescore diagonal
@@ -1373,6 +1407,9 @@ void Parameters::setDefaults() {
 
     // createdb
     identifierOffset = 0;
+
+    // split sequence
+    sequenceOverlap = 0;
 
     // convert2fasta
     useHeaderFile = false;
@@ -1574,4 +1611,46 @@ void Parameters::overrideParameterDescription(Command &command, const int uid,
             break;
         }
     }
+}
+
+std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool &needdatabase, bool &needbacktrace) {
+    std::vector<std::string> outformatSplit = Util::split(outformat, ",");
+    std::vector<int> formatCodes;
+    int code = 0;
+    for (size_t i = 0; i < outformatSplit.size(); ++i) {
+        if(outformatSplit[i].compare("query") == 0){ code = Parameters::OUTFMT_QUERY;}
+        else if (outformatSplit[i].compare("target") == 0){ code = Parameters::OUTFMT_TARGET;}
+        else if (outformatSplit[i].compare("evalue") == 0){ code = Parameters::OUTFMT_EVALUE;}
+        else if (outformatSplit[i].compare("gapopen") == 0){ code = Parameters::OUTFMT_GAPOPEN;}
+        else if (outformatSplit[i].compare("pident") == 0){ code = Parameters::OUTFMT_PIDENT;}
+        else if (outformatSplit[i].compare("nident") == 0){ code = Parameters::OUTFMT_NIDENT;}
+        else if (outformatSplit[i].compare("qstart") == 0){ code = Parameters::OUTFMT_QSTART;}
+        else if (outformatSplit[i].compare("qend") == 0){ code = Parameters::OUTFMT_QEND;}
+        else if (outformatSplit[i].compare("qlen") == 0){ code = Parameters::OUTFMT_QLEN;}
+        else if (outformatSplit[i].compare("tstart") == 0){ code = Parameters::OUTFMT_TSTART;}
+        else if (outformatSplit[i].compare("tend") == 0){ code = Parameters::OUTFMT_TEND;}
+        else if (outformatSplit[i].compare("tlen") == 0){ code = Parameters::OUTFMT_TLEN;}
+        else if (outformatSplit[i].compare("alnlen") == 0){ code = Parameters::OUTFMT_ALNLEN;}
+        else if (outformatSplit[i].compare("raw") == 0){ needdatabase = true; code = Parameters::OUTFMT_RAW;}
+        else if (outformatSplit[i].compare("bits") == 0){ code = Parameters::OUTFMT_BITS;}
+        else if (outformatSplit[i].compare("cigar") == 0){ needbacktrace = true; code = Parameters::OUTFMT_CIGAR;}
+        else if (outformatSplit[i].compare("qseq") == 0){ needdatabase = true; code = Parameters::OUTFMT_QSEQ;}
+        else if (outformatSplit[i].compare("tseq") == 0){ needdatabase = true; code = Parameters::OUTFMT_TSEQ;}
+        else if (outformatSplit[i].compare("qheader") == 0){ code = Parameters::OUTFMT_QHEADER;}
+        else if (outformatSplit[i].compare("theader") == 0){ code = Parameters::OUTFMT_THEADER;}
+        else if (outformatSplit[i].compare("qaln") == 0){ needbacktrace = true; needdatabase = true; code = Parameters::OUTFMT_QALN;}
+        else if (outformatSplit[i].compare("taln") == 0){ needbacktrace = true; needdatabase = true; code = Parameters::OUTFMT_TALN;}
+        else if (outformatSplit[i].compare("qframe") == 0){ code = Parameters::OUTFMT_QFRAME;}
+        else if (outformatSplit[i].compare("tframe") == 0){ code = Parameters::OUTFMT_TFRAME;}
+        else if (outformatSplit[i].compare("mismatch") == 0){ code = Parameters::OUTFMT_MISMATCH;}
+        else if (outformatSplit[i].compare("qcov") == 0){ code = Parameters::OUTFMT_QCOV;}
+        else if (outformatSplit[i].compare("tcov") == 0){ code = Parameters::OUTFMT_TCOV;}
+        else if (outformatSplit[i].compare("empty") == 0){ code = Parameters::OUTFMT_EMPTY;}
+        else {
+            Debug(Debug::ERROR) << "Format code " << outformatSplit[i] << " does not exist.";
+            EXIT(EXIT_FAILURE);
+        }
+        formatCodes.push_back(code);
+    }
+    return formatCodes;
 }

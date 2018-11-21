@@ -16,9 +16,10 @@
 #include <omp.h>
 #endif
 
-
-int extractorfs(int argc, const char **argv, const Command& command) {
+int splitsequence(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
+    par.maxSeqLen = 10000;
+    par.sequenceOverlap = 300;
     par.parseParameters(argc, argv, command, 2);
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
@@ -33,18 +34,10 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads);
     headerWriter.open();
 
-    if ((par.orfStartMode == 1) && (par.contigStartMode < 2)) {
-        Debug(Debug::ERROR) << "Parameter combination is illegal, orf-start-mode 1 can only go with contig-start-mode 2\n";
-        EXIT(EXIT_FAILURE);
-    }
-
-    unsigned int forwardFrames = Orf::getFrames(par.forwardFrames);
-    unsigned int reverseFrames = Orf::getFrames(par.reverseFrames);
-    const char newline = '\n';
+    size_t sequenceOverlap = par.sequenceOverlap;
 
 #pragma omp parallel
     {
-        Orf orf(par.translationTable, par.useAllTableStarts);
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
@@ -56,55 +49,44 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         if (querySize == 0) {
             queryFrom = 0;
         }
+        char buffer[LINE_MAX];
 
-        std::vector<Orf::SequenceLocation> res;
-        res.reserve(1000);
         for (unsigned int i = queryFrom; i < (queryFrom + querySize); ++i){
             Debug::printProgress(i);
 
             unsigned int key = reader.getDbKey(i);
             const char* data = reader.getData(i);
             size_t dataLength = reader.getSeqLens(i);
-            size_t sequenceLength = dataLength - 2;
-            if(!orf.setSequence(data, dataLength - 2)) {
-                Debug(Debug::WARNING) << "Invalid sequence with index " << i << "!\n";
-                continue;
+            size_t seqLen = dataLength -2;
+            char* header = headerReader.getData(i);
+            Orf::SequenceLocation loc = Orf::parseOrfHeader(header);
+            size_t from = 0;
+            if(loc.id != UINT_MAX) {
+                from = (loc.strand==Orf::STRAND_MINUS)? loc.to : loc.from;
             }
-
-            const char* header = headerReader.getData(i);
+            unsigned int dbKey = (loc.id != UINT_MAX) ? loc.id : key;
+            size_t splitCnt = (size_t) ceilf(static_cast<float>(seqLen) / static_cast<float>(par.maxSeqLen - sequenceOverlap));
             std::string headerAccession = Util::parseFastaHeader(header);
-            orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, par.orfStartMode);
-            for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
-                Orf::SequenceLocation loc = *it;
 
-                if (par.contigStartMode < 2 && (loc.hasIncompleteStart == par.contigStartMode)) {
-                    continue;
-                }
-                if (par.contigEndMode   < 2 && (loc.hasIncompleteEnd   == par.contigEndMode)) {
-                    continue;
-                }
-
-                char buffer[LINE_MAX];
-
-                std::pair<const char*, size_t> sequence = orf.getSequence(loc);
-                size_t fromPos = loc.from;
-                size_t toPos = loc.to;
-                if(loc.strand == Orf::STRAND_MINUS){
-                    fromPos = (sequenceLength - 1) - loc.from;
-                    toPos   = (sequenceLength - 1) - loc.to;
-                }
-                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(),
-                        key, fromPos, toPos, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+            for (size_t split = 0; split < splitCnt; split++) {
+                size_t len = std::min(par.maxSeqLen, seqLen - (split * par.maxSeqLen - split*sequenceOverlap));
                 sequenceWriter.writeStart(thread_idx);
-                sequenceWriter.writeAdd(sequence.first, sequence.second, thread_idx);
-                sequenceWriter.writeAdd(&newline, 1, thread_idx);
-                sequenceWriter.writeEnd(key, thread_idx);
-
+                size_t startPos = split * par.maxSeqLen - split*sequenceOverlap;
+                sequenceWriter.writeAdd(data + startPos, len, thread_idx);
+                char newLine = '\n';
+                sequenceWriter.writeAdd(&newLine, 1, thread_idx);
+                sequenceWriter.writeEnd(key, thread_idx, true);
+                size_t fromPos = from + startPos;
+                size_t toPos = (from + startPos) + (len - 1);
+                if(loc.id != UINT_MAX && loc.strand == Orf::STRAND_MINUS){
+                    fromPos = (seqLen - 1) - (from + startPos);
+                    toPos   = fromPos - std::min(fromPos, len);
+                }
+                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n",
+                         (unsigned int) (headerAccession.size()), headerAccession.c_str(), dbKey,
+                         fromPos, toPos, 1, 1);
                 headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
-
-
             }
-            res.clear();
         }
     }
     headerWriter.close();
@@ -119,18 +101,18 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         {
 #pragma omp task
             {
-                DBReader<unsigned int> orfHeaderReader(par.hdr2.c_str(), par.hdr2Index.c_str(),
+                DBReader<unsigned int> frameHeaderReader(par.hdr2.c_str(), par.hdr2Index.c_str(),
                                                        DBReader<unsigned int>::USE_INDEX);
-                orfHeaderReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
+                frameHeaderReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
                 FILE *hIndex = fopen((par.hdr2Index + "_tmp").c_str(), "w");
                 if (hIndex == NULL) {
                     Debug(Debug::ERROR) << "Could not open " << par.hdr2Index << "_tmp for writing!\n";
                     EXIT(EXIT_FAILURE);
                 }
-                for (size_t i = 0; i < orfHeaderReader.getSize(); i++) {
-                    DBReader<unsigned int>::Index *idx = orfHeaderReader.getIndex(i);
+                for (size_t i = 0; i < frameHeaderReader.getSize(); i++) {
+                    DBReader<unsigned int>::Index *idx = frameHeaderReader.getIndex(i);
                     char buffer[1024];
-                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, orfHeaderReader.getSeqLens(i));
+                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, frameHeaderReader.getSeqLens(i));
                     int written = fwrite(buffer, sizeof(char), len, hIndex);
                     if (written != (int) len) {
                         Debug(Debug::ERROR) << "Could not write to data file " << par.hdr2Index << "_tmp\n";
@@ -138,15 +120,15 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                     }
                 }
                 fclose(hIndex);
-                orfHeaderReader.close();
+                frameHeaderReader.close();
                 std::rename((par.hdr2Index + "_tmp").c_str(), par.hdr2Index.c_str());
             }
 
 #pragma omp task
             {
-                DBReader<unsigned int> orfSequenceReader(par.db2.c_str(), par.db2Index.c_str(),
+                DBReader<unsigned int> frameSequenceReader(par.db2.c_str(), par.db2Index.c_str(),
                                                          DBReader<unsigned int>::USE_INDEX);
-                orfSequenceReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
+                frameSequenceReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
 
                 FILE *sIndex = fopen((par.db2Index + "_tmp").c_str(), "w");
                 if (sIndex == NULL) {
@@ -154,10 +136,10 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                     EXIT(EXIT_FAILURE);
                 }
 
-                for (size_t i = 0; i < orfSequenceReader.getSize(); i++) {
-                    DBReader<unsigned int>::Index *idx = (orfSequenceReader.getIndex(i));
+                for (size_t i = 0; i < frameSequenceReader.getSize(); i++) {
+                    DBReader<unsigned int>::Index *idx = (frameSequenceReader.getIndex(i));
                     char buffer[1024];
-                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, orfSequenceReader.getSeqLens(i));
+                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, frameSequenceReader.getSeqLens(i));
                     int written = fwrite(buffer, sizeof(char), len, sIndex);
                     if (written != (int) len) {
                         Debug(Debug::ERROR) << "Could not write to data file " << par.db2Index << "_tmp\n";
@@ -165,7 +147,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                     }
                 }
                 fclose(sIndex);
-                orfSequenceReader.close();
+                frameSequenceReader.close();
                 std::rename((par.db2Index + "_tmp").c_str(), par.db2Index.c_str());
             }
         }

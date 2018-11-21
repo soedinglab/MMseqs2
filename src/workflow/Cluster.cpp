@@ -52,7 +52,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     if (FileUtil::directoryExists(par.db3.c_str())==false) {
         Debug(Debug::INFO) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db3.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db3 << ".\n";
+            Debug(Debug::ERROR) << "Could not create tmp folder " << par.db3 << ".\n";
             EXIT(EXIT_FAILURE);
         } else {
             Debug(Debug::INFO) << "Created dir " << par.db3 << "\n";
@@ -65,20 +65,20 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     bool clusterStepsSet = false;
     bool minDiagonalScoreSet = false;
 
-    for (size_t i = 0; i < par.clusteringWorkflow.size(); i++) {
-        if (par.clusteringWorkflow[i].uniqid == par.PARAM_S.uniqid && par.clusteringWorkflow[i].wasSet) {
+    for (size_t i = 0; i < par.clusterworkflow.size(); i++) {
+        if (par.clusterworkflow[i].uniqid == par.PARAM_S.uniqid && par.clusterworkflow[i].wasSet) {
             sensitivitySet = true;
         }
-        if (par.clusteringWorkflow[i].uniqid == par.PARAM_CLUSTER_MODE.uniqid && par.clusteringWorkflow[i].wasSet) {
+        if (par.clusterworkflow[i].uniqid == par.PARAM_CLUSTER_MODE.uniqid && par.clusterworkflow[i].wasSet) {
             clusterModeSet = true;
         }
-        if (par.clusteringWorkflow[i].uniqid == par.PARAM_CLUSTER_STEPS.uniqid && par.clusteringWorkflow[i].wasSet) {
+        if (par.clusterworkflow[i].uniqid == par.PARAM_CLUSTER_STEPS.uniqid && par.clusterworkflow[i].wasSet) {
             clusterStepsSet = true;
         }
-        if (par.clusteringWorkflow[i].uniqid == par.PARAM_NO_COMP_BIAS_CORR.uniqid && par.clusteringWorkflow[i].wasSet) {
+        if (par.clusterworkflow[i].uniqid == par.PARAM_NO_COMP_BIAS_CORR.uniqid && par.clusterworkflow[i].wasSet) {
             compositionBiasSet = true;
         }
-        if (par.clusteringWorkflow[i].uniqid == par.PARAM_MIN_DIAG_SCORE.uniqid && par.clusteringWorkflow[i].wasSet) {
+        if (par.clusterworkflow[i].uniqid == par.PARAM_MIN_DIAG_SCORE.uniqid && par.clusterworkflow[i].wasSet) {
             minDiagonalScoreSet = true;
         }
     }
@@ -131,7 +131,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         par.clusterSteps = setAutomaticIterations(par.sensitivity);
         Debug(Debug::INFO) << "Set cluster iterations to " << par.clusterSteps << "\n";
     }
-    size_t hash = par.hashParameter(par.filenames, par.clusteringWorkflow);
+    size_t hash = par.hashParameter(par.filenames, par.clusterworkflow);
     std::string tmpDir = par.db3+"/"+SSTR(hash);
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
@@ -199,6 +199,10 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         }
         cmd.addVariable("STEPS", SSTR(par.clusterSteps).c_str());
 
+        size_t olfMaxResSize = par.maxResListLen;
+        par.maxResListLen = INT_MAX;
+        cmd.addVariable("ALIGNMENT_REASSIGN_PAR", par.createParameterString(par.align).c_str());
+        par.maxResListLen = olfMaxResSize;
         // set parameter for first step
         FileUtil::writeFile(tmpDir + "/cascaded_clustering.sh", cascaded_clustering_sh, cascaded_clustering_sh_len);
         std::string program(tmpDir + "/cascaded_clustering.sh");

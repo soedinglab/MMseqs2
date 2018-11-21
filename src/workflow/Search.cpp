@@ -4,28 +4,77 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "Parameters.h"
-
+#include "PrefilteringIndexReader.h"
 #include "searchtargetprofile.sh.h"
 #include "searchslicedtargetprofile.sh.h"
 #include "blastpgp.sh.h"
 #include "translated_search.sh.h"
 #include "blastp.sh.h"
+#include "blastn.sh.h"
 
 #include <iomanip>
 #include <climits>
 #include <cassert>
+
 
 void setSearchDefaults(Parameters *p) {
     p->spacedKmer = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
     p->sensitivity = 5.7;
     p->evalThr = 0.001;
-    p->includeHeader = true;
     //p->orfLongest = true;
     p->orfStartMode = 1;
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
     p->evalProfile = 0.1;
+}
+
+
+
+void setNuclSearchDefaults(Parameters *p) {
+    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    //p->orfLongest = true;
+
+    bool strandWasSet = false;
+    bool kmerSizeWasSet = false;
+    bool maxSeqLenWasSet = false;
+    bool gapOpenWasSet = false;
+    bool gapExtendWasSet = false;
+
+    for (size_t i = 0; i < p->searchworkflow.size(); i++) {
+        if (p->searchworkflow[i].uniqid == p->PARAM_STRAND.uniqid && p->searchworkflow[i].wasSet) {
+            strandWasSet = true;
+        }
+        if (p->searchworkflow[i].uniqid == p->PARAM_K.uniqid && p->searchworkflow[i].wasSet) {
+            kmerSizeWasSet = true;
+        }
+        if (p->searchworkflow[i].uniqid == p->PARAM_MAX_SEQ_LEN.uniqid && p->searchworkflow[i].wasSet) {
+            maxSeqLenWasSet = true;
+        }
+        if (p->searchworkflow[i].uniqid == p->PARAM_GAP_OPEN.uniqid && p->searchworkflow[i].wasSet) {
+            gapOpenWasSet = true;
+        }
+        if (p->searchworkflow[i].uniqid == p->PARAM_GAP_OPEN.uniqid && p->searchworkflow[i].wasSet) {
+            gapExtendWasSet = true;
+        }
+    }
+
+    p->exactKmerMatching = true;
+    if ( strandWasSet == false) {
+        p->strand = 2;
+    }
+    if ( kmerSizeWasSet == false) {
+        p->kmerSize = 15;
+    }
+    if ( maxSeqLenWasSet == false) {
+        p->maxSeqLen = 10000;
+    }
+    if( gapOpenWasSet == false){
+        p->gapOpen = 5;
+    }
+    if( gapExtendWasSet == false){
+        p->gapExtend = 2;
+    }
 }
 
 
@@ -67,11 +116,13 @@ int search(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
-    if (queryDbType == Sequence::NUCLEOTIDES && targetDbType == Sequence::NUCLEOTIDES) {
-        Debug(Debug::ERROR) << "Nucleotide-Nucleotide searches are not supported.\n";
-        EXIT(EXIT_FAILURE);
+    const bool isNuclSearch = (queryDbType == Sequence::NUCLEOTIDES && targetDbType == Sequence::NUCLEOTIDES);
+    if(isNuclSearch == true){
+        setNuclSearchDefaults(&par);
+    }else{
+        par.overrideParameterDescription((Command &) command, par.PARAM_STRAND.uniqid, NULL, NULL,
+                                         par.PARAM_STRAND.category | MMseqsParameter::COMMAND_EXPERT);
     }
-
     // FIXME: use larger default k-mer size in target-profile case if memory is available
     // overwrite default kmerSize for target-profile searches and parse parameters again
     if (par.sliceSearch == false && targetDbType == Sequence::HMM_PROFILE && par.PARAM_K.wasSet == false) {
@@ -79,7 +130,7 @@ int search(int argc, const char **argv, const Command& command) {
     }
 
     const bool isTranslatedNuclSearch =
-            (queryDbType == Sequence::NUCLEOTIDES || targetDbType == Sequence::NUCLEOTIDES);
+            isNuclSearch==false && (queryDbType == Sequence::NUCLEOTIDES || targetDbType == Sequence::NUCLEOTIDES);
 
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
     if (isUngappedMode && (queryDbType == Sequence::HMM_PROFILE || targetDbType == Sequence::HMM_PROFILE)) {
@@ -114,7 +165,7 @@ int search(int argc, const char **argv, const Command& command) {
     if (FileUtil::directoryExists(par.db4.c_str()) == false) {
         Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db4.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db4 << ".\n";
+            Debug(Debug::ERROR) << "Could not create tmp folder " << par.db4 << ".\n";
             EXIT(EXIT_FAILURE);
         } else {
             Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
@@ -282,7 +333,11 @@ int search(int argc, const char **argv, const Command& command) {
         program = std::string(tmpDir + "/blastp.sh");
     }
 
+
+
     if (isTranslatedNuclSearch == true) {
+        std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
+        cmd.addVariable("NO_TARGET_INDEX", (indexStr == "") ? "TRUE" : NULL);
         FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
         cmd.addVariable("QUERY_NUCL", queryDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
         cmd.addVariable("TARGET_NUCL", targetDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
@@ -291,6 +346,34 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");
+    }else if(isNuclSearch== true){
+        FileUtil::writeFile(tmpDir + "/blastn.sh", blastn_sh, blastn_sh_len);
+        //  0: reverse, 1: forward, 2: both
+        switch (par.strand){
+            case 0:
+                par.forwardFrames= "";
+                par.reverseFrames= "1";
+                cmd.addVariable("EXTRACTFRAMES","TRUE");
+                break;
+            case 1:
+                par.forwardFrames= "1";
+                par.reverseFrames= "";
+                break;
+            case 2:
+                par.forwardFrames= "1";
+                par.reverseFrames= "1";
+                cmd.addVariable("EXTRACTFRAMES","TRUE");
+                break;
+        }
+        //TODO
+        cmd.addVariable("SPLITSEQUENCE_PAR", par.createParameterString(par.splitsequence).c_str());
+        cmd.addVariable("NEEDTARGETSPLIT","TRUE");
+        cmd.addVariable("NEEDQUERYSPLIT","TRUE");
+        cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
+        cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.onlythreads).c_str());
+        cmd.addVariable("SEARCH", program.c_str());
+        program = std::string(tmpDir + "/blastn.sh");
+
     }
     cmd.execProgram(program.c_str(), par.filenames);
 

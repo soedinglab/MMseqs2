@@ -28,11 +28,9 @@ BaseMatrix::~BaseMatrix(){
     for (int i = 0; i < alphabetSize; i++){
         delete[] probMatrix[i];
         delete[] subMatrix[i];
-        delete[] subMatrix2Bit[i];
         free(subMatrixPseudoCounts[i]);
     }
     delete[] probMatrix;
-    delete[] subMatrix2Bit;
     delete[] subMatrixPseudoCounts;
     delete[] subMatrix;
 }
@@ -43,18 +41,15 @@ void BaseMatrix::initMatrixMemory(int alphabetSize) {
     pBack = new double[alphabetSize];
     probMatrix = new double*[alphabetSize];
     subMatrix = new short*[alphabetSize];
-    subMatrix2Bit = new short*[alphabetSize];
     subMatrixPseudoCounts = new float*[alphabetSize];
 
     for (int i = 0; i < alphabetSize; i++){
         pBack[i] = 0.0;
         probMatrix[i] = new double[alphabetSize];
         subMatrix[i] = new short[alphabetSize];
-        subMatrix2Bit[i] = new short[alphabetSize];
         subMatrixPseudoCounts[i] =  (float *) malloc_simd_float(alphabetSize * sizeof(float));
         for (int j = 0; j < alphabetSize; j++){
             probMatrix[i][j] = 0.0;
-            subMatrix2Bit[i][j] = 0.0;
             subMatrix[i][j] = 0;
             subMatrixPseudoCounts[i][j] = 0.0;
         }
@@ -140,8 +135,7 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
 //        subMatrix[i][size - 1] = -.7;
 //    }
 }
-void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseudoCounts, short ** subMatrix,
-                                   short **subMatrix2Bit, int size, bool containsX, double bitFactor, double scoringBias){
+void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseudoCounts, short ** subMatrix, int size, bool containsX, double bitFactor, double scoringBias){
     double** sm = new double* [size];
     for (int i = 0; i < size; i++)
         sm[i] = new double[size];
@@ -153,8 +147,6 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseud
         for (int j = 0; j < size; j++){
             double pValNBitScale = (bitFactor * sm[i][j] + scoringBias);
             subMatrix[i][j] = (pValNBitScale < 0.0) ? pValNBitScale - 0.5 : pValNBitScale + 0.5;
-            double pVal2BitScale = (sm[i][j] * 2.0 + scoringBias);
-            subMatrix2Bit[i][j] = (pVal2BitScale < 0.0) ? pVal2BitScale - 0.5 : pVal2BitScale + 0.5;
         }
     }
 

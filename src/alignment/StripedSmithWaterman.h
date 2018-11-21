@@ -33,8 +33,6 @@
 
 #include <climits>
 
-#include <emmintrin.h>
-
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>

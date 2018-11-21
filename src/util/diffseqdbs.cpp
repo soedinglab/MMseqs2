@@ -38,10 +38,6 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 5);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     DBReader<unsigned int> oldReader(par.hdr1.c_str(), par.hdr1Index.c_str());
     oldReader.open(DBReader<unsigned int>::NOSORT);
 

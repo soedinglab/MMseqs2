@@ -6,7 +6,7 @@ char* getScoreLookup(BaseMatrix &matrix) {
     idScoreLookup = new char[matrix.alphabetSize];
     for (int aa = 0; aa < matrix.alphabetSize; aa++){
         short score = matrix.subMatrix[aa][aa];
-        if (score > CHAR_MAX || score < CHAR_MIN) {
+        if (score > SCHAR_MAX || score < SCHAR_MIN) {
             Debug(Debug::WARNING) << "Truncating substitution matrix diagonal score!";
         }
         idScoreLookup[aa] = (char) score;
@@ -168,7 +168,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                             << "Maybe the sequences length is less than 14 residues.\n";
         if (maskedResidues == true){
             Debug(Debug::ERROR) << " or contains only low complexity regions.";
-            Debug(Debug::ERROR) << "Use --mask-mode 0 to deactivate the low complexity filter.\n";
+            Debug(Debug::ERROR) << "Use --mask 0 to deactivate the low complexity filter.\n";
         }
         EXIT(EXIT_FAILURE);
     }

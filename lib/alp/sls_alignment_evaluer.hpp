@@ -38,9 +38,9 @@ Contents: library functions of main routines
 
 #include "sls_pvalues.hpp"
 #include <math.h>
-#include <string>
 
 namespace Sls {
+	const double default_importance_sampling_temperature = 1.07;
 
 	class AlignmentEvaluer {
 
@@ -101,7 +101,8 @@ namespace Sls {
 			double eps_K_,//relative error for the parameter K
 			double max_time_,//maximum allowed calculation time in seconds; 
 			double max_mem_,//maximum allowed memory usage in Mb
-			long randomSeed_);//randomizaton seed
+			long randomSeed_,//randomizaton seed
+			double temperature_=default_importance_sampling_temperature);
 
 
 	//Initializes Gumbel parameters using precalculated values:
@@ -162,7 +163,7 @@ namespace Sls {
 
 	double bitScore(double score_) const
 	{
-		return bitScore(score_, log(d_params.K));
+		return (d_params.lambda*score_-log(d_params.K))/log(2.0);
 	}
 
 	//returns "true" if the set of parameters "d_params" is fully defined for P-value calculation

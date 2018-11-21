@@ -33,7 +33,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     if (FileUtil::directoryExists(par.db3.c_str()) == false) {
         Debug(Debug::INFO) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db3.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db3 << ".\n";
+            Debug(Debug::ERROR) << "Could not create tmp folder " << par.db3 << ".\n";
             EXIT(EXIT_FAILURE);
         } else {
             Debug(Debug::INFO) << "Created dir " << par.db3 << "\n";

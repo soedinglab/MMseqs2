@@ -130,7 +130,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
         probMatrix_new[i][alphabetSize-1] = Pab * pBack[alphabetSize-1] * pBack[i];
     }
     delete [] origpBack;
-    generateSubMatrix(probMatrix_new, rMatrix, this->subMatrix, this->subMatrix2Bit, alphabetSize, true, bitFactor, 0.0);
+    generateSubMatrix(probMatrix_new, rMatrix, this->subMatrix, alphabetSize, true, bitFactor, 0.0);
 
 
     delete[] this->int2aa;

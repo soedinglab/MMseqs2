@@ -259,11 +259,13 @@ int ffindexFilter::runFilter(){
                     }
                     // or a specified column:
                     else {
-                        std::vector<std::string> splittedLine = Util::split(fullLine, "\t") ;
-                        char* newValue = const_cast<char *>(splittedLine[columnToTake].c_str());
-                        size_t valueLength = joinDB->getSeqLens(newId);
-                        // Appending join database entry to query database entry
-                        memcpy(lineBuffer + originalLength, newValue, valueLength);
+                        if(*fullLine != '\0'){
+                            std::vector<std::string> splittedLine = Util::split(fullLine, "\t") ;
+                            char* newValue = const_cast<char *>(splittedLine[columnToTake].c_str());
+                            size_t valueLength = joinDB->getSeqLens(newId);
+                            // Appending join database entry to query database entry
+                            memcpy(lineBuffer + originalLength, newValue, valueLength);
+                        }
                     }
                 }
                 else if (mode == TRANSITIVE_REPLACE) {
@@ -506,10 +508,6 @@ int ffindexFilter::runFilter(){
 int filterdb(int argc, const char **argv, const Command& command) {
 	Parameters& par = Parameters::getInstance();
 	par.parseParameters(argc, argv, command, 2);
-
-#ifdef OPENMP
-	omp_set_num_threads(par.threads);
-#endif
 
     ffindexFilter filter(par);
     return filter.runFilter();

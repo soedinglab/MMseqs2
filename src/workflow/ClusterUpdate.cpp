@@ -24,13 +24,13 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     cmd.addVariable("SEARCH_PAR", par.createParameterString(par.clusterUpdateSearch).c_str());
     par.maxAccept = maxAccept;
 
-    cmd.addVariable("CLUST_PAR", par.createParameterString(par.clusteringWorkflow).c_str());
+    cmd.addVariable("CLUST_PAR", par.createParameterString(par.clusterworkflow).c_str());
 
     std::string scriptPath(par.db6);
     if(FileUtil::directoryExists(par.db6.c_str())==false){
         Debug(Debug::INFO) << "Tmp " << par.db6 << " folder does not exist or is not a directory.\n";
         if(FileUtil::makeDir(par.db6.c_str()) == false){
-            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db6 << ".\n";
+            Debug(Debug::ERROR) << "Could not create tmp folder " << par.db6 << ".\n";
             EXIT(EXIT_FAILURE);
         }else{
             Debug(Debug::INFO) << "Created dir " << par.db6 << "\n";

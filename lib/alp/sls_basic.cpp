@@ -27,13 +27,19 @@
 
 File name: sls_basic.cpp
 
-Author: Sergey Sheetlin
+Author: Sergey Sheetlin, Martin Frith
 
 Contents: Some basic functions and types
 
 ******************************************************************************/
 
+// 2016: this voodoo is needed to compile on Cygwin, with g++ options
+// such as -std=c++11 or -std=c++03, else it complains about gettimeofday
+#define _DEFAULT_SOURCE 1
+
 #include "sls_basic.hpp"
+#include <cstdlib>  // std::abs
+#include <ctime>
 
 using namespace Sls;
 
@@ -67,6 +73,24 @@ double &seconds_)
 #endif
 }
 
+long int sls_basic::random_seed_from_time()
+{
+	long int random_factor=(long int)std::time(NULL);
+#ifndef _MSC_VER //UNIX program
+	struct timeval tv;
+	struct timezone tz;
+	gettimeofday(&tv, &tz);
+	random_factor+=tv.tv_usec*10000000;
+#else
+	struct _timeb timebuffer;
+	char *timeline;
+	_ftime( &timebuffer );
+	timeline = ctime( & ( timebuffer.time ) );
+	random_factor+=timebuffer.millitm*10000000;
+#endif
+	return std::abs(random_factor);
+}
+
 double sls_basic::one_minus_exp_function(
 double y_)
 {
@@ -92,26 +116,32 @@ double eps_)
 
 
 	eps_=Tmin(1.0,eps_);
-    //std::cout << eps_ << std::endl;
-    // log(_eps) = log(0.000001) = -6
-	double x_max=10*eps_+sqrt(Tmax(0.0,-2.0*-6.0));
+
+	double x_max=10*eps_+sqrt(Tmax(0.0,-2*log(eps_)));
 
 
 	if(x_>=x_max)
 	{
-		double x=x_/ 1.4142135623730951;
-		return 1-0.5*exp(-x*x)/(x*sqrtPi)*(1-1.0/(2*x*2*x));
+		double x=x_/sqrt(2.0);
+		return 1-0.5*exp(-x*x)/(x*sqrt(pi))*(1-1.0/(2*x*2*x));
 	};
 
 	if(x_<=-x_max)
 	{
-		double x=x_/ 1.4142135623730951;
-		return 0.5*exp(-x*x)/(-x*sqrtPi)*(1-1.0/(2*x*2*x));
+		double x=x_/sqrt(2.0);
+		return 0.5*exp(-x*x)/(-x*sqrt(pi))*(1-1.0/(2*x*2*x));
 	};
 
+
 	double const_val=1/sqrt(2.0*pi);
+
+	
+
+
 	long int N=(long int)round(fabs(x_)/eps_)+1;
 	double h=x_/(double)N;
+
+
 
 	double res=0;
 	long int i;
@@ -128,6 +158,7 @@ double eps_)
 			res+=tmp;
 		};
 	};
+
 	res*=h;
 
 	return 0.5+const_val*(res);

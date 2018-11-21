@@ -28,15 +28,10 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         localThreads = static_cast<int>(resultReader.getSize());
     }
 
-#ifdef OPENMP
-    omp_set_num_threads(localThreads);
-#endif
-
     DBReader<unsigned int> *tDbr = NULL;
     DBReader<unsigned int> *tidxdbr = NULL;
     SequenceLookup *tSeqLookup = NULL;
     bool templateDBIsIndex = false;
-    std::string scoringMatrixFile = par.scoringMatrixFile;
 
     int targetSeqType = -1;
     std::string indexDB = PrefilteringIndexReader::searchForIndex(par.db2);
@@ -57,8 +52,10 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 PrefilteringIndexReader::printSummary(tidxdbr);
                 PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
                 targetSeqType = meta.seqType;
-                tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, touch);
-                scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
+                par.maxSeqLen = meta.maxSeqLength;
+                par.compBiasCorrection = meta.compBiasCorr;
+                par.scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
+                tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, false, touch);
             }
         }
 
@@ -72,10 +69,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         tDbr->open(DBReader<unsigned int>::NOSORT);
         targetSeqType = tDbr->getDbtype();
-        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-            tDbr->readMmapedDataInMemory();
-            tDbr->mlock();
-        }
     }
 
     DBReader<unsigned int> *qDbr = NULL;
@@ -87,7 +80,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         qDbr->open(DBReader<unsigned int>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             qDbr->readMmapedDataInMemory();
-            qDbr->mlock();
         }
 
         unsigned int *lengths = qDbr->getSeqLens();
@@ -109,6 +101,13 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         }
     }
 
+    qDbr->readMmapedDataInMemory();
+    // make sure to touch target after query, so if there is not enough memory for the query, at least the targets
+    // might have had enough space left to be residung in the page cache
+    if (sameDatabase == false && templateDBIsIndex == false && par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+        tDbr->readMmapedDataInMemory();
+    }
+
     DBWriter resultWriter(outpath.c_str(), std::string(outpath + ".index").c_str(), localThreads, DBWriter::BINARY_MODE);
     resultWriter.open();
 
@@ -123,7 +122,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
-    SubstitutionMatrix subMat(scoringMatrixFile.c_str(), 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
     ProbabilityMatrix probMatrix(subMat);
 
     Debug(Debug::INFO) << "Start computing profiles.\n";
@@ -143,7 +142,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     const bool isFiltering = par.filterMsa != 0;
     int xAmioAcid = subMat.aa2int[(int)'X'];
 
-#pragma omp parallel
+#pragma omp parallel num_threads(localThreads)
     {
         Matcher matcher(qDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen, par.gapExtend);
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
@@ -206,7 +205,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
                 const size_t edgeId = tDbr->getId(key);
                 Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId),
-                                                      tDbr->getDbtype(), &subMat, 0, false, false);
+                                                      targetSeqType, &subMat, 0, false, false);
 
                 if (tSeqLookup != NULL) {
                     std::pair<const unsigned char*, const unsigned int> sequence = tSeqLookup->getSequence(edgeId);

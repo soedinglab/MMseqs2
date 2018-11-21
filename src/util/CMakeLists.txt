@@ -22,6 +22,7 @@ set(util_source_files
         util/extractdomains.cpp
         util/extractorfs.cpp
         util/orftocontig.cpp
+        util/touchdb.cpp
         util/filterdb.cpp
         util/gff2db.cpp
         util/maskbygff.cpp
@@ -40,8 +41,10 @@ set(util_source_files
         util/result2stats.cpp
         util/sequence2profile.cpp
         util/shellcompletion.cpp
+        util/extractframes.cpp
         util/sortresult.cpp
         util/splitdb.cpp
+        util/splitsequence.cpp
         util/subtractdbs.cpp
         util/summarizeheaders.cpp
         util/summarizeresult.cpp

@@ -85,7 +85,7 @@ void Random::seed (long x)
 long Random::number () // uniform random x : 0 <= x <= exp2 (31) - 1
 
 {
-	long	r;
+	long r;
 
 	r = *rK;
 	r += *rJ--;

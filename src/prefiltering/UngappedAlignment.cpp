@@ -28,7 +28,7 @@ void UngappedAlignment::processQuery(Sequence *seq,
                                    float *biasCorrection,
                                    CounterResult *results,
                                    size_t resultSize) {
-    short bias = createProfile(seq, biasCorrection, subMatrix->subMatrix2Bit, subMatrix->alphabetSize);
+    short bias = createProfile(seq, biasCorrection, subMatrix->subMatrix, subMatrix->alphabetSize);
     this->bias = bias;
     queryLen = seq->L;
     computeScores(queryProfile, seq->L, results, resultSize, bias);
@@ -96,8 +96,16 @@ simd_int UngappedAlignment::vectorDiagonalScoring(const char *profile,
         // _mm_shuffle_epi8
         // for i ... 16
         //   score01[i] = score_matrix_vec01[template01[i]%16]
+#ifdef NEON
+        __m128i score01 =vreinterpretq_m128i_u8(vqtbl1q_u8(vreinterpretq_u8_m128i(score_matrix_vec01),vreinterpretq_u8_m128i(template01)));
+#else
         __m128i score01 =_mm_shuffle_epi8(score_matrix_vec01,template01);
+#endif
+#ifdef NEON
+        __m128i score16 =vreinterpretq_m128i_u8(vqtbl1q_u8(vreinterpretq_u8_m128i(score_matrix_vec16),vreinterpretq_u8_m128i(template01)));
+#else
         __m128i score16 =_mm_shuffle_epi8(score_matrix_vec16,template01);
+#endif
         // t[i] < 16 => 0 - 15
         // example: template01: 02 15 12 18 < 16 16 16 16 => FF FF FF 00
         __m128i lookup_mask01 = _mm_cmplt_epi8(template01, sixten);

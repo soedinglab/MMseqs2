@@ -94,7 +94,7 @@ private:
             for(int i = 0; i < subMat->alphabetSize; i++) {
                 tmpMat[i] = &tmpMatData[i * subMat->alphabetSize];
                 for (int j = 0; j < subMat->alphabetSize; j++) {
-                    tmpMat[i][j] = subMat->subMatrix2Bit[i][j];
+                    tmpMat[i][j] = subMat->subMatrix[i][j];
                 }
             }
             if(isGapped) {
@@ -105,15 +105,43 @@ private:
                         gapOpen, gapExtend, gapOpen, gapExtend,
                         false, lambdaTolerance, kTolerance,
                         maxSeconds, maxMegabytes, randomSeed);
+//                std::cout << std::setprecision(20) <<
+//                          evaluer.parameters().lambda <<"\t" <<
+//                          evaluer.parameters().K <<"\t" <<
+//                          evaluer.parameters().a_J<<"\t" <<
+//                          evaluer.parameters().b_J<<"\t" <<
+//                          evaluer.parameters().a_I<<"\t" <<
+//                          evaluer.parameters().b_I<<"\t" <<
+//                          evaluer.parameters().alpha_J<<"\t" <<
+//                          evaluer.parameters().beta_J<<"\t" <<
+//                          evaluer.parameters().alpha_I<<"\t" <<
+//                          evaluer.parameters().beta_I<<"\t" <<
+//                          evaluer.parameters().sigma<<"\t" <<
+//                          evaluer.parameters().tau<<"\t" << std::endl;
             }else{
                 //subMat->alphabetSize-1
                 evaluer.initGapless(
                         subMat->alphabetSize-1, (const long *const *)tmpMat,
                         subMat->pBack, subMat->pBack,
                         maxSeconds);
+//                std::cout << std::setprecision(20) <<
+//                          evaluer.parameters().lambda <<"\t" <<
+//                          evaluer.parameters().K <<"\t" <<
+//                          evaluer.parameters().a_J<<"\t" <<
+//                          evaluer.parameters().b_J<<"\t" <<
+//                          evaluer.parameters().a_I<<"\t" <<
+//                          evaluer.parameters().b_I<<"\t" <<
+//                          evaluer.parameters().alpha_J<<"\t" <<
+//                          evaluer.parameters().beta_J<<"\t" <<
+//                          evaluer.parameters().alpha_I<<"\t" <<
+//                          evaluer.parameters().beta_I<<"\t" <<
+//                          evaluer.parameters().sigma<<"\t" <<
+//                          evaluer.parameters().tau<<"\t" << std::endl;
+
             }
             delete [] tmpMatData;
             delete [] tmpMat;
+
         }
         if(evaluer.isGood()==false){
             Debug(Debug::ERROR) << "ALP did not converge for the substitution matrix, gap open, gap extend input.\n"

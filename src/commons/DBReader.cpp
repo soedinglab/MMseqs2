@@ -26,9 +26,9 @@ DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int
 {}
 
 template <typename T>
-DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey) :
+DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey, int dbType) :
         data(NULL), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL),
-        size(size), dataSize(0), aaDbSize(aaDbSize), lastKey(lastKey), closed(1), dbtype(-1),
+        size(size), dataSize(0), aaDbSize(aaDbSize), lastKey(lastKey), closed(1), dbtype(dbType),
         index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
         dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
 {}
@@ -83,10 +83,12 @@ template <typename T> DBReader<T>::~DBReader(){
 template <typename T> bool DBReader<T>::open(int accessType){
     // count the number of entries
     this->accessType = accessType;
-    bool isSortedById = false;
+    if (dataFileName != NULL) {
+        dbtype = parseDbType(dataFileName);
+    }
+
     if (dataMode & USE_DATA) {
         FILE* dataFile = fopen(dataFileName, "r");
-        dbtype = parseDbType(dataFileName);
         if (dataFile == NULL) {
             Debug(Debug::ERROR) << "Could not open data file " << dataFileName << "!\n";
             EXIT(EXIT_FAILURE);
@@ -96,6 +98,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         dataMapped = true;
     }
 
+    bool isSortedById = false;
     if (externalData == false) {
         if(FileUtil::fileExists(indexFileName)==false){
             Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "!\n";
@@ -549,7 +552,9 @@ size_t DBReader<unsigned int>::indexMemorySize(const DBReader<unsigned int> &idx
                      // index
                      + idx.size * sizeof(DBReader<unsigned int>::Index)
                      // seqLens
-                     + idx.size * sizeof(unsigned int);
+                     + idx.size * sizeof(unsigned int)
+                     // dbtype
+                     + sizeof(int) ;
 
     return memSize;
 }
@@ -564,6 +569,8 @@ char* DBReader<unsigned int>::serialize(const DBReader<unsigned int> &idx) {
     p += sizeof(size_t);
     memcpy(p, &idx.lastKey, sizeof(unsigned int));
     p += sizeof(unsigned int);
+    memcpy(p, &idx.dbtype, sizeof(int));
+    p += sizeof(int);
     memcpy(p, idx.index, idx.size * sizeof(DBReader<unsigned int>::Index));
     p += idx.size * sizeof(DBReader<unsigned int>::Index);
     memcpy(p, idx.seqLens, idx.size * sizeof(unsigned int));
@@ -580,11 +587,13 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data) {
     p += sizeof(size_t);
     size_t lastKey = *((unsigned int*)p);
     p += sizeof(unsigned int);
+    size_t dbType = *((int*)p);
+    p += sizeof(int);
     DBReader<unsigned int>::Index *idx = (DBReader<unsigned int>::Index *)p;
     p += size * sizeof(DBReader<unsigned int>::Index);
     unsigned int *seqLens = (unsigned int *)p;
 
-    return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize, lastKey);
+    return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize, lastKey, dbType);
 }
 
 template <typename T>
@@ -611,6 +620,42 @@ int DBReader<T>::parseDbType(const char *name) {
         fclose(dbtypeDataFile);
     }
     return dbtype;
+}
+
+template<typename T>
+void DBReader<T>::setData(char *data, size_t dataSize) {
+    this->data = data;
+    this->dataSize = dataSize;
+}
+
+template<typename T>
+void DBReader<T>::setMode(const int mode) {
+    this->dataMode = mode;
+}
+
+template<typename T>
+size_t DBReader<T>::getOffset(size_t id) {
+    if (id >= size){
+        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
+        Debug(Debug::ERROR) << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){
+        id = local2id[id];
+    }
+    return index[id].offset;
+}
+
+template<typename T>
+size_t DBReader<T>::findNextOffsetid(size_t id) {
+    size_t idOffset = getOffset(id);
+    size_t nextOffset = SIZE_MAX;
+    for(size_t i = 0; i < size; i++){
+        if(index[i].offset > idOffset && index[i].offset < nextOffset){
+            nextOffset=index[i].offset;
+        }
+    }
+    return nextOffset;
 }
 
 template class DBReader<unsigned int>;

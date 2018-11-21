@@ -58,7 +58,8 @@ private:
     DBReader<unsigned int> *tdbr;
     DBReader<unsigned int> *tidxdbr;
 
-    BaseMatrix *subMat;
+    BaseMatrix *kmerSubMat;
+    BaseMatrix *ungappedSubMat;
     ScoreMatrix *_2merSubMatrix;
     ScoreMatrix *_3merSubMatrix;
     IndexTable *indexTable;
@@ -83,11 +84,11 @@ private:
     const int kmerScore;
     const float sensitivity;
     const size_t resListOffset;
-    const size_t maxSeqLen;
+    size_t maxSeqLen;
     int querySeqType;
     const bool diagonalScoring;
     const unsigned int minDiagScoreThr;
-    const bool aaBiasCorrection;
+    bool aaBiasCorrection;
     const float covThr;
     const int covMode;
     const bool includeIdentical;

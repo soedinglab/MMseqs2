@@ -55,8 +55,8 @@ public:
 
     // convertalis alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
-    static const int FORMAT_ALIGNMENT_PAIRWISE  = 1;
     static const int FORMAT_ALIGNMENT_BLAST_WITH_LEN = 2;
+
     // outfmt
     static const int OUTFMT_QUERY = 0;
     static const int OUTFMT_TARGET = 1;
@@ -86,9 +86,7 @@ public:
     static const int OUTFMT_QCOV = 25;
     static const int OUTFMT_TCOV = 26;
     static const int OUTFMT_EMPTY = 27;
-
-    // NOT IMPLEMENTED YET
-    static const int FORMAT_ALIGNMENT_SAM       = 99;
+    static std::vector<int> getOutputFormat(const std::string &outformat, bool &needdatabase, bool &needbacktrace);
 
     // convertprofiledb
     static const int PROFILE_MODE_HMM = 0;
@@ -275,6 +273,7 @@ public:
     float startSens;
     int sensSteps;
     bool sliceSearch;
+    int strand;
 
     // easysearch
     bool greedyBestHits;
@@ -357,11 +356,15 @@ public:
 
     // indexdb
     bool includeHeader;
+    bool checkCompatible;
 
     // createdb
     int identifierOffset;
     bool splitSeqByLen;
     bool shuffleDatabase;
+
+    // splitsequence
+    int sequenceOverlap;
 
     // convert2fasta
     bool useHeaderFile;
@@ -601,6 +604,8 @@ public:
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEPS)
     PARAMETER(PARAM_SLICE_SEARCH)
+    PARAMETER(PARAM_STRAND)
+
 
     // easysearch
     PARAMETER(PARAM_GREEDY_BEST_HITS)
@@ -618,6 +623,7 @@ public:
 
     // indexdb
     PARAMETER(PARAM_INCLUDE_HEADER)
+    PARAMETER(PARAM_CHECK_COMPATIBLE)
 
     // createdb
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
@@ -627,6 +633,9 @@ public:
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)
+
+    // split sequence
+    PARAMETER(PARAM_SEQUENCE_OVERLAP)
 
     // gff2db
     PARAMETER(PARAM_GFF_TYPE)
@@ -723,8 +732,10 @@ public:
     std::vector<MMseqsParameter> createtsv;
     std::vector<MMseqsParameter> result2stats;
     std::vector<MMseqsParameter> extractorfs;
+    std::vector<MMseqsParameter> extractframes;
     std::vector<MMseqsParameter> orftocontig;
     std::vector<MMseqsParameter> splitdb;
+    std::vector<MMseqsParameter> splitsequence;
     std::vector<MMseqsParameter> indexdb;
     std::vector<MMseqsParameter> createindex;
     std::vector<MMseqsParameter> convertalignments;
@@ -734,11 +745,13 @@ public:
     std::vector<MMseqsParameter> gff2ffindex;
     std::vector<MMseqsParameter> clusthash;
     std::vector<MMseqsParameter> kmermatcher;
+    std::vector<MMseqsParameter> easylinclustworkflow;
     std::vector<MMseqsParameter> linclustworkflow;
     std::vector<MMseqsParameter> easysearchworkflow;
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> mapworkflow;
-    std::vector<MMseqsParameter> clusteringWorkflow;
+    std::vector<MMseqsParameter> easyclusterworkflow;
+    std::vector<MMseqsParameter> clusterworkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;
     std::vector<MMseqsParameter> clusterUpdateClust;
     std::vector<MMseqsParameter> mergeclusters;
@@ -749,6 +762,7 @@ public:
     std::vector<MMseqsParameter> createseqfiledb;
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> onlythreads;
+    std::vector<MMseqsParameter> offsetalignment;
     std::vector<MMseqsParameter> subtractdbs;
     std::vector<MMseqsParameter> diff;
     std::vector<MMseqsParameter> concatdbs;

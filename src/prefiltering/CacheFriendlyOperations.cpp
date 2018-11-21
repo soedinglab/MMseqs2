@@ -190,6 +190,8 @@ template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::findDupl
                 const unsigned int hashBinElement = element >> (MASK_0_5_BIT);
                 output[doubleElementCount].id    = element;
                 output[doubleElementCount].count = duplicateBitArray[hashBinElement];
+                output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
+
                 // memory overflow can not happen since input array = output array
                 doubleElementCount += (duplicateBitArray[hashBinElement] != 0) ? 1 : 0;
                 duplicateBitArray[hashBinElement] = 0;

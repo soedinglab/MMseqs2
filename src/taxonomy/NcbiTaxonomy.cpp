@@ -241,12 +241,15 @@ void NcbiTaxonomy::elh(int node, int level) {
     int id = it->first;
 
     assert (id > 0);
-    E.emplace_back(id);
-    L.emplace_back(level);
 
     if (H[id - 1] == 0) {
         H[id - 1] = E.size();
     }
+
+    E.emplace_back(id);
+    L.emplace_back(level);
+
+
     for (std::vector<int>::iterator jt = it->second.children.begin(); jt != it->second.children.end(); ++jt) {
         elh((*jt), level + 1);
     }
@@ -410,6 +413,9 @@ TaxonNode* NcbiTaxonomy::findNode(int taxonId) {
         EXIT(EXIT_FAILURE);
     }
 
+    if (it1->second == -1) {
+        return NULL;
+    }
     std::map<int, TaxonNode>::iterator it2 = taxonTree.find(it1->second);
 
     if (it2 == taxonTree.end()) {

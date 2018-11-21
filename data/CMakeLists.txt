@@ -12,6 +12,7 @@ set(COMPILED_RESOURCES
         update_clustering.sh
         searchtargetprofile.sh
         createindex.sh
+        createtaxdb.sh
         translated_search.sh
         taxonomy.sh
         multihitdb.sh
@@ -19,6 +20,7 @@ set(COMPILED_RESOURCES
         summarizeresultsbyset.sh
         search2m.sh
         enrich.sh
+        blastn.sh
         nucleotide.out
         blosum62.out
         CovSeqidQscPercMinDiag.out

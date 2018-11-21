@@ -20,7 +20,7 @@ TMP_PATH="$3"
 SOURCE="$INPUT"
 
 mkdir -p "${TMP_PATH}/linclust"
-if notExists "${TMP_PATH}/aln_redundancy"; then
+if notExists "${TMP_PATH}/clu_redundancy"; then
     # shellcheck disable=SC2086
     "$MMSEQS" linclust "$INPUT" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/linclust" ${LINCLUST_PAR} \
         || fail "linclust died"
@@ -78,9 +78,54 @@ while [ "$STEP" -lt "$STEPS" ]; do
 	STEP=$((STEP+1))
 done
 
-# post processing
-mv -f "${TMP_PATH}/clu" "$2" || fail "Could not move result to $2"
-mv -f "${TMP_PATH}/clu.index" "$2.index" || fail "Could not move result to $2"
+if [ -n "$REASSIGN" ]; then
+    STEP=$((STEP-1))
+    PARAM=ALIGNMENT${STEP}_PAR
+    eval ALIGNMENT_PAR="\$$PARAM"
+    # shellcheck disable=SC2086
+    $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$SOURCE" "$SOURCE" "${TMP_PATH}/clu" "${TMP_PATH}/aln" ${ALIGNMENT_REASSIGN_PAR} \
+             || fail "align1 reassign died"
+    "$MMSEQS" subtractdbs "${TMP_PATH}/clu" "${TMP_PATH}/aln" "${TMP_PATH}/clu_not_accepted" --e-profile 100000 \
+             || fail "subtractdbs1 reassign died"
+    "$MMSEQS" subtractdbs "${TMP_PATH}/clu" "${TMP_PATH}/clu_not_accepted" "${TMP_PATH}/clu_accepted" --e-profile 100000 \
+             || fail "subtractdbs2 reassign died"
+    "$MMSEQS" swapdb "${TMP_PATH}/clu_not_accepted" "${TMP_PATH}/clu_not_accepted_swap" \
+             || fail "swapdb1 reassign died"
+    "$MMSEQS" createsubdb "${TMP_PATH}/clu_not_accepted_swap" "$SOURCE" "${TMP_PATH}/seq_wrong_assigned" \
+             || fail "createsubdb1 reassign died"
+    "$MMSEQS" createsubdb "${TMP_PATH}/clu" "$SOURCE" "${TMP_PATH}/seq_seeds"  \
+             || fail "createsubdb2 reassign died"
+    PARAM=PREFILTER${STEP}_PAR
+    eval PREFILTER_PAR="\$$PARAM"
+    # shellcheck disable=SC2086
+    $RUNNER "$MMSEQS" prefilter  "${TMP_PATH}/seq_wrong_assigned" "${TMP_PATH}/seq_seeds" "${TMP_PATH}/seq_wrong_assigned_pref" ${PREFILTER_PAR} \
+             || fail "Prefilter reassign died"
+    "$MMSEQS" swapdb "${TMP_PATH}/seq_wrong_assigned_pref" "${TMP_PATH}/seq_wrong_assigned_pref_swaped" \
+             || fail "swapdb2 reassign died"
+    # shellcheck disable=SC2086
+    $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "${TMP_PATH}/seq_seeds" "${TMP_PATH}/seq_wrong_assigned" \
+                                        "${TMP_PATH}/seq_wrong_assigned_pref_swaped" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln" ${ALIGNMENT_REASSIGN_PAR} \
+             || fail "align2 reassign died"
+    "$MMSEQS" swapdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped"  \
+             || fail "swapdb3 reassign died"
+
+    "$MMSEQS" filterdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1" --extract-lines 1 \
+                || fail "filterdb1 reassign died"
+    "$MMSEQS" filterdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol" --trim-to-one-column \
+                    || fail "filterdb2 reassign died"
+    "$MMSEQS" swapdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol_swaped" \
+                        || fail "swapdb2 reassign died"
+    "$MMSEQS" mergedbs "$SOURCE" "${TMP_PATH}/clu_reassign" "${TMP_PATH}/clu_accepted" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol_swaped" \
+                             || fail "mergedbs reassign died"
+            # post processing
+    mv -f "${TMP_PATH}/clu_reassign" "$2" || fail "Could not move result to $2"
+    mv -f "${TMP_PATH}/clu_reassign.index" "$2.index" || fail "Could not move result to $2"
+else
+    # post processing
+    mv -f "${TMP_PATH}/clu" "$2" || fail "Could not move result to $2"
+    mv -f "${TMP_PATH}/clu.index" "$2.index" || fail "Could not move result to $2"
+fi
+
 
 if [ -n "$REMOVE_TMP" ]; then
  echo "Remove temporary files"

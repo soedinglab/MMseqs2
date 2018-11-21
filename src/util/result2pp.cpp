@@ -35,9 +35,6 @@ float computeNeff(float neffA, float maxNeffA, float neffB, float maxNeffB, floa
 
 int computeProfileProfile(Parameters &par,const std::string &outpath,
                           const size_t dbFrom, const size_t dbSize) {
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
     DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
     qDbr->open(DBReader<unsigned int>::NOSORT);
     DBReader<unsigned int> *tDbr = qDbr;

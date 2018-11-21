@@ -12,6 +12,7 @@ set(commons_header_files
         commons/Domain.h
         commons/FileUtil.h
         commons/HeaderSummarizer.h
+        commons/IndexReader.h
         commons/itoa.h
         commons/MathUtil.h
         commons/MemoryMapped.h

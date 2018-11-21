@@ -16,9 +16,6 @@
 int alignall(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
 
     Debug(Debug::INFO) << "Target database: " << par.db1 << "\n";
     DBReader<unsigned int> tdbr(par.db1.c_str(), par.db1Index.c_str());

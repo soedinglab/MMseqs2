@@ -81,7 +81,7 @@ class SubstitutionMatrixProfileStates : public BaseMatrix {
         for (int i = 0; i<alphabetSize; i++) {
             this->subMatrix[i] = new short[alphabetSize];
         }
-        generateSubMatrix(probMatrix, rMatrix, this->subMatrix, this->subMatrix2Bit, alphabetSize, bitFactor, scoreBias);
+        generateSubMatrix(probMatrix, rMatrix, this->subMatrix, alphabetSize, bitFactor, scoreBias);
         // remove X
         this->alphabetSize = ps->getAlphSize();
     }

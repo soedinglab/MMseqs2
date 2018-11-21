@@ -81,7 +81,9 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                 PrefilteringIndexReader::printSummary(tidxdbr);
                 PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
                 targetSeqType = meta.seqType;
-                tdbr = PrefilteringIndexReader::openNewReader(tidxdbr, touch);
+                maxSeqLen = meta.maxSeqLength;
+                compBiasCorrection = meta.compBiasCorr;
+                tdbr = PrefilteringIndexReader::openNewReader(tidxdbr, false, touch);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
         }
@@ -96,10 +98,6 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     if (templateDBIsIndex == false) {
         tdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
         tdbr->open(DBReader<unsigned int>::NOSORT);
-        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-            tdbr->readMmapedDataInMemory();
-            tdbr->mlock();
-        }
     }
 
     sameQTDB = (targetSeqDB.compare(querySeqDB) == 0);
@@ -122,19 +120,19 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         //    EXIT(EXIT_FAILURE);
         //}
 
-        qdbr->readMmapedDataInMemory();
-        qdbr->mlock();
         querySeqType = qdbr->getDbtype();
+    }
+
+    qdbr->readMmapedDataInMemory();
+    // make sure to touch target after query, so if there is not enough memory for the query, at least the targets
+    // might have had enough space left to be residung in the page cache
+    if (sameQTDB == false && templateDBIsIndex == false && par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+        tdbr->readMmapedDataInMemory();
     }
 
     if (qdbr->getSize() <= threads) {
         threads = qdbr->getSize();
     }
-
-#ifdef OPENMP
-    omp_set_num_threads(threads);
-    Debug(Debug::INFO) << "Using " << threads << " threads.\n";
-#endif
 
     if (templateDBIsIndex == false) {
         querySeqType = qdbr->getDbtype();
@@ -162,8 +160,8 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
     if (querySeqType == Sequence::NUCLEOTIDES) {
         m = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, scoreBias);
-        gapOpen = 7;
-        gapExtend = 1;
+        gapOpen = 5;
+        gapExtend = 2;
     } else if (querySeqType == Sequence::PROFILE_STATE_PROFILE){
         SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, scoreBias);
         this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 255);
@@ -282,7 +280,6 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     const unsigned int maxAlnNum, const unsigned int maxRejected) {
     size_t alignmentsNum = 0;
     size_t totalPassedNum = 0;
-
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads);
     dbw.open();
 
@@ -292,7 +289,8 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     if(totalMemory > prefdbr->getDataSize()){
         flushSize = dbSize;
     }
-#pragma omp parallel
+
+#pragma omp parallel num_threads(threads)
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP

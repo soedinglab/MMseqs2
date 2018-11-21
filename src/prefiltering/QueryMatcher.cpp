@@ -25,7 +25,8 @@
   GET_MACRO(__VA_ARGS__,FE_11,FE_10,FE_9,FE_8,FE_7,FE_6,FE_5,FE_4,FE_3,FE_2,FE_1)(action,__VA_ARGS__)
 
 QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLookup,
-                           BaseMatrix *m, EvalueComputation &evaluer, unsigned int *seqLens, short kmerThr,
+                           BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
+                           EvalueComputation &evaluer, unsigned int *seqLens, short kmerThr,
                            double kmerMatchProb, int kmerSize, size_t dbSize,
                            unsigned int maxSeqLen, unsigned int effectiveKmerSize,
                            size_t maxHitsPerQuery, bool aaBiasCorrection,
@@ -33,7 +34,8 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
                            bool takeOnlyBestKmer)
 : evaluer(evaluer)
 {
-    this->m = m;
+    this->kmerSubMat = kmerSubMat;
+    this->ungappedAlignmentSubMat = ungappedAlignmentSubMat;
     this->indexTable = indexTable;
     this->kmerSize = kmerSize;
     this->kmerThr = kmerThr;
@@ -67,7 +69,7 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
     // needed for p-value calc.
     this->logScoreFactorial=NULL;
     if (diagonalScoring == true) {
-        ungappedAlignment = new UngappedAlignment(maxSeqLen, m, sequenceLookup);
+        ungappedAlignment = new UngappedAlignment(maxSeqLen, ungappedAlignmentSubMat, sequenceLookup);
         this->seqLens = NULL;
     } else {
         this->mu = kmerMatchProb;
@@ -130,7 +132,7 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
     // bias correction
     if(aaBiasCorrection == true){
         if(querySeq->getSeqType() == Sequence::AMINO_ACIDS) {
-            SubstitutionMatrix::calcLocalAaBiasCorrection(m, querySeq->int_sequence, querySeq->L, compositionBias);
+            SubstitutionMatrix::calcLocalAaBiasCorrection(kmerSubMat, querySeq->int_sequence, querySeq->L, compositionBias);
         }else{
             memset(compositionBias, 0, sizeof(float) * querySeq->L);
         }
@@ -157,13 +159,12 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
         if(resultSize < counterResultSize/2){
             unsigned int maxDiagonalScoreThr = (UCHAR_MAX - ungappedAlignment->getQueryBias());
             bool scoreIsTruncated = (diagonalThr >= maxDiagonalScoreThr) ? true : false;
-            int elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
+            size_t elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
             if(scoreIsTruncated == true){
                 memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
-                std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, scoreSizes, foundDiagonals + resultSize, resultSize, ungappedAlignment, maxDiagonalScoreThr);
+                std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, scoreSizes, foundDiagonals + resultSize, elementsCntAboveDiagonalThr, ungappedAlignment, maxDiagonalScoreThr);
                 size_t newResultSize = rescoreResult.first;
                 unsigned int maxSelfScoreMinusDiag = rescoreResult.second;
-
                 elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals, 0, foundDiagonals + resultSize, newResultSize);
                 queryResult = getResult(foundDiagonals, elementsCntAboveDiagonalThr, maxHitsPerQuery,
                                         querySeq->L, identityId, 0, ungappedAlignment, true, maxSelfScoreMinusDiag);
@@ -210,7 +211,7 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     unsigned short indexStart = 0;
     unsigned short indexTo = 0;
     Indexer idx(indexTable->getAlphabetSize(), kmerSize);
-    const int xIndex = m->aa2int[(int)'X'];
+    const int xIndex = kmerSubMat->aa2int[(int)'X'];
 
     while(seq->hasNextKmer()){
         const int * kmer = seq->nextKmer();
@@ -411,27 +412,28 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
 }
 
 void QueryMatcher::initDiagonalMatcher(size_t dbsize, unsigned int maxDbMatches) {
+    uint64_t l2CacheSize = Util::getL2CacheSize();
 #define INIT(x)   cachedOperation##x = new CacheFriendlyOperations<x>(dbsize, maxDbMatches/x); \
                   activeCounter = x;
-    if(dbsize/2 < L2_CACH_SIZE){
+    if(dbsize/2 < l2CacheSize){
         INIT(2)
-    }else if(dbsize/4 < L2_CACH_SIZE){
+    }else if(dbsize/4 < l2CacheSize){
         INIT(4)
-    }else if(dbsize/8 < L2_CACH_SIZE){
+    }else if(dbsize/8 < l2CacheSize){
         INIT(8)
-    }else if(dbsize/16 < L2_CACH_SIZE){
+    }else if(dbsize/16 < l2CacheSize){
         INIT(16)
-    }else if(dbsize/32 < L2_CACH_SIZE){
+    }else if(dbsize/32 < l2CacheSize){
         INIT(32)
-    }else if(dbsize/64 < L2_CACH_SIZE){
+    }else if(dbsize/64 < l2CacheSize){
         INIT(64)
-    }else if(dbsize/128 < L2_CACH_SIZE){
+    }else if(dbsize/128 < l2CacheSize){
         INIT(128)
-    }else if(dbsize/256 < L2_CACH_SIZE){
+    }else if(dbsize/256 < l2CacheSize){
         INIT(256)
-    }else if(dbsize/512 < L2_CACH_SIZE){
+    }else if(dbsize/512 < l2CacheSize){
         INIT(512)
-    }else if(dbsize/1024 < L2_CACH_SIZE){
+    }else if(dbsize/1024 < l2CacheSize){
         INIT(1024)
     }else {
         INIT(2048)
@@ -499,8 +501,8 @@ size_t QueryMatcher::radixSortByScoreSize(const unsigned int * scoreSizes,
     return aboveThresholdCnt;
 }
 
-std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, unsigned int * scoreSizes,CounterResult *results, int resultSize,
-                               UngappedAlignment *align, int lowerBoundScore) {
+std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, unsigned int * scoreSizes, CounterResult *results,
+        size_t resultSize, UngappedAlignment *align, int lowerBoundScore) {
     size_t elements = 0;
     unsigned char * query = new unsigned char[querySeq->L];
     for(int pos = 0; pos < querySeq->L; pos++ ){
@@ -513,7 +515,7 @@ std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, u
     maxSelfScore = (maxSelfScore-lowerBoundScore);
     maxSelfScore = std::max(1, maxSelfScore);
     float fltMaxSelfScore = static_cast<float>(maxSelfScore);
-    for (int i = 0; i < resultSize && results[i].count >= lowerBoundScore; i++) {
+    for (size_t i = 0; i < resultSize && results[i].count >= lowerBoundScore; i++) {
         unsigned int newScore = align->scoreSingelSequenceByCounterResult(results[i]);
         newScore -= lowerBoundScore;
         float score = static_cast<float>(std::min(newScore, static_cast<unsigned int>(USHRT_MAX)));

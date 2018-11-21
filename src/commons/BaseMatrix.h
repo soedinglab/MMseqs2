@@ -21,9 +21,6 @@ public:
     // substitution matrix
     short** subMatrix;
 
-    //  substitution matrix in double
-    short **subMatrix2Bit;
-
     // substitution matrix for pseudocounts
     float** subMatrixPseudoCounts;
 
@@ -50,7 +47,7 @@ public:
     static void generateSubMatrix(double ** probMatrix, double ** subMatrix, float ** subMatrixPseudoCounts, int size, bool containsX);
 
     // generate a short data type substitution matrix
-    static void generateSubMatrix(double ** probMatrix, float ** subMatrixPseudoCounts, short ** subMatrix, short **subMatrix2Bit, int size, bool containsX, double bitFactor = 1.0, double scoringBias = 0.0);
+    static void generateSubMatrix(double ** probMatrix, float ** subMatrixPseudoCounts, short ** subMatrix, int size, bool containsX, double bitFactor = 1.0, double scoringBias = 0.0);
 
     virtual double getBackgroundProb(size_t aa_index);
 

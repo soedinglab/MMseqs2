@@ -25,7 +25,12 @@ int convert2fasta(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> db_header(par.hdr1.c_str(), par.hdr1Index.c_str());
     db_header.open(DBReader<unsigned int>::NOSORT);
 
-    FILE *fastaFP =  FileUtil::openFileOrDie(par.db2.c_str(), "w", false);
+    FILE* fastaFP = fopen(par.db2.c_str(), "w");
+    if(fastaFP == NULL) {
+        perror(par.db2.c_str());
+        EXIT(EXIT_FAILURE);
+    }
+
 
     DBReader<unsigned int>* from = &db;
     if(par.useHeaderFile) {

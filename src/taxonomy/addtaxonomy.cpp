@@ -16,10 +16,6 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
     std::string nodesFile = par.db1 + "_nodes.dmp";
     std::string namesFile = par.db1 + "_names.dmp";
     std::string mergedFile = par.db1 + "_merged.dmp";
@@ -61,6 +57,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
 
     Debug(Debug::INFO) << "Add taxonomy information ...\n";
+    size_t taxonNotFound=0;
 
     #pragma omp parallel
     {
@@ -99,13 +96,19 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
                 std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt = std::upper_bound(
                         mapping.begin(), mapping.end(), val,  ffindexFilter::compareToFirstInt);
 
-                if(mappingIt == mapping.end()){
-                    Debug(Debug::WARNING) << "No taxon mapping provided for id " << id << "\n";
+                if (mappingIt->first != val.first) {
+                     __sync_fetch_and_add(&taxonNotFound, 1);
+//                    Debug(Debug::WARNING) << "No taxon mapping provided for id " << id << "\n";
                     data = Util::skipLine(data);
                     continue;
                 }
                 unsigned int taxon = mappingIt->second;
                 TaxonNode* node = t.findNode(taxon);
+                if(node == NULL){
+                    Debug(Debug::WARNING) << "Deleted node " << taxon << "!\n";
+                    data = Util::skipLine(data);
+                    continue;
+                }
                 char * nextData = Util::skipLine(data);
                 size_t dataSize = nextData - data;
                 resultData.append(data, dataSize-1);
@@ -131,8 +134,8 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
             resultData.clear();
         }
     }
-
     Debug(Debug::INFO) << "\n";
+    Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " entries  not found.\n";
 
     writer.close();
     reader.close();

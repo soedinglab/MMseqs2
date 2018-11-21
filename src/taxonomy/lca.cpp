@@ -15,12 +15,6 @@ int lca(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
-
-
     std::string nodesFile = par.db1 + "_nodes.dmp";
     std::string namesFile = par.db1 + "_names.dmp";
     std::string mergedFile = par.db1 + "_merged.dmp";
@@ -70,7 +64,7 @@ int lca(int argc, const char **argv, const Command& command) {
 
     Debug(Debug::INFO) << "Loading NCBI taxonomy...\n";
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
-
+    size_t taxonNotFound=0;
     Debug(Debug::INFO) << "Computing LCA...\n";
     #pragma omp parallel
     {
@@ -89,9 +83,6 @@ int lca(int argc, const char **argv, const Command& command) {
             char *data = reader.getData(i);
             size_t length = reader.getSeqLens(i);
 
-            if (length == 1) {
-                continue;
-            }
 
             std::vector<int> taxa;
             while (*data != '\0') {
@@ -111,8 +102,8 @@ int lca(int argc, const char **argv, const Command& command) {
                 mappingIt = std::upper_bound(
                         mapping.begin(), mapping.end(), val,  ffindexFilter::compareToFirstInt);
 
-                if(mappingIt == mapping.end()){
-                    Debug(Debug::WARNING) << "No taxon mapping provided for id " << id << "\n";
+                if (mappingIt->first != val.first) {
+                    __sync_fetch_and_add(&taxonNotFound, 1);
                     data = Util::skipLine(data);
                     continue;
                 }
@@ -129,6 +120,12 @@ int lca(int argc, const char **argv, const Command& command) {
 
                 next:
                 data = Util::skipLine(data);
+            }
+
+            if(length == 1){
+                snprintf(buffer, 1024, "0\tno rank\tunclassified\n");
+                writer.writeData(buffer, strlen(buffer), key, thread_idx);
+                continue;
             }
 
             TaxonNode* node = t.LCA(taxa);
@@ -150,8 +147,8 @@ int lca(int argc, const char **argv, const Command& command) {
             }
         }
     };
-
     Debug(Debug::INFO) << "\n";
+    Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " entries  not found.\n";
 
     writer.close();
     reader.close();

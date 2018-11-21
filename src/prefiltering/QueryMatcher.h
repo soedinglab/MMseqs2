@@ -74,7 +74,8 @@ struct hit_t {
 class QueryMatcher {
 public:
     QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLookup,
-                 BaseMatrix *m, EvalueComputation &evaluer, unsigned int *seqLens, short kmerThr,
+                 BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
+                 EvalueComputation &evaluer, unsigned int *seqLens, short kmerThr,
                  double kmerMatchProb, int kmerSize, size_t dbSize,
                  unsigned int maxSeqLen, unsigned int effectiveKmerSize,
                  size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring,
@@ -179,7 +180,9 @@ protected:
     // keeps stats for run
     statistics_t * stats;
     // scoring matrix for local amino acid bias correction
-    BaseMatrix * m;
+    BaseMatrix * kmerSubMat;
+    // scoring matrix for ungapped alignment
+    BaseMatrix * ungappedAlignmentSubMat;
     /* generates kmer lists */
     KmerGenerator * kmerGenerator;
     /* contains the sequences for a kmer */
@@ -198,7 +201,6 @@ protected:
 
     // result hit buffer
     //CacheFriendlyOperations * diagonalMatcher;
-    static const unsigned int L2_CACH_SIZE = 262144;
     unsigned int activeCounter;
 #define CacheFriendlyOperations(x)  CacheFriendlyOperations<x> * cachedOperation##x
     CacheFriendlyOperations(2);
@@ -289,7 +291,7 @@ protected:
                               const CounterResult *results, const size_t resultSize);
 
     std::pair<size_t, unsigned int> rescoreHits(Sequence * querySeq, unsigned int *scoreSizes, CounterResult *results,
-                                                int resultSize, UngappedAlignment *align, int lowerBoundScore);
+                                                size_t resultSize, UngappedAlignment *align, int lowerBoundScore);
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H

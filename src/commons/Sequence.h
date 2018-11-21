@@ -39,7 +39,7 @@ const int8_t seed_13_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 const int8_t seed_14[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 const int8_t seed_14_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 const int8_t seed_15[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-const int8_t seed_15_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_15_spaced[] = {1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1};
 const int8_t seed_16[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 const int8_t seed_16_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 const int8_t seed_17[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
@@ -156,7 +156,10 @@ public:
 
     void print(); // for debugging
 
-    int getId() { return id; }
+    static void extractProfileSequence(const char* data, const BaseMatrix &submat, std::string &result);
+    static void extractProfileConsensus(const char* data, const BaseMatrix &submat, std::string &result);
+
+    int getId() const { return id; }
 
     int getCurrentPosition() { return currItPos; }
 
