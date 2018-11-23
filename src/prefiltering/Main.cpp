@@ -42,7 +42,7 @@ int prefilter(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << "Time for init: " << timer.lap() << "\n";
 
 #ifdef HAVE_MPI
-    pref.runMpiSplits(par.db1, par.db1Index, par.db3, par.db3Index);
+    pref.runMpiSplits(par.db1, par.db1Index, par.db3, par.db3Index, par.localTmp);
 #else
     pref.runAllSplits(par.db1, par.db1Index, par.db3, par.db3Index);
 #endif

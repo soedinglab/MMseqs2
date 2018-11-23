@@ -30,7 +30,8 @@ public:
 
 #ifdef HAVE_MPI
     void runMpiSplits(const std::string &queryDB, const std::string &queryDBIndex,
-                      const std::string &resultDB, const std::string &resultDBIndex);
+                      const std::string &resultDB, const std::string &resultDBIndex,
+                      const std::string &localTmpPath);
 #endif
 
     bool runSplits(const std::string &queryDB, const std::string &queryDBIndex,
@@ -69,6 +70,7 @@ private:
     int splits;
     int kmerSize;
     std::string spacedKmerPattern;
+    std::string localTmp;
     bool spacedKmer;
     int alphabetSize;
     bool templateDBIsIndex;
