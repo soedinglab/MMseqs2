@@ -27,6 +27,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         splits(par.split),
         kmerSize(par.kmerSize),
         spacedKmerPattern(par.spacedKmerPattern),
+        localTmp(par.localTmp),
         spacedKmer(par.spacedKmer != 0),
         alphabetSize(par.alphabetSize),
         maskMode(par.maskMode),
@@ -518,7 +519,8 @@ void Prefiltering::runAllSplits(const std::string &queryDB, const std::string &q
 
 #ifdef HAVE_MPI
 void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &queryDBIndex,
-                                const std::string &resultDB, const std::string &resultDBIndex) {
+                                const std::string &resultDB, const std::string &resultDBIndex,
+                                const std::string &localTmpPath) {
 
     splits = std::max(MMseqsMPI::numProc, splits);
     size_t fromSplit = 0;
@@ -537,8 +539,29 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
     splitCount = splitCntPerProc[MMseqsMPI::rank];
     delete[] splitCntPerProc;
 
-    std::pair<std::string, std::string> result = Util::createTmpFileNames(resultDB, resultDBIndex, MMseqsMPI::rank);
-    int hasResult = runSplits(queryDB, queryDBIndex, result.first, result.second, fromSplit, splitCount) == true ? 1 : 0;
+    std::string procTmpResultDB = localTmpPath;
+    std::string procTmpResultDBIndex = localTmpPath;
+    if (localTmpPath == "") {
+        procTmpResultDB += resultDB;
+        procTmpResultDBIndex += resultDBIndex;
+    } else {
+        procTmpResultDB += FileUtil::baseName(resultDB);
+        procTmpResultDBIndex += FileUtil::baseName(resultDBIndex);
+    }
+
+    std::pair<std::string, std::string> result = Util::createTmpFileNames(procTmpResultDB, procTmpResultDBIndex, MMseqsMPI::rank);
+    int hasTmpResult = runSplits(queryDB, queryDBIndex, result.first, result.second, fromSplit, splitCount) == true ? 1 : 0;
+
+    // if result is on a local drive - copy it to shared drive and delete from local
+    if (localTmpPath != "") {
+        std::pair<std::string, std::string> resultShared = Util::createTmpFileNames(resultDB, resultDBIndex, MMseqsMPI::rank);
+        FileUtil::copyFile(result.first.c_str(), resultShared.first.c_str());
+        FileUtil::copyFile(result.second.c_str(), resultShared.second.c_str());
+        // copy exits on failure so if here - copy succeeded, local can be deleted
+        FileUtil::deleteFile(result.first);
+        FileUtil::deleteFile(result.second);
+    }
+    int hasResult = hasTmpResult;
 
     int *results = NULL;
     if (MMseqsMPI::isMaster()) {

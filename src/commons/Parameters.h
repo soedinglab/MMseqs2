@@ -240,8 +240,9 @@ public:
     bool   splitAA;                      // Split database by amino acid count instead
     size_t resListOffset;                // Offsets result list
     int    preloadMode;                  // Preload mode of database
-    float  scoreBias;			 // Add this bias to the score when computing the alignements
-    std::string spacedKmerPattern;             // User-specified kmer pattern
+    float  scoreBias;                    // Add this bias to the score when computing the alignements
+    std::string spacedKmerPattern;       // User-specified kmer pattern
+    std::string localTmp;                // Local temporary path
 
     // ALIGNMENT
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
@@ -502,6 +503,7 @@ public:
     PARAMETER(PARAM_RES_LIST_OFFSET)
     PARAMETER(PARAM_PRELOAD_MODE)
     PARAMETER(PARAM_SPACED_KMER_PATTERN)
+    PARAMETER(PARAM_LOCAL_TMP)
     std::vector<MMseqsParameter> prefilter;
     std::vector<MMseqsParameter> ungappedprefilter;
 
