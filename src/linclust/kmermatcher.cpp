@@ -331,7 +331,9 @@ void setLinearFilterDefault(Parameters *p) {
 size_t computeKmerCount(DBReader<unsigned int> &reader, size_t KMER_SIZE, size_t chooseTopKmer) {
     size_t totalKmers = 0;
     for(size_t id = 0; id < reader.getSize(); id++ ){
-        int kmerAdjustedSeqLen = std::max(0, static_cast<int>(reader.getSeqLens(id) - 2 ) - static_cast<int>(KMER_SIZE ) + 1) ;
+        int seqLen = static_cast<int>(reader.getSeqLens(id) - 2 );
+        // we need one for the sequence hash
+        int kmerAdjustedSeqLen = std::max(1, seqLen  - static_cast<int>(KMER_SIZE ) + 1) ;
         totalKmers += std::min(kmerAdjustedSeqLen, static_cast<int>( chooseTopKmer ) );
     }
     return totalKmers;

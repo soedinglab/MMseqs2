@@ -33,9 +33,15 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf
             if (tloc.strand == Orf::STRAND_MINUS && tloc.id != UINT_MAX) {
                 res.dbStartPos = from - dbStartPos;
                 res.dbEndPos   = from - dbEndPos;
+                if(isNuclNucl == false){
+                    res.dbEndPos = res.dbEndPos - 2;
+                }
             } else {
                 res.dbStartPos = from + dbStartPos;
                 res.dbEndPos   = from + dbEndPos;
+                if(isNuclNucl == false){
+                    res.dbEndPos = res.dbEndPos + 2;
+                }
             }
         }
         if (qloc != NULL) {
