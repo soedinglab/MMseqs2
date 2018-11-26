@@ -547,6 +547,16 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
     } else {
         procTmpResultDB += FileUtil::baseName(resultDB);
         procTmpResultDBIndex += FileUtil::baseName(resultDBIndex);
+
+        if (FileUtil::directoryExists(localTmpPath.c_str()) == false) {
+            Debug(Debug::INFO) << "Local tmp dir " << localTmpPath << " does not exist or is not a directory\n";
+            if (FileUtil::makeDir(localTmpPath.c_str()) == false) {
+                Debug(Debug::ERROR) << "Could not create local tmp dir " << localTmpPath << "\n";
+                EXIT(EXIT_FAILURE);
+            } else {
+                Debug(Debug::INFO) << "Created local tmp dir " << localTmpPath << "\n";
+            }
+        }
     }
 
     std::pair<std::string, std::string> result = Util::createTmpFileNames(procTmpResultDB, procTmpResultDBIndex, MMseqsMPI::rank);
