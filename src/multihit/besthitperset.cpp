@@ -63,7 +63,7 @@ public :
             EXIT(EXIT_FAILURE);
         }
         char *data = targetSizeReader->getData(targetId);
-        unsigned int nbrGenes = (unsigned int) std::strtoull(data, NULL, 10);
+        unsigned int nbrGenes = Util::fast_atoi<unsigned int>(data);
 
         if (simpleBestHitMode) {
             correctedPval = bestEval / nbrGenes;

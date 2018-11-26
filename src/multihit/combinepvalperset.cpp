@@ -44,7 +44,7 @@ public:
 
         unsigned int maxOrfCount = 0;
         for (size_t i = 0; i < querySizeReader->getSize(); ++i) { 
-            unsigned int currentCount = (unsigned int) std::strtoull(querySizeReader->getData(i), NULL, 10);
+            unsigned int currentCount = Util::fast_atoi<unsigned int>(querySizeReader->getData(i));
             if (currentCount > maxOrfCount) {
                 maxOrfCount = currentCount;
             };
@@ -77,14 +77,14 @@ public:
     }
 
     void prepareInput(unsigned int querySetKey, unsigned int thread_idx) {
-        unsigned int orfCount = (unsigned int) strtoull(querySizeReader->getDataByDBKey(querySetKey), NULL, 10);
+        unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey));
         precomputeLogB(orfCount, alpha/(orfCount + 1), lGammaLookup, logBiLookup[thread_idx]);
     }
 
     //Get all result of a single Query Set VS a Single Target Set and return the multiple-match p-value for it
     std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey,
                                unsigned int targetSetKey, unsigned int thread_idx) {
-        unsigned int orfCount = (unsigned int) strtoull(querySizeReader->getDataByDBKey(querySetKey), NULL, 10); 
+        unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey)); 
         double pvalThreshold = alpha / (orfCount + 1);
         const size_t numTargetSets = targetSizeReader->getSize();
 
