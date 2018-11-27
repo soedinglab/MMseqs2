@@ -845,6 +845,11 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     // needed to speed up merge later one
     // sorts this datafile according to the index file
     if (splitCount > 1 && splitMode == Parameters::TARGET_DB_SPLIT) {
+        // delete indexTable to free memory:
+        if (indexTable != NULL) {
+            delete indexTable;
+            indexTable = NULL;
+        }
         DBReader<unsigned int> resultReader(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
         resultReader.open(DBReader<unsigned int>::NOSORT);
         resultReader.readMmapedDataInMemory();
