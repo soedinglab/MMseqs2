@@ -115,8 +115,10 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
 
 int subtractdbs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3);
-
+    par.parseParameters(argc, argv, command, 3, false);
+    par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
+    std::vector<MMseqsParameter>* params = command.params;
+    par.printParameters(command.cmd, argc, argv, *params);
     dosubstractresult(par.db1, par.db2, par.db3, 1000000, par.evalProfile, par.threads);
     return EXIT_SUCCESS;
 }

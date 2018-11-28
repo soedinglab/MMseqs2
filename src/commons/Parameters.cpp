@@ -355,7 +355,7 @@ Parameters::Parameters():
 
     // result2profile
     result2profile.push_back(PARAM_SUB_MAT);
-//    result2profile.push_back(PARAM_QUERY_PROFILE);
+    result2profile.push_back(PARAM_E);
     result2profile.push_back(PARAM_MASK_PROFILE);
     result2profile.push_back(PARAM_E_PROFILE);
     result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
@@ -378,6 +378,7 @@ Parameters::Parameters():
     // result2pp
     result2pp.push_back(PARAM_SUB_MAT);
     result2pp.push_back(PARAM_E_PROFILE);
+    result2pp.push_back(PARAM_E);
     result2pp.push_back(PARAM_NO_COMP_BIAS_CORR);
     result2pp.push_back(PARAM_WG);
     result2pp.push_back(PARAM_FILTER_MSA);
@@ -632,6 +633,7 @@ Parameters::Parameters():
     // subtractdbs
     subtractdbs.push_back(PARAM_THREADS);
     subtractdbs.push_back(PARAM_E_PROFILE);
+    subtractdbs.push_back(PARAM_E);
     subtractdbs.push_back(PARAM_V);
 
     // clusthash

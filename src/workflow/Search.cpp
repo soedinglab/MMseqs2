@@ -256,7 +256,7 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
 
         float originalEval = par.evalThr;
-        par.evalThr = par.evalProfile;
+        par.evalThr = (par.evalThr < par.evalProfile) ? par.evalThr  : par.evalProfile;
         for (int i = 0; i < par.numIterations; i++) {
             if (i == 0 && queryDbType != Sequence::HMM_PROFILE) {
                 par.realign = true;

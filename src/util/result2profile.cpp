@@ -114,7 +114,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     DBWriter *consensusWriter = NULL;
     if (!par.omitConsensus) {
         consensusWriter = new DBWriter(std::string(outpath + "_consensus").c_str(),
-                     std::string(outpath + "_consensus.index").c_str(), localThreads);
+                                       std::string(outpath + "_consensus.index").c_str(), localThreads);
         consensusWriter->open();
     }
 
@@ -198,33 +198,39 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
                 char *entry[255];
                 const size_t columns = Util::getWordsOfLine(results, entry, 255);
-                if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                float evalue = 0.0;
+                if(columns >= 4){
+                    evalue = strtod (entry[3], NULL);
+                }
+                bool hasInclusionEval  = (evalue < par.evalProfile);
+                if (hasInclusionEval && columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
                     Matcher::result_t res = Matcher::parseAlignmentRecord(results);
                     alnResults.push_back(res);
                 }
+                if(hasInclusionEval){
+                    const size_t edgeId = tDbr->getId(key);
+                    Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId),
+                                                          targetSeqType, &subMat, 0, false, false);
 
-                const size_t edgeId = tDbr->getId(key);
-                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId),
-                                                      targetSeqType, &subMat, 0, false, false);
-
-                if (tSeqLookup != NULL) {
-                    std::pair<const unsigned char*, const unsigned int> sequence = tSeqLookup->getSequence(edgeId);
-                    edgeSequence->mapSequence(0, key, sequence);
-                } else {
-                    char *dbSeqData = tDbr->getData(edgeId);
-                    if (dbSeqData == NULL) {
+                    if (tSeqLookup != NULL) {
+                        std::pair<const unsigned char*, const unsigned int> sequence = tSeqLookup->getSequence(edgeId);
+                        edgeSequence->mapSequence(0, key, sequence);
+                    } else {
+                        char *dbSeqData = tDbr->getData(edgeId);
+                        if (dbSeqData == NULL) {
 #pragma omp critical
-                        {
-                            Debug(Debug::ERROR) << "ERROR: Sequence " << key << " is required in the database,"
-                                                << "but is not contained in the target sequence database!\n"
-                                                << "Please check your database.\n";
-                            EXIT(EXIT_FAILURE);
+                            {
+                                Debug(Debug::ERROR) << "ERROR: Sequence " << key << " is required in the database,"
+                                                    << "but is not contained in the target sequence database!\n"
+                                                    << "Please check your database.\n";
+                                EXIT(EXIT_FAILURE);
+                            }
                         }
+                        edgeSequence->mapSequence(0, key, dbSeqData);
                     }
-                    edgeSequence->mapSequence(0, key, dbSeqData);
-                }
 
-                seqSet.push_back(edgeSequence);
+                    seqSet.push_back(edgeSequence);
+                }
                 results = Util::skipLine(results);
             }
 
@@ -256,8 +262,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
             }
 
             PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
-                                                                                         (const char **) res.msaSequence,
-                                                                                          par.wg);
+                                                                            (const char **) res.msaSequence,
+                                                                            par.wg);
 
             if(par.maskProfile == true){
                 for (int i = 0; i < centerSequence.L; ++i) {
@@ -378,8 +384,10 @@ int result2profile(int argc, const char **argv, const Command &command) {
     par.filterMsa = 1;
     // no pseudo counts
     par.pca = 0.0;
-    par.parseParameters(argc, argv, command, 4);
-
+    par.parseParameters(argc, argv, command, 4, false);
+    par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
+    std::vector<MMseqsParameter>* params = command.params;
+    par.printParameters(command.cmd, argc, argv, *params);
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
@@ -403,7 +411,7 @@ int result2profile(int argc, const char **argv, const Command &command) {
             FileUtil::symlinkAbs(par.hdr1Index, par.db4 + "_consensus_h.index");
         }
     }
-    
+
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
