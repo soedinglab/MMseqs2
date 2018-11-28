@@ -84,8 +84,11 @@ public:
         delete querySizeReader;
     }
 
+
+    void prepareInput(unsigned int, unsigned int) {}
+
     std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey,
-                               unsigned int targetSetKey) {
+                               unsigned int targetSetKey, unsigned int) {
         double targetGeneCount = std::strtod(targetSizeReader->getDataByDBKey(targetSetKey), NULL);
         double pvalThreshold = this->alpha / targetGeneCount;
         std::vector<std::pair<long, long>> genesPositions;

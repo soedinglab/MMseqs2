@@ -32,14 +32,14 @@ void Aggregation::buildMap(char *data, std::map<unsigned int, std::vector<std::v
         }
 
         std::vector<std::string> columns = Util::split(line, "\t");
-        unsigned int targetKey = (unsigned int) strtoull(columns[0].c_str(), NULL, 10);
+        unsigned int targetKey = Util::fast_atoi<unsigned int>(columns[0].c_str());
         size_t setId = targetSetReader->getId(targetKey);
         if (setId == UINT_MAX) {
             Debug(Debug::ERROR) << "Invalid target database key " << columns[0] << ".\n";
             EXIT(EXIT_FAILURE);
         }
         char *data = targetSetReader->getData(setId);
-        unsigned int setKey = (unsigned int) strtoull(data, NULL, 10);
+        unsigned int setKey = Util::fast_atoi<unsigned int>(data);
         dataToAggregate[setKey].push_back(columns);
     }
 }
@@ -70,11 +70,13 @@ int Aggregation::run() {
 
             unsigned int key = reader.getDbKey(i);
             buildMap(reader.getData(i), dataToMerge);
+            prepareInput(key, thread_idx);
+            
             for (std::map<unsigned int, std::vector<std::vector<std::string>>>::const_iterator it = dataToMerge.begin();
                  it != dataToMerge.end(); ++it) {
                 unsigned int targetKey = it->first;
                 std::vector<std::vector<std::string>> columns = it->second;
-                buffer.append(aggregateEntry(columns, key, targetKey));
+                buffer.append(aggregateEntry(columns, key, targetKey, thread_idx));
                 buffer.append("\n");
             }
             writer.writeData(buffer.c_str(), buffer.length(), key, thread_idx);

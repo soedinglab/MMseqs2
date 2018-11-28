@@ -547,6 +547,16 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
     } else {
         procTmpResultDB += FileUtil::baseName(resultDB);
         procTmpResultDBIndex += FileUtil::baseName(resultDBIndex);
+
+        if (FileUtil::directoryExists(localTmpPath.c_str()) == false) {
+            Debug(Debug::INFO) << "Local tmp dir " << localTmpPath << " does not exist or is not a directory\n";
+            if (FileUtil::makeDir(localTmpPath.c_str()) == false) {
+                Debug(Debug::ERROR) << "Could not create local tmp dir " << localTmpPath << "\n";
+                EXIT(EXIT_FAILURE);
+            } else {
+                Debug(Debug::INFO) << "Created local tmp dir " << localTmpPath << "\n";
+            }
+        }
     }
 
     std::pair<std::string, std::string> result = Util::createTmpFileNames(procTmpResultDB, procTmpResultDBIndex, MMseqsMPI::rank);
@@ -835,6 +845,11 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     // needed to speed up merge later one
     // sorts this datafile according to the index file
     if (splitCount > 1 && splitMode == Parameters::TARGET_DB_SPLIT) {
+        // delete indexTable to free memory:
+        if (indexTable != NULL) {
+            delete indexTable;
+            indexTable = NULL;
+        }
         DBReader<unsigned int> resultReader(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
         resultReader.open(DBReader<unsigned int>::NOSORT);
         resultReader.readMmapedDataInMemory();
