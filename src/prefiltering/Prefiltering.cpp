@@ -82,6 +82,37 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             tdbr = PrefilteringIndexReader::openNewReader(tdbr, false, touch);
             PrefilteringIndexReader::printSummary(tidxdbr);
             PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
+            for(size_t i = 0; i < par.prefilter.size(); i++){
+                if(par.prefilter[i].wasSet && par.prefilter[i].uniqid == par.PARAM_K.uniqid){
+                    if(kmerSize != 0 && data.kmerSize != kmerSize){
+                        Debug(Debug::ERROR) << "Index was created with -k " << data.kmerSize << " but the prefilter was called with -k" << kmerSize << "!\n";
+                        Debug(Debug::ERROR) << "createindex -k " << kmerSize << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                }
+                if(par.prefilter[i].wasSet && par.prefilter[i].uniqid == par.PARAM_ALPH_SIZE.uniqid){
+                    if(data.alphabetSize != alphabetSize){
+                        Debug(Debug::ERROR) << "Index was created with --alph-size  " << data.alphabetSize << " but the prefilter was called with --alph-size " << alphabetSize << "!\n";
+                        Debug(Debug::ERROR) << "createindex --alph-size " << alphabetSize << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                }
+                if(par.prefilter[i].wasSet && par.prefilter[i].uniqid == par.PARAM_SPACED_KMER_MODE.uniqid){
+                    if(data.spacedKmer != spacedKmer){
+                        Debug(Debug::ERROR) << "Index was created with --spaced-kmer-mode " << data.spacedKmer << " but the prefilter was called with --spaced-kmer-mode " << spacedKmer << "!\n";
+                        Debug(Debug::ERROR) << "createindex --spaced-kmer-mode " << spacedKmer << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                }
+                if(par.prefilter[i].wasSet && par.prefilter[i].uniqid == par.PARAM_NO_COMP_BIAS_CORR.uniqid){
+                    if(data.compBiasCorr != aaBiasCorrection){
+                        Debug(Debug::ERROR) << "Index was created with --comp-bias-corr  " << data.compBiasCorr  <<" please recreate index with --comp-bias-corr " << aaBiasCorrection << "!\n";
+                        Debug(Debug::ERROR) << "createindex --comp-bias-corr " << aaBiasCorrection << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                }
+            }
+
             kmerSize = data.kmerSize;
             alphabetSize = data.alphabetSize;
             targetSeqType = data.seqType;
@@ -1120,4 +1151,5 @@ std::pair<int, int> Prefiltering::optimizeSplit(size_t totalMemoryInByte, DBRead
 
     return std::make_pair(-1, -1);
 }
+
 
