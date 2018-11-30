@@ -361,6 +361,7 @@ public:
 
     // createdb
     int identifierOffset;
+    int dbType;
     bool splitSeqByLen;
     bool shuffleDatabase;
 
@@ -633,6 +634,7 @@ public:
     // createdb
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
     PARAMETER(PARAM_ID_OFFSET)  // same
+    PARAMETER(PARAM_DB_TYPE)
     PARAMETER(PARAM_DONT_SPLIT_SEQ_BY_LEN)
     PARAMETER(PARAM_DONT_SHUFFLE)
 

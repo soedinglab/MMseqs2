@@ -71,6 +71,7 @@ int createdb(int argn, const char **argv, const Command& command) {
 
     const size_t testForNucSequence = 100;
     size_t isNuclCnt = 0;
+    bool assmeNuclDb = (par.dbType == 2) ? true : false;
 
     // keep number of entries in each file
     unsigned int numEntriesInCurrFile = 0;
@@ -111,15 +112,52 @@ int createdb(int argn, const char **argv, const Command& command) {
 
             }
             for (size_t split = 0; split < splitCnt; split++) {
+
+
+                unsigned int id = par.identifierOffset + entries_num;
+                if(par.dbType == 0){
+                    // check for the first 10 sequences if they are nucleotide sequences
+                    if(count < 10 || (count % 100) == 0){
+                        if(sampleCount < testForNucSequence){
+                            size_t cnt=0;
+                            for(size_t i = 0; i < e.sequence.l; i++){
+                                switch(toupper(e.sequence.s[i]))
+                                {
+                                    case 'T':
+                                    case 'A':
+                                    case 'G':
+                                    case 'C':
+                                    case 'N': cnt++;
+                                        break;
+                                }
+                            }
+                            float nuclDNAFraction = static_cast<float>(cnt)/static_cast<float>(e.sequence.l);
+                            if(nuclDNAFraction > 0.9){
+                                isNuclCnt += true;
+                            }
+                        }
+                        sampleCount++;
+                    }
+                    if (isNuclCnt == sampleCount || isNuclCnt == testForNucSequence) {
+                        if(assmeNuclDb==false){
+                            Debug(Debug::WARNING) << "Assume it is a DNA database.\n";
+                            Debug(Debug::WARNING) << "Set parameter --dont-split-seq-by-len\n";
+                            par.splitSeqByLen = false;
+                            splitCnt = 1;
+                        }
+                        assmeNuclDb=true;
+                    }else if(assmeNuclDb == true && isNuclCnt != sampleCount){
+                        Debug(Debug::WARNING) << "Database does not look like a DNA database anymore. Sorry our prediction went wrong.\n";
+                        Debug(Debug::WARNING) << "Please recompute with --dbtype 1 flag.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                }
+
                 splitId.append(headerId);
                 if (splitCnt > 1) {
                     splitId.append("_");
                     splitId.append(SSTR(split));
                 }
-
-                unsigned int id = par.identifierOffset + entries_num;
-
-
                 // For split entries replace the found identifier by identifier_splitNumber
                 // Also add another hint that it was split to the end of the header
                 splitHeader.append(header);
@@ -143,29 +181,6 @@ int createdb(int argn, const char **argv, const Command& command) {
                 out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id);
                 splitHeader.clear();
                 splitId.clear();
-
-                // check for the first 10 sequences if they are nucleotide sequences
-                if((count % 100) == 0){
-                    if(sampleCount < testForNucSequence){
-                        size_t cnt=0;
-                        for(size_t i = 0; i < e.sequence.l; i++){
-                            switch(toupper(e.sequence.s[i]))
-                            {
-                                case 'T':
-                                case 'A':
-                                case 'G':
-                                case 'C':
-                                case 'N': cnt++;
-                                    break;
-                            }
-                        }
-                        float nuclDNAFraction = static_cast<float>(cnt)/static_cast<float>(e.sequence.l);
-                        if(nuclDNAFraction > 0.9){
-                            isNuclCnt += true;
-                        }
-                    }
-                    sampleCount++;
-                }
 
                 if (par.splitSeqByLen) {
                     size_t len = std::min(par.maxSeqLen, e.sequence.l - split * par.maxSeqLen);
@@ -193,7 +208,7 @@ int createdb(int argn, const char **argv, const Command& command) {
     }
 
     int dbType = Sequence::AMINO_ACIDS;
-    if (isNuclCnt == sampleCount || isNuclCnt == testForNucSequence) {
+    if (par.dbType == 2 ||  (par.dbType == 0 && (isNuclCnt == sampleCount || isNuclCnt == testForNucSequence)) ) {
         dbType = Sequence::NUCLEOTIDES;
     }
     out_hdr_writer.close();

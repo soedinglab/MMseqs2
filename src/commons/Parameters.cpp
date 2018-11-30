@@ -151,6 +151,7 @@ Parameters::Parameters():
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
+        PARAM_DB_TYPE(PARAM_DB_TYPE_ID,"--dbtype", "Database type", "Database type 0: auto, 1: amino acid 2: nucleotides",typeid(int),(void *) &dbType, "[0-2]{1}"),
         PARAM_DONT_SPLIT_SEQ_BY_LEN(PARAM_DONT_SPLIT_SEQ_BY_LEN_ID,"--dont-split-seq-by-len", "Split Seq. by len", "Dont split sequences by --max-seq-len",typeid(bool),(void *) &splitSeqByLen, ""),
         PARAM_DONT_SHUFFLE(PARAM_DONT_SHUFFLE_ID,"--dont-shuffle", "Do not shuffle input database", "Do not shuffle input database",typeid(bool),(void *) &shuffleDatabase, ""),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "use the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
@@ -541,6 +542,7 @@ Parameters::Parameters():
     // create db
     createdb.push_back(&PARAM_MAX_SEQ_LEN);
     createdb.push_back(&PARAM_DONT_SPLIT_SEQ_BY_LEN);
+    createdb.push_back(&PARAM_DB_TYPE);
     createdb.push_back(&PARAM_DONT_SHUFFLE);
     createdb.push_back(&PARAM_ID_OFFSET);
     createdb.push_back(&PARAM_V);
@@ -1415,6 +1417,7 @@ void Parameters::setDefaults() {
 
     // createdb
     identifierOffset = 0;
+    dbType = 0;
 
     // split sequence
     sequenceOverlap = 0;
