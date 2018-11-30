@@ -29,7 +29,7 @@ int easycluster(int argc, const char **argv, const Command &command) {
     par.overrideParameterDescription((Command &)command, par.PARAM_S.uniqid, "Sensitivity will be automatically determined but can be adjusted", NULL, par.PARAM_S.category |MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &)command, par.PARAM_INCLUDE_ONLY_EXTENDABLE.uniqid, NULL, NULL, par.PARAM_INCLUDE_ONLY_EXTENDABLE.category | MMseqsParameter::COMMAND_EXPERT);
     for (size_t i = 0; i < par.createdb.size(); i++){
-        par.overrideParameterDescription((Command &)command, par.createdb[i].uniqid, NULL, NULL, par.createdb[i].category | MMseqsParameter::COMMAND_EXPERT);
+        par.overrideParameterDescription((Command &)command, par.createdb[i]->uniqid, NULL, NULL, par.createdb[i]->category | MMseqsParameter::COMMAND_EXPERT);
     }
     par.overrideParameterDescription((Command &) command, par.PARAM_THREADS.uniqid, NULL, NULL,
                                      par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
@@ -64,7 +64,7 @@ int easycluster(int argc, const char **argv, const Command &command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     std::string createdbParam = par.createParameterString(par.createdb);
     cmd.addVariable("CREATEDB_PAR", createdbParam.c_str());
-    std::string clusterParam = par.createParameterString(par.easyclusterworkflow, true);
+    std::string clusterParam = par.createParameterString(par.clusterworkflow, true);
     cmd.addVariable("CLUSTER_PAR", clusterParam.c_str());
     cmd.addVariable("CLUSTER_MODULE", "cluster");
     cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());

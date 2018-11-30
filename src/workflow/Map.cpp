@@ -27,10 +27,10 @@ int map(int argc, const char **argv, const Command &command) {
                                      par.PARAM_DB_OUTPUT.category | MMseqsParameter::COMMAND_EXPERT);
 
     for (size_t i = 0; i < par.extractorfs.size(); i++){
-        par.overrideParameterDescription((Command &)command, par.extractorfs[i].uniqid, NULL, NULL, par.extractorfs[i].category | MMseqsParameter::COMMAND_EXPERT);
+        par.overrideParameterDescription((Command &)command, par.extractorfs[i]->uniqid, NULL, NULL, par.extractorfs[i]->category | MMseqsParameter::COMMAND_EXPERT);
     }
     for (size_t i = 0; i < par.translatenucs.size(); i++){
-        par.overrideParameterDescription((Command &)command, par.translatenucs[i].uniqid, NULL, NULL, par.translatenucs[i].category | MMseqsParameter::COMMAND_EXPERT);
+        par.overrideParameterDescription((Command &)command, par.translatenucs[i]->uniqid, NULL, NULL, par.translatenucs[i]->category | MMseqsParameter::COMMAND_EXPERT);
     }
     par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
                                      par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
@@ -62,7 +62,7 @@ int map(int argc, const char **argv, const Command &command) {
     CommandCaller cmd;
     cmd.addVariable("RUNNER", par.runner.c_str());
 
-    par.mapworkflow.push_back(par.PARAM_ALIGNMENT_MODE);
+    par.mapworkflow.push_back(&(par.PARAM_ALIGNMENT_MODE));
     par.alignmentMode = 4;
     cmd.addVariable("SEARCH_PAR", par.createParameterString(par.mapworkflow).c_str());
 

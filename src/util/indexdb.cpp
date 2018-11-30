@@ -72,12 +72,12 @@ int indexdb(int argc, const char **argv, const Command &command) {
 
     bool kScoreSet = false;
     for (size_t i = 0; i < par.indexdb.size(); i++) {
-        if (par.indexdb[i].uniqid == par.PARAM_K_SCORE.uniqid && par.indexdb[i].wasSet) {
+        if (par.indexdb[i]->uniqid == par.PARAM_K_SCORE.uniqid && par.indexdb[i]->wasSet) {
             kScoreSet = true;
         }
     }
 
-    const bool isProfileSearch = dbr.getDbtype() == Sequence::HMM_PROFILE;
+    const bool isProfileSearch = (dbr.getDbtype() == Sequence::HMM_PROFILE);
     if (isProfileSearch && kScoreSet == false) {
         par.kmerScore = 0;
     }

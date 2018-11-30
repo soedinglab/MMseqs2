@@ -29,8 +29,8 @@ int shellcompletion(int argc, const char** argv, const Command&) {
             if(p.params == NULL) {
                 continue;
             }
-            for(std::vector<MMseqsParameter>::const_iterator it = p.params->begin(); it != p.params->end(); ++it) {
-                Debug(Debug::INFO) << it->name << " ";
+            for(std::vector<MMseqsParameter *>::const_iterator it = p.params->begin(); it != p.params->end(); ++it) {
+                Debug(Debug::INFO) << (*it)->name << " ";
             }
             Debug(Debug::INFO) << "\n";
             break;

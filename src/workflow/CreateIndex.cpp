@@ -23,7 +23,7 @@ int createindex(int argc, const char **argv, const Command& command) {
     bool sensitivity = false;
     // only set kmerScore  to INT_MAX if -s was used
     for (size_t i = 0; i < par.createindex.size(); i++) {
-        if (par.createindex[i].uniqid == par.PARAM_S.uniqid && par.createindex[i].wasSet) {
+        if (par.createindex[i]->uniqid == par.PARAM_S.uniqid && par.createindex[i]->wasSet) {
             par.kmerScore = INT_MAX;
             sensitivity=true;
             break;

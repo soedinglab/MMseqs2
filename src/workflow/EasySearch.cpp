@@ -31,16 +31,16 @@ int easysearch(int argc, const char **argv, const Command &command) {
     par.overrideParameterDescription((Command &) command, par.PARAM_RESCORE_MODE.uniqid, NULL, NULL,
                                      par.PARAM_RESCORE_MODE.category | MMseqsParameter::COMMAND_EXPERT);
     for (size_t i = 0; i < par.createdb.size(); i++){
-        par.overrideParameterDescription((Command &)command, par.createdb[i].uniqid, NULL, NULL, par.createdb[i].category | MMseqsParameter::COMMAND_EXPERT);
+        par.overrideParameterDescription((Command &)command, par.createdb[i]->uniqid, NULL, NULL, par.createdb[i]->category | MMseqsParameter::COMMAND_EXPERT);
     }
     for (size_t i = 0; i < par.extractorfs.size(); i++){
-        par.overrideParameterDescription((Command &)command, par.extractorfs[i].uniqid, NULL, NULL, par.extractorfs[i].category | MMseqsParameter::COMMAND_EXPERT);
+        par.overrideParameterDescription((Command &)command, par.extractorfs[i]->uniqid, NULL, NULL, par.extractorfs[i]->category | MMseqsParameter::COMMAND_EXPERT);
     }
     for (size_t i = 0; i < par.translatenucs.size(); i++){
-        par.overrideParameterDescription((Command &)command, par.translatenucs[i].uniqid, NULL, NULL, par.translatenucs[i].category | MMseqsParameter::COMMAND_EXPERT);
+        par.overrideParameterDescription((Command &)command, par.translatenucs[i]->uniqid, NULL, NULL, par.translatenucs[i]->category | MMseqsParameter::COMMAND_EXPERT);
     }
     for (size_t i = 0; i < par.result2profile.size(); i++){
-        par.overrideParameterDescription((Command &)command, par.result2profile[i].uniqid, NULL, NULL, par.result2profile[i].category | MMseqsParameter::COMMAND_EXPERT);
+        par.overrideParameterDescription((Command &)command, par.result2profile[i]->uniqid, NULL, NULL, par.result2profile[i]->category | MMseqsParameter::COMMAND_EXPERT);
     }
     par.overrideParameterDescription((Command &) command, par.PARAM_THREADS.uniqid, NULL, NULL,
                                      par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
@@ -88,7 +88,7 @@ int easysearch(int argc, const char **argv, const Command &command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
 
     cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb).c_str());
-    std::string searchParam = par.createParameterString(par.easysearchworkflow, true);
+    std::string searchParam = par.createParameterString(par.searchworkflow, true);
     cmd.addVariable("SEARCH_PAR", searchParam.c_str());
     cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());
     cmd.addVariable("SUMMARIZE_PAR", par.createParameterString(par.summarizeresult).c_str());

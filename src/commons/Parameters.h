@@ -10,8 +10,8 @@
 #include "Command.h"
 
 #define USE_ONLY_SET_PARAMETERS true // when createParameterString, generates
-                                     // flags only for the param set by the user
-                                     
+// flags only for the param set by the user
+
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
 
@@ -173,7 +173,7 @@ public:
 
     std::string hdr1;
     std::string hdr1Index;
-    
+
     std::string db2;
     std::string db2Index;
 
@@ -258,7 +258,7 @@ public:
     float  seqIdThr;                     // sequence identity threshold for acceptance
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
-	int    gapOpen;                      // gap open
+    int    gapOpen;                      // gap open
     int    gapExtend;                    // gap extend
 
     // workflow
@@ -389,10 +389,10 @@ public:
     int filterColumn;
     int columnToTake;
     std::string filterColumnRegex;
-	std::string filteringFile;
-	std::string mappingFile;
-	bool positiveFilter;
-	bool trimToOneColumn;
+    std::string filteringFile;
+    std::string mappingFile;
+    bool positiveFilter;
+    bool trimToOneColumn;
     int extractLines;
     float compValue;
     std::string compOperator;
@@ -419,10 +419,13 @@ public:
 
     // convertkb
     std::string kbColumns;
-    
+
     // concatdbs
     bool preserveKeysB;
-    
+
+    // offsetalignments
+    int chainAlignment;
+
     // diff
     bool useSequenceId;
 
@@ -460,7 +463,7 @@ public:
     static void initInstance() {
         new Parameters;
     }
-    
+
     void setDefaults();
     void parseParameters(int argc, const char* argv[],
                          const Command& command,
@@ -471,9 +474,9 @@ public:
     void printUsageMessage(const Command& command,
                            int outputFlag);
     void printParameters(const std::string &module, int argc, const char* pargv[],
-                         const std::vector<MMseqsParameter> &par);
-	
-	std::vector<MMseqsParameter> removeParameter(const std::vector<MMseqsParameter>& par, const MMseqsParameter& x);
+                         const std::vector<MMseqsParameter*> &par);
+
+    std::vector<MMseqsParameter*> removeParameter(const std::vector<MMseqsParameter*>& par, const MMseqsParameter& x);
 
     PARAMETER(PARAM_S)
     PARAMETER(PARAM_K)
@@ -504,8 +507,8 @@ public:
     PARAMETER(PARAM_PRELOAD_MODE)
     PARAMETER(PARAM_SPACED_KMER_PATTERN)
     PARAMETER(PARAM_LOCAL_TMP)
-    std::vector<MMseqsParameter> prefilter;
-    std::vector<MMseqsParameter> ungappedprefilter;
+    std::vector<MMseqsParameter*> prefilter;
+    std::vector<MMseqsParameter*> ungappedprefilter;
 
     // alignment
     PARAMETER(PARAM_ALIGNMENT_MODE)
@@ -522,7 +525,7 @@ public:
     PARAMETER(PARAM_ALT_ALIGNMENT)
     PARAMETER(PARAM_GAP_OPEN)
     PARAMETER(PARAM_GAP_EXTEND)
-    std::vector<MMseqsParameter> align;
+    std::vector<MMseqsParameter*> align;
 
     // clustering
     PARAMETER(PARAM_CLUSTER_MODE)
@@ -535,7 +538,7 @@ public:
 
     // logging
     PARAMETER(PARAM_V)
-    std::vector<MMseqsParameter> clust;
+    std::vector<MMseqsParameter*> clust;
 
     // create profile (HMM, PSSM)
     PARAMETER(PARAM_PROFILE_TYPE)
@@ -676,6 +679,9 @@ public:
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)
 
+    // offsetalignment
+    PARAMETER(PARAM_CHAIN_ALIGNMENT)
+
     // diff
     PARAMETER(PARAM_USESEQID)
 
@@ -718,85 +724,85 @@ public:
     // taxonomy
     PARAMETER(PARAM_LCA_MODE)
 
-    std::vector<MMseqsParameter> empty;
-    std::vector<MMseqsParameter> rescorediagonal;
-    std::vector<MMseqsParameter> alignbykmer;
-    std::vector<MMseqsParameter> onlyverbosity;
-    std::vector<MMseqsParameter> createFasta;
-    std::vector<MMseqsParameter> convertprofiledb;
-    std::vector<MMseqsParameter> sequence2profile;
+    std::vector<MMseqsParameter*> empty;
+    std::vector<MMseqsParameter*> rescorediagonal;
+    std::vector<MMseqsParameter*> alignbykmer;
+    std::vector<MMseqsParameter*> onlyverbosity;
+    std::vector<MMseqsParameter*> createFasta;
+    std::vector<MMseqsParameter*> convertprofiledb;
+    std::vector<MMseqsParameter*> sequence2profile;
 
-    std::vector<MMseqsParameter> result2profile;
-    std::vector<MMseqsParameter> result2pp;
-    std::vector<MMseqsParameter> result2msa;
-    std::vector<MMseqsParameter> convertmsa;
-    std::vector<MMseqsParameter> msa2profile;
-    std::vector<MMseqsParameter> createtsv;
-    std::vector<MMseqsParameter> result2stats;
-    std::vector<MMseqsParameter> extractorfs;
-    std::vector<MMseqsParameter> extractframes;
-    std::vector<MMseqsParameter> orftocontig;
-    std::vector<MMseqsParameter> splitdb;
-    std::vector<MMseqsParameter> splitsequence;
-    std::vector<MMseqsParameter> indexdb;
-    std::vector<MMseqsParameter> createindex;
-    std::vector<MMseqsParameter> convertalignments;
-    std::vector<MMseqsParameter> createdb;
-    std::vector<MMseqsParameter> convert2fasta;
-    std::vector<MMseqsParameter> result2flat;
-    std::vector<MMseqsParameter> gff2ffindex;
-    std::vector<MMseqsParameter> clusthash;
-    std::vector<MMseqsParameter> kmermatcher;
-    std::vector<MMseqsParameter> easylinclustworkflow;
-    std::vector<MMseqsParameter> linclustworkflow;
-    std::vector<MMseqsParameter> easysearchworkflow;
-    std::vector<MMseqsParameter> searchworkflow;
-    std::vector<MMseqsParameter> mapworkflow;
-    std::vector<MMseqsParameter> easyclusterworkflow;
-    std::vector<MMseqsParameter> clusterworkflow;
-    std::vector<MMseqsParameter> clusterUpdateSearch;
-    std::vector<MMseqsParameter> clusterUpdateClust;
-    std::vector<MMseqsParameter> mergeclusters;
-    std::vector<MMseqsParameter> clusterUpdate;
-    std::vector<MMseqsParameter> translatenucs;
-    std::vector<MMseqsParameter> swapresult;
-    std::vector<MMseqsParameter> swapdb;
-    std::vector<MMseqsParameter> createseqfiledb;
-    std::vector<MMseqsParameter> filterDb;
-    std::vector<MMseqsParameter> onlythreads;
-    std::vector<MMseqsParameter> offsetalignment;
-    std::vector<MMseqsParameter> subtractdbs;
-    std::vector<MMseqsParameter> diff;
-    std::vector<MMseqsParameter> concatdbs;
-    std::vector<MMseqsParameter> mergedbs;
-    std::vector<MMseqsParameter> summarizeheaders;
-    std::vector<MMseqsParameter> prefixid;
-    std::vector<MMseqsParameter> summarizeresult;
-    std::vector<MMseqsParameter> summarizetabs;
-    std::vector<MMseqsParameter> extractdomains;
-    std::vector<MMseqsParameter> extractalignedregion;
-    std::vector<MMseqsParameter> convertkb;
-    std::vector<MMseqsParameter> tsv2db;
-    std::vector<MMseqsParameter> lca;
-    std::vector<MMseqsParameter> filtertaxdb;
-    std::vector<MMseqsParameter> taxonomy;
-    std::vector<MMseqsParameter> profile2pssm;
-    std::vector<MMseqsParameter> profile2cs;
-    std::vector<MMseqsParameter> besthitbyset;
-    std::vector<MMseqsParameter> combinepvalbyset;
-    std::vector<MMseqsParameter> summerizeresultsbyset;
-    std::vector<MMseqsParameter> multihitdb;
-    std::vector<MMseqsParameter> multihitsearch;
-    std::vector<MMseqsParameter> expandaln;
-    std::vector<MMseqsParameter> sortresult;
-    std::vector<MMseqsParameter> enrichworkflow;
+    std::vector<MMseqsParameter*> result2profile;
+    std::vector<MMseqsParameter*> result2pp;
+    std::vector<MMseqsParameter*> result2msa;
+    std::vector<MMseqsParameter*> convertmsa;
+    std::vector<MMseqsParameter*> msa2profile;
+    std::vector<MMseqsParameter*> createtsv;
+    std::vector<MMseqsParameter*> result2stats;
+    std::vector<MMseqsParameter*> extractorfs;
+    std::vector<MMseqsParameter*> extractframes;
+    std::vector<MMseqsParameter*> orftocontig;
+    std::vector<MMseqsParameter*> splitdb;
+    std::vector<MMseqsParameter*> splitsequence;
+    std::vector<MMseqsParameter*> indexdb;
+    std::vector<MMseqsParameter*> createindex;
+    std::vector<MMseqsParameter*> convertalignments;
+    std::vector<MMseqsParameter*> createdb;
+    std::vector<MMseqsParameter*> convert2fasta;
+    std::vector<MMseqsParameter*> result2flat;
+    std::vector<MMseqsParameter*> gff2ffindex;
+    std::vector<MMseqsParameter*> clusthash;
+    std::vector<MMseqsParameter*> kmermatcher;
+    std::vector<MMseqsParameter*> easylinclustworkflow;
+    std::vector<MMseqsParameter*> linclustworkflow;
+    std::vector<MMseqsParameter*> easysearchworkflow;
+    std::vector<MMseqsParameter*> searchworkflow;
+    std::vector<MMseqsParameter*> mapworkflow;
+    std::vector<MMseqsParameter*> easyclusterworkflow;
+    std::vector<MMseqsParameter*> clusterworkflow;
+    std::vector<MMseqsParameter*> clusterUpdateSearch;
+    std::vector<MMseqsParameter*> clusterUpdateClust;
+    std::vector<MMseqsParameter*> mergeclusters;
+    std::vector<MMseqsParameter*> clusterUpdate;
+    std::vector<MMseqsParameter*> translatenucs;
+    std::vector<MMseqsParameter*> swapresult;
+    std::vector<MMseqsParameter*> swapdb;
+    std::vector<MMseqsParameter*> createseqfiledb;
+    std::vector<MMseqsParameter*> filterDb;
+    std::vector<MMseqsParameter*> onlythreads;
+    std::vector<MMseqsParameter*> offsetalignment;
+    std::vector<MMseqsParameter*> subtractdbs;
+    std::vector<MMseqsParameter*> diff;
+    std::vector<MMseqsParameter*> concatdbs;
+    std::vector<MMseqsParameter*> mergedbs;
+    std::vector<MMseqsParameter*> summarizeheaders;
+    std::vector<MMseqsParameter*> prefixid;
+    std::vector<MMseqsParameter*> summarizeresult;
+    std::vector<MMseqsParameter*> summarizetabs;
+    std::vector<MMseqsParameter*> extractdomains;
+    std::vector<MMseqsParameter*> extractalignedregion;
+    std::vector<MMseqsParameter*> convertkb;
+    std::vector<MMseqsParameter*> tsv2db;
+    std::vector<MMseqsParameter*> lca;
+    std::vector<MMseqsParameter*> filtertaxdb;
+    std::vector<MMseqsParameter*> taxonomy;
+    std::vector<MMseqsParameter*> profile2pssm;
+    std::vector<MMseqsParameter*> profile2cs;
+    std::vector<MMseqsParameter*> besthitbyset;
+    std::vector<MMseqsParameter*> combinepvalbyset;
+    std::vector<MMseqsParameter*> summerizeresultsbyset;
+    std::vector<MMseqsParameter*> multihitdb;
+    std::vector<MMseqsParameter*> multihitsearch;
+    std::vector<MMseqsParameter*> expandaln;
+    std::vector<MMseqsParameter*> sortresult;
+    std::vector<MMseqsParameter*> enrichworkflow;
 
-    std::vector<MMseqsParameter> combineList(const std::vector<MMseqsParameter> &par1,
-                                             const std::vector<MMseqsParameter> &par2);
+    std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
+                                             const std::vector<MMseqsParameter*> &par2);
 
-    size_t hashParameter(const std::vector<std::string> &filenames, const std::vector<MMseqsParameter> &par);
+    size_t hashParameter(const std::vector<std::string> &filenames, const std::vector<MMseqsParameter*> &par);
 
-    std::string createParameterString(const std::vector<MMseqsParameter> &vector, bool wasSet = false);
+    std::string createParameterString(const std::vector<MMseqsParameter*> &vector, bool wasSet = false);
 
     void overrideParameterDescription(Command& command, int uid, const char* description, const char* regex = NULL, int category = 0);
 

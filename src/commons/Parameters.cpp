@@ -57,17 +57,15 @@ Parameters::Parameters():
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "list matches above this fraction of aligned (covered) residues (see --cov-mode)",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|^1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN| MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_COV_MODE(PARAM_COV_MODE_ID, "--cov-mode", "Coverage Mode", "0: coverage of query and target, 1: coverage of target, 2: coverage of query 3: target seq. length needs be at least x% of query length, 4: query seq. length needs be at least x% of target length", typeid(int), (void *) &covMode, "^[0-3]{1}$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_SEQ_ID_MODE(PARAM_SEQ_ID_MODE_ID, "--seq-id-mode", "Seq. Id. Mode", "0: alignment length 1: shorter, 2: longer sequence", typeid(int), (void *) &seqIdMode, "^[0-2]{1}$", MMseqsParameter::COMMAND_ALIGN),
-
         PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_MAX_ACCEPT(PARAM_MAX_ACCEPT_ID,"--max-accept", "Max Accept", "maximum accepted alignments before alignment calculation for a query is stopped",typeid(int),(void *) &maxAccept, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "compute more conservative, shorter alignments (scores and E-values not changed)", typeid(bool), (void *) &realign, "", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","list matches above this sequence identity (for clustering) [0.0,1.0]",typeid(float), (void *) &seqIdThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
-	    PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID,"--score-bias", "Score bias", "Score bias when computing the SW alignment (in bits)",typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID,"--score-bias", "Score bias", "Score bias when computing the SW alignment (in bits)",typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID,"--alt-ali", "Alternative alignments","Show up to this many alternative alignments",typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID,"--gap-open", "Gap open cost","Gap open cost",typeid(int), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID,"--gap-extend", "Gap extension cost","Gap extension cost",typeid(int), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
-
         // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0: Setcover, 1: connected component, 2: Greedy clustering by sequence length  3: Greedy clustering by sequence length (low mem)",typeid(int), (void *) &clusteringMode, "[0-3]{1}$", MMseqsParameter::COMMAND_CLUST),
         PARAM_CLUSTER_STEPS(PARAM_CLUSTER_STEPS_ID,"--cluster-steps", "Cascaded clustering steps", "cascaded clustering steps from 1 to -s",typeid(int), (void *) &clusterSteps, "^[1-9]{1}$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
@@ -122,7 +120,6 @@ Parameters::Parameters():
         PARAM_FULL_HEADER(PARAM_FULL_HEADER_ID, "--full-header", "Add Full Header", "Replace DB ID by its corresponding Full Header", typeid(bool), (void*) &fullHeader, ""),
         // result2stats
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen, firstline.", typeid(std::string), (void*) &stat, ""),
-
         // linearcluster
         PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "Kmer per sequence", "kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_INCLUDE_ONLY_EXTENDABLE(PARAM_INCLUDE_ONLY_EXTENDABLE_ID, "--include-only-extendable", "Include only extendable", "Include only extendable", typeid(bool), (void*) &includeOnlyExtendable, "", MMseqsParameter::COMMAND_CLUSTLINEAR),
@@ -191,11 +188,13 @@ Parameters::Parameters():
         PARAM_SHORT_OUTPUT(PARAM_SHORT_OUTPUT_ID, "--short-output", "Short output", "The output database will contain only the spread p-value", typeid(bool), (void*) &shortOutput, ""),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
+        // offsetalignment
+        PARAM_CHAIN_ALIGNMENT(PARAM_CHAIN_ALIGNMENT_ID,"--chain-alignments", "Chain overlapping alignments", "Chain overlapping alignments",typeid(int),(void *) &chainAlignment, "^[0-1]{1}"),
         //diff
         PARAM_USESEQID(PARAM_USESEQID_ID,"--use-seq-id", "Match sequences by their ID", "Sequence ID (Uniprot, GenBank, ...) is used for identifying matches between the old and the new DB.",typeid(bool), (void *) &useSequenceId, ""),
         // prefixid
         PARAM_PREFIX(PARAM_PREFIX_ID, "--prefix", "Prefix", "Use this prefix for all entries", typeid(std::string),(void *) &prefix,""),
-        PARAM_TSV(PARAM_TSV_ID,"--tsv", "Tsv", "should output be in TSV format",typeid(bool),(void *) &tsvOut, ""),        
+        PARAM_TSV(PARAM_TSV_ID,"--tsv", "Tsv", "should output be in TSV format",typeid(bool),(void *) &tsvOut, ""),
         // summarize headers
         PARAM_HEADER_TYPE(PARAM_HEADER_TYPE_ID,"--header-type", "Header type", "Header Type: 1 Uniclust, 2 Metaclust",typeid(int), (void *) &headerType, "[1-2]{1}"),
         // mergedbs
@@ -227,534 +226,538 @@ Parameters::Parameters():
     instance = this;
 
     // alignment
-    align.push_back(PARAM_SUB_MAT);
-    align.push_back(PARAM_ADD_BACKTRACE);
-    align.push_back(PARAM_ALIGNMENT_MODE);
-    align.push_back(PARAM_E);
-    align.push_back(PARAM_MIN_SEQ_ID);
-    align.push_back(PARAM_SEQ_ID_MODE);
-    align.push_back(PARAM_ALT_ALIGNMENT);
-    align.push_back(PARAM_C);
-    align.push_back(PARAM_COV_MODE);
-    align.push_back(PARAM_MAX_SEQ_LEN);
-    align.push_back(PARAM_MAX_SEQS);
-    align.push_back(PARAM_NO_COMP_BIAS_CORR);
-    align.push_back(PARAM_REALIGN);
-    align.push_back(PARAM_MAX_REJECTED);
-    align.push_back(PARAM_MAX_ACCEPT);
-    align.push_back(PARAM_INCLUDE_IDENTITY);
-    align.push_back(PARAM_PRELOAD_MODE);
-    align.push_back(PARAM_PCA);
-    align.push_back(PARAM_PCB);
-    align.push_back(PARAM_SCORE_BIAS);
-    align.push_back(PARAM_GAP_OPEN);
-    align.push_back(PARAM_GAP_EXTEND);
-    align.push_back(PARAM_THREADS);
-    align.push_back(PARAM_V);
+    align.push_back(&PARAM_SUB_MAT);
+    align.push_back(&PARAM_ADD_BACKTRACE);
+    align.push_back(&PARAM_ALIGNMENT_MODE);
+    align.push_back(&PARAM_E);
+    align.push_back(&PARAM_MIN_SEQ_ID);
+    align.push_back(&PARAM_SEQ_ID_MODE);
+    align.push_back(&PARAM_ALT_ALIGNMENT);
+    align.push_back(&PARAM_C);
+    align.push_back(&PARAM_COV_MODE);
+    align.push_back(&PARAM_MAX_SEQ_LEN);
+    align.push_back(&PARAM_MAX_SEQS);
+    align.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    align.push_back(&PARAM_REALIGN);
+    align.push_back(&PARAM_MAX_REJECTED);
+    align.push_back(&PARAM_MAX_ACCEPT);
+    align.push_back(&PARAM_INCLUDE_IDENTITY);
+    align.push_back(&PARAM_PRELOAD_MODE);
+    align.push_back(&PARAM_PCA);
+    align.push_back(&PARAM_PCB);
+    align.push_back(&PARAM_SCORE_BIAS);
+    align.push_back(&PARAM_GAP_OPEN);
+    align.push_back(&PARAM_GAP_EXTEND);
+    align.push_back(&PARAM_THREADS);
+    align.push_back(&PARAM_V);
 
     // prefilter
-    prefilter.push_back(PARAM_SUB_MAT);
-    prefilter.push_back(PARAM_S);
-    prefilter.push_back(PARAM_K);
-    prefilter.push_back(PARAM_K_SCORE);
-    prefilter.push_back(PARAM_ALPH_SIZE);
-    prefilter.push_back(PARAM_MAX_SEQ_LEN);
-    prefilter.push_back(PARAM_MAX_SEQS);
-    prefilter.push_back(PARAM_RES_LIST_OFFSET);
-    prefilter.push_back(PARAM_SPLIT);
-    prefilter.push_back(PARAM_SPLIT_MODE);
-    prefilter.push_back(PARAM_SPLIT_MEMORY_LIMIT);
-    prefilter.push_back(PARAM_C);
-    prefilter.push_back(PARAM_COV_MODE);
-    prefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
-    prefilter.push_back(PARAM_DIAGONAL_SCORING);
-    prefilter.push_back(PARAM_EXACT_KMER_MATCHING);
-    prefilter.push_back(PARAM_MASK_RESIDUES);
-    prefilter.push_back(PARAM_MIN_DIAG_SCORE);
-    prefilter.push_back(PARAM_INCLUDE_IDENTITY);
-    prefilter.push_back(PARAM_SPACED_KMER_MODE);
-    prefilter.push_back(PARAM_PRELOAD_MODE);
-    prefilter.push_back(PARAM_PCA);
-    prefilter.push_back(PARAM_PCB);
-    prefilter.push_back(PARAM_SPACED_KMER_PATTERN);
-    prefilter.push_back(PARAM_LOCAL_TMP);
-    prefilter.push_back(PARAM_THREADS);
-    prefilter.push_back(PARAM_V);
+    prefilter.push_back(&PARAM_SUB_MAT);
+    prefilter.push_back(&PARAM_S);
+    prefilter.push_back(&PARAM_K);
+    prefilter.push_back(&PARAM_K_SCORE);
+    prefilter.push_back(&PARAM_ALPH_SIZE);
+    prefilter.push_back(&PARAM_MAX_SEQ_LEN);
+    prefilter.push_back(&PARAM_MAX_SEQS);
+    prefilter.push_back(&PARAM_RES_LIST_OFFSET);
+    prefilter.push_back(&PARAM_SPLIT);
+    prefilter.push_back(&PARAM_SPLIT_MODE);
+    prefilter.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    prefilter.push_back(&PARAM_C);
+    prefilter.push_back(&PARAM_COV_MODE);
+    prefilter.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    prefilter.push_back(&PARAM_DIAGONAL_SCORING);
+    prefilter.push_back(&PARAM_EXACT_KMER_MATCHING);
+    prefilter.push_back(&PARAM_MASK_RESIDUES);
+    prefilter.push_back(&PARAM_MIN_DIAG_SCORE);
+    prefilter.push_back(&PARAM_INCLUDE_IDENTITY);
+    prefilter.push_back(&PARAM_SPACED_KMER_MODE);
+    prefilter.push_back(&PARAM_PRELOAD_MODE);
+    prefilter.push_back(&PARAM_PCA);
+    prefilter.push_back(&PARAM_PCB);
+    prefilter.push_back(&PARAM_SPACED_KMER_PATTERN);
+    prefilter.push_back(&PARAM_LOCAL_TMP);
+    prefilter.push_back(&PARAM_THREADS);
+    prefilter.push_back(&PARAM_V);
 
     // ungappedprefilter
-    ungappedprefilter.push_back(PARAM_SUB_MAT);
-    ungappedprefilter.push_back(PARAM_C);
-    ungappedprefilter.push_back(PARAM_E);
-    ungappedprefilter.push_back(PARAM_COV_MODE);
-    ungappedprefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
-    ungappedprefilter.push_back(PARAM_MIN_DIAG_SCORE);
-    ungappedprefilter.push_back(PARAM_THREADS);
-    ungappedprefilter.push_back(PARAM_V);
+    ungappedprefilter.push_back(&PARAM_SUB_MAT);
+    ungappedprefilter.push_back(&PARAM_C);
+    ungappedprefilter.push_back(&PARAM_E);
+    ungappedprefilter.push_back(&PARAM_COV_MODE);
+    ungappedprefilter.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    ungappedprefilter.push_back(&PARAM_MIN_DIAG_SCORE);
+    ungappedprefilter.push_back(&PARAM_THREADS);
+    ungappedprefilter.push_back(&PARAM_V);
 
     // clustering
-    clust.push_back(PARAM_CLUSTER_MODE);
-    clust.push_back(PARAM_MAXITERATIONS);
-    clust.push_back(PARAM_SIMILARITYSCORE);
-    clust.push_back(PARAM_THREADS);
-    clust.push_back(PARAM_V);
+    clust.push_back(&PARAM_CLUSTER_MODE);
+    clust.push_back(&PARAM_MAXITERATIONS);
+    clust.push_back(&PARAM_SIMILARITYSCORE);
+    clust.push_back(&PARAM_THREADS);
+    clust.push_back(&PARAM_V);
 
     // onlyverbosity
-    onlyverbosity.push_back(PARAM_V);
+    onlyverbosity.push_back(&PARAM_V);
 
     // rescorediagonal
-    rescorediagonal.push_back(PARAM_SUB_MAT);
-    rescorediagonal.push_back(PARAM_RESCORE_MODE);
-    rescorediagonal.push_back(PARAM_FILTER_HITS);
-    rescorediagonal.push_back(PARAM_E);
-    rescorediagonal.push_back(PARAM_C);
-    rescorediagonal.push_back(PARAM_COV_MODE);
-    rescorediagonal.push_back(PARAM_MIN_SEQ_ID);
-    rescorediagonal.push_back(PARAM_SEQ_ID_MODE);
-    rescorediagonal.push_back(PARAM_INCLUDE_IDENTITY);
-    rescorediagonal.push_back(PARAM_SORT_RESULTS);
-    rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
-    rescorediagonal.push_back(PARAM_PRELOAD_MODE);
-    rescorediagonal.push_back(PARAM_THREADS);
-    rescorediagonal.push_back(PARAM_V);
+    rescorediagonal.push_back(&PARAM_SUB_MAT);
+    rescorediagonal.push_back(&PARAM_RESCORE_MODE);
+    rescorediagonal.push_back(&PARAM_FILTER_HITS);
+    rescorediagonal.push_back(&PARAM_E);
+    rescorediagonal.push_back(&PARAM_C);
+    rescorediagonal.push_back(&PARAM_COV_MODE);
+    rescorediagonal.push_back(&PARAM_MIN_SEQ_ID);
+    rescorediagonal.push_back(&PARAM_SEQ_ID_MODE);
+    rescorediagonal.push_back(&PARAM_INCLUDE_IDENTITY);
+    rescorediagonal.push_back(&PARAM_SORT_RESULTS);
+    rescorediagonal.push_back(&PARAM_GLOBAL_ALIGNMENT);
+    rescorediagonal.push_back(&PARAM_PRELOAD_MODE);
+    rescorediagonal.push_back(&PARAM_THREADS);
+    rescorediagonal.push_back(&PARAM_V);
 
     // alignbykmer
-    alignbykmer.push_back(PARAM_SUB_MAT);
-    alignbykmer.push_back(PARAM_K);
-    alignbykmer.push_back(PARAM_SPACED_KMER_MODE);
-    alignbykmer.push_back(PARAM_SPACED_KMER_PATTERN);
-    alignbykmer.push_back(PARAM_ALPH_SIZE);
-    alignbykmer.push_back(PARAM_FILTER_HITS);
-    alignbykmer.push_back(PARAM_C);
-    alignbykmer.push_back(PARAM_E);
-    alignbykmer.push_back(PARAM_COV_MODE);
-    alignbykmer.push_back(PARAM_MIN_SEQ_ID);
-    alignbykmer.push_back(PARAM_INCLUDE_IDENTITY);
-    alignbykmer.push_back(PARAM_GAP_OPEN);
-    alignbykmer.push_back(PARAM_GAP_EXTEND);    
-    alignbykmer.push_back(PARAM_THREADS);
-    alignbykmer.push_back(PARAM_V);
+    alignbykmer.push_back(&PARAM_SUB_MAT);
+    alignbykmer.push_back(&PARAM_K);
+    alignbykmer.push_back(&PARAM_SPACED_KMER_MODE);
+    alignbykmer.push_back(&PARAM_SPACED_KMER_PATTERN);
+    alignbykmer.push_back(&PARAM_ALPH_SIZE);
+    alignbykmer.push_back(&PARAM_FILTER_HITS);
+    alignbykmer.push_back(&PARAM_C);
+    alignbykmer.push_back(&PARAM_E);
+    alignbykmer.push_back(&PARAM_COV_MODE);
+    alignbykmer.push_back(&PARAM_MIN_SEQ_ID);
+    alignbykmer.push_back(&PARAM_INCLUDE_IDENTITY);
+    alignbykmer.push_back(&PARAM_GAP_OPEN);
+    alignbykmer.push_back(&PARAM_GAP_EXTEND);
+    alignbykmer.push_back(&PARAM_THREADS);
+    alignbykmer.push_back(&PARAM_V);
 
     // convertprofiledb
-    convertprofiledb.push_back(PARAM_SUB_MAT);
-    convertprofiledb.push_back(PARAM_PROFILE_TYPE);
-    convertprofiledb.push_back(PARAM_THREADS);
-    convertprofiledb.push_back(PARAM_V);
+    convertprofiledb.push_back(&PARAM_SUB_MAT);
+    convertprofiledb.push_back(&PARAM_PROFILE_TYPE);
+    convertprofiledb.push_back(&PARAM_THREADS);
+    convertprofiledb.push_back(&PARAM_V);
 
 
     // sequence2profile
-    sequence2profile.push_back(PARAM_PCA);
-    sequence2profile.push_back(PARAM_PCB);
-    sequence2profile.push_back(PARAM_NEFF);
-    sequence2profile.push_back(PARAM_TAU);
-    sequence2profile.push_back(PARAM_THREADS);
-    sequence2profile.push_back(PARAM_SUB_MAT);
-    sequence2profile.push_back(PARAM_V);
+    sequence2profile.push_back(&PARAM_PCA);
+    sequence2profile.push_back(&PARAM_PCB);
+    sequence2profile.push_back(&PARAM_NEFF);
+    sequence2profile.push_back(&PARAM_TAU);
+    sequence2profile.push_back(&PARAM_THREADS);
+    sequence2profile.push_back(&PARAM_SUB_MAT);
+    sequence2profile.push_back(&PARAM_V);
 
     // create fasta
-    createFasta.push_back(PARAM_V);
+    createFasta.push_back(&PARAM_V);
 
     // result2profile
-    result2profile.push_back(PARAM_SUB_MAT);
-    result2profile.push_back(PARAM_E);
-    result2profile.push_back(PARAM_MASK_PROFILE);
-    result2profile.push_back(PARAM_E_PROFILE);
-    result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
-    result2profile.push_back(PARAM_WG);
-    result2profile.push_back(PARAM_FILTER_MSA);
-    result2profile.push_back(PARAM_FILTER_MAX_SEQ_ID);
-    result2profile.push_back(PARAM_FILTER_QID);
-    result2profile.push_back(PARAM_FILTER_QSC);
-    result2profile.push_back(PARAM_FILTER_COV);
-    result2profile.push_back(PARAM_FILTER_NDIFF);
-    result2profile.push_back(PARAM_PCA);
-    result2profile.push_back(PARAM_PCB);
-    result2profile.push_back(PARAM_OMIT_CONSENSUS);
-    result2profile.push_back(PARAM_PRELOAD_MODE);
-    result2profile.push_back(PARAM_GAP_OPEN);
-    result2profile.push_back(PARAM_GAP_EXTEND);
-    result2profile.push_back(PARAM_THREADS);
-    result2profile.push_back(PARAM_V);
+    result2profile.push_back(&PARAM_SUB_MAT);
+    result2profile.push_back(&PARAM_E);
+    result2profile.push_back(&PARAM_MASK_PROFILE);
+    result2profile.push_back(&PARAM_E_PROFILE);
+    result2profile.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    result2profile.push_back(&PARAM_WG);
+    result2profile.push_back(&PARAM_FILTER_MSA);
+    result2profile.push_back(&PARAM_FILTER_MAX_SEQ_ID);
+    result2profile.push_back(&PARAM_FILTER_QID);
+    result2profile.push_back(&PARAM_FILTER_QSC);
+    result2profile.push_back(&PARAM_FILTER_COV);
+    result2profile.push_back(&PARAM_FILTER_NDIFF);
+    result2profile.push_back(&PARAM_PCA);
+    result2profile.push_back(&PARAM_PCB);
+    result2profile.push_back(&PARAM_OMIT_CONSENSUS);
+    result2profile.push_back(&PARAM_PRELOAD_MODE);
+    result2profile.push_back(&PARAM_GAP_OPEN);
+    result2profile.push_back(&PARAM_GAP_EXTEND);
+    result2profile.push_back(&PARAM_THREADS);
+    result2profile.push_back(&PARAM_V);
 
     // result2pp
-    result2pp.push_back(PARAM_SUB_MAT);
-    result2pp.push_back(PARAM_E_PROFILE);
-    result2pp.push_back(PARAM_E);
-    result2pp.push_back(PARAM_NO_COMP_BIAS_CORR);
-    result2pp.push_back(PARAM_WG);
-    result2pp.push_back(PARAM_FILTER_MSA);
-    result2pp.push_back(PARAM_FILTER_MAX_SEQ_ID);
-    result2pp.push_back(PARAM_FILTER_QID);
-    result2pp.push_back(PARAM_FILTER_QSC);
-    result2pp.push_back(PARAM_FILTER_COV);
-    result2pp.push_back(PARAM_FILTER_NDIFF);
-    result2pp.push_back(PARAM_PCA);
-    result2pp.push_back(PARAM_PCB);
-    result2pp.push_back(PARAM_OMIT_CONSENSUS);
-    result2pp.push_back(PARAM_PRELOAD_MODE);
-    result2pp.push_back(PARAM_THREADS);
-    result2pp.push_back(PARAM_V);
-    
-    
+    result2pp.push_back(&PARAM_SUB_MAT);
+    result2pp.push_back(&PARAM_E_PROFILE);
+    result2pp.push_back(&PARAM_E);
+    result2pp.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    result2pp.push_back(&PARAM_WG);
+    result2pp.push_back(&PARAM_FILTER_MSA);
+    result2pp.push_back(&PARAM_FILTER_MAX_SEQ_ID);
+    result2pp.push_back(&PARAM_FILTER_QID);
+    result2pp.push_back(&PARAM_FILTER_QSC);
+    result2pp.push_back(&PARAM_FILTER_COV);
+    result2pp.push_back(&PARAM_FILTER_NDIFF);
+    result2pp.push_back(&PARAM_PCA);
+    result2pp.push_back(&PARAM_PCB);
+    result2pp.push_back(&PARAM_OMIT_CONSENSUS);
+    result2pp.push_back(&PARAM_PRELOAD_MODE);
+    result2pp.push_back(&PARAM_THREADS);
+    result2pp.push_back(&PARAM_V);
+
+
     // createtsv
-    createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);
-    createtsv.push_back(PARAM_TARGET_COLUMN);
-    createtsv.push_back(PARAM_FULL_HEADER);
-    createtsv.push_back(PARAM_DB_OUTPUT);
-    createtsv.push_back(PARAM_THREADS);
-    createtsv.push_back(PARAM_V);
+    createtsv.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
+    createtsv.push_back(&PARAM_TARGET_COLUMN);
+    createtsv.push_back(&PARAM_FULL_HEADER);
+    createtsv.push_back(&PARAM_DB_OUTPUT);
+    createtsv.push_back(&PARAM_THREADS);
+    createtsv.push_back(&PARAM_V);
 
     //result2stats
-    result2stats.push_back(PARAM_STAT);
-    result2stats.push_back(PARAM_THREADS);
-    result2stats.push_back(PARAM_V);
+    result2stats.push_back(&PARAM_STAT);
+    result2stats.push_back(&PARAM_THREADS);
+    result2stats.push_back(&PARAM_V);
 
     // format alignment
-    convertalignments.push_back(PARAM_SUB_MAT);
-    convertalignments.push_back(PARAM_FORMAT_MODE);
-    convertalignments.push_back(PARAM_FORMAT_OUTPUT);
-    convertalignments.push_back(PARAM_TRANSLATION_TABLE);
-    convertalignments.push_back(PARAM_GAP_OPEN);
-    convertalignments.push_back(PARAM_GAP_EXTEND);
-    convertalignments.push_back(PARAM_DB_OUTPUT);
-    convertalignments.push_back(PARAM_PRELOAD_MODE);
-    convertalignments.push_back(PARAM_THREADS);
-    convertalignments.push_back(PARAM_V);
+    convertalignments.push_back(&PARAM_SUB_MAT);
+    convertalignments.push_back(&PARAM_FORMAT_MODE);
+    convertalignments.push_back(&PARAM_FORMAT_OUTPUT);
+    convertalignments.push_back(&PARAM_TRANSLATION_TABLE);
+    convertalignments.push_back(&PARAM_GAP_OPEN);
+    convertalignments.push_back(&PARAM_GAP_EXTEND);
+    convertalignments.push_back(&PARAM_DB_OUTPUT);
+    convertalignments.push_back(&PARAM_PRELOAD_MODE);
+    convertalignments.push_back(&PARAM_THREADS);
+    convertalignments.push_back(&PARAM_V);
 
     // result2msa
-    result2msa.push_back(PARAM_SUB_MAT);
-    result2msa.push_back(PARAM_E_PROFILE);
-    result2msa.push_back(PARAM_ALLOW_DELETION);
-    result2msa.push_back(PARAM_ADD_INTERNAL_ID);
-    result2msa.push_back(PARAM_NO_COMP_BIAS_CORR);
-    result2msa.push_back(PARAM_FILTER_MSA);
-    result2msa.push_back(PARAM_FILTER_MAX_SEQ_ID);
-    result2msa.push_back(PARAM_FILTER_QID);
-    result2msa.push_back(PARAM_FILTER_QSC);
-    result2msa.push_back(PARAM_FILTER_COV);
-    result2msa.push_back(PARAM_FILTER_NDIFF);
-    result2msa.push_back(PARAM_THREADS);
-    result2msa.push_back(PARAM_COMPRESS_MSA);
-    result2msa.push_back(PARAM_SUMMARIZE_HEADER);
-    result2msa.push_back(PARAM_SUMMARY_PREFIX);
-    result2msa.push_back(PARAM_OMIT_CONSENSUS);
-    result2msa.push_back(PARAM_SKIP_QUERY);
-    result2msa.push_back(PARAM_GAP_OPEN);
-    result2msa.push_back(PARAM_GAP_EXTEND);
-    //result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
-    result2msa.push_back(PARAM_V);
+    result2msa.push_back(&PARAM_SUB_MAT);
+    result2msa.push_back(&PARAM_E_PROFILE);
+    result2msa.push_back(&PARAM_ALLOW_DELETION);
+    result2msa.push_back(&PARAM_ADD_INTERNAL_ID);
+    result2msa.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    result2msa.push_back(&PARAM_FILTER_MSA);
+    result2msa.push_back(&PARAM_FILTER_MAX_SEQ_ID);
+    result2msa.push_back(&PARAM_FILTER_QID);
+    result2msa.push_back(&PARAM_FILTER_QSC);
+    result2msa.push_back(&PARAM_FILTER_COV);
+    result2msa.push_back(&PARAM_FILTER_NDIFF);
+    result2msa.push_back(&PARAM_THREADS);
+    result2msa.push_back(&PARAM_COMPRESS_MSA);
+    result2msa.push_back(&PARAM_SUMMARIZE_HEADER);
+    result2msa.push_back(&PARAM_SUMMARY_PREFIX);
+    result2msa.push_back(&PARAM_OMIT_CONSENSUS);
+    result2msa.push_back(&PARAM_SKIP_QUERY);
+    result2msa.push_back(&PARAM_GAP_OPEN);
+    result2msa.push_back(&PARAM_GAP_EXTEND);
+    //result2msa.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
+    result2msa.push_back(&PARAM_V);
 
 
     // convertmsa
-    convertmsa.push_back(PARAM_IDENTIFIER_FIELD);
-    convertmsa.push_back(PARAM_V);
+    convertmsa.push_back(&PARAM_IDENTIFIER_FIELD);
+    convertmsa.push_back(&PARAM_V);
 
     // msa2profile
-    msa2profile.push_back(PARAM_MSA_TYPE);
-    msa2profile.push_back(PARAM_SUB_MAT);
-    msa2profile.push_back(PARAM_MATCH_MODE);
-    msa2profile.push_back(PARAM_MATCH_RATIO);
-    msa2profile.push_back(PARAM_PCA);
-    msa2profile.push_back(PARAM_PCB);
-    msa2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
-    msa2profile.push_back(PARAM_WG);
-    msa2profile.push_back(PARAM_FILTER_MSA);
-    msa2profile.push_back(PARAM_FILTER_COV);
-    msa2profile.push_back(PARAM_FILTER_QID);
-    msa2profile.push_back(PARAM_FILTER_QSC);
-    msa2profile.push_back(PARAM_FILTER_MAX_SEQ_ID);
-    msa2profile.push_back(PARAM_FILTER_NDIFF);
-    msa2profile.push_back(PARAM_GAP_OPEN);
-    msa2profile.push_back(PARAM_GAP_EXTEND);
-    msa2profile.push_back(PARAM_THREADS);
-    msa2profile.push_back(PARAM_V);
+    msa2profile.push_back(&PARAM_MSA_TYPE);
+    msa2profile.push_back(&PARAM_SUB_MAT);
+    msa2profile.push_back(&PARAM_MATCH_MODE);
+    msa2profile.push_back(&PARAM_MATCH_RATIO);
+    msa2profile.push_back(&PARAM_PCA);
+    msa2profile.push_back(&PARAM_PCB);
+    msa2profile.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    msa2profile.push_back(&PARAM_WG);
+    msa2profile.push_back(&PARAM_FILTER_MSA);
+    msa2profile.push_back(&PARAM_FILTER_COV);
+    msa2profile.push_back(&PARAM_FILTER_QID);
+    msa2profile.push_back(&PARAM_FILTER_QSC);
+    msa2profile.push_back(&PARAM_FILTER_MAX_SEQ_ID);
+    msa2profile.push_back(&PARAM_FILTER_NDIFF);
+    msa2profile.push_back(&PARAM_GAP_OPEN);
+    msa2profile.push_back(&PARAM_GAP_EXTEND);
+    msa2profile.push_back(&PARAM_THREADS);
+    msa2profile.push_back(&PARAM_V);
 
     // profile2pssm
-    profile2pssm.push_back(PARAM_SUB_MAT);
-    profile2pssm.push_back(PARAM_MAX_SEQ_LEN);
-    profile2pssm.push_back(PARAM_NO_COMP_BIAS_CORR);
-    profile2pssm.push_back(PARAM_DB_OUTPUT);
-    profile2pssm.push_back(PARAM_THREADS);
-    profile2pssm.push_back(PARAM_V);
+    profile2pssm.push_back(&PARAM_SUB_MAT);
+    profile2pssm.push_back(&PARAM_MAX_SEQ_LEN);
+    profile2pssm.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    profile2pssm.push_back(&PARAM_DB_OUTPUT);
+    profile2pssm.push_back(&PARAM_THREADS);
+    profile2pssm.push_back(&PARAM_V);
 
     // profile2cs
-    profile2cs.push_back(PARAM_SUB_MAT);
-//    profile2cs.push_back(PARAM_ALPH_SIZE);
-    profile2cs.push_back(PARAM_PCA);
-    profile2cs.push_back(PARAM_PCB);
-    profile2cs.push_back(PARAM_THREADS);
-    profile2cs.push_back(PARAM_V);
+    profile2cs.push_back(&PARAM_SUB_MAT);
+//    profile2cs.push_back(&PARAM_ALPH_SIZE);
+    profile2cs.push_back(&PARAM_PCA);
+    profile2cs.push_back(&PARAM_PCB);
+    profile2cs.push_back(&PARAM_THREADS);
+    profile2cs.push_back(&PARAM_V);
 
     // extract orf
-    extractorfs.push_back(PARAM_ORF_MIN_LENGTH);
-    extractorfs.push_back(PARAM_ORF_MAX_LENGTH);
-    extractorfs.push_back(PARAM_ORF_MAX_GAP);
-    extractorfs.push_back(PARAM_CONTIG_START_MODE);
-    extractorfs.push_back(PARAM_CONTIG_END_MODE);
-    extractorfs.push_back(PARAM_ORF_START_MODE);
-    extractorfs.push_back(PARAM_ORF_FORWARD_FRAMES);
-    extractorfs.push_back(PARAM_ORF_REVERSE_FRAMES);    
-    extractorfs.push_back(PARAM_TRANSLATION_TABLE);
-    extractorfs.push_back(PARAM_USE_ALL_TABLE_STARTS);
-    extractorfs.push_back(PARAM_ID_OFFSET);    
-    extractorfs.push_back(PARAM_THREADS);
-    extractorfs.push_back(PARAM_V);
+    extractorfs.push_back(&PARAM_ORF_MIN_LENGTH);
+    extractorfs.push_back(&PARAM_ORF_MAX_LENGTH);
+    extractorfs.push_back(&PARAM_ORF_MAX_GAP);
+    extractorfs.push_back(&PARAM_CONTIG_START_MODE);
+    extractorfs.push_back(&PARAM_CONTIG_END_MODE);
+    extractorfs.push_back(&PARAM_ORF_START_MODE);
+    extractorfs.push_back(&PARAM_ORF_FORWARD_FRAMES);
+    extractorfs.push_back(&PARAM_ORF_REVERSE_FRAMES);
+    extractorfs.push_back(&PARAM_TRANSLATION_TABLE);
+    extractorfs.push_back(&PARAM_USE_ALL_TABLE_STARTS);
+    extractorfs.push_back(&PARAM_ID_OFFSET);
+    extractorfs.push_back(&PARAM_THREADS);
+    extractorfs.push_back(&PARAM_V);
 
     // extract frames
-    extractframes.push_back(PARAM_ORF_FORWARD_FRAMES);
-    extractframes.push_back(PARAM_ORF_REVERSE_FRAMES);
-    extractframes.push_back(PARAM_THREADS);
-    extractframes.push_back(PARAM_V);
+    extractframes.push_back(&PARAM_ORF_FORWARD_FRAMES);
+    extractframes.push_back(&PARAM_ORF_REVERSE_FRAMES);
+    extractframes.push_back(&PARAM_THREADS);
+    extractframes.push_back(&PARAM_V);
 
-    // orf to contig 
-    orftocontig.push_back(PARAM_THREADS);
-    orftocontig.push_back(PARAM_V);
+    // orf to contig
+    orftocontig.push_back(&PARAM_THREADS);
+    orftocontig.push_back(&PARAM_V);
 
     // splitsequence
-    splitsequence.push_back(PARAM_MAX_SEQ_LEN);
-    splitsequence.push_back(PARAM_SEQUENCE_OVERLAP);
-    splitsequence.push_back(PARAM_THREADS);
-    splitsequence.push_back(PARAM_V);
+    splitsequence.push_back(&PARAM_MAX_SEQ_LEN);
+    splitsequence.push_back(&PARAM_SEQUENCE_OVERLAP);
+    splitsequence.push_back(&PARAM_THREADS);
+    splitsequence.push_back(&PARAM_V);
 
     // splitdb
-    splitdb.push_back(PARAM_SPLIT);
-    splitdb.push_back(PARAM_SPLIT_AMINOACID);
-    splitdb.push_back(PARAM_V);
+    splitdb.push_back(&PARAM_SPLIT);
+    splitdb.push_back(&PARAM_SPLIT_AMINOACID);
+    splitdb.push_back(&PARAM_V);
 
     // create index
-    indexdb.push_back(PARAM_SUB_MAT);
-    indexdb.push_back(PARAM_K);
-    indexdb.push_back(PARAM_NO_COMP_BIAS_CORR);
-    indexdb.push_back(PARAM_ALPH_SIZE);
-    indexdb.push_back(PARAM_MAX_SEQS);
-    indexdb.push_back(PARAM_MAX_SEQ_LEN);
-    indexdb.push_back(PARAM_MASK_RESIDUES);
-    indexdb.push_back(PARAM_SPACED_KMER_MODE);
-    indexdb.push_back(PARAM_SPACED_KMER_PATTERN);
-    indexdb.push_back(PARAM_S);
-    indexdb.push_back(PARAM_K_SCORE);
-    indexdb.push_back(PARAM_INCLUDE_HEADER);
-    indexdb.push_back(PARAM_CHECK_COMPATIBLE);
-    indexdb.push_back(PARAM_SPLIT);
-    indexdb.push_back(PARAM_SPLIT_MEMORY_LIMIT);
-    indexdb.push_back(PARAM_THREADS);
-    indexdb.push_back(PARAM_V);
+    indexdb.push_back(&PARAM_SUB_MAT);
+    indexdb.push_back(&PARAM_K);
+    indexdb.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    indexdb.push_back(&PARAM_ALPH_SIZE);
+    indexdb.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    indexdb.push_back(&PARAM_MAX_SEQS);
+    indexdb.push_back(&PARAM_MAX_SEQ_LEN);
+    indexdb.push_back(&PARAM_MASK_RESIDUES);
+    indexdb.push_back(&PARAM_SPACED_KMER_MODE);
+    indexdb.push_back(&PARAM_SPACED_KMER_PATTERN);
+    indexdb.push_back(&PARAM_S);
+    indexdb.push_back(&PARAM_K_SCORE);
+    indexdb.push_back(&PARAM_INCLUDE_HEADER);
+    indexdb.push_back(&PARAM_CHECK_COMPATIBLE);
+    indexdb.push_back(&PARAM_SPLIT);
+    indexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    indexdb.push_back(&PARAM_THREADS);
+    indexdb.push_back(&PARAM_V);
 
     // create db
-    createdb.push_back(PARAM_MAX_SEQ_LEN);
-    createdb.push_back(PARAM_DONT_SPLIT_SEQ_BY_LEN);
-    createdb.push_back(PARAM_DONT_SHUFFLE);
-    createdb.push_back(PARAM_ID_OFFSET);
-    createdb.push_back(PARAM_V);
+    createdb.push_back(&PARAM_MAX_SEQ_LEN);
+    createdb.push_back(&PARAM_DONT_SPLIT_SEQ_BY_LEN);
+    createdb.push_back(&PARAM_DONT_SHUFFLE);
+    createdb.push_back(&PARAM_ID_OFFSET);
+    createdb.push_back(&PARAM_V);
 
     // convert2fasta
-    convert2fasta.push_back(PARAM_USE_HEADER_FILE);
-    convert2fasta.push_back(PARAM_V);
+    convert2fasta.push_back(&PARAM_USE_HEADER_FILE);
+    convert2fasta.push_back(&PARAM_V);
 
     // result2flat
-    result2flat.push_back(PARAM_USE_HEADER);
-    result2flat.push_back(PARAM_V);
+    result2flat.push_back(&PARAM_USE_HEADER);
+    result2flat.push_back(&PARAM_V);
 
     // gff2db
-    gff2ffindex.push_back(PARAM_GFF_TYPE);
-    gff2ffindex.push_back(PARAM_ID_OFFSET);
-    gff2ffindex.push_back(PARAM_V);
+    gff2ffindex.push_back(&PARAM_GFF_TYPE);
+    gff2ffindex.push_back(&PARAM_ID_OFFSET);
+    gff2ffindex.push_back(&PARAM_V);
 
 
     // translate nucleotide
-    translatenucs.push_back(PARAM_TRANSLATION_TABLE);
-    translatenucs.push_back(PARAM_ADD_ORF_STOP);
-    translatenucs.push_back(PARAM_V);
-    translatenucs.push_back(PARAM_THREADS);
+    translatenucs.push_back(&PARAM_TRANSLATION_TABLE);
+    translatenucs.push_back(&PARAM_ADD_ORF_STOP);
+    translatenucs.push_back(&PARAM_V);
+    translatenucs.push_back(&PARAM_THREADS);
 
     // createseqfiledb
-    createseqfiledb.push_back(PARAM_MIN_SEQUENCES);
-    createseqfiledb.push_back(PARAM_MAX_SEQUENCES);
-    createseqfiledb.push_back(PARAM_HH_FORMAT);
-    createseqfiledb.push_back(PARAM_THREADS);
-    createseqfiledb.push_back(PARAM_V);
+    createseqfiledb.push_back(&PARAM_MIN_SEQUENCES);
+    createseqfiledb.push_back(&PARAM_MAX_SEQUENCES);
+    createseqfiledb.push_back(&PARAM_HH_FORMAT);
+    createseqfiledb.push_back(&PARAM_THREADS);
+    createseqfiledb.push_back(&PARAM_V);
 
     // filterDb
-    filterDb.push_back(PARAM_FILTER_COL);
-    filterDb.push_back(PARAM_COLUMN_TO_TAKE);
-    filterDb.push_back(PARAM_FILTER_REGEX);
-    filterDb.push_back(PARAM_FILTER_POS);
-    filterDb.push_back(PARAM_FILTER_FILE);
-    filterDb.push_back(PARAM_BEATS_FIRST);
-    filterDb.push_back(PARAM_MAPPING_FILE);
-    filterDb.push_back(PARAM_THREADS);
-    filterDb.push_back(PARAM_V);
-    filterDb.push_back(PARAM_TRIM_TO_ONE_COL);
-    filterDb.push_back(PARAM_EXTRACT_LINES);
-    filterDb.push_back(PARAM_COMP_OPERATOR);
-    filterDb.push_back(PARAM_COMP_VALUE);
-    filterDb.push_back(PARAM_SORT_ENTRIES);
-    filterDb.push_back(PARAM_INCLUDE_IDENTITY);
-    filterDb.push_back(PARAM_JOIN_DB);
-    filterDb.push_back(PARAM_COMPUTE_POSITIONS) ;
-    filterDb.push_back(PARAM_TRANSITIVE_REPLACE) ;
+    filterDb.push_back(&PARAM_FILTER_COL);
+    filterDb.push_back(&PARAM_COLUMN_TO_TAKE);
+    filterDb.push_back(&PARAM_FILTER_REGEX);
+    filterDb.push_back(&PARAM_FILTER_POS);
+    filterDb.push_back(&PARAM_FILTER_FILE);
+    filterDb.push_back(&PARAM_BEATS_FIRST);
+    filterDb.push_back(&PARAM_MAPPING_FILE);
+    filterDb.push_back(&PARAM_THREADS);
+    filterDb.push_back(&PARAM_V);
+    filterDb.push_back(&PARAM_TRIM_TO_ONE_COL);
+    filterDb.push_back(&PARAM_EXTRACT_LINES);
+    filterDb.push_back(&PARAM_COMP_OPERATOR);
+    filterDb.push_back(&PARAM_COMP_VALUE);
+    filterDb.push_back(&PARAM_SORT_ENTRIES);
+    filterDb.push_back(&PARAM_INCLUDE_IDENTITY);
+    filterDb.push_back(&PARAM_JOIN_DB);
+    filterDb.push_back(&PARAM_COMPUTE_POSITIONS) ;
+    filterDb.push_back(&PARAM_TRANSITIVE_REPLACE) ;
 
     // besthitperset
-    besthitbyset.push_back(PARAM_SIMPLE_BEST_HIT);
-    besthitbyset.push_back(PARAM_THREADS);
-    besthitbyset.push_back(PARAM_V);
+    besthitbyset.push_back(&PARAM_SIMPLE_BEST_HIT);
+    besthitbyset.push_back(&PARAM_THREADS);
+    besthitbyset.push_back(&PARAM_V);
 
 
     // combinepvalperset
-    combinepvalbyset.push_back(PARAM_ALPHA);
-//    combinepvalperset.push_back(PARAM_SHORT_OUTPUT);
-    combinepvalbyset.push_back(PARAM_THREADS);
-    combinepvalbyset.push_back(PARAM_V);
+    combinepvalbyset.push_back(&PARAM_ALPHA);
+//    combinepvalperset.push_back(&PARAM_SHORT_OUTPUT);
+    combinepvalbyset.push_back(&PARAM_THREADS);
+    combinepvalbyset.push_back(&PARAM_V);
 
     // combinepvalperset
-    summerizeresultsbyset.push_back(PARAM_ALPHA);
-    summerizeresultsbyset.push_back(PARAM_SHORT_OUTPUT);
-    summerizeresultsbyset.push_back(PARAM_THREADS);
-    summerizeresultsbyset.push_back(PARAM_V);
+    summerizeresultsbyset.push_back(&PARAM_ALPHA);
+    summerizeresultsbyset.push_back(&PARAM_SHORT_OUTPUT);
+    summerizeresultsbyset.push_back(&PARAM_THREADS);
+    summerizeresultsbyset.push_back(&PARAM_V);
 
     // onlythreads
-    onlythreads.push_back(PARAM_THREADS);
-    onlythreads.push_back(PARAM_V);
+    onlythreads.push_back(&PARAM_THREADS);
+    onlythreads.push_back(&PARAM_V);
 
-    offsetalignment.push_back(PARAM_THREADS);
-    offsetalignment.push_back(PARAM_V);
-    // swap results
-    swapresult.push_back(PARAM_SUB_MAT);
-    swapresult.push_back(PARAM_E);
-    swapresult.push_back(PARAM_SPLIT_MEMORY_LIMIT);
-    swapresult.push_back(PARAM_GAP_OPEN);
-    swapresult.push_back(PARAM_GAP_EXTEND);
-    swapresult.push_back(PARAM_THREADS);
-    swapresult.push_back(PARAM_V);
+    // offsetalignment
+    offsetalignment.push_back(&PARAM_CHAIN_ALIGNMENT);
+    offsetalignment.push_back(&PARAM_THREADS);
+    offsetalignment.push_back(&PARAM_V);
 
     // swap results
-    swapdb.push_back(PARAM_SPLIT_MEMORY_LIMIT);
-    swapdb.push_back(PARAM_THREADS);
-    swapdb.push_back(PARAM_V);
+    swapresult.push_back(&PARAM_SUB_MAT);
+    swapresult.push_back(&PARAM_E);
+    swapresult.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    swapresult.push_back(&PARAM_GAP_OPEN);
+    swapresult.push_back(&PARAM_GAP_EXTEND);
+    swapresult.push_back(&PARAM_THREADS);
+    swapresult.push_back(&PARAM_V);
+
+    // swap results
+    swapdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    swapdb.push_back(&PARAM_THREADS);
+    swapdb.push_back(&PARAM_V);
 
     // subtractdbs
-    subtractdbs.push_back(PARAM_THREADS);
-    subtractdbs.push_back(PARAM_E_PROFILE);
-    subtractdbs.push_back(PARAM_E);
-    subtractdbs.push_back(PARAM_V);
+    subtractdbs.push_back(&PARAM_THREADS);
+    subtractdbs.push_back(&PARAM_E_PROFILE);
+    subtractdbs.push_back(&PARAM_E);
+    subtractdbs.push_back(&PARAM_V);
 
     // clusthash
-    clusthash.push_back(PARAM_SUB_MAT);
-    clusthash.push_back(PARAM_ALPH_SIZE);
-    clusthash.push_back(PARAM_MIN_SEQ_ID);
-    clusthash.push_back(PARAM_MAX_SEQ_LEN);
-    clusthash.push_back(PARAM_THREADS);
-    clusthash.push_back(PARAM_V);
+    clusthash.push_back(&PARAM_SUB_MAT);
+    clusthash.push_back(&PARAM_ALPH_SIZE);
+    clusthash.push_back(&PARAM_MIN_SEQ_ID);
+    clusthash.push_back(&PARAM_MAX_SEQ_LEN);
+    clusthash.push_back(&PARAM_THREADS);
+    clusthash.push_back(&PARAM_V);
 
     // kmermatcher
-    kmermatcher.push_back(PARAM_SUB_MAT);
-    kmermatcher.push_back(PARAM_ALPH_SIZE);
-    kmermatcher.push_back(PARAM_MIN_SEQ_ID);
-    kmermatcher.push_back(PARAM_KMER_PER_SEQ);
-    kmermatcher.push_back(PARAM_MASK_RESIDUES);
-    kmermatcher.push_back(PARAM_COV_MODE);
-    kmermatcher.push_back(PARAM_K);
-    kmermatcher.push_back(PARAM_C);
-    kmermatcher.push_back(PARAM_MAX_SEQ_LEN);
-    kmermatcher.push_back(PARAM_HASH_SHIFT);
-    kmermatcher.push_back(PARAM_SPLIT_MEMORY_LIMIT);
-    kmermatcher.push_back(PARAM_INCLUDE_ONLY_EXTENDABLE);
-    kmermatcher.push_back(PARAM_SKIP_N_REPEAT_KMER);
-    kmermatcher.push_back(PARAM_THREADS);
-    kmermatcher.push_back(PARAM_V);
+    kmermatcher.push_back(&PARAM_SUB_MAT);
+    kmermatcher.push_back(&PARAM_ALPH_SIZE);
+    kmermatcher.push_back(&PARAM_MIN_SEQ_ID);
+    kmermatcher.push_back(&PARAM_KMER_PER_SEQ);
+    kmermatcher.push_back(&PARAM_MASK_RESIDUES);
+    kmermatcher.push_back(&PARAM_COV_MODE);
+    kmermatcher.push_back(&PARAM_K);
+    kmermatcher.push_back(&PARAM_C);
+    kmermatcher.push_back(&PARAM_MAX_SEQ_LEN);
+    kmermatcher.push_back(&PARAM_HASH_SHIFT);
+    kmermatcher.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    kmermatcher.push_back(&PARAM_INCLUDE_ONLY_EXTENDABLE);
+    kmermatcher.push_back(&PARAM_SKIP_N_REPEAT_KMER);
+    kmermatcher.push_back(&PARAM_THREADS);
+    kmermatcher.push_back(&PARAM_V);
 
 
     // mergedbs
-    mergedbs.push_back(PARAM_MERGE_PREFIXES);
-    mergedbs.push_back(PARAM_V);
+    mergedbs.push_back(&PARAM_MERGE_PREFIXES);
+    mergedbs.push_back(&PARAM_V);
 
     // summarize
-    summarizeheaders.push_back(PARAM_SUMMARY_PREFIX);
-    summarizeheaders.push_back(PARAM_HEADER_TYPE);
-    summarizeheaders.push_back(PARAM_THREADS);
-    summarizeheaders.push_back(PARAM_V);
+    summarizeheaders.push_back(&PARAM_SUMMARY_PREFIX);
+    summarizeheaders.push_back(&PARAM_HEADER_TYPE);
+    summarizeheaders.push_back(&PARAM_THREADS);
+    summarizeheaders.push_back(&PARAM_V);
 
     // diff
-    diff.push_back(PARAM_USESEQID);
-    diff.push_back(PARAM_THREADS);
-    diff.push_back(PARAM_V);
+    diff.push_back(&PARAM_USESEQID);
+    diff.push_back(&PARAM_THREADS);
+    diff.push_back(&PARAM_V);
 
     // prefixid
-    prefixid.push_back(PARAM_PREFIX);
-    prefixid.push_back(PARAM_MAPPING_FILE);
-    prefixid.push_back(PARAM_TSV);
-    prefixid.push_back(PARAM_THREADS);
-    prefixid.push_back(PARAM_V);
+    prefixid.push_back(&PARAM_PREFIX);
+    prefixid.push_back(&PARAM_MAPPING_FILE);
+    prefixid.push_back(&PARAM_TSV);
+    prefixid.push_back(&PARAM_THREADS);
+    prefixid.push_back(&PARAM_V);
 
     // summarizeresult
-    summarizeresult.push_back(PARAM_ADD_BACKTRACE);
-    summarizeresult.push_back(PARAM_OVERLAP);
-    summarizeresult.push_back(PARAM_E);
-    summarizeresult.push_back(PARAM_C);
-    summarizeresult.push_back(PARAM_THREADS);
-    summarizeresult.push_back(PARAM_V);
+    summarizeresult.push_back(&PARAM_ADD_BACKTRACE);
+    summarizeresult.push_back(&PARAM_OVERLAP);
+    summarizeresult.push_back(&PARAM_E);
+    summarizeresult.push_back(&PARAM_C);
+    summarizeresult.push_back(&PARAM_THREADS);
+    summarizeresult.push_back(&PARAM_V);
 
     // summarizetabs
-    summarizetabs.push_back(PARAM_OVERLAP);
-    summarizetabs.push_back(PARAM_E);
-    summarizetabs.push_back(PARAM_C);
-    summarizetabs.push_back(PARAM_THREADS);
-    summarizetabs.push_back(PARAM_V);
+    summarizetabs.push_back(&PARAM_OVERLAP);
+    summarizetabs.push_back(&PARAM_E);
+    summarizetabs.push_back(&PARAM_C);
+    summarizetabs.push_back(&PARAM_THREADS);
+    summarizetabs.push_back(&PARAM_V);
 
     // annoate
-    extractdomains.push_back(PARAM_SUB_MAT);
-    extractdomains.push_back(PARAM_MSA_TYPE);
-    extractdomains.push_back(PARAM_E);
-    extractdomains.push_back(PARAM_C);
-    extractdomains.push_back(PARAM_THREADS);
-    extractdomains.push_back(PARAM_V);
+    extractdomains.push_back(&PARAM_SUB_MAT);
+    extractdomains.push_back(&PARAM_MSA_TYPE);
+    extractdomains.push_back(&PARAM_E);
+    extractdomains.push_back(&PARAM_C);
+    extractdomains.push_back(&PARAM_THREADS);
+    extractdomains.push_back(&PARAM_V);
 
     // concatdbs
-    concatdbs.push_back(PARAM_PRESERVEKEYS);
-    concatdbs.push_back(PARAM_THREADS);
-    concatdbs.push_back(PARAM_V);
+    concatdbs.push_back(&PARAM_PRESERVEKEYS);
+    concatdbs.push_back(&PARAM_THREADS);
+    concatdbs.push_back(&PARAM_V);
 
     // extractalignedregion
-    extractalignedregion.push_back(PARAM_EXTRACT_MODE);
-    extractalignedregion.push_back(PARAM_PRELOAD_MODE);
-    extractalignedregion.push_back(PARAM_THREADS);
-    extractalignedregion.push_back(PARAM_V);
+    extractalignedregion.push_back(&PARAM_EXTRACT_MODE);
+    extractalignedregion.push_back(&PARAM_PRELOAD_MODE);
+    extractalignedregion.push_back(&PARAM_THREADS);
+    extractalignedregion.push_back(&PARAM_V);
 
     // convertkb
-    convertkb.push_back(PARAM_MAPPING_FILE);
-    convertkb.push_back(PARAM_KB_COLUMNS);
-    convertkb.push_back(PARAM_V);
+    convertkb.push_back(&PARAM_MAPPING_FILE);
+    convertkb.push_back(&PARAM_KB_COLUMNS);
+    convertkb.push_back(&PARAM_V);
 
     // filtertaxdb
-    filtertaxdb.push_back(PARAM_TAXON_LIST);
-    filtertaxdb.push_back(PARAM_INVERT_SELECTION);
+    filtertaxdb.push_back(&PARAM_TAXON_LIST);
+    filtertaxdb.push_back(&PARAM_INVERT_SELECTION);
 
     // lca
-    lca.push_back(PARAM_LCA_RANKS);
-    lca.push_back(PARAM_BLACKLIST);
-    lca.push_back(PARAM_THREADS);
-    lca.push_back(PARAM_V);
+    lca.push_back(&PARAM_LCA_RANKS);
+    lca.push_back(&PARAM_BLACKLIST);
+    lca.push_back(&PARAM_THREADS);
+    lca.push_back(&PARAM_V);
 
     // exapandaln
-    expandaln.push_back(PARAM_EXPANSION_MODE);
-    expandaln.push_back(PARAM_SUB_MAT);
-    expandaln.push_back(PARAM_GAP_OPEN);
-    expandaln.push_back(PARAM_GAP_EXTEND);
-    expandaln.push_back(PARAM_MAX_SEQ_LEN);
-    expandaln.push_back(PARAM_SCORE_BIAS);
-    expandaln.push_back(PARAM_NO_COMP_BIAS_CORR);
-    expandaln.push_back(PARAM_E);
-    expandaln.push_back(PARAM_MIN_SEQ_ID);
-    expandaln.push_back(PARAM_SEQ_ID_MODE);
-    expandaln.push_back(PARAM_C);
-    expandaln.push_back(PARAM_COV_MODE);
-    expandaln.push_back(PARAM_PCA);
-    expandaln.push_back(PARAM_PCB);
-    expandaln.push_back(PARAM_THREADS);
-    expandaln.push_back(PARAM_V);
+    expandaln.push_back(&PARAM_EXPANSION_MODE);
+    expandaln.push_back(&PARAM_SUB_MAT);
+    expandaln.push_back(&PARAM_GAP_OPEN);
+    expandaln.push_back(&PARAM_GAP_EXTEND);
+    expandaln.push_back(&PARAM_MAX_SEQ_LEN);
+    expandaln.push_back(&PARAM_SCORE_BIAS);
+    expandaln.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    expandaln.push_back(&PARAM_E);
+    expandaln.push_back(&PARAM_MIN_SEQ_ID);
+    expandaln.push_back(&PARAM_SEQ_ID_MODE);
+    expandaln.push_back(&PARAM_C);
+    expandaln.push_back(&PARAM_COV_MODE);
+    expandaln.push_back(&PARAM_PCA);
+    expandaln.push_back(&PARAM_PCB);
+    expandaln.push_back(&PARAM_THREADS);
+    expandaln.push_back(&PARAM_V);
 
-    sortresult.push_back(PARAM_MAX_SEQS);
-    sortresult.push_back(PARAM_THREADS);
-    sortresult.push_back(PARAM_V);
+    sortresult.push_back(&PARAM_MAX_SEQS);
+    sortresult.push_back(&PARAM_THREADS);
+    sortresult.push_back(&PARAM_V);
 
     // WORKFLOWS
     searchworkflow = combineList(align, prefilter);
@@ -764,32 +767,32 @@ Parameters::Parameters():
     searchworkflow = combineList(searchworkflow, translatenucs);
     // needed for slice search, however all its parameters are already present in searchworkflow
     // searchworkflow = combineList(searchworkflow, sortresult);
-    searchworkflow.push_back(PARAM_NUM_ITERATIONS);
-    searchworkflow.push_back(PARAM_START_SENS);
-    searchworkflow.push_back(PARAM_SENS_STEPS);
-    searchworkflow.push_back(PARAM_SLICE_SEARCH);
-    searchworkflow.push_back(PARAM_STRAND);
-    searchworkflow.push_back(PARAM_DISK_SPACE_LIMIT);
-    searchworkflow.push_back(PARAM_RUNNER);
-    searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    searchworkflow.push_back(&PARAM_NUM_ITERATIONS);
+    searchworkflow.push_back(&PARAM_START_SENS);
+    searchworkflow.push_back(&PARAM_SENS_STEPS);
+    searchworkflow.push_back(&PARAM_SLICE_SEARCH);
+    searchworkflow.push_back(&PARAM_STRAND);
+    searchworkflow.push_back(&PARAM_DISK_SPACE_LIMIT);
+    searchworkflow.push_back(&PARAM_RUNNER);
+    searchworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
 
     // easysearch
     easysearchworkflow = combineList(searchworkflow, convertalignments);
     easysearchworkflow = combineList(easysearchworkflow, summarizeresult);
     easysearchworkflow = combineList(easysearchworkflow, createdb);
-    easysearchworkflow.push_back(PARAM_GREEDY_BEST_HITS);
+    easysearchworkflow.push_back(&PARAM_GREEDY_BEST_HITS);
 
     // createindex workflow
     createindex = combineList(indexdb, extractorfs);
     createindex = combineList(createindex, translatenucs);
-    createindex.push_back(PARAM_REMOVE_TMP_FILES);
+    createindex.push_back(&PARAM_REMOVE_TMP_FILES);
 
     // linclust workflow
     linclustworkflow = combineList(clust, align);
     linclustworkflow = combineList(linclustworkflow, kmermatcher);
     linclustworkflow = combineList(linclustworkflow, rescorediagonal);
-    linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
-    linclustworkflow.push_back(PARAM_RUNNER);
+    linclustworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
+    linclustworkflow.push_back(&PARAM_RUNNER);
 
     // easylinclustworkflow
     easylinclustworkflow = combineList(linclustworkflow, createdb);
@@ -798,10 +801,10 @@ Parameters::Parameters():
     clusterworkflow = combineList(prefilter, align);
     clusterworkflow = combineList(clusterworkflow, rescorediagonal);
     clusterworkflow = combineList(clusterworkflow, clust);
-    clusterworkflow.push_back(PARAM_CASCADED);
-    clusterworkflow.push_back(PARAM_CLUSTER_STEPS);
-    clusterworkflow.push_back(PARAM_REMOVE_TMP_FILES);
-    clusterworkflow.push_back(PARAM_RUNNER);
+    clusterworkflow.push_back(&PARAM_CASCADED);
+    clusterworkflow.push_back(&PARAM_CLUSTER_STEPS);
+    clusterworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
+    clusterworkflow.push_back(&PARAM_RUNNER);
     clusterworkflow = combineList(clusterworkflow, linclustworkflow);
 
     // easyclusterworkflow
@@ -809,9 +812,9 @@ Parameters::Parameters():
 
     // taxonomy
     taxonomy = combineList(searchworkflow, lca);
-    taxonomy.push_back(PARAM_LCA_MODE);
-    taxonomy.push_back(PARAM_REMOVE_TMP_FILES);
-    taxonomy.push_back(PARAM_RUNNER);
+    taxonomy.push_back(&PARAM_LCA_MODE);
+    taxonomy.push_back(&PARAM_REMOVE_TMP_FILES);
+    taxonomy.push_back(&PARAM_RUNNER);
 
     // multi hit db
     multihitdb = combineList(createdb, extractorfs);
@@ -825,23 +828,23 @@ Parameters::Parameters():
     clusterUpdateSearch = removeParameter(searchworkflow, PARAM_MAX_SEQS);
     clusterUpdateClust = removeParameter(clusterworkflow, PARAM_MAX_SEQS);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
-    clusterUpdate.push_back(PARAM_USESEQID);
-    clusterUpdate.push_back(PARAM_RECOVER_DELETED);
+    clusterUpdate.push_back(&PARAM_USESEQID);
+    clusterUpdate.push_back(&PARAM_RECOVER_DELETED);
 
     mapworkflow = combineList(prefilter, rescorediagonal);
     mapworkflow = combineList(mapworkflow, extractorfs);
     mapworkflow = combineList(mapworkflow, translatenucs);
-    mapworkflow.push_back(PARAM_START_SENS);
-    mapworkflow.push_back(PARAM_SENS_STEPS);
-    mapworkflow.push_back(PARAM_RUNNER);
-    mapworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    mapworkflow.push_back(&PARAM_START_SENS);
+    mapworkflow.push_back(&PARAM_SENS_STEPS);
+    mapworkflow.push_back(&PARAM_RUNNER);
+    mapworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
 
     enrichworkflow = combineList(searchworkflow, prefilter);
     enrichworkflow = combineList(enrichworkflow, subtractdbs);
     enrichworkflow = combineList(enrichworkflow, align);
     enrichworkflow = combineList(enrichworkflow, expandaln);
     enrichworkflow = combineList(enrichworkflow, result2profile);
-    enrichworkflow.push_back(PARAM_NUM_ITERATIONS);
+    enrichworkflow.push_back(&PARAM_NUM_ITERATIONS);
 
     //checkSaneEnvironment();
     setDefaults();
@@ -849,7 +852,7 @@ Parameters::Parameters():
 
 void Parameters::printUsageMessage(const Command& command,
                                    const int outputFlag){
-    const std::vector<MMseqsParameter>& parameters = *command.params;
+    const std::vector<MMseqsParameter*>& parameters = *command.params;
 
     std::ostringstream ss;
     ss << binary_name << " " << command.cmd << ":\n";
@@ -892,7 +895,7 @@ void Parameters::printUsageMessage(const Command& command,
 
     size_t maxWidth = 0;
     for(size_t i = 0; i < parameters.size(); i++) {
-        maxWidth = std::max(strlen(parameters[i].name), maxWidth);
+        maxWidth = std::max(strlen(parameters[i]->name), maxWidth);
     }
     maxWidth+=2; // space in front of options
     std::map<int, bool> alreadyPrintMap;
@@ -903,10 +906,10 @@ void Parameters::printUsageMessage(const Command& command,
     for(size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
         bool categoryFound = false;
         for (size_t j = 0; j < parameters.size(); j++) {
-            const MMseqsParameter &par = parameters[j];
-            bool isExpert =  (par.category & MMseqsParameter::COMMAND_EXPERT);
-            bool alreadyPrint = alreadyPrintMap[par.uniqid];
-            if (par.category & categories[i].category && (printExpert || isExpert == false ) && alreadyPrint == false ) {
+            const MMseqsParameter * par = parameters[j];
+            bool isExpert =  (par->category & MMseqsParameter::COMMAND_EXPERT);
+            bool alreadyPrint = alreadyPrintMap[par->uniqid];
+            if (par->category & categories[i].category && (printExpert || isExpert == false ) && alreadyPrint == false ) {
 //                int others = (par.category ^ categories[i].category);
 //                if(others & outputFlag  )
 //                    continue;
@@ -923,22 +926,22 @@ void Parameters::printUsageMessage(const Command& command,
 
             // body
             for (size_t j = 0; j < parameters.size(); j++) {
-                const MMseqsParameter &par = parameters[j];
-                bool isExpert =  (par.category & MMseqsParameter::COMMAND_EXPERT);
-                bool alreadyPrint = alreadyPrintMap[par.uniqid];
-                if(par.category & categories[i].category && (printExpert || isExpert == false ) && alreadyPrint == false ){
-                    ss << std::left << std::setw(maxWidth) << "  " + std::string(par.name) << "\t";
+                const MMseqsParameter * par = parameters[j];
+                bool isExpert =  (par->category & MMseqsParameter::COMMAND_EXPERT);
+                bool alreadyPrint = alreadyPrintMap[par->uniqid];
+                if(par->category & categories[i].category && (printExpert || isExpert == false ) && alreadyPrint == false ){
+                    ss << std::left << std::setw(maxWidth) << "  " + std::string(par->name) << "\t";
                     ss << std::boolalpha << std::left << std::setw(6);
-                    if (par.type == typeid(int)) {
-                        ss << std::left << std::setw(10) << *((int *) par.value);
-                    } else if (par.type == typeid(float)) {
-                        ss << std::left << std::setw(10) << *((float *) par.value);
-                    } else if (par.type == typeid(bool)) {
-                        bool flag = *((bool *) par.value);
+                    if (par->type == typeid(int)) {
+                        ss << std::left << std::setw(10) << *((int *) par->value);
+                    } else if (par->type == typeid(float)) {
+                        ss << std::left << std::setw(10) << *((float *) par->value);
+                    } else if (par->type == typeid(bool)) {
+                        bool flag = *((bool *) par->value);
                         std::string flagOutput = (flag) ? "true" : "false";
                         ss << std::left << std::setw(10) << flagOutput;
-                    } else if (par.type == typeid(std::string)) {
-                        std::string &out = *((std::string *) par.value);
+                    } else if (par->type == typeid(std::string)) {
+                        std::string &out = *((std::string *) par->value);
                         ss << std::left << std::setw(10) << out;
                         //            for(std::string::const_iterator j = out.begin(); j != out.end(); ++j) {
                         //                if(*j == '\n') {
@@ -951,8 +954,8 @@ void Parameters::printUsageMessage(const Command& command,
                         //            }
                     }
                     ss << "\t";
-                    ss << std::left << std::setw(60) << par.description << std::endl;
-                    alreadyPrintMap[par.uniqid] = true;
+                    ss << std::left << std::setw(60) << par->description << std::endl;
+                    alreadyPrintMap[par->uniqid] = true;
                 }
             }
             ss << "\n";
@@ -991,7 +994,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                                  int parseFlags,
                                  int outputFlags) {
     filenames.clear();
-    std::vector<MMseqsParameter>& par = *command.params;
+    std::vector<MMseqsParameter*> & par = *command.params;
     size_t parametersFound = 0;
     for(int argIdx = 0; argIdx < argc; argIdx++ ){
         // it is a parameter if it starts with - or --
@@ -1010,66 +1013,66 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                     EXIT(EXIT_SUCCESS);
                 }
 
-                if(parameter.compare(par[parIdx].name) == 0) {
-                    if (typeid(bool) != par[parIdx].type && argIdx + 1 == argc) {
+                if(parameter.compare(par[parIdx]->name) == 0) {
+                    if (typeid(bool) != par[parIdx]->type && argIdx + 1 == argc) {
                         printUsageMessage(command, outputFlags);
-                        Debug(Debug::ERROR) << "Missing argument " << par[parIdx].name << "\n";
+                        Debug(Debug::ERROR) << "Missing argument " << par[parIdx]->name << "\n";
                         EXIT(EXIT_FAILURE);
                     }
 
-                    if (par[parIdx].wasSet) {
+                    if (par[parIdx]->wasSet) {
                         printUsageMessage(command, outputFlags);
-                        Debug(Debug::ERROR) << "Duplicate parameter " << par[parIdx].name << "\n";
+                        Debug(Debug::ERROR) << "Duplicate parameter " << par[parIdx]->name << "\n";
                         EXIT(EXIT_FAILURE);
                     }
 
-                    if (typeid(int) == par[parIdx].type) {
+                    if (typeid(int) == par[parIdx]->type) {
                         regex_t regex;
-                        compileRegex(&regex, par[parIdx].regex);
+                        compileRegex(&regex, par[parIdx]->regex);
                         int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
                         regfree(&regex);
                         // if no match found or two matches found (we want exactly one match)
                         if (nomatch){
                             printUsageMessage(command, outputFlags);
-                            Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
+                            Debug(Debug::ERROR) << "Error in argument " << par[parIdx]->name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
-                            *((int *) par[parIdx].value) = atoi(pargv[argIdx+1]);
-                            par[parIdx].wasSet = true;
+                            *((int *) par[parIdx]->value) = atoi(pargv[argIdx+1]);
+                            par[parIdx]->wasSet = true;
                         }
                         argIdx++;
-                    } else if (typeid(float) == par[parIdx].type) {
+                    } else if (typeid(float) == par[parIdx]->type) {
                         regex_t regex;
-                        compileRegex(&regex, par[parIdx].regex);
+                        compileRegex(&regex, par[parIdx]->regex);
                         int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
                         regfree(&regex);
                         if (nomatch){
                             printUsageMessage(command, outputFlags);
-                            Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
+                            Debug(Debug::ERROR) << "Error in argument " << par[parIdx]->name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
                             double input = strtod(pargv[argIdx+1], NULL);
-                            *((float *) par[parIdx].value) = static_cast<float>(input);
-                            par[parIdx].wasSet = true;
+                            *((float *) par[parIdx]->value) = static_cast<float>(input);
+                            par[parIdx]->wasSet = true;
                         }
                         argIdx++;
-                    } else if (typeid(std::string) == par[parIdx].type) {
+                    } else if (typeid(std::string) == par[parIdx]->type) {
                         std::string val(pargv[argIdx+1]);
                         if(val.length() != 0){
-                            std::string * currVal = ((std::string *)par[parIdx].value);
+                            std::string * currVal = ((std::string *)par[parIdx]->value);
                             currVal->assign( val );
-                            par[parIdx].wasSet = true;
+                            par[parIdx]->wasSet = true;
                         }
                         argIdx++;
-                    } else if (typeid(bool) == par[parIdx].type) {
-                        bool *value = (bool *) par[parIdx].value;
+                    } else if (typeid(bool) == par[parIdx]->type) {
+                        bool *value = (bool *) par[parIdx]->value;
                         if (argIdx + 1 == argc || pargv[argIdx+1][0] == '-') {
                             *value = !*value;
                         } else {
                             *value = parseBool(pargv[argIdx+1]);
                             argIdx++;
                         }
-                        par[parIdx].wasSet = true;
+                        par[parIdx]->wasSet = true;
                     } else {
                         Debug(Debug::ERROR) << "Wrong parameter type in parseParameters. Please inform the developers\n";
                         EXIT(EXIT_FAILURE);
@@ -1085,10 +1088,10 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                 Debug(Debug::INFO) << "Unrecognized parameter " << parameter << "\n";
 
                 // Suggest some parameter that the user might have meant
-                std::vector<MMseqsParameter>::const_iterator index = par.end();
+                std::vector<MMseqsParameter *>::const_iterator index = par.end();
                 size_t minDistance = SIZE_MAX;
-                for (std::vector<MMseqsParameter>::const_iterator it = par.begin(); it != par.end(); ++it) {
-                    size_t distance = DistanceCalculator::levenshteinDistance(parameter, (*it).name);
+                for (std::vector<MMseqsParameter *>::const_iterator it = par.begin(); it != par.end(); ++it) {
+                    size_t distance = DistanceCalculator::levenshteinDistance(parameter, (*it)->name);
                     if(distance < minDistance) {
                         minDistance = distance;
                         index = it;
@@ -1096,7 +1099,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                 }
 
                 if(index != par.end()) {
-                    Debug(Debug::INFO) << "Did you mean \"" << (*index).name << "\"?\n";
+                    Debug(Debug::INFO) << "Did you mean \"" << (*index)->name << "\"?\n";
                 }
 
                 EXIT(EXIT_FAILURE);
@@ -1224,7 +1227,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 }
 
 void Parameters::printParameters(const std::string &module, int argc, const char* pargv[],
-                                 const std::vector<MMseqsParameter> &par){
+                                 const std::vector<MMseqsParameter*> &par){
     if (Debug::debugLevel < Debug::INFO) {
         return;
     }
@@ -1238,7 +1241,7 @@ void Parameters::printParameters(const std::string &module, int argc, const char
 
     size_t maxWidth = 0;
     for(size_t i = 0; i < par.size(); i++) {
-        maxWidth = std::max(strlen(par[i].display), maxWidth);
+        maxWidth = std::max(strlen(par[i]->display), maxWidth);
     }
 
     std::stringstream ss;
@@ -1248,15 +1251,15 @@ void Parameters::printParameters(const std::string &module, int argc, const char
 
 
     for (size_t i = 0; i < par.size(); i++) {
-        ss << std::setw(maxWidth) << std::left << par[i].display << "\t";
-        if(typeid(int) == par[i].type ){
-            ss << *((int *)par[i].value);
-        } else if(typeid(float) == par[i].type ){
-            ss << *((float *)par[i].value);
-        }else if(typeid(std::string) == par[i].type ){
-            ss << *((std::string *) par[i].value);
-        }else if (typeid(bool) == par[i].type){
-            ss << *((bool *)par[i].value);
+        ss << std::setw(maxWidth) << std::left << par[i]->display << "\t";
+        if(typeid(int) == par[i]->type ){
+            ss << *((int *)par[i]->value);
+        } else if(typeid(float) == par[i]->type ){
+            ss << *((float *)par[i]->value);
+        }else if(typeid(std::string) == par[i]->type ){
+            ss << *((std::string *) par[i]->value);
+        }else if (typeid(bool) == par[i]->type){
+            ss << *((bool *)par[i]->value);
         }
         ss << "\n";
     }
@@ -1449,7 +1452,7 @@ void Parameters::setDefaults() {
     compValue = 0;
     sortEntries = 0;
     beatsFirst = false;
-    
+
 
     //besthitperset
     simpleBestHit = false;
@@ -1465,6 +1468,9 @@ void Parameters::setDefaults() {
     // prefixid
     prefix = "";
     tsvOut = false;
+
+    // offset alignment
+    chainAlignment = 0;
 
     // mergedbs
     mergePrefixes = "";
@@ -1515,19 +1521,20 @@ void Parameters::setDefaults() {
     lcaMode = 2;
 }
 
-std::vector<MMseqsParameter> Parameters::combineList(const std::vector<MMseqsParameter> &par1,
-                                                     const std::vector<MMseqsParameter> &par2) {
-    std::vector<MMseqsParameter> retVec;
-    std::vector< std::vector<MMseqsParameter>> tmp;
+std::vector<MMseqsParameter*> Parameters::combineList(const std::vector<MMseqsParameter*> &par1,
+                                                      const std::vector<MMseqsParameter*> &par2) {
+    std::vector<MMseqsParameter*> retVec;
+    std::vector< std::vector<MMseqsParameter*>> tmp;
     tmp.push_back(par1);
     tmp.push_back(par2);
     for(size_t z = 0; z < tmp.size(); z++) {
-        std::vector<MMseqsParameter> currPar = tmp[z];
+        std::vector<MMseqsParameter*> currPar = tmp[z];
         for (size_t i = 0; i < currPar.size(); i++) {
             bool addPar = true;
             for (size_t j = 0; j < retVec.size(); j++) {
-                if (currPar[i].uniqid == retVec[j].uniqid)
+                if (currPar[i]->uniqid == retVec[j]->uniqid){
                     addPar = false;
+                }
             }
             if (addPar == true) {
                 retVec.push_back(currPar[i]);
@@ -1537,7 +1544,7 @@ std::vector<MMseqsParameter> Parameters::combineList(const std::vector<MMseqsPar
     return retVec;
 }
 
-size_t Parameters::hashParameter(const std::vector<std::string> &filenames, const std::vector<MMseqsParameter> &par){
+size_t Parameters::hashParameter(const std::vector<std::string> &filenames, const std::vector<MMseqsParameter*> &par){
     std::string hashString;
     hashString.reserve(1024);
     for (size_t i = 0; i < filenames.size(); ++i){
@@ -1552,36 +1559,36 @@ size_t Parameters::hashParameter(const std::vector<std::string> &filenames, cons
     return Util::hash(hashString.c_str(), hashString.size());
 }
 
-std::string Parameters::createParameterString(const std::vector<MMseqsParameter> &par, bool wasSet) {
+std::string Parameters::createParameterString(const std::vector<MMseqsParameter*> &par, bool wasSet) {
     std::ostringstream ss;
     for (size_t i = 0; i < par.size(); ++i) {
         // Never pass the MPI parameters along, they are passed by the environment
-        if (par[i].uniqid == PARAM_RUNNER_ID) {
+        if (par[i]->uniqid == PARAM_RUNNER_ID) {
             continue;
         }
         if(wasSet == true){
-            if(par[i].wasSet==false){
+            if(par[i]->wasSet==false){
                 continue;
             }
         }
 
-        if (typeid(int) == par[i].type){
-            ss << par[i].name << " ";
-            ss << *((int *)par[i].value) << " ";
-        } else if (typeid(float) == par[i].type){
-            ss << par[i].name << " ";
-            ss << *((float *)par[i].value) << " ";
-        } else if (typeid(std::string) == par[i].type){
-            if (*((std::string *) par[i].value) != "") {
-                ss << par[i].name << " ";
-                ss << *((std::string *) par[i].value) << " ";
+        if (typeid(int) == par[i]->type){
+            ss << par[i]->name << " ";
+            ss << *((int *)par[i]->value) << " ";
+        } else if (typeid(float) == par[i]->type){
+            ss << par[i]->name << " ";
+            ss << *((float *)par[i]->value) << " ";
+        } else if (typeid(std::string) == par[i]->type){
+            if (*((std::string *) par[i]->value) != "") {
+                ss << par[i]->name << " ";
+                ss << *((std::string *) par[i]->value) << " ";
             }
-        } else if (typeid(bool) == par[i].type){
-            bool val = *((bool *)(par[i].value));
+        } else if (typeid(bool) == par[i]->type){
+            bool val = *((bool *)(par[i]->value));
             if (val == true){
-                ss << par[i].name << " 1 ";
+                ss << par[i]->name << " 1 ";
             } else {
-                ss << par[i].name << " 0 ";
+                ss << par[i]->name << " 0 ";
             }
         } else {
             Debug(Debug::ERROR) << "Wrong parameter type. Please inform the developers!\n";
@@ -1592,31 +1599,34 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter>
     return ss.str();
 }
 
-std::vector<MMseqsParameter> Parameters::removeParameter(const std::vector<MMseqsParameter> &par, const MMseqsParameter &x){
-    std::vector<MMseqsParameter> newParamList;
-    for (std::vector<MMseqsParameter>::const_iterator i = par.begin();i!=par.end();i++) {
-        if (i->name != x.name)
-            newParamList.push_back(*i);
+std::vector<MMseqsParameter*> Parameters::removeParameter(const std::vector<MMseqsParameter*> &par, const MMseqsParameter &x){
+    std::vector<MMseqsParameter*> newParamList;
+    for (size_t i =0; i < par.size(); i++) {
+        MMseqsParameter* p = par[i];
+        if (p->name != x.name)
+            newParamList.push_back(p);
     }
     return newParamList;
 }
 
 void Parameters::overrideParameterDescription(Command &command, const int uid,
                                               const char *description, const char *regex, const int category) {
-    for (std::vector<MMseqsParameter>::iterator i = command.params->begin(); i != command.params->end(); i++) {
-        if (i->uniqid == uid) {
-            if(description != NULL){
-                i->description = description;
+    for (size_t i = 0; i < command.params->size(); i++) {
+        MMseqsParameter *p = command.params->at(i);
+        if (p->uniqid == uid) {
+            if (description != NULL) {
+                p->description = description;
             }
             if (regex != NULL) {
-                i->regex = regex;
+                p->regex = regex;
             }
             if (category != 0) {
-                i->category = category;
+                p->category = category;
             }
             break;
         }
     }
+
 }
 
 std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool &needdatabase, bool &needbacktrace) {

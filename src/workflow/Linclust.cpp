@@ -63,13 +63,13 @@ int linclust(int argc, const char **argv, const Command& command) {
     bool alphabetSizeWasSet = false;
     bool clusterModeSet = false;
     for (size_t i = 0; i < par.linclustworkflow.size(); i++) {
-        if (par.linclustworkflow[i].uniqid == par.PARAM_K.uniqid && par.linclustworkflow[i].wasSet) {
+        if (par.linclustworkflow[i]->uniqid == par.PARAM_K.uniqid && par.linclustworkflow[i]->wasSet) {
             kmerSizeWasSet = true;
         }
-        if (par.linclustworkflow[i].uniqid == par.PARAM_ALPH_SIZE.uniqid && par.linclustworkflow[i].wasSet) {
+        if (par.linclustworkflow[i]->uniqid == par.PARAM_ALPH_SIZE.uniqid && par.linclustworkflow[i]->wasSet) {
             alphabetSizeWasSet = true;
         }
-        if (par.linclustworkflow[i].uniqid == par.PARAM_CLUSTER_MODE.uniqid && par.linclustworkflow[i].wasSet) {
+        if (par.linclustworkflow[i]->uniqid == par.PARAM_CLUSTER_MODE.uniqid && par.linclustworkflow[i]->wasSet) {
             clusterModeSet = true;
         }
     }

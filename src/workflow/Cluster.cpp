@@ -66,19 +66,19 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     bool minDiagonalScoreSet = false;
 
     for (size_t i = 0; i < par.clusterworkflow.size(); i++) {
-        if (par.clusterworkflow[i].uniqid == par.PARAM_S.uniqid && par.clusterworkflow[i].wasSet) {
+        if (par.clusterworkflow[i]->uniqid == par.PARAM_S.uniqid && par.clusterworkflow[i]->wasSet) {
             sensitivitySet = true;
         }
-        if (par.clusterworkflow[i].uniqid == par.PARAM_CLUSTER_MODE.uniqid && par.clusterworkflow[i].wasSet) {
+        if (par.clusterworkflow[i]->uniqid == par.PARAM_CLUSTER_MODE.uniqid && par.clusterworkflow[i]->wasSet) {
             clusterModeSet = true;
         }
-        if (par.clusterworkflow[i].uniqid == par.PARAM_CLUSTER_STEPS.uniqid && par.clusterworkflow[i].wasSet) {
+        if (par.clusterworkflow[i]->uniqid == par.PARAM_CLUSTER_STEPS.uniqid && par.clusterworkflow[i]->wasSet) {
             clusterStepsSet = true;
         }
-        if (par.clusterworkflow[i].uniqid == par.PARAM_NO_COMP_BIAS_CORR.uniqid && par.clusterworkflow[i].wasSet) {
+        if (par.clusterworkflow[i]->uniqid == par.PARAM_NO_COMP_BIAS_CORR.uniqid && par.clusterworkflow[i]->wasSet) {
             compositionBiasSet = true;
         }
-        if (par.clusterworkflow[i].uniqid == par.PARAM_MIN_DIAG_SCORE.uniqid && par.clusterworkflow[i].wasSet) {
+        if (par.clusterworkflow[i]->uniqid == par.PARAM_MIN_DIAG_SCORE.uniqid && par.clusterworkflow[i]->wasSet) {
             minDiagonalScoreSet = true;
         }
     }

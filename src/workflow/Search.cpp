@@ -42,19 +42,19 @@ void setNuclSearchDefaults(Parameters *p) {
     bool gapExtendWasSet = false;
 
     for (size_t i = 0; i < p->searchworkflow.size(); i++) {
-        if (p->searchworkflow[i].uniqid == p->PARAM_STRAND.uniqid && p->searchworkflow[i].wasSet) {
+        if (p->searchworkflow[i]->uniqid == p->PARAM_STRAND.uniqid && p->searchworkflow[i]->wasSet) {
             strandWasSet = true;
         }
-        if (p->searchworkflow[i].uniqid == p->PARAM_K.uniqid && p->searchworkflow[i].wasSet) {
+        if (p->searchworkflow[i]->uniqid == p->PARAM_K.uniqid && p->searchworkflow[i]->wasSet) {
             kmerSizeWasSet = true;
         }
-        if (p->searchworkflow[i].uniqid == p->PARAM_MAX_SEQ_LEN.uniqid && p->searchworkflow[i].wasSet) {
+        if (p->searchworkflow[i]->uniqid == p->PARAM_MAX_SEQ_LEN.uniqid && p->searchworkflow[i]->wasSet) {
             maxSeqLenWasSet = true;
         }
-        if (p->searchworkflow[i].uniqid == p->PARAM_GAP_OPEN.uniqid && p->searchworkflow[i].wasSet) {
+        if (p->searchworkflow[i]->uniqid == p->PARAM_GAP_OPEN.uniqid && p->searchworkflow[i]->wasSet) {
             gapOpenWasSet = true;
         }
-        if (p->searchworkflow[i].uniqid == p->PARAM_GAP_OPEN.uniqid && p->searchworkflow[i].wasSet) {
+        if (p->searchworkflow[i]->uniqid == p->PARAM_GAP_OPEN.uniqid && p->searchworkflow[i]->wasSet) {
             gapExtendWasSet = true;
         }
     }
@@ -88,12 +88,12 @@ int search(int argc, const char **argv, const Command& command) {
     par.overrideParameterDescription((Command &) command, par.PARAM_MIN_SEQ_ID.uniqid, NULL, NULL,
                                      par.PARAM_MIN_SEQ_ID.category | MMseqsParameter::COMMAND_EXPERT);
     for (size_t i = 0; i < par.extractorfs.size(); i++) {
-        par.overrideParameterDescription((Command &) command, par.extractorfs[i].uniqid, NULL, NULL,
-                                         par.extractorfs[i].category | MMseqsParameter::COMMAND_EXPERT);
+        par.overrideParameterDescription((Command &) command, par.extractorfs[i]->uniqid, NULL, NULL,
+                                         par.extractorfs[i]->category | MMseqsParameter::COMMAND_EXPERT);
     }
     for (size_t i = 0; i < par.translatenucs.size(); i++) {
-        par.overrideParameterDescription((Command &) command, par.translatenucs[i].uniqid, NULL, NULL,
-                                         par.translatenucs[i].category | MMseqsParameter::COMMAND_EXPERT);
+        par.overrideParameterDescription((Command &) command, par.translatenucs[i]->uniqid, NULL, NULL,
+                                         par.translatenucs[i]->category | MMseqsParameter::COMMAND_EXPERT);
     }
     par.overrideParameterDescription((Command &) command, par.PARAM_THREADS.uniqid, NULL, NULL,
                                      par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
@@ -150,7 +150,7 @@ int search(int argc, const char **argv, const Command& command) {
         par.addBacktrace = true;
         if (queryDbType == Sequence::HMM_PROFILE) {
             for (size_t i = 0; i < par.searchworkflow.size(); i++) {
-                if (par.searchworkflow[i].uniqid == par.PARAM_REALIGN.uniqid && par.searchworkflow[i].wasSet) {
+                if (par.searchworkflow[i]->uniqid == par.PARAM_REALIGN.uniqid && par.searchworkflow[i]->wasSet) {
                     par.printUsageMessage(command,
                                           MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
                     Debug(Debug::ERROR) << "Cannot realign query profiles.\n";
@@ -207,9 +207,9 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("AVAIL_DISK", SSTR(static_cast<size_t>(diskLimit)).c_str());
 
         // --max-seqs and --offset-results are set inside the workflow
-        std::vector<MMseqsParameter> prefilter;
+        std::vector<MMseqsParameter*> prefilter;
         for (size_t i = 0; i < par.prefilter.size(); i++){
-            if (par.prefilter[i].uniqid != par.PARAM_MAX_SEQS.uniqid && par.prefilter[i].uniqid != par.PARAM_RES_LIST_OFFSET.uniqid){
+            if (par.prefilter[i]->uniqid != par.PARAM_MAX_SEQS.uniqid && par.prefilter[i]->uniqid != par.PARAM_RES_LIST_OFFSET.uniqid){
                 prefilter.push_back(par.prefilter[i]);
             }
         }
@@ -315,9 +315,9 @@ int search(int argc, const char **argv, const Command& command) {
             cmd.addVariable("STEPS", SSTR(1).c_str());
         }
 
-        std::vector<MMseqsParameter> prefilterWithoutS;
+        std::vector<MMseqsParameter*> prefilterWithoutS;
         for (size_t i = 0; i < par.prefilter.size(); i++) {
-            if (par.prefilter[i].uniqid != par.PARAM_S.uniqid) {
+            if (par.prefilter[i]->uniqid != par.PARAM_S.uniqid) {
                 prefilterWithoutS.push_back(par.prefilter[i]);
             }
         }

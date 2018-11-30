@@ -386,7 +386,7 @@ int result2profile(int argc, const char **argv, const Command &command) {
     par.pca = 0.0;
     par.parseParameters(argc, argv, command, 4, false);
     par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
-    std::vector<MMseqsParameter>* params = command.params;
+    std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);

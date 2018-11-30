@@ -356,7 +356,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     int querySeqType  =  seqDbr.getDbtype();
 
     setKmerLengthAndAlphabet(par, seqDbr.getAminoAcidDBSize(), querySeqType);
-    std::vector<MMseqsParameter>* params = command.params;
+    std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);
     Debug(Debug::INFO) << "Database type: " << seqDbr.getDbTypeName() << "\n";
 

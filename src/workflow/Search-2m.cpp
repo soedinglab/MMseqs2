@@ -46,10 +46,10 @@ int search2m(int argc, const char **argv, const Command& command) {
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("SEARCH1_PAR", par.createParameterString(par.searchworkflow).c_str());
-    std::vector<MMseqsParameter> searchNoIterativeBest;
+    std::vector<MMseqsParameter*> searchNoIterativeBest;
     for (size_t i = 0; i < par.searchworkflow.size(); i++){
-        if (par.searchworkflow[i].uniqid != par.PARAM_START_SENS.uniqid
-            || par.searchworkflow[i].uniqid != par.PARAM_SENS_STEPS.uniqid) {
+        if (par.searchworkflow[i]->uniqid != par.PARAM_START_SENS.uniqid
+            || par.searchworkflow[i]->uniqid != par.PARAM_SENS_STEPS.uniqid) {
             searchNoIterativeBest.push_back(par.searchworkflow[i]);
         }
     }

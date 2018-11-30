@@ -56,10 +56,10 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     par.alignmentMode = alignmentMode;
 
     if (par.lcaMode == Parameters::TAXONOMY_2BLCA) {
-        std::vector<MMseqsParameter> searchNoIterativeBest;
+        std::vector<MMseqsParameter*> searchNoIterativeBest;
         for (size_t i = 0; i < par.searchworkflow.size(); i++){
-            if (par.searchworkflow[i].uniqid != par.PARAM_START_SENS.uniqid
-             || par.searchworkflow[i].uniqid != par.PARAM_SENS_STEPS.uniqid) {
+            if (par.searchworkflow[i]->uniqid != par.PARAM_START_SENS.uniqid
+             || par.searchworkflow[i]->uniqid != par.PARAM_SENS_STEPS.uniqid) {
                 searchNoIterativeBest.push_back(par.searchworkflow[i]);
             }
         }

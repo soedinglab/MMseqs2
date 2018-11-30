@@ -27,7 +27,7 @@ enum CommandMode {
 struct Command {
     const char *cmd;
     int (*commandFunction)(int, const char **, const Command&);
-    std::vector<MMseqsParameter>* params;
+    std::vector<MMseqsParameter*>* params;
     CommandMode mode;
     const char *shortDescription;
     const char *longDescription;
