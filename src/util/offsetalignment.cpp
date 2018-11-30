@@ -80,9 +80,12 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 
     const bool touch = par.preloadMode != Parameters::PRELOAD_MODE_MMAP;
 
+
+    int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    int targetDbType = DBReader<unsigned int>::parseDbType(par.db3.c_str());
+
     Debug(Debug::INFO) << "Query database: " << par.db2 << "\n";
     IndexReader qOrfDbr(par.db2.c_str(), IndexReader::NEED_ALT_HEADERS, touch);
-    const int queryDbType = qOrfDbr.getDbtype();
     if (queryDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
@@ -96,7 +99,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 
     Debug(Debug::INFO) << "Target database: " << par.db4 << "\n";
     IndexReader tOrfDbr(par.db4.c_str(), IndexReader::NEED_ALT_HEADERS, touch);
-    const int targetDbType = tOrfDbr.getDbtype();
     if (targetDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
