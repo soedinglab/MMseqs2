@@ -523,6 +523,7 @@ Parameters::Parameters():
     // create index
     indexdb.push_back(PARAM_SUB_MAT);
     indexdb.push_back(PARAM_K);
+    indexdb.push_back(PARAM_NO_COMP_BIAS_CORR);
     indexdb.push_back(PARAM_ALPH_SIZE);
     indexdb.push_back(PARAM_MAX_SEQS);
     indexdb.push_back(PARAM_MAX_SEQ_LEN);
