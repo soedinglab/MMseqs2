@@ -5,15 +5,9 @@
  * modified by Milot Mirdita <milot@mirdita.de>
  */
 
-#include <cstdio>
-
-#include <map>
-#include <fstream>
-#include <unistd.h>
-#include <math.h>
-#include <itoa.h>
 #include <random>
 
+#include "itoa.h"
 #include "FileUtil.h"
 #include "DBWriter.h"
 #include "Debug.h"
@@ -104,7 +98,7 @@ int createdb(int argn, const char **argv, const Command& command) {
             // header
             header.append(e.name.s, e.name.l);
             if (e.comment.l > 0) {
-                header.append(" ", 1);
+                header.append(1, ' ');
                 header.append(e.comment.s,e.comment.l);
             }
 
@@ -115,8 +109,6 @@ int createdb(int argn, const char **argv, const Command& command) {
 
             }
             for (size_t split = 0; split < splitCnt; split++) {
-
-
                 unsigned int id = par.identifierOffset + entries_num;
                 if(par.dbType == 0){
                     // check for the first 10 sequences if they are nucleotide sequences
@@ -177,8 +169,8 @@ int createdb(int argn, const char **argv, const Command& command) {
                 }
 
                 // space is needed for later parsing
-                splitHeader.append(" ", 1);
-                splitHeader.append("\n");
+                splitHeader.append(1, ' ');
+                splitHeader.append(1, '\n');
 
                 // Finally write down the entry
                 out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id);
@@ -222,14 +214,14 @@ int createdb(int argn, const char **argv, const Command& command) {
     }
 
     int dbType = Sequence::AMINO_ACIDS;
-    if (par.dbType == 2 ||  (par.dbType == 0 && (isNuclCnt == sampleCount || isNuclCnt == testForNucSequence)) ) {
+    if (par.dbType == 2 || (par.dbType == 0 && (isNuclCnt == sampleCount || isNuclCnt == testForNucSequence))) {
         dbType = Sequence::NUCLEOTIDES;
     }
-    out_hdr_writer.close();
     out_writer.close(dbType);
+    out_hdr_writer.close();
 
     // shuffle data
-    if(par.shuffleDatabase == true){
+    if (par.shuffleDatabase == true) {
         DBReader<unsigned int> readerSequence(out_writer.getDataFileName(), out_writer.getIndexFileName());
         readerSequence.open( DBReader<unsigned int>::NOSORT);
         readerSequence.readMmapedDataInMemory();
