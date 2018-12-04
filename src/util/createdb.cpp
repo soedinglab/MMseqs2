@@ -73,6 +73,9 @@ int createdb(int argn, const char **argv, const Command& command) {
     size_t isNuclCnt = 0;
     bool assmeNuclDb = (par.dbType == 2) ? true : false;
 
+    const char tab = '\t';
+    char lookupBuffer[32768];
+
     // keep number of entries in each file
     unsigned int numEntriesInCurrFile = 0;
     unsigned int * fileToNumEntries =  new unsigned int[filenames.size()];
@@ -197,6 +200,17 @@ int createdb(int argn, const char **argv, const Command& command) {
                     out_writer.writeEnd(id, 0, true);
                 }
 
+                if (par.shuffleDatabase == false) {
+                    char *tmpBuff = Itoa::i32toa_sse2(id, lookupBuffer);
+                    *(tmpBuff-1) = '\t';
+                    fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
+                    fwrite(headerId.c_str(), sizeof(char), headerId.length(), lookupFile);
+                    fwrite(&tab, sizeof(char), 1, lookupFile);
+                    tmpBuff = Itoa::i32toa_sse2(i, lookupBuffer);
+                    *(tmpBuff-1) = '\n';
+                    fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
+                }
+
                 entries_num++;
                 numEntriesInCurrFile++;
                 count++;
@@ -263,16 +277,14 @@ int createdb(int argn, const char **argv, const Command& command) {
         DBWriter out_hdr_writer_shuffled(data_filename_hdr.c_str(), index_filename_hdr.c_str());
         out_hdr_writer_shuffled.open();
         readerHeader.readMmapedDataInMemory();
-        char lookupBuffer[32768];
         for (unsigned int n = 0; n < readerHeader.getSize(); n++) {
             unsigned int id = par.identifierOffset + n;
-            const char * data = readerHeader.getData() + indexHeader[n].offset;
-            std::string splitId = Util::parseFastaHeader(data);
-            char * tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
+            const char *data = readerHeader.getData() + indexHeader[n].offset;
+            std::string headerId = Util::parseFastaHeader(data);
+            char *tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
             *(tmpBuff-1) = '\t';
             fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
-            fwrite(splitId.c_str(), sizeof(char), splitId.length(), lookupFile);
-            char tab = '\t';
+            fwrite(headerId.c_str(), sizeof(char), headerId.length(), lookupFile);
             fwrite(&tab, sizeof(char), 1, lookupFile);
             tmpBuff = Itoa::u32toa_sse2(keyToFileAfterShuf[n], lookupBuffer);
             *(tmpBuff-1) = '\n';
@@ -281,8 +293,9 @@ int createdb(int argn, const char **argv, const Command& command) {
         }
         out_hdr_writer_shuffled.close();
         readerHeader.close();
-        fclose(lookupFile);
         delete[] keyToFileAfterShuf;
     }
+    fclose(lookupFile);
+
     return EXIT_SUCCESS;
 }
