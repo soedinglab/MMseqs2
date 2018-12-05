@@ -136,6 +136,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
             || fail "mergedbs died"
         mv -f "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged"
         mv -f "${TMP_PATH}/aln_merged_new.index" "${TMP_PATH}/aln_merged.index"
+        mv -f "${TMP_PATH}/aln_merged_new.dbtype" "${TMP_PATH}/aln_merged.dbtype"
         rm -f "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_swap.index"
         MERGED="${TMP_PATH}/aln_merged"
     fi
@@ -146,6 +147,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         || fail "sortresult died"
     mv -f "${TMP_PATH}/aln_merged_trunc" "${TMP_PATH}/aln_merged"
     mv -f "${TMP_PATH}/aln_merged_trunc.index" "${TMP_PATH}/aln_merged.index"
+    mv -f "${TMP_PATH}/aln_merged_trunc.dbtype" "${TMP_PATH}/aln_merged.dbtype"
 
     join "${TMP_PATH}/pref_keep.list" "${PROFILEDB}.index" > "${PROFILEDB}.index.tmp"
     mv -f "${PROFILEDB}.index.tmp" "${PROFILEDB}.index"

@@ -59,6 +59,7 @@ while [ "${STEP}" -lt "${NUM_IT}" ]; do
                 || fail "subtractdbs died"
             mv -f "${TMP_PATH}/pref_next_${STEP}" "${TMP_PATH}/pref_${STEP}"
             mv -f "${TMP_PATH}/pref_next_${STEP}.index" "${TMP_PATH}/pref_${STEP}.index"
+            mv -f "${TMP_PATH}/pref_next_${STEP}.dbtype" "${TMP_PATH}/pref_${STEP}.dbtype"
             touch "${TMP_PATH}/pref_${STEP}.hasnext"
         fi
     fi
@@ -107,7 +108,9 @@ while [ "${STEP}" -lt "${NUM_IT}" ]; do
 	STEP=$((STEP+1))
 done
 
-(mv -f "${TMP_PATH}/aln_0" "${RESULT}" && mv -f "${TMP_PATH}/aln_0.index" "${RESULT}.index") || fail "Could not move result to ${RESULT}"
+mv -f "${TMP_PATH}/aln_0" "${RESULT}"
+mv -f "${TMP_PATH}/aln_0.index" "${RESULT}.index"
+mv -f "${TMP_PATH}/aln_0.dbtype" "${RESULT}.dbtype"
 
 if [ -n "$REMOVE_TMP" ]; then
  echo "Remove temporary files"

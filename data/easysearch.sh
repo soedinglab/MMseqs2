@@ -62,7 +62,9 @@ mv -f "${TMP_PATH}/alis" "${RESULTS}" || fail "Could not move result to ${RESULT
 if [ -f "${TMP_PATH}/alis.index" ]; then
     mv -f "${TMP_PATH}/alis.index" "${RESULTS}.index" || fail "Could not move result index to ${RESULTS}"
 fi
-
+if [ -f "${TMP_PATH}/alis.dbtype" ]; then
+    mv -f "${TMP_PATH}/alis.dbtype" "${RESULTS}.dbtype" || fail "Could not move result dbtype to ${RESULTS}"
+fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Removing temporary files"
