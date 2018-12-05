@@ -446,6 +446,20 @@ void DBWriter::mergeResults(const std::string &outFileName, const std::string &o
     delete[] datafilesNames;
     delete[] indexFilesNames;
 
+    // leave only one dbtype file behind
+    if (files.size() > 0) {
+        std::string typeSrc = files[0].first + ".dbtype";
+        std::string typeDest = outFileName + ".dbtype";
+        if (FileUtil::fileExists(typeSrc.c_str())) {
+            std::rename(typeSrc.c_str(), typeDest.c_str());
+        }
+        for (size_t i = 1; i < files.size(); i++) {
+            std::string typeFile = files[i].first + ".dbtype";
+            if (FileUtil::fileExists(typeFile.c_str())) {
+                std::remove(typeFile.c_str());
+            }
+        }
+    }
 }
 
 template <>
