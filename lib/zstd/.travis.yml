@@ -1,0 +1,93 @@
+# Medium Tests: Run on all commits/PRs to dev branch
+
+language: c
+dist: trusty
+sudo: required
+
+addons:
+  apt:
+    update: true
+
+matrix:
+  fast_finish: true
+  include:
+    # Ubuntu 14.04
+    - env: Cmd='make test'
+
+    - env: Cmd='make gcc6install && CC=gcc-6 CFLAGS=-Werror make -j all
+             && make clean && CC=gcc-6 make -j uasan-test-zstd </dev/null'   # test when stdin is not a tty
+    - env: Cmd='make gcc6install libc6install
+             && make clean && CC=gcc-6 make -j uasan-test-zstd32'
+    - env: Cmd='make gcc7install && make clean && CC=gcc-7 make -j uasan-test-zstd'
+    - env: Cmd='make gcc8install && CC=gcc-8 CFLAGS="-Werror -O3" make -j all'
+    - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test-zstd'
+
+    - env: Cmd='make cmakebuild'
+
+    - env: Cmd='make staticAnalyze'
+
+    - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-fuzztest'
+    - env: Cmd='make gcc6install libc6install
+             && make clean && CC=gcc-6 CFLAGS=-m32 make uasan-fuzztest'
+    - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-fuzztest'
+    - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-fuzztest'
+
+    - env: Cmd='make -j uasanregressiontest
+             && make clean && make -j msanregressiontest'
+
+    - env: Cmd='make valgrindinstall && make -C tests clean valgrindTest
+             && make clean && make -C tests test-fuzzer-stackmode'
+
+    - env: Cmd='make arminstall && make armfuzz'
+    - env: Cmd='make arminstall && make aarch64fuzz'
+    - env: Cmd='make ppcinstall && make ppcfuzz'
+    - env: Cmd='make ppcinstall && make ppc64fuzz'
+
+    - env: Cmd='make lz4install && make -C tests test-lz4
+             && make clean && make -C tests test-pool
+             && make clean && bash tests/libzstd_partial_builds.sh'
+
+    # tag-specific test
+    - if: tag =~ ^v[0-9]\.[0-9]
+      env: Cmd='make -C tests checkTag && tests/checkTag $TRAVIS_BRANCH'
+
+    - dist: xenial
+      env: BUILD_SYSTEM='meson'
+  allow_failures:
+    - env: BUILD_SYSTEM='meson'
+
+git:
+  depth: 1
+
+branches:
+  only:
+  - dev
+  - master
+  - travisTest
+
+script:
+  - JOB_NUMBER=$(printf '%s' "${TRAVIS_JOB_NUMBER}" | sed -E 's@[0-9]+\.([0-9]+)@\1@')
+  - printf 'JOB_NUMBER=%s TRAVIS_BRANCH=%s TRAVIS_EVENT_TYPE=%s TRAVIS_PULL_REQUEST=%s\n'
+      "${JOB_NUMBER}" "${TRAVIS_BRANCH}" "${TRAVIS_EVENT_TYPE}" "${TRAVIS_PULL_REQUEST}"
+  - if [ "${BUILD_SYSTEM}" = meson ]; then
+      set -x;
+      sudo apt-get install -qq liblz4-dev valgrind tree
+        && curl -o ~/get-pip.py 'https://bootstrap.pypa.io/get-pip.py'
+        && python3 ~/get-pip.py --user
+        && pip3 install --user meson ninja
+        && export CC=clang CXX=clang++
+        && meson --buildtype=debug
+                 -Db_lundef=false
+                 -Dauto_features=enabled
+                 -Dbuild_{programs,tests,contrib}=true
+                 -Ddefault_library=both
+                 build/meson builddir
+        && cd "$_"
+        && DESTDIR=./staging ninja install
+        && tree ./staging;
+      travis_terminate "$?";
+    fi
+  - export FUZZERTEST=-T2mn;
+    export ZSTREAM_TESTTIME=-T2mn;
+    export DECODECORPUS_TESTTIME=-T1mn;
+    sh -c "${Cmd}" || travis_terminate 1;
