@@ -54,54 +54,60 @@ void DBConcat::concat(bool write) {
 
     // where the new key numbering of B should start
     unsigned int maxKeyA = 0;
-#pragma omp parallel for schedule(dynamic, 10) num_threads(threads) reduction(max:maxKeyA)
-    for (size_t id = 0; id < indexSizeA; id++) {
-        Debug::printProgress(id);
+#pragma omp parallel
+    {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        unsigned int newKey;
+#pragma omp for schedule(dynamic, 10) num_threads(threads) reduction(max:maxKeyA)
+        for (size_t id = 0; id < indexSizeA; id++) {
+            Debug::printProgress(id);
 
-        if (preserveKeysA) {
-            newKey = dbA.getDbKey(id);
-        } else {
-            newKey = static_cast<unsigned int>(id);
+            unsigned int newKey;
+            if (preserveKeysA) {
+                newKey = dbA.getDbKey(id);
+            } else {
+                newKey = static_cast<unsigned int>(id);
+            }
+
+            if (write) {
+                char *data = dbA.getData(id, thread_idx);
+                concatWriter->writeData(data, dbA.getSeqLens(id) - 1, newKey, thread_idx);
+            }
+
+            // need to store the index, because it'll be sorted out by keys later
+            keysA[id] = std::make_pair(dbA.getDbKey(id), newKey);
+            maxKeyA = std::max(maxKeyA, newKey);
         }
-
-        if (write) {
-            char *data = dbA.getData(id, thread_idx);
-            concatWriter->writeData(data, dbA.getSeqLens(id) - 1, newKey, thread_idx);
-        }
-
-        // need to store the index, because it'll be sorted out by keys later
-        keysA[id] = std::make_pair(dbA.getDbKey(id), newKey);
-        maxKeyA = std::max(maxKeyA, newKey);
     }
     maxKeyA++;
 
-#pragma omp parallel for schedule(dynamic, 10) num_threads(threads)
-    for (size_t id = 0; id < indexSizeB; id++) {
-        Debug::printProgress(id);
+#pragma omp parallel
+    {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        unsigned int newKey;
-        
-        if (preserveKeysB) {
-            newKey = dbB.getDbKey(id);
-        } else {
-            newKey = static_cast<unsigned int>(id) + maxKeyA;
-        }
-        
-        if (write) {
-            char *data = dbB.getData(id, thread_idx);
-            concatWriter->writeData(data, dbB.getSeqLens(id) - 1, newKey, thread_idx);
-        }
+#pragma omp for schedule(dynamic, 10) num_threads(threads)
+        for (size_t id = 0; id < indexSizeB; id++) {
+            Debug::printProgress(id);
 
-        // need to store the index, because it'll be sorted out by keys later
-        keysB[id] = std::make_pair(dbB.getDbKey(id), id + maxKeyA);
+            unsigned int newKey;
+            if (preserveKeysB) {
+                newKey = dbB.getDbKey(id);
+            } else {
+                newKey = static_cast<unsigned int>(id) + maxKeyA;
+            }
+
+            if (write) {
+                char *data = dbB.getData(id, thread_idx);
+                concatWriter->writeData(data, dbB.getSeqLens(id) - 1, newKey, thread_idx);
+            }
+
+            // need to store the index, because it'll be sorted out by keys later
+            keysB[id] = std::make_pair(dbB.getDbKey(id), id + maxKeyA);
+        }
     }
 
     //sort by key

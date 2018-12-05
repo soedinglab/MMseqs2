@@ -456,14 +456,15 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         Debug(Debug::INFO) << "Time for fill: " << timer.lap() << "\n";
         // add missing entries to the result (needed for clustering)
 
+#pragma omp parallel
         {
-#pragma omp parallel for
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+#pragma omp for
             for (size_t id = 0; id < seqDbr.getSize(); id++) {
                 char buffer[100];
-                int thread_idx = 0;
-#ifdef OPENMP
-                thread_idx = omp_get_thread_num();
-#endif
                 if (repSequence[id] == false) {
                     hit_t h;
                     h.pScore = 0;

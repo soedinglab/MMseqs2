@@ -36,7 +36,7 @@ int createseqfiledb(int argc, const char **argv, const Command& command) {
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-#pragma omp parallel for schedule(dynamic, 100)
+#pragma omp for schedule(dynamic, 100)
         for (size_t i = 0; i < numClusters; ++i){
             std::ostringstream fastaStream;
             char* data = clusters.getData(i, thread_idx);

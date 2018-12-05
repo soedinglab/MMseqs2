@@ -134,40 +134,43 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
 
     Debug(Debug::INFO) << "Start writing to file " << par.db3 << "\n";
 
-#pragma omp parallel for schedule(dynamic, 100)
-    for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
+#pragma omp parallel
+    {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
+#pragma omp for schedule(dynamic, 100)
+        for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
+            Debug::printProgress(i - dbFrom);
+            unsigned int id = blastTabReader.getDbKey(i);
 
-        unsigned int id = blastTabReader.getDbKey(i);
+            char *tabData = blastTabReader.getData(i, thread_idx);
+            size_t tabLength = blastTabReader.getSeqLens(i) - 1;
+            const std::vector<Domain> entries = getEntries(id, tabData, tabLength, lengths);
+            if (entries.size() == 0) {
+                Debug(Debug::WARNING) << "Could not map any entries for entry " << id << "!\n";
+                continue;
+            }
 
-        char* tabData = blastTabReader.getData(i, thread_idx);
-        size_t tabLength = blastTabReader.getSeqLens(i) - 1;
-        const std::vector<Domain> entries = getEntries(id, tabData, tabLength, lengths);
-        if (entries.size() == 0) {
-            Debug(Debug::WARNING) << "Could not map any entries for entry " << id << "!\n";
-            continue;
+            std::vector<Domain> result = mapDomains(entries, par.overlap, par.cov, par.evalThr);
+            if (result.size() == 0) {
+                Debug(Debug::WARNING) << "Could not map any domains for entry " << id << "!\n";
+                continue;
+            }
+
+            std::ostringstream oss;
+            oss << std::setprecision(std::numeric_limits<float>::digits10);
+
+            for (size_t j = 0; j < result.size(); j++) {
+                Domain d = result[j];
+                d.writeResult(oss);
+                oss << "\n";
+            }
+
+            std::string annotation = oss.str();
+            writer.writeData(annotation.c_str(), annotation.length(), id, thread_idx);
         }
-
-        std::vector<Domain> result = mapDomains(entries, par.overlap, par.cov, par.evalThr);
-        if (result.size() == 0) {
-            Debug(Debug::WARNING) << "Could not map any domains for entry " << id << "!\n";
-            continue;
-        }
-
-        std::ostringstream oss;
-        oss << std::setprecision(std::numeric_limits<float>::digits10);
-
-        for (size_t j = 0; j < result.size(); j++) {
-            Domain d = result[j];
-            d.writeResult(oss);
-            oss << "\n";
-        }
-
-        std::string annotation = oss.str();
-        writer.writeData(annotation.c_str(), annotation.length(), id, thread_idx);
     }
 
     writer.close();

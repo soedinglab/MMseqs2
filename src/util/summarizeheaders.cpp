@@ -36,42 +36,44 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
     }
 
     Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
-
-    #pragma omp parallel for schedule(dynamic, 100)
-    for (size_t i = 0; i < reader.getSize(); ++i) {
+#pragma omp parallel
+    {
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
+#pragma omp for schedule(dynamic, 100)
+        for (size_t i = 0; i < reader.getSize(); ++i) {
+            Debug::printProgress(i);
 
-        unsigned int id = reader.getDbKey(i);
-        char* data = reader.getData(i, thread_idx);
+            unsigned int id = reader.getDbKey(i);
+            char *data = reader.getData(i, thread_idx);
 
-        std::vector<std::string> headers;
+            std::vector<std::string> headers;
 
-        std::istringstream inStream(data);
-        std::string line;
-        size_t entry = 0;
-        std::string representative;
-        while (std::getline(inStream, line))
-        {
-            char* header;
-            if(entry == 0) {
-                header = queryReader.getDataByDBKey((unsigned int) strtoul(line.c_str(), NULL, 10), thread_idx);
+            std::istringstream inStream(data);
+            std::string line;
+            size_t entry = 0;
+            std::string representative;
+            while (std::getline(inStream, line)) {
+                char *header;
+                if (entry == 0) {
+                    header = queryReader.getDataByDBKey((unsigned int) strtoul(line.c_str(), NULL, 10), thread_idx);
 
-                representative = line;
-            } else {
-                header = targetReader.getDataByDBKey((unsigned int) strtoul(line.c_str(), NULL, 10),thread_idx);
+                    representative = line;
+                } else {
+                    header = targetReader.getDataByDBKey((unsigned int) strtoul(line.c_str(), NULL, 10), thread_idx);
+                }
+                headers.emplace_back(header);
+                entry++;
             }
-            headers.emplace_back(header);
-            entry++;
+
+            std::ostringstream oss;
+            oss << par.summaryPrefix << "-" << representative << "|" << summarizer->summarize(headers);
+
+            std::string summary = oss.str();
+            writer.writeData(summary.c_str(), summary.length(), id, thread_idx);
         }
-
-        std::ostringstream oss;
-        oss << par.summaryPrefix << "-" << representative << "|" << summarizer->summarize(headers);
-
-        std::string summary = oss.str();
-        writer.writeData(summary.c_str(), summary.length(), id, thread_idx);
     }
     writer.close();
     reader.close();

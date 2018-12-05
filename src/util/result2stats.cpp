@@ -116,28 +116,31 @@ StatsComputer::~StatsComputer() {
 }
 
 int StatsComputer::countNumberOfLines() {
-#pragma omp parallel for schedule(dynamic, 100)
-    for (size_t id = 0; id < resultReader->getSize(); id++) {
-        Debug::printProgress(id);
-        unsigned int thread_idx = 0;
+#pragma omp parallel
+    {
+        int thread_idx = 0;
 #ifdef OPENMP
-        thread_idx = (unsigned int) omp_get_thread_num();
+        thread_idx = omp_get_thread_num();
 #endif
+#pragma omp for schedule(dynamic, 100)
+        for (size_t id = 0; id < resultReader->getSize(); id++) {
+            Debug::printProgress(id);
 
-        unsigned int lineCount(0);
-        std::string lineCountString;
+            unsigned int lineCount(0);
+            std::string lineCountString;
 
-        char *results = resultReader->getData(id,  thread_idx);
-        while (*results != '\0') {
-            if (*results == '\n') {
-                lineCount++;
+            char *results = resultReader->getData(id, thread_idx);
+            while (*results != '\0') {
+                if (*results == '\n') {
+                    lineCount++;
+                }
+                results++;
             }
-            results++;
+
+            lineCountString = SSTR(lineCount) + "\n";
+
+            statWriter->writeData(lineCountString.c_str(), lineCountString.length(), resultReader->getDbKey(id), thread_idx);
         }
-
-        lineCountString = SSTR(lineCount) + "\n";
-
-        statWriter->writeData(lineCountString.c_str(), lineCountString.length(), resultReader->getDbKey(id), thread_idx);
     }
     return 0;
 }

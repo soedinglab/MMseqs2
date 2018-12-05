@@ -270,78 +270,85 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
     // 1.) we define the rep. sequences by minimizing the ids (smaller ID = longer sequence)
     // 2.) we correct maybe wrong assigned sequence by checking if the assigned sequence is really a rep. seq.
     //     if they are not make them rep. seq.
-#pragma omp parallel for schedule(dynamic, 1000)
-    for(size_t i = 0; i < dbSize; i++) {
+#pragma omp parallel
+    {
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        unsigned int clusterKey = seqDbr->getDbKey(i);
-        unsigned int clusterId = seqDbr->getId(clusterKey);
+#pragma omp for schedule(dynamic, 1000)
+        for(size_t i = 0; i < dbSize; i++) {
+            unsigned int clusterKey = seqDbr->getDbKey(i);
+            unsigned int clusterId = seqDbr->getId(clusterKey);
 
-        // try to set your self as cluster centriod
-        // if some other cluster covered
-        unsigned int targetId;
-        __atomic_load(&assignedcluster[clusterId], &targetId ,__ATOMIC_RELAXED);
-        do {
-            if (targetId <= clusterId) break;
-        } while (!__atomic_compare_exchange(&assignedcluster[clusterId],  &targetId,  &clusterId , false,  __ATOMIC_RELAXED, __ATOMIC_RELAXED));
-
-
-        const size_t alnId = alnDbr->getId(clusterKey);
-        char *data = alnDbr->getData(alnId, thread_idx);
-
-        while (*data != '\0') {
-            char dbKey[255 + 1];
-            Util::parseKey(data, dbKey);
-            const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-            unsigned int currElement = seqDbr->getId(key);
+            // try to set your self as cluster centriod
+            // if some other cluster covered
             unsigned int targetId;
-
-            __atomic_load(&assignedcluster[currElement], &targetId ,__ATOMIC_RELAXED);
+            __atomic_load(&assignedcluster[clusterId], &targetId ,__ATOMIC_RELAXED);
             do {
                 if (targetId <= clusterId) break;
-            } while (!__atomic_compare_exchange(&assignedcluster[currElement],  &targetId,  &clusterId , false,  __ATOMIC_RELAXED, __ATOMIC_RELAXED));
+            } while (!__atomic_compare_exchange(&assignedcluster[clusterId],  &targetId,  &clusterId , false,  __ATOMIC_RELAXED, __ATOMIC_RELAXED));
 
-            if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
-                Debug(Debug::ERROR) << "ERROR: Element " << dbKey
-                                    << " contained in some alignment list, but not contained in the sequence database!\n";
-                EXIT(EXIT_FAILURE);
+
+            const size_t alnId = alnDbr->getId(clusterKey);
+            char *data = alnDbr->getData(alnId, thread_idx);
+
+            while (*data != '\0') {
+                char dbKey[255 + 1];
+                Util::parseKey(data, dbKey);
+                const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                unsigned int currElement = seqDbr->getId(key);
+                unsigned int targetId;
+
+                __atomic_load(&assignedcluster[currElement], &targetId ,__ATOMIC_RELAXED);
+                do {
+                    if (targetId <= clusterId) break;
+                } while (!__atomic_compare_exchange(&assignedcluster[currElement],  &targetId,  &clusterId , false,  __ATOMIC_RELAXED, __ATOMIC_RELAXED));
+
+                if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
+                    Debug(Debug::ERROR) << "ERROR: Element " << dbKey
+                                        << " contained in some alignment list, but not contained in the sequence database!\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                data = Util::skipLine(data);
             }
-            data = Util::skipLine(data);
         }
     }
 
-#pragma omp parallel for schedule(dynamic, 1000)
-    for(size_t id = 0; id < dbSize; id++) {
+#pragma omp parallel
+    {
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        unsigned int clusterKey = seqDbr->getDbKey(id);
-        unsigned int clusterId = id;
+#pragma omp for schedule(dynamic, 1000)
+        for (size_t id = 0; id < dbSize; id++) {
+            unsigned int clusterKey = seqDbr->getDbKey(id);
+            unsigned int clusterId = id;
 
-        const size_t alnId = alnDbr->getId(clusterKey);
-        char *data = alnDbr->getData(alnId, thread_idx);
+            const size_t alnId = alnDbr->getId(clusterKey);
+            char *data = alnDbr->getData(alnId, thread_idx);
 
-        while (*data != '\0') {
-            char dbKey[255 + 1];
-            Util::parseKey(data, dbKey);
-            const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-            unsigned int currElement = seqDbr->getId(key);
-            unsigned int targetId;
+            while (*data != '\0') {
+                char dbKey[255 + 1];
+                Util::parseKey(data, dbKey);
+                const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                unsigned int currElement = seqDbr->getId(key);
+                unsigned int targetId;
 
-            __atomic_load(&assignedcluster[currElement], &targetId ,__ATOMIC_RELAXED);
-            do {
-                if (targetId <= clusterId) break;
-            } while (!__atomic_compare_exchange(&assignedcluster[currElement],  &targetId,  &clusterId , false,  __ATOMIC_RELAXED, __ATOMIC_RELAXED));
+                __atomic_load(&assignedcluster[currElement], &targetId, __ATOMIC_RELAXED);
+                do {
+                    if (targetId <= clusterId) break;
+                } while (!__atomic_compare_exchange(&assignedcluster[currElement], &targetId, &clusterId, false,
+                                                    __ATOMIC_RELAXED, __ATOMIC_RELAXED));
 
-            if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
-                Debug(Debug::ERROR) << "ERROR: Element " << dbKey
-                                    << " contained in some alignment list, but not contained in the sequence database!\n";
-                EXIT(EXIT_FAILURE);
+                if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
+                    Debug(Debug::ERROR) << "ERROR: Element " << dbKey
+                                        << " contained in some alignment list, but not contained in the sequence database!\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                data = Util::skipLine(data);
             }
-            data = Util::skipLine(data);
         }
     }
 
@@ -380,17 +387,20 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
                                              unsigned short **scoreLookupTable, unsigned short *&scores,
                                              size_t *elementOffsets, size_t totalElementCount) {
     Timer timer;
-#pragma omp parallel for schedule(dynamic, 1000)
-    for(size_t i = 0; i < dbSize; i++) {
+#pragma omp parallel
+    {
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        const unsigned int clusterId = seqDbr->getDbKey(i);
-        const size_t alnId = alnDbr->getId(clusterId);
-        const char *data = alnDbr->getData(alnId, thread_idx);
-        const size_t dataSize = alnDbr->getSeqLens(alnId);
-        elementOffsets[i] = Util::countLines(data, dataSize);
+#pragma omp for schedule(dynamic, 1000)
+        for (size_t i = 0; i < dbSize; i++) {
+            const unsigned int clusterId = seqDbr->getDbKey(i);
+            const size_t alnId = alnDbr->getId(clusterId);
+            const char *data = alnDbr->getData(alnId, thread_idx);
+            const size_t dataSize = alnDbr->getSeqLens(alnId);
+            elementOffsets[i] = Util::countLines(data, dataSize);
+        }
     }
 
     // make offset table

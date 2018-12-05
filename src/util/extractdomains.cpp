@@ -240,60 +240,64 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
 
     Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
 
-#pragma omp parallel for schedule(dynamic, 100)
-    for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
-        unsigned int thread_idx = 0;
+#pragma omp parallel
+    {
+        int thread_idx = 0;
 #ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+        thread_idx = omp_get_thread_num();
 #endif
+#pragma omp for schedule(dynamic, 100)
+        for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
+            Debug::printProgress(i - dbFrom);
 
-        unsigned int id = blastTabReader.getDbKey(i);
-        size_t entry = msaReader.getId(id);
-        if (entry == UINT_MAX) {
-            Debug(Debug::WARNING) << "Could not find MSA for key " << id << "!\n";
-            continue;
-        }
-
-
-        char* tabData = blastTabReader.getData(i, thread_idx);
-        size_t tabLength = blastTabReader.getSeqLens(i) - 1;
-        const std::vector<Domain> result = getEntries(std::string(tabData, tabLength));
-        if (result.size() == 0) {
-            Debug(Debug::WARNING) << "Could not map any entries for entry " << id << "!\n";
-            continue;
-        }
-
-        char *data = msaReader.getData(entry, thread_idx);
-        size_t entryLength = msaReader.getSeqLens(entry) - 1;
-
-        std::string msa;
-        switch (par.msaType) {
-            case 0: {
-                msa = CompressedA3M::extractA3M(data, entryLength, *sequenceReader, *headerReader, thread_idx);
-                break;
+            unsigned int id = blastTabReader.getDbKey(i);
+            size_t entry = msaReader.getId(id);
+            if (entry == UINT_MAX) {
+                Debug(Debug::WARNING) << "Could not find MSA for key " << id << "!\n";
+                continue;
             }
-            case 1:
-            case 2: {
-                msa = std::string(data, entryLength);
-                break;
+
+
+            char *tabData = blastTabReader.getData(i, thread_idx);
+            size_t tabLength = blastTabReader.getSeqLens(i) - 1;
+            const std::vector<Domain> result = getEntries(std::string(tabData, tabLength));
+            if (result.size() == 0) {
+                Debug(Debug::WARNING) << "Could not map any entries for entry " << id << "!\n";
+                continue;
             }
-            default:
-                Debug(Debug::ERROR) << "Input type not implemented!\n";
-                EXIT(EXIT_FAILURE);
+
+            char *data = msaReader.getData(entry, thread_idx);
+            size_t entryLength = msaReader.getSeqLens(entry) - 1;
+
+            std::string msa;
+            switch (par.msaType) {
+                case 0: {
+                    msa = CompressedA3M::extractA3M(data, entryLength, *sequenceReader, *headerReader, thread_idx);
+                    break;
+                }
+                case 1:
+                case 2: {
+                    msa = std::string(data, entryLength);
+                    break;
+                }
+                default:
+                    Debug(Debug::ERROR) << "Input type not implemented!\n";
+                    EXIT(EXIT_FAILURE);
+            }
+
+            std::ostringstream oss;
+            oss << std::setprecision(std::numeric_limits<float>::digits10);
+
+            std::vector<Domain> mapping = mapMsa(msa, result, par.cov, par.evalThr, subMat);
+
+            for (std::vector<Domain>::const_iterator k = mapping.begin(); k != mapping.end(); ++k) {
+                (*k).writeResult(oss);
+                oss << "\n";
+            }
+
+            std::string annotation = oss.str();
+            writer.writeData(annotation.c_str(), annotation.length(), id, thread_idx);
         }
-
-        std::ostringstream oss;
-        oss << std::setprecision(std::numeric_limits<float>::digits10);
-
-        std::vector<Domain> mapping = mapMsa(msa, result, par.cov, par.evalThr, subMat);
-
-        for (std::vector<Domain>::const_iterator k = mapping.begin(); k != mapping.end(); ++k) {
-            (*k).writeResult(oss);
-            oss << "\n";
-        }
-
-        std::string annotation = oss.str();
-        writer.writeData(annotation.c_str(), annotation.length(), id, thread_idx);
     }
 
     writer.close();
