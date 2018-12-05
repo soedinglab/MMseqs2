@@ -227,6 +227,22 @@ Parameters::Parameters():
     }
     instance = this;
 
+    // onlyverbosity
+    onlyverbosity.push_back(&PARAM_V);
+
+    // verbandcompression
+    verbandcompression.push_back(&PARAM_COMPRESSED);
+    verbandcompression.push_back(&PARAM_V);
+
+    // onlythreads
+    onlythreads.push_back(&PARAM_THREADS);
+    onlythreads.push_back(&PARAM_V);
+
+    // threadsandcompression
+    threadsandcompression.push_back(&PARAM_THREADS);
+    threadsandcompression.push_back(&PARAM_COMPRESSED);
+    threadsandcompression.push_back(&PARAM_V);
+
     // alignment
     align.push_back(&PARAM_SUB_MAT);
     align.push_back(&PARAM_ADD_BACKTRACE);
@@ -302,9 +318,6 @@ Parameters::Parameters():
     clust.push_back(&PARAM_THREADS);
     clust.push_back(&PARAM_COMPRESSED);
     clust.push_back(&PARAM_V);
-
-    // onlyverbosity
-    onlyverbosity.push_back(&PARAM_V);
 
     // rescorediagonal
     rescorediagonal.push_back(&PARAM_SUB_MAT);
@@ -643,11 +656,6 @@ Parameters::Parameters():
     summerizeresultsbyset.push_back(&PARAM_THREADS);
     summerizeresultsbyset.push_back(&PARAM_COMPRESSED);
     summerizeresultsbyset.push_back(&PARAM_V);
-
-    // onlythreads
-    onlythreads.push_back(&PARAM_THREADS);
-    onlythreads.push_back(&PARAM_COMPRESSED);
-    onlythreads.push_back(&PARAM_V);
 
     // offsetalignment
     offsetalignment.push_back(&PARAM_CHAIN_ALIGNMENT);

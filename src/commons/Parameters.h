@@ -748,13 +748,16 @@ public:
     PARAMETER(PARAM_LCA_MODE)
 
     std::vector<MMseqsParameter*> empty;
+    std::vector<MMseqsParameter*> onlyverbosity;
+    std::vector<MMseqsParameter*> verbandcompression;
+    std::vector<MMseqsParameter*> onlythreads;
+    std::vector<MMseqsParameter*> threadsandcompression;
+
     std::vector<MMseqsParameter*> rescorediagonal;
     std::vector<MMseqsParameter*> alignbykmer;
-    std::vector<MMseqsParameter*> onlyverbosity;
     std::vector<MMseqsParameter*> createFasta;
     std::vector<MMseqsParameter*> convertprofiledb;
     std::vector<MMseqsParameter*> sequence2profile;
-
     std::vector<MMseqsParameter*> result2profile;
     std::vector<MMseqsParameter*> result2pp;
     std::vector<MMseqsParameter*> result2msa;
@@ -792,7 +795,6 @@ public:
     std::vector<MMseqsParameter*> swapdb;
     std::vector<MMseqsParameter*> createseqfiledb;
     std::vector<MMseqsParameter*> filterDb;
-    std::vector<MMseqsParameter*> onlythreads;
     std::vector<MMseqsParameter*> offsetalignment;
     std::vector<MMseqsParameter*> subtractdbs;
     std::vector<MMseqsParameter*> diff;
