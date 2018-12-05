@@ -162,6 +162,7 @@ done
 
 mv -f "${TMP_PATH}/aln_merged" "${RESULT}"
 mv -f "${TMP_PATH}/aln_merged.index" "${RESULT}.index"
+mv -f "${TMP_PATH}/aln_merged.dbtype" "${RESULT}.dbtype"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
