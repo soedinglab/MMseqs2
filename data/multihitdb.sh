@@ -19,10 +19,12 @@ fi
 if [ "$("${MMSEQS}" dbtype "${OUTDB}")" = "Nucleotide" ]; then
     mv -f "${OUTDB}" "${OUTDB}_nucl"
     mv -f "${OUTDB}.index" "${OUTDB}_nucl.index"
-    mv -f "${OUTDB}_h" "${OUTDB}_nucl_h"
-    mv -f "${OUTDB}_h.index" "${OUTDB}_nucl_h.index"
     mv -f "${OUTDB}.lookup" "${OUTDB}_nucl.lookup"
     mv -f "${OUTDB}.dbtype" "${OUTDB}_nucl.dbtype"
+
+    mv -f "${OUTDB}_h" "${OUTDB}_nucl_h"
+    mv -f "${OUTDB}_h.index" "${OUTDB}_nucl_h.index"
+    mv -f "${OUTDB}_h.dbtype" "${OUTDB}_nucl_h.dbtype"
 
     if notExists "${OUTDB}_nucl_contig_to_set"; then
         awk '{ print $1"\t"$3; }' "${OUTDB}_nucl.lookup" | sort -k1,1n -k2,2n > "${OUTDB}_nucl_contig_to_set.tsv"

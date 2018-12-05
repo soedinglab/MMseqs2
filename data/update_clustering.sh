@@ -229,6 +229,10 @@ else
         ln -sf "$OLDCLUST.index" "${TMP_PATH}/updatedClust.index" \
             || fail "Mv Oldclust to update died"
     fi
+    if notExists "${TMP_PATH}/updatedClust.dbtype"; then
+        ln -sf "$OLDCLUST.dbtype" "${TMP_PATH}/updatedClust.dbtype" \
+            || fail "Mv Oldclust to update died"
+    fi
 fi
 
 debugWait
@@ -279,6 +283,11 @@ else
         mv "${TMP_PATH}/updatedClust.index" "${NEWCLUST}.index" \
             || fail "Mv died"
     fi
+
+    if notExists "${NEWCLUST}.dbtype"; then
+        mv "${TMP_PATH}/updatedClust.dbtype" "${NEWCLUST}.dbtype" \
+            || fail "Mv died"
+    fi
 fi
 
 debugWait
@@ -296,7 +305,7 @@ if [ -n "$REMOVE_TMP" ]; then
 	      "${TMP_PATH}/mappingSeqs" "${TMP_PATH}/newSeqs" "${TMP_PATH}/removedSeqs"
 
 	rm -f "${TMP_PATH}/OLDDB.repSeq" "${TMP_PATH}/OLDDB.repSeq.index" \
-	      "${TMP_PATH}/updatedClust" "${TMP_PATH}/updatedClust.index"
+	      "${TMP_PATH}/updatedClust" "${TMP_PATH}/updatedClust.index" "${TMP_PATH}/updatedClust.dbtype"
 
 	rmdir "${TMP_PATH}/search" "${TMP_PATH}/cluster"
 

@@ -143,17 +143,25 @@ public:
         return dbtype;
     }
 
-    const char* getDbTypeName() {
+    const char* getDbTypeName() const {
         return getDbTypeName(dbtype);
     }
 
     static const char* getDbTypeName(int dbtype) {
-        switch(dbtype) {
+        switch (dbtype & 0x7FFFFFFF) {
             case Parameters::DBTYPE_AMINO_ACIDS: return "Aminoacid";
             case Parameters::DBTYPE_NUCLEOTIDES: return "Nucleotide";
             case Parameters::DBTYPE_HMM_PROFILE: return "Profile";
             case Parameters::DBTYPE_PROFILE_STATE_SEQ: return "Profile state";
             case Parameters::DBTYPE_PROFILE_STATE_PROFILE: return "Profile profile";
+            case Parameters::DBTYPE_ALIGNMENT_RES: return "Alignment";
+            case Parameters::DBTYPE_CLUSTER_RES: return "Clustering";
+            case Parameters::DBTYPE_PREFILTER_RES: return "Prefilter";
+            case Parameters::DBTYPE_TAXONOMICAL_RESULT: return "Taxonomy";
+            case Parameters::DBTYPE_INDEX_DB: return "Index";
+            case Parameters::DBTYPE_CA3M_DB: return "CA3M";
+            case Parameters::DBTYPE_MSA_DB: return "MSA";
+            case Parameters::DBTYPE_GENERIC_DB: return "Generic";
             default: return "Unknown";
         }
     }
