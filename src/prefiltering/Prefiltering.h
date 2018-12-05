@@ -96,6 +96,7 @@ private:
     const bool includeIdentical;
     int preloadMode;
     const unsigned int threads;
+    const int compressed;
 
     bool runSplit(DBReader<unsigned int> *qdbr, const std::string &resultDB, const std::string &resultDBIndex,
                   size_t split, size_t splitCount, bool sameQTDB);

@@ -23,7 +23,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
         covThr(par.covThr), canCovThr(par.covThr), covMode(par.covMode), seqIdMode(par.seqIdMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
         includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign), scoreBias(par.scoreBias),
-        threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
+        threads(static_cast<unsigned int>(par.threads)), compressed(par.compressed), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), qdbr(NULL), qSeqLookup(NULL),
         tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false) {
 
@@ -49,7 +49,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     }
 
     if (altAlignment > 0) {
-        if(querySeqType==Sequence::NUCLEOTIDES){
+        if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)){
             Debug(Debug::ERROR) << "Alternative alignments are not supported for nucleotides.\n";
             EXIT(EXIT_FAILURE);
         }
@@ -67,7 +67,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     if (indexDB.length() > 0) {
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
 
-        tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
+        tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         tidxdbr->open(DBReader<unsigned int>::NOSORT);
         bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
 
@@ -96,7 +96,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     }
 
     if (templateDBIsIndex == false) {
-        tdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
+        tdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         tdbr->open(DBReader<unsigned int>::NOSORT);
     }
 
@@ -107,7 +107,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         querySeqType = targetSeqType;
     } else {
         // open the sequence, prefiltering and output databases
-        qdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str());
+        qdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         qdbr->open(DBReader<unsigned int>::NOSORT);
 
         //size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(outDB).c_str());
@@ -142,27 +142,27 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::HMM_PROFILE) {
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)) {
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if (querySeqType != Sequence::HMM_PROFILE && targetSeqType == Sequence::PROFILE_STATE_SEQ) {
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) == false && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
         EXIT(EXIT_FAILURE);
-    } else if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::PROFILE_STATE_SEQ) {
-        querySeqType = Sequence::PROFILE_STATE_PROFILE;
+    } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
+        querySeqType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
     }
     Debug(Debug::INFO) << "Query database type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
     Debug(Debug::INFO) << "Target database type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
 
-    prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str());
+    prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    if (querySeqType == Sequence::NUCLEOTIDES) {
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         m = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, scoreBias);
         gapOpen = 5;
         gapExtend = 2;
-    } else if (querySeqType == Sequence::PROFILE_STATE_PROFILE){
+    } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
         SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, scoreBias);
         this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 255);
         gapOpen = par.gapOpen;
@@ -280,7 +280,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     const unsigned int maxAlnNum, const unsigned int maxRejected) {
     size_t alignmentsNum = 0;
     size_t totalPassedNum = 0;
-    DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads);
+    DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     dbw.open();
 
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), this->m, gapOpen, gapExtend);
@@ -317,9 +317,9 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 Debug::printProgress(id);
 
                 // get the prefiltering list
-                char *data = prefdbr->getData(id);
+                char *data = prefdbr->getData(id, thread_idx);
                 unsigned int queryDbKey = prefdbr->getDbKey(id);
-                setQuerySequence(qSeq, id, queryDbKey);
+                setQuerySequence(qSeq, id, queryDbKey, thread_idx);
 
                 matcher.initQuery(&qSeq);
                 // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list
@@ -343,7 +343,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         diagonal = hit.diagonal;
                     }
 
-                    setTargetSequence(dbSeq, dbKey);
+                    setTargetSequence(dbSeq, dbKey, thread_idx);
                     // check if the sequences could pass the coverage threshold
                     if(Util::canBeCovered(canCovThr, covMode, static_cast<float>(qSeq.L), static_cast<float>(dbSeq.L)) == false )
                     {
@@ -375,7 +375,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     data = Util::skipLine(data);
                 }
                 if(altAlignment > 0 && realign == false ){
-                    computeAlternativeAlignment(queryDbKey, dbSeq, swResults, matcher, evalThr, swMode);
+                    computeAlternativeAlignment(queryDbKey, dbSeq, swResults, matcher, evalThr, swMode, thread_idx);
                 }
 
                 // write the results
@@ -383,7 +383,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 if (realign == true) {
                     realigner->initQuery(&qSeq);
                     for (size_t result = 0; result < swResults.size(); result++) {
-                        setTargetSequence(dbSeq, swResults[result].dbKey);
+                        setTargetSequence(dbSeq, swResults[result].dbKey, thread_idx);
                         const bool isIdentity = (queryDbKey == swResults[result].dbKey && (includeIdentity || sameQTDB)) ? true : false;
                         Matcher::result_t res = realigner->getSWResult(&dbSeq, INT_MAX, covMode, covThr, FLT_MAX,
                                                                        Matcher::SCORE_COV_SEQID, seqIdMode, isIdentity);
@@ -403,7 +403,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     }
                     swResults = swRealignResults;
                     if(altAlignment> 0 ){
-                        computeAlternativeAlignment(queryDbKey, dbSeq, swResults, matcher, FLT_MAX, Matcher::SCORE_COV_SEQID);
+                        computeAlternativeAlignment(queryDbKey, dbSeq, swResults, matcher, FLT_MAX, Matcher::SCORE_COV_SEQID, thread_idx);
                     }
                 }
 
@@ -441,13 +441,13 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     Debug(Debug::INFO) << hits_f << " hits per query sequence.\n";
 }
 
-inline void Alignment::setQuerySequence(Sequence &seq, size_t id, unsigned int key) {
+inline void Alignment::setQuerySequence(Sequence &seq, size_t id, unsigned int key, int thread_idx) {
     if (qSeqLookup != NULL) {
         std::pair<const unsigned char*, const unsigned int> sequence = qSeqLookup->getSequence(id);
         seq.mapSequence(id, key, sequence);
     } else {
         // map the query sequence
-        char *querySeqData = qdbr->getDataByDBKey(key);
+        char *querySeqData = qdbr->getDataByDBKey(key, thread_idx);
         if (querySeqData == NULL) {
 #pragma omp critical
             {
@@ -463,13 +463,13 @@ inline void Alignment::setQuerySequence(Sequence &seq, size_t id, unsigned int k
     }
 }
 
-inline void Alignment::setTargetSequence(Sequence &seq, unsigned int key) {
+inline void Alignment::setTargetSequence(Sequence &seq, unsigned int key, int thread_idx) {
     if (tSeqLookup != NULL) {
         size_t id = tdbr->getId(key);
         std::pair<const unsigned char*, const unsigned int> sequence = tSeqLookup->getSequence(id);
         seq.mapSequence(id, key, sequence);
     } else {
-        char *dbSeqData = tdbr->getDataByDBKey(key);
+        char *dbSeqData = tdbr->getDataByDBKey(key, thread_idx);
         if (dbSeqData == NULL) {
 #pragma omp critical
             {
@@ -511,7 +511,7 @@ bool Alignment::checkCriteria(Matcher::result_t &res, bool isIdentity, double ev
 
 void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &dbSeq,
                                             std::vector<Matcher::result_t> &swResults,
-                                            Matcher &matcher, float evalThr, int swMode) {
+                                            Matcher &matcher, float evalThr, int swMode, int thread_idx) {
     int xIndex = m->aa2int[static_cast<int>('X')];
     size_t firstItResSize = swResults.size();
     for(size_t i = 0; i < firstItResSize; i++) {
@@ -520,7 +520,7 @@ void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &d
         if (isIdentity == true) {
             continue;
         }
-        setTargetSequence(dbSeq, swResults[i].dbKey);
+        setTargetSequence(dbSeq, swResults[i].dbKey, thread_idx);
         for (int pos = swResults[i].dbStartPos; pos < swResults[i].dbEndPos; ++pos) {
             dbSeq.int_sequence[pos] = xIndex;
         }

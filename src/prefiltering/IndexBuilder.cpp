@@ -1,6 +1,10 @@
 #include "IndexBuilder.h"
 #include "tantan.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 char* getScoreLookup(BaseMatrix &matrix) {
     char *idScoreLookup = NULL;
     idScoreLookup = new char[matrix.alphabetSize];
@@ -58,7 +62,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                                 DBReader<unsigned int> *dbr, size_t dbFrom, size_t dbTo, int kmerThr) {
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
 
-    const bool isProfile = seq->getSeqType() == Sequence::HMM_PROFILE;
+    const bool isProfile = Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_HMM_PROFILE);
 
     dbTo = std::min(dbTo, dbr->getSize());
     size_t dbSize = dbTo - dbFrom;
@@ -75,6 +79,9 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         *unmaskedLookup = new SequenceLookup(dbSize, info->aaDbSize);
         *maskedLookup = new SequenceLookup(dbSize, info->aaDbSize);
         sequenceLookup = *maskedLookup;
+    } else{
+        Debug(Debug::ERROR) << "This should not happen\n";
+        EXIT(EXIT_FAILURE);
     }
 
     // need to prune low scoring k-mers through masking
@@ -85,7 +92,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 
     // identical scores for memory reduction code
     char *idScoreLookup = NULL;
-    if (seq->getSeqType() != Sequence::PROFILE_STATE_SEQ) {
+    if (Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_PROFILE_STATE_SEQ) == false) {
         idScoreLookup = getScoreLookup(subMat);
     }
 
@@ -93,6 +100,11 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     size_t totalKmerCount = 0;
     #pragma omp parallel
     {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+
         Indexer idxer(static_cast<unsigned int>(indexTable->getAlphabetSize()), seq->getKmerSize());
         Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false, true, seq->getSpacedKmerPattern());
 
@@ -110,7 +122,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
             Debug::printProgress(id - dbFrom);
 
             s.resetCurrPos();
-            char *seqData = dbr->getData(id);
+            char *seqData = dbr->getData(id, thread_idx);
             unsigned int qKey = dbr->getDbKey(id);
             s.mapSequence(id - dbFrom, qKey, seqData);
 
@@ -193,11 +205,14 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     indexTable->init();
 
     delete info;
-    info = NULL;
 
     Debug(Debug::INFO) << "Index table: fill...\n";
     #pragma omp parallel
     {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
         Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false, true, seq->getSpacedKmerPattern());
         Indexer idxer(static_cast<unsigned int>(indexTable->getAlphabetSize()), seq->getKmerSize());
         IndexEntryLocalTmp *buffer = new IndexEntryLocalTmp[seq->getMaxLen()];
@@ -215,7 +230,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 
             unsigned int qKey = dbr->getDbKey(id);
             if (isProfile) {
-                s.mapSequence(id - dbFrom, qKey, dbr->getData(id));
+                s.mapSequence(id - dbFrom, qKey, dbr->getData(id, thread_idx));
                 indexTable->addSimilarSequence(&s, generator, &idxer);
             } else {
                 s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id - dbFrom));

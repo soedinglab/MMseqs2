@@ -36,7 +36,7 @@ int createindex(int argc, const char **argv, const Command& command) {
         return EXIT_FAILURE;
     }
 
-    if (dbType == Sequence::HMM_PROFILE && sensitivity == false) {
+    if (Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_HMM_PROFILE) && sensitivity == false) {
         Debug(Debug::ERROR) << "Please adjust the sensitivity of your target profile index with -s.\n"
                                "Be aware that this searches can take huge amount of memory. \n";
         return EXIT_FAILURE;
@@ -64,7 +64,7 @@ int createindex(int argc, const char **argv, const Command& command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
-    cmd.addVariable("NUCL", dbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
+    cmd.addVariable("NUCL", Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
     cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());

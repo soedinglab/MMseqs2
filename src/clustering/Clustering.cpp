@@ -1,7 +1,6 @@
 #include "Clustering.h"
 #include "ClusteringAlgorithms.h"
 #include "Debug.h"
-#include "Parameters.h"
 #include "Util.h"
 #include "itoa.h"
 #include "Timer.h"
@@ -9,18 +8,19 @@
 Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                        const std::string &alnDB, const std::string &alnDBIndex,
                        const std::string &outDB, const std::string &outDBIndex,
-                       unsigned int maxIteration, int similarityScoreType, int threads) : maxIteration(maxIteration),
+                       unsigned int maxIteration, int similarityScoreType, int threads, int compressed) : maxIteration(maxIteration),
                                                                similarityScoreType(similarityScoreType),
                                                                threads(threads),
+                                                               compressed(compressed),
                                                                outDB(outDB),
                                                                outDBIndex(outDBIndex) {
     Debug(Debug::INFO) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
-    seqDbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str(), DBReader<unsigned int>::USE_INDEX);
+    seqDbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX);
     seqDbr->open(DBReader<unsigned int>::SORT_BY_LENGTH);
 
     Debug(Debug::INFO) << "Opening alignment database...\n";
-    alnDbr = new DBReader<unsigned int>(alnDB.c_str(), alnDBIndex.c_str());
+    alnDbr = new DBReader<unsigned int>(alnDB.c_str(), alnDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     alnDbr->open(DBReader<unsigned int>::NOSORT);
 
     Debug(Debug::INFO) << "done.\n";
@@ -35,7 +35,7 @@ Clustering::~Clustering() {
 void Clustering::run(int mode) {
     Timer timer;
 
-    DBWriter *dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1);
+    DBWriter *dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1, compressed, Parameters::DBTYPE_CLUSTER_RES);
     dbw->open();
 
     std::unordered_map<unsigned int, std::vector<unsigned int>> ret;

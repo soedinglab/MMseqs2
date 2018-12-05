@@ -21,16 +21,16 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str());
+    DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     headerReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_NUCLEOTIDES);
     sequenceWriter.open();
 
-    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads);
+    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
     if ((par.orfStartMode == 1) && (par.contigStartMode < 2)) {
@@ -63,7 +63,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
             Debug::printProgress(i);
 
             unsigned int key = reader.getDbKey(i);
-            const char* data = reader.getData(i);
+            const char* data = reader.getData(i, thread_idx);
             size_t dataLength = reader.getSeqLens(i);
             size_t sequenceLength = dataLength - 2;
             if(!orf.setSequence(data, dataLength - 2)) {
@@ -71,7 +71,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                 continue;
             }
 
-            const char* header = headerReader.getData(i);
+            const char* header = headerReader.getData(i, thread_idx);
             std::string headerAccession = Util::parseFastaHeader(header);
             orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, par.orfStartMode);
             for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
@@ -108,7 +108,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         }
     }
     headerWriter.close();
-    sequenceWriter.close(Sequence::NUCLEOTIDES);
+    sequenceWriter.close();
     headerReader.close();
     reader.close();
 
@@ -120,7 +120,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
 #pragma omp task
             {
                 DBReader<unsigned int> orfHeaderReader(par.hdr2.c_str(), par.hdr2Index.c_str(),
-                                                       DBReader<unsigned int>::USE_INDEX);
+                                                       par.threads, DBReader<unsigned int>::USE_INDEX);
                 orfHeaderReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
                 FILE *hIndex = fopen((par.hdr2Index + "_tmp").c_str(), "w");
                 if (hIndex == NULL) {
@@ -145,7 +145,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
 #pragma omp task
             {
                 DBReader<unsigned int> orfSequenceReader(par.db2.c_str(), par.db2Index.c_str(),
-                                                         DBReader<unsigned int>::USE_INDEX);
+                                                         par.threads, DBReader<unsigned int>::USE_INDEX);
                 orfSequenceReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
 
                 FILE *sIndex = fopen((par.db2Index + "_tmp").c_str(), "w");

@@ -19,6 +19,7 @@ set(TESTS
         TestProfileAlignment.cpp
         TestPSSM.cpp
         TestPSSMPrune.cpp
+        TestDBReaderZstd.cpp
         TestReduceMatrix.cpp
         TestScoreMatrixSerialization.cpp
         TestSequenceIndex.cpp

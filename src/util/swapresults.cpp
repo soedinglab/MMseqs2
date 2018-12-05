@@ -43,16 +43,20 @@ int doswap(Parameters& par, bool isGeneralMode) {
     char *targetElementExists = NULL;
     if (isGeneralMode) {
         Debug(Debug::INFO) << "Result database: " << parResultDbStr << "\n";
-        DBReader<unsigned int> resultReader(parResultDb, parResultDbIndex);
+        DBReader<unsigned int> resultReader(parResultDb, parResultDbIndex, par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
         //search for the maxTargetId (value of first column) in parallel
 #pragma omp parallel
         {
+            int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+#endif
             char key[255];
 #pragma omp for schedule(dynamic, 100) reduction(max:maxTargetId)
             for (size_t i = 0; i < resultReader.getSize(); ++i) {
                 Debug::printProgress(i);
-                char *data = resultReader.getData(i);
+                char *data = resultReader.getData(i, thread_idx);
                 while (*data != '\0') {
                     Util::parseKey(data, key);
                     unsigned int dbKey = std::strtoul(key, NULL, 10);
@@ -83,33 +87,40 @@ int doswap(Parameters& par, bool isGeneralMode) {
     EvalueComputation evaluer(aaResSize, &subMat, par.gapOpen, par.gapExtend);
 
     Debug(Debug::INFO) << "Result database: " << parResultDbStr << "\n";
-    DBReader<unsigned int> resultDbr(parResultDb, parResultDbIndex);
+    DBReader<unsigned int> resultDbr(parResultDb, parResultDbIndex, par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     const size_t resultSize = resultDbr.getSize();
     Debug(Debug::INFO) << "Computing offsets.\n";
     size_t *targetElementSize = new size_t[maxTargetId + 2]; // extra element for offset + 1 index id
     memset(targetElementSize, 0, sizeof(size_t) * (maxTargetId + 2));
-#pragma omp parallel for schedule(dynamic, 100)
-    for (size_t i = 0; i < resultSize; ++i) {
-        Debug::printProgress(i);
-        const unsigned int resultId = resultDbr.getDbKey(i);
-        char queryKeyStr[1024];
-        char *tmpBuff = Itoa::u32toa_sse2((uint32_t) resultId, queryKeyStr);
-        *(tmpBuff) = '\0';
-        size_t queryKeyLen = strlen(queryKeyStr);
-        char *data = resultDbr.getData(i);
-        char dbKeyBuffer[255 + 1];
-        while (*data != '\0') {
-            Util::parseKey(data, dbKeyBuffer);
-            size_t targetKeyLen = strlen(dbKeyBuffer);
-            const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
-            char *nextLine = Util::skipLine(data);
-            size_t lineLen = nextLine - data;
-            lineLen -= targetKeyLen;
-            lineLen += queryKeyLen;
-            __sync_fetch_and_add(&(targetElementSize[dbKey]), lineLen);
-            data = nextLine;
+#pragma omp parallel
+    {
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
+#pragma omp  for schedule(dynamic, 100)
+        for (size_t i = 0; i < resultSize; ++i) {
+            Debug::printProgress(i);
+            const unsigned int resultId = resultDbr.getDbKey(i);
+            char queryKeyStr[1024];
+            char *tmpBuff = Itoa::u32toa_sse2((uint32_t) resultId, queryKeyStr);
+            *(tmpBuff) = '\0';
+            size_t queryKeyLen = strlen(queryKeyStr);
+            char *data = resultDbr.getData(i, thread_idx);
+            char dbKeyBuffer[255 + 1];
+            while (*data != '\0') {
+                Util::parseKey(data, dbKeyBuffer);
+                size_t targetKeyLen = strlen(dbKeyBuffer);
+                const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                char *nextLine = Util::skipLine(data);
+                size_t lineLen = nextLine - data;
+                lineLen -= targetKeyLen;
+                lineLen += queryKeyLen;
+                __sync_fetch_and_add(&(targetElementSize[dbKey]), lineLen);
+                data = nextLine;
+            }
         }
     }
 
@@ -143,32 +154,39 @@ int doswap(Parameters& par, bool isGeneralMode) {
         char *tmpData = new char[bytesToWrite];
         Util::checkAllocation(tmpData, "Could not allocate tmpData memory in doswap");
         Debug(Debug::INFO) << "\nReading results.\n";
-#pragma omp parallel for schedule(dynamic, 10)
-        for (size_t i = 0; i < resultSize; ++i) {
-            Debug::printProgress(i);
-            char *data = resultDbr.getData(i);
-            unsigned int queryKey = resultDbr.getDbKey(i);
-            char queryKeyStr[1024];
-            char *tmpBuff = Itoa::u32toa_sse2((uint32_t) queryKey, queryKeyStr);
-            *(tmpBuff) = '\0';
-            size_t queryKeyLen = strlen(queryKeyStr);
-            char dbKeyBuffer[255 + 1];
-            while (*data != '\0') {
-                Util::parseKey(data, dbKeyBuffer);
-                size_t targetKeyLen = strlen(dbKeyBuffer);
-                char *nextLine = Util::skipLine(data);
-                size_t oldLineLen = nextLine - data;
-                size_t newLineLen = oldLineLen;
-                newLineLen -= targetKeyLen;
-                newLineLen += queryKeyLen;
-                const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
-                // update offset but do not copy memory
-                size_t offset = __sync_fetch_and_add(&(targetElementSize[dbKey]), newLineLen) - prevBytesToWrite;
-                if(dbKey >= prevDbKeyToWrite && dbKey <=  dbKeyToWrite){
-                    memcpy(&tmpData[offset], queryKeyStr, queryKeyLen);
-                    memcpy(&tmpData[offset + queryKeyLen], data + targetKeyLen, oldLineLen - targetKeyLen);
+#pragma omp parallel
+        {
+            int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+#endif
+#pragma omp for schedule(dynamic, 10)
+            for (size_t i = 0; i < resultSize; ++i) {
+                Debug::printProgress(i);
+                char *data = resultDbr.getData(i, thread_idx);
+                unsigned int queryKey = resultDbr.getDbKey(i);
+                char queryKeyStr[1024];
+                char *tmpBuff = Itoa::u32toa_sse2((uint32_t) queryKey, queryKeyStr);
+                *(tmpBuff) = '\0';
+                size_t queryKeyLen = strlen(queryKeyStr);
+                char dbKeyBuffer[255 + 1];
+                while (*data != '\0') {
+                    Util::parseKey(data, dbKeyBuffer);
+                    size_t targetKeyLen = strlen(dbKeyBuffer);
+                    char *nextLine = Util::skipLine(data);
+                    size_t oldLineLen = nextLine - data;
+                    size_t newLineLen = oldLineLen;
+                    newLineLen -= targetKeyLen;
+                    newLineLen += queryKeyLen;
+                    const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                    // update offset but do not copy memory
+                    size_t offset = __sync_fetch_and_add(&(targetElementSize[dbKey]), newLineLen) - prevBytesToWrite;
+                    if(dbKey >= prevDbKeyToWrite && dbKey <=  dbKeyToWrite){
+                        memcpy(&tmpData[offset], queryKeyStr, queryKeyLen);
+                        memcpy(&tmpData[offset + queryKeyLen], data + targetKeyLen, oldLineLen - targetKeyLen);
+                    }
+                    data = nextLine;
                 }
-                data = nextLine;
             }
         }
         //revert offsets
@@ -185,7 +203,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
             if (resultDbr.getSeqLens(i) <= 1){
                 continue;
             }
-            const size_t columns = Util::getWordsOfLine(resultDbr.getData(i), entry, 255);
+            const size_t columns = Util::getWordsOfLine(resultDbr.getData(i, 0), entry, 255);
             isAlignmentResult = columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT;
             hasBacktrace = columns >= Matcher::ALN_RES_WITH_BT_COL_CNT;
             break;
@@ -195,7 +213,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
         std::pair<std::string, std::string> splitNamePair = std::make_pair(splitDbw, splitDbw + ".index");
         splitFileNames.push_back(splitNamePair);
 
-        DBWriter resultWriter(splitNamePair.first.c_str(), splitNamePair.second.c_str(), par.threads);
+        DBWriter resultWriter(splitNamePair.first.c_str(), splitNamePair.second.c_str(), par.threads, par.compressed, resultDbr.getDbtype());
         resultWriter.open();
 #pragma omp parallel
         {
@@ -296,6 +314,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
             }
         };
         Debug(Debug::INFO) << "\n";
+
         resultWriter.close();
 
         prevDbKeyToWrite = dbKeyToWrite + 1;

@@ -5,13 +5,18 @@
  * modified by Milot Mirdita <milot@mirdita.de>
  */
 
+#include <cstdio>
+
+#include <map>
+#include <fstream>
+#include <unistd.h>
+#include <math.h>
+#include <itoa.h>
 #include <random>
 
-#include "itoa.h"
 #include "FileUtil.h"
 #include "DBWriter.h"
 #include "Debug.h"
-#include "Parameters.h"
 #include "Util.h"
 #include "KSeqWrapper.h"
 
@@ -37,11 +42,7 @@ int createdb(int argn, const char **argv, const Command& command) {
 
     std::string lookupFileName(data_filename);
     lookupFileName.append(".lookup");
-    FILE* lookupFile = fopen(lookupFileName.c_str(), "w");
-    if(lookupFile == NULL) {
-        Debug(Debug::ERROR) << "Could not open " << lookupFileName << " for writing.";
-        EXIT(EXIT_FAILURE);
-    }
+    std::string lookupFileNameIndex = lookupFileName+".index";
 
     for(size_t i = 0; i < filenames.size(); i++){
         if(FileUtil::fileExists(filenames[i].c_str())==false){
@@ -54,10 +55,55 @@ int createdb(int argn, const char **argv, const Command& command) {
         }
     }
 
-    DBWriter out_writer(data_filename.c_str(), index_filename.c_str());
-    DBWriter out_hdr_writer(data_filename_hdr.c_str(), index_filename_hdr.c_str());
+    KSeqWrapper *kseq = KSeqFactory(filenames[0].c_str());
+
+    // check what kind of datbase it is
+    bool isNuclDb = (par.dbType == 2) ? true : false;
+    if(par.dbType == 0) {
+        size_t isNuclCnt = 0;
+        if (kseq->ReadEntry()) {
+            const KSeqWrapper::KSeqEntry &e = kseq->entry;
+
+            size_t cnt = 0;
+            for (size_t i = 0; i < e.sequence.l; i++) {
+                switch (toupper(e.sequence.s[i])) {
+                    case 'T':
+                    case 'A':
+                    case 'G':
+                    case 'C':
+                    case 'N':
+                        cnt++;
+                        break;
+                }
+            }
+            float nuclDNAFraction = static_cast<float>(cnt) / static_cast<float>(e.sequence.l);
+            if (nuclDNAFraction > 0.9) {
+                isNuclCnt += true;
+            }
+        }
+        if (isNuclCnt) {
+            if(isNuclDb==false){
+                Debug(Debug::WARNING) << "Assume it is a DNA database.\n";
+                Debug(Debug::WARNING) << "Set parameter --dont-split-seq-by-len\n";
+                par.splitSeqByLen = false;
+            }
+            isNuclDb=true;
+        }
+        delete kseq;
+    }
+
+    int dbType = Parameters::DBTYPE_AMINO_ACIDS;
+    if (par.dbType == 2 ||  (par.dbType == 0 && isNuclDb == true) ) {
+        dbType = Parameters::DBTYPE_NUCLEOTIDES;
+    }
+    int SPLITS_SHUFFEL = (par.shuffleDatabase) ? 32 : 1;
+    DBWriter out_writer(data_filename.c_str(), index_filename.c_str(), SPLITS_SHUFFEL, par.compressed, dbType);
+    DBWriter out_hdr_writer(data_filename_hdr.c_str(), index_filename_hdr.c_str(), SPLITS_SHUFFEL, par.compressed, Parameters::DBTYPE_GENERIC_DB);
+    DBWriter lookupFile(lookupFileName.c_str(), lookupFileNameIndex.c_str(), SPLITS_SHUFFEL, Parameters::WRITER_ASCII_MODE, Parameters::DBTYPE_GENERIC_DB);
+
     out_writer.open();
     out_hdr_writer.open();
+    lookupFile.open();
 
     unsigned int entries_num = 0;
     size_t count = 0;
@@ -65,15 +111,12 @@ int createdb(int argn, const char **argv, const Command& command) {
 
     const size_t testForNucSequence = 100;
     size_t isNuclCnt = 0;
-    bool assmeNuclDb = (par.dbType == 2) ? true : false;
-
-    const char tab = '\t';
-    char lookupBuffer[32768];
-
+    std::string dataStr;
+    dataStr.reserve(1000000);
     // keep number of entries in each file
     unsigned int numEntriesInCurrFile = 0;
     unsigned int * fileToNumEntries =  new unsigned int[filenames.size()];
-    for (size_t i = 0; i < filenames.size(); i++) {
+    for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
         numEntriesInCurrFile = 0;
         std::string splitHeader;
         splitHeader.reserve(1024);
@@ -81,7 +124,8 @@ int createdb(int argn, const char **argv, const Command& command) {
         header.reserve(1024);
         std::string splitId;
         splitId.reserve(1024);
-        KSeqWrapper *kseq = KSeqFactory(filenames[i].c_str());
+        char lookupBuffer[32768];
+        KSeqWrapper *kseq = KSeqFactory(filenames[fileIdx].c_str());
         while (kseq->ReadEntry()) {
             Debug::printProgress(count);
             const KSeqWrapper::KSeqEntry &e = kseq->entry;
@@ -98,7 +142,7 @@ int createdb(int argn, const char **argv, const Command& command) {
             // header
             header.append(e.name.s, e.name.l);
             if (e.comment.l > 0) {
-                header.append(1, ' ');
+                header.append(" ", 1);
                 header.append(e.comment.s,e.comment.l);
             }
 
@@ -109,6 +153,8 @@ int createdb(int argn, const char **argv, const Command& command) {
 
             }
             for (size_t split = 0; split < splitCnt; split++) {
+
+
                 unsigned int id = par.identifierOffset + entries_num;
                 if(par.dbType == 0){
                     // check for the first 10 sequences if they are nucleotide sequences
@@ -134,14 +180,14 @@ int createdb(int argn, const char **argv, const Command& command) {
                         sampleCount++;
                     }
                     if (isNuclCnt == sampleCount || isNuclCnt == testForNucSequence) {
-                        if(assmeNuclDb==false){
+                        if(isNuclDb==false){
                             Debug(Debug::WARNING) << "Assume it is a DNA database.\n";
                             Debug(Debug::WARNING) << "Set parameter --dont-split-seq-by-len\n";
                             par.splitSeqByLen = false;
                             splitCnt = 1;
                         }
-                        assmeNuclDb=true;
-                    }else if(assmeNuclDb == true && isNuclCnt != sampleCount){
+                        isNuclDb=true;
+                    }else if(isNuclDb == true && isNuclCnt != sampleCount){
                         Debug(Debug::WARNING) << "Database does not look like a DNA database anymore. Sorry our prediction went wrong.\n";
                         Debug(Debug::WARNING) << "Please recompute with --dbtype 1 flag.\n";
                         EXIT(EXIT_FAILURE);
@@ -169,39 +215,42 @@ int createdb(int argn, const char **argv, const Command& command) {
                 }
 
                 // space is needed for later parsing
-                splitHeader.append(1, ' ');
-                splitHeader.append(1, '\n');
+                splitHeader.append(" ", 1);
+                splitHeader.append("\n");
 
                 // Finally write down the entry
                 out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id);
-                splitHeader.clear();
-                splitId.clear();
+
+                size_t fileNo = count%SPLITS_SHUFFEL;
+                lookupFile.writeStart(fileNo);
+
+                char newline='\n';
+                char tab='\t';
+                char * tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
+                *(tmpBuff-1) = '\t';
+                lookupFile.writeAdd(lookupBuffer, tmpBuff-lookupBuffer, fileNo);
+                lookupFile.writeAdd(splitId.c_str(), splitId.length(), fileNo);
+                lookupFile.writeAdd(&tab, 1, fileNo);
+                tmpBuff = Itoa::u32toa_sse2(fileIdx, lookupBuffer);
+                *(tmpBuff-1) = '\n';
+                lookupFile.writeAdd(lookupBuffer, tmpBuff-lookupBuffer, fileNo);
+                lookupFile.writeEnd(id, fileNo, false);
+
 
                 if (par.splitSeqByLen) {
                     size_t len = std::min(par.maxSeqLen, e.sequence.l - split * par.maxSeqLen);
-                    out_writer.writeStart(0);
-                    out_writer.writeAdd(e.sequence.s + split * par.maxSeqLen, len, 0);
-                    char newLine = '\n';
-                    out_writer.writeAdd(&newLine, 1, 0);
-                    out_writer.writeEnd(id, 0, true);
+                    out_writer.writeStart(fileNo);
+                    out_writer.writeAdd(e.sequence.s + split * par.maxSeqLen, len, fileNo);
+                    out_writer.writeAdd(&newline, 1, fileNo);
+                    out_writer.writeEnd(id, fileNo, true);
                 } else {
-                    out_writer.writeStart(0);
-                    out_writer.writeAdd(e.sequence.s, e.sequence.l, 0);
-                    char newLine = '\n';
-                    out_writer.writeAdd(&newLine, 1, 0);
-                    out_writer.writeEnd(id, 0, true);
+                    out_writer.writeStart(fileNo);
+                    out_writer.writeAdd(e.sequence.s, e.sequence.l, fileNo);
+                    out_writer.writeAdd(&newline, 1, fileNo);
+                    out_writer.writeEnd(id, fileNo, true);
                 }
-
-                if (par.shuffleDatabase == false) {
-                    char *tmpBuff = Itoa::i32toa_sse2(id, lookupBuffer);
-                    *(tmpBuff-1) = '\t';
-                    fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
-                    fwrite(headerId.c_str(), sizeof(char), headerId.length(), lookupFile);
-                    fwrite(&tab, sizeof(char), 1, lookupFile);
-                    tmpBuff = Itoa::i32toa_sse2(i, lookupBuffer);
-                    *(tmpBuff-1) = '\n';
-                    fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
-                }
+                splitHeader.clear();
+                splitId.clear();
 
                 entries_num++;
                 numEntriesInCurrFile++;
@@ -209,85 +258,14 @@ int createdb(int argn, const char **argv, const Command& command) {
             }
             header.clear();
         }
-        fileToNumEntries[i] = numEntriesInCurrFile;
+        fileToNumEntries[fileIdx] = numEntriesInCurrFile;
         delete kseq;
     }
 
-    int dbType = Sequence::AMINO_ACIDS;
-    if (par.dbType == 2 || (par.dbType == 0 && (isNuclCnt == sampleCount || isNuclCnt == testForNucSequence))) {
-        dbType = Sequence::NUCLEOTIDES;
-    }
-    out_writer.close(dbType);
     out_hdr_writer.close();
-
-    // shuffle data
-    if (par.shuffleDatabase == true) {
-        DBReader<unsigned int> readerSequence(out_writer.getDataFileName(), out_writer.getIndexFileName());
-        readerSequence.open( DBReader<unsigned int>::NOSORT);
-        readerSequence.readMmapedDataInMemory();
-        DBReader<unsigned int>::Index * indexSequence  = readerSequence.getIndex();
-        unsigned int * lengthSequence  = readerSequence.getSeqLens();
-
-        DBReader<unsigned int> readerHeader(out_hdr_writer.getDataFileName(), out_hdr_writer.getIndexFileName());
-        readerHeader.open( DBReader<unsigned int>::NOSORT);
-        DBReader<unsigned int>::Index * indexHeader  = readerHeader.getIndex();
-        unsigned int * lengthHeader  = readerHeader.getSeqLens();
-
-        // Each file is identified by its first unshuffled entry
-        // Intialize keyToFileAfterShuf to the sequential of the files
-        unsigned int * keyToFileAfterShuf = new unsigned int[readerSequence.getSize()];
-        unsigned int firstEntryOfFile = 0;
-        for (size_t i = 0; i < filenames.size(); i++) {
-            unsigned int numEntriesInCurrFile = fileToNumEntries[i];
-            for (unsigned int j = firstEntryOfFile; j < (firstEntryOfFile + numEntriesInCurrFile); ++j ) {
-                keyToFileAfterShuf[j] = i;
-            }
-            firstEntryOfFile += numEntriesInCurrFile;
-        }
-        delete [] fileToNumEntries;
-
-        std::default_random_engine generator(0);
-        std::uniform_int_distribution<unsigned int> distribution(0,readerSequence.getSize()-1);
-        for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
-            unsigned int n_new = distribution(generator);
-            std::swap(indexSequence[n_new], indexSequence[n]);
-            std::swap(lengthSequence[n_new], lengthSequence[n]);
-            std::swap(indexHeader[n_new], indexHeader[n]);
-            std::swap(lengthHeader[n_new], lengthHeader[n]);
-            std::swap(keyToFileAfterShuf[n_new], keyToFileAfterShuf[n]);
-        }
-        DBWriter out_writer_shuffled(data_filename.c_str(), index_filename.c_str());
-        out_writer_shuffled.open();
-        for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
-            unsigned int id = par.identifierOffset + n;
-            const char * data = readerSequence.getData() + indexSequence[n].offset;
-            out_writer_shuffled.writeData(data, lengthSequence[n]-1, id);
-        }
-        readerSequence.close();
-        out_writer_shuffled.close(dbType);
-
-        DBWriter out_hdr_writer_shuffled(data_filename_hdr.c_str(), index_filename_hdr.c_str());
-        out_hdr_writer_shuffled.open();
-        readerHeader.readMmapedDataInMemory();
-        for (unsigned int n = 0; n < readerHeader.getSize(); n++) {
-            unsigned int id = par.identifierOffset + n;
-            const char *data = readerHeader.getData() + indexHeader[n].offset;
-            std::string headerId = Util::parseFastaHeader(data);
-            char *tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
-            *(tmpBuff-1) = '\t';
-            fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
-            fwrite(headerId.c_str(), sizeof(char), headerId.length(), lookupFile);
-            fwrite(&tab, sizeof(char), 1, lookupFile);
-            tmpBuff = Itoa::u32toa_sse2(keyToFileAfterShuf[n], lookupBuffer);
-            *(tmpBuff-1) = '\n';
-            fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
-            out_hdr_writer_shuffled.writeData(data, lengthHeader[n]-1, id);
-        }
-        out_hdr_writer_shuffled.close();
-        readerHeader.close();
-        delete[] keyToFileAfterShuf;
-    }
-    fclose(lookupFile);
+    out_writer.close();
+    lookupFile.close();
+    FileUtil::deleteFile(lookupFileNameIndex);
 
     return EXIT_SUCCESS;
 }

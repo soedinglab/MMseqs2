@@ -173,9 +173,9 @@ void rescoreResultByBacktrace(Matcher::result_t &result, Sequence &qSeq, Sequenc
     for (size_t i = 0; i < result.backtrace.size(); ++i) {
         char state = result.backtrace[i];
         if (state == 'M') {
-            if (tSeq.getSeqType() == Sequence::HMM_PROFILE) {
+            if (Parameters::isEqualDbtype(tSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE)) {
                 score += tSeq.profile_for_alignment[qSeq.int_sequence[qPos] * tSeq.L + tPos];
-            } else if (qSeq.getSeqType() == Sequence::HMM_PROFILE) {
+            } else if (Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE)) {
                 score += qSeq.profile_for_alignment[tSeq.int_sequence[tPos] * qSeq.L + qPos];
             } else {
                 score += subMat.subMatrix[qSeq.int_sequence[qPos]][tSeq.int_sequence[tPos]] + compositionBias[qPos];
@@ -228,7 +228,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, 5);
 
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     queryReader.open(DBReader<unsigned int>::NOSORT);
     const int queryDbType = queryReader.getDbtype();
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
@@ -236,14 +236,14 @@ int expandaln(int argc, const char **argv, const Command& command) {
     }
 
     Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-    DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str());
+    DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     targetReader.open(DBReader<unsigned int>::NOSORT);
     const int targetDbType = targetReader.getDbtype();
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         targetReader.readMmapedDataInMemory();
     }
 
-    if (queryDbType == Sequence::HMM_PROFILE && targetDbType == Sequence::HMM_PROFILE) {
+    if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_HMM_PROFILE)) {
         Debug(Debug::ERROR) << "Profile-profile is currently not supported.\n";
         return EXIT_FAILURE;
     }
@@ -252,26 +252,26 @@ int expandaln(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> *ca3mSequenceReader = NULL;
     if (FileUtil::fileExists((par.db3 + "_ca3m.ffdata").c_str())) {
         Debug(Debug::INFO) << "Result database: " << par.db3 << "_ca3m\n";
-        resultReader = new DBReader<unsigned int>((par.db3 + "_ca3m.ffdata").c_str(), (par.db3 + "_ca3m.ffindex").c_str());
+        resultReader = new DBReader<unsigned int>((par.db3 + "_ca3m.ffdata").c_str(), (par.db3 + "_ca3m.ffindex").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-        ca3mSequenceReader = new DBReader<unsigned int>((par.db3 + "_sequence.ffdata").c_str(), (par.db3 + "_sequence.ffindex").c_str());
+        ca3mSequenceReader = new DBReader<unsigned int>((par.db3 + "_sequence.ffdata").c_str(), (par.db3 + "_sequence.ffindex").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         ca3mSequenceReader->open(DBReader<unsigned int>::SORT_BY_LINE);
     } else {
         Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
-        resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+        resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     }
 
     Debug(Debug::INFO) << "Expansion result database: " << par.db4 << "\n";
-    DBReader<unsigned int> expansionReader(par.db4.c_str(), par.db4Index.c_str());
+    DBReader<unsigned int> expansionReader(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     expansionReader.open(DBReader<unsigned int>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         expansionReader.readMmapedDataInMemory();
     }
 
     Debug(Debug::INFO) << "Output database: " << par.db5 << "\n";
-    DBWriter writer(par.db5.c_str(), par.db5Index.c_str(), par.threads);
+    DBWriter writer(par.db5.c_str(), par.db5Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
 
     BacktraceTranslator translator;
@@ -304,13 +304,13 @@ int expandaln(int argc, const char **argv, const Command& command) {
             unsigned int queryKey = resultReader->getDbKey(i);
 
             size_t querySeqId = queryReader.getId(queryKey);
-            qSeq.mapSequence(querySeqId, queryKey, queryReader.getData(querySeqId));
+            qSeq.mapSequence(querySeqId, queryKey, queryReader.getData(querySeqId, thread_idx));
 
-            if(par.compBiasCorrection == true && queryDbType == Sequence::AMINO_ACIDS){
+            if(par.compBiasCorrection == true && Parameters::isEqualDbtype(queryDbType,Parameters::DBTYPE_AMINO_ACIDS)){
                 SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, qSeq.int_sequence, qSeq.L, compositionBias);
             }
 
-            char *data = resultReader->getData(i);
+            char *data = resultReader->getData(i, thread_idx);
             while (*data != '\0') {
                 Matcher::result_t resultAB = Matcher::parseAlignmentRecord(data, false);
 
@@ -323,14 +323,14 @@ int expandaln(int argc, const char **argv, const Command& command) {
                 size_t targetId = expansionReader.getId(targetKey);
 
                 size_t targetSeqId = targetReader.getId(targetKey);
-                tSeq.mapSequence(targetSeqId, targetKey, targetReader.getData(targetSeqId));
+                tSeq.mapSequence(targetSeqId, targetKey, targetReader.getData(targetSeqId, thread_idx));
 
                 if (ca3mSequenceReader != NULL) {
                     unsigned int key;
-                    CompressedA3M::extractMatcherResults(key, expanded, expansionReader.getData(targetId),
+                    CompressedA3M::extractMatcherResults(key, expanded, expansionReader.getData(targetId, thread_idx),
                                                          expansionReader.getSeqLens(targetId), *ca3mSequenceReader, false);
                 } else {
-                    Matcher::readAlignmentResults(expanded, expansionReader.getData(targetId), false);
+                    Matcher::readAlignmentResults(expanded, expansionReader.getData(targetId, thread_idx), false);
                 }
                 for (size_t k = 0; k < expanded.size(); ++k) {
                     Matcher::result_t &resultBC = expanded[k];

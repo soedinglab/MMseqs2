@@ -7,11 +7,11 @@
 #endif
 
 Aggregation::Aggregation(const std::string &targetDbName, const std::string &resultDbName,
-                         const std::string &outputDbName, unsigned int threads)
-        : resultDbName(resultDbName), outputDbName(outputDbName), threads(threads) {
+                         const std::string &outputDbName, unsigned int threads, unsigned int compressed)
+        : resultDbName(resultDbName), outputDbName(outputDbName), threads(threads), compressed(compressed) {
     std::string sizeDbName = targetDbName + "_member_to_set";
     std::string sizeDbIndex = targetDbName + "_member_to_set.index";
-    targetSetReader = new DBReader<unsigned int>(sizeDbName.c_str(), sizeDbIndex.c_str());
+    targetSetReader = new DBReader<unsigned int>(sizeDbName.c_str(), sizeDbIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     targetSetReader->open(DBReader<unsigned int>::NOSORT);
 }
 
@@ -21,7 +21,7 @@ Aggregation::~Aggregation() {
 }
 
 // build a map with the value in [target column] field as a key and the rest of the line, cut in fields, as values
-void Aggregation::buildMap(char *data, std::map<unsigned int, std::vector<std::vector<std::string>>> &dataToAggregate) {
+void Aggregation::buildMap(char *data, int thread_idx, std::map<unsigned int, std::vector<std::vector<std::string>>> &dataToAggregate) {
     while (*data != '\0') {
         char *current = data;
         data = Util::skipLine(data);
@@ -38,7 +38,7 @@ void Aggregation::buildMap(char *data, std::map<unsigned int, std::vector<std::v
             Debug(Debug::ERROR) << "Invalid target database key " << columns[0] << ".\n";
             EXIT(EXIT_FAILURE);
         }
-        char *data = targetSetReader->getData(setId);
+        char *data = targetSetReader->getData(setId, thread_idx);
         unsigned int setKey = Util::fast_atoi<unsigned int>(data);
         dataToAggregate[setKey].push_back(columns);
     }
@@ -46,11 +46,11 @@ void Aggregation::buildMap(char *data, std::map<unsigned int, std::vector<std::v
 
 int Aggregation::run() {
     std::string inputDBIndex = resultDbName + ".index";
-    DBReader<unsigned int> reader(resultDbName.c_str(), inputDBIndex.c_str());
+    DBReader<unsigned int> reader(resultDbName.c_str(), inputDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     std::string outputDBIndex = outputDbName + ".index";
-    DBWriter writer(outputDbName.c_str(), outputDBIndex.c_str(), threads);
+    DBWriter writer(outputDbName.c_str(), outputDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_GENERIC_DB);
     writer.open();
 
 #pragma omp parallel
@@ -69,7 +69,7 @@ int Aggregation::run() {
             dataToMerge.clear();
 
             unsigned int key = reader.getDbKey(i);
-            buildMap(reader.getData(i), dataToMerge);
+            buildMap(reader.getData(i, thread_idx), thread_idx, dataToMerge);
             prepareInput(key, thread_idx);
             
             for (std::map<unsigned int, std::vector<std::vector<std::string>>>::const_iterator it = dataToMerge.begin();
@@ -83,6 +83,7 @@ int Aggregation::run() {
             buffer.clear();
         }
     };
+    //TODO what dbtype?
     writer.close();
     reader.close();
 

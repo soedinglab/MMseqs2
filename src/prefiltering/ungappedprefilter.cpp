@@ -28,21 +28,21 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         sameDB = true;
         tdbr = &qdbr;
     } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         tdbr->open(DBReader<unsigned int>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             tdbr->readMmapedDataInMemory();
         }
     }
     const int targetSeqType = tdbr->getDbtype();
-    if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::PROFILE_STATE_SEQ) {
-        querySeqType = Sequence::PROFILE_STATE_PROFILE;
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
+        querySeqType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
     }
 
     BaseMatrix *subMat;
     EvalueComputation * evaluer;
     int8_t * tinySubMat;
-    if (querySeqType == Sequence::NUCLEOTIDES) {
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
         evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), subMat);
         tinySubMat = new int8_t[subMat->alphabetSize*subMat->alphabetSize];
@@ -51,7 +51,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
                 tinySubMat[i*subMat->alphabetSize + j] = subMat->subMatrix[i][j];
             }
         }
-    } else if(targetSeqType == Sequence::PROFILE_STATE_SEQ ){
+    } else if(Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ) ){
         SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
         evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), &sMat);
         subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,
@@ -94,11 +94,12 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = dbStart; id < (dbStart+dbSize); id++) {
             Debug::printProgress(id);
-            char *querySeqData = qdbr.getData(id);
+            char *querySeqData = qdbr.getData(id, thread_idx);
             size_t queryKey = qdbr.getDbKey(id);
             qSeq.mapSequence(id, queryKey, querySeqData);
 //            qSeq.printProfileStatePSSM();
-            if(qSeq.getSeqType() == Sequence::HMM_PROFILE || qSeq.getSeqType() == Sequence::PROFILE_STATE_PROFILE){
+            if(Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE) ||
+               Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
                 aligner.ssw_init(&qSeq, qSeq.getAlignmentProfile(), subMat, subMat->alphabetSize, 0);
             }else{
                 aligner.ssw_init(&qSeq, tinySubMat, subMat, subMat->alphabetSize, 0);
@@ -107,7 +108,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
             for (size_t tId = 0; tId < tdbr->getSize(); tId++) {
                 unsigned int targetKey = tdbr->getDbKey(tId);
                 const bool isIdentity = (queryKey == targetKey && (par.includeIdentity || sameDB))? true : false;
-                char * targetSeq = tdbr->getData(tId);
+                char * targetSeq = tdbr->getData(tId, thread_idx);
                 tSeq.mapSequence(tId, targetKey, targetSeq);
 //                tSeq.print();
                 float queryLength = qSeq.L;
@@ -162,7 +163,7 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     qdbr.open(DBReader<unsigned int>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         qdbr.readMmapedDataInMemory();
@@ -176,7 +177,7 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
     Util::decomposeDomainByAminoAcid(qdbr.getAminoAcidDBSize(), qdbr.getSeqLens(), qdbr.getSize(),
                                      MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db3, par.db3Index, MMseqsMPI::rank);
-    DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), par.threads);
+    DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), par.threads,  par.compressed, Parameters::DBTYPE_PREFILTER_RES);
     resultWriter.open();
     int status = doRescorealldiagonal(par, qdbr, resultWriter, dbFrom, dbSize);
     resultWriter.close();
@@ -184,14 +185,14 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
     MPI_Barrier(MPI_COMM_WORLD);
     if(MMseqsMPI::rank == 0) {
         std::vector<std::pair<std::string, std::string>> splitFiles;
-        for(unsigned int proc = 0; proc < MMseqsMPI::numProc; ++proc){
+        for(int proc = 0; proc < MMseqsMPI::numProc; ++proc){
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, par.db3Index, proc);
             splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
         }
         DBWriter::mergeResults(par.db3, par.db3Index, splitFiles);
     }
 #else
-    DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads);
+    DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_PREFILTER_RES);
     resultWriter.open();
     int status = doRescorealldiagonal(par, qdbr, resultWriter, 0, qdbr.getSize());
     resultWriter.close();

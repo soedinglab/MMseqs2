@@ -31,7 +31,7 @@ unsigned int PrefilteringIndexReader::SPACEDPATTERN = 20;
 extern const char* version;
 
 bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
-    char * version = reader->getDataByDBKey(VERSION);
+    char * version = reader->getDataByDBKey(VERSION, 0);
     if(version == NULL){
         return false;
     }
@@ -51,7 +51,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
                                               bool hasSpacedKmer, const std::string &spacedKmerPattern,
                                               bool compBiasCorrection, int alphabetSize, int kmerSize,
                                               int maskMode, int kmerThr) {
-    DBWriter writer(outDB.c_str(), std::string(outDB).append(".index").c_str(), 1, DBWriter::BINARY_MODE);
+    DBWriter writer(outDB.c_str(), std::string(outDB).append(".index").c_str(), 1, Parameters::WRITER_ASCII_MODE, Parameters::DBTYPE_INDEX_DB);
     writer.open();
 
     Debug(Debug::INFO) << "Write VERSION (" << VERSION << ")\n";
@@ -71,7 +71,8 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
     writer.alignToPageSize();
     printMeta(metadata);
 
-    if (seqType != Sequence::HMM_PROFILE && seqType != Sequence::PROFILE_STATE_SEQ) {
+    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) == false &&
+        Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_SEQ) == false) {
         int alphabetSize = subMat->alphabetSize;
         subMat->alphabetSize = subMat->alphabetSize-1;
         ScoreMatrix *s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
@@ -94,7 +95,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
 
     Sequence seq(maxSeqLen, seqType, subMat, kmerSize, hasSpacedKmer, compBiasCorrection, true, spacedKmerPattern);
     // remove x (not needed in index)
-    int adjustAlphabetSize = (seqType == Sequence::NUCLEOTIDES || seqType == Sequence::AMINO_ACIDS)
+    int adjustAlphabetSize = (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES) || Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_AMINO_ACIDS))
                              ? alphabetSize -1: alphabetSize;
 
     IndexTable *indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
@@ -228,13 +229,13 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
 
 DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int headerIdx, unsigned int dataIdx, bool touch) {
     size_t indexId = dbr->getId(headerIdx);
-    char *indexData = dbr->getData(indexId);
+    char *indexData = dbr->getData(indexId, 0);
     if (touch) {
         dbr->touchData(indexId);
     }
 
     size_t dataId = dbr->getId(dataIdx);
-    char *data = dbr->getData(dataId);
+    char *data = dbr->getData(dataId, 0);
 
     size_t currDataOffset = dbr->getOffset(dataId);
     size_t nextDataOffset = dbr->findNextOffsetid(dataId);
@@ -253,7 +254,7 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<un
 
 DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr, bool includeData, bool touch) {
     size_t id = dbr->getId(DBRINDEX);
-    char *data = dbr->getData(id);
+    char *data = dbr->getDataUncompressed(id);
     if (touch) {
         dbr->touchData(id);
     }
@@ -272,7 +273,7 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned
         size_t currDataOffset = dbr->getOffset(id);
         size_t nextDataOffset = dbr->findNextOffsetid(id);
         size_t dataSize = nextDataOffset-currDataOffset;
-        reader->setData(dbr->getData(id), dataSize);
+        reader->setData(dbr->getDataUncompressed(id), dataSize);
         reader->setMode(DBReader<unsigned int>::USE_DATA);
         return reader;
     }
@@ -288,16 +289,16 @@ SequenceLookup *PrefilteringIndexReader::getMaskedSequenceLookup(DBReader<unsign
         return NULL;
     }
 
-    char * seqData = dbr->getData(id);
+    char * seqData = dbr->getDataUncompressed(id);
 
     size_t seqOffsetsId = dbr->getId(SEQINDEXSEQOFFSET);
-    char * seqOffsetsData = dbr->getData(seqOffsetsId);
+    char * seqOffsetsData = dbr->getDataUncompressed(seqOffsetsId);
 
     size_t seqDataSizeId = dbr->getId(SEQINDEXDATASIZE);
-    int64_t seqDataSize = *((int64_t *)dbr->getData(seqDataSizeId));
+    int64_t seqDataSize = *((int64_t *)dbr->getDataUncompressed(seqDataSizeId));
 
     size_t sequenceCountId = dbr->getId(SEQCOUNT);
-    size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
+    size_t sequenceCount = *((size_t *)dbr->getDataUncompressed(sequenceCountId));
 
     if (touch) {
         dbr->touchData(id);
@@ -316,16 +317,16 @@ SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsi
         return NULL;
     }
 
-    char * seqData = dbr->getData(id);
+    char * seqData = dbr->getDataUncompressed(id);
 
     size_t seqOffsetsId = dbr->getId(SEQINDEXSEQOFFSET);
-    char * seqOffsetsData = dbr->getData(seqOffsetsId);
+    char * seqOffsetsData = dbr->getDataUncompressed(seqOffsetsId);
 
     size_t seqDataSizeId = dbr->getId(SEQINDEXDATASIZE);
-    int64_t seqDataSize = *((int64_t *)dbr->getData(seqDataSizeId));
+    int64_t seqDataSize = *((int64_t *)dbr->getDataUncompressed(seqDataSizeId));
 
     size_t sequenceCountId = dbr->getId(SEQCOUNT);
-    size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
+    size_t sequenceCount = *((size_t *)dbr->getDataUncompressed(sequenceCountId));
 
     if (touch) {
         dbr->touchData(id);
@@ -342,7 +343,7 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *
     PrefilteringIndexData data = getMetadata(dbr);
     IndexTable *retTable;
     int adjustAlphabetSize;
-    if (data.seqType == Sequence::NUCLEOTIDES || data.seqType == Sequence::AMINO_ACIDS) {
+    if (Parameters::isEqualDbtype(data.seqType, Parameters::DBTYPE_NUCLEOTIDES) || Parameters::isEqualDbtype(data.seqType, Parameters::DBTYPE_AMINO_ACIDS)) {
         adjustAlphabetSize = data.alphabetSize - 1;
     } else {
         adjustAlphabetSize = data.alphabetSize;
@@ -350,15 +351,15 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *
     retTable = new IndexTable(adjustAlphabetSize, data.kmerSize, true);
 
     size_t entriesNumId = dbr->getId(ENTRIESNUM);
-    int64_t entriesNum = *((int64_t *)dbr->getData(entriesNumId));
+    int64_t entriesNum = *((int64_t *)dbr->getDataUncompressed(entriesNumId));
     size_t sequenceCountId = dbr->getId(SEQCOUNT);
-    size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
+    size_t sequenceCount = *((size_t *)dbr->getDataUncompressed(sequenceCountId));
 
     size_t entriesDataId = dbr->getId(ENTRIES);
-    char *entriesData = dbr->getData(entriesDataId);
+    char *entriesData = dbr->getDataUncompressed(entriesDataId);
 
     size_t entriesOffsetsDataId = dbr->getId(ENTRIESOFFSETS);
-    char *entriesOffsetsData = dbr->getData(entriesOffsetsDataId);
+    char *entriesOffsetsData = dbr->getDataUncompressed(entriesOffsetsDataId);
 
     if (touch) {
         dbr->touchData(entriesNumId);
@@ -385,21 +386,21 @@ void PrefilteringIndexReader::printMeta(int *metadata_tmp) {
 }
 
 void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
-    Debug(Debug::INFO) << "Index version: " << dbr->getDataByDBKey(VERSION) << "\n";
+    Debug(Debug::INFO) << "Index version: " << dbr->getDataByDBKey(VERSION, 0) << "\n";
 
     size_t id;
     if ((id = dbr->getId(GENERATOR)) != UINT_MAX) {
-        Debug(Debug::INFO) << "Generated by:  " << dbr->getData(id) << "\n";
+        Debug(Debug::INFO) << "Generated by:  " << dbr->getDataUncompressed(id) << "\n";
     }
 
-    int *meta = (int *)dbr->getDataByDBKey(META);
+    int *meta = (int *)dbr->getDataByDBKey(META, 0);
     printMeta(meta);
 
-    Debug(Debug::INFO) << "ScoreMatrix:  " << dbr->getDataByDBKey(SCOREMATRIXNAME) << "\n";
+    Debug(Debug::INFO) << "ScoreMatrix:  " << dbr->getDataByDBKey(SCOREMATRIXNAME, 0) << "\n";
 }
 
 PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int> *dbr) {
-    int *meta = (int *)dbr->getDataByDBKey(META);
+    int *meta = (int *)dbr->getDataByDBKey(META, 0);
 
     PrefilteringIndexData data;
     data.maxSeqLength = meta[0];
@@ -417,7 +418,7 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
 }
 
 std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<unsigned int> *dbr) {
-    return std::string(dbr->getDataByDBKey(SCOREMATRIXNAME));
+    return std::string(dbr->getDataByDBKey(SCOREMATRIXNAME, 0));
 }
 
 std::string PrefilteringIndexReader::getSpacedPattern(DBReader<unsigned int> *dbr) {
@@ -425,7 +426,7 @@ std::string PrefilteringIndexReader::getSpacedPattern(DBReader<unsigned int> *db
     if (id == UINT_MAX) {
         return "";
     }
-    return std::string(dbr->getData(id));
+    return std::string(dbr->getDataUncompressed(id));
 }
 
 ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch) {
@@ -435,7 +436,7 @@ ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> 
         return NULL;
     }
 
-    char *data = dbr->getData(id);
+    char *data = dbr->getDataUncompressed(id);
 
     if (touch) {
         dbr->touchData(id);
@@ -451,7 +452,7 @@ ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> 
         return NULL;
     }
 
-    char *data = dbr->getData(id);
+    char *data = dbr->getDataUncompressed(id);
 
     if (touch) {
         dbr->touchData(id);

@@ -25,6 +25,8 @@ private:
     DBReader<unsigned int> *resultReader;
     DBWriter *statWriter;
 
+    int threads;
+
     template<typename T>
     struct PerSequence {
         typedef T(*type)(const char *);

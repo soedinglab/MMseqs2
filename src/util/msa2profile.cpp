@@ -40,62 +40,69 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         std::string msaSequenceData = par.db1 + "_sequence.ffdata";
         std::string msaSequenceIndex = par.db1 + "_sequence.ffindex";
 
-        headerReader = new DBReader<unsigned int>(msaHeaderData.c_str(), msaHeaderIndex.c_str());
+        headerReader = new DBReader<unsigned int>(msaHeaderData.c_str(), msaHeaderIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         headerReader->open(DBReader<unsigned int>::SORT_BY_LINE);
 
-        sequenceReader = new DBReader<unsigned int>(msaSequenceData.c_str(), msaSequenceIndex.c_str());
+        sequenceReader = new DBReader<unsigned int>(msaSequenceData.c_str(), msaSequenceIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         sequenceReader->open(DBReader<unsigned int>::SORT_BY_LINE);
     }
 
-    DBReader<unsigned int> qDbr(msaData.c_str(), msaIndex.c_str());
+    DBReader<unsigned int> qDbr(msaData.c_str(), msaIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     qDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     Debug(Debug::INFO) << "Finding maximum sequence length and set size.\n";
     unsigned int maxSeqLength = 0;
     unsigned int maxSetSize = 0;
     unsigned int *msaSizes = qDbr.getSeqLens();
+#pragma omp parallel
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
 
-#pragma omp parallel for schedule(dynamic, 10) reduction(max:maxSeqLength, maxSetSize)
-    for (size_t id = 0; id < qDbr.getSize(); id++) {
-        bool inHeader = false;
-        unsigned int setSize = 0;
-        unsigned int seqLength = 0;
+#pragma omp for schedule(dynamic, 10) reduction(max:maxSeqLength, maxSetSize)
+        for (size_t id = 0; id < qDbr.getSize(); id++) {
+            bool inHeader = false;
+            unsigned int setSize = 0;
+            unsigned int seqLength = 0;
 
-        char *entryData = qDbr.getData(id);
-        for (size_t i = 0; i < msaSizes[id]; ++i) {
-            // state machine to get the max sequence length and set size from MSA
-            switch (entryData[i]) {
-                case '>':
-                    if (seqLength > maxSeqLength) {
-                        maxSeqLength = seqLength;
-                    }
-                    seqLength = 0;
-                    inHeader = true;
-                    setSize++;
-                    break;
-                case '\n':
-                    if (inHeader) {
-                        inHeader = false;
-                    }
-                    break;
-                default:
-                    if (!inHeader) {
-                        seqLength++;
-                    }
-                    break;
+            char *entryData = qDbr.getData(id, thread_idx);
+            for (size_t i = 0; i < msaSizes[id]; ++i) {
+                // state machine to get the max sequence length and set size from MSA
+                switch (entryData[i]) {
+                    case '>':
+                        if (seqLength > maxSeqLength) {
+                            maxSeqLength = seqLength;
+                        }
+                        seqLength = 0;
+                        inHeader = true;
+                        setSize++;
+                        break;
+                    case '\n':
+                        if (inHeader) {
+                            inHeader = false;
+                        }
+                        break;
+                    default:
+                        if (!inHeader) {
+                            seqLength++;
+                        }
+                        break;
+                }
             }
-        }
 
-        // don't forget the last entry in an MSA
-        if (!inHeader && seqLength > 0) {
-            if (seqLength > maxSeqLength) {
-                maxSeqLength = seqLength;
+            // don't forget the last entry in an MSA
+            if (!inHeader && seqLength > 0) {
+                if (seqLength > maxSeqLength) {
+                    maxSeqLength = seqLength;
+                }
+                setSize++;
             }
-            setSize++;
-        }
 
-        if (setSize > maxSetSize) {
-            maxSetSize = setSize;
+            if (setSize > maxSetSize) {
+                maxSetSize = setSize;
+            }
         }
     }
 
@@ -104,22 +111,22 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     maxSeqLength *= (VECSIZE_INT * 4);
 
     unsigned int threads = (unsigned int) par.threads;
-    DBWriter resultWriter(par.db2.c_str(), par.db2Index.c_str(), threads, DBWriter::BINARY_MODE);
+    DBWriter resultWriter(par.db2.c_str(), par.db2Index.c_str(), threads, par.compressed, Parameters::DBTYPE_HMM_PROFILE);
     resultWriter.open();
 
     DBWriter sequenceWriter(std::string(par.db2 + "_seq").c_str(),
                             std::string(par.db2 + "_seq.index").c_str(),
-                            threads);
+                            threads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
     sequenceWriter.open();
 
     DBWriter headerWriter(std::string(par.db2 + "_seq_h").c_str(),
                           std::string(par.db2 + "_seq_h.index").c_str(),
-                          threads);
+                          threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
     DBWriter consensusWriter(std::string(par.db2 + "_consensus").c_str(),
                              std::string(par.db2 + "_consensus.index").c_str(),
-                             threads);
+                             threads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
     consensusWriter.open();
 
     Debug(Debug::INFO) << "Compute profiles from MSAs.\n";
@@ -132,7 +139,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
         SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
         PSSMCalculator calculator(&subMat, maxSeqLength, maxSetSize, par.pca, par.pcb);
-        Sequence sequence(maxSeqLength + 1, Sequence::AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
+        Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
         char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * maxSeqLength * maxSetSize);
 
@@ -165,12 +172,12 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             bool fastaError = false;
 
-            char *entryData = qDbr.getData(id);
+            char *entryData = qDbr.getData(id, thread_idx);
             size_t entryLength = qDbr.getSeqLens(id);
 
             std::string msa;
             if (par.msaType == 0) {
-                msa = CompressedA3M::extractA3M(entryData, entryLength, *sequenceReader, *headerReader);
+                msa = CompressedA3M::extractA3M(entryData, entryLength, *sequenceReader, *headerReader, thread_idx);
                 d.buffer = const_cast<char*>(msa.c_str());
                 d.length = msa.length();
             } else {
@@ -182,7 +189,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             // remove comment line that makes kseq_read fail
             if (d.length) {
                 if (d.buffer[0] == '#') {
-		            size_t pos = 0;
+                    size_t pos = 0;
                     while (pos < d.length && d.buffer[pos] != '\n') {
                         pos++;
                     }
@@ -372,10 +379,10 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         delete[] seqWeight;
     }
 
-    consensusWriter.close(Sequence::AMINO_ACIDS);
+    consensusWriter.close();
     headerWriter.close();
-    sequenceWriter.close(Sequence::AMINO_ACIDS);
-    resultWriter.close(Sequence::HMM_PROFILE);
+    sequenceWriter.close();
+    resultWriter.close();
 
     std::string base = FileUtil::baseName(par.hdr2);
     FileUtil::symlinkAlias(par.db2 + "_seq_h", base);

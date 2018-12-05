@@ -100,8 +100,8 @@ Orf::~Orf() {
     free(stopCodons);
 }
 
-Matcher::result_t Orf::getFromDatabase(const size_t id, DBReader<unsigned int> & contigsReader, DBReader<unsigned int> & orfHeadersReader) {
-    char * orfHeader = orfHeadersReader.getData(id);
+Matcher::result_t Orf::getFromDatabase(const size_t id, DBReader<unsigned int> & contigsReader, DBReader<unsigned int> & orfHeadersReader, int thread_idx) {
+    char * orfHeader = orfHeadersReader.getData(id, thread_idx);
     Orf::SequenceLocation orfLocOnContigParsed;
     orfLocOnContigParsed = Orf::parseOrfHeader(orfHeader);
 

@@ -114,18 +114,18 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     bool queryProfile = false;
     bool targetProfile = false;
     if (needSequenceDB) {
-        queryNucs = qDbr.getDbtype() == Sequence::NUCLEOTIDES;
-        targetNucs = tDbr->getDbtype() == Sequence::NUCLEOTIDES;
+        queryNucs = Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+        targetNucs = Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
         if((targetNucs == true || queryNucs == true ) && !(queryNucs == true && targetNucs == true)){
             isTranslatedSearch = true;
         }
-        queryProfile = qDbr.getDbtype() == Sequence::HMM_PROFILE;
-        targetProfile = tDbr->getDbtype() == Sequence::HMM_PROFILE;
+        queryProfile = Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
+        targetProfile = Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
         evaluer = new EvalueComputation(tDbr->sequenceReader->getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
     }
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
-    DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
 #ifdef OPENMP
@@ -139,7 +139,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         localThreads = alnDbr.getSize();
     }
 
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), localThreads);
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), localThreads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     resultWriter.open();
     Debug(Debug::INFO) << "Start writing to " << par.db4 << "\n";
 
@@ -172,18 +172,18 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             queryProfData.clear();
             if (needSequenceDB) {
                 size_t qId = qDbr.sequenceReader->getId(queryKey);
-                querySeqData = qDbr.sequenceReader->getData(qId);
+                querySeqData = qDbr.sequenceReader->getData(qId, thread_idx);
                 if (queryProfile) {
                     Sequence::extractProfileConsensus(querySeqData, subMat, queryProfData);
                 }
             }
 
             size_t qHeaderId = qDbr.headerReader->getId(queryKey);
-            const char *qHeader = qDbr.headerReader->getData(qHeaderId);
+            const char *qHeader = qDbr.headerReader->getData(qHeaderId, thread_idx);
             size_t qHeaderLen = qDbr.headerReader->getSeqLens(qHeaderId);
             std::string queryId = Util::parseFastaHeader(qHeader);
 
-            char *data = alnDbr.getData(i);
+            char *data = alnDbr.getData(i, thread_idx);
             while (*data != '\0') {
                 Matcher::result_t res = Matcher::parseAlignmentRecord(data, true);
                 data = Util::skipLine(data);
@@ -195,7 +195,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 }
 
                 size_t tHeaderId = tDbr->headerReader->getId(res.dbKey);
-                const char *tHeader = tDbr->headerReader->getData(tHeaderId);
+                const char *tHeader = tDbr->headerReader->getData(tHeaderId, thread_idx);
                 size_t tHeaderLen = tDbr->headerReader->getSeqLens(tHeaderId);
                 std::string targetId = Util::parseFastaHeader(tHeader);
 
@@ -257,7 +257,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             targetProfData.clear();
                             if (needSequenceDB) {
                                 size_t tId = tDbr->sequenceReader->getId(res.dbKey);
-                                targetSeqData = tDbr->sequenceReader->getData(tId);
+                                targetSeqData = tDbr->sequenceReader->getData(tId, thread_idx);
                                 if (targetProfile) {
                                     Sequence::extractProfileConsensus(targetSeqData, subMat, targetProfData);
                                 }

@@ -12,14 +12,14 @@ Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputati
     this->tinySubMat = NULL;
     this->gapOpen = gapOpen;
     this->gapExtend = gapExtend;
-    if(querySeqType != Sequence::PROFILE_STATE_PROFILE ) {
+    if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) == false ) {
         setSubstitutionMatrix(m);
     }
 
     this->maxSeqLen = maxSeqLen;
     nuclaligner=NULL;
     aligner=NULL;
-    if(querySeqType==Sequence::NUCLEOTIDES){
+    if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)){
         nuclaligner = new  BandedNucleotideAligner(m, maxSeqLen, gapOpen, gapExtend);
     }else{
         aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection);
@@ -53,9 +53,9 @@ Matcher::~Matcher(){
 
 void Matcher::initQuery(Sequence* query){
     currentQuery = query;
-    if(query->getSequenceType()==Sequence::NUCLEOTIDES){
+    if(Parameters::isEqualDbtype(query->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
         nuclaligner->initQuery(query);
-    }else if(query->getSeqType() == Sequence::HMM_PROFILE || query->getSeqType() == Sequence::PROFILE_STATE_PROFILE){
+    }else if(Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
         aligner->ssw_init(query, query->getAlignmentProfile(), this->m, this->m->alphabetSize, 2);
     }else{
         aligner->ssw_init(query, this->tinySubMat, this->m, this->m->alphabetSize, 2);
@@ -78,7 +78,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
     //std::cout << seqDbSize << " " << 100 << " " << scoreThr << std::endl;
     //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
     s_align alignment;
-    if(dbSeq->getSequenceType()==Sequence::NUCLEOTIDES){
+    if(Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
         if(diagonal==INT_MAX){
             Debug(Debug::ERROR) << "ERROR: Query sequence " << currentQuery->getDbKey()
                                 << " has a result with no proper diagonal information , "
@@ -179,6 +179,8 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
     int bitScore = static_cast<short>(evaluer->computeBitScore(alignment.score1)+0.5);
 
     result_t result(dbSeq->getDbKey(), bitScore, qcov, dbcov, seqId, evalue, alnLength, qStartPos, qEndPos, currentQuery->L, dbStartPos, dbEndPos, dbSeq->L, backtrace);
+
+
     delete [] alignment.cigar;
     return result;
 }

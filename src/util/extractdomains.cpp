@@ -59,10 +59,10 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
     unsigned int tPos = tStart;
     unsigned int qPos = qStart;
 
-    Sequence qSeq(query.length() + 1, Sequence::AMINO_ACIDS, &matrix, 0, false, false);
+    Sequence qSeq(query.length() + 1, Parameters::DBTYPE_AMINO_ACIDS, &matrix, 0, false, false);
     qSeq.mapSequence(0, 0, query.c_str());
 
-    Sequence tSeq(target.length() + 1, Sequence::AMINO_ACIDS, &matrix, 0, false, false);
+    Sequence tSeq(target.length() + 1, Parameters::DBTYPE_AMINO_ACIDS, &matrix, 0, false, false);
 
     tSeq.mapSequence(0, 0, target.c_str());
 
@@ -225,17 +225,17 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
         msaSequenceDataName = par.db2 + "_sequence.ffdata";
         msaSequenceIndexName = par.db2 + "_sequence.ffindex";
 
-        headerReader = new DBReader<unsigned int>(msaHeaderDataName.c_str(), msaHeaderIndexName.c_str());
+        headerReader = new DBReader<unsigned int>(msaHeaderDataName.c_str(), msaHeaderIndexName.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         headerReader->open(DBReader<unsigned int>::SORT_BY_LINE);
 
-        sequenceReader = new DBReader<unsigned int>(msaSequenceDataName.c_str(), msaSequenceIndexName.c_str());
+        sequenceReader = new DBReader<unsigned int>(msaSequenceDataName.c_str(), msaSequenceIndexName.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         sequenceReader->open(DBReader<unsigned int>::SORT_BY_LINE);
     }
 
-    DBReader<unsigned int> msaReader(msaDataName.c_str(), msaIndexName.c_str());
+    DBReader<unsigned int> msaReader(msaDataName.c_str(), msaIndexName.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     msaReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads));
+    DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads), par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
 
     Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
@@ -255,7 +255,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
         }
 
 
-        char* tabData = blastTabReader.getData(i);
+        char* tabData = blastTabReader.getData(i, thread_idx);
         size_t tabLength = blastTabReader.getSeqLens(i) - 1;
         const std::vector<Domain> result = getEntries(std::string(tabData, tabLength));
         if (result.size() == 0) {
@@ -263,13 +263,13 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
             continue;
         }
 
-        char *data = msaReader.getData(entry);
+        char *data = msaReader.getData(entry, thread_idx);
         size_t entryLength = msaReader.getSeqLens(entry) - 1;
 
         std::string msa;
         switch (par.msaType) {
             case 0: {
-                msa = CompressedA3M::extractA3M(data, entryLength, *sequenceReader, *headerReader);
+                msa = CompressedA3M::extractA3M(data, entryLength, *sequenceReader, *headerReader, thread_idx);
                 break;
             }
             case 1:
@@ -313,7 +313,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
 }
 
 int doExtract(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     size_t dbFrom = 0;
@@ -345,7 +345,7 @@ int doExtract(Parameters &par, const unsigned int mpiRank, const unsigned int mp
 int doExtract(Parameters &par) {
     size_t resultSize;
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     resultSize = reader.getSize();
 

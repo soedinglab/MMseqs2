@@ -16,7 +16,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 4);
 
     Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
-    DBReader<unsigned int> *qdbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> *qdbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     qdbr->open(DBReader<unsigned int>::NOSORT);
     qdbr->readMmapedDataInMemory();
 
@@ -29,17 +29,17 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
         sameDB = true;
         tdbr = qdbr;
     } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tdbr->open(DBReader<unsigned int>::NOSORT);
         tdbr->readMmapedDataInMemory();
     }
 
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
-    DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
     Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
 
@@ -65,17 +65,17 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
             Debug::printProgress(i);
 
             unsigned int alnKey = alnDbr.getDbKey(i);
-            char *data = alnDbr.getData(i);
+            char *data = alnDbr.getData(i, thread_idx);
 
             unsigned int queryId = qdbr->getId(alnKey);
-            char *querySeq = qdbr->getData(queryId);
+            char *querySeq = qdbr->getData(queryId, thread_idx);
 
             Matcher::readAlignmentResults(results, data, true);
             for (size_t j = 0; j < results.size(); j++) {
                 Matcher::result_t &res = results[j];
                 bool hasBacktrace = (res.backtrace.size() > 0);
                 unsigned int targetId = tdbr->getId(results[j].dbKey);
-                char *targetSeq = tdbr->getData(targetId);
+                char *targetSeq = tdbr->getData(targetId, thread_idx);
 
                 res.dbStartPos = res.dbStartPos*3;
                 res.dbEndPos   = res.dbEndPos*3;

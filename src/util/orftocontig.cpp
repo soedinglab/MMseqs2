@@ -15,15 +15,15 @@ int orftocontig(int argn, const char **argv, const Command& command) {
     par.parseParameters(argn, argv, command, 3, true, true);
 
     // contig length is needed for computation:
-    DBReader<unsigned int> contigsReader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> contigsReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     contigsReader.open(DBReader<unsigned int>::NOSORT);
 
     // info will be obtained from orf headers:
-    DBReader<unsigned int> orfHeadersReader(par.hdr2.c_str(), par.hdr2Index.c_str());
+    DBReader<unsigned int> orfHeadersReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     orfHeadersReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     // writing in alignment format:
-    DBWriter alignmentFormatWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads);
+    DBWriter alignmentFormatWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     alignmentFormatWriter.open();
 
 #pragma omp parallel
@@ -38,7 +38,7 @@ int orftocontig(int argn, const char **argv, const Command& command) {
         for (size_t id = 0; id < orfHeadersReader.getSize(); ++id) {
             Debug::printProgress(id);
             unsigned int orfKey = orfHeadersReader.getDbKey(id);
-            Matcher::result_t orfToContigResult = Orf::getFromDatabase(id, contigsReader, orfHeadersReader);           
+            Matcher::result_t orfToContigResult = Orf::getFromDatabase(id, contigsReader, orfHeadersReader, thread_idx);
             size_t len = Matcher::resultToBuffer(orfToContigBuffer, orfToContigResult, true);
             alignmentFormatWriter.writeData(orfToContigBuffer, len, orfKey, thread_idx);
         }

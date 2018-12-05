@@ -9,6 +9,10 @@
 #include <climits>
 #include <unordered_map>
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 ClusteringAlgorithms::ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBReader<unsigned int>* alnDbr,
                                            int threads, int scoretype, int maxiterations){
     this->seqDbr=seqDbr;
@@ -268,6 +272,10 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
     //     if they are not make them rep. seq.
 #pragma omp parallel for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
         unsigned int clusterKey = seqDbr->getDbKey(i);
         unsigned int clusterId = seqDbr->getId(clusterKey);
 
@@ -281,7 +289,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
 
 
         const size_t alnId = alnDbr->getId(clusterKey);
-        char *data = alnDbr->getData(alnId);
+        char *data = alnDbr->getData(alnId, thread_idx);
 
         while (*data != '\0') {
             char dbKey[255 + 1];
@@ -306,11 +314,15 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
 
 #pragma omp parallel for schedule(dynamic, 1000)
     for(size_t id = 0; id < dbSize; id++) {
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
         unsigned int clusterKey = seqDbr->getDbKey(id);
         unsigned int clusterId = id;
 
         const size_t alnId = alnDbr->getId(clusterKey);
-        char *data = alnDbr->getData(alnId);
+        char *data = alnDbr->getData(alnId, thread_idx);
 
         while (*data != '\0') {
             char dbKey[255 + 1];
@@ -370,9 +382,13 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     Timer timer;
 #pragma omp parallel for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
         const unsigned int clusterId = seqDbr->getDbKey(i);
         const size_t alnId = alnDbr->getId(clusterId);
-        const char *data = alnDbr->getData(alnId);
+        const char *data = alnDbr->getData(alnId, thread_idx);
         const size_t dataSize = alnDbr->getSeqLens(alnId);
         elementOffsets[i] = Util::countLines(data, dataSize);
     }

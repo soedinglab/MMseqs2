@@ -28,11 +28,15 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
         size_t bucketSize = std::min(dbSize - (it * flushSize), flushSize);
 # pragma omp parallel for schedule(dynamic, 100)
         for (size_t i = start; i < (start + bucketSize); i++) {
+            int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+#endif
             Debug::printProgress(i);
             // seqDbr is descending sorted by length
             // the assumption is that clustering is B -> B (not A -> B)
             const unsigned int clusterId = seqDbr->getDbKey(i);
-            char *data = alnDbr->getDataByDBKey(clusterId);
+            char *data = alnDbr->getDataByDBKey(clusterId, thread_idx);
 
             if (*data == '\0') { // check if file contains entry
                 Debug(Debug::ERROR) << "ERROR: Sequence " << i

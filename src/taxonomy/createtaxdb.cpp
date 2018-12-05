@@ -7,11 +7,6 @@
 #include "Util.h"
 #include "createtaxdb.sh.h"
 
-
-#ifdef OPENMP
-#include <omp.h>
-#endif
-
 int createtaxdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 1, true, Parameters::PARSE_VARIADIC);

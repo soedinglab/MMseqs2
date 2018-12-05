@@ -13,7 +13,49 @@
 #include <omp.h>
 #endif
 
-void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf::SequenceLocation *qloc, IndexReader& tOrfDBr, bool isNuclNucl) {
+
+void chainAlignmentHits(std::vector<Matcher::result_t> &results, std::vector<Matcher::result_t> &tmp) {
+    if(results.size() > 1){
+        std::stable_sort(results.begin(), results.end(), Matcher::compareHitsByPos);
+        int prevDiagonal = INT_MAX;
+        Matcher::result_t currResults = results[0];
+        for (size_t resIdx = 0; resIdx < results.size(); resIdx++) {
+//            bool queryRev = (results[resIdx].qStartPos > results[resIdx].qEndPos);
+//            bool targetRev = (results[resIdx].qStartPos > results[resIdx].qEndPos);
+
+            int currDiagonal = results[resIdx].qStartPos  - results[resIdx].dbStartPos;
+            int nextDiagonal = UINT_MAX;
+            const bool isDifferentKey = (currResults.dbKey != results[resIdx].dbKey);
+            const bool isLastElement  = (resIdx == results.size() - 1);
+            if (isLastElement == false) {
+                nextDiagonal = results[resIdx+1].qStartPos  - results[resIdx+1].dbStartPos;
+            }
+
+            const bool queryIsOverlapping  = currResults.qEndPos >= results[resIdx].qStartPos   && currResults.qEndPos <= results[resIdx].qEndPos;
+            const bool targetIsOverlapping = currResults.dbEndPos >= results[resIdx].dbStartPos && currResults.dbEndPos <= results[resIdx].dbEndPos;
+            const bool sameNextDiagonal = (currDiagonal == nextDiagonal);
+            const bool samePrevDiagonal = (currDiagonal == prevDiagonal);
+            if ( (sameNextDiagonal || samePrevDiagonal ) && queryIsOverlapping && targetIsOverlapping) {
+                currResults.qStartPos = std::min(currResults.qStartPos, results[resIdx].qStartPos);
+                currResults.qEndPos = std::max(currResults.qEndPos,  results[resIdx].qEndPos);
+                currResults.dbStartPos  = std::min(currResults.dbStartPos, results[resIdx].dbStartPos);
+                currResults.dbEndPos  = std::max(currResults.dbEndPos, results[resIdx].dbEndPos);
+            }
+
+            prevDiagonal = currDiagonal;
+            bool isDifferentNextDiagonal = (nextDiagonal != currDiagonal);
+            if(isDifferentKey || isLastElement || isDifferentNextDiagonal){
+                tmp.push_back(currResults);
+                if(isLastElement == false) {
+                    currResults = results[resIdx + 1];
+                }
+            }
+        }
+
+    }
+}
+
+void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf::SequenceLocation *qloc, IndexReader& tOrfDBr, bool isNuclNucl, int thread_idx) {
     size_t startPos = results.size();
     Matcher::readAlignmentResults(results, data, true);
     size_t endPos = results.size();
@@ -21,7 +63,7 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf
         Matcher::result_t &res = results[i];
         if (isNuclNucl == true || qloc == NULL) {
             size_t targetId = tOrfDBr.headerReader->getId(res.dbKey);
-            char *header = tOrfDBr.headerReader->getData(targetId);
+            char *header = tOrfDBr.headerReader->getData(targetId, thread_idx);
 
             Orf::SequenceLocation tloc = Orf::parseOrfHeader(header);
             res.dbKey   = (tloc.id != UINT_MAX) ? tloc.id : res.dbKey;
@@ -90,7 +132,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
     }
-    const bool queryNucl = queryDbType == Sequence::NUCLEOTIDES;
+    const bool queryNucl = Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES);
     IndexReader *qSourceDbr = NULL;
     if (queryNucl) {
         Debug(Debug::INFO) << "Source Query database: " << par.db1 << "\n";
@@ -103,7 +145,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
     }
-    const bool targetNucl = targetDbType == Sequence::NUCLEOTIDES;
+    const bool targetNucl = Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES);
     IndexReader *tSourceDbr = NULL;
     if (targetNucl) {
         Debug(Debug::INFO) << "Source Target database: " << par.db3 << "\n";
@@ -111,7 +153,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     }
 
     Debug(Debug::INFO) << "Result database: " << par.db5 << "\n";
-    DBReader<unsigned int> alnDbr(par.db5.c_str(), par.db5Index.c_str());
+    DBReader<unsigned int> alnDbr(par.db5.c_str(), par.db5Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
 #ifdef OPENMP
@@ -130,25 +172,31 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     unsigned int *contigOffsets = NULL;
     char *contigExists = NULL;
     unsigned int maxContigKey = 0;
-    if (queryDbType == Sequence::NUCLEOTIDES) {
+    if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
         Timer timer;
         Debug(Debug::INFO) << "Computing ORF lookup...\n";
         unsigned int maxOrfKey = alnDbr.getLastKey();
         unsigned int *orfLookup = new unsigned int[maxOrfKey + 2]();
-#pragma omp parallel for schedule(dynamic, 10) num_threads(localThreads)
-        for (size_t i = 0; i <= maxOrfKey; ++i) {
-            size_t queryId = qOrfDbr.headerReader->getId(i);
-            if(queryId == UINT_MAX){
-                orfLookup[i] = UINT_MAX;
-                continue;
+#pragma omp parallel num_threads(localThreads)
+        {
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+#pragma omp for schedule(dynamic, 10)
+            for (size_t i = 0; i <= maxOrfKey; ++i) {
+                size_t queryId = qOrfDbr.headerReader->getId(i);
+                if (queryId == UINT_MAX) {
+                    orfLookup[i] = UINT_MAX;
+                    continue;
+                }
+                unsigned int queryKey = qOrfDbr.headerReader->getDbKey(queryId);
+                char *header = qOrfDbr.headerReader->getData(queryId, thread_idx);
+                Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
+                unsigned int id = (qloc.id != UINT_MAX) ? qloc.id : queryKey;
+                orfLookup[i] = id;
             }
-            unsigned int queryKey = qOrfDbr.headerReader->getDbKey(queryId);
-            char *header = qOrfDbr.headerReader->getData(queryId);
-            Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
-            unsigned int id = (qloc.id != UINT_MAX) ? qloc.id : queryKey;
-            orfLookup[i] = id;
         }
-
         Debug(Debug::INFO) << "Computing contig offsets...\n";
         maxContigKey = qSourceDbr->sequenceReader->getLastKey();
         unsigned int *contigSizes = new unsigned int[maxContigKey + 2]();
@@ -189,7 +237,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     }
 
     Debug(Debug::INFO) << "Writing results to: " << par.db6 << "\n";
-    DBWriter resultWriter(par.db6.c_str(), par.db6Index.c_str(), localThreads);
+    DBWriter resultWriter(par.db6.c_str(), par.db6Index.c_str(), localThreads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
 
     const bool isNuclNucl = queryNucl && targetNucl;
@@ -206,18 +254,19 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         ss.reserve(1024);
 
         std::vector<Matcher::result_t> results;
+        std::vector<Matcher::result_t> tmp;
         results.reserve(300);
-
+        tmp.reserve(300);
         size_t entryCount = alnDbr.getSize();
-        if (queryDbType == Sequence::NUCLEOTIDES) {
+        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
             entryCount = maxContigKey + 1;
         }
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < entryCount; ++i) {
             Debug::printProgress(i);
-            unsigned int queryKey;
-            if (queryDbType == Sequence::NUCLEOTIDES) {
+            unsigned int queryKey=UINT_MAX;
+            if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
                 queryKey = i;
                 if (contigExists[i] == 0) {
                     continue;
@@ -227,16 +276,16 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 for (unsigned int j = 0; j < orfCount; ++j) {
                     unsigned int orfKey = orfKeys[j];
                     size_t orfId = alnDbr.getId(orfKey);
-                    char *data = alnDbr.getData(orfId);
+                    char *data = alnDbr.getData(orfId, thread_idx);
                     size_t queryId = qOrfDbr.headerReader->getId(orfKey);
-                    char *header = qOrfDbr.headerReader->getData(queryId);
+                    char *header = qOrfDbr.headerReader->getData(queryId, thread_idx);
                     Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
-                    updateOffset(data, results, &qloc, tOrfDbr, isNuclNucl);
+                    updateOffset(data, results, &qloc, tOrfDbr, isNuclNucl, thread_idx);
                 }
-            } else if (targetDbType == Sequence::NUCLEOTIDES) {
+            } else if (Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
                 queryKey = alnDbr.getDbKey(i);
-                char *data = alnDbr.getData(i);
-                updateOffset(data, results, NULL, tOrfDbr, isNuclNucl);
+                char *data = alnDbr.getData(i, thread_idx);
+                updateOffset(data, results, NULL, tOrfDbr, isNuclNucl, thread_idx);
             }
             unsigned int qLen = UINT_MAX;
             if (qSourceDbr != NULL) {
@@ -244,16 +293,28 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 qLen = std::max(qSourceDbr->sequenceReader->getSeqLens(queryId), static_cast<size_t>(2)) - 2;
             }
             updateLengths(results, qLen, tSourceDbr);
-            std::stable_sort(results.begin(), results.end(), Matcher::compareHits);
-            for(size_t i = 0; i < results.size(); i++){
-                Matcher::result_t &res = results[i];
-                bool hasBacktrace = (res.backtrace.size() > 0);
-                size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
-                ss.append(buffer, len);
+            if(par.chainAlignment == false){
+                std::stable_sort(results.begin(), results.end(), Matcher::compareHits);
+                for(size_t i = 0; i < results.size(); i++){
+                    Matcher::result_t &res = results[i];
+                    bool hasBacktrace = (res.backtrace.size() > 0);
+                    size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
+                    ss.append(buffer, len);
+                }
+                resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);
+            } else if(par.chainAlignment == true){
+                chainAlignmentHits(results, tmp);
+                for(size_t i = 0; i < tmp.size(); i++){
+                    Matcher::result_t &res = tmp[i];
+                    bool hasBacktrace = (res.backtrace.size() > 0);
+                    size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
+                    ss.append(buffer, len);
+                }
+                resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);
             }
-            resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);
             ss.clear();
             results.clear();
+            tmp.clear();
         }
         delete[] buffer;
     }

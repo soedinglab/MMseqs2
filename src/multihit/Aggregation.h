@@ -10,7 +10,7 @@
 class Aggregation {
 public:
     Aggregation(const std::string &targetDbName, const std::string &resultDbName, const std::string &outputDbName,
-                unsigned int threads);
+                unsigned int threads, unsigned int compressed);
 
     virtual ~Aggregation();
 
@@ -23,8 +23,9 @@ protected:
     std::string outputDbName;
     DBReader<unsigned int> *targetSetReader;
     unsigned int threads;
+    unsigned int compressed;
 
-    void buildMap(char *data, std::map<unsigned int, std::vector<std::vector<std::string>>> &dataToAggregate);
+    void buildMap(char *data, int thread_idx, std::map<unsigned int, std::vector<std::vector<std::string>>> &dataToAggregate);
 };
 
 #endif

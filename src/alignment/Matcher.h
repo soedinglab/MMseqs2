@@ -57,7 +57,16 @@ public:
                                           qStartPos(qStartPos), qEndPos(qEndPos), qLen(qLen),
                                           dbStartPos(dbStartPos), dbEndPos(dbEndPos), dbLen(dbLen),
                                           backtrace(backtrace) {};
+
+
+        result_t(const result_t &res) :  dbKey(res.dbKey), score(res.score), qcov(res.qcov),
+        dbcov(res.dbcov), seqId(res.seqId), eval(res.eval), alnLength(res.alnLength),
+        qStartPos(res.qStartPos), qEndPos(res.qEndPos), qLen(res.qLen),
+        dbStartPos(res.dbStartPos), dbEndPos(res.dbEndPos), dbLen(res.dbLen),
+        backtrace(res.backtrace) {} ;
+
         result_t(){};
+
     };
 
     Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m,
@@ -82,6 +91,52 @@ public:
         if(second.score > first.score )
             return false;
         return false;
+    }
+
+    // need for sorting the results
+    static bool compareHitsByPos (const result_t &first, const result_t &second){
+        //return (first.eval < second.eval);
+        if(second.dbKey < first.dbKey)
+            return false;
+        if(first.dbKey < second.dbKey)
+            return true;
+
+        bool qFirstRev = (first.qStartPos > first.qEndPos);
+        bool qSecondRev = (second.qStartPos > second.qEndPos);
+        if(qSecondRev < qFirstRev)
+            return false;
+        if(qFirstRev < qSecondRev)
+            return true;
+
+        bool dbFirstRev = (first.dbStartPos > first.dbEndPos);
+        bool dbSecondRev = (second.dbStartPos > second.dbEndPos);
+        if(dbSecondRev < dbFirstRev)
+            return false;
+        if(dbFirstRev < dbSecondRev)
+            return true;
+
+        int firstDiagonal  = first.qStartPos - first.dbStartPos;
+        int secondDiagonal = second.qStartPos - second.dbStartPos;
+        if(secondDiagonal < firstDiagonal)
+            return false;
+        if(firstDiagonal < secondDiagonal)
+            return true;
+
+        if(second.dbStartPos < first.dbStartPos)
+            return false;
+        if(first.dbStartPos < second.dbStartPos)
+            return true;
+        return false;
+
+//        int distance = first.qStartPos - second.qEndPos;
+//        if(distance )
+//        if(second.dbKey < first.dbKey )
+//            return false;
+//        if(first.dbKey < second.dbKey )
+//            return true;
+////        bool overlap = (first.qEndPos - second.qStartPos) && first.qEndPos <= second.qEndPos);
+
+//        return false;
     }
 
     // map new query into memory (create queryProfile, ...)

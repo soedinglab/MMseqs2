@@ -18,13 +18,13 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     bool addOrfStop = par.addOrfStop;
     DBReader<unsigned int> *header = NULL;
     if (addOrfStop == true) {
-        header = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str());
+        header = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         header->open(DBReader<unsigned int>::NOSORT);
     }
 
@@ -40,7 +40,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     if (entries <= totalThreads) {
         localThreads = entries;
     }
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), localThreads);
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), localThreads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
     writer.open();
 
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
@@ -60,9 +60,9 @@ int translatenucs(int argc, const char **argv, const Command& command) {
             bool addStopAtEnd = false;
 
             unsigned int key = reader.getDbKey(i);
-            char* data = reader.getData(i);
+            char* data = reader.getData(i, thread_idx);
             if (addOrfStop == true) {
-                char* headData = header->getDataByDBKey(key);
+                char* headData = header->getDataByDBKey(key, thread_idx);
                 char * entry[255];
                 size_t columns = Util::getWordsOfLine(headData, entry, 255);
                 size_t col;
@@ -124,7 +124,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         }
         delete[] aa;
     }
-    writer.close(Sequence::AMINO_ACIDS);
+    writer.close();
 
     FileUtil::symlinkAbs(par.hdr1, par.hdr2);
     FileUtil::symlinkAbs(par.hdr1Index, par.hdr2Index);

@@ -1,6 +1,5 @@
 #include "DBWriter.h"
 #include "Debug.h"
-#include "Parameters.h"
 #include "DBReader.h"
 #include "Util.h"
 #include "Matcher.h"
@@ -12,7 +11,7 @@
 
 int doExtractAlignedRegion(Parameters &par) {
     Debug(Debug::INFO) << "Query file: " << par.db1 << "\n";
-    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     qdbr.open(DBReader<unsigned int>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         qdbr.readMmapedDataInMemory();
@@ -25,7 +24,7 @@ int doExtractAlignedRegion(Parameters &par) {
         sameDB = true;
         tdbr = &qdbr;
     } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tdbr->open(DBReader<unsigned int>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             tdbr->readMmapedDataInMemory();
@@ -33,11 +32,11 @@ int doExtractAlignedRegion(Parameters &par) {
     }
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
-    DBReader<unsigned int> alndbr(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> alndbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alndbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
-    DBWriter dbw(par.db4.c_str(), par.db4Index.c_str(), static_cast<unsigned int>(par.threads));
+    DBWriter dbw(par.db4.c_str(), par.db4Index.c_str(), static_cast<unsigned int>(par.threads), par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     dbw.open();
 
     const char newline = '\n';
@@ -56,10 +55,10 @@ int doExtractAlignedRegion(Parameters &par) {
             unsigned int queryKey = alndbr.getDbKey(i);
             char *qSeq = NULL;
             if (par.extractMode == Parameters::EXTRACT_QUERY) {
-                qSeq = qdbr.getDataByDBKey(queryKey);
+                qSeq = qdbr.getDataByDBKey(queryKey, thread_idx);
             }
 
-            char *data = alndbr.getData(i);
+            char *data = alndbr.getData(i, thread_idx);
             Matcher::readAlignmentResults(results, data);
             for (size_t j = 0; j < results.size(); j++) {
                 Matcher::result_t& res = results[j];
@@ -69,7 +68,7 @@ int doExtractAlignedRegion(Parameters &par) {
                     seq = qSeq + res.qStartPos;
                     length = res.qEndPos - res.qStartPos+1;
                 } else if (par.extractMode == Parameters::EXTRACT_TARGET) {
-                    seq = tdbr->getDataByDBKey(res.dbKey) + res.dbStartPos;
+                    seq = tdbr->getDataByDBKey(res.dbKey, thread_idx) + res.dbStartPos;
                     length = res.dbEndPos - res.dbStartPos+1;
                 } else {
                     Debug(Debug::ERROR) << "Missing extraction type!\n";
@@ -87,9 +86,9 @@ int doExtractAlignedRegion(Parameters &par) {
 
 
     if (par.extractMode == Parameters::EXTRACT_QUERY) {
-        dbw.close(qdbr.getDbtype());
+        dbw.close();
     } else {
-        dbw.close(tdbr->getDbtype());
+        dbw.close();
     }
 
     FileUtil::symlinkAbs(par.hdr1, par.hdr4);

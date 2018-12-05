@@ -6,6 +6,7 @@
 #include "Concat.h"
 #include "itoa.h"
 #include "Timer.h"
+#include "Parameters.h"
 
 #include <cstdlib>
 #include <cstdio>
@@ -16,8 +17,8 @@
 #include <omp.h>
 #endif
 
-DBWriter::DBWriter(const char *dataFileName_, const char *indexFileName_, unsigned int threads, size_t mode)
-        : threads(threads), mode(mode) {
+DBWriter::DBWriter(const char *dataFileName_, const char *indexFileName_, unsigned int threads, size_t mode, int dbtype)
+        : threads(threads), mode(mode), dbtype(dbtype) {
     dataFileName = strdup(dataFileName_);
     indexFileName = strdup(indexFileName_);
 
@@ -28,16 +29,22 @@ DBWriter::DBWriter(const char *dataFileName_, const char *indexFileName_, unsign
 
     indexFiles = new FILE *[threads];
     indexFileNames = new char *[threads];
+    compressedBuffers=NULL;
+    compressedBufferSizes=NULL;
+    if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0){
+        compressedBuffers = new char*[threads];
+        compressedBufferSizes = new size_t[threads];
+        cstream = new ZSTD_CStream*[threads];
+    }
 
     starts = new size_t[threads];
     std::fill(starts, starts + threads, 0);
     offsets = new size_t[threads];
     std::fill(offsets, offsets + threads, 0);
-
-    if ((mode & BINARY_MODE) != 0) {
-        datafileMode = "wb";
+    if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0 ){
+        datafileMode = "wb+";
     } else {
-        datafileMode = "w";
+        datafileMode = "wb";
     }
 
     closed = true;
@@ -53,6 +60,11 @@ DBWriter::~DBWriter() {
     delete[] dataFiles;
     free(indexFileName);
     free(dataFileName);
+    if(compressedBuffers){
+        delete [] compressedBuffers;
+        delete [] compressedBufferSizes;
+        delete [] cstream;
+    }
 }
 
 void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
@@ -67,7 +79,7 @@ void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
 
 #pragma omp for schedule(static)
         for (size_t id = 0; id < dbr.getSize(); id++) {
-            char *data = dbr.getData(id);
+            char *data = dbr.getData(id, thread_idx);
             size_t length = dbr.getSeqLens(id);
             writeData(data, (length == 0 ? 0 : length - 1), dbr.getDbKey(id), thread_idx);
         }
@@ -85,7 +97,7 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr,
     DBReader<unsigned int> **filesToMerge = new DBReader<unsigned int>*[fileCount];
     for (size_t i = 0; i < fileCount; i++) {
         filesToMerge[i] = new DBReader<unsigned int>(files[i].first.c_str(),
-                                                     files[i].second.c_str());
+                                                     files[i].second.c_str(), 1, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         filesToMerge[i]->open(DBReader<unsigned int>::NOSORT);
     }
 
@@ -94,7 +106,7 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr,
         std::ostringstream ss;
         // get all data for the id from all files
         for (size_t i = 0; i < fileCount; i++) {
-            const char *data = filesToMerge[i]->getDataByDBKey(key);
+            const char *data = filesToMerge[i]->getDataByDBKey(key, 0);
             if (data != NULL) {
                 if(i < prefixes.size()) {
                     ss << prefixes[i];
@@ -176,36 +188,51 @@ void DBWriter::open(size_t bufferSize) {
             perror(indexFileNames[i]);
             EXIT(EXIT_FAILURE);
         }
+
+        if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0){
+            compressedBufferSizes[i] = 2097152;
+            compressedBuffers[i] = (char*) malloc(compressedBufferSizes[i]);
+            cstream[i] = ZSTD_createCStream();
+        }
     }
 
     closed = false;
 }
 
-void DBWriter::close(int dbType) {
+void DBWriter::close() {
     // close all datafiles
     for (unsigned int i = 0; i < threads; i++) {
         fclose(dataFiles[i]);
         fclose(indexFiles[i]);
     }
 
-    if (dbType > -1){
-        std::string dataFile = dataFileName;
-        std::string dbTypeFile = (dataFile+".dbtype").c_str();
-        FILE * dbtypeDataFile = fopen(dbTypeFile.c_str(), "wb");
-        if (dbtypeDataFile == NULL) {
-            Debug(Debug::ERROR) << "Could not open data file " << dbTypeFile << "!\n";
-            EXIT(EXIT_FAILURE);
+    if(compressedBuffers){
+        for (unsigned int i = 0; i < threads; i++) {
+            delete [] compressedBuffers[i];
+            ZSTD_freeCStream(cstream[i]);
         }
-        size_t written = fwrite(&dbType, sizeof(int), 1, dbtypeDataFile);
-        if (written != 1) {
-            Debug(Debug::ERROR) << "Could not write to data file " << dbTypeFile << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        fclose(dbtypeDataFile);
     }
+    if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0) {
+        dbtype |= (1 << 31);
+    }
+//    if (dbtype > -1){
+    std::string dataFile = dataFileName;
+    std::string dbTypeFile = (dataFile+".dbtype").c_str();
+    FILE * dbtypeDataFile = fopen(dbTypeFile.c_str(), "wb");
+    if (dbtypeDataFile == NULL) {
+        Debug(Debug::ERROR) << "Could not open data file " << dbTypeFile << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    size_t written = fwrite(&dbtype, sizeof(int), 1, dbtypeDataFile);
+    if (written != 1) {
+        Debug(Debug::ERROR) << "Could not write to data file " << dbTypeFile << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    fclose(dbtypeDataFile);
+//    }
 
     mergeResults(dataFileName, indexFileName,
-                 (const char **) dataFileNames, (const char **) indexFileNames, threads, ((mode & LEXICOGRAPHIC_MODE) != 0));
+                 (const char **) dataFileNames, (const char **) indexFileNames, threads, ((mode & Parameters::WRITER_LEXICOGRAPHIC_MODE) != 0));
 
     for (unsigned int i = 0; i < threads; i++) {
         delete [] dataFilesBuffer[i];
@@ -223,45 +250,130 @@ void DBWriter::writeStart(unsigned int thrIdx) {
     }
 
     starts[thrIdx] = offsets[thrIdx];
+
+    if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0){
+        int cLevel = 3;
+        size_t const initResult = ZSTD_initCStream(cstream[thrIdx], cLevel);
+        if (ZSTD_isError(initResult)) {
+            Debug(Debug::ERROR) << "ERROR: ZSTD_initCStream() error in thread " << thrIdx << ". Error "
+                                << ZSTD_getErrorName(initResult) << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        // lets do some black magic! We need the first 4 byte for the length. We overwrite this later
+        unsigned int dummyValue = 0;
+        size_t written = fwrite(&dummyValue, sizeof(unsigned int), 1, dataFiles[thrIdx]);
+        if(written != 1){
+            Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "in writeStart\n";
+            EXIT(EXIT_FAILURE);
+        }
+        offsets[thrIdx] += sizeof(unsigned int);
+    }
 }
 
-void DBWriter::writeAdd(const char* data, size_t dataSize, unsigned int thrIdx) {
+size_t DBWriter::writeAdd(const char* data, size_t dataSize, unsigned int thrIdx) {
     checkClosed();
     if (thrIdx >= threads) {
         Debug(Debug::ERROR) << "ERROR: Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
         EXIT(EXIT_FAILURE);
     }
-
-    size_t written = fwrite(data, sizeof(char), dataSize, dataFiles[thrIdx]);
-    if (written != dataSize) {
-        Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
-        EXIT(EXIT_FAILURE);
+    size_t totalWriten = 0;
+    if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0) {
+        ZSTD_inBuffer input = { data, dataSize, 0 };
+        while (input.pos < input.size) {
+            ZSTD_outBuffer output = {compressedBuffers[thrIdx], compressedBufferSizes[thrIdx], 0};
+            size_t toRead = ZSTD_compressStream( cstream[thrIdx], &output, &input);   /* toRead is guaranteed to be <= ZSTD_CStreamInSize() */
+            if (ZSTD_isError(toRead)) {
+                Debug(Debug::ERROR) << "ERROR: ZSTD_compressStream() error in thread " << thrIdx << ". Error "
+                                    << ZSTD_getErrorName(toRead) << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            size_t written = fwrite(compressedBuffers[thrIdx], sizeof(char), output.pos, dataFiles[thrIdx]);
+            if (written != output.pos) {
+                Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            offsets[thrIdx] += written;
+            totalWriten += written;
+        }
+    }else{
+        size_t written = fwrite(data, sizeof(char), dataSize, dataFiles[thrIdx]);
+        if (written != dataSize) {
+            Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        offsets[thrIdx] += written;
     }
-    offsets[thrIdx] += written;
+
+    return totalWriten;
 }
 
 void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte) {
-    size_t written;
+    // close stream
+    if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0) {
+        ZSTD_outBuffer output = {compressedBuffers[thrIdx], compressedBufferSizes[thrIdx], 0};
+        const size_t remainingToFlush = ZSTD_endStream(cstream[thrIdx], &output); /* close frame */
+        ZSTD_frameProgression progression = ZSTD_getFrameProgression(cstream[thrIdx]);
+        size_t compressedLength = progression.produced;
+//        std::cout << compressedLength << std::endl;
+        if (remainingToFlush) {
+            Debug(Debug::ERROR) << "Stream not flushed\n";
+            EXIT(EXIT_FAILURE);
+        }
+        size_t written = fwrite(compressedBuffers[thrIdx], sizeof(char), output.pos, dataFiles[thrIdx]);
+        offsets[thrIdx] += written;
+        if (written != output.pos) {
+            Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        // add compressed length to start
+        if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0) {
+            unsigned int compressedLengthInt = static_cast<unsigned int>(compressedLength);
+            int err = fseek(dataFiles[thrIdx], starts[thrIdx], SEEK_SET);
+            if( err != 0 ){
+                Debug(Debug::ERROR) << "Could not seek start in data file " << dataFileNames[thrIdx] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            size_t written2 = fwrite(&compressedLengthInt, sizeof(unsigned int), 1, dataFiles[thrIdx]);
+            if (written2 != 1) {
+                Debug(Debug::ERROR) << "Could not write entry length to data file " << dataFileNames[thrIdx] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            err = fseek(dataFiles[thrIdx], 0, SEEK_END);
+            if( err != 0 ){
+                Debug(Debug::ERROR) << "Could not seek end in data file " << dataFileNames[thrIdx] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+        }
+    }
+    size_t totalWritten=0;
+
     // entries are always separated by a null byte
     if(addNullByte == true){
         char nullByte = '\0';
-        written = fwrite(&nullByte, sizeof(char), 1, dataFiles[thrIdx]);
+        size_t written = fwrite(&nullByte, sizeof(char), 1, dataFiles[thrIdx]);
         if (written != 1) {
             Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
             EXIT(EXIT_FAILURE);
         }
+        totalWritten += written;
         offsets[thrIdx] += 1;
     }
 
     size_t length = offsets[thrIdx] - starts[thrIdx];
+    // keep original size in index
+    if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0) {
+        ZSTD_frameProgression progression = ZSTD_getFrameProgression(cstream[thrIdx]);
+        length = progression.consumed + totalWritten;
+    }
 
     char buffer[1024];
     size_t len = indexToBuffer(buffer, key, starts[thrIdx], length );
-    written = fwrite(buffer, sizeof(char), len, indexFiles[thrIdx]);
+    size_t written = fwrite(buffer, sizeof(char), len, indexFiles[thrIdx]);
     if (written != len) {
         Debug(Debug::ERROR) << "Could not write to data file " << indexFiles[thrIdx] << "\n";
         EXIT(EXIT_FAILURE);
     }
+
 }
 
 void DBWriter::writeIndexEntry(unsigned int key, size_t offset, size_t length, unsigned int thrIdx){
@@ -416,7 +528,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         }
         size_t globalOffset = threadDataFileSizes[0];
         for (unsigned int fileIdx = 1; fileIdx < fileCount; fileIdx++) {
-            DBReader<unsigned int> reader(dataFileNames[fileIdx], indexFileNames[fileIdx], DBReader<unsigned int>::USE_INDEX);
+            DBReader<unsigned int> reader(dataFileNames[fileIdx], indexFileNames[fileIdx], 1, DBReader<unsigned int>::USE_INDEX);
             reader.open(DBReader<unsigned int>::HARDNOSORT);
             if (reader.getSize() > 0) {
                 DBReader<unsigned int>::Index * index = reader.getIndex();
@@ -445,7 +557,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
 
     if (lexicographicOrder == false) {
         // sort the index
-        DBReader<unsigned int> indexReader(dataFileNames[0], indexFileNames[0], DBReader<unsigned int>::USE_INDEX);
+        DBReader<unsigned int> indexReader(dataFileNames[0], indexFileNames[0], 1, DBReader<unsigned int>::USE_INDEX);
         indexReader.open(DBReader<unsigned int>::NOSORT);
         DBReader<unsigned int>::Index *index = indexReader.getIndex();
         FILE *index_file  = fopen(outFileNameIndex, "w");
@@ -454,7 +566,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         indexReader.close();
 
     } else {
-        DBReader<std::string> indexReader(dataFileNames[0], indexFileNames[0], DBReader<std::string>::USE_INDEX);
+        DBReader<std::string> indexReader(dataFileNames[0], indexFileNames[0], 1, DBReader<std::string>::USE_INDEX);
         indexReader.open(DBReader<std::string>::SORT_BY_ID);
         DBReader<std::string>::Index *index = indexReader.getIndex();
         FILE *index_file  = fopen(outFileNameIndex, "w");
@@ -529,14 +641,14 @@ void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::strin
     }
 
     Debug(Debug::INFO) << "Merge file " << fileNames[0].first << " and " << fileNames[0].second << "\n";
-    DBReader<unsigned int> reader1(fileNames[0].first.c_str(), fileNames[0].second.c_str(),
+    DBReader<unsigned int> reader1(fileNames[0].first.c_str(), fileNames[0].second.c_str(), 1,
                                    DBReader<unsigned int>::USE_INDEX);
     reader1.open(DBReader<unsigned int>::NOSORT);
     unsigned int *seqLen1 = reader1.getSeqLens();
     DBReader<unsigned int>::Index *index1 = reader1.getIndex();
 
     for (size_t i = 1; i < fileNames.size(); i++) {
-        DBReader<unsigned int> reader2(fileNames[i].first.c_str(), fileNames[i].second.c_str(),
+        DBReader<unsigned int> reader2(fileNames[i].first.c_str(), fileNames[i].second.c_str(), 1,
                                        DBReader<unsigned int>::USE_INDEX);
         reader2.open(DBReader<unsigned int>::NOSORT);
         unsigned int *seqLen2 = reader2.getSeqLens();

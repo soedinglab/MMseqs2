@@ -33,7 +33,7 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
     }
 
     Debug(Debug::INFO) << "Start writing to file " << resultdb.first << "\n";
-    DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), localThreads);
+    DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), localThreads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
 #pragma omp parallel num_threads(localThreads)
     {
@@ -54,7 +54,7 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
             Debug::printProgress(i);
 
             unsigned int id = resultReader.getDbKey(i);
-            char *tabData = resultReader.getData(i);
+            char *tabData = resultReader.getData(i,  thread_idx);
             Matcher::readAlignmentResults(alnResults, tabData);
             if (alnResults.size() == 0) {
                 Debug(Debug::WARNING) << "Could not map any alingment results for entry " << id << "!\n";
@@ -103,7 +103,7 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
 }
 
 int doSummarize(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     size_t dbFrom = 0;
@@ -132,7 +132,7 @@ int doSummarize(Parameters &par, const unsigned int mpiRank, const unsigned int 
 }
 
 int doSummarize(Parameters &par) {
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     size_t resultSize = reader.getSize();
     int status = doSummarize(par, reader, std::make_pair(par.db2, par.db2Index), 0, resultSize);

@@ -10,6 +10,10 @@
 #include <utility>
 #include <string>
 #include "Sequence.h"
+#include "Parameters.h"
+
+#define ZSTD_STATIC_LINKING_ONLY // ZSTD_findDecompressedSize
+#include <zstd/lib/zstd.h>
 
 template <typename T>
 class DBReader {
@@ -22,9 +26,10 @@ public:
             return (x.id <= y.id);
         }
     };
-    DBReader(const char* dataFileName, const char* indexFileName, int mode = USE_DATA|USE_INDEX);
+    // = USE_DATA|USE_INDEX
+    DBReader(const char* dataFileName, const char* indexFileName, int threads, int mode);
 
-    DBReader(Index* index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey, int dbType);
+    DBReader(Index* index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey, int dbType, unsigned int maxSeqLen);
 
     void setDataFile(const char* dataFileName);
 
@@ -40,11 +45,15 @@ public:
 
     size_t getAminoAcidDBSize(){ return aaDbSize; }
 
-    char* getData(size_t id);
+    char* getData(size_t id, int thrIdx);
+
+    char* getDataCompressed(size_t id, int thrIdx);
+
+    char* getDataUncompressed(size_t id);
 
     void touchData(size_t id);
 
-    char* getDataByDBKey(T key);
+    char* getDataByDBKey(T key, int thrIdx);
 
     size_t getSize();
 
@@ -78,6 +87,11 @@ public:
     static const int USE_DATA     = 1;
     static const int USE_WRITABLE = 2;
     static const int USE_FREAD    = 4;
+
+    // compressed
+    static const int UNCOMPRESSED    = 0;
+    static const int COMPRESSED     = 1;
+
 
     const char * getData(){
         return data;
@@ -135,11 +149,11 @@ public:
 
     static const char* getDbTypeName(int dbtype) {
         switch(dbtype) {
-            case Sequence::AMINO_ACIDS: return "Aminoacid";
-            case Sequence::NUCLEOTIDES: return "Nucleotide";
-            case Sequence::HMM_PROFILE: return "Profile";
-            case Sequence::PROFILE_STATE_SEQ: return "Profile state";
-            case Sequence::PROFILE_STATE_PROFILE: return "Profile profile";
+            case Parameters::DBTYPE_AMINO_ACIDS: return "Aminoacid";
+            case Parameters::DBTYPE_NUCLEOTIDES: return "Nucleotide";
+            case Parameters::DBTYPE_HMM_PROFILE: return "Profile";
+            case Parameters::DBTYPE_PROFILE_STATE_SEQ: return "Profile state";
+            case Parameters::DBTYPE_PROFILE_STATE_PROFILE: return "Profile profile";
             default: return "Unknown";
         }
     }
@@ -199,11 +213,21 @@ public:
 
     size_t findNextOffsetid(size_t id);
 
+    int isCompressed(){
+        return isCompressed(dbtype);
+    }
+
+
+    static int isCompressed(int dbtype);
+
+
 private:
 
     void checkClosed();
 
     char* data;
+
+    int threads;
 
     int dataMode;
 
@@ -219,10 +243,16 @@ private:
     size_t aaDbSize;
     // Last Key in Index
     T lastKey;
+    // max seqLen
+    unsigned int maxSeqLen;
     // flag to check if db was closed
     int closed;
     // stores the dbtype (if dbtype file exists)
     int dbtype;
+    int compression;
+    char ** compressedBuffers;
+    size_t * compressedBufferSizes;
+    ZSTD_DStream ** dstream;
 
     Index * index;
 

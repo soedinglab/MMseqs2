@@ -35,23 +35,27 @@ int clusthash(int argc, const char **argv, const Command& command) {
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, -0.2);
     ReducedMatrix redSubMat(subMat.probMatrix, subMat.subMatrixPseudoCounts, subMat.aa2int, subMat.int2aa, subMat.alphabetSize, par.alphabetSize, 2.0);
 
-    DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     seqDbr.open(DBReader<unsigned int>::NOSORT);
     seqDbr.readMmapedDataInMemory();
 
-    DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_PREFILTER_RES);
     dbw.open();
     Debug(Debug::INFO) << "Hashing sequences ... \n";
     std::pair<size_t, unsigned int> * hashSeqPair = new  std::pair<size_t, unsigned int>[seqDbr.getSize()+1];
     hashSeqPair[seqDbr.getSize()] = std::make_pair(UINT_MAX, 0); // needed later to check if one of array
 #pragma omp parallel
     {
-        Sequence seq(par.maxSeqLen, Sequence::AMINO_ACIDS, &redSubMat, 0, false, false);
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+        Sequence seq(par.maxSeqLen, Parameters::DBTYPE_AMINO_ACIDS, &redSubMat, 0, false, false);
 #pragma omp for schedule(dynamic, 10000)
         for(size_t id = 0; id < seqDbr.getSize(); id++){
             Debug::printProgress(id);
             unsigned int queryKey = seqDbr.getDbKey(id);
-            char * data = seqDbr.getData(id);
+            char * data = seqDbr.getData(id, thread_idx);
             seq.mapSequence(id, queryKey, data);
             size_t seqHash = Util::hash(seq.int_sequence, seq.L);
             hashSeqPair[id] = std::make_pair(seqHash, id);
@@ -105,7 +109,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
             }
             for(size_t i = 0; i < setIds.size(); i++) {
                 unsigned int queryLength = std::max(seqDbr.getSeqLens(setIds[i]), 3ul) - 2;
-                const char * querySeq =  seqDbr.getData(setIds[i]);
+                const char * querySeq =  seqDbr.getData(setIds[i], thread_idx);
                 std::stringstream swResultsSs;
                 swResultsSs << seqDbr.getDbKey(setIds[i]) << "\t";
                 swResultsSs << 255 << "\t";
@@ -126,7 +130,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
                         continue;
                     unsigned int targetLength = std::max(seqDbr.getSeqLens(setIds[j]), 3ul) - 2;
                     if(i != j && queryLength == targetLength){
-                        const char * targetSeq = seqDbr.getData(setIds[j]);
+                        const char * targetSeq = seqDbr.getData(setIds[j], thread_idx);
                         unsigned int distance = DistanceCalculator::computeHammingDistance(querySeq, targetSeq, queryLength);
                         float seqId = (static_cast<float>(queryLength) - static_cast<float>(distance))/static_cast<float>(queryLength);
                         if(seqId >= par.seqIdThr) {

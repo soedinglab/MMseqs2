@@ -102,7 +102,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
 
     const int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
-    if (isUngappedMode && dbType == Sequence::HMM_PROFILE) {
+    if (isUngappedMode && Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_HMM_PROFILE)) {
         par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
         Debug(Debug::ERROR) << "Cannot use ungapped alignment mode with profile databases.\n";
         EXIT(EXIT_FAILURE);
@@ -198,7 +198,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
             cmd.addVariable(std::string("CLUSTER"  +SSTR(step)+"_PAR").c_str(), par.createParameterString(par.clust).c_str());
         }
         cmd.addVariable("STEPS", SSTR(par.clusterSteps).c_str());
-
+        //cmd.addVariable("REASSIGN","TRUE");
         size_t olfMaxResSize = par.maxResListLen;
         par.maxResListLen = INT_MAX;
         cmd.addVariable("ALIGNMENT_REASSIGN_PAR", par.createParameterString(par.align).c_str());

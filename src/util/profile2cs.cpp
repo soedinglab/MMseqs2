@@ -18,7 +18,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
     par.alphabetSize = 8;
     par.parseParameters(argc, argv, command, 2,  true, 0, MMseqsParameter::COMMAND_PROFILE);
 
-    DBReader<unsigned int> profileReader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> profileReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     profileReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     int alphabetSize[] = {219, 255};
@@ -30,7 +30,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
             dbIndex +=  "." + SSTR(alphabetSize[i]);
         }
         dbIndex += ".index";
-        DBWriter writer(dbName.c_str(), dbIndex.c_str(), par.threads);
+        DBWriter writer(dbName.c_str(), dbIndex.c_str(), par.threads, par.compressed, Parameters::DBTYPE_PROFILE_STATE_SEQ);
         writer.open();
         size_t alphSize = alphabetSize[i];
         size_t entries = profileReader.getSize();
@@ -40,7 +40,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
         Debug(Debug::INFO) << "Start converting profiles.\n";
 #pragma omp parallel
         {
-            Sequence seq(par.maxSeqLen, Sequence::HMM_PROFILE, &subMat, 0, false, false, true);
+            Sequence seq(par.maxSeqLen, Parameters::DBTYPE_HMM_PROFILE, &subMat, 0, false, false, true);
             unsigned int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = static_cast<unsigned int>(omp_get_thread_num());
@@ -56,7 +56,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
                 result.clear();
 
                 unsigned int key = profileReader.getDbKey(i);
-                seq.mapSequence(i, key, profileReader.getData(i));
+                seq.mapSequence(i, key, profileReader.getData(i, thread_idx));
                 if(alphSize == 219){
                     ps.discretizeCs219(seq.getProfile(), seq.L, result);
                 }else {
@@ -98,7 +98,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
             }
             delete[] buffer;
         }
-        writer.close(Sequence::PROFILE_STATE_SEQ);
+        writer.close();
     }
     Debug(Debug::INFO) << "\nDone.\n";
     profileReader.close();

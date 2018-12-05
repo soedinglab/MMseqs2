@@ -18,7 +18,7 @@ int alignall(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 3);
 
     Debug(Debug::INFO) << "Target database: " << par.db1 << "\n";
-    DBReader<unsigned int> tdbr(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> tdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     tdbr.open(DBReader<unsigned int>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         tdbr.readMmapedDataInMemory();
@@ -26,7 +26,7 @@ int alignall(int argc, const char **argv, const Command &command) {
     const int targetSeqType = tdbr.getDbtype();
 
     BaseMatrix *subMat;
-    if (targetSeqType == Sequence::NUCLEOTIDES) {
+    if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
     } else {
         // keep score bias at 0.0 (improved ROC)
@@ -34,11 +34,11 @@ int alignall(int argc, const char **argv, const Command &command) {
     }
 
     Debug(Debug::INFO) << "Prefilter database: " << par.db2 << "\n";
-    DBReader<unsigned int> dbr_res(par.db2.c_str(), par.db2Index.c_str());
+    DBReader<unsigned int> dbr_res(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
-    DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads);
+    DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_PREFILTER_RES);
     resultWriter.open();
 
     EvalueComputation evaluer(tdbr.getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
@@ -69,7 +69,7 @@ int alignall(int argc, const char **argv, const Command &command) {
                 Debug::printProgress(id);
 
                 const unsigned int key = dbr_res.getDbKey(id);
-                char *data = dbr_res.getData(id);
+                char *data = dbr_res.getData(id, thread_idx);
 
                 results.clear();
                 while (*data != '\0') {
@@ -83,7 +83,7 @@ int alignall(int argc, const char **argv, const Command &command) {
                 for (size_t entryIdx1 = 0; entryIdx1 < results.size(); entryIdx1++) {
                     const unsigned int queryId = tdbr.getId(results[entryIdx1]);
                     const unsigned int queryKey = tdbr.getDbKey(queryId);
-                    char *querySeq = tdbr.getData(queryId);
+                    char *querySeq = tdbr.getData(queryId, thread_idx);
                     query.mapSequence(id, queryKey, querySeq);
                     matcher.initQuery(&query);
 
@@ -94,7 +94,7 @@ int alignall(int argc, const char **argv, const Command &command) {
                     for (size_t entryIdx = 0; entryIdx < results.size(); entryIdx++) {
                         const unsigned int targetId = tdbr.getId(results[entryIdx]);
                         const unsigned int targetKey = tdbr.getDbKey(targetId);
-                        char *targetSeq = tdbr.getData(targetId);
+                        char *targetSeq = tdbr.getData(targetId, thread_idx);
                         target.mapSequence(id, targetKey, targetSeq);
 
                         if (Util::canBeCovered(par.covThr, par.covMode, query.L, target.L) == false) {

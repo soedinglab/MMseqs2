@@ -7,6 +7,7 @@
 
 #include "MathUtil.h"
 #include "BaseMatrix.h"
+#include "Parameters.h"
 
 #include <cstdint>
 #include <cstddef>
@@ -140,7 +141,8 @@ public:
                 break;
         }
 
-        if (seqType == HMM_PROFILE||seqType==PROFILE_STATE_PROFILE) {
+        if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE)||
+            Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
             nextProfileKmer();
             for (unsigned int i = 0; i < this->kmerSize; i++) {
                     kmerWindow[i] = 0;
@@ -175,11 +177,6 @@ public:
     // reverse the sequence for the match statistics calculation
     void reverse();
 
-    static const int AMINO_ACIDS = 0;
-    static const int NUCLEOTIDES = 1;
-    static const int HMM_PROFILE = 2;
-    static const int PROFILE_STATE_SEQ = 3;
-    static const int PROFILE_STATE_PROFILE = 4;
 
     // submat
     BaseMatrix * subMat;
@@ -273,7 +270,7 @@ private:
     // current iterator position
     int currItPos;
 
-    // AMINO_ACIDS or NUCLEOTIDES
+    // DBTYPE_AMINO_ACIDS or DBTYPE_NUCLEOTIDES
     int seqType;
 
     // maximum possible length of sequence

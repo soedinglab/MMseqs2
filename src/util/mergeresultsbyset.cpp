@@ -1,7 +1,6 @@
 #include "Debug.h"
 #include "DBReader.h"
 #include "DBWriter.h"
-#include "Parameters.h"
 #include "Util.h"
 
 #ifdef OPENMP
@@ -12,13 +11,13 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true, true);
 
-    DBReader<unsigned int> setReader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> setReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     setReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str());
+    DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter dbw(par.db3.c_str(), par.db3Index.c_str(), par.threads);
+    DBWriter dbw(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_CLUSTER_RES);
     dbw.open();
 #pragma omp parallel
     {
@@ -31,7 +30,7 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
         char dbKey[255];
 #pragma omp for schedule(static)
         for (size_t i = 0; i < setReader.getSize(); ++i) {
-            char *data = setReader.getData(i);
+            char *data = setReader.getData(i, thread_idx);
             // go through the results in the cluster and add them to one entry
             while (*data != '\0'){
                 Util::parseKey(data, dbKey);
@@ -41,7 +40,7 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
                     Debug(Debug::ERROR) << "Invalid key " << key << " in entry " << i << ".\n";
                     EXIT(EXIT_SUCCESS);
                 }
-                buffer.append(resultReader.getData(id));
+                buffer.append(resultReader.getData(id, thread_idx));
                 data = Util::skipLine(data);
             }
             dbw.writeData(buffer.c_str(), buffer.length(), setReader.getDbKey(i), thread_idx);

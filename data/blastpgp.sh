@@ -82,7 +82,7 @@ while [ $STEP -lt $NUM_IT ]; do
 done
 # post processing
 STEP=$((STEP-1))
-(mv -f "$TMP_PATH/aln_0" "$3" && mv -f "$TMP_PATH/aln_0.index" "$3.index") || fail "Could not move result to $3"
+(mv -f "$TMP_PATH/aln_0" "$3" && mv -f "$TMP_PATH/aln_0.dbtype" "$3.dbtype" && mv -f "$TMP_PATH/aln_0.index" "$3.index") || fail "Could not move result to $3"
 
 if [ -n "$REMOVE_TMP" ]; then
  echo "Remove temporary files"

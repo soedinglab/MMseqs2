@@ -10,31 +10,29 @@
 
 #include <string>
 #include <vector>
+#include <zstd/lib/zstd.h>
 #include "DBReader.h"
 
 template <typename T> class DBReader;
 
 class DBWriter {
 public:
-    static const size_t ASCII_MODE = 0;
-    static const size_t BINARY_MODE = 1;
-    static const size_t LEXICOGRAPHIC_MODE = 2;
 
 
-    DBWriter(const char* dataFileName, const char* indexFileName, unsigned int threads = 1, size_t mode = ASCII_MODE);
+    DBWriter(const char* dataFileName, const char* indexFileName, unsigned int threads, size_t mode, int dbtype);
 
     ~DBWriter();
 
     void open(size_t bufferSize = 64 * 1024 * 1024);
 
-    void close(int dbType = -1);
+    void close();
 
     char* getDataFileName() { return dataFileName; }
 
     char* getIndexFileName() { return indexFileName; }
 
     void writeStart(unsigned int thrIdx = 0);
-    void writeAdd(const char* data, size_t dataSize, unsigned int thrIdx = 0);
+    size_t writeAdd(const char* data, size_t dataSize, unsigned int thrIdx = 0);
     void writeEnd(unsigned int key, unsigned int thrIdx = 0, bool addNullByte = true);
 
     void writeData(const char *data, size_t dataSize, unsigned int key, unsigned int threadIdx = 0, bool addNullByte = true);
@@ -80,12 +78,17 @@ private:
 
     char** dataFileNames;
     char** indexFileNames;
+    char** compressedBuffers;
+    size_t * compressedBufferSizes;
 
     size_t* starts;
     size_t* offsets;
 
+    ZSTD_CStream** cstream;
+
     const unsigned int threads;
     const size_t mode;
+    int dbtype;
 
     bool closed;
 

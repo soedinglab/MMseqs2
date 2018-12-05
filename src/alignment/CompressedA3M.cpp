@@ -37,7 +37,7 @@ void readU32(const char **ptr, uint32_t &result) {
 
 std::string CompressedA3M::extractA3M(const char *data, size_t data_size,
                                       DBReader<unsigned int>& sequenceReader,
-                                      DBReader<unsigned int>& headerReader) {
+                                      DBReader<unsigned int>& headerReader, int thread_idx) {
     std::ostringstream output;
 
     //read stuff till compressed part
@@ -87,8 +87,8 @@ std::string CompressedA3M::extractA3M(const char *data, size_t data_size,
         readU32(&data, entry_index);
         index += 4;
 
-        std::string sequence = sequenceReader.getData(entry_index);
-        std::string header = headerReader.getData(entry_index);
+        std::string sequence = sequenceReader.getData(entry_index, thread_idx);
+        std::string header = headerReader.getData(entry_index, thread_idx);
 
         // make sure we always have a valid fasta prefix
         if (header[0] != '>') {

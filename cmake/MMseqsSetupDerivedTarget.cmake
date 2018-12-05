@@ -6,7 +6,7 @@ function (mmseqs_setup_derived_target TARGET)
     get_target_property(DEF_TMP mmseqs-framework COMPILE_DEFINITIONS)
     get_target_property(INCL_TMP mmseqs-framework INCLUDE_DIRECTORIES)
 
-    target_link_libraries(${TARGET} mmseqs-framework)
+    target_link_libraries(${TARGET} mmseqs-framework libzstd_static)
     append_target_property(${TARGET} COMPILE_FLAGS ${COMPILE_TMP})
     append_target_property(${TARGET} LINK_FLAGS ${LINK_TMP})
     set_property(TARGET ${TARGET} APPEND PROPERTY COMPILE_DEFINITIONS ${DEF_TMP})

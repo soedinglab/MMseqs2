@@ -21,10 +21,10 @@ int main(int argc, const char *argv[]) {
 //                               "/Users/mad/Documents/databases/mmseqs_benchmark/benchmarks/protein_search_uniscop/db/mmseqs/db_sw",
                                "/Users/mad/Documents/databases/db_small/db_small.index"
 //                               "/Users/mad/Documents/databases/mmseqs_benchmark/benchmarks/protein_search_uniscop/db/mmseqs/db_sw.index"
-                               );
+                               , 1, 0);
     dbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    Sequence *s = new Sequence(32000, Sequence::AMINO_ACIDS, &subMat, 6, true, false);
+    Sequence *s = new Sequence(32000, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 6, true, false);
     IndexTable t(subMat.alphabetSize, 6, false);
     IndexBuilder::fillDatabase(&t, NULL, NULL, subMat, s, &dbr, 0, dbr.getSize(), 0);
     t.printStatistics(subMat.int2aa);

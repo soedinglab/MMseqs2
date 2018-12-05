@@ -38,10 +38,10 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 5);
 
-    DBReader<unsigned int> oldReader(par.hdr1.c_str(), par.hdr1Index.c_str());
+    DBReader<unsigned int> oldReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     oldReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> newReader(par.hdr2.c_str(), par.hdr2Index.c_str());
+    DBReader<unsigned int> newReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     newReader.open(DBReader<unsigned int>::NOSORT);
 
     std::ofstream removedSeqDBWriter, keptSeqDBWriter, newSeqDBWriter;
@@ -54,19 +54,25 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     // keys pairs are like : (headerID,key) where key is the ffindex key corresponding to the header
     std::pair<std::string, unsigned int> *keysOld
             = new std::pair<std::string, unsigned int>[indexSizeOld];
-
-    #pragma omp parallel for schedule(dynamic, 10)
-    for (size_t id = 0; id < indexSizeOld; ++id) {
-        if (par.useSequenceId) {
-            keysOld[id] = std::make_pair(
-                    Util::parseFastaHeader(oldReader.getData(id)),
-                    oldReader.getDbKey(id)
-            );
-        } else {
-            keysOld[id] = std::make_pair(
-                    Util::removeWhiteSpace(oldReader.getData(id)),
-                    oldReader.getDbKey(id)
-            );
+#pragma omp parallel
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+#pragma omp for schedule(dynamic, 10)
+        for (size_t id = 0; id < indexSizeOld; ++id) {
+            if (par.useSequenceId) {
+                keysOld[id] = std::make_pair(
+                        Util::parseFastaHeader(oldReader.getData(id, thread_idx)),
+                        oldReader.getDbKey(id)
+                );
+            } else {
+                keysOld[id] = std::make_pair(
+                        Util::removeWhiteSpace(oldReader.getData(id, thread_idx)),
+                        oldReader.getDbKey(id)
+                );
+            }
         }
     }
 
@@ -74,18 +80,25 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     std::pair<std::string, unsigned int> *keysNew
             = new std::pair<std::string, unsigned int>[indexSizeNew];
 
-    #pragma omp parallel for schedule(dynamic, 10)
-    for (size_t id = 0; id < indexSizeNew; ++id) {
-        if (par.useSequenceId) {
-            keysNew[id] = std::make_pair(
-                    Util::parseFastaHeader(newReader.getData(id)),
-                    newReader.getDbKey(id)
-            );
-        } else {
-            keysNew[id] = std::make_pair(
-                    Util::removeWhiteSpace(newReader.getData(id)),
-                    newReader.getDbKey(id)
-            );
+#pragma omp parallel
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+#pragma omp for schedule(dynamic, 10)
+        for (size_t id = 0; id < indexSizeNew; ++id) {
+            if (par.useSequenceId) {
+                keysNew[id] = std::make_pair(
+                        Util::parseFastaHeader(newReader.getData(id,thread_idx)),
+                        newReader.getDbKey(id)
+                );
+            } else {
+                keysNew[id] = std::make_pair(
+                        Util::removeWhiteSpace(newReader.getData(id, thread_idx)),
+                        newReader.getDbKey(id)
+                );
+            }
         }
     }
 
@@ -99,7 +112,7 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
 
     bool* deletedIds = new bool[indexSizeOld]();
 
-    #pragma omp parallel for schedule(dynamic, 10)
+#pragma omp parallel for schedule(dynamic, 10)
     for (size_t id = 0; id < indexSizeOld; ++id) {
         const std::string &keyToSearch = keysOld[id].first;
         std::pair<std::string, unsigned int> *mappedKey

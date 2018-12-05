@@ -75,7 +75,7 @@ while [ "$STEP" -lt "$STEPS" ]; do
 done
 
 # post processing
-(mv -f "$TMP_PATH/aln_${SENSE_0}" "$3" && mv -f "$TMP_PATH/aln_${SENSE_0}.index" "$3.index" ) \
+(mv -f "$TMP_PATH/aln_${SENSE_0}" "$3" && mv -f "$TMP_PATH/aln_${SENSE_0}.dbtype" "$3.dbtype" && mv -f "$TMP_PATH/aln_${SENSE_0}.index" "$3.index" ) \
     || fail "Could not move result to $3"
 
 if [ -n "$REMOVE_TMP" ]; then

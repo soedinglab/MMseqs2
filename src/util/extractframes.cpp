@@ -22,16 +22,16 @@ int extractframes(int argc, const char **argv, const Command& command) {
     par.overrideParameterDescription((Command &)command, par.PARAM_ORF_REVERSE_FRAMES.uniqid, "comma-seperated list of frames on the reverse strand to be extracted", NULL,  par.PARAM_ORF_REVERSE_FRAMES.category);
     par.parseParameters(argc, argv, command, 2);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str());
+    DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     headerReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     sequenceWriter.open();
 
-    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads);
+    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
     unsigned int forwardFrames = Orf::getFrames(par.forwardFrames);
@@ -59,10 +59,10 @@ int extractframes(int argc, const char **argv, const Command& command) {
             Debug::printProgress(i);
 
             unsigned int key = reader.getDbKey(i);
-            const char* data = reader.getData(i);
+            const char* data = reader.getData(i, thread_idx);
             size_t dataLength = reader.getSeqLens(i);
 
-            const char* header = headerReader.getData(i);
+            const char* header = headerReader.getData(i, thread_idx);
             std::string headerAccession = Util::parseFastaHeader(header);
             switch (forwardFrames){
                 case Orf::FRAME_1:
@@ -127,7 +127,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
         }
     }
     headerWriter.close();
-    sequenceWriter.close(Sequence::NUCLEOTIDES);
+    sequenceWriter.close();
     headerReader.close();
     reader.close();
 
@@ -139,6 +139,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
 #pragma omp task
             {
                 DBReader<unsigned int> frameHeaderReader(par.hdr2.c_str(), par.hdr2Index.c_str(),
+                                                       par.threads,
                                                        DBReader<unsigned int>::USE_INDEX);
                 frameHeaderReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
                 FILE *hIndex = fopen((par.hdr2Index + "_tmp").c_str(), "w");
@@ -164,6 +165,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
 #pragma omp task
             {
                 DBReader<unsigned int> frameSequenceReader(par.db2.c_str(), par.db2Index.c_str(),
+                                                         par.threads,
                                                          DBReader<unsigned int>::USE_INDEX);
                 frameSequenceReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
 

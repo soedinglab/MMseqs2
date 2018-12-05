@@ -276,7 +276,7 @@ int apply(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2, true, Parameters::PARSE_REST);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::SORT_BY_LENGTH);
 
     const unsigned int *sizes = reader.getSeqLens();
@@ -317,7 +317,7 @@ int apply(int argc, const char **argv, const Command& command) {
                 std::pair<std::string, std::string> outDb = Util::createTmpFileNames(par.db2, par.db2Index, thread);
 #endif
 
-                DBWriter writer(outDb.first.c_str(), outDb.second.c_str(), 1);
+                DBWriter writer(outDb.first.c_str(), outDb.second.c_str(), 1, par.compressed, Parameters::DBTYPE_GENERIC_DB);
                 writer.open();
 
                 char **local_environ = local_environment();
@@ -333,7 +333,7 @@ int apply(int argc, const char **argv, const Command& command) {
                     size_t index = i;
                     size_t size = sizes[i] - 1;
 
-                    char *data = reader.getData(index);
+                    char *data = reader.getData(index, thread);
                     if (data == NULL) {
                         continue;
                     }

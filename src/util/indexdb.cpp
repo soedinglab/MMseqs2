@@ -55,7 +55,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     }
 
     const bool sameDB = (par.db1 == par.db2);
-    DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr.open(DBReader<unsigned int>::NOSORT);
     BaseMatrix *subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
 
@@ -77,7 +77,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
         }
     }
 
-    const bool isProfileSearch = (dbr.getDbtype() == Sequence::HMM_PROFILE);
+    const bool isProfileSearch = (Parameters::isEqualDbtype(dbr.getDbtype(), Parameters::DBTYPE_HMM_PROFILE));
     if (isProfileSearch && kScoreSet == false) {
         par.kmerScore = 0;
     }
@@ -87,13 +87,13 @@ int indexdb(int argc, const char **argv, const Command &command) {
         par.maskMode = 0;
     }
 
-    // query seq type is actually unknown here, but if we pass HMM_PROFILE then its +20 k-score
+    // query seq type is actually unknown here, but if we pass DBTYPE_HMM_PROFILE then its +20 k-score
     par.kmerScore = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, par.kmerScore, par.kmerSize);
 
     std::string indexDB = PrefilteringIndexReader::indexName(par.db2, par.spacedKmer, par.kmerSize);
     if (par.checkCompatible && FileUtil::fileExists(indexDB.c_str())) {
         Debug(Debug::INFO) << "Check index " << indexDB << "\n";
-        DBReader<unsigned int> index(indexDB.c_str(), (indexDB + ".index").c_str());
+        DBReader<unsigned int> index(indexDB.c_str(), (indexDB + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         index.open(DBReader<unsigned int>::NOSORT);
         if (PrefilteringIndexReader::checkIfIndexFile(&index) && isIndexCompatible(index, par, dbr.getDbtype())) {
             Debug(Debug::INFO) << "Index is already up to date and compatible. Force recreation with --check-compatibility 0 parameter.\n";
@@ -106,10 +106,10 @@ int indexdb(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> *hdbr1 = NULL;
     DBReader<unsigned int> *hdbr2 = NULL;
     if (par.includeHeader == true) {
-        hdbr1 = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str());
+        hdbr1 = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         hdbr1->open(DBReader<unsigned int>::NOSORT);
         if (sameDB == false) {
-            hdbr2 = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str());
+            hdbr2 = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
             hdbr2->open(DBReader<unsigned int>::NOSORT);
         }
     }

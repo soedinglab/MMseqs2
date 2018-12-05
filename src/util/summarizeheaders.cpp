@@ -13,16 +13,16 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
-    DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     queryReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str());
+    DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     targetReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> reader(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> reader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads);
+    DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     writer.open();
 
     HeaderSummarizer * summarizer;
@@ -45,7 +45,7 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
 #endif
 
         unsigned int id = reader.getDbKey(i);
-        char* data = reader.getData(i);
+        char* data = reader.getData(i, thread_idx);
 
         std::vector<std::string> headers;
 
@@ -57,11 +57,11 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
         {
             char* header;
             if(entry == 0) {
-                header = queryReader.getDataByDBKey((unsigned int) strtoul(line.c_str(), NULL, 10));
+                header = queryReader.getDataByDBKey((unsigned int) strtoul(line.c_str(), NULL, 10), thread_idx);
 
                 representative = line;
             } else {
-                header = targetReader.getDataByDBKey((unsigned int) strtoul(line.c_str(), NULL, 10));
+                header = targetReader.getDataByDBKey((unsigned int) strtoul(line.c_str(), NULL, 10),thread_idx);
             }
             headers.emplace_back(header);
             entry++;

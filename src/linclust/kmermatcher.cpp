@@ -84,6 +84,10 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
     };
 #pragma omp parallel
     {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
         Sequence seq(par.maxSeqLen, querySeqType, subMat, KMER_SIZE, false, false);
         Indexer idxer(subMat->alphabetSize, KMER_SIZE);
         char * charSequence = new char[par.maxSeqLen];
@@ -105,7 +109,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
 #pragma omp for schedule(dynamic, 100)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 Debug::printProgress(id);
-                seq.mapSequence(id, id, seqDbr.getData(id));
+                seq.mapSequence(id, id, seqDbr.getData(id, thread_idx));
                 size_t seqHash = highestPossibleIndex + static_cast<unsigned int>(Util::hash(seq.int_sequence, seq.L));
 
                 // mask using tantan
@@ -351,7 +355,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     setLinearFilterDefault(&par);
     par.parseParameters(argc, argv, command, 2, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
 
-    DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     seqDbr.open(DBReader<unsigned int>::NOSORT);
     int querySeqType  =  seqDbr.getDbtype();
 
@@ -361,7 +365,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Database type: " << seqDbr.getDbTypeName() << "\n";
 
     BaseMatrix *subMat;
-    if (querySeqType == Sequence::NUCLEOTIDES) {
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
     }else {
         if (par.alphabetSize == 21) {
@@ -438,7 +442,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         std::vector<char> repSequence(seqDbr.getSize());
         std::fill(repSequence.begin(), repSequence.end(), false);
         // write result
-        DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+        DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_PREFILTER_RES);
         dbw.open();
 
         Timer timer;
@@ -744,7 +748,7 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
 }
 
 void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTyp) {
-    if(seqTyp == Sequence::NUCLEOTIDES){
+    if(Parameters::isEqualDbtype(seqTyp, Parameters::DBTYPE_NUCLEOTIDES)){
         if(parameters.kmerSize == 0) {
             parameters.kmerSize = std::max(15, static_cast<int>(log(static_cast<float>(aaDbSize))/log(4)));
             parameters.alphabetSize = 5;

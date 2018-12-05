@@ -5,7 +5,6 @@
 #include "CSProfile.h"
 #include "MathUtil.h"
 #include "DBReader.h"
-#include "Parameters.h"
 #include "DBWriter.h"
 
 #include <string>
@@ -20,13 +19,13 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, 2);
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 8.0, 0.0);
 
-    DBReader<unsigned int> sequenceDb(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> sequenceDb(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     sequenceDb.open(DBReader<unsigned int>::NOSORT);
-    DBWriter resultDbw(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    DBWriter resultDbw(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_HMM_PROFILE);
     resultDbw.open();
 #pragma omp parallel
     {
-        Sequence seq(par.maxSeqLen, Sequence::AMINO_ACIDS, &subMat, 0, false, false);
+        Sequence seq(par.maxSeqLen, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, false);
         CSProfile ps(par.maxSeqLen);
         char * data = new char[par.maxSeqLen * Sequence::PROFILE_READIN_SIZE];
 #pragma omp for schedule(dynamic, 10)
@@ -36,7 +35,7 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
 #ifdef OPENMP
             thread_idx = omp_get_thread_num();
 #endif
-            char *seqData     = sequenceDb.getData(id);
+            char *seqData     = sequenceDb.getData(id, thread_idx);
             unsigned int queryKey = sequenceDb.getDbKey(id);
             seq.mapSequence(id, queryKey, seqData);
             float * prob =  ps.computeProfile(&seq, par.neff, par.tau);

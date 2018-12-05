@@ -141,16 +141,16 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
-    DBReader<std::string> dataIn(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<std::string> dataIn(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dataIn.open(DBReader<std::string>::NOSORT);
 
-    DBWriter dataOut(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    DBWriter dataOut(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_HMM_PROFILE);
     dataOut.open();
 
-    DBWriter seqOut(std::string(par.db2 +"_seq").c_str(),std::string(par.db2 +"_seq.index").c_str(), par.threads);
+    DBWriter seqOut(std::string(par.db2 +"_seq").c_str(),std::string(par.db2 +"_seq.index").c_str(), par.threads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
     seqOut.open();
 
-    DBWriter headerOut(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads);
+    DBWriter headerOut(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerOut.open();
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
@@ -172,7 +172,7 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
 
 #pragma omp for  schedule(dynamic, 100)
         for (size_t i = 0; i < dataIn.getSize(); i++) {
-            char *data = dataIn.getData(i);
+            char *data = dataIn.getData(i, thread_idx);
 
             std::string sequence;
             std::string header;
@@ -187,8 +187,8 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
         delete[] profileBuffer;
     }
     headerOut.close();
-    dataOut.close(Sequence::HMM_PROFILE);
-    seqOut.close(Sequence::AMINO_ACIDS);
+    dataOut.close();
+    seqOut.close();
 
     std::string base = FileUtil::baseName(par.db2 + "_seq_h");
     FileUtil::symlinkAlias(par.hdr2, base);

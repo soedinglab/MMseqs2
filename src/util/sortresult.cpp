@@ -16,10 +16,10 @@ int sortresult(int argc, const char **argv, const Command &command) {
                                      par.PARAM_MAX_SEQS.category & ~MMseqsParameter::COMMAND_EXPERT);
     par.parseParameters(argc, argv, command, 2);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
 
    #pragma omp parallel
@@ -42,7 +42,7 @@ int sortresult(int argc, const char **argv, const Command &command) {
             Debug::printProgress(i);
 
             unsigned int key = reader.getDbKey(i);
-            char *data = reader.getData(i);
+            char *data = reader.getData(i, thread_idx);
 
             int format = -1;
             while (*data != '\0') {

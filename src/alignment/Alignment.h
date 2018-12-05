@@ -76,6 +76,7 @@ private:
     // keeps state of the SW alignment mode (ALIGNMENT_MODE_SCORE_ONLY, ALIGNMENT_MODE_SCORE_COV or ALIGNMENT_MODE_SCORE_COV_SEQID)
     unsigned int swMode;
     unsigned int threads;
+    unsigned int compressed;
 
     const std::string outDB;
     const std::string outDBIndex;
@@ -110,15 +111,15 @@ private:
 
     void initSWMode(unsigned int alignmentMode);
 
-    void setQuerySequence(Sequence &seq, size_t id, unsigned int key);
+    void setQuerySequence(Sequence &seq, size_t id, unsigned int key, int thread_idx);
 
-    void setTargetSequence(Sequence &seq, unsigned int key);
+    void setTargetSequence(Sequence &seq, unsigned int key, int thread_idx);
 
     static size_t estimateHDDMemoryConsumption(int dbSize, int maxSeqs);
 
     void computeAlternativeAlignment(unsigned int queryDbKey, Sequence &dbSeq,
                                      std::vector<Matcher::result_t> &vector, Matcher &matcher,
-                                     float evalThr, int swMode);
+                                     float evalThr, int swMode, int thread_idx);
 };
 
 #endif

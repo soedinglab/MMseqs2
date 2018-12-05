@@ -11,21 +11,20 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
-#include "Parameters.h"
 #include "Util.h"
 
 int gff2db(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    DBReader<std::string> reader(par.db2.c_str(), par.db2Index.c_str());
-    DBReader<std::string> headerReader(par.hdr2.c_str(), par.hdr2Index.c_str());
+    DBReader<std::string> reader(par.db2.c_str(), par.db2Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    DBReader<std::string> headerReader(par.hdr2.c_str(), par.hdr2Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
 
     reader.open(DBReader<std::string>::NOSORT);
     headerReader.open(DBReader<std::string>::NOSORT);
 
-    DBWriter out_writer(par.db3.c_str(), par.db3Index.c_str());
-    DBWriter out_hdr_writer(par.hdr3.c_str(), par.hdr3Index.c_str());
+    DBWriter out_writer(par.db3.c_str(), par.db3Index.c_str(), 1, par.compressed, Parameters::DBTYPE_GENERIC_DB);
+    DBWriter out_hdr_writer(par.hdr3.c_str(), par.hdr3Index.c_str(), 1, par.compressed, Parameters::DBTYPE_GENERIC_DB);
 
     out_writer.open();
     out_hdr_writer.open();
@@ -86,10 +85,10 @@ int gff2db(int argc, const char **argv, const Command& command) {
             return EXIT_FAILURE;
         }
 
-        char* header = headerReader.getData(headerId);
+        char* header = headerReader.getData(headerId, 0);
         size_t headerLength = headerReader.getSeqLens(headerId);
 
-        char* body = reader.getDataByDBKey(name);
+        char* body = reader.getDataByDBKey(name, 0);
 
         if(!header || !body) {
             Debug(Debug::ERROR) << "GFF entry not found in database: " << name << "!\n";

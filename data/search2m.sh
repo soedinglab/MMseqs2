@@ -69,6 +69,7 @@ if [ -n "${SEARCH2_PAR}" ]; then
 fi
 
 mv -f "${LCA_SOURCE}" "${RESULTS}"
+mv -f "${LCA_SOURCE}.dbtype" "${RESULTS}.dbtype"
 mv -f "${LCA_SOURCE}.index" "${RESULTS}.index"
 
 if [ -n "${REMOVE_TMP}" ]; then

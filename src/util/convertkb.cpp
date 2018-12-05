@@ -79,7 +79,7 @@ int convertkb(int argc, const char **argv, const Command &command) {
     for (std::vector<unsigned int>::const_iterator it = enabledColumns.begin(); it != enabledColumns.end(); ++it) {
         std::string dataFile = outputBase + "_" + kb.columnNames[*it];
         std::string indexFile = outputBase + "_" + kb.columnNames[*it] + ".index";
-        writers[*it] = new DBWriter(dataFile.c_str(), indexFile.c_str(), 1);
+        writers[*it] = new DBWriter(dataFile.c_str(), indexFile.c_str(), 1, par.compressed, Parameters::DBTYPE_GENERIC_DB);
         writers[*it]->open();
     }
 

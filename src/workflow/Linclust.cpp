@@ -1,6 +1,5 @@
 #include "Parameters.h"
 #include "Util.h"
-#include "Sequence.h"
 #include "DBWriter.h"
 #include "CommandCaller.h"
 #include "Debug.h"
@@ -93,7 +92,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     }
 
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
-    if (isUngappedMode && dbType == Sequence::HMM_PROFILE) {
+    if (isUngappedMode && Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_HMM_PROFILE)) {
         par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
         Debug(Debug::ERROR) << "Cannot use ungapped alignment mode with profile databases.\n";
         EXIT(EXIT_FAILURE);
@@ -101,7 +100,7 @@ int linclust(int argc, const char **argv, const Command& command) {
 
     cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
     // filter by diagonal in case of AA (do not filter for nucl, profiles, ...)
-    cmd.addVariable("FILTER", dbType == Sequence::AMINO_ACIDS ? "1" : NULL);
+    cmd.addVariable("FILTER", Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_AMINO_ACIDS) ? "1" : NULL);
     cmd.addVariable("KMERMATCHER_PAR", par.createParameterString(par.kmermatcher).c_str());
     par.alphabetSize = alphabetSize;
     par.kmerSize = kmerSize;

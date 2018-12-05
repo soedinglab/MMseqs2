@@ -131,7 +131,7 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
 
     // bias correction
     if(aaBiasCorrection == true){
-        if(querySeq->getSeqType() == Sequence::AMINO_ACIDS) {
+        if(Parameters::isEqualDbtype(querySeq->getSeqType(), Parameters::DBTYPE_AMINO_ACIDS)) {
             SubstitutionMatrix::calcLocalAaBiasCorrection(kmerSubMat, querySeq->int_sequence, querySeq->L, compositionBias);
         }else{
             memset(compositionBias, 0, sizeof(float) * querySeq->L);

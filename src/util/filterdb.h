@@ -84,6 +84,8 @@ private:
     int sortingMode;
     
 	int threads;
+	int compressed;
+
 	size_t column;
 	int columnToTake;
     std::string regexStr;

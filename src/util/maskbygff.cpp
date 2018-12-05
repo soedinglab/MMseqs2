@@ -5,14 +5,13 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
-#include "Parameters.h"
 #include "Util.h"
 
 int maskbygff(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    DBReader<std::string> reader(par.db2.c_str(), par.db2Index.c_str(),
+    DBReader<std::string> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads,
                                  DBReader<std::string>::USE_DATA | DBReader<std::string>::USE_WRITABLE);
     reader.open(DBReader<std::string>::NOSORT);
 
@@ -87,17 +86,17 @@ int maskbygff(int argc, const char **argv, const Command& command) {
 
     unsigned int* seqLengths = reader.getSeqLens();
 
-    DBWriter writer(par.db3.c_str(), par.db3Index.c_str());
+    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, par.compressed, reader.getDbtype());
     writer.open();
 
-    DBReader<std::string> headerReader(par.hdr2.c_str(), par.hdr2Index.c_str());
+    DBReader<std::string> headerReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     headerReader.open(DBReader<std::string>::NOSORT);
 
     DBReader<std::string>::Index* headerIndex = headerReader.getIndex();
     unsigned int* headerLengths = headerReader.getSeqLens();
     char * headerData = (char *)headerReader.getData();
 
-    DBWriter headerWriter(par.hdr3.c_str(), par.hdr3Index.c_str());
+    DBWriter headerWriter(par.hdr3.c_str(), par.hdr3Index.c_str(), 1, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
     for(size_t i = 0; i < reader.getSize(); ++i ) {

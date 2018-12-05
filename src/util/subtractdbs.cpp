@@ -17,16 +17,16 @@
 #endif
 
 void dosubstractresult(std::string leftDb, std::string rightDb, std::string outDb,
-                       size_t maxLineLength, double evalThreshold, int threads)
+                       size_t maxLineLength, double evalThreshold, int threads, int compressed)
 {
     Debug(Debug::INFO) << "Remove " << rightDb << " ids from " << leftDb << "\n";
-    DBReader<unsigned int> leftDbr(leftDb.c_str(), (leftDb + std::string(".index")).c_str());
+    DBReader<unsigned int> leftDbr(leftDb.c_str(), (leftDb + std::string(".index")).c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     leftDbr.open(DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int> rightDbr(rightDb.c_str(), (rightDb + std::string(".index")).c_str());
+    DBReader<unsigned int> rightDbr(rightDb.c_str(), (rightDb + std::string(".index")).c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     rightDbr.open(DBReader<unsigned int>::NOSORT);
 
     Debug(Debug::INFO) << "Output databse: " << outDb << "\n";
-    DBWriter writer(outDb.c_str(), (outDb + std::string(".index")).c_str(), threads);
+    DBWriter writer(outDb.c_str(), (outDb + std::string(".index")).c_str(), threads, compressed, leftDbr.getDbtype());
     writer.open();
     const size_t LINE_BUFFER_SIZE = 1000000;
 #pragma omp parallel
@@ -43,7 +43,7 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
 #pragma omp  for schedule(dynamic, 10)
         for (size_t id = 0; id < leftDbr.getSize(); id++) {
             std::map<unsigned int, bool> elementLookup;
-            const char *leftData = leftDbr.getData(id);
+            const char *leftData = leftDbr.getData(id, thread_idx);
             unsigned int leftDbKey = leftDbr.getDbKey(id);
 
             // fill element id look up with left side elementLookup
@@ -67,7 +67,7 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
             }
             // get all data for the leftDbkey from rightDbr
             // check if right ids are in elementsId
-            char *data = rightDbr.getDataByDBKey(leftDbKey);
+            char *data = rightDbr.getDataByDBKey(leftDbKey, thread_idx);
             char *entry[255];
 
             if (data != NULL) {
@@ -119,6 +119,6 @@ int subtractdbs(int argc, const char **argv, const Command& command) {
     par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
     std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);
-    dosubstractresult(par.db1, par.db2, par.db3, 1000000, par.evalProfile, par.threads);
+    dosubstractresult(par.db1, par.db2, par.db3, 1000000, par.evalProfile, par.threads, par.compressed);
     return EXIT_SUCCESS;
 }

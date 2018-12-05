@@ -55,21 +55,21 @@ class SetSummaryAggregator : public Aggregation {
 public:
     SetSummaryAggregator(const std::string &queryDbName, const std::string &targetDbName,
                          const std::string &resultDbName, const std::string &outputDbName, bool shortOutput,
-                         float alpha, unsigned int threads)
-            : Aggregation(targetDbName, resultDbName, outputDbName, threads), alpha(alpha), shortOutput(shortOutput) {
+                         float alpha, unsigned int threads, unsigned int compressed)
+            : Aggregation(targetDbName, resultDbName, outputDbName, threads, compressed), alpha(alpha), shortOutput(shortOutput) {
         std::string data = queryDbName + "_set_size";
         std::string index = queryDbName + "_set_size.index";
-        querySizeReader = new DBReader<unsigned int>(data.c_str(), index.c_str());
+        querySizeReader = new DBReader<unsigned int>(data.c_str(), index.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         querySizeReader->open(DBReader<unsigned int>::NOSORT);
 
         data = targetDbName + "_set_size";
         index = targetDbName + "_set_size.index";
-        targetSizeReader = new DBReader<unsigned int>(data.c_str(), index.c_str());
+        targetSizeReader = new DBReader<unsigned int>(data.c_str(), index.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         targetSizeReader->open(DBReader<unsigned int>::NOSORT);
 
         data = targetDbName + "_nucl";
         index = targetDbName + "_nucl.index";
-        targetSourceReader = new DBReader<unsigned int>(data.c_str(), index.c_str());
+        targetSourceReader = new DBReader<unsigned int>(data.c_str(), index.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         targetSourceReader->open(DBReader<unsigned int>::USE_INDEX);
     }
 
@@ -88,8 +88,8 @@ public:
     void prepareInput(unsigned int, unsigned int) {}
 
     std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey,
-                               unsigned int targetSetKey, unsigned int) {
-        double targetGeneCount = std::strtod(targetSizeReader->getDataByDBKey(targetSetKey), NULL);
+                               unsigned int targetSetKey, unsigned int thread_idx) {
+        double targetGeneCount = std::strtod(targetSizeReader->getDataByDBKey(targetSetKey, thread_idx), NULL);
         double pvalThreshold = this->alpha / targetGeneCount;
         std::vector<std::pair<long, long>> genesPositions;
         size_t hitsUnderThreshold = 0;
@@ -153,13 +153,13 @@ public:
                 buffer.append("\t");
                 buffer.append(std::to_string(interGeneSpaces[interSpaceIndex]));
                 buffer.append("\t");
-                buffer.append(targetSizeReader->getDataByDBKey(targetSetKey));
+                buffer.append(targetSizeReader->getDataByDBKey(targetSetKey, thread_idx));
                 buffer.append("\t");
                 buffer.append(std::to_string(hitsUnderThreshold));
                 buffer.append("\t");
                 buffer.append(std::to_string(meanEval / hitsUnderThreshold));
                 buffer.append("\t");
-                buffer.append(querySizeReader->getDataByDBKey(querySetKey));
+                buffer.append(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
                 buffer.append("\t");
                 buffer.append(std::to_string(spreadPval(interGeneSpaces[interSpaceIndex], rate, hitsUnderThreshold)));
                 buffer.append("\t");
@@ -175,13 +175,13 @@ public:
             if (shortOutput == false) {
                 buffer.append(std::to_string(targetSetKey));
                 buffer.append("\t0\t");
-                buffer.append(targetSizeReader->getDataByDBKey(targetSetKey));
+                buffer.append(targetSizeReader->getDataByDBKey(targetSetKey, thread_idx));
                 buffer.append("\t");
                 buffer.append(std::to_string(hitsUnderThreshold));
                 buffer.append("\t");
                 buffer.append(std::to_string(meanEval / hitsUnderThreshold));
                 buffer.append("\t");
-                buffer.append(querySizeReader->getDataByDBKey(querySetKey));
+                buffer.append(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
                 buffer.append("\t1.0\t");
                 buffer.append(std::to_string(genomeSize));
                 buffer.append("\t");
@@ -215,6 +215,6 @@ int resultsbyset(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4, true);
 
-    SetSummaryAggregator aggregation(par.db1, par.db2, par.db3, par.db4, par.shortOutput, par.alpha, (unsigned int) par.threads);
+    SetSummaryAggregator aggregation(par.db1, par.db2, par.db3, par.db4, par.shortOutput, par.alpha, (unsigned int) par.threads, par.compressed);
     return aggregation.run();
 }

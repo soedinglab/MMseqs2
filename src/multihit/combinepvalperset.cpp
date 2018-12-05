@@ -29,22 +29,22 @@ void precomputeLogB(const unsigned int orfCount, const double pvalThreshold, dou
 class PvalueAggregator : public Aggregation {
 public:
     PvalueAggregator(std::string queryDbName, std::string targetDbName, const std::string &resultDbName,
-                     const std::string &outputDbName, float alpha, unsigned int threads) :
-            Aggregation(targetDbName, resultDbName, outputDbName, threads), alpha(alpha) {
+                     const std::string &outputDbName, float alpha, unsigned int threads, unsigned int compressed) :
+            Aggregation(targetDbName, resultDbName, outputDbName, threads, compressed), alpha(alpha) {
 
         std::string sizeDBName = queryDbName + "_set_size";
         std::string sizeDBIndex = queryDbName + "_set_size.index";
-        querySizeReader = new DBReader<unsigned int>(sizeDBName.c_str(), sizeDBIndex.c_str());
+        querySizeReader = new DBReader<unsigned int>(sizeDBName.c_str(), sizeDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         querySizeReader->open(DBReader<unsigned int>::NOSORT);
 
         sizeDBName = targetDbName + "_set_size";
         sizeDBIndex = targetDbName + "_set_size.index";
-        targetSizeReader = new DBReader<unsigned int>(sizeDBName.c_str(), sizeDBIndex.c_str());
+        targetSizeReader = new DBReader<unsigned int>(sizeDBName.c_str(), sizeDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         targetSizeReader->open(DBReader<unsigned int>::NOSORT);
 
         unsigned int maxOrfCount = 0;
         for (size_t i = 0; i < querySizeReader->getSize(); ++i) { 
-            unsigned int currentCount = Util::fast_atoi<unsigned int>(querySizeReader->getData(i));
+            unsigned int currentCount = Util::fast_atoi<unsigned int>(querySizeReader->getData(i, 0));
             if (currentCount > maxOrfCount) {
                 maxOrfCount = currentCount;
             };
@@ -77,14 +77,14 @@ public:
     }
 
     void prepareInput(unsigned int querySetKey, unsigned int thread_idx) {
-        unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey));
+        unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
         precomputeLogB(orfCount, alpha/(orfCount + 1), lGammaLookup, logBiLookup[thread_idx]);
     }
 
     //Get all result of a single Query Set VS a Single Target Set and return the multiple-match p-value for it
     std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey,
                                unsigned int targetSetKey, unsigned int thread_idx) {
-        unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey)); 
+        unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
         double pvalThreshold = alpha / (orfCount + 1);
         const size_t numTargetSets = targetSizeReader->getSize();
 
@@ -154,6 +154,6 @@ int combinepvalperset(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4, true);
 
-    PvalueAggregator aggregation(par.db1, par.db2, par.db3, par.db4, par.alpha, (unsigned int) par.threads);
+    PvalueAggregator aggregation(par.db1, par.db2, par.db3, par.db4, par.alpha, (unsigned int) par.threads, par.compressed);
     return aggregation.run();
 }

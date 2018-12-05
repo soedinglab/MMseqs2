@@ -15,9 +15,9 @@
 #include "SequenceLookup.h"
 #include "MathUtil.h"
 #include "KmerGenerator.h"
+#include "Parameters.h"
 
 #include <algorithm>
-#include <new>
 
 // IndexEntryLocal is an entry with position and seqId for a kmer
 // structure needs to be packed or it will need 8 bytes instead of 6
@@ -132,8 +132,8 @@ public:
                         int threshold, char *diagonalScore) {
         s->resetCurrPos();
         size_t countKmer = 0;
-        bool removeX = (s->getSequenceType() == Sequence::NUCLEOTIDES ||
-                        s->getSequenceType() == Sequence::AMINO_ACIDS);
+        bool removeX = (Parameters::isEqualDbtype(s->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES) ||
+                        Parameters::isEqualDbtype(s->getSequenceType(), Parameters::DBTYPE_AMINO_ACIDS));
         const int xIndex = s->subMat->aa2int[(int)'X'];
         while(s->hasNextKmer()){
             const int * kmer = s->nextKmer();
@@ -186,7 +186,7 @@ public:
 
     void sortDBSeqLists() {
         #pragma omp parallel for
-        for (size_t i = 0; i < getTableSize(); i++) {
+        for (size_t i = 0; i < tableSize; i++) {
             size_t entrySize;
             IndexEntryLocal *entries = getDBSeqList(i, &entrySize);
             std::sort(entries, entries + entrySize, IndexEntryLocal::comapreByIdAndPos);
@@ -340,8 +340,8 @@ public:
         s->resetCurrPos();
         idxer->reset();
         size_t kmerPos = 0;
-        bool removeX = (s->getSequenceType() == Sequence::NUCLEOTIDES ||
-                        s->getSequenceType() == Sequence::AMINO_ACIDS);
+        bool removeX = (Parameters::isEqualDbtype(s->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES) ||
+                        Parameters::isEqualDbtype(s->getSequenceType(), Parameters::DBTYPE_AMINO_ACIDS));
         const int xIndex = s->subMat->aa2int[(int)'X'];
         while (s->hasNextKmer()){
             const int * kmer = s->nextKmer();

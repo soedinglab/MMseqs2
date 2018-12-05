@@ -18,10 +18,10 @@ int createsubdb(int argc, const char **argv, const Command& command) {
         orderFile = fopen(par.db1.c_str(), "r");
     }
 
-    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str());
+    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::NOSORT);
-
-    DBWriter writer(par.db3.c_str(), par.db3Index.c_str());
+    int compression = par.PARAM_COMPRESSED.wasSet ? par.compressed : reader.isCompressed();
+    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, compression, reader.getDbtype());
     writer.open();
 
     Debug(Debug::INFO) << "Start writing to file " << par.db3 << "\n";
@@ -37,7 +37,7 @@ int createsubdb(int argc, const char **argv, const Command& command) {
             continue;
         }
 
-        const char* data = reader.getData(id);
+        const char* data = reader.getData(id, 0);
         // discard null byte
         size_t length = reader.getSeqLens(id) - 1;
         writer.writeData(data, length, key);

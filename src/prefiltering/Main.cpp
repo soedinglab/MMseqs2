@@ -27,15 +27,15 @@ int prefilter(int argc, const char **argv, const Command& command) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
     }
-    if (queryDbType == Sequence::HMM_PROFILE && targetDbType == Sequence::HMM_PROFILE) {
+    if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_HMM_PROFILE)) {
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         return EXIT_FAILURE;
     }
-    if (queryDbType != Sequence::HMM_PROFILE && targetDbType == Sequence::PROFILE_STATE_SEQ) {
+    if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE) == false && Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
         return EXIT_FAILURE;
-    } else if (queryDbType == Sequence::HMM_PROFILE && targetDbType == Sequence::PROFILE_STATE_SEQ) {
-        queryDbType = Sequence::PROFILE_STATE_PROFILE;
+    } else if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
+        queryDbType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
     }
 
     Prefiltering pref(par.db2, par.db2Index, queryDbType, targetDbType, par);

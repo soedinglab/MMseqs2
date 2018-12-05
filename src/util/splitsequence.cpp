@@ -22,16 +22,16 @@ int splitsequence(int argc, const char **argv, const Command& command) {
     par.sequenceOverlap = 300;
     par.parseParameters(argc, argv, command, 2);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str());
+    DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     headerReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     sequenceWriter.open();
 
-    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads);
+    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
     size_t sequenceOverlap = par.sequenceOverlap;
@@ -55,10 +55,10 @@ int splitsequence(int argc, const char **argv, const Command& command) {
             Debug::printProgress(i);
 
             unsigned int key = reader.getDbKey(i);
-            const char* data = reader.getData(i);
+            const char* data = reader.getData(i, thread_idx);
             size_t dataLength = reader.getSeqLens(i);
             size_t seqLen = dataLength -2;
-            char* header = headerReader.getData(i);
+            char* header = headerReader.getData(i, thread_idx);
             Orf::SequenceLocation loc = Orf::parseOrfHeader(header);
             size_t from = 0;
             if(loc.id != UINT_MAX) {
@@ -90,7 +90,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
         }
     }
     headerWriter.close();
-    sequenceWriter.close(Sequence::NUCLEOTIDES);
+    sequenceWriter.close();
     headerReader.close();
     reader.close();
 
@@ -102,6 +102,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
 #pragma omp task
             {
                 DBReader<unsigned int> frameHeaderReader(par.hdr2.c_str(), par.hdr2Index.c_str(),
+                                                       par.threads,
                                                        DBReader<unsigned int>::USE_INDEX);
                 frameHeaderReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
                 FILE *hIndex = fopen((par.hdr2Index + "_tmp").c_str(), "w");
@@ -127,6 +128,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
 #pragma omp task
             {
                 DBReader<unsigned int> frameSequenceReader(par.db2.c_str(), par.db2Index.c_str(),
+                                                         par.threads,
                                                          DBReader<unsigned int>::USE_INDEX);
                 frameSequenceReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
 

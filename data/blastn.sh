@@ -64,7 +64,7 @@ if notExists "$4/aln_offset"; then
         || fail "Offset step died"
 fi
 
-(mv -f "$4/aln_offset" "$3" && mv -f "$4/aln_offset.index" "$3.index") \
+(mv -f "$4/aln_offset" "$3" && mv -f "$4/aln_offset.dbtype" "$3.dbtype" && mv -f "$4/aln_offset.index" "$3.index") \
     || fail "Could not move result to $3"
 
 if [ -n "$REMOVE_TMP" ]; then

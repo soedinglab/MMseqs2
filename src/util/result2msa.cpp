@@ -26,12 +26,12 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
         EXIT(EXIT_FAILURE);
     }
 
-    DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     qDbr.open(DBReader<unsigned int>::NOSORT);
     if(par.preloadMode != Parameters::PRELOAD_MODE_MMAP){
         qDbr.readMmapedDataInMemory();
     }
-    DBReader<unsigned int> queryHeaderReader(par.hdr1.c_str(), par.hdr1Index.c_str());
+    DBReader<unsigned int> queryHeaderReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     // NOSORT because the index should be in the same order as resultReader
     queryHeaderReader.open(DBReader<unsigned int>::NOSORT);
 
@@ -41,7 +41,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
     unsigned int maxSequenceLength = 0;
     const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
     if (!sameDatabase) {
-        tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+        tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tDbr->open(DBReader<unsigned int>::NOSORT);
 
         unsigned int *lengths = qDbr.getSeqLens();
@@ -54,7 +54,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
             maxSequenceLength = std::max(lengths[i], maxSequenceLength);
         }
 
-        tempateHeaderReader = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str());
+        tempateHeaderReader = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tempateHeaderReader->open(DBReader<unsigned int>::NOSORT);
     } else {
         unsigned int *lengths = qDbr.getSeqLens();
@@ -63,14 +63,16 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
         }
     }
 
-    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    size_t mode = DBWriter::BINARY_MODE;
+    size_t mode = par.compressed;
+    int type = Parameters::DBTYPE_MSA_DB;
     if (par.compressMSA) {
-        mode |= DBWriter::LEXICOGRAPHIC_MODE;
+        mode |= Parameters::WRITER_LEXICOGRAPHIC_MODE;
+        type = Parameters::DBTYPE_CA3M_DB;
     }
-    DBWriter resultWriter(resultData.c_str(), resultIndex.c_str(), par.threads, mode);
+    DBWriter resultWriter(resultData.c_str(), resultIndex.c_str(), par.threads, mode, type);
     resultWriter.open();
 
     // + 1 for query
@@ -86,7 +88,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if (qDbr.getDbtype() == Sequence::HMM_PROFILE && tDbr->getDbtype() == Sequence::HMM_PROFILE){
+    if (Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_HMM_PROFILE)){
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
@@ -95,6 +97,11 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
     const bool isFiltering = par.filterMsa != 0;
 #pragma omp parallel
     {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+
         Matcher matcher(qDbr.getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen, par.gapExtend);
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
@@ -111,14 +118,10 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
 #pragma omp  for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
-            unsigned int thread_idx = 0;
-#ifdef OPENMP
-            thread_idx = (unsigned int) omp_get_thread_num();
-#endif
 
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader.getDbKey(id);
-            char *seqData = qDbr.getDataByDBKey(queryKey);
+            char *seqData = qDbr.getDataByDBKey(queryKey, thread_idx);
             if (seqData == NULL) {
                 Debug(Debug::WARNING) << "Empty sequence " << id << ". Skipping.\n";
                 continue;
@@ -132,9 +135,9 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                     centerSequence.L--;
                 }
             }
-            char *centerSequenceHeader = queryHeaderReader.getDataByDBKey(queryKey);
+            char *centerSequenceHeader = queryHeaderReader.getDataByDBKey(queryKey, 0);
 
-            char *results = resultReader.getData(id);
+            char *results = resultReader.getData(id, 0);
             std::vector<Matcher::result_t> alnResults;
             std::vector<Sequence *> seqSet;
             while (*results != '\0') {
@@ -155,10 +158,10 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                 }
 
                 const size_t edgeId = tDbr->getId(key);
-                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), Sequence::AMINO_ACIDS, &subMat, 0, false, false);
+                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, false);
 
 
-                char *dbSeqData = tDbr->getData(edgeId);
+                char *dbSeqData = tDbr->getData(edgeId, thread_idx);
                 if (dbSeqData == NULL) {
 #pragma omp critical
                     {
@@ -199,7 +202,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                         if (i == 0) {
                             headers.push_back(std::string(centerSequenceHeader));
                         } else if (kept[i] == true) {
-                            headers.push_back(tempateHeaderReader->getData(seqSet[i - 1]->getId()));
+                            headers.push_back(tempateHeaderReader->getData(seqSet[i - 1]->getId(), thread_idx));
                         }
                     }
 
@@ -224,7 +227,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                         header = centerSequenceHeader;
                     } else {
                         key = seqSet[i - 1]->getDbKey();
-                        header = tempateHeaderReader->getDataByDBKey(key);
+                        header = tempateHeaderReader->getDataByDBKey(key, thread_idx);
                     }
                     if (par.addInternalId) {
                         msa << "#" << key << "\n";
@@ -269,14 +272,14 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                     PSSMCalculator::Profile pssmRes =
                             calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
                                                           (const char **) res.msaSequence, par.wg);
-                    msa << ">consensus_" << queryHeaderReader.getDataByDBKey(queryKey) << pssmRes.consensus << "\n;";
+                    msa << ">consensus_" << queryHeaderReader.getDataByDBKey(queryKey, thread_idx) << pssmRes.consensus << "\n;";
                 } else {
                     std::ostringstream centerSeqStr;
                     // Retrieve the master sequence
                     for (int pos = 0; pos < centerSequence.L; pos++) {
                         centerSeqStr << subMat.int2aa[centerSequence.int_sequence[pos]];
                     }
-                    msa << ">" << queryHeaderReader.getDataByDBKey(queryKey) << centerSeqStr.str() << "\n;";
+                    msa << ">" << queryHeaderReader.getDataByDBKey(queryKey,  thread_idx) << centerSeqStr.str() << "\n;";
                 }
 
                 msa << CompressedA3M::fromAlignmentResult(alnResults, *referenceDBr);
@@ -314,7 +317,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
 }
 
 int result2msa(Parameters &par) {
-    DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), DBReader<unsigned int>::USE_INDEX);
+    DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX);
     resultReader->open(DBReader<unsigned int>::NOSORT);
     size_t resultSize = resultReader->getSize();
     resultReader->close();
@@ -365,7 +368,7 @@ int result2msa(Parameters &par) {
 }
 
 int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     qDbr->open(DBReader<unsigned int>::NOSORT);
 
     size_t dbFrom = 0;

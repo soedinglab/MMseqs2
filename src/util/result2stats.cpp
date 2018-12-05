@@ -7,9 +7,9 @@
 #include "Util.h"
 #include "FileUtil.h"
 #include "itoa.h"
+#include "Parameters.h"
 
 #include <cstdlib>
-#include <cmath>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -56,10 +56,10 @@ StatsComputer::StatsComputer(const Parameters &par)
         : stat(MapStatString(par.stat)),
           queryDb(par.db1), queryDbIndex(par.db1Index),
           targetDb(par.db2), targetDbIndex(par.db2Index) {
-    resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
-    statWriter = new DBWriter(par.db4.c_str(), par.db4Index.c_str(), (unsigned int) par.threads, DBWriter::BINARY_MODE);
+    this->threads = par.threads;
+    statWriter = new DBWriter(par.db4.c_str(), par.db4Index.c_str(), (unsigned int) par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     statWriter->open();
 }
 
@@ -127,7 +127,7 @@ int StatsComputer::countNumberOfLines() {
         unsigned int lineCount(0);
         std::string lineCountString;
 
-        char *results = resultReader->getData(id);
+        char *results = resultReader->getData(id,  thread_idx);
         while (*results != '\0') {
             if (*results == '\n') {
                 lineCount++;
@@ -153,7 +153,7 @@ int StatsComputer::meanValue() {
 #pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < resultReader->getSize(); id++) {
             Debug::printProgress(id);
-            char *results = resultReader->getData(id);
+            char *results = resultReader->getData(id, thread_idx);
 
             double meanVal = 0.0;
             size_t nbSeq = 0;
@@ -190,7 +190,7 @@ int StatsComputer::sumValue() {
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = 0; id < resultReader->getSize(); id++) {
             Debug::printProgress(id);
-            char *results = resultReader->getData(id);
+            char *results = resultReader->getData(id, thread_idx);
 
             size_t sum = 0;
             while (*results != '\0') {
@@ -238,7 +238,7 @@ template<typename T>
 int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyResultDb) {
     DBReader<unsigned int> *targetReader = NULL;
     if (!onlyResultDb) {
-        targetReader = new DBReader<unsigned int>(targetDb.c_str(), targetDbIndex.c_str());
+        targetReader = new DBReader<unsigned int>(targetDb.c_str(), targetDbIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         targetReader->open(DBReader<unsigned int>::NOSORT);
     }
 
@@ -256,7 +256,7 @@ int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyRes
         for (size_t id = 0; id < resultReader->getSize(); id++) {
             Debug::printProgress(id);
 
-            char *results = resultReader->getData(id);
+            char *results = resultReader->getData(id, thread_idx);
             if (onlyResultDb) {
                 T stat = (*call)(results);
                 buffer.append(SSTR(stat));
@@ -274,7 +274,7 @@ int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyRes
                     }
 
                     const size_t edgeId = targetReader->getId(key);
-                    const char *dbSeqData = targetReader->getData(edgeId);
+                    const char *dbSeqData = targetReader->getData(edgeId, thread_idx);
 
                     T stat = (*call)(dbSeqData);
                     buffer.append(SSTR(stat));

@@ -781,10 +781,10 @@ int main (int argc, const char * argv[])
 
     //const char* sequence = profile.c_str();
 //    std::cout << sequence << "";
-    Sequence* s = new Sequence(10000, Sequence::HMM_PROFILE, &subMat, kmer_size, true, true);
+    Sequence* s = new Sequence(10000, Parameters::DBTYPE_HMM_PROFILE, &subMat, kmer_size, true, true);
     s->mapSequence(0,0,data);
     s->printProfile();
-    Sequence* dbSeq = new Sequence(10000, Sequence::AMINO_ACIDS, &subMat, kmer_size, true, true);
+    Sequence* dbSeq = new Sequence(10000, Parameters::DBTYPE_AMINO_ACIDS, &subMat, kmer_size, true, true);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     const char* sequence2 = "LFILNIISMNKQTKVKGYLLLLLVISSLFISLVGHGYTANKVSAPNPAKEYPQDNLSVIDMKNLPGTQIKSMVKDELQQFLEEQGFRRLKNKSLVDLRRIWLGFMYEDFFYTMHKKTDLPISVIYAFFIIEATNAGIESKLMAKALNPGGIKYRGTGKKMKAMDDCY";
 

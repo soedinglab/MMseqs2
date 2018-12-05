@@ -38,7 +38,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     if (indexDB.length() > 0) {
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
 
-        tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
+        tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tidxdbr->open(DBReader<unsigned int>::NOSORT);
 
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
@@ -66,7 +66,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     }
 
     if (templateDBIsIndex == false) {
-        tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+        tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tDbr->open(DBReader<unsigned int>::NOSORT);
         targetSeqType = tDbr->getDbtype();
     }
@@ -76,7 +76,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     unsigned int maxSequenceLength = 0;
     const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
     if (!sameDatabase) {
-        qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+        qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         qDbr->open(DBReader<unsigned int>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             qDbr->readMmapedDataInMemory();
@@ -108,13 +108,13 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         tDbr->readMmapedDataInMemory();
     }
 
-    DBWriter resultWriter(outpath.c_str(), std::string(outpath + ".index").c_str(), localThreads, DBWriter::BINARY_MODE);
+    DBWriter resultWriter(outpath.c_str(), std::string(outpath + ".index").c_str(), localThreads, par.compressed, Parameters::DBTYPE_HMM_PROFILE);
     resultWriter.open();
 
     DBWriter *consensusWriter = NULL;
     if (!par.omitConsensus) {
         consensusWriter = new DBWriter(std::string(outpath + "_consensus").c_str(),
-                                       std::string(outpath + "_consensus.index").c_str(), localThreads);
+                                       std::string(outpath + "_consensus.index").c_str(), localThreads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
         consensusWriter->open();
     }
 
@@ -132,7 +132,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
     }
-    if (qDbr->getDbtype() == Sequence::HMM_PROFILE && targetSeqType == Sequence::HMM_PROFILE){
+    if (Parameters::isEqualDbtype(qDbr->getDbtype(), Parameters::DBTYPE_HMM_PROFILE) &&
+        Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)){
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         return EXIT_FAILURE;
     }
@@ -170,7 +171,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 std::pair<const unsigned char*, const unsigned int> sequence = qSeqLookup->getSequence(queryId);
                 centerSequence.mapSequence(0, queryKey, sequence);
             } else {
-                char *dbSeqData = qDbr->getData(queryId);
+                char *dbSeqData = qDbr->getData(queryId, thread_idx);
                 if (dbSeqData == NULL) {
 #pragma omp critical
                     {
@@ -183,7 +184,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 centerSequence.mapSequence(0, queryKey, dbSeqData);
             }
 
-            char *results = resultReader.getData(id);
+            char *results = resultReader.getData(id, thread_idx);
             std::vector<Matcher::result_t> alnResults;
             std::vector<Sequence *> seqSet;
             while (*results != '\0') {
@@ -216,7 +217,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                         std::pair<const unsigned char*, const unsigned int> sequence = tSeqLookup->getSequence(edgeId);
                         edgeSequence->mapSequence(0, key, sequence);
                     } else {
-                        char *dbSeqData = tDbr->getData(edgeId);
+                        char *dbSeqData = tDbr->getData(edgeId, thread_idx);
                         if (dbSeqData == NULL) {
 #pragma omp critical
                             {
@@ -322,10 +323,10 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
     // cleanup
     if (consensusWriter != NULL) {
-        consensusWriter->close(Sequence::AMINO_ACIDS);
+        consensusWriter->close();
         delete consensusWriter;
     }
-    resultWriter.close(Sequence::HMM_PROFILE);
+    resultWriter.close();
 
     if (!sameDatabase) {
         qDbr->close();
@@ -388,7 +389,7 @@ int result2profile(int argc, const char **argv, const Command &command) {
     par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
     std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);
-    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
 #ifdef HAVE_MPI

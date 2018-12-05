@@ -34,10 +34,10 @@ struct compareFirstEntryDecreasing {
 
 
 int ffindexFilter::initFiles() {
-	dataDb=new DBReader<unsigned int>(inDB.c_str(),(std::string(inDB).append(".index")).c_str());
+	dataDb=new DBReader<unsigned int>(inDB.c_str(),(std::string(inDB).append(".index")).c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
 	dataDb->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-	dbw = new DBWriter(outDB.c_str(), (std::string(outDB).append(".index")).c_str(), threads);
+	dbw = new DBWriter(outDB.c_str(), (std::string(outDB).append(".index")).c_str(), threads, compressed, dataDb->getDbtype());
 	dbw->open();
 	return 0;
 }
@@ -49,6 +49,7 @@ ffindexFilter::ffindexFilter(Parameters &par) {
     inDB = std::string(par.db1);
     outDB = std::string(par.db2);
     threads = par.threads;
+    compressed = par.compressed;
     column  = static_cast<size_t>(par.filterColumn);
     columnToTake = par.columnToTake;
     trimToOneColumn = par.trimToOneColumn;
@@ -108,20 +109,20 @@ ffindexFilter::ffindexFilter(Parameters &par) {
         mode = JOIN_DB;
         std::string joinIndex(par.joinDB);
         joinIndex.append(".index");
-        joinDB = new DBReader<unsigned int>(par.joinDB.c_str(), joinIndex.c_str());
+        joinDB = new DBReader<unsigned int>(par.joinDB.c_str(), joinIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         joinDB->open(DBReader<unsigned int>::NOSORT);
         std::cout << "Joining targets to query database.\n";
     } else if (!par.compPos.empty()) {
         mode = COMPUTE_POSITIONS;
         std::string swapIndex = par.compPos + ".index";
-        swapDB = new DBReader<unsigned int>(par.compPos.c_str(), swapIndex.c_str());
+        swapDB = new DBReader<unsigned int>(par.compPos.c_str(), swapIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         swapDB->open(DBReader<unsigned int>::NOSORT);
         std::string A = par.db3;
         std::cout << "Swapping fields\n";
     } else if (!par.clusterFile.empty()){
         mode = TRANSITIVE_REPLACE;
         std::string clusterIndex = par.clusterFile + ".index";
-        clusterDB = new DBReader<unsigned int>(par.clusterFile.c_str(), clusterIndex.c_str());
+        clusterDB = new DBReader<unsigned int>(par.clusterFile.c_str(), clusterIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         clusterDB->open(DBReader<unsigned int>::NOSORT);
         std::cout << "Replacing target Field by clusters Genes\n";
     } else if (par.beatsFirst){
@@ -150,7 +151,7 @@ ffindexFilter::~ffindexFilter() {
 	if (mode == REGEX_FILTERING)
 		regfree(&regex);
 	dataDb->close();
-	dbw->close();
+    dbw->close();
 	delete dataDb;
 	delete dbw;
 }
@@ -177,7 +178,7 @@ int ffindexFilter::runFilter(){
 		for (size_t id = 0; id < dataDb->getSize(); id++) {
 			Debug::printProgress(id);
 
-			char *data = dataDb->getData(id);
+			char *data = dataDb->getData(id,  thread_idx);
             unsigned int queryKey = dataDb->getDbKey(id);
 			size_t dataLength = dataDb->getSeqLens(id);
 			int counter = 0;
@@ -250,7 +251,7 @@ int ffindexFilter::runFilter(){
                     size_t originalLength = strlen(lineBuffer);
                     // Replace the last \n
                     lineBuffer[originalLength - 1] = '\t';
-                    char* fullLine = joinDB->getData(newId);
+                    char* fullLine = joinDB->getData(newId, thread_idx);
                     // either append the full line (default mode):
                     if (columnToTake == -1) {
                         size_t fullLineLength = joinDB->getSeqLens(newId);
@@ -284,7 +285,7 @@ int ffindexFilter::runFilter(){
                         }
                     size_t fieldLength = Util::skipNoneWhitespace(columnPointer[column-1]);
 
-                    char *clusterGenes = clusterDB->getDataByDBKey(Util::fast_atoi<unsigned int>(columnValue));
+                    char *clusterGenes = clusterDB->getDataByDBKey(Util::fast_atoi<unsigned int>(columnValue), thread_idx);
                     std::stringstream stringstreamClusterGenes(clusterGenes);
 
 
@@ -329,7 +330,7 @@ int ffindexFilter::runFilter(){
 				    // Optimise it
                     std::vector<std::string> splittedOriginalLine = Util::split(lineBuffer, "\t");
                     char *lineWithNewFields = swapDB->getDataByDBKey(
-                            static_cast<unsigned int>(strtoul(columnValue, NULL, 10))) ;
+                            static_cast<unsigned int>(strtoul(columnValue, NULL, 10)), thread_idx) ;
                     std::vector<std::string> splittedLineWithNewFields = Util::split(lineWithNewFields, "\t");
 
                     unsigned long posStart = std::stoul(splittedOriginalLine[7].c_str()) * 3;

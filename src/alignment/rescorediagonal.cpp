@@ -45,7 +45,7 @@ int doRescorediagonal(Parameters &par,
                       DBReader<unsigned int> &resultReader,
               const size_t dbFrom, const size_t dbSize) {
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     qdbr.open(DBReader<unsigned int>::NOSORT);
     const int querySeqType = qdbr.getDbtype();
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
@@ -53,7 +53,7 @@ int doRescorediagonal(Parameters &par,
     }
 
     BaseMatrix *subMat;
-    if (querySeqType == Sequence::NUCLEOTIDES) {
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
     } else {
         // keep score bias at 0.0 (improved ROC)
@@ -69,7 +69,7 @@ int doRescorediagonal(Parameters &par,
         sameDB = true;
         tdbr = &qdbr;
     } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tdbr->open(DBReader<unsigned int>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             tdbr->readMmapedDataInMemory();
@@ -125,10 +125,10 @@ int doRescorediagonal(Parameters &par,
             for (size_t id = start; id < (start + bucketSize); id++) {
                 Debug::printProgress(id);
 
-                char *data = resultReader.getData(id);
+                char *data = resultReader.getData(id, thread_idx);
                 size_t queryKey = resultReader.getDbKey(id);
                 unsigned int queryId = qdbr.getId(queryKey);
-                char *querySeq = qdbr.getData(queryId);
+                char *querySeq = qdbr.getData(queryId, thread_idx);
                 int queryLen = std::max(0, static_cast<int>(qdbr.getSeqLens(queryId)) - 2);
 
 //                if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
@@ -142,7 +142,7 @@ int doRescorediagonal(Parameters &par,
                 for (size_t entryIdx = 0; entryIdx < results.size(); entryIdx++) {
                     unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB))? true : false;
-                    char * targetSeq = tdbr->getData(targetId);
+                    char * targetSeq = tdbr->getData(targetId, thread_idx);
                     int dbLen = std::max(0, static_cast<int>(tdbr->getSeqLens(targetId)) - 2);
 
                     float queryLength = static_cast<float>(queryLen);
@@ -320,8 +320,12 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
 
 
     Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
-    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    int dbtype = Parameters::DBTYPE_PREFILTER_RES;
+    if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
+        dbtype = Parameters::DBTYPE_ALIGNMENT_RES;
+    }
 #ifdef HAVE_MPI
     size_t dbFrom = 0;
     size_t dbSize = 0;
@@ -330,7 +334,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                      MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db4, par.db4Index, MMseqsMPI::rank);
 
-    DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), par.threads);
+    DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), par.threads, par.compressed, dbtype);
     resultWriter.open();
     int status = doRescorediagonal(par, resultWriter, resultReader, dbFrom, dbSize);
     resultWriter.close();
@@ -338,14 +342,14 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     MPI_Barrier(MPI_COMM_WORLD);
     if(MMseqsMPI::rank == 0) {
         std::vector<std::pair<std::string, std::string>> splitFiles;
-        for(unsigned int proc = 0; proc < MMseqsMPI::numProc; ++proc){
+        for(int proc = 0; proc < MMseqsMPI::numProc; ++proc){
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db4, par.db4Index, proc);
             splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
         }
         DBWriter::mergeResults(par.db4, par.db4Index, splitFiles);
     }
 #else
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, dbtype);
     resultWriter.open();
     int status = doRescorediagonal(par, resultWriter, resultReader, 0, resultReader.getSize());
     resultWriter.close();

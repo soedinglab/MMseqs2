@@ -10,11 +10,11 @@
 class BestHitBySetFilter : public Aggregation {
 public :
     BestHitBySetFilter(const std::string &targetDbName, const std::string &resultDbName,
-                       const std::string &outputDbName, bool simpleBestHitMode, unsigned int threads) :
-            Aggregation(targetDbName, resultDbName, outputDbName, threads), simpleBestHitMode(simpleBestHitMode) {
+                       const std::string &outputDbName, bool simpleBestHitMode, unsigned int threads, unsigned int compressed) :
+            Aggregation(targetDbName, resultDbName, outputDbName, threads, compressed), simpleBestHitMode(simpleBestHitMode) {
         std::string sizeDbName = targetDbName + "_set_size";
         std::string sizeDbIndex = targetDbName + "_set_size.index";
-        targetSizeReader = new DBReader<unsigned int>(sizeDbName.c_str(), sizeDbIndex.c_str());
+        targetSizeReader = new DBReader<unsigned int>(sizeDbName.c_str(), sizeDbIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         targetSizeReader->open(DBReader<unsigned int>::NOSORT);
     }
 
@@ -26,7 +26,7 @@ public :
 
     void prepareInput(unsigned int, unsigned int) {}
 
-    std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int, unsigned int targetSetKey, unsigned int)  {
+    std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int, unsigned int targetSetKey, unsigned int thread_idx)  {
         std::string buffer;
         buffer.reserve(1024);
 
@@ -62,7 +62,7 @@ public :
             Debug(Debug::ERROR) << "Invalid target size database key " << targetSetKey << ".\n";
             EXIT(EXIT_FAILURE);
         }
-        char *data = targetSizeReader->getData(targetId);
+        char *data = targetSizeReader->getData(targetId, thread_idx);
         unsigned int nbrGenes = Util::fast_atoi<unsigned int>(data);
 
         if (simpleBestHitMode) {
@@ -100,6 +100,6 @@ int besthitperset(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true);
 
-    BestHitBySetFilter aggregation(par.db2, par.db3, par.db4, par.simpleBestHit, (unsigned int) par.threads);
+    BestHitBySetFilter aggregation(par.db2, par.db3, par.db4, par.simpleBestHit, (unsigned int) par.threads, par.compressed);
     return aggregation.run();
 }

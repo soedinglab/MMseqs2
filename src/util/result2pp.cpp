@@ -35,19 +35,19 @@ float computeNeff(float neffA, float maxNeffA, float neffB, float maxNeffB, floa
 
 int computeProfileProfile(Parameters &par,const std::string &outpath,
                           const size_t dbFrom, const size_t dbSize) {
-    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     qDbr->open(DBReader<unsigned int>::NOSORT);
     DBReader<unsigned int> *tDbr = qDbr;
     bool sameDatabase = true;
     if (par.db1.compare(par.db2) != 0) {
         sameDatabase = false;
-        tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+        tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tDbr->open(DBReader<unsigned int>::NOSORT);
     }
 
-    DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
-    DBWriter resultWriter(outpath.c_str(), (outpath + ".index").c_str(), par.threads, DBWriter::BINARY_MODE);
+    DBWriter resultWriter(outpath.c_str(), (outpath + ".index").c_str(), par.threads, par.compressed, Parameters::DBTYPE_HMM_PROFILE);
     resultWriter.open();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
 
@@ -69,11 +69,11 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-            char *results = resultReader->getData(id);
+            char *results = resultReader->getData(id, thread_idx);
             char dbKey[255 + 1];
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader->getDbKey(id);
-            char *queryData = qDbr->getDataByDBKey(queryKey);
+            char *queryData = qDbr->getDataByDBKey(queryKey, thread_idx);
             queryProfile.mapSequence(id, queryKey, queryData);
             
 
@@ -117,7 +117,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                 if (evalue <= par.evalProfile && (key != queryKey || sameDatabase == false)) {
                     Matcher::result_t res = Matcher::parseAlignmentRecord(results);
                     const size_t edgeId = tDbr->getId(key);
-                    char *dbSeqData = tDbr->getData(edgeId);
+                    char *dbSeqData = tDbr->getData(edgeId, thread_idx);
                     targetProfile.mapSequence(0, key, dbSeqData);
                     const float * tProfile = targetProfile.getProfile();
                     size_t qPos = res.qStartPos;
@@ -254,7 +254,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
     }
 
     // cleanup
-    resultWriter.close(Sequence::HMM_PROFILE);
+    resultWriter.close();
 
     resultReader->close();
     delete resultReader;
@@ -274,7 +274,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
 int computeProfileProfile(Parameters &par) {
 
 
-    DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader->open(DBReader<unsigned int>::NOSORT);
     size_t resultSize = resultReader->getSize();
     resultReader->close();
@@ -287,7 +287,7 @@ int computeProfileProfile(Parameters &par) {
 }
 
 int computeProfileProfile(Parameters &par,const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     qDbr->open(DBReader<unsigned int>::NOSORT);
 
     size_t dbFrom = 0;

@@ -15,10 +15,10 @@ int translateaa(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_NUCLEOTIDES);
     writer.open();
 
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
@@ -63,12 +63,12 @@ int translateaa(int argc, const char **argv, const Command &command) {
         char *aa = new char[par.maxSeqLen / 3 + 3 + 1];
         std::string nucSeq;
         nucSeq.reserve(10000);
-        Sequence aaSequence(par.maxSeqLen, Sequence::AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection);
+        Sequence aaSequence(par.maxSeqLen, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection);
 
 #pragma omp for schedule(dynamic, 5)
         for (size_t i = 0; i < reader.getSize(); ++i) {
             unsigned int key = reader.getDbKey(i);
-            char *data = reader.getData(i);
+            char *data = reader.getData(i, thread_idx);
             aaSequence.mapSequence(0, key, data);
 
             // ignore null char at the end
@@ -82,7 +82,7 @@ int translateaa(int argc, const char **argv, const Command &command) {
         }
         delete[] aa;
     }
-    writer.close(Sequence::NUCLEOTIDES);
+    writer.close();
     reader.close();
 
     return EXIT_SUCCESS;

@@ -47,11 +47,30 @@ struct MMseqsParameter {
 class Parameters {
 public:
 
+    static const int DBTYPE_AMINO_ACIDS = 0;
+    static const int DBTYPE_NUCLEOTIDES = 1;
+    static const int DBTYPE_HMM_PROFILE = 2;
+    static const int DBTYPE_PROFILE_STATE_SEQ = 3;
+    static const int DBTYPE_PROFILE_STATE_PROFILE = 4;
+    static const int DBTYPE_ALIGNMENT_RES = 5;
+    static const int DBTYPE_CLUSTER_RES = 6;
+    static const int DBTYPE_PREFILTER_RES = 7;
+    static const int DBTYPE_TAXONOMICAL_RESULT = 8;
+    static const int DBTYPE_INDEX_DB = 9;
+    static const int DBTYPE_CA3M_DB = 10;
+    static const int DBTYPE_MSA_DB = 11;
+    static const int DBTYPE_GENERIC_DB = 12;
+
     static const unsigned int ALIGNMENT_MODE_FAST_AUTO = 0;
     static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 1;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV = 2;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
     static const unsigned int ALIGNMENT_MODE_UNGAPPED = 4;
+
+
+    static const unsigned int WRITER_ASCII_MODE = 0;
+    static const unsigned int WRITER_COMPRESSED_MODE = 1;
+    static const unsigned int WRITER_LEXICOGRAPHIC_MODE = 2;
 
     // convertalis alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
@@ -216,6 +235,7 @@ public:
 //    int    querySeqType;                 // Query sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
 //    int    targetSeqType;                // Target sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    threads;                      // Amounts of threads
+    int    compressed;                   // compressed writer
     bool   removeTmpFiles;               // Do not delete temp files
     bool   includeIdentity;              // include identical ids as hit
 
@@ -482,6 +502,7 @@ public:
     PARAMETER(PARAM_S)
     PARAMETER(PARAM_K)
     PARAMETER(PARAM_THREADS)
+    PARAMETER(PARAM_COMPRESSED)
     PARAMETER(PARAM_ALPH_SIZE)
     PARAMETER(PARAM_MAX_SEQ_LEN)
 //    PARAMETER(PARAM_QUERY_PROFILE)
@@ -807,6 +828,10 @@ public:
     std::string createParameterString(const std::vector<MMseqsParameter*> &vector, bool wasSet = false);
 
     void overrideParameterDescription(Command& command, int uid, const char* description, const char* regex = NULL, int category = 0);
+
+    static bool isEqualDbtype(const int type1, const int type2) {
+        return ((type1 & 0x7FFFFFFF) == (type2 & 0x7FFFFFFF));
+    }
 
 protected:
     Parameters();

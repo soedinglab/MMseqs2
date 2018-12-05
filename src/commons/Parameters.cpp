@@ -25,6 +25,7 @@ Parameters::Parameters():
         PARAM_S(PARAM_S_ID,"-s", "Sensitivity","sensitivity: 1.0 faster; 4.0 fast default; 7.5 sensitive [1.0,7.5]", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range (0: set automatically to optimum)",typeid(int),  (void *) &kmerSize, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "number of cores used for the computation (uses all cores by default)",typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
+        PARAM_COMPRESSED(PARAM_COMPRESSED_ID,"--compressed", "Compressed", "write results in compressed format",typeid(int), (void *) &compressed, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
         PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         // Regex for Range 1-32768
         // Please do not change manually, use a tool to regenerate
@@ -250,6 +251,7 @@ Parameters::Parameters():
     align.push_back(&PARAM_GAP_OPEN);
     align.push_back(&PARAM_GAP_EXTEND);
     align.push_back(&PARAM_THREADS);
+    align.push_back(&PARAM_COMPRESSED);
     align.push_back(&PARAM_V);
 
     // prefilter
@@ -279,6 +281,7 @@ Parameters::Parameters():
     prefilter.push_back(&PARAM_SPACED_KMER_PATTERN);
     prefilter.push_back(&PARAM_LOCAL_TMP);
     prefilter.push_back(&PARAM_THREADS);
+    prefilter.push_back(&PARAM_COMPRESSED);
     prefilter.push_back(&PARAM_V);
 
     // ungappedprefilter
@@ -289,6 +292,7 @@ Parameters::Parameters():
     ungappedprefilter.push_back(&PARAM_NO_COMP_BIAS_CORR);
     ungappedprefilter.push_back(&PARAM_MIN_DIAG_SCORE);
     ungappedprefilter.push_back(&PARAM_THREADS);
+    ungappedprefilter.push_back(&PARAM_COMPRESSED);
     ungappedprefilter.push_back(&PARAM_V);
 
     // clustering
@@ -296,6 +300,7 @@ Parameters::Parameters():
     clust.push_back(&PARAM_MAXITERATIONS);
     clust.push_back(&PARAM_SIMILARITYSCORE);
     clust.push_back(&PARAM_THREADS);
+    clust.push_back(&PARAM_COMPRESSED);
     clust.push_back(&PARAM_V);
 
     // onlyverbosity
@@ -315,6 +320,7 @@ Parameters::Parameters():
     rescorediagonal.push_back(&PARAM_GLOBAL_ALIGNMENT);
     rescorediagonal.push_back(&PARAM_PRELOAD_MODE);
     rescorediagonal.push_back(&PARAM_THREADS);
+    rescorediagonal.push_back(&PARAM_COMPRESSED);
     rescorediagonal.push_back(&PARAM_V);
 
     // alignbykmer
@@ -332,12 +338,14 @@ Parameters::Parameters():
     alignbykmer.push_back(&PARAM_GAP_OPEN);
     alignbykmer.push_back(&PARAM_GAP_EXTEND);
     alignbykmer.push_back(&PARAM_THREADS);
+    alignbykmer.push_back(&PARAM_COMPRESSED);
     alignbykmer.push_back(&PARAM_V);
 
     // convertprofiledb
     convertprofiledb.push_back(&PARAM_SUB_MAT);
     convertprofiledb.push_back(&PARAM_PROFILE_TYPE);
     convertprofiledb.push_back(&PARAM_THREADS);
+    convertprofiledb.push_back(&PARAM_COMPRESSED);
     convertprofiledb.push_back(&PARAM_V);
 
 
@@ -348,6 +356,7 @@ Parameters::Parameters():
     sequence2profile.push_back(&PARAM_TAU);
     sequence2profile.push_back(&PARAM_THREADS);
     sequence2profile.push_back(&PARAM_SUB_MAT);
+    sequence2profile.push_back(&PARAM_COMPRESSED);
     sequence2profile.push_back(&PARAM_V);
 
     // create fasta
@@ -373,6 +382,7 @@ Parameters::Parameters():
     result2profile.push_back(&PARAM_GAP_OPEN);
     result2profile.push_back(&PARAM_GAP_EXTEND);
     result2profile.push_back(&PARAM_THREADS);
+    result2profile.push_back(&PARAM_COMPRESSED);
     result2profile.push_back(&PARAM_V);
 
     // result2pp
@@ -392,6 +402,7 @@ Parameters::Parameters():
     result2pp.push_back(&PARAM_OMIT_CONSENSUS);
     result2pp.push_back(&PARAM_PRELOAD_MODE);
     result2pp.push_back(&PARAM_THREADS);
+    result2pp.push_back(&PARAM_COMPRESSED);
     result2pp.push_back(&PARAM_V);
 
 
@@ -405,6 +416,7 @@ Parameters::Parameters():
 
     //result2stats
     result2stats.push_back(&PARAM_STAT);
+    result2stats.push_back(&PARAM_COMPRESSED);
     result2stats.push_back(&PARAM_THREADS);
     result2stats.push_back(&PARAM_V);
 
@@ -418,6 +430,7 @@ Parameters::Parameters():
     convertalignments.push_back(&PARAM_DB_OUTPUT);
     convertalignments.push_back(&PARAM_PRELOAD_MODE);
     convertalignments.push_back(&PARAM_THREADS);
+    convertalignments.push_back(&PARAM_COMPRESSED);
     convertalignments.push_back(&PARAM_V);
 
     // result2msa
@@ -440,12 +453,14 @@ Parameters::Parameters():
     result2msa.push_back(&PARAM_SKIP_QUERY);
     result2msa.push_back(&PARAM_GAP_OPEN);
     result2msa.push_back(&PARAM_GAP_EXTEND);
+    result2msa.push_back(&PARAM_COMPRESSED);
     //result2msa.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
     result2msa.push_back(&PARAM_V);
 
 
     // convertmsa
     convertmsa.push_back(&PARAM_IDENTIFIER_FIELD);
+    convertmsa.push_back(&PARAM_COMPRESSED);
     convertmsa.push_back(&PARAM_V);
 
     // msa2profile
@@ -466,6 +481,7 @@ Parameters::Parameters():
     msa2profile.push_back(&PARAM_GAP_OPEN);
     msa2profile.push_back(&PARAM_GAP_EXTEND);
     msa2profile.push_back(&PARAM_THREADS);
+    msa2profile.push_back(&PARAM_COMPRESSED);
     msa2profile.push_back(&PARAM_V);
 
     // profile2pssm
@@ -474,6 +490,7 @@ Parameters::Parameters():
     profile2pssm.push_back(&PARAM_NO_COMP_BIAS_CORR);
     profile2pssm.push_back(&PARAM_DB_OUTPUT);
     profile2pssm.push_back(&PARAM_THREADS);
+    profile2pssm.push_back(&PARAM_COMPRESSED);
     profile2pssm.push_back(&PARAM_V);
 
     // profile2cs
@@ -482,6 +499,7 @@ Parameters::Parameters():
     profile2cs.push_back(&PARAM_PCA);
     profile2cs.push_back(&PARAM_PCB);
     profile2cs.push_back(&PARAM_THREADS);
+    profile2cs.push_back(&PARAM_COMPRESSED);
     profile2cs.push_back(&PARAM_V);
 
     // extract orf
@@ -497,27 +515,32 @@ Parameters::Parameters():
     extractorfs.push_back(&PARAM_USE_ALL_TABLE_STARTS);
     extractorfs.push_back(&PARAM_ID_OFFSET);
     extractorfs.push_back(&PARAM_THREADS);
+    extractorfs.push_back(&PARAM_COMPRESSED);
     extractorfs.push_back(&PARAM_V);
 
     // extract frames
     extractframes.push_back(&PARAM_ORF_FORWARD_FRAMES);
     extractframes.push_back(&PARAM_ORF_REVERSE_FRAMES);
     extractframes.push_back(&PARAM_THREADS);
+    extractframes.push_back(&PARAM_COMPRESSED);
     extractframes.push_back(&PARAM_V);
 
     // orf to contig
     orftocontig.push_back(&PARAM_THREADS);
+    orftocontig.push_back(&PARAM_COMPRESSED);
     orftocontig.push_back(&PARAM_V);
 
     // splitsequence
     splitsequence.push_back(&PARAM_MAX_SEQ_LEN);
     splitsequence.push_back(&PARAM_SEQUENCE_OVERLAP);
     splitsequence.push_back(&PARAM_THREADS);
+    splitsequence.push_back(&PARAM_COMPRESSED);
     splitsequence.push_back(&PARAM_V);
 
     // splitdb
     splitdb.push_back(&PARAM_SPLIT);
     splitdb.push_back(&PARAM_SPLIT_AMINOACID);
+    splitdb.push_back(&PARAM_COMPRESSED);
     splitdb.push_back(&PARAM_V);
 
     // create index
@@ -537,6 +560,7 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_SPLIT);
     indexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     indexdb.push_back(&PARAM_THREADS);
+    indexdb.push_back(&PARAM_COMPRESSED);
     indexdb.push_back(&PARAM_V);
 
     // create db
@@ -545,6 +569,7 @@ Parameters::Parameters():
     createdb.push_back(&PARAM_DB_TYPE);
     createdb.push_back(&PARAM_DONT_SHUFFLE);
     createdb.push_back(&PARAM_ID_OFFSET);
+    createdb.push_back(&PARAM_COMPRESSED);
     createdb.push_back(&PARAM_V);
 
     // convert2fasta
@@ -565,6 +590,7 @@ Parameters::Parameters():
     translatenucs.push_back(&PARAM_TRANSLATION_TABLE);
     translatenucs.push_back(&PARAM_ADD_ORF_STOP);
     translatenucs.push_back(&PARAM_V);
+    translatenucs.push_back(&PARAM_COMPRESSED);
     translatenucs.push_back(&PARAM_THREADS);
 
     // createseqfiledb
@@ -572,6 +598,7 @@ Parameters::Parameters():
     createseqfiledb.push_back(&PARAM_MAX_SEQUENCES);
     createseqfiledb.push_back(&PARAM_HH_FORMAT);
     createseqfiledb.push_back(&PARAM_THREADS);
+    createseqfiledb.push_back(&PARAM_COMPRESSED);
     createseqfiledb.push_back(&PARAM_V);
 
     // filterDb
@@ -591,12 +618,14 @@ Parameters::Parameters():
     filterDb.push_back(&PARAM_SORT_ENTRIES);
     filterDb.push_back(&PARAM_INCLUDE_IDENTITY);
     filterDb.push_back(&PARAM_JOIN_DB);
-    filterDb.push_back(&PARAM_COMPUTE_POSITIONS) ;
-    filterDb.push_back(&PARAM_TRANSITIVE_REPLACE) ;
+    filterDb.push_back(&PARAM_COMPUTE_POSITIONS);
+    filterDb.push_back(&PARAM_COMPRESSED);
+    filterDb.push_back(&PARAM_TRANSITIVE_REPLACE);
 
     // besthitperset
     besthitbyset.push_back(&PARAM_SIMPLE_BEST_HIT);
     besthitbyset.push_back(&PARAM_THREADS);
+    besthitbyset.push_back(&PARAM_COMPRESSED);
     besthitbyset.push_back(&PARAM_V);
 
 
@@ -604,21 +633,25 @@ Parameters::Parameters():
     combinepvalbyset.push_back(&PARAM_ALPHA);
 //    combinepvalperset.push_back(&PARAM_SHORT_OUTPUT);
     combinepvalbyset.push_back(&PARAM_THREADS);
+    combinepvalbyset.push_back(&PARAM_COMPRESSED);
     combinepvalbyset.push_back(&PARAM_V);
 
     // combinepvalperset
     summerizeresultsbyset.push_back(&PARAM_ALPHA);
     summerizeresultsbyset.push_back(&PARAM_SHORT_OUTPUT);
     summerizeresultsbyset.push_back(&PARAM_THREADS);
+    summerizeresultsbyset.push_back(&PARAM_COMPRESSED);
     summerizeresultsbyset.push_back(&PARAM_V);
 
     // onlythreads
     onlythreads.push_back(&PARAM_THREADS);
+    onlythreads.push_back(&PARAM_COMPRESSED);
     onlythreads.push_back(&PARAM_V);
 
     // offsetalignment
     offsetalignment.push_back(&PARAM_CHAIN_ALIGNMENT);
     offsetalignment.push_back(&PARAM_THREADS);
+    offsetalignment.push_back(&PARAM_COMPRESSED);
     offsetalignment.push_back(&PARAM_V);
 
     // swap results
@@ -628,17 +661,20 @@ Parameters::Parameters():
     swapresult.push_back(&PARAM_GAP_OPEN);
     swapresult.push_back(&PARAM_GAP_EXTEND);
     swapresult.push_back(&PARAM_THREADS);
+    swapresult.push_back(&PARAM_COMPRESSED);
     swapresult.push_back(&PARAM_V);
 
     // swap results
     swapdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     swapdb.push_back(&PARAM_THREADS);
+    swapdb.push_back(&PARAM_COMPRESSED);
     swapdb.push_back(&PARAM_V);
 
     // subtractdbs
     subtractdbs.push_back(&PARAM_THREADS);
     subtractdbs.push_back(&PARAM_E_PROFILE);
     subtractdbs.push_back(&PARAM_E);
+    subtractdbs.push_back(&PARAM_COMPRESSED);
     subtractdbs.push_back(&PARAM_V);
 
     // clusthash
@@ -647,6 +683,7 @@ Parameters::Parameters():
     clusthash.push_back(&PARAM_MIN_SEQ_ID);
     clusthash.push_back(&PARAM_MAX_SEQ_LEN);
     clusthash.push_back(&PARAM_THREADS);
+    clusthash.push_back(&PARAM_COMPRESSED);
     clusthash.push_back(&PARAM_V);
 
     // kmermatcher
@@ -664,22 +701,26 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_INCLUDE_ONLY_EXTENDABLE);
     kmermatcher.push_back(&PARAM_SKIP_N_REPEAT_KMER);
     kmermatcher.push_back(&PARAM_THREADS);
+    kmermatcher.push_back(&PARAM_COMPRESSED);
     kmermatcher.push_back(&PARAM_V);
 
 
     // mergedbs
     mergedbs.push_back(&PARAM_MERGE_PREFIXES);
+    mergedbs.push_back(&PARAM_COMPRESSED);
     mergedbs.push_back(&PARAM_V);
 
     // summarize
     summarizeheaders.push_back(&PARAM_SUMMARY_PREFIX);
     summarizeheaders.push_back(&PARAM_HEADER_TYPE);
     summarizeheaders.push_back(&PARAM_THREADS);
+    summarizeheaders.push_back(&PARAM_COMPRESSED);
     summarizeheaders.push_back(&PARAM_V);
 
     // diff
     diff.push_back(&PARAM_USESEQID);
     diff.push_back(&PARAM_THREADS);
+    diff.push_back(&PARAM_COMPRESSED);
     diff.push_back(&PARAM_V);
 
     // prefixid
@@ -687,6 +728,7 @@ Parameters::Parameters():
     prefixid.push_back(&PARAM_MAPPING_FILE);
     prefixid.push_back(&PARAM_TSV);
     prefixid.push_back(&PARAM_THREADS);
+    prefixid.push_back(&PARAM_COMPRESSED);
     prefixid.push_back(&PARAM_V);
 
     // summarizeresult
@@ -695,6 +737,7 @@ Parameters::Parameters():
     summarizeresult.push_back(&PARAM_E);
     summarizeresult.push_back(&PARAM_C);
     summarizeresult.push_back(&PARAM_THREADS);
+    summarizeresult.push_back(&PARAM_COMPRESSED);
     summarizeresult.push_back(&PARAM_V);
 
     // summarizetabs
@@ -702,6 +745,7 @@ Parameters::Parameters():
     summarizetabs.push_back(&PARAM_E);
     summarizetabs.push_back(&PARAM_C);
     summarizetabs.push_back(&PARAM_THREADS);
+    summarizetabs.push_back(&PARAM_COMPRESSED);
     summarizetabs.push_back(&PARAM_V);
 
     // annoate
@@ -710,35 +754,42 @@ Parameters::Parameters():
     extractdomains.push_back(&PARAM_E);
     extractdomains.push_back(&PARAM_C);
     extractdomains.push_back(&PARAM_THREADS);
+    extractdomains.push_back(&PARAM_COMPRESSED);
     extractdomains.push_back(&PARAM_V);
 
     // concatdbs
+    concatdbs.push_back(&PARAM_COMPRESSED);
     concatdbs.push_back(&PARAM_PRESERVEKEYS);
     concatdbs.push_back(&PARAM_THREADS);
     concatdbs.push_back(&PARAM_V);
 
     // extractalignedregion
+    extractalignedregion.push_back(&PARAM_COMPRESSED);
     extractalignedregion.push_back(&PARAM_EXTRACT_MODE);
     extractalignedregion.push_back(&PARAM_PRELOAD_MODE);
     extractalignedregion.push_back(&PARAM_THREADS);
     extractalignedregion.push_back(&PARAM_V);
 
     // convertkb
+    convertkb.push_back(&PARAM_COMPRESSED);
     convertkb.push_back(&PARAM_MAPPING_FILE);
     convertkb.push_back(&PARAM_KB_COLUMNS);
     convertkb.push_back(&PARAM_V);
 
     // filtertaxdb
+    filtertaxdb.push_back(&PARAM_COMPRESSED);
     filtertaxdb.push_back(&PARAM_TAXON_LIST);
     filtertaxdb.push_back(&PARAM_INVERT_SELECTION);
 
     // lca
+    lca.push_back(&PARAM_COMPRESSED);
     lca.push_back(&PARAM_LCA_RANKS);
     lca.push_back(&PARAM_BLACKLIST);
     lca.push_back(&PARAM_THREADS);
     lca.push_back(&PARAM_V);
 
     // exapandaln
+    expandaln.push_back(&PARAM_COMPRESSED);
     expandaln.push_back(&PARAM_EXPANSION_MODE);
     expandaln.push_back(&PARAM_SUB_MAT);
     expandaln.push_back(&PARAM_GAP_OPEN);
@@ -756,6 +807,7 @@ Parameters::Parameters():
     expandaln.push_back(&PARAM_THREADS);
     expandaln.push_back(&PARAM_V);
 
+    sortresult.push_back(&PARAM_COMPRESSED);
     sortresult.push_back(&PARAM_MAX_SEQS);
     sortresult.push_back(&PARAM_THREADS);
     sortresult.push_back(&PARAM_V);
@@ -1298,6 +1350,7 @@ void Parameters::setDefaults() {
     greedyBestHits = false;
 
     threads = 1;
+    compressed = WRITER_ASCII_MODE;
 #ifdef OPENMP
     #ifdef _SC_NPROCESSORS_ONLN
     threads = sysconf(_SC_NPROCESSORS_ONLN);
@@ -1672,3 +1725,4 @@ std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool 
     }
     return formatCodes;
 }
+

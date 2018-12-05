@@ -10,11 +10,11 @@
 
 
 int addid(const std::string &db1, const std::string &db1Index, const std::string &db2, const std::string &db2Index, 
-const bool tsvOut, const std::string &mappingFile, const std::string &userStrToAdd, const bool isPrefix, const int threads) {
-    DBReader<unsigned int> reader(db1.c_str(), db1Index.c_str());
+const bool tsvOut, const std::string &mappingFile, const std::string &userStrToAdd, const bool isPrefix, const int threads, const int compressed) {
+    DBReader<unsigned int> reader(db1.c_str(), db1Index.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter writer(db2.c_str(), db2Index.c_str(), threads);
+    DBWriter writer(db2.c_str(), db2Index.c_str(), threads, compressed, reader.getDbtype());
     writer.open();
     bool shouldWriteNullByte = !tsvOut;
 
@@ -36,7 +36,7 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
             Debug::printProgress(i);
 
             unsigned int key = reader.getDbKey(i);
-            std::istringstream data(reader.getData(i));
+            std::istringstream data(reader.getData(i, thread_idx));
             std::ostringstream ss;
 
             std::string line;
@@ -75,12 +75,12 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
 int prefixid(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
-    return(addid(par.db1, par.db1Index, par.db2, par.db2Index, par.tsvOut, par.mappingFile, par.prefix, true, par.threads));
+    return(addid(par.db1, par.db1Index, par.db2, par.db2Index, par.tsvOut, par.mappingFile, par.prefix, true, par.threads, par.compressed));
 }
 
 int suffixid(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
-    return(addid(par.db1, par.db1Index, par.db2, par.db2Index, par.tsvOut, par.mappingFile, par.prefix, false, par.threads));
+    return(addid(par.db1, par.db1Index, par.db2, par.db2Index, par.tsvOut, par.mappingFile, par.prefix, false, par.threads, par.compressed));
 }
 

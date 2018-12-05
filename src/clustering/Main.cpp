@@ -14,7 +14,7 @@ int clust(int argc, const char **argv, const Command& command) {
 
     Clustering* clu = new Clustering(par.db1, par.db1Index, par.db2, par.db2Index,
                                      par.db3, par.db3Index, par.maxIteration,
-                                     par.similarityScoreType, par.threads);
+                                     par.similarityScoreType, par.threads, par.compressed);
 
     clu->run(par.clusteringMode);
 

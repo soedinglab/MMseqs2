@@ -308,9 +308,9 @@ short UngappedAlignment::createProfile(Sequence *seq,
                                      short **subMat, int alphabetSize) {
     short bias = 0;
     int aaBias = 0;
-    if(seq->getSequenceType() == Sequence::HMM_PROFILE || seq->getSequenceType() == Sequence::PROFILE_STATE_PROFILE){
+    if(Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
         size_t matSize = 0;
-        if(seq->getSequenceType() == Sequence::PROFILE_STATE_PROFILE){
+        if(Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
             matSize = seq->L * alphabetSize;
         }else{
             matSize= seq->L * Sequence::PROFILE_AA_SIZE;
@@ -341,10 +341,10 @@ short UngappedAlignment::createProfile(Sequence *seq,
     bias = abs(bias) + abs(aaBias);
     memset(queryProfile, bias, PROFILESIZE * seq->L);
     // create profile
-    if(seq->getSequenceType() == Sequence::HMM_PROFILE||seq->getSequenceType() == Sequence::PROFILE_STATE_PROFILE) {
+    if(Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
         const int8_t * profile_aln = seq->getAlignmentProfile();
         for (int pos = 0; pos < seq->L; pos++) {
-            if(seq->getSequenceType() == Sequence::PROFILE_STATE_PROFILE){
+            if(Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
                 for (int aa_num = 0; aa_num < alphabetSize; aa_num++) {
                     queryProfile[pos * PROFILESIZE + aa_num] = (profile_aln[aa_num * seq->L + pos] ) + bias;
                 }

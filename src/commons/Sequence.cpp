@@ -51,7 +51,7 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
     }
 
     // init memory for profile search
-    if (seqType == HMM_PROFILE || seqType==PROFILE_STATE_PROFILE) {
+    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
         // setup memory for profiles
         profile_row_size = (size_t) PROFILE_AA_SIZE / (VECSIZE_INT*4); //
         profile_row_size = (profile_row_size+1) * (VECSIZE_INT*4); // for SIMD memory alignment
@@ -87,7 +87,7 @@ Sequence::~Sequence() {
     if (aaPosInSpacedPattern){
         delete[] aaPosInSpacedPattern;
     }
-    if (seqType == HMM_PROFILE || seqType == PROFILE_STATE_PROFILE) {
+    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE)|| Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
         for (size_t i = 0; i < kmerSize; ++i) {
             delete profile_matrix[i];
         }
@@ -250,13 +250,13 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence) 
     this->id = id;
     this->dbKey = dbKey;
     this->seqData = sequence;
-    if (this->seqType == Sequence::AMINO_ACIDS || this->seqType == Sequence::NUCLEOTIDES) {
+    if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_AMINO_ACIDS) || Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         mapSequence(sequence);
-    } else if (this->seqType == Sequence::HMM_PROFILE) {
+    } else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_HMM_PROFILE)) {
         mapProfile(sequence, true);
-    } else if (this->seqType == Sequence::PROFILE_STATE_SEQ) {
+    } else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         mapProfileStateSequence(sequence);
-    }else if (this->seqType == Sequence::PROFILE_STATE_PROFILE) {
+    }else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
         switch(subMat->alphabetSize) {
             case 8:
                 mapProfileState<8>(sequence);
@@ -286,7 +286,9 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence) 
 void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *,const unsigned int> data){
     this->id = id;
     this->dbKey = dbKey;
-    if (this->seqType == Sequence::AMINO_ACIDS || this->seqType == Sequence::NUCLEOTIDES || this->seqType == Sequence::PROFILE_STATE_SEQ ){
+    if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_AMINO_ACIDS)
+        || Parameters::isEqualDbtype( this->seqType,Parameters::DBTYPE_NUCLEOTIDES)
+        || Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)){
         this->L = data.second;
         for(int aa = 0; aa < this->L; aa++){
             this->int_sequence[aa] = data.first[aa];
@@ -590,7 +592,7 @@ void Sequence::printProfile(){
 }
 
 void Sequence::reverse() {
-    if(seqType == HMM_PROFILE||seqType==PROFILE_STATE_PROFILE){
+    if(Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
         short        tmpScore[PROFILE_AA_SIZE*4];
         unsigned int tmpIndex[PROFILE_AA_SIZE*4];
 

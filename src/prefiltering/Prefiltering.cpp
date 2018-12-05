@@ -45,7 +45,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         aaBiasCorrection(par.compBiasCorrection != 0),
         covThr(par.covThr), covMode(par.covMode), includeIdentical(par.includeIdentity),
         preloadMode(par.preloadMode),
-        threads(static_cast<unsigned int>(par.threads)) {
+        threads(static_cast<unsigned int>(par.threads)), compressed(par.compressed) {
 #ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
@@ -67,7 +67,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
             dataMode |= DBReader<unsigned int>::USE_FREAD;
         }
-        tdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), dataMode);
+        tdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), threads, dataMode);
         tdbr->open(DBReader<unsigned int>::NOSORT);
 
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
@@ -121,7 +121,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             maxSeqLen = data.maxSeqLength;
             aaBiasCorrection = data.compBiasCorr;
 
-            if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::HMM_PROFILE) {
+            if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) &&
+                Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)) {
                 Debug(Debug::ERROR) << "Query-profiles cannot be searched against a target-profile database!\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -137,7 +138,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         }
     } else {
         Debug(Debug::INFO) << "Could not find precomputed index. Compute index.\n";
-        tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
+        tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tdbr->open(DBReader<unsigned int>::NOSORT);
 
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
@@ -149,23 +150,23 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     }
 
     // init the substitution matrices
-    switch (querySeqType) {
-        case Sequence::NUCLEOTIDES:
+    switch (querySeqType & 0x7FFFFFFF) {
+        case Parameters::DBTYPE_NUCLEOTIDES:
             kmerSubMat = new NucleotideMatrix(scoringMatrixFile.c_str(), 1.0, 0.0);
             ungappedSubMat = kmerSubMat;
             alphabetSize = kmerSubMat->alphabetSize;
             break;
-        case Sequence::AMINO_ACIDS:
+        case Parameters::DBTYPE_AMINO_ACIDS:
             kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
             ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false);
             alphabetSize = kmerSubMat->alphabetSize;
             break;
-        case Sequence::HMM_PROFILE:
+        case Parameters::DBTYPE_HMM_PROFILE:
             // needed for Background distributions
             kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
             ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false);
             break;
-        case Sequence::PROFILE_STATE_PROFILE:
+        case Parameters::DBTYPE_PROFILE_STATE_PROFILE:
             kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, true);
             ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false);
             alphabetSize = kmerSubMat->alphabetSize;
@@ -176,13 +177,13 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     }
 
     // investigate if it makes sense to mask the profile consensus sequence
-    if (targetSeqType == Sequence::HMM_PROFILE || targetSeqType == Sequence::PROFILE_STATE_SEQ) {
+    if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         maskMode = 0;
     }
 
-    takeOnlyBestKmer = (par.exactKmerMatching==1)||
-                       (targetSeqType == Sequence::HMM_PROFILE && querySeqType == Sequence::AMINO_ACIDS) ||
-                       (targetSeqType == Sequence::NUCLEOTIDES && querySeqType == Sequence::NUCLEOTIDES);
+    takeOnlyBestKmer = (par.exactKmerMatching==1) ||
+                       (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_AMINO_ACIDS)) ||
+                       (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES) && Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_NUCLEOTIDES));
 
     int originalSplits = splits;
     size_t memoryLimit;
@@ -195,8 +196,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                threads, templateDBIsIndex, maxResListLen,
                memoryLimit, &kmerSize, &splits, &splitMode);
 
-    if(targetSeqType != Sequence::NUCLEOTIDES){
-        const bool isProfileSearch = querySeqType == Sequence::HMM_PROFILE || targetSeqType == Sequence::HMM_PROFILE;
+    if(Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES) == false){
+        const bool isProfileSearch = Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) ||
+                                     Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE);
         kmerThr = getKmerThreshold(sensitivity, isProfileSearch, kmerScore, kmerSize);
     }
     if (templateDBIsIndex == true) {
@@ -208,7 +210,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                                   << ") does not match index table k-mer threshold (" << minKmerThr << "). "
                                   << "Recomputing index table!\n";
             reopenTargetDb();
-        } else if ((querySeqType == Sequence::HMM_PROFILE || querySeqType == Sequence::PROFILE_STATE_PROFILE) && minKmerThr != 0) {
+        } else if ((Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) && minKmerThr != 0) {
             Debug(Debug::WARNING) << "Query profiles require an index table k-mer threshold of 0. Recomputing index table!\n";
             reopenTargetDb();
         } else if (indexMasked != maskMode) {
@@ -275,7 +277,7 @@ void Prefiltering::reopenTargetDb() {
     delete tdbr;
 
     Debug(Debug::INFO) << "Index table not compatible with chosen settings. Compute index.\n";
-    tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
+    tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     tdbr->open(DBReader<unsigned int>::NOSORT);
 
     if (preloadMode != Parameters::PRELOAD_MODE_MMAP) {
@@ -371,7 +373,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
                                                                    (outDBIndex + "_merged"));
 
 
-    DBWriter writer(out.first.c_str(), out.second.c_str(), 1);
+    DBWriter writer(out.first.c_str(), out.second.c_str(), 1, compressed, Parameters::DBTYPE_PREFILTER_RES);
     writer.open(1024 * 1024 * 1024); // 1 GB buffer
     writer.mergeFilePair(filenames);
     writer.close();
@@ -389,9 +391,9 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         }
     }
     // sort merged entries by evalue
-    DBReader<unsigned int> dbr(out.first.c_str(), out.second.c_str());
+    DBReader<unsigned int> dbr(out.first.c_str(), out.second.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-    DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads);
+    DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_PREFILTER_RES);
     dbw.open(1024 * 1024 * 1024);
 #pragma omp parallel
     {
@@ -406,7 +408,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
 #pragma omp  for schedule(dynamic, 10)
         for (size_t id = 0; id < dbr.getSize(); id++) {
             unsigned int dbKey = dbr.getDbKey(id);
-            char *data = dbr.getData(id);
+            char *data = dbr.getData(id, thread_idx);
             std::vector<hit_t> hits = QueryMatcher::parsePrefilterHits(data);
             if (hits.size() > 1) {
                 std::sort(hits.begin(), hits.end(), hit_t::compareHitsByPValueAndId);
@@ -439,7 +441,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
 
 ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize) {
     // profile only uses the 2mer, 3mer matrix
-    if (targetSeqType == Sequence::HMM_PROFILE || targetSeqType == Sequence::PROFILE_STATE_SEQ) {
+    if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         return NULL;
     }
 
@@ -478,13 +480,14 @@ void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
         Timer timer;
 
         Sequence tseq(maxSeqLen, targetSeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
-        int localKmerThr = (querySeqType == Sequence::HMM_PROFILE ||
-                            querySeqType == Sequence::PROFILE_STATE_PROFILE ||
-                            querySeqType == Sequence::NUCLEOTIDES ||
-                            (targetSeqType != Sequence::HMM_PROFILE && takeOnlyBestKmer == true) ) ? 0 : kmerThr;
+        int localKmerThr = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) ||
+                Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) ||
+                Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES) ||
+                            (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) == false && takeOnlyBestKmer == true) ) ? 0 : kmerThr;
 
         // remove X or N for seeding
-        int adjustAlphabetSize = (targetSeqType == Sequence::NUCLEOTIDES || targetSeqType == Sequence::AMINO_ACIDS)
+        int adjustAlphabetSize = (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES) ||
+                                  Parameters::isEqualDbtype(targetSeqType,Parameters::DBTYPE_AMINO_ACIDS))
                            ? alphabetSize -1 : alphabetSize;
         indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
         SequenceLookup **maskedLookup   = maskMode == 1 ? &sequenceLookup : NULL;
@@ -504,17 +507,17 @@ void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
     }
 
     // init the substitution matrices
-    switch (querySeqType) {
-        case Sequence::AMINO_ACIDS:
+    switch (querySeqType  & 0x7FFFFFFF) {
+        case Parameters::DBTYPE_AMINO_ACIDS:
             // Do not add X
             kmerSubMat->alphabetSize = kmerSubMat->alphabetSize - 1;
             _2merSubMatrix = getScoreMatrix(*kmerSubMat, 2);
             _3merSubMatrix = getScoreMatrix(*kmerSubMat, 3);
             kmerSubMat->alphabetSize = alphabetSize;
             break;
-        case Sequence::HMM_PROFILE:
-        case Sequence::PROFILE_STATE_PROFILE:
-        case Sequence::NUCLEOTIDES:
+        case Parameters::DBTYPE_HMM_PROFILE:
+        case Parameters::DBTYPE_PROFILE_STATE_PROFILE:
+        case Parameters::DBTYPE_NUCLEOTIDES:
         default:
             if (_2merSubMatrix != NULL && templateDBIsIndex == false) {
                 delete _2merSubMatrix;
@@ -643,7 +646,7 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
     if (templateDBIsIndex == false && sameQTDB == true) {
         qdbr = tdbr;
     } else {
-        qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str());
+        qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         qdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     }
     Debug(Debug::INFO) << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
@@ -775,7 +778,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         localThreads = querySize;
     }
 
-    DBWriter tmpDbw(resultDB.c_str(), resultDBIndex.c_str(), localThreads);
+    DBWriter tmpDbw(resultDB.c_str(), resultDBIndex.c_str(), localThreads, compressed, Parameters::DBTYPE_PREFILTER_RES);
     tmpDbw.open();
 
     // init all thread-specific data structures
@@ -810,7 +813,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
                              kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
                              maxResults, aaBiasCorrection, diagonalScoring, minDiagScoreThr, takeOnlyBestKmer);
 
-        if (querySeqType == Sequence::HMM_PROFILE || querySeqType == Sequence::PROFILE_STATE_PROFILE) {
+        if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
             matcher.setProfileMatrix(seq.profile_matrix);
         } else {
             matcher.setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
@@ -820,7 +823,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         for (size_t id = queryFrom; id < queryFrom + querySize; id++) {
             Debug::printProgress(id);
             // get query sequence
-            char *seqData = qdbr->getData(id);
+            char *seqData = qdbr->getData(id, thread_idx);
             unsigned int qKey = qdbr->getDbKey(id);
             seq.mapSequence(id, qKey, seqData);
             // only the corresponding split should include the id (hack for the hack)
@@ -881,10 +884,10 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             delete indexTable;
             indexTable = NULL;
         }
-        DBReader<unsigned int> resultReader(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
+        DBReader<unsigned int> resultReader(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         resultReader.open(DBReader<unsigned int>::NOSORT);
         resultReader.readMmapedDataInMemory();
-        DBWriter resultWriter((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), localThreads);
+        DBWriter resultWriter((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), localThreads, compressed, Parameters::DBTYPE_PREFILTER_RES);
         resultWriter.open();
         resultWriter.sortDatafileByIdOrder(resultReader);
         resultWriter.close();
@@ -1018,7 +1021,7 @@ double Prefiltering::setKmerThreshold(DBReader<unsigned int> *qdbr) {
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat, ungappedSubMat, evaluer, tdbr->getSeqLens(), kmerThr, 1.0,
                              kmerSize, indexTable->getSize(), maxSeqLen, seq.getEffectiveKmerSize(),
                              150000, aaBiasCorrection, false, minDiagScoreThr, takeOnlyBestKmer);
-        if(querySeqType == Sequence::HMM_PROFILE || querySeqType == Sequence::PROFILE_STATE_PROFILE ){
+        if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) ){
             matcher.setProfileMatrix(seq.profile_matrix);
         } else {
             matcher.setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
@@ -1028,7 +1031,7 @@ double Prefiltering::setKmerThreshold(DBReader<unsigned int> *qdbr) {
         for (size_t i = 0; i < querySetSize; i++) {
             size_t id = querySeqs[i];
 
-            char *seqData = qdbr->getData(id);
+            char *seqData = qdbr->getData(id, thread_idx);
             seq.mapSequence(id, 0, seqData);
             seq.reverse();
 
@@ -1117,7 +1120,7 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
 
     // extended matrix
     size_t extendedMatrix = 0;
-    if(querySeqType == Sequence::AMINO_ACIDS){
+    if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_AMINO_ACIDS)){
         extendedMatrix = sizeof(std::pair<short, unsigned int>) * static_cast<size_t>(pow(pow(alphabetSize, 3), 2));
         extendedMatrix += sizeof(std::pair<short, unsigned int>) * pow(pow(alphabetSize, 2), 2);
     }

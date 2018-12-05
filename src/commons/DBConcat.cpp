@@ -16,7 +16,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
                    const std::string &dataFileNameC, const std::string &indexFileNameC,
                    unsigned int threads, int dataMode, bool preserveKeysA, bool preserveKeysB)
         : DBReader((dataFileNameA == dataFileNameB ? dataFileNameA : dataFileNameC).c_str(),
-                   (indexFileNameA == indexFileNameB ? indexFileNameA : indexFileNameC).c_str(), dataMode),
+                   (indexFileNameA == indexFileNameB ? indexFileNameA : indexFileNameC).c_str(), threads, dataMode),
           dataFileNameA(dataFileNameA), indexFileNameA(indexFileNameA),
           dataFileNameB(dataFileNameB), indexFileNameB(indexFileNameB),
           dataFileNameC(dataFileNameC), indexFileNameC(indexFileNameC),
@@ -32,8 +32,8 @@ void DBConcat::concat(bool write) {
         return;
     }
 
-    DBReader<unsigned int> dbA(dataFileNameA.c_str(), indexFileNameA.c_str());
-    DBReader<unsigned int> dbB(dataFileNameB.c_str(), indexFileNameB.c_str());
+    DBReader<unsigned int> dbA(dataFileNameA.c_str(), indexFileNameA.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
+    DBReader<unsigned int> dbB(dataFileNameB.c_str(), indexFileNameB.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
 
 
     dbA.open(DBReader<unsigned int>::NOSORT);
@@ -48,7 +48,7 @@ void DBConcat::concat(bool write) {
 
     DBWriter* concatWriter = NULL;
     if (write) {
-        concatWriter = new DBWriter(dataFileNameC.c_str(), indexFileNameC.c_str(), threads, DBWriter::BINARY_MODE);
+        concatWriter = new DBWriter(dataFileNameC.c_str(), indexFileNameC.c_str(), threads, Parameters::WRITER_ASCII_MODE, dbA.getDbtype());
         concatWriter->open();
     }
 
@@ -70,7 +70,7 @@ void DBConcat::concat(bool write) {
         }
 
         if (write) {
-            char *data = dbA.getData(id);
+            char *data = dbA.getData(id, thread_idx);
             concatWriter->writeData(data, dbA.getSeqLens(id) - 1, newKey, thread_idx);
         }
 
@@ -96,7 +96,7 @@ void DBConcat::concat(bool write) {
         }
         
         if (write) {
-            char *data = dbB.getData(id);
+            char *data = dbB.getData(id, thread_idx);
             concatWriter->writeData(data, dbB.getSeqLens(id) - 1, newKey, thread_idx);
         }
 

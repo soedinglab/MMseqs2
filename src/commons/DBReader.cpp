@@ -12,24 +12,26 @@
 #include <sys/stat.h>
 #include <omptl/omptl_algorithm>
 
+
 #include "MemoryMapped.h"
 #include "Debug.h"
 #include "Util.h"
 #include "FileUtil.h"
 
 template <typename T>
-DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode) :
-        data(NULL), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
+DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int threads, int dataMode) :
+        data(NULL), threads(threads), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
         indexFileName(strdup(indexFileName_)), size(0), dataSize(0), aaDbSize(0), lastKey(T()), closed(1), dbtype(-1),
-        index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),
+        compressedBuffers(NULL), compressedBufferSizes(NULL), index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),
         dataMapped(false), accessType(0), externalData(false), didMlock(false)
 {}
 
 template <typename T>
-DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey, int dbType) :
+DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey,
+        int dbType, unsigned int maxSeqLen) :
         data(NULL), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL),
-        size(size), dataSize(0), aaDbSize(aaDbSize), lastKey(lastKey), closed(1), dbtype(dbType),
-        index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
+        size(size), dataSize(0), aaDbSize(aaDbSize), lastKey(lastKey), maxSeqLen(maxSeqLen), closed(1), dbtype(dbType),
+        compressedBuffers(NULL), compressedBufferSizes(NULL), index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
         dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
 {}
 
@@ -80,6 +82,8 @@ template <typename T> DBReader<T>::~DBReader(){
     }
 }
 
+
+
 template <typename T> bool DBReader<T>::open(int accessType){
     // count the number of entries
     this->accessType = accessType;
@@ -97,7 +101,6 @@ template <typename T> bool DBReader<T>::open(int accessType){
         fclose(dataFile);
         dataMapped = true;
     }
-
     bool isSortedById = false;
     if (externalData == false) {
         if(FileUtil::fileExists(indexFileName)==false){
@@ -109,6 +112,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         seqLens = new unsigned int[size];
 
         isSortedById = readIndex(indexFileName, index, seqLens);
+
         if (accessType != HARDNOSORT) {
             sortIndex(isSortedById);
         }
@@ -118,6 +122,27 @@ template <typename T> bool DBReader<T>::open(int accessType){
         for (size_t i = 0; i < size; i++){
             unsigned int size = seqLens[i];
             aaDbSize += size;
+        }
+    }
+
+    compression = isCompressed(dbtype);
+    if(compression == COMPRESSED){
+        compressedBufferSizes = new size_t[threads];
+        compressedBuffers = new char*[threads];
+        dstream = new ZSTD_DStream*[threads];
+        for(int i = 0; i < threads; i++){
+            // allocated buffer
+            compressedBufferSizes[i] = maxSeqLen+1;
+            compressedBuffers[i] = (char*) malloc(compressedBufferSizes[i]);
+            if(compressedBuffers[i]==NULL){
+                Debug(Debug::ERROR) << "Could not allocate compressedBuffer!\n";
+                EXIT(EXIT_FAILURE);
+            }
+            dstream[i] = ZSTD_createDStream();
+            if (dstream==NULL) {
+                Debug(Debug::ERROR) << "ZSTD_createDStream() error \n";
+                EXIT(EXIT_FAILURE);
+            }
         }
     }
 
@@ -300,7 +325,7 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
         Debug(Debug::ERROR) << "Failed to fstat File=" << dataFileName << ". Error " << errsv << ".\n";
         EXIT(EXIT_FAILURE);
     }
-    
+
     *dataSize = sb.st_size;
     int fd =  fileno(file);
     int mode;
@@ -349,6 +374,16 @@ template <typename T> void DBReader<T>::close(){
         delete [] local2id;
     }
 
+    if(compressedBuffers){
+        for(int i = 0; i < threads; i++){
+            ZSTD_freeDStream(dstream[i]);
+            delete [] compressedBuffers[i];
+        }
+        delete [] compressedBuffers;
+        delete [] compressedBufferSizes;
+        delete [] dstream;
+    }
+
     if(externalData == false) {
         delete[] index;
         delete[] seqLens;
@@ -363,7 +398,36 @@ template <typename T> size_t DBReader<T>::bsearch(const Index * index, size_t N,
     return std::upper_bound(index, index + N, val, Index::compareById) - index;
 }
 
-template <typename T> char* DBReader<T>::getData(size_t id){
+template <typename T> char* DBReader<T>::getDataCompressed(size_t id, int thrIdx){
+    char * data = getDataUncompressed(id);
+
+    unsigned int cSize = *(reinterpret_cast<unsigned int*>(data));
+
+    size_t totalSize = 0;
+    void* const cBuff = static_cast<void*>(data + sizeof(unsigned int));
+    ZSTD_inBuffer input = { cBuff, cSize, 0 };
+    while (input.pos < input.size) {
+        ZSTD_outBuffer output = { compressedBuffers[thrIdx], compressedBufferSizes[thrIdx], 0 };
+        size_t toRead = ZSTD_decompressStream(dstream[thrIdx], &output , &input);  /* toRead : size of next compressed block */
+        if (ZSTD_isError(toRead)) {
+            Debug(Debug::ERROR) << "ERROR: "  << id  << " ZSTD_decompressStream() error " << ZSTD_getErrorName(toRead) << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        totalSize+=output.pos;
+    }
+    compressedBuffers[thrIdx][totalSize] = '\0';
+    return compressedBuffers[thrIdx];
+}
+
+template <typename T> char* DBReader<T>::getData(size_t id, int thrIdx){
+    if(compression == COMPRESSED){
+        return getDataCompressed(id, thrIdx);
+    }else{
+        return getDataUncompressed(id);
+    }
+}
+
+template <typename T> char* DBReader<T>::getDataUncompressed(size_t id){
     checkClosed();
     if(!(dataMode & USE_DATA)) {
         Debug(Debug::ERROR) << "DBReader is just open in INDEXONLY mode. Call of getData is not allowed" << "\n";
@@ -392,15 +456,19 @@ template <typename T> char* DBReader<T>::getData(size_t id){
 template <typename T>
 void DBReader<T>::touchData(size_t id) {
     if((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
-        char *data = getData(id);
+        char *data = getDataUncompressed(id);
         size_t size = getSeqLens(id);
         magicBytes = Util::touchMemory(data, size);
     }
 }
 
-template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey) {
+template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey, int thrIdx) {
     size_t id = getId(dbKey);
-    return (id != UINT_MAX) ? data + index[id].offset : NULL;
+    if(compression == COMPRESSED ){
+        return (id != UINT_MAX) ? getDataCompressed(id, thrIdx) : NULL;
+    }else{
+        return (id != UINT_MAX) ? data + index[id].offset : NULL;
+    }
 }
 
 template <typename T> size_t DBReader<T>::getSize (){
@@ -495,6 +563,7 @@ bool DBReader<T>::readIndex(char *indexFileName, Index *index, unsigned int *ent
         size_t length = Util::fast_atoi<size_t>(cols[2]);
         index[i].offset = offset;
         entryLength[i] = length;
+        maxSeqLen = std::max(static_cast<unsigned int>(length), maxSeqLen);
         indexDataChar = Util::skipLine(indexDataChar);
         currPos = indexDataChar - (char *) indexData.getData();
         lastKey = std::max(index[i].id, lastKey);
@@ -546,15 +615,15 @@ template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
 template <>
 size_t DBReader<unsigned int>::indexMemorySize(const DBReader<unsigned int> &idx) {
     size_t memSize = // size + aaDbSize
-                     2 * sizeof(size_t)
-                     // lastKey
-                     + 1 * sizeof(unsigned int)
-                     // index
-                     + idx.size * sizeof(DBReader<unsigned int>::Index)
-                     // seqLens
-                     + idx.size * sizeof(unsigned int)
-                     // dbtype
-                     + sizeof(int) ;
+            2 * sizeof(size_t)
+            // lastKey
+            + 1 * sizeof(unsigned int)
+            // index
+            + idx.size * sizeof(DBReader<unsigned int>::Index)
+            // seqLens
+            + idx.size * sizeof(unsigned int)
+            // dbtype
+            + sizeof(int) ;
 
     return memSize;
 }
@@ -570,7 +639,9 @@ char* DBReader<unsigned int>::serialize(const DBReader<unsigned int> &idx) {
     memcpy(p, &idx.lastKey, sizeof(unsigned int));
     p += sizeof(unsigned int);
     memcpy(p, &idx.dbtype, sizeof(int));
-    p += sizeof(int);
+    p += sizeof(unsigned int);
+    memcpy(p, &idx.maxSeqLen, sizeof(unsigned int));
+    p += sizeof(unsigned int);
     memcpy(p, idx.index, idx.size * sizeof(DBReader<unsigned int>::Index));
     p += idx.size * sizeof(DBReader<unsigned int>::Index);
     memcpy(p, idx.seqLens, idx.size * sizeof(unsigned int));
@@ -589,11 +660,13 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data) {
     p += sizeof(unsigned int);
     size_t dbType = *((int*)p);
     p += sizeof(int);
+    size_t maxSeqLen = *((unsigned int*)p);
+    p += sizeof(unsigned int);
     DBReader<unsigned int>::Index *idx = (DBReader<unsigned int>::Index *)p;
     p += size * sizeof(DBReader<unsigned int>::Index);
     unsigned int *seqLens = (unsigned int *)p;
 
-    return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize, lastKey, dbType);
+    return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize, lastKey, dbType, maxSeqLen);
 }
 
 template <typename T>
@@ -656,6 +729,11 @@ size_t DBReader<T>::findNextOffsetid(size_t id) {
         }
     }
     return nextOffset;
+}
+
+template<typename T>
+int DBReader<T>::isCompressed(int dbtype) {
+    return (dbtype & (1 << 31))? COMPRESSED : UNCOMPRESSED;
 }
 
 template class DBReader<unsigned int>;

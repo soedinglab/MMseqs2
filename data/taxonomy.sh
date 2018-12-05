@@ -76,6 +76,7 @@ if [ -n "${LCA_PAR}" ]; then
         || fail "Lca died"
 else
     mv -f "${TMP_PATH}/taxa" "${RESULTS}"
+    mv -f "${TMP_PATH}/taxa.dbtype" "${RESULTS}.dbtype"
     mv -f "${TMP_PATH}/taxa.index" "${RESULTS}.index"
 fi
 

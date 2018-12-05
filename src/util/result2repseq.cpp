@@ -12,13 +12,13 @@ int result2repseq(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    DBReader<unsigned int> seqReader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> seqReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     seqReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str());
+    DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads);
+    DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads,  par.compressed, seqReader.getDbtype());
     resultWriter.open();
 
     Debug(Debug::INFO) << "Start computing representative sequences.\n";
@@ -34,7 +34,7 @@ int result2repseq(int argc, const char **argv, const Command &command) {
         for (size_t id = 0; id < resultReader.getSize(); ++id) {
             Debug::printProgress(id);
 
-            char *results = resultReader.getData(id);
+            char *results = resultReader.getData(id, thread_idx);
             if (*results == '\0') {
                 continue;
             }
@@ -42,11 +42,11 @@ int result2repseq(int argc, const char **argv, const Command &command) {
             Util::parseKey(results, dbKey);
             const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
             const size_t edgeId = seqReader.getId(key);
-            resultWriter.writeData(seqReader.getData(edgeId), seqReader.getSeqLens(edgeId) - 1, resultReader.getDbKey(id), thread_idx);
+            resultWriter.writeData(seqReader.getData(edgeId, thread_idx), seqReader.getSeqLens(edgeId) - 1, resultReader.getDbKey(id), thread_idx);
         }
     }
     Debug(Debug::INFO) << "\n";
-    resultWriter.close(seqReader.getDbtype());
+    resultWriter.close();
     resultReader.close();
     seqReader.close();
 

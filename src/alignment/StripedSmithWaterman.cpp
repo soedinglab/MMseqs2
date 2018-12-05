@@ -193,7 +193,7 @@ s_align SmithWaterman::ssw_align (
 
 	// Find the beginning position of the best alignment.
 	if (word == 0) {
-		if(profile->sequence_type == Sequence::HMM_PROFILE || profile->sequence_type == Sequence::PROFILE_STATE_PROFILE) {
+		if(Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
 			createQueryProfile<int8_t, VECSIZE_INT * 4, PROFILE>(profile->profile_rev_byte, profile->query_rev_sequence, NULL, profile->mat_rev,
 																 r.qEndPos1 + 1, profile->alphabetSize, profile->bias, queryOffset, profile->query_length);
 		}else{
@@ -203,7 +203,7 @@ s_align SmithWaterman::ssw_align (
 		bests_reverse = sw_sse2_byte(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_byte,
 									 r.score1, profile->bias, maskLen);
 	} else {
-		if(profile->sequence_type == Sequence::HMM_PROFILE || profile->sequence_type == Sequence::PROFILE_STATE_PROFILE) {
+		if(Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
 			createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_rev_word, profile->query_rev_sequence, NULL, profile->mat_rev,
 																  r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, profile->query_length);
 
@@ -233,7 +233,7 @@ s_align SmithWaterman::ssw_align (
 	query_length = r.qEndPos1 - r.qStartPos1 + 1;
 	band_width = abs(db_length - query_length) + 1;
 
-	if(profile->sequence_type == Sequence::HMM_PROFILE || profile->sequence_type == Sequence::PROFILE_STATE_PROFILE) {
+	if(Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
 		path = banded_sw<PROFILE>(db_sequence + r.dbStartPos1, profile->query_sequence + r.qStartPos1,
 				NULL, db_length, query_length,
 				r.qStartPos1, r.score1, gap_open, gap_extend, band_width,
@@ -699,7 +699,7 @@ void SmithWaterman::ssw_init (const Sequence* q,
 	profile->bias = 0;
 	profile->sequence_type = q->getSequenceType();
 	int32_t compositionBias = 0;
-	bool isProfile = q->getSequenceType() == Sequence::HMM_PROFILE || q->getSequenceType() == Sequence::PROFILE_STATE_PROFILE;
+	bool isProfile = Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE);
 	if(isProfile == false && aaBiasCorrection == true) {
 		SubstitutionMatrix::calcLocalAaBiasCorrection(m, q->int_sequence, q->L, tmp_composition_bias);
 		for(int i =0; i < q->L; i++){
@@ -713,11 +713,11 @@ void SmithWaterman::ssw_init (const Sequence* q,
 		memset(profile->composition_bias, 0, q->L* sizeof(int8_t));
 	}
 	// copy memory to local memory
-	if(profile->sequence_type == Sequence::HMM_PROFILE ){
+	if(Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_HMM_PROFILE) ){
 		memcpy(profile->mat, mat, q->L * Sequence::PROFILE_AA_SIZE * sizeof(int8_t));
 		// set neutral state 'X' (score=0)
 		memset(profile->mat + ((alphabetSize - 1) * q->L), 0, q->L * sizeof(int8_t ));
-	}else if(profile->sequence_type == Sequence::PROFILE_STATE_PROFILE) {
+	}else if(Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
 		memcpy(profile->mat, mat, q->L * alphabetSize * sizeof(int8_t));
 	}else{
 		memcpy(profile->mat, mat, alphabetSize * alphabetSize * sizeof(int8_t));
@@ -729,9 +729,9 @@ void SmithWaterman::ssw_init (const Sequence* q,
 		/* Find the bias to use in the substitution matrix */
 		int32_t bias = 0;
 		int32_t matSize =  alphabetSize * alphabetSize;
-		if(q->getSequenceType() == Sequence::HMM_PROFILE) {
+		if(Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE)) {
 			matSize = q->L * Sequence::PROFILE_AA_SIZE;
-		}else if(q->getSequenceType() == Sequence::PROFILE_STATE_PROFILE) {
+		}else if(Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
 			matSize = q->L * alphabetSize;
 		}
 
@@ -742,14 +742,14 @@ void SmithWaterman::ssw_init (const Sequence* q,
 		}
 		bias = abs(bias) + abs(compositionBias);
 		profile->bias = bias;
-		if(q->getSequenceType() == Sequence::HMM_PROFILE || q->getSequenceType() == Sequence::PROFILE_STATE_PROFILE){
+		if(Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
 			createQueryProfile<int8_t, VECSIZE_INT * 4, PROFILE>(profile->profile_byte, profile->query_sequence, NULL, profile->mat, q->L, alphabetSize, bias, 1, q->L);
 		}else{
 			createQueryProfile<int8_t, VECSIZE_INT * 4, SUBSTITUTIONMATRIX>(profile->profile_byte, profile->query_sequence, profile->composition_bias, profile->mat, q->L, alphabetSize, bias, 0, 0);
 		}
 	}
 	if (score_size == 1 || score_size == 2) {
-		if(q->getSequenceType() == Sequence::HMM_PROFILE || q->getSequenceType() == Sequence::PROFILE_STATE_PROFILE){
+		if(Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
 			createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_word, profile->query_sequence, NULL, profile->mat, q->L, alphabetSize, 0, 1, q->L);
 			for(int32_t i = 0; i< alphabetSize; i++) {
 				profile->profile_word_linear[i] = &profile_word_linear_data[i*q->L];
@@ -774,7 +774,8 @@ void SmithWaterman::ssw_init (const Sequence* q,
 	seq_reverse( profile->query_rev_sequence, profile->query_sequence, q->L);
 	seq_reverse( profile->composition_bias_rev, profile->composition_bias, q->L);
 
-	if(q->getSequenceType() == Sequence::HMM_PROFILE || q->getSequenceType() == Sequence::PROFILE_STATE_PROFILE) {
+	if(Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE) ||
+	   Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
 		for (int32_t i = 0; i < alphabetSize; i++) {
 			const int8_t *startToRead = profile->mat + (i * q->L);
 			int8_t *startToWrite      = profile->mat_rev + (i * q->L);

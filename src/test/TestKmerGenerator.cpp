@@ -42,7 +42,7 @@ int main (int argc, const char * argv[])
     std::cout << "Sequence (id 0):\n";
     const char* sequence = "PATWPCLVALG";
     std::cout << sequence << "\n\n";
-    Sequence* s = new Sequence(10000, Sequence::AMINO_ACIDS, &subMat, kmer_size, false, false);
+    Sequence* s = new Sequence(10000, Parameters::DBTYPE_AMINO_ACIDS, &subMat, kmer_size, false, false);
     s->mapSequence(0,0,sequence);
 
     KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,161);

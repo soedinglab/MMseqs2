@@ -15,13 +15,13 @@ int convertca3m(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 2);
 
 
-    DBReader<std::string> reader((par.db1 + "_ca3m.ffdata").c_str(), (par.db1 + "_ca3m.ffindex").c_str());
+    DBReader<std::string> reader((par.db1 + "_ca3m.ffdata").c_str(), (par.db1 + "_ca3m.ffindex").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<std::string>::NOSORT);
 
-    DBReader<unsigned int> sequences((par.db1 + "_sequence.ffdata").c_str(), (par.db1 + "_sequence.ffindex").c_str());
+    DBReader<unsigned int> sequences((par.db1 + "_sequence.ffdata").c_str(), (par.db1 + "_sequence.ffindex").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     sequences.open(DBReader<unsigned int>::SORT_BY_LINE);
 
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_CA3M_DB);
     writer.open();
 
     unsigned int* sizes = reader.getSeqLens();
@@ -44,7 +44,7 @@ int convertca3m(int argc, const char **argv, const Command &command) {
             results.clear();
 
             unsigned int key;
-            CompressedA3M::extractMatcherResults(key, results, reader.getData(i), sizes[i], sequences, true);
+            CompressedA3M::extractMatcherResults(key, results, reader.getData(i, thread_idx), sizes[i], sequences, true);
 
             writer.writeStart(thread_idx);
             for (size_t j = 0; j < results.size(); j++) {

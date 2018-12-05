@@ -27,7 +27,7 @@ int convertmsa(int argc, const char **argv, const Command &command) {
         return EXIT_FAILURE;
     }
 
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str());
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), 1, par.compressed, Parameters::DBTYPE_MSA_DB);
     writer.open();
 
     std::string line;

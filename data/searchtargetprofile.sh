@@ -47,7 +47,7 @@ if notExists "$TMP_PATH/aln"; then
 fi
 
 # post processing
-(mv -f "${TMP_PATH}/aln" "${RESULTS}"; mv -f "${TMP_PATH}/aln.index" "${RESULTS}.index") || fail "Could not move result to ${RESULTS}"
+(mv -f "${TMP_PATH}/aln" "${RESULTS}"; mv -f "${TMP_PATH}/aln.dbtype" "${RESULTS}.dbtype"; mv -f "${TMP_PATH}/aln.index" "${RESULTS}.index") || fail "Could not move result to ${RESULTS}"
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Remove temporary files"

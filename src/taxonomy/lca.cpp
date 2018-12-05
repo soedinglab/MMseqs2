@@ -45,10 +45,10 @@ int lca(int argc, const char **argv, const Command& command) {
         std::stable_sort(mapping.begin(), mapping.end(), ffindexFilter::compareFirstInt());
     }
 
-    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str());
+    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads);
+    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_TAXONOMICAL_RESULT);
     writer.open();
 
     std::vector<std::string> ranks = Util::split(par.lcaRanks, ":");
@@ -80,7 +80,7 @@ int lca(int argc, const char **argv, const Command& command) {
             Debug::printProgress(i);
 
             unsigned int key = reader.getDbKey(i);
-            char *data = reader.getData(i);
+            char *data = reader.getData(i, thread_idx);
             size_t length = reader.getSeqLens(i);
 
 

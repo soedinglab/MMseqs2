@@ -29,13 +29,13 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 4);
 
     Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
-    DBReader<unsigned int> *qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
+    DBReader<unsigned int> *qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     qdbr->open(DBReader<unsigned int>::NOSORT);
     const int querySeqType = qdbr->getDbtype();
     qdbr->readMmapedDataInMemory();
 
     BaseMatrix *subMat;
-    if (querySeqType == Sequence::NUCLEOTIDES) {
+    if (Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
     } else {
         if (par.alphabetSize == 21) {
@@ -56,7 +56,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         sameDB = true;
         tdbr = qdbr;
     } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tdbr->open(DBReader<unsigned int>::NOSORT);
         tdbr->readMmapedDataInMemory();
     }
@@ -64,11 +64,11 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
 
     Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
-    DBReader<unsigned int> dbr_res(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> dbr_res(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
 
     struct KmerPos {
@@ -171,9 +171,9 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                 std::string prefResultsOutString;
                 prefResultsOutString.reserve(1000000);
 
-                char *data = dbr_res.getData(id);
+                char *data = dbr_res.getData(id, thread_idx);
                 unsigned int queryId = qdbr->getId(dbr_res.getDbKey(id));
-                char *querySeq = qdbr->getData(queryId);
+                char *querySeq = qdbr->getData(queryId, thread_idx);
                 query.mapSequence(id, queryId, querySeq);
 
                 while (query.hasNextKmer()) {
@@ -198,7 +198,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                     Util::parseKey(data, dbKeyBuffer);
                     const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
                     unsigned int targetId = tdbr->getId(dbKey);
-                    char *targetSeq = tdbr->getData(targetId);
+                    char *targetSeq = tdbr->getData(targetId, thread_idx);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB)) ? true : false;
                     target.mapSequence(targetId, dbKey, targetSeq);
                     size_t kmerPosSize = 0;
