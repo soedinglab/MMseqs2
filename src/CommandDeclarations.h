@@ -12,6 +12,7 @@ extern int clusteringworkflow(int argc, const char **argv, const Command& comman
 extern int clusterupdate(int argc, const char **argv, const Command& command);
 extern int clusthash(int argc, const char **argv, const Command& command);
 extern int combinepvalperset(int argc, const char **argv, const Command &command);
+extern int compress(int argc, const char **argv, const Command &command);
 extern int concatdbs(int argc, const char **argv, const Command& command);
 extern int convert2fasta(int argc, const char **argv, const Command& command);
 extern int convertalignments(int argc, const char **argv, const Command& command);
@@ -25,6 +26,7 @@ extern int createseqfiledb(int argc, const char **argv, const Command& command);
 extern int createsubdb(int argc, const char **argv, const Command& command);
 extern int createtsv(int argc, const char **argv, const Command& command);
 extern int dbtype(int argc, const char **argv, const Command& command);
+extern int decompress(int argc, const char **argv, const Command &command);
 extern int diffseqdbs(int argc, const char **argv, const Command& command);
 extern int easycluster(int argc, const char **argv, const Command& command);
 extern int easylinclust(int argc, const char **argv, const Command& command);

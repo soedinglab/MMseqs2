@@ -3,6 +3,7 @@ set(util_source_files
         util/alignbykmer.cpp
         util/apply.cpp
         util/clusthash.cpp
+        util/compress.cpp
         util/convert2fasta.cpp
         util/convertalignments.cpp
         util/convertca3m.cpp
