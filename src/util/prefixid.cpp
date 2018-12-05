@@ -14,16 +14,15 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
     DBReader<unsigned int> reader(db1.c_str(), db1Index.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter writer(db2.c_str(), db2Index.c_str(), threads, compressed, reader.getDbtype());
+    const bool shouldCompress = tsvOut == false && compressed == true;
+    DBWriter writer(db2.c_str(), db2Index.c_str(), threads, shouldCompress, reader.getDbtype());
     writer.open();
-    bool shouldWriteNullByte = !tsvOut;
+    const bool shouldWriteNullByte = !tsvOut;
 
     size_t entries = reader.getSize();
 
     Debug(Debug::INFO) << "Start adding to database.\n";
-
     std::map<unsigned int, std::string> mapping = Util::readLookup(mappingFile);
-
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -47,9 +46,7 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
                 } else if (mappingFile.length() > 0) {
                     strToAdd = mapping[key];
                 } else {
-                    std::ostringstream sstmp;
-                    sstmp << key;
-                    strToAdd = sstmp.str();
+                    strToAdd = SSTR(key);
                 }
 
                 if (isPrefix) {
@@ -64,9 +61,6 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
         }
     }
     writer.close();
-
-    Debug(Debug::INFO) << "\nDone.\n";
-
     reader.close();
 
     return EXIT_SUCCESS;

@@ -412,6 +412,7 @@ Parameters::Parameters():
     createtsv.push_back(&PARAM_FULL_HEADER);
     createtsv.push_back(&PARAM_DB_OUTPUT);
     createtsv.push_back(&PARAM_THREADS);
+    createtsv.push_back(&PARAM_COMPRESSED);
     createtsv.push_back(&PARAM_V);
 
     //result2stats

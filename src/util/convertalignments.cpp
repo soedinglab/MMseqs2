@@ -139,7 +139,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         localThreads = alnDbr.getSize();
     }
 
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), localThreads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
+    const bool shouldCompress = par.dbOut == true && par.compressed == true;
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), localThreads, shouldCompress, Parameters::DBTYPE_GENERIC_DB);
     resultWriter.open();
     Debug(Debug::INFO) << "Start writing to " << par.db4 << "\n";
 

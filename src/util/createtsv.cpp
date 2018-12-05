@@ -48,13 +48,14 @@ int createtsv(int argc, const char **argv, const Command &command) {
     }
     reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
+    const bool shouldCompress = par.dbOut == true && par.compressed == true;
     DBWriter *writer;
     if (hasTargetDB) {
         Debug(Debug::INFO) << "Start writing to " << par.db4 << "\n";
-        writer = new DBWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
+        writer = new DBWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, shouldCompress, Parameters::DBTYPE_GENERIC_DB);
     } else {
         Debug(Debug::INFO) << "Start writing to " << par.db3 << "\n";
-        writer = new DBWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
+        writer = new DBWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, shouldCompress, Parameters::DBTYPE_GENERIC_DB);
     }
     writer->open();
 
