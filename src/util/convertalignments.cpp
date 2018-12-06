@@ -161,6 +161,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         std::string queryProfData;
         queryProfData.reserve(1024);
 
+        std::string queryBuffer;
+        queryProfData.reserve(1024);
+
         std::string targetProfData;
         targetProfData.reserve(1024);
 
@@ -174,6 +177,12 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             if (needSequenceDB) {
                 size_t qId = qDbr.sequenceReader->getId(queryKey);
                 querySeqData = qDbr.sequenceReader->getData(qId, thread_idx);
+                if(sameDB && qDbr.sequenceReader->isCompressed()){
+                    size_t querySeqDataLen = qDbr.sequenceReader->getSeqLens(qId) - 2;
+                    queryBuffer.clear();
+                    queryBuffer.append(querySeqData, querySeqDataLen);
+                    querySeqData = (char*) queryBuffer.c_str();
+                }
                 if (queryProfile) {
                     Sequence::extractProfileConsensus(querySeqData, subMat, queryProfData);
                 }
