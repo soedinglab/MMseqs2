@@ -112,10 +112,10 @@ int doRescorediagonal(Parameters &par,
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
             char buffer[1024+32768];
-
             std::string resultBuffer;
             resultBuffer.reserve(1000000);
-
+            std::string queryBuffer;
+            queryBuffer.reserve(32768);
             std::vector<Matcher::result_t> alnResults;
             alnResults.reserve(300);
             std::vector<hit_t> shortResults;
@@ -130,6 +130,12 @@ int doRescorediagonal(Parameters &par,
                 unsigned int queryId = qdbr.getId(queryKey);
                 char *querySeq = qdbr.getData(queryId, thread_idx);
                 int queryLen = std::max(0, static_cast<int>(qdbr.getSeqLens(queryId)) - 2);
+
+                if(sameDB && qdbr.isCompressed()){
+                    queryBuffer.clear();
+                    queryBuffer.append(querySeq, queryLen);
+                    querySeq = (char*) queryBuffer.c_str();
+                }
 
 //                if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
 //                    query.mapSequence(id, queryId, querySeq);
