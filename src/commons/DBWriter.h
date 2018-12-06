@@ -33,9 +33,9 @@ public:
 
     void writeStart(unsigned int thrIdx = 0);
     size_t writeAdd(const char* data, size_t dataSize, unsigned int thrIdx = 0);
-    void writeEnd(unsigned int key, unsigned int thrIdx = 0, bool addNullByte = true);
+    void writeEnd(unsigned int key, unsigned int thrIdx = 0, bool addNullByte = true, bool addIndexEntry = true);
 
-    void writeData(const char *data, size_t dataSize, unsigned int key, unsigned int threadIdx = 0, bool addNullByte = true);
+    void writeData(const char *data, size_t dataSize, unsigned int key, unsigned int threadIdx = 0, bool addNullByte = true, bool addIndexEntry = true);
 
     static size_t indexToBuffer(char *buff1, unsigned int key, size_t offsetStart, size_t len);
 
@@ -59,9 +59,16 @@ public:
 
     void writeIndexEntry(unsigned int key, size_t offset, size_t length, unsigned int thrIdx);
 
+    static void writeDbtypeFile(const char* path, int dbtype, bool isCompressed);
+
+    size_t getStart(unsigned int threadIdx){
+        return starts[threadIdx];
+    }
+
     size_t getOffset(unsigned int threadIdx){
         return offsets[threadIdx];
     }
+
 private:
     template <typename T>
     static void writeIndex(FILE *outFile, size_t indexSize, T *index, unsigned int *seqLen);

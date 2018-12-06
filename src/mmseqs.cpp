@@ -357,7 +357,7 @@ std::vector<struct Command> commands = {
                 "Clovis Galiez & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:resultDB> <o:resultDB>",
                 CITATION_MMSEQS2},
-        {"createsubdb",          createsubdb,          &par.verbandcompression,   COMMAND_DB,
+        {"createsubdb",          createsubdb,          &par.onlyverbosity,        COMMAND_DB,
                 "Create a subset of a DB from a file of IDs of entries",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",

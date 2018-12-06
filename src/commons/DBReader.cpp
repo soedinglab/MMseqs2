@@ -132,7 +132,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         dstream = new ZSTD_DStream*[threads];
         for(int i = 0; i < threads; i++){
             // allocated buffer
-            compressedBufferSizes[i] = maxSeqLen+1;
+            compressedBufferSizes[i] = std::max(maxSeqLen+1, 1024u);
             compressedBuffers[i] = (char*) malloc(compressedBufferSizes[i]);
             if(compressedBuffers[i]==NULL){
                 Debug(Debug::ERROR) << "Could not allocate compressedBuffer!\n";
@@ -317,10 +317,9 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
     }
 }
 
-template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize){
+template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize) {
     struct stat sb;
-    if (fstat(fileno(file), &sb) < 0)
-    {
+    if (fstat(fileno(file), &sb) < 0) {
         int errsv = errno;
         Debug(Debug::ERROR) << "Failed to fstat File=" << dataFileName << ". Error " << errsv << ".\n";
         EXIT(EXIT_FAILURE);
@@ -328,17 +327,17 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
 
     *dataSize = sb.st_size;
     int fd =  fileno(file);
-    int mode;
 
     char *ret;
     if ((dataMode & USE_FREAD) == 0) {
-        if(dataMode & USE_WRITABLE) {
+        int mode;
+        if (dataMode & USE_WRITABLE) {
             mode = PROT_READ | PROT_WRITE;
         } else {
             mode = PROT_READ;
         }
         ret = static_cast<char*>(mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0));
-        if(ret == MAP_FAILED){
+        if (ret == MAP_FAILED){
             int errsv = errno;
             Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << *dataSize <<" File=" << dataFileName << ". Error " << errsv << ".\n";
             EXIT(EXIT_FAILURE);
@@ -398,22 +397,23 @@ template <typename T> size_t DBReader<T>::bsearch(const Index * index, size_t N,
     return std::upper_bound(index, index + N, val, Index::compareById) - index;
 }
 
-template <typename T> char* DBReader<T>::getDataCompressed(size_t id, int thrIdx){
-    char * data = getDataUncompressed(id);
+template <typename T> char* DBReader<T>::getDataCompressed(size_t id, int thrIdx) {
+    char *data = getDataUncompressed(id);
 
-    unsigned int cSize = *(reinterpret_cast<unsigned int*>(data));
+    unsigned int cSize = *(reinterpret_cast<unsigned int *>(data));
 
     size_t totalSize = 0;
-    void* const cBuff = static_cast<void*>(data + sizeof(unsigned int));
-    ZSTD_inBuffer input = { cBuff, cSize, 0 };
+    const void *cBuff = static_cast<void *>(data + sizeof(unsigned int));
+    ZSTD_inBuffer input = {cBuff, cSize, 0};
     while (input.pos < input.size) {
-        ZSTD_outBuffer output = { compressedBuffers[thrIdx], compressedBufferSizes[thrIdx], 0 };
-        size_t toRead = ZSTD_decompressStream(dstream[thrIdx], &output , &input);  /* toRead : size of next compressed block */
+        ZSTD_outBuffer output = {compressedBuffers[thrIdx], compressedBufferSizes[thrIdx], 0};
+        // size of next compressed block
+        size_t toRead = ZSTD_decompressStream(dstream[thrIdx], &output, &input);
         if (ZSTD_isError(toRead)) {
-            Debug(Debug::ERROR) << "ERROR: "  << id  << " ZSTD_decompressStream() error " << ZSTD_getErrorName(toRead) << "\n";
+            Debug(Debug::ERROR) << "ERROR: " << id << " ZSTD_decompressStream " << ZSTD_getErrorName(toRead) << "\n";
             EXIT(EXIT_FAILURE);
         }
-        totalSize+=output.pos;
+        totalSize += output.pos;
     }
     compressedBuffers[thrIdx][totalSize] = '\0';
     return compressedBuffers[thrIdx];

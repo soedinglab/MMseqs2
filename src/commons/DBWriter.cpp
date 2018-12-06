@@ -199,6 +199,23 @@ void DBWriter::open(size_t bufferSize) {
     closed = false;
 }
 
+void DBWriter::writeDbtypeFile(const char* path, int dbtype, bool isCompressed) {
+    std::string name = std::string(path) + ".dbtype";
+    FILE* file = fopen(name.c_str(), "wb");
+    if (file == NULL) {
+        Debug(Debug::ERROR) << "Could not open data file " << name << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    dbtype = isCompressed ? dbtype | (1 << 31) : dbtype & ~(1 << 31);
+    size_t written = fwrite(&dbtype, sizeof(int), 1, file);
+    if (written != 1) {
+        Debug(Debug::ERROR) << "Could not write to data file " << name << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    fclose(file);
+}
+
+
 void DBWriter::close() {
     // close all datafiles
     for (unsigned int i = 0; i < threads; i++) {
@@ -212,24 +229,8 @@ void DBWriter::close() {
             ZSTD_freeCStream(cstream[i]);
         }
     }
-    if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0) {
-        dbtype |= (1 << 31);
-    }
-//    if (dbtype > -1){
-    std::string dataFile = dataFileName;
-    std::string dbTypeFile = (dataFile+".dbtype").c_str();
-    FILE * dbtypeDataFile = fopen(dbTypeFile.c_str(), "wb");
-    if (dbtypeDataFile == NULL) {
-        Debug(Debug::ERROR) << "Could not open data file " << dbTypeFile << "!\n";
-        EXIT(EXIT_FAILURE);
-    }
-    size_t written = fwrite(&dbtype, sizeof(int), 1, dbtypeDataFile);
-    if (written != 1) {
-        Debug(Debug::ERROR) << "Could not write to data file " << dbTypeFile << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    fclose(dbtypeDataFile);
-//    }
+
+    writeDbtypeFile(dataFileName, dbtype, (mode & Parameters::WRITER_COMPRESSED_MODE) != 0);
 
     mergeResults(dataFileName, indexFileName,
                  (const char **) dataFileNames, (const char **) indexFileNames, threads, ((mode & Parameters::WRITER_LEXICOGRAPHIC_MODE) != 0));
@@ -307,7 +308,7 @@ size_t DBWriter::writeAdd(const char* data, size_t dataSize, unsigned int thrIdx
     return totalWriten;
 }
 
-void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte) {
+void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte, bool addIndexEntry) {
     // close stream
     if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0) {
         ZSTD_outBuffer output = {compressedBuffers[thrIdx], compressedBufferSizes[thrIdx], 0};
@@ -345,12 +346,12 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte)
             }
         }
     }
-    size_t totalWritten=0;
 
+    size_t totalWritten = 0;
     // entries are always separated by a null byte
-    if(addNullByte == true){
+    if (addNullByte == true) {
         char nullByte = '\0';
-        size_t written = fwrite(&nullByte, sizeof(char), 1, dataFiles[thrIdx]);
+        const size_t written = fwrite(&nullByte, sizeof(char), 1, dataFiles[thrIdx]);
         if (written != 1) {
             Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
             EXIT(EXIT_FAILURE);
@@ -359,21 +360,15 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte)
         offsets[thrIdx] += 1;
     }
 
-    size_t length = offsets[thrIdx] - starts[thrIdx];
-    // keep original size in index
-    if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0) {
-        ZSTD_frameProgression progression = ZSTD_getFrameProgression(cstream[thrIdx]);
-        length = progression.consumed + totalWritten;
+    if (addIndexEntry == true) {
+        size_t length = offsets[thrIdx] - starts[thrIdx];
+        // keep original size in index
+        if ((mode & Parameters::WRITER_COMPRESSED_MODE) != 0) {
+            ZSTD_frameProgression progression = ZSTD_getFrameProgression(cstream[thrIdx]);
+            length = progression.consumed + totalWritten;
+        }
+        writeIndexEntry(key, starts[thrIdx], length, thrIdx);
     }
-
-    char buffer[1024];
-    size_t len = indexToBuffer(buffer, key, starts[thrIdx], length );
-    size_t written = fwrite(buffer, sizeof(char), len, indexFiles[thrIdx]);
-    if (written != len) {
-        Debug(Debug::ERROR) << "Could not write to data file " << indexFiles[thrIdx] << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-
 }
 
 void DBWriter::writeIndexEntry(unsigned int key, size_t offset, size_t length, unsigned int thrIdx){
@@ -387,10 +382,10 @@ void DBWriter::writeIndexEntry(unsigned int key, size_t offset, size_t length, u
 }
 
 
-void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, unsigned int thrIdx, bool addNullByte) {
+void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, unsigned int thrIdx, bool addNullByte, bool addIndexEntry) {
     writeStart(thrIdx);
     writeAdd(data, dataSize, thrIdx);
-    writeEnd(key, thrIdx, addNullByte);
+    writeEnd(key, thrIdx, addNullByte, addIndexEntry);
 }
 
 size_t DBWriter::indexToBuffer(char *buff1, unsigned int key, size_t offsetStart, size_t len){
