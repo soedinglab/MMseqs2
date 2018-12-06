@@ -35,8 +35,6 @@ ClusteringAlgorithms::~ClusteringAlgorithms(){
 }
 
 std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithms::execute(int mode) {
-    const char * data = alnDbr->getData();
-    const size_t dataSize = alnDbr->getDataSize();
     // init data
 
     unsigned int *assignedcluster = new(std::nothrow) unsigned int[dbSize];
@@ -47,7 +45,20 @@ std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithm
     if (mode==4) {
         greedyIncrementalLowMem(assignedcluster);
     }else {
-        const size_t elementCount = Util::countLines(data, dataSize);
+        size_t elementCount = 0;
+#pragma omp parallel reduction (+:elementCount)
+        {
+            int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+#endif
+#pragma omp for schedule(dynamic, 10)
+            for (size_t i = 0; i < alnDbr->getSize(); i++) {
+                const char *data = alnDbr->getData(i, thread_idx);
+                const size_t dataSize = alnDbr->getSeqLens(i);
+                elementCount += Util::countLines(data, dataSize);
+            }
+        }
         unsigned int * elements = new(std::nothrow) unsigned int[elementCount];
         Util::checkAllocation(elements, "Could not allocate elements memory in ClusteringAlgorithms::execute");
         unsigned int ** elementLookupTable = new(std::nothrow) unsigned int*[dbSize];
