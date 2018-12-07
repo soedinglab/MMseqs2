@@ -287,7 +287,7 @@ size_t DBWriter::writeAdd(const char* data, size_t dataSize, unsigned int thrIdx
         state[thrIdx] = NOTCOMPRESSED;
     }
     size_t totalWriten = 0;
-    if(isCompressedDB && state[thrIdx] == INIT_STATE ) {
+    if(isCompressedDB && (state[thrIdx] == INIT_STATE || state[thrIdx] == COMPRESSED) ) {
         state[thrIdx] = COMPRESSED;
         // zstd seems to have a hard time with elements < 60
         ZSTD_inBuffer input = { data, dataSize, 0 };
