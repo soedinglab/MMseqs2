@@ -69,9 +69,13 @@ public:
         return offsets[threadIdx];
     }
 
-private:
     template <typename T>
     static void writeIndex(FILE *outFile, size_t indexSize, T *index, unsigned int *seqLen);
+
+    template <typename T>
+    static void writeIndexEntryToFile(FILE *outFile, char *buff1, T &index,  unsigned int seqLen);
+
+private:
 
     void checkClosed();
 

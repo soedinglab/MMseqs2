@@ -479,19 +479,42 @@ void DBWriter::mergeResults(const std::string &outFileName, const std::string &o
 }
 
 template <>
-void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<unsigned int>::Index *index,  unsigned int *seqLen){
+void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<unsigned int>::Index &index,  unsigned int seqLen){
+    char * tmpBuff = Itoa::u32toa_sse2((uint32_t)index.id,buff1);
+    *(tmpBuff-1) = '\t';
+    size_t currOffset = index.offset;
+    tmpBuff = Itoa::u64toa_sse2(currOffset, tmpBuff);
+    *(tmpBuff-1) = '\t';
+    uint32_t sLen = seqLen;
+    tmpBuff = Itoa::u32toa_sse2(sLen,tmpBuff);
+    *(tmpBuff-1) = '\n';
+    *(tmpBuff) = '\0';
+    fwrite(buff1, sizeof(char), (tmpBuff - buff1), outFile);
+}
+
+template <>
+void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<std::string>::Index &index, unsigned int seqLen)
+{
+    size_t keyLen = index.id.length();
+    char * tmpBuff = (char*)memcpy((void*)buff1, (void*)index.id.c_str(), keyLen);
+    tmpBuff+=keyLen;
+    *(tmpBuff) = '\t';
+    tmpBuff++;
+    size_t currOffset = index.offset;
+    tmpBuff = Itoa::u64toa_sse2(currOffset, tmpBuff);
+    *(tmpBuff-1) = '\t';
+    uint32_t sLen = seqLen;
+    tmpBuff = Itoa::u32toa_sse2(sLen,tmpBuff);
+    *(tmpBuff-1) = '\n';
+    *(tmpBuff) = '\0';
+    fwrite(buff1, sizeof(char), (tmpBuff - buff1), outFile);
+}
+
+template <>
+void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<unsigned int>::Index *index,  unsigned int *seqLen) {
     char buff1[1024];
     for (size_t id = 0; id < indexSize; id++) {
-        char * tmpBuff = Itoa::u32toa_sse2((uint32_t)index[id].id,buff1);
-        *(tmpBuff-1) = '\t';
-        size_t currOffset = index[id].offset;
-        tmpBuff = Itoa::u64toa_sse2(currOffset, tmpBuff);
-        *(tmpBuff-1) = '\t';
-        uint32_t sLen = seqLen[id];
-        tmpBuff = Itoa::u32toa_sse2(sLen,tmpBuff);
-        *(tmpBuff-1) = '\n';
-        *(tmpBuff) = '\0';
-        fwrite(buff1, sizeof(char), (tmpBuff - buff1), outFile);
+        writeIndexEntryToFile(outFile, buff1, index[id], seqLen[id]);
     }
 }
 
@@ -499,19 +522,7 @@ template <>
 void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<std::string>::Index *index,  unsigned int *seqLen){
     char buff1[1024];
     for (size_t id = 0; id < indexSize; id++) {
-        size_t keyLen = index[id].id.length();
-        char * tmpBuff = (char*)memcpy((void*)buff1, (void*)index[id].id.c_str(), keyLen);
-        tmpBuff+=keyLen;
-        *(tmpBuff) = '\t';
-        tmpBuff++;
-        size_t currOffset = index[id].offset;
-        tmpBuff = Itoa::u64toa_sse2(currOffset, tmpBuff);
-        *(tmpBuff-1) = '\t';
-        uint32_t sLen = seqLen[id];
-        tmpBuff = Itoa::u32toa_sse2(sLen,tmpBuff);
-        *(tmpBuff-1) = '\n';
-        *(tmpBuff) = '\0';
-        fwrite(buff1, sizeof(char), (tmpBuff - buff1), outFile);
+        writeIndexEntryToFile(outFile, buff1, index[id], seqLen[id]);
     }
 }
 

@@ -20,6 +20,33 @@
 #include "Util.h"
 #include "KSeqWrapper.h"
 
+
+void renumberIdsInIndexByOffsetOrder(char * dataName, char * indexName){
+    DBReader<unsigned int> readerSequence(dataName, indexName, 1,
+                                          DBReader<unsigned int>::USE_INDEX);
+    readerSequence.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    std::string newSequenceIndex = std::string(indexName)+".0";
+    FILE *index_file = fopen(newSequenceIndex.c_str(), "w");
+    if (index_file == NULL) {
+        perror(newSequenceIndex.c_str());
+        EXIT(EXIT_FAILURE);
+    }
+    char buffer[1024];
+    for(size_t id = 0; id < readerSequence.getSize(); id++){
+        DBReader<unsigned int>::Index * idx = readerSequence.getIndex(id);
+        idx->id = id;
+        DBWriter::writeIndexEntryToFile(index_file, buffer, *idx, readerSequence.getSeqLens(id));
+    }
+
+    fclose(index_file);
+    readerSequence.close();
+
+    int result= rename( newSequenceIndex.c_str() , indexName );
+    if ( result != 0 ){
+        perror( "Error renaming file" );
+    }
+}
+
 int createdb(int argn, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argn, argv, command, 2, true, Parameters::PARSE_VARIADIC);
@@ -40,9 +67,6 @@ int createdb(int argn, const char **argv, const Command& command) {
     std::string index_filename_hdr(data_filename);
     index_filename_hdr.append("_h.index");
 
-    std::string lookupFileName(data_filename);
-    lookupFileName.append(".lookup");
-    std::string lookupFileNameIndex = lookupFileName+".index";
 
     for(size_t i = 0; i < filenames.size(); i++){
         if(FileUtil::fileExists(filenames[i].c_str())==false){
@@ -99,11 +123,8 @@ int createdb(int argn, const char **argv, const Command& command) {
     int SPLITS_SHUFFEL = (par.shuffleDatabase) ? 32 : 1;
     DBWriter out_writer(data_filename.c_str(), index_filename.c_str(), SPLITS_SHUFFEL, par.compressed, dbType);
     DBWriter out_hdr_writer(data_filename_hdr.c_str(), index_filename_hdr.c_str(), SPLITS_SHUFFEL, par.compressed, Parameters::DBTYPE_GENERIC_DB);
-    DBWriter lookupFile(lookupFileName.c_str(), lookupFileNameIndex.c_str(), SPLITS_SHUFFEL, Parameters::WRITER_ASCII_MODE, Parameters::DBTYPE_GENERIC_DB);
-
     out_writer.open();
     out_hdr_writer.open();
-    lookupFile.open();
 
     unsigned int entries_num = 0;
     size_t count = 0;
@@ -124,7 +145,6 @@ int createdb(int argn, const char **argv, const Command& command) {
         header.reserve(1024);
         std::string splitId;
         splitId.reserve(1024);
-        char lookupBuffer[32768];
         KSeqWrapper *kseq = KSeqFactory(filenames[fileIdx].c_str());
         while (kseq->ReadEntry()) {
             Debug::printProgress(count);
@@ -153,8 +173,6 @@ int createdb(int argn, const char **argv, const Command& command) {
 
             }
             for (size_t split = 0; split < splitCnt; split++) {
-
-
                 unsigned int id = par.identifierOffset + entries_num;
                 if(par.dbType == 0){
                     // check for the first 10 sequences if they are nucleotide sequences
@@ -218,25 +236,14 @@ int createdb(int argn, const char **argv, const Command& command) {
                 splitHeader.append(" ", 1);
                 splitHeader.append("\n");
 
-                // Finally write down the entry
-                out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id);
 
-                size_t fileNo = count%SPLITS_SHUFFEL;
-                lookupFile.writeStart(fileNo);
+                size_t fileNo = id%SPLITS_SHUFFEL;
+
+                // Finally write down the entry
+                out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id, fileNo);
+
 
                 char newline='\n';
-                char tab='\t';
-                char * tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
-                *(tmpBuff-1) = '\t';
-                lookupFile.writeAdd(lookupBuffer, tmpBuff-lookupBuffer, fileNo);
-                lookupFile.writeAdd(splitId.c_str(), splitId.length(), fileNo);
-                lookupFile.writeAdd(&tab, 1, fileNo);
-                tmpBuff = Itoa::u32toa_sse2(fileIdx, lookupBuffer);
-                *(tmpBuff-1) = '\n';
-                lookupFile.writeAdd(lookupBuffer, tmpBuff-lookupBuffer, fileNo);
-                lookupFile.writeEnd(id, fileNo, false);
-
-
                 if (par.splitSeqByLen) {
                     size_t len = std::min(par.maxSeqLen, e.sequence.l - split * par.maxSeqLen);
                     out_writer.writeStart(fileNo);
@@ -264,8 +271,45 @@ int createdb(int argn, const char **argv, const Command& command) {
 
     out_hdr_writer.close();
     out_writer.close();
-    lookupFile.close();
-    FileUtil::deleteFile(lookupFileNameIndex);
+
+    // fix ids
+    renumberIdsInIndexByOffsetOrder(out_writer.getDataFileName(), out_writer.getIndexFileName());
+    renumberIdsInIndexByOffsetOrder(out_hdr_writer.getDataFileName(), out_hdr_writer.getIndexFileName());
+    {
+        DBReader<unsigned int> readerHeader(out_hdr_writer.getDataFileName(), out_hdr_writer.getIndexFileName(), 1,
+                                            DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
+        readerHeader.open(DBReader<unsigned int>::NOSORT);
+        // create lookup file
+        std::string lookupFileName(data_filename);
+        lookupFileName.append(".lookup");
+        std::string lookupFileNameIndex = lookupFileName+".index";
+        DBWriter lookupFile(lookupFileName.c_str(), lookupFileNameIndex.c_str(), 1, Parameters::WRITER_ASCII_MODE, Parameters::DBTYPE_GENERIC_DB);
+        lookupFile.open();
+        char lookupBuffer[32768];
+        char tab='\t';
+        for(size_t id = 0; id < readerHeader.getSize(); id++){
+            char * header = readerHeader.getData(id,0);
+            std::string splitId = Util::parseFastaHeader(header);
+            if (splitId == "") {
+                // An identifier is necessary for these two cases, so we should just give up
+                Debug(Debug::WARNING) << "Could not extract identifier from entry " << entries_num << ".\n";
+
+            }
+            lookupFile.writeStart(0);
+            char * tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
+            *(tmpBuff-1) = '\t';
+            lookupFile.writeAdd(lookupBuffer, tmpBuff-lookupBuffer, 0);
+            lookupFile.writeAdd(splitId.c_str(), splitId.length(), 0);
+            lookupFile.writeAdd(&tab, 1, 0);
+            tmpBuff = Itoa::u32toa_sse2(0, lookupBuffer);
+            *(tmpBuff-1) = '\n';
+            lookupFile.writeAdd(lookupBuffer, tmpBuff-lookupBuffer, 0);
+            lookupFile.writeEnd(id, 0, false);
+        }
+        lookupFile.close();
+        FileUtil::deleteFile(lookupFileNameIndex);
+    }
+
 
     return EXIT_SUCCESS;
 }
