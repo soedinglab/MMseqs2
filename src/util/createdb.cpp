@@ -121,7 +121,7 @@ int createdb(int argn, const char **argv, const Command& command) {
     if (par.dbType == 2 ||  (par.dbType == 0 && isNuclDb == true) ) {
         dbType = Parameters::DBTYPE_NUCLEOTIDES;
     }
-    int SPLITS_SHUFFEL = (par.shuffleDatabase) ? 4 : 1;
+    int SPLITS_SHUFFEL = (par.shuffleDatabase) ? 32 : 1;
     DBWriter out_writer(data_filename.c_str(), index_filename.c_str(), SPLITS_SHUFFEL, par.compressed, dbType);
     DBWriter out_hdr_writer(data_filename_hdr.c_str(), index_filename_hdr.c_str(), SPLITS_SHUFFEL, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     out_writer.open();
