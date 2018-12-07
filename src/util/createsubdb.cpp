@@ -41,9 +41,13 @@ int createsubdb(int argc, const char **argv, const Command& command) {
         size_t originalLength = reader.getSeqLens(id);
         size_t entryLength = std::max(originalLength, static_cast<size_t>(1)) - 1;
         if (isCompressed) {
-            entryLength = *(reinterpret_cast<unsigned int*>(data)) + sizeof(unsigned int);
+            // copy also the null byte since it contains the information if compressed or not
+            entryLength = *(reinterpret_cast<unsigned int*>(data)) + sizeof(unsigned int) + 1;
+            writer.writeData(data, entryLength, key, 0, false, false);
+        }else{
+            writer.writeData(data, entryLength, key, 0, true, false);
         }
-        writer.writeData(data, entryLength, key, 0, true, false);
+        // do not write null byte since
         writer.writeIndexEntry(key, writer.getStart(0), originalLength, 0);
     }
     writer.close();

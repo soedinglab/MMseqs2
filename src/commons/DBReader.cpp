@@ -404,18 +404,25 @@ template <typename T> char* DBReader<T>::getDataCompressed(size_t id, int thrIdx
 
     size_t totalSize = 0;
     const void *cBuff = static_cast<void *>(data + sizeof(unsigned int));
-    ZSTD_inBuffer input = {cBuff, cSize, 0};
-    while (input.pos < input.size) {
-        ZSTD_outBuffer output = {compressedBuffers[thrIdx], compressedBufferSizes[thrIdx], 0};
-        // size of next compressed block
-        size_t toRead = ZSTD_decompressStream(dstream[thrIdx], &output, &input);
-        if (ZSTD_isError(toRead)) {
-            Debug(Debug::ERROR) << "ERROR: " << id << " ZSTD_decompressStream " << ZSTD_getErrorName(toRead) << "\n";
-            EXIT(EXIT_FAILURE);
+    const char *dataStart = data + sizeof(unsigned int);
+    bool isCompressed = (dataStart[cSize] == 0) ? true : false;
+    if(isCompressed){
+        ZSTD_inBuffer input = {cBuff, cSize, 0};
+        while (input.pos < input.size) {
+            ZSTD_outBuffer output = {compressedBuffers[thrIdx], compressedBufferSizes[thrIdx], 0};
+            // size of next compressed block
+            size_t toRead = ZSTD_decompressStream(dstream[thrIdx], &output, &input);
+            if (ZSTD_isError(toRead)) {
+                Debug(Debug::ERROR) << "ERROR: " << id << " ZSTD_decompressStream " << ZSTD_getErrorName(toRead) << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            totalSize += output.pos;
         }
-        totalSize += output.pos;
+        compressedBuffers[thrIdx][totalSize] = '\0';
+    }else{
+        memcpy(compressedBuffers[thrIdx], cBuff, cSize);
+        compressedBuffers[thrIdx][cSize] = '\0';
     }
-    compressedBuffers[thrIdx][totalSize] = '\0';
     return compressedBuffers[thrIdx];
 }
 

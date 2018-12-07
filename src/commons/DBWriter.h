@@ -90,6 +90,10 @@ private:
 
     size_t* starts;
     size_t* offsets;
+    int* state;
+    static const int INIT_STATE=0;
+    static const int NOTCOMPRESSED=1;
+    static const int COMPRESSED=2;
 
     ZSTD_CStream** cstream;
 
