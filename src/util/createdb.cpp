@@ -13,6 +13,7 @@
 #include <math.h>
 #include <itoa.h>
 #include <random>
+#include <AlignmentSymmetry.h>
 
 #include "FileUtil.h"
 #include "DBWriter.h"
@@ -120,7 +121,7 @@ int createdb(int argn, const char **argv, const Command& command) {
     if (par.dbType == 2 ||  (par.dbType == 0 && isNuclDb == true) ) {
         dbType = Parameters::DBTYPE_NUCLEOTIDES;
     }
-    int SPLITS_SHUFFEL = (par.shuffleDatabase) ? 32 : 1;
+    int SPLITS_SHUFFEL = (par.shuffleDatabase) ? 4 : 1;
     DBWriter out_writer(data_filename.c_str(), index_filename.c_str(), SPLITS_SHUFFEL, par.compressed, dbType);
     DBWriter out_hdr_writer(data_filename_hdr.c_str(), index_filename_hdr.c_str(), SPLITS_SHUFFEL, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     out_writer.open();
@@ -137,6 +138,8 @@ int createdb(int argn, const char **argv, const Command& command) {
     // keep number of entries in each file
     unsigned int numEntriesInCurrFile = 0;
     unsigned int * fileToNumEntries =  new unsigned int[filenames.size()];
+    unsigned int * fileOffsetTable =  new unsigned int[filenames.size()+1];
+
     for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
         numEntriesInCurrFile = 0;
         std::string splitHeader;
@@ -287,7 +290,30 @@ int createdb(int argn, const char **argv, const Command& command) {
         lookupFile.open();
         char lookupBuffer[32768];
         char tab='\t';
+        unsigned int currFile = 0;
+        unsigned int range = 0;
+        size_t PREV_BIN = 0;
+        memcpy(fileOffsetTable, fileToNumEntries, sizeof(unsigned int) * filenames.size()) ;
+        AlignmentSymmetry::computeOffsetFromCounts(fileOffsetTable, filenames.size());
         for(size_t id = 0; id < readerHeader.getSize(); id++){
+            if(range==0){
+                while(range == 0){
+                    size_t BIN = id / SPLITS_SHUFFEL;
+                    if(BIN!=PREV_BIN){
+                        currFile = 0;
+                    }
+                    size_t START_BIN = fileOffsetTable[currFile] % SPLITS_SHUFFEL;
+                    size_t rest = fileToNumEntries[currFile]%SPLITS_SHUFFEL;
+                    size_t END_BIN = (START_BIN + rest) % SPLITS_SHUFFEL;
+                    bool inRange = MathUtil::isWithinModRang(START_BIN, END_BIN - 1, BIN, SPLITS_SHUFFEL);
+                    range = (fileToNumEntries[currFile] / SPLITS_SHUFFEL) + (inRange);
+                    if(range==0){
+                        // need to check next file
+                        currFile = (currFile + 1) % filenames.size();
+                    }
+                    PREV_BIN = BIN;
+                }
+            }
             char * header = readerHeader.getData(id,0);
             std::string splitId = Util::parseFastaHeader(header);
             if (splitId == "") {
@@ -301,15 +327,21 @@ int createdb(int argn, const char **argv, const Command& command) {
             lookupFile.writeAdd(lookupBuffer, tmpBuff-lookupBuffer, 0);
             lookupFile.writeAdd(splitId.c_str(), splitId.length(), 0);
             lookupFile.writeAdd(&tab, 1, 0);
-            tmpBuff = Itoa::u32toa_sse2(0, lookupBuffer);
+            tmpBuff = Itoa::u32toa_sse2(currFile, lookupBuffer);
             *(tmpBuff-1) = '\n';
             lookupFile.writeAdd(lookupBuffer, tmpBuff-lookupBuffer, 0);
             lookupFile.writeEnd(id, 0, false);
+            range--;
+            if(range==0){
+                // need to check next file
+                currFile = (currFile + 1) % filenames.size();
+            }
         }
         lookupFile.close();
         FileUtil::deleteFile(lookupFileNameIndex);
     }
-
+    delete [] fileToNumEntries;
+    delete [] fileOffsetTable;
 
     return EXIT_SUCCESS;
 }

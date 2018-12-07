@@ -19,6 +19,15 @@ public:
         return 1 + ((x - 1) / y);
     }
 
+    static bool isWithinModRang(unsigned int start, unsigned int end, unsigned int n, unsigned int mod){
+        unsigned int startRange = start % mod;  // % = mod
+        unsigned int endRange = end % mod;
+        unsigned int number = n % mod;
+
+        return (number - startRange) % mod <=  (endRange - startRange) % mod;
+
+    }
+
     template<typename T>
     static inline T ipow(int base, int exponent) {
         T res = 1;
