@@ -811,7 +811,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
                              evaluer, tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
                              kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
-                             maxResults, aaBiasCorrection, diagonalScoring, minDiagScoreThr, takeOnlyBestKmer);
+                             maxResults, aaBiasCorrection, diagonalScoring, minDiagScoreThr, takeOnlyBestKmer,resListOffset);
 
         if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
             matcher.setProfileMatrix(seq.profile_matrix);
@@ -838,7 +838,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId);
             size_t resultSize = prefResults.second;
             // write
-            writePrefilterOutput(qdbr, &tmpDbw, thread_idx, id, prefResults, dbFrom, resListOffset, maxResults);
+            writePrefilterOutput(qdbr, &tmpDbw, thread_idx, id, prefResults, dbFrom, 0, maxResults);
 
             // update statistics counters
             if (resultSize != 0) {
@@ -1020,7 +1020,7 @@ double Prefiltering::setKmerThreshold(DBReader<unsigned int> *qdbr) {
         EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), ungappedSubMat);
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat, ungappedSubMat, evaluer, tdbr->getSeqLens(), kmerThr, 1.0,
                              kmerSize, indexTable->getSize(), maxSeqLen, seq.getEffectiveKmerSize(),
-                             150000, aaBiasCorrection, false, minDiagScoreThr, takeOnlyBestKmer);
+                             150000, aaBiasCorrection, false, minDiagScoreThr, takeOnlyBestKmer,0);
         if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) ){
             matcher.setProfileMatrix(seq.profile_matrix);
         } else {

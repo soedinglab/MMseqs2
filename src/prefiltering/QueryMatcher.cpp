@@ -31,7 +31,7 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
                            unsigned int maxSeqLen, unsigned int effectiveKmerSize,
                            size_t maxHitsPerQuery, bool aaBiasCorrection,
                            bool diagonalScoring, unsigned int minDiagScoreThr,
-                           bool takeOnlyBestKmer)
+                           bool takeOnlyBestKmer, size_t resListOffset)
 : evaluer(evaluer)
 {
     this->kmerSubMat = kmerSubMat;
@@ -50,6 +50,7 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
     this->counterResultSize = std::max((size_t)1000000, dbSize);
     this->maxDbMatches = std::max((size_t)1000000, dbSize) * 2;
     this->resList = (hit_t *) mem_align(ALIGN_INT, maxHitsPerQuery * sizeof(hit_t) );
+    this->resListOffset = resListOffset;
     this->databaseHits = new(std::nothrow) IndexEntryLocal[maxDbMatches];
     Util::checkAllocation(databaseHits, "Could not allocate databaseHits memory in QueryMatcher");
     this->foundDiagonals = (CounterResult*)calloc(counterResultSize, sizeof(CounterResult));
@@ -377,7 +378,12 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
         // write result to list
         //std::cout << i << "\t" << results[i].id << "\t" << (int)results[i].count << "\t" << results[i].diagonal << std::endl;
         if(aboveThreshold && isNotQueryId){
-            hit_t *result = (resList + elementCounter);
+            if (elementCounter<resListOffset)
+            {
+                elementCounter++;
+                continue;
+            }
+            hit_t *result = (resList + elementCounter - resListOffset);
             result->seqId = seqIdCurr;
             result->prefScore = scoreCurr;
             result->diagonal = diagCurr;
@@ -407,7 +413,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
                 break;
         }
     }
-    std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter);
+    std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter - resListOffset);
     return pair;
 }
 

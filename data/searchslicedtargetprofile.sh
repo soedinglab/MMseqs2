@@ -145,9 +145,11 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     # shellcheck disable=SC2086
     "$MMSEQS" sortresult "${MERGED}" "${TMP_PATH}/aln_merged_trunc" ${SORTRESULT_PAR} \
         || fail "sortresult died"
+
     mv -f "${TMP_PATH}/aln_merged_trunc" "${TMP_PATH}/aln_merged"
     mv -f "${TMP_PATH}/aln_merged_trunc.index" "${TMP_PATH}/aln_merged.index"
     mv -f "${TMP_PATH}/aln_merged_trunc.dbtype" "${TMP_PATH}/aln_merged.dbtype"
+    
 
     join "${TMP_PATH}/pref_keep.list" "${PROFILEDB}.index" > "${PROFILEDB}.index.tmp"
     mv -f "${PROFILEDB}.index.tmp" "${PROFILEDB}.index"

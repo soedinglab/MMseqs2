@@ -90,6 +90,10 @@ public:
             return true;
         if(second.score > first.score )
             return false;
+        if(first.dbKey < second.dbKey )
+            return true;
+        if(second.dbKey < first.dbKey )
+            return false;
         return false;
     }
 

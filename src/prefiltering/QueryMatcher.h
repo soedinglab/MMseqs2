@@ -79,7 +79,7 @@ public:
                  double kmerMatchProb, int kmerSize, size_t dbSize,
                  unsigned int maxSeqLen, unsigned int effectiveKmerSize,
                  size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring,
-                 unsigned int minDiagScoreThr, bool takeOnlyBestKmer);
+                 unsigned int minDiagScoreThr, bool takeOnlyBestKmer,size_t resListOffset);
     ~QueryMatcher();
 
     // returns result for the sequence
@@ -252,6 +252,9 @@ protected:
 
     // max seq. per query
     size_t maxHitsPerQuery;
+
+    // offset in the result list
+    size_t resListOffset;
 
     //pointer to seqLens
     float *seqLens;
