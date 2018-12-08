@@ -624,14 +624,12 @@ template <>
 size_t DBReader<unsigned int>::indexMemorySize(const DBReader<unsigned int> &idx) {
     size_t memSize = // size + aaDbSize
             2 * sizeof(size_t)
-            // maxSeqLen +
-            + 2 * sizeof(unsigned int)
+            // maxSeqLen + lastKey + dbtype
+            + 3 * sizeof(unsigned int)
             // index
             + idx.size * sizeof(DBReader<unsigned int>::Index)
             // seqLens
-            + idx.size * sizeof(unsigned int)
-            // dbtype
-            + sizeof(int) ;
+            + idx.size * sizeof(unsigned int);
 
     return memSize;
 }
@@ -664,11 +662,11 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data) {
     p += sizeof(size_t);
     size_t aaDbSize = *((size_t*)p);
     p += sizeof(size_t);
-    size_t lastKey = *((unsigned int*)p);
+    unsigned int lastKey = *((unsigned int*)p);
     p += sizeof(unsigned int);
-    size_t dbType = *((int*)p);
+    int dbType = *((int*)p);
     p += sizeof(int);
-    size_t maxSeqLen = *((unsigned int*)p);
+    unsigned int maxSeqLen = *((unsigned int*)p);
     p += sizeof(unsigned int);
     DBReader<unsigned int>::Index *idx = (DBReader<unsigned int>::Index *)p;
     p += size * sizeof(DBReader<unsigned int>::Index);

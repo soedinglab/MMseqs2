@@ -128,6 +128,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
 
     FileUtil::symlinkAbs(par.hdr1, par.hdr2);
     FileUtil::symlinkAbs(par.hdr1Index, par.hdr2Index);
+    DBWriter::writeDbtypeFile(par.hdr2.c_str(), Parameters::DBTYPE_GENERIC_DB, par.compressed);
 
     if (addOrfStop == true) {
         header->close();
