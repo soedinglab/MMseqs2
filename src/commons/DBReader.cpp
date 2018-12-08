@@ -558,6 +558,7 @@ bool DBReader<T>::readIndex(char *indexFileName, Index *index, unsigned int *ent
     char * cols[3];
     T prevId=T(); // makes 0 or empty string
     size_t isSorted = true;
+    maxSeqLen=0;
     while (currPos < indexData.size()){
         if (i >= this->size) {
             Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
@@ -623,8 +624,8 @@ template <>
 size_t DBReader<unsigned int>::indexMemorySize(const DBReader<unsigned int> &idx) {
     size_t memSize = // size + aaDbSize
             2 * sizeof(size_t)
-            // lastKey
-            + 1 * sizeof(unsigned int)
+            // maxSeqLen +
+            + 2 * sizeof(unsigned int)
             // index
             + idx.size * sizeof(DBReader<unsigned int>::Index)
             // seqLens
