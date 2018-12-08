@@ -68,11 +68,11 @@ int doswap(Parameters& par, bool isGeneralMode) {
         resultReader.close();
     } else {
         Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-        IndexReader query(par.db1, IndexReader::NEED_SEQUENCES, false);
+        IndexReader query(par.db1, par.threads, IndexReader::NEED_SEQUENCES, false);
         aaResSize = query.sequenceReader->getAminoAcidDBSize();
 
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        IndexReader target(par.db2, IndexReader::NEED_SEQUENCES, false);
+        IndexReader target(par.db2, par.threads, IndexReader::NEED_SEQUENCES, false);
         maxTargetId = target.sequenceReader->getLastKey();
 
         targetElementExists = new char[maxTargetId + 1];

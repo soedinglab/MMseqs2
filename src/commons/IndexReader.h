@@ -7,12 +7,13 @@
 
 class IndexReader {
 public:
-    IndexReader(const std::string &dataName, int mode = NEED_SEQUENCES | NEED_HEADERS, bool preload = false)
+    IndexReader(const std::string &dataName, int threads, int mode = NEED_SEQUENCES | NEED_HEADERS,
+                    bool preload = false)
             : sequenceReader(NULL), headerReader(NULL), index(NULL) {
         std::string indexDB = PrefilteringIndexReader::searchForIndex(dataName.c_str());
         if (indexDB != "") {
             Debug(Debug::INFO) << "Use index " << indexDB << "\n";
-            index = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), 1,  DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
+            index = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), 1, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
             index->open(DBReader<unsigned int>::NOSORT);
             if (PrefilteringIndexReader::checkIfIndexFile(index)) {
                 PrefilteringIndexReader::printSummary(index);
@@ -46,7 +47,7 @@ public:
         if (sequenceReader == NULL) {
             const int dataMode = DBReader<unsigned int>::USE_INDEX | ((mode & NEED_SEQUENCES) ? DBReader<unsigned int>::USE_DATA : 0);
             //TODO threads
-            sequenceReader = new DBReader<unsigned int>(dataName.c_str(), (dataName + ".index").c_str(), 1, dataMode);
+            sequenceReader = new DBReader<unsigned int>(dataName.c_str(), (dataName + ".index").c_str(), threads, dataMode);
             sequenceReader->open(DBReader<unsigned int>::NOSORT);
             if (preload) {
                 sequenceReader->readMmapedDataInMemory();
@@ -56,7 +57,7 @@ public:
 
         if ((mode & NEED_HEADERS) && headerReader == NULL) {
             //TODO threads
-            headerReader = new DBReader<unsigned int>((dataName + "_h").c_str(), (dataName + "_h.index").c_str(), 1, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+            headerReader = new DBReader<unsigned int>((dataName + "_h").c_str(), (dataName + "_h.index").c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
             headerReader->open(DBReader<unsigned int>::NOSORT);
             if (preload) {
                 headerReader->readMmapedDataInMemory();

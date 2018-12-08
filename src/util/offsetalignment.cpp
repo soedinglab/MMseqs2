@@ -127,7 +127,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     int targetDbType = DBReader<unsigned int>::parseDbType(par.db3.c_str());
 
     Debug(Debug::INFO) << "Query database: " << par.db2 << "\n";
-    IndexReader qOrfDbr(par.db2.c_str(), IndexReader::NEED_ALT_HEADERS, touch);
+    IndexReader qOrfDbr(par.db2.c_str(), par.threads, IndexReader::NEED_ALT_HEADERS, touch);
     if (queryDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
@@ -136,11 +136,11 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     IndexReader *qSourceDbr = NULL;
     if (queryNucl) {
         Debug(Debug::INFO) << "Source Query database: " << par.db1 << "\n";
-        qSourceDbr = new IndexReader(par.db1.c_str(), IndexReader::NEED_SEQ_INDEX, touch);
+        qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::NEED_SEQ_INDEX, touch);
     }
 
     Debug(Debug::INFO) << "Target database: " << par.db4 << "\n";
-    IndexReader tOrfDbr(par.db4.c_str(), IndexReader::NEED_ALT_HEADERS, touch);
+    IndexReader tOrfDbr(par.db4.c_str(), par.threads, IndexReader::NEED_ALT_HEADERS, touch);
     if (targetDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
@@ -149,7 +149,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     IndexReader *tSourceDbr = NULL;
     if (targetNucl) {
         Debug(Debug::INFO) << "Source Target database: " << par.db3 << "\n";
-        tSourceDbr = new IndexReader(par.db3.c_str(), IndexReader::NEED_SEQ_INDEX, touch);
+        tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::NEED_SEQ_INDEX, touch);
     }
 
     Debug(Debug::INFO) << "Result database: " << par.db5 << "\n";

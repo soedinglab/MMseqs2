@@ -96,14 +96,14 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     Debug(Debug::INFO) << "Query Header database: " << par.hdr1 << "\n";
     const int indexReaderMode = IndexReader::NEED_HEADERS | (needSequenceDB ? IndexReader::NEED_SEQUENCES : 0);
-    IndexReader qDbr(par.db1.c_str(), indexReaderMode, touch);
+    IndexReader qDbr(par.db1.c_str(), 0, indexReaderMode, touch);
 
     IndexReader *tDbr;
     if (sameDB) {
         tDbr = &qDbr;
     } else {
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        tDbr = new IndexReader(par.db2.c_str(), indexReaderMode, touch);
+        tDbr = new IndexReader(par.db2.c_str(), par.threads, indexReaderMode, touch);
     }
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
