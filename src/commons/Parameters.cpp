@@ -574,7 +574,6 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_SPLIT);
     indexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     indexdb.push_back(&PARAM_THREADS);
-    indexdb.push_back(&PARAM_COMPRESSED);
     indexdb.push_back(&PARAM_V);
 
     // create db
