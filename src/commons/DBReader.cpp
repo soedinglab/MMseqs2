@@ -521,6 +521,32 @@ template <typename T> size_t DBReader<T>::maxCount(char c) {
     checkClosed();
 
     size_t max = 0;
+    if (compression == COMPRESSED) {
+        size_t entries = getSize();
+#ifdef OPENMP
+        size_t localThreads = std::min(entries, static_cast<size_t>(threads));
+#endif
+#pragma omp parallel num_threads(localThreads)
+        {
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+#pragma omp for schedule(dynamic, 10) reduction(max:max)
+            for (size_t id = 0; id < entries; id++) {
+                char *data = getData(id, thread_idx);
+                size_t count = 0;
+                for (size_t i = 0; i < seqLens[id]; ++i) {
+                    if (data[i] == c) {
+                        count++;
+                    }
+                }
+                max = std::max(max, count);
+            }
+        }
+        return max;
+    }
+
     size_t count = 0;
     for (size_t i = 0; i < dataSize; ++i) {
         if (data[i] == c) {
