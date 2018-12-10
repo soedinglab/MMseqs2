@@ -76,6 +76,8 @@ public:
     static void writeIndexEntryToFile(FILE *outFile, char *buff1, T &index,  unsigned int seqLen);
 
 private:
+    size_t addToThreadBuffer(const void *data, size_t itmesize, size_t nitems, int threadIdx);
+    void writeThreadBuffer(unsigned int idx, size_t dataSize);
 
     void checkClosed();
 
@@ -91,6 +93,9 @@ private:
     char** indexFileNames;
     char** compressedBuffers;
     size_t * compressedBufferSizes;
+    char** threadBuffer;
+    size_t * threadBufferSize;
+    size_t * threadBufferOffset;
 
     size_t* starts;
     size_t* offsets;

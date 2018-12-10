@@ -36,6 +36,9 @@ DBWriter::DBWriter(const char *dataFileName_, const char *indexFileName_, unsign
         compressedBufferSizes = new size_t[threads];
         cstream = new ZSTD_CStream*[threads];
         state = new int[threads];
+        threadBuffer = new char*[threads];
+        threadBufferSize = new size_t[threads];
+        threadBufferOffset = new size_t[threads];
     }
 
     starts = new size_t[threads];
@@ -51,6 +54,23 @@ DBWriter::DBWriter(const char *dataFileName_, const char *indexFileName_, unsign
     closed = true;
 }
 
+size_t DBWriter::addToThreadBuffer(const void *data, size_t itmesize, size_t nitems, int threadIdx) {
+    size_t bytesToWrite = (itmesize*nitems);
+    size_t bytesLeftInBuffer = threadBufferSize[threadIdx] - threadBufferOffset[threadIdx];
+    if( (itmesize*nitems)  >= bytesLeftInBuffer ){
+        size_t newBufferSize = std::max(threadBufferSize[threadIdx] + bytesToWrite, threadBufferSize[threadIdx] * 2 );
+        threadBufferSize[threadIdx] = newBufferSize;
+        threadBuffer[threadIdx] = (char*) realloc(threadBuffer[threadIdx], newBufferSize);
+        if(compressedBuffers[threadIdx] == NULL){
+            Debug(Debug::ERROR) << "Realloc of buffer for " << threadIdx << " failed. Buffer size = " << threadBufferSize[threadIdx] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    memcpy(threadBuffer[threadIdx] + threadBufferOffset[threadIdx], data, bytesToWrite);
+    threadBufferOffset[threadIdx] += bytesToWrite;
+    return bytesToWrite;
+}
+
 DBWriter::~DBWriter() {
     delete[] offsets;
     delete[] starts;
@@ -62,6 +82,9 @@ DBWriter::~DBWriter() {
     free(indexFileName);
     free(dataFileName);
     if(compressedBuffers){
+        delete [] threadBuffer;
+        delete [] threadBufferSize;
+        delete [] threadBufferOffset;
         delete [] compressedBuffers;
         delete [] compressedBufferSizes;
         delete [] cstream;
@@ -193,8 +216,11 @@ void DBWriter::open(size_t bufferSize) {
 
         if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0){
             compressedBufferSizes[i] = 2097152;
+            threadBufferSize[i] = 2097152;
+
             state[i] = false;
             compressedBuffers[i] = (char*) malloc(compressedBufferSizes[i]);
+            threadBuffer[i] = (char*) malloc(threadBufferSize[i]);
             cstream[i] = ZSTD_createCStream();
         }
     }
@@ -232,7 +258,8 @@ void DBWriter::close() {
 
     if(compressedBuffers){
         for (unsigned int i = 0; i < threads; i++) {
-            delete [] compressedBuffers[i];
+            free(compressedBuffers[i]);
+            free(threadBuffer[i]);
             ZSTD_freeCStream(cstream[i]);
         }
     }
@@ -256,12 +283,10 @@ void DBWriter::writeStart(unsigned int thrIdx) {
         Debug(Debug::ERROR) << "ERROR: Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
         EXIT(EXIT_FAILURE);
     }
-
     starts[thrIdx] = offsets[thrIdx];
-
     if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0){
         state[thrIdx] = INIT_STATE;
-
+        threadBufferOffset[thrIdx]=0;
         int cLevel = 3;
         size_t const initResult = ZSTD_initCStream(cstream[thrIdx], cLevel);
         if (ZSTD_isError(initResult)) {
@@ -269,14 +294,6 @@ void DBWriter::writeStart(unsigned int thrIdx) {
                                 << ZSTD_getErrorName(initResult) << "\n";
             EXIT(EXIT_FAILURE);
         }
-        // lets do some black magic! We need the first 4 byte for the length. We overwrite this later
-        unsigned int dummyValue = 0;
-        size_t written = fwrite(&dummyValue, sizeof(unsigned int), 1, dataFiles[thrIdx]);
-        if(written != 1){
-            Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "in writeStart\n";
-            EXIT(EXIT_FAILURE);
-        }
-        offsets[thrIdx] += sizeof(unsigned int);
     }
 }
 
@@ -303,7 +320,7 @@ size_t DBWriter::writeAdd(const char* data, size_t dataSize, unsigned int thrIdx
                                     << ZSTD_getErrorName(toRead) << "\n";
                 EXIT(EXIT_FAILURE);
             }
-            size_t written = fwrite(compressedBuffers[thrIdx], sizeof(char), output.pos, dataFiles[thrIdx]);
+            size_t written = addToThreadBuffer(compressedBuffers[thrIdx], sizeof(char), output.pos, thrIdx);
             if (written != output.pos) {
                 Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
                 EXIT(EXIT_FAILURE);
@@ -330,15 +347,20 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
         size_t compressedLength = 0;
         if(state[thrIdx] == COMPRESSED) {
             ZSTD_outBuffer output = {compressedBuffers[thrIdx], compressedBufferSizes[thrIdx], 0};
-            const size_t remainingToFlush = ZSTD_endStream(cstream[thrIdx], &output); /* close frame */
+            size_t remainingToFlush = ZSTD_endStream(cstream[thrIdx], &output); /* close frame */
             ZSTD_frameProgression progression = ZSTD_getFrameProgression(cstream[thrIdx]);
             compressedLength = progression.produced;
             //        std::cout << compressedLength << std::endl;
+            if (ZSTD_isError(remainingToFlush)) {
+                Debug(Debug::ERROR) << "ERROR: ZSTD_endStream() error in thread " << thrIdx << ". Error "
+                                    << ZSTD_getErrorName(remainingToFlush) << "\n";
+                EXIT(EXIT_FAILURE);
+            }
             if (remainingToFlush) {
                 Debug(Debug::ERROR) << "Stream not flushed\n";
                 EXIT(EXIT_FAILURE);
             }
-            size_t written = fwrite(compressedBuffers[thrIdx], sizeof(char), output.pos, dataFiles[thrIdx]);
+            size_t written = addToThreadBuffer(compressedBuffers[thrIdx], sizeof(char), output.pos, thrIdx);
             offsets[thrIdx] += written;
             if (written != output.pos) {
                 Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
@@ -348,21 +370,13 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
             compressedLength = offsets[thrIdx] - starts[thrIdx] - sizeof(unsigned int) ;
         }
         unsigned int compressedLengthInt = static_cast<unsigned int>(compressedLength);
-        int err = fseek(dataFiles[thrIdx], starts[thrIdx], SEEK_SET);
-        if( err != 0 ){
-            Debug(Debug::ERROR) << "Could not seek start in data file " << dataFileNames[thrIdx] << "\n";
-            EXIT(EXIT_FAILURE);
-        }
+        //TODO write at pos
         size_t written2 = fwrite(&compressedLengthInt, sizeof(unsigned int), 1, dataFiles[thrIdx]);
         if (written2 != 1) {
             Debug(Debug::ERROR) << "Could not write entry length to data file " << dataFileNames[thrIdx] << "\n";
             EXIT(EXIT_FAILURE);
         }
-        err = fseek(dataFiles[thrIdx], 0, SEEK_END);
-        if( err != 0 ){
-            Debug(Debug::ERROR) << "Could not seek end in data file " << dataFileNames[thrIdx] << "\n";
-            EXIT(EXIT_FAILURE);
-        }
+        writeThreadBuffer(thrIdx, compressedLength);
     }
 
 
@@ -711,4 +725,12 @@ void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::strin
 
     writeIndex(indexFiles[0], reader1.getSize(), index1, seqLen1);
     reader1.close();
+}
+
+void DBWriter::writeThreadBuffer(unsigned int idx, size_t dataSize) {
+    size_t written = fwrite(threadBuffer[idx], 1, dataSize, dataFiles[idx]);
+    if (written != dataSize) {
+        Debug(Debug::ERROR) << "writeThreadBuffer: Could not write to data file " << dataFileNames[idx] << "\n";
+        EXIT(EXIT_FAILURE);
+    }
 }
