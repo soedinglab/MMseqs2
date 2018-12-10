@@ -12,9 +12,7 @@
 
 const char* binary_name = "test_dbreader";
 
-int main(int argc, char **argv)
-{
-
+int main (int, const char**) {
     // DBReader test
     DBReader<unsigned int> reader("dataLinear", "dataLinear.index", 1, 0);
     reader.open(0);

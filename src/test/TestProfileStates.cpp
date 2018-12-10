@@ -1,5 +1,4 @@
 //  main.cpp
-//  forautocompl
 //
 //  Created by Martin Steinegger on 26.11.12.
 //  Copyright (c) 2012 -. All rights reserved.
@@ -7,7 +6,7 @@
 
 #include <iostream>
 #include <fstream>
-#include <ProfileStates.h>
+#include "ProfileStates.h"
 #include "Parameters.h"
 #include "StripedSmithWaterman.h"
 #include "MsaFilter.h"
@@ -19,8 +18,7 @@
 const char* binary_name = "test_profilestates";
 
 
-int main (int argc, const char * argv[])
-{
+int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
 

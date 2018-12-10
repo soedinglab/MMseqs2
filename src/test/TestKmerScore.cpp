@@ -9,8 +9,7 @@
 
 const char* binary_name = "test_kmerscore";
 
-int main (int argc, const char * argv[]) {
-
+int main (int, const char**) {
     const size_t kmer_size = 6;
 
     Parameters& par = Parameters::getInstance();

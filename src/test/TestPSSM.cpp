@@ -16,8 +16,7 @@
 
 const char* binary_name = "test_pssm";
 
-int main (int argc, const char * argv[])
-{
+int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     std::cout << "Subustitution matrix:";

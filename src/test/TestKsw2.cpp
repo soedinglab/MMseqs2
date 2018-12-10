@@ -114,7 +114,7 @@ char *to_sequence(std::string string);
 
 int printer(void *fp, int64_t len, char c)
 {
-    return(fprintf((FILE *)fp, "%ld%c", len, c));
+    return(fprintf((FILE *)fp, "%lld%c", len, c));
 }
 
 
@@ -149,15 +149,14 @@ struct alignment_t {
 };
 
 
-static int convert_to_cigar(void *_b, int64_t len, char c)
-{
-    alignment_t *aln = (alignment_t*)_b;
-    for(size_t i = 0; i < len; i++){
-        aln->cigar[aln->len + i] = c;
-    }
-    aln->len += len;
-    return len+1;
-}
+//static int64_t convert_to_cigar(void *_b, int64_t len, char c) {
+//    alignment_t *aln = (alignment_t*)_b;
+//    for(int64_t i = 0; i < len; i++){
+//        aln->cigar[aln->len + i] = c;
+//    }
+//    aln->len += len;
+//    return len+1;
+//}
 
 
 void align(const char * qSeqAscii, uint8_t *qseq, uint8_t *qseqrev, const int qLen,
@@ -215,7 +214,7 @@ void align(const char * qSeqAscii, uint8_t *qseq, uint8_t *qseqrev, const int qL
     }
     std::cout << std::endl;
     ksw_extz_t ez;
-    int flag;
+    int flag = 0;
     flag |= KSW_EZ_SCORE_ONLY;
     flag |= KSW_EZ_EXTZ_ONLY;
 
@@ -314,10 +313,9 @@ void align(const char * qSeqAscii, uint8_t *qseq, uint8_t *qseqrev, const int qL
 }
 
 
-int main (int argc, const char * argv[]) {
+int main (int, const char**) {
     int64_t i;
     struct params p;
-
     /** set defaults */
     p.len = 1000;
     p.cnt = 1000;
@@ -360,7 +358,7 @@ int main (int argc, const char * argv[]) {
         std::string queryAln;
         std::string targetAln;
         std::string middleAln;
-        int aaIds = 0;
+//        int aaIds = 0;
 //        if(alignment.cigar){
 //            int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
 //            for (int32_t c = 0; c < alignment.cigarLen; ++c) {

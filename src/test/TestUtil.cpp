@@ -7,7 +7,7 @@
 
 const char* binary_name = "test_util";
 
-int main (int argc, const char **argv) {
+int main (int, const char**) {
     assert(SSTR((unsigned int)1) == "1");
     assert(SSTR((int)1) == "1");
     assert(SSTR((unsigned long long int)1) == "1");

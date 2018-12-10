@@ -32,9 +32,8 @@ void fillNumbers(unsigned int * data, size_t len) {
 //    std::cout << std::endl;
 }
 
-int main(int argc, char **argv)
-{
-    // DBR;ader test
+int main (int, const char**) {
+    // DBReader test
 /*    CacheFriendlyOperations diagonalMatcher(3000000,2);
 
     unsigned int input[] = {1000001,1000000,2000000,3000000,4000000,5000000,6000000,7000000,8000000,9000000

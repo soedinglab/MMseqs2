@@ -5,8 +5,7 @@
 
 const char* binary_name = "test_translate";
 
-int main (int argc, const char * argv[])
-{
+int main (int, const char**) {
     TranslateNucl * translateNucl = new TranslateNucl(TranslateNucl::CANONICAL);
 //    translateNucl->initConversionTable();
     std::string nuclStr = "ATGGATGGTACGGTTATCACCATCAAAATGAGCAGGGGTCAGGATATGCAGCCGACC";

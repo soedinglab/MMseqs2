@@ -47,8 +47,7 @@ const char* binary_name = "test_alp";
 using namespace Sls;
 using namespace std;
 
-int main(int argc, char * argv[])
-{
+int main (int, const char**) {
     error ee_error("",0);
 
 

@@ -12,7 +12,7 @@
 
 const char* binary_name = "test_tantan";
 
-int main (int argc, const char * argv[]) {
+int main (int, const char**) {
     const size_t kmer_size = 6;
 
     Parameters& par = Parameters::getInstance();
@@ -26,7 +26,7 @@ int main (int argc, const char * argv[]) {
     refSeq.mapSequence(0, 0, ref);
 
     char hardMaskTable[256];
-    std::fill_n(hardMaskTable, 256, subMat.aa2int['X']);
+    std::fill_n(hardMaskTable, 256, subMat.aa2int[(int) 'X']);
     double probMatrix[21][21];
 
     const double *probMatrixPointers[64];
@@ -43,7 +43,7 @@ int main (int argc, const char * argv[]) {
 
 
     for(size_t i = 0; i < 100000; i++){
-        for(size_t i = 0; i < refSeq.L; i++){
+        for(int i = 0; i < refSeq.L; i++){
             refInt[i] = (char) refSeq.int_sequence[i];
         }
         tantan::maskSequences(refInt, refInt+len, 50 /*options.maxCycleLength*/,
@@ -53,7 +53,7 @@ int main (int argc, const char * argv[]) {
                               0, 0,
                               0.5 /*options.minMaskProb*/, hardMaskTable);
     }
-    for(size_t i = 0; i < refSeq.L; i++){
+    for(int i = 0; i < refSeq.L; i++){
 //        refInt[i] = (char) refSeq.int_sequence[i];
         std::cout << subMat.int2aa[(int)refInt[i]];
 

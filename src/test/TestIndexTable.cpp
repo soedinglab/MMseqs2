@@ -13,7 +13,7 @@
 
 const char* binary_name = "test_indextable";
 
-int main(int argc, const char *argv[]) {
+int main (int, const char**) {
     Parameters &par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 8.0, -0.2f);
     DBReader<unsigned int> dbr(

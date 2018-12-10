@@ -15,8 +15,7 @@
 
 const char* binary_name = "test_multiplealignment";
 
-int main (int argc, const char * argv[])
-{
+int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
 
     const size_t kmer_size=6;

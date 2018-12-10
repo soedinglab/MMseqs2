@@ -3,8 +3,7 @@
 
 const char* binary_name = "test_dbreaderindexserialization";
 
-int main (int argc, const char * argv[])
-{
+int main (int, const char**) {
     DBReader<unsigned int> reader("", "/Users/mirdita/tmp/db.index", 1, DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::NOSORT);
 

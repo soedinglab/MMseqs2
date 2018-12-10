@@ -18,12 +18,9 @@ struct KmerEntry{
     KmerEntry(unsigned int seqId, short diagonal) : seqId(seqId), diagonal(diagonal){}
 };
 
-void mergeKmerEntryLists(KmerEntry **entries, size_t * entrySizes, const int fileCnt) ;
+void mergeKmerEntryLists(KmerEntry **entries, size_t * entrySizes, const int fileCnt);
 
-
-int main (int argc, const char * argv[]) {
-
-
+int main (int, const char**) {
     const int fileCnt = 3;
     std::vector<KmerEntry> array1;
     array1.push_back(KmerEntry(1,0));
