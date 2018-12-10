@@ -140,7 +140,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     }
 
     const bool shouldCompress = par.dbOut == true && par.compressed == true;
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), localThreads, shouldCompress, Parameters::DBTYPE_GENERIC_DB);
+    const int dbType = par.dbOut == true ? Parameters::DBTYPE_GENERIC_DB : Parameters::DBTYPE_OMIT_FILE;
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), localThreads, shouldCompress, dbType);
     resultWriter.open();
     Debug(Debug::INFO) << "Start writing to " << par.db4 << "\n";
 

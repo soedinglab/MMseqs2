@@ -203,6 +203,10 @@ void DBWriter::open(size_t bufferSize) {
 }
 
 void DBWriter::writeDbtypeFile(const char* path, int dbtype, bool isCompressed) {
+    if (dbtype == Parameters::DBTYPE_OMIT_FILE) {
+        return;
+    }
+
     std::string name = std::string(path) + ".dbtype";
     FILE* file = fopen(name.c_str(), "wb");
     if (file == NULL) {

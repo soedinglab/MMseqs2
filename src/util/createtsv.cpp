@@ -48,19 +48,15 @@ int createtsv(int argc, const char **argv, const Command &command) {
     }
     reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
+    const std::string& dataFile = hasTargetDB ? par.db4 : par.db3;
+    const std::string& indexFile = hasTargetDB ? par.db4Index : par.db3Index;
     const bool shouldCompress = par.dbOut == true && par.compressed == true;
-    DBWriter *writer;
-    if (hasTargetDB) {
-        Debug(Debug::INFO) << "Start writing to " << par.db4 << "\n";
-        writer = new DBWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, shouldCompress, Parameters::DBTYPE_GENERIC_DB);
-    } else {
-        Debug(Debug::INFO) << "Start writing to " << par.db3 << "\n";
-        writer = new DBWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, shouldCompress, Parameters::DBTYPE_GENERIC_DB);
-    }
-    writer->open();
+    const int dbType = par.dbOut == true ? Parameters::DBTYPE_GENERIC_DB : Parameters::DBTYPE_OMIT_FILE;
+    Debug(Debug::INFO) << "Start writing to " << dataFile << "\n";
+    DBWriter writer(dataFile.c_str(), indexFile.c_str(), par.threads, shouldCompress, dbType);
+    writer.open();
 
     const size_t targetColumn = (par.targetTsvColumn == 0) ? SIZE_T_MAX :  par.targetTsvColumn - 1;
-
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -150,14 +146,13 @@ int createtsv(int argc, const char **argv, const Command &command) {
                 data = nextLine;
                 entryIndex++;
             }
-            writer->writeData(outputBuffer.c_str(), outputBuffer.length(), queryKey, thread_idx, par.dbOut);
+            writer.writeData(outputBuffer.c_str(), outputBuffer.length(), queryKey, thread_idx, par.dbOut);
             outputBuffer.clear();
         }
         delete[] dbKey;
         delete[] columnPointer;
-    };
-    writer->close();
-    delete writer;
+    }
+    writer.close();
     Debug(Debug::INFO) << "Done.\n";
 
     if (par.dbOut == false) {

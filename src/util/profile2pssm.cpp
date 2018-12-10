@@ -19,7 +19,8 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
     profileReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     const bool shouldCompress = par.dbOut == true && par.compressed == true;
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, shouldCompress, Parameters::DBTYPE_GENERIC_DB);
+    const int dbType = par.dbOut == true ? Parameters::DBTYPE_GENERIC_DB : Parameters::DBTYPE_OMIT_FILE;
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, shouldCompress, dbType);
     writer.open();
 
     const bool isDbOutput = par.dbOut;

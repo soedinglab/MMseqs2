@@ -15,7 +15,9 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     const bool shouldCompress = tsvOut == false && compressed == true;
-    DBWriter writer(db2.c_str(), db2Index.c_str(), threads, shouldCompress, reader.getDbtype());
+    // TODO: does generic db make more sense than copying db type here?
+    const int dbType = tsvOut == true ? Parameters::DBTYPE_OMIT_FILE : reader.getDbtype();
+    DBWriter writer(db2.c_str(), db2Index.c_str(), threads, shouldCompress, dbType);
     writer.open();
     const bool shouldWriteNullByte = !tsvOut;
 

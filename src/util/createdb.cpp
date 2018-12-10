@@ -283,7 +283,7 @@ int createdb(int argn, const char **argv, const Command& command) {
         std::string lookupFileName(data_filename);
         lookupFileName.append(".lookup");
         std::string lookupFileNameIndex = lookupFileName+".index";
-        DBWriter lookupFile(lookupFileName.c_str(), lookupFileNameIndex.c_str(), 1, Parameters::WRITER_ASCII_MODE, Parameters::DBTYPE_GENERIC_DB);
+        DBWriter lookupFile(lookupFileName.c_str(), lookupFileNameIndex.c_str(), 1, Parameters::WRITER_ASCII_MODE, Parameters::DBTYPE_OMIT_FILE);
         lookupFile.open();
         char lookupBuffer[32768];
         char tab='\t';
