@@ -96,7 +96,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     Debug(Debug::INFO) << "Query Header database: " << par.hdr1 << "\n";
     const int indexReaderMode = IndexReader::NEED_HEADERS | (needSequenceDB ? IndexReader::NEED_SEQUENCES : 0);
-    IndexReader qDbr(par.db1.c_str(), 0, indexReaderMode, touch);
+    IndexReader qDbr(par.db1.c_str(), par.threads, indexReaderMode, touch);
 
     IndexReader *tDbr;
     if (sameDB) {
