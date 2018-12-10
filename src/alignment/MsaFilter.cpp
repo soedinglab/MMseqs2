@@ -124,7 +124,7 @@ void MsaFilter::filter(const int N_in, const int L, const int coverage, const in
     }
     //Sort sequences after query (first sequence) in descending order
     struct sortPairDesc {
-        bool operator()(const std::pair<int,int> &left, const std::pair<int,int> &right) {
+        bool operator()(const std::pair<int,int> &left, const std::pair<int,int> &right) const {
             return left.first > right.first;
         }
     };

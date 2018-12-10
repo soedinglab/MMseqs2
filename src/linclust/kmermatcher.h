@@ -102,7 +102,7 @@ struct FileKmerPosition {
 
 class CompareResultBySeqId {
 public:
-    bool operator() (FileKmerPosition & first, FileKmerPosition & second) {
+    bool operator() (FileKmerPosition & first, FileKmerPosition & second) const {
         //return (first.eval < second.eval);
         if(first.repSeq > second.repSeq )
             return true;
