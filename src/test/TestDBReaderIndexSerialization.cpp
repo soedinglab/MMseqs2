@@ -12,7 +12,7 @@ int main (int argc, const char * argv[])
     Debug(Debug::INFO) << reader.getIndex()[0].id  << " " << reader.getIndex()[0].offset  << " " << reader.getSeqLens()[0] << "\n";
 
     char* data = DBReader<unsigned int>::serialize(reader);
-    DBReader<unsigned int>* newdbr = DBReader<unsigned int>::unserialize(data);
+    DBReader<unsigned int>* newdbr = DBReader<unsigned int>::unserialize(data, 1);
     newdbr->open(DBReader<unsigned int>::NOSORT);
 
     Debug(Debug::INFO) << newdbr->getSize() << " " << newdbr->getAminoAcidDBSize() << "\n";

@@ -83,7 +83,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                 targetSeqType = meta.seqType;
                 maxSeqLen = meta.maxSeqLength;
                 compBiasCorrection = meta.compBiasCorr;
-                tdbr = PrefilteringIndexReader::openNewReader(tidxdbr, false, touch);
+                tdbr = PrefilteringIndexReader::openNewReader(tidxdbr, false, threads, touch);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
         }
@@ -107,7 +107,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         querySeqType = targetSeqType;
     } else {
         // open the sequence, prefiltering and output databases
-        qdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
+        qdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         qdbr->open(DBReader<unsigned int>::NOSORT);
 
         //size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(outDB).c_str());

@@ -20,7 +20,7 @@ public:
                 PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(index);
                 seqType = data.seqType;
 
-                sequenceReader = PrefilteringIndexReader::openNewReader(index, mode & NEED_SEQUENCES, preload);
+                sequenceReader = PrefilteringIndexReader::openNewReader(index, mode & NEED_SEQUENCES, threads, preload);
                 if (sequenceReader == NULL) {
                     Debug(Debug::INFO) << "Index does not contain plain sequences. Using normal database instead.\n";
                 }
@@ -28,10 +28,10 @@ public:
                 if (mode & NEED_HEADERS) {
                     if (data.headers2 == 1 && mode & NEED_ALT_HEADERS) {
                         headerReader = PrefilteringIndexReader::openNewHeaderReader(index,
-                                PrefilteringIndexReader::HDR1INDEX, PrefilteringIndexReader::HDR1DATA, preload);
+                                PrefilteringIndexReader::HDR1INDEX, PrefilteringIndexReader::HDR1DATA, threads, preload);
                     } else if (data.headers1 == 1) {
                         headerReader = PrefilteringIndexReader::openNewHeaderReader(index,
-                                PrefilteringIndexReader::HDR2INDEX, PrefilteringIndexReader::HDR2DATA, preload);
+                                PrefilteringIndexReader::HDR2INDEX, PrefilteringIndexReader::HDR2DATA, threads, preload);
                     } else {
                         Debug(Debug::INFO) << "Index does not contain headers. Using normal database instead.\n";
                     }

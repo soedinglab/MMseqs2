@@ -29,7 +29,7 @@ public:
     // = USE_DATA|USE_INDEX
     DBReader(const char* dataFileName, const char* indexFileName, int threads, int mode);
 
-    DBReader(Index* index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey, int dbType, unsigned int maxSeqLen);
+    DBReader(Index* index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey, int dbType, unsigned int maxSeqLen, int threads);
 
     void setDataFile(const char* dataFileName);
 
@@ -135,7 +135,7 @@ public:
 
     static char* serialize(const DBReader<unsigned int> &idx);
 
-    static DBReader<unsigned int> *unserialize(const char* data);
+    static DBReader<unsigned int> *unserialize(const char* data, int threads);
 
     static int parseDbType(const char *name);
 

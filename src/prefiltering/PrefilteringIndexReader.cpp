@@ -227,7 +227,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
     Debug(Debug::INFO) << "Done. \n";
 }
 
-DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int headerIdx, unsigned int dataIdx, bool touch) {
+DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int headerIdx, unsigned int dataIdx, int threads, bool touch) {
     size_t indexId = dbr->getId(headerIdx);
     char *indexData = dbr->getData(indexId, 0);
     if (touch) {
@@ -245,14 +245,14 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<un
         dbr->touchData(dataId);
     }
 
-    DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(indexData);
+    DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(indexData, threads);
     reader->open(DBReader<unsigned int>::NOSORT);
     reader->setData(data, dataSize);
     reader->setMode(DBReader<unsigned int>::USE_DATA);
     return reader;
 }
 
-DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr, bool includeData, bool touch) {
+DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr, bool includeData, int threads, bool touch) {
     size_t id = dbr->getId(DBRINDEX);
     char *data = dbr->getDataUncompressed(id);
     if (touch) {
@@ -268,7 +268,7 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned
             dbr->touchData(id);
         }
 
-        DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(data);
+        DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(data, threads);
         reader->open(DBReader<unsigned int>::NOSORT);
         size_t currDataOffset = dbr->getOffset(id);
         size_t nextDataOffset = dbr->findNextOffsetid(id);
@@ -278,7 +278,7 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned
         return reader;
     }
 
-    DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(data);
+    DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(data, threads);
     reader->open(DBReader<unsigned int>::NOSORT);
     return reader;
 }

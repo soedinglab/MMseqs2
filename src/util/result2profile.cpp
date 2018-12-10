@@ -55,7 +55,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 par.maxSeqLen = meta.maxSeqLength;
                 par.compBiasCorrection = meta.compBiasCorr;
                 par.scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
-                tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, false, touch);
+                tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, false, par.threads, touch);
             }
         }
 

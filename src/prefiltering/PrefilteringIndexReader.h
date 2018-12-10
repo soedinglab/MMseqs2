@@ -53,9 +53,9 @@ public:
                                 bool spacedKmer, const std::string &spacedKmerPattern,
                                 bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode, int kmerThr);
 
-    static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int headerIdx, unsigned int dataIdx, bool touch);
+    static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int headerIdx, unsigned int dataIdx, int threads, bool touch);
 
-    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, bool includeData, bool touch);
+    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, bool includeData, int threads, bool touch);
 
     static SequenceLookup *getMaskedSequenceLookup(DBReader<unsigned int> *dbr, bool touch);
 
