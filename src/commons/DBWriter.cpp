@@ -217,7 +217,6 @@ void DBWriter::open(size_t bufferSize) {
         if((mode & Parameters::WRITER_COMPRESSED_MODE) != 0){
             compressedBufferSizes[i] = 2097152;
             threadBufferSize[i] = 2097152;
-
             state[i] = false;
             compressedBuffers[i] = (char*) malloc(compressedBufferSizes[i]);
             threadBuffer[i] = (char*) malloc(threadBufferSize[i]);
@@ -329,7 +328,12 @@ size_t DBWriter::writeAdd(const char* data, size_t dataSize, unsigned int thrIdx
             totalWriten += written;
         }
     }else{
-        size_t written = fwrite(data, sizeof(char), dataSize, dataFiles[thrIdx]);
+        size_t written;
+        if(isCompressedDB){
+            written = addToThreadBuffer(data, sizeof(char), dataSize,  thrIdx);
+        }else{
+            written = fwrite(data, sizeof(char), dataSize, dataFiles[thrIdx]);
+        }
         if (written != dataSize) {
             Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
             EXIT(EXIT_FAILURE);
@@ -367,7 +371,7 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
                 EXIT(EXIT_FAILURE);
             }
         }else {
-            compressedLength = offsets[thrIdx] - starts[thrIdx] - sizeof(unsigned int) ;
+            compressedLength = offsets[thrIdx] - starts[thrIdx];
         }
         unsigned int compressedLengthInt = static_cast<unsigned int>(compressedLength);
         //TODO write at pos
@@ -402,9 +406,6 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
         if (isCompressedDB && state[thrIdx]==COMPRESSED) {
             ZSTD_frameProgression progression = ZSTD_getFrameProgression(cstream[thrIdx]);
             length = progression.consumed + totalWritten;
-        }
-        if (isCompressedDB && state[thrIdx]==NOTCOMPRESSED) {
-            length -= sizeof(unsigned int);
         }
         writeIndexEntry(key, starts[thrIdx], length, thrIdx);
     }
