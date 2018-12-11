@@ -79,7 +79,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                 touch = true;
                 tidxdbr->readMmapedDataInMemory();
             }
-            tdbr = PrefilteringIndexReader::openNewReader(tdbr, false, threads, touch);
+            tdbr = PrefilteringIndexReader::openNewReader(tdbr, PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX, false, threads, touch);
             PrefilteringIndexReader::printSummary(tidxdbr);
             PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
             for(size_t i = 0; i < par.prefilter.size(); i++){

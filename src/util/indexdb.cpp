@@ -57,6 +57,13 @@ int indexdb(int argc, const char **argv, const Command &command) {
     const bool sameDB = (par.db1 == par.db2);
     DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr.open(DBReader<unsigned int>::NOSORT);
+
+    DBReader<unsigned int> *dbr2 = NULL;
+    if (sameDB == false) {
+        dbr2 = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+        dbr2->open(DBReader<unsigned int>::NOSORT);
+    }
+
     BaseMatrix *subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
 
     int split = 1;
@@ -99,7 +106,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
             Debug(Debug::INFO) << "Index is already up to date and compatible. Force recreation with --check-compatibility 0 parameter.\n";
             return EXIT_SUCCESS;
         } else {
-            Debug(Debug::WARNING) << "Index is incompatbile and will be recreated.\n";
+            Debug(Debug::WARNING) << "Index is incompatible and will be recreated.\n";
         }
     }
 
@@ -114,7 +121,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
         }
     }
 
-    PrefilteringIndexReader::createIndexFile(indexDB, &dbr, hdbr1, hdbr2, subMat, par.maxSeqLen,
+    PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, hdbr1, hdbr2, subMat, par.maxSeqLen,
                                              par.spacedKmer, par.spacedKmerPattern, par.compBiasCorrection,
                                              subMat->alphabetSize, par.kmerSize, par.maskMode, par.kmerScore);
 
@@ -126,6 +133,11 @@ int indexdb(int argc, const char **argv, const Command &command) {
     if (hdbr1 != NULL) {
         hdbr1->close();
         delete hdbr1;
+    }
+
+    if (dbr2 != NULL) {
+        dbr2->close();
+        delete dbr2;
     }
 
     delete subMat;

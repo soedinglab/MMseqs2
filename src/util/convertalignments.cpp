@@ -95,31 +95,34 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     bool needFullHeaders = false;
     const std::vector<int> outcodes = Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
 
+    bool queryNucs = false;
+    bool targetNucs = false;
+    bool isTranslatedSearch = false;
+    if (needSequenceDB) {
+        queryNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db1.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
+        targetNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
+        if((targetNucs == true || queryNucs == true ) && !(queryNucs == true && targetNucs == true)){
+            isTranslatedSearch = true;
+        }
+    }
+
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
     const int indexReaderMode = IndexReader::NEED_HEADERS | (needSequenceDB ? IndexReader::NEED_SEQUENCES : 0);
-    IndexReader qDbr(par.db1, par.threads, indexReaderMode, touch);
+    IndexReader qDbr(par.db1, par.threads, indexReaderMode | (queryNucs ? IndexReader::NEED_SRC_SEQUENCES : 0), touch);
 
     IndexReader *tDbr;
     if (sameDB) {
         tDbr = &qDbr;
     } else {
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        tDbr = new IndexReader(par.db2, par.threads, indexReaderMode, touch);
+        tDbr = new IndexReader(par.db2, par.threads, indexReaderMode | (queryNucs ? IndexReader::NEED_SRC_SEQUENCES : 0), touch);
     }
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
     EvalueComputation *evaluer = NULL;
-    bool queryNucs = false;
-    bool targetNucs = false;
-    bool isTranslatedSearch = false;
     bool queryProfile = false;
     bool targetProfile = false;
     if (needSequenceDB) {
-        queryNucs = Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
-        targetNucs = Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
-        if((targetNucs == true || queryNucs == true ) && !(queryNucs == true && targetNucs == true)){
-            isTranslatedSearch = true;
-        }
         queryProfile = Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
         targetProfile = Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
         evaluer = new EvalueComputation(tDbr->sequenceReader->getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);

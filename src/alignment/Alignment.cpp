@@ -83,7 +83,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                 targetSeqType = meta.seqType;
                 maxSeqLen = meta.maxSeqLength;
                 compBiasCorrection = meta.compBiasCorr;
-                tdbr = PrefilteringIndexReader::openNewReader(tidxdbr, false, threads, touch);
+                tdbr = PrefilteringIndexReader::openNewReader(tidxdbr, PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX, false, threads, touch);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
         }

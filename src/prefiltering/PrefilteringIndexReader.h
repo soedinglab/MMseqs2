@@ -36,8 +36,10 @@ public:
     static unsigned int SCOREMATRIXNAME;
     static unsigned int SCOREMATRIX2MER;
     static unsigned int SCOREMATRIX3MER;
-    static unsigned int DBRINDEX;
-    static unsigned int DBRDATA;
+    static unsigned int DBR1INDEX;
+    static unsigned int DBR1DATA;
+    static unsigned int DBR2INDEX;
+    static unsigned int DBR2DATA;
     static unsigned int HDR1INDEX;
     static unsigned int HDR1DATA;
     static unsigned int HDR2INDEX;
@@ -48,14 +50,15 @@ public:
     static bool checkIfIndexFile(DBReader<unsigned int> *reader);
     static std::string indexName(const std::string &outDB, bool hasSpacedKmer, int kmerSize);
 
-    static void createIndexFile(const std::string &outDb, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr1,
-                                DBReader<unsigned int> *hdbr2, BaseMatrix *subMat, int maxSeqLen,
-                                bool spacedKmer, const std::string &spacedKmerPattern,
+    static void createIndexFile(const std::string &outDb,
+                                DBReader<unsigned int> *dbr1, DBReader<unsigned int> *dbr2,
+                                DBReader<unsigned int> *hdbr1, DBReader<unsigned int> *hdbr2,
+                                BaseMatrix *subMat, int maxSeqLen, bool spacedKmer, const std::string &spacedKmerPattern,
                                 bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode, int kmerThr);
 
-    static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int headerIdx, unsigned int dataIdx, int threads, bool touch);
+    static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads, bool touch);
 
-    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, bool includeData, int threads, bool touch);
+    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touch);
 
     static SequenceLookup *getMaskedSequenceLookup(DBReader<unsigned int> *dbr, bool touch);
 

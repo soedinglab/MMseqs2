@@ -5,28 +5,30 @@
 #include "FileUtil.h"
 #include "IndexBuilder.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION = "12";
+const char*  PrefilteringIndexReader::CURRENT_VERSION = "13";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
 unsigned int PrefilteringIndexReader::SCOREMATRIX2MER = 3;
 unsigned int PrefilteringIndexReader::SCOREMATRIX3MER = 4;
-unsigned int PrefilteringIndexReader::DBRINDEX = 5;
-unsigned int PrefilteringIndexReader::DBRDATA  = 6;
-unsigned int PrefilteringIndexReader::ENTRIES = 7;
-unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 8;
-unsigned int PrefilteringIndexReader::ENTRIESNUM = 9;
-unsigned int PrefilteringIndexReader::SEQCOUNT = 10;
-unsigned int PrefilteringIndexReader::MASKEDSEQINDEXDATA = 11;
-unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 12;
-unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 13;
-unsigned int PrefilteringIndexReader::UNMASKEDSEQINDEXDATA = 14;
-unsigned int PrefilteringIndexReader::HDR1INDEX = 15;
-unsigned int PrefilteringIndexReader::HDR1DATA = 16;
-unsigned int PrefilteringIndexReader::HDR2INDEX = 17;
-unsigned int PrefilteringIndexReader::HDR2DATA = 18;
-unsigned int PrefilteringIndexReader::GENERATOR = 19;
-unsigned int PrefilteringIndexReader::SPACEDPATTERN = 20;
+unsigned int PrefilteringIndexReader::DBR1INDEX = 5;
+unsigned int PrefilteringIndexReader::DBR1DATA  = 6;
+unsigned int PrefilteringIndexReader::DBR2INDEX = 7;
+unsigned int PrefilteringIndexReader::DBR2DATA  = 8;
+unsigned int PrefilteringIndexReader::ENTRIES = 9;
+unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 10;
+unsigned int PrefilteringIndexReader::ENTRIESNUM = 11;
+unsigned int PrefilteringIndexReader::SEQCOUNT = 12;
+unsigned int PrefilteringIndexReader::MASKEDSEQINDEXDATA = 13;
+unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 14;
+unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 15;
+unsigned int PrefilteringIndexReader::UNMASKEDSEQINDEXDATA = 16;
+unsigned int PrefilteringIndexReader::HDR1INDEX = 17;
+unsigned int PrefilteringIndexReader::HDR1DATA = 18;
+unsigned int PrefilteringIndexReader::HDR2INDEX = 19;
+unsigned int PrefilteringIndexReader::HDR2DATA = 20;
+unsigned int PrefilteringIndexReader::GENERATOR = 21;
+unsigned int PrefilteringIndexReader::SPACEDPATTERN = 22;
 
 extern const char* version;
 
@@ -45,7 +47,8 @@ std::string PrefilteringIndexReader::indexName(const std::string &outDB, bool ha
     return result;
 }
 
-void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader<unsigned int> *dbr,
+void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
+                                              DBReader<unsigned int> *dbr1, DBReader<unsigned int> *dbr2,
                                               DBReader<unsigned int> *hdbr1, DBReader<unsigned int> *hdbr2,
                                               BaseMatrix *subMat, int maxSeqLen,
                                               bool hasSpacedKmer, const std::string &spacedKmerPattern,
@@ -64,7 +67,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
     const int spacedKmer = (hasSpacedKmer) ? 1 : 0;
     const int headers1 = (hdbr1 != NULL) ? 1 : 0;
     const int headers2 = (hdbr2 != NULL) ? 1 : 0;
-    const int seqType = dbr->getDbtype();
+    const int seqType = dbr1->getDbtype();
     int metadata[] = {maxSeqLen, kmerSize, biasCorr, alphabetSize, mask, spacedKmer, kmerThr, seqType, headers1, headers2};
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, sizeof(metadata), META, 0);
@@ -104,7 +107,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
     IndexBuilder::fillDatabase(indexTable,
                                (maskMode == 1 || maskMode == 2) ? &maskedLookup : NULL,
                                (maskMode == 0 || maskMode == 2) ? &unmaskedLookup : NULL,
-                               *subMat, &seq, dbr, 0, dbr->getSize(), kmerThr);
+                               *subMat, &seq, dbr1, 0, dbr1->getSize(), kmerThr);
     indexTable->printStatistics(subMat->int2aa);
 
     SequenceLookup *sequenceLookup = maskedLookup;
@@ -176,21 +179,37 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
     writer.writeData(subMat->getMatrixName().c_str(), subMat->getMatrixName().length(), SCOREMATRIXNAME, 0);
     writer.alignToPageSize();
 
-    if (spacedKmerPattern != "") {
+    if (spacedKmerPattern.empty() != false) {
         Debug(Debug::INFO) << "Write SPACEDPATTERN (" << SPACEDPATTERN << ")\n";
         writer.writeData(spacedKmerPattern.c_str(), spacedKmerPattern.length(), SPACEDPATTERN, 0);
         writer.alignToPageSize();
     }
 
-    Debug(Debug::INFO) << "Write DBRINDEX (" << DBRINDEX << ")\n";
-    char* data = DBReader<unsigned int>::serialize(*dbr);
-    writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*dbr), DBRINDEX, 0);
+    Debug(Debug::INFO) << "Write DBR1INDEX (" << DBR1INDEX << ")\n";
+    char* data = DBReader<unsigned int>::serialize(*dbr1);
+    size_t offsetIndex = writer.getOffset(0);
+    writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*dbr1), DBR1INDEX, 0);
+    writer.alignToPageSize();
+
+    Debug(Debug::INFO) << "Write DBR1DATA (" << DBR1DATA << ")\n";
+    size_t offsetData = writer.getOffset(0);
+    writer.writeData(dbr1->getData(), dbr1->getDataSize(), DBR1DATA, 0);
     writer.alignToPageSize();
     free(data);
 
-    Debug(Debug::INFO) << "Write DBRDATA (" << DBRDATA << ")\n";
-    writer.writeData(dbr->getData(), dbr->getDataSize(), DBRDATA, 0);
-    writer.alignToPageSize();
+    if (dbr2 == NULL) {
+        writer.writeIndexEntry(DBR2INDEX, offsetIndex, DBReader<unsigned int>::indexMemorySize(*dbr1)+1, 0);
+        writer.writeIndexEntry(DBR2DATA,  offsetData,  dbr1->getDataSize()+1, 0);
+    } else {
+        Debug(Debug::INFO) << "Write DBR2INDEX (" << DBR2INDEX << ")\n";
+        data = DBReader<unsigned int>::serialize(*dbr2);
+        writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*dbr2), DBR2INDEX, 0);
+        writer.alignToPageSize();
+        Debug(Debug::INFO) << "Write DBR2DATA (" << DBR2DATA << ")\n";
+        writer.writeData(dbr2->getData(), dbr2->getDataSize(), DBR2DATA, 0);
+        writer.alignToPageSize();
+        free(data);
+    }
 
     if (hdbr1 != NULL) {
         Debug(Debug::INFO) << "Write HDR1INDEX (" << HDR1INDEX << ")\n";
@@ -227,8 +246,8 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
     Debug(Debug::INFO) << "Done. \n";
 }
 
-DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int headerIdx, unsigned int dataIdx, int threads, bool touch) {
-    size_t indexId = dbr->getId(headerIdx);
+DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads, bool touch) {
+    size_t indexId = dbr->getId(indexIdx);
     char *indexData = dbr->getData(indexId, 0);
     if (touch) {
         dbr->touchData(indexId);
@@ -252,15 +271,15 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<un
     return reader;
 }
 
-DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr, bool includeData, int threads, bool touch) {
-    size_t id = dbr->getId(DBRINDEX);
+DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touch) {
+    size_t id = dbr->getId(indexIdx);
     char *data = dbr->getDataUncompressed(id);
     if (touch) {
         dbr->touchData(id);
     }
 
     if (includeData) {
-        id = dbr->getId(DBRDATA);
+        id = dbr->getId(dataIdx);
         if (id == UINT_MAX) {
             return NULL;
         }
