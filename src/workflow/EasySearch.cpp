@@ -57,6 +57,7 @@ int easysearch(int argc, const char **argv, const Command &command) {
     if (needBacktrace) {
         Debug(Debug::INFO) << "Alignment backtraces will be computed, since they were requested by output format.\n";
         par.addBacktrace = true;
+        par.PARAM_ADD_BACKTRACE.wasSet = true;
     }
 
     if (FileUtil::directoryExists(par.db4.c_str()) == false) {
@@ -89,13 +90,12 @@ int easysearch(int argc, const char **argv, const Command &command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
 
     cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb).c_str());
-    std::string searchParam = par.createParameterString(par.searchworkflow, true);
-    cmd.addVariable("SEARCH_PAR", searchParam.c_str());
+    cmd.addVariable("SEARCH_PAR", par.createParameterString(par.searchworkflow, true).c_str());
     cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());
     cmd.addVariable("SUMMARIZE_PAR", par.createParameterString(par.summarizeresult).c_str());
 
-    FileUtil::writeFile(tmpDir + "/easysearch.sh", easysearch_sh, easysearch_sh_len);
-    std::string program(tmpDir + "/easysearch.sh");
+    std::string program = tmpDir + "/easysearch.sh";
+    FileUtil::writeFile(program, easysearch_sh, easysearch_sh_len);
     cmd.execProgram(program.c_str(), par.filenames);
 
     // Should never get here
