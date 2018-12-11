@@ -769,6 +769,7 @@ public:
     std::vector<MMseqsParameter*> extractorfs;
     std::vector<MMseqsParameter*> extractframes;
     std::vector<MMseqsParameter*> orftocontig;
+    std::vector<MMseqsParameter*> reverseseq;
     std::vector<MMseqsParameter*> splitdb;
     std::vector<MMseqsParameter*> splitsequence;
     std::vector<MMseqsParameter*> indexdb;
