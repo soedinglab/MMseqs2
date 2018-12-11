@@ -374,12 +374,12 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
             compressedLength = offsets[thrIdx] - starts[thrIdx];
         }
         unsigned int compressedLengthInt = static_cast<unsigned int>(compressedLength);
-        //TODO write at pos
         size_t written2 = fwrite(&compressedLengthInt, sizeof(unsigned int), 1, dataFiles[thrIdx]);
         if (written2 != 1) {
             Debug(Debug::ERROR) << "Could not write entry length to data file " << dataFileNames[thrIdx] << "\n";
             EXIT(EXIT_FAILURE);
         }
+        offsets[thrIdx] +=  sizeof(unsigned int);
         writeThreadBuffer(thrIdx, compressedLength);
     }
 
@@ -406,6 +406,9 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
         if (isCompressedDB && state[thrIdx]==COMPRESSED) {
             ZSTD_frameProgression progression = ZSTD_getFrameProgression(cstream[thrIdx]);
             length = progression.consumed + totalWritten;
+        }
+        if (isCompressedDB && state[thrIdx]==NOTCOMPRESSED) {
+            length -= sizeof(unsigned int);
         }
         writeIndexEntry(key, starts[thrIdx], length, thrIdx);
     }
