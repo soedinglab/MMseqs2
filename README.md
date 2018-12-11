@@ -8,12 +8,17 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 [Steinegger M and Soeding J. Clustering huge protein sequence sets in linear time. Nature Communications, doi: 10.1038/s41467-018-04964-5 (2018)](https://www.nature.com/articles/s41467-018-04964-5).
 
 [![BioConda Install](https://img.shields.io/conda/dn/bioconda/mmseqs2.svg?style=flag&label=BioConda%20install)](https://anaconda.org/bioconda/mmseqs2)
+[![Github All Releases](https://img.shields.io/github/downloads/soedinglab/mmseqs2/total.svg)](https://github.com/soedinglab/mmseqs2/releases/latest)
 ![Codeship CI](https://codeship.com/projects/58db4570-5f19-0134-0f23-2e28d2b4319e/status?branch=master)
 ![AppVeyor CI](https://ci.appveyor.com/api/projects/status/lq8nxeb0j8v38d1a?svg=true)
 ![Travis CI](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)
 ![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.840208.svg)
 
 <p align="center"><img src="https://raw.githubusercontent.com/soedinglab/mmseqs2/master/mmseqs2_logo.png" height="256" /></p>
+
+
+## Documentation 
+The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). We provide a tutorial of MMseqs2 [here](https://github.com/soedinglab/metaG-ECCB18-partII).
 
 ## News
 Keep posted about MMseqs2/Linclust updates by following Martin on [Twitter](https://twitter.com/thesteinegger).
@@ -27,8 +32,11 @@ Keep posted about MMseqs2/Linclust updates by following Martin on [Twitter](http
 ## Installation
 MMseqs2 can be used by compiling from source, downloading a statically compiled version, using [Homebrew](https://github.com/Homebrew/brew), [conda](https://github.com/conda/conda) or [Docker](https://github.com/moby/moby). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux or `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
      
+     # install by brew
      brew install mmseqs2
-     conda install -c biocore mmseqs2 
+     # install via conda
+     conda install -c bioconda mmseqs2 
+     # install docker
      docker pull soedinglab/mmseqs2
      # latest versions
      brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs2.rb --HEAD
@@ -153,9 +161,6 @@ To extract the representative sequences from the clustering result call:
         mmseqs result2flat DB DB DB_clu_rep DB_clu_rep.fasta --use-fasta-header
 
 Read more about the format [here](https://github.com/soedinglab/mmseqs2/wiki#clustering-format).
-
-### Documentation 
-The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). We provide a tutorial of MMseqs2 [here](https://github.com/soedinglab/metaG-ECCB18-partII).
 
 ### Memory Requirements
 MMseqs2 checks the avialalbe memory of the computer and automatically divide the target database in part to fit in memory. Splitting the database will increase the runtime slightly.
