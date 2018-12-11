@@ -6,19 +6,10 @@
 //
 #include <iostream>
 #include <cmath>
-
-#include "StripedSmithWaterman.h"
-#include "Sequence.h"
-#include "Indexer.h"
-#include "ExtendedSubstitutionMatrix.h"
 #include "SubstitutionMatrix.h"
 #include "ReducedMatrix.h"
-#include "KmerGenerator.h"
 #include "BaseMatrix.h"
-#include "StripedSmithWaterman.h"
 #include "Parameters.h"
-#include "Matcher.h"
-4:55 PM
 const char* binary_name = "test_bestalphabet";
 
 int main (int, const char**) {
