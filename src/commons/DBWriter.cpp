@@ -352,8 +352,7 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
         if(state[thrIdx] == COMPRESSED) {
             ZSTD_outBuffer output = {compressedBuffers[thrIdx], compressedBufferSizes[thrIdx], 0};
             size_t remainingToFlush = ZSTD_endStream(cstream[thrIdx], &output); /* close frame */
-            ZSTD_frameProgression progression = ZSTD_getFrameProgression(cstream[thrIdx]);
-            compressedLength = progression.produced;
+
             //        std::cout << compressedLength << std::endl;
             if (ZSTD_isError(remainingToFlush)) {
                 Debug(Debug::ERROR) << "ERROR: ZSTD_endStream() error in thread " << thrIdx << ". Error "
@@ -365,6 +364,7 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
                 EXIT(EXIT_FAILURE);
             }
             size_t written = addToThreadBuffer(compressedBuffers[thrIdx], sizeof(char), output.pos, thrIdx);
+            compressedLength = threadBufferOffset[thrIdx];
             offsets[thrIdx] += written;
             if (written != output.pos) {
                 Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
