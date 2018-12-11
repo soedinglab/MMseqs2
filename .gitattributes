@@ -1,0 +1,2 @@
+lib/* linguist-vendored
+lib/simd linguist-vendored=false
