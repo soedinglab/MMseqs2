@@ -68,6 +68,7 @@ extern int result2profile(int argc, const char **argv, const Command& command);
 extern int result2repseq(int argc, const char **argv, const Command& command);
 extern int result2stats(int argc, const char **argv, const Command& command);
 extern int resultsbyset(int argc, const char **argv, const Command &command);
+extern int reverseseq(int argc, const char **argv, const Command& command);
 extern int search(int argc, const char **argv, const Command& command);
 extern int sequence2profile(int argc, const char **argv, const Command& command);
 extern int shellcompletion(int argc, const char **argv, const Command& command);

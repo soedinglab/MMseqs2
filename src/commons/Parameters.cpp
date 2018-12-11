@@ -544,6 +544,11 @@ Parameters::Parameters():
     orftocontig.push_back(&PARAM_COMPRESSED);
     orftocontig.push_back(&PARAM_V);
 
+    // orf to contig
+    reverseseq.push_back(&PARAM_THREADS);
+    reverseseq.push_back(&PARAM_COMPRESSED);
+    reverseseq.push_back(&PARAM_V);
+
     // splitsequence
     splitsequence.push_back(&PARAM_MAX_SEQ_LEN);
     splitsequence.push_back(&PARAM_SEQUENCE_OVERLAP);
