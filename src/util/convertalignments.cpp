@@ -91,19 +91,20 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
 
     bool needSequenceDB = false;
-    bool needbacktrace = false;
-    const std::vector<int> outcodes = Parameters::getOutputFormat(par.outfmt, needSequenceDB, needbacktrace);
+    bool needBacktrace = false;
+    bool needFullHeaders = false;
+    const std::vector<int> outcodes = Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
 
-    Debug(Debug::INFO) << "Query Header database: " << par.hdr1 << "\n";
+    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
     const int indexReaderMode = IndexReader::NEED_HEADERS | (needSequenceDB ? IndexReader::NEED_SEQUENCES : 0);
-    IndexReader qDbr(par.db1.c_str(), par.threads, indexReaderMode, touch);
+    IndexReader qDbr(par.db1, par.threads, indexReaderMode, touch);
 
     IndexReader *tDbr;
     if (sameDB) {
         tDbr = &qDbr;
     } else {
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        tDbr = new IndexReader(par.db2.c_str(), par.threads, indexReaderMode, touch);
+        tDbr = new IndexReader(par.db2, par.threads, indexReaderMode, touch);
     }
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
@@ -128,16 +129,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
+    unsigned int localThreads = 1;
 #ifdef OPENMP
-    unsigned int totalThreads = par.threads;
-#else
-    unsigned int totalThreads = 1;
+    localThreads = std::min((unsigned int)par.threads, (unsigned int)alnDbr.getSize());
 #endif
-
-    unsigned int localThreads = totalThreads;
-    if (alnDbr.getSize() <= totalThreads) {
-        localThreads = alnDbr.getSize();
-    }
 
     const bool shouldCompress = par.dbOut == true && par.compressed == true;
     const int dbType = par.dbOut == true ? Parameters::DBTYPE_GENERIC_DB : Parameters::DBTYPE_OMIT_FILE;
@@ -165,6 +160,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         std::string queryBuffer;
         queryProfData.reserve(1024);
 
+        std::string queryHeaderBuffer;
+        queryHeaderBuffer.reserve(1024);
+
         std::string targetProfData;
         targetProfData.reserve(1024);
 
@@ -179,9 +177,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 size_t qId = qDbr.sequenceReader->getId(queryKey);
                 querySeqData = qDbr.sequenceReader->getData(qId, thread_idx);
                 if(sameDB && qDbr.sequenceReader->isCompressed()){
-                    size_t querySeqDataLen = qDbr.sequenceReader->getSeqLens(qId) - 2;
-                    queryBuffer.clear();
-                    queryBuffer.append(querySeqData, querySeqDataLen);
+                    size_t querySeqDataLen = std::max(qDbr.sequenceReader->getSeqLens(qId), static_cast<size_t>(2)) - 2;
+                    queryBuffer.assign(querySeqData, querySeqDataLen);
                     querySeqData = (char*) queryBuffer.c_str();
                 }
                 if (queryProfile) {
@@ -193,13 +190,17 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             const char *qHeader = qDbr.headerReader->getData(qHeaderId, thread_idx);
             size_t qHeaderLen = qDbr.headerReader->getSeqLens(qHeaderId);
             std::string queryId = Util::parseFastaHeader(qHeader);
+            if (sameDB && needFullHeaders) {
+                queryHeaderBuffer.assign(qHeader, std::max(qHeaderLen, static_cast<size_t>(2)) - 2);
+                qHeader = (char*) queryHeaderBuffer.c_str();
+            }
 
             char *data = alnDbr.getData(i, thread_idx);
             while (*data != '\0') {
                 Matcher::result_t res = Matcher::parseAlignmentRecord(data, true);
                 data = Util::skipLine(data);
 
-                if (res.backtrace.size() == 0 && needbacktrace == true) {
+                if (res.backtrace.empty() && needBacktrace == true) {
                     Debug(Debug::ERROR) << "Backtrace cigar is missing in the alignment result. Please recompute the alignment with the -a flag.\n"
                                            "Command: mmseqs align " << par.db1 << " " << par.db2 << " " << par.db3 << " " << "alnNew -a\n";
                     EXIT(EXIT_FAILURE);
@@ -214,7 +215,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 unsigned int alnLen = res.alnLength;
                 unsigned int missMatchCount = 0;
                 unsigned int identical = 0;
-                if (res.backtrace.size() > 0) {
+                if (res.backtrace.empty() == false) {
                     size_t matchCount = 0;
                     alnLen = 0;
                     for (size_t pos = 0; pos < res.backtrace.size(); pos++) {
@@ -238,7 +239,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         }
                     }
 //                res.seqId = X / alnLen;
-                    identical = static_cast<unsigned int>( res.seqId * static_cast<float>(alnLen) + 0.5 );
+                    identical = static_cast<unsigned int>(res.seqId * static_cast<float>(alnLen) + 0.5);
                     //res.alnLength = alnLen;
                     missMatchCount = static_cast<unsigned int>( matchCount - identical);
                 } else {

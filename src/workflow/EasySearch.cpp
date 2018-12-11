@@ -51,7 +51,8 @@ int easysearch(int argc, const char **argv, const Command &command) {
     bool needBacktrace = false;
     {
         bool needSequenceDB = false;
-        Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace);
+        bool needFullHeaders = false;
+        Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
     }
     if (needBacktrace) {
         Debug(Debug::INFO) << "Alignment backtraces will be computed, since they were requested by output format.\n";
