@@ -30,6 +30,7 @@ set(TESTS
         TestCSProfile.cpp
         TestUtil.cpp
         TestKsw2.cpp
+        TestBestAlphabet.cpp
         )
 
 
