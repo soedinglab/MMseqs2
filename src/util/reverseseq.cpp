@@ -16,7 +16,7 @@ int reverseseq(int argn, const char **argv, const Command& command) {
     DBReader<unsigned int> seqReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     seqReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter revSeqWriter(par.db2.c_str(), par.db2Index.c_str(), 1, par.compressed, seqReader.getDbtype());
+    DBWriter revSeqWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, seqReader.getDbtype());
     revSeqWriter.open();
 
 #pragma omp parallel
