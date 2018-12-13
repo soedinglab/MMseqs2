@@ -725,6 +725,15 @@ int DBReader<T>::parseDbType(const char *name) {
         fclose(dbtypeDataFile);
     } else{
         Debug(Debug::ERROR) << "Dbtype file  " << dbTypeFile << " does not exists!\n";
+        Debug(Debug::ERROR) << "A dbtype file can be created the following way!\n";
+        Debug(Debug::ERROR) << "Amino acid sequence database \n";
+        Debug(Debug::ERROR) << "awk 'BEGIN { printf(\"%c%c%c%c\",0,0,0,0); exit; }' > " << dbTypeFile << "\n";
+        Debug(Debug::ERROR) << "Nucleotide sequence database \n";
+        Debug(Debug::ERROR) << "awk 'BEGIN { printf(\"%c%c%c%c\",1,0,0,0); exit; }' > " << dbTypeFile << "\n";
+        Debug(Debug::ERROR) << "Profile\n";
+        Debug(Debug::ERROR) << "awk 'BEGIN { printf(\"%c%c%c%c\",2,0,0,0); exit; }' > " << dbTypeFile << "\n";
+        Debug(Debug::ERROR) << "Generic database e.g for header databases (extension '_h') \n";
+        Debug(Debug::ERROR) << "awk 'BEGIN { printf(\"%c%c%c%c\",12,0,0,0); exit; }' > " << dbTypeFile << "\n";
         EXIT(EXIT_FAILURE);
     }
     return dbtype;
