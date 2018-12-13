@@ -123,6 +123,11 @@ int createdb(int argc, const char **argv, const Command& command) {
     size_t isNuclCnt = 0;
     std::string dataStr;
     dataStr.reserve(1000000);
+
+    std::vector<unsigned int>* sourceLookup = new std::vector<unsigned int>[shuffleSplits]();
+    for (size_t i = 0; i < shuffleSplits; ++i) {
+        sourceLookup[i].reserve(1024);
+    }
     for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
         unsigned int numEntriesInCurrFile = 0;
         std::string splitHeader;
@@ -224,6 +229,7 @@ int createdb(int argc, const char **argv, const Command& command) {
 
                 // Finally write down the entry
                 unsigned int splitIdx = id % shuffleSplits;
+                sourceLookup[splitIdx].emplace_back(fileIdx);
 
                 hdrWriter.writeData(splitHeader.c_str(), splitHeader.length(), id, splitIdx);
 
@@ -268,7 +274,15 @@ int createdb(int argc, const char **argv, const Command& command) {
 
     char lookupBuffer[32768];
     const char tab = '\t';
+    unsigned int splitIdx = 0;
+    unsigned int splitCounter = 0;
     for (unsigned int id = 0; id < readerHeader.getSize(); id++) {
+        size_t splitSize = sourceLookup[splitIdx].size();
+        if (splitSize == 0 || splitCounter > sourceLookup[splitIdx].size() - 1) {
+            splitIdx++;
+            splitCounter = 0;
+        }
+
         char *header = readerHeader.getData(id, 0);
         std::string headerId = Util::parseFastaHeader(header);
         if (headerId.empty()) {
@@ -281,13 +295,16 @@ int createdb(int argc, const char **argv, const Command& command) {
         lookupFile.writeAdd(lookupBuffer, tmpBuff - lookupBuffer, 0);
         lookupFile.writeAdd(headerId.c_str(), headerId.length(), 0);
         lookupFile.writeAdd(&tab, 1, 0);
-        tmpBuff = Itoa::u32toa_sse2(0, lookupBuffer);
+        tmpBuff = Itoa::u32toa_sse2(sourceLookup[splitIdx][splitCounter], lookupBuffer);
         *(tmpBuff - 1) = '\n';
         lookupFile.writeAdd(lookupBuffer, tmpBuff - lookupBuffer, 0);
         lookupFile.writeEnd(id, 0, false);
+
+        splitCounter++;
     }
     lookupFile.close();
     FileUtil::deleteFile(lookupIndexFile);
+    delete[] sourceLookup;
 
     return EXIT_SUCCESS;
 }
