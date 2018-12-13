@@ -31,7 +31,6 @@ int reverseseq(int argn, const char **argv, const Command& command) {
 #pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < seqReader.getSize(); id++) {
             Debug::printProgress(id);
-
             unsigned int seqKey = seqReader.getDbKey(id);
             char *seq = seqReader.getData(id, thread_idx);
             size_t lenSeq = seqReader.getSeqLens(id); // includes \n\0
