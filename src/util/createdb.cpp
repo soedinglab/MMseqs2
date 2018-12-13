@@ -124,9 +124,9 @@ int createdb(int argc, const char **argv, const Command& command) {
     std::string dataStr;
     dataStr.reserve(1000000);
 
-    std::vector<unsigned int>* sourceLookup = new std::vector<unsigned int>[shuffleSplits]();
+    std::vector<unsigned short>* sourceLookup = new std::vector<unsigned short>[shuffleSplits]();
     for (size_t i = 0; i < shuffleSplits; ++i) {
-        sourceLookup[i].reserve(1024);
+        sourceLookup[i].reserve(16384);
     }
     for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
         unsigned int numEntriesInCurrFile = 0;
