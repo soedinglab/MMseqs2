@@ -723,6 +723,9 @@ int DBReader<T>::parseDbType(const char *name) {
             EXIT(EXIT_FAILURE);
         }
         fclose(dbtypeDataFile);
+    } else{
+        Debug(Debug::ERROR) << "Dbtype file  " << dbTypeFile << " does not exists!\n";
+        EXIT(EXIT_FAILURE);
     }
     return dbtype;
 }
