@@ -21,7 +21,7 @@
 template <typename T>
 DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int threads, int dataMode) :
         data(NULL), threads(threads), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
-        indexFileName(strdup(indexFileName_)), size(0), dataSize(0), aaDbSize(0), lastKey(T()), closed(1), dbtype(-1),
+        indexFileName(strdup(indexFileName_)), size(0), dataSize(0), aaDbSize(0), lastKey(T()), closed(1), dbtype(Parameters::DBTYPE_GENERIC_DB),
         compressedBuffers(NULL), compressedBufferSizes(NULL), index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),
         dataMapped(false), accessType(0), externalData(false), didMlock(false)
 {}
@@ -704,28 +704,28 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data, in
 template <typename T>
 int DBReader<T>::parseDbType(const char *name) {
     std::string dbTypeFile = std::string(name) + ".dbtype";
-    int dbtype = -1;
-    if (FileUtil::fileExists(dbTypeFile.c_str()) == true) {
-        size_t fileSize = FileUtil::getFileSize(dbTypeFile);
-        if (fileSize != sizeof(int)) {
-            Debug(Debug::ERROR) << "File size of " << dbTypeFile << " seems to be wrong!\n";
-            Debug(Debug::ERROR) << "It should have 4 bytes but it has " <<  fileSize << " bytes.";
-            EXIT(EXIT_FAILURE);
-        }
-        FILE *dbtypeDataFile = fopen(dbTypeFile.c_str(), "r");
-        if (dbtypeDataFile == NULL) {
-            Debug(Debug::ERROR) << "Could not open data file " << dbTypeFile << "!\n";
-            EXIT(EXIT_FAILURE);
-        }
-        size_t result = fread(&dbtype, 1, fileSize, dbtypeDataFile);
-        if (result != fileSize) {
-            Debug(Debug::ERROR) << "Could not read " << dbTypeFile << "!\n";
-            EXIT(EXIT_FAILURE);
-        }
-        fclose(dbtypeDataFile);
-    } else{
-        dbtype = Parameters::DBTYPE_GENERIC_DB;
+    if (FileUtil::fileExists(dbTypeFile.c_str()) == false) {
+        return Parameters::DBTYPE_GENERIC_DB;
     }
+
+    size_t fileSize = FileUtil::getFileSize(dbTypeFile);
+    if (fileSize != sizeof(int)) {
+        Debug(Debug::ERROR) << "File size of " << dbTypeFile << " seems to be wrong!\n";
+        Debug(Debug::ERROR) << "It should have 4 bytes but it has " <<  fileSize << " bytes.";
+        EXIT(EXIT_FAILURE);
+    }
+    FILE *file = fopen(dbTypeFile.c_str(), "r");
+    if (file == NULL) {
+        Debug(Debug::ERROR) << "Could not open data file " << dbTypeFile << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    int dbtype;
+    size_t result = fread(&dbtype, 1, fileSize, file);
+    if (result != fileSize) {
+        Debug(Debug::ERROR) << "Could not read " << dbTypeFile << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    fclose(file);
     return dbtype;
 }
 
@@ -767,7 +767,7 @@ size_t DBReader<T>::findNextOffsetid(size_t id) {
 
 template<typename T>
 int DBReader<T>::isCompressed(int dbtype) {
-    return (dbtype & (1 << 31))? COMPRESSED : UNCOMPRESSED;
+    return (dbtype & (1 << 31)) ? COMPRESSED : UNCOMPRESSED;
 }
 
 template class DBReader<unsigned int>;
