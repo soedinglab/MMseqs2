@@ -46,8 +46,12 @@ int easycluster(int argc, const char **argv, const Command &command) {
             Debug(Debug::INFO) << "Created dir " << par.db3 << "\n";
         }
     }
-    size_t hash = par.hashParameter(par.filenames, *command.params);
-    std::string tmpDir = par.db3 + "/" + SSTR(hash);
+
+    std::string hash = SSTR(par.hashParameter(par.filenames, *command.params));
+    if(par.reuseLatest){
+        hash = FileUtil::getHashFromSymLink(par.db3+"/latest");
+    }
+    std::string tmpDir = par.db3+"/"+hash;
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
             Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";

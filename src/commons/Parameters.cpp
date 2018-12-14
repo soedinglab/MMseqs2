@@ -128,6 +128,7 @@ Parameters::Parameters():
         PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash", typeid(int), (void*) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","use MPI on compute grid with this MPI command (e.g. \"mpirun -np 42\")",typeid(std::string),(void *) &runner, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart using the latest tmp","reuse tmp file in tmp/latest folder ignoring parameters and git version change", typeid(bool),(void *) &reuseLatest, "", MMseqsParameter::COMMAND_EXPERT),
         // search workflow
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","Search iterations",typeid(int),(void *) &numIterations, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_START_SENS(PARAM_START_SENS_ID, "--start-sens", "Start sensitivity","start sensitivity",typeid(float),(void *) &startSens, "^[0-9]*(\\.[0-9]+)?$"),
@@ -840,6 +841,7 @@ Parameters::Parameters():
     searchworkflow.push_back(&PARAM_STRAND);
     searchworkflow.push_back(&PARAM_DISK_SPACE_LIMIT);
     searchworkflow.push_back(&PARAM_RUNNER);
+    searchworkflow.push_back(&PARAM_REUSELATEST);
     searchworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
 
     // easysearch
@@ -858,6 +860,7 @@ Parameters::Parameters():
     linclustworkflow = combineList(linclustworkflow, kmermatcher);
     linclustworkflow = combineList(linclustworkflow, rescorediagonal);
     linclustworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
+    linclustworkflow.push_back(&PARAM_REUSELATEST);
     linclustworkflow.push_back(&PARAM_RUNNER);
 
     // easylinclustworkflow
@@ -870,6 +873,7 @@ Parameters::Parameters():
     clusterworkflow.push_back(&PARAM_CASCADED);
     clusterworkflow.push_back(&PARAM_CLUSTER_STEPS);
     clusterworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
+    clusterworkflow.push_back(&PARAM_REUSELATEST);
     clusterworkflow.push_back(&PARAM_RUNNER);
     clusterworkflow = combineList(clusterworkflow, linclustworkflow);
 
@@ -879,6 +883,7 @@ Parameters::Parameters():
     // taxonomy
     taxonomy = combineList(searchworkflow, lca);
     taxonomy.push_back(&PARAM_LCA_MODE);
+    taxonomy.push_back(&PARAM_USESEQID);
     taxonomy.push_back(&PARAM_REMOVE_TMP_FILES);
     taxonomy.push_back(&PARAM_RUNNER);
 
@@ -894,6 +899,7 @@ Parameters::Parameters():
     clusterUpdateSearch = removeParameter(searchworkflow, PARAM_MAX_SEQS);
     clusterUpdateClust = removeParameter(clusterworkflow, PARAM_MAX_SEQS);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
+    clusterUpdate.push_back(&PARAM_REUSELATEST);
     clusterUpdate.push_back(&PARAM_USESEQID);
     clusterUpdate.push_back(&PARAM_RECOVER_DELETED);
 
@@ -903,6 +909,7 @@ Parameters::Parameters():
     mapworkflow.push_back(&PARAM_START_SENS);
     mapworkflow.push_back(&PARAM_SENS_STEPS);
     mapworkflow.push_back(&PARAM_RUNNER);
+    mapworkflow.push_back(&PARAM_REUSELATEST);
     mapworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
 
     enrichworkflow = combineList(searchworkflow, prefilter);
@@ -910,6 +917,7 @@ Parameters::Parameters():
     enrichworkflow = combineList(enrichworkflow, align);
     enrichworkflow = combineList(enrichworkflow, expandaln);
     enrichworkflow = combineList(enrichworkflow, result2profile);
+    enrichworkflow.push_back(&PARAM_REUSELATEST);
     enrichworkflow.push_back(&PARAM_NUM_ITERATIONS);
 
     //checkSaneEnvironment();
@@ -1410,7 +1418,7 @@ void Parameters::setDefaults() {
     } else {
         runner = "";
     }
-
+    reuseLatest = false;
     // Clustering workflow
     removeTmpFiles = false;
 

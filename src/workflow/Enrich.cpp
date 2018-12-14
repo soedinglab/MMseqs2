@@ -23,8 +23,11 @@ int enrich(int argc, const char **argv, const Command &command) {
             Debug(Debug::INFO) << "Created dir " << par.db6 << "\n";
         }
     }
-    size_t hash = par.hashParameter(par.filenames, par.enrichworkflow);
-    std::string tmpDir = par.db6 + "/" + SSTR(hash);
+    std::string hash = SSTR(par.hashParameter(par.filenames, par.enrichworkflow));
+    if(par.reuseLatest){
+        hash = FileUtil::getHashFromSymLink(par.db6+"/latest");
+    }
+    std::string tmpDir = par.db6+"/"+hash;
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
             Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";

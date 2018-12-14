@@ -30,8 +30,13 @@ int search2m(int argc, const char **argv, const Command& command) {
             Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
         }
     }
-    size_t hash = par.hashParameter(par.filenames, par.taxonomy);
-    std::string tmpDir = par.db4+"/"+SSTR(hash);
+
+
+    std::string hash = SSTR(par.hashParameter(par.filenames, par.searchworkflow));
+    if(par.reuseLatest){
+        hash = FileUtil::getHashFromSymLink(par.db4+"/latest");
+    }
+    std::string tmpDir = par.db4+"/"+hash;
     if(FileUtil::directoryExists(tmpDir.c_str())==false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
             Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";

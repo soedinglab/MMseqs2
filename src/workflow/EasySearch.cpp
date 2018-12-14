@@ -70,8 +70,11 @@ int easysearch(int argc, const char **argv, const Command &command) {
         }
     }
 
-    size_t hash = par.hashParameter(par.filenames, *command.params);
-    std::string tmpDir = par.db4 + "/" + SSTR(hash);
+    std::string hash = SSTR(par.hashParameter(par.filenames, *command.params));
+    if(par.reuseLatest){
+        hash = FileUtil::getHashFromSymLink(par.db4+"/latest");
+    }
+    std::string tmpDir = par.db4+"/"+hash;
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
             Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";

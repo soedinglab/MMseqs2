@@ -284,6 +284,7 @@ public:
 
     // workflow
     std::string runner;
+    bool reuseLatest;
 
     // CLUSTERING
     int    clusteringMode;
@@ -626,6 +627,7 @@ public:
 
     // workflow
     PARAMETER(PARAM_RUNNER)
+    PARAMETER(PARAM_REUSELATEST)
 
     // search workflow
     PARAMETER(PARAM_NUM_ITERATIONS)

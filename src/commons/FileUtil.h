@@ -20,6 +20,8 @@ public:
 
     static void deleteTempFiles(const std::list<std::string> &tmpFiles);
 
+    static std::string getHashFromSymLink(const std::string path);
+
     static void* mmapFile(FILE * file, size_t *dataSize);
 
     static void deleteFile(const std::string &tmpFiles);

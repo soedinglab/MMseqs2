@@ -28,8 +28,11 @@ int multihitdb(int argc, const char **argv, const Command &command) {
             Debug(Debug::INFO) << "Created dir " << tmpDir << "\n";
         }
     }
-    size_t hash = par.hashParameter(par.filenames, par.multihitdb);
-    tmpDir = tmpDir + "/" + SSTR(hash);
+    std::string hash = SSTR(par.hashParameter(par.filenames, par.multihitdb));
+    if(par.reuseLatest == true){
+        hash = FileUtil::getHashFromSymLink(tmpDir + "/latest" );
+    }
+    tmpDir = tmpDir + "/" + hash;
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
             Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
