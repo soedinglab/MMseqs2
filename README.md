@@ -9,10 +9,11 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 
 [![BioConda Install](https://img.shields.io/conda/dn/bioconda/mmseqs2.svg?style=flag&label=BioConda%20install)](https://anaconda.org/bioconda/mmseqs2)
 [![Github All Releases](https://img.shields.io/github/downloads/soedinglab/mmseqs2/total.svg)](https://github.com/soedinglab/mmseqs2/releases/latest)
+[![Docker Pulls](https://img.shields.io/docker/pulls/soedinglab/mmseqs2.svg)](https://hub.docker.com/r/soedinglab/mmseqs2)
 ![Codeship CI](https://codeship.com/projects/58db4570-5f19-0134-0f23-2e28d2b4319e/status?branch=master)
 ![AppVeyor CI](https://ci.appveyor.com/api/projects/status/lq8nxeb0j8v38d1a?svg=true)
-![Travis CI](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)
-![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.840208.svg)
+[![Travis CI](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)](https://travis-ci.org/soedinglab/MMseqs2)
+[![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.840208.svg)](https://zenodo.org/record/1718312)
 
 <p align="center"><img src="https://raw.githubusercontent.com/soedinglab/mmseqs2/master/mmseqs2_logo.png" height="256" /></p>
 
