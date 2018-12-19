@@ -56,7 +56,7 @@ fi
 mkdir -p "$4/search"
 if notExists "$4/aln"; then
     # shellcheck disable=SC2086
-    "$SEARCH" "${QUERY}" "${TARGET}" "$4/aln" "$4/search" ${SEARCH_PAR} \
+    "$SEARCH" "${QUERY}" "${TARGET}" "$4/aln" "$4/search" \
         || fail "Search step died"
 fi
 
