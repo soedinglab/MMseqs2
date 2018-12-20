@@ -89,7 +89,7 @@ std::vector<struct Command> commands = {
                 "<i:queryDB> [<i:targetDB>] <i:resultDB> <o:tsvFile>",
                 CITATION_MMSEQS2},
         {"convertalis",          convertalignments,    &par.convertalignments,    COMMAND_FORMAT_CONVERSION,
-                "Convert alignment DB to BLAST-tab format, SAM flat file, or to raw pairwise alignments",
+                "Convert alignment DB to BLAST-tab format or specified custom-column output format",
                 NULL,
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:queryDb> <i:targetDb> <i:alignmentDB> <o:alignmentFile>",
