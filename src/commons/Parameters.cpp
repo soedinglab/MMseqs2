@@ -934,7 +934,9 @@ void Parameters::printUsageMessage(const Command& command,
 
     if(command.citations > 0) {
         ss << "Please cite:\n";
-
+        if(command.citations & CITATION_SERVER) {
+            ss << "Mirdita, M., Steinegger, M. & Soding, J. MMseqs2 desktop and local web server app for fast, interactive sequence searches. biorxiv, doi:10.1101/419895 (2018)\n\n";
+        }
         if(command.citations & CITATION_PLASS) {
             ss << "Steinegger, M. Mirdita, M., & Soding, J. Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, https://doi.org/10.1101/386110 (2018)\n";
         }
