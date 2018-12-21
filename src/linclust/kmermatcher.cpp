@@ -22,7 +22,6 @@
 #include <vector>
 #include <iomanip>
 #include <algorithm>
-#include <queue>
 #include <sys/mman.h>
 #ifdef OPENMP
 #include <omp.h>
@@ -33,10 +32,11 @@
 #endif
 
 #define RoL(val, numbits) (val << numbits) ^ (val >> (32 - numbits))
+
 unsigned circ_hash(const int * x, unsigned length, const unsigned rol){
     short unsigned RAND[21] = {0x4567, 0x23c6, 0x9869, 0x4873, 0xdc51, 0x5cff, 0x944a, 0x58ec, 0x1f29, 0x7ccd, 0x58ba, 0xd7ab, 0x41f2, 0x1efb, 0xa9e3, 0xe146, 0x007c, 0x62c2, 0x0854, 0x27f8, 0x231b};
     short unsigned h = 0x0;
-    h = h^ RAND[x[0]];                  // XOR h and ki
+    h = h ^ RAND[x[0]];                  // XOR h and ki
     for (unsigned int i = 1; i < length; ++i){
         h = RoL(h, rol);
         h ^= RAND[x[i]];                   // XOR h and ki
@@ -52,8 +52,21 @@ unsigned circ_hash_next(const int * x, unsigned length, int x_first, short unsig
     h ^= RAND[x[length-1]]; // add new, last letter of new key x[1:length]
     return h;
 }
-#undef RoL
 
+//void printKmer(size_t idx, int size) {
+//    char output[32];
+//    char nuclCode[4] = {'A','C','T','G'};
+//    for (int i=size-1; i>=0; i--)
+//    {
+//        output[i] = nuclCode[ idx&3 ];
+//        idx = idx>>2;
+//    }
+//    output[size]='\0';
+//    std::cout << output;
+//}
+
+#undef RoL
+template  <int TYPE>
 size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> &seqDbr,
                              Parameters & par, BaseMatrix * subMat,
                              size_t KMER_SIZE, size_t chooseTopKmer,
@@ -77,6 +90,21 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
             if(first.kmer < second.kmer)
                 return true;
             if(second.kmer < first.kmer)
+                return false;
+
+            return false;
+        }
+        static bool compareByScoreReverse(const SequencePosition &first, const SequencePosition &second){
+            if(first.score < second.score)
+                return true;
+            if(second.score < first.score)
+                return false;
+
+            size_t firstKmer  = BIT_SET(first.kmer, 63);
+            size_t secondKmer = BIT_SET(second.kmer, 63);
+            if(firstKmer < secondKmer)
+                return true;
+            if(secondKmer < firstKmer)
                 return false;
 
             return false;
@@ -142,10 +170,11 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                     prevFirstRes = kmer[0];
                 }
                 while (seq.hasNextKmer()) {
-                    const int *kmer = seq.nextKmer();
-                    //float kmerScore = 1.0;
-                    prevHash = circ_hash_next(kmer, KMER_SIZE, prevFirstRes, prevHash, par.hashShift);
-                    prevFirstRes = kmer[0];
+                    int *kmer = (int*) seq.nextKmer();
+                    if(TYPE != Parameters::DBTYPE_NUCLEOTIDES){
+                        prevHash = circ_hash_next(kmer, KMER_SIZE, prevFirstRes, prevHash, par.hashShift);
+                        prevFirstRes = kmer[0];
+                    }
                     size_t xCount = 0;
                     for (size_t kpos = 0; kpos < KMER_SIZE; kpos++) {
                         xCount += (kmer[kpos] == subMat->aa2int[(int) 'X']);
@@ -153,14 +182,58 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                     if (xCount > 0) {
                         continue;
                     }
+                    if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+                        NucleotideMatrix * nuclMatrix = (NucleotideMatrix*)subMat;
+                        uint64_t kmerIdx = 0;
+                        for(size_t kmerPos = 0; kmerPos < KMER_SIZE; kmerPos++){
+                            kmerIdx = kmerIdx << 2;
+                            kmerIdx = kmerIdx | kmer[kmerPos];
+//                            std::cout << nuclMatrix->int2aa[kmer[kmerPos]];
+                        }
+                        size_t revComp = Util::revComplement(kmerIdx, KMER_SIZE);
+                        bool pickReverseKmer = (revComp<kmerIdx);
+                        if(pickReverseKmer){
+                            int revKmer[32];
+                            for(int pos = static_cast<int>(KMER_SIZE)-1; pos > -1; pos--){
+                                revKmer[(KMER_SIZE - 1) - pos]=nuclMatrix->reverseResidue(kmer[pos]);
+                            }
+                            prevHash = circ_hash(revKmer, KMER_SIZE, par.hashShift);
+                        }else{
+                            prevHash = circ_hash(kmer, KMER_SIZE, par.hashShift);
+                        }
+
+                        size_t kmer = (pickReverseKmer) ? revComp : kmerIdx;
+
+                        // set signed bit for normal kmers to make the  SIZE_T_MAX logic easier
+                        // reverses kmer do not have a signed bit
+                        size_t kmerRev = (pickReverseKmer) ? BIT_CLEAR(kmer, 63) : BIT_SET(kmer, 63);
+                        (kmers + seqKmerCount)->kmer = kmerRev;
+                        int pos = seq.getCurrentPosition();
+                        (kmers + seqKmerCount)->pos = (pickReverseKmer) ? (seq.L) - pos - KMER_SIZE : pos;
+//                        std::cout << seq.getDbKey() << "\t";
+//                        std::cout << pickReverseKmer << "\t";
+//                        std::cout << seq.L << "\t";
+//                        std::cout << pos << "\t";
+//                        std::cout << (kmers + seqKmerCount)->pos << "\t";
+//                        printKmer(kmerIdx, KMER_SIZE);
+//                        std::cout <<  "\t";
+//                         printKmer(kmerRev, KMER_SIZE);
+//                        std::cout <<  "\n";
+
+                    }else {
+                        uint64_t kmerIdx = idxer.int2index(kmer, 0, KMER_SIZE);
+                        (kmers + seqKmerCount)->kmer = kmerIdx;
+                        (kmers + seqKmerCount)->pos = seq.getCurrentPosition();
+                    }
                     (kmers + seqKmerCount)->score = prevHash;
-                    size_t kmerIdx = idxer.int2index(kmer, 0, KMER_SIZE);
-                    (kmers + seqKmerCount)->kmer = kmerIdx;
-                    (kmers + seqKmerCount)->pos = seq.getCurrentPosition();
                     seqKmerCount++;
                 }
                 if (seqKmerCount > 1) {
-                    std::stable_sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScore);
+                    if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
+                        std::stable_sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScoreReverse);
+                    }else{
+                        std::stable_sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScore);
+                    }
                 }
                 size_t kmerConsidered = std::min(static_cast<int>(chooseTopKmer - 1), seqKmerCount);
                 if(par.skipNRepeatKmer > 0 ){
@@ -168,10 +241,14 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                     kmers[seqKmerCount].kmer=SIZE_T_MAX;
                     int repeatKmerCnt = 0;
                     for (int topKmer = 0; topKmer < seqKmerCount; topKmer++) {
-                        repeatKmerCnt += (
-                                (kmers + topKmer)->kmer == (kmers + topKmer + 1)->kmer ||
-                                (kmers + topKmer)->kmer == prevKmer);
-                        prevKmer = threadKmerBuffer[bufferPos].kmer;
+                        size_t kmerCurr = (kmers + topKmer)->kmer;
+                        size_t kmerNext = (kmers + topKmer + 1)->kmer;
+                        if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
+                            kmerCurr = BIT_SET(kmerCurr, 63);
+                            kmerNext = BIT_SET(kmerNext, 63);
+                        }
+                        repeatKmerCnt += (kmerCurr == kmerNext || kmerCurr == prevKmer);
+                        prevKmer = kmerCurr;
                     }
                     if(repeatKmerCnt >= par.skipNRepeatKmer){
                         kmerConsidered = 0;
@@ -179,6 +256,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                 }
 
                 // add k-mer to represent the identity
+                //TODO, how to hand this in reverse?
                 if (seqHash%splits == split) {
                     threadKmerBuffer[bufferPos].kmer = seqHash;
                     threadKmerBuffer[bufferPos].id = seqId;
@@ -192,7 +270,11 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                     }
                 }
                 for (size_t topKmer = 0; topKmer < kmerConsidered; topKmer++) {
-                    size_t splitIdx = (kmers + topKmer)->kmer % splits;
+                    size_t kmer = (kmers + topKmer)->kmer;
+                    if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
+                        kmer = BIT_SET(kmer, 63);
+                    }
+                    size_t splitIdx = kmer % splits;
                     if (splitIdx != split) {
                         continue;
                     }
@@ -235,6 +317,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
     return offset;
 }
 
+
 KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std::string splitFile,
                              DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat,
                              size_t KMER_SIZE, size_t chooseTopKmer) {
@@ -251,7 +334,12 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
     }
 
     Timer timer;
-    size_t elementsToSort = fillKmerPositionArray(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, splits, split);
+    size_t elementsToSort;
+    if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES){
+        elementsToSort = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, splits, split);
+    }else{
+        elementsToSort = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, splits, split);
+    }
     Debug(Debug::INFO) << "\nTime for fill: " << timer.lap() << "\n";
     if(splits == 1){
         seqDbr.unmapData();
@@ -259,67 +347,151 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
     Debug(Debug::INFO) << "Done." << "\n";
     Debug(Debug::INFO) << "Sort kmer ... ";
     timer.reset();
-    omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPos);
+    if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES) {
+        omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPosReverse);
+    }else{
+        omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPos);
+    }
+
     //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, KmerComparision());
     Debug(Debug::INFO) << "Done." << "\n";
     Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
     // assign rep. sequence to same kmer members
     // The longest sequence is the first since we sorted by kmer, seq.Len and id
-    size_t writePos = 0;
-    {
-        size_t prevHash = hashSeqPair[0].kmer;
-        size_t repSeqId = hashSeqPair[0].id;
-        size_t prevHashStart = 0;
-        size_t prevSetSize = 0;
-        size_t queryLen;
-        unsigned int repSeq_i_pos = hashSeqPair[0].pos;
-        for (size_t elementIdx = 0; elementIdx < splitKmerCount+1; elementIdx++) {
-            if (prevHash != hashSeqPair[elementIdx].kmer) {
-                for (size_t i = prevHashStart; i < elementIdx; i++) {
-                    size_t rId =  (hashSeqPair[i].kmer != SIZE_T_MAX) ? ((prevSetSize == 1) ? SIZE_T_MAX
-                                                                                            : repSeqId) : SIZE_T_MAX;
-
-                    hashSeqPair[i].kmer = SIZE_T_MAX;
-                    // remove singletones from set
-                    if(rId != SIZE_T_MAX){
-                        short diagonal = repSeq_i_pos - hashSeqPair[i].pos;
-                        bool canBeExtended = diagonal < 0 || (diagonal > (queryLen - hashSeqPair[i].seqLen));
-                        if(par.includeOnlyExtendable == false || (canBeExtended && par.includeOnlyExtendable ==true )){
-                            hashSeqPair[writePos].kmer = rId;
-                            hashSeqPair[writePos].pos = diagonal;
-                            hashSeqPair[writePos].seqLen = hashSeqPair[i].seqLen;
-                            hashSeqPair[writePos].id = hashSeqPair[i].id;
-                            writePos++;
-                        }
-                    }
-                }
-                prevSetSize = 0;
-                prevHashStart = elementIdx;
-                repSeqId = hashSeqPair[elementIdx].id;
-                queryLen = hashSeqPair[elementIdx].seqLen;
-                repSeq_i_pos = hashSeqPair[elementIdx].pos;
-            }
-            if (hashSeqPair[elementIdx].kmer == SIZE_T_MAX) {
-                break;
-            }
-            prevSetSize++;
-            prevHash = hashSeqPair[elementIdx].kmer;
-        }
+    size_t writePos;
+    if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES){
+        writePos = assignGroup<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair, splitKmerCount ,par.includeOnlyExtendable);
+    }else{
+        writePos = assignGroup<Parameters::DBTYPE_AMINO_ACIDS>(hashSeqPair, splitKmerCount ,par.includeOnlyExtendable);
     }
+
     // sort by rep. sequence (stored in kmer) and sequence id
     Debug(Debug::INFO) << "Sort by rep. sequence ... ";
     timer.reset();
-    omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiag);
+    if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES){
+        omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiagReverse);
+    }else{
+        omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiag);
+    }
     //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, SequenceComparision());
     Debug(Debug::INFO) << "Done\n";
     Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
 
     if(splits > 1){
-        writeKmersToDisk(splitFile, hashSeqPair, writePos + 1);
+        if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES){
+            writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(splitFile, hashSeqPair, writePos + 1);
+        }else{
+            writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(splitFile, hashSeqPair, writePos + 1);
+        }
         delete [] hashSeqPair;
         hashSeqPair = NULL;
     }
     return hashSeqPair;
+}
+
+template <int TYPE>
+size_t assignGroup(KmerPosition *hashSeqPair, size_t splitKmerCount, bool includeOnlyExtendable) {
+    size_t writePos=0;
+    size_t prevHash = hashSeqPair[0].kmer;
+    size_t repSeqId = hashSeqPair[0].id;
+    if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+        bool isReverse = (BIT_CHECK(hashSeqPair[0].kmer, 63) == false);
+        repSeqId = (isReverse) ? BIT_CLEAR(repSeqId, 63) : BIT_SET(repSeqId, 63);
+        prevHash = BIT_SET(prevHash, 63);
+    }
+    size_t prevHashStart = 0;
+    size_t prevSetSize = 0;
+    size_t queryLen;
+    bool repIsReverse = false;
+    unsigned int repSeq_i_pos = hashSeqPair[0].pos;
+    for (size_t elementIdx = 0; elementIdx < splitKmerCount+1; elementIdx++) {
+        size_t currKmer = hashSeqPair[elementIdx].kmer;
+        if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+            currKmer = BIT_SET(currKmer, 63);
+        }
+        if (prevHash != currKmer) {
+            for (size_t i = prevHashStart; i < elementIdx; i++) {
+                size_t kmer = hashSeqPair[i].kmer;
+                if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
+                    kmer = BIT_SET(hashSeqPair[i].kmer, 63);
+                }
+                size_t rId = (kmer != SIZE_T_MAX) ? ((prevSetSize == 1) ? SIZE_T_MAX : repSeqId) : SIZE_T_MAX;
+                // remove singletones from set
+                if(rId != SIZE_T_MAX){
+                    short diagonal = repSeq_i_pos - hashSeqPair[i].pos;
+                    if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+                        //  00 No problem here both are forward
+                        //  01 We can revert the query of target, lets invert the query.
+                        //  10 Same here, we can revert query to match the not inverted target
+                        //  11 Both are reverted so no problem!
+                        //  So we need just 1 bit of information to encode all four states
+                        bool targetIsReverse = (BIT_CHECK(hashSeqPair[i].kmer, 63) == false);
+                        bool queryNeedsToBeRev = false;
+                        // we now need 2 byte of information (00),(01),(10),(11)
+                        // we need to flip the coordinates of the query
+                        short queryPos=0;
+                        short targetPos=0;
+                        // revert kmer in query hits normal kmer in target
+                        // we need revert the query
+                        if (repIsReverse == true && targetIsReverse == false){
+                            queryPos = repSeq_i_pos;
+                            targetPos =  hashSeqPair[i].pos;
+                            queryNeedsToBeRev = true;
+                        // both k-mers were extracted on the reverse strand
+                        // this is equal to both are extract on the forward strand
+                        // we just need to offset the position to the forward strand
+                        }else if (repIsReverse == true && targetIsReverse == true){
+                            queryPos = (queryLen - 1) - repSeq_i_pos;
+                            targetPos = (hashSeqPair[i].seqLen - 1) - hashSeqPair[i].pos;
+                            queryNeedsToBeRev = false;
+                        // query is not revers but target k-mer is reverse
+                        // instead of reverting the target, we revert the query and offset the the query/target position
+                        }else if (repIsReverse == false && targetIsReverse == true){
+                            queryPos = (queryLen - 1) - repSeq_i_pos;
+                            targetPos = (hashSeqPair[i].seqLen - 1) - hashSeqPair[i].pos;
+                            queryNeedsToBeRev = true;
+                        // both are forward, everything is good here
+                        }else{
+                            queryPos = repSeq_i_pos;
+                            targetPos =  hashSeqPair[i].pos;
+                            queryNeedsToBeRev = false;
+                        }
+                        diagonal = queryPos - targetPos;
+                        rId = (queryNeedsToBeRev) ? BIT_CLEAR(rId, 63) : BIT_SET(rId, 63);
+                    }
+
+                    bool canBeExtended = diagonal < 0 || (diagonal > (queryLen - hashSeqPair[i].seqLen));
+                    if(includeOnlyExtendable == false || (canBeExtended && includeOnlyExtendable ==true )){
+                        hashSeqPair[writePos].kmer = rId;
+                        hashSeqPair[writePos].pos = diagonal;
+                        hashSeqPair[writePos].seqLen = hashSeqPair[i].seqLen;
+                        hashSeqPair[writePos].id = hashSeqPair[i].id;
+                        writePos++;
+                    }
+                }
+                hashSeqPair[i].kmer = SIZE_T_MAX;
+            }
+            prevSetSize = 0;
+            prevHashStart = elementIdx;
+            repSeqId = hashSeqPair[elementIdx].id;
+            if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+                repIsReverse = (BIT_CHECK(hashSeqPair[elementIdx].kmer, 63) == 0);
+                repSeqId = (repIsReverse) ? repSeqId : BIT_SET(repSeqId, 63);
+            }
+            queryLen = hashSeqPair[elementIdx].seqLen;
+            repSeq_i_pos = hashSeqPair[elementIdx].pos;
+        }
+        if (hashSeqPair[elementIdx].kmer == SIZE_T_MAX) {
+            break;
+        }
+        prevSetSize++;
+        prevHash = hashSeqPair[elementIdx].kmer;
+        if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+            prevHash = BIT_SET(prevHash, 63);
+        }
+    }
+
+    return writePos;
 }
 
 void setLinearFilterDefault(Parameters *p) {
@@ -392,6 +564,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << memoryLimit << " byte)\n";
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
+//    size_t splits = 2;
     if (splits > 1) {
         // security buffer
         splits += 1;
@@ -442,16 +615,27 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         std::vector<char> repSequence(seqDbr.getSize());
         std::fill(repSequence.begin(), repSequence.end(), false);
         // write result
-        DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_PREFILTER_RES);
+        DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed,
+                     (seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES) ? Parameters::DBTYPE_PREFILTER_REV_RES : Parameters::DBTYPE_PREFILTER_RES );
         dbw.open();
 
         Timer timer;
         if(splits > 1) {
             std::cout << "How many splits: " << splits<<std::endl;
             seqDbr.unmapData();
-            mergeKmerFilesAndOutput(seqDbr, dbw, splitFiles, repSequence, par.covMode, par.cov);
+
+            if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES) {
+                mergeKmerFilesAndOutput<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(seqDbr, dbw, splitFiles, repSequence, par.covMode, par.cov);
+            }else{
+                mergeKmerFilesAndOutput<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(seqDbr, dbw, splitFiles, repSequence, par.covMode, par.cov);
+            }
         } else {
-            writeKmerMatcherResult(seqDbr, dbw, hashSeqPair, totalKmers, repSequence, par.covMode, par.cov, par.threads);
+            if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES) {
+                writeKmerMatcherResult<Parameters::DBTYPE_NUCLEOTIDES>(seqDbr, dbw, hashSeqPair, totalKmers, repSequence, par.covMode, par.cov,
+                                       par.threads);
+            }else{
+                writeKmerMatcherResult<Parameters::DBTYPE_AMINO_ACIDS>(seqDbr, dbw, hashSeqPair, totalKmers, repSequence, par.covMode, par.cov, par.threads);
+            }
         }
         Debug(Debug::INFO) << "Time for fill: " << timer.lap() << "\n";
         // add missing entries to the result (needed for clustering)
@@ -467,7 +651,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
                 char buffer[100];
                 if (repSequence[id] == false) {
                     hit_t h;
-                    h.pScore = 0;
+                    h.prefScore = 0;
                     h.diagonal = 0;
                     h.seqId = seqDbr.getDbKey(id);
                     int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
@@ -488,6 +672,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     return EXIT_SUCCESS;
 }
 
+template <int TYPE>
 void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                             KmerPosition *hashSeqPair, size_t totalKmers,
                             std::vector<char> &repSequence, int covMode, float covThr,
@@ -496,12 +681,21 @@ void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
     size_t splitSize = totalKmers/threads;
     threadOffsets.push_back(0);
     for(size_t thread = 1; thread < threads; thread++){
-        unsigned int repSeqId = static_cast<unsigned int>(hashSeqPair[thread*splitSize].kmer);
+        size_t kmer = hashSeqPair[thread*splitSize].kmer;
+        size_t repSeqId = static_cast<size_t>(kmer);
+        repSeqId=BIT_SET(repSeqId, 63);
+        bool wasSet = false;
         for(size_t pos = thread*splitSize; pos < totalKmers; pos++){
-            if(repSeqId != hashSeqPair[pos].kmer){
+            size_t currSeqId = hashSeqPair[pos].kmer;
+            currSeqId=BIT_SET(currSeqId, 63);
+            if(repSeqId != currSeqId){
+                wasSet = true;
                 threadOffsets.push_back(pos);
                 break;
             }
+        }
+        if(wasSet == false){
+            threadOffsets.push_back(totalKmers - 1 );
         }
     }
     threadOffsets.push_back(totalKmers);
@@ -516,7 +710,13 @@ void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
         size_t kmerPos=0;
         size_t repSeqId = SIZE_T_MAX;
         for(kmerPos = threadOffsets[thread]; kmerPos < threadOffsets[thread+1] && hashSeqPair[kmerPos].kmer != SIZE_T_MAX; kmerPos++){
-            if(repSeqId != hashSeqPair[kmerPos].kmer) {
+            size_t currKmer = hashSeqPair[kmerPos].kmer;
+            int reverMask = 0;
+            if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+                reverMask  = BIT_CHECK(currKmer, 63)==false;
+                currKmer = BIT_CLEAR(currKmer, 63);
+            }
+            if(repSeqId != currKmer) {
                 if (writeSets > 0) {
                     repSequence[repSeqId] = true;
                     dbw.writeData(prefResultsOutString.c_str(), prefResultsOutString.length(), seqDbr.getDbKey(repSeqId), thread);
@@ -527,11 +727,11 @@ void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                 }
                 lastTargetId = SIZE_T_MAX;
                 prefResultsOutString.clear();
-                repSeqId = hashSeqPair[kmerPos].kmer;
+                repSeqId = currKmer;
                 queryLength = hashSeqPair[kmerPos].seqLen;
                 hit_t h;
                 h.seqId = seqDbr.getDbKey(repSeqId);
-                h.pScore = 0;
+                h.prefScore = reverMask;
                 h.diagonal = 0;
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
                 // TODO: error handling for len
@@ -554,7 +754,7 @@ void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
             }
             hit_t h;
             h.seqId = seqDbr.getDbKey(targetId);
-            h.pScore = 0;
+            h.prefScore = reverMask;
             h.diagonal = diagonal;
             int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
             prefResultsOutString.append(buffer, len);
@@ -572,17 +772,19 @@ void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
     }
 }
 
-
-typedef std::priority_queue<FileKmerPosition, std::vector<FileKmerPosition>, CompareResultBySeqId> KmerPositionQueue;
-
-size_t queueNextEntry(KmerPositionQueue &queue, int file, size_t offsetPos, KmerEntry *entries, size_t entrySize) {
+template <int TYPE, typename T>
+size_t queueNextEntry(KmerPositionQueue &queue, int file, size_t offsetPos, T *entries, size_t entrySize) {
     if(offsetPos + 1 >= entrySize){
         return offsetPos;
     }
     unsigned int repSeqId = entries[offsetPos].seqId;
     size_t pos = 0;
     while(entries[offsetPos + pos].seqId != UINT_MAX){
-        queue.push(FileKmerPosition(repSeqId, entries[offsetPos+pos].seqId,  entries[offsetPos+pos].diagonal, file));
+        if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+            queue.push(FileKmerPosition(repSeqId, entries[offsetPos+pos].seqId, entries[offsetPos+pos].diagonal, entries[offsetPos+pos].getRev(), file));
+        }else{
+            queue.push(FileKmerPosition(repSeqId, entries[offsetPos+pos].seqId, entries[offsetPos+pos].diagonal, file));
+        }
         pos++;
     }
     queue.push(FileKmerPosition(repSeqId, UINT_MAX, 0, file));
@@ -590,6 +792,7 @@ size_t queueNextEntry(KmerPositionQueue &queue, int file, size_t offsetPos, Kmer
     return offsetPos+pos;
 }
 
+template <int TYPE, typename T>
 void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                              std::vector<std::string> tmpFiles, std::vector<char> &repSequence,
                              int covMode, float covThr) {
@@ -597,7 +800,7 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
 
     const int fileCnt = tmpFiles.size();
     FILE ** files       = new FILE*[fileCnt];
-    KmerEntry **entries = new KmerEntry*[fileCnt];
+    T **entries = new T*[fileCnt];
     size_t * entrySizes = new size_t[fileCnt];
     size_t * offsetPos  = new size_t[fileCnt];
     size_t * dataSizes  = new size_t[fileCnt];
@@ -605,14 +808,14 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
     for(size_t file = 0; file < tmpFiles.size(); file++){
         files[file] = FileUtil::openFileOrDie(tmpFiles[file].c_str(),"r",true);
         size_t dataSize;
-        entries[file]    = (KmerEntry*)FileUtil::mmapFile(files[file], &dataSize);
+        entries[file]    = (T*)FileUtil::mmapFile(files[file], &dataSize);
         dataSizes[file]  = dataSize;
-        entrySizes[file] = dataSize/sizeof(KmerEntry);
+        entrySizes[file] = dataSize/sizeof(T);
     }
     KmerPositionQueue queue;
     // read one entry for each file
     for(int file = 0; file < fileCnt; file++ ){
-        offsetPos[file]=queueNextEntry(queue, file, 0, entries[file], entrySizes[file]);
+        offsetPos[file]=queueNextEntry<TYPE,T>(queue, file, 0, entries[file], entrySizes[file]);
     }
     std::string prefResultsOutString;
     prefResultsOutString.reserve(100000000);
@@ -625,7 +828,7 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
         res = queue.top();
         hit_t h;
         h.seqId = seqDbr.getDbKey(res.repSeq);
-        h.pScore = 0;
+        h.prefScore = res.reverse;
         h.diagonal = 0;
         int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
         prefResultsOutString.append(buffer, len);
@@ -635,7 +838,7 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
         res = queue.top();
         queue.pop();
         if(res.id==UINT_MAX){
-            offsetPos[res.file] = queueNextEntry(queue, res.file, offsetPos[res.file],
+            offsetPos[res.file] = queueNextEntry<TYPE,T>(queue, res.file, offsetPos[res.file],
                                                  entries[res.file], entrySizes[res.file]);
             dbw.writeData(prefResultsOutString.c_str(), prefResultsOutString.length(), seqDbr.getDbKey(res.repSeq), 0);
             repSequence[res.repSeq]=true;
@@ -644,14 +847,14 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
             while(queue.empty() == false && queue.top().id==UINT_MAX){
                 res = queue.top();
                 queue.pop();
-                offsetPos[res.file] = queueNextEntry(queue, res.file, offsetPos[res.file],
+                offsetPos[res.file] = queueNextEntry<TYPE,T>(queue, res.file, offsetPos[res.file],
                                                      entries[res.file], entrySizes[res.file]);
             }
             if(queue.empty() == false){
                 res = queue.top();
                 hit_t h;
                 h.seqId = seqDbr.getDbKey(res.repSeq);
-                h.pScore = 0;
+                h.prefScore = res.reverse;
                 h.diagonal = 0;
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
                 prefResultsOutString.append(buffer, len);
@@ -666,7 +869,7 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                                   static_cast<float>(targetLength)) == true){
                 hit_t h;
                 h.seqId = seqDbr.getDbKey(res.id);
-                h.pScore = 0;
+                h.prefScore = res.reverse;
                 h.diagonal = res.pos;
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
                 prefResultsOutString.append(buffer, len);
@@ -691,7 +894,7 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
 }
 
 
-
+template <int TYPE, typename T>
 void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t totalKmers) {
     size_t repSeqId = SIZE_T_MAX;
     size_t lastTargetId = SIZE_T_MAX;
@@ -701,24 +904,32 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
     const size_t BUFFER_SIZE = 2048;
     size_t bufferPos = 0;
     size_t elemenetCnt = 0;
-    KmerEntry writeBuffer[BUFFER_SIZE];
-    KmerEntry nullEntry;
+    T writeBuffer[BUFFER_SIZE];
+    T nullEntry;
     nullEntry.seqId=UINT_MAX;
     nullEntry.diagonal=0;
     for(size_t kmerPos = 0; kmerPos < totalKmers && hashSeqPair[kmerPos].kmer != SIZE_T_MAX; kmerPos++){
-        if(repSeqId != hashSeqPair[kmerPos].kmer) {
+        size_t currKmer=hashSeqPair[kmerPos].kmer;
+        if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+            currKmer = BIT_CLEAR(currKmer, 63);
+        }
+        if(repSeqId != currKmer) {
             if (writeSets > 0 && elemenetCnt > 0) {
                 if(bufferPos > 0){
-                    fwrite(writeBuffer, sizeof(KmerEntry), bufferPos, filePtr);
+                    fwrite(writeBuffer, sizeof(T), bufferPos, filePtr);
                 }
-                fwrite(&nullEntry, sizeof(KmerEntry), 1, filePtr);
+                fwrite(&nullEntry, sizeof(T), 1, filePtr);
             }
             lastTargetId = SIZE_T_MAX;
             bufferPos=0;
             elemenetCnt=0;
-            repSeqId = hashSeqPair[kmerPos].kmer;
+            repSeqId = currKmer;
             writeBuffer[bufferPos].seqId = repSeqId;
             writeBuffer[bufferPos].diagonal = 0;
+            if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+                bool isReverse  = BIT_CHECK(hashSeqPair[kmerPos].kmer, 63)==false;
+                writeBuffer[bufferPos].setReverse(isReverse);
+            }
             bufferPos++;
         }
         unsigned int targetId = hashSeqPair[kmerPos].id;
@@ -733,17 +944,21 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
         elemenetCnt++;
         writeBuffer[bufferPos].seqId = targetId;
         writeBuffer[bufferPos].diagonal = diagonal;
+        if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+            bool isReverse  = BIT_CHECK(hashSeqPair[kmerPos].kmer, 63)==false;
+            writeBuffer[bufferPos].setReverse(isReverse);
+        }
         bufferPos++;
         if(bufferPos >= BUFFER_SIZE){
-            fwrite(writeBuffer, sizeof(KmerEntry), bufferPos, filePtr);
+            fwrite(writeBuffer, sizeof(T), bufferPos, filePtr);
             bufferPos=0;
         }
         lastTargetId = targetId;
         writeSets++;
     }
     if (writeSets > 0 && elemenetCnt > 0 && bufferPos > 0) {
-        fwrite(writeBuffer, sizeof(KmerEntry), bufferPos, filePtr);
-        fwrite(&nullEntry,  sizeof(KmerEntry), 1, filePtr);
+        fwrite(writeBuffer, sizeof(T), bufferPos, filePtr);
+        fwrite(&nullEntry,  sizeof(T), 1, filePtr);
     }
     fclose(filePtr);
 }

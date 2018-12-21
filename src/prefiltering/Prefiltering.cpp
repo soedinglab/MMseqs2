@@ -411,7 +411,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
             char *data = dbr.getData(id, thread_idx);
             std::vector<hit_t> hits = QueryMatcher::parsePrefilterHits(data);
             if (hits.size() > 1) {
-                std::sort(hits.begin(), hits.end(), hit_t::compareHitsByPValueAndId);
+                std::sort(hits.begin(), hits.end(), hit_t::compareHitsByScoreAndId);
             }
             for(size_t hit_id = 0; hit_id < hits.size(); hit_id++){
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, hits[hit_id]);
@@ -798,7 +798,6 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     Debug(Debug::INFO) << "Starting prefiltering scores calculation (step " << (split + 1) << " of " << splitCount << ")\n";
     Debug(Debug::INFO) << "Query db start  " << (queryFrom + 1) << " to " << queryFrom + querySize << "\n";
     Debug(Debug::INFO) << "Target db start  " << (dbFrom + 1) << " to " << dbFrom + dbSize << "\n";
-    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), ungappedSubMat);
 
 #pragma omp parallel num_threads(localThreads)
     {
@@ -809,7 +808,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         Sequence seq(maxSeqLen, querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
 
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
-                             evaluer, tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
+                             tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
                              kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
                              maxResults, aaBiasCorrection, diagonalScoring, minDiagScoreThr, takeOnlyBestKmer,resListOffset);
 
@@ -1017,8 +1016,7 @@ double Prefiltering::setKmerThreshold(DBReader<unsigned int> *qdbr) {
             effectiveKmerSize = seq.getEffectiveKmerSize();
         }
 
-        EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), ungappedSubMat);
-        QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat, ungappedSubMat, evaluer, tdbr->getSeqLens(), kmerThr, 1.0,
+        QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat, ungappedSubMat, tdbr->getSeqLens(), kmerThr, 1.0,
                              kmerSize, indexTable->getSize(), maxSeqLen, seq.getEffectiveKmerSize(),
                              150000, aaBiasCorrection, false, minDiagScoreThr, takeOnlyBestKmer,0);
         if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) ){

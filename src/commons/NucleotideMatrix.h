@@ -14,6 +14,14 @@ class NucleotideMatrix : public SubstitutionMatrix {
 
     void setupLetterMapping();
 
+    int reverseResidue(int res) {
+        return reverseLookup[res];
+    }
+
+private:
+    int * reverseLookup;
+
+
 };
 
 #endif

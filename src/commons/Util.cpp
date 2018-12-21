@@ -15,6 +15,8 @@
 #include <sys/sysctl.h>
 #endif
 
+#include "simd.h"
+
 #include <fstream>
 #include <algorithm>
 #include "MemoryMapped.h"
@@ -24,8 +26,6 @@
 #endif
 
 KSEQ_INIT(int, read)
-
-
 
 int Util::readMapping(std::string mappingFilename, std::vector<std::pair<unsigned int, unsigned int>> & mapping){
     MemoryMapped indexData(mappingFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
@@ -643,6 +643,64 @@ float Util::computeSeqId(int seqIdMode, int aaIds, int qLen, int tLen, int alnLe
             return static_cast<float>(aaIds) / static_cast<float>(alnLen);
     }
     return 0.0;
+}
+
+// Compute reverse complement of k-mer in 2-bit-per-nucleotide encoding (A: 00, C: 01, T: 10, G: 11)
+uint64_t Util::revComplement(const uint64_t kmer, const int k) {
+    // broadcast 64bit to 128 bit
+    __m128i x = _mm_cvtsi64_si128(kmer);
+
+    // create lookup (set 16 bytes in 128 bit)
+    // a lookup entry at the index of two nucleotids (4 bit) describes the reverse
+    // complement of these two nucleotid in the higher 4 bits (lookup1) or in the
+    // lower 4 bits (lookup2)
+    __m128i lookup1 = _mm_set_epi8(0x50,0x10,0xD0,0x90,0x40,0x00,0xC0,0x80,0x70,
+                                   0x30,0xF0,0xB0,0x60,0x20,0xE0,0xA0);
+    __m128i lookup2 = _mm_set_epi8(0x05,0x01,0x0D,0x09,0x04,0x00,0x0C,0x08,0x07,
+                                   0x03,0x0F,0x0B,0x06,0x02,0x0E,0x0A);
+    // set upper 8 bytes to 0 and revert order of lower 8 bytes
+    __m128i upper = _mm_set_epi8(0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0,1,2,3,4,5,6,7);
+    // _mm_set1_epi8: create 128 bit with all bytes set to given value
+    // here: 0x0F (00001111) and 0xF0 (11110000)
+    // _mm_and_si128: bitwise AND
+    __m128i kmer1 = _mm_and_si128(x, _mm_set1_epi8(0x0F)); // get lower 4 bits
+    __m128i kmer2 = _mm_and_si128(x, _mm_set1_epi8(0xF0)); // get higher 4 bits
+
+    // shift right by 2 nucleotids
+    kmer2 >>= 4;
+
+    // use _mm_shuffle_epi8 to look up reverse complement
+#ifdef NEON
+    kmer1 =vreinterpretq_m128i_u8(vqtbl1q_u8(vreinterpretq_u8_m128i(lookup1),vreinterpretq_u8_m128i(kmer1)));
+#else
+    kmer1 =_mm_shuffle_epi8(lookup1, kmer1);
+#endif
+
+
+#ifdef NEON
+    kmer2 =vreinterpretq_m128i_u8(vqtbl1q_u8(vreinterpretq_u8_m128i(lookup2),vreinterpretq_u8_m128i(kmer2)));
+#else
+    kmer2 = _mm_shuffle_epi8(lookup2, kmer2);
+#endif
+
+
+    // _mm_or_si128: bitwise OR
+    x = _mm_or_si128(kmer1, kmer2);
+
+    // set upper 8 bytes to 0 and revert order of lower 8 bytes
+
+#ifdef NEON
+    x = vreinterpretq_m128i_u8(vqtbl1q_u8(vreinterpretq_u8_m128i(x),vreinterpretq_u8_m128i(upper)));
+#else
+    x = _mm_shuffle_epi8(x, upper);
+#endif
+
+
+
+    // shift out the unused nucleotide positions (1 <= k <=32 )
+    // broadcast 128 bit to 64 bit
+    return (((uint64_t)_mm_cvtsi128_si64(x)) >> (uint64_t)(64-2*k));
+
 }
 
 

@@ -17,7 +17,11 @@
 #define EXIT(exitCode) do { int __status = (exitCode); std::cerr.flush(); std::cout.flush(); exit(__status); } while(0)
 #endif
 
-#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+#define BIT_SET(a,b) ((a) | (1ULL<<(b)))
+#define BIT_CLEAR(a,b) ((a) & ~(1ULL<<(b)))
+#define BIT_CHECK(a,b) (!!((a) & (1ULL<<(b))))
+
+
 
 template<typename T>
 struct assert_false : std::false_type
@@ -165,10 +169,10 @@ public:
     // by a non Whitespace character
     static inline size_t getLastNonWhitespace(char * data, size_t len){
         size_t counter = len;
-        
+
         if (!counter)
             return 0;
-            
+
         if (counter && data[counter] == '\0')
             counter--;
 
@@ -307,6 +311,8 @@ public:
     static int swapCoverageMode(int covMode);
 
     static float computeSeqId(int seqIdMode, int aaIds, int qLen, int tLen, int alnLen);
+
+    static uint64_t revComplement(const uint64_t kmer, const int k);
 
     static float averageValueOnAminoAcids(const std::unordered_map<char, float> &values, const char *seq);
 };

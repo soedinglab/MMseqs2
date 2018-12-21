@@ -7,7 +7,12 @@ NucleotideMatrix::NucleotideMatrix(const char* /*scoringMatrixFileName_*/, float
 //    this->alphabetSize = 5;
     matrixName = "nucleotide.out";
     setupLetterMapping();
-
+    reverseLookup = new int[alphabetSize];
+    reverseLookup[aa2int[static_cast<int>('A')]] = aa2int[static_cast<int>('T')];
+    reverseLookup[aa2int[static_cast<int>('G')]] = aa2int[static_cast<int>('C')];
+    reverseLookup[aa2int[static_cast<int>('C')]] = aa2int[static_cast<int>('G')];
+    reverseLookup[aa2int[static_cast<int>('T')]] = aa2int[static_cast<int>('A')];
+    reverseLookup[aa2int[static_cast<int>('X')]] = aa2int[static_cast<int>('X')];
 }
 
 
@@ -58,5 +63,6 @@ void NucleotideMatrix::setupLetterMapping(){
 
 
 NucleotideMatrix::~NucleotideMatrix(){
+    delete [] reverseLookup;
 }
 

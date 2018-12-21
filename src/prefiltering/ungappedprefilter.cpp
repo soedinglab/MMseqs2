@@ -125,14 +125,13 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
                 if (isIdentity || (hasDiagScore && hasEvalue)) {
                     hit_t hit;
                     hit.seqId = targetKey;
-                    hit.pScore = score;
-                    hit.prefScore = evalue;
+                    hit.prefScore = score;
                     hit.diagonal = 0;
                     shortResults.emplace_back(hit);
                 }
             }
 
-            std::sort(shortResults.begin(), shortResults.end(), hit_t::compareHitsByEValueAndId);
+            std::sort(shortResults.begin(), shortResults.end(), hit_t::compareHitsByScoreAndId);
 
             for (size_t i = 0; i < shortResults.size(); ++i) {
                 size_t len = QueryMatcher::prefilterHitToBuffer(buffer, shortResults[i]);

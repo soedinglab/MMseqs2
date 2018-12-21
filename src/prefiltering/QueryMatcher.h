@@ -32,14 +32,13 @@ struct statistics_t{
 
 struct hit_t {
     unsigned int seqId;
-    float pScore;
+    int prefScore;
     unsigned short diagonal;
-    unsigned short prefScore;
 
-    static bool compareHitsByPValueAndId(hit_t first, hit_t second){
-        if(first.pScore > second.pScore )
+    static bool compareHitsByScoreAndId(hit_t first, hit_t second){
+        if(first.prefScore > second.prefScore )
             return true;
-        if(second.pScore > first.pScore )
+        if(second.prefScore > first.prefScore )
             return false;
         if(first.seqId < second.seqId )
             return true;
@@ -48,25 +47,7 @@ struct hit_t {
         return false;
     }
 
-    static bool compareHitsByEValueAndId(hit_t first, hit_t second){
-        if(first.pScore > second.pScore )
-            return true;
-        if(second.pScore > first.pScore )
-            return false;
-        if(first.seqId < second.seqId )
-            return true;
-        if(second.seqId < first.seqId )
-            return false;
-        return false;
-    }
 
-    static bool compareHitsByDiagonalScore(hit_t first, hit_t second){
-        return (first.prefScore > second.prefScore) ? true : false;
-    }
-
-    static bool  compareHitsByEvalue(hit_t first, hit_t second){
-        return (first.pScore < second.pScore) ? true : false;
-    }
 };
 
 
@@ -75,7 +56,7 @@ class QueryMatcher {
 public:
     QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLookup,
                  BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
-                 EvalueComputation &evaluer, unsigned int *seqLens, short kmerThr,
+                 unsigned int *seqLens, short kmerThr,
                  double kmerMatchProb, int kmerSize, size_t dbSize,
                  unsigned int maxSeqLen, unsigned int effectiveKmerSize,
                  size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring,
@@ -137,15 +118,11 @@ public:
         hit_t result;
         char *wordCnt[255];
         size_t cols = Util::getWordsOfLine(data, wordCnt, 254);
-        if (cols>=3)
+        if (cols==3)
         {
             result.seqId = Util::fast_atoi<unsigned int>(wordCnt[0]);
-            result.pScore = static_cast<float>(Util::fast_atoi<int>(wordCnt[1]));
+            result.prefScore = Util::fast_atoi<short>(wordCnt[1]);
             result.diagonal = static_cast<unsigned short>(Util::fast_atoi<short>(wordCnt[2]));
-        } else { //error
-            result.seqId = -1;
-            result.pScore = -1;
-            result.diagonal = -1;
         }
         return result;
     }
@@ -165,7 +142,7 @@ public:
         char * basePos = buff1;
         char * tmpBuff = Itoa::u32toa_sse2((uint32_t) h.seqId, buff1);
         *(tmpBuff-1) = '\t';
-        int score = static_cast<int>(h.pScore);
+        int score = static_cast<int>(h.prefScore);
         tmpBuff = Itoa::i32toa_sse2(score, tmpBuff);
         *(tmpBuff-1) = '\t';
         int32_t diagonal = static_cast<short>(h.diagonal);
@@ -243,9 +220,6 @@ protected:
     //log match prob (mu) of poisson distribution
     double logMatchProb;
 
-    // evaluer
-    EvalueComputation evaluer;
-
     //pre computed score factorials
     // S_fact = score!
     double *logScoreFactorial;
@@ -266,7 +240,7 @@ protected:
     std::pair<hit_t *, size_t> getResult(CounterResult * results,
                                          size_t resultSize,
                                          size_t maxHitPerQuery,
-                                         const int queryLen, const unsigned int id,
+                                         const unsigned int id,
                                          const unsigned short thr,
                                          UngappedAlignment *ungappedAlignment,
                                          const bool diagonalScoring, const int rescale);

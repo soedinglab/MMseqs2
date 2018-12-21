@@ -69,7 +69,7 @@ int sortresult(int argc, const char **argv, const Command &command) {
                     writer.writeAdd(buffer, length, thread_idx);
                 }
             } else if (format == 2) {
-                std::sort(prefResults.begin(), prefResults.end(), hit_t::compareHitsByPValueAndId);
+                std::sort(prefResults.begin(), prefResults.end(), hit_t::compareHitsByScoreAndId);
                 size_t maxEntries = std::min(prefResults.size(), par.maxResListLen);
                 for (size_t i = 0; i < maxEntries; ++i) {
                     size_t length = QueryMatcher::prefilterHitToBuffer(buffer, prefResults[i]);

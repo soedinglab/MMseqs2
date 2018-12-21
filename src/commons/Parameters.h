@@ -61,6 +61,8 @@ public:
     static const int DBTYPE_MSA_DB = 11;
     static const int DBTYPE_GENERIC_DB = 12;
     static const int DBTYPE_OMIT_FILE = 13;
+    static const int DBTYPE_PREFILTER_REV_RES = 14;
+
 
     static const unsigned int ALIGNMENT_MODE_FAST_AUTO = 0;
     static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 1;

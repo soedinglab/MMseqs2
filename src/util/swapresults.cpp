@@ -275,7 +275,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
                     } else {
                         hit_t hit = QueryMatcher::parsePrefilterHit(data);
                         hit.diagonal = static_cast<unsigned short>(static_cast<short>(hit.diagonal) * -1);
-                        curRes.emplace_back(hit.seqId, 0, hit.pScore, 0, 0, -hit.pScore, hit.diagonal, 0, 0, 0, 0, 0, 0, "");
+                        curRes.emplace_back(hit.seqId, hit.prefScore, 0, 0, 0, -static_cast<float>(hit.prefScore), hit.diagonal, 0, 0, 0, 0, 0, 0, "");
                     }
                     outer:
                     char *nextLine = Util::skipLine(data);
@@ -297,7 +297,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
                         } else {
                             hit_t hit;
                             hit.seqId = res.dbKey;
-                            hit.pScore = res.qcov;
+                            hit.prefScore = res.score;
                             hit.diagonal = res.alnLength;
                             size_t len = QueryMatcher::prefilterHitToBuffer(buffer, hit);
                             ss.append(buffer, len);
