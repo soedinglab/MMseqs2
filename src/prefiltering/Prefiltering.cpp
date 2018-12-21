@@ -85,7 +85,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             for(size_t i = 0; i < par.prefilter.size(); i++){
                 if(par.prefilter[i]->wasSet && par.prefilter[i]->uniqid == par.PARAM_K.uniqid){
                     if(kmerSize != 0 && data.kmerSize != kmerSize){
-                        Debug(Debug::ERROR) << "Index was created with -k " << data.kmerSize << " but the prefilter was called with -k" << kmerSize << "!\n";
+                        Debug(Debug::ERROR) << "Index was created with -k " << data.kmerSize << " but the prefilter was called with -k " << kmerSize << "!\n";
                         Debug(Debug::ERROR) << "createindex -k " << kmerSize << "\n";
                         EXIT(EXIT_FAILURE);
                     }
