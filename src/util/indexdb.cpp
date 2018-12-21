@@ -9,7 +9,7 @@
 #include <omp.h>
 #endif
 
-void setCreateIndexDefaults(Parameters *p) {
+void setIndexDbDefaults(Parameters *p) {
     p->sensitivity = 5.7;
 }
 
@@ -44,13 +44,13 @@ bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, con
 
 int indexdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    setCreateIndexDefaults(&par);
+    setIndexDbDefaults(&par);
     par.overrideParameterDescription((Command &) command, par.PARAM_MASK_RESIDUES.uniqid, "0: w/o low complexity masking, 1: with low complexity masking, 2: add both masked and unmasked sequences to index", "^[0-2]{1}", par.PARAM_MASK_RESIDUES.category);
     par.parseParameters(argc, argv, command, 2);
 
     if (par.split > 1) {
-        Debug(Debug::ERROR) << "Creating a split index is not supported anymore.\n";
-        Debug(Debug::ERROR) << "Please use the prefilter without a precomputed index if you do not have enough memory.";
+        Debug(Debug::ERROR) << "Creating a split index is not supported currently.\n";
+        Debug(Debug::ERROR) << "Please use the prefilter without a precomputed index.\n";
         EXIT(EXIT_FAILURE);
     }
 

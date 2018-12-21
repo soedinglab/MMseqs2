@@ -69,8 +69,8 @@ int map(int argc, const char **argv, const Command &command) {
     par.alignmentMode = 4;
     cmd.addVariable("SEARCH_PAR", par.createParameterString(par.mapworkflow).c_str());
 
-    FileUtil::writeFile(tmpDir + "/map.sh", map_sh, map_sh_len);
-    std::string program(tmpDir + "/map.sh");
+    std::string program = tmpDir + "/map.sh";
+    FileUtil::writeFile(program, map_sh, map_sh_len);
     cmd.execProgram(program.c_str(), par.filenames);
 
     return EXIT_SUCCESS;
