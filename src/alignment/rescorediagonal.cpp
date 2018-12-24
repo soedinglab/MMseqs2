@@ -156,9 +156,11 @@ int doRescorediagonal(Parameters &par,
                 std::vector<hit_t> results = QueryMatcher::parsePrefilterHits(data);
                 for (size_t entryIdx = 0; entryIdx < results.size(); entryIdx++) {
                     char *querySeqToAlign = querySeq;
+                    bool isReverse = false;
                     if (reversePrefilterResult) {
                         if (results[entryIdx].prefScore == 1) {
                             querySeqToAlign = queryRevSeq;
+                            isReverse=true;
                         }
                     }
 
@@ -263,7 +265,11 @@ int doRescorediagonal(Parameters &par,
                                 backtrace.push_back('M');
                                 queryCov = SmithWaterman::computeCov(qStartPos, qEndPos, queryLen);
                                 targetCov = SmithWaterman::computeCov(dbStartPos, dbEndPos, dbLen);
-
+                                if(isReverse){
+                                    int tmp = qStartPos;
+                                    qStartPos = qEndPos;
+                                    qEndPos = tmp;
+                                }
                                 result = Matcher::result_t(results[entryIdx].seqId, bitScore, queryCov, targetCov,
                                                            seqId, evalue, alnLen,
                                                            qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, dbLen,
