@@ -104,6 +104,8 @@ int StatsComputer::run() {
         case STAT_UNKNOWN:
         default:
             Debug(Debug::ERROR) << "Unrecognized statistic: " << stat << "\n";
+            Debug(Debug::ERROR) << "Please define --stat parameter\n";
+
             EXIT(EXIT_FAILURE);
     }
 }
