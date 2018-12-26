@@ -96,7 +96,7 @@ struct KmerPosition {
 struct __attribute__((__packed__)) KmerEntry {
     unsigned int seqId;
     short diagonal;
-    void setReverse(bool rev){
+    void setReverse(bool ){
         ;
     }
     unsigned char getRev(){
