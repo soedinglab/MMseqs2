@@ -250,3 +250,15 @@ void FileUtil::copyFile(const char *src, const char *dst) {
     close(source);
     close(dest);
 }
+
+FILE * FileUtil::openAndDelete(const char *fileName, const char *mode) {
+    if(FileUtil::fileExists(fileName) == true){
+        FileUtil::deleteFile(fileName);
+    }
+    FILE * file = fopen(fileName, mode);
+    if (file == NULL) {
+        Debug(Debug::ERROR) << "Could not open " << fileName << " for writing!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return file;
+}

@@ -167,12 +167,7 @@ void DBWriter::open(size_t bufferSize) {
         dataFileNames[i] = makeResultFilename(dataFileName, i);
         indexFileNames[i] = makeResultFilename(indexFileName, i);
 
-        dataFiles[i] = fopen(dataFileNames[i], datafileMode.c_str());
-        if (dataFiles[i] == NULL) {
-            Debug(Debug::ERROR) << "Could not open " << dataFileNames[i] << " for writing!\n";
-            EXIT(EXIT_FAILURE);
-        }
-
+        dataFiles[i] = FileUtil::openAndDelete(dataFileNames[i], datafileMode.c_str());
         int fd = fileno(dataFiles[i]);
         int flags;
         if ((flags = fcntl(fd, F_GETFL, 0)) < 0 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
@@ -188,12 +183,7 @@ void DBWriter::open(size_t bufferSize) {
             Debug(Debug::WARNING) << "Write buffer could not be allocated (bufferSize=" << bufferSize << ")\n";
         }
 
-        indexFiles[i] = fopen(indexFileNames[i], "w");
-        if (indexFiles[i] == NULL) {
-            Debug(Debug::ERROR) << "Could not open " << indexFileNames[i] << " for writing!\n";
-            EXIT(EXIT_FAILURE);
-        }
-
+        indexFiles[i] =  FileUtil::openAndDelete(indexFileNames[i], "w");
         fd = fileno(indexFiles[i]);
         if ((flags = fcntl(fd, F_GETFL, 0)) < 0 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
             Debug(Debug::ERROR) << "Could not set mode for " << indexFileNames[i] << "!\n";
@@ -233,11 +223,7 @@ void DBWriter::writeDbtypeFile(const char* path, int dbtype, bool isCompressed) 
     }
 
     std::string name = std::string(path) + ".dbtype";
-    FILE* file = fopen(name.c_str(), "wb");
-    if (file == NULL) {
-        Debug(Debug::ERROR) << "Could not open data file " << name << "!\n";
-        EXIT(EXIT_FAILURE);
-    }
+    FILE* file = FileUtil::openAndDelete(name.c_str(), "wb");
     dbtype = isCompressed ? dbtype | (1 << 31) : dbtype & ~(1 << 31);
     size_t written = fwrite(&dbtype, sizeof(int), 1, file);
     if (written != 1) {
@@ -554,7 +540,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
     Timer timer;
     // merge results from each thread into one result file
     if (fileCount > 1) {
-        FILE *outFile = fopen(outFileName, "w");
+        FILE *outFile = FileUtil::openAndDelete(outFileName, "w");
         FILE **infiles = new FILE *[fileCount];
         std::vector<size_t> threadDataFileSizes;
 
@@ -623,7 +609,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         DBReader<unsigned int> indexReader(dataFileNames[0], indexFileNames[0], 1, DBReader<unsigned int>::USE_INDEX);
         indexReader.open(DBReader<unsigned int>::NOSORT);
         DBReader<unsigned int>::Index *index = indexReader.getIndex();
-        FILE *index_file  = fopen(outFileNameIndex, "w");
+        FILE *index_file  = FileUtil::openAndDelete(outFileNameIndex, "w");
         writeIndex(index_file, indexReader.getSize(), index, indexReader.getSeqLens());
         fclose(index_file);
         indexReader.close();
@@ -632,7 +618,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         DBReader<std::string> indexReader(dataFileNames[0], indexFileNames[0], 1, DBReader<std::string>::USE_INDEX);
         indexReader.open(DBReader<std::string>::SORT_BY_ID);
         DBReader<std::string>::Index *index = indexReader.getIndex();
-        FILE *index_file  = fopen(outFileNameIndex, "w");
+        FILE *index_file  = FileUtil::openAndDelete(outFileNameIndex, "w");
         writeIndex(index_file, indexReader.getSize(), index, indexReader.getSeqLens());
         fclose(index_file);
         indexReader.close();

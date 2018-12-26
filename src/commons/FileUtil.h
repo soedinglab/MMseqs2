@@ -42,6 +42,8 @@ public:
     static bool symlinkExists(const std::string &path);
 
     static void copyFile(const char *src, const char *dst);
+
+    static FILE *openAndDelete(const char *fileName, const char *mode);
 };
 
 
