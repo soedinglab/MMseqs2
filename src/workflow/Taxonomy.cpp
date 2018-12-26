@@ -10,7 +10,7 @@ void setTaxonomyDefaults(Parameters *p) {
     p->spacedKmer = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
     p->sensitivity = 5.7;
-    p->evalThr = 0.001;
+    p->evalThr = 1;
     p->orfStartMode = 1;
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
@@ -59,14 +59,8 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     par.alignmentMode = alignmentMode;
 
     if (par.lcaMode == Parameters::TAXONOMY_2BLCA) {
-        std::vector<MMseqsParameter*> searchNoIterativeBest;
-        for (size_t i = 0; i < par.searchworkflow.size(); i++){
-            if (par.searchworkflow[i]->uniqid != par.PARAM_START_SENS.uniqid
-             || par.searchworkflow[i]->uniqid != par.PARAM_SENS_STEPS.uniqid) {
-                searchNoIterativeBest.push_back(par.searchworkflow[i]);
-            }
-        }
-        cmd.addVariable("SEARCH2_PAR", par.createParameterString(searchNoIterativeBest).c_str());
+        par.sensSteps = 1;
+        cmd.addVariable("SEARCH2_PAR", par.createParameterString(par.searchworkflow).c_str());
     }
 
     if (par.lcaMode != Parameters::TAXONOMY_NO_LCA) {
