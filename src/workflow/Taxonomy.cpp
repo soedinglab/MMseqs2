@@ -58,9 +58,12 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     cmd.addVariable("SEARCH1_PAR", par.createParameterString(par.searchworkflow).c_str());
     par.alignmentMode = alignmentMode;
 
-    if (par.lcaMode == Parameters::TAXONOMY_2BLCA) {
+    if (par.lcaMode == Parameters::TAXONOMY_2BLCA){
         par.sensSteps = 1;
         cmd.addVariable("SEARCH2_PAR", par.createParameterString(par.searchworkflow).c_str());
+    }else if(par.lcaMode == Parameters::TAXONOMY_2BLCA_APPROX){
+        cmd.addVariable("APPROX_2BLCA", "1");
+        cmd.addVariable("SEARCH2_PAR", par.createParameterString(par.align).c_str());
     }
 
     if (par.lcaMode != Parameters::TAXONOMY_NO_LCA) {

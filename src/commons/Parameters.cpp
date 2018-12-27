@@ -220,7 +220,7 @@ Parameters::Parameters():
         // expandaln
         PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion Mode", "Which hits (still fullfilling the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void*) &expansionMode, "^[0-2]{1}$"),
         // taxonomy
-        PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA Mode", "LCA Mode: No LCA 0, Single Search LCA 1, 2bLCA 2", typeid(int), (void*) &lcaMode, "^[0-2]{1}$")
+        PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA Mode", "LCA Mode: No LCA 0, Single Search LCA 1, 2bLCA 2, 2bLCA Approx. 3", typeid(int), (void*) &lcaMode, "^[0-3]{1}$")
 {
     if (instance) {
         Debug(Debug::ERROR) << "Parameter instance already exists!\n";
@@ -1596,7 +1596,7 @@ void Parameters::setDefaults() {
     expansionMode = 1;
 
     // taxonomy
-    lcaMode = 2;
+    lcaMode = Parameters::TAXONOMY_2BLCA_APPROX;
 }
 
 std::vector<MMseqsParameter*> Parameters::combineList(const std::vector<MMseqsParameter*> &par1,

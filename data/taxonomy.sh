@@ -47,10 +47,16 @@ if [ -n "${SEARCH2_PAR}" ]; then
     fi
 
     if [ ! -e "${TMP_PATH}/round2" ]; then
-        mkdir -p "${TMP_PATH}/tmp_hsp2"
-        # shellcheck disable=SC2086
-        "$MMSEQS" search "${TMP_PATH}/aligned" "${TARGET}" "${TMP_PATH}/round2" "${TMP_PATH}/tmp_hsp2" ${SEARCH2_PAR} \
-            || fail "Second search died"
+            if [ ! -e "${APPROX_2BLCA}" ]; then
+                # shellcheck disable=SC2086
+                "$MMSEQS" align "${TMP_PATH}/aligned" "${TARGET}" "${TMP_PATH}/first" "${TMP_PATH}/round2" ${SEARCH2_PAR} \
+                    || fail "Second search died"
+            else
+                mkdir -p "${TMP_PATH}/tmp_hsp2"
+                # shellcheck disable=SC2086
+                "$MMSEQS" search "${TMP_PATH}/aligned" "${TARGET}" "${TMP_PATH}/round2" "${TMP_PATH}/tmp_hsp2" ${SEARCH2_PAR} \
+                    || fail "Second search died"
+            fi
     fi
 
     # Concat top hit from first search with all the results from second search

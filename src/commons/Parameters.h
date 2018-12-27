@@ -132,6 +132,8 @@ public:
     static const int TAXONOMY_NO_LCA = 0;
     static const int TAXONOMY_SINGLE_SEARCH = 1;
     static const int TAXONOMY_2BLCA = 2;
+    static const int TAXONOMY_2BLCA_APPROX = 3;
+
 
     static const int PARSE_VARIADIC = 1;
     static const int PARSE_REST = 2;
