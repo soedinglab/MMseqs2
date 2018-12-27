@@ -108,8 +108,10 @@ template <typename T> bool DBReader<T>::open(int accessType){
             EXIT(EXIT_FAILURE);
         }
         size = FileUtil::countLines(indexFileName);
-        index = new Index[this->size];
-        seqLens = new unsigned int[size];
+        index = new(std::nothrow) Index[this->size];
+        Util::checkAllocation(index, "Could not allocate index memory in DBReader");
+        seqLens = new(std::nothrow) unsigned int[this->size];
+        Util::checkAllocation(seqLens, "Could not allocate seqLens memory in DBReader");
 
         isSortedById = readIndex(indexFileName, index, seqLens);
 
