@@ -38,6 +38,7 @@ void NucleotideMatrix::setupLetterMapping(){
             case 'C':
                 this->aa2int[static_cast<int>(letter)] = this->aa2int[static_cast<int>(upperLetter)];
                 break;
+            case 'U':
             case 'W':
                 this->aa2int[static_cast<int>(letter)] = this->aa2int[static_cast<int>('T')];
                 break;

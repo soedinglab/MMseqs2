@@ -176,6 +176,7 @@ int createdb(int argc, const char **argv, const Command& command) {
                                     case 'A':
                                     case 'G':
                                     case 'C':
+                                    case 'U':
                                     case 'N':
                                         cnt++;
                                         break;
