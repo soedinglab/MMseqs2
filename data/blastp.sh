@@ -27,70 +27,77 @@ TMP_PATH="$4"
 
 STEP=0
 STEPS=${STEPS:-1}
+ALN_RES_MERGE="$TMP_PATH/aln_0"
 while [ "$STEP" -lt "$STEPS" ]; do
     SENS_PARAM=SENSE_${STEP}
     eval SENS="\$$SENS_PARAM"
     # call prefilter module
-    if notExists "$TMP_PATH/pref_$SENS"; then
+    if notExists "$TMP_PATH/pref_$STEP"; then
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" prefilter "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" $PREFILTER_PAR -s "$SENS" \
+        $RUNNER "$MMSEQS" prefilter "$INPUT" "$TARGET" "$TMP_PATH/pref_$STEP" $PREFILTER_PAR -s "$SENS" \
             || fail "Prefilter died"
     fi
 
     # call alignment module
-    if notExists "$TMP_PATH/aln_$SENS"; then
-        # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$INPUT" "$TARGET${ALIGNMENT_DB_EXT}" "$TMP_PATH/pref_$SENS" "$TMP_PATH/aln_$SENS" $ALIGNMENT_PAR  \
-            || fail "Alignment died"
+    if [ $STEPS -eq 1 ]; then
+        if notExists "$3"; then
+            # shellcheck disable=SC2086
+            $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$INPUT" "$TARGET${ALIGNMENT_DB_EXT}" "$TMP_PATH/pref_$STEP" "$3" $ALIGNMENT_PAR  \
+                || fail "Alignment died"
+        fi
+    else
+        if notExists "$TMP_PATH/aln_$STEP"; then
+            # shellcheck disable=SC2086
+            $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$INPUT" "$TARGET${ALIGNMENT_DB_EXT}" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR  \
+                || fail "Alignment died"
+        fi
     fi
 
     # only merge results after first step
     if [ $STEP -gt 0 ]; then
         if notExists "$TMP_PATH/aln_${SENS}.hasmerge"; then
-            "$MMSEQS" mergedbs "$1" "$TMP_PATH/aln_new" "$TMP_PATH/aln_${SENSE_0}" "$TMP_PATH/aln_$SENS" \
-                || fail "Alignment died"
-            mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_${SENSE_0}"
-            mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_${SENSE_0}.index"
-            touch "$TMP_PATH/aln_${SENS}.hasmerge"
+            if [ $STEP -lt $((STEPS-1)) ]; then
+                "$MMSEQS" mergedbs "$1" "$TMP_PATH/aln_merge" "$ALN_RES_MERGE" "$TMP_PATH/aln_$STEP" \
+                || fail "Mergedbs died"
+                ALN_RES_MERGE="$TMP_PATH/aln_merge"
+            else
+                "$MMSEQS" mergedbs "$1" "$3" "$ALN_RES_MERGE" "$TMP_PATH/aln_$STEP" \
+                || fail "Mergedbs died"
+            fi
+            touch "$TMP_PATH/aln_${STEP}.hasmerge"
         fi
     fi
 
-    NEXTINPUT="$TMP_PATH/input_step$SENS"
+    NEXTINPUT="$TMP_PATH/input_step$STEP"
     #do not create subdb at last step
     if [ $STEP -lt $((STEPS-1)) ]; then
-        if notExists "$TMP_PATH/order_step$SENS"; then
-            awk '$3 < 2 { print $1 }' "$TMP_PATH/aln_$SENS.index" > "$TMP_PATH/order_step$SENS" \
-                || fail "Awk step $SENS died"
+        if notExists "$TMP_PATH/order_step$STEP"; then
+            awk '$3 < 2 { print $1 }' "$TMP_PATH/aln_$STEP.index" > "$TMP_PATH/order_step$STEP" \
+                || fail "Awk step $STEP died"
         fi
 
-        if [ ! -s "$TMP_PATH/order_step$SENS" ]; then break; fi
+        if [ ! -s "$TMP_PATH/order_step$STEP" ]; then break; fi
 
         if notExists "$NEXTINPUT"; then
-            "$MMSEQS" createsubdb "$TMP_PATH/order_step$SENS" "$INPUT" "$NEXTINPUT" \
-                || fail "Order step $SENS died"
+            "$MMSEQS" createsubdb "$TMP_PATH/order_step$STEP" "$INPUT" "$NEXTINPUT" \
+                || fail "Order step $STEP died"
         fi
     fi
     INPUT="$NEXTINPUT"
     STEP=$((STEP+1))
 done
 
-# post processing
-(mv -f "$TMP_PATH/aln_${SENSE_0}" "$3" && mv -f "$TMP_PATH/aln_${SENSE_0}.dbtype" "$3.dbtype" && mv -f "$TMP_PATH/aln_${SENSE_0}.index" "$3.index" ) \
-    || fail "Could not move result to $3"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
     STEP=0
     while [ "$STEP" -lt "$STEPS" ]; do
-        SENS_PARAM=SENSE_${STEP}
-        eval SENS="\$$SENS_PARAM"
-        rm -f "$TMP_PATH/pref_$SENS" "$TMP_PATH/pref_$SENS.index"
-        rm -f "$TMP_PATH/aln_$SENS" "$TMP_PATH/aln_$SENS.index"
-        NEXTINPUT="$TMP_PATH/input_step$SENS"
-        rm -f "$TMP_PATH/input_step$SENS" "$TMP_PATH/input_step$SENS.index"
+        rm -f "$TMP_PATH/pref_$STEP" "$TMP_PATH/pref_$STEP.index"
+        rm -f "$TMP_PATH/aln_$STEP" "$TMP_PATH/aln_$STEP.index"
+        NEXTINPUT="$TMP_PATH/input_step$STEP"
+        rm -f "$TMP_PATH/input_step$STEP" "$TMP_PATH/input_step$STEP.index"
         STEP=$((STEP+1))
     done
-
     rm -f "$TMP_PATH/blastp.sh"
 fi
 
