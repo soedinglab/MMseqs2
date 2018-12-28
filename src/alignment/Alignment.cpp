@@ -123,7 +123,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         querySeqType = qdbr->getDbtype();
     }
 
-    qdbr->readMmapedDataInMemory();
+    //qdbr->readMmapedDataInMemory();
     // make sure to touch target after query, so if there is not enough memory for the query, at least the targets
     // might have had enough space left to be residung in the page cache
     if (sameQTDB == false && templateDBIsIndex == false && par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
