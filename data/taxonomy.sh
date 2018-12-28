@@ -47,7 +47,7 @@ if [ -n "${SEARCH2_PAR}" ]; then
     fi
 
     if [ ! -e "${TMP_PATH}/round2" ]; then
-            if [ ! -e "${APPROX_2BLCA}" ]; then
+            if [ -n "${APPROX_2BLCA}" ]; then
                 # shellcheck disable=SC2086
                 "$MMSEQS" align "${TMP_PATH}/aligned" "${TARGET}" "${TMP_PATH}/first" "${TMP_PATH}/round2" ${SEARCH2_PAR} \
                     || fail "Second search died"
