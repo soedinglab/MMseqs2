@@ -48,8 +48,11 @@ if [ -n "${SEARCH2_PAR}" ]; then
 
     if [ ! -e "${TMP_PATH}/round2" ]; then
             if [ -n "${APPROX_2BLCA}" ]; then
+                if [ ! -e "${TMP_PATH}/first_sub" ]; then
+                    "$MMSEQS" createsubdb  "${TMP_PATH}/aligned" "${TMP_PATH}/first" "${TMP_PATH}/first_sub"
+                fi
                 # shellcheck disable=SC2086
-                "$MMSEQS" align "${TMP_PATH}/aligned" "${TARGET}" "${TMP_PATH}/first" "${TMP_PATH}/round2" ${SEARCH2_PAR} \
+                $RUNNER "$MMSEQS" align "${TMP_PATH}/aligned" "${TARGET}" "${TMP_PATH}/first_sub" "${TMP_PATH}/round2" ${SEARCH2_PAR} \
                     || fail "Second search died"
             else
                 mkdir -p "${TMP_PATH}/tmp_hsp2"
@@ -96,8 +99,10 @@ if [ -n "${REMOVE_TMP}" ]; then
         rm -f "${TMP_PATH}/top1" "${TMP_PATH}/top1.index"
         rm -f "${TMP_PATH}/aligned" "${TMP_PATH}/aligned.index" "${TMP_PATH}/round2" "${TMP_PATH}/round2.index"
         rm -f "${TMP_PATH}/merged" "${TMP_PATH}/merged.index" "${TMP_PATH}/2b_ali" "${TMP_PATH}/2b_ali.index"
+        if [ -n "${APPROX_2BLCA}" ]; then
+            rm -f "${TMP_PATH}/first_sub"  "${TMP_PATH}/first_sub.index"
+        fi
     fi
-
     if [ -n "${LCA_PAR}" ]; then
         rm -f "${TMP_PATH}/mapping" "${TMP_PATH}/mapping.index" "${TMP_PATH}/taxa" "${TMP_PATH}/taxa.index"
     else
