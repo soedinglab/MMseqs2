@@ -88,7 +88,7 @@ int doRescorediagonal(Parameters &par,
                                     : std::string((const char*)CovSeqidQscPercMinDiagTargetCov_out, CovSeqidQscPercMinDiagTargetCov_out_len);
         scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
     }
-    bool reversePrefilterResult = (resultReader.getDbtype() == Parameters::DBTYPE_PREFILTER_REV_RES);
+    bool reversePrefilterResult = (Parameters::isEqualDbtype(resultReader.getDbtype(), Parameters::DBTYPE_PREFILTER_REV_RES));
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat);
     DistanceCalculator globalAliStat;
     if (par.globalAlignment) {

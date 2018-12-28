@@ -335,7 +335,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
 
     Timer timer;
     size_t elementsToSort;
-    if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES){
+    if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
         elementsToSort = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, splits, split);
     }else{
         elementsToSort = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, splits, split);
@@ -347,7 +347,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
     Debug(Debug::INFO) << "Done." << "\n";
     Debug(Debug::INFO) << "Sort kmer ... ";
     timer.reset();
-    if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES) {
+    if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
         omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPosReverse);
     }else{
         omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPos);
@@ -359,7 +359,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
     // assign rep. sequence to same kmer members
     // The longest sequence is the first since we sorted by kmer, seq.Len and id
     size_t writePos;
-    if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES){
+    if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
         writePos = assignGroup<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair, splitKmerCount ,par.includeOnlyExtendable);
     }else{
         writePos = assignGroup<Parameters::DBTYPE_AMINO_ACIDS>(hashSeqPair, splitKmerCount ,par.includeOnlyExtendable);
@@ -368,7 +368,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
     // sort by rep. sequence (stored in kmer) and sequence id
     Debug(Debug::INFO) << "Sort by rep. sequence ... ";
     timer.reset();
-    if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES){
+    if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
         omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiagReverse);
     }else{
         omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiag);
@@ -378,7 +378,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
     Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
 
     if(splits > 1){
-        if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES){
+        if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
             writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(splitFile, hashSeqPair, writePos + 1);
         }else{
             writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(splitFile, hashSeqPair, writePos + 1);
@@ -616,7 +616,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         std::fill(repSequence.begin(), repSequence.end(), false);
         // write result
         DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed,
-                     (seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES) ? Parameters::DBTYPE_PREFILTER_REV_RES : Parameters::DBTYPE_PREFILTER_RES );
+                     (Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) ? Parameters::DBTYPE_PREFILTER_REV_RES : Parameters::DBTYPE_PREFILTER_RES );
         dbw.open();
 
         Timer timer;
@@ -624,13 +624,13 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             std::cout << "How many splits: " << splits<<std::endl;
             seqDbr.unmapData();
 
-            if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES) {
+            if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
                 mergeKmerFilesAndOutput<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(seqDbr, dbw, splitFiles, repSequence, par.covMode, par.cov);
             }else{
                 mergeKmerFilesAndOutput<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(seqDbr, dbw, splitFiles, repSequence, par.covMode, par.cov);
             }
         } else {
-            if(seqDbr.getDbtype() == Parameters::DBTYPE_NUCLEOTIDES) {
+            if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
                 writeKmerMatcherResult<Parameters::DBTYPE_NUCLEOTIDES>(seqDbr, dbw, hashSeqPair, totalKmers, repSequence, par.covMode, par.cov,
                                        par.threads);
             }else{
