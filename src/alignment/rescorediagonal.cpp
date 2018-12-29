@@ -248,7 +248,7 @@ int doRescorediagonal(Parameters &par,
 //                                seqId = (alignment.score1 / static_cast<float>(std::max(qAlnLength, dbAlnLength)))  * 0.1656 + 0.1141;
 
                                 // compute seq.id if hit fulfills e-value but not by seqId criteria
-                                if (evalue <= par.evalThr) {
+                                if (evalue <= par.evalThr || isIdentity) {
                                     int idCnt = 0;
                                     for (int i = qStartPos; i <= qEndPos; i++) {
                                         idCnt += (querySeqToAlign[i] == targetSeq[dbStartPos + (i - qStartPos)]) ? 1
