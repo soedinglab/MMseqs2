@@ -266,9 +266,6 @@ int doRescorediagonal(Parameters &par,
                                 queryCov = SmithWaterman::computeCov(qStartPos, qEndPos, queryLen);
                                 targetCov = SmithWaterman::computeCov(dbStartPos, dbEndPos, dbLen);
                                 if(isReverse){
-                                    int tmp = qStartPos;
-                                    qStartPos = qEndPos;
-                                    qEndPos = tmp;
                                     qStartPos = queryLen - qStartPos - 1;
                                     qEndPos = queryLen - qEndPos - 1;
                                 }
