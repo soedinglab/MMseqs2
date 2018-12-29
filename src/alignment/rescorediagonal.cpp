@@ -269,6 +269,8 @@ int doRescorediagonal(Parameters &par,
                                     int tmp = qStartPos;
                                     qStartPos = qEndPos;
                                     qEndPos = tmp;
+                                    qStartPos = queryLen - qStartPos - 1;
+                                    qEndPos = queryLen - qEndPos - 1;
                                 }
                                 result = Matcher::result_t(results[entryIdx].seqId, bitScore, queryCov, targetCov,
                                                            seqId, evalue, alnLen,
