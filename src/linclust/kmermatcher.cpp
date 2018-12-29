@@ -731,7 +731,7 @@ void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                 queryLength = hashSeqPair[kmerPos].seqLen;
                 hit_t h;
                 h.seqId = seqDbr.getDbKey(repSeqId);
-                h.prefScore = reverMask;
+                h.prefScore = 0;
                 h.diagonal = 0;
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
                 // TODO: error handling for len
@@ -828,7 +828,7 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
         res = queue.top();
         hit_t h;
         h.seqId = seqDbr.getDbKey(res.repSeq);
-        h.prefScore = res.reverse;
+        h.prefScore = 0;
         h.diagonal = 0;
         int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
         prefResultsOutString.append(buffer, len);
@@ -854,7 +854,7 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                 res = queue.top();
                 hit_t h;
                 h.seqId = seqDbr.getDbKey(res.repSeq);
-                h.prefScore = res.reverse;
+                h.prefScore = 0;
                 h.diagonal = 0;
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
                 prefResultsOutString.append(buffer, len);
