@@ -81,7 +81,7 @@ public:
     static size_t getTotalMemoryPages();
     static uint64_t getL2CacheSize();
 
-    static char touchMemory(char* memory, size_t size);
+    static char touchMemory(const char* memory, size_t size);
 
     static size_t countLines(const char *data, size_t length);
 
