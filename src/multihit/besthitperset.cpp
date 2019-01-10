@@ -30,33 +30,14 @@ public :
         std::string buffer;
         buffer.reserve(1024);
 
-        double bestScore = 0;
-        double secondBestScore = 0;
+        double bestScore = -DBL_MAX;
+        double secondBestScore = -DBL_MAX;
         double bestEval = DBL_MAX;
 
         double correctedPval = 0;
 
         // Look for the lowest p-value and retain only this line
         // dataToAggregate = [nbrTargetGene][Field of result]
-        std::vector<std::string> *bestEntry;
-        for (size_t i = 0; i < dataToAggregate.size(); i++) {
-            double score = strtod(dataToAggregate[i][1].c_str(), NULL);
-            double eval = strtod(dataToAggregate[i][3].c_str(), NULL);
-
-            if (score > bestScore) {
-                secondBestScore = bestScore;
-                bestScore = score;
-                if (simpleBestHitMode == false) {
-                    bestEntry = &dataToAggregate[i];
-                }
-            }
-
-            if (simpleBestHitMode == true && bestEval > eval) {
-                bestEval = eval;
-                bestEntry = &dataToAggregate[i];
-            }
-        }
-
         size_t targetId = targetSizeReader->getId(targetSetKey);
         if (targetId == UINT_MAX) {
             Debug(Debug::ERROR) << "Invalid target size database key " << targetSetKey << ".\n";
@@ -65,14 +46,39 @@ public :
         char *data = targetSizeReader->getData(targetId, thread_idx);
         unsigned int nbrGenes = Util::fast_atoi<unsigned int>(data);
 
-        if (simpleBestHitMode) {
-            correctedPval = bestEval / nbrGenes;
-        } else {
-            // if no second hit is available, update pvalue with fake hit
-            if (dataToAggregate.size() < 2) {
-                secondBestScore = 2.0 * log((nbrGenes + 1) / 2) / log(2.0);
+        std::vector<std::string> *bestEntry;
+        for (size_t i = 0; i < dataToAggregate.size(); i++) {
+            double eval = strtod(dataToAggregate[i][3].c_str(), NULL);
+            double pval = eval/nbrGenes;
+            //prevent log(0)
+            if (pval == 0) {
+                pval = DBL_MIN;
             }
-            correctedPval = pow(2.0, secondBestScore / 2 - bestScore / 2);
+            double score = -log(pval);
+            
+            //if only one hit use simple best hit
+            if(simpleBestHitMode ||dataToAggregate.size() < 2) {
+                bestEval = eval;
+                bestEntry = &dataToAggregate[i];
+            }
+            else {
+                if (score >= bestScore) {
+                    secondBestScore = bestScore;
+                    bestScore = score;
+                    bestEntry = &dataToAggregate[i];
+                } 
+                else if (score > secondBestScore) {
+                    secondBestScore = score;
+                }
+            }
+        }
+
+
+        if (simpleBestHitMode ||dataToAggregate.size() < 2) {
+            correctedPval = 1 - exp(-bestEval);
+        } 
+        else {
+            correctedPval = exp(secondBestScore - bestScore);
         }
 
         // Aggregate the full line into string
