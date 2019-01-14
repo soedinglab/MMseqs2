@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <utility>
 #include <tantan.h>
+#include "IndexReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -30,39 +31,17 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
     DBReader<unsigned int> *tDbr = NULL;
     DBReader<unsigned int> *tidxdbr = NULL;
+    IndexReader * tDbrIdx = NULL;
     SequenceLookup *tSeqLookup = NULL;
     bool templateDBIsIndex = false;
 
     int targetSeqType = -1;
-    std::string indexDB = PrefilteringIndexReader::searchForIndex(par.db2);
-    if (indexDB.length() > 0) {
-        Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
-
-        tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        tidxdbr->open(DBReader<unsigned int>::NOSORT);
-
-        templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
-        if (templateDBIsIndex == true) {
-            bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-            tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, touch);
-            if (tSeqLookup == NULL) {
-                Debug(Debug::WARNING) << "No unmasked index available. Falling back to sequence database.\n";
-                templateDBIsIndex = false;
-            } else {
-                PrefilteringIndexReader::printSummary(tidxdbr);
-                PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
-                targetSeqType = meta.seqType;
-                par.maxSeqLen = meta.maxSeqLength;
-                par.compBiasCorrection = meta.compBiasCorr;
-                par.scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
-                tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX, false, par.threads, touch);
-            }
-        }
-
-        if (templateDBIsIndex == false) {
-            tidxdbr->close();
-            delete tidxdbr;
-        }
+    int targetDbtype = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
+        Debug(Debug::INFO) << "Use index  " << par.db2 << "\n";
+        bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+        tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::NEED_SEQUENCES , touch);
+        tDbr = tDbrIdx->sequenceReader;
     }
 
     if (templateDBIsIndex == false) {
@@ -332,9 +311,12 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         qDbr->close();
         delete qDbr;
     }
-
-    tDbr->close();
-    delete tDbr;
+    if(tDbrIdx==NULL) {
+        tDbr->close();
+        delete tDbr;
+    }else{
+        delete tDbrIdx;
+    }
 
     if (templateDBIsIndex == true) {
         delete tSeqLookup;

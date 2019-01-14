@@ -55,7 +55,7 @@ while [ "$STEP" -lt "$STEPS" ]; do
 
     # only merge results after first step
     if [ $STEP -gt 0 ]; then
-        if notExists "$TMP_PATH/aln_${SENS}.hasmerge"; then
+        if notExists "$TMP_PATH/aln_${SENS}.hasmerged"; then
             if [ $STEP -lt $((STEPS-1)) ]; then
                 "$MMSEQS" mergedbs "$1" "$TMP_PATH/aln_merge" "$ALN_RES_MERGE" "$TMP_PATH/aln_$STEP" \
                 || fail "Mergedbs died"
@@ -64,7 +64,7 @@ while [ "$STEP" -lt "$STEPS" ]; do
                 "$MMSEQS" mergedbs "$1" "$3" "$ALN_RES_MERGE" "$TMP_PATH/aln_$STEP" \
                 || fail "Mergedbs died"
             fi
-            touch "$TMP_PATH/aln_${STEP}.hasmerge"
+            touch "$TMP_PATH/aln_${STEP}.hasmerged"
         fi
     fi
 

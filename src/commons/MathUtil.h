@@ -15,7 +15,9 @@
 
 class MathUtil {
 public:
-    static unsigned int ceilIntDivision(unsigned int x, unsigned int y){
+
+    template<typename T>
+    static T ceilIntDivision(T x, T y){
         return 1 + ((x - 1) / y);
     }
 

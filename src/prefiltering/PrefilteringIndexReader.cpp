@@ -5,7 +5,7 @@
 #include "FileUtil.h"
 #include "IndexBuilder.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION = "13";
+const char*  PrefilteringIndexReader::CURRENT_VERSION = "14";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
@@ -17,18 +17,18 @@ unsigned int PrefilteringIndexReader::DBR2INDEX = 7;
 unsigned int PrefilteringIndexReader::DBR2DATA  = 8;
 unsigned int PrefilteringIndexReader::ENTRIES = 9;
 unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 10;
-unsigned int PrefilteringIndexReader::ENTRIESNUM = 11;
-unsigned int PrefilteringIndexReader::SEQCOUNT = 12;
-unsigned int PrefilteringIndexReader::MASKEDSEQINDEXDATA = 13;
-unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 14;
-unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 15;
-unsigned int PrefilteringIndexReader::UNMASKEDSEQINDEXDATA = 16;
-unsigned int PrefilteringIndexReader::HDR1INDEX = 17;
-unsigned int PrefilteringIndexReader::HDR1DATA = 18;
-unsigned int PrefilteringIndexReader::HDR2INDEX = 19;
-unsigned int PrefilteringIndexReader::HDR2DATA = 20;
-unsigned int PrefilteringIndexReader::GENERATOR = 21;
-unsigned int PrefilteringIndexReader::SPACEDPATTERN = 22;
+unsigned int PrefilteringIndexReader::ENTRIESGRIDSIZE = 11;
+unsigned int PrefilteringIndexReader::ENTRIESNUM = 12;
+unsigned int PrefilteringIndexReader::SEQCOUNT = 13;
+unsigned int PrefilteringIndexReader::SEQINDEXDATA = 14;
+unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 15;
+unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 16;
+unsigned int PrefilteringIndexReader::HDR1INDEX = 18;
+unsigned int PrefilteringIndexReader::HDR1DATA = 19;
+unsigned int PrefilteringIndexReader::HDR2INDEX = 20;
+unsigned int PrefilteringIndexReader::HDR2DATA = 21;
+unsigned int PrefilteringIndexReader::GENERATOR = 22;
+unsigned int PrefilteringIndexReader::SPACEDPATTERN = 23;
 
 extern const char* version;
 
@@ -40,10 +40,9 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     return (strncmp(version, CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
 }
 
-std::string PrefilteringIndexReader::indexName(const std::string &outDB, bool hasSpacedKmer, int kmerSize) {
+std::string PrefilteringIndexReader::indexName(const std::string &outDB) {
     std::string result(outDB);
-    std::string spaced = (hasSpacedKmer == true) ? "s" : "";
-    result.append(".").append(spaced).append("k").append(SSTR(kmerSize));
+    result.append(".idx");
     return result;
 }
 
@@ -102,18 +101,13 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
                              ? alphabetSize -1: alphabetSize;
 
     IndexTable *indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
-    SequenceLookup *maskedLookup = NULL;
-    SequenceLookup *unmaskedLookup = NULL;
+    SequenceLookup *sequenceLookup = NULL;
     IndexBuilder::fillDatabase(indexTable,
-                               (maskMode == 1 || maskMode == 2) ? &maskedLookup : NULL,
-                               (maskMode == 0 || maskMode == 2) ? &unmaskedLookup : NULL,
+                               (maskMode == 1 ) ? &sequenceLookup : NULL,
+                               (maskMode == 0 ) ? &sequenceLookup : NULL,
                                *subMat, &seq, dbr1, 0, dbr1->getSize(), kmerThr);
     indexTable->printStatistics(subMat->int2aa);
 
-    SequenceLookup *sequenceLookup = maskedLookup;
-    if (sequenceLookup == NULL) {
-        sequenceLookup = unmaskedLookup;
-    }
     if (sequenceLookup == NULL) {
         Debug(Debug::ERROR) << "Invalid mask mode. No sequence lookup created!\n";
         EXIT(EXIT_FAILURE);
@@ -146,18 +140,11 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     writer.writeData((char *) sequenceOffsets, (sequenceCount + 1) * sizeof(size_t), SEQINDEXSEQOFFSET, 0);
     writer.alignToPageSize();
 
-    if (maskedLookup != NULL) {
-        Debug(Debug::INFO) << "Write MASKEDSEQINDEXDATA (" << MASKEDSEQINDEXDATA << ")\n";
-        writer.writeData(maskedLookup->getData(), (maskedLookup->getDataSize() + 1) * sizeof(char), MASKEDSEQINDEXDATA, 0);
+    if (sequenceLookup != NULL) {
+        Debug(Debug::INFO) << "Write SEQINDEXDATA (" << SEQINDEXDATA << ")\n";
+        writer.writeData(sequenceLookup->getData(), (sequenceLookup->getDataSize() + 1) * sizeof(char), SEQINDEXDATA, 0);
         writer.alignToPageSize();
-        delete maskedLookup;
-    }
-
-    if (unmaskedLookup != NULL) {
-        Debug(Debug::INFO) << "Write UNMASKEDSEQINDEXDATA (" << UNMASKEDSEQINDEXDATA << ")\n";
-        writer.writeData(unmaskedLookup->getData(), (unmaskedLookup->getDataSize() + 1) * sizeof(char), UNMASKEDSEQINDEXDATA, 0);
-        writer.alignToPageSize();
-        delete unmaskedLookup;
+        delete sequenceLookup;
     }
 
     // ENTRIESNUM
@@ -302,37 +289,9 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned
     return reader;
 }
 
-SequenceLookup *PrefilteringIndexReader::getMaskedSequenceLookup(DBReader<unsigned int> *dbr, bool touch) {
+SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int> *dbr, bool touch) {
     size_t id;
-    if ((id = dbr->getId(MASKEDSEQINDEXDATA)) == UINT_MAX) {
-        return NULL;
-    }
-
-    char * seqData = dbr->getDataUncompressed(id);
-
-    size_t seqOffsetsId = dbr->getId(SEQINDEXSEQOFFSET);
-    char * seqOffsetsData = dbr->getDataUncompressed(seqOffsetsId);
-
-    size_t seqDataSizeId = dbr->getId(SEQINDEXDATASIZE);
-    int64_t seqDataSize = *((int64_t *)dbr->getDataUncompressed(seqDataSizeId));
-
-    size_t sequenceCountId = dbr->getId(SEQCOUNT);
-    size_t sequenceCount = *((size_t *)dbr->getDataUncompressed(sequenceCountId));
-
-    if (touch) {
-        dbr->touchData(id);
-        dbr->touchData(seqOffsetsId);
-    }
-
-    SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount);
-    sequenceLookup->initLookupByExternalData(seqData, seqDataSize, (size_t *) seqOffsetsData);
-
-    return sequenceLookup;
-}
-
-SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsigned int>*dbr, bool touch) {
-    size_t id;
-    if ((id = dbr->getId(UNMASKEDSEQINDEXDATA)) == UINT_MAX) {
+    if ((id = dbr->getId(SEQINDEXDATA)) == UINT_MAX) {
         return NULL;
     }
 
@@ -482,15 +441,10 @@ ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> 
 }
 
 std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB) {
-    for (size_t spaced = 0; spaced < 2; spaced++) {
-        for (size_t k = 5; k <= 16; k++) {
-            std::string outIndexName(pathToDB); // db.sk6
-            std::string s = (spaced == true) ? "s" : "";
-            outIndexName.append(".").append(s).append("k").append(SSTR(k));
-            if (FileUtil::fileExists(outIndexName.c_str()) == true) {
-                return outIndexName;
-            }
-        }
+    std::string outIndexName = pathToDB;
+    outIndexName.append(".idx");
+    if (FileUtil::fileExists(outIndexName.c_str()) == true) {
+        return outIndexName;
     }
     return "";
 }

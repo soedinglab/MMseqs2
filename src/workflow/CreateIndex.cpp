@@ -9,17 +9,8 @@
 #include "Debug.h"
 #include "FileUtil.h"
 
-int createindex(int argc, const char **argv, const Command& command) {
-    Parameters& par = Parameters::getInstance();
-    par.orfStartMode = 1;
-    par.orfMinLength = 30;
-    par.orfMaxLength = 98202; // 32734 AA (just to be sure)
-    par.kmerScore = 0; // extract all k-mers
-    par.sensitivity = 7.5;
-    par.includeHeader = true;
-    par.maskMode = 2;
-    par.overrideParameterDescription((Command &) command, par.PARAM_MASK_RESIDUES.uniqid, "0: w/o low complexity masking, 1: with low complexity masking, 2: add both masked and unmasked sequences to index", "^[0-2]{1}", par.PARAM_MASK_RESIDUES.category);
-    par.parseParameters(argc, argv, command, 2);
+
+int createindex(Parameters &par, std::string indexerModule) {
     bool sensitivity = false;
     // only set kmerScore  to INT_MAX if -s was used
     for (size_t i = 0; i < par.createindex.size(); i++) {
@@ -65,13 +56,45 @@ int createindex(int argc, const char **argv, const Command& command) {
 
     CommandCaller cmd;
     cmd.addVariable("NUCL", Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
+    cmd.addVariable("INDEXER", indexerModule.c_str());
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
     cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
-    cmd.addVariable("INDEX_PAR", par.createParameterString(par.indexdb).c_str());
+    if(indexerModule == "kmerindexdb"){
+        cmd.addVariable("INDEX_PAR", par.createParameterString(par.kmerindexdb).c_str());
+    }else{
+        cmd.addVariable("INDEX_PAR", par.createParameterString(par.indexdb).c_str());
+    }
 
     FileUtil::writeFile(par.db2 + "/createindex.sh", createindex_sh, createindex_sh_len);
     std::string program(par.db2 + "/createindex.sh");
     cmd.execProgram(program.c_str(), par.filenames);
     return 0;
+}
+
+
+int createlinindex(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.orfStartMode = 1;
+    par.orfMinLength = 30;
+    par.orfMaxLength = 98202; // 32734 AA (just to be sure)
+    par.kmerScore = 0; // extract all k-mers
+    par.includeHeader = true;
+    par.maskMode = 0;
+    par.parseParameters(argc, argv, command, 2);
+    return createindex(par, "kmerindexdb");
+}
+
+int createindex(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.orfStartMode = 1;
+    par.orfMinLength = 30;
+    par.orfMaxLength = 98202; // 32734 AA (just to be sure)
+    par.kmerScore = 0; // extract all k-mers
+    par.sensitivity = 7.5;
+    par.includeHeader = true;
+    par.maskMode = 2;
+    par.overrideParameterDescription((Command &) command, par.PARAM_MASK_RESIDUES.uniqid, "0: w/o low complexity masking, 1: with low complexity masking, 2: add both masked and unmasked sequences to index", "^[0-2]{1}", par.PARAM_MASK_RESIDUES.category);
+    par.parseParameters(argc, argv, command, 2);
+    return createindex(par, "indexdb");
 }

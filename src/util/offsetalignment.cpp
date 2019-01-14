@@ -18,40 +18,61 @@ void chainAlignmentHits(std::vector<Matcher::result_t> &results, std::vector<Mat
     if(results.size() > 1){
         std::stable_sort(results.begin(), results.end(), Matcher::compareHitsByPos);
         int prevDiagonal = INT_MAX;
-        Matcher::result_t currResults = results[0];
+        Matcher::result_t  currRegion;
+        currRegion.dbKey = UINT_MAX;
         for (size_t resIdx = 0; resIdx < results.size(); resIdx++) {
-//            bool queryRev = (results[resIdx].qStartPos > results[resIdx].qEndPos);
-//            bool targetRev = (results[resIdx].qStartPos > results[resIdx].qEndPos);
-
-            int currDiagonal = results[resIdx].qStartPos  - results[resIdx].dbStartPos;
+            bool currQueryStrang = (results[resIdx].qStartPos > results[resIdx].qEndPos);
+            int qStartPos = std::min(results[resIdx].qStartPos,  results[resIdx].qEndPos);
+            int qEndPos = std::max(results[resIdx].qStartPos,  results[resIdx].qEndPos);
+            bool currTargetStrand = (results[resIdx].dbStartPos > results[resIdx].dbEndPos);
+            int dbStartPos = std::min(results[resIdx].dbStartPos, results[resIdx].dbEndPos);
+            int dbEndPos = std::max(results[resIdx].dbStartPos, results[resIdx].dbEndPos);
+            std::cout << results[resIdx].dbKey<< "\t" << qStartPos<< "\t" << qEndPos<< "\t" << dbStartPos<< "\t" << dbEndPos << "\t" << std::endl;
+            if(currRegion.dbKey == UINT_MAX){
+                currRegion = results[resIdx];
+                currRegion.qStartPos = qStartPos;
+                currRegion.qEndPos = qEndPos;
+                currRegion.dbStartPos = dbStartPos;
+                currRegion.dbEndPos = dbEndPos;
+            }
+            int currDiagonal = qStartPos - dbStartPos;
             int nextDiagonal = UINT_MAX;
-            const bool isDifferentKey = (currResults.dbKey != results[resIdx].dbKey);
+            bool nextQueryStrand = true;
+            bool nextTargetStrand = true;
+            const bool isDifferentKey = (currRegion.dbKey != results[resIdx].dbKey);
             const bool isLastElement  = (resIdx == results.size() - 1);
             if (isLastElement == false) {
-                nextDiagonal = results[resIdx+1].qStartPos  - results[resIdx+1].dbStartPos;
+                int nextqStartPos = std::min(results[resIdx+1].qStartPos,  results[resIdx+1].qEndPos);
+                int nextdbStartPos = std::min(results[resIdx+1].dbStartPos, results[resIdx+1].dbEndPos);
+                nextDiagonal = nextqStartPos - nextdbStartPos;
+                nextQueryStrand =  (results[resIdx+1].qStartPos > results[resIdx+1].qEndPos);
+                nextTargetStrand =  (results[resIdx+1].dbStartPos > results[resIdx+1].dbEndPos);
             }
-
-            const bool queryIsOverlapping  = currResults.qEndPos >= results[resIdx].qStartPos   && currResults.qEndPos <= results[resIdx].qEndPos;
-            const bool targetIsOverlapping = currResults.dbEndPos >= results[resIdx].dbStartPos && currResults.dbEndPos <= results[resIdx].dbEndPos;
+            const bool queryIsOverlapping  = currRegion.qEndPos >= qStartPos   && currRegion.qEndPos <= qEndPos;
+            const bool targetIsOverlapping = currRegion.dbEndPos >= dbStartPos && currRegion.dbEndPos <= dbEndPos;
             const bool sameNextDiagonal = (currDiagonal == nextDiagonal);
             const bool samePrevDiagonal = (currDiagonal == prevDiagonal);
             if ( (sameNextDiagonal || samePrevDiagonal ) && queryIsOverlapping && targetIsOverlapping) {
-                currResults.qStartPos = std::min(currResults.qStartPos, results[resIdx].qStartPos);
-                currResults.qEndPos = std::max(currResults.qEndPos,  results[resIdx].qEndPos);
-                currResults.dbStartPos  = std::min(currResults.dbStartPos, results[resIdx].dbStartPos);
-                currResults.dbEndPos  = std::max(currResults.dbEndPos, results[resIdx].dbEndPos);
+                currRegion.qStartPos = std::min(currRegion.qStartPos, qStartPos);
+                currRegion.qEndPos = std::max(currRegion.qEndPos,  qEndPos);
+                currRegion.dbStartPos  = std::min(currRegion.dbStartPos, dbStartPos);
+                currRegion.dbEndPos  = std::max(currRegion.dbEndPos, dbEndPos);
             }
 
             prevDiagonal = currDiagonal;
             bool isDifferentNextDiagonal = (nextDiagonal != currDiagonal);
-            if(isDifferentKey || isLastElement || isDifferentNextDiagonal){
-                tmp.push_back(currResults);
-                if(isLastElement == false) {
-                    currResults = results[resIdx + 1];
+            bool isDifferentStrand = (nextQueryStrand != currQueryStrang ) || (nextTargetStrand != currTargetStrand );
+            if(isDifferentKey || isLastElement || isDifferentNextDiagonal || isDifferentStrand){
+                if(currQueryStrang){
+                    std::swap(currRegion.qStartPos, currRegion.qEndPos);
                 }
+                if(currTargetStrand) {
+                    std::swap(currRegion.dbStartPos, currRegion.dbEndPos);
+                }
+                tmp.push_back(currRegion);
+                currRegion.dbKey = UINT_MAX;
             }
         }
-
     }
 }
 

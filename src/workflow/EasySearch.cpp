@@ -1,11 +1,10 @@
 #include <cassert>
-
+#include "PrefilteringIndexReader.h"
 #include "FileUtil.h"
 #include "CommandCaller.h"
 #include "Util.h"
 #include "Debug.h"
 #include "Parameters.h"
-
 #include "easysearch.sh.h"
 
 
@@ -48,6 +47,7 @@ int easysearch(int argc, const char **argv, const Command &command) {
                                      par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
     par.parseParameters(argc, argv, command, 4);
 
+
     bool needBacktrace = false;
     {
         bool needSequenceDB = false;
@@ -86,6 +86,10 @@ int easysearch(int argc, const char **argv, const Command &command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
+    std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
+    if(indexStr.size()>0){
+        cmd.addVariable("INDEXEXT",".idx");
+    }
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("GREEDY_BEST_HITS", par.greedyBestHits ? "TRUE" : NULL);
     cmd.addVariable("LEAVE_INPUT", par.dbOut ? "TRUE" : NULL);

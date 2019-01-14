@@ -76,7 +76,7 @@ public:
     ~Matcher();
 
     // run SSE2 parallelized Smith-Waterman alignment calculation and traceback
-    result_t getSWResult(Sequence* dbSeq, const int diagonal, const int covMode, const float covThr, const double evalThr,
+    result_t getSWResult(Sequence* dbSeq, const int diagonal, bool isReverse, const int covMode, const float covThr, const double evalThr,
                          unsigned int alignmentMode, unsigned int seqIdMode, bool isIdentical);
 
     // need for sorting the results
@@ -104,43 +104,34 @@ public:
             return false;
         if(first.dbKey < second.dbKey)
             return true;
-
         bool qFirstRev = (first.qStartPos > first.qEndPos);
         bool qSecondRev = (second.qStartPos > second.qEndPos);
         if(qSecondRev < qFirstRev)
             return false;
         if(qFirstRev < qSecondRev)
             return true;
-
         bool dbFirstRev = (first.dbStartPos > first.dbEndPos);
         bool dbSecondRev = (second.dbStartPos > second.dbEndPos);
         if(dbSecondRev < dbFirstRev)
             return false;
         if(dbFirstRev < dbSecondRev)
             return true;
-
-        int firstDiagonal  = first.qStartPos - first.dbStartPos;
-        int secondDiagonal = second.qStartPos - second.dbStartPos;
+        int firstQStartPos  = std::min( first.qStartPos, first.qEndPos);
+        int secondQStartPos = std::min( second.qStartPos, second.qEndPos);
+        int firstDbStart    = std::min( first.dbStartPos, first.dbEndPos);
+        int secondDbStart   = std::min( second.dbStartPos, second.dbEndPos);
+        int firstDiagonal  = firstQStartPos - firstDbStart;
+        int secondDiagonal = secondQStartPos - secondDbStart;
         if(secondDiagonal < firstDiagonal)
             return false;
         if(firstDiagonal < secondDiagonal)
             return true;
-
-        if(second.dbStartPos < first.dbStartPos)
+        if(secondDbStart < firstDbStart )
             return false;
-        if(first.dbStartPos < second.dbStartPos)
+        if(firstDbStart < secondDbStart)
             return true;
         return false;
 
-//        int distance = first.qStartPos - second.qEndPos;
-//        if(distance )
-//        if(second.dbKey < first.dbKey )
-//            return false;
-//        if(first.dbKey < second.dbKey )
-//            return true;
-////        bool overlap = (first.qEndPos - second.qStartPos) && first.qEndPos <= second.qEndPos);
-
-//        return false;
     }
 
     // map new query into memory (create queryProfile, ...)

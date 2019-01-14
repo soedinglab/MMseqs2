@@ -582,6 +582,24 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_THREADS);
     indexdb.push_back(&PARAM_V);
 
+    // create kmer index
+    kmerindexdb.push_back(&PARAM_SUB_MAT);
+    kmerindexdb.push_back(&PARAM_K);
+    kmerindexdb.push_back(&PARAM_HASH_SHIFT);
+    kmerindexdb.push_back(&PARAM_KMER_PER_SEQ);
+    kmerindexdb.push_back(&PARAM_MIN_SEQ_ID);
+    kmerindexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    kmerindexdb.push_back(&PARAM_SKIP_N_REPEAT_KMER);
+    kmerindexdb.push_back(&PARAM_ALPH_SIZE);
+    kmerindexdb.push_back(&PARAM_MAX_SEQ_LEN);
+    kmerindexdb.push_back(&PARAM_MASK_RESIDUES);
+    kmerindexdb.push_back(&PARAM_CHECK_COMPATIBLE);
+    kmerindexdb.push_back(&PARAM_SPACED_KMER_MODE);
+    kmerindexdb.push_back(&PARAM_SPACED_KMER_PATTERN);
+    kmerindexdb.push_back(&PARAM_INCLUDE_HEADER);
+    kmerindexdb.push_back(&PARAM_THREADS);
+    kmerindexdb.push_back(&PARAM_V);
+
     // create db
     createdb.push_back(&PARAM_MAX_SEQ_LEN);
     createdb.push_back(&PARAM_DONT_SPLIT_SEQ_BY_LEN);
@@ -718,6 +736,19 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_COMPRESSED);
     kmermatcher.push_back(&PARAM_V);
 
+    // kmermatcher
+    kmersearch.push_back(&PARAM_SUB_MAT);
+    kmersearch.push_back(&PARAM_KMER_PER_SEQ);
+    kmersearch.push_back(&PARAM_MASK_RESIDUES);
+    kmersearch.push_back(&PARAM_COV_MODE);
+    kmersearch.push_back(&PARAM_C);
+    kmersearch.push_back(&PARAM_MAX_SEQ_LEN);
+    kmersearch.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    kmersearch.push_back(&PARAM_THREADS);
+    kmersearch.push_back(&PARAM_COMPRESSED);
+    kmersearch.push_back(&PARAM_V);
+
+
 
     // mergedbs
     mergedbs.push_back(&PARAM_MERGE_PREFIXES);
@@ -844,6 +875,14 @@ Parameters::Parameters():
     searchworkflow.push_back(&PARAM_REUSELATEST);
     searchworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
 
+    linsearchworkflow = combineList(align, kmersearch);
+    linsearchworkflow = combineList(linsearchworkflow, swapresult);
+    linsearchworkflow = combineList(linsearchworkflow, extractorfs);
+    linsearchworkflow = combineList(linsearchworkflow, translatenucs);
+    linsearchworkflow.push_back(&PARAM_RUNNER);
+    linsearchworkflow.push_back(&PARAM_REUSELATEST);
+    linsearchworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
+
     // easysearch
     easysearchworkflow = combineList(searchworkflow, convertalignments);
     easysearchworkflow = combineList(easysearchworkflow, summarizeresult);
@@ -854,6 +893,11 @@ Parameters::Parameters():
     createindex = combineList(indexdb, extractorfs);
     createindex = combineList(createindex, translatenucs);
     createindex.push_back(&PARAM_REMOVE_TMP_FILES);
+
+    // createindex workflow
+    createlinindex = combineList(kmerindexdb, extractorfs);
+    createlinindex = combineList(createlinindex, translatenucs);
+    createlinindex.push_back(&PARAM_REMOVE_TMP_FILES);
 
     // linclust workflow
     linclustworkflow = combineList(clust, align);

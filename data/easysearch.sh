@@ -54,7 +54,7 @@ fi
 
 if notExists "${TMP_PATH}/alis"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" convertalis "${TMP_PATH}/query" "${TARGET}" "${INTERMEDIATE}" "${TMP_PATH}/alis" ${CONVERT_PAR} \
+    "$MMSEQS" convertalis "${TMP_PATH}/query" "${TARGET}${INDEXEXT}" "${INTERMEDIATE}" "${TMP_PATH}/alis" ${CONVERT_PAR} \
         || fail "Convert Alignments died"
 fi
 

@@ -52,9 +52,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 
     int indexMasked = maskMode;
     int minKmerThr = INT_MIN;
-    std::string indexDB = PrefilteringIndexReader::searchForIndex(targetDB);
-    if (indexDB != "") {
-        Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
+    int targetDbtype = DBReader<unsigned int>::parseDbType(targetDB.c_str());
+    if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
+        Debug(Debug::INFO) << "Use index  " << targetDB << "\n";
 
         int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
         if(preloadMode == Parameters::PRELOAD_MODE_AUTO){
@@ -67,7 +67,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
             dataMode |= DBReader<unsigned int>::USE_FREAD;
         }
-        tdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), threads, dataMode);
+        tdbr = new DBReader<unsigned int>(targetDB.c_str(), (targetDB + ".index").c_str(), threads, dataMode);
         tdbr->open(DBReader<unsigned int>::NOSORT);
 
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
@@ -470,12 +470,8 @@ ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t
 void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
     if (templateDBIsIndex == true) {
         indexTable = PrefilteringIndexReader::generateIndexTable(tidxdbr, false);
-
-        if (maskMode == 0) {
-            sequenceLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, false);
-        } else if (maskMode == 1) {
-            sequenceLookup = PrefilteringIndexReader::getMaskedSequenceLookup(tidxdbr, false);
-        }
+        //TODO check masked mode here
+        sequenceLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, false);
     } else {
         Timer timer;
 

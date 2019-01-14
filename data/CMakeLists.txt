@@ -33,6 +33,7 @@ set(COMPILED_RESOURCES
         libPolished_8.lib
         searchslicedtargetprofile.sh
         cs219.lib
+        linsearch.sh
         )
 
 set(GENERATED_OUTPUT_HEADERS "")

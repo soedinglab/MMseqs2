@@ -46,6 +46,13 @@ void* FileUtil::mmapFile(FILE * file, size_t *dataSize){
     return ret;
 }
 
+void FileUtil::munmapData(void * ptr, size_t dataSize){
+    if(munmap(ptr, dataSize) < 0){
+        Debug(Debug::ERROR) << "Failed to munmap memory\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
+
 FILE* FileUtil::openFileOrDie(const char * fileName, const char * mode, bool shouldExist) {
     bool exists = FileUtil::fileExists(fileName);
     if (exists && !shouldExist) {

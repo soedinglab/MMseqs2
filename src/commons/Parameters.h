@@ -779,7 +779,9 @@ public:
     std::vector<MMseqsParameter*> splitdb;
     std::vector<MMseqsParameter*> splitsequence;
     std::vector<MMseqsParameter*> indexdb;
+    std::vector<MMseqsParameter*> kmerindexdb;
     std::vector<MMseqsParameter*> createindex;
+    std::vector<MMseqsParameter*> createlinindex;
     std::vector<MMseqsParameter*> convertalignments;
     std::vector<MMseqsParameter*> createdb;
     std::vector<MMseqsParameter*> convert2fasta;
@@ -787,10 +789,12 @@ public:
     std::vector<MMseqsParameter*> gff2ffindex;
     std::vector<MMseqsParameter*> clusthash;
     std::vector<MMseqsParameter*> kmermatcher;
+    std::vector<MMseqsParameter*> kmersearch;
     std::vector<MMseqsParameter*> easylinclustworkflow;
     std::vector<MMseqsParameter*> linclustworkflow;
     std::vector<MMseqsParameter*> easysearchworkflow;
     std::vector<MMseqsParameter*> searchworkflow;
+    std::vector<MMseqsParameter*> linsearchworkflow;
     std::vector<MMseqsParameter*> mapworkflow;
     std::vector<MMseqsParameter*> easyclusterworkflow;
     std::vector<MMseqsParameter*> clusterworkflow;

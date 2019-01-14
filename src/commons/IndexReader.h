@@ -9,10 +9,10 @@ class IndexReader {
 public:
     IndexReader(const std::string &dataName, int threads, int mode = NEED_SEQUENCES | NEED_HEADERS, bool preload = false)
             : sequenceReader(NULL), headerReader(NULL), index(NULL) {
-        std::string indexDB = PrefilteringIndexReader::searchForIndex(dataName);
-        if (indexDB.empty() == false) {
-            Debug(Debug::INFO) << "Use index " << indexDB << "\n";
-            index = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), 1, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
+        int targetDbtype = DBReader<unsigned int>::parseDbType(dataName.c_str());
+        if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
+            Debug(Debug::INFO) << "Use index " << dataName << "\n";
+            index = new DBReader<unsigned int>(dataName.c_str(), (dataName + ".index").c_str(), 1, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
             index->open(DBReader<unsigned int>::NOSORT);
             if (PrefilteringIndexReader::checkIfIndexFile(index)) {
                 PrefilteringIndexReader::printSummary(index);

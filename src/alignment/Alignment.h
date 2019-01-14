@@ -3,8 +3,7 @@
 
 #include <string>
 #include <list>
-
-
+#include "IndexReader.h"
 #include "DBReader.h"
 #include "Parameters.h"
 #include "BaseMatrix.h"
@@ -99,15 +98,14 @@ private:
     BaseMatrix *realign_m;
 
     DBReader<unsigned int> *qdbr;
-    SequenceLookup *qSeqLookup;
+    IndexReader * qDbrIdx;
 
     DBReader<unsigned int> *tdbr;
-    DBReader<unsigned int> *tidxdbr;
-    SequenceLookup *tSeqLookup;
+    IndexReader * tDbrIdx;
 
     DBReader<unsigned int> *prefdbr;
 
-    bool templateDBIsIndex;
+    bool reversePrefilterResult;
 
     void initSWMode(unsigned int alignmentMode);
 

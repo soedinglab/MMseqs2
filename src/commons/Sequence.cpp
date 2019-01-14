@@ -530,11 +530,15 @@ void Sequence::nextProfileKmer() {
 void Sequence::mapSequence(const char * sequence){
     size_t l = 0;
     char curr = sequence[l];
-    while (curr != '\0' && curr != '\n'){
+    while (curr != '\0' && curr != '\n' &&  l < maxLen){
         int intaa = subMat->aa2int[(int)curr];
         this->int_sequence[l] = intaa;
         l++;
         curr  = sequence[l];
+    }
+
+    if(l == maxLen && curr != '\0' && curr != '\n' ){
+        Debug(Debug::INFO) << "Entry " << dbKey << " is longer than max seq. len " << maxLen << "\n";
     }
     this->L = l;
 }

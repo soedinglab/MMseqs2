@@ -24,6 +24,8 @@ public:
 
     static void* mmapFile(FILE * file, size_t *dataSize);
 
+    static void munmapData(void * ptr, size_t dataSize);
+
     static void deleteFile(const std::string &tmpFiles);
 
     static void writeFile(const std::string &pathToFile, const unsigned char *sh, size_t len);

@@ -20,6 +20,7 @@ notExists() {
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
 QUERYDB="$1"
+TARGET="$2"
 TMP_PATH="$4"
 
 STEP=0
@@ -31,7 +32,7 @@ while [ $STEP -lt $NUM_IT ]; do
         PARAM="PREFILTER_PAR_$STEP"
         eval TMP="\$$PARAM"
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" prefilter "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" ${TMP} \
+        $RUNNER "$MMSEQS" prefilter "$QUERYDB" "$TARGET" "$TMP_PATH/pref_$STEP" ${TMP} \
             || fail "Prefilter died"
     fi
 
@@ -51,7 +52,7 @@ while [ $STEP -lt $NUM_IT ]; do
 	    PARAM="ALIGNMENT_PAR_$STEP"
         eval TMP="\$$PARAM"
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" ${TMP} \
+        $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$QUERYDB" "$TARGET" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" ${TMP} \
             || fail "Alignment died"
     fi
 
@@ -72,7 +73,7 @@ while [ $STEP -lt $NUM_IT ]; do
             PARAM="PROFILE_PAR_$STEP"
             eval TMP="\$$PARAM"
             # shellcheck disable=SC2086
-            $RUNNER "$MMSEQS" result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" ${TMP} \
+            $RUNNER "$MMSEQS" result2profile "$QUERYDB" "$TARGET" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" ${TMP} \
                 || fail "Create profile died"
         fi
     fi

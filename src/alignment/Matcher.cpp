@@ -63,7 +63,7 @@ void Matcher::initQuery(Sequence* query){
 }
 
 
-Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, const int covMode, const float covThr,
+Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool isReverse, const int covMode, const float covThr,
                                        const double evalThr, unsigned int alignmentMode, unsigned int seqIdMode,
                                        bool isIdentity){
     // calculation of the score and traceback of the alignment
@@ -78,6 +78,10 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
     //std::cout << seqDbSize << " " << 100 << " " << scoreThr << std::endl;
     //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
     s_align alignment;
+    // compute sequence identity
+    std::string backtrace;
+    int aaIds = 0;
+
     if(Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
         if(diagonal==INT_MAX){
             Debug(Debug::ERROR) << "ERROR: Query sequence " << currentQuery->getDbKey()
@@ -85,59 +89,57 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
                                 << "Please check your database.\n";
             EXIT(EXIT_FAILURE);
         }
-        alignment = nuclaligner->align(dbSeq,diagonal,evaluer);
+        alignment = nuclaligner->align(dbSeq, diagonal, isReverse, backtrace, aaIds, evaluer);
         alignmentMode = Matcher::SCORE_COV_SEQID;
-    }else if(isIdentity==false){
-        alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode, covThr, maskLen);
-    }else{
-        alignment = aligner->scoreIdentical(dbSeq->int_sequence, dbSeq->L, evaluer, alignmentMode);
+    }else{ if(isIdentity==false){
+            alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode, covThr, maskLen);
+        }else{
+            alignment = aligner->scoreIdentical(dbSeq->int_sequence, dbSeq->L, evaluer, alignmentMode);
+        }
+        if(alignmentMode == Matcher::SCORE_COV_SEQID){
+            if(isIdentity==false){
+                if(alignment.cigar){
+                    int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
+                    for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+                        char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
+                        uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
+                        backtrace.reserve(length);
+
+                        for (uint32_t i = 0; i < length; ++i){
+                            if (letter == 'M') {
+                                if (dbSeq->int_sequence[targetPos] == currentQuery->int_sequence[queryPos]){
+                                    aaIds++;
+                                }
+                                ++queryPos;
+                                ++targetPos;
+                                backtrace.append("M");
+                            } else {
+                                if (letter == 'I') {
+                                    ++queryPos;
+                                    backtrace.append("I");
+                                }
+                                else{
+                                    ++targetPos;
+                                    backtrace.append("D");
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                for (int32_t c = 0; c < currentQuery->L; ++c) {
+                    aaIds++;
+                    backtrace.append("M");
+                }
+            }
+        }
+
     }
 
     // calculation of the coverage and e-value
     float qcov = 0.0;
     float dbcov = 0.0;
     float seqId = 0.0;
-    // compute sequence identity
-    std::string backtrace;
-
-    int aaIds = 0;
-    if(alignmentMode == Matcher::SCORE_COV_SEQID){
-        if(isIdentity==false){
-            if(alignment.cigar){
-                int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
-                for (int32_t c = 0; c < alignment.cigarLen; ++c) {
-                    char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
-                    uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
-                    backtrace.reserve(length);
-
-                    for (uint32_t i = 0; i < length; ++i){
-                        if (letter == 'M') {
-                            if (dbSeq->int_sequence[targetPos] == currentQuery->int_sequence[queryPos]){
-                                aaIds++;
-                            }
-                            ++queryPos;
-                            ++targetPos;
-                            backtrace.append("M");
-                        } else {
-                            if (letter == 'I') {
-                                ++queryPos;
-                                backtrace.append("I");
-                            }
-                            else{
-                                ++targetPos;
-                                backtrace.append("D");
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            for (int32_t c = 0; c < currentQuery->L; ++c) {
-                aaIds++;
-                backtrace.append("M");
-            }
-        }
-    }
 
     const unsigned int qStartPos = alignment.qStartPos1;
     const unsigned int dbStartPos = alignment.dbStartPos1;
@@ -178,7 +180,12 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
     double evalue = alignment.evalue;
     int bitScore = static_cast<short>(evaluer->computeBitScore(alignment.score1)+0.5);
 
-    result_t result(dbSeq->getDbKey(), bitScore, qcov, dbcov, seqId, evalue, alnLength, qStartPos, qEndPos, currentQuery->L, dbStartPos, dbEndPos, dbSeq->L, backtrace);
+    result_t result;
+    if(isReverse){
+        result = result_t(dbSeq->getDbKey(), bitScore, qcov, dbcov, seqId, evalue, alnLength, qStartPos, qEndPos, currentQuery->L, dbEndPos, dbStartPos, dbSeq->L, backtrace);
+    }else{
+        result = result_t(dbSeq->getDbKey(), bitScore, qcov, dbcov, seqId, evalue, alnLength, qStartPos, qEndPos, currentQuery->L, dbStartPos, dbEndPos, dbSeq->L, backtrace);
+    }
 
 
     delete [] alignment.cigar;

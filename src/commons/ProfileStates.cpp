@@ -248,7 +248,7 @@ int ProfileStates::read(std::string libraryData) {
     discProfScores = new float*[alphSize];
     for (k = 0; k< alphSize ; k++)
     {
-        unsigned int ceilAlphSize = MathUtil::ceilIntDivision(alphSize,VECSIZE_FLOAT);
+        unsigned int ceilAlphSize = MathUtil::ceilIntDivision(static_cast<unsigned int>(alphSize), static_cast<unsigned int >(VECSIZE_FLOAT));
         discProfScores[k] = (float*) mem_align(ALIGN_FLOAT, sizeof(float)*VECSIZE_FLOAT*ceilAlphSize);
         memset(discProfScores[k], 0,ceilAlphSize*VECSIZE_FLOAT* sizeof(float) );
         
@@ -347,12 +347,12 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
             }
         }
 
-        // FInd the k that minimizes sum_l prior_l*(S(profile, c_l) - S(c_k,c_l))^2
+        // Find the k that minimizes sum_l prior_l*(S(profile, c_l) - S(c_k,c_l))^2
         for (size_t k=0;k<alphSize;k++)
         {
             curDiffScore = 0.0;
             simd_float curDiffScoreSimd=simdf32_setzero(0);
-            unsigned int ceilAlphSize = MathUtil::ceilIntDivision(alphSize,VECSIZE_FLOAT);
+            unsigned int ceilAlphSize = MathUtil::ceilIntDivision(static_cast<unsigned int >(alphSize), static_cast<unsigned int >(VECSIZE_FLOAT));
 //            for (size_t l=0;l<alphSize;l++)
 //            {
 //                float diff = repScore[l] - discProfScores[k][l];
