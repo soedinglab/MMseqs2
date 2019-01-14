@@ -26,7 +26,7 @@ TMP_PATH="$4"
 # 1. Finding exact $k$-mer matches.
 if notExists "${TMP_PATH}/pref"; then
     # shellcheck disable=SC2086
-    $RUNNER "$MMSEQS" kmersearch "$QUERY" "$TARGETIDX" "${TMP_PATH}/pref" ${KMERSEARCH_PAR} \
+    $RUNNER "$MMSEQS" kmersearch "$QUERY" "$TARGET" "${TMP_PATH}/pref" ${KMERSEARCH_PAR} \
         || fail "kmermatcher died"
 fi
 
