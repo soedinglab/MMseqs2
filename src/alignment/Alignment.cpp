@@ -11,11 +11,11 @@
 #include "PrefilteringIndexReader.h"
 #include "FileUtil.h"
 #include "LinsearchIndexReader.h"
+#include "IndexReader.h"
+
 
 #ifdef OPENMP
 #include <omp.h>
-#include <IndexReader.h>
-
 #endif
 
 Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqDBIndex,
