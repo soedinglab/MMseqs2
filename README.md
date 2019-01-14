@@ -181,12 +181,3 @@ Make sure that MMseqs2 was compiled with MPI by using the `-DHAVE_MPI=1` flag (`
 To search with multiple servers call the `search` or `cluster` workflow with the MPI command exported in the RUNNER environment variable. The databases and temporary folder have to be shared between all nodes (e.g. through NFS):
 
         RUNNER="mpirun -np 42" mmseqs search queryDB targetDB resultDB tmp
-
-#### Writing some temporary files locally when running with MPI ####
-As part of its computation, MMseqs2 writes temporary files corresponding to each of the database splits. The number of the database splits is determined by the number of servers and number of cores in each server. By default, termporary files are written to the shared disk. 
-
-In case the number of database splits is large, it would mean a high burden of I/O operations on the same disk. To avoid slowdowns due to this issue, an additional parameter can be passed to `search` in MPI mode:
-
-`--local-tmp` /path/on/each/local/server/
-
-Passing this parameter will write the temporary files of each server (created by its cores) on the indicated path and reduce the number of temporary files handled on the shared disk.

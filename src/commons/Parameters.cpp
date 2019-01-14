@@ -186,7 +186,7 @@ Parameters::Parameters():
         PARAM_COMPUTE_POSITIONS(PARAM_COMPUTE_POSITIONS_ID, "--compute-positions", "Compute Positions", "Add the positions of he hit on the target genome", typeid(std::string), (void*) &compPos, ""),
         PARAM_TRANSITIVE_REPLACE(PARAM_TRANSITIVE_REPLACE_ID, "--transitive-replace", "Replace transitively", "Replace cluster name in a search file by all genes in this cluster", typeid(std::string), (void*) &clusterFile, ""),
         // besthitperset
-        PARAM_SIMPLE_BEST_HIT(PARAM_SIMPLE_BEST_HIT_ID, "--simple-best-hit", "Use Simple Best Hit", "Update the e-value by the best p-value", typeid(bool), (void*) &simpleBestHit, ""),
+        PARAM_SIMPLE_BEST_HIT(PARAM_SIMPLE_BEST_HIT_ID, "--simple-best-hit", "Use Simple Best Hit", "Update the p-value by a single best hit, or by best and second best hits", typeid(bool), (void*) &simpleBestHit, ""),
         PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining p-values during aggregation", typeid(float), (void*) &alpha, ""),
         PARAM_SHORT_OUTPUT(PARAM_SHORT_OUTPUT_ID, "--short-output", "Short output", "The output database will contain only the spread p-value", typeid(bool), (void*) &shortOutput, ""),
         // concatdb
@@ -1577,7 +1577,7 @@ void Parameters::setDefaults() {
 
 
     //besthitperset
-    simpleBestHit = false;
+    simpleBestHit = true; 
     alpha = 1;
     shortOutput = false;
 

@@ -433,7 +433,7 @@ uint64_t Util::getL2CacheSize() {
     return 262144;
 }
 
-char Util::touchMemory(char *memory, size_t size) {
+char Util::touchMemory(const char *memory, size_t size) {
     int threadCnt = 1;
 #ifdef OPENMP
     const int totalThreadCnt = omp_get_max_threads();

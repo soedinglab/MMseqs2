@@ -44,9 +44,9 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
                 data = Util::skipLine(data);
             }
             dbw.writeData(buffer.c_str(), buffer.length(), setReader.getDbKey(i), thread_idx);
+            buffer.clear();
         }
-        buffer.clear();
-    };
+    }
     dbw.close();
     resultReader.close();
     setReader.close();
