@@ -5,7 +5,7 @@
 #include "FileUtil.h"
 #include "IndexBuilder.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION = "14";
+const char*  PrefilteringIndexReader::CURRENT_VERSION = "15";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
@@ -67,7 +67,8 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     const int headers1 = (hdbr1 != NULL) ? 1 : 0;
     const int headers2 = (hdbr2 != NULL) ? 1 : 0;
     const int seqType = dbr1->getDbtype();
-    int metadata[] = {maxSeqLen, kmerSize, biasCorr, alphabetSize, mask, spacedKmer, kmerThr, seqType, headers1, headers2};
+    const int srcSeqType = dbr2->getDbtype();
+    int metadata[] = {maxSeqLen, kmerSize, biasCorr, alphabetSize, mask, spacedKmer, kmerThr, seqType, srcSeqType, headers1, headers2};
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, sizeof(metadata), META, 0);
     writer.alignToPageSize();
@@ -359,8 +360,9 @@ void PrefilteringIndexReader::printMeta(int *metadata_tmp) {
     Debug(Debug::INFO) << "Spaced:       " << metadata_tmp[5] << "\n";
     Debug(Debug::INFO) << "KmerScore:    " << metadata_tmp[6] << "\n";
     Debug(Debug::INFO) << "SequenceType: " << DBReader<unsigned int>::getDbTypeName(metadata_tmp[7]) << "\n";
-    Debug(Debug::INFO) << "Headers1:     " << metadata_tmp[8] << "\n";
-    Debug(Debug::INFO) << "Headers2:     " << metadata_tmp[9] << "\n";
+    Debug(Debug::INFO) << "SourcSeqType: " << DBReader<unsigned int>::getDbTypeName(metadata_tmp[8]) << "\n";
+    Debug(Debug::INFO) << "Headers1:     " << metadata_tmp[9] << "\n";
+    Debug(Debug::INFO) << "Headers2:     " << metadata_tmp[10] << "\n";
 }
 
 void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
@@ -389,8 +391,9 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
     data.spacedKmer = meta[5];
     data.kmerThr = meta[6];
     data.seqType = meta[7];
-    data.headers1 = meta[8];
-    data.headers2 = meta[9];
+    data.srcSeqType = meta[8];
+    data.headers1 = meta[9];
+    data.headers2 = meta[10];
 
     return data;
 }

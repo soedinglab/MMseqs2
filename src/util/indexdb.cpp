@@ -15,7 +15,7 @@ void setIndexDbDefaults(Parameters *p) {
 
 bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, const int dbtype) {
     PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
-    if (meta.compBiasCorr != (par.compBiasCorrection == 1))
+    if (meta.compBiasCorr != par.compBiasCorrection)
         return false;
     if (meta.maxSeqLength != static_cast<int>(par.maxSeqLen))
         return false;
@@ -25,7 +25,7 @@ bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, con
         return false;
     if (meta.kmerSize != par.kmerSize)
         return false;
-    if (meta.mask != (par.maskMode > 0))
+    if (meta.mask != par.maskMode)
         return false;
     if (meta.kmerThr != par.kmerScore)
         return false;
@@ -33,11 +33,10 @@ bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, con
         return false;
     if (par.scoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
         return false;
-    if (meta.headers1 != par.includeHeader)
-        return false;
+
     if (par.spacedKmerPattern != PrefilteringIndexReader::getSpacedPattern(&index))
         return false;
-    if (meta.headers2 == 1 && par.includeHeader && (par.db1 != par.db2))
+    if (meta.headers2 == 1 && (par.db1 != par.db2))
         return true;
     return true;
 }
@@ -111,7 +110,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> *hdbr1 = NULL;
     DBReader<unsigned int> *hdbr2 = NULL;
-    if (par.includeHeader == true) {
+    {
         hdbr1 = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         hdbr1->open(DBReader<unsigned int>::NOSORT);
         if (sameDB == false) {

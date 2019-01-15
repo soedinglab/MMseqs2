@@ -159,10 +159,11 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         const int mask = par.maskMode > 0;
         const int spacedKmer = (par.spacedKmer) ? 1 : 0;
         const bool sameDB = (par.db1 == par.db2);
-        const int headers1 = (par.includeHeader) ? 1 : 0;
-        const int headers2 = (par.includeHeader && sameDB) ? 1 : 0;
+        const int headers1 =  1;
+        const int headers2 = (sameDB) ? 1 : 0;
         const int seqType = seqDbr.getDbtype();
-        int metadata[] = {static_cast<int>(par.maxSeqLen), static_cast<int>(KMER_SIZE), biasCorr, subMat->alphabetSize, mask, spacedKmer, 0, seqType, headers1, headers2};
+        const int srcSeqType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+        int metadata[] = {static_cast<int>(par.maxSeqLen), static_cast<int>(KMER_SIZE), biasCorr, subMat->alphabetSize, mask, spacedKmer, 0, seqType, srcSeqType, headers1, headers2};
         char *metadataptr = (char *) &metadata;
         dbw.writeData(metadataptr, sizeof(metadata), PrefilteringIndexReader::META, 0);
         dbw.alignToPageSize();
@@ -238,7 +239,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
             dbr2.close();
         }
 
-        if (par.includeHeader == true) {
+        {
             Debug(Debug::INFO) << "Write HDR1INDEX (" << PrefilteringIndexReader::HDR1INDEX << ")\n";
             DBReader<unsigned int> hdbr1(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
             hdbr1.open(DBReader<unsigned int>::NOSORT);

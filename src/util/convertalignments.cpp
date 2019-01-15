@@ -107,15 +107,19 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     }
 
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    const int indexReaderMode = IndexReader::NEED_HEADERS | (needSequenceDB ? IndexReader::NEED_SEQUENCES : 0);
-    IndexReader qDbr(par.db1, par.threads, indexReaderMode | (queryNucs ? IndexReader::NEED_SRC_SEQUENCES : 0), touch);
+    IndexReader qDbr(par.db1, par.threads, (queryNucs) ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES, touch);
+    IndexReader qDbrHeader(par.db1, par.threads, (queryNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS, touch);
 
     IndexReader *tDbr;
+    IndexReader *tDbrHeader;
+
     if (sameDB) {
         tDbr = &qDbr;
+        tDbrHeader= &qDbrHeader;
     } else {
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        tDbr = new IndexReader(par.db2, par.threads, indexReaderMode | (queryNucs ? IndexReader::NEED_SRC_SEQUENCES : 0), touch);
+        tDbr = new IndexReader(par.db2, par.threads, (targetNucs) ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES, touch);
+        tDbrHeader = new IndexReader(par.db2, par.threads, (targetNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS, touch);
     }
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
@@ -189,9 +193,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 }
             }
 
-            size_t qHeaderId = qDbr.headerReader->getId(queryKey);
-            const char *qHeader = qDbr.headerReader->getData(qHeaderId, thread_idx);
-            size_t qHeaderLen = qDbr.headerReader->getSeqLens(qHeaderId);
+            size_t qHeaderId = qDbrHeader.sequenceReader->getId(queryKey);
+            const char *qHeader = qDbrHeader.sequenceReader->getData(qHeaderId, thread_idx);
+            size_t qHeaderLen = qDbrHeader.sequenceReader->getSeqLens(qHeaderId);
             std::string queryId = Util::parseFastaHeader(qHeader);
             if (sameDB && needFullHeaders) {
                 queryHeaderBuffer.assign(qHeader, std::max(qHeaderLen, static_cast<size_t>(2)) - 2);
@@ -209,9 +213,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                     EXIT(EXIT_FAILURE);
                 }
 
-                size_t tHeaderId = tDbr->headerReader->getId(res.dbKey);
-                const char *tHeader = tDbr->headerReader->getData(tHeaderId, thread_idx);
-                size_t tHeaderLen = tDbr->headerReader->getSeqLens(tHeaderId);
+                size_t tHeaderId = tDbrHeader->sequenceReader->getId(res.dbKey);
+                const char *tHeader = tDbrHeader->sequenceReader->getData(tHeaderId, thread_idx);
+                size_t tHeaderLen = tDbrHeader->sequenceReader->getSeqLens(tHeaderId);
                 std::string targetId = Util::parseFastaHeader(tHeader);
 
                 unsigned int gapOpenCount = 0;
@@ -432,6 +436,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     if (needSequenceDB) {
         if (sameDB == false) {
             delete tDbr;
+            delete tDbrHeader;
         }
         delete evaluer;
     }

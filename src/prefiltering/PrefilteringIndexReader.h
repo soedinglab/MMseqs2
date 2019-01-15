@@ -15,6 +15,7 @@ struct PrefilteringIndexData {
     int spacedKmer;
     int kmerThr;
     int seqType;
+    int srcSeqType;
     int headers1;
     int headers2;
 };

@@ -382,8 +382,8 @@ public:
     int hashShift;
 
     // indexdb
-    bool includeHeader;
     bool checkCompatible;
+    int indexType;
 
     // createdb
     int identifierOffset;
@@ -656,8 +656,8 @@ public:
     PARAMETER(PARAM_USE_ALL_TABLE_STARTS)
 
     // indexdb
-    PARAMETER(PARAM_INCLUDE_HEADER)
     PARAMETER(PARAM_CHECK_COMPATIBLE)
+    PARAMETER(PARAM_INDEX_TYPE)
 
     // createdb
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs

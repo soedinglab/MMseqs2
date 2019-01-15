@@ -148,8 +148,8 @@ Parameters::Parameters():
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
         PARAM_USE_ALL_TABLE_STARTS(PARAM_USE_ALL_TABLE_STARTS_ID,"--use-all-table-starts", "Use all table starts", "use all alteratives for a start codon in the genetic table, if false - only ATG (AUG)",typeid(bool),(void *) &useAllTableStarts, ""),
         // indexdb
-        PARAM_INCLUDE_HEADER(PARAM_INCLUDE_HEADER_ID, "--include-headers", "Include Header", "Include the header index into the index", typeid(bool), (void *) &includeHeader, ""),
-        PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check Compatible", "Skip recreating an index if it is compatible with the specified parameters", typeid(bool), (void*) &checkCompatible, "", COMMAND_EXPERT),
+        PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check Compatible", "skip recreating an index if it is compatible with the specified parameters", typeid(bool), (void*) &checkCompatible, "", COMMAND_EXPERT),
+        PARAM_INDEX_TYPE(PARAM_INDEX_TYPE_ID, "--index-type", "Index type", "index type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &indexType, "^[0-3]{1}"),
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
@@ -575,8 +575,8 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_SPACED_KMER_PATTERN);
     indexdb.push_back(&PARAM_S);
     indexdb.push_back(&PARAM_K_SCORE);
-    indexdb.push_back(&PARAM_INCLUDE_HEADER);
     indexdb.push_back(&PARAM_CHECK_COMPATIBLE);
+    indexdb.push_back(&PARAM_INDEX_TYPE);
     indexdb.push_back(&PARAM_SPLIT);
     indexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     indexdb.push_back(&PARAM_THREADS);
@@ -594,9 +594,9 @@ Parameters::Parameters():
     kmerindexdb.push_back(&PARAM_MAX_SEQ_LEN);
     kmerindexdb.push_back(&PARAM_MASK_RESIDUES);
     kmerindexdb.push_back(&PARAM_CHECK_COMPATIBLE);
+    kmerindexdb.push_back(&PARAM_INDEX_TYPE);
     kmerindexdb.push_back(&PARAM_SPACED_KMER_MODE);
     kmerindexdb.push_back(&PARAM_SPACED_KMER_PATTERN);
-    kmerindexdb.push_back(&PARAM_INCLUDE_HEADER);
     kmerindexdb.push_back(&PARAM_THREADS);
     kmerindexdb.push_back(&PARAM_V);
 
@@ -892,6 +892,8 @@ Parameters::Parameters():
     // createindex workflow
     createindex = combineList(indexdb, extractorfs);
     createindex = combineList(createindex, translatenucs);
+    createindex = combineList(createindex, splitsequence);
+    createindex.push_back(&PARAM_STRAND);
     createindex.push_back(&PARAM_REMOVE_TMP_FILES);
 
     // createindex workflow
@@ -1472,8 +1474,8 @@ void Parameters::setDefaults() {
     profileMode = PROFILE_MODE_HMM;
 
     // indexdb
-    includeHeader = false;
     checkCompatible = false;
+    indexType = 0;
 
     // createdb
     splitSeqByLen = true;

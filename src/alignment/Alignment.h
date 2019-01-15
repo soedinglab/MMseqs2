@@ -15,8 +15,8 @@ class Alignment {
 
 public:
 
-    Alignment(const std::string &querySeqDB, const std::string &querySeqDBIndex,
-              const std::string &targetSeqDB, const std::string &targetSeqDBIndex,
+    Alignment(const std::string &querySeqDB,
+              const std::string &targetSeqDB,
               const std::string &prefDB, const std::string &prefDBIndex,
               const std::string &outDB, const std::string &outDBIndex,
               const Parameters &par);

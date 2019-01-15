@@ -37,7 +37,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     int targetDbtype = DBReader<unsigned int>::parseDbType(par.db2.c_str());
     if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
         bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-        tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::NEED_SEQUENCES , touch);
+        tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES , touch);
         tDbr = tDbrIdx->sequenceReader;
         tDbr->getDbtype();
         templateDBIsIndex = true;

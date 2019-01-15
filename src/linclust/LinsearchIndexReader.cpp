@@ -265,11 +265,9 @@ bool LinsearchIndexReader::isIndexCompatible(DBReader<unsigned int> & index, Par
         return false;
     if (par.scoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
         return false;
-    if (meta.headers1 != par.includeHeader)
-        return false;
     if (par.spacedKmerPattern != PrefilteringIndexReader::getSpacedPattern(&index))
         return false;
-    if (meta.headers2 == 1 && par.includeHeader && (par.db1 != par.db2))
+    if (meta.headers2 == 1 && (par.db1 != par.db2))
         return true;
     return true;
 }

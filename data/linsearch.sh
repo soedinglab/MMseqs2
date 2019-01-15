@@ -37,12 +37,28 @@ if notExists "${TMP_PATH}/reverse_aln"; then
         || fail "Alignment step died"
 fi
 
-# 3. Local gapped sequence alignment.
-if notExists "$3"; then
-    # shellcheck disable=SC2086
-    $RUNNER "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_aln" "$3" ${SWAPRESULT_PAR} \
-        || fail "Alignment step died"
+
+if [ -n "$NUCL" ]; then
+    # 3. Local gapped sequence alignment.
+    if notExists "${TMP_PATH}/aln"; then
+        # shellcheck disable=SC2086
+        $RUNNER "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_aln" "${TMP_PATH}/aln" ${SWAPRESULT_PAR} \
+            || fail "Alignment step died"
+    fi
+    if notExists "$3"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" offsetalignment "$QUERY" "${QUERY}" "${TARGET}" "${TARGET}" "${TMP_PATH}/aln" "$3" ${OFFSETALIGNMENT_PAR} \
+            || fail "Offset step died"
+    fi
+else
+    # 3. Local gapped sequence alignment.
+    if notExists "$3"; then
+        # shellcheck disable=SC2086
+        $RUNNER "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_aln" "$3" ${SWAPRESULT_PAR} \
+            || fail "Alignment step died"
+    fi
 fi
+
 
 
 if [ -n "$REMOVE_TMP" ]; then

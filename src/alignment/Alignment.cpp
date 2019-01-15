@@ -18,8 +18,8 @@
 #include <omp.h>
 #endif
 
-Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqDBIndex,
-                     const std::string &targetSeqDB, const std::string &targetSeqDBIndex,
+Alignment::Alignment(const std::string &querySeqDB,
+                     const std::string &targetSeqDB,
                      const std::string &prefDB, const std::string &prefDBIndex,
                      const std::string &outDB, const std::string &outDBIndex,
                      const Parameters &par) :
@@ -66,30 +66,19 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     initSWMode(alignmentMode);
 
     std::string scoringMatrixFile = par.scoringMatrixFile;
-    int targetDbtype = DBReader<unsigned int>::parseDbType(targetSeqDB.c_str());
-    if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
-        bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-        tDbrIdx = new IndexReader(targetSeqDB, par.threads, IndexReader::NEED_SEQUENCES, touch);
-        tdbr = tDbrIdx->sequenceReader;
-    }else{
-        tdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-        tdbr->open(DBReader<unsigned int>::NOSORT);
-    }
-    targetSeqType = tdbr->getDbtype();
+    bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+    tDbrIdx = new IndexReader(targetSeqDB, par.threads, IndexReader::SEQUENCES, touch);
+    tdbr = tDbrIdx->sequenceReader;
+    targetSeqType = tDbrIdx->getDbtype();
     sameQTDB = (targetSeqDB.compare(querySeqDB) == 0);
     if (sameQTDB == true) {
+        qDbrIdx = tDbrIdx;
         qdbr = tdbr;
         querySeqType = targetSeqType;
     } else {
         // open the sequence, prefiltering and output databases
-        int queryDbType = DBReader<unsigned int>::parseDbType(querySeqDB.c_str());
-        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_INDEX_DB)) {
-            qDbrIdx = new IndexReader(par.db1, par.threads,  IndexReader::NEED_SEQUENCES , false);
-            qdbr = qDbrIdx->sequenceReader;
-        }else{
-            qdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-            qdbr->open(DBReader<unsigned int>::NOSORT);
-        }
+        qDbrIdx = new IndexReader(par.db1, par.threads,  IndexReader::SEQUENCES , false);
+        qdbr = qDbrIdx->sequenceReader;
         querySeqType = qdbr->getDbtype();
     }
 

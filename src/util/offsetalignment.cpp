@@ -83,8 +83,8 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf
     for (size_t i = startPos; i < endPos; i++) {
         Matcher::result_t &res = results[i];
         if (isNuclNucl == true || qloc == NULL) {
-            size_t targetId = tOrfDBr.headerReader->getId(res.dbKey);
-            char *header = tOrfDBr.headerReader->getData(targetId, thread_idx);
+            size_t targetId = tOrfDBr.sequenceReader->getId(res.dbKey);
+            char *header = tOrfDBr.sequenceReader->getData(targetId, thread_idx);
 
             Orf::SequenceLocation tloc = Orf::parseOrfHeader(header);
             res.dbKey   = (tloc.id != UINT_MAX) ? tloc.id : res.dbKey;
@@ -142,13 +142,25 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 6);
 
     const bool touch = par.preloadMode != Parameters::PRELOAD_MODE_MMAP;
-
-
     int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    if(Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_INDEX_DB)){
+        DBReader<unsigned int> idxdbr(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        idxdbr.open(DBReader<unsigned int>::NOSORT);
+        PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&idxdbr);
+        queryDbType=data.srcSeqType;
+        idxdbr.close();
+    }
     int targetDbType = DBReader<unsigned int>::parseDbType(par.db3.c_str());
+    if(Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB)){
+        DBReader<unsigned int> idxdbr(par.db3.c_str(), par.db3Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        idxdbr.open(DBReader<unsigned int>::NOSORT);
+        PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&idxdbr);
+        targetDbType=data.srcSeqType;
+        idxdbr.close();
+    }
 
     Debug(Debug::INFO) << "Query database: " << par.db2 << "\n";
-    IndexReader qOrfDbr(par.db2.c_str(), par.threads, IndexReader::NEED_ALT_HEADERS, touch);
+    IndexReader qOrfDbr(par.db2 .c_str(), par.threads, IndexReader::HEADERS, touch);
     if (queryDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
@@ -157,11 +169,11 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     IndexReader *qSourceDbr = NULL;
     if (queryNucl) {
         Debug(Debug::INFO) << "Source Query database: " << par.db1 << "\n";
-        qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::NEED_SEQ_INDEX, touch);
+        qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::SRC_SEQUENCES, touch);
     }
 
     Debug(Debug::INFO) << "Target database: " << par.db4 << "\n";
-    IndexReader tOrfDbr(par.db4.c_str(), par.threads, IndexReader::NEED_ALT_HEADERS, touch);
+    IndexReader tOrfDbr(par.db4.c_str(), par.threads, IndexReader::HEADERS, touch);
     if (targetDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
@@ -170,7 +182,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     IndexReader *tSourceDbr = NULL;
     if (targetNucl) {
         Debug(Debug::INFO) << "Source Target database: " << par.db3 << "\n";
-        tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::NEED_SEQ_INDEX, touch);
+        tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::SRC_SEQUENCES, touch);
     }
 
     Debug(Debug::INFO) << "Result database: " << par.db5 << "\n";
@@ -206,13 +218,13 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 #endif
 #pragma omp for schedule(dynamic, 10)
             for (size_t i = 0; i <= maxOrfKey; ++i) {
-                size_t queryId = qOrfDbr.headerReader->getId(i);
+                size_t queryId = qOrfDbr.sequenceReader->getId(i);
                 if (queryId == UINT_MAX) {
                     orfLookup[i] = UINT_MAX;
                     continue;
                 }
-                unsigned int queryKey = qOrfDbr.headerReader->getDbKey(queryId);
-                char *header = qOrfDbr.headerReader->getData(queryId, thread_idx);
+                unsigned int queryKey = qOrfDbr.sequenceReader->getDbKey(queryId);
+                char *header = qOrfDbr.sequenceReader->getData(queryId, thread_idx);
                 Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
                 unsigned int id = (qloc.id != UINT_MAX) ? qloc.id : queryKey;
                 orfLookup[i] = id;
@@ -298,8 +310,8 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     unsigned int orfKey = orfKeys[j];
                     size_t orfId = alnDbr.getId(orfKey);
                     char *data = alnDbr.getData(orfId, thread_idx);
-                    size_t queryId = qOrfDbr.headerReader->getId(orfKey);
-                    char *header = qOrfDbr.headerReader->getData(queryId, thread_idx);
+                    size_t queryId = qOrfDbr.sequenceReader->getId(orfKey);
+                    char *header = qOrfDbr.sequenceReader->getData(queryId, thread_idx);
                     Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
                     updateOffset(data, results, &qloc, tOrfDbr, isNuclNucl, thread_idx);
                 }

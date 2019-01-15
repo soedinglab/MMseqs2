@@ -126,7 +126,9 @@ int linsearch(int argc, const char **argv, const Command& command) {
     cmd.addVariable("KMERSEARCH_PAR", par.createParameterString(par.kmersearch).c_str());
     cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
     cmd.addVariable("SWAPRESULT_PAR", par.createParameterString(par.swapresult).c_str());
-
+    if(isNuclSearch){
+        cmd.addVariable("NUCL", "1");
+    }
     FileUtil::writeFile(program, linsearch_sh, linsearch_sh_len);
 
     if (isTranslatedNuclSearch == true) {
