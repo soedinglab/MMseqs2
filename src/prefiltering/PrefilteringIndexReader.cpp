@@ -67,7 +67,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     const int headers1 = (hdbr1 != NULL) ? 1 : 0;
     const int headers2 = (hdbr2 != NULL) ? 1 : 0;
     const int seqType = dbr1->getDbtype();
-    const int srcSeqType = dbr2->getDbtype();
+    const int srcSeqType = (dbr2 !=NULL) ? dbr2->getDbtype() : seqType;
     int metadata[] = {maxSeqLen, kmerSize, biasCorr, alphabetSize, mask, spacedKmer, kmerThr, seqType, srcSeqType, headers1, headers2};
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, sizeof(metadata), META, 0);
