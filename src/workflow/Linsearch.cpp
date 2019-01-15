@@ -20,7 +20,7 @@ void setLinsearchDefaults(Parameters *p) {
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
     p->sensitivity = 5.7;
     p->evalThr = 0.001;
-    //p->orfLongest = true;
+    p->maskMode = 0;
     p->orfStartMode = 1;
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
