@@ -41,7 +41,6 @@ set(util_source_files
         util/result2repseq.cpp
         util/result2stats.cpp
         util/reverseseq.cpp
-        util/sequence2profile.cpp
         util/shellcompletion.cpp
         util/extractframes.cpp
         util/sortresult.cpp

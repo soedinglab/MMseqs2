@@ -27,7 +27,6 @@ set(COMPILED_RESOURCES
         CovSeqidQscPercMinDiagTargetCov.out
         ExpOpt3_8_polished.cs32.lib
         Library255_may17.lib
-        K4000.crf
         libPure_blosum62_255.lib
         libPure_blosum62_32.lib
         libPolished_8.lib
