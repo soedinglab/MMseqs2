@@ -58,7 +58,7 @@ github-release upload \
     --user soedinglab \
     --repo mmseqs2 \
     --tag "${RELEASE_ID}" \
-    --name "MMseqs2-Windows-Unified.tar.gz" \
+    --name "MMseqs2-Windows-Unified.zip" \
     --file mmseqs-win64.zip
 
 # upload SSE4.1 static binary
