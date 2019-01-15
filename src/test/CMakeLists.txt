@@ -27,7 +27,6 @@ set(TESTS
         TestTaxonomy.cpp
         TestTranslate.cpp
         TestProfileStates.cpp
-        TestCSProfile.cpp
         TestUtil.cpp
         TestKsw2.cpp
         TestBestAlphabet.cpp
