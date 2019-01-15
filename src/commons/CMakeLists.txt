@@ -20,7 +20,6 @@ set(commons_header_files
         commons/NucleotideMatrix.h
         commons/Orf.h
         commons/ProfileStates.h
-        commons/CSProfile.h
         commons/LibraryReader.h
         commons/Parameters.h
         commons/PatternCompiler.h
@@ -55,7 +54,6 @@ set(commons_source_files
         commons/Orf.cpp
         commons/Parameters.cpp
         commons/ProfileStates.cpp
-        commons/CSProfile.cpp
         commons/LibraryReader.cpp
         commons/Sequence.cpp
         commons/SubstitutionMatrix.cpp
