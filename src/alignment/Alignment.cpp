@@ -69,13 +69,13 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     int targetDbtype = DBReader<unsigned int>::parseDbType(targetSeqDB.c_str());
     if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
         bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-        tDbrIdx = new IndexReader(targetSeqDB, par.threads, IndexReader::NEED_SEQUENCES , touch);
+        tDbrIdx = new IndexReader(targetSeqDB, par.threads, IndexReader::NEED_SEQUENCES, touch);
         tdbr = tDbrIdx->sequenceReader;
     }else{
         tdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         tdbr->open(DBReader<unsigned int>::NOSORT);
     }
-
+    targetSeqType = tdbr->getDbtype();
     sameQTDB = (targetSeqDB.compare(querySeqDB) == 0);
     if (sameQTDB == true) {
         qdbr = tdbr;
@@ -89,8 +89,8 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         }else{
             qdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
             qdbr->open(DBReader<unsigned int>::NOSORT);
-            querySeqType = qdbr->getDbtype();
         }
+        querySeqType = qdbr->getDbtype();
     }
 
     //qdbr->readMmapedDataInMemory();
@@ -104,10 +104,6 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         threads = qdbr->getSize();
     }
 
-    if (tDbrIdx == NULL) {
-        querySeqType = qdbr->getDbtype();
-        targetSeqType = tdbr->getDbtype();
-    }
     if (querySeqType == -1 || targetSeqType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
