@@ -19,7 +19,7 @@ public:
 
     static std::pair<size_t, KmerPosition *> extractKmerAndSort(size_t splitKmerCount, size_t split, size_t splits,
                                                                 DBReader<unsigned int> &seqDbr, Parameters &par, BaseMatrix *subMat,
-                                                                size_t KMER_SIZE, size_t chooseTopKmer);
+                                                                size_t KMER_SIZE, size_t chooseTopKmer, size_t pickNBest);
 };
 
 

@@ -265,7 +265,7 @@ std::vector<struct Command> commands = {
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> ",
                 "<i:sequenceDB> <o:prefDB>",
                 CITATION_MMSEQS2},
-        {"kmersearch",          kmersearch,          &par.kmermatcher,          COMMAND_EXPERT,
+        {"kmersearch",          kmersearch,          &par.kmersearch,          COMMAND_EXPERT,
                 "Search with query sequence through target DB.  (k-mer matching) ",
                 "Searches with the query sequence DB through the target sequence DB. Results are target centric target -> query.",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> ",

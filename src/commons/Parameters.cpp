@@ -126,6 +126,7 @@ Parameters::Parameters():
         PARAM_INCLUDE_ONLY_EXTENDABLE(PARAM_INCLUDE_ONLY_EXTENDABLE_ID, "--include-only-extendable", "Include only extendable", "Include only extendable", typeid(bool), (void*) &includeOnlyExtendable, "", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_SKIP_N_REPEAT_KMER(PARAM_SKIP_N_REPEAT_KMER_ID, "--skip-n-repeat-kmer", "Skip sequence with n repeating k-mers", "Skip sequence with >= n exact repeating k-mers", typeid(int), (void*) &skipNRepeatKmer, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash", typeid(int), (void*) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PICK_N_SIMILAR(PARAM_HASH_SHIFT_ID, "--pick-n-sim-kmer", "Adds N similar to search", "adds N similar to search", typeid(int), (void*) &pickNbest, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","use MPI on compute grid with this MPI command (e.g. \"mpirun -np 42\")",typeid(std::string),(void *) &runner, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart using the latest tmp","reuse tmp file in tmp/latest folder ignoring parameters and git version change", typeid(bool),(void *) &reuseLatest, "", MMseqsParameter::COMMAND_EXPERT),
@@ -743,6 +744,7 @@ Parameters::Parameters():
     kmersearch.push_back(&PARAM_COV_MODE);
     kmersearch.push_back(&PARAM_C);
     kmersearch.push_back(&PARAM_MAX_SEQ_LEN);
+    kmersearch.push_back(&PARAM_PICK_N_SIMILAR);
     kmersearch.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     kmersearch.push_back(&PARAM_THREADS);
     kmersearch.push_back(&PARAM_COMPRESSED);
@@ -1617,7 +1619,7 @@ void Parameters::setDefaults() {
     includeOnlyExtendable = false;
     skipNRepeatKmer = 0;
     hashShift = 5;
-
+    pickNbest = 1;
     // result2stats
     stat = "";
 

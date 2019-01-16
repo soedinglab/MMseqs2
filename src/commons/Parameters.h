@@ -380,6 +380,7 @@ public:
     bool includeOnlyExtendable;
     int skipNRepeatKmer;
     int hashShift;
+    int pickNbest;
 
     // indexdb
     bool checkCompatible;
@@ -523,6 +524,7 @@ public:
     PARAMETER(PARAM_MAX_SEQS)
     PARAMETER(PARAM_SPLIT)
     PARAMETER(PARAM_SPLIT_MODE)
+    PARAMETER(PARAM_PICK_N_SIMILAR)
     PARAMETER(PARAM_SPLIT_MEMORY_LIMIT)
     PARAMETER(PARAM_DISK_SPACE_LIMIT)
     PARAMETER(PARAM_SPLIT_AMINOACID)

@@ -107,7 +107,7 @@ void KmerGenerator::initDataStructure(size_t divide_steps){
 }
 
 
-ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq){
+ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq, bool addIdentity){
     int dividerBefore=0;
     // pre compute phase
     // find first threshold
@@ -164,21 +164,21 @@ ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq){
     }
 
     // add identity of input kmer
-//    if(sizeInputMatrix == 0){
-//        outputScoreArray[0][0] = 0;
-//        outputIndexArray[0][0] = 0;
-//        // create first kmer
-//        for(unsigned int z = 0; z < this->divideStepCount; z++){
-//            const size_t index = this->kmerIndex[z];
-//            const ScoreMatrix * nextScoreMatrix = this->matrixLookup[z];
-//            const short        * nextScoreArray = &nextScoreMatrix->score[index*nextScoreMatrix->rowSize];
-//            const unsigned int * nextIndexArray = &nextScoreMatrix->index[index*nextScoreMatrix->rowSize];
-//            outputScoreArray[0][0] += nextScoreArray[0];
-//            outputIndexArray[0][0] += nextIndexArray[0] * stepMultiplicator[z];
-//        }
-//
-//        return ScoreMatrix(outputScoreArray[0], outputIndexArray[0], 1, 0);
-//    }
+    if(addIdentity  && sizeInputMatrix == 0){
+        outputScoreArray[0][0] = 0;
+        outputIndexArray[0][0] = 0;
+        // create first kmer
+        for(unsigned int z = 0; z < this->divideStepCount; z++){
+            const size_t index = this->kmerIndex[z];
+            const ScoreMatrix * nextScoreMatrix = this->matrixLookup[z];
+            const short        * nextScoreArray = &nextScoreMatrix->score[index*nextScoreMatrix->rowSize];
+            const unsigned int * nextIndexArray = &nextScoreMatrix->index[index*nextScoreMatrix->rowSize];
+            outputScoreArray[0][0] += nextScoreArray[0];
+            outputIndexArray[0][0] += nextIndexArray[0] * stepMultiplicator[z];
+        }
+
+        return ScoreMatrix(outputScoreArray[0], outputIndexArray[0], 1, 0);
+    }
     return ScoreMatrix(outputScoreArray[i-1], outputIndexArray[i-1], sizeInputMatrix, MAX_KMER_RESULT_SIZE);
 }
 

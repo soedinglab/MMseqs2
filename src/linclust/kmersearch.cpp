@@ -20,17 +20,20 @@
 #endif
 
 std::pair<size_t, KmerPosition *> KmerSearch::extractKmerAndSort(size_t splitKmerCount, size_t split, size_t splits, DBReader<unsigned int> & seqDbr,
-                                                                 Parameters & par, BaseMatrix  * subMat, size_t KMER_SIZE, size_t chooseTopKmer) {
+                                                                 Parameters & par, BaseMatrix  * subMat, size_t KMER_SIZE, size_t chooseTopKmer, size_t pickNBest) {
     Debug(Debug::INFO) << "Generate k-mers list " << split <<"\n";
-    KmerPosition * hashSeqPair = initKmerPositionMemory(splitKmerCount);
+    KmerPosition * hashSeqPair = initKmerPositionMemory(splitKmerCount*pickNBest);
     Timer timer;
     size_t elementsToSort;
-    if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
+    if(pickNBest > 1){
+        elementsToSort = fillKmerPositionArray<Parameters::DBTYPE_HMM_PROFILE>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE,
+                                                                               chooseTopKmer, false, splits, split, pickNBest);
+    } else if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
         elementsToSort = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE,
-                                                                               chooseTopKmer, false, splits, split);
+                                                                               chooseTopKmer, false, splits, split, 1);
     }else{
         elementsToSort = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE,
-                                                                               chooseTopKmer, false, splits, split);
+                                                                               chooseTopKmer, false, splits, split, 1);
     }
     Debug(Debug::INFO) << "\nTime for fill: " << timer.lap() << "\n";
     if(splits == 1){
@@ -163,10 +166,10 @@ int kmersearch(int argc, const char **argv, const Command &command) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
     }else {
         if (par.alphabetSize == 21) {
-            subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+            subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 8.0, -0.2);
         } else {
-            SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, par.alphabetSize, 2.0);
+            SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 8.0, -0.2);
+            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, par.alphabetSize, 8.0);
         }
     }
 
@@ -213,7 +216,7 @@ int kmersearch(int argc, const char **argv, const Command &command) {
 
         size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers / splits) * 1.2) : totalKmers;
         std::pair<size_t, KmerPosition *> hashSeqPair = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, queryDbr, par, subMat,
-                                                                                       KMER_SIZE, chooseTopKmer);
+                                                                                       KMER_SIZE, chooseTopKmer, par.pickNbest);
         std::pair<KmerPosition*, size_t> result;
         if(Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
             result = KmerSearch::searchInIndex<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair.second, hashSeqPair.first, kmerIndex);
