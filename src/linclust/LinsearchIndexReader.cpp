@@ -31,10 +31,7 @@ size_t LinsearchIndexReader::pickCenterKmer(KmerPosition *hashSeqPair, size_t sp
             currKmer = BIT_SET(currKmer, 63);
         }
         if (prevHash != currKmer) {
-            size_t difference = (elementIdx-prevHashStart);
-            int randomModulo = std::min(static_cast<int>(difference), 10);
             size_t indexToPick = 0;
-            //static_cast<size_t >(rand() % randomModulo)
             size_t randIdx = prevHashStart + indexToPick;
             size_t kmer = hashSeqPair[randIdx].kmer;
             if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
