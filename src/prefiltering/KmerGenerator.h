@@ -13,7 +13,7 @@ class KmerGenerator
         KmerGenerator(size_t kmerSize,size_t alphabetSize, short threshold);
         ~KmerGenerator();
         /*calculates the kmer list */
-        ScoreMatrix generateKmerList(const int * intSeq, bool addIdentity = false);
+        std::pair<size_t *, size_t> generateKmerList(const int * intSeq, bool addIdentity = false);
 
         /* kmer splitting stragety (3,2)
          fill up the divide step and calls init_result_list */
@@ -27,17 +27,17 @@ class KmerGenerator
     private:
     
         /*creates the product between two arrays and write it to the output array */
-        int calculateArrayProduct(const short        * __restrict scoreArray1,
-                                  const unsigned int * __restrict indexArray1,
+        size_t calculateArrayProduct(const short        * __restrict scoreArray1,
+                                  const size_t       * __restrict indexArray1,
                                   const size_t array1Size,
                                   const short        * __restrict scoreArray2,
                                   const unsigned int * __restrict indexArray2,
                                   const size_t array2Size,
                                   short              * __restrict outputScoreArray,
-                                  unsigned int       * __restrict outputIndexArray,
+                                  size_t             * __restrict outputIndexArray,
                                   const short cutoff1,
                                   const short possibleRest,
-                                  const unsigned int pow);
+                                  const size_t pow);
     
     
         /* maximum return values */
@@ -51,14 +51,14 @@ class KmerGenerator
         size_t divideStepCount;
         /* divider of the steps (2,3) */
         unsigned int * divideStep;
-        unsigned int * kmerIndex;
-        unsigned int * stepMultiplicator;
+        size_t * kmerIndex;
+        size_t * stepMultiplicator;
         short * highestScorePerArray;
         short * possibleRest;
         Indexer * indexer;
         ScoreMatrix  ** matrixLookup;
         short        ** outputScoreArray;
-        unsigned int ** outputIndexArray;
+        size_t       ** outputIndexArray;
 
 
         /* init the output vectors for the kmer calculation*/

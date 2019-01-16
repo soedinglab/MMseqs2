@@ -82,7 +82,7 @@ template <int TYPE>
 size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> &seqDbr,
                              Parameters & par, BaseMatrix * subMat,
                              size_t KMER_SIZE, size_t chooseTopKmer,
-                             bool includeIdenticalKmer, size_t splits, size_t split, int pickNBest){
+                             bool includeIdenticalKmer, size_t splits, size_t split, size_t pickNBest){
     size_t offset = 0;
     int querySeqType  =  seqDbr.getDbtype();
     ProbabilityMatrix *probMatrix = NULL;
@@ -247,11 +247,12 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                         (kmers + seqKmerCount)->score = prevHash;
                         seqKmerCount++;
                     } if(TYPE == Parameters::DBTYPE_HMM_PROFILE) {
-                        ScoreMatrix scoreMat = generator->generateKmerList(kmer, true);
+                        std::pair<size_t*, size_t>  scoreMat = generator->generateKmerList(kmer, true);
 //                        std::cout << scoreMat.elementSize << std::endl;
-                        for(size_t kmerPos = 0; kmerPos < scoreMat.elementSize && kmerPos < pickNBest; kmerPos++){
-                            (kmers + seqKmerCount)->kmer  =  scoreMat.index[kmerPos];
+                        for(size_t kmerPos = 0; kmerPos < scoreMat.second && kmerPos < pickNBest; kmerPos++){
+                            (kmers + seqKmerCount)->kmer  =  scoreMat.first[kmerPos];
                             (kmers + seqKmerCount)->pos = seq.getCurrentPosition();
+                            //TODO
                             prevHash = circ_hash(kmer, KMER_SIZE, par.hashShift);
                             (kmers + seqKmerCount)->score = prevHash;
                             seqKmerCount++;
@@ -1025,13 +1026,13 @@ void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTy
 template size_t fillKmerPositionArray<0>(KmerPosition * hashSeqPair, DBReader<unsigned int> &seqDbr,
                                          Parameters & par, BaseMatrix * subMat,
                                          size_t KMER_SIZE, size_t chooseTopKmer,
-                                         bool includeIdenticalKmer, size_t splits, size_t split, int pickNBest);
+                                         bool includeIdenticalKmer, size_t splits, size_t split, size_t pickNBest);
 template size_t fillKmerPositionArray<1>(KmerPosition * hashSeqPair, DBReader<unsigned int> &seqDbr,
                                          Parameters & par, BaseMatrix * subMat,
                                          size_t KMER_SIZE, size_t chooseTopKmer,
-                                         bool includeIdenticalKmer, size_t splits, size_t split, int pickNBest);
+                                         bool includeIdenticalKmer, size_t splits, size_t split, size_t pickNBest);
 template size_t fillKmerPositionArray<2>(KmerPosition * hashSeqPair, DBReader<unsigned int> &seqDbr,
                                          Parameters & par, BaseMatrix * subMat,
                                          size_t KMER_SIZE, size_t chooseTopKmer,
-                                         bool includeIdenticalKmer, size_t splits, size_t split, int pickNBest);
+                                         bool includeIdenticalKmer, size_t splits, size_t split, size_t pickNBest);
 #undef SIZE_T_MAX

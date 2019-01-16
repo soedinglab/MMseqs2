@@ -181,7 +181,7 @@ template <int TYPE>
 size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> &seqDbr,
                              Parameters & par, BaseMatrix * subMat,
                              size_t KMER_SIZE, size_t chooseTopKmer,
-                             bool includeIdenticalKmer, size_t splits, size_t split, int pickNBest);
+                             bool includeIdenticalKmer, size_t splits, size_t split, size_t pickNBest);
 
 
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);

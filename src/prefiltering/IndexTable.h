@@ -102,11 +102,11 @@ public:
         //idxer->reset();
         while(s->hasNextKmer()){
             const int * kmer = s->nextKmer();
-            const ScoreMatrix kmerList = kmerGenerator->generateKmerList(kmer);
+            const std::pair<size_t *, size_t> kmerList = kmerGenerator->generateKmerList(kmer);
 
             //unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
-            for(size_t i = 0; i < kmerList.elementSize; i++){
-                seqKmerPosBuffer.push_back(kmerList.index[i]);
+            for(size_t i = 0; i < kmerList.second; i++){
+                seqKmerPosBuffer.push_back(kmerList.first[i]);
             }
         }
         if(seqKmerPosBuffer.size() > 1){
@@ -304,9 +304,9 @@ public:
         size_t kmerPos = 0;
         while(s->hasNextKmer()){
             const int * kmer = s->nextKmer();
-            ScoreMatrix scoreMatrix = kmerGenerator->generateKmerList(kmer);
-            for(size_t i = 0; i < scoreMatrix.elementSize; i++) {
-                unsigned int kmerIdx = scoreMatrix.index[i];
+            std::pair<size_t *, size_t> scoreMatrix = kmerGenerator->generateKmerList(kmer);
+            for(size_t i = 0; i < scoreMatrix.second; i++) {
+                unsigned int kmerIdx = scoreMatrix.first[i];
 
                 // if region got masked do not add kmer
                 if (offsets[kmerIdx + 1] - offsets[kmerIdx] == 0)
