@@ -32,6 +32,7 @@ extern int diffseqdbs(int argc, const char **argv, const Command& command);
 extern int easycluster(int argc, const char **argv, const Command& command);
 extern int easylinclust(int argc, const char **argv, const Command& command);
 extern int easysearch(int argc, const char **argv, const Command& command);
+extern int easylinsearch(int argc, const char **argv, const Command& command);
 extern int enrich(int argc, const char **argv, const Command& command);
 extern int expandaln(int argc, const char **argv, const Command& command);
 extern int extractalignedregion(int argc, const char **argv, const Command& command);

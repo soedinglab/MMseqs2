@@ -885,6 +885,9 @@ Parameters::Parameters():
     linsearchworkflow.push_back(&PARAM_REUSELATEST);
     linsearchworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
 
+    // easyslinsearch
+    easylinsearchworkflow = combineList(createlinindex, linsearchworkflow);
+
     // easysearch
     easysearchworkflow = combineList(searchworkflow, convertalignments);
     easysearchworkflow = combineList(easysearchworkflow, summarizeresult);

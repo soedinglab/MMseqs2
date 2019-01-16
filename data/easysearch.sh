@@ -36,10 +36,16 @@ if notExists "${TARGET}.dbtype"; then
     TARGET="${TMP_PATH}/target"
 fi
 
+if [ -n "${LINSEARCH}" ] && notExists "${TARGET}.linidx"; then
+    # shellcheck disable=SC2086
+    "$MMSEQS" createlinindex "${TARGET}" "${TMP_PATH}/index_tmp" ${CREATELININDEX_PAR} \
+        || fail "createlinindex died"
+fi
+
 INTERMEDIATE="${TMP_PATH}/result"
 if notExists "${INTERMEDIATE}"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" search "${TMP_PATH}/query" "${TARGET}" "${INTERMEDIATE}" "${TMP_PATH}/search_tmp" ${SEARCH_PAR} \
+    "$MMSEQS" "${SEARCH_MODULE}" "${TMP_PATH}/query" "${TARGET}" "${INTERMEDIATE}" "${TMP_PATH}/search_tmp" ${SEARCH_PAR} \
         || fail "Search died"
 fi
 

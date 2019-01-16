@@ -797,6 +797,7 @@ public:
     std::vector<MMseqsParameter*> easysearchworkflow;
     std::vector<MMseqsParameter*> searchworkflow;
     std::vector<MMseqsParameter*> linsearchworkflow;
+    std::vector<MMseqsParameter*> easylinsearchworkflow;
     std::vector<MMseqsParameter*> mapworkflow;
     std::vector<MMseqsParameter*> easyclusterworkflow;
     std::vector<MMseqsParameter*> clusterworkflow;
