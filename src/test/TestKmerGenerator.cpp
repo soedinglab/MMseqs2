@@ -57,16 +57,16 @@ int main (int, const char**) {
         idx.printKmer(idx_val, kmer_size, subMat.int2aa);
         std::cout << std::endl;
 //        std::cout << "MaxScore: " << extMattwo.scoreMatrix[idx_val]->back().first<< "\n";
-        ScoreMatrix kmer_list= kmerGen.generateKmerList(curr_pos);
-        std::cout << "Similar k-mer list size:" << kmer_list.elementSize << "\n\n";
+        std::pair<size_t *, size_t > kmer_list= kmerGen.generateKmerList(curr_pos);
+        std::cout << "Similar k-mer list size:" << kmer_list.second << "\n\n";
 
         std::cout << "Similar " << kmer_size << "-mer list for pos 0:\n";
-        for (size_t pos = 0; pos < kmer_list.elementSize; pos++){
+        for (size_t pos = 0; pos < kmer_list.second; pos++){
 	    std::cout << "Pos:" << pos << " ";
-            std::cout << "Score:" << kmer_list.score[pos]  << " ";
-            std::cout << "Index:" << kmer_list.index[pos] << "\n";
+//            std::cout << "Score:" << kmer_list.score[pos]  << " ";
+            std::cout << "Index:" << kmer_list.first[pos] << "\n";
 
-            idx.index2int(testKmer, kmer_list.index[pos], kmer_size);
+            idx.index2int(testKmer, kmer_list.first[pos], kmer_size);
             std::cout << "\t";
             for (size_t i = 0; i < kmer_size; i++)
                 std::cout << testKmer[i] << " ";

@@ -23,7 +23,7 @@ class KmerGenerator
          fill up the divide step and calls init_result_list */
         void setDivideStrategy(ScoreMatrix ** one);
 
-	void setThreshold(short threshold);
+	    void setThreshold(short threshold);
     private:
     
         /*creates the product between two arrays and write it to the output array */
@@ -62,7 +62,7 @@ class KmerGenerator
 
 
         /* init the output vectors for the kmer calculation*/
-        void initDataStructure(size_t divideSteps);
+        void initDataStructure();
     
 };
 #endif

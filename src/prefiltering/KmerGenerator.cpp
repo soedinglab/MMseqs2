@@ -38,7 +38,7 @@ void KmerGenerator::setDivideStrategy(ScoreMatrix ** one){
         this->divideStep[i] = 1;
         this->matrixLookup[i] = one[i];
     }
-    initDataStructure(divideStepCount);
+    initDataStructure();
 }
 
 void KmerGenerator::setDivideStrategy(ScoreMatrix * three, ScoreMatrix * two){
@@ -83,13 +83,13 @@ void KmerGenerator::setDivideStrategy(ScoreMatrix * three, ScoreMatrix * two){
             break;
     }
 
-    initDataStructure(divideStepCount);
+    initDataStructure();
     std::reverse(this->matrixLookup, &this->matrixLookup[divideStepCount]);
     std::reverse(this->divideStep, &this->divideStep[divideStepCount]);
 }
 
 
-void KmerGenerator::initDataStructure(size_t divide_steps){
+void KmerGenerator::initDataStructure(){
     this->stepMultiplicator = new size_t[divideStepCount];
     this->highestScorePerArray = new short[divideStepCount];
     // init possibleRest
@@ -136,7 +136,7 @@ std::pair<size_t *, size_t> KmerGenerator::generateKmerList(const int * int_seq,
     const ScoreMatrix * inputScoreMatrix = this->matrixLookup[0];
     size_t sizeInputMatrix = inputScoreMatrix->elementSize;
     const short  * inputScoreArray = &inputScoreMatrix->score[index*inputScoreMatrix->rowSize];
-    for(size_t pos = 0; pos < inputScoreMatrix->rowSize && inputScoreArray[pos] < cutoff1; pos++){
+    for(size_t pos = 0; pos < inputScoreMatrix->rowSize && inputScoreArray[pos] >= cutoff1; pos++){
         outputIndexArray[1][pos] = inputScoreMatrix->index[index*inputScoreMatrix->rowSize + pos];
     }
     const size_t * inputIndexArray = outputIndexArray[1];
@@ -177,12 +177,12 @@ std::pair<size_t *, size_t> KmerGenerator::generateKmerList(const int * int_seq,
             const short        * nextScoreArray = &nextScoreMatrix->score[index*nextScoreMatrix->rowSize];
             const unsigned int * nextIndexArray = &nextScoreMatrix->index[index*nextScoreMatrix->rowSize];
             outputScoreArray[0][0] += nextScoreArray[0];
-            outputIndexArray[0][0] += nextIndexArray[0] * stepMultiplicator[z];
+            outputIndexArray[0][0] += static_cast<size_t>(nextIndexArray[0]) * stepMultiplicator[z];
         }
 
         return std::make_pair(outputIndexArray[0], 1);
     }
-    return std::make_pair(outputIndexArray[i-1], sizeInputMatrix);
+    return std::make_pair(outputIndexArray[(i-1)%2], sizeInputMatrix);
 }
 
 
