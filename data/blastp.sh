@@ -39,7 +39,7 @@ while [ "$STEP" -lt "$STEPS" ]; do
     fi
 
     # call alignment module
-    if [ $STEPS -eq 1 ]; then
+    if [ "$STEPS" -eq 1 ]; then
         if notExists "$3"; then
             # shellcheck disable=SC2086
             $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$INPUT" "$TARGET${ALIGNMENT_DB_EXT}" "$TMP_PATH/pref_$STEP" "$3" $ALIGNMENT_PAR  \
@@ -54,9 +54,9 @@ while [ "$STEP" -lt "$STEPS" ]; do
     fi
 
     # only merge results after first step
-    if [ $STEP -gt 0 ]; then
+    if [ "$STEP" -gt 0 ]; then
         if notExists "$TMP_PATH/aln_${SENS}.hasmerged"; then
-            if [ $STEP -lt $((STEPS-1)) ]; then
+            if [ "$STEP" -lt $((STEPS-1)) ]; then
                 "$MMSEQS" mergedbs "$1" "$TMP_PATH/aln_merge" "$ALN_RES_MERGE" "$TMP_PATH/aln_$STEP" \
                 || fail "Mergedbs died"
                 ALN_RES_MERGE="$TMP_PATH/aln_merge"
@@ -70,7 +70,7 @@ while [ "$STEP" -lt "$STEPS" ]; do
 
     NEXTINPUT="$TMP_PATH/input_step$STEP"
     #do not create subdb at last step
-    if [ $STEP -lt $((STEPS-1)) ]; then
+    if [ "$STEP" -lt "$((STEPS-1))" ]; then
         if notExists "$TMP_PATH/order_step$STEP"; then
             awk '$3 < 2 { print $1 }' "$TMP_PATH/aln_$STEP.index" > "$TMP_PATH/order_step$STEP" \
                 || fail "Awk step $STEP died"
@@ -84,7 +84,7 @@ while [ "$STEP" -lt "$STEPS" ]; do
         fi
     fi
     INPUT="$NEXTINPUT"
-    STEP=$((STEP+1))
+    STEP="$((STEP+1))"
 done
 
 
@@ -96,7 +96,7 @@ if [ -n "$REMOVE_TMP" ]; then
         rm -f "$TMP_PATH/aln_$STEP" "$TMP_PATH/aln_$STEP.index"
         NEXTINPUT="$TMP_PATH/input_step$STEP"
         rm -f "$TMP_PATH/input_step$STEP" "$TMP_PATH/input_step$STEP.index"
-        STEP=$((STEP+1))
+        STEP="$((STEP+1))"
     done
     rm -f "$TMP_PATH/blastp.sh"
 fi
