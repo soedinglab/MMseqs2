@@ -18,7 +18,7 @@ int createsubdb(int argc, const char **argv, const Command& command) {
         if(FileUtil::fileExists(par.db1.c_str())){
             orderFile = fopen(par.db1.c_str(), "r");
         }else{
-            Debug(Debug::ERROR) << "File " << par.db1 << " does not exists\n";
+            Debug(Debug::ERROR) << "File " << par.db1 << " does not exist.\n";
             EXIT(EXIT_FAILURE);
         }
     }
