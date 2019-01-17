@@ -471,6 +471,8 @@ public:
     std::string taxonList;
     bool invertSelection;
 
+    // view
+    std::string idList;
     // lca
     std::string lcaRanks;
     std::string blacklist;
@@ -746,6 +748,9 @@ public:
     PARAMETER(PARAM_TAXON_LIST)
     PARAMETER(PARAM_INVERT_SELECTION)
 
+    // view
+    PARAMETER(PARAM_ID_LIST)
+
     // lca
     PARAMETER(PARAM_LCA_RANKS)
     PARAMETER(PARAM_BLACKLIST)
@@ -758,6 +763,7 @@ public:
 
     std::vector<MMseqsParameter*> empty;
     std::vector<MMseqsParameter*> onlyverbosity;
+    std::vector<MMseqsParameter*> view;
     std::vector<MMseqsParameter*> verbandcompression;
     std::vector<MMseqsParameter*> onlythreads;
     std::vector<MMseqsParameter*> threadsandcompression;

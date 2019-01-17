@@ -16,6 +16,7 @@ set(util_source_files
         util/offsetalignment.cpp
         util/createseqfiledb.cpp
         util/createsubdb.cpp
+        util/view.cpp
         util/createtsv.cpp
         util/diffseqdbs.cpp
         util/expandaln.cpp

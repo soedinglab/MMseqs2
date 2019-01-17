@@ -216,6 +216,8 @@ Parameters::Parameters():
         PARAM_TAXON_LIST(PARAM_TAXON_LIST_ID, "--taxon-list", "Selected taxons", "taxonomy ID, possibly multiple separated by ','", typeid(std::string), (void*) &taxonList, ""),
         PARAM_INVERT_SELECTION(PARAM_INVERT_SELECTION_ID, "--invert", "Invert selection", "Invert selection", typeid(bool), (void*)&invertSelection, ""),
         // lca
+        PARAM_ID_LIST(PARAM_ID_LIST_ID, "--id-list", "Selected entries with key", "entries to be printed seperated by ','", typeid(std::string), (void*) &idList, ""),
+        // lca
         PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA Ranks", "Ranks to return in LCA computation", typeid(std::string), (void*) &lcaRanks, ""),
         PARAM_BLACKLIST(PARAM_BLACKLIST_ID, "--blacklist", "Blacklisted Taxa", "Comma separted list of ignored taxa in LCA computation", typeid(std::string), (void*)&blacklist, "([0-9]+,)?[0-9]+"),
         // expandaln
@@ -834,6 +836,10 @@ Parameters::Parameters():
     lca.push_back(&PARAM_BLACKLIST);
     lca.push_back(&PARAM_THREADS);
     lca.push_back(&PARAM_V);
+
+    // view
+    view.push_back(&PARAM_ID_LIST);
+    view.push_back(&PARAM_V);
 
     // exapandaln
     expandaln.push_back(&PARAM_COMPRESSED);
@@ -1634,6 +1640,9 @@ void Parameters::setDefaults() {
     // filtertaxdb
     taxonList = "";
     invertSelection = false;
+
+    // view
+    idList = "";
 
     // lca
     lcaRanks = "";
