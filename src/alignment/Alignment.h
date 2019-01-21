@@ -35,7 +35,7 @@ public:
              const size_t dbFrom, const size_t dbSize,
              const unsigned int maxAlnNum, const unsigned int maxRejected);
 
-    static bool checkCriteria(Matcher::result_t &res, bool isIdentity, double evalThr, double seqIdThr, int covMode, float covThr);
+    static bool checkCriteria(Matcher::result_t &res, bool isIdentity, double evalThr, double seqIdThr, int alnLenThr, int covMode, float covThr);
 
 
 private:
@@ -56,6 +56,9 @@ private:
 
     // sequence identity threshold
     const double seqIdThr;
+
+    // alignment length threshold
+    const int alnLenThr;
 
     // include id
     const bool includeIdentity;

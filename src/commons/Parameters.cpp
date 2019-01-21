@@ -63,6 +63,7 @@ Parameters::Parameters():
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "compute more conservative, shorter alignments (scores and E-values not changed)", typeid(bool), (void *) &realign, "", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","list matches above this sequence identity (for clustering) [0.0,1.0]",typeid(float), (void *) &seqIdThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_MIN_ALN_LEN(PARAM_MIN_ALN_LEN_ID,"--min-aln-len", "Min. alignment length","minimum alignment length [0,INT_MAX]",typeid(int), (void *) &alnLenThr, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID,"--score-bias", "Score bias", "Score bias when computing the SW alignment (in bits)",typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID,"--alt-ali", "Alternative alignments","Show up to this many alternative alignments",typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID,"--gap-open", "Gap open cost","Gap open cost",typeid(int), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
@@ -253,6 +254,7 @@ Parameters::Parameters():
     align.push_back(&PARAM_ALIGNMENT_MODE);
     align.push_back(&PARAM_E);
     align.push_back(&PARAM_MIN_SEQ_ID);
+    align.push_back(&PARAM_MIN_ALN_LEN);
     align.push_back(&PARAM_SEQ_ID_MODE);
     align.push_back(&PARAM_ALT_ALIGNMENT);
     align.push_back(&PARAM_C);
@@ -331,6 +333,7 @@ Parameters::Parameters():
     rescorediagonal.push_back(&PARAM_C);
     rescorediagonal.push_back(&PARAM_COV_MODE);
     rescorediagonal.push_back(&PARAM_MIN_SEQ_ID);
+    rescorediagonal.push_back(&PARAM_MIN_ALN_LEN);
     rescorediagonal.push_back(&PARAM_SEQ_ID_MODE);
     rescorediagonal.push_back(&PARAM_INCLUDE_IDENTITY);
     rescorediagonal.push_back(&PARAM_SORT_RESULTS);
@@ -351,6 +354,7 @@ Parameters::Parameters():
     alignbykmer.push_back(&PARAM_E);
     alignbykmer.push_back(&PARAM_COV_MODE);
     alignbykmer.push_back(&PARAM_MIN_SEQ_ID);
+    alignbykmer.push_back(&PARAM_MIN_ALN_LEN);
     alignbykmer.push_back(&PARAM_INCLUDE_IDENTITY);
     alignbykmer.push_back(&PARAM_GAP_OPEN);
     alignbykmer.push_back(&PARAM_GAP_EXTEND);
@@ -1454,6 +1458,7 @@ void Parameters::setDefaults() {
     maxRejected = INT_MAX;
     maxAccept   = INT_MAX;
     seqIdThr = 0.0;
+    alnLenThr = 0;
     altAlignment = 0;
     gapOpen = 11;
     gapExtend = 1;

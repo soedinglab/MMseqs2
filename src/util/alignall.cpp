@@ -105,7 +105,7 @@ int alignall(int argc, const char **argv, const Command &command) {
                         Matcher::result_t result = matcher.getSWResult(&target, INT_MAX, false, par.covMode, par.covThr, FLT_MAX,
                                                                        par.alignmentMode, par.seqIdMode, isIdentity);
                         // checkCriteria and Util::canBeCovered always work together
-                        if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, par.covMode, par.covThr)) {
+                        if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr)) {
                             size_t len = Matcher::resultToBuffer(tmpBuff, result, true, false);
                             resultWriter.writeAdd(buffer, queryIdLen + len, thread_idx);
                         }

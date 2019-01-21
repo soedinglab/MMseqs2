@@ -211,6 +211,7 @@ int doRescorediagonal(Parameters &par,
 
                     double seqId = 0;
                     double evalue = 0.0;
+                    int alnLen = 0;
                     float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(dbLen);
                     float queryCov = static_cast<float>(diagonalLen) / static_cast<float>(queryLen);
 
@@ -218,6 +219,7 @@ int doRescorediagonal(Parameters &par,
                     if (par.rescoreMode == Parameters::RESCORE_MODE_HAMMING) {
                         int idCnt = (static_cast<float>(diagonalLen) - static_cast<float>(distance));
                         seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, diagonalLen);
+                        alnLen = diagonalLen;
                     } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION ||
                                par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
                         //seqId = exp(static_cast<float>(distance) / static_cast<float>(diagonalLen));
@@ -229,7 +231,7 @@ int doRescorediagonal(Parameters &par,
                             int bitScore = static_cast<short>(evaluer.computeBitScore(distance) + 0.5);
 
                             if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
-                                int alnLen = alignment.endPos - alignment.startPos;
+                                alnLen = alignment.endPos - alignment.startPos;
                                 int qStartPos, qEndPos, dbStartPos, dbEndPos;
                                 // -1 since diagonal is computed from sequence Len which starts by 1
                                 if (diagonal >= 0) {
@@ -254,9 +256,7 @@ int doRescorediagonal(Parameters &par,
                                         idCnt += (querySeqToAlign[i] == targetSeq[dbStartPos + (i - qStartPos)]) ? 1
                                                                                                                  : 0;
                                     }
-                                    unsigned int alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos,
-                                                                                       dbEndPos);
-                                    seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLength);
+                                    seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLen);
                                 }
 
                                 char *end = Itoa::i32toa_sse2(qEndPos - qStartPos, buffer);
@@ -284,9 +284,11 @@ int doRescorediagonal(Parameters &par,
                     // --min-seq-id
                     bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
                     bool hasEvalue = (evalue <= par.evalThr);
+                    bool hasAlnLen = (alnLen >= par.alnLenThr);
+
                     // --filter-hits
                     bool hasToFilter = (par.filterHits == true && currScorePerCol >= scorePerColThr);
-                    if (isIdentity || hasToFilter || (hasCov && hasSeqId && hasEvalue)) {
+                    if (isIdentity || hasToFilter || (hasAlnLen && hasCov && hasSeqId && hasEvalue)) {
                         if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
                             alnResults.emplace_back(result);
                         } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {

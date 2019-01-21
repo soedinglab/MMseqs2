@@ -25,7 +25,7 @@ Alignment::Alignment(const std::string &querySeqDB,
                      const Parameters &par) :
 
         covThr(par.covThr), canCovThr(par.covThr), covMode(par.covMode), seqIdMode(par.seqIdMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
-        includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign), scoreBias(par.scoreBias),
+        alnLenThr(par.alnLenThr), includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign), scoreBias(par.scoreBias),
         threads(static_cast<unsigned int>(par.threads)), compressed(par.compressed), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), qdbr(NULL), qDbrIdx(NULL),
         tdbr(NULL), tDbrIdx(NULL) {
@@ -323,7 +323,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         res.dbcov = 1.0f;
                         res.seqId = 1.0f;
                     }
-                    if(checkCriteria(res, isIdentity, evalThr, seqIdThr, covMode, covThr)){
+                    if(checkCriteria(res, isIdentity, evalThr, seqIdThr, alnLenThr, covMode, covThr)){
                         swResults.emplace_back(res);
                         passedNum++;
                         totalPassedNum++;
@@ -441,17 +441,20 @@ size_t Alignment::estimateHDDMemoryConsumption(int dbSize, int maxSeqs) {
 }
 
 
-bool Alignment::checkCriteria(Matcher::result_t &res, bool isIdentity, double evalThr, double seqIdThr, int covMode, float covThr) {
+bool Alignment::checkCriteria(Matcher::result_t &res, bool isIdentity, double evalThr, double seqIdThr, int alnLenThr, int covMode, float covThr) {
     const bool evalOk = (res.eval <= evalThr); // -e
     const bool seqIdOK = (res.seqId >= seqIdThr); // --min-seq-id
     const bool covOK = Util::hasCoverage(covThr, covMode, res.qcov, res.dbcov);
+    const bool alnLenOK = Util::hasAlignmentLength(alnLenThr, res.alnLength);
+
     // check first if it is identity
     if (isIdentity
         ||
         // general accaptance criteria
         ( evalOk   &&
           seqIdOK  &&
-          covOK
+          covOK    &&
+          alnLenOK
         ))
     {
         return true;
@@ -479,7 +482,7 @@ void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &d
         for (int altAli = 0; altAli < altAlignment && nextAlignment; altAli++) {
             Matcher::result_t res = matcher.getSWResult(&dbSeq, INT_MAX, false, covMode, covThr, evalThr, swMode,
                                                         seqIdMode, isIdentity);
-            nextAlignment = checkCriteria(res, isIdentity, evalThr, seqIdThr, covMode, covThr);
+            nextAlignment = checkCriteria(res, isIdentity, evalThr, seqIdThr, alnLenThr, covMode, covThr);
             if (nextAlignment == true) {
                 swResults.emplace_back(res);
                 for (int pos = res.dbStartPos; pos < res.dbEndPos; pos++) {

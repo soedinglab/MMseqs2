@@ -281,6 +281,7 @@ public:
     int    maxAccept;                    // after n accepted sequences stop
     int    altAlignment;                 // show up to this many alternative alignments
     float  seqIdThr;                     // sequence identity threshold for acceptance
+    int    alnLenThr;                    // min. alignment length
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
     int    gapOpen;                      // gap open
@@ -552,6 +553,7 @@ public:
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
+    PARAMETER(PARAM_MIN_ALN_LEN)
     PARAMETER(PARAM_SCORE_BIAS)
     PARAMETER(PARAM_ALT_ALIGNMENT)
     PARAMETER(PARAM_GAP_OPEN)

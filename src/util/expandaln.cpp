@@ -351,7 +351,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
                     rescoreResultByBacktrace(resultBC, qSeq, tSeq, subMat, compositionBias,
                                              evaluer, par.gapOpen, par.gapExtend, par.seqIdMode);
 
-                    if (Alignment::checkCriteria(resultBC, false, par.evalThr, par.seqIdThr, par.covMode, par.covThr)) {
+                    if (Alignment::checkCriteria(resultBC, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr)) {
                         results.emplace_back(resultBC);
                     }
                 }
