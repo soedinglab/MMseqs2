@@ -246,7 +246,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
 //                        std::cout <<  "\n";
                         (kmers + seqKmerCount)->score = prevHash;
                         seqKmerCount++;
-                    } if(TYPE == Parameters::DBTYPE_HMM_PROFILE) {
+                     } else if(TYPE == Parameters::DBTYPE_HMM_PROFILE) {
                         std::pair<size_t*, size_t>  scoreMat = generator->generateKmerList(kmer, true);
 //                        std::cout << scoreMat.elementSize << std::endl;
                         for(size_t kmerPos = 0; kmerPos < scoreMat.second && kmerPos < pickNBest; kmerPos++){
