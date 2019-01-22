@@ -108,7 +108,7 @@ Parameters::Parameters():
         PARAM_FILTER_MAX_SEQ_ID(PARAM_FILTER_MAX_SEQ_ID_ID,"--max-seq-id", "Maximum sequence identity threshold", "reduce redundancy of output MSA using max. pairwise sequence identity [0.0,1.0]", typeid(float), (void*) &filterMaxSeqId, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_QSC(PARAM_FILTER_QSC_ID, "--qsc", "Minimum score per column", "reduce diversity of output MSAs using min. score per aligned residue with query sequences [-50.0,100.0]", typeid(float), (void*) &qsc, "^\\-*[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_QID(PARAM_FILTER_QID_ID, "--qid", "Minimum seq. id.", "reduce diversity of output MSAs using min.seq. identity with query sequences [0.0,1.0]", typeid(float), (void*) &qid, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_FILTER_COV(PARAM_FILTER_COV_ID, "--cov", "Minimum coverage", "filter output MSAs using min. fraction of query residues covered by matched sequences [0.0,1.0]", typeid(float), (void*) &cov, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_FILTER_COV(PARAM_FILTER_COV_ID, "--cov", "Minimum coverage", "filter output MSAs using min. fraction of query residues covered by matched sequences [0.0,1.0]", typeid(float), (void*) &covMSAThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_NDIFF(PARAM_FILTER_NDIFF_ID, "--diff", "Select n most diverse seqs", "filter MSAs by selecting most diverse set of sequences, keeping at least this many seqs in each MSA block of length 50", typeid(int), (void*) &Ndiff, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, "", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "pseudo count admixture strength", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
@@ -1529,7 +1529,7 @@ void Parameters::setDefaults() {
     filterMaxSeqId = 0.9;
     qid = 0.0;           // default for minimum sequence identity with query
     qsc = -20.0f;        // default for minimum score per column with query
-    cov = 0.0;           // default for minimum coverage threshold
+    covMSAThr = 0.0;           // default for minimum coverage threshold
     Ndiff = 1000;        // pick Ndiff most different sequences from alignment
     wg = false;
     pca = 1.0;

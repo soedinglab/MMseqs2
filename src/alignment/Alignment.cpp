@@ -43,7 +43,7 @@ Alignment::Alignment(const std::string &querySeqDB,
 
     if (realign == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_ONLY;
-        realignCov = par.cov;
+        realignCov = par.covThr;
         covThr = 0.0;
         if (addBacktrace == false) {
             Debug(Debug::WARNING) << "Turn on backtrace for realign.\n";

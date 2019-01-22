@@ -344,7 +344,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             size_t filteredSetSize = setSize;
             if (par.filterMsa == 1) {
-                filter.filter(setSize, centerLength, static_cast<int>(par.cov * 100),
+                filter.filter(setSize, centerLength, static_cast<int>(par.covMSAThr * 100),
                               static_cast<int>(par.qid * 100), par.qsc,
                               static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
                               (const char **) msaSequences, &filteredSetSize);

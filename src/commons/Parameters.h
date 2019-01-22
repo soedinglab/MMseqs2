@@ -358,7 +358,7 @@ public:
     int filterMsa;
     float qsc;
     float qid;
-    float cov;
+    float covMSAThr;
     int Ndiff;
     bool wg;
     float pca;
