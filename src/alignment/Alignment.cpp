@@ -51,20 +51,6 @@ Alignment::Alignment(const std::string &querySeqDB,
         }
     }
 
-    if (altAlignment > 0) {
-        if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)){
-            Debug(Debug::ERROR) << "Alternative alignments are not supported for nucleotides.\n";
-            EXIT(EXIT_FAILURE);
-        }
-//        if(realign==true){
-//            Debug(Debug::ERROR) << "Alternative alignments do not supported realignment.\n";
-//            EXIT(EXIT_FAILURE);
-//        }
-        alignmentMode = (alignmentMode > Parameters::ALIGNMENT_MODE_SCORE_COV) ? alignmentMode : Parameters::ALIGNMENT_MODE_SCORE_COV;
-    }
-
-    initSWMode(alignmentMode);
-
     std::string scoringMatrixFile = par.scoringMatrixFile;
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     tDbrIdx = new IndexReader(targetSeqDB, par.threads, IndexReader::SEQUENCES, touch);
@@ -81,6 +67,19 @@ Alignment::Alignment(const std::string &querySeqDB,
         qdbr = qDbrIdx->sequenceReader;
         querySeqType = qdbr->getDbtype();
     }
+
+    if (altAlignment > 0) {
+        if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)){
+            Debug(Debug::ERROR) << "Alternative alignments are not supported for nucleotides.\n";
+            EXIT(EXIT_FAILURE);
+        }
+//        if(realign==true){
+//            Debug(Debug::ERROR) << "Alternative alignments do not supported realignment.\n";
+//            EXIT(EXIT_FAILURE);
+//        }
+        alignmentMode = (alignmentMode > Parameters::ALIGNMENT_MODE_SCORE_COV) ? alignmentMode : Parameters::ALIGNMENT_MODE_SCORE_COV;
+    }
+    initSWMode(alignmentMode);
 
     //qdbr->readMmapedDataInMemory();
     // make sure to touch target after query, so if there is not enough memory for the query, at least the targets

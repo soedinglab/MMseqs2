@@ -10,9 +10,11 @@
 #include "CovSeqidQscPercMinDiagTargetCov.out.h"
 #include "QueryMatcher.h"
 #include "NucleotideMatrix.h"
+#include "IndexReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
+
 #endif
 
 float parsePrecisionLib(const std::string &scoreFile, double targetSeqid, double targetCov, double targetPrecision) {
@@ -44,12 +46,26 @@ int doRescorediagonal(Parameters &par,
                       DBWriter &resultWriter,
                       DBReader<unsigned int> &resultReader,
               const size_t dbFrom, const size_t dbSize) {
-    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    qdbr.open(DBReader<unsigned int>::NOSORT);
-    const int querySeqType = qdbr.getDbtype();
-    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-        qdbr.readMmapedDataInMemory();
+
+
+    IndexReader * qDbrIdx = NULL;
+    DBReader<unsigned int> * qdbr = NULL;
+    DBReader<unsigned int> * tdbr = NULL;
+    bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+    IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, touch);
+    int querySeqType = 0;
+    tdbr = tDbrIdx->sequenceReader;
+    int targetSeqType = tDbrIdx->getDbtype();
+    bool sameQTDB = (par.db2.compare(par.db1) == 0);
+    if (sameQTDB == true) {
+        qDbrIdx = tDbrIdx;
+        qdbr = tdbr;
+        querySeqType = targetSeqType;
+    } else {
+        // open the sequence, prefiltering and output databases
+        qDbrIdx = new IndexReader(par.db1, par.threads,  IndexReader::SEQUENCES , false);
+        qdbr = qDbrIdx->sequenceReader;
+        querySeqType = qdbr->getDbtype();
     }
 
     BaseMatrix *subMat;
@@ -62,19 +78,6 @@ int doRescorediagonal(Parameters &par,
 
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
 
-    Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-    DBReader<unsigned int> *tdbr = NULL;
-    bool sameDB = false;
-    if (par.db1.compare(par.db2) == 0) {
-        sameDB = true;
-        tdbr = &qdbr;
-    } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        tdbr->open(DBReader<unsigned int>::NOSORT);
-        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-            tdbr->readMmapedDataInMemory();
-        }
-    }
 
     float scorePerColThr = 0.0;
     if (par.filterHits) {
@@ -130,9 +133,9 @@ int doRescorediagonal(Parameters &par,
 
                 char *data = resultReader.getData(id, thread_idx);
                 size_t queryKey = resultReader.getDbKey(id);
-                unsigned int queryId = qdbr.getId(queryKey);
-                char *querySeq = qdbr.getData(queryId, thread_idx);
-                int queryLen = std::max(0, static_cast<int>(qdbr.getSeqLens(queryId)) - 2);
+                unsigned int queryId = qdbr->getId(queryKey);
+                char *querySeq = qdbr->getData(queryId, thread_idx);
+                int queryLen = std::max(0, static_cast<int>(qdbr->getSeqLens(queryId)) - 2);
                 if (reversePrefilterResult == true) {
                     NucleotideMatrix *nuclMatrix = (NucleotideMatrix *) subMat;
                     for (int pos = queryLen - 1; pos > -1; pos--) {
@@ -140,7 +143,7 @@ int doRescorediagonal(Parameters &par,
                         queryRevSeq[(queryLen - 1) - pos] = subMat->int2aa[nuclMatrix->reverseResidue(res)];
                     }
                 }
-                if (sameDB && qdbr.isCompressed()) {
+                if (sameQTDB && qdbr->isCompressed()) {
                     queryBuffer.clear();
                     queryBuffer.append(querySeq, queryLen);
                     querySeq = (char *) queryBuffer.c_str();
@@ -165,7 +168,7 @@ int doRescorediagonal(Parameters &par,
                     }
 
                     unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
-                    const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB)) ? true : false;
+                    const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameQTDB)) ? true : false;
                     char *targetSeq = tdbr->getData(targetId, thread_idx);
                     int dbLen = std::max(0, static_cast<int>(tdbr->getSeqLens(targetId)) - 2);
 
@@ -336,10 +339,16 @@ int doRescorediagonal(Parameters &par,
         resultReader.remapData();
     }
     Debug(Debug::INFO) << "\nDone.\n";
-    qdbr.close();
-    if (sameDB == false) {
-        tdbr->close();
-        delete tdbr;
+    qdbr->close();
+
+    if (tDbrIdx != NULL) {
+        delete tDbrIdx;
+    }
+
+    if (sameQTDB == false) {
+        if(qDbrIdx != NULL){
+            delete qDbrIdx;
+        }
     }
 
     delete[] fastMatrix.matrix;
