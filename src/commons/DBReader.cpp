@@ -583,7 +583,7 @@ bool DBReader<T>::readIndex(char *indexFileName, Index *index, unsigned int *ent
 
     size_t currPos = 0;
     char* indexDataChar = (char *) indexData.getData();
-    char * cols[3];
+    const char* cols[3];
     T prevId=T(); // makes 0 or empty string
     size_t isSorted = true;
     maxSeqLen=0;
@@ -592,7 +592,7 @@ bool DBReader<T>::readIndex(char *indexFileName, Index *index, unsigned int *ent
             Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
             EXIT(EXIT_FAILURE);
         }
-        Util::getWordsOfLine(indexDataChar, cols, 3 );
+        Util::getWordsOfLine(indexDataChar, cols, 3);
         readIndexId(&index[i].id, indexDataChar, cols);
         isSorted *= (index[i].id >= prevId);
         size_t offset = Util::fast_atoi<size_t>(cols[1]);
@@ -615,12 +615,12 @@ template<typename T> T DBReader<T>::getLastKey() {
 }
 
 template<>
-void DBReader<std::string>::readIndexId(std::string* id, char* line, char** cols){
+void DBReader<std::string>::readIndexId(std::string* id, char* line, const char** cols){
     ptrdiff_t keySize =  ((cols[1] - 1) - line) ;
     id->assign(line, keySize);
 }
 template<>
-void DBReader<unsigned int>::readIndexId(unsigned int* id, char*, char** cols) {
+void DBReader<unsigned int>::readIndexId(unsigned int* id, char*, const char** cols) {
     *id = Util::fast_atoi<unsigned int>(cols[0]);
 }
 

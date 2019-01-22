@@ -36,7 +36,7 @@ int Util::readMapping(std::string mappingFilename, std::vector<std::pair<unsigne
 
     size_t currPos = 0;
     char* indexDataChar = (char *) indexData.getData();
-    char * cols[3];
+    const char* cols[3];
     size_t isSorted = true;
     unsigned int prevId=0;
     while (currPos < indexData.size()){
@@ -345,9 +345,9 @@ void Util::parseByColumnNumber(char *data, char *key, int position) {
     key[keySize] = '\0';
 }
 
-void Util::parseKey(char *data, char *key) {
-    char *startPosOfKey = data;
-    char *endPosOfId = data + Util::skipNoneWhitespace(data);
+void Util::parseKey(const char *data, char *key) {
+    const char *startPosOfKey = data;
+    const char *endPosOfId = data + Util::skipNoneWhitespace(data);
     ptrdiff_t keySize = (endPosOfId - startPosOfKey);
     strncpy(key, data, keySize);
     key[keySize] = '\0';

@@ -289,7 +289,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 while (*data != '\0' && passedNum < maxAlnNum && rejected < maxRejected) {
                     // DB key of the db sequence
                     char dbKeyBuffer[255 + 1];
-                    char * words[10];
+                    const char* words[10];
                     Util::parseKey(data, dbKeyBuffer);
                     const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
 

@@ -105,7 +105,7 @@ public:
 
     bool readIndex(char *indexFileName, Index *index, unsigned int *entryLength);
 
-    void readIndexId(T* id, char * line, char** cols);
+    void readIndexId(T* id, char * line, const char** cols);
 
     void readMmapedDataInMemory();
 

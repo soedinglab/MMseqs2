@@ -68,7 +68,7 @@ int lca(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << "Computing LCA...\n";
     #pragma omp parallel
     {
-        char *entry[255];
+        const char *entry[255];
         char buffer[1024];
         unsigned int thread_idx = 0;
 #ifdef OPENMP
@@ -82,7 +82,6 @@ int lca(int argc, const char **argv, const Command& command) {
             unsigned int key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
             size_t length = reader.getSeqLens(i);
-
 
             std::vector<int> taxa;
             while (*data != '\0') {

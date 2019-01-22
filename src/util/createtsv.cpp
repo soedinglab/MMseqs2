@@ -64,7 +64,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        char **columnPointer = new char*[255];
+        const char *columnPointer[255];
         char *dbKey = new char[par.maxSeqLen + 1];
 
         std::string outputBuffer;
@@ -150,7 +150,6 @@ int createtsv(int argc, const char **argv, const Command &command) {
             outputBuffer.clear();
         }
         delete[] dbKey;
-        delete[] columnPointer;
     }
     writer.close();
     Debug(Debug::INFO) << "Done.\n";

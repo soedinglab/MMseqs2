@@ -344,8 +344,8 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
 }
 
 
-Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
-    char * entry[255];
+Orf::SequenceLocation Orf::parseOrfHeader(const char *data) {
+    const char* entry[255];
     size_t columns = Util::getWordsOfLine(data, entry, 255);
     size_t col;
     bool found = false;

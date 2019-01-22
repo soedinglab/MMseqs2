@@ -136,6 +136,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
+        const char *entry[255];
+
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
@@ -170,7 +172,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                     continue;
                 }
 
-                char *entry[255];
                 const size_t columns = Util::getWordsOfLine(results, entry, 255);
                 float evalue = 0.0;
                 if(columns >= 4){

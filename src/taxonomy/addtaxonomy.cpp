@@ -61,14 +61,14 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
 
     #pragma omp parallel
     {
-        char *entry[255];
-        char buffer[10000];
         unsigned int thread_idx = 0;
-        std::string resultData;
-        resultData.reserve(4096);
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
+        const char *entry[255];
+        char buffer[10000];
+        std::string resultData;
+        resultData.reserve(4096);
 
         #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < reader.getSize(); ++i) {

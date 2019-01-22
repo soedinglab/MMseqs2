@@ -28,7 +28,7 @@ int sortresult(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        char *entry[255];
+        const char *entry[255];
         char buffer[2048];
 
         std::vector<Matcher::result_t> alnResults;

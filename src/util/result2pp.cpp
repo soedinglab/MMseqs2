@@ -62,6 +62,8 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
         std::string result;
         result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
+        const char *entry[255];
+
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
@@ -103,7 +105,6 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                 Util::parseKey(results, dbKey);
                 const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
                 double evalue = 0.0;
-                char *entry[255];
                 const size_t columns = Util::getWordsOfLine(results, entry, 255);
                 // its an aln result
                 if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
