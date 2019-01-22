@@ -30,19 +30,45 @@ if notExists "${TMP_PATH}/pref"; then
         || fail "kmermatcher died"
 fi
 
+# 3. Ungapped alignment filtering
+RESULTDB="${TMP_PATH}/pref"
+if [ -n "$FILTER" ]; then
+    if notExists "${TMP_PATH}/rescore_aln"; then
+    # shellcheck disable=SC2086
+    $RUNNER "$MMSEQS" rescorediagonal "$TARGET" "$QUERY" "${RESULTDB}" "${TMP_PATH}/reverse_ungapaln" ${RESCORE_FILTER_PAR} \
+        || fail "Rescorediagonal step died"
+    fi
+
+    if notExists "${TMP_PATH}/pref_filter2"; then
+        "$MMSEQS" filterdb "${TMP_PATH}/pref" "${TMP_PATH}/pref_filter" --filter-file "${TMP_PATH}/reverse_ungapaln" --positive-filter 0 \
+            || fail "Filterdb step died"
+    fi
+    RESULTDB="${TMP_PATH}/pref_filter"
+fi
+
+
 # 2. Local gapped sequence alignment.
 if notExists "${TMP_PATH}/reverse_aln"; then
     # shellcheck disable=SC2086
-    $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$TARGET" "$QUERY" "${TMP_PATH}/pref" "${TMP_PATH}/reverse_aln" ${ALIGNMENT_PAR} \
+    $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$TARGET" "$QUERY" "${RESULTDB}" "${TMP_PATH}/reverse_aln" ${ALIGNMENT_PAR} \
         || fail "Alignment step died"
 fi
 
 
 if [ -n "$NUCL" ]; then
-    # 3. Local gapped sequence alignment.
+    RESULT="${TMP_PATH}/aln"
+    if [ -n "$FILTER" ]; then
+        if notExists "${TMP_PATH}/aln_merged"; then
+             "$MMSEQS" mergedbs "$TARGET" "${TMP_PATH}/aln_merged" "${TMP_PATH}/reverse_ungapaln" "${TMP_PATH}/reverse_aln" \
+               || fail "Mergedbs died"
+        fi
+        RESULT="${TMP_PATH}/aln_merged"
+    fi
+
+        # 3. Local gapped sequence alignment.
     if notExists "${TMP_PATH}/aln"; then
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_aln" "${TMP_PATH}/aln" ${SWAPRESULT_PAR} \
+        $RUNNER "$MMSEQS" swapresults "$TARGET" "$QUERY" "${RESULT}" "${TMP_PATH}/aln" ${SWAPRESULT_PAR} \
             || fail "Alignment step died"
     fi
     if notExists "$3"; then
