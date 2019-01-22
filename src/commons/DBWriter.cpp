@@ -125,23 +125,23 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr,
                                                      files[i].second.c_str(), 1, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
         filesToMerge[i]->open(DBReader<unsigned int>::NOSORT);
     }
+    std::string result;
 
     for (size_t id = 0; id < qdbr.getSize(); id++) {
         unsigned int key = qdbr.getDbKey(id);
-        std::ostringstream ss;
         // get all data for the id from all files
         for (size_t i = 0; i < fileCount; i++) {
             const char *data = filesToMerge[i]->getDataByDBKey(key, 0);
             if (data != NULL) {
                 if(i < prefixes.size()) {
-                    ss << prefixes[i];
+                    result.append( prefixes[i]);
                 }
-                ss << data;
+                result.append(data);
             }
         }
         // write result
-        std::string result = ss.str();
         writeData(result.c_str(), result.length(), key, 0);
+        result.clear();
     }
 
     // close all reader
