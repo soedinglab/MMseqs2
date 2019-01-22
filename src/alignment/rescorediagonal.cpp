@@ -339,7 +339,6 @@ int doRescorediagonal(Parameters &par,
         resultReader.remapData();
     }
     Debug(Debug::INFO) << "\nDone.\n";
-    qdbr->close();
 
     if (tDbrIdx != NULL) {
         delete tDbrIdx;
@@ -399,14 +398,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     resultWriter.close();
 
 #endif
-
-
-
-
     resultReader.close();
-
-
-
     return status;
 }
 
