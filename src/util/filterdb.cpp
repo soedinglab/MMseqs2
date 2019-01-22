@@ -68,7 +68,7 @@ ffindexFilter::ffindexFilter(Parameters &par) {
     } else if (par.filteringFile != "")
 	{
         mode = FILE_FILTERING;
-        filter.reserve(1000000);
+//        filter.reserve(1000000);
         std::cout<<"Filtering with a filter files."<<std::endl;
         filterFile = par.filteringFile;
         // Fill the filter with the data contained in the file
@@ -84,16 +84,22 @@ ffindexFilter::ffindexFilter(Parameters &par) {
         char * key=new char[65536];
         while (getline(&line, &len, orderFile) != -1)
         {
-            size_t offset = (len > 1 && line[0] == '\0');
+            size_t offset = 0;
             // ignore \0 in data files
             // to support datafiles as input
+            while(offset < len && line[offset] == '\0'){
+                offset++;
+            }
+            if(offset >= len){
+                break;
+            }
             Util::parseKey(line+offset, key);
             filter.emplace_back(key);
         }
         delete [] key;
         delete [] line;
         fclose(orderFile);
-        omptl::sort(filter.begin(), filter.end(), compareString());
+        omptl::sort(filter.begin(), filter.end());
         std::vector<std::string>::iterator last = std::unique(filter.begin(), filter.end());
         filter.erase(last, filter.end());
     } else if(par.mappingFile != "")
