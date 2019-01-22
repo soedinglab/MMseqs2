@@ -12,7 +12,7 @@ notExists() {
 #pre processing
 [ -z "${MMSEQS}" ] && echo "Please set the environment variable \$MMSEQS to your MMSEQS binary." && exit 1;
 # check amount of input variables
-[ "$#" -ne 6 ] && echo "Please provide <queryDB> <targetDB> <targetRes> <targetProf> <outDB> <tmp>" && exit 1;
+[ "$#" -ne 6 ] && echo "Please provide <queryDB> <targetDB> <targetProf> <targetRes> <outDB> <tmp>" && exit 1;
 # check if files exists
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
@@ -23,8 +23,8 @@ notExists() {
 
 QUERYDB="$1"
 PROFTARGETSEQ="$2"
-PROFRESULT="$3"
-TARGETPROF="$4"
+TARGETPROF="$3"
+PROFRESULT="$4"
 RESULT="$5"
 TMP_PATH="$6"
 
@@ -73,14 +73,16 @@ while [ "${STEP}" -lt "${NUM_IT}" ]; do
             || fail "${ALIGN_MODULE} died"
     fi
 
+
     if notExists "${TMP_PATH}/aln_${STEP}.hasexpand"; then
         PARAM="EXPAND_PAR_${STEP}"
         eval TMP="\$$PARAM"
         # shellcheck disable=SC2086
         "${MMSEQS}" expandaln "${INPUT}" "${PROFTARGETSEQ}" "${TMP_PATH}/aln_${STEP}" "${PROFRESULT}" "${TMP_PATH}/aln_exp_${STEP}" ${TMP} \
             || fail "expandaln died"
-        mv -f "${TMP_PATH}/aln_exp" "${TMP_PATH}/aln_0"
-        mv -f "${TMP_PATH}/aln_exp.index" "${TMP_PATH}/aln_0.index"
+        mv -f "${TMP_PATH}/aln_exp_${STEP}" "${TMP_PATH}/aln_${STEP}"
+        mv -f "${TMP_PATH}/aln_exp_${STEP}.index" "${TMP_PATH}/aln_${STEP}.index"
+        mv -f "${TMP_PATH}/aln_exp_${STEP}.dbtype" "${TMP_PATH}/aln_${STEP}.dbtype"
         touch "${TMP_PATH}/aln_exp_${STEP}.hasexpand"
     fi
 
@@ -91,21 +93,24 @@ while [ "${STEP}" -lt "${NUM_IT}" ]; do
                 || fail "mergedbs died"
             mv -f "${TMP_PATH}/aln_new" "${TMP_PATH}/aln_0"
             mv -f "${TMP_PATH}/aln_new.index" "${TMP_PATH}/aln_0.index"
+            mv -f "${TMP_PATH}/aln_new.dbtype" "${TMP_PATH}/aln_0.dbtype"
             touch "${TMP_PATH}/aln_${STEP}.hasmerge"
         fi
     fi
 
     # create profiles
-    if notExists "${TMP_PATH}/profile_${STEP}"; then
-        PARAM="PROFILE_PAR_${STEP}"
-        eval TMP="\$$PARAM"
-        # shellcheck disable=SC2086
-        ${RUNNER} "${MMSEQS}" result2profile "${QUERYDB}" "${PROFTARGETSEQ}" "${TMP_PATH}/aln_0" "${TMP_PATH}/profile_${STEP}" ${TMP} \
-            || fail "result2profile died"
-    fi
-	INPUT="${TMP_PATH}/profile_${STEP}"
+    if [ "$((STEP-1))" != "${NUM_IT}" ]; then
+        if notExists "${TMP_PATH}/profile_${STEP}"; then
+            PARAM="PROFILE_PAR_${STEP}"
+            eval TMP="\$$PARAM"
+            # shellcheck disable=SC2086
+            ${RUNNER} "${MMSEQS}" result2profile "${QUERYDB}" "${PROFTARGETSEQ}" "${TMP_PATH}/aln_0" "${TMP_PATH}/profile_${STEP}" ${TMP} \
+                || fail "result2profile died"
+        fi
+        INPUT="${TMP_PATH}/profile_${STEP}"
+	fi
 
-	STEP=$((STEP+1))
+	STEP="$((STEP+1))"
 done
 
 mv -f "${TMP_PATH}/aln_0" "${RESULT}"
@@ -113,17 +118,23 @@ mv -f "${TMP_PATH}/aln_0.index" "${RESULT}.index"
 mv -f "${TMP_PATH}/aln_0.dbtype" "${RESULT}.dbtype"
 
 if [ -n "$REMOVE_TMP" ]; then
- echo "Remove temporary files"
- STEP=0
- while [ "${STEP}" -lt "$NUM_IT" ]; do
-    rm -f "${TMP_PATH}/pref_${STEP}" "${TMP_PATH}/pref_${STEP}.index"
-    rm -f "${TMP_PATH}/aln_${STEP}" "${TMP_PATH}/aln_${STEP}.index"
-    rm -f "${TMP_PATH}/profile_${STEP}" "${TMP_PATH}/profile_${STEP}.index" "${TMP_PATH}/profile_${STEP}_h" "${TMP_PATH}/profile_${STEP}_h.index"
-    rm -f "${TMP_PATH}/aln_${STEP}.hasmerge" "${TMP_PATH}/aln_exp_${STEP}.hasexpand" "${TMP_PATH}/pref_${STEP}.hasnext"
-    STEP=$((STEP+1))
- done
- rm -f "${TMP_PATH}/prof_slice" "${TMP_PATH}/prof_slice.index"
- rm -f "${TMP_PATH}/search_slice" "${TMP_PATH}/search_slice.index"
- rm -f "${TMP_PATH}/enrich.sh"
+    echo "Remove temporary files"
+    STEP=0
+    while [ "${STEP}" -lt "${NUM_IT}" ]; do
+        rm -f "${TMP_PATH}/pref_${STEP}" "${TMP_PATH}/pref_${STEP}.index" "${TMP_PATH}/pref_${STEP}.dbtype"
+        rm -f "${TMP_PATH}/aln_${STEP}" "${TMP_PATH}/aln_${STEP}.index" "${TMP_PATH}/aln_${STEP}.dbtype"
+        rm -f "${TMP_PATH}/profile_${STEP}" "${TMP_PATH}/profile_${STEP}.index" "${TMP_PATH}/profile_${STEP}.dbtype"
+        rm -f "${TMP_PATH}/profile_${STEP}_h" "${TMP_PATH}/profile_${STEP}_h.index" "${TMP_PATH}/profile_${STEP}_h.dbtype"
+        rm -f "${TMP_PATH}/profile_${STEP}_consensus" "${TMP_PATH}/profile_${STEP}_consensus.index" "${TMP_PATH}/profile_${STEP}_consensus.dbtype"
+        rm -f "${TMP_PATH}/profile_${STEP}_consensus_h" "${TMP_PATH}/profile_${STEP}_consensus_h.index" "${TMP_PATH}/profile_${STEP}_consensus_h.dbtype"
+        rm -f "${TMP_PATH}/aln_${STEP}.hasmerge" "${TMP_PATH}/aln_exp_${STEP}.hasexpand" "${TMP_PATH}/pref_${STEP}.hasnext"
+        STEP="$((STEP+1))"
+    done
+    rm -f "${TMP_PATH}/prof_slice" "${TMP_PATH}/prof_slice.index" "${TMP_PATH}/prof_slice.dbtype"
+    rm -f "${TMP_PATH}/prof_slice_h" "${TMP_PATH}/prof_slice_h.index"
+    rm -f "${TMP_PATH}/prof_slice_consensus" "${TMP_PATH}/prof_slice_consensus.index" "${TMP_PATH}/prof_slice_consensus.dbtype"
+    rm -f "${TMP_PATH}/prof_slice_consensus_h" "${TMP_PATH}/prof_slice_consensus_h.index" "${TMP_PATH}/prof_slice_consensus_h.dbtype"
+    rm -f "${TMP_PATH}/search_slice" "${TMP_PATH}/search_slice.index" "${TMP_PATH}/search_slice.dbtype"
+    rm -f "${TMP_PATH}/enrich.sh"
 fi
 

@@ -5,6 +5,7 @@ set(TESTS
         TestAlignmentPerformance.cpp
         TestAlignmentTraceback.cpp
         TestAlp.cpp
+        TestBacktraceTranslator.cpp
         TestCompositionBias.cpp
         TestCounting.cpp
         TestDBReader.cpp

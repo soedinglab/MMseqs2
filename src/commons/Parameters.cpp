@@ -222,7 +222,7 @@ Parameters::Parameters():
         PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA Ranks", "Ranks to return in LCA computation", typeid(std::string), (void*) &lcaRanks, ""),
         PARAM_BLACKLIST(PARAM_BLACKLIST_ID, "--blacklist", "Blacklisted Taxa", "Comma separted list of ignored taxa in LCA computation", typeid(std::string), (void*)&blacklist, "([0-9]+,)?[0-9]+"),
         // expandaln
-        PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion Mode", "Which hits (still fullfilling the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void*) &expansionMode, "^[0-2]{1}$"),
+        PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion Mode", "Which hits (still meeting the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void*) &expansionMode, "^[0-2]{1}$"),
         // taxonomy
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA Mode", "LCA Mode: No LCA 0, Single Search LCA 1, 2bLCA 2, 2bLCA Approx. 3", typeid(int), (void*) &lcaMode, "^[0-3]{1}$")
 {
@@ -978,8 +978,6 @@ Parameters::Parameters():
     enrichworkflow = combineList(enrichworkflow, align);
     enrichworkflow = combineList(enrichworkflow, expandaln);
     enrichworkflow = combineList(enrichworkflow, result2profile);
-    enrichworkflow.push_back(&PARAM_REUSELATEST);
-    enrichworkflow.push_back(&PARAM_NUM_ITERATIONS);
 
     //checkSaneEnvironment();
     setDefaults();
@@ -1670,8 +1668,8 @@ std::vector<MMseqsParameter*> Parameters::combineList(const std::vector<MMseqsPa
     std::vector< std::vector<MMseqsParameter*>> tmp;
     tmp.push_back(par1);
     tmp.push_back(par2);
-    for(size_t z = 0; z < tmp.size(); z++) {
-        std::vector<MMseqsParameter*> currPar = tmp[z];
+    for (size_t z = 0; z < tmp.size(); z++) {
+        std::vector<MMseqsParameter*> &currPar = tmp[z];
         for (size_t i = 0; i < currPar.size(); i++) {
             bool addPar = true;
             for (size_t j = 0; j < retVec.size(); j++) {
@@ -1680,7 +1678,7 @@ std::vector<MMseqsParameter*> Parameters::combineList(const std::vector<MMseqsPa
                 }
             }
             if (addPar == true) {
-                retVec.push_back(currPar[i]);
+                retVec.emplace_back(currPar[i]);
             }
         }
     }
