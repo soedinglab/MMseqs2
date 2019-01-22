@@ -234,7 +234,7 @@ int doRescorediagonal(Parameters &par,
                             int bitScore = static_cast<short>(evaluer.computeBitScore(distance) + 0.5);
 
                             if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
-                                alnLen = alignment.endPos - alignment.startPos;
+                                alnLen = (alignment.endPos - alignment.startPos) + 1;
                                 int qStartPos, qEndPos, dbStartPos, dbEndPos;
                                 // -1 since diagonal is computed from sequence Len which starts by 1
                                 if (diagonal >= 0) {
@@ -256,8 +256,7 @@ int doRescorediagonal(Parameters &par,
                                 if (evalue <= par.evalThr || isIdentity) {
                                     int idCnt = 0;
                                     for (int i = qStartPos; i <= qEndPos; i++) {
-                                        idCnt += (querySeqToAlign[i] == targetSeq[dbStartPos + (i - qStartPos)]) ? 1
-                                                                                                                 : 0;
+                                        idCnt += (querySeqToAlign[i] == targetSeq[dbStartPos + (i - qStartPos)]) ? 1 : 0;
                                     }
                                     seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLen);
                                 }
