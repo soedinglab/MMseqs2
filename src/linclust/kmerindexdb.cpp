@@ -172,9 +172,9 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         if(splits > 1) {
             seqDbr.unmapData();
             if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-                LinsearchIndexReader::mergeAndWriteIndex<Parameters::DBTYPE_NUCLEOTIDES, CompareRepSequenceAndIdAndDiagReverse>(dbw, splitFiles, subMat->alphabetSize, KMER_SIZE);
+                LinsearchIndexReader::mergeAndWriteIndex<Parameters::DBTYPE_NUCLEOTIDES>(dbw, splitFiles, subMat->alphabetSize, KMER_SIZE);
             }else{
-                LinsearchIndexReader::mergeAndWriteIndex<Parameters::DBTYPE_AMINO_ACIDS, CompareRepSequenceAndIdAndDiag>(dbw, splitFiles, subMat->alphabetSize, KMER_SIZE);
+                LinsearchIndexReader::mergeAndWriteIndex<Parameters::DBTYPE_AMINO_ACIDS>(dbw, splitFiles, subMat->alphabetSize, KMER_SIZE);
             }
         } else {
             if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {

@@ -64,9 +64,11 @@ size_t LinsearchIndexReader::pickCenterKmer(KmerPosition *hashSeqPair, size_t sp
 template size_t LinsearchIndexReader::pickCenterKmer<0>(KmerPosition *hashSeqPair, size_t splitKmerCount);
 template size_t LinsearchIndexReader::pickCenterKmer<1>(KmerPosition *hashSeqPair, size_t splitKmerCount);
 
-template <int TYPE, class Comp>
+template <int TYPE>
 void LinsearchIndexReader::mergeAndWriteIndex(DBWriter & dbw, std::vector<std::string> tmpFiles, int alphSize, int kmerSize) {
     KmerIndex kmerIndex(alphSize, kmerSize);
+
+    dbw.writeStart(0);
     Debug(Debug::INFO) << "Merge splits ... ";
     const int fileCnt = tmpFiles.size();
     FILE ** files       = new FILE*[fileCnt];
@@ -83,12 +85,19 @@ void LinsearchIndexReader::mergeAndWriteIndex(DBWriter & dbw, std::vector<std::s
         entrySizes[file] = dataSize/sizeof(KmerPosition);
         offsetPos[file] = 0;
     }
-    std::priority_queue<FileKmer, std::vector<FileKmer>, Comp> queue;
+    std::priority_queue<FileKmer, std::vector<FileKmer>, CompareRepSequenceAndIdAndDiag> queue;
     // read one entry for each file
     for(int file = 0; file < fileCnt; file++ ){
         size_t offset = offsetPos[file];
-        if(offset + 1 < entrySizes[file]){
-            queue.push(FileKmer(entries[file][offset + 1].kmer, entries[file][offset + 1].id, entries[file][offset + 1].pos, entries[file][offset + 1].seqLen, file));
+        if(offset < entrySizes[file]){
+            KmerPosition currKmerPosition = entries[file][offset];
+            size_t currKmer = currKmerPosition.kmer;
+            bool isReverse = false;
+            if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+                isReverse = (BIT_CHECK(currKmerPosition.kmer, 63) == false);
+                currKmer = BIT_CLEAR(currKmer, 63);
+            }
+            queue.push(FileKmer(currKmer, currKmerPosition.id, currKmerPosition.pos, currKmerPosition.seqLen, isReverse, file));
         }
     }
     std::string prefResultsOutString;
@@ -97,32 +106,29 @@ void LinsearchIndexReader::mergeAndWriteIndex(DBWriter & dbw, std::vector<std::s
     size_t prevKmer = SIZE_T_MAX;
     while(queue.empty() == false) {
         res = queue.top();
-        size_t currKmer = res.kmer;
-        if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
-            currKmer = BIT_CLEAR(currKmer, 63);
-        }
         queue.pop();
         {
             size_t offset = offsetPos[res.file];
             if(offset + 1 < entrySizes[res.file]){
-                queue.push(FileKmer(entries[res.file][offset + 1].kmer, entries[res.file][offset + 1].id,
-                                    entries[res.file][offset + 1].pos,  entries[res.file][offset + 1].seqLen, res.file));
+                size_t currKmer = entries[res.file][offset + 1].kmer;
+                bool isReverse = false;
+                if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+                    isReverse = (BIT_CHECK(entries[res.file][offset + 1].kmer, 63) == false);
+                    currKmer = BIT_CLEAR(currKmer, 63);
+                }
+                queue.push(FileKmer(currKmer, entries[res.file][offset + 1].id,
+                                    entries[res.file][offset + 1].pos,  entries[res.file][offset + 1].seqLen,
+                                    isReverse, res.file));
                 offsetPos[res.file] = offset + 1;
             }
         }
-        if(prevKmer != currKmer){
+        if(prevKmer != res.kmer){
             if (kmerIndex.needsFlush(res.kmer) == true) {
                 kmerIndex.flush(dbw);
             }
-            if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
-                bool isReverse = (BIT_CHECK(currKmer, 63) == false);
-                currKmer = BIT_CLEAR(currKmer, 63);
-                kmerIndex.addElementSorted(currKmer, res.id, res.pos, res.seqLen, isReverse);
-            }else{
-                kmerIndex.addElementSorted(res.kmer, res.id, res.pos, res.seqLen, false);
-            }
+            kmerIndex.addElementSorted(res.kmer, res.id, res.pos, res.seqLen, res.reverse);
         }
-        prevKmer = currKmer;
+        prevKmer = res.kmer;
     }
     Debug(Debug::INFO) << "Done\n";
 
@@ -162,8 +168,8 @@ void LinsearchIndexReader::mergeAndWriteIndex(DBWriter & dbw, std::vector<std::s
 
 }
 
-template void LinsearchIndexReader::mergeAndWriteIndex<0, CompareRepSequenceAndIdAndDiag>(DBWriter & dbw, std::vector<std::string> tmpFiles, int alphSize, int kmerSize);
-template void LinsearchIndexReader::mergeAndWriteIndex<1, CompareRepSequenceAndIdAndDiagReverse>(DBWriter & dbw, std::vector<std::string> tmpFiles, int alphSize, int kmerSize);
+template void LinsearchIndexReader::mergeAndWriteIndex<0>(DBWriter & dbw, std::vector<std::string> tmpFiles, int alphSize, int kmerSize);
+template void LinsearchIndexReader::mergeAndWriteIndex<1>(DBWriter & dbw, std::vector<std::string> tmpFiles, int alphSize, int kmerSize);
 
 
 template <int TYPE>
