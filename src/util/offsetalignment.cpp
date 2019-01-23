@@ -174,7 +174,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 
     Debug(Debug::INFO) << "Target database: " << par.db4 << "\n";
     IndexReader * tOrfDbr;
-    bool isSameOrfDB = par.db2.compare(par.db4);
+    bool isSameOrfDB = (par.db2.compare(par.db4) == 0);
     if(isSameOrfDB){
         tOrfDbr = &qOrfDbr;
     }else{
@@ -187,7 +187,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     }
     const bool targetNucl = Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES);
     IndexReader *tSourceDbr = NULL;
-    bool isSameSrcDB = par.db3.compare(par.db1);
+    bool isSameSrcDB = (par.db3.compare(par.db1) == 0);
     if (targetNucl) {
         Debug(Debug::INFO) << "Source Target database: " << par.db3 << "\n";
         if(isSameSrcDB){
