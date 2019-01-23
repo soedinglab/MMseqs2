@@ -103,7 +103,10 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                 return true;
             if(second.kmer < first.kmer)
                 return false;
-
+            if(first.pos < second.pos)
+                return true;
+            if(second.pos < first.pos)
+                return false;
             return false;
         }
         static bool compareByScoreReverse(const SequencePosition &first, const SequencePosition &second){
@@ -118,7 +121,10 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                 return true;
             if(secondKmer < firstKmer)
                 return false;
-
+            if(first.pos < second.pos)
+                return true;
+            if(second.pos < first.pos)
+                return false;
             return false;
         }
     };
@@ -237,7 +243,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                         (kmers + seqKmerCount)->pos = (pickReverseKmer) ? (seq.L) - pos - KMER_SIZE : pos;
 //                        std::cout << seq.getDbKey() << "\t";
 //                        std::cout << pickReverseKmer << "\t";
-//                        std::cout << seq.L << "\t";
+//                        std::cout << seq.L << "\t";sta
 //                        std::cout << pos << "\t";
 //                        std::cout << (kmers + seqKmerCount)->pos << "\t";
 //                        printKmer(kmerIdx, KMER_SIZE);
@@ -268,9 +274,9 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                 }
                 if (seqKmerCount > 1) {
                     if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                        std::stable_sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScoreReverse);
+                        std::sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScoreReverse);
                     }else{
-                        std::stable_sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScore);
+                        std::sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScore);
                     }
                 }
                 size_t kmerConsidered = std::min(static_cast<int>(chooseTopKmer - 1), seqKmerCount);
