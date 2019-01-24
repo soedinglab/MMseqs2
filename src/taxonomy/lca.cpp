@@ -147,7 +147,7 @@ int lca(int argc, const char **argv, const Command& command) {
         }
     };
     Debug(Debug::INFO) << "\n";
-    Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " entries  not found.\n";
+    Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " entries not found.\n";
 
     writer.close();
     reader.close();
