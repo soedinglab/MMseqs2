@@ -261,7 +261,7 @@ int doRescorediagonal(Parameters &par,
                                     seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLen);
                                 }
 
-                                char *end = Itoa::i32toa_sse2(qEndPos - qStartPos, buffer);
+                                char *end = Itoa::i32toa_sse2(alnLen, buffer);
                                 size_t len = end - buffer;
                                 std::string backtrace(buffer, len - 1);
                                 backtrace.push_back('M');
