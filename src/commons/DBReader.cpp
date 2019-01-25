@@ -107,13 +107,21 @@ template <typename T> bool DBReader<T>::open(int accessType){
             Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "!\n";
             EXIT(EXIT_FAILURE);
         }
-        size = FileUtil::countLines(indexFileName);
+        MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+        if (!indexData.isValid()){
+            Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        char* indexDataChar = (char *) indexData.getData();
+        size_t indexDataSize = indexData.size();
+        size = Util::ompCountLines(indexDataChar,indexDataSize);
+
         index = new(std::nothrow) Index[this->size];
         Util::checkAllocation(index, "Could not allocate index memory in DBReader");
         seqLens = new(std::nothrow) unsigned int[this->size];
         Util::checkAllocation(seqLens, "Could not allocate seqLens memory in DBReader");
-
-        isSortedById = readIndex(indexFileName, index, seqLens);
+        isSortedById = readIndex(indexDataChar, indexDataSize, index, seqLens);
+        indexData.close();
 
         if (accessType != HARDNOSORT) {
             sortIndex(isSortedById);
@@ -572,22 +580,15 @@ template <typename T> void DBReader<T>::checkClosed(){
 }
 
 template<typename T>
-bool DBReader<T>::readIndex(char *indexFileName, Index *index, unsigned int *entryLength) {
-    MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
-    if (!indexData.isValid()){
-        Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-
+bool DBReader<T>::readIndex(char *data, size_t dataSize, Index *index, unsigned int *entryLength) {
     size_t i = 0;
-
     size_t currPos = 0;
-    char* indexDataChar = (char *) indexData.getData();
+    char* indexDataChar = (char *) data;
     char * cols[3];
     T prevId=T(); // makes 0 or empty string
     size_t isSorted = true;
     maxSeqLen=0;
-    while (currPos < indexData.size()){
+    while (currPos < dataSize){
         if (i >= this->size) {
             Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
             EXIT(EXIT_FAILURE);
@@ -601,12 +602,11 @@ bool DBReader<T>::readIndex(char *indexFileName, Index *index, unsigned int *ent
         entryLength[i] = length;
         maxSeqLen = std::max(static_cast<unsigned int>(length), maxSeqLen);
         indexDataChar = Util::skipLine(indexDataChar);
-        currPos = indexDataChar - (char *) indexData.getData();
+        currPos = indexDataChar - (char *) data;
         lastKey = std::max(index[i].id, lastKey);
         prevId = index[i].id;
         i++;
     }
-    indexData.close();
     return isSorted;
 }
 

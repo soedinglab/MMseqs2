@@ -474,6 +474,34 @@ char Util::touchMemory(const char *memory, size_t size) {
     return retVal;
 }
 
+size_t Util::ompCountLines(const char* data, size_t dataSize) {
+    size_t cnt = 0;
+    int threadCnt = 1;
+#ifdef OPENMP
+    const int totalThreadCnt = omp_get_max_threads();
+    if (totalThreadCnt > 4) {
+        threadCnt = 4;
+    }
+#endif
+
+#pragma omp parallel num_threads(threadCnt)
+    {
+        size_t pageSize = getPageSize();
+
+#pragma omp for schedule(dynamic, 1) reduction (+: cnt)
+        for (size_t page = 0; page < dataSize; page += pageSize) {
+            size_t readUntil = std::min(dataSize, page + pageSize);
+            for(size_t pos = page; pos < readUntil; pos++ ){
+                cnt += (data[pos] == '\n') ? 1 : 0;
+            }
+        }
+    }
+
+    return cnt;
+}
+
+
+
 
 ///* Scaled log-likelihood ratios for coiled-coil heptat repeat */
 //const float     ccoilmat[23][7] =
@@ -666,7 +694,7 @@ uint64_t Util::revComplement(const uint64_t kmer, const int k) {
     __m128i kmer1 = _mm_and_si128(x, _mm_set1_epi8(0x0F)); // get lower 4 bits
     __m128i kmer2 = _mm_and_si128(x, _mm_set1_epi8(0xF0)); // get higher 4 bits
 
-    // shift right by 2 nucleotids
+    // shift right by 2 nucleotides
     kmer2 >>= 4;
 
     // use _mm_shuffle_epi8 to look up reverse complement
