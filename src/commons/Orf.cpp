@@ -36,6 +36,7 @@
 #include "Debug.h"
 #include "TranslateNucl.h"
 #include "simd.h"
+#include "itoa.h"
 
 #include <climits>
 #include <cstring>
@@ -347,28 +348,107 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
 Orf::SequenceLocation Orf::parseOrfHeader(const char *data) {
     const char* entry[255];
     size_t columns = Util::getWordsOfLine(data, entry, 255);
-    size_t col;
     bool found = false;
-    for(col = 0; col < columns; col++){
-        if(entry[col][0] == '[' && entry[col][1] == 'O' && entry[col][2] == 'r' && entry[col][3] == 'f' && entry[col][4] == ':'){
-            found=true;
-            break;
+    unsigned int from;
+    unsigned int to;
+    //623 30400+1000
+    if(columns >= 2) {
+        size_t entryLen = entry[2]-entry[1];
+        // check if correct
+        const char * posStart = entry[1];
+        const char * lenStart;
+        bool hasNumericStart = false;
+        bool hasPlusMinus = false;
+        bool hasNumericEnd = false;
+        bool isPlus = false;
+        size_t pos = 0;
+        while ((entry[1][pos] >= '0' && entry[1][pos] <= '9') && pos < entryLen) {
+            pos++;
         }
-    }
-    Orf::SequenceLocation loc;
+        if(pos > 0){
+            hasNumericStart = true;
+            if ((entry[1][pos] == '-' || entry[1][pos] == '+') && hasNumericStart == true && hasPlusMinus == false) {
+                hasPlusMinus = true;
+                isPlus = (entry[1][pos] == '+');
+                lenStart = &entry[1][pos+1];
+                pos++;
+            }
+            size_t prevPos = pos;
+            while ((entry[1][pos] >= '0' && entry[1][pos] <= '9') && pos < entryLen) {
+                pos++;
+            }
+            hasNumericEnd = (pos > prevPos);
+        }
+//            } else  else if ((entry[1][i] >= '0' && entry[1][i] <= '9') && hasNumericStart == true && hasPlusMinus == true) {
+//                hasNumericEnd = true;
+//            } else {
+//                break;
+//            }
+        found = (hasNumericStart && hasPlusMinus && hasNumericEnd);
+        if(found){
+            size_t len = Util::fast_atoi<unsigned int>(lenStart);
+            from = Util::fast_atoi<unsigned int>(posStart);
+            if(isPlus){
+                to = from + len;
+            }else{
+                to = from - len;
+            }
+        }
 
+    }
+
+    Orf::SequenceLocation loc;
     if(found == false){
         loc.id = UINT_MAX;
         return loc;
     }
-    int hasIncompleteStart, hasIncompleteEnd;
-    int retCode = sscanf(entry[col], "[Orf: %u, %zu, %zu, %d, %d]", &loc.id, &loc.from, &loc.to, &hasIncompleteStart, &hasIncompleteEnd);
-    loc.hasIncompleteStart = hasIncompleteStart;
-    loc.hasIncompleteEnd = hasIncompleteEnd;
-    if(retCode < 5) {
-        Debug(Debug::ERROR) << "Could not parse Orf " << entry[col] << ".\n";
-        EXIT(EXIT_FAILURE);
+
+    loc.id =  Util::fast_atoi<unsigned int>(entry[0]);
+    loc.from = from;
+    loc.to = to;
+    loc.hasIncompleteStart = false;
+    loc.hasIncompleteEnd = false;
+    if(columns == 3) {
+        size_t complete =  Util::fast_atoi<unsigned int>(entry[2]);
+        switch(complete){
+            case 0:
+                loc.hasIncompleteStart = false;
+                loc.hasIncompleteEnd = false;
+                break;
+            case 1:
+                loc.hasIncompleteStart = true;
+                loc.hasIncompleteEnd = false;
+                break;
+            case 2:
+                loc.hasIncompleteStart = false;
+                loc.hasIncompleteEnd = true;
+                break;
+            case 3:
+                loc.hasIncompleteStart = true;
+                loc.hasIncompleteEnd = true;
+                break;
+        }
     }
+
     loc.strand = (loc.from > loc.to) ? Orf::STRAND_MINUS : Orf::STRAND_PLUS;
     return loc;
+}
+
+size_t Orf::writeOrfHeader(char *buffer, unsigned int key, size_t fromPos, size_t toPos,
+                           bool hasIncompleteStart, bool hasIncompleteEnd) {
+    char * basePos = buffer;
+    char * tmpBuff = Itoa::u32toa_sse2((uint32_t) key, buffer);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::u32toa_sse2(static_cast<uint32_t>(fromPos), tmpBuff);
+    *(tmpBuff-1) = (fromPos < toPos) ? '+' : '-';
+    int len = abs(static_cast<int>(fromPos) - static_cast<int>(toPos));
+    tmpBuff = Itoa::i32toa_sse2(len, tmpBuff);
+    int complete = (hasIncompleteStart) | (hasIncompleteEnd << 1);
+    if(complete != 0){
+        *(tmpBuff-1) = '\t';
+        tmpBuff = Itoa::i32toa_sse2(len, tmpBuff);
+    }
+    *(tmpBuff-1) = '\n';
+    *(tmpBuff) = '\0';
+    return tmpBuff - basePos;
 }

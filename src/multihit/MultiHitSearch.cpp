@@ -8,7 +8,7 @@
 
 void setMultiHitSearchWorkflowDefaults(Parameters *p) {
     p->sensitivity = 7;
-    p->cov = 0.7;
+    p->covThr = 0.7;
     p->evalThr = 100;
 
     // TODO: Needs to be more than the count of target sets (10x?)

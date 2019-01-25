@@ -160,7 +160,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     }
 
     Debug(Debug::INFO) << "Query database: " << par.db2 << "\n";
-    IndexReader qOrfDbr(par.db2 .c_str(), par.threads, IndexReader::HEADERS, touch);
+    IndexReader qOrfDbr(par.db2.c_str(), par.threads, IndexReader::HEADERS, touch);
     if (queryDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
@@ -169,20 +169,32 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     IndexReader *qSourceDbr = NULL;
     if (queryNucl) {
         Debug(Debug::INFO) << "Source Query database: " << par.db1 << "\n";
-        qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::SRC_SEQUENCES, touch);
+        qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::SRC_SEQUENCES, false, DBReader<unsigned int>::USE_INDEX);
     }
 
     Debug(Debug::INFO) << "Target database: " << par.db4 << "\n";
-    IndexReader tOrfDbr(par.db4.c_str(), par.threads, IndexReader::HEADERS, touch);
+    IndexReader * tOrfDbr;
+    bool isSameOrfDB = (par.db2.compare(par.db4) == 0);
+    if(isSameOrfDB){
+        tOrfDbr = &qOrfDbr;
+    }else{
+        tOrfDbr = new IndexReader(par.db4.c_str(), par.threads, IndexReader::HEADERS, touch);
+    }
+
     if (targetDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
     }
     const bool targetNucl = Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES);
     IndexReader *tSourceDbr = NULL;
+    bool isSameSrcDB = (par.db3.compare(par.db1) == 0);
     if (targetNucl) {
         Debug(Debug::INFO) << "Source Target database: " << par.db3 << "\n";
-        tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::SRC_SEQUENCES, touch);
+        if(isSameSrcDB){
+            tSourceDbr = qSourceDbr;
+        }else{
+            tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::SRC_SEQUENCES, false, DBReader<unsigned int>::USE_INDEX );
+        }
     }
 
     Debug(Debug::INFO) << "Result database: " << par.db5 << "\n";
@@ -313,12 +325,12 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     size_t queryId = qOrfDbr.sequenceReader->getId(orfKey);
                     char *header = qOrfDbr.sequenceReader->getData(queryId, thread_idx);
                     Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
-                    updateOffset(data, results, &qloc, tOrfDbr, isNuclNucl, thread_idx);
+                    updateOffset(data, results, &qloc, *tOrfDbr, isNuclNucl, thread_idx);
                 }
             } else if (Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
                 queryKey = alnDbr.getDbKey(i);
                 char *data = alnDbr.getData(i, thread_idx);
-                updateOffset(data, results, NULL, tOrfDbr, isNuclNucl, thread_idx);
+                updateOffset(data, results, NULL, *tOrfDbr, isNuclNucl, thread_idx);
             }
             unsigned int qLen = UINT_MAX;
             if (qSourceDbr != NULL) {
@@ -366,8 +378,13 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         delete[] contigExists;
     }
 
+    if(isSameOrfDB == false){
+        delete tOrfDbr;
+    }
     if(tSourceDbr != NULL){
-        delete tSourceDbr;
+        if(isSameSrcDB==false){
+            delete tSourceDbr;
+        }
     }
 
     if(qSourceDbr != NULL){

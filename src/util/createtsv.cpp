@@ -3,6 +3,7 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
+#include "IndexReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -16,27 +17,35 @@ int createtsv(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 3, true, Parameters::PARSE_VARIADIC);
 
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    DBReader<unsigned int> queryDB(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    queryDB.open(DBReader<unsigned int>::NOSORT);
-    queryDB.readMmapedDataInMemory();
-    unsigned int* qHeaderLength = queryDB.getSeqLens();
 
+    bool queryNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db1.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
+    bool targetNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
+    const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+
+    IndexReader qDbrHeader(par.db1, par.threads, (queryNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS, touch);
+    IndexReader * tDbrHeader=NULL;
+    DBReader<unsigned int> * queryDB = qDbrHeader.sequenceReader;
+    DBReader<unsigned int> * targetDB;
+    bool sameDB = (par.db2.compare(par.db1) == 0);
     const bool hasTargetDB = par.filenames.size() > 3;
-    bool sameDatabase = false;
-    DBReader<unsigned int> *targetDB = NULL;
+    unsigned int* qHeaderLength = qDbrHeader.sequenceReader->getSeqLens();
     unsigned int* tHeaderLength = NULL;
+
     if (hasTargetDB) {
-        if (par.db1 == par.db2) {
-            sameDatabase = true;
-            targetDB = &queryDB;
+        if (sameDB) {
+            tDbrHeader = &qDbrHeader;
+            tHeaderLength = qHeaderLength;
+            targetDB = queryDB;
         } else {
             Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-            targetDB = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-            targetDB->open(DBReader<unsigned int>::NOSORT);
-            targetDB->readMmapedDataInMemory();
-            tHeaderLength = targetDB->getSeqLens();
+            tDbrHeader = new IndexReader(par.db2, par.threads,
+                                         (targetNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS, touch);
+            tHeaderLength = tDbrHeader->sequenceReader->getSeqLens();
+            targetDB = tDbrHeader->sequenceReader;
         }
     }
+
+
 
     DBReader<unsigned int> *reader;
     if (hasTargetDB) {
@@ -73,9 +82,9 @@ int createtsv(int argc, const char **argv, const Command &command) {
 #pragma omp for schedule(dynamic, 1000)
         for (size_t i = 0; i < reader->getSize(); ++i) {
             unsigned int queryKey = reader->getDbKey(i);
-            size_t queryIndex = queryDB.getId(queryKey);
+            size_t queryIndex = queryDB->getId(queryKey);
 
-            char *headerData = queryDB.getData(queryIndex, thread_idx);
+            char *headerData = queryDB->getData(queryIndex, thread_idx);
             if (headerData == NULL) {
                 Debug(Debug::WARNING) << "Invalid header entry in query " << queryKey << "!\n";
                 continue;
@@ -164,11 +173,11 @@ int createtsv(int argc, const char **argv, const Command &command) {
 
     reader->close();
     delete reader;
-    if (sameDatabase == false && targetDB != NULL) {
-        targetDB->close();
-        delete targetDB;
+    if (hasTargetDB) {
+        if (sameDB == false) {
+            delete tDbrHeader;
+        }
     }
-    queryDB.close();
 
     return EXIT_SUCCESS;
 }

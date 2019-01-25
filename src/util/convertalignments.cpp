@@ -95,12 +95,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     bool needFullHeaders = false;
     const std::vector<int> outcodes = Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
 
-    bool queryNucs = false;
-    bool targetNucs = false;
     bool isTranslatedSearch = false;
+    bool queryNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db1.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
+    bool targetNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
     if (needSequenceDB) {
-        queryNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db1.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
-        targetNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
         if((targetNucs == true || queryNucs == true ) && !(queryNucs == true && targetNucs == true)){
             isTranslatedSearch = true;
         }

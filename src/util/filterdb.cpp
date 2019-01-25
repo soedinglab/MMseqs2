@@ -4,6 +4,7 @@
 #include "Util.h"
 #include "Debug.h"
 #include "filterdb.h"
+#include "FileUtil.h"
 
 #include <fstream>
 #include <iostream>
@@ -67,18 +68,40 @@ ffindexFilter::ffindexFilter(Parameters &par) {
     } else if (par.filteringFile != "")
 	{
         mode = FILE_FILTERING;
+//        filter.reserve(1000000);
         std::cout<<"Filtering with a filter files."<<std::endl;
         filterFile = par.filteringFile;
         // Fill the filter with the data contained in the file
-        std::ifstream filterFileStream;
-        filterFileStream.open(filterFile);
-        std::string line;
-        while (std::getline(filterFileStream,line))
-        {
-            filter.push_back(line);
+        FILE * orderFile=NULL;
+        if (FileUtil::fileExists(filterFile.c_str())) {
+            orderFile = fopen(filterFile.c_str(), "r");
+        } else {
+            Debug(Debug::ERROR) << "File " << filterFile << " does not exist.\n";
+            EXIT(EXIT_FAILURE);
         }
-
-        std::stable_sort(filter.begin(), filter.end(), compareString());
+        char *line = new char[65536];
+        size_t len = 0;
+        char * key=new char[65536];
+        while (getline(&line, &len, orderFile) != -1)
+        {
+            size_t offset = 0;
+            // ignore \0 in data files
+            // to support datafiles as input
+            while(offset < len && line[offset] == '\0'){
+                offset++;
+            }
+            if(offset >= len){
+                break;
+            }
+            Util::parseKey(line+offset, key);
+            filter.emplace_back(key);
+        }
+        delete [] key;
+        delete [] line;
+        fclose(orderFile);
+        omptl::sort(filter.begin(), filter.end());
+        std::vector<std::string>::iterator last = std::unique(filter.begin(), filter.end());
+        filter.erase(last, filter.end());
     } else if(par.mappingFile != "")
     {
 

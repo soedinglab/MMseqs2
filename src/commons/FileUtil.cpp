@@ -71,17 +71,18 @@ FILE* FileUtil::openFileOrDie(const char * fileName, const char * mode, bool sho
     if(file == NULL) { perror(fileName); EXIT(EXIT_FAILURE); }
     return file;
 }
-
 size_t FileUtil::countLines(const char* name) {
-    MemoryMapped indexData(name, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+    FILE *fp=FileUtil::openFileOrDie(name, "r", true);
     size_t cnt = 0;
-    char* indexDataChar = (char *) indexData.getData();
-    for (size_t pos = 0; pos < indexData.size(); pos++) {
-        cnt += (indexDataChar[pos] == '\n') ? 1 : 0;
+    while(!feof(fp))
+    {
+        char ch = fgetc(fp);
+        cnt += (ch == '\n') ? 1 : 0;
     }
-    indexData.close();
+    fclose(fp);
     return cnt;
 }
+
 
 void FileUtil::deleteFile(const std::string &file) {
     if (remove(file.c_str()) != 0) {

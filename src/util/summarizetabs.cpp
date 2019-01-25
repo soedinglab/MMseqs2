@@ -153,7 +153,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
                 continue;
             }
 
-            std::vector<Domain> result = mapDomains(entries, par.overlap, par.cov, par.evalThr);
+            std::vector<Domain> result = mapDomains(entries, par.overlap, par.covThr, par.evalThr);
             if (result.size() == 0) {
                 Debug(Debug::WARNING) << "Could not map any domains for entry " << id << "!\n";
                 continue;

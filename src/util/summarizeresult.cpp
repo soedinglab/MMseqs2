@@ -82,7 +82,7 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
                     continue;
                 }
                 float targetCov = MathUtil::getCoverage(domain.dbStartPos, domain.dbEndPos, domain.dbLen);
-                if (percentageOverlap <= par.overlap && targetCov > par.cov && domain.eval < par.evalThr) {
+                if (percentageOverlap <= par.overlap && targetCov > par.covThr && domain.eval < par.evalThr) {
                     for (int j = domain.qStartPos; j < domain.qEndPos; ++j) {
                         covered[j] = true;
                     }

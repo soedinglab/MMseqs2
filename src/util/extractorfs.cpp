@@ -30,7 +30,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_NUCLEOTIDES);
     sequenceWriter.open();
 
-    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
+    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, false, Parameters::DBTYPE_OFFSETDB);
     headerWriter.open();
 
     if ((par.orfStartMode == 1) && (par.contigStartMode < 2)) {
@@ -93,8 +93,10 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                     fromPos = (sequenceLength - 1) - loc.from;
                     toPos   = (sequenceLength - 1) - loc.to;
                 }
-                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(),
-                        key, fromPos, toPos, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+                Orf::writeOrfHeader(buffer, key, fromPos, toPos,  loc.hasIncompleteStart, loc.hasIncompleteEnd);
+
+//                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(),
+//                          toPos, loc.hasIncompleteStart, loc.hasIncompleteEnd);
                 sequenceWriter.writeStart(thread_idx);
                 sequenceWriter.writeAdd(sequence.first, sequence.second, thread_idx);
                 sequenceWriter.writeAdd(&newline, 1, thread_idx);

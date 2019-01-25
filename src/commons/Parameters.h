@@ -62,6 +62,7 @@ public:
     static const int DBTYPE_GENERIC_DB = 12;
     static const int DBTYPE_OMIT_FILE = 13;
     static const int DBTYPE_PREFILTER_REV_RES = 14;
+    static const int DBTYPE_OFFSETDB = 15;
 
 
     static const unsigned int ALIGNMENT_MODE_FAST_AUTO = 0;
@@ -358,7 +359,7 @@ public:
     int filterMsa;
     float qsc;
     float qid;
-    float cov;
+    float covMSAThr;
     int Ndiff;
     bool wg;
     float pca;

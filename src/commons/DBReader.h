@@ -103,7 +103,7 @@ public:
 
     char *mmapData(FILE *file, size_t *dataSize);
 
-    bool readIndex(char *indexFileName, Index *index, unsigned int *entryLength);
+    bool readIndex(char *data, size_t dataSize, Index *index, unsigned int *entryLength);
 
     void readIndexId(T* id, char * line, const char** cols);
 

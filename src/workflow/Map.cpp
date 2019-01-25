@@ -9,7 +9,7 @@
 void setMapWorkflowDefaults(Parameters *p) {
     p->compBiasCorrection = 0;
     p->maskMode = 0;
-    p->cov = 0.95;
+    p->covThr = 0.95;
     p->covMode = 2;
     p->seqIdThr = 0.9;
     p->sensitivity = 2;

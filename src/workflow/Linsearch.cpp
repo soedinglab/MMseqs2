@@ -122,9 +122,25 @@ int linsearch(int argc, const char **argv, const Command& command) {
     CommandCaller cmd;
 
     std::string program = tmpDir + "/linsearch.sh";
+
+    cmd.addVariable("FILTER", "1" );
+    int oldCovMode = par.covMode;
+    par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+    if(par.PARAM_COV_MODE.wasSet == false){
+        par.covMode = Parameters::COV_MODE_TARGET;
+    }
+    float oldCov = par.covThr;
+    par.covThr = std::max(par.covThr, 0.9f);
+    cmd.addVariable("RESCORE_FILTER_PAR", par.createParameterString(par.rescorediagonal).c_str());
+    par.covMode = oldCovMode;
+    par.covThr = oldCov;
+
     cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
     cmd.addVariable("KMERSEARCH_PAR", par.createParameterString(par.kmersearch).c_str());
+    float oldEval = par.evalThr;
+    par.evalThr = 100000;
     cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+    par.evalThr = oldEval;
     cmd.addVariable("SWAPRESULT_PAR", par.createParameterString(par.swapresult).c_str());
     if(isNuclSearch){
         cmd.addVariable("NUCL", "1");
