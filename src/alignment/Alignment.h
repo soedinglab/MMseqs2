@@ -112,10 +112,6 @@ private:
 
     void initSWMode(unsigned int alignmentMode);
 
-    void setQuerySequence(Sequence &seq, size_t id, unsigned int key, int thread_idx);
-
-    void setTargetSequence(Sequence &seq, unsigned int key, int thread_idx);
-
     static size_t estimateHDDMemoryConsumption(int dbSize, int maxSeqs);
 
     void computeAlternativeAlignment(unsigned int queryDbKey, Sequence &dbSeq,

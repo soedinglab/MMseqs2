@@ -534,9 +534,10 @@ inline F simd_hmin(const F * in, unsigned int n)
 inline void *mem_align(size_t boundary, size_t size)
 {
     void *pointer;
-    if (posix_memalign(&pointer,boundary,size) != 0)
-    {
-        std::cerr<<"Error: Could not allocate memory by memalign. Please report this bug to developers\n";
+    if (posix_memalign(&pointer, boundary, size) != 0) {
+#define MEM_ALIGN_ERROR "mem_align could not allocate memory.\n"
+        fwrite(MEM_ALIGN_ERROR, sizeof(MEM_ALIGN_ERROR), 1, stderr);
+#undef MEM_ALIGN_ERROR
         exit(3);
     }
     return pointer;
