@@ -356,7 +356,7 @@ Orf::SequenceLocation Orf::parseOrfHeader(const char *data) {
         size_t entryLen = entry[2]-entry[1];
         // check if correct
         const char * posStart = entry[1];
-        const char * lenStart;
+        const char * lenStart = NULL;
         bool hasNumericStart = false;
         bool hasPlusMinus = false;
         bool hasNumericEnd = false;
@@ -384,8 +384,7 @@ Orf::SequenceLocation Orf::parseOrfHeader(const char *data) {
 //            } else {
 //                break;
 //            }
-        found = (hasNumericStart && hasPlusMinus && hasNumericEnd);
-        if(found){
+        if (hasNumericStart && hasPlusMinus && hasNumericEnd && lenStart != NULL) {
             size_t len = Util::fast_atoi<unsigned int>(lenStart);
             from = Util::fast_atoi<unsigned int>(posStart);
             if(isPlus){
