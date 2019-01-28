@@ -24,18 +24,18 @@ matrix:
     addons:
       apt:
         sources:
-        - llvm-toolchain-trusty-5.0
+        - llvm-toolchain-trusty-7
         packages:
         - cmake
         - ninja-build
-        - clang-5.0
+        - clang-7
         - libc++-dev
         - zlib1g-dev
         - libbz2-dev
         - vim-common
         - libopenmpi-dev
     env:
-    - MATRIX_EVAL="CC=clang-5.0;CXX=clang++-5.0"
+    - MATRIX_EVAL="CC=clang-7;CXX=clang++-7"
 #  - os: linux
 #    dist: trusty
 #    sudo: false
@@ -61,7 +61,7 @@ matrix:
         packages:
         - cmake
         - ninja-build
-        - g++-7
+        - g++-8
         - zlib1g-dev
         - libbz2-dev
         - vim-common
