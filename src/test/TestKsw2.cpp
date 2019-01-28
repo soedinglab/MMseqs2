@@ -112,12 +112,6 @@ struct params {
 
 char *to_sequence(std::string string);
 
-int printer(void *fp, int64_t len, char c)
-{
-    return(fprintf((FILE *)fp, "%lld%c", len, c));
-}
-
-
 void printSeq(char * seq, int len){
     for(int i = 0; i < len; i++){
         // char const table[4] = {'A', 'C', 'G', 'T'};
