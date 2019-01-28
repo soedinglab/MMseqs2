@@ -260,7 +260,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
             }else{
                 hdbr1.close();
                 DBReader<unsigned int> hdbr2(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-                hdbr1.open(DBReader<unsigned int>::NOSORT);
+                hdbr2.open(DBReader<unsigned int>::NOSORT);
                 Debug(Debug::INFO) << "Write HDR2INDEX (" <<PrefilteringIndexReader::HDR2INDEX << ")\n";
                 data = DBReader<unsigned int>::serialize(hdbr2);
                 dbw.writeData(data, DBReader<unsigned int>::indexMemorySize(hdbr2), PrefilteringIndexReader::HDR2INDEX, 0);
