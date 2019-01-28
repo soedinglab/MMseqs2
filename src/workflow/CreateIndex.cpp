@@ -70,8 +70,8 @@ int createindex(Parameters &par, std::string indexerModule, std::string flag) {
         cmd.addVariable(flag.c_str(), "1");
     }
 
-    FileUtil::writeFile(par.db2 + "/createindex.sh", createindex_sh, createindex_sh_len);
-    std::string program(par.db2 + "/createindex.sh");
+    FileUtil::writeFile(tmpDir + "/createindex.sh", createindex_sh, createindex_sh_len);
+    std::string program(tmpDir + "/createindex.sh");
     cmd.execProgram(program.c_str(), par.filenames);
     return 0;
 }
