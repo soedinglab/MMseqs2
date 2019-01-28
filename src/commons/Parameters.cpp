@@ -193,6 +193,7 @@ Parameters::Parameters():
         PARAM_SHORT_OUTPUT(PARAM_SHORT_OUTPUT_ID, "--short-output", "Short output", "The output database will contain only the spread p-value", typeid(bool), (void*) &shortOutput, ""),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
+        PARAM_TAKE_LARGER_ENTRY(PARAM_TAKE_LARGER_ENTRY_ID,"--take-larger-entry", "Take the larger entry", "only keeps the larger entry (dataSize >) in the concatenation, both databases need the same keys in the index",typeid(bool), (void *) &takeLargerEntry, ""),
         // offsetalignment
         PARAM_CHAIN_ALIGNMENT(PARAM_CHAIN_ALIGNMENT_ID,"--chain-alignments", "Chain overlapping alignments", "Chain overlapping alignments",typeid(int),(void *) &chainAlignment, "^[0-1]{1}"),
         //diff
@@ -813,6 +814,7 @@ Parameters::Parameters():
     // concatdbs
     concatdbs.push_back(&PARAM_COMPRESSED);
     concatdbs.push_back(&PARAM_PRESERVEKEYS);
+    concatdbs.push_back(&PARAM_TAKE_LARGER_ENTRY);
     concatdbs.push_back(&PARAM_THREADS);
     concatdbs.push_back(&PARAM_V);
 
@@ -1599,6 +1601,7 @@ void Parameters::setDefaults() {
 
     // concatdbs
     preserveKeysB = false;
+    takeLargerEntry = false;
 
     // diff
     useSequenceId = false;

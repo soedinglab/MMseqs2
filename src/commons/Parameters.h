@@ -452,6 +452,7 @@ public:
 
     // concatdbs
     bool preserveKeysB;
+    bool takeLargerEntry;
 
     // offsetalignments
     int chainAlignment;
@@ -715,6 +716,7 @@ public:
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)
+    PARAMETER(PARAM_TAKE_LARGER_ENTRY)
 
     // offsetalignment
     PARAMETER(PARAM_CHAIN_ALIGNMENT)

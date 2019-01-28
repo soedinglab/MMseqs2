@@ -96,17 +96,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     const std::vector<int> outcodes = Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
 
     bool isTranslatedSearch = false;
-    bool queryNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db1.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
-    bool targetNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
-    if (needSequenceDB) {
-        if((targetNucs == true || queryNucs == true ) && !(queryNucs == true && targetNucs == true)){
-            isTranslatedSearch = true;
-        }
-    }
 
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    IndexReader qDbr(par.db1, par.threads, (queryNucs) ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES, touch);
-    IndexReader qDbrHeader(par.db1, par.threads, (queryNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS, touch);
+    IndexReader qDbr(par.db1, par.threads,  IndexReader::SRC_SEQUENCES, touch);
+    IndexReader qDbrHeader(par.db1, par.threads, IndexReader::SRC_HEADERS , touch);
 
     IndexReader *tDbr;
     IndexReader *tDbrHeader;
@@ -116,8 +109,16 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         tDbrHeader= &qDbrHeader;
     } else {
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        tDbr = new IndexReader(par.db2, par.threads, (targetNucs) ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES, touch);
-        tDbrHeader = new IndexReader(par.db2, par.threads, (targetNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS, touch);
+        tDbr = new IndexReader(par.db2, par.threads, IndexReader::SRC_SEQUENCES, touch);
+        tDbrHeader = new IndexReader(par.db2, par.threads, IndexReader::SRC_HEADERS, touch);
+    }
+
+    bool queryNucs = Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+    bool targetNucs = Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+    if (needSequenceDB) {
+        if((targetNucs == true || queryNucs == true ) && !(queryNucs == true && targetNucs == true)){
+            isTranslatedSearch = true;
+        }
     }
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
