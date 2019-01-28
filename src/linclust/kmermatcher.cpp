@@ -71,9 +71,15 @@ unsigned circ_hash_next(const int * x, unsigned length, int x_first, short unsig
 KmerPosition *initKmerPositionMemory(size_t size) {
     KmerPosition * hashSeqPair = new(std::nothrow) KmerPosition[size + 1];
     Util::checkAllocation(hashSeqPair, "Could not allocate memory");
-#pragma omp parallel for
-    for (size_t i = 0; i < size + 1; i++) {
-        hashSeqPair[i].kmer = SIZE_T_MAX;
+    size_t pageSize = Util::getPageSize()/sizeof(KmerPosition);
+
+#pragma omp parallel
+    {
+#pragma omp for schedule(dynamic, 1)
+        for (size_t page = 0; page < size+1; page += pageSize) {
+            size_t readUntil = std::min(size+1, page + pageSize) - page;
+            memset(hashSeqPair+page, 0xFF, sizeof(KmerPosition)* readUntil);
+        }
     }
     return hashSeqPair;
 }
@@ -252,7 +258,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
 //                        std::cout <<  "\n";
                         (kmers + seqKmerCount)->score = prevHash;
                         seqKmerCount++;
-                     } else if(TYPE == Parameters::DBTYPE_HMM_PROFILE) {
+                    } else if(TYPE == Parameters::DBTYPE_HMM_PROFILE) {
                         std::pair<size_t*, size_t>  scoreMat = generator->generateKmerList(kmer, true);
 //                        std::cout << scoreMat.elementSize << std::endl;
                         for(size_t kmerPos = 0; kmerPos < scoreMat.second && kmerPos < pickNBest; kmerPos++){
@@ -513,8 +519,8 @@ size_t assignGroup(KmerPosition *hashSeqPair, size_t splitKmerCount, bool includ
 
                     bool canBeExtended = diagonal < 0 || (diagonal > (queryLen - hashSeqPair[i].seqLen));
                     bool canBecovered = Util::canBeCovered(covThr, covMode,
-                                       static_cast<float>(queryLen),
-                                       static_cast<float>(hashSeqPair[i].seqLen));
+                                                           static_cast<float>(queryLen),
+                                                           static_cast<float>(hashSeqPair[i].seqLen));
                     if((includeOnlyExtendable == false && canBecovered) || (canBeExtended && includeOnlyExtendable ==true )){
                         hashSeqPair[writePos].kmer = rId;
                         hashSeqPair[writePos].pos = diagonal;
