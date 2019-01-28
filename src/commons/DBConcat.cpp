@@ -14,13 +14,13 @@
 DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFileNameA,
                    const std::string &dataFileNameB, const std::string &indexFileNameB,
                    const std::string &dataFileNameC, const std::string &indexFileNameC,
-                   unsigned int threads, int dataMode, bool preserveKeysA, bool preserveKeysB)
+                   unsigned int threads, int dataMode, bool preserveKeysA, bool preserveKeysB, bool takeLargerEntry)
         : DBReader((dataFileNameA == dataFileNameB ? dataFileNameA : dataFileNameC).c_str(),
                    (indexFileNameA == indexFileNameB ? indexFileNameA : indexFileNameC).c_str(), threads, dataMode),
           dataFileNameA(dataFileNameA), indexFileNameA(indexFileNameA),
           dataFileNameB(dataFileNameB), indexFileNameB(indexFileNameB),
           dataFileNameC(dataFileNameC), indexFileNameC(indexFileNameC),
-          threads(threads), preserveKeysA(preserveKeysA),preserveKeysB(preserveKeysB) {
+          threads(threads), preserveKeysA(preserveKeysA),preserveKeysB(preserveKeysB), takeLargerEntry(takeLargerEntry) {
     sameDatabase = dataFileNameA == dataFileNameB;
 }
 
@@ -36,8 +36,8 @@ void DBConcat::concat(bool write) {
     DBReader<unsigned int> dbB(dataFileNameB.c_str(), indexFileNameB.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
 
 
-    dbA.open(DBReader<unsigned int>::NOSORT);
-    dbB.open(DBReader<unsigned int>::NOSORT);
+    dbA.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    dbB.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     indexSizeA = dbA.getSize();
     indexSizeB = dbB.getSize();
@@ -51,6 +51,7 @@ void DBConcat::concat(bool write) {
         concatWriter = new DBWriter(dataFileNameC.c_str(), indexFileNameC.c_str(), threads, Parameters::WRITER_ASCII_MODE, dbA.getDbtype());
         concatWriter->open();
     }
+
 
     // where the new key numbering of B should start
     unsigned int maxKeyA = 0;
@@ -73,7 +74,16 @@ void DBConcat::concat(bool write) {
 
             if (write) {
                 char *data = dbA.getData(id, thread_idx);
-                concatWriter->writeData(data, dbA.getSeqLens(id) - 1, newKey, thread_idx);
+                size_t dataSizeA = dbA.getSeqLens(id) - 1;
+                if(takeLargerEntry == true) {
+                    size_t idB = dbB.getId(newKey);
+                    size_t dataSizeB = dbB.getSeqLens(idB)-1;
+                    if(dataSizeA >= dataSizeB){
+                        concatWriter->writeData(data, dataSizeA, newKey, thread_idx);
+                    }
+                } else if (takeLargerEntry == false) {
+                    concatWriter->writeData(data, dataSizeA, newKey, thread_idx);
+                }
             }
 
             // need to store the index, because it'll be sorted out by keys later
@@ -102,7 +112,16 @@ void DBConcat::concat(bool write) {
 
             if (write) {
                 char *data = dbB.getData(id, thread_idx);
-                concatWriter->writeData(data, dbB.getSeqLens(id) - 1, newKey, thread_idx);
+                size_t dataSizeB = dbB.getSeqLens(id) - 1;
+                if(takeLargerEntry){
+                    size_t idB = dbA.getId(newKey);
+                    size_t dataSizeA = dbA.getSeqLens(idB)-1;
+                    if(dataSizeB > dataSizeA) {
+                        concatWriter->writeData(data, dataSizeB, newKey, thread_idx);
+                    }
+                } else if (takeLargerEntry == false){
+                    concatWriter->writeData(data, dataSizeB, newKey, thread_idx);
+                }
             }
 
             // need to store the index, because it'll be sorted out by keys later
@@ -160,7 +179,7 @@ int concatdbs(int argc, const char **argv, const Command& command) {
     DBConcat outDB(par.db1.c_str(), par.db1Index.c_str(),
                    par.db2.c_str(), par.db2Index.c_str(),
                    par.db3.c_str(), par.db3Index.c_str(),
-                   static_cast<unsigned int>(par.threads), datamode, true, par.preserveKeysB);
+                   static_cast<unsigned int>(par.threads), datamode, true, par.preserveKeysB, par.takeLargerEntry);
     outDB.concat(true);
 
     if (FileUtil::fileExists((par.db2 + ".dbtype").c_str())) {

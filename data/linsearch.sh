@@ -30,7 +30,7 @@ if notExists "${TMP_PATH}/pref"; then
         || fail "kmermatcher died"
 fi
 
-# 3. Ungapped alignment filtering
+# 1. Ungapped alignment filtering
 RESULTDB="${TMP_PATH}/pref"
 if [ -n "$FILTER" ]; then
     if notExists "${TMP_PATH}/rescore_aln"; then
@@ -55,25 +55,32 @@ if notExists "${TMP_PATH}/reverse_aln"; then
 fi
 
 
+# 3. swap logic
 if [ -n "$NUCL" ]; then
-    RESULT="${TMP_PATH}/aln"
+
+    if notExists "${TMP_PATH}/aln"; then
+        # shellcheck disable=SC2086
+        $RUNNER "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_aln" "${TMP_PATH}/aln" ${SWAPRESULT_PAR} \
+            || fail "Alignment step died"
+    fi
+
     if [ -n "$FILTER" ]; then
+        if notExists "${TMP_PATH}/reverse_ungapaln_swap"; then
+             "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_ungapaln" "${TMP_PATH}/ungap_aln" \
+              || fail "Mergedbs died"
+        fi
+
         if notExists "${TMP_PATH}/aln_merged"; then
-             "$MMSEQS" mergedbs "$TARGET" "${TMP_PATH}/aln_merged" "${TMP_PATH}/reverse_ungapaln" "${TMP_PATH}/reverse_aln" \
-               || fail "Mergedbs died"
+             "$MMSEQS" concatdbs "${TMP_PATH}/ungap_aln" "${TMP_PATH}/aln" "${TMP_PATH}/aln_merged" --preserve-keys --take-larger-entry\
+              || fail "Mergedbs died"
         fi
         RESULT="${TMP_PATH}/aln_merged"
     fi
 
-        # 3. Local gapped sequence alignment.
-    if notExists "${TMP_PATH}/aln"; then
-        # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" swapresults "$TARGET" "$QUERY" "${RESULT}" "${TMP_PATH}/aln" ${SWAPRESULT_PAR} \
-            || fail "Alignment step died"
-    fi
+
     if notExists "$3"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" offsetalignment "$QUERY" "${QUERY}" "${TARGET}" "${TARGET}" "${TMP_PATH}/aln" "$3" ${OFFSETALIGNMENT_PAR} \
+        "$MMSEQS" offsetalignment "$QUERY" "${QUERY}" "${TARGET}" "${TARGET}" ${RESULT} "$3" ${OFFSETALIGNMENT_PAR} \
             || fail "Offset step died"
     fi
 else
