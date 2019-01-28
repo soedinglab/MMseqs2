@@ -17,7 +17,7 @@ matrix:
 #       - vim-common
 #       - libopenmpi-dev
 #   env:
-#   - MATRIX_EVAL="CXX=clang++-3.6"
+#   - MATRIX_EVAL="CC=clang-3.6;CXX=clang++-3.6"
   - os: linux
     dist: trusty
     sudo: false
@@ -35,7 +35,7 @@ matrix:
         - vim-common
         - libopenmpi-dev
     env:
-    - MATRIX_EVAL="CXX=clang++-5.0"
+    - MATRIX_EVAL="CC=clang-5.0;CXX=clang++-5.0"
 #  - os: linux
 #    dist: trusty
 #    sudo: false
@@ -50,7 +50,7 @@ matrix:
 #        - vim-common
 #        - libopenmpi-dev
 #    env:
-#    - MATRIX_EVAL="CXX=g++-4.6"
+#    - MATRIX_EVAL="CC=gcc-4.6;CXX=g++-4.6"
   - os: linux
     dist: trusty
     sudo: false
@@ -67,11 +67,11 @@ matrix:
         - vim-common
         - libopenmpi-dev
     env:
-    - MATRIX_EVAL="CXX=g++-7"
+    - MATRIX_EVAL="CC=gcc-8;CXX=g++-8"
   - os: osx
     osx_image: xcode9.2
     env:
-    - MATRIX_EVAL="CXX=g++-7"
+    - MATRIX_EVAL="CC=gcc-8;CXX=g++-8"
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
