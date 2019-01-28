@@ -43,11 +43,8 @@ public:
 
     void getKept(bool *offsets, size_t setSize);
 
-    const int ANY=20;       //number representing an X (any amino acid) internally
-    const int NAA=20;       //number of amino acids (0-19)
-    const int GAP=21;       //number representing a gap internally
-    const float PLTY_GAPOPEN=6.0f; // for -qsc option (filter for min similarity to query): 6 bits to open gap
-    const float PLTY_GAPEXTD=1.0f; // for -qsc option (filter for min similarity to query): 1 bit to extend gap
+    const float PLTY_GAPOPEN; // for -qsc option (filter for min similarity to query): 6 bits to open gap
+    const float PLTY_GAPEXTD; // for -qsc option (filter for min similarity to query): 1 bit to extend gap
 
     void pruneAlignment(char ** msaSequence, int N_in, int L);
 	
