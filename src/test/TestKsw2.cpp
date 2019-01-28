@@ -110,8 +110,6 @@ struct params {
 };
 
 
-char *to_sequence(std::string string);
-
 void printSeq(char * seq, int len){
     for(int i = 0; i < len; i++){
         // char const table[4] = {'A', 'C', 'G', 'T'};
@@ -495,28 +493,3 @@ int main (int, const char**) {
     delete targetObj;
     return 0;
 }
-
-char * to_sequence(std::string str) {
-    char * seq = (char *)malloc(str.size() * 32 + 1);
-    for(size_t i = 0; i < str.size(); i++){
-        char base;
-        switch(str[i]){
-            case 'A':
-                base = 0x01;
-                break;
-            case 'C':
-                base = 0x02;
-                break;
-            case 'G':
-                base = 0x04;
-                break;
-            case 'T':
-                base = 0x08;
-                break;
-        }
-        seq[i] =base;
-    }
-    seq[str.size()] = '\0';
-    return seq;
-}
-
