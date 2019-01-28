@@ -2,22 +2,22 @@ language: c++
 
 matrix:
   include:
-  - os: linux
-    dist: trusty
-    sudo: false
-    addons:
-      apt:
-        packages:
-        - cmake
-        - ninja-build
-        - clang-3.6
-        - libc++-dev
-        - zlib1g-dev
-        - libbz2-dev
-        - vim-common
-        - libopenmpi-dev
-    env:
-    - MATRIX_EVAL="CXX=clang++-3.6"
+# - os: linux
+#   dist: trusty
+#   sudo: false
+#   addons:
+#     apt:
+#       packages:
+#       - cmake
+#       - ninja-build
+#       - clang-3.6
+#       - libc++-dev
+#       - zlib1g-dev
+#       - libbz2-dev
+#       - vim-common
+#       - libopenmpi-dev
+#   env:
+#   - MATRIX_EVAL="CXX=clang++-3.6"
   - os: linux
     dist: trusty
     sudo: false
@@ -36,21 +36,21 @@ matrix:
         - libopenmpi-dev
     env:
     - MATRIX_EVAL="CXX=clang++-5.0"
-  - os: linux
-    dist: trusty
-    sudo: false
-    addons:
-      apt:
-        packages:
-        - cmake
-        - ninja-build
-        - g++-4.6
-        - zlib1g-dev
-        - libbz2-dev
-        - vim-common
-        - libopenmpi-dev
-    env:
-    - MATRIX_EVAL="CXX=g++-4.6"
+#  - os: linux
+#    dist: trusty
+#    sudo: false
+#    addons:
+#      apt:
+#        packages:
+#        - cmake
+#        - ninja-build
+#        - g++-4.6
+#        - zlib1g-dev
+#        - libbz2-dev
+#        - vim-common
+#        - libopenmpi-dev
+#    env:
+#    - MATRIX_EVAL="CXX=g++-4.6"
   - os: linux
     dist: trusty
     sudo: false
@@ -78,7 +78,7 @@ before_install:
   # workaround for GCC install issue, remove package that installed links to /usr/local/include/c++
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew cask list && brew cask uninstall --force oclint; fi
   # coreutils and cmake dependencies are already pre-installed
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc@7 ninja zlib bzip2 vim binutils; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc@8 ninja zlib bzip2 vim binutils; fi
   - eval "${MATRIX_EVAL}"
 
 script:
