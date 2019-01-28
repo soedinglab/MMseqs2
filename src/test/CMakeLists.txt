@@ -14,6 +14,7 @@ set(TESTS
         TestDiagonalScoringPerformance.cpp
         TestIndexTable.cpp
         TestKmerGenerator.cpp
+        TestKmerNucl.cpp
         TestKmerScore.cpp
         TestKwayMerge.cpp
         TestMultipleAlignment.cpp

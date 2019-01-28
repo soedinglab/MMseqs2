@@ -679,34 +679,35 @@ uint64_t Util::revComplement(const uint64_t kmer, const int k) {
     __m128i x = _mm_cvtsi64_si128(kmer);
 
     // create lookup (set 16 bytes in 128 bit)
-    // a lookup entry at the index of two nucleotids (4 bit) describes the reverse
-    // complement of these two nucleotid in the higher 4 bits (lookup1) or in the
-    // lower 4 bits (lookup2)
-    __m128i lookup1 = _mm_set_epi8(0x50,0x10,0xD0,0x90,0x40,0x00,0xC0,0x80,0x70,
-                                   0x30,0xF0,0xB0,0x60,0x20,0xE0,0xA0);
-    __m128i lookup2 = _mm_set_epi8(0x05,0x01,0x0D,0x09,0x04,0x00,0x0C,0x08,0x07,
-                                   0x03,0x0F,0x0B,0x06,0x02,0x0E,0x0A);
+    // a lookup entry at the index of two nucleotides (4 bit) describes the reverse
+    // complement of these two nucleotide in the higher 4 bits (lookup1) or in the lower 4 bits (lookup2)
+#define c (char)
+    __m128i lookup1 = _mm_set_epi8(c(0x50),c(0x10),c(0xD0),c(0x90),c(0x40),c(0x00),c(0xC0),c(0x80),
+                                   c(0x70),c(0x30),c(0xF0),c(0xB0),c(0x60),c(0x20),c(0xE0),c(0xA0));
+    __m128i lookup2 = _mm_set_epi8(c(0x05),c(0x01),c(0x0D),c(0x09),c(0x04),c(0x00),c(0x0C),c(0x08),
+                                   c(0x07),c(0x03),c(0x0F),c(0x0B),c(0x06),c(0x02),c(0x0E),c(0x0A));
     // set upper 8 bytes to 0 and revert order of lower 8 bytes
-    __m128i upper = _mm_set_epi8(0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0,1,2,3,4,5,6,7);
+    __m128i upper = _mm_set_epi8(c(0xFF),c(0xFF),c(0xFF),c(0xFF),c(0xFF),c(0xFF),c(0xFF),c(0xFF),
+                                 0,1,2,3,4,5,6,7);
     // _mm_set1_epi8: create 128 bit with all bytes set to given value
     // here: 0x0F (00001111) and 0xF0 (11110000)
     // _mm_and_si128: bitwise AND
-    __m128i kmer1 = _mm_and_si128(x, _mm_set1_epi8(0x0F)); // get lower 4 bits
-    __m128i kmer2 = _mm_and_si128(x, _mm_set1_epi8(0xF0)); // get higher 4 bits
-
+    __m128i kmer1 = _mm_and_si128(x, _mm_set1_epi8(c(0x0F))); // get lower 4 bits
+    __m128i kmer2 = _mm_and_si128(x, _mm_set1_epi8(c(0xF0))); // get higher 4 bits
+#undef c
     // shift right by 2 nucleotides
     kmer2 >>= 4;
 
     // use _mm_shuffle_epi8 to look up reverse complement
 #ifdef NEON
-    kmer1 =vreinterpretq_m128i_u8(vqtbl1q_u8(vreinterpretq_u8_m128i(lookup1),vreinterpretq_u8_m128i(kmer1)));
+    kmer1 = vreinterpretq_m128i_u8(vqtbl1q_u8(vreinterpretq_u8_m128i(lookup1),vreinterpretq_u8_m128i(kmer1)));
 #else
     kmer1 =_mm_shuffle_epi8(lookup1, kmer1);
 #endif
 
 
 #ifdef NEON
-    kmer2 =vreinterpretq_m128i_u8(vqtbl1q_u8(vreinterpretq_u8_m128i(lookup2),vreinterpretq_u8_m128i(kmer2)));
+    kmer2 = vreinterpretq_m128i_u8(vqtbl1q_u8(vreinterpretq_u8_m128i(lookup2),vreinterpretq_u8_m128i(kmer2)));
 #else
     kmer2 = _mm_shuffle_epi8(lookup2, kmer2);
 #endif
@@ -722,8 +723,6 @@ uint64_t Util::revComplement(const uint64_t kmer, const int k) {
 #else
     x = _mm_shuffle_epi8(x, upper);
 #endif
-
-
 
     // shift out the unused nucleotide positions (1 <= k <=32 )
     // broadcast 128 bit to 64 bit
