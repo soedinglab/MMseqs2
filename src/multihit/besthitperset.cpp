@@ -46,7 +46,7 @@ public :
         char *data = targetSizeReader->getData(targetId, thread_idx);
         unsigned int nbrGenes = Util::fast_atoi<unsigned int>(data);
 
-        std::vector<std::string> *bestEntry;
+        std::vector<std::string> *bestEntry = NULL;
         for (size_t i = 0; i < dataToAggregate.size(); i++) {
             double eval = strtod(dataToAggregate[i][3].c_str(), NULL);
             double pval = eval/nbrGenes;
@@ -79,6 +79,10 @@ public :
         } 
         else {
             correctedPval = exp(secondBestScore - bestScore);
+        }
+
+        if (bestEntry == NULL) {
+            return buffer;
         }
 
         // Aggregate the full line into string

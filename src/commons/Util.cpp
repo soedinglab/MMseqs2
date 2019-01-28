@@ -418,13 +418,14 @@ size_t Util::getTotalSystemMemory() {
 }
 
 uint64_t Util::getL2CacheSize() {
-    int64_t cachesize;
 #if defined(__APPLE__)
+    int64_t cachesize;
     size_t size = sizeof(cachesize);
     if (sysctlbyname("hw.l2cachesize", &cachesize, &size, NULL, 0) == 0 && cachesize > 0) {
         return static_cast<uint64_t>(cachesize);
     }
 #elif defined(_SC_LEVEL2_CACHE_SIZE)
+    int64_t cachesize;
     cachesize = sysconf(_SC_LEVEL2_CACHE_SIZE);
     if(cachesize > 0) {
         return static_cast<uint64_t>(cachesize);
