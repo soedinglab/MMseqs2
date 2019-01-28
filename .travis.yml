@@ -29,7 +29,7 @@ matrix:
         - cmake
         - ninja-build
         - clang-7
-        - libc++-dev
+        - libc++-7-dev
         - zlib1g-dev
         - libbz2-dev
         - vim-common
