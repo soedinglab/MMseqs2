@@ -88,7 +88,7 @@ int createlinindex(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, 2, false);
     int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
-    if(isNucl && par.indexType == 3){
+    if(isNucl && par.indexType == 3 && par.PARAM_MAX_SEQ_LEN.wasSet == false){
         par.maxSeqLen = 10000;
     }
     std::vector<MMseqsParameter*>* params = command.params;
