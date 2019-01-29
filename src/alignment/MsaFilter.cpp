@@ -10,7 +10,8 @@
 #include "MultipleAlignment.h"
 
 MsaFilter::MsaFilter(int maxSeqLen, int maxSetSize, SubstitutionMatrix *m, int gapOpen, int gapExtend) :
-    gapOpen(gapOpen), gapExtend(gapExtend) {
+    // TODO allow changing these?
+    PLTY_GAPOPEN(6.0f), PLTY_GAPEXTD(1.0f), gapOpen(gapOpen), gapExtend(gapExtend) {
     this->m = m;
     this->maxSeqLen = maxSeqLen;
     this->maxSetSize = maxSetSize;
@@ -42,7 +43,6 @@ MsaFilter::~MsaFilter() {
     delete [] ksort;
     delete [] display;
 }
-
 
 void MsaFilter::filter(const int N_in, const int L, const int coverage, const int qid,
                        const float qsc, const int max_seqid, int Ndiff,

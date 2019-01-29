@@ -192,7 +192,7 @@ int ffindexFilter::runFilter(){
 
 		char *lineBuffer = new char[LINE_BUFFER_SIZE];
 		char *columnValue = new char[LINE_BUFFER_SIZE];
-		char **columnPointer = new char*[column + 1];
+		const char **columnPointer = new const char*[column + 1];
 
 		std::string buffer = "";
 		buffer.reserve(LINE_BUFFER_SIZE);

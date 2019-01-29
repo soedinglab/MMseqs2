@@ -8,8 +8,12 @@
 
 class EvalueComputation {
 public:
-    EvalueComputation(size_t dbResCount, BaseMatrix *subMat) : EvalueComputation(dbResCount, subMat, 0, 0, false) {}
-    EvalueComputation(size_t dbResCount, BaseMatrix *subMat, int gapOpen, int gapExtend) : EvalueComputation(dbResCount, subMat, gapOpen, gapExtend, true) {}
+    EvalueComputation(size_t dbResCount, BaseMatrix *subMat) : dbResCount(dbResCount) {
+        init(subMat, 0, 0, false);
+    }
+    EvalueComputation(size_t dbResCount, BaseMatrix *subMat, int gapOpen, int gapExtend) : dbResCount(dbResCount) {
+        init(subMat, gapOpen, gapExtend, true);
+    }
 
     inline double computeBitScore(double score) {
         return evaluer.bitScore(score, logK);
@@ -41,9 +45,7 @@ public:
     }
 
 private:
-    EvalueComputation(size_t dbResCount, BaseMatrix * subMat, int gapOpen, int gapExtend, bool isGapped)
-            : dbResCount(dbResCount)
-    {
+    void init(BaseMatrix * subMat, int gapOpen, int gapExtend, bool isGapped) {
         const double lambdaTolerance = 0.01;
         const double kTolerance = 0.05;
         const double maxMegabytes = 500;

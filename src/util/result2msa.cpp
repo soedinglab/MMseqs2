@@ -115,6 +115,8 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
             kept[i] = 1;
         }
 
+        const char *entry[255];
+
 #pragma omp  for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
@@ -150,7 +152,6 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                     continue;
                 }
 
-                char *entry[255];
                 const size_t columns = Util::getWordsOfLine(results, entry, 255);
                 if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
                     Matcher::result_t res = Matcher::parseAlignmentRecord(results);

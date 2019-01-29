@@ -160,6 +160,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
 #ifdef OPENMP
             thread_idx = omp_get_thread_num();
 #endif
+
 #pragma omp for schedule(dynamic, 10)
             for (size_t i = 0; i < resultSize; ++i) {
                 Debug::printProgress(i);
@@ -196,9 +197,9 @@ int doswap(Parameters& par, bool isGeneralMode) {
         targetElementSize[0] = 0;
 
         Debug(Debug::INFO) << "\nOutput database: " << parOutDbStr << "\n";
-        char *entry[255];
         bool isAlignmentResult = false;
         bool hasBacktrace = false;
+        const char *entry[255];
         for (size_t i = 0; i < resultDbr.getSize(); i++){
             if (resultDbr.getSeqLens(i) <= 1){
                 continue;

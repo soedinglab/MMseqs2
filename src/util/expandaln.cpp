@@ -4,7 +4,7 @@
 #include "Debug.h"
 #include "FileUtil.h"
 #include "Util.h"
-#include "Matcher.h"
+#include "BacktraceTranslator.h"
 #include "EvalueComputation.h"
 #include "CompressedA3M.h"
 #include "Sequence.h"
@@ -17,168 +17,31 @@
 #include <omp.h>
 #endif
 
-class BacktraceTranslator {
-public:
-    BacktraceTranslator() {
-        //  AB state, BC state -> AC state, increment in AB cigar, increment in BC cigar
-
-        // Covis' Rules
-//        transitions[M][M] = Transition('M',1,1);
-//        transitions[I][M] = Transition('I',1,0);
-//        transitions[D][M] = Transition('D',1,1);
-//
-//        transitions[M][D] = Transition('D',0,1);
-//        transitions[I][D] = Transition('D',0,1);
-//        transitions[D][D] = Transition('D',0,1);
-//
-//        transitions[M][I] = Transition('I',1,1);
-//        transitions[I][I] = Transition('I',1,0);
-//        transitions[D][I] = Transition('\0',1,1);
-
-        // Eli's Rules
-        transitions[M][M] = Transition('M',1,1);
-        transitions[I][M] = Transition('I',1,1);
-        transitions[D][M] = Transition('\0', 1,0);
-
-        transitions[M][D] = Transition('D',1,1);
-        transitions[I][D] = Transition('\0', 1,1);
-        transitions[D][D] = Transition('D',1,0);
-
-        transitions[M][I] = Transition('I',0,1);
-        transitions[I][I] = Transition('I',0,1);
-        transitions[D][I] = Transition('D',1,0);
-    }
-
-    void translateResult(const Matcher::result_t& resultAB, Matcher::result_t& resultBC) {
-        std::string btAC;
-        btAC.reserve(std::max(resultAB.backtrace.size(), resultBC.backtrace.size()));
-
-        int minPos = std::min(resultAB.dbStartPos, resultBC.qStartPos);
-        size_t startBA = resultAB.dbStartPos - minPos;
-        size_t startBC = resultBC.qStartPos - minPos;
-
-        ssize_t offset = startBC - startBA;
-
-        size_t currentAB = 0;
-        size_t currentBC = 0;
-        if (offset > 0) {
-//            btAC.append(offset, 'D');
-            currentAB = offset;
-            resultBC.qStartPos += offset;
-        }
-
-        if (offset < 0) {
-//            btAC.append(-offset, 'I');
-            currentBC = -offset;
-            resultBC.dbStartPos -= offset;
-        }
-
-        unsigned int lastM = 0;
-        unsigned int qAlnLength = 0;
-        unsigned int i = 0;
-        while (currentAB < resultAB.backtrace.size() && currentBC < resultBC.backtrace.size()) {
-            Transition& t = transitions[mapState(resultAB.backtrace[currentAB])][mapState(resultBC.backtrace[currentBC])];
-            switch (t.newState) {
-                case '\0':
-                    i--;
-                    break;
-                case 'M':
-                    lastM = i;
-                    // FALLTHROUGH
-                case 'D':
-                    qAlnLength++;
-                    // FALLTHROUGH
-                case 'I':
-                    btAC.append(1, t.newState);;
-                    break;
-                default:
-                    Debug(Debug::ERROR) << "Invalid alignment state.\n";
-                    EXIT(EXIT_FAILURE);
-
-            }
-            currentAB += t.incrementAB;
-            currentBC += t.incrementBC;
-            i++;
-        }
-        btAC.resize(lastM - 1);
-        resultBC.qEndPos = resultBC.qStartPos + qAlnLength - 1;
-        resultBC.backtrace.swap(btAC);
-    }
-
-
-//    void translate(size_t startBA, size_t startBC, const char* btAB, size_t btABLength, const char* btBC, size_t btBCLength, std::string& btAC) {
-//        btAC.clear();
-//
-//        size_t currentAB = 0;
-//        size_t currentBC = 0;
-//        ssize_t offset = startBC - startBA;
-//        if (offset > 0) {
-//            btAC.append(offset, 'D');
-//            currentAB = offset;
-//        }
-//
-//        if (offset < 0) {
-//            btAC.append(-offset, 'I');
-//            currentBC = -offset;
-//        }
-//
-//        while (currentAB < btABLength && currentBC < btBCLength) {
-//            Transition& t = transitions[mapState(btAB[currentAB])][mapState(btBC[currentBC])];
-//            if (t.newState != '\0') {
-//                assert(t.newState == 'M' || t.newState == 'I' || t.newState == 'D');
-//                btAC.append(1, t.newState);
-//            }
-//            currentAB += t.incrementAB;
-//            currentBC += t.incrementBC;
-//        }
-//    }
-
-private:
-    struct Transition {
-        Transition() : newState('\0'), incrementAB(0), incrementBC(0) {};
-        Transition(char newState, uint8_t incrementAB, uint8_t incrementBC) : newState(newState), incrementAB(incrementAB), incrementBC(incrementBC) {};
-        char newState;
-        uint8_t incrementAB;
-        uint8_t incrementBC;
-    };
-
-    Transition transitions[3][3];
-
-    enum State {
-        M = 0,
-        I,
-        D
-    };
-
-    State mapState(char state) {
-        if (state == 'M') {
-            return M;
-        } else if (state == 'I') {
-            return I;
-        } else if  (state == 'D') {
-            return D;
-        } else {
-            Debug(Debug::ERROR) << "Invalid alignment state.\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
-};
-
 void rescoreResultByBacktrace(Matcher::result_t &result, Sequence &qSeq, Sequence &tSeq, SubstitutionMatrix &subMat, float *compositionBias, EvalueComputation &evaluer, int gapOpen, int gapExtend, int seqIdMode) {
     size_t qPos = result.qStartPos;
     size_t tPos = result.dbStartPos;
     int score = 0;
     char lastState = '\0';
     int identities = 0;
+    const bool isQueryProf = Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE);
+    const bool isTargetProf = Parameters::isEqualDbtype(tSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE);
+//    for(int i = result.qStartPos; i < result.qEndPos; i++){
+//        printf("%c",subMat.int2aa[qSeq.int_sequence[i]]);
+//    }
+//    Debug(Debug::INFO) << "\n";
+//    for(int i = result.dbStartPos; i < result.dbEndPos; i++){
+//        printf("%c",subMat.int2aa[tSeq.int_sequence[i]]);
+//    }
+//    Debug(Debug::INFO) << "\n";
     for (size_t i = 0; i < result.backtrace.size(); ++i) {
         char state = result.backtrace[i];
         if (state == 'M') {
-            if (Parameters::isEqualDbtype(tSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE)) {
-                score += tSeq.profile_for_alignment[qSeq.int_sequence[qPos] * tSeq.L + tPos];
-            } else if (Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE)) {
+            if (isTargetProf) {
+                score += tSeq.profile_for_alignment[qSeq.int_sequence[qPos] * tSeq.L + tPos]  + static_cast<short>((compositionBias[i] < 0.0)? compositionBias[i] - 0.5: compositionBias[i] + 0.5);;
+            } else if (isQueryProf) {
                 score += qSeq.profile_for_alignment[tSeq.int_sequence[tPos] * qSeq.L + qPos];
             } else {
-                score += subMat.subMatrix[qSeq.int_sequence[qPos]][tSeq.int_sequence[tPos]] + compositionBias[qPos];
+                score += subMat.subMatrix[qSeq.int_sequence[qPos]][tSeq.int_sequence[tPos]] + static_cast<short>((compositionBias[i] < 0.0)? compositionBias[i] - 0.5: compositionBias[i] + 0.5);
             }
             identities += qSeq.int_sequence[qPos] == tSeq.int_sequence[tPos] ? 1 : 0;
             qPos++;
@@ -286,9 +149,8 @@ int expandaln(int argc, const char **argv, const Command& command) {
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
         Sequence qSeq(par.maxSeqLen, queryDbType, &subMat, 0, false, par.compBiasCorrection);
-        Sequence tSeq(par.maxSeqLen, targetDbType, &subMat, 0, false, par.compBiasCorrection);
-        float *compositionBias = new float[par.maxSeqLen];
-        memset(compositionBias, 0, sizeof(float) * par.maxSeqLen);
+        Sequence tSeq(par.maxSeqLen, targetDbType, &subMat, 0, false, false);
+        float *compositionBias = new float[par.maxSeqLen]();
 
         std::vector<Matcher::result_t> expanded;
         expanded.reserve(300);
@@ -297,6 +159,9 @@ int expandaln(int argc, const char **argv, const Command& command) {
         results.reserve(1000);
 
         char buffer[1024];
+
+        Matcher::result_t resultAC;
+        resultAC.backtrace.reserve(par.maxSeqLen);
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < resultReader->getSize(); ++i) {
@@ -314,10 +179,12 @@ int expandaln(int argc, const char **argv, const Command& command) {
             while (*data != '\0') {
                 Matcher::result_t resultAB = Matcher::parseAlignmentRecord(data, false);
 
-                if (resultAB.backtrace.size() == 0) {
+                if (resultAB.backtrace.empty()) {
                     Debug(Debug::ERROR) << "Alignment must contain a backtrace.\n";
                     EXIT(EXIT_FAILURE);
                 }
+//                Matcher::resultToBuffer(buffer, resultAB, true, true);
+//                Debug(Debug::INFO) << buffer;
 
                 unsigned int targetKey = resultAB.dbKey;
                 size_t targetId = expansionReader.getId(targetKey);
@@ -338,21 +205,23 @@ int expandaln(int argc, const char **argv, const Command& command) {
                         Debug(Debug::ERROR) << "Alignment must contain a backtrace.\n";
                         EXIT(EXIT_FAILURE);
                     }
+//                    Matcher::resultToBuffer(buffer, resultBC, true, true);
+//                    Debug(Debug::INFO) << buffer;
 
-                    translator.translateResult(resultAB, resultBC);
-                    if (resultBC.backtrace.size() == 0) {
+                    translator.translateResult(resultAB, resultBC, resultAC);
+                    if (resultAC.backtrace.size() == 0) {
                         continue;
                     }
 
-                    if (Util::canBeCovered(par.covThr, par.covMode, resultBC.qLen, resultBC.dbLen) == false) {
+                    if (Util::canBeCovered(par.covThr, par.covMode, resultAC.qLen, resultAC.dbLen) == false) {
                         continue;
                     }
 
-                    rescoreResultByBacktrace(resultBC, qSeq, tSeq, subMat, compositionBias,
+                    rescoreResultByBacktrace(resultAC, qSeq, tSeq, subMat, compositionBias,
                                              evaluer, par.gapOpen, par.gapExtend, par.seqIdMode);
 
-                    if (Alignment::checkCriteria(resultBC, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr)) {
-                        results.emplace_back(resultBC);
+                    if (Alignment::checkCriteria(resultAC, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr)) {
+                        results.emplace_back(resultAC);
                     }
                 }
                 expanded.clear();
@@ -365,7 +234,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
                 std::sort(results.begin(), results.end(), compareHitsByKeyEvalScore);
                 ssize_t lastKey = -1;
                 for (size_t j = 0; j < results.size(); ++j) {
-                    Matcher::result_t& res = results[i];
+                    const Matcher::result_t& res = results[j];
                     if (res.dbKey != lastKey) {
                         expanded.emplace_back(res);
                     }
@@ -383,6 +252,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
             }
             writer.writeEnd(queryKey, thread_idx);
             expanded.clear();
+            results.clear();
         }
 
         delete[] compositionBias;

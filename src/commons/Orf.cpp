@@ -345,8 +345,8 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
 }
 
 
-Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
-    char * entry[255];
+Orf::SequenceLocation Orf::parseOrfHeader(const char *data) {
+    const char* entry[255];
     size_t columns = Util::getWordsOfLine(data, entry, 255);
     bool found = false;
     unsigned int from;
@@ -355,8 +355,8 @@ Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
     if(columns >= 2) {
         size_t entryLen = entry[2]-entry[1];
         // check if correct
-        char * posStart=entry[1];
-        char * lenStart;
+        const char * posStart = entry[1];
+        const char * lenStart = NULL;
         bool hasNumericStart = false;
         bool hasPlusMinus = false;
         bool hasNumericEnd = false;
@@ -370,7 +370,7 @@ Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
             if ((entry[1][pos] == '-' || entry[1][pos] == '+') && hasNumericStart == true && hasPlusMinus == false) {
                 hasPlusMinus = true;
                 isPlus = (entry[1][pos] == '+');
-                lenStart=&entry[1][pos+1];
+                lenStart = &entry[1][pos+1];
                 pos++;
             }
             size_t prevPos = pos;
@@ -384,8 +384,8 @@ Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
 //            } else {
 //                break;
 //            }
-        found = (hasNumericStart && hasPlusMinus && hasNumericEnd);
-        if(found){
+        found = hasNumericStart && hasPlusMinus && hasNumericEnd && lenStart != NULL;
+        if (found) {
             size_t len = Util::fast_atoi<unsigned int>(lenStart);
             from = Util::fast_atoi<unsigned int>(posStart);
             if(isPlus){

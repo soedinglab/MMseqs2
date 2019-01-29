@@ -63,8 +63,8 @@ if (CMAKE_BUILD_TYPE MATCHES RELEASE OR CMAKE_BUILD_TYPE MATCHES RELWITHDEBINFO)
     endif ()
 endif ()
 
-append_target_property(mmseqs-framework COMPILE_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Winline -Wdisabled-optimization)
-append_target_property(mmseqs-framework LINK_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Winline -Wdisabled-optimization)
+append_target_property(mmseqs-framework COMPILE_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Wdisabled-optimization)
+append_target_property(mmseqs-framework LINK_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Wdisabled-optimization)
 
 if (CYGWIN OR ${HAVE_NEON})
     target_compile_definitions(mmseqs-framework PUBLIC -D_GNU_SOURCE=1)

@@ -276,7 +276,14 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 // get the prefiltering list
                 char *data = prefdbr->getData(id, thread_idx);
                 unsigned int queryDbKey = prefdbr->getDbKey(id);
-                setQuerySequence(qSeq, id, queryDbKey, thread_idx);
+                char *querySeqData = qdbr->getDataByDBKey(queryDbKey, thread_idx);
+                if (querySeqData == NULL) {
+                    Debug(Debug::ERROR) << "ERROR: Query sequence " << queryDbKey
+                                        << " is required in the prefiltering, but is not contained in the query sequence database.\nPlease check your database.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+
+                qSeq.mapSequence(id, queryDbKey, querySeqData);
 
                 matcher.initQuery(&qSeq);
                 // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list
@@ -288,7 +295,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 while (*data != '\0' && passedNum < maxAlnNum && rejected < maxRejected) {
                     // DB key of the db sequence
                     char dbKeyBuffer[255 + 1];
-                    char * words[10];
+                    const char* words[10];
                     Util::parseKey(data, dbKeyBuffer);
                     const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
 
@@ -302,7 +309,12 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         diagonal = hit.diagonal;
                     }
 
-                    setTargetSequence(dbSeq, dbKey, thread_idx);
+                    char *dbSeqData = tdbr->getDataByDBKey(dbKey, thread_idx);
+                    if (dbSeqData == NULL) {
+                        Debug(Debug::ERROR) << "ERROR: Sequence " << dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    dbSeq.mapSequence(static_cast<size_t>(-1), dbKey, dbSeqData);
                     // check if the sequences could pass the coverage threshold
                     if(Util::canBeCovered(canCovThr, covMode, static_cast<float>(qSeq.L), static_cast<float>(dbSeq.L)) == false )
                     {
@@ -342,7 +354,12 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 if (realign == true) {
                     realigner->initQuery(&qSeq);
                     for (size_t result = 0; result < swResults.size(); result++) {
-                        setTargetSequence(dbSeq, swResults[result].dbKey, thread_idx);
+                        char *dbSeqData = tdbr->getDataByDBKey(swResults[result].dbKey, thread_idx);
+                        if (dbSeqData == NULL) {
+                            Debug(Debug::ERROR) << "ERROR: Sequence " << swResults[result].dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                        dbSeq.mapSequence(static_cast<size_t>(-1), swResults[result].dbKey, dbSeqData);
                         const bool isIdentity = (queryDbKey == swResults[result].dbKey && (includeIdentity || sameQTDB)) ? true : false;
                         Matcher::result_t res = realigner->getSWResult(&dbSeq, INT_MAX, false, covMode, covThr, FLT_MAX,
                                                                        Matcher::SCORE_COV_SEQID, seqIdMode, isIdentity);
@@ -400,41 +417,6 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     Debug(Debug::INFO) << hits_f << " hits per query sequence.\n";
 }
 
-inline void Alignment::setQuerySequence(Sequence &seq, size_t id, unsigned int key, int thread_idx) {
-
-    // map the query sequence
-    char *querySeqData = qdbr->getDataByDBKey(key, thread_idx);
-    if (querySeqData == NULL) {
-#pragma omp critical
-        {
-            Debug(Debug::ERROR) << "ERROR: Query sequence " << key
-                                << " is required in the prefiltering, "
-                                << "but is not contained in the query sequence database!\n"
-                                << "Please check your database.\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
-
-    seq.mapSequence(id, key, querySeqData);
-}
-
-inline void Alignment::setTargetSequence(Sequence &seq, unsigned int key, int thread_idx) {
-
-    char *dbSeqData = tdbr->getDataByDBKey(key, thread_idx);
-    if (dbSeqData == NULL) {
-#pragma omp critical
-        {
-            Debug(Debug::ERROR) << "ERROR: Sequence " << key
-                                << " is required in the prefiltering,"
-                                << "but is not contained in the target sequence database!\n"
-                                << "Please check your database.\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
-    seq.mapSequence(static_cast<size_t>(-1), key, dbSeqData);
-}
-
-
 size_t Alignment::estimateHDDMemoryConsumption(int dbSize, int maxSeqs) {
     return 2 * (dbSize * maxSeqs * 21 * 1.75);
 }
@@ -473,7 +455,12 @@ void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &d
         if (isIdentity == true) {
             continue;
         }
-        setTargetSequence(dbSeq, swResults[i].dbKey, thread_idx);
+        char *dbSeqData = tdbr->getDataByDBKey(swResults[i].dbKey, thread_idx);
+        if (dbSeqData == NULL) {
+            Debug(Debug::ERROR) << "ERROR: Sequence " << swResults[i].dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        dbSeq.mapSequence(static_cast<size_t>(-1), swResults[i].dbKey, dbSeqData);
         for (int pos = swResults[i].dbStartPos; pos < swResults[i].dbEndPos; ++pos) {
             dbSeq.int_sequence[pos] = xIndex;
         }

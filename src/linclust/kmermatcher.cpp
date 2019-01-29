@@ -242,7 +242,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                         size_t kmer = (pickReverseKmer) ? revComp : kmerIdx;
 
                         // set signed bit for normal kmers to make the  SIZE_T_MAX logic easier
-                        // reverses kmer do not have a signed bit
+                        // reversed kmers do not have a signed bit
                         size_t kmerRev = (pickReverseKmer) ? BIT_CLEAR(kmer, 63) : BIT_SET(kmer, 63);
                         (kmers + seqKmerCount)->kmer = kmerRev;
                         int pos = seq.getCurrentPosition();

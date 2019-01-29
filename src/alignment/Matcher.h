@@ -137,7 +137,7 @@ public:
     // map new query into memory (create queryProfile, ...)
     void initQuery(Sequence* query);
 
-    static result_t parseAlignmentRecord(char *data, bool readCompressed=false);
+    static result_t parseAlignmentRecord(const char *data, bool readCompressed=false);
 
     static void readAlignmentResults(std::vector<result_t> &result, char *data, bool readCompressed = false);
 

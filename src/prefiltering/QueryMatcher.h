@@ -116,10 +116,9 @@ public:
     static hit_t parsePrefilterHit(char* data)
     {
         hit_t result;
-        char *wordCnt[255];
+        const char *wordCnt[255];
         size_t cols = Util::getWordsOfLine(data, wordCnt, 254);
-        if (cols==3)
-        {
+        if (cols == 3) {
             result.seqId = Util::fast_atoi<unsigned int>(wordCnt[0]);
             result.prefScore = Util::fast_atoi<short>(wordCnt[1]);
             result.diagonal = static_cast<unsigned short>(Util::fast_atoi<short>(wordCnt[2]));

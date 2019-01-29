@@ -36,10 +36,12 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
         thread_idx = omp_get_thread_num();
 #endif
 
+        const char *entry[255];
         char * lineBuffer = new char[LINE_BUFFER_SIZE];
         char * key = new char[255];
         std::string minusResultsOutString;
         minusResultsOutString.reserve(maxLineLength);
+
 #pragma omp  for schedule(dynamic, 10)
         for (size_t id = 0; id < leftDbr.getSize(); id++) {
             std::map<unsigned int, bool> elementLookup;
@@ -49,7 +51,6 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
             // fill element id look up with left side elementLookup
             {
                 char *data = (char *) leftData;
-                char *entry[255];
                 while (*data != '\0') {
                     Util::parseKey(data, key);
                     unsigned int dbKey = std::strtoul(key, NULL, 10);
@@ -68,7 +69,6 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
             // get all data for the leftDbkey from rightDbr
             // check if right ids are in elementsId
             char *data = rightDbr.getDataByDBKey(leftDbKey, thread_idx);
-            char *entry[255];
 
             if (data != NULL) {
                 while (*data != '\0') {

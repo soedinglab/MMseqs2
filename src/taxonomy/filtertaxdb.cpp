@@ -60,11 +60,12 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << "Computing LCA...\n";
     #pragma omp parallel
     {
-        char *entry[255];
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
+
+        const char *entry[255];
 
         #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < reader.getSize(); ++i) {

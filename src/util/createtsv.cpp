@@ -12,6 +12,7 @@
 #ifndef SIZE_T_MAX
 #define SIZE_T_MAX ((size_t) -1)
 #endif
+
 int createtsv(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true, Parameters::PARSE_VARIADIC);
@@ -25,7 +26,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
     IndexReader qDbrHeader(par.db1, par.threads, (queryNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS, touch);
     IndexReader * tDbrHeader=NULL;
     DBReader<unsigned int> * queryDB = qDbrHeader.sequenceReader;
-    DBReader<unsigned int> * targetDB;
+    DBReader<unsigned int> * targetDB = NULL;
     bool sameDB = (par.db2.compare(par.db1) == 0);
     const bool hasTargetDB = par.filenames.size() > 3;
     unsigned int* qHeaderLength = qDbrHeader.sequenceReader->getSeqLens();
@@ -44,8 +45,6 @@ int createtsv(int argc, const char **argv, const Command &command) {
             targetDB = tDbrHeader->sequenceReader;
         }
     }
-
-
 
     DBReader<unsigned int> *reader;
     if (hasTargetDB) {
@@ -73,7 +72,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        char **columnPointer = new char*[255];
+        const char *columnPointer[255];
         char *dbKey = new char[par.maxSeqLen + 1];
 
         std::string outputBuffer;
@@ -113,8 +112,8 @@ int createtsv(int argc, const char **argv, const Command &command) {
                 }
                 std::string targetAccession;
                 if(targetColumn == SIZE_T_MAX){
-                    targetAccession="";
-                } else if (targetDB != NULL) {
+                    targetAccession = "";
+                } else if (hasTargetDB) {
                     unsigned int targetKey = (unsigned int) strtoul(dbKey, NULL, 10);
                     size_t targetIndex = targetDB->getId(targetKey);
                     char *targetData = targetDB->getData(targetIndex, thread_idx);
@@ -159,7 +158,6 @@ int createtsv(int argc, const char **argv, const Command &command) {
             outputBuffer.clear();
         }
         delete[] dbKey;
-        delete[] columnPointer;
     }
     writer.close();
     Debug(Debug::INFO) << "Done.\n";

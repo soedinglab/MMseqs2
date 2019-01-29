@@ -251,8 +251,8 @@ std::string Matcher::uncompressAlignment(const std::string &cbt) {
     return bt;
 }
 
-Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed) {
-    char *entry[255];
+Matcher::result_t Matcher::parseAlignmentRecord(const char *data, bool readCompressed) {
+    const char *entry[255];
     size_t columns = Util::getWordsOfLine(data, entry, 255);
     if (columns < ALN_RES_WITH_OUT_BT_COL_CNT) {
         Debug(Debug::ERROR) << "Invalid alignment result record.\n";

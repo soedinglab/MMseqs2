@@ -2,55 +2,57 @@ language: c++
 
 matrix:
   include:
-  - os: linux
-    dist: trusty
-    sudo: false
-    addons:
-      apt:
-        packages:
-        - cmake
-        - ninja-build
-        - clang-3.6
-        - libc++-dev
-        - zlib1g-dev
-        - libbz2-dev
-        - vim-common
-        - libopenmpi-dev
-    env:
-    - MATRIX_EVAL="CXX=clang++-3.6"
+# - os: linux
+#   dist: trusty
+#   sudo: false
+#   addons:
+#     apt:
+#       packages:
+#       - cmake
+#       - ninja-build
+#       - clang-3.6
+#       - libc++-dev
+#       - zlib1g-dev
+#       - libbz2-dev
+#       - vim-common
+#       - libopenmpi-dev
+#   env:
+#   - MATRIX_EVAL="CC=clang-3.6;CXX=clang++-3.6"
   - os: linux
     dist: trusty
     sudo: false
     addons:
       apt:
         sources:
-        - llvm-toolchain-trusty-5.0
+        - ubuntu-toolchain-r-test
+        - llvm-toolchain-trusty-7
         packages:
         - cmake
         - ninja-build
-        - clang-5.0
-        - libc++-dev
+        - clang-7
+        - libc++-7-dev
+        - libc++abi-7-dev
         - zlib1g-dev
         - libbz2-dev
         - vim-common
         - libopenmpi-dev
     env:
-    - MATRIX_EVAL="CXX=clang++-5.0"
-  - os: linux
-    dist: trusty
-    sudo: false
-    addons:
-      apt:
-        packages:
-        - cmake
-        - ninja-build
-        - g++-4.6
-        - zlib1g-dev
-        - libbz2-dev
-        - vim-common
-        - libopenmpi-dev
-    env:
-    - MATRIX_EVAL="CXX=g++-4.6"
+    - MATRIX_EVAL="CC=clang-7;CXX=clang++-7"
+#  - os: linux
+#    dist: trusty
+#    sudo: false
+#    addons:
+#      apt:
+#        packages:
+#        - cmake
+#        - ninja-build
+#        - g++-4.6
+#        - zlib1g-dev
+#        - libbz2-dev
+#        - vim-common
+#        - libopenmpi-dev
+#    env:
+#    - MATRIX_EVAL="CC=gcc-4.6;CXX=g++-4.6"
   - os: linux
     dist: trusty
     sudo: false
@@ -61,29 +63,29 @@ matrix:
         packages:
         - cmake
         - ninja-build
-        - g++-7
+        - g++-8
         - zlib1g-dev
         - libbz2-dev
         - vim-common
         - libopenmpi-dev
     env:
-    - MATRIX_EVAL="CXX=g++-7"
+    - MATRIX_EVAL="CC=gcc-8;CXX=g++-8"
   - os: osx
     osx_image: xcode9.2
     env:
-    - MATRIX_EVAL="CXX=g++-7"
+    - MATRIX_EVAL="CC=gcc-8;CXX=g++-8"
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
   # workaround for GCC install issue, remove package that installed links to /usr/local/include/c++
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew cask list && brew cask uninstall --force oclint; fi
   # coreutils and cmake dependencies are already pre-installed
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc@7 ninja zlib bzip2 vim binutils; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc@8 ninja zlib bzip2 vim binutils; fi
   - eval "${MATRIX_EVAL}"
 
 script:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mkdir build; cd build; cmake -G Ninja -DHAVE_SSE4_1=1 ..; ninja; cd ..; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then ./util/build_osx.sh . build; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mkdir build; cd build; cmake -G Ninja -DHAVE_SSE4_1=1 ..; ninja || exit 1; cd ..; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then ./util/build_osx.sh . build || exit 1; fi
 
 after_success:
   - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]]; then openssl aes-256-cbc -K $encrypted_4188a201d0b5_key -iv $encrypted_4188a201d0b5_iv -in ./util/.travis.enc -out $HOME/.ssh/id_rsa -d; fi

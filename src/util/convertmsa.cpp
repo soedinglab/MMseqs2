@@ -33,7 +33,7 @@ int convertmsa(int argc, const char **argv, const Command &command) {
     std::string line;
     unsigned int i = 0;
     bool inEntry = false;
-    char *buffer[255];
+    const char *buffer[255];
     std::vector<std::string> seqOrder;
     std::map<std::string, std::string> sequences;
     std::string identifier;
