@@ -38,21 +38,22 @@ matrix:
         - libopenmpi-dev
     env:
     - MATRIX_EVAL="CC=clang-7;CXX=clang++-7"
-#  - os: linux
-#    dist: trusty
-#    sudo: false
-#    addons:
-#      apt:
-#        packages:
-#        - cmake
-#        - ninja-build
-#        - g++-4.6
-#        - zlib1g-dev
-#        - libbz2-dev
-#        - vim-common
-#        - libopenmpi-dev
-#    env:
-#    - MATRIX_EVAL="CC=gcc-4.6;CXX=g++-4.6"
+  - os: linux
+    dist: trusty
+    sudo: false
+    addons:
+      apt:
+        packages:
+        - cmake
+        - ninja-build
+        - gcc-4.8
+        - g++-4.8
+        - zlib1g-dev
+        - libbz2-dev
+        - vim-common
+        - libopenmpi-dev
+    env:
+    - MATRIX_EVAL="CC=gcc-4.8;CXX=g++-4.8"
   - os: linux
     dist: trusty
     sudo: false
@@ -63,6 +64,7 @@ matrix:
         packages:
         - cmake
         - ninja-build
+        - gcc-8
         - g++-8
         - zlib1g-dev
         - libbz2-dev
