@@ -41,7 +41,7 @@ uint64_t revComplement(const u_int64_t kmer, const int k) {
 
 //    // shift right by 2 nucleotides
 //    print128_num(kmer2);
-    kmer2 >>= 4;
+//    kmer2 >>= 4;
 //    kmer2 = _mm_srli_epi64(kmer2, 4);
 //
 //    print128_num(kmer2);
