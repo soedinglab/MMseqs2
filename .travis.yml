@@ -15,7 +15,6 @@ matrix:
         - zlib1g-dev
         - libbz2-dev
         - vim-common
-        - libopenmpi-dev
     env:
     - MATRIX_EVAL="CC=clang-3.6;CXX=clang++-3.6"
   - os: linux
@@ -35,7 +34,6 @@ matrix:
         - zlib1g-dev
         - libbz2-dev
         - vim-common
-        - libopenmpi-dev
     env:
     - MATRIX_EVAL="CC=clang-7;CXX=clang++-7"
   - os: linux
@@ -51,7 +49,6 @@ matrix:
         - zlib1g-dev
         - libbz2-dev
         - vim-common
-        - libopenmpi-dev
     env:
     - MATRIX_EVAL="CC=gcc-4.8;CXX=g++-4.8"
   - os: linux
@@ -69,20 +66,20 @@ matrix:
         - zlib1g-dev
         - libbz2-dev
         - vim-common
-        - libopenmpi-dev
     env:
     - MATRIX_EVAL="CC=gcc-8;CXX=g++-8"
   - os: osx
-    osx_image: xcode9.2
+    addons:
+      homebrew:
+        packages:
+        - gcc@8
+        - ninja
+        - zlib
+        - bzip2
     env:
     - MATRIX_EVAL="CC=gcc-8;CXX=g++-8"
 
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
-  # workaround for GCC install issue, remove package that installed links to /usr/local/include/c++
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew cask list && brew cask uninstall --force oclint; fi
-  # coreutils and cmake dependencies are already pre-installed
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc@8 ninja zlib bzip2 vim binutils; fi
   - eval "${MATRIX_EVAL}"
 
 script:
@@ -95,9 +92,3 @@ after_success:
   - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]] && [[ -f "$HOME/.ssh/id_rsa" ]]; then ssh -o StrictHostKeyChecking=no codeship@uniclust.mmseqs.com "mkdir -p /home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT}"; fi
   - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]] && [[ -f "$HOME/.ssh/id_rsa" ]]; then cd build; scp -o StrictHostKeyChecking=no mmseqs-osx-static_sse41.tar.gz mmseqs-osx-static_avx2.tar.gz codeship@uniclust.mmseqs.com:/home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT}; cd ..; fi
 
-cache:
-  directories:
-    - $HOME/Library/Caches/Homebrew
-
-before_cache:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew cleanup; fi
