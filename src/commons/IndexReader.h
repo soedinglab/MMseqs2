@@ -7,7 +7,11 @@
 
 class IndexReader {
 public:
-    IndexReader(const std::string &dataName, int threads, int mode = SEQUENCES | HEADERS, bool preload = false, int dataMode=(DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA))
+
+    const static int PRELOAD_NO = 0;
+    const static int PRELOAD_DATA = 1;
+    const static int PRELOAD_INDEX = 2;
+    IndexReader(const std::string &dataName, int threads, int mode = SEQUENCES | HEADERS, int preload = false, int dataMode=(DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA))
             : sequenceReader(NULL), index(NULL) {
         int targetDbtype = DBReader<unsigned int>::parseDbType(dataName.c_str());
         if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
@@ -18,23 +22,24 @@ public:
                 PrefilteringIndexReader::printSummary(index);
                 PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(index);
                 seqType = data.seqType;
-
+                bool touchIndex = preload & PRELOAD_INDEX;
+                bool touchData = preload & PRELOAD_DATA;
                 if (mode & SRC_SEQUENCES) {
                     sequenceReader = PrefilteringIndexReader::openNewReader(index,
-                            PrefilteringIndexReader::DBR2DATA, PrefilteringIndexReader::DBR2INDEX, mode & SEQUENCES, threads, preload);
+                            PrefilteringIndexReader::DBR2DATA, PrefilteringIndexReader::DBR2INDEX, mode & SEQUENCES, threads, touchIndex, touchData);
 
                 } else if (mode & SEQUENCES) {
                     sequenceReader = PrefilteringIndexReader::openNewReader(index,
-                            PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX, mode & SEQUENCES, threads, preload);
+                            PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX, mode & SEQUENCES, threads, touchIndex, touchData);
                 } else if (mode & SRC_HEADERS) {
 
                     sequenceReader = PrefilteringIndexReader::openNewHeaderReader(index,
                                                                                   PrefilteringIndexReader::HDR2DATA,
                                                                                   PrefilteringIndexReader::HDR2INDEX,
-                                                                                  threads, preload);
+                                                                                  threads, touchIndex, touchData);
                 }else if(mode & HEADERS) {
                     sequenceReader = PrefilteringIndexReader::openNewHeaderReader(index,
-                                                                                PrefilteringIndexReader::HDR1DATA, PrefilteringIndexReader::HDR1INDEX, threads, preload);
+                                                                                PrefilteringIndexReader::HDR1DATA, PrefilteringIndexReader::HDR1INDEX, threads, touchIndex, touchData);
                 }
 
                 if (sequenceReader == NULL) {

@@ -52,7 +52,7 @@ int doRescorediagonal(Parameters &par,
     DBReader<unsigned int> * qdbr = NULL;
     DBReader<unsigned int> * tdbr = NULL;
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-    IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, touch);
+    IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     int querySeqType = 0;
     tdbr = tDbrIdx->sequenceReader;
     int targetSeqType = tDbrIdx->getDbtype();
@@ -63,7 +63,7 @@ int doRescorediagonal(Parameters &par,
         querySeqType = targetSeqType;
     } else {
         // open the sequence, prefiltering and output databases
-        qDbrIdx = new IndexReader(par.db1, par.threads,  IndexReader::SEQUENCES , false);
+        qDbrIdx = new IndexReader(par.db1, par.threads,  IndexReader::SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0);
         qdbr = qDbrIdx->sequenceReader;
         querySeqType = qdbr->getDbtype();
     }

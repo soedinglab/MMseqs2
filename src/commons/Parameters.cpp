@@ -692,6 +692,7 @@ Parameters::Parameters():
     offsetalignment.push_back(&PARAM_CHAIN_ALIGNMENT);
     offsetalignment.push_back(&PARAM_THREADS);
     offsetalignment.push_back(&PARAM_COMPRESSED);
+    offsetalignment.push_back(&PARAM_PRELOAD_MODE);
     offsetalignment.push_back(&PARAM_V);
 
     // swap results
@@ -702,6 +703,7 @@ Parameters::Parameters():
     swapresult.push_back(&PARAM_GAP_EXTEND);
     swapresult.push_back(&PARAM_THREADS);
     swapresult.push_back(&PARAM_COMPRESSED);
+    swapresult.push_back(&PARAM_PRELOAD_MODE);
     swapresult.push_back(&PARAM_V);
 
     // swap results

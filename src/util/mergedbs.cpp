@@ -21,7 +21,7 @@ int mergedbs(int argc, const char **argv, const Command& command) {
 
     std::vector<std::string> prefixes = Util::split(par.mergePrefixes, ",");
     const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-    IndexReader qDbr(par.db1, par.threads,  IndexReader::SEQUENCES, touch, DBReader<unsigned int>::USE_INDEX);
+    IndexReader qDbr(par.db1, par.threads,  IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0, DBReader<unsigned int>::USE_INDEX);
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), 1, par.compressed, qDbr.getDbtype());
     writer.open();

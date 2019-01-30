@@ -57,9 +57,9 @@ public:
                                 BaseMatrix *subMat, int maxSeqLen, bool spacedKmer, const std::string &spacedKmerPattern,
                                 bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode, int kmerThr);
 
-    static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads, bool touch);
+    static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads, bool touchIndex, bool touchData);
 
-    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touch);
+    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touchIndex, bool touchData);
 
     static SequenceLookup *getSequenceLookup(DBReader<unsigned int> *dbr, bool touch);
 

@@ -160,7 +160,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     }
 
     Debug(Debug::INFO) << "Query database: " << par.db2 << "\n";
-    IndexReader qOrfDbr(par.db2.c_str(), par.threads, IndexReader::HEADERS, touch);
+    IndexReader qOrfDbr(par.db2.c_str(), par.threads, IndexReader::HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     if (queryDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
@@ -169,7 +169,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     IndexReader *qSourceDbr = NULL;
     if (queryNucl) {
         Debug(Debug::INFO) << "Source Query database: " << par.db1 << "\n";
-        qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::SRC_SEQUENCES, false, DBReader<unsigned int>::USE_INDEX);
+        qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX) : 0, DBReader<unsigned int>::USE_INDEX);
     }
 
     Debug(Debug::INFO) << "Target database: " << par.db4 << "\n";
@@ -178,7 +178,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     if(isSameOrfDB){
         tOrfDbr = &qOrfDbr;
     }else{
-        tOrfDbr = new IndexReader(par.db4.c_str(), par.threads, IndexReader::HEADERS, touch);
+        tOrfDbr = new IndexReader(par.db4.c_str(), par.threads, IndexReader::HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     }
 
     if (targetDbType == -1) {
@@ -193,7 +193,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         if(isSameSrcDB){
             tSourceDbr = qSourceDbr;
         }else{
-            tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::SRC_SEQUENCES, false, DBReader<unsigned int>::USE_INDEX );
+            tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::SRC_SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0, DBReader<unsigned int>::USE_INDEX );
         }
     }
 

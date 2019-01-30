@@ -98,8 +98,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     bool isTranslatedSearch = false;
 
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    IndexReader qDbr(par.db1, par.threads,  IndexReader::SRC_SEQUENCES, touch);
-    IndexReader qDbrHeader(par.db1, par.threads, IndexReader::SRC_HEADERS , touch);
+    IndexReader qDbr(par.db1, par.threads,  IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+    IndexReader qDbrHeader(par.db1, par.threads, IndexReader::SRC_HEADERS , (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
 
     IndexReader *tDbr;
     IndexReader *tDbrHeader;
@@ -109,8 +109,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         tDbrHeader= &qDbrHeader;
     } else {
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        tDbr = new IndexReader(par.db2, par.threads, IndexReader::SRC_SEQUENCES, touch);
-        tDbrHeader = new IndexReader(par.db2, par.threads, IndexReader::SRC_HEADERS, touch);
+        tDbr = new IndexReader(par.db2, par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        tDbrHeader = new IndexReader(par.db2, par.threads, IndexReader::SRC_HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     }
 
     bool queryNucs = Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);

@@ -53,7 +53,7 @@ Alignment::Alignment(const std::string &querySeqDB,
 
     std::string scoringMatrixFile = par.scoringMatrixFile;
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-    tDbrIdx = new IndexReader(targetSeqDB, par.threads, IndexReader::SEQUENCES, touch);
+    tDbrIdx = new IndexReader(targetSeqDB, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     tdbr = tDbrIdx->sequenceReader;
     targetSeqType = tDbrIdx->getDbtype();
     sameQTDB = (targetSeqDB.compare(querySeqDB) == 0);
@@ -63,7 +63,7 @@ Alignment::Alignment(const std::string &querySeqDB,
         querySeqType = targetSeqType;
     } else {
         // open the sequence, prefiltering and output databases
-        qDbrIdx = new IndexReader(par.db1, par.threads,  IndexReader::SEQUENCES , false);
+        qDbrIdx = new IndexReader(par.db1, par.threads,  IndexReader::SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0 );
         qdbr = qDbrIdx->sequenceReader;
         querySeqType = qdbr->getDbtype();
     }

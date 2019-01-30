@@ -23,7 +23,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
     bool targetNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
     const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
 
-    IndexReader qDbrHeader(par.db1, par.threads, (queryNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS, touch);
+    IndexReader qDbrHeader(par.db1, par.threads, (queryNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     IndexReader * tDbrHeader=NULL;
     DBReader<unsigned int> * queryDB = qDbrHeader.sequenceReader;
     DBReader<unsigned int> * targetDB = NULL;

@@ -234,10 +234,10 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     Debug(Debug::INFO) << "Done. \n";
 }
 
-DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads, bool touch) {
+DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads,  bool touchIndex, bool touchData) {
     size_t indexId = dbr->getId(indexIdx);
     char *indexData = dbr->getData(indexId, 0);
-    if (touch) {
+    if (touchIndex) {
         dbr->touchData(indexId);
     }
 
@@ -248,7 +248,7 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<un
     size_t nextDataOffset = dbr->findNextOffsetid(dataId);
     size_t dataSize = nextDataOffset-currDataOffset;
 
-    if (touch) {
+    if (touchData) {
         dbr->touchData(dataId);
     }
 
@@ -259,10 +259,11 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<un
     return reader;
 }
 
-DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touch) {
+DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr,
+        unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touchIndex, bool touchData) {
     size_t id = dbr->getId(indexIdx);
     char *data = dbr->getDataUncompressed(id);
-    if (touch) {
+    if (touchIndex) {
         dbr->touchData(id);
     }
 
@@ -271,7 +272,7 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned
         if (id == UINT_MAX) {
             return NULL;
         }
-        if (touch) {
+        if (touchData) {
             dbr->touchData(id);
         }
 
