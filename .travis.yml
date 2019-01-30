@@ -95,4 +95,9 @@ after_success:
   - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]] && [[ -f "$HOME/.ssh/id_rsa" ]]; then ssh -o StrictHostKeyChecking=no codeship@uniclust.mmseqs.com "mkdir -p /home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT}"; fi
   - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]] && [[ -f "$HOME/.ssh/id_rsa" ]]; then cd build; scp -o StrictHostKeyChecking=no mmseqs-osx-static_sse41.tar.gz mmseqs-osx-static_avx2.tar.gz codeship@uniclust.mmseqs.com:/home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT}; cd ..; fi
 
+cache:
+  directories:
+    - $HOME/Library/Caches/Homebrew
 
+before_cache:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew cleanup; fi
