@@ -678,6 +678,7 @@ float Util::computeSeqId(int seqIdMode, int aaIds, int qLen, int tLen, int alnLe
 uint64_t Util::revComplement(const uint64_t kmer, const int k) {
     // broadcast 64bit to 128 bit
     __m128i x = _mm_cvtsi64_si128(kmer);
+    __m128i x_up = _mm_cvtsi64_si128(kmer >> (uint64_t)4); // shift right by 2 nucleotides
 
     // create lookup (set 16 bytes in 128 bit)
     // a lookup entry at the index of two nucleotides (4 bit) describes the reverse
@@ -694,10 +695,8 @@ uint64_t Util::revComplement(const uint64_t kmer, const int k) {
     // here: 0x0F (00001111) and 0xF0 (11110000)
     // _mm_and_si128: bitwise AND
     __m128i kmer1 = _mm_and_si128(x, _mm_set1_epi8(c(0x0F))); // get lower 4 bits
-    __m128i kmer2 = _mm_and_si128(x, _mm_set1_epi8(c(0xF0))); // get higher 4 bits
+    __m128i kmer2 = _mm_and_si128(x_up, _mm_set1_epi8(c(0x0F))); // get higher 4 bits
 #undef c
-    // shift right by 2 nucleotides
-    kmer2 >>= 4;
 
     // use _mm_shuffle_epi8 to look up reverse complement
 #ifdef NEON

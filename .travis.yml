@@ -2,22 +2,22 @@ language: c++
 
 matrix:
   include:
-# - os: linux
-#   dist: trusty
-#   sudo: false
-#   addons:
-#     apt:
-#       packages:
-#       - cmake
-#       - ninja-build
-#       - clang-3.6
-#       - libc++-dev
-#       - zlib1g-dev
-#       - libbz2-dev
-#       - vim-common
-#       - libopenmpi-dev
-#   env:
-#   - MATRIX_EVAL="CC=clang-3.6;CXX=clang++-3.6"
+  - os: linux
+    dist: trusty
+    sudo: false
+    addons:
+      apt:
+        packages:
+        - cmake
+        - ninja-build
+        - clang-3.6
+        - libc++-dev
+        - zlib1g-dev
+        - libbz2-dev
+        - vim-common
+        - libopenmpi-dev
+    env:
+    - MATRIX_EVAL="CC=clang-3.6;CXX=clang++-3.6"
   - os: linux
     dist: trusty
     sudo: false
