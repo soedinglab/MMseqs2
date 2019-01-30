@@ -162,6 +162,8 @@ public:
             case Parameters::DBTYPE_CA3M_DB: return "CA3M";
             case Parameters::DBTYPE_MSA_DB: return "MSA";
             case Parameters::DBTYPE_GENERIC_DB: return "Generic";
+            case Parameters::DBTYPE_PREFILTER_REV_RES: return "Bi-directional prefilter";
+            case Parameters::DBTYPE_OFFSETDB: return "Offsetted headers";
             default: return "Unknown";
         }
     }

@@ -10,7 +10,12 @@ int tsv2db(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), 1, par.compressed, Parameters::DBTYPE_GENERIC_DB);
+    Debug(Debug::INFO) << "Output database type: " << DBReader<unsigned int>::getDbTypeName(par.outputDbType) << "\n";
+    if (par.PARAM_OUTPUT_DBTYPE.wasSet == false) {
+        Debug(Debug::INFO) << "Consider setting --output-dbtype.\n";
+    }
+
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), 1, par.compressed, par.outputDbType);
     writer.open();
 
     std::ifstream tsv(par.db1);
