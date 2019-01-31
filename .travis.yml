@@ -69,6 +69,7 @@ matrix:
     env:
     - MATRIX_EVAL="CC=gcc-8;CXX=g++-8"
   - os: osx
+    osx_image: xcode10.1
     addons:
       homebrew:
         packages:
