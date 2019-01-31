@@ -73,14 +73,16 @@ matrix:
     addons:
       homebrew:
         packages:
-        - gcc@8
+        - cmake
         - ninja
+        - gcc@8
         - zlib
         - bzip2
     env:
     - MATRIX_EVAL="CC=gcc-8;CXX=g++-8"
 
 before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew link gcc@8 --force; fi
   - eval "${MATRIX_EVAL}"
 
 script:
