@@ -68,6 +68,24 @@ matrix:
         - vim-common
     env:
     - MATRIX_EVAL="CC=gcc-8;CXX=g++-8"
+  - os: linux
+    dist: trusty
+    sudo: false
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - cmake
+        - ninja-build
+        - gcc-8
+        - g++-8
+        - zlib1g-dev
+        - libbz2-dev
+        - vim-common
+        - libopenmpi-dev
+    env:
+    - MATRIX_EVAL="CC=gcc-8;CXX=g++-8;MPI=1"
   - os: osx
     osx_image: xcode10.1
     addons:
@@ -86,7 +104,8 @@ before_install:
   - eval "${MATRIX_EVAL}"
 
 script:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mkdir build; cd build; cmake -G Ninja -DHAVE_SSE4_1=1 ..; ninja || exit 1; cd ..; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ -n "$MPI" ]]; then mkdir build; cd build; cmake -G Ninja -DHAVE_MPI=1 -DHAVE_SSE4_1=1 .. || exit 1; ninja || exit 1; cd ..; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ -z "$MPI" ]]; then mkdir build; cd build; cmake -G Ninja -DHAVE_MPI=0 -DHAVE_SSE4_1=1 .. || exit 1; ninja || exit 1; cd ..; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then ./util/build_osx.sh . build || exit 1; fi
 
 after_success:
