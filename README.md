@@ -164,7 +164,7 @@ To extract the representative sequences from the clustering result call:
 Read more about the format [here](https://github.com/soedinglab/mmseqs2/wiki#clustering-format).
 
 ### Memory Requirements
-MMseqs2 checks the avialalbe memory of the computer and automatically divide the target database in part to fit in memory. Splitting the database will increase the runtime slightly.
+MMseqs2 checks the available memory of the computer and automatically divide the target database in parts that fit into memory. Splitting the database will increase the runtime slightly.
 
 The memory consumption grows linearly with the number of residues in the database. The following formula can be used to estimate the index size.  
         
