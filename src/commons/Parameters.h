@@ -63,6 +63,7 @@ public:
     static const int DBTYPE_OMIT_FILE = 13;
     static const int DBTYPE_PREFILTER_REV_RES = 14;
     static const int DBTYPE_OFFSETDB = 15;
+    // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
 
     static const unsigned int ALIGNMENT_MODE_FAST_AUTO = 0;
@@ -457,6 +458,9 @@ public:
     // offsetalignments
     int chainAlignment;
 
+    // tsv2db
+    int outputDbType;
+
     // diff
     bool useSequenceId;
 
@@ -720,6 +724,9 @@ public:
 
     // offsetalignment
     PARAMETER(PARAM_CHAIN_ALIGNMENT)
+
+    // tsv2db
+    PARAMETER(PARAM_OUTPUT_DBTYPE)
 
     // diff
     PARAMETER(PARAM_USESEQID)

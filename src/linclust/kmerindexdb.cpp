@@ -78,6 +78,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     std::vector<std::string> splitFiles;
     KmerPosition *hashSeqPair = NULL;
 
+    size_t writePos = 0;
     size_t mpiRank = 0;
 #ifdef HAVE_MPI
     splits = std::max(static_cast<size_t>(MMseqsMPI::numProc), splits);
@@ -100,11 +101,10 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     for(size_t split = fromSplit; split < fromSplit+splitCount; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
         size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;
-        std::pair<size_t, KmerPosition *> kmerRet = = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer);
+        std::pair<size_t, KmerPosition *> kmerRet = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, 1);
         hashSeqPair = kmerRet.second;
         // assign rep. sequence to same kmer members
         // The longest sequence is the first since we sorted by kmer, seq.Len and id
-        size_t writePos;
         if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
             writePos = LinsearchIndexReader::pickCenterKmer<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair, splitKmerCount);
         }else{
@@ -121,8 +121,6 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         }
     }
 #else
-    size_t writePos = 0;
-
     for(size_t split = 0; split < splits; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
         size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;

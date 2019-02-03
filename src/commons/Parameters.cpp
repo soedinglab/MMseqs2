@@ -196,6 +196,8 @@ Parameters::Parameters():
         PARAM_TAKE_LARGER_ENTRY(PARAM_TAKE_LARGER_ENTRY_ID,"--take-larger-entry", "Take the larger entry", "only keeps the larger entry (dataSize >) in the concatenation, both databases need the same keys in the index",typeid(bool), (void *) &takeLargerEntry, ""),
         // offsetalignment
         PARAM_CHAIN_ALIGNMENT(PARAM_CHAIN_ALIGNMENT_ID,"--chain-alignments", "Chain overlapping alignments", "Chain overlapping alignments",typeid(int),(void *) &chainAlignment, "^[0-1]{1}"),
+        // tsv2db
+        PARAM_OUTPUT_DBTYPE(PARAM_OUTPUT_DBTYPE_ID,"--output-dbtype", "Output DB Type", "Set database type for resulting database: Amino acid sequences 0, Nucl. seq. 1, Profiles 2, Alignment result 5, Clustering result 6, Prefiltering result 7, Taxonomy result 8, Indexed database 9, cA3M MSAs 10, FASTA or A3M MSAs 11, Generic database 12, Omic dbtype file 13, Bi-directional prefiltering result 14, Offsetted headers 15",typeid(int),(void *) &outputDbType, "^(0|[1-9]{1}[0-9]*)$"),
         //diff
         PARAM_USESEQID(PARAM_USESEQID_ID,"--use-seq-id", "Match sequences by their ID", "Sequence ID (Uniprot, GenBank, ...) is used for identifying matches between the old and the new DB.",typeid(bool), (void *) &useSequenceId, ""),
         // prefixid
@@ -694,6 +696,12 @@ Parameters::Parameters():
     offsetalignment.push_back(&PARAM_COMPRESSED);
     offsetalignment.push_back(&PARAM_PRELOAD_MODE);
     offsetalignment.push_back(&PARAM_V);
+
+    // tsv2db
+    tsv2db.push_back(&PARAM_INCLUDE_IDENTITY);
+    tsv2db.push_back(&PARAM_OUTPUT_DBTYPE);
+    tsv2db.push_back(&PARAM_COMPRESSED);
+    tsv2db.push_back(&PARAM_V);
 
     // swap results
     swapresult.push_back(&PARAM_SUB_MAT);
@@ -1614,6 +1622,9 @@ void Parameters::setDefaults() {
 
     // offset alignment
     chainAlignment = 0;
+
+    // tsv2db
+    outputDbType = Parameters::DBTYPE_GENERIC_DB;
 
     // mergedbs
     mergePrefixes = "";
