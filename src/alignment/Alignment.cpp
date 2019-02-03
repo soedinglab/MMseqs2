@@ -276,16 +276,17 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 // get the prefiltering list
                 char *data = prefdbr->getData(id, thread_idx);
                 unsigned int queryDbKey = prefdbr->getDbKey(id);
-                char *querySeqData = qdbr->getDataByDBKey(queryDbKey, thread_idx);
-                if (querySeqData == NULL) {
-                    Debug(Debug::ERROR) << "ERROR: Query sequence " << queryDbKey
-                                        << " is required in the prefiltering, but is not contained in the query sequence database.\nPlease check your database.\n";
-                    EXIT(EXIT_FAILURE);
+                // only load query data if data != \0
+                if(*data != '\0'){
+                    char *querySeqData = qdbr->getDataByDBKey(queryDbKey, thread_idx);
+                    if (querySeqData == NULL) {
+                        Debug(Debug::ERROR) << "ERROR: Query sequence " << queryDbKey
+                                            << " is required in the prefiltering, but is not contained in the query sequence database.\nPlease check your database.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    qSeq.mapSequence(id, queryDbKey, querySeqData);
+                    matcher.initQuery(&qSeq);
                 }
-
-                qSeq.mapSequence(id, queryDbKey, querySeqData);
-
-                matcher.initQuery(&qSeq);
                 // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list
                 std::vector<Matcher::result_t> swResults;
                 std::vector<Matcher::result_t> swRealignResults;
