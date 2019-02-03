@@ -133,20 +133,25 @@ int doRescorediagonal(Parameters &par,
 
                 char *data = resultReader.getData(id, thread_idx);
                 size_t queryKey = resultReader.getDbKey(id);
-                unsigned int queryId = qdbr->getId(queryKey);
-                char *querySeq = qdbr->getData(queryId, thread_idx);
-                int queryLen = std::max(0, static_cast<int>(qdbr->getSeqLens(queryId)) - 2);
-                if (reversePrefilterResult == true) {
-                    NucleotideMatrix *nuclMatrix = (NucleotideMatrix *) subMat;
-                    for (int pos = queryLen - 1; pos > -1; pos--) {
-                        int res = subMat->aa2int[static_cast<int>(querySeq[pos])];
-                        queryRevSeq[(queryLen - 1) - pos] = subMat->int2aa[nuclMatrix->reverseResidue(res)];
+                char *querySeq = NULL;
+                unsigned int queryId = UINT_MAX;
+                int queryLen = -1;
+                if(*data !=  '\0'){
+                    queryId = qdbr->getId(queryKey);
+                    querySeq = qdbr->getData(queryId, thread_idx);
+                    queryLen = std::max(0, static_cast<int>(qdbr->getSeqLens(queryId)) - 2);
+                    if (reversePrefilterResult == true) {
+                        NucleotideMatrix *nuclMatrix = (NucleotideMatrix *) subMat;
+                        for (int pos = queryLen - 1; pos > -1; pos--) {
+                            int res = subMat->aa2int[static_cast<int>(querySeq[pos])];
+                            queryRevSeq[(queryLen - 1) - pos] = subMat->int2aa[nuclMatrix->reverseResidue(res)];
+                        }
                     }
-                }
-                if (sameQTDB && qdbr->isCompressed()) {
-                    queryBuffer.clear();
-                    queryBuffer.append(querySeq, queryLen);
-                    querySeq = (char *) queryBuffer.c_str();
+                    if (sameQTDB && qdbr->isCompressed()) {
+                        queryBuffer.clear();
+                        queryBuffer.append(querySeq, queryLen);
+                        querySeq = (char *) queryBuffer.c_str();
+                    }
                 }
 
 //                if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
