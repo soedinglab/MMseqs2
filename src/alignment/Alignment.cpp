@@ -389,7 +389,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     size_t len = Matcher::resultToBuffer(buffer, swResults[result], addBacktrace);
                     alnResultsOutString.append(buffer, len);
                 }
-                dbw.writeData(alnResultsOutString.c_str(), alnResultsOutString.length(), qSeq.getDbKey(), thread_idx);
+                dbw.writeData(alnResultsOutString.c_str(), alnResultsOutString.length(), queryDbKey, thread_idx);
                 alnResultsOutString.clear();
             }
 
