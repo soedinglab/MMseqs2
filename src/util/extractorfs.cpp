@@ -109,8 +109,8 @@ int extractorfs(int argc, const char **argv, const Command& command) {
             res.clear();
         }
     }
-    headerWriter.close();
-    sequenceWriter.close();
+    headerWriter.close(true);
+    sequenceWriter.close(true);
     headerReader.close();
     reader.close();
 

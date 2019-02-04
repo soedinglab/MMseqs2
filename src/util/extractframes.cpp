@@ -121,8 +121,8 @@ int extractframes(int argc, const char **argv, const Command& command) {
             reverseComplementStr.clear();
         }
     }
-    headerWriter.close();
-    sequenceWriter.close();
+    headerWriter.close(true);
+    sequenceWriter.close(true);
     headerReader.close();
     reader.close();
 

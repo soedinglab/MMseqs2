@@ -292,10 +292,10 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
     // cleanup
     if (consensusWriter != NULL) {
-        consensusWriter->close();
+        consensusWriter->close(true);
         delete consensusWriter;
     }
-    resultWriter.close();
+    resultWriter.close(true);
 
     if (!sameDatabase) {
         qDbr->close();

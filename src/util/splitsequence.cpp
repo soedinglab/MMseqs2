@@ -88,8 +88,8 @@ int splitsequence(int argc, const char **argv, const Command& command) {
             }
         }
     }
-    headerWriter.close();
-    sequenceWriter.close();
+    headerWriter.close(true);
+    sequenceWriter.close(true);
     headerReader.close();
     reader.close();
 
