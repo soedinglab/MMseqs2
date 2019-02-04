@@ -186,9 +186,9 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
         }
         delete[] profileBuffer;
     }
-    headerOut.close();
-    dataOut.close();
-    seqOut.close();
+    headerOut.close(true);
+    dataOut.close(true);
+    seqOut.close(true);
 
     std::string base = FileUtil::baseName(par.db2 + "_seq_h");
     FileUtil::symlinkAlias(par.hdr2, base);
