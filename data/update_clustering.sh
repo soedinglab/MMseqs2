@@ -183,7 +183,7 @@ echo "======= Extract representative sequences =========="
 echo "==================================================="
 if notExists "${TMP_PATH}/OLDDB.repSeq"; then
     "$MMSEQS" result2repseq "$OLDDB" "$OLDCLUST" "${TMP_PATH}/OLDDB.repSeq" \
-    || fail "Result2msa died"
+    || fail "result2repseq died"
     ln -sf "${OLDDB}.dbtype" "${TMP_PATH}/OLDDB.repSeq.dbtype"
 fi
 

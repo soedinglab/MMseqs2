@@ -25,7 +25,7 @@ TARGET="$2"
 TMP_PATH="$4"
 
 if [ -n "$NEEDTARGETSPLIT" ]; then
-    if notExists "$TMP_PATH/target_seqs_split"; then
+    if notExists "$TMP_PATH/target_seqs_split.dbtype"; then
         # shellcheck disable=SC2086
         "$MMSEQS" splitsequence "$TARGET" "$TMP_PATH/target_seqs_split" ${SPLITSEQUENCE_PAR}  \
             || fail "Split sequence died"
@@ -34,7 +34,7 @@ if [ -n "$NEEDTARGETSPLIT" ]; then
 fi
 
 if [ -n "$EXTRACTFRAMES" ]; then
-    if notExists "$TMP_PATH/query_seqs"; then
+    if notExists "$TMP_PATH/query_seqs.dbtype"; then
         # shellcheck disable=SC2086
         "$MMSEQS" extractframes "$QUERY" "$TMP_PATH/query_seqs" ${EXTRACT_FRAMES_PAR}  \
             || fail "Extractframes died"
@@ -43,7 +43,7 @@ if [ -n "$EXTRACTFRAMES" ]; then
 fi
 
 if [ -n "$NEEDQUERYSPLIT" ]; then
-    if notExists "$TMP_PATH/query_seqs_split"; then
+    if notExists "$TMP_PATH/query_seqs_split.dbtype"; then
         # shellcheck disable=SC2086
         "$MMSEQS" splitsequence "$QUERY" "$TMP_PATH/query_seqs_split" ${SPLITSEQUENCE_PAR}  \
         || fail "Split sequence died"
@@ -52,20 +52,18 @@ if [ -n "$NEEDQUERYSPLIT" ]; then
 fi
 
 mkdir -p "$4/search"
-if notExists "$4/aln"; then
+if notExists "$4/aln.dbtype"; then
     # shellcheck disable=SC2086
     "$SEARCH" "${QUERY}" "${TARGET}" "$4/aln" "$4/search" ${SEARCH_PAR} \
         || fail "Search step died"
 fi
 
-if notExists "$4/aln_offset"; then
+if notExists "$3.dbtype"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" offsetalignment "$1" "${QUERY}" "$2" "${TARGET}" "$4/aln"  "$4/aln_offset" ${OFFSETALIGNMENT_PAR} \
+    "$MMSEQS" offsetalignment "$1" "${QUERY}" "$2" "${TARGET}" "$4/aln"  "$3" ${OFFSETALIGNMENT_PAR} \
         || fail "Offset step died"
 fi
 
-(mv -f "$4/aln_offset" "$3" && mv -f "$4/aln_offset.dbtype" "$3.dbtype" && mv -f "$4/aln_offset.index" "$3.index") \
-    || fail "Could not move result to $3"
 
 if [ -n "$REMOVE_TMP" ]; then
   echo "Remove temporary files"

@@ -24,7 +24,7 @@ TARGET="$2"
 TMP_PATH="$4"
 
 # 1. Finding exact $k$-mer matches.
-if notExists "${TMP_PATH}/pref"; then
+if notExists "${TMP_PATH}/pref.dbtype"; then
     # shellcheck disable=SC2086
     $RUNNER "$MMSEQS" kmersearch "$QUERY" "$TARGET" "${TMP_PATH}/pref" ${KMERSEARCH_PAR} \
         || fail "kmermatcher died"
@@ -33,13 +33,13 @@ fi
 # 1. Ungapped alignment filtering
 RESULTDB="${TMP_PATH}/pref"
 if [ -n "$FILTER" ]; then
-    if notExists "${TMP_PATH}/rescore_aln"; then
-    # shellcheck disable=SC2086
-    $RUNNER "$MMSEQS" rescorediagonal "$TARGET" "$QUERY" "${RESULTDB}" "${TMP_PATH}/reverse_ungapaln" ${RESCORE_FILTER_PAR} \
+    if notExists "${TMP_PATH}/reverse_ungapaln.dbtype"; then
+        # shellcheck disable=SC2086
+        $RUNNER "$MMSEQS" rescorediagonal "$TARGET" "$QUERY" "${RESULTDB}" "${TMP_PATH}/reverse_ungapaln" ${RESCORE_FILTER_PAR} \
         || fail "Rescorediagonal step died"
     fi
 
-    if notExists "${TMP_PATH}/pref_filter2"; then
+    if notExists "${TMP_PATH}/pref_filter.dbtype"; then
         "$MMSEQS" filterdb "${TMP_PATH}/pref" "${TMP_PATH}/pref_filter" --filter-file "${TMP_PATH}/reverse_ungapaln" --positive-filter 0 \
             || fail "Filterdb step died"
     fi
@@ -48,7 +48,7 @@ fi
 
 
 # 2. Local gapped sequence alignment.
-if notExists "${TMP_PATH}/reverse_aln"; then
+if notExists "${TMP_PATH}/reverse_aln.dbtype"; then
     # shellcheck disable=SC2086
     $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$TARGET" "$QUERY" "${RESULTDB}" "${TMP_PATH}/reverse_aln" ${ALIGNMENT_PAR} \
         || fail "Alignment step died"
@@ -58,19 +58,19 @@ fi
 # 3. swap logic
 if [ -n "$NUCL" ]; then
 
-    if notExists "${TMP_PATH}/aln"; then
+    if notExists "${TMP_PATH}/aln.dbtype"; then
         # shellcheck disable=SC2086
         $RUNNER "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_aln" "${TMP_PATH}/aln" ${SWAPRESULT_PAR} \
             || fail "Alignment step died"
     fi
 
     if [ -n "$FILTER" ]; then
-        if notExists "${TMP_PATH}/reverse_ungapaln_swap"; then
+        if notExists "${TMP_PATH}/reverse_ungapaln_swap.dbtype"; then
              "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_ungapaln" "${TMP_PATH}/ungap_aln" \
               || fail "Mergedbs died"
         fi
 
-        if notExists "${TMP_PATH}/aln_merged"; then
+        if notExists "${TMP_PATH}/aln_merged.dbtype"; then
              "$MMSEQS" concatdbs "${TMP_PATH}/ungap_aln" "${TMP_PATH}/aln" "${TMP_PATH}/aln_merged" --preserve-keys --take-larger-entry\
               || fail "Mergedbs died"
         fi
@@ -78,14 +78,14 @@ if [ -n "$NUCL" ]; then
     fi
 
 
-    if notExists "$3"; then
+    if notExists "$3.dbtype"; then
         # shellcheck disable=SC2086
         "$MMSEQS" offsetalignment "$QUERY" "${QUERY}" "${TARGET}" "${TARGET}" ${RESULT} "$3" ${OFFSETALIGNMENT_PAR} \
             || fail "Offset step died"
     fi
 else
     # 3. Local gapped sequence alignment.
-    if notExists "$3"; then
+    if notExists "$3.dbtype"; then
         # shellcheck disable=SC2086
         $RUNNER "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_aln" "$3" ${SWAPRESULT_PAR} \
             || fail "Alignment step died"
@@ -98,6 +98,5 @@ if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
     rm -f "${TMP_PATH}/pref" "${TMP_PATH}/pref.index"
     rm -f "${TMP_PATH}/reverse_aln" "${TMP_PATH}/reverse_aln.index"
-
     rm -f "${TMP_PATH}/linsearch.sh"
 fi

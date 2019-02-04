@@ -80,14 +80,9 @@ if notExists "${TMP_PATH}/clust"; then
         || fail "Clustering step died"
 fi
 if notExists "${TMP_PATH}/clu"; then
-    "$MMSEQS" mergeclusters "$SOURCE" "${TMP_PATH}/clu" "${TMP_PATH}/pre_clust" "${TMP_PATH}/clust" \
+    "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/pre_clust" "${TMP_PATH}/clust" \
         || fail "mergeclusters died"
 fi
-
-# post processing
-mv -f "${TMP_PATH}/clu" "$2" || fail "Could not move result to $2"
-mv -f "${TMP_PATH}/clu.dbtype" "$2.dbtype" || fail "Could not move result to $2"
-mv -f "${TMP_PATH}/clu.index" "$2.index" || fail "Could not move result to $2"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"

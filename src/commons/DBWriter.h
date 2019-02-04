@@ -25,7 +25,7 @@ public:
 
     void open(size_t bufferSize = 64 * 1024 * 1024);
 
-    void close();
+    void close(bool merge = false);
 
     char* getDataFileName() { return dataFileName; }
 
@@ -51,9 +51,20 @@ public:
                              const std::vector<std::pair<std::string, std::string>> &files,
                              bool lexicographicOrder = false);
 
-    static void mergeResults(const char *outFileName, const char *outFileNameIndex,
-                             const char **dataFileNames, const char **indexFileNames,
-                             unsigned long fileCount, bool lexicographicOrder = false);
+
+    static void mergeResultsIndexOnly(const char *outFileName, const char *outFileNameIndex,
+                                      const char **dataFileNames, const char **indexFileNames,
+                                      const unsigned long fileCount, const bool lexicographicOrder = false);
+
+    static void mergeIndex(const char **indexFileNames, std::vector<size_t> threadDataFileSizes,
+                           const unsigned long fileCount);
+
+    static void sortIndex(const char *inFileNameIndex, const char *outFileNameIndex, const bool lexicographicOrder);
+
+
+    static void mergeResultsNormal(const char *outFileName, const char *outFileNameIndex,
+                                   const char **dataFileNames, const char **indexFileNames,
+                                   unsigned long fileCount, bool lexicographicOrder = false);
 
     void mergeFilePair(const std::vector<std::pair<std::string, std::string>> fileNames);
 

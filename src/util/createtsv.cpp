@@ -159,7 +159,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
         }
         delete[] dbKey;
     }
-    writer.close();
+    writer.close(true);
     Debug(Debug::INFO) << "Done.\n";
 
     if (par.dbOut == false) {

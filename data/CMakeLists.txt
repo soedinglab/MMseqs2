@@ -18,7 +18,6 @@ set(COMPILED_RESOURCES
         multihitdb.sh
         multihitsearch.sh
         summarizeresultsbyset.sh
-        search2m.sh
         enrich.sh
         blastn.sh
         nucleotide.out

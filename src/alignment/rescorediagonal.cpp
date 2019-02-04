@@ -101,7 +101,7 @@ int doRescorediagonal(Parameters &par,
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 100000000;
-    if (totalMemory > resultReader.getDataSize()) {
+    if (totalMemory > resultReader.getTotalDataSize()) {
         flushSize = resultReader.getSize();
     }
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));

@@ -19,13 +19,13 @@ RESULTDB="$3"
 OUTDB="$4"
 TMP_PATH="$5"
 
-if notExists "${TMP_PATH}/result_pos"; then
+if notExists "${TMP_PATH}/result_pos.dbtype"; then
     # shellcheck disable=SC2086
     "${MMSEQS}" filterdb "${RESULTDB}" "${TMP_PATH}/result_pos" --compute-positions "${TARGETDB}_nucl_orf_aligned_to_contig" ${THREADS_PAR} \
         || fail "filterdb failed"
 fi
 
-if notExists "${OUTDB}"; then
+if notExists "${OUTDB}.dbtype"; then
     # shellcheck disable=SC2086
     "${MMSEQS}" resultsbyset "${QUERYDB}" "${TARGETDB}" "${TMP_PATH}/result_pos" "${OUTDB}" "${TMP_PATH}" ${RESULTSBYSET_PAR} \
         || fail "resultsbyset failed"

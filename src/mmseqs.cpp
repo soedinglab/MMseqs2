@@ -144,13 +144,6 @@ std::vector<struct Command> commands = {
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:sequenceDB> [<i:taxMappingFile> <i:ncbi-taxdump-folder>]  <tmpDir>",
                 CITATION_MMSEQS2},
-        {"search-2m",            search2m,             &par.taxonomy,             COMMAND_TAXONOMY,
-                "Compute taxonomy and lowest common ancestor for each sequence.",
-                NULL,
-                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> && Milot Mirdita <milot@mirdita.de>",
-                "<i:queryDB> <i:targetDB> <i:targetTaxonMapping> <i:NcbiTaxdmpDir> <o:taxaDB> <tmpDir>",
-                CITATION_MMSEQS2
-        },
         {"addtaxonomy",          addtaxonomy,          &par.threadsandcompression,COMMAND_TAXONOMY,
                 "Add taxonomy information to result database.",
                 NULL,

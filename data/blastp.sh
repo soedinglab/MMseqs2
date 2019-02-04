@@ -32,7 +32,7 @@ while [ "$STEP" -lt "$STEPS" ]; do
     SENS_PARAM=SENSE_${STEP}
     eval SENS="\$$SENS_PARAM"
     # call prefilter module
-    if notExists "$TMP_PATH/pref_$STEP"; then
+    if notExists "$TMP_PATH/pref_$STEP.dbtype"; then
         # shellcheck disable=SC2086
         $RUNNER "$MMSEQS" prefilter "$INPUT" "$TARGET" "$TMP_PATH/pref_$STEP" $PREFILTER_PAR -s "$SENS" \
             || fail "Prefilter died"
@@ -40,13 +40,13 @@ while [ "$STEP" -lt "$STEPS" ]; do
 
     # call alignment module
     if [ "$STEPS" -eq 1 ]; then
-        if notExists "$3"; then
+        if notExists "$3.dbtype"; then
             # shellcheck disable=SC2086
             $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$INPUT" "$TARGET${ALIGNMENT_DB_EXT}" "$TMP_PATH/pref_$STEP" "$3" $ALIGNMENT_PAR  \
                 || fail "Alignment died"
         fi
     else
-        if notExists "$TMP_PATH/aln_$STEP"; then
+        if notExists "$TMP_PATH/aln_$STEP.dbtype"; then
             # shellcheck disable=SC2086
             $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$INPUT" "$TARGET${ALIGNMENT_DB_EXT}" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR  \
                 || fail "Alignment died"
@@ -71,14 +71,14 @@ while [ "$STEP" -lt "$STEPS" ]; do
     NEXTINPUT="$TMP_PATH/input_step$STEP"
     #do not create subdb at last step
     if [ "$STEP" -lt "$((STEPS-1))" ]; then
-        if notExists "$TMP_PATH/order_step$STEP"; then
+        if notExists "$TMP_PATH/order_step$STEP.dbtype"; then
             awk '$3 < 2 { print $1 }' "$TMP_PATH/aln_$STEP.index" > "$TMP_PATH/order_step$STEP" \
                 || fail "Awk step $STEP died"
         fi
 
         if [ ! -s "$TMP_PATH/order_step$STEP" ]; then break; fi
 
-        if notExists "$NEXTINPUT"; then
+        if notExists "$NEXTINPUT.dbtype"; then
             "$MMSEQS" createsubdb "$TMP_PATH/order_step$STEP" "$INPUT" "$NEXTINPUT" \
                 || fail "Order step $STEP died"
         fi

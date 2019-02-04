@@ -181,20 +181,28 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
 
     Debug(Debug::INFO) << "Write DBR1DATA (" << DBR1DATA << ")\n";
     size_t offsetData = writer.getOffset(0);
-    writer.writeData(dbr1->getData(), dbr1->getDataSize(), DBR1DATA, 0);
+    writer.writeStart(0);
+    for(size_t fileIdx = 0; fileIdx < dbr1->getDataFileCnt(); fileIdx++) {
+        writer.writeAdd(dbr1->getDataForFile(fileIdx), dbr1->getDataSizeForFile(fileIdx), 0);
+    }
+    writer.writeEnd(DBR1DATA, 0);
     writer.alignToPageSize();
     free(data);
 
     if (dbr2 == NULL) {
         writer.writeIndexEntry(DBR2INDEX, offsetIndex, DBReader<unsigned int>::indexMemorySize(*dbr1)+1, 0);
-        writer.writeIndexEntry(DBR2DATA,  offsetData,  dbr1->getDataSize()+1, 0);
+        writer.writeIndexEntry(DBR2DATA,  offsetData,  dbr1->getTotalDataSize()+1, 0);
     } else {
         Debug(Debug::INFO) << "Write DBR2INDEX (" << DBR2INDEX << ")\n";
         data = DBReader<unsigned int>::serialize(*dbr2);
         writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*dbr2), DBR2INDEX, 0);
         writer.alignToPageSize();
         Debug(Debug::INFO) << "Write DBR2DATA (" << DBR2DATA << ")\n";
-        writer.writeData(dbr2->getData(), dbr2->getDataSize(), DBR2DATA, 0);
+        writer.writeStart(0);
+        for(size_t fileIdx = 0; fileIdx < dbr2->getDataFileCnt(); fileIdx++) {
+            writer.writeAdd(dbr2->getDataForFile(fileIdx), dbr2->getDataSizeForFile(fileIdx), 0);
+        }
+        writer.writeEnd(DBR2DATA, 0);
         writer.alignToPageSize();
         free(data);
     }
@@ -208,12 +216,16 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
 
         Debug(Debug::INFO) << "Write HDR1DATA (" << HDR1DATA << ")\n";
         size_t offsetData = writer.getOffset(0);
-        writer.writeData(hdbr1->getData(), hdbr1->getDataSize(), HDR1DATA, 0);
+        writer.writeStart(0);
+        for(size_t fileIdx = 0; fileIdx < hdbr1->getDataFileCnt(); fileIdx++) {
+            writer.writeAdd(hdbr1->getDataForFile(fileIdx), hdbr1->getDataSizeForFile(fileIdx), 0);
+        }
+        writer.writeEnd(HDR1DATA, 0);
         writer.alignToPageSize();
         free(data);
         if (hdbr2 == NULL) {
             writer.writeIndexEntry(HDR2INDEX, offsetIndex, DBReader<unsigned int>::indexMemorySize(*hdbr1)+1, 0);
-            writer.writeIndexEntry(HDR2DATA,  offsetData, hdbr1->getDataSize()+1, 0);
+            writer.writeIndexEntry(HDR2DATA,  offsetData, hdbr1->getTotalDataSize()+1, 0);
         }
     }
     if (hdbr2 != NULL) {
@@ -222,7 +234,11 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
         writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*hdbr2), HDR2INDEX, 0);
         writer.alignToPageSize();
         Debug(Debug::INFO) << "Write HDR2DATA (" << HDR2DATA << ")\n";
-        writer.writeData(hdbr2->getData(),hdbr2->getDataSize(), HDR2DATA, 0);
+        writer.writeStart(0);
+        for(size_t fileIdx = 0; fileIdx < hdbr2->getDataFileCnt(); fileIdx++) {
+            writer.writeAdd(hdbr2->getDataForFile(fileIdx), hdbr2->getDataSizeForFile(fileIdx), 0);
+        }
+        writer.writeEnd(HDR2DATA, 0);
         writer.alignToPageSize();
         free(data);
     }

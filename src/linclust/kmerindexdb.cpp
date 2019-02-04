@@ -214,13 +214,17 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
 
         Debug(Debug::INFO) << "Write DBR1DATA (" << PrefilteringIndexReader::DBR1DATA << ")\n";
         size_t offsetData = dbw.getOffset(0);
-        dbw.writeData(dbr1.getData(), dbr1.getDataSize(), PrefilteringIndexReader::DBR1DATA, 0);
+        dbw.writeStart(0);
+        for(size_t fileIdx = 0; fileIdx < dbr1.getDataFileCnt(); fileIdx++) {
+            dbw.writeAdd(dbr1.getDataForFile(fileIdx), dbr1.getDataSizeForFile(fileIdx), 0);
+        }
+        dbw.writeEnd( PrefilteringIndexReader::DBR1DATA, 0);
         dbw.alignToPageSize();
         free(data);
 
         if (sameDB == true) {
             dbw.writeIndexEntry(PrefilteringIndexReader::DBR2INDEX, offsetIndex, DBReader<unsigned int>::indexMemorySize(dbr1)+1, 0);
-            dbw.writeIndexEntry(PrefilteringIndexReader::DBR2DATA,  offsetData,  dbr1.getDataSize()+1, 0);
+            dbw.writeIndexEntry(PrefilteringIndexReader::DBR2DATA,  offsetData,  dbr1.getTotalDataSize()+1, 0);
             dbr1.close();
         }else{
             dbr1.close();
@@ -231,7 +235,11 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
             dbw.writeData(data, DBReader<unsigned int>::indexMemorySize(dbr2), PrefilteringIndexReader::DBR2INDEX, 0);
             dbw.alignToPageSize();
             Debug(Debug::INFO) << "Write DBR2DATA (" << PrefilteringIndexReader::DBR2DATA << ")\n";
-            dbw.writeData(dbr2.getData(), dbr2.getDataSize(), PrefilteringIndexReader::DBR2DATA, 0);
+            dbw.writeStart(0);
+            for(size_t fileIdx = 0; fileIdx < dbr2.getDataFileCnt(); fileIdx++) {
+                dbw.writeAdd(dbr2.getDataForFile(fileIdx), dbr2.getDataSizeForFile(fileIdx), 0);
+            }
+            dbw.writeEnd(PrefilteringIndexReader::DBR2DATA, 0);
             dbw.alignToPageSize();
             free(data);
             dbr2.close();
@@ -248,12 +256,16 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
             dbw.alignToPageSize();
             Debug(Debug::INFO) << "Write HDR1DATA (" << PrefilteringIndexReader::HDR1DATA << ")\n";
             size_t offsetData = dbw.getOffset(0);
-            dbw.writeData(hdbr1.getData(), hdbr1.getDataSize(), PrefilteringIndexReader::HDR1DATA, 0);
+            dbw.writeStart(0);
+            for(size_t fileIdx = 0; fileIdx < hdbr1.getDataFileCnt(); fileIdx++) {
+                dbw.writeAdd(hdbr1.getDataForFile(fileIdx), hdbr1.getDataSizeForFile(fileIdx), 0);
+            }
+            dbw.writeEnd(PrefilteringIndexReader::HDR1DATA, 0);
             dbw.alignToPageSize();
             free(data);
             if (sameDB == true) {
                 dbw.writeIndexEntry(PrefilteringIndexReader::HDR2INDEX, offsetIndex, DBReader<unsigned int>::indexMemorySize(hdbr1)+1, 0);
-                dbw.writeIndexEntry(PrefilteringIndexReader::HDR2DATA,  offsetData, hdbr1.getDataSize()+1, 0);
+                dbw.writeIndexEntry(PrefilteringIndexReader::HDR2DATA,  offsetData, hdbr1.getTotalDataSize()+1, 0);
                 hdbr1.close();
             }else{
                 hdbr1.close();
@@ -264,7 +276,11 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
                 dbw.writeData(data, DBReader<unsigned int>::indexMemorySize(hdbr2), PrefilteringIndexReader::HDR2INDEX, 0);
                 dbw.alignToPageSize();
                 Debug(Debug::INFO) << "Write HDR2DATA (" << PrefilteringIndexReader::HDR2DATA << ")\n";
-                dbw.writeData(hdbr2.getData(),hdbr2.getDataSize(), PrefilteringIndexReader::HDR2DATA, 0);
+                dbw.writeStart(0);
+                for(size_t fileIdx = 0; fileIdx < hdbr2.getDataFileCnt(); fileIdx++) {
+                    dbw.writeAdd(hdbr2.getDataForFile(fileIdx), hdbr2.getDataSizeForFile(fileIdx), 0);
+                }
+                dbw.writeEnd(PrefilteringIndexReader::HDR2DATA, 0);
                 dbw.alignToPageSize();
                 free(data);
             }

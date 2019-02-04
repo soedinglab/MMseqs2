@@ -424,9 +424,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             result.clear();
         }
     }
-    resultWriter.close();
-
     // tsv output
+    resultWriter.close(true);
     if (isDb == false) {
         FileUtil::deleteFile(par.db4Index);
     }

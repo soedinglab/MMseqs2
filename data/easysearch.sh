@@ -21,7 +21,7 @@ TARGET="$2"
 RESULTS="$3"
 TMP_PATH="$4"
 
-if notExists "${TMP_PATH}/query"; then
+if notExists "${TMP_PATH}/query.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" createdb "${INPUT}" "${TMP_PATH}/query" ${CREATEDB_PAR} \
         || fail "query createdb died"
@@ -43,14 +43,14 @@ if [ -n "${LINSEARCH}" ] && notExists "${TARGET}.linidx"; then
 fi
 
 INTERMEDIATE="${TMP_PATH}/result"
-if notExists "${INTERMEDIATE}"; then
+if notExists "${INTERMEDIATE}.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" "${SEARCH_MODULE}" "${TMP_PATH}/query" "${TARGET}" "${INTERMEDIATE}" "${TMP_PATH}/search_tmp" ${SEARCH_PAR} \
         || fail "Search died"
 fi
 
 if [ -n "${GREEDY_BEST_HITS}" ]; then
-    if notExists "${TMP_PATH}/result_best"; then
+    if notExists "${TMP_PATH}/result_best.dbtype"; then
         # shellcheck disable=SC2086
         "$MMSEQS" summarizeresult "${TMP_PATH}/result" "${TMP_PATH}/result_best" ${SUMMARIZE_PAR} \
             || fail "Search died"
@@ -58,7 +58,7 @@ if [ -n "${GREEDY_BEST_HITS}" ]; then
     INTERMEDIATE="${TMP_PATH}/result_best"
 fi
 
-if notExists "${TMP_PATH}/alis"; then
+if notExists "${TMP_PATH}/alis.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" convertalis "${TMP_PATH}/query" "${TARGET}${INDEXEXT}" "${INTERMEDIATE}" "${TMP_PATH}/alis" ${CONVERT_PAR} \
         || fail "Convert Alignments died"

@@ -405,7 +405,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         std::string result;
         result.reserve(BUFFER_SIZE);
         char buffer[100];
-#pragma omp  for schedule(dynamic, 10)
+#pragma omp  for schedule(dynamic, 2)
         for (size_t id = 0; id < dbr.getSize(); id++) {
             unsigned int dbKey = dbr.getDbKey(id);
             char *data = dbr.getData(id, thread_idx);
@@ -814,7 +814,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             matcher.setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
         }
 
-#pragma omp for schedule(dynamic, 10) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
+#pragma omp for schedule(dynamic, 2) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
         for (size_t id = queryFrom; id < queryFrom + querySize; id++) {
             Debug::printProgress(id);
             // get query sequence
@@ -1021,7 +1021,7 @@ double Prefiltering::setKmerThreshold(DBReader<unsigned int> *qdbr) {
             matcher.setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
         }
 
-        #pragma omp for schedule(dynamic, 10) reduction (+: doubleMatches, kmersPerPos, querySeqLenSum)
+        #pragma omp for schedule(dynamic, 2) reduction (+: doubleMatches, kmersPerPos, querySeqLenSum)
         for (size_t i = 0; i < querySetSize; i++) {
             size_t id = querySeqs[i];
 

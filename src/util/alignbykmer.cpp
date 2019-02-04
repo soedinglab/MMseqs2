@@ -135,7 +135,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 100000000;
-    if (totalMemory > dbr_res.getDataSize()) {
+    if (totalMemory > dbr_res.getTotalDataSize()) {
         flushSize = dbr_res.getSize();
     }
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbr_res.getSize()) / static_cast<double>(flushSize)));
