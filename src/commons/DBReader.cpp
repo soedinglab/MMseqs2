@@ -814,6 +814,7 @@ void DBReader<T>::setData(char *data, size_t dataSize) {
         dataSizeOffset = new size_t[2];
         dataSizeOffset[0] = 0;
         dataSizeOffset[1] = dataSize;
+        totalDataSize = dataSize;
         dataFileCnt = 1;
         dataFiles[0] = data;
     }else{
