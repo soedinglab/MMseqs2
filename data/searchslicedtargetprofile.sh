@@ -106,16 +106,16 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         "$MMSEQS" filterdb "${TMP_PATH}/pref_count" "${TMP_PATH}/pref_keep" \
             --filter-column 1 --comparison-operator ge --comparison-value "${MAX_SEQS}" ${THREADS_PAR} \
             || fail "filterdb died"
-        rm -f "${TMP_PATH}/pref_count" "${TMP_PATH}/pref_count.index" "${TMP_PATH}/pref_count.dbtype"
+        "$MMSEQS" rmdb "${TMP_PATH}/pref_count"
         awk '$3 > 1 { print $1 }' "${TMP_PATH}/pref_keep.index" | sort -k1,1 > "${TMP_PATH}/pref_keep.list"
-        rm -f "${TMP_PATH}/pref_keep" "${TMP_PATH}/pref_keep.index" "${TMP_PATH}/pref_keep.dbtype"
+         "$MMSEQS" rmdb "${TMP_PATH}/pref_keep"
     fi
 
     if notExists "${TMP_PATH}/aln.done"; then
         # shellcheck disable=SC2086
         ${RUNNER} "$MMSEQS" align "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
             || fail "align died"
-        rm -f "${TMP_PATH}/pref" "${TMP_PATH}/pref.index" "${TMP_PATH}/pref.dbtype"
+        "$MMSEQS" rmdb "${TMP_PATH}/pref"
         touch "${TMP_PATH}/aln.done"
     fi
 
@@ -124,7 +124,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         # shellcheck disable=SC2086
         "$MMSEQS" swapresults "${TARGET}" "${INPUT}" "${TMP_PATH}/aln" "${TMP_PATH}/aln_swap" ${SWAP_PAR} \
             || fail "swapresults died"
-        rm -f "${TMP_PATH}/aln" "${TMP_PATH}/aln.index" "${TMP_PATH}/aln.dbtype"
+        "$MMSEQS" rmdb "${TMP_PATH}/aln"
         touch "${TMP_PATH}/aln_swap.done"
     fi
 
@@ -133,10 +133,8 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${INPUT}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} \
             || fail "mergedbs died"
-        mv -f "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged"
-        mv -f "${TMP_PATH}/aln_merged_new.index" "${TMP_PATH}/aln_merged.index"
-        mv -f "${TMP_PATH}/aln_merged_new.dbtype" "${TMP_PATH}/aln_merged.dbtype"
-        rm -f "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_swap.index" "${TMP_PATH}/aln_swap.dbtype"
+        "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged"
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_swap"
         MERGED="${TMP_PATH}/aln_merged"
     fi
 
@@ -145,9 +143,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     "$MMSEQS" sortresult "${MERGED}" "${TMP_PATH}/aln_merged_trunc" ${SORTRESULT_PAR} \
         || fail "sortresult died"
 
-    mv -f "${TMP_PATH}/aln_merged_trunc" "${TMP_PATH}/aln_merged"
-    mv -f "${TMP_PATH}/aln_merged_trunc.index" "${TMP_PATH}/aln_merged.index"
-    mv -f "${TMP_PATH}/aln_merged_trunc.dbtype" "${TMP_PATH}/aln_merged.dbtype"
+    "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_trunc" "${TMP_PATH}/aln_merged"
     
     join "${TMP_PATH}/pref_keep.list" "${PROFILEDB}.index" > "${PROFILEDB}.index.tmp"
     mv -f "${PROFILEDB}.index.tmp" "${PROFILEDB}.index"
