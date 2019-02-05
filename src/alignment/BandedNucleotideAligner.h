@@ -23,7 +23,7 @@ public:
 
     void initQuery(Sequence *q);
 
-    s_align align(Sequence * targetSeqObj, short diagonal, bool reverse,
+    s_align align(Sequence * targetSeqObj, int diagonal, bool reverse,
                   std::string & backtrace, int & aaIds, EvalueComputation * evaluer);
 
 private:

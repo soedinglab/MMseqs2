@@ -178,7 +178,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
 
     //  E =  qL dL * exp^(-S/lambda)
     double evalue = alignment.evalue;
-    int bitScore = static_cast<short>(evaluer->computeBitScore(alignment.score1)+0.5);
+    int bitScore = static_cast<int>(evaluer->computeBitScore(alignment.score1)+0.5);
 
     result_t result;
     if(isReverse){

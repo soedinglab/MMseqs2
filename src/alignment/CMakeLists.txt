@@ -8,6 +8,7 @@ set(alignment_header_files
         alignment/PSSMCalculator.h
         alignment/StripedSmithWaterman.h
         alignment/BandedNucleotideAligner.h
+        alignment/DistanceCalculator.h
         PARENT_SCOPE
         )
 

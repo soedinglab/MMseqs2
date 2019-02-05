@@ -14,7 +14,6 @@
 
 #ifdef OPENMP
 #include <omp.h>
-
 #endif
 
 float parsePrecisionLib(const std::string &scoreFile, double targetSeqid, double targetCov, double targetPrecision) {
@@ -182,50 +181,23 @@ int doRescorediagonal(Parameters &par,
                     if (Util::canBeCovered(par.covThr, par.covMode, queryLength, targetLength) == false) {
                         continue;
                     }
-                    short diagonal = results[entryIdx].diagonal;
-                    unsigned short distanceToDiagonal = abs(diagonal);
-                    unsigned int diagonalLen = 0;
-                    unsigned int distance = 0;
-                    DistanceCalculator::LocalAlignment alignment;
-                    if (diagonal >= 0 && distanceToDiagonal < queryLen) {
-                        diagonalLen = std::min(dbLen, queryLen - distanceToDiagonal);
-                        if (par.rescoreMode == Parameters::RESCORE_MODE_HAMMING) {
-                            distance = DistanceCalculator::computeHammingDistance(
-                                    querySeqToAlign + distanceToDiagonal, targetSeq, diagonalLen);
-                        } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
-                            distance = DistanceCalculator::computeSubstitutionDistance(
-                                    querySeqToAlign + distanceToDiagonal, targetSeq, diagonalLen, fastMatrix.matrix,
-                                    par.globalAlignment);
-                        } else if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
-                            alignment = DistanceCalculator::computeSubstitutionStartEndDistance(
-                                    querySeqToAlign + distanceToDiagonal, targetSeq, diagonalLen, fastMatrix.matrix);
-                            distance = alignment.score;
-                        }
-                    } else if (diagonal < 0 && distanceToDiagonal < dbLen) {
-                        diagonalLen = std::min(dbLen - distanceToDiagonal, queryLen);
-                        if (par.rescoreMode == Parameters::RESCORE_MODE_HAMMING) {
-                            distance = DistanceCalculator::computeHammingDistance(
-                                    querySeqToAlign, targetSeq + distanceToDiagonal, diagonalLen);
-                        } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
-                            distance = DistanceCalculator::computeSubstitutionDistance(
-                                    querySeqToAlign, targetSeq + distanceToDiagonal, diagonalLen, fastMatrix.matrix,
-                                    par.globalAlignment);
-                        } else if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
-                            alignment = DistanceCalculator::computeSubstitutionStartEndDistance(
-                                    querySeqToAlign, targetSeq + distanceToDiagonal, diagonalLen, fastMatrix.matrix);
-                            distance = alignment.score;
-                        }
-                    }
-
+                    DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeUngappedAlignment(
+                                                                                      querySeqToAlign, queryLen, targetSeq, targetLength,
+                                                                                      results[entryIdx].diagonal, fastMatrix.matrix, par.rescoreMode);
+                    unsigned int distanceToDiagonal = alignment.distToDiagonal;
+                    int diagonalLen = alignment.diagonalLen;
+                    int distance = alignment.score;
+                    int diagonal = alignment.diagonal;
                     double seqId = 0;
                     double evalue = 0.0;
+                    int bitScore = 0;
                     int alnLen = 0;
                     float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(dbLen);
                     float queryCov = static_cast<float>(diagonalLen) / static_cast<float>(queryLen);
 
                     Matcher::result_t result;
                     if (par.rescoreMode == Parameters::RESCORE_MODE_HAMMING) {
-                        int idCnt = (static_cast<float>(diagonalLen) - static_cast<float>(distance));
+                        int idCnt = (static_cast<float>(distance));
                         seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, diagonalLen);
                         alnLen = diagonalLen;
                     } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION ||
@@ -236,7 +208,7 @@ int doRescorediagonal(Parameters &par,
                             seqId = globalAliStat.getPvalGlobalAli((float) distance, diagonalLen);
                         } else {
                             evalue = evaluer.computeEvalue(distance, queryLen);
-                            int bitScore = static_cast<short>(evaluer.computeBitScore(distance) + 0.5);
+                            bitScore = static_cast<int>(evaluer.computeBitScore(distance) + 0.5);
 
                             if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
                                 alnLen = (alignment.endPos - alignment.startPos) + 1;
@@ -301,7 +273,7 @@ int doRescorediagonal(Parameters &par,
                         } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
                             hit_t hit;
                             hit.seqId = results[entryIdx].seqId;
-                            hit.prefScore = result.score;
+                            hit.prefScore = bitScore;
                             hit.diagonal = diagonal;
                             shortResults.emplace_back(hit);
                         } else {

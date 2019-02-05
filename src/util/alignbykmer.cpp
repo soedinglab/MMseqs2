@@ -441,7 +441,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
                     const float seqId = static_cast<float>(ids)/static_cast<float>(alnLen);
 
-                    int bitScore = static_cast<short>(evaluer.computeBitScore(score)+0.5);
+                    int bitScore = static_cast<int>(evaluer.computeBitScore(score)+0.5);
 
                     const double evalue = evaluer.computeEvalue(score, query.L);
                     // query/target cov mode

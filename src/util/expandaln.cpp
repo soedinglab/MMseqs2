@@ -65,7 +65,7 @@ void rescoreResultByBacktrace(Matcher::result_t &result, Sequence &qSeq, Sequenc
         lastState = state;
     }
     result.eval = evaluer.computeEvalue(score, qSeq.L);
-    result.score = static_cast<short>(evaluer.computeBitScore(score)+0.5);
+    result.score = static_cast<int>(evaluer.computeBitScore(score)+0.5);
     result.seqId = Util::computeSeqId(seqIdMode, identities, qSeq.L, tSeq.L, result.backtrace.size());
 }
 

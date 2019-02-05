@@ -8,6 +8,7 @@
 #include "simd.h"
 #include "MathUtil.h"
 #include "BaseMatrix.h"
+#include "Parameters.h"
 
 class DistanceCalculator {
 public:
@@ -31,8 +32,7 @@ public:
                 max = (score > max)? score : max;
             }
         }
-        if (max<0)
-            max = 0;
+        max = (max<0) ? 0 : max;
             
         return max;
     }
@@ -43,12 +43,81 @@ public:
         int startPos;
         int endPos;
         unsigned int score;
+        unsigned int diagonalLen;
+        unsigned int distToDiagonal;
+        int diagonal;
+
         LocalAlignment(int startPos, int endPos, int score)
-        : startPos(startPos), endPos(endPos), score(score)
+        : startPos(startPos), endPos(endPos), score(score), diagonalLen(0), distToDiagonal(0), diagonal(0)
         {}
-        LocalAlignment() : startPos(-1), endPos(-1), score(-1)  {}
+        LocalAlignment() : startPos(-1), endPos(-1), score(0), diagonalLen(0), distToDiagonal(0), diagonal(0)  {}
 
     };
+
+    template<typename T>
+    static LocalAlignment computeUngappedAlignment(const T *querySeq, unsigned int querySeqLen,
+                                                         const T *dbSeq, unsigned int dbSeqLen,
+                                                         const unsigned short diagonal, const char **subMat, int alnMode){
+        LocalAlignment max;
+        for(unsigned int devisions = 1; devisions <= 1 + dbSeqLen / 32768; devisions++) {
+            int realDiagonal = (-devisions * 65536  + diagonal);
+            LocalAlignment tmp = ungappedAlignmentByDiagonal(querySeq, querySeqLen, dbSeq, dbSeqLen, realDiagonal, subMat, alnMode);
+            if(tmp.score > max.score){
+                max = tmp;
+            }
+        }
+        for(unsigned int devisions = 0; devisions <= querySeqLen / 65536; devisions++) {
+            int realDiagonal = (devisions * 65536 + diagonal);
+            LocalAlignment tmp = ungappedAlignmentByDiagonal(querySeq, querySeqLen, dbSeq, dbSeqLen, realDiagonal, subMat, alnMode);
+            if(tmp.score > max.score){
+                max = tmp;
+            }
+        }
+        return  max;
+    }
+
+    template<typename T>
+    static LocalAlignment ungappedAlignmentByDiagonal(const T * querySeq, unsigned int querySeqLen,
+                                                      const T * dbSeq,  unsigned int dbSeqLen,
+                                                      int diagonal, const char **subMat, int alnMode) {
+        unsigned int minDistToDiagonal = abs(diagonal);
+        LocalAlignment res;
+        res.distToDiagonal = minDistToDiagonal;
+        res.diagonal = diagonal;
+        if (diagonal >= 0 && minDistToDiagonal < querySeqLen) {
+            unsigned int minSeqLen = std::min(dbSeqLen, querySeqLen - minDistToDiagonal);
+            res.diagonalLen = minSeqLen;
+            if (alnMode == Parameters::RESCORE_MODE_HAMMING) {
+                res.score = DistanceCalculator::computeInverseHammingDistance(querySeq + minDistToDiagonal, dbSeq,
+                                                                              minSeqLen);
+            } else if (alnMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
+                res.score = DistanceCalculator::computeSubstitutionDistance(
+                        querySeq + minDistToDiagonal, dbSeq, minSeqLen, subMat, false);
+            } else if (alnMode == Parameters::RESCORE_MODE_ALIGNMENT) {
+                LocalAlignment tmp = computeSubstitutionStartEndDistance(querySeq + minDistToDiagonal, dbSeq, minSeqLen, subMat);
+                res.score = tmp.score;
+                res.startPos = tmp.startPos;
+                res.endPos = tmp.endPos;
+            }
+        } else if (diagonal < 0 && minDistToDiagonal < dbSeqLen) {
+            unsigned int minSeqLen = std::min(dbSeqLen - minDistToDiagonal, querySeqLen);
+            res.diagonalLen = minSeqLen;
+            if (alnMode == Parameters::RESCORE_MODE_HAMMING) {
+                res.score = DistanceCalculator::computeInverseHammingDistance(querySeq, dbSeq + minDistToDiagonal,
+                                                                              minSeqLen);
+            } else if (alnMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
+                res.score = DistanceCalculator::computeSubstitutionDistance(
+                        querySeq, dbSeq + minDistToDiagonal, minSeqLen, subMat, false);
+            } else if (alnMode == Parameters::RESCORE_MODE_ALIGNMENT) {
+                LocalAlignment tmp = computeSubstitutionStartEndDistance(querySeq, dbSeq + minDistToDiagonal, minSeqLen, subMat);
+                res.score = tmp.score;
+                res.startPos = tmp.startPos;
+                res.endPos = tmp.endPos;
+            }
+        }
+        return res;
+    }
+
 
     template<typename T>
     static LocalAlignment computeSubstitutionStartEndDistance(const T *seq1,
@@ -75,7 +144,8 @@ public:
         return LocalAlignment(maxStartPos, maxEndPos, maxScore);
     }
 
-    static unsigned int computeHammingDistance(const char *seq1, const char *seq2, unsigned int length){
+    template<typename T>
+    static unsigned int computeInverseHammingDistance(const T *seq1, const T *seq2, unsigned int length){
         unsigned int diff = 0;
         unsigned int simdBlock = length/(VECSIZE_INT*4);
         simd_int * simdSeq1 = (simd_int *) seq1;
@@ -93,7 +163,7 @@ public:
         for (unsigned int pos = simdBlock*(VECSIZE_INT*4); pos < length; pos++ ) {
             diff += (seq1[pos] == seq2[pos]);
         }
-        return length-diff;
+        return diff;
     }
 
 

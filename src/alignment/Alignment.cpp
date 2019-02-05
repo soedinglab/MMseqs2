@@ -301,13 +301,13 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
 
                     size_t elements = Util::getWordsOfLine(data, words, 10);
-                    int diagonal = INT_MAX;
+                    short diagonal = 0;
                     bool isReverse = false;
                     // Prefilter result (need to make this better)
                     if(elements == 3){
                         hit_t hit = QueryMatcher::parsePrefilterHit(data);
                         isReverse = (reversePrefilterResult) ? hit.prefScore : false;
-                        diagonal = hit.diagonal;
+                        diagonal = static_cast<short>(hit.diagonal);
                     }
 
                     char *dbSeqData = tdbr->getDataByDBKey(dbKey, thread_idx);
@@ -326,7 +326,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     const bool isIdentity = (queryDbKey == dbKey && (includeIdentity || sameQTDB)) ? true : false;
 
                     // calculate Smith-Waterman alignment
-                    Matcher::result_t res = matcher.getSWResult(&dbSeq, diagonal, isReverse, covMode, covThr, evalThr, swMode, seqIdMode, isIdentity);
+                    Matcher::result_t res = matcher.getSWResult(&dbSeq, static_cast<int>(diagonal), isReverse, covMode, covThr, evalThr, swMode, seqIdMode, isIdentity);
                     alignmentsNum++;
 
                     //set coverage and seqid if identity
