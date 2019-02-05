@@ -33,7 +33,7 @@ public:
     //Run parallel
     void run(const std::string &outDB, const std::string &outDBIndex,
              const size_t dbFrom, const size_t dbSize,
-             const unsigned int maxAlnNum, const unsigned int maxRejected);
+             const unsigned int maxAlnNum, const unsigned int maxRejected, bool merge);
 
     static bool checkCriteria(Matcher::result_t &res, bool isIdentity, double evalThr, double seqIdThr, int alnLenThr, int covMode, float covThr);
 

@@ -211,7 +211,7 @@ void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
 
     Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << (dbFrom + dbSize) << "\n";
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outDB, outDBIndex, mpiRank);
-    run(tmpOutput.first, tmpOutput.second, dbFrom, dbSize, maxAlnNum, maxRejected);
+    run(tmpOutput.first, tmpOutput.second, dbFrom, dbSize, maxAlnNum, maxRejected, true);
 
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
@@ -229,12 +229,12 @@ void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
 }
 
 void Alignment::run(const unsigned int maxAlnNum, const unsigned int maxRejected) {
-    run(outDB, outDBIndex, 0, prefdbr->getSize(), maxAlnNum, maxRejected);
+    run(outDB, outDBIndex, 0, prefdbr->getSize(), maxAlnNum, maxRejected, false);
 }
 
 void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     const size_t dbFrom, const size_t dbSize,
-                    const unsigned int maxAlnNum, const unsigned int maxRejected) {
+                    const unsigned int maxAlnNum, const unsigned int maxRejected, bool merge) {
     size_t alignmentsNum = 0;
     size_t totalPassedNum = 0;
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_ALIGNMENT_RES);
@@ -405,7 +405,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
         }
     }
 
-    dbw.close();
+    dbw.close(merge);
 
     Debug(Debug::INFO) << "\nAll sequences processed.\n\n";
     Debug(Debug::INFO) << alignmentsNum << " alignments calculated.\n";

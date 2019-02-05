@@ -20,7 +20,7 @@
 #endif
 
 int result2msa(Parameters &par, const std::string &resultData, const std::string &resultIndex,
-               const size_t dbFrom, const size_t dbSize, DBConcat *referenceDBr = NULL) {
+               const size_t dbFrom, const size_t dbSize, bool merge, DBConcat *referenceDBr = NULL) {
     if (par.compressMSA && referenceDBr == NULL) {
         Debug(Debug::ERROR) << "Need a sequence and header database for ca3m output!\n";
         EXIT(EXIT_FAILURE);
@@ -300,7 +300,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
     }
 
     // cleanup
-    resultWriter.close();
+    resultWriter.close(merge);
     resultReader.close();
     queryHeaderReader.close();
     qDbr.close();
@@ -359,7 +359,7 @@ int result2msa(Parameters &par) {
         outIndex.append("_ca3m.ffindex");
     }
 
-    int status = result2msa(par, outDb, outIndex, 0, resultSize, referenceDBr);
+    int status = result2msa(par, outDb, outIndex, 0, resultSize, false, referenceDBr);
 
     if (referenceDBr != NULL) {
         referenceDBr->close();
@@ -424,7 +424,7 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
     }
 
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outDb, outIndex, mpiRank);
-    int status = result2msa(par, tmpOutput.first, tmpOutput.second, dbFrom, dbSize, referenceDBr);
+    int status = result2msa(par, tmpOutput.first, tmpOutput.second, dbFrom, dbSize, true, referenceDBr);
 
     // close reader to reduce memory
     if (referenceDBr != NULL) {

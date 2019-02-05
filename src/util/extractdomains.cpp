@@ -300,7 +300,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
         }
     }
 
-    writer.close();
+    writer.close(true);
     msaReader.close();
 
     if (headerReader != NULL) {

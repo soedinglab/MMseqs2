@@ -255,7 +255,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
     }
 
     // cleanup
-    resultWriter.close();
+    resultWriter.close(true);
 
     resultReader->close();
     delete resultReader;

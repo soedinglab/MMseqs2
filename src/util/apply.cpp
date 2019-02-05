@@ -351,7 +351,7 @@ int apply(int argc, const char **argv, const Command& command) {
                 }
 
                 Debug::setDebugLevel(0);
-                writer.close();
+                writer.close(true);
                 reader.close();
                 free_local_environment(local_environ);
                 _Exit(0);
