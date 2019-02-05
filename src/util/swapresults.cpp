@@ -212,7 +212,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
         }
 
         std::string splitDbw = parOutDbStr + "_" + SSTR(split);
-        std::pair<std::string, std::string> splitNamePair = std::make_pair(splitDbw, splitDbw + ".index");
+        std::pair<std::string, std::string> splitNamePair = (splits.size() > 1) ? std::make_pair(splitDbw, splitDbw + ".index") :
+                                                                                  std::make_pair(parOutDb, parOutDbIndex) ;
         splitFileNames.push_back(splitNamePair);
 
         DBWriter resultWriter(splitNamePair.first.c_str(), splitNamePair.second.c_str(), par.threads, par.compressed, resultDbr.getDbtype());
@@ -316,14 +317,19 @@ int doswap(Parameters& par, bool isGeneralMode) {
             }
         };
         Debug(Debug::INFO) << "\n";
-
-        resultWriter.close();
+        if(splits.size() > 1){
+            resultWriter.close(true);
+        }else{
+            resultWriter.close();
+        }
 
         prevDbKeyToWrite = dbKeyToWrite + 1;
         prevBytesToWrite += bytesToWrite;
         delete[] tmpData;
     }
-    DBWriter::mergeResults(parOutDbStr, parOutDbIndexStr, splitFileNames);
+    if(splits.size() > 1){
+        DBWriter::mergeResults(parOutDbStr, parOutDbIndexStr, splitFileNames);
+    }
 
     resultDbr.close();
     if (targetElementExists != NULL) {
