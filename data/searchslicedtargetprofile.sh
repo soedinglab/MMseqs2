@@ -159,9 +159,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     STEP="$((STEP+1))"
 done
 
-mv -f "${TMP_PATH}/aln_merged" "${RESULT}"
-mv -f "${TMP_PATH}/aln_merged.index" "${RESULT}.index"
-mv -f "${TMP_PATH}/aln_merged.dbtype" "${RESULT}.dbtype"
+"$MMSEQS" mvdb "${TMP_PATH}/aln_merged" "${RESULT}"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
