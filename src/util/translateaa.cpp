@@ -82,7 +82,7 @@ int translateaa(int argc, const char **argv, const Command &command) {
         }
         delete[] aa;
     }
-    writer.close();
+    writer.close(true);
     reader.close();
 
     return EXIT_SUCCESS;

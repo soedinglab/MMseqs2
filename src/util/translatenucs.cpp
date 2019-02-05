@@ -124,7 +124,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         }
         delete[] aa;
     }
-    writer.close();
+    writer.close(true);
 
     FileUtil::symlinkAbs(par.hdr1, par.hdr2);
     FileUtil::symlinkAbs(par.hdr1Index, par.hdr2Index);
