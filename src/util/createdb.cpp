@@ -305,7 +305,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         splitCounter++;
     }
     lookupFile.close(true);
-    FileUtil::deleteFile(lookupIndexFile);
+    FileUtil::remove(lookupIndexFile.c_str());
     delete[] sourceLookup;
 
     return EXIT_SUCCESS;

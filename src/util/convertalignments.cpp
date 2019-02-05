@@ -427,7 +427,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     // tsv output
     resultWriter.close(true);
     if (isDb == false) {
-        FileUtil::deleteFile(par.db4Index);
+        FileUtil::remove(par.db4Index.c_str());
     }
 
     alnDbr.close();

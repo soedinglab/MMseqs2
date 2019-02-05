@@ -26,6 +26,8 @@ extern int createlinindex(int argc, const char **argv, const Command& command);
 extern int createseqfiledb(int argc, const char **argv, const Command& command);
 extern int createsubdb(int argc, const char **argv, const Command& command);
 extern int view(int argc, const char **argv, const Command& command);
+extern int rmdb(int argc, const char **argv, const Command& command);
+extern int mvdb(int argc, const char **argv, const Command& command);
 extern int createtsv(int argc, const char **argv, const Command& command);
 extern int dbtype(int argc, const char **argv, const Command& command);
 extern int decompress(int argc, const char **argv, const Command &command);

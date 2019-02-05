@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <list>
 #include <string>
+#include <vector>
 
 class FileUtil {
 
@@ -26,8 +27,6 @@ public:
 
     static void munmapData(void * ptr, size_t dataSize);
 
-    static void deleteFile(const std::string &tmpFiles);
-
     static void writeFile(const std::string &pathToFile, const unsigned char *sh, size_t len);
 
     static std::string dirName(const std::string &file);
@@ -46,6 +45,12 @@ public:
     static void copyFile(const char *src, const char *dst);
 
     static FILE *openAndDelete(const char *fileName, const char *mode);
+
+    static std::vector<std::string> findDatafiles(const char * datafiles);
+
+    static void remove(const char * file);
+
+    static void move(const char * src, const char * dst);
 };
 
 

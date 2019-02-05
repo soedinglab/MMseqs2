@@ -84,16 +84,11 @@ size_t FileUtil::countLines(const char* name) {
 }
 
 
-void FileUtil::deleteFile(const std::string &file) {
-    if (remove(file.c_str()) != 0) {
-        Debug(Debug::WARNING) << "Error deleting file " << file << "\n";
-    }
-}
-
 void FileUtil::deleteTempFiles(const std::list<std::string> &tmpFiles) {
     for (std::list<std::string>::const_iterator it = tmpFiles.begin(); it != tmpFiles.end(); it++) {
         Debug(Debug::INFO) << "Deleting " << *it << "\n";
-        deleteFile(*it);
+        std::string file = *it;
+        FileUtil::remove(file.c_str());
     }
 }
 
@@ -172,9 +167,8 @@ void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
     }
 
     std::string pathToAlias = (path + "/" + alias);
-    if (symlinkExists(pathToAlias) == true && remove(pathToAlias.c_str()) != 0){
-        Debug(Debug::ERROR) << "Could not remove old symlink " << pathToAlias << "!\n";
-        EXIT(EXIT_FAILURE);
+    if (symlinkExists(pathToAlias) == true){
+        FileUtil::remove(pathToAlias.c_str());
     }
 
     if (symlinkat(base.c_str(), dirfd(dir), alias.c_str()) != 0) {
@@ -209,9 +203,8 @@ void FileUtil::symlinkAbs(const std::string &target, const std::string &link) {
         }
     } else {
         realLink = l;
-        if (symlinkExists(realLink) == true && remove(realLink.c_str()) != 0){
-            Debug(Debug::ERROR) << "Could not remove old symlink " << link << "!\n";
-            EXIT(EXIT_FAILURE);
+        if (symlinkExists(realLink) == true){
+            FileUtil::remove(realLink.c_str());
         }
     }
 
@@ -265,7 +258,7 @@ FILE * FileUtil::openAndDelete(const char *fileName, const char *mode) {
             Debug(Debug::ERROR) << "Can not open " << fileName << " for writing. It is a directory.\n";
             EXIT(EXIT_FAILURE);
         }else {
-            FileUtil::deleteFile(fileName);
+            FileUtil::remove(fileName);
         }
     }
     FILE * file = fopen(fileName, mode);
@@ -275,3 +268,59 @@ FILE * FileUtil::openAndDelete(const char *fileName, const char *mode) {
     }
     return file;
 }
+
+std::vector<std::string> FileUtil::findDatafiles(const char * datafiles){
+    std::string baseName = std::string(datafiles);
+    std::string checkName = baseName + ".0";
+    std::vector<std::string> filenames;
+    size_t cnt = 0;
+    while(FileUtil::fileExists(checkName.c_str()) == true){
+        filenames.push_back(checkName);
+        cnt++;
+        checkName = baseName + "." + SSTR(cnt);
+    }
+    if(cnt == 0){
+        if(FileUtil::fileExists(baseName.c_str())){
+            filenames.push_back(baseName);
+        }
+    }
+    return filenames;
+}
+
+void FileUtil::remove(const char * file ) {
+    if (std::remove(file) != 0){
+        Debug(Debug::ERROR) << "Could delete " << file << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
+
+void FileUtil::move(const char * src, const char * dst) {
+    struct stat srcFileInfo;
+    FILE * srcFile = FileUtil::openFileOrDie(src, "rw", true);
+    if (fstat(fileno(srcFile), &srcFileInfo) < 0) {
+        int errsv = errno;
+        Debug(Debug::ERROR) << "Failed to fstat File=" << src << ". Error " << errsv << ".\n";
+        EXIT(EXIT_FAILURE);
+    }
+    struct stat srcDirInfo;
+    std::string dirName = FileUtil::dirName(dst);
+    FILE * dstDir = FileUtil::openFileOrDie(dirName.c_str(), "r", true);
+    if (fstat(fileno(dstDir), &srcDirInfo) < 0) {
+        int errsv = errno;
+        Debug(Debug::ERROR) << "Failed to fstat File=" << dstDir << ". Error " << errsv << ".\n";
+        EXIT(EXIT_FAILURE);
+    }
+    bool sameFileSystem = (srcDirInfo.st_dev == srcFileInfo.st_dev);
+    fclose(srcFile);
+    fclose(dstDir);
+    if(sameFileSystem){
+        if (std::rename(src, dst) != 0){
+            Debug(Debug::ERROR) << "Could not copy file " << src << " to " << dst << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }else{
+        FileUtil::copyFile(src, dst);
+        FileUtil::remove(src);
+    }
+}
+

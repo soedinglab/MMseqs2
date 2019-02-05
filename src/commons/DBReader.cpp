@@ -97,24 +97,6 @@ template <typename T> DBReader<T>::~DBReader(){
     }
 }
 
-template <typename T>
-std::vector<std::string> DBReader<T>::findDatafiles(char * datafiles){
-    std::string baseName = std::string(datafiles);
-    std::string checkName = baseName + ".0";
-    std::vector<std::string> filenames;
-    size_t cnt = 0;
-    while(FileUtil::fileExists(checkName.c_str()) == true){
-        filenames.push_back(checkName);
-        cnt++;
-        checkName = baseName + "." + SSTR(cnt);
-    }
-    if(cnt == 0){
-        if(FileUtil::fileExists(baseName.c_str())){
-            filenames.push_back(baseName);
-        }
-    }
-    return filenames;
-}
 
 
 
@@ -126,7 +108,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
     }
 
     if (dataMode & USE_DATA) {
-        dataFileNames = findDatafiles(dataFileName);
+        dataFileNames = FileUtil::findDatafiles(dataFileName);
         if(dataFileNames.size() == 0){
             Debug(Debug::ERROR) << "No datafile could be found for " << dataFileName << "!\n";
             EXIT(EXIT_FAILURE);

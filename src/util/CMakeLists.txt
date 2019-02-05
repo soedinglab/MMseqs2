@@ -32,6 +32,8 @@ set(util_source_files
         util/mergeresultsbyset.cpp
         util/mergedbs.cpp
         util/msa2profile.cpp
+        util/mvdb.cpp
+
         util/prefixid.cpp
         util/profile2cs.cpp
         util/profile2pssm.cpp
@@ -42,6 +44,7 @@ set(util_source_files
         util/result2repseq.cpp
         util/result2stats.cpp
         util/reverseseq.cpp
+        util/rmdb.cpp
         util/shellcompletion.cpp
         util/extractframes.cpp
         util/sortresult.cpp

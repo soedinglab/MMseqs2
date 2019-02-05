@@ -1307,6 +1307,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db6 = filenames[5];
             db6Index = db6;
             db6Index.append(".index");
+            db6dbtype = db6;
+            db6dbtype.append(".dbtype");
             hdr6 = db6;
             hdr6.append("_h");
             hdr6Index = hdr6;
@@ -1316,6 +1318,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db5 = filenames[4];
             db5Index = db5;
             db5Index.append(".index");
+            db5dbtype = db5;
+            db5dbtype.append(".dbtype");
             hdr5 = db5;
             hdr5.append("_h");
             hdr5Index = hdr5;
@@ -1325,6 +1329,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db4 = filenames[3];
             db4Index = db4;
             db4Index.append(".index");
+            db4dbtype = db4;
+            db4dbtype.append(".dbtype");
             hdr4 = db4;
             hdr4.append("_h");
             hdr4Index = hdr4;
@@ -1334,6 +1340,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db3 = filenames[2];
             db3Index = db3;
             db3Index.append(".index");
+            db3dbtype = db3;
+            db3dbtype.append(".dbtype");
             hdr3 = db3;
             hdr3.append("_h");
             hdr3Index = hdr3;
@@ -1343,6 +1351,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db2 = filenames[1];
             db2Index = db2;
             db2Index.append(".index");
+            db2dbtype = db2;
+            db2dbtype.append(".dbtype");
             hdr2 = db2;
             hdr2.append("_h");
             hdr2Index = hdr2;
@@ -1352,6 +1362,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db1 = filenames[0];
             db1Index = db1;
             db1Index.append(".index");
+            db1dbtype = db1;
+            db1dbtype.append(".dbtype");
             hdr1 = db1;
             hdr1.append("_h");
             hdr1Index = hdr1;

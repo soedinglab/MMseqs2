@@ -38,8 +38,6 @@ public:
 
     bool open(int sort);
 
-    std::vector<std::string> findDatafiles(char * dataFileName);
-
     void close();
 
     const char* getDataFileName() { return dataFileName; }

@@ -585,7 +585,7 @@ void DBWriter::mergeResultsNormal(const char *outFileName, const char *outFileNa
     }
 
     DBWriter::sortIndex(indexFileNames[0], outFileNameIndex, lexicographicOrder);
-
+    FileUtil::remove(indexFileNames[0]);
     Debug(Debug::INFO) << "Time for merging files: " << timer.lap() << "\n";
 }
 
@@ -645,6 +645,7 @@ void DBWriter::mergeResultsIndexOnly(const char *outFileName, const char *outFil
         }
         mergeIndex(indexFileNames, threadDataFileSizes, fileCount);
         DBWriter::sortIndex(indexFileNames[0], outFileNameIndex, lexicographicOrder);
+        FileUtil::remove(indexFileNames[0]);
     } else {
         if (std::rename(dataFileNames[0], outFileName) != 0) {
             Debug(Debug::ERROR) << "Could not move result " << dataFileNames[0] << " to final location " << outFileName << "!\n";

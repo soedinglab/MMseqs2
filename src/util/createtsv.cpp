@@ -4,9 +4,11 @@
 #include "Debug.h"
 #include "Util.h"
 #include "IndexReader.h"
+#include "FileUtil.h"
 
 #ifdef OPENMP
 #include <omp.h>
+
 #endif
 
 #ifndef SIZE_T_MAX
@@ -164,9 +166,9 @@ int createtsv(int argc, const char **argv, const Command &command) {
 
     if (par.dbOut == false) {
         if (hasTargetDB) {
-            std::remove(par.db4Index.c_str());
+            FileUtil::remove(par.db4Index.c_str());
         } else {
-            std::remove(par.db3Index.c_str());
+            FileUtil::remove(par.db3Index.c_str());
         }
     }
 
