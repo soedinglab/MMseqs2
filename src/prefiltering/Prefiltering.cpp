@@ -598,8 +598,8 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
         FileUtil::copyFile(result.first.c_str(), resultShared.first.c_str());
         FileUtil::copyFile(result.second.c_str(), resultShared.second.c_str());
         // copy exits on failure so if here - copy succeeded, local can be deleted
-        FileUtil::deleteFile(result.first);
-        FileUtil::deleteFile(result.second);
+        FileUtil::remove(result.first);
+        FileUtil::remove(result.second);
     }
     int hasResult = hasTmpResult;
 
