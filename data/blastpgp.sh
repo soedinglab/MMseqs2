@@ -27,7 +27,7 @@ STEP=0
 [ -z "$NUM_IT" ] && NUM_IT=3;
 while [ $STEP -lt $NUM_IT ]; do
     # call prefilter module
-    if notExists "$TMP_PATH/pref_$STEP"; then
+    if notExists "$TMP_PATH/pref_$STEP.dbtype"; then
         PARAM="PREFILTER_PAR_$STEP"
         eval TMP="\$$PARAM"
         # shellcheck disable=SC2086
@@ -49,7 +49,7 @@ while [ $STEP -lt $NUM_IT ]; do
     fi
 
 	# call alignment module
-	if notExists "$TMP_PATH/aln_$STEP"; then
+	if notExists "$TMP_PATH/aln_$STEP.dbtype"; then
 	    PARAM="ALIGNMENT_PAR_$STEP"
         eval TMP="\$$PARAM"
         STEPONE=$((STEP+1))
