@@ -189,6 +189,7 @@ Parameters::Parameters():
         PARAM_SIMPLE_BEST_HIT(PARAM_SIMPLE_BEST_HIT_ID, "--simple-best-hit", "Use Simple Best Hit", "Update the p-value by a single best hit, or by best and second best hits", typeid(bool), (void*) &simpleBestHit, ""),
         PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining p-values during aggregation", typeid(float), (void*) &alpha, ""),
         PARAM_SHORT_OUTPUT(PARAM_SHORT_OUTPUT_ID, "--short-output", "Short output", "The output database will contain only the spread p-value", typeid(bool), (void*) &shortOutput, ""),
+        PARAM_AGGREGATION_MODE(PARAM_AGGREGATION_MODE_ID, "--aggregation-mode", "Aggregation mode", "Combined P-values computed from 0) multi-hit, 1)minimum of all P-values, 2)product-of-P-values, 3)truncated product", typeid(int), (void*) &aggregationMode, "^[0-4]{1}$"),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         // offsetalignment
@@ -650,6 +651,7 @@ Parameters::Parameters():
 
     // combinepvalperset
     combinepvalbyset.push_back(&PARAM_ALPHA);
+    combinepvalbyset.push_back(&PARAM_AGGREGATION_MODE);
 //    combinepvalperset.push_back(&PARAM_SHORT_OUTPUT);
     combinepvalbyset.push_back(&PARAM_THREADS);
     combinepvalbyset.push_back(&PARAM_COMPRESSED);
@@ -1536,6 +1538,7 @@ void Parameters::setDefaults() {
     simpleBestHit = true; 
     alpha = 1;
     shortOutput = false;
+    aggregationMode = 0;
 
     // concatdbs
     preserveKeysB = false;

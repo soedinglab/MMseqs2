@@ -33,8 +33,9 @@ public :
         double bestScore = -DBL_MAX;
         double secondBestScore = -DBL_MAX;
         double bestEval = DBL_MAX;
+        double logBestHitCalibration = log(5);
 
-        double correctedPval = 0;
+        double logCorrectedPval = 0;
 
         // Look for the lowest p-value and retain only this line
         // dataToAggregate = [nbrTargetGene][Field of result]
@@ -75,17 +76,26 @@ public :
 
 
         if (simpleBestHitMode ||dataToAggregate.size() < 2) {
-            correctedPval = 1 - exp(-bestEval);
+            if(bestEval == 0) {
+                logCorrectedPval = log(DBL_MIN)-logBestHitCalibration;
+            }
+            else if (bestEval > 0 && bestEval < 10e-4){
+                logCorrectedPval = log(bestEval)-logBestHitCalibration;
+            }
+            else {
+                logCorrectedPval = log(1 - exp(-bestEval))-logBestHitCalibration;
+            }
+            
         } 
         else {
-            correctedPval = exp(secondBestScore - bestScore);
+            logCorrectedPval = secondBestScore - bestScore;
         }
 
         // Aggregate the full line into string
         for (size_t i = 0; i < bestEntry->size(); ++i) {
             if (i == 1) {
                 char tmpBuf[15];
-                sprintf(tmpBuf, "%.3E", correctedPval);
+                sprintf(tmpBuf, "%.3E", logCorrectedPval);
                 buffer.append(tmpBuf);
             } else {
                 buffer.append(bestEntry->at(i));
