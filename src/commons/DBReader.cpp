@@ -11,7 +11,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <omptl/omptl_algorithm>
-
+#include <fcntl.h>
 
 #include "MemoryMapped.h"
 #include "Debug.h"
