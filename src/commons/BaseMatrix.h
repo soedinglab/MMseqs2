@@ -20,7 +20,6 @@ public:
 
     // substitution matrix
     short** subMatrix;
-
     // substitution matrix for pseudocounts
     float** subMatrixPseudoCounts;
 

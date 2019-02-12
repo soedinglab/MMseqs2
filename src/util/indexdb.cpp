@@ -15,7 +15,7 @@ void setIndexDbDefaults(Parameters *p) {
 
 bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, const int dbtype) {
     PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
-    if (meta.compBiasCorr != (par.compBiasCorrection == 1))
+    if (meta.compBiasCorr != par.compBiasCorrection)
         return false;
     if (meta.maxSeqLength != static_cast<int>(par.maxSeqLen))
         return false;
@@ -25,7 +25,7 @@ bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, con
         return false;
     if (meta.kmerSize != par.kmerSize)
         return false;
-    if (meta.mask != (par.maskMode > 0))
+    if (meta.mask != par.maskMode)
         return false;
     if (meta.kmerThr != par.kmerScore)
         return false;
@@ -33,11 +33,10 @@ bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, con
         return false;
     if (par.scoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
         return false;
-    if (meta.headers1 != par.includeHeader)
-        return false;
+
     if (par.spacedKmerPattern != PrefilteringIndexReader::getSpacedPattern(&index))
         return false;
-    if (meta.headers2 == 1 && par.includeHeader && (par.db1 != par.db2))
+    if (meta.headers2 == 1 && (par.db1 != par.db2))
         return true;
     return true;
 }
@@ -45,7 +44,6 @@ bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, con
 int indexdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setIndexDbDefaults(&par);
-    par.overrideParameterDescription((Command &) command, par.PARAM_MASK_RESIDUES.uniqid, "0: w/o low complexity masking, 1: with low complexity masking, 2: add both masked and unmasked sequences to index", "^[0-2]{1}", par.PARAM_MASK_RESIDUES.category);
     par.parseParameters(argc, argv, command, 2);
 
     if (par.split > 1) {
@@ -97,7 +95,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     // query seq type is actually unknown here, but if we pass DBTYPE_HMM_PROFILE then its +20 k-score
     par.kmerScore = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, par.kmerScore, par.kmerSize);
 
-    std::string indexDB = PrefilteringIndexReader::indexName(par.db2, par.spacedKmer, par.kmerSize);
+    std::string indexDB = PrefilteringIndexReader::indexName(par.db2);
     if (par.checkCompatible && FileUtil::fileExists(indexDB.c_str())) {
         Debug(Debug::INFO) << "Check index " << indexDB << "\n";
         DBReader<unsigned int> index(indexDB.c_str(), (indexDB + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
@@ -112,7 +110,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> *hdbr1 = NULL;
     DBReader<unsigned int> *hdbr2 = NULL;
-    if (par.includeHeader == true) {
+    {
         hdbr1 = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         hdbr1->open(DBReader<unsigned int>::NOSORT);
         if (sameDB == false) {

@@ -20,8 +20,9 @@
 
 template <typename T>
 DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int threads, int dataMode) :
-        data(NULL), threads(threads), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
-        indexFileName(strdup(indexFileName_)), size(0), dataSize(0), aaDbSize(0), lastKey(T()), closed(1), dbtype(Parameters::DBTYPE_GENERIC_DB),
+threads(threads), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
+        indexFileName(strdup(indexFileName_)), size(0), dataFiles(NULL), dataSizeOffset(NULL), dataFileCnt(0),
+        totalDataSize(0), aaDbSize(0), lastKey(T()), closed(1), dbtype(Parameters::DBTYPE_GENERIC_DB),
         compressedBuffers(NULL), compressedBufferSizes(NULL), index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),
         dataMapped(false), accessType(0), externalData(false), didMlock(false)
 {}
@@ -29,10 +30,10 @@ DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int
 template <typename T>
 DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey,
         int dbType, unsigned int maxSeqLen, int threads) :
-        data(NULL), threads(threads), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL),
-        size(size), dataSize(0), aaDbSize(aaDbSize), lastKey(lastKey), maxSeqLen(maxSeqLen), closed(1), dbtype(dbType),
-        compressedBuffers(NULL), compressedBufferSizes(NULL), index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
-        dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
+        threads(threads), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL),
+        size(size), dataFiles(NULL), dataSizeOffset(NULL), dataFileCnt(0), totalDataSize(0), aaDbSize(aaDbSize), lastKey(lastKey),
+        maxSeqLen(maxSeqLen), closed(1), dbtype(dbType), compressedBuffers(NULL), compressedBufferSizes(NULL), index(index), sortedByOffset(true),
+        seqLens(seqLens), id2local(NULL), local2id(NULL), dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
 {}
 
 template <typename T>
@@ -51,7 +52,10 @@ template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
     if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
         Debug(Debug::INFO) << "Touch data file " << dataFileName << " ... ";
-        magicBytes = Util::touchMemory(data, dataSize);
+        for(size_t fileIdx = 0; fileIdx < dataFileCnt; fileIdx++){
+            size_t dataSize = dataSizeOffset[fileIdx+1]-dataSizeOffset[fileIdx];
+            magicBytes += Util::touchMemory(dataFiles[fileIdx], dataSize);
+        }
         Debug(Debug::INFO) << "Done.\n";
     }
 }
@@ -60,9 +64,12 @@ template <typename T>
 void DBReader<T>::mlock(){
     if (dataMode & USE_DATA) {
         if (didMlock == false) {
-            ::mlock(data, dataSize);
-            didMlock = true;
+            for(size_t fileIdx = 0; fileIdx < dataFileCnt; fileIdx++) {
+                size_t dataSize = dataSizeOffset[fileIdx+1]-dataSizeOffset[fileIdx];
+                ::mlock(dataFiles[fileIdx], dataSize);
+            }
         }
+        didMlock = true;
     }
 }
 
@@ -80,7 +87,16 @@ template <typename T> DBReader<T>::~DBReader(){
     if(indexFileName != NULL) {
         free(indexFileName);
     }
+
+    if(dataSizeOffset != NULL){
+        delete [] dataSizeOffset;
+    }
+
+    if(dataFiles != NULL){
+        delete [] dataFiles;
+    }
 }
+
 
 
 
@@ -92,14 +108,32 @@ template <typename T> bool DBReader<T>::open(int accessType){
     }
 
     if (dataMode & USE_DATA) {
-        FILE* dataFile = fopen(dataFileName, "r");
-        if (dataFile == NULL) {
-            Debug(Debug::ERROR) << "Could not open data file " << dataFileName << "!\n";
+        dataFileNames = FileUtil::findDatafiles(dataFileName);
+        if(dataFileNames.size() == 0){
+            Debug(Debug::ERROR) << "No datafile could be found for " << dataFileName << "!\n";
             EXIT(EXIT_FAILURE);
         }
-        data = mmapData(dataFile, &dataSize);
-        fclose(dataFile);
+        totalDataSize = 0;
+        dataFileCnt = dataFileNames.size();
+        dataSizeOffset = new size_t[dataFileNames.size() + 1];
+        dataFiles = new char*[dataFileNames.size()];
+        for(size_t fileIdx = 0; fileIdx < dataFileNames.size(); fileIdx++){
+            FILE* dataFile = fopen(dataFileNames[fileIdx].c_str(), "r");
+            if (dataFile == NULL) {
+                Debug(Debug::ERROR) << "Could not open data file " << dataFileName << "!\n";
+                EXIT(EXIT_FAILURE);
+            }
+            size_t dataSize;
+            dataFiles[fileIdx] = mmapData(dataFile, &dataSize);
+            dataSizeOffset[fileIdx]=totalDataSize;
+            totalDataSize += dataSize;
+            fclose(dataFile);
+        }
+        dataSizeOffset[dataFileNames.size()]=totalDataSize;
         dataMapped = true;
+        if(accessType==LINEAR_ACCCESS){
+            setSequentialAdvice();
+        }
     }
     bool isSortedById = false;
     if (externalData == false) {
@@ -107,16 +141,30 @@ template <typename T> bool DBReader<T>::open(int accessType){
             Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "!\n";
             EXIT(EXIT_FAILURE);
         }
-        size = FileUtil::countLines(indexFileName);
+        MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+        if (!indexData.isValid()){
+            Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        char* indexDataChar = (char *) indexData.getData();
+        size_t indexDataSize = indexData.size();
+        size = Util::ompCountLines(indexDataChar,indexDataSize);
+
         index = new(std::nothrow) Index[this->size];
         Util::checkAllocation(index, "Could not allocate index memory in DBReader");
         seqLens = new(std::nothrow) unsigned int[this->size];
         Util::checkAllocation(seqLens, "Could not allocate seqLens memory in DBReader");
-
-        isSortedById = readIndex(indexFileName, index, seqLens);
+        bool isSortedById = readIndex(indexDataChar, indexDataSize, index, seqLens);
+        indexData.close();
 
         if (accessType != HARDNOSORT) {
             sortIndex(isSortedById);
+        }
+        size_t prevOffset = 0; // makes 0 or empty string
+        sortedByOffset = true;
+        for (size_t i = 0; i < size; i++) {
+            sortedByOffset *= index[i].offset >= prevOffset;
+            prevOffset = index[i].offset;
         }
 
         // init seq lens array and dbKey mapping
@@ -154,6 +202,11 @@ template <typename T> bool DBReader<T>::open(int accessType){
 
 template<typename T>
 void DBReader<T>::sortIndex(bool) {
+}
+
+template<typename T>
+bool DBReader<T>::isSortedByOffset(){
+    return sortedByOffset;
 }
 
 template<>
@@ -331,37 +384,45 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
     int fd =  fileno(file);
 
     char *ret;
-    if ((dataMode & USE_FREAD) == 0) {
-        int mode;
-        if (dataMode & USE_WRITABLE) {
-            mode = PROT_READ | PROT_WRITE;
+    if(*dataSize > 0){
+        if ((dataMode & USE_FREAD) == 0) {
+            int mode;
+            if (dataMode & USE_WRITABLE) {
+                mode = PROT_READ | PROT_WRITE;
+            } else {
+                mode = PROT_READ;
+            }
+            ret = static_cast<char*>(mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0));
+            if (ret == MAP_FAILED){
+                int errsv = errno;
+                Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << *dataSize <<" File=" << dataFileName << ". Error " << errsv << ".\n";
+                EXIT(EXIT_FAILURE);
+            }
         } else {
-            mode = PROT_READ;
+            ret = static_cast<char*>(malloc(*dataSize));
+            Util::checkAllocation(ret, "Not enough system memory to read in the whole data file.");
+            size_t result = fread(ret, 1, *dataSize, file);
+            if (result != *dataSize) {
+                Debug(Debug::ERROR) << "Failed to read in datafile (" << dataFileName << "). Error " << errno << "\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
-        ret = static_cast<char*>(mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0));
-        if (ret == MAP_FAILED){
-            int errsv = errno;
-            Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << *dataSize <<" File=" << dataFileName << ". Error " << errsv << ".\n";
-            EXIT(EXIT_FAILURE);
-        }
-    } else {
-        ret = static_cast<char*>(malloc(*dataSize));
-        Util::checkAllocation(ret, "Not enough system memory to read in the whole data file.");
-        size_t result = fread(ret, 1, *dataSize, file);
-        if (result != *dataSize) {
-            Debug(Debug::ERROR) << "Failed to read in datafile (" << dataFileName << "). Error " << errno << "\n";
-            EXIT(EXIT_FAILURE);
-        }
+        return ret;
+    }else{
+        return NULL;
     }
-    return ret;
 }
 
 template <typename T> void DBReader<T>::remapData(){
     if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
         unmapData();
-        FILE* dataFile = fopen(dataFileName, "r");
-        data = mmapData(dataFile, &dataSize);
-        fclose(dataFile);
+        for(size_t fileIdx = 0; fileIdx < dataFileNames.size(); fileIdx++){
+            FILE* dataFile = fopen(dataFileNames[fileIdx].c_str(), "r");
+            size_t dataSize = 0;
+            dataFiles[fileIdx] = mmapData(dataFile, &dataSize);
+            fclose(dataFile);
+
+        }
         dataMapped = true;
     }
 }
@@ -448,18 +509,27 @@ template <typename T> char* DBReader<T>::getDataUncompressed(size_t id){
         EXIT(EXIT_FAILURE);
     }
 
-    if ((size_t) (index[id].offset) >= dataSize){
+
+    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){
+        return getDataByOffset(index[local2id[id]].offset);
+    }else{
+        return getDataByOffset(index[id].offset);
+    }
+}
+
+template <typename T> char* DBReader<T>::getDataByOffset(size_t offset) {
+    if (offset >= totalDataSize){
         Debug(Debug::ERROR) << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
-        Debug(Debug::ERROR) << "getData: global id (" << id << ")\n";
-        Debug(Debug::ERROR) << "Size of data: " << dataSize << "\n";
-        Debug(Debug::ERROR) << "Requested offset: " << index[id].offset << "\n";
+        Debug(Debug::ERROR) << "Size of data: " << totalDataSize << "\n";
+        Debug(Debug::ERROR) << "Requested offset: " << offset << "\n";
         EXIT(EXIT_FAILURE);
     }
-    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){
-        return data + index[local2id[id]].offset;
-    }else{
-        return data + index[id].offset;
+    size_t cnt = 0;
+    while ((offset >= dataSizeOffset[cnt] && offset < dataSizeOffset[cnt+1]) == false ) {
+        cnt++;
     }
+    size_t fileOffset = offset - dataSizeOffset[cnt];
+    return dataFiles[cnt]+fileOffset;
 }
 
 template <typename T>
@@ -476,7 +546,7 @@ template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey, int thrIdx) {
     if(compression == COMPRESSED ){
         return (id != UINT_MAX) ? getDataCompressed(id, thrIdx) : NULL;
     }else{
-        return (id != UINT_MAX) ? data + index[id].offset : NULL;
+        return (id != UINT_MAX) ? getDataByOffset(index[id].offset) : NULL;
     }
 }
 
@@ -550,14 +620,18 @@ template <typename T> size_t DBReader<T>::maxCount(char c) {
     }
 
     size_t count = 0;
-    for (size_t i = 0; i < dataSize; ++i) {
-        if (data[i] == c) {
-            count++;
-        }
+    for(size_t fileIdx = 0; fileIdx < dataFileCnt; fileIdx++) {
+        size_t dataSize = dataSizeOffset[fileIdx+1] - dataSizeOffset[fileIdx];
+        char * data = dataFiles[fileIdx];
+        for (size_t i = 0; i < dataSize; ++i) {
+            if (data[i] == c) {
+                count++;
+            }
 
-        if (data[i] == '\0') {
-            max = std::max(max, count);
-            count = 0;
+            if (data[i] == '\0') {
+                max = std::max(max, count);
+                count = 0;
+            }
         }
     }
 
@@ -572,42 +646,34 @@ template <typename T> void DBReader<T>::checkClosed(){
 }
 
 template<typename T>
-bool DBReader<T>::readIndex(char *indexFileName, Index *index, unsigned int *entryLength) {
-    MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
-    if (!indexData.isValid()){
-        Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-
+bool DBReader<T>::readIndex(char *data, size_t dataSize, Index *index, unsigned int *entryLength) {
     size_t i = 0;
-
     size_t currPos = 0;
-    char* indexDataChar = (char *) indexData.getData();
-    char * cols[3];
+    char* indexDataChar = (char *) data;
+    const char * cols[3];
     T prevId=T(); // makes 0 or empty string
-    size_t isSorted = true;
+    size_t isSortedById = true;
     maxSeqLen=0;
-    while (currPos < indexData.size()){
+    while (currPos < dataSize){
         if (i >= this->size) {
             Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
             EXIT(EXIT_FAILURE);
         }
-        Util::getWordsOfLine(indexDataChar, cols, 3 );
+        Util::getWordsOfLine(indexDataChar, cols, 3);
         readIndexId(&index[i].id, indexDataChar, cols);
-        isSorted *= (index[i].id >= prevId);
+        isSortedById *= (index[i].id >= prevId);
         size_t offset = Util::fast_atoi<size_t>(cols[1]);
         size_t length = Util::fast_atoi<size_t>(cols[2]);
         index[i].offset = offset;
         entryLength[i] = length;
         maxSeqLen = std::max(static_cast<unsigned int>(length), maxSeqLen);
         indexDataChar = Util::skipLine(indexDataChar);
-        currPos = indexDataChar - (char *) indexData.getData();
+        currPos = indexDataChar - (char *) data;
         lastKey = std::max(index[i].id, lastKey);
         prevId = index[i].id;
         i++;
     }
-    indexData.close();
-    return isSorted;
+    return isSortedById;
 }
 
 template<typename T> T DBReader<T>::getLastKey() {
@@ -615,32 +681,38 @@ template<typename T> T DBReader<T>::getLastKey() {
 }
 
 template<>
-void DBReader<std::string>::readIndexId(std::string* id, char* line, char** cols){
+void DBReader<std::string>::readIndexId(std::string* id, char* line, const char** cols){
     ptrdiff_t keySize =  ((cols[1] - 1) - line) ;
     id->assign(line, keySize);
 }
 template<>
-void DBReader<unsigned int>::readIndexId(unsigned int* id, char*, char** cols) {
+void DBReader<unsigned int>::readIndexId(unsigned int* id, char*, const char** cols) {
     *id = Util::fast_atoi<unsigned int>(cols[0]);
 }
 
 template <typename T> void DBReader<T>::unmapData() {
-    if(dataMapped == true){
-        if (didMlock == true) {
-            munlock(data, dataSize);
-            didMlock = false;
-        }
-
-        if ((dataMode & USE_FREAD) == 0) {
-            if(munmap(data, dataSize) < 0){
-                Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSize <<" File=" << dataFileName << "\n";
-                EXIT(EXIT_FAILURE);
+    if (dataMapped == true) {
+        for(size_t fileIdx = 0; fileIdx < dataFileNames.size(); fileIdx++) {
+            size_t fileSize = dataSizeOffset[fileIdx+1] -dataSizeOffset[fileIdx];
+            if(fileSize > 0) {
+                if (didMlock == true) {
+                    munlock(dataFiles[fileIdx], fileSize);
+                }
+                if ((dataMode & USE_FREAD) == 0) {
+                    if (munmap(dataFiles[fileIdx], fileSize) < 0) {
+                        Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << fileSize << " File=" << dataFileName
+                                            << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                } else {
+                    free(dataFiles[fileIdx]);
+                }
             }
-        } else {
-            free(data);
         }
-        dataMapped = false;
     }
+
+    didMlock = false;
+    dataMapped = false;
 }
 
 template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
@@ -733,8 +805,18 @@ int DBReader<T>::parseDbType(const char *name) {
 
 template<typename T>
 void DBReader<T>::setData(char *data, size_t dataSize) {
-    this->data = data;
-    this->dataSize = dataSize;
+    if(dataFiles == NULL){
+        dataFiles = new char*[1];
+        dataSizeOffset = new size_t[2];
+        dataSizeOffset[0] = 0;
+        dataSizeOffset[1] = dataSize;
+        totalDataSize = dataSize;
+        dataFileCnt = 1;
+        dataFiles[0] = data;
+    }else{
+        Debug(Debug::ERROR) << "DataFiles is already set." << "\n";
+        EXIT(EXIT_FAILURE);
+    }
 }
 
 template<typename T>
@@ -770,6 +852,17 @@ size_t DBReader<T>::findNextOffsetid(size_t id) {
 template<typename T>
 int DBReader<T>::isCompressed(int dbtype) {
     return (dbtype & (1 << 31)) ? COMPRESSED : UNCOMPRESSED;
+}
+
+template<typename T>
+void DBReader<T>::setSequentialAdvice() {
+#if HAVE_POSIX_FADVISE
+    for(size_t i = 0; i < dataFileCnt; i++){
+        if (posix_madvise (dataFiles[i], dataSizeOffset[i], POSIX_FADV_SEQUENTIAL) != 0){
+            Debug(Debug::ERROR) << "posix_madvise returned an error\n";
+        }
+    }
+#endif
 }
 
 template class DBReader<unsigned int>;

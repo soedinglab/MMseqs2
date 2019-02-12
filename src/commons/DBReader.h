@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <utility>
+#include <vector>
 #include <string>
 #include "Sequence.h"
 #include "Parameters.h"
@@ -55,6 +56,8 @@ public:
 
     char* getDataByDBKey(T key, int thrIdx);
 
+    char * getDataByOffset(size_t offset);
+
     size_t getSize();
 
     T getDbKey(size_t id);
@@ -92,26 +95,35 @@ public:
     static const int UNCOMPRESSED    = 0;
     static const int COMPRESSED     = 1;
 
-
-    const char * getData(){
-        return data;
+    char * getDataForFile(size_t fileIdx){
+        return dataFiles[fileIdx];
     }
 
-    size_t getDataSize(){
-        return dataSize;
+    size_t getDataFileCnt(){
+        return dataFileCnt;
+    }
+
+    size_t getDataSizeForFile(size_t fileIdx){
+        return dataSizeOffset[fileIdx+1]-dataSizeOffset[fileIdx];
+    }
+
+
+    size_t getTotalDataSize(){
+        return totalDataSize;
     }
 
     char *mmapData(FILE *file, size_t *dataSize);
 
-    bool readIndex(char *indexFileName, Index *index, unsigned int *entryLength);
+    bool readIndex(char *data, size_t dataSize, Index *index, unsigned int *entryLength);
 
-    void readIndexId(T* id, char * line, char** cols);
+    void readIndexId(T* id, char * line, const char** cols);
 
     void readMmapedDataInMemory();
 
     void mlock();
 
     void sortIndex(bool isSortedById);
+    bool isSortedByOffset();
 
     void unmapData();
 
@@ -162,6 +174,8 @@ public:
             case Parameters::DBTYPE_CA3M_DB: return "CA3M";
             case Parameters::DBTYPE_MSA_DB: return "MSA";
             case Parameters::DBTYPE_GENERIC_DB: return "Generic";
+            case Parameters::DBTYPE_PREFILTER_REV_RES: return "Bi-directional prefilter";
+            case Parameters::DBTYPE_OFFSETDB: return "Offsetted headers";
             default: return "Unknown";
         }
     }
@@ -228,25 +242,31 @@ public:
 
     static int isCompressed(int dbtype);
 
+    void setSequentialAdvice();
 
 private:
 
     void checkClosed();
 
-    char* data;
 
     int threads;
 
     int dataMode;
 
     char* dataFileName;
-
     char* indexFileName;
 
     // number of entries in the index
     size_t size;
-    // size of all data stored in ffindex
-    size_t dataSize;
+
+    // offset for all datafiles
+    char** dataFiles;
+    size_t * dataSizeOffset;
+    size_t dataFileCnt;
+    size_t totalDataSize;
+    std::vector<std::string> dataFileNames;
+
+
     // amino acid size
     size_t aaDbSize;
     // Last Key in Index
@@ -263,6 +283,7 @@ private:
     ZSTD_DStream ** dstream;
 
     Index * index;
+    bool sortedByOffset;
 
     unsigned int * seqLens;
     unsigned int * id2local;

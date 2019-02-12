@@ -51,6 +51,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         thread_idx = omp_get_thread_num();
 #endif
 
+        const char * entry[255];
         char* aa = new char[par.maxSeqLen + 3 + 1];
 #pragma omp for schedule(dynamic, 5)
         for (size_t i = 0; i < entries; ++i) {
@@ -63,7 +64,6 @@ int translatenucs(int argc, const char **argv, const Command& command) {
             char* data = reader.getData(i, thread_idx);
             if (addOrfStop == true) {
                 char* headData = header->getDataByDBKey(key, thread_idx);
-                char * entry[255];
                 size_t columns = Util::getWordsOfLine(headData, entry, 255);
                 size_t col;
                 bool found = false;
@@ -124,7 +124,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         }
         delete[] aa;
     }
-    writer.close();
+    writer.close(true);
 
     FileUtil::symlinkAbs(par.hdr1, par.hdr2);
     FileUtil::symlinkAbs(par.hdr1Index, par.hdr2Index);

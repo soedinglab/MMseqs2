@@ -21,8 +21,6 @@ int maskbygff(int argc, const char **argv, const Command& command) {
 
     std::ifstream  gffFile(par.db1);
     std::string gffLine;
-    DBReader<std::string>::Index* index = reader.getIndex();
-    char * data = (char *)reader.getData();
     while(std::getline(gffFile, gffLine)) {
         entries_num++;
 
@@ -75,7 +73,7 @@ int maskbygff(int argc, const char **argv, const Command& command) {
             return EXIT_FAILURE;
         }
 
-        char* body = data + index[id].offset;
+        char* body = reader.getData(id, 0);
         for (char* i = body + start; i <= body + end; ++i)
         {
             *i = 'X';
@@ -92,9 +90,7 @@ int maskbygff(int argc, const char **argv, const Command& command) {
     DBReader<std::string> headerReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     headerReader.open(DBReader<std::string>::NOSORT);
 
-    DBReader<std::string>::Index* headerIndex = headerReader.getIndex();
     unsigned int* headerLengths = headerReader.getSeqLens();
-    char * headerData = (char *)headerReader.getData();
 
     DBWriter headerWriter(par.hdr3.c_str(), par.hdr3Index.c_str(), 1, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
@@ -103,11 +99,13 @@ int maskbygff(int argc, const char **argv, const Command& command) {
         unsigned int id = par.identifierOffset + i;
 
         // ignore nulls
-        writer.writeData(data + index[i].offset, seqLengths[i] - 1, id);
-        headerWriter.writeData(headerData + headerIndex[i].offset, headerLengths[i] - 1, id);
+        writer.writeData(reader.getData(i, 0), seqLengths[i] - 1, id);
+        headerWriter.writeData(headerReader.getData(i, 0), headerLengths[i] - 1, id);
     }
     headerWriter.close();
     writer.close();
+    headerReader.close();
+    reader.close();
 
     return EXIT_SUCCESS;
 }

@@ -7,79 +7,82 @@
 
 const char* binary_name = "test_counting";
 
-int randBetween(size_t start, size_t end){
-    return rand() % (end - start) + start;
+#include <iostream>
+#include <chrono>
+#include <ctime>
+#include <immintrin.h> // AVX
+
+void print128_num(__m128i var)
+{
+    uint8_t *val = (uint8_t*) &var;
+    printf("Numerical: %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i \n",
+           val[0], val[1], val[2], val[3], val[4], val[5],
+           val[6], val[7], val[8], val[9], val[10], val[11],
+           val[12], val[13], val[14], val[15]);
 }
-const size_t ENTRYRANGE = 27000000;
-//const size_t N = 1000000;
+// Compute reverse complement of k-mer in 2-bit-per-nucleotide encoding (A: 00, C: 01, T: 10, G: 11)
+uint64_t revComplement(const u_int64_t kmer, const int k) {
+    // broadcast 64bit to 128 bit
+    __m128i x = _mm_cvtsi64_si128(kmer);
 
+    // create lookup (set 16 bytes in 128 bit)
+    // a lookup entry at the index of two nucleotides (4 bit) describes the reverse
+    // complement of these two nucleotides in the higher 4 bits (lookup1) or in the
+    // lower 4 bits (lookup2)
+    __m128i lookup1 = _mm_set_epi8(0x50,0x10,0xD0,0x90,0x40,0x00,0xC0,0x80,0x70,
+                                   0x30,0xF0,0xB0,0x60,0x20,0xE0,0xA0);
+    __m128i lookup2 = _mm_set_epi8(0x05,0x01,0x0D,0x09,0x04,0x00,0x0C,0x08,0x07,
+                                   0x03,0x0F,0x0B,0x06,0x02,0x0E,0x0A);
+    // set upper 8 bytes to 0 and revert order of lower 8 bytes
+    __m128i upper = _mm_set_epi8(0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0,1,2,3,4,5,6,7);
 
-void fillNumbers(unsigned int * data, size_t len) {
-    size_t startpos = rand() % (ENTRYRANGE - 30);
-    size_t j = 0;
+    __m128i kmer1 = _mm_and_si128(x, _mm_set1_epi8(0x0F)); // get lower 4 bits
+    __m128i kmer2 = _mm_and_si128(x, _mm_set1_epi8(0xF0)); // get higher 4 bits
 
-    for (size_t i = 0; i < len; i++) {
-        if (i % 20 == 0) {
-            startpos = rand() % (ENTRYRANGE - 30);
-            j = 0;
-        }
-        data[i] = std::min(ENTRYRANGE, startpos + j++ + (rand() % 20));
-    }
-    std::sort(data, data + len);
-//    for (size_t i = 0; i < len; i++) {
-//        std::cout << data[i] << " ";
-//    }
-//    std::cout << std::endl;
+//    // shift right by 2 nucleotides
+//    print128_num(kmer2);
+//    kmer2 >>= 4;
+//    kmer2 = _mm_srli_epi64(kmer2, 4);
+//
+//    print128_num(kmer2);
+//    std::cout << kmer2 << std::endl;
+    // use _mm_shuffle_epi8 to look up reverse complement
+    kmer1 =_mm_shuffle_epi8(lookup1, kmer1);
+    kmer2 = _mm_shuffle_epi8(lookup2, kmer2);
+
+    // _mm_or_si128: bitwise OR
+    x = _mm_or_si128(kmer1, kmer2);
+
+    // set upper 8 bytes to 0 and revert order of lower 8 bytes
+    x = _mm_shuffle_epi8(x, upper);
+
+    // shift out the unused nucleotide positions (1 <= k <=32 )
+    // broadcast 128 bit to 64 bit
+    return (((uint64_t)_mm_cvtsi128_si64(x)) >> (uint64_t)(64-2*k));
 }
 
-int main (int, const char**) {
-    // DBReader test
-/*    CacheFriendlyOperations diagonalMatcher(3000000,2);
+u_int64_t revcomp64_v2 (const u_int64_t& x, size_t sizeKmer)
+{
+    u_int64_t res = x;
 
-    unsigned int input[] = {1000001,1000000,2000000,3000000,4000000,5000000,6000000,7000000,8000000,9000000
-                                   ,1000000,2000000,3000000,4000000,4000000};
-    CounterResult * output1 = new CounterResult[N];
-    CounterResult * output2 = new CounterResult[N];
+    res = ((res>> 2 & 0x3333333333333333) | (res & 0x3333333333333333) <<  2);
+    res = ((res>> 4 & 0x0F0F0F0F0F0F0F0F) | (res & 0x0F0F0F0F0F0F0F0F) <<  4);
+    res = ((res>> 8 & 0x00FF00FF00FF00FF) | (res & 0x00FF00FF00FF00FF) <<  8);
+    res = ((res>>16 & 0x0000FFFF0000FFFF) | (res & 0x0000FFFF0000FFFF) << 16);
+    res = ((res>>32 & 0x00000000FFFFFFFF) | (res & 0x00000000FFFFFFFF) << 32);
+    res = res ^ 0xAAAAAAAAAAAAAAAA;
 
-    size_t resSize = diagonalMatcher.countElements(input, sizeof(input) / sizeof(unsigned int), output1);
-    std::cout << resSize << std::endl;
-    for(size_t i = 0; i < resSize; i++){
-        std::cout << output1[i].id << " " << (int) output1[i].count << std::endl;
+    return (res >> (2*( 32 - sizeKmer))) ;
+}
+
+int main(int argc, char ** avgv){
+    auto start = std::chrono::system_clock::now();
+    size_t revComp = 0;
+    for(u_int64_t i = 0; i < 10001010101011; i++){
+        revComp += revComplement(i, 21);
     }
-    std::cout << std::endl;*/
-//
-////    // try big data
-//    unsigned int * number = new unsigned int[N];
-//    fillNumbers(number, N);
-//    CacheFriendlyOperations counter2(ENTRYRANGE,N/2048);
-//    std::map<int, int> cntMap;
-//    for(int i = 0; i < N;i++){
-//        cntMap[number[i]]++;
-//    }
-//    size_t pos = 0;
-//    typedef std::map<int, int>::iterator it_type;
-//    for(it_type iterator = cntMap.begin(); iterator != cntMap.end(); iterator++) {
-//        if(iterator->second > 1){
-//            for(size_t i = 1; i < iterator->second; i++){
-//                output2[pos].id = iterator->first;
-//                pos++;
-//            }
-//        }
-//        // Repeat if you also want to iterate through the second map.
-//    }
-//    std::sort(output2, output2 + pos);
-//    size_t countSize = counter2.countElements(number, N, output1);
-//    std::cout << countSize << " " << pos << std::endl;
-//    std::sort(output1, output1 + countSize);
-//
-//
-//
-//    for(size_t i = 0; i < pos; i++){
-//        if(output2[i].id != output1[i].id){
-//            std::cout << i << ": " << output1[i] << " " << output2[i] << std::endl;
-//        }
-//    }
-//    delete [] output1;
-//    delete [] output2;
-//    delete [] number;
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = end - start;
+    std::cout << revComp << "\t" << elapsed.count() << '\n';
+    return 0;
 }

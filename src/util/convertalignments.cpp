@@ -95,27 +95,30 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     bool needFullHeaders = false;
     const std::vector<int> outcodes = Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
 
-    bool queryNucs = false;
-    bool targetNucs = false;
     bool isTranslatedSearch = false;
+
+    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
+    IndexReader qDbr(par.db1, par.threads,  IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+    IndexReader qDbrHeader(par.db1, par.threads, IndexReader::SRC_HEADERS , (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+
+    IndexReader *tDbr;
+    IndexReader *tDbrHeader;
+
+    if (sameDB) {
+        tDbr = &qDbr;
+        tDbrHeader= &qDbrHeader;
+    } else {
+        Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
+        tDbr = new IndexReader(par.db2, par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        tDbrHeader = new IndexReader(par.db2, par.threads, IndexReader::SRC_HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+    }
+
+    bool queryNucs = Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+    bool targetNucs = Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
     if (needSequenceDB) {
-        queryNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db1.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
-        targetNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
         if((targetNucs == true || queryNucs == true ) && !(queryNucs == true && targetNucs == true)){
             isTranslatedSearch = true;
         }
-    }
-
-    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    const int indexReaderMode = IndexReader::NEED_HEADERS | (needSequenceDB ? IndexReader::NEED_SEQUENCES : 0);
-    IndexReader qDbr(par.db1, par.threads, indexReaderMode | (queryNucs ? IndexReader::NEED_SRC_SEQUENCES : 0), touch);
-
-    IndexReader *tDbr;
-    if (sameDB) {
-        tDbr = &qDbr;
-    } else {
-        Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        tDbr = new IndexReader(par.db2, par.threads, indexReaderMode | (queryNucs ? IndexReader::NEED_SRC_SEQUENCES : 0), touch);
     }
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
@@ -189,9 +192,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 }
             }
 
-            size_t qHeaderId = qDbr.headerReader->getId(queryKey);
-            const char *qHeader = qDbr.headerReader->getData(qHeaderId, thread_idx);
-            size_t qHeaderLen = qDbr.headerReader->getSeqLens(qHeaderId);
+            size_t qHeaderId = qDbrHeader.sequenceReader->getId(queryKey);
+            const char *qHeader = qDbrHeader.sequenceReader->getData(qHeaderId, thread_idx);
+            size_t qHeaderLen = qDbrHeader.sequenceReader->getSeqLens(qHeaderId);
             std::string queryId = Util::parseFastaHeader(qHeader);
             if (sameDB && needFullHeaders) {
                 queryHeaderBuffer.assign(qHeader, std::max(qHeaderLen, static_cast<size_t>(2)) - 2);
@@ -209,9 +212,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                     EXIT(EXIT_FAILURE);
                 }
 
-                size_t tHeaderId = tDbr->headerReader->getId(res.dbKey);
-                const char *tHeader = tDbr->headerReader->getData(tHeaderId, thread_idx);
-                size_t tHeaderLen = tDbr->headerReader->getSeqLens(tHeaderId);
+                size_t tHeaderId = tDbrHeader->sequenceReader->getId(res.dbKey);
+                const char *tHeader = tDbrHeader->sequenceReader->getData(tHeaderId, thread_idx);
+                size_t tHeaderLen = tDbrHeader->sequenceReader->getSeqLens(tHeaderId);
                 std::string targetId = Util::parseFastaHeader(tHeader);
 
                 unsigned int gapOpenCount = 0;
@@ -421,17 +424,17 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             result.clear();
         }
     }
-    resultWriter.close();
-
     // tsv output
+    resultWriter.close(true);
     if (isDb == false) {
-        FileUtil::deleteFile(par.db4Index);
+        FileUtil::remove(par.db4Index.c_str());
     }
 
     alnDbr.close();
     if (needSequenceDB) {
         if (sameDB == false) {
             delete tDbr;
+            delete tDbrHeader;
         }
         delete evaluer;
     }

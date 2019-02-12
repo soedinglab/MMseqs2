@@ -258,8 +258,8 @@ int createdb(int argc, const char **argv, const Command& command) {
         }
         delete kseq;
     }
-    hdrWriter.close();
-    seqWriter.close();
+    hdrWriter.close(true);
+    seqWriter.close(true);
 
     // fix ids
     renumberIdsInIndexByOffsetOrder(seqWriter.getDataFileName(), seqWriter.getIndexFileName());
@@ -304,8 +304,8 @@ int createdb(int argc, const char **argv, const Command& command) {
 
         splitCounter++;
     }
-    lookupFile.close();
-    FileUtil::deleteFile(lookupIndexFile);
+    lookupFile.close(true);
+    FileUtil::remove(lookupIndexFile.c_str());
     delete[] sourceLookup;
 
     return EXIT_SUCCESS;

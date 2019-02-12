@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <utility>
 #include <tantan.h>
+#include "IndexReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -29,40 +30,18 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     }
 
     DBReader<unsigned int> *tDbr = NULL;
-    DBReader<unsigned int> *tidxdbr = NULL;
-    SequenceLookup *tSeqLookup = NULL;
+    IndexReader * tDbrIdx = NULL;
     bool templateDBIsIndex = false;
 
     int targetSeqType = -1;
-    std::string indexDB = PrefilteringIndexReader::searchForIndex(par.db2);
-    if (indexDB.length() > 0) {
-        Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
-
-        tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        tidxdbr->open(DBReader<unsigned int>::NOSORT);
-
-        templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
-        if (templateDBIsIndex == true) {
-            bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-            tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, touch);
-            if (tSeqLookup == NULL) {
-                Debug(Debug::WARNING) << "No unmasked index available. Falling back to sequence database.\n";
-                templateDBIsIndex = false;
-            } else {
-                PrefilteringIndexReader::printSummary(tidxdbr);
-                PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
-                targetSeqType = meta.seqType;
-                par.maxSeqLen = meta.maxSeqLength;
-                par.compBiasCorrection = meta.compBiasCorr;
-                par.scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
-                tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX, false, par.threads, touch);
-            }
-        }
-
-        if (templateDBIsIndex == false) {
-            tidxdbr->close();
-            delete tidxdbr;
-        }
+    int targetDbtype = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
+        bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+        tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        tDbr = tDbrIdx->sequenceReader;
+        tDbr->getDbtype();
+        templateDBIsIndex = true;
+        targetSeqType = tDbr->getDbtype();
     }
 
     if (templateDBIsIndex == false) {
@@ -72,7 +51,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     }
 
     DBReader<unsigned int> *qDbr = NULL;
-    SequenceLookup *qSeqLookup = NULL;
     unsigned int maxSequenceLength = 0;
     const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
     if (!sameDatabase) {
@@ -93,7 +71,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         }
     } else {
         qDbr = tDbr;
-        qSeqLookup = tSeqLookup;
 
         unsigned int *lengths = tDbr->getSeqLens();
         for (size_t i = 0; i < tDbr->getSize(); i++) {
@@ -101,7 +78,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         }
     }
 
-    qDbr->readMmapedDataInMemory();
+    // qDbr->readMmapedDataInMemory();
     // make sure to touch target after query, so if there is not enough memory for the query, at least the targets
     // might have had enough space left to be residung in the page cache
     if (sameDatabase == false && templateDBIsIndex == false && par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
@@ -159,6 +136,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
+        const char *entry[255];
+
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
@@ -167,22 +146,18 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
             unsigned int queryKey = resultReader.getDbKey(id);
 
             size_t queryId = qDbr->getId(queryKey);
-            if (qSeqLookup != NULL) {
-                std::pair<const unsigned char*, const unsigned int> sequence = qSeqLookup->getSequence(queryId);
-                centerSequence.mapSequence(0, queryKey, sequence);
-            } else {
-                char *dbSeqData = qDbr->getData(queryId, thread_idx);
-                if (dbSeqData == NULL) {
+
+            char *dbSeqData = qDbr->getData(queryId, thread_idx);
+            if (dbSeqData == NULL) {
 #pragma omp critical
-                    {
-                        Debug(Debug::ERROR) << "ERROR: Sequence " << queryKey << " is required in the database,"
-                                            << "but is not contained in the query sequence database!\n"
-                                            << "Please check your database.\n";
-                        EXIT(EXIT_FAILURE);
-                    }
+                {
+                    Debug(Debug::ERROR) << "ERROR: Sequence " << queryKey << " is required in the database,"
+                                        << "but is not contained in the query sequence database!\n"
+                                        << "Please check your database.\n";
+                    EXIT(EXIT_FAILURE);
                 }
-                centerSequence.mapSequence(0, queryKey, dbSeqData);
             }
+            centerSequence.mapSequence(0, queryKey, dbSeqData);
 
             char *results = resultReader.getData(id, thread_idx);
             std::vector<Matcher::result_t> alnResults;
@@ -197,7 +172,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                     continue;
                 }
 
-                char *entry[255];
                 const size_t columns = Util::getWordsOfLine(results, entry, 255);
                 float evalue = 0.0;
                 if(columns >= 4){
@@ -213,22 +187,17 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                     Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId),
                                                           targetSeqType, &subMat, 0, false, false);
 
-                    if (tSeqLookup != NULL) {
-                        std::pair<const unsigned char*, const unsigned int> sequence = tSeqLookup->getSequence(edgeId);
-                        edgeSequence->mapSequence(0, key, sequence);
-                    } else {
-                        char *dbSeqData = tDbr->getData(edgeId, thread_idx);
-                        if (dbSeqData == NULL) {
+                    char *dbSeqData = tDbr->getData(edgeId, thread_idx);
+                    if (dbSeqData == NULL) {
 #pragma omp critical
-                            {
-                                Debug(Debug::ERROR) << "ERROR: Sequence " << key << " is required in the database,"
-                                                    << "but is not contained in the target sequence database!\n"
-                                                    << "Please check your database.\n";
-                                EXIT(EXIT_FAILURE);
-                            }
+                        {
+                            Debug(Debug::ERROR) << "ERROR: Sequence " << key << " is required in the database,"
+                                                << "but is not contained in the target sequence database!\n"
+                                                << "Please check your database.\n";
+                            EXIT(EXIT_FAILURE);
                         }
-                        edgeSequence->mapSequence(0, key, dbSeqData);
                     }
+                    edgeSequence->mapSequence(0, key, dbSeqData);
 
                     seqSet.push_back(edgeSequence);
                 }
@@ -245,7 +214,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
             size_t filteredSetSize = res.setSize;
             if (isFiltering) {
-                filter.filter(res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
+                filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100),
                               static_cast<int>(par.qid * 100), par.qsc,
                               static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
                               (const char **) res.msaSequence, &filteredSetSize);
@@ -323,23 +292,20 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
     // cleanup
     if (consensusWriter != NULL) {
-        consensusWriter->close();
+        consensusWriter->close(true);
         delete consensusWriter;
     }
-    resultWriter.close();
+    resultWriter.close(true);
 
     if (!sameDatabase) {
         qDbr->close();
         delete qDbr;
     }
-
-    tDbr->close();
-    delete tDbr;
-
-    if (templateDBIsIndex == true) {
-        delete tSeqLookup;
-        tidxdbr->close();
-        delete tidxdbr;
+    if(tDbrIdx==NULL) {
+        tDbr->close();
+        delete tDbr;
+    }else{
+        delete tDbrIdx;
     }
 
     Debug(Debug::INFO) << "\nDone.\n";

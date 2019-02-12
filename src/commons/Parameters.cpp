@@ -63,6 +63,7 @@ Parameters::Parameters():
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "compute more conservative, shorter alignments (scores and E-values not changed)", typeid(bool), (void *) &realign, "", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","list matches above this sequence identity (for clustering) [0.0,1.0]",typeid(float), (void *) &seqIdThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_MIN_ALN_LEN(PARAM_MIN_ALN_LEN_ID,"--min-aln-len", "Min. alignment length","minimum alignment length [0,INT_MAX]",typeid(int), (void *) &alnLenThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID,"--score-bias", "Score bias", "Score bias when computing the SW alignment (in bits)",typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID,"--alt-ali", "Alternative alignments","Show up to this many alternative alignments",typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID,"--gap-open", "Gap open cost","Gap open cost",typeid(int), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
@@ -107,7 +108,7 @@ Parameters::Parameters():
         PARAM_FILTER_MAX_SEQ_ID(PARAM_FILTER_MAX_SEQ_ID_ID,"--max-seq-id", "Maximum sequence identity threshold", "reduce redundancy of output MSA using max. pairwise sequence identity [0.0,1.0]", typeid(float), (void*) &filterMaxSeqId, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_QSC(PARAM_FILTER_QSC_ID, "--qsc", "Minimum score per column", "reduce diversity of output MSAs using min. score per aligned residue with query sequences [-50.0,100.0]", typeid(float), (void*) &qsc, "^\\-*[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_QID(PARAM_FILTER_QID_ID, "--qid", "Minimum seq. id.", "reduce diversity of output MSAs using min.seq. identity with query sequences [0.0,1.0]", typeid(float), (void*) &qid, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_FILTER_COV(PARAM_FILTER_COV_ID, "--cov", "Minimum coverage", "filter output MSAs using min. fraction of query residues covered by matched sequences [0.0,1.0]", typeid(float), (void*) &cov, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_FILTER_COV(PARAM_FILTER_COV_ID, "--cov", "Minimum coverage", "filter output MSAs using min. fraction of query residues covered by matched sequences [0.0,1.0]", typeid(float), (void*) &covMSAThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_NDIFF(PARAM_FILTER_NDIFF_ID, "--diff", "Select n most diverse seqs", "filter MSAs by selecting most diverse set of sequences, keeping at least this many seqs in each MSA block of length 50", typeid(int), (void*) &Ndiff, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, "", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "pseudo count admixture strength", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
@@ -126,6 +127,7 @@ Parameters::Parameters():
         PARAM_INCLUDE_ONLY_EXTENDABLE(PARAM_INCLUDE_ONLY_EXTENDABLE_ID, "--include-only-extendable", "Include only extendable", "Include only extendable", typeid(bool), (void*) &includeOnlyExtendable, "", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_SKIP_N_REPEAT_KMER(PARAM_SKIP_N_REPEAT_KMER_ID, "--skip-n-repeat-kmer", "Skip sequence with n repeating k-mers", "Skip sequence with >= n exact repeating k-mers", typeid(int), (void*) &skipNRepeatKmer, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash", typeid(int), (void*) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PICK_N_SIMILAR(PARAM_HASH_SHIFT_ID, "--pick-n-sim-kmer", "Adds N similar to search", "adds N similar to search", typeid(int), (void*) &pickNbest, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","use MPI on compute grid with this MPI command (e.g. \"mpirun -np 42\")",typeid(std::string),(void *) &runner, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart using the latest tmp","reuse tmp file in tmp/latest folder ignoring parameters and git version change", typeid(bool),(void *) &reuseLatest, "", MMseqsParameter::COMMAND_EXPERT),
@@ -148,8 +150,8 @@ Parameters::Parameters():
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
         PARAM_USE_ALL_TABLE_STARTS(PARAM_USE_ALL_TABLE_STARTS_ID,"--use-all-table-starts", "Use all table starts", "use all alteratives for a start codon in the genetic table, if false - only ATG (AUG)",typeid(bool),(void *) &useAllTableStarts, ""),
         // indexdb
-        PARAM_INCLUDE_HEADER(PARAM_INCLUDE_HEADER_ID, "--include-headers", "Include Header", "Include the header index into the index", typeid(bool), (void *) &includeHeader, ""),
-        PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check Compatible", "Skip recreating an index if it is compatible with the specified parameters", typeid(bool), (void*) &checkCompatible, "", COMMAND_EXPERT),
+        PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check Compatible", "skip recreating an index if it is compatible with the specified parameters", typeid(bool), (void*) &checkCompatible, "", COMMAND_EXPERT),
+        PARAM_INDEX_TYPE(PARAM_INDEX_TYPE_ID, "--index-type", "Index type", "index type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &indexType, "^[0-3]{1}"),
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
@@ -192,8 +194,11 @@ Parameters::Parameters():
         PARAM_AGGREGATION_MODE(PARAM_AGGREGATION_MODE_ID, "--aggregation-mode", "Aggregation mode", "Combined P-values computed from 0) multi-hit, 1)minimum of all P-values, 2)product-of-P-values, 3)truncated product", typeid(int), (void*) &aggregationMode, "^[0-4]{1}$"),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
+        PARAM_TAKE_LARGER_ENTRY(PARAM_TAKE_LARGER_ENTRY_ID,"--take-larger-entry", "Take the larger entry", "only keeps the larger entry (dataSize >) in the concatenation, both databases need the same keys in the index",typeid(bool), (void *) &takeLargerEntry, ""),
         // offsetalignment
         PARAM_CHAIN_ALIGNMENT(PARAM_CHAIN_ALIGNMENT_ID,"--chain-alignments", "Chain overlapping alignments", "Chain overlapping alignments",typeid(int),(void *) &chainAlignment, "^[0-1]{1}"),
+        // tsv2db
+        PARAM_OUTPUT_DBTYPE(PARAM_OUTPUT_DBTYPE_ID,"--output-dbtype", "Output DB Type", "Set database type for resulting database: Amino acid sequences 0, Nucl. seq. 1, Profiles 2, Alignment result 5, Clustering result 6, Prefiltering result 7, Taxonomy result 8, Indexed database 9, cA3M MSAs 10, FASTA or A3M MSAs 11, Generic database 12, Omic dbtype file 13, Bi-directional prefiltering result 14, Offsetted headers 15",typeid(int),(void *) &outputDbType, "^(0|[1-9]{1}[0-9]*)$"),
         //diff
         PARAM_USESEQID(PARAM_USESEQID_ID,"--use-seq-id", "Match sequences by their ID", "Sequence ID (Uniprot, GenBank, ...) is used for identifying matches between the old and the new DB.",typeid(bool), (void *) &useSequenceId, ""),
         // prefixid
@@ -216,10 +221,12 @@ Parameters::Parameters():
         PARAM_TAXON_LIST(PARAM_TAXON_LIST_ID, "--taxon-list", "Selected taxons", "taxonomy ID, possibly multiple separated by ','", typeid(std::string), (void*) &taxonList, ""),
         PARAM_INVERT_SELECTION(PARAM_INVERT_SELECTION_ID, "--invert", "Invert selection", "Invert selection", typeid(bool), (void*)&invertSelection, ""),
         // lca
+        PARAM_ID_LIST(PARAM_ID_LIST_ID, "--id-list", "Selected entries with key", "entries to be printed seperated by ','", typeid(std::string), (void*) &idList, ""),
+        // lca
         PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA Ranks", "Ranks to return in LCA computation", typeid(std::string), (void*) &lcaRanks, ""),
         PARAM_BLACKLIST(PARAM_BLACKLIST_ID, "--blacklist", "Blacklisted Taxa", "Comma separted list of ignored taxa in LCA computation", typeid(std::string), (void*)&blacklist, "([0-9]+,)?[0-9]+"),
         // expandaln
-        PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion Mode", "Which hits (still fullfilling the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void*) &expansionMode, "^[0-2]{1}$"),
+        PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion Mode", "Which hits (still meeting the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void*) &expansionMode, "^[0-2]{1}$"),
         // taxonomy
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA Mode", "LCA Mode: No LCA 0, Single Search LCA 1, 2bLCA 2, 2bLCA Approx. 3", typeid(int), (void*) &lcaMode, "^[0-3]{1}$")
 {
@@ -251,6 +258,7 @@ Parameters::Parameters():
     align.push_back(&PARAM_ALIGNMENT_MODE);
     align.push_back(&PARAM_E);
     align.push_back(&PARAM_MIN_SEQ_ID);
+    align.push_back(&PARAM_MIN_ALN_LEN);
     align.push_back(&PARAM_SEQ_ID_MODE);
     align.push_back(&PARAM_ALT_ALIGNMENT);
     align.push_back(&PARAM_C);
@@ -329,6 +337,7 @@ Parameters::Parameters():
     rescorediagonal.push_back(&PARAM_C);
     rescorediagonal.push_back(&PARAM_COV_MODE);
     rescorediagonal.push_back(&PARAM_MIN_SEQ_ID);
+    rescorediagonal.push_back(&PARAM_MIN_ALN_LEN);
     rescorediagonal.push_back(&PARAM_SEQ_ID_MODE);
     rescorediagonal.push_back(&PARAM_INCLUDE_IDENTITY);
     rescorediagonal.push_back(&PARAM_SORT_RESULTS);
@@ -349,6 +358,7 @@ Parameters::Parameters():
     alignbykmer.push_back(&PARAM_E);
     alignbykmer.push_back(&PARAM_COV_MODE);
     alignbykmer.push_back(&PARAM_MIN_SEQ_ID);
+    alignbykmer.push_back(&PARAM_MIN_ALN_LEN);
     alignbykmer.push_back(&PARAM_INCLUDE_IDENTITY);
     alignbykmer.push_back(&PARAM_GAP_OPEN);
     alignbykmer.push_back(&PARAM_GAP_EXTEND);
@@ -576,12 +586,30 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_SPACED_KMER_PATTERN);
     indexdb.push_back(&PARAM_S);
     indexdb.push_back(&PARAM_K_SCORE);
-    indexdb.push_back(&PARAM_INCLUDE_HEADER);
     indexdb.push_back(&PARAM_CHECK_COMPATIBLE);
+    indexdb.push_back(&PARAM_INDEX_TYPE);
     indexdb.push_back(&PARAM_SPLIT);
     indexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     indexdb.push_back(&PARAM_THREADS);
     indexdb.push_back(&PARAM_V);
+
+    // create kmer index
+    kmerindexdb.push_back(&PARAM_SUB_MAT);
+    kmerindexdb.push_back(&PARAM_K);
+    kmerindexdb.push_back(&PARAM_HASH_SHIFT);
+    kmerindexdb.push_back(&PARAM_KMER_PER_SEQ);
+    kmerindexdb.push_back(&PARAM_MIN_SEQ_ID);
+    kmerindexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    kmerindexdb.push_back(&PARAM_SKIP_N_REPEAT_KMER);
+    kmerindexdb.push_back(&PARAM_ALPH_SIZE);
+    kmerindexdb.push_back(&PARAM_MAX_SEQ_LEN);
+    kmerindexdb.push_back(&PARAM_MASK_RESIDUES);
+    kmerindexdb.push_back(&PARAM_CHECK_COMPATIBLE);
+    kmerindexdb.push_back(&PARAM_INDEX_TYPE);
+    kmerindexdb.push_back(&PARAM_SPACED_KMER_MODE);
+    kmerindexdb.push_back(&PARAM_SPACED_KMER_PATTERN);
+    kmerindexdb.push_back(&PARAM_THREADS);
+    kmerindexdb.push_back(&PARAM_V);
 
     // create db
     createdb.push_back(&PARAM_MAX_SEQ_LEN);
@@ -668,7 +696,14 @@ Parameters::Parameters():
     offsetalignment.push_back(&PARAM_CHAIN_ALIGNMENT);
     offsetalignment.push_back(&PARAM_THREADS);
     offsetalignment.push_back(&PARAM_COMPRESSED);
+    offsetalignment.push_back(&PARAM_PRELOAD_MODE);
     offsetalignment.push_back(&PARAM_V);
+
+    // tsv2db
+    tsv2db.push_back(&PARAM_INCLUDE_IDENTITY);
+    tsv2db.push_back(&PARAM_OUTPUT_DBTYPE);
+    tsv2db.push_back(&PARAM_COMPRESSED);
+    tsv2db.push_back(&PARAM_V);
 
     // swap results
     swapresult.push_back(&PARAM_SUB_MAT);
@@ -678,6 +713,7 @@ Parameters::Parameters():
     swapresult.push_back(&PARAM_GAP_EXTEND);
     swapresult.push_back(&PARAM_THREADS);
     swapresult.push_back(&PARAM_COMPRESSED);
+    swapresult.push_back(&PARAM_PRELOAD_MODE);
     swapresult.push_back(&PARAM_V);
 
     // swap results
@@ -719,6 +755,20 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_THREADS);
     kmermatcher.push_back(&PARAM_COMPRESSED);
     kmermatcher.push_back(&PARAM_V);
+
+    // kmermatcher
+    kmersearch.push_back(&PARAM_SUB_MAT);
+    kmersearch.push_back(&PARAM_KMER_PER_SEQ);
+    kmersearch.push_back(&PARAM_MASK_RESIDUES);
+    kmersearch.push_back(&PARAM_COV_MODE);
+    kmersearch.push_back(&PARAM_C);
+    kmersearch.push_back(&PARAM_MAX_SEQ_LEN);
+    kmersearch.push_back(&PARAM_PICK_N_SIMILAR);
+    kmersearch.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
+    kmersearch.push_back(&PARAM_THREADS);
+    kmersearch.push_back(&PARAM_COMPRESSED);
+    kmersearch.push_back(&PARAM_V);
+
 
 
     // mergedbs
@@ -776,6 +826,7 @@ Parameters::Parameters():
     // concatdbs
     concatdbs.push_back(&PARAM_COMPRESSED);
     concatdbs.push_back(&PARAM_PRESERVEKEYS);
+    concatdbs.push_back(&PARAM_TAKE_LARGER_ENTRY);
     concatdbs.push_back(&PARAM_THREADS);
     concatdbs.push_back(&PARAM_V);
 
@@ -803,6 +854,10 @@ Parameters::Parameters():
     lca.push_back(&PARAM_BLACKLIST);
     lca.push_back(&PARAM_THREADS);
     lca.push_back(&PARAM_V);
+
+    // view
+    view.push_back(&PARAM_ID_LIST);
+    view.push_back(&PARAM_V);
 
     // exapandaln
     expandaln.push_back(&PARAM_COMPRESSED);
@@ -846,6 +901,17 @@ Parameters::Parameters():
     searchworkflow.push_back(&PARAM_REUSELATEST);
     searchworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
 
+    linsearchworkflow = combineList(align, kmersearch);
+    linsearchworkflow = combineList(linsearchworkflow, swapresult);
+    linsearchworkflow = combineList(linsearchworkflow, extractorfs);
+    linsearchworkflow = combineList(linsearchworkflow, translatenucs);
+    linsearchworkflow.push_back(&PARAM_RUNNER);
+    linsearchworkflow.push_back(&PARAM_REUSELATEST);
+    linsearchworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
+
+    // easyslinsearch
+    easylinsearchworkflow = combineList(createlinindex, linsearchworkflow);
+
     // easysearch
     easysearchworkflow = combineList(searchworkflow, convertalignments);
     easysearchworkflow = combineList(easysearchworkflow, summarizeresult);
@@ -855,7 +921,14 @@ Parameters::Parameters():
     // createindex workflow
     createindex = combineList(indexdb, extractorfs);
     createindex = combineList(createindex, translatenucs);
+    createindex = combineList(createindex, splitsequence);
+    createindex.push_back(&PARAM_STRAND);
     createindex.push_back(&PARAM_REMOVE_TMP_FILES);
+
+    // createindex workflow
+    createlinindex = combineList(kmerindexdb, extractorfs);
+    createlinindex = combineList(createlinindex, translatenucs);
+    createlinindex.push_back(&PARAM_REMOVE_TMP_FILES);
 
     // linclust workflow
     linclustworkflow = combineList(clust, align);
@@ -919,8 +992,6 @@ Parameters::Parameters():
     enrichworkflow = combineList(enrichworkflow, align);
     enrichworkflow = combineList(enrichworkflow, expandaln);
     enrichworkflow = combineList(enrichworkflow, result2profile);
-    enrichworkflow.push_back(&PARAM_REUSELATEST);
-    enrichworkflow.push_back(&PARAM_NUM_ITERATIONS);
 
     //checkSaneEnvironment();
     setDefaults();
@@ -937,13 +1008,13 @@ void Parameters::printUsageMessage(const Command& command,
     if(command.citations > 0) {
         ss << "Please cite:\n";
         if(command.citations & CITATION_SERVER) {
-            ss << "Mirdita, M., Steinegger, M. & Soding, J. MMseqs2 desktop and local web server app for fast, interactive sequence searches. biorxiv, doi:10.1101/419895 (2018)\n\n";
+            ss << "Mirdita, M., Steinegger, M. & Soding, J. MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, (2019).\n\n";
         }
         if(command.citations & CITATION_PLASS) {
-            ss << "Steinegger, M. Mirdita, M., & Soding, J. Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, https://doi.org/10.1101/386110 (2018)\n";
+            ss << "Steinegger, M. Mirdita, M., & Soding, J. Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, doi:10.1101/386110 (2018)\n\n";
         }
         if(command.citations & CITATION_LINCLUST) {
-            ss << "Steinegger, M. & Soding, J. Clustering huge protein sequence sets in linear time. Nature Communications, doi: 10.1038/s41467-018-04964-5 (2018)\n";
+            ss << "Steinegger, M. & Soding, J. Clustering huge protein sequence sets in linear time. Nature Communications, doi:10.1038/s41467-018-04964-5 (2018)\n\n";
         }
         if(command.citations & CITATION_MMSEQS1) {
             ss << "Hauser, M., Steinegger, M. & Soding, J. MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n\n";
@@ -1238,6 +1309,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db6 = filenames[5];
             db6Index = db6;
             db6Index.append(".index");
+            db6dbtype = db6;
+            db6dbtype.append(".dbtype");
             hdr6 = db6;
             hdr6.append("_h");
             hdr6Index = hdr6;
@@ -1247,6 +1320,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db5 = filenames[4];
             db5Index = db5;
             db5Index.append(".index");
+            db5dbtype = db5;
+            db5dbtype.append(".dbtype");
             hdr5 = db5;
             hdr5.append("_h");
             hdr5Index = hdr5;
@@ -1256,6 +1331,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db4 = filenames[3];
             db4Index = db4;
             db4Index.append(".index");
+            db4dbtype = db4;
+            db4dbtype.append(".dbtype");
             hdr4 = db4;
             hdr4.append("_h");
             hdr4Index = hdr4;
@@ -1265,6 +1342,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db3 = filenames[2];
             db3Index = db3;
             db3Index.append(".index");
+            db3dbtype = db3;
+            db3dbtype.append(".dbtype");
             hdr3 = db3;
             hdr3.append("_h");
             hdr3Index = hdr3;
@@ -1274,6 +1353,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db2 = filenames[1];
             db2Index = db2;
             db2Index.append(".index");
+            db2dbtype = db2;
+            db2dbtype.append(".dbtype");
             hdr2 = db2;
             hdr2.append("_h");
             hdr2Index = hdr2;
@@ -1283,6 +1364,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db1 = filenames[0];
             db1Index = db1;
             db1Index.append(".index");
+            db1dbtype = db1;
+            db1dbtype.append(".dbtype");
             hdr1 = db1;
             hdr1.append("_h");
             hdr1Index = hdr1;
@@ -1399,6 +1482,7 @@ void Parameters::setDefaults() {
     maxRejected = INT_MAX;
     maxAccept   = INT_MAX;
     seqIdThr = 0.0;
+    alnLenThr = 0;
     altAlignment = 0;
     gapOpen = 11;
     gapExtend = 1;
@@ -1430,8 +1514,8 @@ void Parameters::setDefaults() {
     profileMode = PROFILE_MODE_HMM;
 
     // indexdb
-    includeHeader = false;
     checkCompatible = false;
+    indexType = 0;
 
     // createdb
     splitSeqByLen = true;
@@ -1469,7 +1553,7 @@ void Parameters::setDefaults() {
     filterMaxSeqId = 0.9;
     qid = 0.0;           // default for minimum sequence identity with query
     qsc = -20.0f;        // default for minimum score per column with query
-    cov = 0.0;           // default for minimum coverage threshold
+    covMSAThr = 0.0;           // default for minimum coverage threshold
     Ndiff = 1000;        // pick Ndiff most different sequences from alignment
     wg = false;
     pca = 1.0;
@@ -1542,6 +1626,7 @@ void Parameters::setDefaults() {
 
     // concatdbs
     preserveKeysB = false;
+    takeLargerEntry = false;
 
     // diff
     useSequenceId = false;
@@ -1552,6 +1637,9 @@ void Parameters::setDefaults() {
 
     // offset alignment
     chainAlignment = 0;
+
+    // tsv2db
+    outputDbType = Parameters::DBTYPE_GENERIC_DB;
 
     // mergedbs
     mergePrefixes = "";
@@ -1574,7 +1662,7 @@ void Parameters::setDefaults() {
     includeOnlyExtendable = false;
     skipNRepeatKmer = 0;
     hashShift = 5;
-
+    pickNbest = 1;
     // result2stats
     stat = "";
 
@@ -1586,6 +1674,9 @@ void Parameters::setDefaults() {
     // filtertaxdb
     taxonList = "";
     invertSelection = false;
+
+    // view
+    idList = "";
 
     // lca
     lcaRanks = "";
@@ -1608,8 +1699,8 @@ std::vector<MMseqsParameter*> Parameters::combineList(const std::vector<MMseqsPa
     std::vector< std::vector<MMseqsParameter*>> tmp;
     tmp.push_back(par1);
     tmp.push_back(par2);
-    for(size_t z = 0; z < tmp.size(); z++) {
-        std::vector<MMseqsParameter*> currPar = tmp[z];
+    for (size_t z = 0; z < tmp.size(); z++) {
+        std::vector<MMseqsParameter*> &currPar = tmp[z];
         for (size_t i = 0; i < currPar.size(); i++) {
             bool addPar = true;
             for (size_t j = 0; j < retVec.size(); j++) {
@@ -1618,7 +1709,7 @@ std::vector<MMseqsParameter*> Parameters::combineList(const std::vector<MMseqsPa
                 }
             }
             if (addPar == true) {
-                retVec.push_back(currPar[i]);
+                retVec.emplace_back(currPar[i]);
             }
         }
     }

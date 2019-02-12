@@ -10,6 +10,7 @@
 #include "CovSeqidQscPercMinDiagTargetCov.out.h"
 #include "QueryMatcher.h"
 #include "NucleotideMatrix.h"
+#include "IndexReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -44,12 +45,30 @@ int doRescorediagonal(Parameters &par,
                       DBWriter &resultWriter,
                       DBReader<unsigned int> &resultReader,
               const size_t dbFrom, const size_t dbSize) {
-    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    qdbr.open(DBReader<unsigned int>::NOSORT);
-    const int querySeqType = qdbr.getDbtype();
-    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-        qdbr.readMmapedDataInMemory();
+
+
+    IndexReader * qDbrIdx = NULL;
+    DBReader<unsigned int> * qdbr = NULL;
+    DBReader<unsigned int> * tdbr = NULL;
+    bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+    IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
+    int querySeqType = 0;
+    tdbr = tDbrIdx->sequenceReader;
+    int targetSeqType = tDbrIdx->getDbtype();
+    bool sameQTDB = (par.db2.compare(par.db1) == 0);
+    if (sameQTDB == true) {
+        qDbrIdx = tDbrIdx;
+        qdbr = tdbr;
+        querySeqType = targetSeqType;
+    } else {
+        // open the sequence, prefiltering and output databases
+        qDbrIdx = new IndexReader(par.db1, par.threads,  IndexReader::SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0);
+        qdbr = qDbrIdx->sequenceReader;
+        querySeqType = qdbr->getDbtype();
+    }
+
+    if(resultReader.isSortedByOffset() && qdbr->isSortedByOffset()){
+        qdbr->setSequentialAdvice();
     }
 
     BaseMatrix *subMat;
@@ -62,19 +81,6 @@ int doRescorediagonal(Parameters &par,
 
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
 
-    Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-    DBReader<unsigned int> *tdbr = NULL;
-    bool sameDB = false;
-    if (par.db1.compare(par.db2) == 0) {
-        sameDB = true;
-        tdbr = &qdbr;
-    } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        tdbr->open(DBReader<unsigned int>::NOSORT);
-        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-            tdbr->readMmapedDataInMemory();
-        }
-    }
 
     float scorePerColThr = 0.0;
     if (par.filterHits) {
@@ -98,7 +104,7 @@ int doRescorediagonal(Parameters &par,
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 100000000;
-    if (totalMemory > resultReader.getDataSize()) {
+    if (totalMemory > resultReader.getTotalDataSize()) {
         flushSize = resultReader.getSize();
     }
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
@@ -130,20 +136,25 @@ int doRescorediagonal(Parameters &par,
 
                 char *data = resultReader.getData(id, thread_idx);
                 size_t queryKey = resultReader.getDbKey(id);
-                unsigned int queryId = qdbr.getId(queryKey);
-                char *querySeq = qdbr.getData(queryId, thread_idx);
-                int queryLen = std::max(0, static_cast<int>(qdbr.getSeqLens(queryId)) - 2);
-                if (reversePrefilterResult == true) {
-                    NucleotideMatrix *nuclMatrix = (NucleotideMatrix *) subMat;
-                    for (int pos = queryLen - 1; pos > -1; pos--) {
-                        int res = subMat->aa2int[static_cast<int>(querySeq[pos])];
-                        queryRevSeq[(queryLen - 1) - pos] = subMat->int2aa[nuclMatrix->reverseResidue(res)];
+                char *querySeq = NULL;
+                unsigned int queryId = UINT_MAX;
+                int queryLen = -1;
+                if(*data !=  '\0'){
+                    queryId = qdbr->getId(queryKey);
+                    querySeq = qdbr->getData(queryId, thread_idx);
+                    queryLen = std::max(0, static_cast<int>(qdbr->getSeqLens(queryId)) - 2);
+                    if (reversePrefilterResult == true) {
+                        NucleotideMatrix *nuclMatrix = (NucleotideMatrix *) subMat;
+                        for (int pos = queryLen - 1; pos > -1; pos--) {
+                            int res = subMat->aa2int[static_cast<int>(querySeq[pos])];
+                            queryRevSeq[(queryLen - 1) - pos] = subMat->int2aa[nuclMatrix->reverseResidue(res)];
+                        }
                     }
-                }
-                if (sameDB && qdbr.isCompressed()) {
-                    queryBuffer.clear();
-                    queryBuffer.append(querySeq, queryLen);
-                    querySeq = (char *) queryBuffer.c_str();
+                    if (sameQTDB && qdbr->isCompressed()) {
+                        queryBuffer.clear();
+                        queryBuffer.append(querySeq, queryLen);
+                        querySeq = (char *) queryBuffer.c_str();
+                    }
                 }
 
 //                if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
@@ -165,7 +176,7 @@ int doRescorediagonal(Parameters &par,
                     }
 
                     unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
-                    const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB)) ? true : false;
+                    const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameQTDB)) ? true : false;
                     char *targetSeq = tdbr->getData(targetId, thread_idx);
                     int dbLen = std::max(0, static_cast<int>(tdbr->getSeqLens(targetId)) - 2);
 
@@ -174,50 +185,25 @@ int doRescorediagonal(Parameters &par,
                     if (Util::canBeCovered(par.covThr, par.covMode, queryLength, targetLength) == false) {
                         continue;
                     }
-                    short diagonal = results[entryIdx].diagonal;
-                    unsigned short distanceToDiagonal = abs(diagonal);
-                    unsigned int diagonalLen = 0;
-                    unsigned int distance = 0;
-                    DistanceCalculator::LocalAlignment alignment;
-                    if (diagonal >= 0 && distanceToDiagonal < queryLen) {
-                        diagonalLen = std::min(dbLen, queryLen - distanceToDiagonal);
-                        if (par.rescoreMode == Parameters::RESCORE_MODE_HAMMING) {
-                            distance = DistanceCalculator::computeHammingDistance(
-                                    querySeqToAlign + distanceToDiagonal, targetSeq, diagonalLen);
-                        } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
-                            distance = DistanceCalculator::computeSubstitutionDistance(
-                                    querySeqToAlign + distanceToDiagonal, targetSeq, diagonalLen, fastMatrix.matrix,
-                                    par.globalAlignment);
-                        } else if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
-                            alignment = DistanceCalculator::computeSubstitutionStartEndDistance(
-                                    querySeqToAlign + distanceToDiagonal, targetSeq, diagonalLen, fastMatrix.matrix);
-                            distance = alignment.score;
-                        }
-                    } else if (diagonal < 0 && distanceToDiagonal < dbLen) {
-                        diagonalLen = std::min(dbLen - distanceToDiagonal, queryLen);
-                        if (par.rescoreMode == Parameters::RESCORE_MODE_HAMMING) {
-                            distance = DistanceCalculator::computeHammingDistance(
-                                    querySeqToAlign, targetSeq + distanceToDiagonal, diagonalLen);
-                        } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
-                            distance = DistanceCalculator::computeSubstitutionDistance(
-                                    querySeqToAlign, targetSeq + distanceToDiagonal, diagonalLen, fastMatrix.matrix,
-                                    par.globalAlignment);
-                        } else if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
-                            alignment = DistanceCalculator::computeSubstitutionStartEndDistance(
-                                    querySeqToAlign, targetSeq + distanceToDiagonal, diagonalLen, fastMatrix.matrix);
-                            distance = alignment.score;
-                        }
-                    }
-
+                    DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeUngappedAlignment(
+                                                                                      querySeqToAlign, queryLen, targetSeq, targetLength,
+                                                                                      results[entryIdx].diagonal, fastMatrix.matrix, par.rescoreMode);
+                    unsigned int distanceToDiagonal = alignment.distToDiagonal;
+                    int diagonalLen = alignment.diagonalLen;
+                    int distance = alignment.score;
+                    int diagonal = alignment.diagonal;
                     double seqId = 0;
                     double evalue = 0.0;
+                    int bitScore = 0;
+                    int alnLen = 0;
                     float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(dbLen);
                     float queryCov = static_cast<float>(diagonalLen) / static_cast<float>(queryLen);
 
                     Matcher::result_t result;
                     if (par.rescoreMode == Parameters::RESCORE_MODE_HAMMING) {
-                        int idCnt = (static_cast<float>(diagonalLen) - static_cast<float>(distance));
+                        int idCnt = (static_cast<float>(distance));
                         seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, diagonalLen);
+                        alnLen = diagonalLen;
                     } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION ||
                                par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
                         //seqId = exp(static_cast<float>(distance) / static_cast<float>(diagonalLen));
@@ -226,10 +212,10 @@ int doRescorediagonal(Parameters &par,
                             seqId = globalAliStat.getPvalGlobalAli((float) distance, diagonalLen);
                         } else {
                             evalue = evaluer.computeEvalue(distance, queryLen);
-                            int bitScore = static_cast<short>(evaluer.computeBitScore(distance) + 0.5);
+                            bitScore = static_cast<int>(evaluer.computeBitScore(distance) + 0.5);
 
                             if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
-                                int alnLen = alignment.endPos - alignment.startPos;
+                                alnLen = (alignment.endPos - alignment.startPos) + 1;
                                 int qStartPos, qEndPos, dbStartPos, dbEndPos;
                                 // -1 since diagonal is computed from sequence Len which starts by 1
                                 if (diagonal >= 0) {
@@ -251,15 +237,12 @@ int doRescorediagonal(Parameters &par,
                                 if (evalue <= par.evalThr || isIdentity) {
                                     int idCnt = 0;
                                     for (int i = qStartPos; i <= qEndPos; i++) {
-                                        idCnt += (querySeqToAlign[i] == targetSeq[dbStartPos + (i - qStartPos)]) ? 1
-                                                                                                                 : 0;
+                                        idCnt += (querySeqToAlign[i] == targetSeq[dbStartPos + (i - qStartPos)]) ? 1 : 0;
                                     }
-                                    unsigned int alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos,
-                                                                                       dbEndPos);
-                                    seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLength);
+                                    seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLen);
                                 }
 
-                                char *end = Itoa::i32toa_sse2(qEndPos - qStartPos, buffer);
+                                char *end = Itoa::i32toa_sse2(alnLen, buffer);
                                 size_t len = end - buffer;
                                 std::string backtrace(buffer, len - 1);
                                 backtrace.push_back('M');
@@ -284,15 +267,17 @@ int doRescorediagonal(Parameters &par,
                     // --min-seq-id
                     bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
                     bool hasEvalue = (evalue <= par.evalThr);
+                    bool hasAlnLen = (alnLen >= par.alnLenThr);
+
                     // --filter-hits
                     bool hasToFilter = (par.filterHits == true && currScorePerCol >= scorePerColThr);
-                    if (isIdentity || hasToFilter || (hasCov && hasSeqId && hasEvalue)) {
+                    if (isIdentity || hasToFilter || (hasAlnLen && hasCov && hasSeqId && hasEvalue)) {
                         if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
                             alnResults.emplace_back(result);
                         } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
                             hit_t hit;
                             hit.seqId = results[entryIdx].seqId;
-                            hit.prefScore = result.score;
+                            hit.prefScore = bitScore;
                             hit.diagonal = diagonal;
                             shortResults.emplace_back(hit);
                         } else {
@@ -334,10 +319,15 @@ int doRescorediagonal(Parameters &par,
         resultReader.remapData();
     }
     Debug(Debug::INFO) << "\nDone.\n";
-    qdbr.close();
-    if (sameDB == false) {
-        tdbr->close();
-        delete tdbr;
+
+    if (tDbrIdx != NULL) {
+        delete tDbrIdx;
+    }
+
+    if (sameQTDB == false) {
+        if(qDbrIdx != NULL){
+            delete qDbrIdx;
+        }
     }
 
     delete[] fastMatrix.matrix;
@@ -388,14 +378,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     resultWriter.close();
 
 #endif
-
-
-
-
     resultReader.close();
-
-
-
     return status;
 }
 

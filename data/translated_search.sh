@@ -20,12 +20,12 @@ notExists() {
 QUERY="$1"
 QUERY_ORF="$1"
 if [ -n "$QUERY_NUCL" ]; then
-    if notExists "$4/q_orfs"; then
+    if notExists "$4/q_orfs.dbtype"; then
         # shellcheck disable=SC2086
         "$MMSEQS" extractorfs "$1" "$4/q_orfs" ${ORF_PAR} \
             || fail  "extract orfs step died"
     fi
-    if notExists "$4/q_orfs_aa"; then
+    if notExists "$4/q_orfs_aa.dbtype"; then
         # shellcheck disable=SC2086
         "$MMSEQS" translatenucs "$4/q_orfs" "$4/q_orfs_aa" ${TRANSLATE_PAR} \
             || fail  "translate step died"
@@ -38,12 +38,12 @@ TARGET="$2"
 TARGET_ORF="$2"
 if [ -n "$TARGET_NUCL" ]; then
 if [ -n "$NO_TARGET_INDEX" ]; then
-    if notExists "$4/t_orfs"; then
+    if notExists "$4/t_orfs.dbtype"; then
         # shellcheck disable=SC2086
         "$MMSEQS" extractorfs "$2" "$4/t_orfs" ${ORF_PAR} \
             || fail  "extract target orfs step died"
     fi
-    if notExists "$4/t_orfs_aa"; then
+    if notExists "$4/t_orfs_aa.dbtype"; then
         # shellcheck disable=SC2086
         "$MMSEQS" translatenucs "$4/t_orfs" "$4/t_orfs_aa" ${TRANSLATE_PAR} \
             || fail  "translate target step died"
@@ -54,20 +54,18 @@ fi
 fi
 
 mkdir -p "$4/search"
-if notExists "$4/aln"; then
+if notExists "$4/aln.dbtype"; then
     # shellcheck disable=SC2086
     "$SEARCH" "${QUERY}" "${TARGET}" "$4/aln" "$4/search" \
         || fail "Search step died"
 fi
 
-if notExists "$4/aln_offset"; then
+if notExists "$4/aln_offset.dbtype"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" offsetalignment "$1" "$QUERY_ORF" "$2" "$TARGET_ORF" "$4/aln"  "$4/aln_offset" ${OFFSETALIGNMENT_PAR} \
+    "$MMSEQS" offsetalignment "$1" "$QUERY_ORF" "$2" "$TARGET_ORF" "$4/aln"  "$3" ${OFFSETALIGNMENT_PAR} \
         || fail "Offset step died"
 fi
 
-(mv -f "$4/aln_offset" "$3" && mv -f "$4/aln_offset.dbtype" "$3.dbtype" && mv -f "$4/aln_offset.index" "$3.index") \
-    || fail "Could not move result to $3"
 
 if [ -n "$REMOVE_TMP" ]; then
   echo "Remove temporary files"

@@ -364,7 +364,7 @@ int SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const bool
     std::stringstream in(matrixData);
     std::string line;
     bool probMatrixStart = false;
-    char *words[256];
+    const char *words[256];
     bool hasLambda = false;
     bool hasBackground = false;
     while (in.good()) {
@@ -447,7 +447,7 @@ int SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const bool
 std::pair<int, bool> SubstitutionMatrix::setAaMappingDetectAlphSize(std::string &matrixData){
     std::stringstream in(matrixData);
     std::string line;
-    char *words[256];
+    const char *words[256];
     int alphabetSize = 0;
     bool containsX;
     while (in.good()) {

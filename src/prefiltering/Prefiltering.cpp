@@ -52,9 +52,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 
     int indexMasked = maskMode;
     int minKmerThr = INT_MIN;
-    std::string indexDB = PrefilteringIndexReader::searchForIndex(targetDB);
-    if (indexDB != "") {
-        Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
+    int targetDbtype = DBReader<unsigned int>::parseDbType(targetDB.c_str());
+    if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
+        Debug(Debug::INFO) << "Use index  " << targetDB << "\n";
 
         int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
         if(preloadMode == Parameters::PRELOAD_MODE_AUTO){
@@ -67,7 +67,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
             dataMode |= DBReader<unsigned int>::USE_FREAD;
         }
-        tdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), threads, dataMode);
+        tdbr = new DBReader<unsigned int>(targetDB.c_str(), (targetDB + ".index").c_str(), threads, dataMode);
         tdbr->open(DBReader<unsigned int>::NOSORT);
 
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
@@ -79,7 +79,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                 touch = true;
                 tidxdbr->readMmapedDataInMemory();
             }
-            tdbr = PrefilteringIndexReader::openNewReader(tdbr, PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX, false, threads, touch);
+            tdbr = PrefilteringIndexReader::openNewReader(tdbr, PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX, false, threads, touch, touch);
             PrefilteringIndexReader::printSummary(tidxdbr);
             PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
             for(size_t i = 0; i < par.prefilter.size(); i++){
@@ -405,7 +405,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         std::string result;
         result.reserve(BUFFER_SIZE);
         char buffer[100];
-#pragma omp  for schedule(dynamic, 10)
+#pragma omp  for schedule(dynamic, 2)
         for (size_t id = 0; id < dbr.getSize(); id++) {
             unsigned int dbKey = dbr.getDbKey(id);
             char *data = dbr.getData(id, thread_idx);
@@ -470,12 +470,8 @@ ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t
 void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
     if (templateDBIsIndex == true) {
         indexTable = PrefilteringIndexReader::generateIndexTable(tidxdbr, false);
-
-        if (maskMode == 0) {
-            sequenceLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, false);
-        } else if (maskMode == 1) {
-            sequenceLookup = PrefilteringIndexReader::getMaskedSequenceLookup(tidxdbr, false);
-        }
+        //TODO check masked mode here
+        sequenceLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, false);
     } else {
         Timer timer;
 
@@ -602,8 +598,8 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
         FileUtil::copyFile(result.first.c_str(), resultShared.first.c_str());
         FileUtil::copyFile(result.second.c_str(), resultShared.second.c_str());
         // copy exits on failure so if here - copy succeeded, local can be deleted
-        FileUtil::deleteFile(result.first);
-        FileUtil::deleteFile(result.second);
+        FileUtil::remove(result.first.c_str());
+        FileUtil::remove(result.second.c_str());
     }
     int hasResult = hasTmpResult;
 
@@ -818,7 +814,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             matcher.setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
         }
 
-#pragma omp for schedule(dynamic, 10) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
+#pragma omp for schedule(dynamic, 2) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
         for (size_t id = queryFrom; id < queryFrom + querySize; id++) {
             Debug::printProgress(id);
             // get query sequence
@@ -1025,7 +1021,7 @@ double Prefiltering::setKmerThreshold(DBReader<unsigned int> *qdbr) {
             matcher.setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
         }
 
-        #pragma omp for schedule(dynamic, 10) reduction (+: doubleMatches, kmersPerPos, querySeqLenSum)
+        #pragma omp for schedule(dynamic, 2) reduction (+: doubleMatches, kmersPerPos, querySeqLenSum)
         for (size_t i = 0; i < querySetSize; i++) {
             size_t id = querySeqs[i];
 

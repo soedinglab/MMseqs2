@@ -135,7 +135,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 100000000;
-    if (totalMemory > dbr_res.getDataSize()) {
+    if (totalMemory > dbr_res.getTotalDataSize()) {
         flushSize = dbr_res.getSize();
     }
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbr_res.getSize()) / static_cast<double>(flushSize)));
@@ -441,7 +441,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
                     const float seqId = static_cast<float>(ids)/static_cast<float>(alnLen);
 
-                    int bitScore = static_cast<short>(evaluer.computeBitScore(score)+0.5);
+                    int bitScore = static_cast<int>(evaluer.computeBitScore(score)+0.5);
 
                     const double evalue = evaluer.computeEvalue(score, query.L);
                     // query/target cov mode

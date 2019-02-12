@@ -236,17 +236,17 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
         // adjust kmer threshold based on composition bias
         kmerGenerator->setThreshold(kmerMatchScore);
 
-        const unsigned int * index;
-        unsigned int exactKmer;
+        const size_t * index;
+        size_t exactKmer;
         size_t kmerElementSize;
         if(takeOnlyBestKmer){
             kmerElementSize = 1;
             exactKmer = idx.int2index(kmer);
             index = &exactKmer;
         }else{
-            ScoreMatrix kmerList = kmerGenerator->generateKmerList(kmer);
-            kmerElementSize = kmerList.elementSize;
-            index = kmerList.index;
+            std::pair<size_t*, size_t> kmerList = kmerGenerator->generateKmerList(kmer);
+            kmerElementSize = kmerList.second;
+            index = kmerList.first;
         }
         //std::cout << kmer << std::endl;
         indexPointer[current_i] = sequenceHits;

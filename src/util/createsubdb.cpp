@@ -15,7 +15,12 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     if (FileUtil::fileExists(par.db1Index.c_str())) {
         orderFile = fopen(par.db1Index.c_str(), "r");
     } else {
-        orderFile = fopen(par.db1.c_str(), "r");
+        if(FileUtil::fileExists(par.db1.c_str())){
+            orderFile = fopen(par.db1.c_str(), "r");
+        }else{
+            Debug(Debug::ERROR) << "File " << par.db1 << " does not exist.\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
 
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);

@@ -18,13 +18,13 @@ INPUT="$1"
 RESULTS="$2"
 TMP_PATH="$3"
 
-if notExists "${TMP_PATH}/input"; then
+if notExists "${TMP_PATH}/input.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" createdb "${INPUT}" "${TMP_PATH}/input" ${CREATEDB_PAR} \
         || fail "query createdb died"
 fi
 
-if notExists "${TMP_PATH}/clu"; then
+if notExists "${TMP_PATH}/clu.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" "${CLUSTER_MODULE}" "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/clu_tmp" ${CLUSTER_PAR} \
         || fail "Search died"

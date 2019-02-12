@@ -75,7 +75,6 @@ struct KmerPosition {
         return false;
     }
 
-
     static bool compareRepSequenceAndIdAndDiag(const KmerPosition &first, const KmerPosition &second){
         if(first.kmer < second.kmer)
             return true;
@@ -92,6 +91,8 @@ struct KmerPosition {
         return false;
     }
 };
+
+
 
 struct __attribute__((__packed__)) KmerEntry {
     unsigned int seqId;
@@ -151,12 +152,10 @@ public:
 
 
 template  <int TYPE>
-size_t assignGroup(KmerPosition *kmers, size_t splitKmerCount, bool includeOnlyExtendable);
+size_t assignGroup(KmerPosition *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr);
 
 template <int TYPE, typename T>
-void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
-                             std::vector<std::string> tmpFiles, std::vector<char> &repSequence,
-                             int covMode, float covThr) ;
+void mergeKmerFilesAndOutput(DBWriter & dbw, std::vector<std::string> tmpFiles, std::vector<char> &repSequence);
 
 typedef std::priority_queue<FileKmerPosition, std::vector<FileKmerPosition>, CompareResultBySeqId> KmerPositionQueue;
 
@@ -169,23 +168,27 @@ template <int TYPE, typename T>
 void writeKmersToDisk(std::string tmpFile, KmerPosition *kmers, size_t totalKmers);
 
 template <int TYPE>
-void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
-                            KmerPosition *hashSeqPair, size_t totalKmers,
-                            std::vector<char> &repSequence, int covMode, float covThr,
-                            size_t threads);
+void writeKmerMatcherResult(DBWriter & dbw, KmerPosition *hashSeqPair, size_t totalKmers,
+                            std::vector<char> &repSequence, size_t threads);
 
 KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std::string splitFile,
                              DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat,
                              size_t KMER_SIZE, size_t chooseTopKmer);
-template  <int TYPE>
+
+KmerPosition *initKmerPositionMemory(size_t size);
+
+template <int TYPE>
 size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> &seqDbr,
                              Parameters & par, BaseMatrix * subMat,
                              size_t KMER_SIZE, size_t chooseTopKmer,
-                             size_t splits, size_t split);
+                             bool includeIdenticalKmer, size_t splits, size_t split, size_t pickNBest);
+
 
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);
 
 size_t computeKmerCount(DBReader<unsigned int> &reader, size_t KMER_SIZE, size_t chooseTopKmer);
+
+void setLinearFilterDefault(Parameters *p);
 
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);
 

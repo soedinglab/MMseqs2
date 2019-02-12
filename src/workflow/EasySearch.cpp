@@ -1,13 +1,12 @@
 #include <cassert>
-
+#include "LinsearchIndexReader.h"
+#include "PrefilteringIndexReader.h"
 #include "FileUtil.h"
 #include "CommandCaller.h"
 #include "Util.h"
 #include "Debug.h"
 #include "Parameters.h"
-
 #include "easysearch.sh.h"
-
 
 void setEasySearchDefaults(Parameters *p) {
     p->sensitivity = 5.7;
@@ -15,8 +14,7 @@ void setEasySearchDefaults(Parameters *p) {
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
 }
 
-
-int easysearch(int argc, const char **argv, const Command &command) {
+int doeasysearch(int argc, const char **argv, const Command &command, bool linsearch) {
     Parameters &par = Parameters::getInstance();
     setEasySearchDefaults(&par);
     par.overrideParameterDescription((Command &) command, par.PARAM_ADD_BACKTRACE.uniqid, NULL, NULL, par.PARAM_ADD_BACKTRACE.category | MMseqsParameter::COMMAND_EXPERT);
@@ -47,6 +45,7 @@ int easysearch(int argc, const char **argv, const Command &command) {
     par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
                                      par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
     par.parseParameters(argc, argv, command, 4);
+
 
     bool needBacktrace = false;
     {
@@ -86,6 +85,22 @@ int easysearch(int argc, const char **argv, const Command &command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
+    if (linsearch) {
+        const bool isIndex = LinsearchIndexReader::searchForIndex(par.db2).empty() == false;
+        cmd.addVariable("INDEXEXT", isIndex ? ".linidx" : NULL);
+        cmd.addVariable("SEARCH_MODULE", "linsearch");
+        cmd.addVariable("LINSEARCH", "TRUE");
+        cmd.addVariable("CREATELININDEX_PAR", par.createParameterString(par.createlinindex).c_str());
+        cmd.addVariable("SEARCH_PAR", par.createParameterString(par.linsearchworkflow, true).c_str());
+    } else {
+        const bool isIndex = PrefilteringIndexReader::searchForIndex(par.db2).empty() == false;
+        cmd.addVariable("INDEXEXT", isIndex ? ".idx" : NULL);
+        cmd.addVariable("SEARCH_MODULE", "search");
+        cmd.addVariable("LINSEARCH", NULL);
+        cmd.addVariable("CREATELININDEX_PAR", NULL);
+        cmd.addVariable("SEARCH_PAR", par.createParameterString(par.searchworkflow, true).c_str());
+
+    }
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("GREEDY_BEST_HITS", par.greedyBestHits ? "TRUE" : NULL);
     cmd.addVariable("LEAVE_INPUT", par.dbOut ? "TRUE" : NULL);
@@ -93,7 +108,6 @@ int easysearch(int argc, const char **argv, const Command &command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
 
     cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb).c_str());
-    cmd.addVariable("SEARCH_PAR", par.createParameterString(par.searchworkflow, true).c_str());
     cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());
     cmd.addVariable("SUMMARIZE_PAR", par.createParameterString(par.summarizeresult).c_str());
 
@@ -104,4 +118,12 @@ int easysearch(int argc, const char **argv, const Command &command) {
     // Should never get here
     assert(false);
     return 0;
+}
+
+int easysearch(int argc, const char **argv, const Command &command) {
+    return doeasysearch(argc, argv, command, false);
+}
+
+int easylinsearch(int argc, const char **argv, const Command &command) {
+    return doeasysearch(argc, argv, command, true);
 }

@@ -92,7 +92,7 @@ public:
 
     static Matcher::result_t getFromDatabase(const size_t id, DBReader<unsigned int> & contigsReader, DBReader<unsigned int> & orfHeadersReader, int thread_idx);
 
-    static SequenceLocation parseOrfHeader(char *data);
+    static SequenceLocation parseOrfHeader(const char *data);
 
     //note: N->N, S->S, W->W, U->A, T->A
     static const char* iupacReverseComplementTable;
@@ -100,6 +100,9 @@ public:
     static inline char complement(const char c) {
         return iupacReverseComplementTable[static_cast<unsigned char>(c)];
     }
+
+    static size_t writeOrfHeader(char *buffer, unsigned int key, size_t fromPos, size_t toPos, bool hasIncompleteStart,
+                               bool hasIncompleteEnd);
 
 private:
     size_t sequenceLength;

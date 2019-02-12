@@ -1,10 +1,19 @@
-language: c++
+language: minimal
+
+env:
 
 matrix:
   include:
   - os: linux
+    dist: xenial
+    addons:
+      apt:
+        packages:
+          - qemu-user-static
+          - binfmt-support
+    env: QEMU_ARM=1
+  - os: linux
     dist: trusty
-    sudo: false
     addons:
       apt:
         packages:
@@ -15,45 +24,39 @@ matrix:
         - zlib1g-dev
         - libbz2-dev
         - vim-common
-        - libopenmpi-dev
-    env:
-    - MATRIX_EVAL="CXX=clang++-3.6"
+    env: CC=clang-3.6 CXX=clang++-3.6
   - os: linux
     dist: trusty
-    sudo: false
     addons:
       apt:
         sources:
-        - llvm-toolchain-trusty-5.0
+        - ubuntu-toolchain-r-test
+        - llvm-toolchain-trusty-7
         packages:
         - cmake
         - ninja-build
-        - clang-5.0
-        - libc++-dev
+        - clang-7
+        - libc++-7-dev
+        - libc++abi-7-dev
         - zlib1g-dev
         - libbz2-dev
         - vim-common
-        - libopenmpi-dev
-    env:
-    - MATRIX_EVAL="CXX=clang++-5.0"
+    env: CC=clang-7 CXX=clang++-7
   - os: linux
     dist: trusty
-    sudo: false
     addons:
       apt:
         packages:
         - cmake
         - ninja-build
-        - g++-4.6
+        - gcc-4.8
+        - g++-4.8
         - zlib1g-dev
         - libbz2-dev
         - vim-common
-        - libopenmpi-dev
-    env:
-    - MATRIX_EVAL="CXX=g++-4.6"
+    env: CC=gcc-4.8 CXX=g++-4.8
   - os: linux
     dist: trusty
-    sudo: false
     addons:
       apt:
         sources:
@@ -61,34 +64,76 @@ matrix:
         packages:
         - cmake
         - ninja-build
-        - g++-7
+        - gcc-8
+        - g++-8
+        - zlib1g-dev
+        - libbz2-dev
+        - vim-common
+    env: CC=gcc-8 CXX=g++-8
+  - os: linux
+    dist: trusty
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - cmake
+        - ninja-build
+        - gcc-8
+        - g++-8
         - zlib1g-dev
         - libbz2-dev
         - vim-common
         - libopenmpi-dev
-    env:
-    - MATRIX_EVAL="CXX=g++-7"
+    env: MPI=1 CC=gcc-8 CXX=g++-8
   - os: osx
-    osx_image: xcode9.2
-    env:
-    - MATRIX_EVAL="CXX=g++-7"
+    osx_image: xcode10.1
+    addons:
+      homebrew:
+        packages:
+        - cmake
+        - ninja
+        - gcc@8
+        - zlib
+        - bzip2
+    env: CC=gcc-8 CXX=g++-8
+  allow_failures:
+  - env: QEMU_ARM=1
+  fast_finish: true
+
+services:
+  - docker
 
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
-  # workaround for GCC install issue, remove package that installed links to /usr/local/include/c++
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew cask list && brew cask uninstall --force oclint; fi
-  # coreutils and cmake dependencies are already pre-installed
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc@7 ninja zlib bzip2 vim binutils; fi
-  - eval "${MATRIX_EVAL}"
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew link gcc@8 --force; fi
+  - export CC
+  - export CXX
 
 script:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mkdir build; cd build; cmake -G Ninja -DHAVE_SSE4_1=1 ..; ninja; cd ..; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then ./util/build_osx.sh . build; fi
+  - |
+    if [[ -n "$QEMU_ARM" ]]; then \
+      docker build --build-arg NAMESPACE=arm64v8/ -t mmseqs . || exit 1; \
+    elif [[ "$TRAVIS_OS_NAME" == "linux" ]]; then \
+      if [[ -n "$MPI" ]]; then MPI=1; else MPI=0; fi; \
+      mkdir build; cd build; cmake -G Ninja -DHAVE_MPI="$MPI" -DHAVE_SSE4_1=1 .. || exit 1; ninja || exit 1; \
+    elif [[ "$TRAVIS_OS_NAME" == "osx" ]]; then \
+      ./util/build_osx.sh . build || exit 1; \
+    else \
+      exit 1; \
+    fi
 
 after_success:
-  - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]]; then openssl aes-256-cbc -K $encrypted_4188a201d0b5_key -iv $encrypted_4188a201d0b5_iv -in ./util/.travis.enc -out $HOME/.ssh/id_rsa -d; fi
-  - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]]; then chmod 400 $HOME/.ssh/id_rsa; fi
-  - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]]; then ssh -o StrictHostKeyChecking=no codeship@uniclust.mmseqs.com "mkdir -p /home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT}"; fi
-  - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]]; then cd build; scp -o StrictHostKeyChecking=no mmseqs-win64.zip mmseqs-osx-static_sse41.tar.gz mmseqs-osx-static_avx2.tar.gz mmseqs-osx-debug-symbols.tar.gz codeship@uniclust.mmseqs.com:/home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT}; cd ..; fi
-
-
+  - |
+    if [[ "$TRAVIS_PULL_REQUEST" != "false" ]] || [[ "$TRAVIS_OS_NAME" != "osx" ]]; then \
+      exit 0; \
+    fi; \
+    if [[ "$encrypted_4188a201d0b5_key" == "" ]] || [[ "$encrypted_4188a201d0b5_iv" == "" ]]; then \
+      exit 0; \
+    fi; \
+    openssl aes-256-cbc -K "$encrypted_4188a201d0b5_key" -iv "$encrypted_4188a201d0b5_iv" -in ./util/.travis.enc -out "$HOME/.ssh/id_rsa" -d; \
+    chmod 400 "$HOME/.ssh/id_rsa"; \
+    ssh -o StrictHostKeyChecking=no codeship@uniclust.mmseqs.com \
+      "mkdir -p /home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT}"; \
+    cd build; \
+    scp -o StrictHostKeyChecking=no mmseqs-osx-static_sse41.tar.gz mmseqs-osx-static_avx2.tar.gz \
+        codeship@uniclust.mmseqs.com:/home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT};

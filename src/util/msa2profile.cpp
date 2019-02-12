@@ -344,7 +344,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             size_t filteredSetSize = setSize;
             if (par.filterMsa == 1) {
-                filter.filter(setSize, centerLength, static_cast<int>(par.cov * 100),
+                filter.filter(setSize, centerLength, static_cast<int>(par.covMSAThr * 100),
                               static_cast<int>(par.qid * 100), par.qsc,
                               static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
                               (const char **) msaSequences, &filteredSetSize);
@@ -379,10 +379,10 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         delete[] seqWeight;
     }
 
-    consensusWriter.close();
-    headerWriter.close();
-    sequenceWriter.close();
-    resultWriter.close();
+    consensusWriter.close(true);
+    headerWriter.close(true);
+    sequenceWriter.close(true);
+    resultWriter.close(true);
 
     std::string base = FileUtil::baseName(par.hdr2);
     FileUtil::symlinkAlias(par.db2 + "_seq_h", base);

@@ -288,7 +288,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
             std::ostringstream oss;
             oss << std::setprecision(std::numeric_limits<float>::digits10);
 
-            std::vector<Domain> mapping = mapMsa(msa, result, par.cov, par.evalThr, subMat);
+            std::vector<Domain> mapping = mapMsa(msa, result, par.covThr, par.evalThr, subMat);
 
             for (std::vector<Domain>::const_iterator k = mapping.begin(); k != mapping.end(); ++k) {
                 (*k).writeResult(oss);
@@ -300,7 +300,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
         }
     }
 
-    writer.close();
+    writer.close(true);
     msaReader.close();
 
     if (headerReader != NULL) {

@@ -5,6 +5,7 @@ set(TESTS
         TestAlignmentPerformance.cpp
         TestAlignmentTraceback.cpp
         TestAlp.cpp
+        TestBacktraceTranslator.cpp
         TestCompositionBias.cpp
         TestCounting.cpp
         TestDBReader.cpp
@@ -13,6 +14,7 @@ set(TESTS
         TestDiagonalScoringPerformance.cpp
         TestIndexTable.cpp
         TestKmerGenerator.cpp
+        TestKmerNucl.cpp
         TestKmerScore.cpp
         TestKwayMerge.cpp
         TestMultipleAlignment.cpp
@@ -27,7 +29,6 @@ set(TESTS
         TestTaxonomy.cpp
         TestTranslate.cpp
         TestProfileStates.cpp
-        TestCSProfile.cpp
         TestUtil.cpp
         TestKsw2.cpp
         TestBestAlphabet.cpp

@@ -20,7 +20,7 @@ static inline float getOverlap(const std::vector<bool> &covered, unsigned int qS
 
 int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
                 const std::pair<std::string, std::string> &resultdb,
-                const size_t dbFrom, const size_t dbSize) {
+                const size_t dbFrom, const size_t dbSize, bool merge) {
 #ifdef OPENMP
     unsigned int totalThreads = par.threads;
 #else
@@ -82,7 +82,7 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
                     continue;
                 }
                 float targetCov = MathUtil::getCoverage(domain.dbStartPos, domain.dbEndPos, domain.dbLen);
-                if (percentageOverlap <= par.overlap && targetCov > par.cov && domain.eval < par.evalThr) {
+                if (percentageOverlap <= par.overlap && targetCov > par.covThr && domain.eval < par.evalThr) {
                     for (int j = domain.qStartPos; j < domain.qEndPos; ++j) {
                         covered[j] = true;
                     }
@@ -97,7 +97,7 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
             annotation.clear();
         }
     }
-    writer.close();
+    writer.close(merge);
 
     return EXIT_SUCCESS;
 }
@@ -112,7 +112,7 @@ int doSummarize(Parameters &par, const unsigned int mpiRank, const unsigned int 
                                      mpiRank, mpiNumProc, &dbFrom, &dbSize);
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db2, par.db2Index, mpiRank);
 
-    int status = doSummarize(par, reader, tmpOutput, dbFrom, dbSize);
+    int status = doSummarize(par, reader, tmpOutput, dbFrom, dbSize, true);
 
     reader.close();
 
@@ -135,7 +135,7 @@ int doSummarize(Parameters &par) {
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     size_t resultSize = reader.getSize();
-    int status = doSummarize(par, reader, std::make_pair(par.db2, par.db2Index), 0, resultSize);
+    int status = doSummarize(par, reader, std::make_pair(par.db2, par.db2Index), 0, resultSize, false);
     reader.close();
     return status;
 }

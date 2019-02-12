@@ -68,11 +68,12 @@ int doswap(Parameters& par, bool isGeneralMode) {
         resultReader.close();
     } else {
         Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-        IndexReader query(par.db1, par.threads, IndexReader::NEED_SEQUENCES, false);
+        bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+        IndexReader query(par.db1, par.threads, IndexReader::SEQUENCES,  (touch) ? IndexReader::PRELOAD_INDEX : 0 );
         aaResSize = query.sequenceReader->getAminoAcidDBSize();
 
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        IndexReader target(par.db2, par.threads, IndexReader::NEED_SEQUENCES, false);
+        IndexReader target(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0);
         maxTargetId = target.sequenceReader->getLastKey();
 
         targetElementExists = new char[maxTargetId + 1];
@@ -160,6 +161,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
 #ifdef OPENMP
             thread_idx = omp_get_thread_num();
 #endif
+
 #pragma omp for schedule(dynamic, 10)
             for (size_t i = 0; i < resultSize; ++i) {
                 Debug::printProgress(i);
@@ -196,9 +198,9 @@ int doswap(Parameters& par, bool isGeneralMode) {
         targetElementSize[0] = 0;
 
         Debug(Debug::INFO) << "\nOutput database: " << parOutDbStr << "\n";
-        char *entry[255];
         bool isAlignmentResult = false;
         bool hasBacktrace = false;
+        const char *entry[255];
         for (size_t i = 0; i < resultDbr.getSize(); i++){
             if (resultDbr.getSeqLens(i) <= 1){
                 continue;
@@ -210,7 +212,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
         }
 
         std::string splitDbw = parOutDbStr + "_" + SSTR(split);
-        std::pair<std::string, std::string> splitNamePair = std::make_pair(splitDbw, splitDbw + ".index");
+        std::pair<std::string, std::string> splitNamePair = (splits.size() > 1) ? std::make_pair(splitDbw, splitDbw + ".index") :
+                                                                                  std::make_pair(parOutDb, parOutDbIndex) ;
         splitFileNames.push_back(splitNamePair);
 
         DBWriter resultWriter(splitNamePair.first.c_str(), splitNamePair.second.c_str(), par.threads, par.compressed, resultDbr.getDbtype());
@@ -314,14 +317,19 @@ int doswap(Parameters& par, bool isGeneralMode) {
             }
         };
         Debug(Debug::INFO) << "\n";
-
-        resultWriter.close();
+        if(splits.size() > 1){
+            resultWriter.close(true);
+        }else{
+            resultWriter.close();
+        }
 
         prevDbKeyToWrite = dbKeyToWrite + 1;
         prevBytesToWrite += bytesToWrite;
         delete[] tmpData;
     }
-    DBWriter::mergeResults(parOutDbStr, parOutDbIndexStr, splitFileNames);
+    if(splits.size() > 1){
+        DBWriter::mergeResults(parOutDbStr, parOutDbIndexStr, splitFileNames);
+    }
 
     resultDbr.close();
     if (targetElementExists != NULL) {

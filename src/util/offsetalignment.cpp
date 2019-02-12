@@ -18,40 +18,61 @@ void chainAlignmentHits(std::vector<Matcher::result_t> &results, std::vector<Mat
     if(results.size() > 1){
         std::stable_sort(results.begin(), results.end(), Matcher::compareHitsByPos);
         int prevDiagonal = INT_MAX;
-        Matcher::result_t currResults = results[0];
+        Matcher::result_t  currRegion;
+        currRegion.dbKey = UINT_MAX;
         for (size_t resIdx = 0; resIdx < results.size(); resIdx++) {
-//            bool queryRev = (results[resIdx].qStartPos > results[resIdx].qEndPos);
-//            bool targetRev = (results[resIdx].qStartPos > results[resIdx].qEndPos);
-
-            int currDiagonal = results[resIdx].qStartPos  - results[resIdx].dbStartPos;
+            bool currQueryStrang = (results[resIdx].qStartPos > results[resIdx].qEndPos);
+            int qStartPos = std::min(results[resIdx].qStartPos,  results[resIdx].qEndPos);
+            int qEndPos = std::max(results[resIdx].qStartPos,  results[resIdx].qEndPos);
+            bool currTargetStrand = (results[resIdx].dbStartPos > results[resIdx].dbEndPos);
+            int dbStartPos = std::min(results[resIdx].dbStartPos, results[resIdx].dbEndPos);
+            int dbEndPos = std::max(results[resIdx].dbStartPos, results[resIdx].dbEndPos);
+            std::cout << results[resIdx].dbKey<< "\t" << qStartPos<< "\t" << qEndPos<< "\t" << dbStartPos<< "\t" << dbEndPos << "\t" << std::endl;
+            if(currRegion.dbKey == UINT_MAX){
+                currRegion = results[resIdx];
+                currRegion.qStartPos = qStartPos;
+                currRegion.qEndPos = qEndPos;
+                currRegion.dbStartPos = dbStartPos;
+                currRegion.dbEndPos = dbEndPos;
+            }
+            int currDiagonal = qStartPos - dbStartPos;
             int nextDiagonal = UINT_MAX;
-            const bool isDifferentKey = (currResults.dbKey != results[resIdx].dbKey);
+            bool nextQueryStrand = true;
+            bool nextTargetStrand = true;
+            const bool isDifferentKey = (currRegion.dbKey != results[resIdx].dbKey);
             const bool isLastElement  = (resIdx == results.size() - 1);
             if (isLastElement == false) {
-                nextDiagonal = results[resIdx+1].qStartPos  - results[resIdx+1].dbStartPos;
+                int nextqStartPos = std::min(results[resIdx+1].qStartPos,  results[resIdx+1].qEndPos);
+                int nextdbStartPos = std::min(results[resIdx+1].dbStartPos, results[resIdx+1].dbEndPos);
+                nextDiagonal = nextqStartPos - nextdbStartPos;
+                nextQueryStrand =  (results[resIdx+1].qStartPos > results[resIdx+1].qEndPos);
+                nextTargetStrand =  (results[resIdx+1].dbStartPos > results[resIdx+1].dbEndPos);
             }
-
-            const bool queryIsOverlapping  = currResults.qEndPos >= results[resIdx].qStartPos   && currResults.qEndPos <= results[resIdx].qEndPos;
-            const bool targetIsOverlapping = currResults.dbEndPos >= results[resIdx].dbStartPos && currResults.dbEndPos <= results[resIdx].dbEndPos;
+            const bool queryIsOverlapping  = currRegion.qEndPos >= qStartPos   && currRegion.qEndPos <= qEndPos;
+            const bool targetIsOverlapping = currRegion.dbEndPos >= dbStartPos && currRegion.dbEndPos <= dbEndPos;
             const bool sameNextDiagonal = (currDiagonal == nextDiagonal);
             const bool samePrevDiagonal = (currDiagonal == prevDiagonal);
             if ( (sameNextDiagonal || samePrevDiagonal ) && queryIsOverlapping && targetIsOverlapping) {
-                currResults.qStartPos = std::min(currResults.qStartPos, results[resIdx].qStartPos);
-                currResults.qEndPos = std::max(currResults.qEndPos,  results[resIdx].qEndPos);
-                currResults.dbStartPos  = std::min(currResults.dbStartPos, results[resIdx].dbStartPos);
-                currResults.dbEndPos  = std::max(currResults.dbEndPos, results[resIdx].dbEndPos);
+                currRegion.qStartPos = std::min(currRegion.qStartPos, qStartPos);
+                currRegion.qEndPos = std::max(currRegion.qEndPos,  qEndPos);
+                currRegion.dbStartPos  = std::min(currRegion.dbStartPos, dbStartPos);
+                currRegion.dbEndPos  = std::max(currRegion.dbEndPos, dbEndPos);
             }
 
             prevDiagonal = currDiagonal;
             bool isDifferentNextDiagonal = (nextDiagonal != currDiagonal);
-            if(isDifferentKey || isLastElement || isDifferentNextDiagonal){
-                tmp.push_back(currResults);
-                if(isLastElement == false) {
-                    currResults = results[resIdx + 1];
+            bool isDifferentStrand = (nextQueryStrand != currQueryStrang ) || (nextTargetStrand != currTargetStrand );
+            if(isDifferentKey || isLastElement || isDifferentNextDiagonal || isDifferentStrand){
+                if(currQueryStrang){
+                    std::swap(currRegion.qStartPos, currRegion.qEndPos);
                 }
+                if(currTargetStrand) {
+                    std::swap(currRegion.dbStartPos, currRegion.dbEndPos);
+                }
+                tmp.push_back(currRegion);
+                currRegion.dbKey = UINT_MAX;
             }
         }
-
     }
 }
 
@@ -62,8 +83,8 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf
     for (size_t i = startPos; i < endPos; i++) {
         Matcher::result_t &res = results[i];
         if (isNuclNucl == true || qloc == NULL) {
-            size_t targetId = tOrfDBr.headerReader->getId(res.dbKey);
-            char *header = tOrfDBr.headerReader->getData(targetId, thread_idx);
+            size_t targetId = tOrfDBr.sequenceReader->getId(res.dbKey);
+            char *header = tOrfDBr.sequenceReader->getData(targetId, thread_idx);
 
             Orf::SequenceLocation tloc = Orf::parseOrfHeader(header);
             res.dbKey   = (tloc.id != UINT_MAX) ? tloc.id : res.dbKey;
@@ -121,13 +142,25 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 6);
 
     const bool touch = par.preloadMode != Parameters::PRELOAD_MODE_MMAP;
-
-
     int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    if(Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_INDEX_DB)){
+        DBReader<unsigned int> idxdbr(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        idxdbr.open(DBReader<unsigned int>::NOSORT);
+        PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&idxdbr);
+        queryDbType=data.srcSeqType;
+        idxdbr.close();
+    }
     int targetDbType = DBReader<unsigned int>::parseDbType(par.db3.c_str());
+    if(Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB)){
+        DBReader<unsigned int> idxdbr(par.db3.c_str(), par.db3Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        idxdbr.open(DBReader<unsigned int>::NOSORT);
+        PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&idxdbr);
+        targetDbType=data.srcSeqType;
+        idxdbr.close();
+    }
 
     Debug(Debug::INFO) << "Query database: " << par.db2 << "\n";
-    IndexReader qOrfDbr(par.db2.c_str(), par.threads, IndexReader::NEED_ALT_HEADERS, touch);
+    IndexReader qOrfDbr(par.db2.c_str(), par.threads, IndexReader::HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     if (queryDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
@@ -136,20 +169,32 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     IndexReader *qSourceDbr = NULL;
     if (queryNucl) {
         Debug(Debug::INFO) << "Source Query database: " << par.db1 << "\n";
-        qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::NEED_SEQ_INDEX, touch);
+        qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX) : 0, DBReader<unsigned int>::USE_INDEX);
     }
 
     Debug(Debug::INFO) << "Target database: " << par.db4 << "\n";
-    IndexReader tOrfDbr(par.db4.c_str(), par.threads, IndexReader::NEED_ALT_HEADERS, touch);
+    IndexReader * tOrfDbr;
+    bool isSameOrfDB = (par.db2.compare(par.db4) == 0);
+    if(isSameOrfDB){
+        tOrfDbr = &qOrfDbr;
+    }else{
+        tOrfDbr = new IndexReader(par.db4.c_str(), par.threads, IndexReader::HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+    }
+
     if (targetDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
     }
     const bool targetNucl = Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES);
     IndexReader *tSourceDbr = NULL;
+    bool isSameSrcDB = (par.db3.compare(par.db1) == 0);
     if (targetNucl) {
         Debug(Debug::INFO) << "Source Target database: " << par.db3 << "\n";
-        tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::NEED_SEQ_INDEX, touch);
+        if(isSameSrcDB){
+            tSourceDbr = qSourceDbr;
+        }else{
+            tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::SRC_SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0, DBReader<unsigned int>::USE_INDEX );
+        }
     }
 
     Debug(Debug::INFO) << "Result database: " << par.db5 << "\n";
@@ -185,13 +230,13 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 #endif
 #pragma omp for schedule(dynamic, 10)
             for (size_t i = 0; i <= maxOrfKey; ++i) {
-                size_t queryId = qOrfDbr.headerReader->getId(i);
+                size_t queryId = qOrfDbr.sequenceReader->getId(i);
                 if (queryId == UINT_MAX) {
                     orfLookup[i] = UINT_MAX;
                     continue;
                 }
-                unsigned int queryKey = qOrfDbr.headerReader->getDbKey(queryId);
-                char *header = qOrfDbr.headerReader->getData(queryId, thread_idx);
+                unsigned int queryKey = qOrfDbr.sequenceReader->getDbKey(queryId);
+                char *header = qOrfDbr.sequenceReader->getData(queryId, thread_idx);
                 Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
                 unsigned int id = (qloc.id != UINT_MAX) ? qloc.id : queryKey;
                 orfLookup[i] = id;
@@ -277,15 +322,15 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     unsigned int orfKey = orfKeys[j];
                     size_t orfId = alnDbr.getId(orfKey);
                     char *data = alnDbr.getData(orfId, thread_idx);
-                    size_t queryId = qOrfDbr.headerReader->getId(orfKey);
-                    char *header = qOrfDbr.headerReader->getData(queryId, thread_idx);
+                    size_t queryId = qOrfDbr.sequenceReader->getId(orfKey);
+                    char *header = qOrfDbr.sequenceReader->getData(queryId, thread_idx);
                     Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
-                    updateOffset(data, results, &qloc, tOrfDbr, isNuclNucl, thread_idx);
+                    updateOffset(data, results, &qloc, *tOrfDbr, isNuclNucl, thread_idx);
                 }
             } else if (Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
                 queryKey = alnDbr.getDbKey(i);
                 char *data = alnDbr.getData(i, thread_idx);
-                updateOffset(data, results, NULL, tOrfDbr, isNuclNucl, thread_idx);
+                updateOffset(data, results, NULL, *tOrfDbr, isNuclNucl, thread_idx);
             }
             unsigned int qLen = UINT_MAX;
             if (qSourceDbr != NULL) {
@@ -333,8 +378,13 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         delete[] contigExists;
     }
 
+    if(isSameOrfDB == false){
+        delete tOrfDbr;
+    }
     if(tSourceDbr != NULL){
-        delete tSourceDbr;
+        if(isSameSrcDB==false){
+            delete tSourceDbr;
+        }
     }
 
     if(qSourceDbr != NULL){

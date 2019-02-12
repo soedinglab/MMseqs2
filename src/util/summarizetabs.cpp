@@ -126,7 +126,7 @@ std::vector<Domain> getEntries(unsigned int queryId, char *data, size_t length, 
 
 int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
                const std::pair<std::string, std::string>& resultdb,
-               const size_t dbFrom, const size_t dbSize) {
+               const size_t dbFrom, const size_t dbSize, bool merge) {
     DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads), par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
 
@@ -153,7 +153,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
                 continue;
             }
 
-            std::vector<Domain> result = mapDomains(entries, par.overlap, par.cov, par.evalThr);
+            std::vector<Domain> result = mapDomains(entries, par.overlap, par.covThr, par.evalThr);
             if (result.size() == 0) {
                 Debug(Debug::WARNING) << "Could not map any domains for entry " << id << "!\n";
                 continue;
@@ -173,7 +173,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
         }
     }
 
-    writer.close();
+    writer.close(merge);
 
     return EXIT_SUCCESS;
 }
@@ -188,7 +188,7 @@ int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int m
                                      mpiRank, mpiNumProc, &dbFrom, &dbSize);
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db3, par.db3Index, mpiRank);
 
-    int status = doAnnotate(par, reader, tmpOutput, dbFrom, dbSize);
+    int status = doAnnotate(par, reader, tmpOutput, dbFrom, dbSize, true);
 
     reader.close();
 
@@ -211,7 +211,7 @@ int doAnnotate(Parameters &par) {
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     size_t resultSize = reader.getSize();
-    int status = doAnnotate(par, reader, std::make_pair(par.db3, par.db3Index), 0, resultSize);
+    int status = doAnnotate(par, reader, std::make_pair(par.db3, par.db3Index), 0, resultSize, false);
     reader.close();
     return status;
 }

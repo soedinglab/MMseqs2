@@ -81,9 +81,11 @@ public:
     static size_t getTotalMemoryPages();
     static uint64_t getL2CacheSize();
 
-    static char touchMemory(char* memory, size_t size);
+    static char touchMemory(const char* memory, size_t size);
 
     static size_t countLines(const char *data, size_t length);
+
+    static size_t ompCountLines(const char *data, size_t length);
 
     static int readMapping(std::string mappingFilename, std::vector<std::pair<unsigned int, unsigned int> > & mapping);
 
@@ -157,9 +159,9 @@ public:
 
     static bool getLine(const char* data, size_t dataLength, char* buffer, size_t bufferLength);
 
-    static inline size_t skipWhitespace(char * data){
+    static inline size_t skipWhitespace(const char* data){
         size_t counter = 0;
-        while( (data[counter] == ' ' || data[counter] == '\t') == true ) {
+        while((data[counter] == ' ' || data[counter] == '\t') == true) {
             counter++;
         }
         return counter;
@@ -185,11 +187,10 @@ public:
         return counter + 1;
     }
 
-    static inline size_t skipNoneWhitespace(char * data){
+    static inline size_t skipNoneWhitespace(const char * data){
         //A value different from zero (i.e., true) if indeed c is a white-space character. Zero (i.e., false) otherwise.
         size_t counter = 0;
-        while(( data[counter] == ' '  || data[counter] == '\t'
-                || data[counter] == '\n' || data[counter] == '\0' ) == false ) {
+        while((data[counter] == ' '  || data[counter] == '\t' || data[counter] == '\n' || data[counter] == '\0') == false) {
             counter++;
         }
         return counter;
@@ -209,7 +210,7 @@ public:
         return std::make_pair(basename, index);
     };
 
-    static inline size_t getWordsOfLine(char * data, char ** words, size_t maxElement ){
+    static inline size_t getWordsOfLine(const char* data, const char** words, size_t maxElement ){
         size_t elementCounter = 0;
         while(*data !=  '\n' && *data != '\0'){
             data += skipWhitespace(data);
@@ -234,7 +235,7 @@ public:
         return character;
     }
 
-    static void parseKey(char *data, char * key);
+    static void parseKey(const char *data, char * key);
 
     static void parseByColumnNumber(char *data, char * key, int position);
 
@@ -315,5 +316,9 @@ public:
     static uint64_t revComplement(const uint64_t kmer, const int k);
 
     static float averageValueOnAminoAcids(const std::unordered_map<char, float> &values, const char *seq);
+
+    static bool hasAlignmentLength(int alnLenThr, int alnLen) {
+        return alnLen >= alnLenThr;
+    }
 };
 #endif

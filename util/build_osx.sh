@@ -7,8 +7,6 @@ if [ ! -d "$REPO" ]; then
     exit 1
 fi
 
-export CXX=${CXX:-g++-7}
-
 mkdir -p "$BUILD/mmseqs"
 mkdir -p "$BUILD/lib"
 cd "$BUILD/lib"

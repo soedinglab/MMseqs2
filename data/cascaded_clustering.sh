@@ -20,13 +20,13 @@ TMP_PATH="$3"
 SOURCE="$INPUT"
 
 mkdir -p "${TMP_PATH}/linclust"
-if notExists "${TMP_PATH}/clu_redundancy"; then
+if notExists "${TMP_PATH}/clu_redundancy.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" linclust "$INPUT" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/linclust" ${LINCLUST_PAR} \
         || fail "linclust died"
 fi
 
-if notExists "${TMP_PATH}/input_step_redundancy"; then
+if notExists "${TMP_PATH}/input_step_redundancy.dbtype"; then
     "$MMSEQS" createsubdb "${TMP_PATH}/clu_redundancy" "$INPUT" "${TMP_PATH}/input_step_redundancy" \
         || faill "createsubdb died"
 fi
@@ -38,21 +38,21 @@ CLUSTER_STR=""
 while [ "$STEP" -lt "$STEPS" ]; do
     PARAM=PREFILTER${STEP}_PAR
     eval TMP="\$$PARAM"
-    if notExists "${TMP_PATH}/pref_step$STEP"; then
+    if notExists "${TMP_PATH}/pref_step$STEP.dbtype"; then
          # shellcheck disable=SC2086
         $RUNNER "$MMSEQS" prefilter "$INPUT" "$INPUT" "${TMP_PATH}/pref_step$STEP" ${TMP} \
             || fail "Prefilter step $STEP died"
     fi
     PARAM=ALIGNMENT${STEP}_PAR
     eval TMP="\$$PARAM"
-    if notExists "${TMP_PATH}/aln_step$STEP"; then
+    if notExists "${TMP_PATH}/aln_step$STEP.dbtype"; then
          # shellcheck disable=SC2086
         $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$INPUT" "$INPUT" "${TMP_PATH}/pref_step$STEP" "${TMP_PATH}/aln_step$STEP" ${TMP} \
             || fail "Alignment step $STEP died"
     fi
     PARAM=CLUSTER${STEP}_PAR
     eval TMP="\$$PARAM"
-    if notExists "${TMP_PATH}/clu_step$STEP"; then
+    if notExists "${TMP_PATH}/clu_step$STEP.dbtype"; then
          # shellcheck disable=SC2086
         "$MMSEQS" clust "$INPUT" "${TMP_PATH}/aln_step$STEP" "${TMP_PATH}/clu_step$STEP" ${TMP} \
             || fail "Clustering step $STEP died"
@@ -62,13 +62,19 @@ while [ "$STEP" -lt "$STEPS" ]; do
     CLUSTER_STR="${CLUSTER_STR} ${TMP_PATH}/clu_step$STEP"
     NEXTINPUT="${TMP_PATH}/input_step$((STEP+1))"
     if [ "$STEP" -eq "$((STEPS-1))" ]; then
-        if notExists "${TMP_PATH}/clu"; then
+       if [ -n "$REASSIGN" ]; then
+          if notExists "${TMP_PATH}/clu.dbtype"; then
             # shellcheck disable=SC2086
             "$MMSEQS" mergeclusters "$SOURCE" "${TMP_PATH}/clu" "${TMP_PATH}/clu_redundancy" ${CLUSTER_STR} \
-                || fail "Merging of clusters has died"
-        fi
+            || fail "Merging of clusters has died"
+          fi
+       else
+            # shellcheck disable=SC2086
+            "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/clu_redundancy" ${CLUSTER_STR} \
+            || fail "Merging of clusters has died"
+       fi
     else
-        if notExists "$NEXTINPUT"; then
+        if notExists "$NEXTINPUT.dbtype"; then
             "$MMSEQS" createsubdb "${TMP_PATH}/clu_step$STEP" "$INPUT" "$NEXTINPUT" \
                 || fail "Order step $STEP died"
         fi
@@ -115,17 +121,8 @@ if [ -n "$REASSIGN" ]; then
                     || fail "filterdb2 reassign died"
     "$MMSEQS" swapdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol_swaped" \
                         || fail "swapdb2 reassign died"
-    "$MMSEQS" mergedbs "$SOURCE" "${TMP_PATH}/clu_reassign" "${TMP_PATH}/clu_accepted" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol_swaped" \
+    "$MMSEQS" mergedbs "$SOURCE" "$2" "${TMP_PATH}/clu_accepted" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol_swaped" \
                              || fail "mergedbs reassign died"
-            # post processing
-    mv -f "${TMP_PATH}/clu_reassign" "$2" || fail "Could not move result to $2"
-    mv -f "${TMP_PATH}/clu_reassign.dbtype" "$2" || fail "Could not move result to $2"
-    mv -f "${TMP_PATH}/clu_reassign.index" "$2.index" || fail "Could not move result to $2"
-else
-    # post processing
-    mv -f "${TMP_PATH}/clu" "$2" || fail "Could not move result to $2"
-    mv -f "${TMP_PATH}/clu.dbtype" "$2.dbtype" || fail "Could not move result to $2"
-    mv -f "${TMP_PATH}/clu.index" "$2.index" || fail "Could not move result to $2"
 fi
 
 

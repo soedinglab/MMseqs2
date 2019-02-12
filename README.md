@@ -30,6 +30,10 @@ Keep posted about MMseqs2/Linclust updates by following Martin on [Twitter](http
 
 17/10/2017 MMseqs2 has just been published at [Nature Biotechnology](https://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3988.html).
 
+## Help welcome! 
+If you would like to contribute to MMseqs2 development, we would be glad to hear from you. This can be as paid research assistant or intern, bachelor, master or PhD student or postdoc.  Contact: johannes.soeding at mpibpc.mpg.de.
+
+
 ## Installation
 MMseqs2 can be used by compiling from source, downloading a statically compiled version, using [Homebrew](https://github.com/Homebrew/brew), [conda](https://github.com/conda/conda) or [Docker](https://github.com/moby/moby). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux or `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
      
@@ -164,7 +168,7 @@ To extract the representative sequences from the clustering result call:
 Read more about the format [here](https://github.com/soedinglab/mmseqs2/wiki#clustering-format).
 
 ### Memory Requirements
-MMseqs2 checks the avialalbe memory of the computer and automatically divide the target database in part to fit in memory. Splitting the database will increase the runtime slightly.
+MMseqs2 checks the available memory of the computer and automatically divide the target database in parts that fit into memory. Splitting the database will increase the runtime slightly.
 
 The memory consumption grows linearly with the number of residues in the database. The following formula can be used to estimate the index size.  
         

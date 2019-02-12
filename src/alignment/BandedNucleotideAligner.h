@@ -5,6 +5,7 @@
 // Local banded nucleotide aligner
 //
 #include <Parameters.h>
+#include <NucleotideMatrix.h>
 #include "StripedSmithWaterman.h"
 
 #include "Util.h"
@@ -22,7 +23,8 @@ public:
 
     void initQuery(Sequence *q);
 
-    s_align align(Sequence * targetSeqObj, short diagonal, EvalueComputation * evaluer);
+    s_align align(Sequence * targetSeqObj, int diagonal, bool reverse,
+                  std::string & backtrace, int & aaIds, EvalueComputation * evaluer);
 
 private:
     SubstitutionMatrix::FastMatrix fastMatrix;
@@ -30,8 +32,12 @@ private:
     uint8_t * targetSeqRev;
     uint8_t * querySeq;
     uint8_t * querySeqRev;
+    uint8_t * queryRevCompSeq;
+    char * queryRevCompCharSeq;
+    uint8_t * queryRevCompSeqRev;
     Sequence * querySeqObj;
     int8_t * mat;
+    NucleotideMatrix * subMat;
 //    uint32_t * cigar;
     int gapo;
     int gape;

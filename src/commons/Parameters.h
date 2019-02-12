@@ -62,6 +62,8 @@ public:
     static const int DBTYPE_GENERIC_DB = 12;
     static const int DBTYPE_OMIT_FILE = 13;
     static const int DBTYPE_PREFILTER_REV_RES = 14;
+    static const int DBTYPE_OFFSETDB = 15;
+    // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
 
     static const unsigned int ALIGNMENT_MODE_FAST_AUTO = 0;
@@ -201,39 +203,57 @@ public:
     // path to databases
     std::string db1;
     std::string db1Index;
+    std::string db1dbtype;
+
 
     std::string hdr1;
     std::string hdr1Index;
+    std::string hdr1dbtype;
+
 
     std::string db2;
     std::string db2Index;
+    std::string db2dbtype;
+
 
     std::string hdr2;
     std::string hdr2Index;
+    std::string hdr2dbtype;
+
 
     std::string db3;
     std::string db3Index;
+    std::string db3dbtype;
+
 
     std::string hdr3;
     std::string hdr3Index;
+    std::string hdr3dbtype;
 
     std::string db4;
     std::string db4Index;
+    std::string db4dbtype;
 
     std::string hdr4;
     std::string hdr4Index;
+    std::string hdr4dbtype;
 
     std::string db5;
     std::string db5Index;
+    std::string db5dbtype;
 
     std::string hdr5;
     std::string hdr5Index;
+    std::string hdr5dbtype;
 
     std::string db6;
     std::string db6Index;
+    std::string db6dbtype;
 
     std::string hdr6;
     std::string hdr6Index;
+    std::string hdr6dbtype;
+
 
     std::vector<std::string> filenames;
 
@@ -288,6 +308,7 @@ public:
     int    maxAccept;                    // after n accepted sequences stop
     int    altAlignment;                 // show up to this many alternative alignments
     float  seqIdThr;                     // sequence identity threshold for acceptance
+    int    alnLenThr;                    // min. alignment length
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
     int    gapOpen;                      // gap open
@@ -364,7 +385,7 @@ public:
     int filterMsa;
     float qsc;
     float qid;
-    float cov;
+    float covMSAThr;
     int Ndiff;
     bool wg;
     float pca;
@@ -387,10 +408,11 @@ public:
     bool includeOnlyExtendable;
     int skipNRepeatKmer;
     int hashShift;
+    int pickNbest;
 
     // indexdb
-    bool includeHeader;
     bool checkCompatible;
+    int indexType;
 
     // createdb
     int identifierOffset;
@@ -457,9 +479,13 @@ public:
 
     // concatdbs
     bool preserveKeysB;
+    bool takeLargerEntry;
 
     // offsetalignments
     int chainAlignment;
+
+    // tsv2db
+    int outputDbType;
 
     // diff
     bool useSequenceId;
@@ -478,6 +504,8 @@ public:
     std::string taxonList;
     bool invertSelection;
 
+    // view
+    std::string idList;
     // lca
     std::string lcaRanks;
     std::string blacklist;
@@ -557,6 +585,7 @@ public:
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
+    PARAMETER(PARAM_MIN_ALN_LEN)
     PARAMETER(PARAM_SCORE_BIAS)
     PARAMETER(PARAM_ALT_ALIGNMENT)
     PARAMETER(PARAM_GAP_OPEN)
@@ -636,6 +665,7 @@ public:
     PARAMETER(PARAM_INCLUDE_ONLY_EXTENDABLE)
     PARAMETER(PARAM_SKIP_N_REPEAT_KMER)
     PARAMETER(PARAM_HASH_SHIFT)
+    PARAMETER(PARAM_PICK_N_SIMILAR)
 
     // workflow
     PARAMETER(PARAM_RUNNER)
@@ -664,8 +694,8 @@ public:
     PARAMETER(PARAM_USE_ALL_TABLE_STARTS)
 
     // indexdb
-    PARAMETER(PARAM_INCLUDE_HEADER)
     PARAMETER(PARAM_CHECK_COMPATIBLE)
+    PARAMETER(PARAM_INDEX_TYPE)
 
     // createdb
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
@@ -717,9 +747,13 @@ public:
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)
+    PARAMETER(PARAM_TAKE_LARGER_ENTRY)
 
     // offsetalignment
     PARAMETER(PARAM_CHAIN_ALIGNMENT)
+
+    // tsv2db
+    PARAMETER(PARAM_OUTPUT_DBTYPE)
 
     // diff
     PARAMETER(PARAM_USESEQID)
@@ -753,6 +787,9 @@ public:
     PARAMETER(PARAM_TAXON_LIST)
     PARAMETER(PARAM_INVERT_SELECTION)
 
+    // view
+    PARAMETER(PARAM_ID_LIST)
+
     // lca
     PARAMETER(PARAM_LCA_RANKS)
     PARAMETER(PARAM_BLACKLIST)
@@ -765,6 +802,7 @@ public:
 
     std::vector<MMseqsParameter*> empty;
     std::vector<MMseqsParameter*> onlyverbosity;
+    std::vector<MMseqsParameter*> view;
     std::vector<MMseqsParameter*> verbandcompression;
     std::vector<MMseqsParameter*> onlythreads;
     std::vector<MMseqsParameter*> threadsandcompression;
@@ -788,7 +826,9 @@ public:
     std::vector<MMseqsParameter*> splitdb;
     std::vector<MMseqsParameter*> splitsequence;
     std::vector<MMseqsParameter*> indexdb;
+    std::vector<MMseqsParameter*> kmerindexdb;
     std::vector<MMseqsParameter*> createindex;
+    std::vector<MMseqsParameter*> createlinindex;
     std::vector<MMseqsParameter*> convertalignments;
     std::vector<MMseqsParameter*> createdb;
     std::vector<MMseqsParameter*> convert2fasta;
@@ -796,10 +836,13 @@ public:
     std::vector<MMseqsParameter*> gff2ffindex;
     std::vector<MMseqsParameter*> clusthash;
     std::vector<MMseqsParameter*> kmermatcher;
+    std::vector<MMseqsParameter*> kmersearch;
     std::vector<MMseqsParameter*> easylinclustworkflow;
     std::vector<MMseqsParameter*> linclustworkflow;
     std::vector<MMseqsParameter*> easysearchworkflow;
     std::vector<MMseqsParameter*> searchworkflow;
+    std::vector<MMseqsParameter*> linsearchworkflow;
+    std::vector<MMseqsParameter*> easylinsearchworkflow;
     std::vector<MMseqsParameter*> mapworkflow;
     std::vector<MMseqsParameter*> easyclusterworkflow;
     std::vector<MMseqsParameter*> clusterworkflow;

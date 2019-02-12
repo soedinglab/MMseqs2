@@ -28,7 +28,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     # using GCC
     message("-- Compiler is GNU ")
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.6.0")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8.0")
         message(FATAL_ERROR "Insufficient gcc version")
     endif ()
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")

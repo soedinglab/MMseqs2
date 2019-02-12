@@ -18,7 +18,6 @@ set(COMPILED_RESOURCES
         multihitdb.sh
         multihitsearch.sh
         summarizeresultsbyset.sh
-        search2m.sh
         enrich.sh
         blastn.sh
         nucleotide.out
@@ -27,12 +26,12 @@ set(COMPILED_RESOURCES
         CovSeqidQscPercMinDiagTargetCov.out
         ExpOpt3_8_polished.cs32.lib
         Library255_may17.lib
-        K4000.crf
         libPure_blosum62_255.lib
         libPure_blosum62_32.lib
         libPolished_8.lib
         searchslicedtargetprofile.sh
         cs219.lib
+        linsearch.sh
         )
 
 set(GENERATED_OUTPUT_HEADERS "")

@@ -26,7 +26,6 @@ abspath() {
     fi
 }
 
-
 hasCommand awk
 hasCommand wc
 hasCommand join
@@ -52,9 +51,9 @@ if notExists "${TMP_PATH}/profileDB"; then
     ln -s "${TARGET}.dbtype" "${PROFILEDB}.dbtype"
     sort -k1,1 "${TARGET}.index" > "${PROFILEDB}.index"
 
-    echo "${AVAIL_DISK}" > "${PROFILEDB}.params"
+    echo "${AVAIL_DISK}" > "${PROFILEDB}.meta"
 else
-    read -r AVAIL_DISK < "${PROFILEDB}.params"
+    read -r AVAIL_DISK < "${PROFILEDB}.meta"
 fi
 
 # echo call to trim whitespace wc produces
@@ -78,9 +77,9 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         CURRENT_AVAIL_DISK_SPACE=$(($("$MMSEQS" diskspaceavail "${TMP_PATH}")/2))
         # Compute the max number of sequence according to the number of profiles
         # 90 bytes/query-result line max.
-        MAX_SEQS="$(((1024*CURRENT_AVAIL_DISK_SPACE)/NUM_PROFILES/90))"
+        MAX_SEQS="$((1024*CURRENT_AVAIL_DISK_SPACE/NUM_PROFILES/90))"
     else
-        MAX_SEQS="$(((1024*AVAIL_DISK)/NUM_PROFILES/90))"
+        MAX_SEQS="$((1024*AVAIL_DISK/NUM_PROFILES/90))"
     fi
 
     # Max result to go into the prefilter list
@@ -107,16 +106,16 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         "$MMSEQS" filterdb "${TMP_PATH}/pref_count" "${TMP_PATH}/pref_keep" \
             --filter-column 1 --comparison-operator ge --comparison-value "${MAX_SEQS}" ${THREADS_PAR} \
             || fail "filterdb died"
-        rm -f "${TMP_PATH}/pref_count" "${TMP_PATH}/pref_count.index"
+        "$MMSEQS" rmdb "${TMP_PATH}/pref_count"
         awk '$3 > 1 { print $1 }' "${TMP_PATH}/pref_keep.index" | sort -k1,1 > "${TMP_PATH}/pref_keep.list"
-        rm -f "${TMP_PATH}/pref_keep" "${TMP_PATH}/pref_keep.index"
+         "$MMSEQS" rmdb "${TMP_PATH}/pref_keep"
     fi
 
     if notExists "${TMP_PATH}/aln.done"; then
         # shellcheck disable=SC2086
         ${RUNNER} "$MMSEQS" align "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
             || fail "align died"
-        rm -f "${TMP_PATH}/pref" "${TMP_PATH}/pref.index"
+        "$MMSEQS" rmdb "${TMP_PATH}/pref"
         touch "${TMP_PATH}/aln.done"
     fi
 
@@ -125,7 +124,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         # shellcheck disable=SC2086
         "$MMSEQS" swapresults "${TARGET}" "${INPUT}" "${TMP_PATH}/aln" "${TMP_PATH}/aln_swap" ${SWAP_PAR} \
             || fail "swapresults died"
-        rm -f "${TMP_PATH}/aln" "${TMP_PATH}/aln.index"
+        "$MMSEQS" rmdb "${TMP_PATH}/aln"
         touch "${TMP_PATH}/aln_swap.done"
     fi
 
@@ -134,10 +133,8 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${INPUT}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} \
             || fail "mergedbs died"
-        mv -f "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged"
-        mv -f "${TMP_PATH}/aln_merged_new.index" "${TMP_PATH}/aln_merged.index"
-        mv -f "${TMP_PATH}/aln_merged_new.dbtype" "${TMP_PATH}/aln_merged.dbtype"
-        rm -f "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_swap.index"
+        "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged"
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_swap"
         MERGED="${TMP_PATH}/aln_merged"
     fi
 
@@ -146,11 +143,8 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     "$MMSEQS" sortresult "${MERGED}" "${TMP_PATH}/aln_merged_trunc" ${SORTRESULT_PAR} \
         || fail "sortresult died"
 
-    mv -f "${TMP_PATH}/aln_merged_trunc" "${TMP_PATH}/aln_merged"
-    mv -f "${TMP_PATH}/aln_merged_trunc.index" "${TMP_PATH}/aln_merged.index"
-    mv -f "${TMP_PATH}/aln_merged_trunc.dbtype" "${TMP_PATH}/aln_merged.dbtype"
+    "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_trunc" "${TMP_PATH}/aln_merged"
     
-
     join "${TMP_PATH}/pref_keep.list" "${PROFILEDB}.index" > "${PROFILEDB}.index.tmp"
     mv -f "${PROFILEDB}.index.tmp" "${PROFILEDB}.index"
 
@@ -158,24 +152,25 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     OFFSET="$SEARCH_LIM"
     # shellcheck disable=SC2046,SC2005
     NUM_PROFILES="$(echo $(wc -l < "${PROFILEDB}.index"))"
-    rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done" "${TMP_PATH}/aln_swap.done" "${TMP_PATH}/pref_keep.list"
+    rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done" "${TMP_PATH}/pref_keep.list"
+    rm -f "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_swap.index" "${TMP_PATH}/aln_swap.dbtype" "${TMP_PATH}/aln_swap.done"
     printf "%d\\t%d\\n" "${NUM_PROFILES}" "${OFFSET}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
 
     STEP="$((STEP+1))"
 done
 
-mv -f "${TMP_PATH}/aln_merged" "${RESULT}"
-mv -f "${TMP_PATH}/aln_merged.index" "${RESULT}.index"
-mv -f "${TMP_PATH}/aln_merged.dbtype" "${RESULT}.dbtype"
+"$MMSEQS" mvdb "${TMP_PATH}/aln_merged" "${RESULT}"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
-    while [ "$STEP" -lt "$MAX_STEPS" ]; do
+    STEP=0
+    while [ "${STEP}" -lt "${MAX_STEPS}" ]; do
         if [ -f "${TMP_PATH}/aln_${STEP}.checkpoint" ]; then
             rm -f "${TMP_PATH}/aln_${STEP}.checkpoint"
         fi
+        STEP="$((STEP+1))"
     done
-    rm -f "${PROFILEDB}" "${PROFILEDB}.index" "${PROFILEDB}.dbtype" "${PROFILEDB}.params"
+    rm -f "${TMP_PATH}/profileDB" "${TMP_PATH}/profileDB.index" "${TMP_PATH}/profileDB.dbtype" "${TMP_PATH}/profileDB.meta"
     rm -f "$TMP_PATH/searchslicedtargetprofile.sh"
 fi
 

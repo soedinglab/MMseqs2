@@ -4,6 +4,7 @@
 #include "Util.h"
 #include "Debug.h"
 #include "filterdb.h"
+#include "FileUtil.h"
 
 #include <fstream>
 #include <iostream>
@@ -64,21 +65,46 @@ ffindexFilter::ffindexFilter(Parameters &par) {
         mode = SORT_ENTRIES;
         std::cout<<"Filtering by sorting entries."<<std::endl;
         sortingMode = par.sortEntries;
-    } else if (par.filteringFile != "")
-	{
+    } else if (par.filteringFile != "") {
         mode = FILE_FILTERING;
-        std::cout<<"Filtering with a filter files."<<std::endl;
+//        filter.reserve(1000000);
+        std::cout << "Filtering with a filter files." << std::endl;
         filterFile = par.filteringFile;
         // Fill the filter with the data contained in the file
-        std::ifstream filterFileStream;
-        filterFileStream.open(filterFile);
-        std::string line;
-        while (std::getline(filterFileStream,line))
-        {
-            filter.push_back(line);
+        std::vector<std::string> filenames;
+        if (FileUtil::fileExists(filterFile.c_str())) {
+            filenames.push_back(filterFile);
+        } else if (FileUtil::fileExists((filterFile + ".dbtype").c_str())) {
+            filenames = FileUtil::findDatafiles(filterFile.c_str());
+        } else {
+            Debug(Debug::ERROR) << "File " << filterFile << " does not exist.\n";
+            EXIT(EXIT_FAILURE);
         }
-
-        std::stable_sort(filter.begin(), filter.end(), compareString());
+        char *line = new char[65536];
+        size_t len = 0;
+        char * key=new char[65536];
+        for(size_t i = 0; i < filenames.size(); i++) {
+            FILE *orderFile = fopen(filenames[i].c_str(), "r");
+            while (getline(&line, &len, orderFile) != -1) {
+                size_t offset = 0;
+                // ignore \0 in data files
+                // to support datafiles as input
+                while (offset < len && line[offset] == '\0') {
+                    offset++;
+                }
+                if (offset >= len) {
+                    break;
+                }
+                Util::parseKey(line + offset, key);
+                filter.emplace_back(key);
+            }
+            fclose(orderFile);
+        }
+        delete [] key;
+        delete [] line;
+        omptl::sort(filter.begin(), filter.end());
+        std::vector<std::string>::iterator last = std::unique(filter.begin(), filter.end());
+        filter.erase(last, filter.end());
     } else if(par.mappingFile != "")
     {
 
@@ -169,7 +195,7 @@ int ffindexFilter::runFilter(){
 
 		char *lineBuffer = new char[LINE_BUFFER_SIZE];
 		char *columnValue = new char[LINE_BUFFER_SIZE];
-		char **columnPointer = new char*[column + 1];
+		const char **columnPointer = new const char*[column + 1];
 
 		std::string buffer = "";
 		buffer.reserve(LINE_BUFFER_SIZE);

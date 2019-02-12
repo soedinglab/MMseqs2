@@ -31,7 +31,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
     DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     sequenceWriter.open();
 
-    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
+    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, false, Parameters::DBTYPE_OFFSETDB);
     headerWriter.open();
 
     size_t sequenceOverlap = par.sequenceOverlap;
@@ -82,15 +82,14 @@ int splitsequence(int argc, const char **argv, const Command& command) {
                     fromPos = (seqLen - 1) - (from + startPos);
                     toPos   = fromPos - std::min(fromPos, len);
                 }
-                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n",
-                         (unsigned int) (headerAccession.size()), headerAccession.c_str(), dbKey,
-                         fromPos, toPos, 1, 1);
-                headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
+
+                size_t bufferLen = Orf::writeOrfHeader(buffer, dbKey, fromPos, toPos, 0, 0);
+                headerWriter.writeData(buffer, bufferLen, key, thread_idx);
             }
         }
     }
-    headerWriter.close();
-    sequenceWriter.close();
+    headerWriter.close(true);
+    sequenceWriter.close(true);
     headerReader.close();
     reader.close();
 

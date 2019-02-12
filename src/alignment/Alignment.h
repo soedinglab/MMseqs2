@@ -3,8 +3,7 @@
 
 #include <string>
 #include <list>
-
-
+#include "IndexReader.h"
 #include "DBReader.h"
 #include "Parameters.h"
 #include "BaseMatrix.h"
@@ -16,8 +15,8 @@ class Alignment {
 
 public:
 
-    Alignment(const std::string &querySeqDB, const std::string &querySeqDBIndex,
-              const std::string &targetSeqDB, const std::string &targetSeqDBIndex,
+    Alignment(const std::string &querySeqDB,
+              const std::string &targetSeqDB,
               const std::string &prefDB, const std::string &prefDBIndex,
               const std::string &outDB, const std::string &outDBIndex,
               const Parameters &par);
@@ -34,9 +33,9 @@ public:
     //Run parallel
     void run(const std::string &outDB, const std::string &outDBIndex,
              const size_t dbFrom, const size_t dbSize,
-             const unsigned int maxAlnNum, const unsigned int maxRejected);
+             const unsigned int maxAlnNum, const unsigned int maxRejected, bool merge);
 
-    static bool checkCriteria(Matcher::result_t &res, bool isIdentity, double evalThr, double seqIdThr, int covMode, float covThr);
+    static bool checkCriteria(Matcher::result_t &res, bool isIdentity, double evalThr, double seqIdThr, int alnLenThr, int covMode, float covThr);
 
 
 private:
@@ -57,6 +56,9 @@ private:
 
     // sequence identity threshold
     const double seqIdThr;
+
+    // alignment length threshold
+    const int alnLenThr;
 
     // include id
     const bool includeIdentity;
@@ -99,21 +101,16 @@ private:
     BaseMatrix *realign_m;
 
     DBReader<unsigned int> *qdbr;
-    SequenceLookup *qSeqLookup;
+    IndexReader * qDbrIdx;
 
     DBReader<unsigned int> *tdbr;
-    DBReader<unsigned int> *tidxdbr;
-    SequenceLookup *tSeqLookup;
+    IndexReader * tDbrIdx;
 
     DBReader<unsigned int> *prefdbr;
 
-    bool templateDBIsIndex;
+    bool reversePrefilterResult;
 
     void initSWMode(unsigned int alignmentMode);
-
-    void setQuerySequence(Sequence &seq, size_t id, unsigned int key, int thread_idx);
-
-    void setTargetSequence(Sequence &seq, unsigned int key, int thread_idx);
 
     static size_t estimateHDDMemoryConsumption(int dbSize, int maxSeqs);
 

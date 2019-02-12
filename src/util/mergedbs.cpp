@@ -1,3 +1,4 @@
+#include "IndexReader.h"
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
@@ -19,16 +20,14 @@ int mergedbs(int argc, const char **argv, const Command& command) {
     }
 
     std::vector<std::string> prefixes = Util::split(par.mergePrefixes, ",");
+    const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+    IndexReader qDbr(par.db1, par.threads,  IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0, DBReader<unsigned int>::USE_INDEX);
 
-    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX);
-    qdbr.open(DBReader<unsigned int>::NOSORT);
-
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), 1, par.compressed, qdbr.getDbtype());
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), 1, par.compressed, qDbr.getDbtype());
     writer.open();
-    writer.mergeFiles(qdbr, filenames, prefixes);
+    writer.mergeFiles(*qDbr.sequenceReader, filenames, prefixes);
     writer.close();
 
-    qdbr.close();
 
     return EXIT_SUCCESS;
 }

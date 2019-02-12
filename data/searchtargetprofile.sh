@@ -21,33 +21,31 @@ RESULTS="$3"
 TMP_PATH="$4"
 
 # call prefilter module
-if notExists "${TMP_PATH}/pref"; then
+if notExists "${TMP_PATH}/pref.dbtype"; then
      # shellcheck disable=SC2086
     $RUNNER "$MMSEQS" prefilter "${INPUT}" "${2}" "${TMP_PATH}/pref" ${PREFILTER_PAR} \
         || fail "Prefilter died"
 fi
 
-if notExists "${TMP_PATH}/pref_swapped"; then
+if notExists "${TMP_PATH}/pref_swapped.dbtype"; then
      # shellcheck disable=SC2086
     "$MMSEQS" swapresults "${INPUT}" "${2}" "${TMP_PATH}/pref" "${TMP_PATH}/pref_swapped" ${SWAP_PAR} \
         || fail "Swapresults pref died"
 fi
 
 # call alignment module
-if notExists "$TMP_PATH/aln_swapped"; then
+if notExists "$TMP_PATH/aln_swapped.dbtype"; then
     # shellcheck disable=SC2086
     $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "${2}" "${INPUT}" "${TMP_PATH}/pref_swapped" "${TMP_PATH}/aln_swapped" ${ALIGNMENT_PAR} \
         || fail "Alignment died"
 fi
 
-if notExists "$TMP_PATH/aln"; then
+if notExists "${RESULTS}.dbtype"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" swapresults "${2}" "${INPUT}" "${TMP_PATH}/aln_swapped"  "${TMP_PATH}/aln" ${SWAP_PAR} \
+    "$MMSEQS" swapresults "${2}" "${INPUT}" "${TMP_PATH}/aln_swapped"  "${RESULTS}" ${SWAP_PAR} \
         || fail "Swapresults aln died"
 fi
 
-# post processing
-(mv -f "${TMP_PATH}/aln" "${RESULTS}"; mv -f "${TMP_PATH}/aln.dbtype" "${RESULTS}.dbtype"; mv -f "${TMP_PATH}/aln.index" "${RESULTS}.index") || fail "Could not move result to ${RESULTS}"
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Remove temporary files"

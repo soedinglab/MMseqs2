@@ -20,7 +20,7 @@
 #endif
 
 int result2msa(Parameters &par, const std::string &resultData, const std::string &resultIndex,
-               const size_t dbFrom, const size_t dbSize, DBConcat *referenceDBr = NULL) {
+               const size_t dbFrom, const size_t dbSize, bool merge, DBConcat *referenceDBr = NULL) {
     if (par.compressMSA && referenceDBr == NULL) {
         Debug(Debug::ERROR) << "Need a sequence and header database for ca3m output!\n";
         EXIT(EXIT_FAILURE);
@@ -115,6 +115,8 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
             kept[i] = 1;
         }
 
+        const char *entry[255];
+
 #pragma omp  for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
@@ -150,7 +152,6 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                     continue;
                 }
 
-                char *entry[255];
                 const size_t columns = Util::getWordsOfLine(results, entry, 255);
                 if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
                     Matcher::result_t res = Matcher::parseAlignmentRecord(results);
@@ -186,7 +187,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
             alnResults = res.alignmentResults;
             size_t filteredSetSize = res.setSize;
             if (isFiltering) {
-                filter.filter(res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
+                filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100),
                               static_cast<int>(par.qid * 100), par.qsc,
                               static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
                               (const char **) res.msaSequence, &filteredSetSize);
@@ -299,7 +300,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
     }
 
     // cleanup
-    resultWriter.close();
+    resultWriter.close(merge);
     resultReader.close();
     queryHeaderReader.close();
     qDbr.close();
@@ -358,7 +359,7 @@ int result2msa(Parameters &par) {
         outIndex.append("_ca3m.ffindex");
     }
 
-    int status = result2msa(par, outDb, outIndex, 0, resultSize, referenceDBr);
+    int status = result2msa(par, outDb, outIndex, 0, resultSize, false, referenceDBr);
 
     if (referenceDBr != NULL) {
         referenceDBr->close();
@@ -423,7 +424,7 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
     }
 
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outDb, outIndex, mpiRank);
-    int status = result2msa(par, tmpOutput.first, tmpOutput.second, dbFrom, dbSize, referenceDBr);
+    int status = result2msa(par, tmpOutput.first, tmpOutput.second, dbFrom, dbSize, true, referenceDBr);
 
     // close reader to reduce memory
     if (referenceDBr != NULL) {

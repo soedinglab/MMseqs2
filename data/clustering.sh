@@ -19,19 +19,19 @@ notExists() {
 INPUT="$1"
 TMP_PATH="$3"
 
-if notExists "${TMP_PATH}/aln_redundancy"; then
+if notExists "${TMP_PATH}/aln_redundancy.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" clusthash "$INPUT" "${TMP_PATH}/aln_redundancy" ${DETECTREDUNDANCY_PAR} \
         || fail "Fast filter step $STEP died"
 fi
 
-if notExists "${TMP_PATH}/clu_redundancy"; then
+if notExists "${TMP_PATH}/clu_redundancy.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" clust "$INPUT" "${TMP_PATH}/aln_redundancy" "${TMP_PATH}/clu_redundancy" ${CLUSTER_PAR} \
         || fail "Fast Cluster filter step $STEP died"
 fi
 
-if notExists "${TMP_PATH}/input_step_redundancy"; then
+if notExists "${TMP_PATH}/input_step_redundancy.dbtype"; then
     "$MMSEQS" createsubdb "${TMP_PATH}/clu_redundancy" "$INPUT" "${TMP_PATH}/input_step_redundancy" \
         || fail "MMseqs order step $STEP died"
 fi
@@ -39,31 +39,29 @@ fi
 ORIGINAL="$INPUT"
 INPUT="${TMP_PATH}/input_step_redundancy"
 # call prefilter module
-if notExists "${TMP_PATH}/pref"; then
+if notExists "${TMP_PATH}/pref.dbtype"; then
     # shellcheck disable=SC2086
     $RUNNER "$MMSEQS" prefilter "$INPUT" "$INPUT" "${TMP_PATH}/pref" $PREFILTER_PAR \
         || fail "Prefilter died"
 fi
 
 # call alignment module
-if notExists "${TMP_PATH}/aln"; then
+if notExists "${TMP_PATH}/aln.dbtype"; then
     # shellcheck disable=SC2086
     $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$INPUT" "$INPUT" "${TMP_PATH}/pref" "${TMP_PATH}/aln" $ALIGNMENT_PAR \
         || fail "Alignment died"
 fi
 
 # call cluster module
-if notExists "${TMP_PATH}/clu_step0"; then
+if notExists "${TMP_PATH}/clu_step0.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" clust "$INPUT" "${TMP_PATH}/aln" "${TMP_PATH}/clu_step0" $CLUSTER_PAR \
         || fail "Clustering died"
 fi
 
 # merge clu_redundancy and clu
-if notExists "$2"; then
-    "$MMSEQS" mergeclusters "$ORIGINAL" "$2" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_step0" \
+"$MMSEQS" mergeclusters "$ORIGINAL" "$2" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_step0" \
         || fail "Merging of clusters has died"
-fi
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"

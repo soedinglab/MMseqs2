@@ -83,10 +83,6 @@ if [ -n "${LCA_PAR}" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" lca "${TARGET}" "${LCA_SOURCE}" "${RESULTS}" ${LCA_PAR} \
         || fail "Lca died"
-else
-    mv -f "${TMP_PATH}/taxa" "${RESULTS}"
-    mv -f "${TMP_PATH}/taxa.dbtype" "${RESULTS}.dbtype"
-    mv -f "${TMP_PATH}/taxa.index" "${RESULTS}.index"
 fi
 
 if [ -n "${REMOVE_TMP}" ]; then

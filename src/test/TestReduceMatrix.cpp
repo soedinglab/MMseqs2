@@ -14,7 +14,7 @@
 const char* binary_name = "test_reducematrix";
 
 int main (int, const char**) {
-    const int reductionAlphabetSize = 5;
+    const int reductionAlphabetSize = 17;
     Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0);
     subMat.print(subMat.subMatrix, subMat.int2aa,21);

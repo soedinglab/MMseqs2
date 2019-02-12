@@ -16,8 +16,9 @@ int align(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, 4, true, 0, MMseqsParameter::COMMAND_ALIGN);
 
     Debug(Debug::INFO) << "Init data structures...\n";
-    Alignment aln(par.db1, par.db1Index, par.db2, par.db2Index,
-                  par.db3, par.db3Index, par.db4, par.db4Index, par);
+    Alignment aln(par.db1, par.db2,
+                  par.db3, par.db3Index,
+                  par.db4, par.db4Index, par);
 
     Debug(Debug::INFO) << "Calculation of Smith-Waterman alignments.\n";
 

@@ -9,17 +9,8 @@
 #include "Debug.h"
 #include "FileUtil.h"
 
-int createindex(int argc, const char **argv, const Command& command) {
-    Parameters& par = Parameters::getInstance();
-    par.orfStartMode = 1;
-    par.orfMinLength = 30;
-    par.orfMaxLength = 98202; // 32734 AA (just to be sure)
-    par.kmerScore = 0; // extract all k-mers
-    par.sensitivity = 7.5;
-    par.includeHeader = true;
-    par.maskMode = 2;
-    par.overrideParameterDescription((Command &) command, par.PARAM_MASK_RESIDUES.uniqid, "0: w/o low complexity masking, 1: with low complexity masking, 2: add both masked and unmasked sequences to index", "^[0-2]{1}", par.PARAM_MASK_RESIDUES.category);
-    par.parseParameters(argc, argv, command, 2);
+
+int createindex(Parameters &par, std::string indexerModule, std::string flag) {
     bool sensitivity = false;
     // only set kmerScore  to INT_MAX if -s was used
     for (size_t i = 0; i < par.createindex.size(); i++) {
@@ -64,14 +55,86 @@ int createindex(int argc, const char **argv, const Command& command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
-    cmd.addVariable("NUCL", Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
+    cmd.addVariable("INDEXER", indexerModule.c_str());
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
+    cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
+    cmd.addVariable("SPLIT_SEQ_PAR", par.createParameterString(par.splitsequence).c_str());
     cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
-    cmd.addVariable("INDEX_PAR", par.createParameterString(par.indexdb).c_str());
+    if(indexerModule == "kmerindexdb"){
+        cmd.addVariable("INDEX_PAR", par.createParameterString(par.kmerindexdb).c_str());
+    }else{
+        cmd.addVariable("INDEX_PAR", par.createParameterString(par.indexdb).c_str());
+    }
+    if(flag.size() > 0){
+        cmd.addVariable(flag.c_str(), "1");
+    }
 
-    FileUtil::writeFile(par.db2 + "/createindex.sh", createindex_sh, createindex_sh_len);
-    std::string program(par.db2 + "/createindex.sh");
+    FileUtil::writeFile(tmpDir + "/createindex.sh", createindex_sh, createindex_sh_len);
+    std::string program(tmpDir + "/createindex.sh");
     cmd.execProgram(program.c_str(), par.filenames);
     return 0;
+}
+
+
+int createlinindex(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.orfStartMode = 1;
+    par.orfMinLength = 30;
+    par.orfMaxLength = 98202; // 32734 AA (just to be sure)
+    par.kmerScore = 0; // extract all k-mers
+    par.maskMode = 0;
+
+    par.parseParameters(argc, argv, command, 2, false);
+    int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
+    if(isNucl && par.indexType == 3 && par.PARAM_MAX_SEQ_LEN.wasSet == false){
+        par.maxSeqLen = 10000;
+    }
+    std::vector<MMseqsParameter*>* params = command.params;
+    par.printParameters(command.cmd, argc, argv, *params);
+
+    if(isNucl && par.indexType == 0){
+        Debug(Debug::ERROR) << "Database " << par.db1 << " is a nucleotide database. \n"
+                            << "Please provide the parameter --index-type 2 (translated) or 3 (nucleotide)\n";
+        return EXIT_FAILURE;
+    }
+    return createindex(par, "kmerindexdb", (isNucl == false) ? "" : (par.indexType == 2) ? "TRANSLATED" : "LIN_NUCL");
+}
+
+int createindex(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.orfStartMode = 1;
+    par.orfMinLength = 30;
+    par.orfMaxLength = 98202; // 32734 AA (just to be sure)
+    par.kmerScore = 0; // extract all k-mers
+    par.sensitivity = 7.5;
+    par.maskMode = 1;
+    par.strand = 1;
+    par.overrideParameterDescription((Command &) command, par.PARAM_MASK_RESIDUES.uniqid, "0: w/o low complexity masking, 1: with low complexity masking, 2: add both masked and unmasked sequences to index", "^[0-2]{1}", par.PARAM_MASK_RESIDUES.category);
+    par.parseParameters(argc, argv, command, 2);
+    //  0: reverse, 1: forward, 2: both
+    switch (par.strand){
+        case 0:
+            par.forwardFrames= "";
+            par.reverseFrames= "1";
+            break;
+        case 1:
+            par.forwardFrames= "1";
+            par.reverseFrames= "";
+            break;
+        case 2:
+            par.forwardFrames= "1";
+            par.reverseFrames= "1";
+            break;
+    }
+    int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
+
+    if(isNucl && par.indexType == 0){
+        Debug(Debug::ERROR) << "Database " << par.db1 << " is a nucleotide database. \n"
+                            << "Please provide the parameter --index-type 2 (translated) or 3 (nucleotide)\n";
+        return EXIT_FAILURE;
+    }
+    return createindex(par, "indexdb",  (isNucl == false) ? "" : (par.indexType == 2) ? "TRANSLATED" : "NUCL");
 }

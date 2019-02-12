@@ -63,8 +63,8 @@ if (CMAKE_BUILD_TYPE MATCHES RELEASE OR CMAKE_BUILD_TYPE MATCHES RELWITHDEBINFO)
     endif ()
 endif ()
 
-append_target_property(mmseqs-framework COMPILE_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Winline -Wdisabled-optimization)
-append_target_property(mmseqs-framework LINK_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Winline -Wdisabled-optimization)
+append_target_property(mmseqs-framework COMPILE_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Wdisabled-optimization)
+append_target_property(mmseqs-framework LINK_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Wdisabled-optimization)
 
 if (CYGWIN OR ${HAVE_NEON})
     target_compile_definitions(mmseqs-framework PUBLIC -D_GNU_SOURCE=1)
@@ -83,10 +83,31 @@ check_cxx_source_runs("
           int input_desc = fileno(tmpf);
           int test =  posix_fadvise (input_desc, 0, 0, POSIX_FADV_SEQUENTIAL);
           fclose(tmpf);
+          return 0;
         }"
         HAVE_POSIX_FADVISE)
 if (HAVE_POSIX_FADVISE)
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_POSIX_FADVISE=1)
+endif ()
+
+check_cxx_source_runs("
+        #include <stdlib.h>
+        #include <fcntl.h>
+        #include <stdio.h>
+        #include <sys/mman.h>
+
+        int main()
+        {
+          FILE* tmpf = tmpfile();
+          int flags = PROT_READ;
+          int fd =  fileno(tmpf);
+          void * tmp = mmap(NULL, 32, flags, MAP_SHARED, fd, 0);
+          int test =  posix_madvise (tmp, 32, POSIX_FADV_SEQUENTIAL);
+          return 0;
+        }"
+        HAVE_POSIX_MADVISE)
+if (HAVE_POSIX_MADVISE)
+    target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_POSIX_MADVISE=1)
 endif ()
 
 #SSE
@@ -179,7 +200,8 @@ if (${HAVE_MPI})
     if (MPI_FOUND)
         message("-- Found MPI")
         target_include_directories(mmseqs-framework PUBLIC ${MPI_INCLUDE_PATH})
-        target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_MPI=1)
+        #Hack (OMPI_SKIP_MPICXX=1): https://github.com/open-mpi/ompi/issues/5157#issuecomment-388495496
+        target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_MPI=1 -DOMPI_SKIP_MPICXX=1)
         target_link_libraries(mmseqs-framework ${MPI_LIBRARIES})
         append_target_property(mmseqs-framework COMPILE_FLAGS ${MPI_COMPILE_FLAGS})
         append_target_property(mmseqs-framework LINK_FLAGS ${MPI_LINK_FLAGS})
