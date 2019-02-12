@@ -32,7 +32,7 @@ DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t s
         int dbType, unsigned int maxSeqLen, int threads) :
         threads(threads), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL),
         size(size), dataFiles(NULL), dataSizeOffset(NULL), dataFileCnt(0), totalDataSize(0), aaDbSize(aaDbSize), lastKey(lastKey),
-        maxSeqLen(maxSeqLen), closed(1), dbtype(dbType), compressedBuffers(NULL), compressedBufferSizes(NULL), index(index),
+        maxSeqLen(maxSeqLen), closed(1), dbtype(dbType), compressedBuffers(NULL), compressedBufferSizes(NULL), index(index), sortedByOffset(true),
         seqLens(seqLens), id2local(NULL), local2id(NULL), dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
 {}
 
@@ -131,6 +131,9 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
         dataSizeOffset[dataFileNames.size()]=totalDataSize;
         dataMapped = true;
+        if(accessType==LINEAR_ACCCESS){
+            setSequentialAdvice();
+        }
     }
     bool isSortedById = false;
     if (externalData == false) {
@@ -151,11 +154,17 @@ template <typename T> bool DBReader<T>::open(int accessType){
         Util::checkAllocation(index, "Could not allocate index memory in DBReader");
         seqLens = new(std::nothrow) unsigned int[this->size];
         Util::checkAllocation(seqLens, "Could not allocate seqLens memory in DBReader");
-        isSortedById = readIndex(indexDataChar, indexDataSize, index, seqLens);
+        bool isSortedById = readIndex(indexDataChar, indexDataSize, index, seqLens);
         indexData.close();
 
         if (accessType != HARDNOSORT) {
             sortIndex(isSortedById);
+        }
+        size_t prevOffset = 0; // makes 0 or empty string
+        sortedByOffset = true;
+        for (size_t i = 0; i < size; i++) {
+            sortedByOffset *= index[i].offset >= prevOffset;
+            prevOffset = index[i].offset;
         }
 
         // init seq lens array and dbKey mapping
@@ -193,6 +202,11 @@ template <typename T> bool DBReader<T>::open(int accessType){
 
 template<typename T>
 void DBReader<T>::sortIndex(bool) {
+}
+
+template<typename T>
+bool DBReader<T>::isSortedByOffset(){
+    return sortedByOffset;
 }
 
 template<>
@@ -638,7 +652,7 @@ bool DBReader<T>::readIndex(char *data, size_t dataSize, Index *index, unsigned 
     char* indexDataChar = (char *) data;
     const char * cols[3];
     T prevId=T(); // makes 0 or empty string
-    size_t isSorted = true;
+    size_t isSortedById = true;
     maxSeqLen=0;
     while (currPos < dataSize){
         if (i >= this->size) {
@@ -647,7 +661,7 @@ bool DBReader<T>::readIndex(char *data, size_t dataSize, Index *index, unsigned 
         }
         Util::getWordsOfLine(indexDataChar, cols, 3);
         readIndexId(&index[i].id, indexDataChar, cols);
-        isSorted *= (index[i].id >= prevId);
+        isSortedById *= (index[i].id >= prevId);
         size_t offset = Util::fast_atoi<size_t>(cols[1]);
         size_t length = Util::fast_atoi<size_t>(cols[2]);
         index[i].offset = offset;
@@ -659,7 +673,7 @@ bool DBReader<T>::readIndex(char *data, size_t dataSize, Index *index, unsigned 
         prevId = index[i].id;
         i++;
     }
-    return isSorted;
+    return isSortedById;
 }
 
 template<typename T> T DBReader<T>::getLastKey() {
@@ -838,6 +852,17 @@ size_t DBReader<T>::findNextOffsetid(size_t id) {
 template<typename T>
 int DBReader<T>::isCompressed(int dbtype) {
     return (dbtype & (1 << 31)) ? COMPRESSED : UNCOMPRESSED;
+}
+
+template<typename T>
+void DBReader<T>::setSequentialAdvice() {
+#if HAVE_POSIX_FADVISE
+    for(size_t i = 0; i < dataFileCnt; i++){
+        if (posix_madvise (dataFiles[i], dataSizeOffset[i], POSIX_FADV_SEQUENTIAL) != 0){
+            Debug(Debug::ERROR) << "posix_madvise returned an error\n";
+        }
+    }
+#endif
 }
 
 template class DBReader<unsigned int>;

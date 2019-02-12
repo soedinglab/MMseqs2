@@ -83,10 +83,31 @@ check_cxx_source_runs("
           int input_desc = fileno(tmpf);
           int test =  posix_fadvise (input_desc, 0, 0, POSIX_FADV_SEQUENTIAL);
           fclose(tmpf);
+          return 0;
         }"
         HAVE_POSIX_FADVISE)
 if (HAVE_POSIX_FADVISE)
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_POSIX_FADVISE=1)
+endif ()
+
+check_cxx_source_runs("
+        #include <stdlib.h>
+        #include <fcntl.h>
+        #include <stdio.h>
+        #include <sys/mman.h>
+
+        int main()
+        {
+          FILE* tmpf = tmpfile();
+          int flags = PROT_READ;
+          int fd =  fileno(tmpf);
+          void * tmp = mmap(NULL, 32, flags, MAP_SHARED, fd, 0);
+          int test =  posix_madvise (tmp, 32, POSIX_FADV_SEQUENTIAL);
+          return 0;
+        }"
+        HAVE_POSIX_MADVISE)
+if (HAVE_POSIX_MADVISE)
+    target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_POSIX_MADVISE=1)
 endif ()
 
 #SSE

@@ -123,6 +123,7 @@ public:
     void mlock();
 
     void sortIndex(bool isSortedById);
+    bool isSortedByOffset();
 
     void unmapData();
 
@@ -241,6 +242,7 @@ public:
 
     static int isCompressed(int dbtype);
 
+    void setSequentialAdvice();
 
 private:
 
@@ -281,6 +283,7 @@ private:
     ZSTD_DStream ** dstream;
 
     Index * index;
+    bool sortedByOffset;
 
     unsigned int * seqLens;
     unsigned int * id2local;

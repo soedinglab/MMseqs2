@@ -67,6 +67,10 @@ int doRescorediagonal(Parameters &par,
         querySeqType = qdbr->getDbtype();
     }
 
+    if(resultReader.isSortedByOffset() && qdbr->isSortedByOffset()){
+        qdbr->setSequentialAdvice();
+    }
+
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
