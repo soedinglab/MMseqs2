@@ -127,8 +127,9 @@ int doRescorediagonal(Parameters &par,
             std::vector<hit_t> shortResults;
             shortResults.reserve(300);
             char *queryRevSeq = NULL;
+            int queryRevSeqLen = par.maxSeqLen;
             if (reversePrefilterResult == true) {
-                queryRevSeq = new char[par.maxSeqLen];
+                queryRevSeq = new char[queryRevSeqLen];
             }
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
@@ -143,6 +144,11 @@ int doRescorediagonal(Parameters &par,
                     queryId = qdbr->getId(queryKey);
                     querySeq = qdbr->getData(queryId, thread_idx);
                     queryLen = std::max(0, static_cast<int>(qdbr->getSeqLens(queryId)) - 2);
+                    if(queryLen > queryRevSeqLen){
+                        delete [] queryRevSeq;
+                        queryRevSeq = new char[queryLen];
+                        queryRevSeqLen = queryLen;
+                    }
                     if (reversePrefilterResult == true) {
                         NucleotideMatrix *nuclMatrix = (NucleotideMatrix *) subMat;
                         for (int pos = queryLen - 1; pos > -1; pos--) {
