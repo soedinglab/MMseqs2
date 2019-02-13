@@ -159,7 +159,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                 }
 
                 const size_t edgeId = tDbr->getId(key);
-                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, false);
+                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), tDbr->getDbtype(), &subMat, 0, false, false);
 
 
                 char *dbSeqData = tDbr->getData(edgeId, thread_idx);
