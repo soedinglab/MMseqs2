@@ -106,9 +106,6 @@ check_cxx_source_runs("
 if (HAVE_POSIX_MADVISE)
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_POSIX_MADVISE=1)
 endif ()
-if (HAVE_POSIX_MADVISE)
-    target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_POSIX_MADVISE=1)
-endif ()
 
 #SSE
 if (${HAVE_AVX2})
