@@ -77,11 +77,10 @@ check_cxx_source_runs("
         #include <fcntl.h>
         #include <stdio.h>
 
-        int main()
-        {
+        int main() {
           FILE* tmpf = tmpfile();
           int input_desc = fileno(tmpf);
-          int test =  posix_fadvise (input_desc, 0, 0, POSIX_FADV_SEQUENTIAL);
+          int test = posix_fadvise(input_desc, 0, 0, POSIX_FADV_SEQUENTIAL);
           fclose(tmpf);
           return 0;
         }"
@@ -96,13 +95,11 @@ check_cxx_source_runs("
         #include <stdio.h>
         #include <sys/mman.h>
 
-        int main()
-        {
+        int main() {
           FILE* tmpf = tmpfile();
-          int flags = PROT_READ;
-          int fd =  fileno(tmpf);
-          void * tmp = mmap(NULL, 32, flags, MAP_SHARED, fd, 0);
-          int test =  posix_madvise (tmp, 32, POSIX_FADV_SEQUENTIAL);
+          void *tmp = mmap(NULL, 32, PROT_READ, MAP_SHARED, fileno(tmpf), 0);
+          int test = posix_madvise(tmp, 32, POSIX_MADV_SEQUENTIAL);
+          fclose(tmpf);
           return 0;
         }"
         HAVE_POSIX_MADVISE)
