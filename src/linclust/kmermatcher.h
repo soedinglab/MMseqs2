@@ -97,6 +97,7 @@ struct KmerPosition {
 struct __attribute__((__packed__)) KmerEntry {
     unsigned int seqId;
     short diagonal;
+    unsigned char score;
     void setReverse(bool ){
         ;
     }
@@ -108,6 +109,7 @@ struct __attribute__((__packed__)) KmerEntry {
 struct __attribute__((__packed__)) KmerEntryRev {
     unsigned int seqId;
     short diagonal;
+    unsigned char score;
     unsigned char rev;
     void setReverse(bool rev){
         this->rev = rev;
@@ -121,13 +123,14 @@ struct FileKmerPosition {
     size_t repSeq;
     unsigned int id;
     short pos;
+    char score;
     unsigned int file;
     char reverse;
     FileKmerPosition(){}
-    FileKmerPosition(size_t repSeq, unsigned int id,short pos, unsigned int file):
-            repSeq(repSeq), id(id), pos(pos), file(file), reverse(0) {}
-    FileKmerPosition(size_t repSeq, unsigned int id,short pos, char reverse, unsigned int file):
-            repSeq(repSeq), id(id), pos(pos), file(file), reverse(reverse) {}
+    FileKmerPosition(size_t repSeq, unsigned int id,short pos, char score, unsigned int file):
+            repSeq(repSeq), id(id), pos(pos), score(score), file(file), reverse(0) {}
+    FileKmerPosition(size_t repSeq, unsigned int id,short pos, char score, char reverse, unsigned int file):
+            repSeq(repSeq), id(id), pos(pos), score(score), file(file), reverse(reverse) {}
 };
 
 class CompareResultBySeqId {

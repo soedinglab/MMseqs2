@@ -836,20 +836,21 @@ size_t queueNextEntry(KmerPositionQueue &queue, int file, size_t offsetPos, T *e
     size_t pos = 0;
     while(entries[offsetPos + pos].seqId != UINT_MAX){
         if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
-            queue.push(FileKmerPosition(repSeqId, entries[offsetPos+pos].seqId, entries[offsetPos+pos].diagonal, entries[offsetPos+pos].getRev(), file));
+            queue.push(FileKmerPosition(repSeqId, entries[offsetPos+pos].seqId, entries[offsetPos+pos].diagonal, entries[offsetPos+pos].score, entries[offsetPos+pos].getRev(), file));
         }else{
-            queue.push(FileKmerPosition(repSeqId, entries[offsetPos+pos].seqId, entries[offsetPos+pos].diagonal, file));
+            queue.push(FileKmerPosition(repSeqId, entries[offsetPos+pos].seqId, entries[offsetPos+pos].diagonal, entries[offsetPos+pos].score, file));
         }
         pos++;
     }
-    queue.push(FileKmerPosition(repSeqId, UINT_MAX, 0, file));
+    queue.push(FileKmerPosition(repSeqId, UINT_MAX, 0, 0, file));
     pos++;
     return offsetPos+pos;
 }
 
 template <int TYPE, typename T>
 void mergeKmerFilesAndOutput(DBWriter & dbw,
-                             std::vector<std::string> tmpFiles, std::vector<char> &repSequence) {
+                             std::vector<std::string> tmpFiles,
+                             std::vector<char> &repSequence) {
     Debug(Debug::INFO) << "Merge splits ... ";
 
     const int fileCnt = tmpFiles.size();
@@ -863,21 +864,25 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
         files[file] = FileUtil::openFileOrDie(tmpFiles[file].c_str(),"r",true);
         size_t dataSize;
         entries[file]    = (T*)FileUtil::mmapFile(files[file], &dataSize);
+#if HAVE_POSIX_FADVISE
+        if (posix_madvise (entries[file], dataSize, POSIX_FADV_SEQUENTIAL) != 0){
+            Debug(Debug::ERROR) << "posix_madvise returned an error\n";
+        }
+#endif
         dataSizes[file]  = dataSize;
         entrySizes[file] = dataSize/sizeof(T);
     }
     KmerPositionQueue queue;
     // read one entry for each file
     for(int file = 0; file < fileCnt; file++ ){
-        offsetPos[file]=queueNextEntry<TYPE,T>(queue, file, 0, entries[file], entrySizes[file]);
+        offsetPos[file] = queueNextEntry<TYPE,T>(queue, file, 0, entries[file], entrySizes[file]);
     }
     std::string prefResultsOutString;
     prefResultsOutString.reserve(100000000);
     char buffer[100];
-    FileKmerPosition filePrevsKmerPos;
-    filePrevsKmerPos.id = UINT_MAX;
     FileKmerPosition res;
-    if(queue.empty() == false){
+    bool hasRepSeq =  repSequence.size()>0;
+    if(queue.empty() == false && hasRepSeq){
         res = queue.top();
         hit_t h;
         h.seqId = res.repSeq;
@@ -889,22 +894,22 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
     while(queue.empty() == false) {
         res = queue.top();
         queue.pop();
-        if(res.id==UINT_MAX){
+        if(res.id == UINT_MAX) {
             offsetPos[res.file] = queueNextEntry<TYPE,T>(queue, res.file, offsetPos[res.file],
                                                          entries[res.file], entrySizes[res.file]);
             dbw.writeData(prefResultsOutString.c_str(), prefResultsOutString.length(), res.repSeq, 0);
-            if(repSequence.size() > 0){
+            if(hasRepSeq){
                 repSequence[res.repSeq]=true;
             }
             prefResultsOutString.clear();
             // skipe UINT MAX entries
-            while(queue.empty() == false && queue.top().id==UINT_MAX){
+            while(queue.empty() == false && queue.top().id==UINT_MAX) {
                 res = queue.top();
                 queue.pop();
                 offsetPos[res.file] = queueNextEntry<TYPE,T>(queue, res.file, offsetPos[res.file],
                                                              entries[res.file], entrySizes[res.file]);
             }
-            if(queue.empty() == false){
+            if(queue.empty() == false && hasRepSeq) {
                 res = queue.top();
                 hit_t h;
                 h.seqId = res.repSeq;
@@ -915,15 +920,50 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
             }
         }
         // if its not a duplicate
-        if(filePrevsKmerPos.id != res.id && res.repSeq != res.id && res.id!=UINT_MAX){
-            hit_t h;
-            h.seqId = res.id;
-            h.prefScore = res.reverse;
-            h.diagonal = res.pos;
-            int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
-            prefResultsOutString.append(buffer, len);
+        // find maximal diagonal and top score
+        int bestDiagonalCnt = 0;
+        int bestRevertMask;
+        short bestDiagonal = res.pos;
+        int topScore = 0;
+        unsigned int hitId;
+        unsigned int prevHitId;
+        int diagonalScore = 0;
+        short prevDiagonal = res.pos;
+        do {
+            prevHitId = res.id;
+            diagonalScore = (diagonalScore == 0 || prevDiagonal!=res.pos) ? res.score : diagonalScore + res.score;
+            if(diagonalScore > bestDiagonalCnt){
+                bestDiagonalCnt = diagonalScore;
+                bestDiagonal = res.pos;
+                bestRevertMask = res.reverse;
+            }
+            prevDiagonal = res.pos;
+            topScore += res.score;
+            if(queue.empty() == false) {
+                res = queue.top();
+                queue.pop();
+                offsetPos[res.file] = queueNextEntry<TYPE,T>(queue, res.file, offsetPos[res.file],
+                                                             entries[res.file], entrySizes[res.file]);
+                hitId = res.id;
+                if(hitId != prevHitId){
+                    queue.push(res);
+                }
+            }else{
+                hitId = UINT_MAX;
+            }
+
+        } while(hitId == prevHitId && hitId != UINT_MAX);
+        bool hitIsRepSeq = (res.repSeq == prevHitId);
+        // skip rep. seq. if set does not have rep. sequences
+        if(hitIsRepSeq && hasRepSeq == false){
+            continue;
         }
-        filePrevsKmerPos = res;
+        hit_t h;
+        h.seqId = prevHitId;
+        h.prefScore =  (bestRevertMask) ? -topScore : topScore;
+        h.diagonal =  bestDiagonal;
+        int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
+        prefResultsOutString.append(buffer, len);
     }
     for(size_t file = 0; file < tmpFiles.size(); file++) {
         fclose(files[file]);
@@ -946,6 +986,8 @@ template <int TYPE, typename T>
 void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t totalKmers) {
     size_t repSeqId = SIZE_T_MAX;
     size_t lastTargetId = SIZE_T_MAX;
+    short lastDiagonal=0;
+    int diagonalScore=0;
     FILE* filePtr = fopen(tmpFile.c_str(), "wb");
     if(filePtr == NULL) { perror(tmpFile.c_str()); EXIT(EXIT_FAILURE); }
     unsigned int writeSets = 0;
@@ -973,6 +1015,7 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
             elemenetCnt=0;
             repSeqId = currKmer;
             writeBuffer[bufferPos].seqId = repSeqId;
+            writeBuffer[bufferPos].score = 0;
             writeBuffer[bufferPos].diagonal = 0;
             if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
                 bool isReverse = BIT_CHECK(hashSeqPair[kmerPos].kmer, 63)==false;
@@ -980,15 +1023,22 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
             }
             bufferPos++;
         }
+
         unsigned int targetId = hashSeqPair[kmerPos].id;
         unsigned short diagonal = hashSeqPair[kmerPos].pos;
-        // remove similar double sequence hit or self hit
-        if(targetId == repSeqId || lastTargetId == targetId ){
-            lastTargetId = targetId;
-            continue;
-        }
+        // find diagonal score
+        do{
+            diagonalScore += (diagonalScore == 0 || (lastTargetId == targetId && lastDiagonal == diagonal) );
+            lastTargetId = hashSeqPair[kmerPos].id;
+            lastDiagonal = hashSeqPair[kmerPos].pos;
+            kmerPos++;
+        }while(targetId == hashSeqPair[kmerPos].id && lastDiagonal == diagonal && kmerPos < totalKmers);
+        kmerPos--;
+
         elemenetCnt++;
         writeBuffer[bufferPos].seqId = targetId;
+        writeBuffer[bufferPos].score = diagonalScore;
+        diagonalScore = 0;
         writeBuffer[bufferPos].diagonal = diagonal;
         if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
             bool isReverse  = BIT_CHECK(hashSeqPair[kmerPos].kmer, 63)==false;
