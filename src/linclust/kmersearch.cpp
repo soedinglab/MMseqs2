@@ -75,7 +75,7 @@ void KmerSearch::writeResult(DBWriter & dbw, KmerPosition *kmers, size_t kmerCou
             repSeqId = currId;
             prefResultsOutString.clear();
         }
-        std::cout << kmers[i].id << "\t" << kmers[i].pos << std::endl;
+//        std::cout << kmers[i].id << "\t" << kmers[i].pos << std::endl;
         // find maximal diagonal and top score
         short prevDiagonal;
         int cnt = 0;
