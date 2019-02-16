@@ -884,7 +884,7 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
     char buffer[100];
     FileKmerPosition res;
     bool hasRepSeq =  repSequence.size()>0;
-    unsigned int currRepSeq;
+    unsigned int currRepSeq = UINT_MAX;
     if(queue.empty() == false){
         res = queue.top();
         currRepSeq = res.repSeq;
