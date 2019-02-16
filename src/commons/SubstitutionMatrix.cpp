@@ -56,7 +56,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
             Debug(Debug::ERROR) << "Could not estimate alphabet size.\n";
             EXIT(EXIT_FAILURE);
         }
-        readProbMatrix(submat, alphSizeAndX.second);
+        int alphabetSize = readProbMatrix(submat, alphSizeAndX.second);
         if (alphabetSize < this->alphabetSize - 1) {
             this->alphabetSize = alphabetSize;
         }
