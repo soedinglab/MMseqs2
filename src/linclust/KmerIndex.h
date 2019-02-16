@@ -183,11 +183,11 @@ public:
         this->entryCount = entryCount;
         this->indexGridSize = MathUtil::ceilIntDivision( MathUtil::ipow<size_t>(alphabetSize, kmerSize), gridResolution );
         this->entryOffsets = (size_t *) entriesOffetData;
-#if HAVE_POSIX_FADVISE
-        if (posix_madvise (entriesData, entriesOffetData, POSIX_FADV_SEQUENTIAL) != 0){
-            Debug(Debug::ERROR) << "KmerIndex posix_madvise returned an error\n";
-        }
-#endif
+//#if HAVE_POSIX_FADVISE
+//        if (posix_madvise (entriesData, entriesOffetData, POSIX_FADV_SEQUENTIAL) != 0){
+//            Debug(Debug::ERROR) << "KmerIndex posix_madvise returned an error\n";
+//        }
+//#endif
 
         this->prevKmerStartRange = 0;
         this->iteratorPos = -1;
