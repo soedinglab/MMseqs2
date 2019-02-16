@@ -866,8 +866,8 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
         files[file] = FileUtil::openFileOrDie(tmpFiles[file].c_str(),"r",true);
         size_t dataSize;
         entries[file]    = (T*)FileUtil::mmapFile(files[file], &dataSize);
-#if HAVE_POSIX_FADVISE
-        if (posix_madvise (entries[file], dataSize, POSIX_FADV_SEQUENTIAL) != 0){
+#if HAVE_POSIX_MADVISE
+        if (posix_madvise (entries[file], dataSize, POSIX_MADV_SEQUENTIAL) != 0){
             Debug(Debug::ERROR) << "posix_madvise returned an error for file " << tmpFiles[file] << "\n";
         }
 #endif
@@ -937,7 +937,7 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
         // if its not a duplicate
         // find maximal diagonal and top score
         int bestDiagonalCnt = 0;
-        int bestRevertMask;
+        int bestRevertMask = 0;
         short bestDiagonal = res.pos;
         int topScore = 0;
         unsigned int hitId;

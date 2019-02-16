@@ -856,9 +856,9 @@ int DBReader<T>::isCompressed(int dbtype) {
 
 template<typename T>
 void DBReader<T>::setSequentialAdvice() {
-#if HAVE_POSIX_FADVISE
+#if HAVE_POSIX_MADVISE
     for(size_t i = 0; i < dataFileCnt; i++){
-        if (posix_madvise (dataFiles[i], dataSizeOffset[i], POSIX_FADV_SEQUENTIAL) != 0){
+        if (posix_madvise (dataFiles[i], dataSizeOffset[i], POSIX_MADV_SEQUENTIAL) != 0){
             Debug(Debug::ERROR) << "posix_madvise returned an error " << dataFileName << "\n";
         }
     }
