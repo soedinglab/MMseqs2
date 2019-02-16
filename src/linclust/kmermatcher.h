@@ -123,13 +123,13 @@ struct FileKmerPosition {
     size_t repSeq;
     unsigned int id;
     short pos;
-    char score;
+    unsigned char score;
     unsigned int file;
     char reverse;
     FileKmerPosition(){}
-    FileKmerPosition(size_t repSeq, unsigned int id,short pos, char score, unsigned int file):
+    FileKmerPosition(size_t repSeq, unsigned int id,short pos, unsigned char score, unsigned int file):
             repSeq(repSeq), id(id), pos(pos), score(score), file(file), reverse(0) {}
-    FileKmerPosition(size_t repSeq, unsigned int id,short pos, char score, char reverse, unsigned int file):
+    FileKmerPosition(size_t repSeq, unsigned int id,short pos, unsigned char score, char reverse, unsigned int file):
             repSeq(repSeq), id(id), pos(pos), score(score), file(file), reverse(reverse) {}
 };
 

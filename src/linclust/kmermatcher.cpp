@@ -884,14 +884,18 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
     char buffer[100];
     FileKmerPosition res;
     bool hasRepSeq =  repSequence.size()>0;
-    if(queue.empty() == false && hasRepSeq){
+    unsigned int currRepSeq;
+    if(queue.empty() == false){
         res = queue.top();
-        hit_t h;
-        h.seqId = res.repSeq;
-        h.prefScore = 0;
-        h.diagonal = 0;
-        int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
-        prefResultsOutString.append(buffer, len);
+        currRepSeq = res.repSeq;
+        if(hasRepSeq) {
+            hit_t h;
+            h.seqId = res.repSeq;
+            h.prefScore = 0;
+            h.diagonal = 0;
+            int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
+            prefResultsOutString.append(buffer, len);
+        }
     }
     while(queue.empty() == false) {
         res = queue.top();
@@ -911,15 +915,24 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
                 offsetPos[res.file] = queueNextEntry<TYPE,T>(queue, res.file, offsetPos[res.file],
                                                              entries[res.file], entrySizes[res.file]);
             }
-            if(queue.empty() == false && hasRepSeq) {
+            if(queue.empty() == false) {
                 res = queue.top();
-                hit_t h;
-                h.seqId = res.repSeq;
-                h.prefScore = 0;
-                h.diagonal = 0;
-                int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
-                prefResultsOutString.append(buffer, len);
+                currRepSeq = res.repSeq;
+                if(hasRepSeq){
+                    hit_t h;
+                    h.seqId = res.repSeq;
+                    h.prefScore = 0;
+                    h.diagonal = 0;
+                    int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
+                    prefResultsOutString.append(buffer, len);
+                }
             }
+        }
+
+        bool hitIsRepSeq = (res.score == 0);
+        // skip rep. seq. if set does not have rep. sequences
+        if(hitIsRepSeq && hasRepSeq == false){
+            continue;
         }
         // if its not a duplicate
         // find maximal diagonal and top score
@@ -954,12 +967,8 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
                 hitId = UINT_MAX;
             }
 
-        } while(hitId == prevHitId && hitId != UINT_MAX);
-        bool hitIsRepSeq = (res.repSeq == prevHitId);
-        // skip rep. seq. if set does not have rep. sequences
-        if(hitIsRepSeq && hasRepSeq == false){
-            continue;
-        }
+        } while(hitId == prevHitId && res.repSeq == currRepSeq && hitId != UINT_MAX);
+
         hit_t h;
         h.seqId = prevHitId;
         h.prefScore =  (bestRevertMask) ? -topScore : topScore;

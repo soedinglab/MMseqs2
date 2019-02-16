@@ -83,6 +83,8 @@ void KmerSearch::writeResult(DBWriter & dbw, KmerPosition *kmers, size_t kmerCou
         int bestRevertMask = reverMask;
         short bestDiagonal = kmers[i].pos;
         int topScore = 0;
+        unsigned int tmpCurrId = currId;
+
         unsigned int hitId;
         do {
             prevHitId = kmers[i].id;
@@ -97,10 +99,13 @@ void KmerSearch::writeResult(DBWriter & dbw, KmerPosition *kmers, size_t kmerCou
             topScore++;
             i++;
             hitId = kmers[i].id;
+            tmpCurrId = kmers[i].kmer;
             if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
                 reverMask = BIT_CHECK(kmers[i].kmer, 63) == false;
+                tmpCurrId = BIT_CLEAR(tmpCurrId, 63);
+
             }
-        } while(hitId == prevHitId && i < kmerCount);
+        } while(hitId == prevHitId && currId == tmpCurrId && i < kmerCount);
         i--;
 
         hit_t h;
@@ -215,8 +220,8 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
     Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << memoryLimit << " byte)\n";
     // compute splits
-    size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
-//    size_t splits = 2;
+//    size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
+    size_t splits = 2;
     if (splits > 1) {
 //         security buffer
         splits += 1;
