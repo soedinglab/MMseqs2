@@ -8,6 +8,7 @@
 #include <iostream>
 #include <algorithm>
 #include <fcntl.h>
+#include <sys/mman.h>
 
 class KmerIndex{
 
