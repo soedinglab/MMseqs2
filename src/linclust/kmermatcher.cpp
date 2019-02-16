@@ -868,7 +868,7 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
         entries[file]    = (T*)FileUtil::mmapFile(files[file], &dataSize);
 #if HAVE_POSIX_FADVISE
         if (posix_madvise (entries[file], dataSize, POSIX_FADV_SEQUENTIAL) != 0){
-            Debug(Debug::ERROR) << "posix_madvise returned an error\n";
+            Debug(Debug::ERROR) << "posix_madvise returned an error for file " << tmpFiles[file] << "\n";
         }
 #endif
         dataSizes[file]  = dataSize;

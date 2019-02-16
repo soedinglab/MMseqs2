@@ -859,7 +859,7 @@ void DBReader<T>::setSequentialAdvice() {
 #if HAVE_POSIX_FADVISE
     for(size_t i = 0; i < dataFileCnt; i++){
         if (posix_madvise (dataFiles[i], dataSizeOffset[i], POSIX_FADV_SEQUENTIAL) != 0){
-            Debug(Debug::ERROR) << "posix_madvise returned an error\n";
+            Debug(Debug::ERROR) << "posix_madvise returned an error " << dataFileName << "\n";
         }
     }
 #endif
