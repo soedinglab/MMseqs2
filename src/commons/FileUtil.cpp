@@ -246,7 +246,11 @@ void FileUtil::copyFile(const char *src, const char *dst) {
         EXIT(EXIT_FAILURE);
     }
     while ((size = read(source, buf, BUFSIZ)) > 0) {
-        write(dest, buf, size);
+        size_t res = write(dest, buf, size);
+        if (res != size) {
+            Debug(Debug::ERROR) << "Error writing file " << dst << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
     close(source);
     close(dest);
