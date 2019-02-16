@@ -7,6 +7,7 @@
 #include <string>
 #include <iostream>
 #include <algorithm>
+#include <fcntl.h>
 
 class KmerIndex{
 

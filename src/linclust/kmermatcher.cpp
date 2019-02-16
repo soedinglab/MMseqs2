@@ -25,6 +25,8 @@
 #include <iomanip>
 #include <algorithm>
 #include <sys/mman.h>
+#include <fcntl.h>
+
 #ifdef OPENMP
 #include <omp.h>
 #endif
