@@ -458,7 +458,7 @@ size_t assignGroup(KmerPosition *hashSeqPair, size_t splitKmerCount, bool includ
     }
     size_t prevHashStart = 0;
     size_t prevSetSize = 0;
-    size_t queryLen=hashSeqPair[0].seqLen;
+    unsigned short queryLen=hashSeqPair[0].seqLen;
     bool repIsReverse = false;
     unsigned int repSeq_i_pos = hashSeqPair[0].pos;
     for (size_t elementIdx = 0; elementIdx < splitKmerCount+1; elementIdx++) {
