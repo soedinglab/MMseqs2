@@ -220,8 +220,8 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
     Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << memoryLimit << " byte)\n";
     // compute splits
-//    size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
-    size_t splits = 2;
+    size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
+//    size_t splits = 2;
     if (splits > 1) {
 //         security buffer
         splits += 1;
