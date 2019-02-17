@@ -15,7 +15,7 @@
 class SubstitutionMatrix: public BaseMatrix {
 
     public:
-        SubstitutionMatrix(const char *scoringMatrixFileName, float bitFactor, float scoreBias);
+        SubstitutionMatrix(const char *filename, float bitFactor, float scoreBias);
 
         virtual ~SubstitutionMatrix();
 
@@ -73,16 +73,13 @@ class SubstitutionMatrix: public BaseMatrix {
         }
 
 private:
+    int parseAlphabet(char * word, char * int2aa, int * aa2int);
 
-        const char* scoringMatrixFileName;
+    void readProbMatrix(const std::string &matrixData, bool containsX);
 
-        int parseAlphabet(char * word, char * int2aa, int * aa2int);
+    std::pair<int, bool>  setAaMappingDetectAlphSize(std::string &matrixData);
 
-        void readProbMatrix(const std::string &matrixData, bool containsX);
-
-        const float bitFactor;
-
-        std::pair<int, bool>  setAaMappingDetectAlphSize(std::string &matrixData);
+    const float bitFactor;
 };
 
 #endif

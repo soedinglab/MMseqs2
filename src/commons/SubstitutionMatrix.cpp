@@ -12,18 +12,17 @@
 #include <cmath>
 #include <climits>
 
-SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName, float bitFactor, float scoreBias) :
-        scoringMatrixFileName(scoringMatrixFileName), bitFactor(bitFactor) {
+SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, float scoreBias) : bitFactor(bitFactor) {
     std::string matrixData;
-    if (strcmp(scoringMatrixFileName, "nucleotide.out") == 0) {
+    if (strcmp(filename, "nucleotide.out") == 0) {
         matrixData = std::string((const char *)nucleotide_out, nucleotide_out_len);
         matrixName = "nucleotide.out";
-    } else if (strcmp(scoringMatrixFileName, "blosum62.out") == 0) {
+    } else if (strcmp(filename, "blosum62.out") == 0) {
         matrixData = std::string((const char *)blosum62_out, blosum62_out_len);
         matrixName = "blosum62.out";
     } else {
         // read amino acid substitution matrix from file
-        std::string fileName(scoringMatrixFileName);
+        std::string fileName(filename);
         matrixName = Util::base_name(fileName, "/\\");
         matrixName = Util::remove_extension(matrixName);
         if (fileName.substr(fileName.length() - 4, 4).compare(".out") != 0) {
@@ -32,7 +31,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName, float 
         }
         std::ifstream in(fileName);
         if (in.fail()) {
-            Debug(Debug::ERROR) << "Cannot read " << scoringMatrixFileName << "\n";
+            Debug(Debug::ERROR) << "Cannot read " << filename << "\n";
             EXIT(EXIT_FAILURE);
         }
         matrixData = std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
