@@ -163,7 +163,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         size_t prevOffset = 0; // makes 0 or empty string
         sortedByOffset = true;
         for (size_t i = 0; i < size; i++) {
-            sortedByOffset *= index[i].offset >= prevOffset;
+            sortedByOffset = sortedByOffset && index[i].offset >= prevOffset;
             prevOffset = index[i].offset;
         }
 

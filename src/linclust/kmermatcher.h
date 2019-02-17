@@ -12,9 +12,7 @@ struct KmerPosition {
     unsigned int id;
     unsigned short seqLen;
     short pos;
-    KmerPosition(){}
-    KmerPosition(size_t kmer, unsigned int id, unsigned short seqLen, short pos):
-            kmer(kmer), id(id), seqLen(seqLen), pos(pos) {}
+
     static bool compareRepSequenceAndIdAndPos(const KmerPosition &first, const KmerPosition &second){
         if(first.kmer < second.kmer )
             return true;
