@@ -18,7 +18,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName, float 
     if (strcmp(scoringMatrixFileName, "nucleotide.out") == 0) {
         matrixData = std::string((const char *)nucleotide_out, nucleotide_out_len);
         matrixName = "nucleotide.out";
-    } else if (strcmp(scoringMatrixFileName, "blosum62.out")) {
+    } else if (strcmp(scoringMatrixFileName, "blosum62.out") == 0) {
         matrixData = std::string((const char *)blosum62_out, blosum62_out_len);
         matrixName = "blosum62.out";
     } else {
