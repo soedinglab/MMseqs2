@@ -9,7 +9,7 @@
 #include "NucleotideMatrix.h"
 #include "ReducedMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
-
+#include "IndexReader.h"
 #include <string>
 #include <vector>
 
@@ -17,22 +17,61 @@
 #include <omp.h>
 #endif
 
-void setAlignByKmerDefaults(Parameters *p) {
-    p->kmerSize = 4;
-    p->alphabetSize = 21;
-}
-
 int alignbykmer(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Rescore diagonals.\n";
     Parameters &par = Parameters::getInstance();
-    setAlignByKmerDefaults(&par);
-    par.parseParameters(argc, argv, command, 4);
+    par.parseParameters(argc, argv, command, 4, false);
 
     Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
-    DBReader<unsigned int> *qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    qdbr->open(DBReader<unsigned int>::NOSORT);
-    const int querySeqType = qdbr->getDbtype();
-    qdbr->readMmapedDataInMemory();
+    bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+    IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
+    IndexReader * qDbrIdx = NULL;
+    int querySeqType = 0;
+    DBReader<unsigned int> * qdbr = NULL;
+    DBReader<unsigned int> * tdbr = tDbrIdx->sequenceReader;
+    int targetSeqType = tDbrIdx->getDbtype();
+    bool sameDB = (par.db2.compare(par.db1) == 0);
+    if (sameDB == true) {
+        qDbrIdx = tDbrIdx;
+        qdbr = tdbr;
+        querySeqType = targetSeqType;
+    } else {
+        // open the sequence, prefiltering and output databases
+        qDbrIdx = new IndexReader(par.db1, par.threads,  IndexReader::SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0);
+        qdbr = qDbrIdx->sequenceReader;
+        querySeqType = qdbr->getDbtype();
+    }
+
+    if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)){
+        par.alphabetSize = 5;
+        if(par.PARAM_SPACED_KMER_MODE.wasSet == false) {
+            par.spacedKmer = false;
+        }
+        if(par.PARAM_K.wasSet == false) {
+            par.kmerSize = 9;
+        }
+        if(par.PARAM_GAP_OPEN.wasSet == false){
+            par.gapOpen = 5;
+        }
+        if(par.PARAM_GAP_EXTEND.wasSet == false) {
+            par.gapExtend = 2;
+        }
+
+    } else {
+        if(par.PARAM_K.wasSet == false) {
+            par.kmerSize = 4;
+        }
+        par.alphabetSize = 21;
+    }
+    par.printParameters(command.cmd, argc, argv, *command.params);
+
+    Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
+    DBReader<unsigned int> dbr_res(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+
+    if(dbr_res.isSortedByOffset() && qdbr->isSortedByOffset()){
+        qdbr->setSequentialAdvice();
+    }
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_NUCLEOTIDES)) {
@@ -49,23 +88,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     }
     ScoreMatrix * _2merSubMatrix =  ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
 
-    Debug(Debug::INFO) << "Target  file: " << par.db2 << "\n";
-    DBReader<unsigned int> *tdbr = NULL;
-    bool sameDB = false;
-    if (par.db1.compare(par.db2) == 0) {
-        sameDB = true;
-        tdbr = qdbr;
-    } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        tdbr->open(DBReader<unsigned int>::NOSORT);
-        tdbr->readMmapedDataInMemory();
-    }
-
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
-
-    Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
-    DBReader<unsigned int> dbr_res(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
@@ -145,7 +168,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 #pragma omp parallel
         {
             Sequence query(par.maxSeqLen, querySeqType, subMat, par.kmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
-            Sequence target(par.maxSeqLen, querySeqType, subMat, par.kmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
+            Sequence target(par.maxSeqLen, targetSeqType, subMat, par.kmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
             KmerGenerator kmerGenerator(par.kmerSize, subMat->alphabetSize, 70.0);
             kmerGenerator.setDivideStrategy(NULL, _2merSubMatrix);
             size_t lookupSize = MathUtil::ipow<size_t>(par.alphabetSize, par.kmerSize);
@@ -290,9 +313,9 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                             if (stretcheVec[currStretche].i_start > stretcheVec[prevPotentialStretche].i_end &&
                                     stretcheVec[currStretche].j_start > stretcheVec[prevPotentialStretche].i_end) {
                                 int bestScorePathPrevIsLast = dpMatrixRow[prevPotentialStretche].pathScore;
-                                int distance =  -1;
+                                int distance =  par.gapOpen + (stretcheVec[prevPotentialStretche].i_end - stretcheVec[currStretche].i_start)*par.gapExtend;
                                 int costOfPrevToCurrTransition = distance;
-                                int currScore = stretcheVec[currStretche].kmerCnt;
+                                int currScore = stretcheVec[currStretche].kmerCnt*par.kmerSize*2;
                                 int currScoreWithPrev = bestScorePathPrevIsLast + costOfPrevToCurrTransition + currScore;
 
                                 // update row of currPotentialExon in case of improvement:
@@ -473,17 +496,19 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Done." << "\n";
     resultWriter.close();
     dbr_res.close();
-    qdbr->close();
 
-    delete qdbr;
     delete subMat;
     ScoreMatrix::cleanup(_2merSubMatrix);
 
-    if (sameDB == false) {
-        tdbr->close();
-        delete tdbr;
+    if (tDbrIdx != NULL) {
+        delete tDbrIdx;
     }
 
+    if (sameDB == false) {
+        if(qDbrIdx != NULL){
+            delete qDbrIdx;
+        }
+    }
     return EXIT_SUCCESS;
 }
 

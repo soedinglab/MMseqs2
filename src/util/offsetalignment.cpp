@@ -325,7 +325,11 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     size_t queryId = qOrfDbr.sequenceReader->getId(orfKey);
                     char *header = qOrfDbr.sequenceReader->getData(queryId, thread_idx);
                     Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
-                    updateOffset(data, results, &qloc, *tOrfDbr, isNuclNucl, thread_idx);
+                    if(qloc.id == UINT_MAX){
+                        updateOffset(data, results, NULL, *tOrfDbr, isNuclNucl, thread_idx);
+                    }else{
+                        updateOffset(data, results, &qloc, *tOrfDbr, isNuclNucl, thread_idx);
+                    }
                 }
             } else if (Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
                 queryKey = alnDbr.getDbKey(i);

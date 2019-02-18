@@ -57,7 +57,7 @@ std::pair<size_t, KmerPosition *> KmerSearch::extractKmerAndSort(size_t splitKme
 template <int TYPE>
 void KmerSearch::writeResult(DBWriter & dbw, KmerPosition *kmers, size_t kmerCount) {
     size_t repSeqId = SIZE_T_MAX;
-    unsigned int prevId = UINT_MAX;
+    unsigned int prevHitId = UINT_MAX;
     char buffer[100];
     std::string prefResultsOutString;
     prefResultsOutString.reserve(100000000);
@@ -75,15 +75,47 @@ void KmerSearch::writeResult(DBWriter & dbw, KmerPosition *kmers, size_t kmerCou
             repSeqId = currId;
             prefResultsOutString.clear();
         }
-        if(kmers[i].id != prevId){
-            hit_t h;
-            h.seqId = kmers[i].id;
-            h.prefScore = (repSeqId == kmers[i].id) ? 0 : reverMask;
-            h.diagonal =  kmers[i].pos;
-            int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
-            prefResultsOutString.append(buffer, len);
-        }
-        prevId = kmers[i].id;
+//        std::cout << kmers[i].id << "\t" << kmers[i].pos << std::endl;
+        // find maximal diagonal and top score
+        short prevDiagonal;
+        int cnt = 0;
+        int bestDiagonalCnt = 0;
+        int bestRevertMask = reverMask;
+        short bestDiagonal = kmers[i].pos;
+        int topScore = 0;
+        unsigned int tmpCurrId = currId;
+
+        unsigned int hitId;
+        do {
+            prevHitId = kmers[i].id;
+            prevDiagonal = kmers[i].pos;
+
+            cnt = (kmers[i].pos == prevDiagonal) ? cnt + 1 : 1 ;
+            if(cnt > bestDiagonalCnt){
+                bestDiagonalCnt = cnt;
+                bestDiagonal = kmers[i].pos;
+                bestRevertMask = reverMask;
+            }
+            topScore++;
+            i++;
+            hitId = kmers[i].id;
+            tmpCurrId = kmers[i].kmer;
+            if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
+                reverMask = BIT_CHECK(kmers[i].kmer, 63) == false;
+                tmpCurrId = BIT_CLEAR(tmpCurrId, 63);
+
+            }
+        } while(hitId == prevHitId && currId == tmpCurrId && i < kmerCount);
+        i--;
+
+        hit_t h;
+        h.seqId = prevHitId;
+        bestRevertMask = (repSeqId == prevHitId) ? 0 : bestRevertMask;
+        h.prefScore =  (bestRevertMask) ? -topScore : topScore;
+        h.diagonal =  bestDiagonal;
+        int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
+        prefResultsOutString.append(buffer, len);
+
     }
     // last element
     if(prefResultsOutString.size()>0){
@@ -191,7 +223,7 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
 //    size_t splits = 2;
     if (splits > 1) {
-        // security buffer
+//         security buffer
         splits += 1;
     }
     int outDbType = (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) ? Parameters::DBTYPE_PREFILTER_REV_RES : Parameters::DBTYPE_PREFILTER_RES;
@@ -368,7 +400,8 @@ std::pair<KmerPosition *,size_t > KmerSearch::searchInIndex( KmerPosition *kmers
                     queryNeedsToBeRev = false;
                 }
                 (kmers+writePos)->pos = queryPos - targetPos;
-                (kmers+writePos)->kmer = (queryNeedsToBeRev) ? BIT_CLEAR(static_cast<size_t >(currTargetKmer.id), 63) : BIT_SET(static_cast<size_t >(currTargetKmer.id), 63);
+                size_t id = (queryNeedsToBeRev) ? BIT_CLEAR(static_cast<size_t >(currTargetKmer.id), 63) : BIT_SET(static_cast<size_t >(currTargetKmer.id), 63);
+                (kmers+writePos)->kmer = id;
             }else{
                 // i - j
                 (kmers+writePos)->kmer= currTargetKmer.id;

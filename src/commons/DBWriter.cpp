@@ -698,7 +698,7 @@ void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::strin
 #endif
     }
 
-    int c1;
+    int c1 = EOF;
     char * buffer = dataFilesBuffer[0];
     size_t writePos = 0;
     int dataFilefd = fileno(dataFiles[0]);

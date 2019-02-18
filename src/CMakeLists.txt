@@ -5,6 +5,7 @@ set(HAVE_NEON 0 CACHE BOOL "Have NEON")
 set(HAVE_TESTS 1 CACHE BOOL "Have Tests")
 set(HAVE_SHELLCHECK 1 CACHE BOOL "Have ShellCheck")
 set(HAVE_GPROF 0 CACHE BOOL "Have GPROF Profiler")
+set(ENABLE_WERROR 0 CACHE BOOL "Enable Warnings as Errors")
 
 include(AppendTargetProperty)
 
@@ -66,6 +67,11 @@ endif ()
 append_target_property(mmseqs-framework COMPILE_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Wdisabled-optimization)
 append_target_property(mmseqs-framework LINK_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Wdisabled-optimization)
 
+if (${ENABLE_WERROR})
+    append_target_property(mmseqs-framework COMPILE_FLAGS -Werror)
+    append_target_property(mmseqs-framework LINK_FLAGS -Werror)
+endif()
+
 if (CYGWIN OR ${HAVE_NEON})
     target_compile_definitions(mmseqs-framework PUBLIC -D_GNU_SOURCE=1)
 endif ()
@@ -77,11 +83,10 @@ check_cxx_source_runs("
         #include <fcntl.h>
         #include <stdio.h>
 
-        int main()
-        {
+        int main() {
           FILE* tmpf = tmpfile();
           int input_desc = fileno(tmpf);
-          int test =  posix_fadvise (input_desc, 0, 0, POSIX_FADV_SEQUENTIAL);
+          int test = posix_fadvise(input_desc, 0, 0, POSIX_FADV_SEQUENTIAL);
           fclose(tmpf);
           return 0;
         }"
@@ -96,13 +101,11 @@ check_cxx_source_runs("
         #include <stdio.h>
         #include <sys/mman.h>
 
-        int main()
-        {
+        int main() {
           FILE* tmpf = tmpfile();
-          int flags = PROT_READ;
-          int fd =  fileno(tmpf);
-          void * tmp = mmap(NULL, 32, flags, MAP_SHARED, fd, 0);
-          int test =  posix_madvise (tmp, 32, POSIX_FADV_SEQUENTIAL);
+          void *tmp = mmap(NULL, 32, PROT_READ, MAP_SHARED, fileno(tmpf), 0);
+          int test = posix_madvise(tmp, 32, POSIX_MADV_SEQUENTIAL);
+          fclose(tmpf);
           return 0;
         }"
         HAVE_POSIX_MADVISE)

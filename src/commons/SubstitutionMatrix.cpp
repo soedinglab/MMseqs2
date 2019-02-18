@@ -1,94 +1,62 @@
 #include "SubstitutionMatrix.h"
 #include "Util.h"
 #include "Debug.h"
-#include "MathUtil.h"
 #include "lambda_calculator.h"
+
+#include "blosum62.out.h"
+#include "nucleotide.out.h"
+
 #include <cstring>
 #include <algorithm>
 #include <fstream>
 #include <cmath>
 #include <climits>
-#include "simd.h"
-#include "blosum62.out.h"
-#include "nucleotide.out.h"
 
-
-
-SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
-                                       float bitFactor, float scoreBias = -0.2) :
-        scoringMatrixFileName(scoringMatrixFileName_) {
-    if(strcmp(scoringMatrixFileName,"blosum62.out") != 0 && strcmp(scoringMatrixFileName,"nucleotide.out")!=0 ) {
+SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, float scoreBias) : bitFactor(bitFactor) {
+    std::string matrixData;
+    if (strcmp(filename, "nucleotide.out") == 0) {
+        matrixData = std::string((const char *)nucleotide_out, nucleotide_out_len);
+        matrixName = "nucleotide.out";
+    } else if (strcmp(filename, "blosum62.out") == 0) {
+        matrixData = std::string((const char *)blosum62_out, blosum62_out_len);
+        matrixName = "blosum62.out";
+    } else {
         // read amino acid substitution matrix from file
-        std::string fileName(scoringMatrixFileName);
+        std::string fileName(filename);
         matrixName = Util::base_name(fileName, "/\\");
         matrixName = Util::remove_extension(matrixName);
-        if (fileName.substr(fileName.length() - 4, 4).compare(".out") == 0){
-            std::ifstream in(fileName);
-            if (in.fail()) {
-                Debug(Debug::ERROR) << "Cannot read " << scoringMatrixFileName << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-            std::string str((std::istreambuf_iterator<char>(in)),
-                            std::istreambuf_iterator<char>());
-            std::pair<int, bool> alphSizeAndX = setAaMappingDetectAlphSize(str);
-            alphabetSize = alphSizeAndX.first;
-            initMatrixMemory(alphabetSize);
-            if(alphabetSize == -1){
-                Debug(Debug::ERROR) << "Could not estimate alphabet size.\n";
-                EXIT(EXIT_FAILURE);
-            }
-            readProbMatrix(str, alphSizeAndX.second);
-
-            in.close();
-        }
-        else {
+        if (fileName.substr(fileName.length() - 4, 4).compare(".out") != 0) {
             Debug(Debug::ERROR) << "Invalid format of the substitution matrix input file! Only .out files are accepted.\n";
             EXIT(EXIT_FAILURE);
         }
-    } else if(strcmp(scoringMatrixFileName,"nucleotide.out") == 0){
-        std::string submat((const char *)nucleotide_out,nucleotide_out_len);
-        matrixName = "nucleotide.out";
-
-        std::pair<int, bool> alphSizeAndX = setAaMappingDetectAlphSize(submat);
-        alphabetSize = alphSizeAndX.first;
-        initMatrixMemory(alphabetSize);
-        if(alphabetSize == -1){
-            Debug(Debug::ERROR) << "Could not estimate alphabet size.\n";
+        std::ifstream in(fileName);
+        if (in.fail()) {
+            Debug(Debug::ERROR) << "Cannot read " << filename << "\n";
             EXIT(EXIT_FAILURE);
         }
-        readProbMatrix(submat, alphSizeAndX.second);
-        if (alphabetSize < this->alphabetSize - 1) {
-            this->alphabetSize = alphabetSize;
-        }
-    } else{
-        std::string submat((const char *)blosum62_out,blosum62_out_len);
-        matrixName = "blosum62.out";
-        std::pair<int, bool> alphSizeAndX = setAaMappingDetectAlphSize(submat);
-        alphabetSize = alphSizeAndX.first;
-        initMatrixMemory(alphabetSize);
-        if(alphabetSize == -1){
-            Debug(Debug::ERROR) << "Could not estimate alphabet size.\n";
-            EXIT(EXIT_FAILURE);
-        }
-        readProbMatrix(submat, alphSizeAndX.second);
-        if (alphabetSize < this->alphabetSize - 1) {
-            this->alphabetSize = alphabetSize;
-        }
+        matrixData = std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        in.close();
     }
+
+    std::pair<int, bool> alphSizeAndX = setAaMappingDetectAlphSize(matrixData);
+    alphabetSize = alphSizeAndX.first;
+    if(alphabetSize == -1){
+        Debug(Debug::ERROR) << "Could not estimate alphabet size.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    initMatrixMemory(alphabetSize);
+    readProbMatrix(matrixData, alphSizeAndX.second);
+
     setupLetterMapping();
 
     //print(probMatrix, int2aa, alphabetSize);
-    generateSubMatrix(this->probMatrix, this->subMatrixPseudoCounts,
-                      this->subMatrix, this->alphabetSize, true, bitFactor, scoreBias);
-    this->bitFactor = bitFactor;
+    generateSubMatrix(probMatrix, subMatrixPseudoCounts, subMatrix, alphabetSize, true, bitFactor, scoreBias);
 }
 
 
 bool SubstitutionMatrix::estimateLambdaAndBackground(const double **scoreMatrix,
                                                      int alphabetSize, double *pBack, double &lambda) {
-    // We need to pass the parameters as 1-based pointers, hence the +1s
-    // and -1s.
-
+    // We need to pass the parameters as 1-based pointers, hence the +1s and -1s.
     std::vector<double> cells(alphabetSize * (alphabetSize + 1));
     std::vector<const double *> pointers(alphabetSize + 1);
 
@@ -101,7 +69,6 @@ bool SubstitutionMatrix::estimateLambdaAndBackground(const double **scoreMatrix,
 
     std::vector<double> letterProbs1(alphabetSize, 0);
     std::vector<double> letterProbs2(alphabetSize, 0);
-
 
     lambda = calculate_lambda(&pointers[0], alphabetSize,
                               &letterProbs1[0] - 1,
@@ -348,7 +315,7 @@ int SubstitutionMatrix::parseAlphabet(char *word, char *int2aa, int *aa2int) {
 
     }
     char minAAChar = int2aa[minAAInt];
-    // do alphbet reduction
+    // do alphabet reduction
     charReader = word;
     while (isalpha(*charReader)) {
         const char aa = *charReader;
@@ -360,7 +327,7 @@ int SubstitutionMatrix::parseAlphabet(char *word, char *int2aa, int *aa2int) {
     return minAAInt;
 }
 
-int SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const bool containsX) {
+void SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const bool containsX) {
     std::stringstream in(matrixData);
     std::string line;
     bool probMatrixStart = false;
@@ -440,8 +407,6 @@ int SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const bool
             probMatrix[i][j] = std::exp(lambda * probMatrix[i][j]) * pBack[i] * pBack[j];
         }
     }
-
-    return alphabetSize;
 }
 
 std::pair<int, bool> SubstitutionMatrix::setAaMappingDetectAlphSize(std::string &matrixData){

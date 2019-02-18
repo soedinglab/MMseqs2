@@ -163,7 +163,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         size_t prevOffset = 0; // makes 0 or empty string
         sortedByOffset = true;
         for (size_t i = 0; i < size; i++) {
-            sortedByOffset *= index[i].offset >= prevOffset;
+            sortedByOffset = sortedByOffset && index[i].offset >= prevOffset;
             prevOffset = index[i].offset;
         }
 
@@ -856,10 +856,11 @@ int DBReader<T>::isCompressed(int dbtype) {
 
 template<typename T>
 void DBReader<T>::setSequentialAdvice() {
-#if HAVE_POSIX_FADVISE
+#if HAVE_POSIX_MADVISE
     for(size_t i = 0; i < dataFileCnt; i++){
-        if (posix_madvise (dataFiles[i], dataSizeOffset[i], POSIX_FADV_SEQUENTIAL) != 0){
-            Debug(Debug::ERROR) << "posix_madvise returned an error\n";
+        size_t dataSize = dataSizeOffset[i+1] - dataSizeOffset[i];
+        if (posix_madvise (dataFiles[i], dataSize, POSIX_MADV_SEQUENTIAL) != 0){
+            Debug(Debug::ERROR) << "posix_madvise returned an error " << dataFileName << "\n";
         }
     }
 #endif
