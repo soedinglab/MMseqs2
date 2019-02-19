@@ -5,6 +5,7 @@ set(HAVE_NEON 0 CACHE BOOL "Have NEON")
 set(HAVE_TESTS 1 CACHE BOOL "Have Tests")
 set(HAVE_SHELLCHECK 1 CACHE BOOL "Have ShellCheck")
 set(HAVE_GPROF 0 CACHE BOOL "Have GPROF Profiler")
+set(ENABLE_WERROR 0 CACHE BOOL "Enable Warnings as Errors")
 
 include(AppendTargetProperty)
 
@@ -65,6 +66,11 @@ endif ()
 
 append_target_property(mmseqs-framework COMPILE_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Wdisabled-optimization)
 append_target_property(mmseqs-framework LINK_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Wdisabled-optimization)
+
+if (${ENABLE_WERROR})
+    append_target_property(mmseqs-framework COMPILE_FLAGS -Werror)
+    append_target_property(mmseqs-framework LINK_FLAGS -Werror)
+endif()
 
 if (CYGWIN OR ${HAVE_NEON})
     target_compile_definitions(mmseqs-framework PUBLIC -D_GNU_SOURCE=1)
