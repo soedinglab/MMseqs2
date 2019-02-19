@@ -1236,11 +1236,11 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
                 // Suggest some parameter that the user might have meant
                 std::vector<MMseqsParameter *>::const_iterator index = par.end();
-                size_t minDistance = SIZE_MAX;
+                int maxDistance = 0;
                 for (std::vector<MMseqsParameter *>::const_iterator it = par.begin(); it != par.end(); ++it) {
-                    size_t distance = DistanceCalculator::levenshteinDistance(parameter, (*it)->name);
-                    if(distance < minDistance) {
-                        minDistance = distance;
+                    int distance = DistanceCalculator::localLevenshteinDistance(parameter, (*it)->name);
+                    if(distance > maxDistance) {
+                        maxDistance = distance;
                         index = it;
                     }
                 }
