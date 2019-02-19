@@ -250,8 +250,11 @@ int doRescorediagonal(Parameters &par,
 
                                 char *end = Itoa::i32toa_sse2(alnLen, buffer);
                                 size_t len = end - buffer;
-                                std::string backtrace(buffer, len - 1);
-                                backtrace.push_back('M');
+                                std::string backtrace = "";
+                                if(par.addBacktrace){
+                                    backtrace=std::string(buffer, len - 1);
+                                    backtrace.push_back('M');
+                                }
                                 queryCov = SmithWaterman::computeCov(qStartPos, qEndPos, queryLen);
                                 targetCov = SmithWaterman::computeCov(dbStartPos, dbEndPos, dbLen);
                                 if(isReverse){
@@ -300,7 +303,7 @@ int doRescorediagonal(Parameters &par,
                     std::sort(alnResults.begin(), alnResults.end(), Matcher::compareHits);
                 }
                 for (size_t i = 0; i < alnResults.size(); ++i) {
-                    size_t len = Matcher::resultToBuffer(buffer, alnResults[i], true, false);
+                    size_t len = Matcher::resultToBuffer(buffer, alnResults[i], par.addBacktrace, false);
                     resultBuffer.append(buffer, len);
                 }
 

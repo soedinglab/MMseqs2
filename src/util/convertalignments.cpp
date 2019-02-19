@@ -251,7 +251,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 } else {
                     const int adjustQstart = (res.qStartPos == -1) ? 0 : res.qStartPos;
                     const int adjustDBstart = (res.dbStartPos == -1) ? 0 : res.dbStartPos;
-                    const float bestMatchEstimate = static_cast<float>(std::min(res.qEndPos - adjustQstart, res.dbEndPos - adjustDBstart));
+                    const float bestMatchEstimate = static_cast<float>(std::min(abs(res.qEndPos - adjustQstart), abs(res.dbEndPos - adjustDBstart)));
                     missMatchCount = static_cast<unsigned int>(bestMatchEstimate * (1.0f - res.seqId) + 0.5);
                 }
 

@@ -150,7 +150,7 @@ public:
 
     static size_t resultToBuffer(char * buffer, const result_t &result, bool addBacktrace, bool compress  = true);
 
-    static size_t computeAlnLength(size_t anEnd, size_t start, size_t dbEnd, size_t dbStart);
+    static int computeAlnLength(int anEnd, int start, int dbEnd, int dbStart);
 
 
 private:

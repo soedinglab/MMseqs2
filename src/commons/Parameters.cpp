@@ -334,6 +334,7 @@ Parameters::Parameters():
     rescorediagonal.push_back(&PARAM_FILTER_HITS);
     rescorediagonal.push_back(&PARAM_E);
     rescorediagonal.push_back(&PARAM_C);
+    rescorediagonal.push_back(&PARAM_ADD_BACKTRACE);
     rescorediagonal.push_back(&PARAM_COV_MODE);
     rescorediagonal.push_back(&PARAM_MIN_SEQ_ID);
     rescorediagonal.push_back(&PARAM_MIN_ALN_LEN);
