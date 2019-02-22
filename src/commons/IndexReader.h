@@ -26,11 +26,11 @@ public:
                 bool touchData = preloadMode & PRELOAD_DATA;
                 if (databaseType & SRC_SEQUENCES) {
                     sequenceReader = PrefilteringIndexReader::openNewReader(index,
-                            PrefilteringIndexReader::DBR2DATA, PrefilteringIndexReader::DBR2INDEX, databaseType & SEQUENCES, threads, touchIndex, touchData);
+                            PrefilteringIndexReader::DBR2DATA, PrefilteringIndexReader::DBR2INDEX, dataMode & DBReader<unsigned int>::USE_DATA, threads, touchIndex, touchData);
 
                 } else if (databaseType & SEQUENCES) {
                     sequenceReader = PrefilteringIndexReader::openNewReader(index,
-                            PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX, databaseType & SEQUENCES, threads, touchIndex, touchData);
+                            PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX,  dataMode & DBReader<unsigned int>::USE_DATA, threads, touchIndex, touchData);
                 } else if (databaseType & SRC_HEADERS) {
 
                     sequenceReader = PrefilteringIndexReader::openNewHeaderReader(index,
