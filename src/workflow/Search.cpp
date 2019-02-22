@@ -77,9 +77,19 @@ int search(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, 4, false, 0,
                         MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
 
+    std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
+    std::string targetDB =  (indexStr == "") ? par.db2.c_str() : indexStr.c_str();
+    int targetDbType;
+    if(indexStr != ""){
+        DBReader<unsigned int> dbr(targetDB.c_str(), (targetDB+".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+        dbr.open(DBReader<unsigned int>::NOSORT);
+        PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&dbr);
+        targetDbType = data.seqType;
+    }else{
+        targetDbType = DBReader<unsigned int>::parseDbType(targetDB.c_str());
+    }
 
     const int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
-    const int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
     if (queryDbType == -1 || targetDbType == -1) {
         Debug(Debug::ERROR)
                 << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
@@ -173,8 +183,6 @@ int search(int argc, const char **argv, const Command& command) {
     std::string program;
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("ALIGNMENT_DB_EXT", Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ) ? ".255" : "");
-    std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
-    std::string targetDB =  (indexStr == "") ? par.db2.c_str() : indexStr.c_str();
     par.filenames[1] = targetDB;
     if (par.sliceSearch == true) {
         if (Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_HMM_PROFILE) == false) {

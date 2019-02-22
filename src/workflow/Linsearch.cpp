@@ -57,7 +57,20 @@ int linsearch(int argc, const char **argv, const Command &command) {
 
 
     const int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
-    const int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    std::string indexStr = LinsearchIndexReader::searchForIndex(par.db2);
+    if (indexStr.size() == 0) {
+        Debug(Debug::ERROR) << par.db2 << " needs to be index.\n";
+        Debug(Debug::ERROR) << "createlinindex " << par.db2 << ".\n";
+        EXIT(EXIT_FAILURE);
+    }
+    int targetDbType = 0;
+    if(indexStr != ""){
+        DBReader<unsigned int> dbr(indexStr.c_str(), (indexStr+".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+        dbr.open(DBReader<unsigned int>::NOSORT);
+        PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&dbr);
+        targetDbType = data.seqType;
+    }
+
     if (queryDbType == -1 || targetDbType == -1) {
         Debug(Debug::ERROR)
                 << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
@@ -79,12 +92,7 @@ int linsearch(int argc, const char **argv, const Command &command) {
 //                                         par.PARAM_STRAND.category | MMseqsParameter::COMMAND_EXPERT);
 //    }
 
-    std::string indexStr = LinsearchIndexReader::searchForIndex(par.db2);
-    if (indexStr.size() == 0) {
-        Debug(Debug::ERROR) << par.db2 << " needs to be index.\n";
-        Debug(Debug::ERROR) << "createlinindex " << par.db2 << ".\n";
-        EXIT(EXIT_FAILURE);
-    }
+
     par.filenames[1] = indexStr;
     const bool isTranslatedNuclSearch =
             isNuclSearch == false && (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) ||
