@@ -910,6 +910,7 @@ Parameters::Parameters():
 
     // easyslinsearch
     easylinsearchworkflow = combineList(createlinindex, linsearchworkflow);
+    easylinsearchworkflow = combineList(easylinsearchworkflow, convertalignments);
 
     // easysearch
     easysearchworkflow = combineList(searchworkflow, convertalignments);
