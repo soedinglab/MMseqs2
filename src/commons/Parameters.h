@@ -65,6 +65,11 @@ public:
     static const int DBTYPE_OFFSETDB = 15;
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
+    static const int SEARCH_TYPE_AUTO = 0;
+    static const int SEARCH_TYPE_PROTEIN = 1;
+    static const int SEARCH_TYPE_TRANSLATED = 2;
+    static const int SEARCH_TYPE_NUCLEOTIDES = 3;
+
 
     static const unsigned int ALIGNMENT_MODE_FAST_AUTO = 0;
     static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 1;
@@ -405,7 +410,7 @@ public:
 
     // indexdb
     bool checkCompatible;
-    int indexType;
+    int searchType;
 
     // createdb
     int identifierOffset;
@@ -687,7 +692,7 @@ public:
 
     // indexdb
     PARAMETER(PARAM_CHECK_COMPATIBLE)
-    PARAMETER(PARAM_INDEX_TYPE)
+    PARAMETER(PARAM_SEARCH_TYPE)
 
     // createdb
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs

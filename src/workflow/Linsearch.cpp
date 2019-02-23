@@ -168,7 +168,7 @@ int linsearch(int argc, const char **argv, const Command &command) {
         cmd.addVariable("TARGET_NUCL",
                         Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
-        cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.onlythreads).c_str());
+        cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());
         cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");

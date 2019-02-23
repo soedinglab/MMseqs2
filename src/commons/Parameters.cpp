@@ -151,7 +151,7 @@ Parameters::Parameters():
         PARAM_USE_ALL_TABLE_STARTS(PARAM_USE_ALL_TABLE_STARTS_ID,"--use-all-table-starts", "Use all table starts", "use all alteratives for a start codon in the genetic table, if false - only ATG (AUG)",typeid(bool),(void *) &useAllTableStarts, ""),
         // indexdb
         PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check Compatible", "skip recreating an index if it is compatible with the specified parameters", typeid(bool), (void*) &checkCompatible, "", COMMAND_EXPERT),
-        PARAM_INDEX_TYPE(PARAM_INDEX_TYPE_ID, "--index-type", "Index type", "index type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &indexType, "^[0-3]{1}"),
+        PARAM_SEARCH_TYPE(PARAM_SEARCH_TYPE_ID, "--search-type", "Search type", "search type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &searchType, "^[0-3]{1}"),
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
@@ -455,6 +455,7 @@ Parameters::Parameters():
     convertalignments.push_back(&PARAM_GAP_EXTEND);
     convertalignments.push_back(&PARAM_DB_OUTPUT);
     convertalignments.push_back(&PARAM_PRELOAD_MODE);
+    convertalignments.push_back(&PARAM_SEARCH_TYPE);
     convertalignments.push_back(&PARAM_THREADS);
     convertalignments.push_back(&PARAM_COMPRESSED);
     convertalignments.push_back(&PARAM_V);
@@ -587,7 +588,7 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_S);
     indexdb.push_back(&PARAM_K_SCORE);
     indexdb.push_back(&PARAM_CHECK_COMPATIBLE);
-    indexdb.push_back(&PARAM_INDEX_TYPE);
+    indexdb.push_back(&PARAM_SEARCH_TYPE);
     indexdb.push_back(&PARAM_SPLIT);
     indexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     indexdb.push_back(&PARAM_THREADS);
@@ -605,7 +606,7 @@ Parameters::Parameters():
     kmerindexdb.push_back(&PARAM_MAX_SEQ_LEN);
     kmerindexdb.push_back(&PARAM_MASK_RESIDUES);
     kmerindexdb.push_back(&PARAM_CHECK_COMPATIBLE);
-    kmerindexdb.push_back(&PARAM_INDEX_TYPE);
+    kmerindexdb.push_back(&PARAM_SEARCH_TYPE);
     kmerindexdb.push_back(&PARAM_SPACED_KMER_MODE);
     kmerindexdb.push_back(&PARAM_SPACED_KMER_PATTERN);
     kmerindexdb.push_back(&PARAM_THREADS);
@@ -693,6 +694,7 @@ Parameters::Parameters():
 
     // offsetalignment
     offsetalignment.push_back(&PARAM_CHAIN_ALIGNMENT);
+    offsetalignment.push_back(&PARAM_SEARCH_TYPE);
     offsetalignment.push_back(&PARAM_THREADS);
     offsetalignment.push_back(&PARAM_COMPRESSED);
     offsetalignment.push_back(&PARAM_PRELOAD_MODE);
@@ -888,6 +890,7 @@ Parameters::Parameters():
     searchworkflow = combineList(searchworkflow, result2profile);
     searchworkflow = combineList(searchworkflow, extractorfs);
     searchworkflow = combineList(searchworkflow, translatenucs);
+    searchworkflow = combineList(searchworkflow, offsetalignment);
     // needed for slice search, however all its parameters are already present in searchworkflow
     // searchworkflow = combineList(searchworkflow, sortresult);
     searchworkflow.push_back(&PARAM_NUM_ITERATIONS);
@@ -904,6 +907,7 @@ Parameters::Parameters():
     linsearchworkflow = combineList(linsearchworkflow, swapresult);
     linsearchworkflow = combineList(linsearchworkflow, extractorfs);
     linsearchworkflow = combineList(linsearchworkflow, translatenucs);
+    linsearchworkflow = combineList(linsearchworkflow, offsetalignment);
     linsearchworkflow.push_back(&PARAM_RUNNER);
     linsearchworkflow.push_back(&PARAM_REUSELATEST);
     linsearchworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
@@ -1515,7 +1519,7 @@ void Parameters::setDefaults() {
 
     // indexdb
     checkCompatible = false;
-    indexType = 0;
+    searchType = SEARCH_TYPE_AUTO;
 
     // createdb
     splitSeqByLen = true;

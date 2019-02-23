@@ -76,13 +76,24 @@ void chainAlignmentHits(std::vector<Matcher::result_t> &results, std::vector<Mat
     }
 }
 
-void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf::SequenceLocation *qloc, IndexReader& tOrfDBr, bool isNuclNucl, int thread_idx) {
+//
+
+// We have serval options to consider
+// Update query and target
+//   Nucl/Nucl
+//   TransNucl/TransNucl
+// target update
+//   Prot/Nucl
+// query update
+//   Nucl/Prot
+void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf::SequenceLocation *qloc,
+        IndexReader& tOrfDBr, bool targetNeedsUpdate, bool isNucleotideSearch, int thread_idx) {
     size_t startPos = results.size();
     Matcher::readAlignmentResults(results, data, true);
     size_t endPos = results.size();
     for (size_t i = startPos; i < endPos; i++) {
         Matcher::result_t &res = results[i];
-        if (isNuclNucl == true || qloc == NULL) {
+        if (targetNeedsUpdate == true || qloc == NULL) {
             size_t targetId = tOrfDBr.sequenceReader->getId(res.dbKey);
             char *header = tOrfDBr.sequenceReader->getData(targetId, thread_idx);
 
@@ -90,26 +101,26 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf
             res.dbKey   = (tloc.id != UINT_MAX) ? tloc.id : res.dbKey;
             size_t from = (tloc.id != UINT_MAX) ? tloc.from : (tloc.strand == Orf::STRAND_MINUS) ? 0 : res.dbLen - 1;
 
-            int dbStartPos = isNuclNucl ? res.dbStartPos : res.dbStartPos * 3;
-            int dbEndPos   = isNuclNucl ? res.dbEndPos : res.dbEndPos * 3;
+            int dbStartPos = isNucleotideSearch ? res.dbStartPos : res.dbStartPos * 3;
+            int dbEndPos   = isNucleotideSearch ? res.dbEndPos : res.dbEndPos * 3;
 
             if (tloc.strand == Orf::STRAND_MINUS && tloc.id != UINT_MAX) {
                 res.dbStartPos = from - dbStartPos;
                 res.dbEndPos   = from - dbEndPos;
-                if(isNuclNucl == false){
+                if(isNucleotideSearch == false){
                     res.dbEndPos = res.dbEndPos - 2;
                 }
             } else {
                 res.dbStartPos = from + dbStartPos;
                 res.dbEndPos   = from + dbEndPos;
-                if(isNuclNucl == false){
+                if(isNucleotideSearch == false){
                     res.dbEndPos = res.dbEndPos + 2;
                 }
             }
         }
         if (qloc != NULL) {
-            int qStartPos = isNuclNucl ? res.qStartPos : res.qStartPos * 3;
-            int qEndPos   = isNuclNucl ? res.qEndPos : res.qEndPos * 3;
+            int qStartPos = isNucleotideSearch ? res.qStartPos : res.qStartPos * 3;
+            int qEndPos   = isNucleotideSearch ? res.qEndPos : res.qEndPos * 3;
 
             size_t from = (qloc->id != UINT_MAX) ? qloc->from : (qloc->strand == Orf::STRAND_MINUS) ? 0 : res.qLen - 1;
 
@@ -188,13 +199,34 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     const bool targetNucl = Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES);
     IndexReader *tSourceDbr = NULL;
     bool isSameSrcDB = (par.db3.compare(par.db1) == 0);
+    bool isNuclNuclSearch = false;
+    bool isTransNucTransNucSearch = false;
     if (targetNucl) {
         Debug(Debug::INFO) << "Source Target database: " << par.db3 << "\n";
+        bool seqtargetNuc = true;
         if(isSameSrcDB){
             tSourceDbr = qSourceDbr;
         }else{
             tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::SRC_SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0, DBReader<unsigned int>::USE_INDEX );
+            if(Parameters::isEqualDbtype(tSourceDbr->getDbtype(), Parameters::DBTYPE_INDEX_DB)){
+                IndexReader tseqDbr(par.db3, par.threads, IndexReader::SEQUENCES, 0, IndexReader::PRELOAD_INDEX);
+                seqtargetNuc = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+                isTransNucTransNucSearch = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_AMINO_ACIDS);
+            }else{
+                if(par.searchType == Parameters::SEARCH_TYPE_AUTO && (targetNucl == true && queryNucl == true )){
+                    Debug(Debug::INFO) << "Assume nucl/nucl search was performed. \n";
+                    Debug(Debug::INFO) << "If this is not correct than please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
+                } else if(par.searchType == Parameters::SEARCH_TYPE_TRANSLATED){
+                    seqtargetNuc = false;
+                    isTransNucTransNucSearch = true;
+                } else if(par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES){
+                    seqtargetNuc = true;
+                    isTransNucTransNucSearch = false;
+                }
+            }
         }
+
+        isNuclNuclSearch = (queryNucl && targetNucl && seqtargetNuc);
     }
 
     Debug(Debug::INFO) << "Result database: " << par.db5 << "\n";
@@ -285,7 +317,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(par.db6.c_str(), par.db6Index.c_str(), localThreads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
 
-    const bool isNuclNucl = queryNucl && targetNucl;
 
 #pragma omp parallel num_threads(localThreads)
     {
@@ -326,15 +357,15 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     char *header = qOrfDbr.sequenceReader->getData(queryId, thread_idx);
                     Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
                     if(qloc.id == UINT_MAX){
-                        updateOffset(data, results, NULL, *tOrfDbr, isNuclNucl, thread_idx);
+                        updateOffset(data, results, NULL, *tOrfDbr, (isNuclNuclSearch||isTransNucTransNucSearch), isNuclNuclSearch, thread_idx);
                     }else{
-                        updateOffset(data, results, &qloc, *tOrfDbr, isNuclNucl, thread_idx);
+                        updateOffset(data, results, &qloc, *tOrfDbr, (isNuclNuclSearch||isTransNucTransNucSearch), isNuclNuclSearch, thread_idx);
                     }
                 }
             } else if (Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
                 queryKey = alnDbr.getDbKey(i);
                 char *data = alnDbr.getData(i, thread_idx);
-                updateOffset(data, results, NULL, *tOrfDbr, isNuclNucl, thread_idx);
+                updateOffset(data, results, NULL, *tOrfDbr, true, isNuclNuclSearch, thread_idx);
             }
             unsigned int qLen = UINT_MAX;
             if (qSourceDbr != NULL) {

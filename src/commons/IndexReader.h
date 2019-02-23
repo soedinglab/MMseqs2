@@ -41,10 +41,10 @@ public:
                     sequenceReader = PrefilteringIndexReader::openNewHeaderReader(index,
                                                                                 PrefilteringIndexReader::HDR1DATA, PrefilteringIndexReader::HDR1INDEX, threads, touchIndex, touchData);
                 }
-
                 if (sequenceReader == NULL) {
                     Debug(Debug::INFO) << "Index does not contain plain sequences. Using normal database instead.\n";
                 }
+                seqType = Parameters::DBTYPE_INDEX_DB;
             } else {
                 Debug(Debug::WARNING) << "Outdated index version. Please recompute with 'createindex'!\n";
                 index->close();

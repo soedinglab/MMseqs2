@@ -114,10 +114,22 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         tDbrHeader = new IndexReader(par.db2, par.threads, IndexReader::SRC_HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     }
 
-    bool queryNucs = Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
-    bool targetNucs = Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+    bool queryNucs = Parameters::isEqualDbtype(qDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+    bool targetNucs = Parameters::isEqualDbtype(tDbr->sequenceReader->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
     if (needSequenceDB) {
-        if((targetNucs == true || queryNucs == true ) && !(queryNucs == true && targetNucs == true)){
+        // try to figure out if search was translated. This is can not be solved perfectly.
+        bool seqtargetAA = false;
+        if(Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_INDEX_DB)){
+            IndexReader tseqDbr(par.db2, par.threads, IndexReader::SEQUENCES, 0, IndexReader::PRELOAD_INDEX);
+            seqtargetAA = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_AMINO_ACIDS);
+        } else if(targetNucs == true && queryNucs == true && par.searchType == Parameters::SEARCH_TYPE_AUTO){
+            Debug(Debug::INFO) << "Assume nucl/nucl search was performed. \n";
+            Debug(Debug::INFO) << "If this is not correct than please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
+        } else if(par.searchType == Parameters::SEARCH_TYPE_TRANSLATED){
+            seqtargetAA = true;
+        }
+
+        if((targetNucs == true && queryNucs == false )  || (targetNucs == false && queryNucs == true ) || (targetNucs == true && seqtargetAA == true && queryNucs == true )  ){
             isTranslatedSearch = true;
         }
     }
