@@ -55,7 +55,7 @@ Alignment::Alignment(const std::string &querySeqDB,
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     tDbrIdx = new IndexReader(targetSeqDB, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     tdbr = tDbrIdx->sequenceReader;
-    targetSeqType = tDbrIdx->getDbtype();
+    targetSeqType = tdbr->getDbtype();
     sameQTDB = (targetSeqDB.compare(querySeqDB) == 0);
     if (sameQTDB == true) {
         qDbrIdx = tDbrIdx;
