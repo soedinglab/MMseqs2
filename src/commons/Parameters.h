@@ -504,6 +504,7 @@ public:
 
     // view
     std::string idList;
+    int idxEntryType;
     // lca
     std::string lcaRanks;
     std::string blacklist;
@@ -787,6 +788,7 @@ public:
 
     // view
     PARAMETER(PARAM_ID_LIST)
+    PARAMETER(PARAM_IDX_ENTRY_TYPE)
 
     // lca
     PARAMETER(PARAM_LCA_RANKS)
