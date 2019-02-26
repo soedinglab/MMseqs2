@@ -37,7 +37,7 @@ int view(int argc, const char **argv, const Command& command) {
         strncpy(dbKey, ids[i].c_str(), ids[i].size());
         dbKey[ids[i].size()]='\0';
         const unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
-        const size_t id = reader.sequenceReader.getId(key);
+        const size_t id = reader.sequenceReader->getId(key);
         if (id >= UINT_MAX) {
             Debug(Debug::WARNING) << "Key " << ids[i] << " not found in database\n";
             continue;
