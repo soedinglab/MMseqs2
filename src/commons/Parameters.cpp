@@ -863,7 +863,7 @@ Parameters::Parameters():
 
     // view
     view.push_back(&PARAM_ID_LIST);
-    view.push_back(&PARAM_IDX_TYPE);
+    view.push_back(&PARAM_IDX_ENTRY_TYPE);
     view.push_back(&PARAM_V);
 
     // exapandaln
