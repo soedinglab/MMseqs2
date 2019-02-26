@@ -8,6 +8,12 @@
 #include "Parameters.h"
 #include "easysearch.sh.h"
 
+void setEasyLinsearchDefaults(Parameters *p) {
+    p->shuffleDatabase = false;
+    p->removeTmpFiles = true;
+    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+}
+
 void setEasySearchDefaults(Parameters *p) {
     p->sensitivity = 5.7;
     p->removeTmpFiles = true;
@@ -16,7 +22,11 @@ void setEasySearchDefaults(Parameters *p) {
 
 int doeasysearch(int argc, const char **argv, const Command &command, bool linsearch) {
     Parameters &par = Parameters::getInstance();
-    setEasySearchDefaults(&par);
+    if(linsearch){
+        setEasyLinsearchDefaults(&par);
+    }else{
+        setEasySearchDefaults(&par);
+    }
     par.overrideParameterDescription((Command &) command, par.PARAM_ADD_BACKTRACE.uniqid, NULL, NULL, par.PARAM_ADD_BACKTRACE.category | MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &) command, par.PARAM_MAX_REJECTED.uniqid, NULL, NULL,
                                      par.PARAM_MAX_REJECTED.category | MMseqsParameter::COMMAND_EXPERT);
