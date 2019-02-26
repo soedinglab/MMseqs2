@@ -24,8 +24,9 @@ int createtsv(int argc, const char **argv, const Command &command) {
     bool queryNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db1.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
     bool targetNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
     const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-
-    IndexReader qDbrHeader(par.db1, par.threads, (queryNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+    int queryHeaderType = (queryNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS;
+    queryHeaderType = (par.idxSeqSrc == 0) ? queryHeaderType :  (par.idxSeqSrc == 1) ?  IndexReader::HEADERS : IndexReader::SRC_HEADERS;
+    IndexReader qDbrHeader(par.db1, par.threads, queryHeaderType, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     IndexReader * tDbrHeader=NULL;
     DBReader<unsigned int> * queryDB = qDbrHeader.sequenceReader;
     DBReader<unsigned int> * targetDB = NULL;
@@ -41,8 +42,10 @@ int createtsv(int argc, const char **argv, const Command &command) {
             targetDB = queryDB;
         } else {
             Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-            tDbrHeader = new IndexReader(par.db2, par.threads,
-                                         (targetNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS, touch);
+            int targetHeaderType = (targetNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS;
+            targetHeaderType = (par.idxSeqSrc == 0) ? targetHeaderType :  (par.idxSeqSrc == 1) ?  IndexReader::HEADERS : IndexReader::SRC_HEADERS;
+
+            tDbrHeader = new IndexReader(par.db2, par.threads, targetHeaderType, touch);
             tHeaderLength = tDbrHeader->sequenceReader->getSeqLens();
             targetDB = tDbrHeader->sequenceReader;
         }

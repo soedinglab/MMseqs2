@@ -120,6 +120,8 @@ Parameters::Parameters():
         PARAM_TARGET_COLUMN(PARAM_TARGET_COLUMN_ID, "--target-column", "Target column", "Select a target column (default 1), 0 if no target id exists.",typeid(int),(void *) &targetTsvColumn, "^[0-9]*$"),
         PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_MISC),
         PARAM_FULL_HEADER(PARAM_FULL_HEADER_ID, "--full-header", "Add Full Header", "Replace DB ID by its corresponding Full Header", typeid(bool), (void*) &fullHeader, ""),
+        PARAM_IDX_SEQ_SRC(PARAM_IDX_SEQ_SRC_ID, "--idx-seq-src", "sequence source", "0: auto, 1: splitted/translated sequences, 2: input sequences", typeid(int), (void*) &idxSeqSrc, "^[0-2]{1}$", MMseqsParameter::COMMAND_MISC),
+
         // result2stats
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen, firstline.", typeid(std::string), (void*) &stat, ""),
         // linearcluster
@@ -435,6 +437,7 @@ Parameters::Parameters():
     createtsv.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
     createtsv.push_back(&PARAM_TARGET_COLUMN);
     createtsv.push_back(&PARAM_FULL_HEADER);
+    createtsv.push_back(&PARAM_IDX_SEQ_SRC);
     createtsv.push_back(&PARAM_DB_OUTPUT);
     createtsv.push_back(&PARAM_THREADS);
     createtsv.push_back(&PARAM_COMPRESSED);
@@ -1672,6 +1675,7 @@ void Parameters::setDefaults() {
     // createtsv
     firstSeqRepr = false;
     fullHeader = false;
+    idxSeqSrc = 0;
     targetTsvColumn = 1;
 
     // filtertaxdb

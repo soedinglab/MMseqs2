@@ -395,6 +395,7 @@ public:
 
     // createtsv
     bool firstSeqRepr;
+    int idxSeqSrc;
     bool fullHeader;
     size_t targetTsvColumn;
 
@@ -653,6 +654,7 @@ public:
     PARAMETER(PARAM_TARGET_COLUMN)
     PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
     PARAMETER(PARAM_FULL_HEADER)
+    PARAMETER(PARAM_IDX_SEQ_SRC)
 
     // result2stat
     PARAMETER(PARAM_STAT)
