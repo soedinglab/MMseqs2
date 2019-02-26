@@ -175,7 +175,7 @@ int doRescorediagonal(Parameters &par,
                     char *querySeqToAlign = querySeq;
                     bool isReverse = false;
                     if (reversePrefilterResult) {
-                        if (results[entryIdx].prefScore == 1) {
+                        if (results[entryIdx].prefScore < 0) {
                             querySeqToAlign = queryRevSeq;
                             isReverse=true;
                         }

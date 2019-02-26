@@ -306,7 +306,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     // Prefilter result (need to make this better)
                     if(elements == 3){
                         hit_t hit = QueryMatcher::parsePrefilterHit(data);
-                        isReverse = (reversePrefilterResult) ? hit.prefScore : false;
+                        isReverse = (reversePrefilterResult) ?  (hit.prefScore < 0) ? true : false : false;
                         diagonal = static_cast<short>(hit.diagonal);
                     }
 
