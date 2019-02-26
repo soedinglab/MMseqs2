@@ -14,6 +14,7 @@
 
 int view(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
+    par.verbosity = 1;
     par.parseParameters(argc, argv, command, 1, false);
     std::vector<std::string> ids = Util::split(par.idList, ",");
     int indexSrcType = IndexReader::SEQUENCES;
@@ -43,7 +44,7 @@ int view(int argc, const char **argv, const Command& command) {
             continue;
         }
         char* data = reader.sequenceReader->getData(id, 0);
-        Debug(Debug::INFO) << data;
+        std::cout << data;
     }
     EXIT(EXIT_SUCCESS);
     return EXIT_SUCCESS;
