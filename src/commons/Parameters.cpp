@@ -45,7 +45,7 @@ Parameters::Parameters():
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","correct for locally biased amino acid composition [0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "0: use consecutive positions a k-mers; 1: use spaced k-mers",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "",MMseqsParameter::COMMAND_EXPERT),
+        PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "",MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
         PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical Seq. Id.","artificially add entries of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_RES_LIST_OFFSET(PARAM_RES_LIST_OFFSET_ID,"--offset-result", "Offset result","Offset result list",typeid(int), (void *) &resListOffset, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PRELOAD_MODE(PARAM_PRELOAD_MODE_ID, "--db-load-mode", "Preload mode", "Database preload mode 0: auto, 1: fread, 2: mmap, 3: mmap+touch", typeid(int), (void*) &preloadMode, "[0-3]{1}", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
@@ -131,13 +131,13 @@ Parameters::Parameters():
         PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash", typeid(int), (void*) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PICK_N_SIMILAR(PARAM_HASH_SHIFT_ID, "--pick-n-sim-kmer", "Adds N similar to search", "adds N similar to search", typeid(int), (void*) &pickNbest, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         // workflow
-        PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","use MPI on compute grid with this MPI command (e.g. \"mpirun -np 42\")",typeid(std::string),(void *) &runner, "", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart using the latest tmp","reuse tmp file in tmp/latest folder ignoring parameters and git version change", typeid(bool),(void *) &reuseLatest, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","use MPI on compute grid with this MPI command (e.g. \"mpirun -np 42\")",typeid(std::string),(void *) &runner, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart using the latest tmp","reuse tmp file in tmp/latest folder ignoring parameters and git version change", typeid(bool),(void *) &reuseLatest, "", MMseqsParameter::COMMAND_COMMON|COMMAND_EXPERT),
         // search workflow
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","Search iterations",typeid(int),(void *) &numIterations, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_START_SENS(PARAM_START_SENS_ID, "--start-sens", "Start sensitivity","start sensitivity",typeid(float),(void *) &startSens, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_SENS_STEPS(PARAM_SENS_STEPS_ID, "--sens-steps", "Search steps","Search steps performed from --start-sense and -s.",typeid(int),(void *) &sensSteps, "^[1-9]{1}$"),
-        PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Run a seq-profile search in slice mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results.", typeid(bool),(void *) &sliceSearch, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Run a seq-profile search in slice mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results.", typeid(bool),(void *) &sliceSearch, "", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_STRAND(PARAM_STRAND_ID, "--strand", "Strand selection", "Strand selection only works for DNA/DNA search 0: reverse, 1: forward, 2: both", typeid(int), (void *) &strand, "^[0-2]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // easysearch
         PARAM_GREEDY_BEST_HITS(PARAM_GREEDY_BEST_HITS_ID, "--greedy-best-hits", "Greedy best hits", "Choose the best hits greedily to cover the query.", typeid(bool), (void*)&greedyBestHits, ""),
@@ -152,7 +152,7 @@ Parameters::Parameters():
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
         PARAM_USE_ALL_TABLE_STARTS(PARAM_USE_ALL_TABLE_STARTS_ID,"--use-all-table-starts", "Use all table starts", "use all alteratives for a start codon in the genetic table, if false - only ATG (AUG)",typeid(bool),(void *) &useAllTableStarts, ""),
         // indexdb
-        PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check Compatible", "skip recreating an index if it is compatible with the specified parameters", typeid(bool), (void*) &checkCompatible, "", COMMAND_EXPERT),
+        PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check Compatible", "skip recreating an index if it is compatible with the specified parameters", typeid(bool), (void*) &checkCompatible, "", MMseqsParameter::COMMAND_MISC),
         PARAM_SEARCH_TYPE(PARAM_SEARCH_TYPE_ID, "--search-type", "Search type", "search type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &searchType, "^[0-3]{1}"),
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
@@ -1050,23 +1050,25 @@ void Parameters::printUsageMessage(const Command& command,
             {"profile",  MMseqsParameter::COMMAND_PROFILE},
             {"misc",     MMseqsParameter::COMMAND_MISC},
             {"common",   MMseqsParameter::COMMAND_COMMON},
+            {"expert",   MMseqsParameter::COMMAND_EXPERT}
     };
 
     size_t maxWidth = 0;
     for(size_t i = 0; i < parameters.size(); i++) {
         maxWidth = std::max(strlen(parameters[i]->name), maxWidth);
     }
-    maxWidth+=2; // space in front of options
+    // space in front of options
+    maxWidth += 2;
     std::map<int, bool> alreadyPrintMap;
     // header
     ss << std::setprecision(3) << std::fixed;
     bool printExpert = (MMseqsParameter::COMMAND_EXPERT & outputFlag) ;
 
-    for(size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
+    for (size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
         bool categoryFound = false;
         for (size_t j = 0; j < parameters.size(); j++) {
             const MMseqsParameter * par = parameters[j];
-            bool isExpert =  (par->category & MMseqsParameter::COMMAND_EXPERT);
+            bool isExpert = (par->category & MMseqsParameter::COMMAND_EXPERT);
             bool alreadyPrint = alreadyPrintMap[par->uniqid];
             if (par->category & categories[i].category && (printExpert || isExpert == false ) && alreadyPrint == false ) {
 //                int others = (par.category ^ categories[i].category);
@@ -1076,7 +1078,7 @@ void Parameters::printUsageMessage(const Command& command,
                 break;
             }
         }
-        if(categoryFound){
+        if (categoryFound) {
             std::string title(categories[i].title);
             title.append(" options");
             ss << std::left << std::setw(maxWidth) << title << "\t";
@@ -1086,9 +1088,9 @@ void Parameters::printUsageMessage(const Command& command,
             // body
             for (size_t j = 0; j < parameters.size(); j++) {
                 const MMseqsParameter * par = parameters[j];
-                bool isExpert =  (par->category & MMseqsParameter::COMMAND_EXPERT);
+                bool isExpert = (par->category & MMseqsParameter::COMMAND_EXPERT);
                 bool alreadyPrint = alreadyPrintMap[par->uniqid];
-                if(par->category & categories[i].category && (printExpert || isExpert == false ) && alreadyPrint == false ){
+                if (par->category & categories[i].category && (printExpert || isExpert == false) && alreadyPrint == false ){
                     ss << std::left << std::setw(maxWidth) << "  " + std::string(par->name) << "\t";
                     ss << std::boolalpha << std::left << std::setw(6);
                     if (par->type == typeid(int)) {
@@ -1102,15 +1104,6 @@ void Parameters::printUsageMessage(const Command& command,
                     } else if (par->type == typeid(std::string)) {
                         std::string &out = *((std::string *) par->value);
                         ss << std::left << std::setw(10) << out;
-                        //            for(std::string::const_iterator j = out.begin(); j != out.end(); ++j) {
-                        //                if(*j == '\n') {
-                        //                    ss << "\\n";
-                        //                } else if (*j == '\t') {
-                        //                    ss << "\\t";
-                        //                } else {
-                        //                    ss << *j;
-                        //                }
-                        //            }
                     }
                     ss << "\t";
                     ss << std::left << std::setw(60) << par->description << std::endl;
@@ -1120,7 +1113,7 @@ void Parameters::printUsageMessage(const Command& command,
             ss << "\n";
         }
     }
-    if (printExpert==false) {
+    if (printExpert == false) {
         ss << "An extended list of options can be obtained by calling '" << binary_name << " " << command.cmd << " -h'.\n";
     }
     Debug(Debug::INFO) << ss.str();
