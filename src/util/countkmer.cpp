@@ -64,11 +64,11 @@ int countkmer(int argc, const char **argv, const Command& command) {
     }
     Indexer idx(subMat->alphabetSize-1, par.kmerSize);
     for(size_t i = 0; i < idxSize; i++){
+        std::cout << i << "\t";
         if(isNucl){
             Indexer::printKmer(i, par.kmerSize);
         }else{
             idx.index2int(idx.workspace, i, par.kmerSize);
-            std::cout << i << "\t";
             for(int k = 0; k < par.kmerSize; k++){
                 std::cout << subMat->int2aa[idx.workspace[k]];
             }
