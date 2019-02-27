@@ -777,6 +777,8 @@ Parameters::Parameters():
 
     // countkmer
     countkmer.push_back(&PARAM_K);
+    countkmer.push_back(&PARAM_SPACED_KMER_MODE);
+    countkmer.push_back(&PARAM_SPACED_KMER_PATTERN);
     countkmer.push_back(&PARAM_THREADS);
 
 
@@ -1015,32 +1017,33 @@ void Parameters::printUsageMessage(const Command& command,
     const std::vector<MMseqsParameter*>& parameters = *command.params;
 
     std::ostringstream ss;
-    ss << binary_name << " " << command.cmd << ":\n";
-    ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
-
-    if(command.citations > 0) {
-        ss << "Please cite:\n";
-        if(command.citations & CITATION_SERVER) {
-            ss << "Mirdita, M., Steinegger, M. & Soding, J. MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, (2019).\n\n";
-        }
-        if(command.citations & CITATION_PLASS) {
-            ss << "Steinegger, M. Mirdita, M., & Soding, J. Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, doi:10.1101/386110 (2018)\n\n";
-        }
-        if(command.citations & CITATION_LINCLUST) {
-            ss << "Steinegger, M. & Soding, J. Clustering huge protein sequence sets in linear time. Nature Communications, doi:10.1038/s41467-018-04964-5 (2018)\n\n";
-        }
-        if(command.citations & CITATION_MMSEQS1) {
-            ss << "Hauser, M., Steinegger, M. & Soding, J. MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n\n";
-        }
-        if(command.citations & CITATION_UNICLUST) {
-            ss << "Mirdita, M., von den Driesch, L., Galiez, C., Martin M., Soding J. & Steinegger M. Uniclust databases of clustered and deeply annotated protein sequences and alignments. Nucleic Acids Res (2017), D170-D176 (2016).\n\n";
-        }
-        if(command.citations & CITATION_MMSEQS2) {
-            ss << "Steinegger, M. & Soding, J. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi:10.1038/nbt.3988 (2017)\n\n";
-        }
-    }
-    ss << "© " << command.author << "\n\n";
+    ss << binary_name << " " << command.cmd << " by " << command.author << "\n";
+    ss << "Description: " << command.shortDescription << "\n";
     ss << "Usage: " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n\n";
+
+//    ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
+
+//    if(command.citations > 0) {
+//        ss << "Please cite:\n";
+//        if(command.citations & CITATION_SERVER) {
+//            ss << "Mirdita, M., Steinegger, M. & Soding, J. MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, (2019).\n\n";
+//        }
+//        if(command.citations & CITATION_PLASS) {
+//            ss << "Steinegger, M. Mirdita, M., & Soding, J. Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, doi:10.1101/386110 (2018)\n\n";
+//        }
+//        if(command.citations & CITATION_LINCLUST) {
+//            ss << "Steinegger, M. & Soding, J. Clustering huge protein sequence sets in linear time. Nature Communications, doi:10.1038/s41467-018-04964-5 (2018)\n\n";
+//        }
+//        if(command.citations & CITATION_MMSEQS1) {
+//            ss << "Hauser, M., Steinegger, M. & Soding, J. MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n\n";
+//        }
+//        if(command.citations & CITATION_UNICLUST) {
+//            ss << "Mirdita, M., von den Driesch, L., Galiez, C., Martin M., Soding J. & Steinegger M. Uniclust databases of clustered and deeply annotated protein sequences and alignments. Nucleic Acids Res (2017), D170-D176 (2016).\n\n";
+//        }
+//        if(command.citations & CITATION_MMSEQS2) {
+//            ss << "Steinegger, M. & Soding, J. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi:10.1038/nbt.3988 (2017)\n\n";
+//        }
+//    }
 
     struct {
         const char* title;
