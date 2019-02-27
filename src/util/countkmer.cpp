@@ -23,6 +23,7 @@ int countkmer(int argc, const char **argv, const Command& command) {
     IndexReader reader(par.db1, par.threads, indexSrcType, 0);
     int seqType = reader.sequenceReader->getDbtype();
     BaseMatrix * subMat;
+    size_t isNucl=Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES);
     if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
     } else {
@@ -56,17 +57,21 @@ int countkmer(int argc, const char **argv, const Command& command) {
                     continue;
                 }
 
-                unsigned int kmerIdx = idx.int2index(kmer, 0, par.kmerSize);
+                size_t kmerIdx = (isNucl) ? Indexer::computeKmerIdx(kmer, par.kmerSize) : idx.int2index(kmer, 0, par.kmerSize);
                 __sync_fetch_and_add(&(kmerCountTable[kmerIdx]), 1);
             }
         }
     }
     Indexer idx(subMat->alphabetSize-1, par.kmerSize);
     for(size_t i = 0; i < idxSize; i++){
-        idx.index2int(idx.workspace, i, par.kmerSize);
-        std::cout << i << "\t";
-        for(int k = 0; k < par.kmerSize; k++){
-            std::cout << subMat->int2aa[idx.workspace[k]];
+        if(isNucl){
+            Indexer::printKmer(i, par.kmerSize);
+        }else{
+            idx.index2int(idx.workspace, i, par.kmerSize);
+            std::cout << i << "\t";
+            for(int k = 0; k < par.kmerSize; k++){
+                std::cout << subMat->int2aa[idx.workspace[k]];
+            }
         }
         std::cout << "\t" << kmerCountTable[i] << std::endl;
     }

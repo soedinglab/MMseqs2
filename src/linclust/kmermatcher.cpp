@@ -58,17 +58,7 @@ unsigned circ_hash_next(const int * x, unsigned length, int x_first, short unsig
 }
 #undef RoL
 
-//void printKmer(size_t idx, int size) {
-//    char output[32];
-//    char nuclCode[4] = {'A','C','T','G'};
-//    for (int i=size-1; i>=0; i--)
-//    {
-//        output[i] = nuclCode[ idx&3 ];
-//        idx = idx>>2;
-//    }
-//    output[size]='\0';
-//    std::cout << output;
-//}
+
 
 KmerPosition *initKmerPositionMemory(size_t size) {
     KmerPosition * hashSeqPair = new(std::nothrow) KmerPosition[size + 1];
@@ -223,12 +213,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                     }
                     if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
                         NucleotideMatrix * nuclMatrix = (NucleotideMatrix*)subMat;
-                        uint64_t kmerIdx = 0;
-                        for(size_t kmerPos = 0; kmerPos < KMER_SIZE; kmerPos++){
-                            kmerIdx = kmerIdx << 2;
-                            kmerIdx = kmerIdx | kmer[kmerPos];
-//                            std::cout << nuclMatrix->int2aa[kmer[kmerPos]];
-                        }
+                        size_t kmerIdx = Indexer::computeKmerIdx(kmer, KMER_SIZE);
                         size_t revComp = Util::revComplement(kmerIdx, KMER_SIZE);
                         bool pickReverseKmer = (revComp<kmerIdx);
                         if(pickReverseKmer){
