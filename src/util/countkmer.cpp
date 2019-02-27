@@ -33,7 +33,7 @@ int countkmer(int argc, const char **argv, const Command& command) {
     }
     size_t idxSize = MathUtil::ipow<size_t>(par.alphabetSize-1, par.kmerSize);
     unsigned int * kmerCountTable=new unsigned int[idxSize];
-    memset(kmerCountTable, 0, sizeof(unsigned int)*idxSize)
+    memset(kmerCountTable, 0, sizeof(unsigned int)*idxSize);
 #pragma omp parallel
     {
         Indexer idx(subMat->alphabetSize-1, par.kmerSize);
@@ -73,7 +73,7 @@ int countkmer(int argc, const char **argv, const Command& command) {
     for(size_t i = 0; i < idxSize; i++){
         idx.index2int(idx.workspace, i, par.kmerSize);
         std::cout << i << "\t";
-        for(size_t i = 0; i < par.kmerSize; i++){
+        for(int i = 0; i < par.kmerSize; i++){
             std::cout << subMat->int2aa[idx.workspace[i]];
         }
         std::cout << "\t" << kmerCountTable[i] << std::endl;
