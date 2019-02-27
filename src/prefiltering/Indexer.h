@@ -118,18 +118,16 @@ public:
     void printKmer(const int* kmer, int kmerSize, char* int2aa);
     
     size_t * powers;
-    
+    size_t * workspace;
+
+
 private:
     
     size_t alphabetSize;
-    
     size_t maxKmerSize;
-    
     size_t lastKmerIndex;
-    
     size_t maxKmerIndex;
     
-    size_t * workspace;
 };
 #endif
 

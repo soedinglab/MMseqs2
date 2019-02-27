@@ -1,0 +1,84 @@
+//
+// Created by Martin Steinegger on 2019-01-17.
+//
+
+#include "Parameters.h"
+#include "FileUtil.h"
+#include "DBReader.h"
+#include "DBWriter.h"
+#include "Debug.h"
+#include "Util.h"
+#include <climits>
+#include <IndexReader.h>
+#include <NucleotideMatrix.h>
+
+int countkmer(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.verbosity = 1;
+    par.parseParameters(argc, argv, command, 1, false);
+    std::vector<std::string> ids = Util::split(par.idList, ",");
+    int indexSrcType = IndexReader::SEQUENCES;
+
+    IndexReader reader(par.db1, par.threads, indexSrcType, 0);
+    int seqType = reader.sequenceReader->getDbtype();
+    BaseMatrix * subMat;
+    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES)) {
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+    } else {
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+    }
+    size_t maxLen = 0;
+    for(size_t i = 0; i < reader.sequenceReader->getSize(); i++){
+        maxLen = std::max(maxLen, reader.sequenceReader->getSeqLens(i));
+    }
+    size_t idxSize = MathUtil::ipow<size_t>(par.alphabetSize-1, par.kmerSize);
+    unsigned int * kmerCountTable=new unsigned int[idxSize];
+    memset(kmerCountTable, 0, sizeof(unsigned int)*idxSize)
+#pragma omp parallel
+    {
+        Indexer idx(subMat->alphabetSize-1, par.kmerSize);
+        Sequence s(maxLen, seqType, subMat,
+                          par.kmerSize, par.spacedKmer, false);
+
+        char dbKey[256];
+#pragma omp for schedule(dynamic, 1)
+        for (size_t i = 0; i < ids.size(); i++) {
+            strncpy(dbKey, ids[i].c_str(), ids[i].size());
+            dbKey[ids[i].size()] = '\0';
+            const unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
+            const size_t id = reader.sequenceReader->getId(key);
+            if (id >= UINT_MAX) {
+                Debug(Debug::WARNING) << "Key " << ids[i] << " not found in database\n";
+                continue;
+            }
+            char *data = reader.sequenceReader->getData(id, 0);
+            s.mapSequence(i, 0, data);
+            const int xIndex = s.subMat->aa2int[(int) 'X'];
+            while (s.hasNextKmer()) {
+                const int *kmer = s.nextKmer();
+                int xCount = 0;
+                for (int pos = 0; pos < par.kmerSize; pos++) {
+                    xCount += (kmer[pos] == xIndex);
+                }
+                if (xCount > 0) {
+                    continue;
+                }
+
+                unsigned int kmerIdx = idx.int2index(kmer, 0, par.kmerSize);
+                __sync_fetch_and_add(&(kmerCountTable[kmerIdx]), 1);
+            }
+        }
+    }
+    Indexer idx(subMat->alphabetSize-1, par.kmerSize);
+    for(size_t i = 0; i < idxSize; i++){
+        idx.index2int(idx.workspace, i, par.kmerSize);
+        std::cout << i << "\t";
+        for(size_t i = 0; i < par.kmerSize; i++){
+            std::cout << subMat->int2aa[idx.workspace[i]];
+        }
+        std::cout << "\t" << kmerCountTable[i] << std::endl;
+    }
+    delete [] kmerCountTable;
+    EXIT(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
+}

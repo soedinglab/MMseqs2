@@ -33,7 +33,7 @@ set(util_source_files
         util/mergedbs.cpp
         util/msa2profile.cpp
         util/mvdb.cpp
-
+        util/countkmer.cpp
         util/prefixid.cpp
         util/profile2cs.cpp
         util/profile2pssm.cpp
