@@ -837,6 +837,7 @@ public:
     std::vector<MMseqsParameter*> clusthash;
     std::vector<MMseqsParameter*> kmermatcher;
     std::vector<MMseqsParameter*> kmersearch;
+    std::vector<MMseqsParameter*> countkmer;
     std::vector<MMseqsParameter*> easylinclustworkflow;
     std::vector<MMseqsParameter*> linclustworkflow;
     std::vector<MMseqsParameter*> easysearchworkflow;

@@ -15,6 +15,7 @@
 int countkmer(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.verbosity = 1;
+    par.kmerSize = 5;
     par.parseParameters(argc, argv, command, 1, false);
     std::vector<std::string> ids = Util::split(par.idList, ",");
     int indexSrcType = IndexReader::SEQUENCES;
@@ -31,7 +32,7 @@ int countkmer(int argc, const char **argv, const Command& command) {
     for(size_t i = 0; i < reader.sequenceReader->getSize(); i++){
         maxLen = std::max(maxLen, reader.sequenceReader->getSeqLens(i));
     }
-    size_t idxSize = MathUtil::ipow<size_t>(par.alphabetSize-1, par.kmerSize);
+    size_t idxSize = MathUtil::ipow<size_t>(subMat->alphabetSize-1, par.kmerSize);
     unsigned int * kmerCountTable=new unsigned int[idxSize];
     memset(kmerCountTable, 0, sizeof(unsigned int)*idxSize);
 #pragma omp parallel
@@ -40,18 +41,9 @@ int countkmer(int argc, const char **argv, const Command& command) {
         Sequence s(maxLen, seqType, subMat,
                           par.kmerSize, par.spacedKmer, false);
 
-        char dbKey[256];
 #pragma omp for schedule(dynamic, 1)
-        for (size_t i = 0; i < ids.size(); i++) {
-            strncpy(dbKey, ids[i].c_str(), ids[i].size());
-            dbKey[ids[i].size()] = '\0';
-            const unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
-            const size_t id = reader.sequenceReader->getId(key);
-            if (id >= UINT_MAX) {
-                Debug(Debug::WARNING) << "Key " << ids[i] << " not found in database\n";
-                continue;
-            }
-            char *data = reader.sequenceReader->getData(id, 0);
+        for (size_t i = 0; i < reader.sequenceReader->getSize(); i++) {
+            char *data = reader.sequenceReader->getData(i, 0);
             s.mapSequence(i, 0, data);
             const int xIndex = s.subMat->aa2int[(int) 'X'];
             while (s.hasNextKmer()) {
@@ -73,8 +65,8 @@ int countkmer(int argc, const char **argv, const Command& command) {
     for(size_t i = 0; i < idxSize; i++){
         idx.index2int(idx.workspace, i, par.kmerSize);
         std::cout << i << "\t";
-        for(int i = 0; i < par.kmerSize; i++){
-            std::cout << subMat->int2aa[idx.workspace[i]];
+        for(int k = 0; k < par.kmerSize; k++){
+            std::cout << subMat->int2aa[idx.workspace[k]];
         }
         std::cout << "\t" << kmerCountTable[i] << std::endl;
     }

@@ -775,6 +775,9 @@ Parameters::Parameters():
     kmersearch.push_back(&PARAM_COMPRESSED);
     kmersearch.push_back(&PARAM_V);
 
+    // countkmer
+    countkmer.push_back(&PARAM_K);
+    countkmer.push_back(&PARAM_THREADS);
 
 
     // mergedbs

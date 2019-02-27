@@ -586,7 +586,7 @@ std::vector<struct Command> commands = {
                 "Milot Mirdita <milot@mirdita.de>",
                 "<i:queryDB> <i:targetDB> <i:resultDB> <i:resultDB|ca3mDB> <o:resultDB>",
                 CITATION_MMSEQS2},
-        {"countkmer",           countkmer,             &par.threadsandcompression, COMMAND_SPECIAL,
+        {"countkmer",           countkmer,             &par.countkmer,            COMMAND_SPECIAL,
                 "Simple kmer counter, it prints the numeric, alphanumeric representation and kmercount",
                 NULL,
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
