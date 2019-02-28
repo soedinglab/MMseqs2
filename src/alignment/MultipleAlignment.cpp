@@ -1,11 +1,5 @@
-//
-// Created by mad on 3/15/15.
-//
 #include "MultipleAlignment.h"
 
-#include <string>
-
-#include "Parameters.h"
 #include "Debug.h"
 #include "Sequence.h"
 #include "SubstitutionMatrix.h"
@@ -53,7 +47,7 @@ void MultipleAlignment::print(MSAResult msaResult, SubstitutionMatrix * subMat){
     }
 }
 
-std::vector<Matcher::result_t> MultipleAlignment::computeBacktrace(Sequence *centerSeq, std::vector<Sequence*> seqs) {
+std::vector<Matcher::result_t> MultipleAlignment::computeBacktrace(Sequence *centerSeq, const std::vector<Sequence*>& seqs) {
     std::vector<Matcher::result_t> btSequences;
     // init query with center star sequence
     aligner->initQuery(centerSeq);
@@ -69,12 +63,11 @@ std::vector<Matcher::result_t> MultipleAlignment::computeBacktrace(Sequence *cen
     return btSequences;
 }
 
-void MultipleAlignment::computeQueryGaps(unsigned int *queryGaps, Sequence *centerSeq, std::vector<Sequence *> seqs,
-                                         std::vector<Matcher::result_t> alignmentResults) {
+void MultipleAlignment::computeQueryGaps(unsigned int *queryGaps, Sequence *centerSeq, const std::vector<Sequence *>& seqs, const std::vector<Matcher::result_t>& alignmentResults) {
     // init query gaps
     memset(queryGaps, 0, sizeof(unsigned int) * centerSeq->L);
     for(size_t i = 0; i < seqs.size(); i++) {
-        Matcher::result_t alignment = alignmentResults[i];
+        const Matcher::result_t& alignment = alignmentResults[i];
         std::string bt = alignment.backtrace;
         size_t queryPos = 0;
         size_t targetPos = 0;
@@ -123,11 +116,11 @@ size_t MultipleAlignment::updateGapsInCenterSequence(char **msaSequence, Sequenc
     return centerSeqPos;
 }
 
-void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t centerSeqSize, std::vector<Sequence *> seqs,
-                                                std::vector<Matcher::result_t> alignmentResults, unsigned int *queryGaps,
+void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t centerSeqSize, const std::vector<Sequence *> &seqs,
+                                                const std::vector<Matcher::result_t> &alignmentResults, unsigned int *queryGaps,
                                                 bool noDeletionMSA) {
     for(size_t i = 0; i < seqs.size(); i++) {
-        Matcher::result_t result = alignmentResults[i];
+        const Matcher::result_t& result = alignmentResults[i];
         std::string bt = result.backtrace;
         char *edgeSeqMSA = msaSequence[i+1];
         Sequence *edgeSeq = seqs[i];
@@ -208,7 +201,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
 }
 
 
-MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs, bool noDeletionMSA) {
+MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, const std::vector<Sequence *>& edgeSeqs, bool noDeletionMSA) {
     // just center sequence is included
     if(edgeSeqs.size() == 0 ){
         return singleSequenceMSA(centerSeq);
@@ -223,8 +216,8 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
 }
 
 
-MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs,
-                                                           std::vector<Matcher::result_t> alignmentResults, bool noDeletionMSA) {
+MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, const std::vector<Sequence *>& edgeSeqs,
+                                                           const std::vector<Matcher::result_t>& alignmentResults, bool noDeletionMSA) {
     if(edgeSeqs.size() == 0 ){
         return singleSequenceMSA(centerSeq);
     }

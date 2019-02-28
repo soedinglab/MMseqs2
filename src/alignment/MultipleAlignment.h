@@ -5,7 +5,6 @@
 #ifndef MMSEQS_MULTIPLEALIGNMENT_H
 #define MMSEQS_MULTIPLEALIGNMENT_H
 
-
 #include <cstddef>
 #include <vector>
 
@@ -40,19 +39,18 @@ public:
     };
 
 
-    MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat,
-                                             Matcher *aligner);
+    MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat, Matcher *aligner);
 
     ~MultipleAlignment();
     // Compute center star multiple alignment from sequence input
-    MultipleAlignment::MSAResult computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs, bool noDeletionMSA);
+    MultipleAlignment::MSAResult computeMSA(Sequence *centerSeq, const std::vector<Sequence *> &edgeSeqs, bool noDeletionMSA);
     static void print(MSAResult msaResult, SubstitutionMatrix * subMat);
 
     // init aligned memory for the MSA
     static char *initX(int len);
 
-    MSAResult computeMSA(Sequence *pSequence, std::vector<Sequence *> vector, std::vector<Matcher::result_t> vector1,
-                         bool i);
+    MSAResult computeMSA(Sequence *pSequence, const std::vector<Sequence *> &vector, const std::vector<Matcher::result_t> &vector1, bool i);
+
     // clean memory for MSA
     static void deleteMSA(MultipleAlignment::MSAResult * res);
 	
@@ -66,15 +64,14 @@ private:
     size_t maxMsaSeqLen;
     unsigned int * queryGaps;
 
-    std::vector<Matcher::result_t> computeBacktrace(Sequence *center, std::vector<Sequence *> sequences);
+    std::vector<Matcher::result_t> computeBacktrace(Sequence *center, const std::vector<Sequence *>& sequences);
 
-    void computeQueryGaps(unsigned int *queryGaps, Sequence *center, std::vector<Sequence *> seqs,
-                          std::vector<Matcher::result_t> alignmentResults);
+    void computeQueryGaps(unsigned int *queryGaps, Sequence *center, const std::vector<Sequence *>& seqs, const std::vector<Matcher::result_t>& alignmentResults);
 
     size_t updateGapsInCenterSequence(char **msaSequence, Sequence *centerSeq, bool noDeletionMSA);
 
-    void updateGapsInSequenceSet(char **centerSeqSize, size_t seqs, std::vector<Sequence *> vector,
-                                                    std::vector<Matcher::result_t> queryGaps, unsigned int *noDeletionMSA,
+    void updateGapsInSequenceSet(char **centerSeqSize, size_t seqs, const std::vector<Sequence *> &vector,
+                                                    const std::vector<Matcher::result_t> &queryGaps, unsigned int *noDeletionMSA,
                                                     bool b);
 
     MSAResult singleSequenceMSA(Sequence *centerSeq);
