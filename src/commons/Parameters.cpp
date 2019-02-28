@@ -36,7 +36,7 @@ Parameters::Parameters():
         PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask Residues", "0: w/o low complexity masking, 1: with low complexity masking", typeid(int),(void *) &maskMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-ungapped-score", "Minimum Diagonal score", "accept only matches with ungapped alignment score above this threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "k-mer threshold for generating similar-k-mer lists",typeid(int),(void *) &kmerScore,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "maximum result sequences per query (this parameter affects the sensitivity)",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "maximum result sequences per query that passes the prefilter (this parameter affects the sensitivity)",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "Splits input sets into N equally distributed chunks. The default value sets the best split automatically. createindex can only be used with split 1.",typeid(int),(void *) &split,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "0: split target db; 1: split query db;  2: auto, depending on main memory",typeid(int),(void *) &splitMode,  "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split Memory Limit", "Maximum system memory in megabyte that one split may use. Defaults (0) to all available system memory.", typeid(int), (void*) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*)$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
@@ -51,7 +51,6 @@ Parameters::Parameters():
         PARAM_PRELOAD_MODE(PARAM_PRELOAD_MODE_ID, "--db-load-mode", "Preload mode", "Database preload mode 0: auto, 1: fread, 2: mmap, 3: mmap+touch", typeid(int), (void*) &preloadMode, "[0-3]{1}", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPACED_KMER_PATTERN(PARAM_SPACED_KMER_PATTERN_ID, "--spaced-kmer-pattern", "Spaced k-mer pattern", "User-specified spaced k-mer pattern", typeid(std::string), (void *) &spacedKmerPattern, "^1[01]*1$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_LOCAL_TMP(PARAM_LOCAL_TMP_ID, "--local-tmp", "Local temporary path", "Path where some of the temporary files will be created", typeid(std::string), (void *) &localTmp, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
-
         // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "How to compute the alignment: 0: automatic; 1: only score and end_pos; 2: also start_pos and cov; 3: also seq.id; 4: only ungapped alignment",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
@@ -197,7 +196,7 @@ Parameters::Parameters():
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         PARAM_TAKE_LARGER_ENTRY(PARAM_TAKE_LARGER_ENTRY_ID,"--take-larger-entry", "Take the larger entry", "only keeps the larger entry (dataSize >) in the concatenation, both databases need the same keys in the index",typeid(bool), (void *) &takeLargerEntry, ""),
         // offsetalignment
-        PARAM_CHAIN_ALIGNMENT(PARAM_CHAIN_ALIGNMENT_ID,"--chain-alignments", "Chain overlapping alignments", "Chain overlapping alignments",typeid(int),(void *) &chainAlignment, "^[0-1]{1}"),
+        PARAM_CHAIN_ALIGNMENT(PARAM_CHAIN_ALIGNMENT_ID,"--chain-alignments", "Chain overlapping alignments", "Chain overlapping alignments",typeid(int),(void *) &chainAlignment, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
         // tsv2db
         PARAM_OUTPUT_DBTYPE(PARAM_OUTPUT_DBTYPE_ID,"--output-dbtype", "Output DB Type", "Set database type for resulting database: Amino acid sequences 0, Nucl. seq. 1, Profiles 2, Alignment result 5, Clustering result 6, Prefiltering result 7, Taxonomy result 8, Indexed database 9, cA3M MSAs 10, FASTA or A3M MSAs 11, Generic database 12, Omic dbtype file 13, Bi-directional prefiltering result 14, Offsetted headers 15",typeid(int),(void *) &outputDbType, "^(0|[1-9]{1}[0-9]*)$"),
         //diff
@@ -267,7 +266,6 @@ Parameters::Parameters():
     align.push_back(&PARAM_C);
     align.push_back(&PARAM_COV_MODE);
     align.push_back(&PARAM_MAX_SEQ_LEN);
-    align.push_back(&PARAM_MAX_SEQS);
     align.push_back(&PARAM_NO_COMP_BIAS_CORR);
     align.push_back(&PARAM_REALIGN);
     align.push_back(&PARAM_MAX_REJECTED);
@@ -585,7 +583,6 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_K);
     indexdb.push_back(&PARAM_ALPH_SIZE);
     indexdb.push_back(&PARAM_NO_COMP_BIAS_CORR);
-    indexdb.push_back(&PARAM_MAX_SEQS);
     indexdb.push_back(&PARAM_MAX_SEQ_LEN);
     indexdb.push_back(&PARAM_MASK_RESIDUES);
     indexdb.push_back(&PARAM_SPACED_KMER_MODE);
@@ -891,7 +888,6 @@ Parameters::Parameters():
     expandaln.push_back(&PARAM_V);
 
     sortresult.push_back(&PARAM_COMPRESSED);
-    sortresult.push_back(&PARAM_MAX_SEQS);
     sortresult.push_back(&PARAM_THREADS);
     sortresult.push_back(&PARAM_V);
 
@@ -1013,50 +1009,31 @@ Parameters::Parameters():
 }
 
 void Parameters::printUsageMessage(const Command& command,
-                                   const int outputFlag){
+                                   const unsigned int outputFlag){
     const std::vector<MMseqsParameter*>& parameters = *command.params;
-
+    bool printWholeHelpText = (outputFlag == 0xFFFFFFFF);
     std::ostringstream ss;
-    ss << binary_name << " " << command.cmd << " by " << command.author << "\n";
-    ss << "Description: " << command.shortDescription << "\n";
-    ss << "Usage: " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n\n";
-
+    ss << "Usage: " << binary_name << " " << command.cmd << " " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n";
 //    ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
-
-//    if(command.citations > 0) {
-//        ss << "Please cite:\n";
-//        if(command.citations & CITATION_SERVER) {
-//            ss << "Mirdita, M., Steinegger, M. & Soding, J. MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, (2019).\n\n";
-//        }
-//        if(command.citations & CITATION_PLASS) {
-//            ss << "Steinegger, M. Mirdita, M., & Soding, J. Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, doi:10.1101/386110 (2018)\n\n";
-//        }
-//        if(command.citations & CITATION_LINCLUST) {
-//            ss << "Steinegger, M. & Soding, J. Clustering huge protein sequence sets in linear time. Nature Communications, doi:10.1038/s41467-018-04964-5 (2018)\n\n";
-//        }
-//        if(command.citations & CITATION_MMSEQS1) {
-//            ss << "Hauser, M., Steinegger, M. & Soding, J. MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n\n";
-//        }
-//        if(command.citations & CITATION_UNICLUST) {
-//            ss << "Mirdita, M., von den Driesch, L., Galiez, C., Martin M., Soding J. & Steinegger M. Uniclust databases of clustered and deeply annotated protein sequences and alignments. Nucleic Acids Res (2017), D170-D176 (2016).\n\n";
-//        }
-//        if(command.citations & CITATION_MMSEQS2) {
-//            ss << "Steinegger, M. & Soding, J. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi:10.1038/nbt.3988 (2017)\n\n";
-//        }
-//    }
+    const char * longDesc = ( command.longDescription != NULL) ?  command.longDescription : command.shortDescription;
+    const char * printDesc = (printWholeHelpText) ? longDesc : command.shortDescription;
+    ss << printDesc << "\n";
+    if(printWholeHelpText) {
+        ss <<" By " << command.author << "\n";
+    }
 
     struct {
         const char* title;
         int category;
     } categories[] = {
-            {"prefilter",MMseqsParameter::COMMAND_PREFILTER},
-            {"align",    MMseqsParameter::COMMAND_ALIGN},
-            {"clust",    MMseqsParameter::COMMAND_CLUST},
-            {"kmermatcher", MMseqsParameter::COMMAND_CLUSTLINEAR},
-            {"profile",  MMseqsParameter::COMMAND_PROFILE},
-            {"misc",     MMseqsParameter::COMMAND_MISC},
-            {"common",   MMseqsParameter::COMMAND_COMMON},
-            {"expert",   MMseqsParameter::COMMAND_EXPERT}
+            {"Prefilter",MMseqsParameter::COMMAND_PREFILTER},
+            {"Align",    MMseqsParameter::COMMAND_ALIGN},
+            {"Clust",    MMseqsParameter::COMMAND_CLUST},
+            {"Kmermatcher", MMseqsParameter::COMMAND_CLUSTLINEAR},
+            {"Profile",  MMseqsParameter::COMMAND_PROFILE},
+            {"Misc",     MMseqsParameter::COMMAND_MISC},
+            {"Common",   MMseqsParameter::COMMAND_COMMON},
+            {"Expert",   MMseqsParameter::COMMAND_EXPERT}
     };
 
     size_t maxWidth = 0;
@@ -1069,7 +1046,7 @@ void Parameters::printUsageMessage(const Command& command,
     // header
     ss << std::setprecision(3) << std::fixed;
     bool printExpert = (MMseqsParameter::COMMAND_EXPERT & outputFlag) ;
-
+    bool printHeader = true;
     for (size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
         bool categoryFound = false;
         for (size_t j = 0; j < parameters.size(); j++) {
@@ -1086,11 +1063,16 @@ void Parameters::printUsageMessage(const Command& command,
         }
         if (categoryFound) {
             std::string title(categories[i].title);
-            title.append(" options");
-            ss << std::left << std::setw(maxWidth) << title << "\t";
-            ss << std::left << std::setw(10) << "default" << "\t";
-            ss << "description [value range]" << std::endl;
-
+            title.append(" options:");
+            ss << std::left << std::setw(maxWidth) << title;
+            if(printHeader==true){
+                ss << "\t";
+                ss << std::left << std::setw(10) << "default" << "\t";
+                ss << "description [value range]" << std::endl;
+                printHeader = false;
+            }else {
+                ss << std::endl;
+            }
             // body
             for (size_t j = 0; j < parameters.size(); j++) {
                 const MMseqsParameter * par = parameters[j];
@@ -1116,11 +1098,32 @@ void Parameters::printUsageMessage(const Command& command,
                     alreadyPrintMap[par->uniqid] = true;
                 }
             }
-            ss << "\n";
         }
     }
     if (printExpert == false) {
-        ss << "An extended list of options can be obtained by calling '" << binary_name << " " << command.cmd << " -h'.\n";
+        ss << "\n" << "An extended list of options can be obtained by calling '" << binary_name << " " << command.cmd << " -h'.\n";
+
+    if(command.citations > 0) {
+        //ss << "Please cite:\n";
+        if(command.citations & CITATION_SERVER) {
+            ss << " - Mirdita M, Steinegger M, Soding J: MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, doi: 10.1093/bioinformatics/bty1057 (2019).\n";
+        }
+        if(command.citations & CITATION_PLASS) {
+            ss << " - Steinegger M, Mirdita M, Soding J: Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, doi:10.1101/386110 (2018)\n";
+        }
+        if(command.citations & CITATION_LINCLUST) {
+            ss << " - Steinegger M, Soding J: Clustering huge protein sequence sets in linear time. Nature Communications, doi:10.1038/s41467-018-04964-5 (2018)\n";
+        }
+        if(command.citations & CITATION_MMSEQS1) {
+            ss << " - Hauser M, Steinegger M, Soding J: MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n";
+        }
+        if(command.citations & CITATION_UNICLUST) {
+            ss << " - Mirdita M, von den Driesch L, Galiez C, Martin M, Soding J, Steinegger M: Uniclust databases of clustered and deeply annotated protein sequences and alignments. Nucleic Acids Res (2017), D170-D176 (2016).\n";
+        }
+        if(command.citations & CITATION_MMSEQS2) {
+            ss << " - Steinegger M, Soding J: MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi:10.1038/nbt.3988 (2017)\n";
+        }
+    }
     }
     Debug(Debug::INFO) << ss.str();
 }

@@ -534,7 +534,7 @@ public:
                          int parseFlags = 0,
                          int outputFlags = 0);
     void printUsageMessage(const Command& command,
-                           int outputFlag);
+                           unsigned int outputFlag);
     void printParameters(const std::string &module, int argc, const char* pargv[],
                          const std::vector<MMseqsParameter*> &par);
 
