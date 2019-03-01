@@ -179,10 +179,11 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
 KmerPosition *initKmerPositionMemory(size_t size);
 
 template <int TYPE>
-size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> &seqDbr,
+std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> &seqDbr,
                              Parameters & par, BaseMatrix * subMat,
-                             size_t KMER_SIZE, size_t chooseTopKmer,
-                             bool includeIdenticalKmer, size_t splits, size_t split, size_t pickNBest);
+                             const size_t KMER_SIZE, size_t chooseTopKmer,
+                             bool includeIdenticalKmer, size_t splits, size_t split, size_t pickNBest,
+                             bool adjustLength);
 
 
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);

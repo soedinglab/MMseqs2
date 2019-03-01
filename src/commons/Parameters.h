@@ -408,6 +408,7 @@ public:
     int skipNRepeatKmer;
     int hashShift;
     int pickNbest;
+    int adjustKmerLength;
 
     // indexdb
     bool checkCompatible;
@@ -666,6 +667,7 @@ public:
     PARAMETER(PARAM_SKIP_N_REPEAT_KMER)
     PARAMETER(PARAM_HASH_SHIFT)
     PARAMETER(PARAM_PICK_N_SIMILAR)
+    PARAMETER(PARAM_ADJUST_KMER_LEN)
 
     // workflow
     PARAMETER(PARAM_RUNNER)
