@@ -80,6 +80,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
 
     size_t writePos = 0;
     size_t mpiRank = 0;
+    size_t adjustedKmerSize = KMER_SIZE;
 #ifdef HAVE_MPI
     splits = std::max(static_cast<size_t>(MMseqsMPI::numProc), splits);
     size_t fromSplit = 0;
@@ -121,7 +122,6 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         }
     }
 #else
-    size_t adjustedKmerSize = KMER_SIZE;
     for(size_t split = 0; split < splits; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
         size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;
