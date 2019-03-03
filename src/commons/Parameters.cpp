@@ -130,6 +130,8 @@ Parameters::Parameters():
         PARAM_SKIP_N_REPEAT_KMER(PARAM_SKIP_N_REPEAT_KMER_ID, "--skip-n-repeat-kmer", "Skip sequence with n repeating k-mers", "Skip sequence with >= n exact repeating k-mers", typeid(int), (void*) &skipNRepeatKmer, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash", typeid(int), (void*) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PICK_N_SIMILAR(PARAM_HASH_SHIFT_ID, "--pick-n-sim-kmer", "Adds N similar to search", "adds N similar to search", typeid(int), (void*) &pickNbest, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_ADJUST_KMER_LEN(PARAM_ADJUST_KMER_LEN_ID, "--adjust-kmer-len", "Adjust k-mer length", "adjust k-mer length based on specificity (only for nucleotides)", typeid(bool), (void*) &adjustKmerLength, "", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
+
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","use MPI on compute grid with this MPI command (e.g. \"mpirun -np 42\")",typeid(std::string),(void *) &runner, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart using the latest tmp","reuse tmp file in tmp/latest folder ignoring parameters and git version change", typeid(bool),(void *) &reuseLatest, "", MMseqsParameter::COMMAND_COMMON|COMMAND_EXPERT),
@@ -749,6 +751,7 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_ALPH_SIZE);
     kmermatcher.push_back(&PARAM_MIN_SEQ_ID);
     kmermatcher.push_back(&PARAM_KMER_PER_SEQ);
+    kmermatcher.push_back(&PARAM_ADJUST_KMER_LEN);
     kmermatcher.push_back(&PARAM_MASK_RESIDUES);
     kmermatcher.push_back(&PARAM_COV_MODE);
     kmermatcher.push_back(&PARAM_K);
@@ -891,6 +894,7 @@ Parameters::Parameters():
     expandaln.push_back(&PARAM_V);
 
     sortresult.push_back(&PARAM_COMPRESSED);
+    sortresult.push_back(&PARAM_MAX_SEQS);
     sortresult.push_back(&PARAM_THREADS);
     sortresult.push_back(&PARAM_V);
 
@@ -1678,6 +1682,7 @@ void Parameters::setDefaults() {
     skipNRepeatKmer = 0;
     hashShift = 5;
     pickNbest = 1;
+    adjustKmerLength = true;
     // result2stats
     stat = "";
 

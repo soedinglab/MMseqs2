@@ -19,21 +19,27 @@
 #define SIZE_T_MAX ((size_t) -1)
 #endif
 
-std::pair<size_t, KmerPosition *> KmerSearch::extractKmerAndSort(size_t splitKmerCount, size_t split, size_t splits, DBReader<unsigned int> & seqDbr,
-                                                                 Parameters & par, BaseMatrix  * subMat, size_t KMER_SIZE, size_t chooseTopKmer, size_t pickNBest) {
+KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t splitKmerCount, size_t split, size_t splits, DBReader<unsigned int> & seqDbr,
+                                                                 Parameters & par, BaseMatrix  * subMat, size_t KMER_SIZE, size_t chooseTopKmer, size_t pickNBest, bool adjustLength) {
     Debug(Debug::INFO) << "Generate k-mers list " << split <<"\n";
     KmerPosition * hashSeqPair = initKmerPositionMemory(splitKmerCount*pickNBest);
     Timer timer;
     size_t elementsToSort;
     if(pickNBest > 1){
-        elementsToSort = fillKmerPositionArray<Parameters::DBTYPE_HMM_PROFILE>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE,
-                                                                               chooseTopKmer, false, splits, split, pickNBest);
+        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_HMM_PROFILE>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE,
+                                                                               chooseTopKmer, false, splits, split, pickNBest, false);
+        elementsToSort = ret.first;
     } else if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-        elementsToSort = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE,
-                                                                               chooseTopKmer, false, splits, split, 1);
-    }else{
-        elementsToSort = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE,
-                                                                               chooseTopKmer, false, splits, split, 1);
+        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE,
+                                                                               chooseTopKmer, false, splits, split, 1, adjustLength);
+        elementsToSort = ret.first;
+        KMER_SIZE = ret.second;
+        Debug(Debug::INFO) << "\nAdjusted k-mer length " << KMER_SIZE << "\n";
+    }else {
+        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE,
+                                                                               chooseTopKmer, false, splits, split, 1, false);
+        elementsToSort = ret.first;
+
     }
     Debug(Debug::INFO) << "\nTime for fill: " << timer.lap() << "\n";
     if(splits == 1){
@@ -51,13 +57,13 @@ std::pair<size_t, KmerPosition *> KmerSearch::extractKmerAndSort(size_t splitKme
     Debug(Debug::INFO) << "Done." << "\n";
     Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
 
-    return std::make_pair(elementsToSort, hashSeqPair);
+    return ExtractKmerAndSortResult(elementsToSort, hashSeqPair, KMER_SIZE);
 }
 
 template <int TYPE>
 void KmerSearch::writeResult(DBWriter & dbw, KmerPosition *kmers, size_t kmerCount) {
     size_t repSeqId = SIZE_T_MAX;
-    unsigned int prevHitId = UINT_MAX;
+    unsigned int prevHitId;
     char buffer[100];
     std::string prefResultsOutString;
     prefResultsOutString.reserve(100000000);
@@ -135,6 +141,8 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     int targetSeqType;
     DBReader<unsigned int> * tidxdbr;
     int targetDbtype = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    int adjustedKmerSize = 0;
+    bool isAdjustedKmerLen = false;
     if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)==true) {
         tidxdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tidxdbr->open(DBReader<unsigned int>::NOSORT);
@@ -160,21 +168,15 @@ int kmersearch(int argc, const char **argv, const Command &command) {
                 EXIT(EXIT_FAILURE);
             }
         }
-        if(par.PARAM_NO_COMP_BIAS_CORR.wasSet){
-            if(data.compBiasCorr != par.compBiasCorrection){
-                Debug(Debug::ERROR) << "Index was created with --comp-bias-corr " << data.compBiasCorr  <<" please recreate index with --comp-bias-corr " << par.compBiasCorrection << "!\n";
-                Debug(Debug::ERROR) << "createindex --comp-bias-corr " << par.compBiasCorrection << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-        }
 
         par.kmerSize = data.kmerSize;
         par.alphabetSize = data.alphabetSize;
         targetSeqType = data.seqType;
         par.spacedKmer   = (data.spacedKmer == 1) ? true : false;
         par.maxSeqLen = data.maxSeqLength;
-        par.compBiasCorrection = data.compBiasCorr;
-
+        // Reuse the compBiasCorr field to store the adjustedKmerSize, It is not needed in the linsearch
+        adjustedKmerSize = data.compBiasCorr;
+        isAdjustedKmerLen = data.kmerSize != adjustedKmerSize;
     }else{
         Debug(Debug::ERROR) << "Please create index before calling kmersearch!\n";
         Debug(Debug::ERROR) << "mmseqs createindex \n";
@@ -236,8 +238,8 @@ int kmersearch(int argc, const char **argv, const Command &command) {
         char *entriesOffsetsData = tidxdbr->getDataUncompressed(tidxdbr->getId(PrefilteringIndexReader::ENTRIESOFFSETS));
         int64_t entriesNum = *((int64_t *)tidxdbr->getDataUncompressed(tidxdbr->getId(PrefilteringIndexReader::ENTRIESNUM)));
         int64_t entriesGridSize = *((int64_t *)tidxdbr->getDataUncompressed(tidxdbr->getId(PrefilteringIndexReader::ENTRIESGRIDSIZE)));
-        KmerIndex kmerIndex(par.alphabetSize, par.kmerSize, entriesData, entriesOffsetsData, entriesNum, entriesGridSize);
-//        kmerIndex.printIndex<Parameters::DBTYPE_AMINO_ACIDS>(subMat);
+        KmerIndex kmerIndex(par.alphabetSize, adjustedKmerSize, entriesData, entriesOffsetsData, entriesNum, entriesGridSize);
+//        kmerIndex.printIndex<Parameters::DBTYPE_NUCLEOTIDES>(subMat);
         std::pair<std::string, std::string> tmpFiles;
         if(splits > 1){
             tmpFiles = Util::createTmpFileNames(par.db3.c_str(), par.db3Index.c_str(), split);
@@ -247,13 +249,13 @@ int kmersearch(int argc, const char **argv, const Command &command) {
         splitFiles.push_back(tmpFiles.first);
 
         size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers / splits) * 1.2) : totalKmers;
-        std::pair<size_t, KmerPosition *> hashSeqPair = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, queryDbr, par, subMat,
-                                                                                       KMER_SIZE, chooseTopKmer, par.pickNbest);
+        KmerSearch::ExtractKmerAndSortResult sortedKmers = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, queryDbr, par, subMat,
+                                                                                       KMER_SIZE, chooseTopKmer, par.pickNbest, isAdjustedKmerLen);
         std::pair<KmerPosition*, size_t> result;
         if(Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-            result = KmerSearch::searchInIndex<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair.second, hashSeqPair.first, kmerIndex);
+            result = KmerSearch::searchInIndex<Parameters::DBTYPE_NUCLEOTIDES>(sortedKmers.kmers, sortedKmers.kmerCount, kmerIndex);
         }else{
-            result = KmerSearch::searchInIndex<Parameters::DBTYPE_AMINO_ACIDS>(hashSeqPair.second, hashSeqPair.first, kmerIndex);
+            result = KmerSearch::searchInIndex<Parameters::DBTYPE_AMINO_ACIDS>(sortedKmers.kmers, sortedKmers.kmerCount, kmerIndex);
         }
 
         KmerPosition * kmers = result.first;
