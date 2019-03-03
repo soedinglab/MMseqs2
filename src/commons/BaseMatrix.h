@@ -18,6 +18,9 @@ public:
     /* size of alphabet*/
     int alphabetSize;
 
+    /* matrixData */
+    std::string matrixData;
+
     // substitution matrix
     short** subMatrix;
     // substitution matrix for pseudocounts
@@ -63,6 +66,10 @@ public:
     }
 
     static void computeBackground(double **probMat, double *pBack, int alphabetSize, bool containsX);
+
+    static size_t memorySize(BaseMatrix *pMatrix);
+    static std::pair<std::string, std::string> unserialize(const char * data);
+    static char * serialize(BaseMatrix *pMatrix);
 };
 
 

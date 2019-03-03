@@ -193,8 +193,10 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         dbw.alignToPageSize();
 
         Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << PrefilteringIndexReader::SCOREMATRIXNAME << ")\n";
-        dbw.writeData(subMat->getMatrixName().c_str(), subMat->getMatrixName().length(), PrefilteringIndexReader::SCOREMATRIXNAME, 0);
+        char* subData = BaseMatrix::serialize(subMat);
+        dbw.writeData(subData, BaseMatrix::memorySize(subMat), PrefilteringIndexReader::SCOREMATRIXNAME, 0);
         dbw.alignToPageSize();
+        free(subData);
 
         if (par.spacedKmerPattern.empty() != false) {
             Debug(Debug::INFO) << "Write SPACEDPATTERN (" << PrefilteringIndexReader::SPACEDPATTERN << ")\n";

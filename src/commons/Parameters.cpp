@@ -42,7 +42,8 @@ Parameters::Parameters():
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split Memory Limit", "Maximum system memory in megabyte that one split may use. Defaults (0) to all available system memory.", typeid(int), (void*) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*)$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set the maximum disk space (in Mb) to use for reverse profile searches. Defaults (0) to all available disk space in the temp folder.", typeid(int), (void*) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*)$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","Try to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Substitution Matrix", "amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SEED_SUB_MAT(PARAM_SEED_SUB_MAT_ID,"--seed-sub-mat", "Seed Substitution Matrix", "amino acid substitution matrix for kmer generation file",typeid(std::string),(void *) &seedScoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","correct for locally biased amino acid composition [0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "0: use consecutive positions a k-mers; 1: use spaced k-mers",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "",MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
@@ -283,6 +284,7 @@ Parameters::Parameters():
 
     // prefilter
     prefilter.push_back(&PARAM_SUB_MAT);
+    prefilter.push_back(&PARAM_SEED_SUB_MAT);
     prefilter.push_back(&PARAM_S);
     prefilter.push_back(&PARAM_K);
     prefilter.push_back(&PARAM_K_SCORE);
@@ -579,7 +581,7 @@ Parameters::Parameters():
     splitdb.push_back(&PARAM_V);
 
     // create index
-    indexdb.push_back(&PARAM_SUB_MAT);
+    indexdb.push_back(&PARAM_SEED_SUB_MAT);
     indexdb.push_back(&PARAM_K);
     indexdb.push_back(&PARAM_ALPH_SIZE);
     indexdb.push_back(&PARAM_NO_COMP_BIAS_CORR);
@@ -597,11 +599,12 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_V);
 
     // create kmer index
-    kmerindexdb.push_back(&PARAM_SUB_MAT);
+    kmerindexdb.push_back(&PARAM_SEED_SUB_MAT);
     kmerindexdb.push_back(&PARAM_K);
     kmerindexdb.push_back(&PARAM_HASH_SHIFT);
     kmerindexdb.push_back(&PARAM_KMER_PER_SEQ);
     kmerindexdb.push_back(&PARAM_MIN_SEQ_ID);
+    kmerindexdb.push_back(&PARAM_ADJUST_KMER_LEN);
     kmerindexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     kmerindexdb.push_back(&PARAM_SKIP_N_REPEAT_KMER);
     kmerindexdb.push_back(&PARAM_ALPH_SIZE);
@@ -1445,6 +1448,7 @@ void Parameters::setDefaults() {
     restArgc = 0;
 
     scoringMatrixFile = "blosum62.out";
+    seedScoringMatrixFile = "PAM30.out";
 
     kmerSize =  0;
     kmerScore = INT_MAX;

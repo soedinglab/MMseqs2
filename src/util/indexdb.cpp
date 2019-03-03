@@ -62,7 +62,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
         dbr2->open(DBReader<unsigned int>::NOSORT);
     }
 
-    BaseMatrix *subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
+    BaseMatrix *seedSubMat = Prefiltering::getSubstitutionMatrix(par.seedScoringMatrixFile, par.alphabetSize, 8.0f, false);
 
     int split = 1;
     int splitMode = Parameters::TARGET_DB_SPLIT;
@@ -73,7 +73,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
-    Prefiltering::setupSplit(dbr, subMat->alphabetSize, dbr.getDbtype(), par.threads, false, par.maxResListLen, memoryLimit, &par.kmerSize, &split, &splitMode);
+    Prefiltering::setupSplit(dbr, seedSubMat->alphabetSize, dbr.getDbtype(), par.threads, false, par.maxResListLen, memoryLimit, &par.kmerSize, &split, &splitMode);
 
     bool kScoreSet = false;
     for (size_t i = 0; i < par.indexdb.size(); i++) {
@@ -119,9 +119,9 @@ int indexdb(int argc, const char **argv, const Command &command) {
         }
     }
 
-    PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, hdbr1, hdbr2, subMat, par.maxSeqLen,
+    PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, hdbr1, hdbr2, seedSubMat, par.maxSeqLen,
                                              par.spacedKmer, par.spacedKmerPattern, par.compBiasCorrection,
-                                             subMat->alphabetSize, par.kmerSize, par.maskMode, par.kmerScore);
+                                             seedSubMat->alphabetSize, par.kmerSize, par.maskMode, par.kmerScore);
 
     if (hdbr2 != NULL) {
         hdbr2->close();
@@ -138,7 +138,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
         delete dbr2;
     }
 
-    delete subMat;
+    delete seedSubMat;
     dbr.close();
 
     return EXIT_SUCCESS;

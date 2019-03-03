@@ -35,6 +35,7 @@ public:
     static unsigned int SEQCOUNT;
     static unsigned int META;
     static unsigned int SCOREMATRIXNAME;
+    static unsigned int SEEDSCOREMATRIXNAME;
     static unsigned int SCOREMATRIX2MER;
     static unsigned int SCOREMATRIX3MER;
     static unsigned int DBR1INDEX;
@@ -54,7 +55,7 @@ public:
     static void createIndexFile(const std::string &outDb,
                                 DBReader<unsigned int> *dbr1, DBReader<unsigned int> *dbr2,
                                 DBReader<unsigned int> *hdbr1, DBReader<unsigned int> *hdbr2,
-                                BaseMatrix *subMat, int maxSeqLen, bool spacedKmer, const std::string &spacedKmerPattern,
+                                BaseMatrix *seedSubMat, int maxSeqLen, bool spacedKmer, const std::string &spacedKmerPattern,
                                 bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode, int kmerThr);
 
     static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads, bool touchIndex, bool touchData);

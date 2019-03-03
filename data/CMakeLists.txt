@@ -22,6 +22,7 @@ set(COMPILED_RESOURCES
         blastn.sh
         nucleotide.out
         blosum62.out
+        PAM30.out
         CovSeqidQscPercMinDiag.out
         CovSeqidQscPercMinDiagTargetCov.out
         ExpOpt3_8_polished.cs32.lib

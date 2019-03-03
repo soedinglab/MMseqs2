@@ -33,6 +33,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         maskMode(par.maskMode),
         splitMode(par.splitMode),
         scoringMatrixFile(par.scoringMatrixFile),
+        seedScoringMatrixFile(par.seedScoringMatrixFile),
         targetSeqType(targetSeqType_),
         maxResListLen(par.maxResListLen),
         kmerScore(par.kmerScore),
@@ -131,7 +132,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             spacedKmer = data.spacedKmer != 0;
             spacedKmerPattern = PrefilteringIndexReader::getSpacedPattern(tidxdbr);
             minKmerThr = data.kmerThr;
-            scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
+            seedScoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
         } else {
             Debug(Debug::ERROR) << "Outdated index version. Please recompute it with 'createindex'!\n";
             EXIT(EXIT_FAILURE);
@@ -157,7 +158,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             alphabetSize = kmerSubMat->alphabetSize;
             break;
         case Parameters::DBTYPE_AMINO_ACIDS:
-            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
+            kmerSubMat = getSubstitutionMatrix(seedScoringMatrixFile, alphabetSize, 8.0, false);
             ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false);
             alphabetSize = kmerSubMat->alphabetSize;
             break;
@@ -1067,27 +1068,34 @@ void Prefiltering::mergeFiles(const std::string &outDB, const std::string &outDB
 int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile, const int kmerScore, const int kmerSize) {
     double kmerThrBest = kmerScore;
     if (kmerScore == INT_MAX) {
-        if (kmerSize == 5) {
-            float base = 123.75;
-            if (isProfile) {
-                base += 17.0;
+        if(isProfile){
+            if (kmerSize == 5) {
+                float base = 140.75;
+                kmerThrBest = base - (sensitivity * 8.75);
+            } else if (kmerSize == 6) {
+                float base = 155.75;
+                kmerThrBest = base - (sensitivity * 8.75);
+            } else if (kmerSize == 7) {
+                float base = 171.75;
+                kmerThrBest = base - (sensitivity * 9.75);
+            } else {
+                Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
+                EXIT(EXIT_FAILURE);
             }
-            kmerThrBest = base - (sensitivity * 8.75);
-        } else if (kmerSize == 6) {
-            float base = 138.75;
-            if (isProfile) {
-                base += 17.0;
+        }else{
+            if (kmerSize == 5) {
+                float base = 160.75;
+                kmerThrBest = base - (sensitivity * 14.75);
+            } else if (kmerSize == 6) {
+                float base = 180.75;
+                kmerThrBest = base - (sensitivity * 14.75);
+            } else if (kmerSize == 7) {
+                float base = 203.75;
+                kmerThrBest = base - (sensitivity * 14.75);
+            } else {
+                Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
+                EXIT(EXIT_FAILURE);
             }
-            kmerThrBest = base - (sensitivity * 8.75);
-        } else if (kmerSize == 7) {
-            float base = 154.75;
-            if (isProfile) {
-                base += 17.0;
-            }
-            kmerThrBest = base - (sensitivity * 9.75);
-        } else {
-            Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
-            EXIT(EXIT_FAILURE);
         }
     }
     return static_cast<int>(kmerThrBest);

@@ -259,6 +259,7 @@ public:
     int restArgc;
 
     std::string scoringMatrixFile;       // path to scoring matrix
+    std::string seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
     int    verbosity;                    // log level
@@ -562,6 +563,7 @@ public:
     PARAMETER(PARAM_DISK_SPACE_LIMIT)
     PARAMETER(PARAM_SPLIT_AMINOACID)
     PARAMETER(PARAM_SUB_MAT)
+    PARAMETER(PARAM_SEED_SUB_MAT)
     PARAMETER(PARAM_NO_COMP_BIAS_CORR)
     PARAMETER(PARAM_SPACED_KMER_MODE)
     PARAMETER(PARAM_REMOVE_TMP_FILES)

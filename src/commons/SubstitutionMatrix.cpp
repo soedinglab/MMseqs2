@@ -4,6 +4,8 @@
 #include "lambda_calculator.h"
 
 #include "blosum62.out.h"
+#include "PAM30.out.h"
+
 #include "nucleotide.out.h"
 
 #include <cstring>
@@ -13,18 +15,26 @@
 #include <climits>
 
 SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, float scoreBias) : bitFactor(bitFactor) {
-    std::string matrixData;
-    if (strcmp(filename, "nucleotide.out") == 0) {
+    std::pair<std::string, std::string> parsedMatrix = BaseMatrix::unserialize(filename);
+    if (strcmp(parsedMatrix.first.c_str(), "nucleotide.out") == 0) {
         matrixData = std::string((const char *)nucleotide_out, nucleotide_out_len);
         matrixName = "nucleotide.out";
-    } else if (strcmp(filename, "blosum62.out") == 0) {
-        matrixData = std::string((const char *)blosum62_out, blosum62_out_len);
+    } else if (strcmp(parsedMatrix.first.c_str(), "blosum62.out") == 0) {
+        matrixData = std::string((const char *) blosum62_out, blosum62_out_len);
         matrixName = "blosum62.out";
+    } else if (strcmp(parsedMatrix.first.c_str(), "PAM30.out") == 0) {
+        matrixData = std::string((const char *)PAM30_out, PAM30_out_len);
+        matrixName = "pam30.out";
+    } else if(parsedMatrix.second != "") {
+        // the filename can contain the substituion matrix
+        // SUBMATNAME.out:DATA
+        // this is used for index databases
+        matrixName = parsedMatrix.first;
+        matrixData = parsedMatrix.second;
     } else {
         // read amino acid substitution matrix from file
-        std::string fileName(filename);
+        std::string fileName(parsedMatrix.first.c_str());
         matrixName = Util::base_name(fileName, "/\\");
-        matrixName = Util::remove_extension(matrixName);
         if (fileName.substr(fileName.length() - 4, 4).compare(".out") != 0) {
             Debug(Debug::ERROR) << "Invalid format of the substitution matrix input file! Only .out files are accepted.\n";
             EXIT(EXIT_FAILURE);

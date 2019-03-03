@@ -164,8 +164,10 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     delete indexTable;
 
     Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << SCOREMATRIXNAME << ")\n";
-    writer.writeData(subMat->getMatrixName().c_str(), subMat->getMatrixName().length(), SCOREMATRIXNAME, 0);
+    char* subData = BaseMatrix::serialize(subMat);
+    writer.writeData(subData, BaseMatrix::memorySize(subMat), SCOREMATRIXNAME, 0);
     writer.alignToPageSize();
+    free(subData);
 
     if (spacedKmerPattern.empty() != false) {
         Debug(Debug::INFO) << "Write SPACEDPATTERN (" << SPACEDPATTERN << ")\n";
@@ -392,8 +394,19 @@ void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
 
     int *meta = (int *)dbr->getDataByDBKey(META, 0);
     printMeta(meta);
-
-    Debug(Debug::INFO) << "ScoreMatrix:  " << dbr->getDataByDBKey(SCOREMATRIXNAME, 0) << "\n";
+    char * subMatData = dbr->getDataByDBKey(SCOREMATRIXNAME, 0);
+    size_t pos = 0;
+    while(subMatData[pos]!='\0') {
+        if (subMatData[pos] == '.'
+            && subMatData[pos + 1] == 'o'
+            && subMatData[pos + 2] == 'u'
+            && subMatData[pos + 3] == 't'
+            && subMatData[pos + 4] == ':') {
+            break;
+        }
+        pos++;
+    }
+    Debug(Debug::INFO) << "ScoreMatrix:  " << std::string(subMatData, pos+4) << "\n";
 }
 
 PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int> *dbr) {

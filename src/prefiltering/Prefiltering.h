@@ -78,6 +78,7 @@ private:
     int splitMode;
     int kmerThr;
     std::string scoringMatrixFile;
+    std::string seedScoringMatrixFile;
     int targetSeqType;
     bool takeOnlyBestKmer;
 

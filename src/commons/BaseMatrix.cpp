@@ -1,5 +1,5 @@
 #include <simd/simd.h>
-#include <climits> 
+#include <climits>
 #include "BaseMatrix.h"
 
 #include "Debug.h"
@@ -164,3 +164,46 @@ double BaseMatrix::getBackgroundProb(size_t)  {
     EXIT(EXIT_FAILURE);
 }
 
+size_t BaseMatrix::memorySize(BaseMatrix *pMatrix){
+    size_t matrixDataSize = pMatrix->matrixData.size() * sizeof(char);
+    size_t matrixNameSize = pMatrix->matrixName.size() * sizeof(char);
+    return matrixDataSize + 1 + matrixNameSize;
+}
+
+char * BaseMatrix::serialize(BaseMatrix *pMatrix) {
+    char* data = (char*) malloc(memorySize(pMatrix));
+    char* p = data;
+    memcpy(p, pMatrix->matrixName.c_str(), pMatrix->matrixName.size() * sizeof(char));
+    p += (pMatrix->matrixName.size() * sizeof(char));
+    memcpy(p, ":", 1);
+    p += 1;
+    memcpy(p, pMatrix->matrixData.c_str(), pMatrix->matrixData.size() * sizeof(char));
+    return data;
+}
+
+std::pair<std::string, std::string> BaseMatrix::unserialize(const char * data){
+    size_t len=0;
+
+    while(data[len] != '\0'){
+        len++;
+    }
+    std::string matrixName;
+    std::string matrixData;
+    bool found = false;
+    for(size_t pos = 0; pos < len-4 && found == false; pos++){
+        if(data[pos] == '.'
+           && data[pos+1] == 'o'
+           && data[pos+2] == 'u'
+           && data[pos+3] == 't'
+           && data[pos+4] == ':' ){
+            matrixName = std::string(data, pos+4);
+            matrixData = std::string(&data[pos+5]);
+            found = true;
+        }
+    }
+
+    if(found == false){
+        matrixName = std::string(data);
+    }
+    return std::make_pair(matrixName, matrixData);
+}
