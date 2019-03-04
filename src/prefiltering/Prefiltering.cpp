@@ -1085,10 +1085,10 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile
         }else{
             if (kmerSize == 5) {
                 float base = 160.75;
-                kmerThrBest = base - (sensitivity * 14.75);
+                kmerThrBest = base - (sensitivity * 12.75);
             } else if (kmerSize == 6) {
-                float base = 180.75;
-                kmerThrBest = base - (sensitivity * 14.75);
+                float base = 182.75;
+                kmerThrBest = base - (sensitivity * 13.2);
             } else if (kmerSize == 7) {
                 float base = 203.75;
                 kmerThrBest = base - (sensitivity * 14.75);
