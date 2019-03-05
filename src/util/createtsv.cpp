@@ -164,8 +164,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
         }
         delete[] dbKey;
     }
-    writer.close(true);
-    Debug(Debug::INFO) << "Done.\n";
+    writer.close(par.dbOut == false);
 
     if (par.dbOut == false) {
         if (hasTargetDB) {
