@@ -74,6 +74,8 @@ public:
 
     static std::string getSubstitutionMatrixName(DBReader<unsigned int> *dbr);
 
+    static std::string getSubstitutionMatrix(DBReader<unsigned int> *dbr);
+
     static std::string getSpacedPattern(DBReader<unsigned int> *dbr);
 
     static ScoreMatrix *get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch);

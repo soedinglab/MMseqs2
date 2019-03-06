@@ -429,6 +429,31 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
 }
 
 std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<unsigned int> *dbr) {
+    unsigned int key = dbr->getDbKey(SCOREMATRIXNAME);
+    if (key == UINT_MAX) {
+        return "";
+    }
+    const char *data = dbr->getData(key, 0);
+    size_t len = dbr->getSeqLens(key) - 1;
+    std::string matrixName;
+    bool found = false;
+    for (size_t pos = 0; pos < std::max(len, (size_t)4) - 4 && found == false; pos++) {
+        if (data[pos] == '.'
+            && data[pos + 1] == 'o'
+            && data[pos + 2] == 'u'
+            && data[pos + 3] == 't'
+            && data[pos + 4] == ':') {
+            matrixName = std::string(data, pos + 4);
+            found = true;
+        }
+    }
+    if (found == false) {
+        matrixName = std::string(data);
+    }
+    return matrixName;
+}
+
+std::string PrefilteringIndexReader::getSubstitutionMatrix(DBReader<unsigned int> *dbr) {
     return std::string(dbr->getDataByDBKey(SCOREMATRIXNAME, 0));
 }
 

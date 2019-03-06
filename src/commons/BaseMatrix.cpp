@@ -190,7 +190,7 @@ std::pair<std::string, std::string> BaseMatrix::unserialize(const char * data){
     std::string matrixName;
     std::string matrixData;
     bool found = false;
-    for(size_t pos = 0; pos < len-4 && found == false; pos++){
+    for(size_t pos = 0; std::max(len, (size_t)4) - 4 && found == false; pos++){
         if(data[pos] == '.'
            && data[pos+1] == 'o'
            && data[pos+2] == 'u'
