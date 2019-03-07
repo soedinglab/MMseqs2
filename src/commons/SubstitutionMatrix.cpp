@@ -24,7 +24,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, fl
         matrixName = "blosum62.out";
     } else if (strcmp(parsedMatrix.first.c_str(), "PAM30.out") == 0) {
         matrixData = std::string((const char *)PAM30_out, PAM30_out_len);
-        matrixName = "pam30.out";
+        matrixName = "PAM30.out";
     } else if(parsedMatrix.second != "") {
         // the filename can contain the substituion matrix
         // SUBMATNAME.out:DATA
