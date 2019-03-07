@@ -35,8 +35,8 @@ if [ -n "$TRANSLATED" ]; then
 
     if [ -n "$REMOVE_TMP" ]; then
         echo "Remove temporary files"
-        rm -f "$2/orfs" "$2/orfs.index" "$2/orfs.dbtype"
-        rm -f "$2/orfs_aa" "$2/orfs_aa.index" "$2/orfs_aa.dbtype"
+        "$MMSEQS" rmdb "$2/orfs"
+        "$MMSEQS" rmdb "$2/orfs_aa"
         rm -f "$2/createindex.sh"
     fi
 elif [ -n "$NUCL" ]; then
@@ -77,7 +77,7 @@ elif [ -n "$LIN_NUCL" ]; then
 
     if [ -n "$REMOVE_TMP" ]; then
         echo "Remove temporary files"
-        rm -f "$2/nucl_split_seq" "$2/nucl_split_seq.index" "$2/nucl_split_seq.dbtype"
+        "$MMSEQS" rmdb "$2/nucl_split_seq"
         rm -f "$2/createindex.sh"
     fi
 else

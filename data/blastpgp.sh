@@ -96,15 +96,14 @@ while [ $STEP -lt $NUM_IT ]; do
 done
 
 if [ -n "$REMOVE_TMP" ]; then
- echo "Remove temporary files"
- STEP=0
- while [ "$STEP" -lt "$NUM_IT" ]; do
-    rm -f "$TMP_PATH/pref_$STEP" "$TMP_PATH/pref_$STEP.index"
-    rm -f "$TMP_PATH/aln_$STEP" "$TMP_PATH/aln_$STEP.index"
-    rm -f "$TMP_PATH/profile_$STEP" "$TMP_PATH/profile_$STEP.index" "$TMP_PATH/profile_${STEP}_h" "$TMP_PATH/profile_${STEP}_h.index"
-    STEP=$((STEP+1))
- done
-
- rm -f "$TMP_PATH/blastpgp.sh"
+    echo "Remove temporary files"
+    STEP=0
+    while [ "$STEP" -lt "$NUM_IT" ]; do
+        "$MMSEQS" rmdb "${TMP_PATH}/pref_$STEP"
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_$STEP"
+        "$MMSEQS" rmdb "${TMP_PATH}/profile_$STEP"
+        STEP=$((STEP+1))
+    done
+    rm -f "$TMP_PATH/blastpgp.sh"
 fi
 

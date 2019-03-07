@@ -43,8 +43,8 @@ fi
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Remove temporary files"
     rmdir "${TMP_PATH}/search"
-    rm -f "${TMP_PATH}/result" "${TMP_PATH}/result.index"
-    rm -f "${TMP_PATH}/aggregate" "${TMP_PATH}/aggregate.index"
+    "$MMSEQS" rmdb "${TMP_PATH}/result"
+    "$MMSEQS" rmdb "${TMP_PATH}/aggregate"
     rm -f "${TMP_PATH}/multihitsearch.sh"
 fi
 
