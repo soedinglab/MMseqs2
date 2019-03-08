@@ -894,7 +894,6 @@ Parameters::Parameters():
     expandaln.push_back(&PARAM_V);
 
     sortresult.push_back(&PARAM_COMPRESSED);
-    sortresult.push_back(&PARAM_MAX_SEQS);
     sortresult.push_back(&PARAM_THREADS);
     sortresult.push_back(&PARAM_V);
 
