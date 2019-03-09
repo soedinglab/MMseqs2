@@ -1087,11 +1087,11 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile
                 float base = 160.75;
                 kmerThrBest = base - (sensitivity * 12.75);
             } else if (kmerSize == 6) {
-                float base = 182.75;
-                kmerThrBest = base - (sensitivity * 13.2);
+                float base = 163.2;
+                kmerThrBest = base - (sensitivity * 8.917);
             } else if (kmerSize == 7) {
-                float base = 203.75;
-                kmerThrBest = base - (sensitivity * 14.75);
+                float base = 186.15;
+                kmerThrBest = base - (sensitivity * 11.22);
             } else {
                 Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
                 EXIT(EXIT_FAILURE);

@@ -1452,7 +1452,7 @@ void Parameters::setDefaults() {
     restArgc = 0;
 
     scoringMatrixFile = "blosum62.out";
-    seedScoringMatrixFile = "PAM30.out";
+    seedScoringMatrixFile = "VTML80.out";
 
     kmerSize =  0;
     kmerScore = INT_MAX;
