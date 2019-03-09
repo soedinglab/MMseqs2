@@ -62,7 +62,7 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
             writer.writeData(result.c_str(), result.length(), key, thread_idx, shouldWriteNullByte);
         }
     }
-    writer.close();
+    writer.close(tsvOut);
     reader.close();
 
     return EXIT_SUCCESS;

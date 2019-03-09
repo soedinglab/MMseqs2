@@ -221,7 +221,10 @@ int search(int argc, const char **argv, const Command& command) {
         int originalCovMode = par.covMode;
         par.covMode = Util::swapCoverageMode(par.covMode);
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilter).c_str());
+        float originalEvalThr = par.evalThr;
+        par.evalThr = std::numeric_limits<float>::max();
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
+        par.evalThr = originalEvalThr;
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("SORTRESULT_PAR", par.createParameterString(par.sortresult).c_str());
         cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());

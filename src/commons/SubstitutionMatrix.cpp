@@ -26,6 +26,9 @@ SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, fl
     } else if (strcmp(parsedMatrix.first.c_str(), "VTML80.out") == 0) {
         matrixData = std::string((const char *)VTML80_out, VTML80_out_len);
         matrixName = "VTML80.out";
+    } else if (strcmp(parsedMatrix.first.c_str(), "PAM30.out") == 0) {
+        matrixData = std::string((const char *)PAM30_out, PAM30_out_len);
+        matrixName = "PAM30.out";
     } else if(parsedMatrix.second != "") {
         // the filename can contain the substituion matrix
         // SUBMATNAME.out:DATA

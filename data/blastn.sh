@@ -67,10 +67,10 @@ fi
 
 
 if [ -n "$REMOVE_TMP" ]; then
-  echo "Remove temporary files"
-  rm -f "$4/q_orfs"    "$4/q_orfs.index"    "$4/q_orfs.dbtype"
-  rm -f "$4/q_orfs_aa" "$4/q_orfs_aa.index" "$4/q_orfs_aa.dbtype"
-  rm -f "$4/t_orfs"    "$4/t_orfs.index"    "$4/t_orfs.dbtype"
-  rm -f "$4/t_orfs_aa" "$4/t_orfs_aa.index" "$4/t_orfs_aa.dbtype"
+    echo "Remove temporary files"
+    "$MMSEQS" rmdb "$4/q_orfs"
+    "$MMSEQS" rmdb "$4/q_orfs_aa"
+    "$MMSEQS" rmdb "$4/t_orfs"
+    "$MMSEQS" rmdb "$4/t_orfs_aa"
 fi
 

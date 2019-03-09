@@ -96,7 +96,7 @@ fi
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
-    rm -f "${TMP_PATH}/pref" "${TMP_PATH}/pref.index"
-    rm -f "${TMP_PATH}/reverse_aln" "${TMP_PATH}/reverse_aln.index"
+    "$MMSEQS" rmdb "${TMP_PATH}/pref"
+    "$MMSEQS" rmdb "${TMP_PATH}/reverse_aln"
     rm -f "${TMP_PATH}/linsearch.sh"
 fi

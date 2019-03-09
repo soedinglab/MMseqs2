@@ -132,7 +132,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             spacedKmer = data.spacedKmer != 0;
             spacedKmerPattern = PrefilteringIndexReader::getSpacedPattern(tidxdbr);
             minKmerThr = data.kmerThr;
-            seedScoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
+            seedScoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrix(tidxdbr);
         } else {
             Debug(Debug::ERROR) << "Outdated index version. Please recompute it with 'createindex'!\n";
             EXIT(EXIT_FAILURE);

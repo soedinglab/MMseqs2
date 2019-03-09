@@ -49,8 +49,8 @@ fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Remove temporary files"
-    rm -f "${TMP_PATH}/pref" "${TMP_PATH}/pref.index"
-    rm -f "${TMP_PATH}/pref_swapped" "${TMP_PATH}/pref_swapped.index"
-    rm -f "${TMP_PATH}/aln_swapped" "${TMP_PATH}/aln_swapped.index"
+    "$MMSEQS" rmdb "${TMP_PATH}/pref"
+    "$MMSEQS" rmdb "${TMP_PATH}/pref_swapped"
+    "$MMSEQS" rmdb "${TMP_PATH}/aln_swapped"
     rm -f "${TMP_PATH}/searchtargetprofile.sh"
 fi

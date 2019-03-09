@@ -86,21 +86,22 @@ fi
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
-    rm -f "${TMP_PATH}/pref" "${TMP_PATH}/pref.index"
-    rm -f "${TMP_PATH}/pref_rescore1" "${TMP_PATH}/pref_rescore1.index"
-    rm -f "${TMP_PATH}/pre_clust" "${TMP_PATH}/pre_clust.index"
-    rm -f "${TMP_PATH}/input_step_redundancy" "${TMP_PATH}/input_step_redundancy.index" "${TMP_PATH}/order_redundancy"
+    "$MMSEQS" rmdb "${TMP_PATH}/pref"
+    "$MMSEQS" rmdb "${TMP_PATH}/pref_rescore1"
+    "$MMSEQS" rmdb "${TMP_PATH}/pre_clust"
+    "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy"
+    "$MMSEQS" rmdb "${TMP_PATH}/order_redundancy"
 
-    rm -f "${TMP_PATH}/pref_filter1" "${TMP_PATH}/pref_filter1.index"
-    rm -f "${TMP_PATH}/pref_filter2" "${TMP_PATH}/pref_filter2.index"
+    "$MMSEQS" rmdb "${TMP_PATH}/pref_filter1"
+    "$MMSEQS" rmdb "${TMP_PATH}/pref_filter2"
 
     if [ -n "${ALIGN_GAPPED}" ]; then
         if [ -n "$FILTER" ]; then
-            rm -f "${TMP_PATH}/pref_rescore2" "${TMP_PATH}/pref_rescore2.index"
+            "$MMSEQS" rmdb "${TMP_PATH}/pref_rescore2"
         fi
-        rm -f "${TMP_PATH}/aln" "${TMP_PATH}/aln.index"
+        "$MMSEQS" rmdb "${TMP_PATH}/aln"
     fi
-    rm -f "${TMP_PATH}/clust" "${TMP_PATH}/clust.index"
+    "$MMSEQS" rmdb "${TMP_PATH}/clust"
 
     rm -f "${TMP_PATH}/linclust.sh"
 fi

@@ -31,9 +31,8 @@ bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, con
         return false;
     if (meta.spacedKmer != par.spacedKmer)
         return false;
-    if (par.scoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
+    if (par.seedScoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
         return false;
-
     if (par.spacedKmerPattern != PrefilteringIndexReader::getSpacedPattern(&index))
         return false;
     if (meta.headers2 == 1 && (par.db1 != par.db2))

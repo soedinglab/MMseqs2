@@ -34,6 +34,6 @@ fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Remove temporary files"
-    rmdir  "${TMP_PATH}/result_pos"  "${TMP_PATH}/result_pos.index"
+    "$MMSEQS" rmdb "${TMP_PATH}/result_pos"
     rm -f "${TMP_PATH}/summarizeresultsbyset.sh"
 fi
