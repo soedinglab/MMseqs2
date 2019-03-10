@@ -281,6 +281,7 @@ public:
     int    diagonalScoring;              // switch diagonal scoring
     int    exactKmerMatching;            // only exact k-mer matching
     int    maskMode;                     // mask low complex areas
+    int    maskLowerCaseMode;            // maske lowercase letters in prefilter and kmermatchers
 
     int    minDiagScoreThr;              // min diagonal score
     int    spacedKmer;                   // Spaced Kmers
@@ -554,6 +555,7 @@ public:
     PARAMETER(PARAM_DIAGONAL_SCORING)
     PARAMETER(PARAM_EXACT_KMER_MATCHING)
     PARAMETER(PARAM_MASK_RESIDUES)
+    PARAMETER(PARAM_MASK_LOWER_CASE)
 
     PARAMETER(PARAM_MIN_DIAG_SCORE)
     PARAMETER(PARAM_K_SCORE)

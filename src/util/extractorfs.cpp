@@ -93,7 +93,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                     fromPos = (sequenceLength - 1) - loc.from;
                     toPos   = (sequenceLength - 1) - loc.to;
                 }
-                Orf::writeOrfHeader(buffer, key, fromPos, toPos,  loc.hasIncompleteStart, loc.hasIncompleteEnd);
+                Orf::writeOrfHeader(buffer, key, fromPos, toPos, loc.hasIncompleteStart, loc.hasIncompleteEnd);
 
 //                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(),
 //                          toPos, loc.hasIncompleteStart, loc.hasIncompleteEnd);

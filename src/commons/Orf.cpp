@@ -56,6 +56,7 @@ Orf::Orf(const unsigned int requestedGenCode, bool useAllTableStarts) {
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(requestedGenCode));
     std::vector<std::string> codons = translateNucl.getStopCodons();
     stopCodons = (char*)mem_align(ALIGN_INT, 8 * sizeof(int));
+    codon      = (char*)mem_align(ALIGN_INT, 8 * sizeof(int));
     memset(stopCodons, 0, 8 * sizeof(int));
     size_t count = 0;
     for (size_t i = 0; i < codons.size(); ++i) {
@@ -99,6 +100,7 @@ Orf::~Orf() {
     free(reverseComplement);
     free(startCodons);
     free(stopCodons);
+    free(codon);
 }
 
 Matcher::result_t Orf::getFromDatabase(const size_t id, DBReader<unsigned int> & contigsReader, DBReader<unsigned int> & orfHeadersReader, int thread_idx) {
@@ -139,10 +141,8 @@ bool Orf::setSequence(const char* seq, size_t length) {
 
     sequenceLength = length;
     for(size_t i = 0; i < sequenceLength; ++i) {
-        sequence[i] = seq[i] & ~0x20;
-        if(sequence[i] == 'U') {
-            sequence[i] = 'T';
-        }
+        sequence[i] = (seq[i] == 'U' ) ? 'T' : seq[i];
+        sequence[i] = (seq[i] == 'u' ) ? 't' : seq[i];
     }
 
     for(size_t i = 0; i < sequenceLength; ++i) {
@@ -258,10 +258,12 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
 
     simd_int stopCodonsHi = simdi_load((simd_int*)stopCodons);
     simd_int stopCodonsLo = simdi_loadu((simd_int*)(stopCodons + 16));
-
     for (size_t i = 0;  i < sequenceLength - (FRAMES - 1);  i += FRAMES) {
         for(size_t position = i; position < i + FRAMES; position++) {
-            const char* codon = sequence + position;
+            // make everything to upper case
+            codon[0] = sequence[position]     & static_cast<const unsigned char>(~0x20);
+            codon[1] = sequence[position + 1] & static_cast<const unsigned char>(~0x20);
+            codon[2] = sequence[position + 2] & static_cast<const unsigned char>(~0x20);
             size_t frame = position % FRAMES;
 
             // skip frames outside of out the frame mask
@@ -270,7 +272,7 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
             }
 
             bool thisIncomplete = isIncomplete(codon);
-            bool isLast = !thisIncomplete && isIncomplete(codon + FRAMES);
+            bool isLast = !thisIncomplete && isIncomplete(sequence + position + FRAMES);
 
             // START_TO_STOP returns the longest fragment such that the first codon is a start
             // ANY_TO_STOP returns the longest fragment

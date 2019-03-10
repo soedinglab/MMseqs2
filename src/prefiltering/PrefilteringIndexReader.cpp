@@ -52,7 +52,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
                                               BaseMatrix *subMat, int maxSeqLen,
                                               bool hasSpacedKmer, const std::string &spacedKmerPattern,
                                               bool compBiasCorrection, int alphabetSize, int kmerSize,
-                                              int maskMode, int kmerThr) {
+                                              int maskMode, int maskLowerCase, int kmerThr) {
     DBWriter writer(outDB.c_str(), std::string(outDB).append(".index").c_str(), 1, Parameters::WRITER_ASCII_MODE, Parameters::DBTYPE_INDEX_DB);
     writer.open();
 
@@ -104,9 +104,9 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     IndexTable *indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
     SequenceLookup *sequenceLookup = NULL;
     IndexBuilder::fillDatabase(indexTable,
-                               (maskMode == 1 ) ? &sequenceLookup : NULL,
+                               (maskMode == 1 || maskLowerCase == 1) ? &sequenceLookup : NULL,
                                (maskMode == 0 ) ? &sequenceLookup : NULL,
-                               *subMat, &seq, dbr1, 0, dbr1->getSize(), kmerThr);
+                               *subMat, &seq, dbr1, 0, dbr1->getSize(), kmerThr, maskMode, maskLowerCase);
     indexTable->printStatistics(subMat->int2aa);
 
     if (sequenceLookup == NULL) {

@@ -31,6 +31,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         spacedKmer(par.spacedKmer != 0),
         alphabetSize(par.alphabetSize),
         maskMode(par.maskMode),
+        maskLowerCaseMode(par.maskLowerCaseMode),
         splitMode(par.splitMode),
         scoringMatrixFile(par.scoringMatrixFile),
         seedScoringMatrixFile(par.seedScoringMatrixFile),
@@ -487,11 +488,11 @@ void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
                                   Parameters::isEqualDbtype(targetSeqType,Parameters::DBTYPE_AMINO_ACIDS))
                            ? alphabetSize -1 : alphabetSize;
         indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
-        SequenceLookup **maskedLookup   = maskMode == 1 ? &sequenceLookup : NULL;
+        SequenceLookup **maskedLookup   = maskMode == 1 || maskLowerCaseMode == 1 ? &sequenceLookup : NULL;
         SequenceLookup **unmaskedLookup = maskMode == 0 ? &sequenceLookup : NULL;
 
         Debug(Debug::INFO) << "Index table k-mer threshold: " << localKmerThr << "\n";
-        IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *kmerSubMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr);
+        IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *kmerSubMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr, maskMode, maskLowerCaseMode);
 
         if (diagonalScoring == false) {
             delete sequenceLookup;

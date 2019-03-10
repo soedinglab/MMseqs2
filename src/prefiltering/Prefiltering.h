@@ -75,6 +75,7 @@ private:
     int alphabetSize;
     bool templateDBIsIndex;
     int maskMode;
+    int maskLowerCaseMode;
     int splitMode;
     int kmerThr;
     std::string scoringMatrixFile;

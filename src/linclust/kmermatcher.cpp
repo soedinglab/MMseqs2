@@ -190,7 +190,15 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
                     for (int i = 0; i < seq.L; i++) {
                         seq.int_sequence[i] = charSequence[i];
                     }
-                };
+                }
+                if(par.maskLowerCaseMode == 1 && (Parameters::isEqualDbtype(seq.getSequenceType(), Parameters::DBTYPE_AMINO_ACIDS) ||
+                                                  Parameters::isEqualDbtype(seq.getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES))) {
+                    const char * charSeq = seq.getSeqData();
+                    int maskLetter = subMat->aa2int[(int)'X'];
+                    for (int i = 0; i < seq.L; i++) {
+                        seq.int_sequence[i] = (islower(charSeq[i])) ? maskLetter : seq.int_sequence[i];
+                    }
+                }
 
 
                 int seqKmerCount = 0;
