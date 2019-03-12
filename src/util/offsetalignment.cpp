@@ -352,6 +352,10 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 for (unsigned int j = 0; j < orfCount; ++j) {
                     unsigned int orfKey = orfKeys[j];
                     size_t orfId = alnDbr.getId(orfKey);
+                    // this is needed when alnDbr does not contain all identifier of the queryDB
+                    if(orfId==UINT_MAX){
+                        continue;
+                    }
                     char *data = alnDbr.getData(orfId, thread_idx);
                     size_t queryId = qOrfDbr.sequenceReader->getId(orfKey);
                     char *header = qOrfDbr.sequenceReader->getData(queryId, thread_idx);
