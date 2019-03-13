@@ -206,7 +206,7 @@ void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(prefdbr->getAminoAcidDBSize(), prefdbr->getSeqLens(),
+    Util::decomposeDomainByAminoAcid(prefdbr->getDataSize(), prefdbr->getSeqLens(),
                                      prefdbr->getSize(), mpiRank, mpiNumProc, &dbFrom, &dbSize);
 
     Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << (dbFrom + dbSize) << "\n";

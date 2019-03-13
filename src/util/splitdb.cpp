@@ -34,10 +34,8 @@ int splitdb(int argc, const char **argv, const Command& command) {
 
         size_t startIndex = 0;
         size_t domainSize = 0;
-
-        if(par.splitAA) {
-            Util::decomposeDomainByAminoAcid(dbr.getAminoAcidDBSize(), sizes, size, split, par.split, &startIndex,
-                                             &domainSize);
+        if (par.splitAA) {
+            Util::decomposeDomainByAminoAcid(dbr.getDataSize(), sizes, size, split, par.split, &startIndex, &domainSize);
         } else {
             Util::decomposeDomain(size, split, par.split, &startIndex, &domainSize);
         }

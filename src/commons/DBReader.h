@@ -44,7 +44,9 @@ public:
 
     const char* getIndexFileName() { return indexFileName; }
 
-    size_t getAminoAcidDBSize(){ return aaDbSize; }
+    size_t getAminoAcidDBSize();
+
+    size_t getDataSize() { return dataSize; }
 
     char* getData(size_t id, int thrIdx);
 
@@ -267,8 +269,8 @@ private:
     std::vector<std::string> dataFileNames;
 
 
-    // amino acid size
-    size_t aaDbSize;
+    // summed up size of all entries
+    size_t dataSize;
     // Last Key in Index
     T lastKey;
     // max seqLen
