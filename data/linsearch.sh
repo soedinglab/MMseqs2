@@ -60,7 +60,7 @@ if [ -n "$NUCL" ]; then
 
     if notExists "${TMP_PATH}/aln.dbtype"; then
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_aln" "${TMP_PATH}/aln" ${SWAPRESULT_PAR} \
+        "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_aln" "${TMP_PATH}/aln" ${SWAPRESULT_PAR} \
             || fail "Alignment step died"
     fi
 
@@ -87,7 +87,7 @@ else
     # 3. Local gapped sequence alignment.
     if notExists "$3.dbtype"; then
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_aln" "$3" ${SWAPRESULT_PAR} \
+       "$MMSEQS" swapresults "$TARGET" "$QUERY" "${TMP_PATH}/reverse_aln" "$3" ${SWAPRESULT_PAR} \
             || fail "Alignment step died"
     fi
 fi

@@ -22,16 +22,16 @@ template <typename T>
 DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int threads, int dataMode) :
 threads(threads), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
         indexFileName(strdup(indexFileName_)), size(0), dataFiles(NULL), dataSizeOffset(NULL), dataFileCnt(0),
-        totalDataSize(0), aaDbSize(0), lastKey(T()), closed(1), dbtype(Parameters::DBTYPE_GENERIC_DB),
+        totalDataSize(0), dataSize(0), lastKey(T()), closed(1), dbtype(Parameters::DBTYPE_GENERIC_DB),
         compressedBuffers(NULL), compressedBufferSizes(NULL), index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),
         dataMapped(false), accessType(0), externalData(false), didMlock(false)
 {}
 
 template <typename T>
-DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey,
+DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t dataSize, T lastKey,
         int dbType, unsigned int maxSeqLen, int threads) :
         threads(threads), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL),
-        size(size), dataFiles(NULL), dataSizeOffset(NULL), dataFileCnt(0), totalDataSize(0), aaDbSize(aaDbSize), lastKey(lastKey),
+        size(size), dataFiles(NULL), dataSizeOffset(NULL), dataFileCnt(0), totalDataSize(0), dataSize(dataSize), lastKey(lastKey),
         maxSeqLen(maxSeqLen), closed(1), dbtype(dbType), compressedBuffers(NULL), compressedBufferSizes(NULL), index(index), sortedByOffset(true),
         seqLens(seqLens), id2local(NULL), local2id(NULL), dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
 {}
@@ -73,7 +73,6 @@ void DBReader<T>::mlock(){
         didMlock = true;
     }
 }
-
 
 template <typename T>
 void DBReader<T>::printMagicNumber(){
@@ -180,10 +179,10 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
 
         // init seq lens array and dbKey mapping
-        aaDbSize = 0;
+        dataSize = 0;
         for (size_t i = 0; i < size; i++){
             unsigned int size = seqLens[i];
-            aaDbSize += size;
+            dataSize += size;
         }
     }
 
@@ -505,6 +504,17 @@ template <typename T> char* DBReader<T>::getDataCompressed(size_t id, int thrIdx
     return compressedBuffers[thrIdx];
 }
 
+template <typename T> size_t DBReader<T>::getAminoAcidDBSize() {
+    checkClosed();
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
+        // Get the actual profile column without the null byte per entry
+        return (dataSize / Sequence::PROFILE_READIN_SIZE) - size;
+    } else {
+        // Get the actual number of residues witout \n\0 per entry
+        return dataSize - (2 * size);
+    }
+}
+
 template <typename T> char* DBReader<T>::getData(size_t id, int thrIdx){
     if(compression == COMPRESSED){
         return getDataCompressed(id, thrIdx);
@@ -769,7 +779,7 @@ template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
 
 template <>
 size_t DBReader<unsigned int>::indexMemorySize(const DBReader<unsigned int> &idx) {
-    size_t memSize = // size + aaDbSize
+    size_t memSize = // size + dataSize
             2 * sizeof(size_t)
             // maxSeqLen + lastKey + dbtype
             + 3 * sizeof(unsigned int)
@@ -787,7 +797,7 @@ char* DBReader<unsigned int>::serialize(const DBReader<unsigned int> &idx) {
     char* p = data;
     memcpy(p, &idx.size, sizeof(size_t));
     p += sizeof(size_t);
-    memcpy(p, &idx.aaDbSize, sizeof(size_t));
+    memcpy(p, &idx.dataSize, sizeof(size_t));
     p += sizeof(size_t);
     memcpy(p, &idx.lastKey, sizeof(unsigned int));
     p += sizeof(unsigned int);
@@ -807,7 +817,7 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data, in
     const char* p = data;
     size_t size = *((size_t*)p);
     p += sizeof(size_t);
-    size_t aaDbSize = *((size_t*)p);
+    size_t dataSize = *((size_t*)p);
     p += sizeof(size_t);
     unsigned int lastKey = *((unsigned int*)p);
     p += sizeof(unsigned int);
@@ -819,7 +829,7 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data, in
     p += size * sizeof(DBReader<unsigned int>::Index);
     unsigned int *seqLens = (unsigned int *)p;
 
-    return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize, lastKey, dbType, maxSeqLen, threads);
+    return new DBReader<unsigned int>(idx, seqLens, size, dataSize, lastKey, dbType, maxSeqLen, threads);
 }
 
 template <typename T>

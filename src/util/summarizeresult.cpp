@@ -108,7 +108,7 @@ int doSummarize(Parameters &par, const unsigned int mpiRank, const unsigned int 
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(reader.getAminoAcidDBSize(), reader.getSeqLens(), reader.getSize(),
+    Util::decomposeDomainByAminoAcid(reader.getDataSize(), reader.getSeqLens(), reader.getSize(),
                                      mpiRank, mpiNumProc, &dbFrom, &dbSize);
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db2, par.db2Index, mpiRank);
 

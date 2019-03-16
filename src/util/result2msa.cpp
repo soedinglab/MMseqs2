@@ -374,7 +374,7 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(qDbr->getAminoAcidDBSize(), qDbr->getSeqLens(), qDbr->getSize(),
+    Util::decomposeDomainByAminoAcid(qDbr->getDataSize(), qDbr->getSeqLens(), qDbr->getSize(),
                                      mpiRank, mpiNumProc, &dbFrom, &dbSize);
     qDbr->close();
     delete qDbr;

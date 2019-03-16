@@ -68,9 +68,9 @@ if [ -n "$REMOVE_TMP" ]; then
     "$MMSEQS" rmdb "${TMP_PATH}/pref"
     "$MMSEQS" rmdb "${TMP_PATH}/aln"
     "$MMSEQS" rmdb "${TMP_PATH}/clu_step0"
-    "$MMSEQS" rmdb "${TMP_PATH}/order_redundancy"
     "$MMSEQS" rmdb "${TMP_PATH}/clu_redundancy"
     "$MMSEQS" rmdb "${TMP_PATH}/aln_redundancy"
     "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy"
+    rm -f "${TMP_PATH}/order_redundancy"
     rm -f "${TMP_PATH}/clustering.sh"
 fi

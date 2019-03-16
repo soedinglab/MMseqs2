@@ -90,7 +90,7 @@ if [ -n "$REMOVE_TMP" ]; then
     "$MMSEQS" rmdb "${TMP_PATH}/pref_rescore1"
     "$MMSEQS" rmdb "${TMP_PATH}/pre_clust"
     "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy"
-    "$MMSEQS" rmdb "${TMP_PATH}/order_redundancy"
+    rm -f "${TMP_PATH}/order_redundancy"
 
     "$MMSEQS" rmdb "${TMP_PATH}/pref_filter1"
     "$MMSEQS" rmdb "${TMP_PATH}/pref_filter2"

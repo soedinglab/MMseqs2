@@ -712,7 +712,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
     // create index table based on split parameter
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
-        Util::decomposeDomainByAminoAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
+        Util::decomposeDomainByAminoAcid(tdbr->getDataSize(), tdbr->getSeqLens(), tdbr->getSize(),
                                          split, splitCount, &dbFrom, &dbSize);
         if (dbSize == 0) {
             return false;
@@ -737,7 +737,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
         getIndexTable(split, dbFrom, dbSize);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
-        Util::decomposeDomainByAminoAcid(qdbr->getAminoAcidDBSize(), qdbr->getSeqLens(), qdbr->getSize(),
+        Util::decomposeDomainByAminoAcid(qdbr->getDataSize(), qdbr->getSeqLens(), qdbr->getSize(),
                                          split, splitCount, &queryFrom, &querySize);
         if (querySize == 0) {
             return false;
