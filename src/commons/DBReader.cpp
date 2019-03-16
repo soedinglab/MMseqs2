@@ -48,6 +48,7 @@ void DBReader<T>::setDataFile(const char* dataFileName_)  {
 }
 
 
+
 template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
     if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
@@ -97,9 +98,6 @@ template <typename T> DBReader<T>::~DBReader(){
     }
 }
 
-
-
-
 template <typename T> bool DBReader<T>::open(int accessType){
     // count the number of entries
     this->accessType = accessType;
@@ -134,6 +132,20 @@ template <typename T> bool DBReader<T>::open(int accessType){
         if(accessType==LINEAR_ACCCESS){
             setSequentialAdvice();
         }
+    }
+    if (dataMode & USE_LOOKUP) {
+        std::string lookupFilename = (std::string(dataFileName) + ".lookup");
+        if(FileUtil::fileExists(lookupFilename.c_str()) == false){
+            Debug(Debug::ERROR) << "Could not open index file " << lookupFilename << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        MemoryMapped indexData(lookupFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+        char* lookupDataChar = (char *) indexData.getData();
+        size_t lookupDataSize = indexData.size();
+        lookupSize = Util::ompCountLines(lookupDataChar, lookupDataSize);
+        lookup = new(std::nothrow) LookupEntry[this->lookupSize];
+        readLookup(lookupDataChar, lookupDataSize, lookup);
+        indexData.close();
     }
     bool isSortedById = false;
     if (externalData == false) {
@@ -428,6 +440,10 @@ template <typename T> void DBReader<T>::remapData(){
 }
 
 template <typename T> void DBReader<T>::close(){
+    if(dataMode & USE_LOOKUP){
+        delete [] lookup;
+    }
+
     if(dataMode & USE_DATA){
         unmapData();
     }
@@ -567,6 +583,37 @@ template <typename T> T DBReader<T>::getDbKey (size_t id){
     }
     return index[id].id;
 }
+
+template <typename T> size_t DBReader<T>::getLookupId (T dbKey){
+    if ((dataMode & USE_LOOKUP) == 0) {
+        Debug(Debug::ERROR) << "DBReader for datafile=" << dataFileName << ".lookup was not opened with lookup mode\n";
+        EXIT(EXIT_FAILURE);
+    }
+    LookupEntry val;
+    val.id = dbKey;
+    size_t id = std::upper_bound(lookup, lookup + lookupSize, val, LookupEntry::compareById) - lookup;
+
+    return (id < size && index[id].id == dbKey ) ? id : UINT_MAX;
+}
+
+template <typename T> std::string DBReader<T>::getLookupEntryName (size_t id){
+    if (id >= lookupSize){
+        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << dataFileName << ".lookup\n";
+        Debug(Debug::ERROR) << "getLookupEntryName: local id (" << id << ") >= db size (" << lookupSize << ")\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return lookup[id].entryName;
+}
+
+template <typename T> unsigned int DBReader<T>::getLookupFileNumber(size_t id){
+    if (id >= lookupSize){
+        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << dataFileName << ".lookup\n";
+        Debug(Debug::ERROR) << "getLookupFileNumber: local id (" << id << ") >= db size (" << lookupSize << ")\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return lookup[id].fileNumber;
+}
+
 
 template <typename T> size_t DBReader<T>::getId (T dbKey){
     size_t id = bsearch(index, size, dbKey);
@@ -864,6 +911,29 @@ void DBReader<T>::setSequentialAdvice() {
         }
     }
 #endif
+}
+
+template<typename T>
+void DBReader<T>::readLookup(char *data, size_t dataSize, DBReader::LookupEntry *lookup) {
+    size_t i = 0;
+    size_t currPos = 0;
+    char* lookupData = (char *) data;
+    const char * cols[3];
+    while (currPos < dataSize){
+        if (i >= this->lookupSize) {
+            Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        Util::getWordsOfLine(lookupData, cols, 3);
+        lookup[i].id = Util::fast_atoi<size_t>(cols[0]);
+        lookup[i].entryName = std::string(cols[1], (cols[2] - cols[1]) - 1);
+        lookup[i].fileNumber = Util::fast_atoi<size_t>(cols[2]);
+        lookupData = Util::skipLine(lookupData);
+
+        currPos = lookupData - (char *) data;
+
+        i++;
+    }
 }
 
 template class DBReader<unsigned int>;
