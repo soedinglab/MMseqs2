@@ -27,6 +27,7 @@ set(util_source_files
         util/touchdb.cpp
         util/filterdb.cpp
         util/gff2db.cpp
+        util/masksequence.cpp
         util/maskbygff.cpp
         util/mergeclusters.cpp
         util/mergeresultsbyset.cpp
