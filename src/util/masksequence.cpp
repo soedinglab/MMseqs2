@@ -1,18 +1,19 @@
 #include <string>
 #include <fstream>
 #include <climits>
-#include <NucleotideMatrix.h>
-#include <SubstitutionMatrix.h>
-#include <tantan.h>
-
+#include "NucleotideMatrix.h"
+#include "SubstitutionMatrix.h"
+#include "tantan.h"
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
+#include "FileUtil.h"
 
 
 #ifdef OPENMP
 #include <omp.h>
+
 #endif
 
 int masksequence(int argc, const char **argv, const Command& command) {
@@ -79,6 +80,11 @@ int masksequence(int argc, const char **argv, const Command& command) {
     }
     writer.close(true);
     reader.close();
+
+    FileUtil::symlinkAbs(par.hdr1, par.hdr2);
+    FileUtil::symlinkAbs(par.hdr1Index, par.hdr2Index);
+    DBWriter::writeDbtypeFile(par.hdr2.c_str(), Parameters::DBTYPE_GENERIC_DB, par.compressed);
+
     delete subMat;
 
 
