@@ -78,6 +78,9 @@ public:
 
     size_t getSize();
 
+    size_t getLookupSize();
+
+
     T getDbKey(size_t id);
 
     unsigned int * getSeqLens();

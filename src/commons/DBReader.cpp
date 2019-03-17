@@ -576,6 +576,11 @@ template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey, int thrIdx) {
     }
 }
 
+template <typename T> size_t DBReader<T>::getLookupSize(){
+    checkClosed();
+    return lookupSize;
+}
+
 template <typename T> size_t DBReader<T>::getSize (){
     checkClosed();
     return size;
