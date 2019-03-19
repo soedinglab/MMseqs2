@@ -35,20 +35,21 @@ public:
         transitions[D][I] = Transition('\0',1,1);
     }
 
-    // translate results takes an pairwise alignment between sequence AB (resultAB), and BC (resultBC) to infer an alignment between AC (resultAC)
-    // E.g.
-    // ######## Alignment AB
-    // A ATT-G--  \
-    //              MMMIM
-    // B ATTTGCA  /
-    // ######## Alignment BC
-    // B ATTTGCA  \
-    //              MIMMM
-    // C --T-GCA  /
-    // ######### infer    AC
-    // A ATTG--   \
-    //              MM
-    // C --TG--   /
+    /* translate results takes an pairwise alignment between sequence AB (resultAB), and BC (resultBC) to infer an alignment between AC (resultAC)
+     E.g. alignment example
+     ######## Alignment AB
+     A: ATT-G--  \
+                   MMMIM
+     B: ATTTGCA  /
+     ######## Alignment BC
+     B: ATTTGCA  \
+                   MIMMM
+     C: --T-GCA  /
+     ######### infer    AC
+     A: ATTG--   \
+                   MM
+     C: --TG--   /
+    */
     void translateResult(const Matcher::result_t& resultAB, const Matcher::result_t& resultBC, Matcher::result_t& resultAC) {
         int startAab = resultAB.qStartPos;
         int startBab = resultAB.dbStartPos;
