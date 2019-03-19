@@ -552,7 +552,8 @@ size_t assignGroup(KmerPosition *hashSeqPair, size_t splitKmerCount, bool includ
                         writePos++;
                     }
                 }
-                hashSeqPair[i].kmer = SIZE_T_MAX;
+//                hashSeqPair[i].kmer = SIZE_T_MAX;
+                hashSeqPair[i].kmer = (i != writePos - 1) ? SIZE_T_MAX : hashSeqPair[i].kmer;
             }
             prevSetSize = 0;
             prevHashStart = elementIdx;

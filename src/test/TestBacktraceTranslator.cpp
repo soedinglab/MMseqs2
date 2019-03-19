@@ -4,51 +4,138 @@
 const char* binary_name = "test_backtracetranslator";
 
 int main(int, const char**) {
-//    const char* dataAB = "76\t2285\t1.000\t0.000E+00\t0\t1123\t1124\t0\t1123\t1124\t1124M\n";
-//    const char* dataBC = "43\t822\t0.524\t1.911E-259\t635\t1122\t1124\t7\t507\t575\t31M5D55M5D43M7D153M1I9M4I26M1I146M1D14M1D5M\n";
-    //const char* dataBC = "3\t1184\t1.000\t0.000E+00\t0\t574\t575\t0\t574\t575\t575M\n";
+    // s1 5 ATT-GCA 11
+    // s2 3 ATTTG-- 8
+    // s3 6 --T-G-A 9
+    // AB, BC
+
+    // ATTTG-- MMMIM
+    // ATT-GCA
+
+    // ATTGCA MMMIM
+    // --TG-A MMIM
+    // s2 -> s1, s1-> s3 => infer s2 -> s1 -> s3
+//    Matcher::result_t resultAB(2, 8, 0.6, 0.8, 0.8, 0.001, 6,
+//                           // qs qe      ts te
+//                               3, 8, 10,  5, 9, 15, "MMMIM");
+//    Matcher::result_t resultBC(3, 8, 0.6, 0.8, 0.8, 0.001, 6,
+//                               7, 11, 15, 6, 9, 20, "MMIM");
 
 
-//    const char* dataAB = "1\t0\t1.000\t0.000E+00\t0\t5\t6\t0\t5\t6\t5M\n";
-//    const char* dataBC = "2\t0\t1.000\t0.000E+00\t0\t5\t6\t0\t5\t6\t5M\n";
-    // 1| 4|
-    // HELLO 5
-    // JELLO
-    // 1| 4| 5
-//    const char* dataAB = "1\t0\t1.000\t0.000E+00\t1\t4\t5\t1\t4\t5\t4M\n";
-    //  1|3|
-    //  JELLO 5
-    // SHELL
-    //  2|4|  5
-//     const char* dataBC = "2\t0\t1.000\t0.000E+00\t1\t4\t5\t2\t4\t5\t3M\n";
+    // ATT-G-- MMMIM
+    // ATTTGCA
 
-    //      2|4|
-    //     JELLO 5
-    // ARMADILLO 9
-    //      6|8|
-//    const char* dataBC = "2\t0\t1.000\t0.000E+00\t2\t4\t5\t6\t8\t9\t3M\n";
+    // ATTTGCA MMMIM
+    // --T-GCA MIMMM
+    // s2 -> s1, s1-> s3 => infer s2 -> s1 -> s3
+//    Matcher::result_t resultAB(2, 8, 0.6, 0.8, 0.8, 0.001, 6,
+//                           // qs qe      ts te
+//                               0, 3, 10,  0, 4, 15, "MMMDM");
+//    Matcher::result_t resultBC(3, 8, 0.6, 0.8, 0.8, 0.001, 6,
+//                               2, 6, 15, 0, 3, 20, "MIMMM");
 
 
-    // 0| 3|
-    //  ELLO 4
-    // HELLO
-    // 1| 4| 5
-    const char* dataAB = "1\t0\t1.000\t0.000E+00\t0\t3\t4\t1\t4\t5\t4M\n";
-    // 0| 3|
-    //  HELLO 5
-    // SHELL
-    // 1| 4| 5
-    const char* dataBC = "2\t0\t1.000\t0.000E+00\t0\t3\t5\t1\t4\t5\t4M\n";
-    Debug(Debug::INFO) << dataAB;
-    Debug(Debug::INFO) << dataBC;
 
-    Matcher::result_t resultAB = Matcher::parseAlignmentRecord(dataAB, false);
-    Matcher::result_t resultBC = Matcher::parseAlignmentRecord(dataBC, false);
+//    // ATTTTG-- MMMIM
+//    // ATT-TGCA
+//
+//    // ATT-TGCA MMMIM
+//    // --TTTGC- MIMMM
+//    // s2 -> s1, s1-> s3 => infer s2 -> s1 -> s3
+//    Matcher::result_t resultAB(2, 8, 0.6, 0.8, 0.8, 0.001, 6,
+////                           // qs qe      ts te
+//                               0, 5, 10,  0, 3, 15, "MMMIMM");
+//    Matcher::result_t resultBC(3, 8, 0.6, 0.8, 0.8, 0.001, 6,
+//                               2, 5, 15, 0, 4, 20, "MDMMM");
+
+
+    // ATT-TG-- MMMIM
+    // ATTTTGCA
+
+    // ATT-TGCA MMMIM
+    // --TTTGC- MIMMM
+    // s2 -> s1, s1-> s3 => infer s2 -> s1 -> s3
+    Matcher::result_t resultAB(2, 8, 0.6, 0.8, 0.8, 0.001, 6,
+//                           // qs qe      ts te
+                               0, 4, 10,  0, 5, 15, "MMMDMM");
+    Matcher::result_t resultBC(3, 8, 0.6, 0.8, 0.8, 0.001, 6,
+                               2, 5, 15, 0, 4, 20, "MDMMM");
+
+    // ATT-G-- MMMIM
+    // ATTTGCA
+
+    // ATTTGCA MMMIM
+    // --T-GCA MIMMM
+    // s2 -> s1, s1-> s3 => infer s2 -> s1 -> s3
+//    Matcher::result_t resultAB(2, 8, 0.6, 0.8, 0.8, 0.001, 6,
+//                           // qs qe      ts te
+//                               0, 3, 10,  0, 4, 15, "MMMDM");
+//    Matcher::result_t resultBC(3, 8, 0.6, 0.8, 0.8, 0.001, 6,
+//                               2, 6, 15, 0, 3, 20, "MIMMM");
+
+//
+//    Matcher::result_t resultAC;
+//    resultAC.backtrace.reserve(2000);
+//    BacktraceTranslator translator;
+//    translator.translateResult(resultAB, resultBC, resultAC);
+//
+
+
+    // s1 5 AT--GCA 11
+    // s2 3 ATTTG-- 8
+    // s3 6 --T-G-A 9
+    // AB, BC
+
+    // AT---G MMMDDM
+    // ATTTAG
+
+    // ATTTAG
+    // -TTT-G MMIM
+
+    // ATTG
+    // --TG
+    // s2 -> s1, s1-> s3 => infer s2 -> s1 -> s3
+//    Matcher::result_t resultAB(2, 8, 0.6, 0.8, 0.8, 0.001, 6,
+//                           // qs qe      ts te
+//                               0, 3, 10,  0, 5, 15, "MMDDDM");
+//    Matcher::result_t resultBC(3, 8, 0.6, 0.8, 0.8, 0.001, 6,
+//                               1, 5, 15, 0, 4, 20, "MMMIM");
+
+
+    // s1 5 AT--GCA 11
+    // s2 3 ATTTG-- 8
+    // s3 6 --T-G-A 9
+    // AB, BC
+
+    // AT---G MMMDDM
+    // ATTTAG
+
+    // ATTTAG
+    // --TT-- MMIM
+
+    // ATTG
+    // --TG
+    // s2 -> s1, s1-> s3 => infer s2 -> s1 -> s3
+//    Matcher::result_t resultAB(2, 8, 0.6, 0.8, 0.8, 0.001, 6,
+//             qs qe      ts te
+//                               0, 3, 10,  0, 5, 15, "MMDDDM");
+//    Matcher::result_t resultBC(3, 8, 0.6, 0.8, 0.8, 0.001, 6,
+//                               2, 5, 15, 0, 2, 20, "MM");
+//    MM
+//    IM
+//    DM
+//    MD
+//    DD
+//    MI
+//    II
+//    DI
+
 
     Matcher::result_t resultAC;
     resultAC.backtrace.reserve(2000);
     BacktraceTranslator translator;
     translator.translateResult(resultAB, resultBC, resultAC);
+
     //  0| 2|
     //   ELLO 4
     // SHELL

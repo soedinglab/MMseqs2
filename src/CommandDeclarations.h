@@ -45,6 +45,7 @@ extern int extractorfs(int argc, const char **argv, const Command& command);
 extern int extractframes(int argc, const char **argv, const Command& command);
 extern int filterdb(int argc, const char **argv, const Command& command);
 extern int gff2db(int argc, const char **argv, const Command& command);
+extern int masksequence(int argc, const char **argv, const Command& command);
 extern int indexdb(int argc, const char **argv, const Command& command);
 extern int kmermatcher(int argc, const char **argv, const Command &command);
 extern int kmersearch(int argc, const char **argv, const Command &command);
