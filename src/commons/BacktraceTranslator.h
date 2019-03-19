@@ -21,20 +21,34 @@ public:
 //        transitions[I][I] = Transition('I',1,0);
 //        transitions[D][I] = Transition('\0',1,1);
 
-        // Eli's Rules
+        // Martins Clovis Eli's Rules
         transitions[M][M] = Transition('M',1,1);
-        transitions[I][M] = Transition('I',1,1);
-        transitions[D][M] = Transition('\0', 1,0);
+        transitions[I][M] = Transition('I',1,0);
+        transitions[D][M] = Transition('D', 1,1);
 
         transitions[M][D] = Transition('D',1,1);
         transitions[I][D] = Transition('\0', 1,1);
-        transitions[D][D] = Transition('D',1,0);
+        transitions[D][D] = Transition('D',1,1);
 
-        transitions[M][I] = Transition('I',0,1);
+        transitions[M][I] = Transition('I',1,1);
         transitions[I][I] = Transition('I',0,1);
-        transitions[D][I] = Transition('D',1,0);
+        transitions[D][I] = Transition('\0',1,1);
     }
 
+    // translate results takes an pairwise alignment between sequence AB (resultAB), and BC (resultBC) to infer an alignment between AC (resultAC)
+    // E.g.
+    // ######## Alignment AB
+    // A ATT-G--  \
+    //              MMMIM
+    // B ATTTGCA  /
+    // ######## Alignment BC
+    // B ATTTGCA  \
+    //              MIMMM
+    // C --T-GCA  /
+    // ######### infer    AC
+    // A ATTG--   \
+    //              MM
+    // C --TG--   /
     void translateResult(const Matcher::result_t& resultAB, const Matcher::result_t& resultBC, Matcher::result_t& resultAC) {
         int startAab = resultAB.qStartPos;
         int startBab = resultAB.dbStartPos;
@@ -71,9 +85,13 @@ public:
         unsigned int qAlnLength = 0;
         unsigned int dbAlnLength = 0;
         unsigned int i = 0;
-        while (offsetBab < static_cast<int>(resultAB.backtrace.size()) && offsetBbc < static_cast<int>(resultBC.backtrace.size())) {
+        int backtraceABSize = static_cast<int>(resultAB.backtrace.size());
+        int backtraceBCSize = static_cast<int>(resultBC.backtrace.size());
+        while (offsetBab < backtraceABSize && offsetBbc < backtraceBCSize) {
             i++;
-            Transition& t = transitions[mapState(resultAB.backtrace[offsetBab])][mapState(resultBC.backtrace[offsetBbc])];
+            State ab = mapState(resultAB.backtrace[offsetBab]);
+            State bc = mapState(resultBC.backtrace[offsetBbc]);
+            Transition& t = transitions[ab][bc];
             switch (t.newState) {
                 case '\0':
 //                    i = i > 0 ? i - 1 : 0;
@@ -85,10 +103,10 @@ public:
                     dbAlnLength++;
                     break;
                 case 'D':
-                    qAlnLength++;
+                    dbAlnLength++;
                     break;
                 case 'I':
-                    dbAlnLength++;
+                    qAlnLength++;
                     break;
                 default:
                     Debug(Debug::ERROR) << "Invalid backtrace translation state.\n";
