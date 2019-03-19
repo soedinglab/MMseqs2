@@ -496,7 +496,7 @@ void Sequence::mapProfileState(const char * sequenze){
         for (int l = 0; l < this->L; ++l) {
             for (size_t aa_num = 0; aa_num < static_cast<size_t>(subMat->alphabetSize); ++aa_num) {
                 float sum = profileStateMat->scoreState(&profile[l * Sequence::PROFILE_AA_SIZE], pav, aa_num);
-                float pssmVal = sum * profileStateMat->getScoreNormalization();
+                float pssmVal = 2.0 * sum * profileStateMat->getScoreNormalization();
                 profile_for_alignment[aa_num * this->L + l] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
             }
         }

@@ -119,7 +119,7 @@ Alignment::Alignment(const std::string &querySeqDB,
         gapExtend = 2;
     } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
         SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, scoreBias);
-        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 255);
+        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 219);
         gapOpen = par.gapOpen;
         gapExtend = par.gapExtend;
     } else {
