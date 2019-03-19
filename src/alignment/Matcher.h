@@ -67,6 +67,29 @@ public:
 
         result_t(){};
 
+        static void swapResult(result_t & res, EvalueComputation &evaluer, bool hasBacktrace){
+            double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
+            res.eval = evaluer.computeEvalue(rawScore, res.dbLen);
+
+            unsigned int qstart = res.qStartPos;
+            unsigned int qend = res.qEndPos;
+            unsigned int qLen = res.qLen;
+            res.qStartPos = res.dbStartPos;
+            res.qEndPos = res.dbEndPos;
+            res.qLen = res.dbLen;
+            res.dbStartPos = qstart;
+            res.dbEndPos = qend;
+            res.dbLen = qLen;
+            if (hasBacktrace) {
+                for (size_t j = 0; j < res.backtrace.size(); j++) {
+                    if (res.backtrace.at(j) == 'I') {
+                        res.backtrace.at(j) = 'D';
+                    } else if (res.backtrace.at(j) == 'D') {
+                        res.backtrace.at(j) = 'I';
+                    }
+                }
+            }
+        }
     };
 
     Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m,
