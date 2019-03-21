@@ -12,6 +12,7 @@
 #include <string>
 #include "Sequence.h"
 #include "Parameters.h"
+#include "FileUtil.h"
 
 #define ZSTD_STATIC_LINKING_ONLY // ZSTD_findDecompressedSize
 #include <zstd/lib/zstd.h>
@@ -138,6 +139,26 @@ public:
 
     size_t getTotalDataSize(){
         return totalDataSize;
+    }
+
+    static void removeDb(std::string  databaseName){
+        std::vector<std::string> files = FileUtil::findDatafiles(databaseName.c_str());
+        for (size_t i = 0; i < files.size(); ++i) {
+            FileUtil::remove(files[i].c_str());
+        }
+        std::string index = databaseName + ".index";
+        if (FileUtil::fileExists(index.c_str())) {
+            FileUtil::remove(index.c_str());
+        }
+        std::string dbTypeFile = databaseName + ".dbtype";
+        if (FileUtil::fileExists(dbTypeFile.c_str())) {
+            FileUtil::remove(dbTypeFile.c_str());
+
+        }
+        std::string lookupFile = databaseName + ".lookup";
+        if (FileUtil::fileExists(lookupFile.c_str())) {
+            FileUtil::remove(lookupFile.c_str());
+        }
     }
 
     char *mmapData(FILE *file, size_t *dataSize);

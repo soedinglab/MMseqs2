@@ -113,6 +113,10 @@ public:
             return true;
         if(second.score > first.score )
             return false;
+        if(first.dbLen < second.dbLen )
+            return true;
+        if(second.dbLen < first.dbLen )
+            return false;
         if(first.dbKey < second.dbKey )
             return true;
         if(second.dbKey < first.dbKey )

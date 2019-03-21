@@ -7,6 +7,7 @@ extern int alignall(int argc, const char **argv, const Command& command);
 extern int alignbykmer(int argc, const char **argv, const Command& command);
 extern int apply(int argc, const char **argv, const Command& command);
 extern int besthitperset(int argc, const char **argv, const Command &command);
+extern int transitivealign(int argc, const char **argv, const Command &command);
 extern int clust(int argc, const char **argv, const Command& command);
 extern int clusteringworkflow(int argc, const char **argv, const Command& command);
 extern int clusterupdate(int argc, const char **argv, const Command& command);

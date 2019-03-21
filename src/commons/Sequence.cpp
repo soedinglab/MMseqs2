@@ -379,7 +379,7 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
         float pcb = Parameters::getInstance().pcb;
         PSSMCalculator::computePseudoCounts(profile, profile, pseudocountsWeight, PROFILE_AA_SIZE, neffM, L, pca, pcb);
     }
-    //printProfile();
+//    printProfile();
 
     if (mapScores) {
         for(int l = 0; l < this->L; l++) {
@@ -423,8 +423,8 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
 
 
 template <int T>
-void Sequence::mapProfileState(const char * sequenze){
-    mapProfile(sequenze, false);
+void Sequence::mapProfileState(const char * sequence){
+    mapProfile(sequence, false);
 
     SubstitutionMatrixProfileStates * profileStateMat = (SubstitutionMatrixProfileStates *) subMat;
     // compute avg. amino acid probability
@@ -452,7 +452,7 @@ void Sequence::mapProfileState(const char * sequenze){
                 profile_score[i * profile_row_size + k] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
             }
         }
-    //    printProfileStatePSSM();
+//        printProfileStatePSSM();
 
         if(aaBiasCorrection==true){
             //TODO use new formular
