@@ -260,10 +260,10 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
     simd_int stopCodonsLo = simdi_loadu((simd_int*)(stopCodons + 16));
     for (size_t i = 0;  i < sequenceLength - (FRAMES - 1);  i += FRAMES) {
         for(size_t position = i; position < i + FRAMES; position++) {
-            // make everything to upper case
-            codon[0] = sequence[position]     & static_cast<unsigned char>(~0x20);
-            codon[1] = sequence[position + 1] & static_cast<unsigned char>(~0x20);
-            codon[2] = sequence[position + 2] & static_cast<unsigned char>(~0x20);
+            // make everything that is not CHAR_MAX upper case
+            codon[0] = sequence[position + 0] == CHAR_MAX ? CHAR_MAX : sequence[position + 0] & static_cast<unsigned char>(~0x20);
+            codon[1] = sequence[position + 1] == CHAR_MAX ? CHAR_MAX : sequence[position + 1] & static_cast<unsigned char>(~0x20);
+            codon[2] = sequence[position + 2] == CHAR_MAX ? CHAR_MAX : sequence[position + 2] & static_cast<unsigned char>(~0x20);
             size_t frame = position % FRAMES;
 
             // skip frames outside of out the frame mask
