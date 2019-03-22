@@ -38,7 +38,7 @@ int masksequence(int argc, const char **argv, const Command& command) {
     // need to prune low scoring k-mers through masking
     ProbabilityMatrix probMatrix(*subMat);
 
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), 1, par.compressed, reader.getDbtype());
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
 #pragma omp parallel
     {
