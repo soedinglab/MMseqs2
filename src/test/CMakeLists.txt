@@ -1,6 +1,7 @@
 include(MMseqsSetupTest)
 
 set(TESTS
+        TestAdjustedKmerIterator.cpp
         TestAlignment.cpp
         TestAlignmentPerformance.cpp
         TestAlignmentTraceback.cpp

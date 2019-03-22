@@ -60,7 +60,7 @@ if notExists "${TMP_PATH}/clu_step0.dbtype"; then
 fi
 
 # merge clu_redundancy and clu
-"$MMSEQS" mergeclusters "$ORIGINAL" "$2" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_step0" \
+"$MMSEQS" mergeclusters "$ORIGINAL" "$2" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_step0" $MERGECLU_PAR \
         || fail "Merging of clusters has died"
 
 if [ -n "$REMOVE_TMP" ]; then

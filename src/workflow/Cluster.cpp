@@ -156,6 +156,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
     par.rescoreMode = originalRescoreMode;
     cmd.addVariable("RUNNER", par.runner.c_str());
+    cmd.addVariable("MERGECLU_PAR", par.createParameterString(par.threadsandcompression).c_str());
 
     if (par.cascaded) {
         // save some values to restore them later

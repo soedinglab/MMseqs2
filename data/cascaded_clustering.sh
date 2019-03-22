@@ -70,7 +70,7 @@ while [ "$STEP" -lt "$STEPS" ]; do
           fi
        else
             # shellcheck disable=SC2086
-            "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/clu_redundancy" ${CLUSTER_STR} \
+            "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/clu_redundancy" ${CLUSTER_STR} $MERGECLU_PAR \
             || fail "Merging of clusters has died"
        fi
     else
