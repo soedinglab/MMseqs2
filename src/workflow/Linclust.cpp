@@ -140,6 +140,8 @@ int linclust(int argc, const char **argv, const Command& command) {
     }
     // # 5. Clustering using greedy set cover.
     cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
+    cmd.addVariable("MERGECLU_PAR", par.createParameterString(par.threadsandcompression).c_str());
+
     FileUtil::writeFile(tmpDir + "/linclust.sh", linclust_sh, linclust_sh_len);
     std::string program(tmpDir + "/linclust.sh");
     cmd.execProgram(program.c_str(), par.filenames);

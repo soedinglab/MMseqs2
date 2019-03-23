@@ -70,7 +70,7 @@ while [ "$STEP" -lt "$STEPS" ]; do
           fi
        else
             # shellcheck disable=SC2086
-            "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/clu_redundancy" ${CLUSTER_STR} \
+            "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/clu_redundancy" ${CLUSTER_STR} $MERGECLU_PAR \
             || fail "Merging of clusters has died"
        fi
     else
@@ -128,7 +128,7 @@ fi
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
-    "$MMSEQS" rmdb "${TMP_PATH}/order_redundancy"
+    rm -f "${TMP_PATH}/order_redundancy"
     "$MMSEQS" rmdb "${TMP_PATH}/clu_redundancy"
     "$MMSEQS" rmdb "${TMP_PATH}/aln_redundancy"
     "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy"
@@ -138,7 +138,7 @@ if [ -n "$REMOVE_TMP" ]; then
         "$MMSEQS" rmdb "${TMP_PATH}/aln_step$STEP"
         "$MMSEQS" rmdb "${TMP_PATH}/clu_step$STEP"
         "$MMSEQS" rmdb "${TMP_PATH}/input_step$STEP"
-        "$MMSEQS" rmdb "${TMP_PATH}/order_step$STEP"
+        rm -f "${TMP_PATH}/order_step$STEP"
         STEP=$((STEP+1))
     done
 

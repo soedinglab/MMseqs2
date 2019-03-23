@@ -27,6 +27,7 @@ set(util_source_files
         util/touchdb.cpp
         util/filterdb.cpp
         util/gff2db.cpp
+        util/masksequence.cpp
         util/maskbygff.cpp
         util/mergeclusters.cpp
         util/mergeresultsbyset.cpp
@@ -56,6 +57,7 @@ set(util_source_files
         util/summarizeresult.cpp
         util/summarizetabs.cpp
         util/swapresults.cpp
+        util/transitivealign.cpp
         util/translatenucs.cpp
         util/translateaa.cpp
         util/tsv2db.cpp

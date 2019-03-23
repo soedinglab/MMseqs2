@@ -80,7 +80,7 @@ if notExists "${TMP_PATH}/clust"; then
         || fail "Clustering step died"
 fi
 if notExists "${TMP_PATH}/clu"; then
-    "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/pre_clust" "${TMP_PATH}/clust" \
+    "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/pre_clust" "${TMP_PATH}/clust" $MERGECLU_PAR \
         || fail "mergeclusters died"
 fi
 
@@ -90,7 +90,7 @@ if [ -n "$REMOVE_TMP" ]; then
     "$MMSEQS" rmdb "${TMP_PATH}/pref_rescore1"
     "$MMSEQS" rmdb "${TMP_PATH}/pre_clust"
     "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy"
-    "$MMSEQS" rmdb "${TMP_PATH}/order_redundancy"
+    rm -f "${TMP_PATH}/order_redundancy"
 
     "$MMSEQS" rmdb "${TMP_PATH}/pref_filter1"
     "$MMSEQS" rmdb "${TMP_PATH}/pref_filter2"

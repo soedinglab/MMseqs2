@@ -250,29 +250,10 @@ int doswap(Parameters& par, bool isGeneralMode) {
                 while (dataSize > 0) {
                     if (isAlignmentResult) {
                         Matcher::result_t res = Matcher::parseAlignmentRecord(data, true);
-                        double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
-                        res.eval = evaluer.computeEvalue(rawScore, res.dbLen);
+                        Matcher::result_t::swapResult(res, evaluer, hasBacktrace);
                         if (res.eval > par.evalThr) {
                             evalBreak = true;
                             goto outer;
-                        }
-                        unsigned int qstart = res.qStartPos;
-                        unsigned int qend = res.qEndPos;
-                        unsigned int qLen = res.qLen;
-                        res.qStartPos = res.dbStartPos;
-                        res.qEndPos = res.dbEndPos;
-                        res.qLen = res.dbLen;
-                        res.dbStartPos = qstart;
-                        res.dbEndPos = qend;
-                        res.dbLen = qLen;
-                        if (hasBacktrace) {
-                            for (size_t j = 0; j < res.backtrace.size(); j++) {
-                                if (res.backtrace.at(j) == 'I') {
-                                    res.backtrace.at(j) = 'D';
-                                } else if (res.backtrace.at(j) == 'D') {
-                                    res.backtrace.at(j) = 'I';
-                                }
-                            }
                         }
                         curRes.emplace_back(res);
                     } else {
