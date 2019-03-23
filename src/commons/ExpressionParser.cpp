@@ -1,4 +1,5 @@
 #include "ExpressionParser.h"
+#include <cstddef>
 
 ExpressionParser::ExpressionParser(const char* expression) {
 #define str2(s) #s
