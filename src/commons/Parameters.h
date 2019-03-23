@@ -449,6 +449,7 @@ public:
     std::string filterColumnRegex;
     std::string filteringFile;
     std::string mappingFile;
+    std::string filterExpression;
     bool positiveFilter;
     bool trimToOneColumn;
     int extractLines;
@@ -734,6 +735,7 @@ public:
     PARAMETER(PARAM_FILTER_REGEX)
     PARAMETER(PARAM_FILTER_POS)
     PARAMETER(PARAM_FILTER_FILE)
+    PARAMETER(PARAM_FILTER_EXPRESSION)
     PARAMETER(PARAM_MAPPING_FILE)
     PARAMETER(PARAM_TRIM_TO_ONE_COL)
     PARAMETER(PARAM_EXTRACT_LINES)

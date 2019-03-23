@@ -63,6 +63,11 @@ OPTION(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
 OPTION(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
 add_subdirectory(lib/zstd/build/cmake/lib EXCLUDE_FROM_ALL)
 
+# tinyexpr
+OPTION(TE_NAT_LOG "Evaluate exponents from right to left." ON)
+include_directories(lib/tinyexpr)
+add_subdirectory(lib/tinyexpr EXCLUDE_FROM_ALL)
+
 include_directories(lib)
 include_directories(lib/kseq)
 include_directories(lib/simd)

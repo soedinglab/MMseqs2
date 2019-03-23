@@ -11,6 +11,7 @@ set(commons_header_files
         commons/DBWriter.h
         commons/Debug.h
         commons/Domain.h
+        commons/ExpressionParser.h
         commons/FileUtil.h
         commons/HeaderSummarizer.h
         commons/IndexReader.h
@@ -46,6 +47,7 @@ set(commons_source_files
         commons/DBReader.cpp
         commons/DBWriter.cpp
         commons/Debug.cpp
+        commons/ExpressionParser.cpp
         commons/FileUtil.cpp
         commons/HeaderSummarizer.cpp
         commons/KSeqWrapper.cpp
