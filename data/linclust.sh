@@ -80,6 +80,7 @@ if notExists "${TMP_PATH}/clust"; then
         || fail "Clustering step died"
 fi
 if notExists "${TMP_PATH}/clu"; then
+    # shellcheck disable=SC2086
     "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/pre_clust" "${TMP_PATH}/clust" $MERGECLU_PAR \
         || fail "mergeclusters died"
 fi
