@@ -23,7 +23,7 @@ public:
 
         // Martins Clovis Eli's Rules
         transitions[M][M] = Transition('M',1,1);
-        transitions[I][M] = Transition('I',1,0);
+        transitions[I][M] = Transition('I',1,1);
         transitions[D][M] = Transition('D', 1,1);
 
         transitions[M][D] = Transition('D',1,1);
@@ -63,16 +63,34 @@ public:
         int offsetBbc;
         int startAac;
         int startCac;
+        int distanceInB = maxB - minB;
+        // here we need to align they start position in B
         if (startBab < startBbc) {
-            offsetBab = maxB - minB;
+            int aOffset = 0;
+            int bOffset = 0;
+            int btOffset = 0;
+            while(bOffset < distanceInB && btOffset < static_cast<int>(resultAB.backtrace.size())){
+                bOffset += (resultAB.backtrace[btOffset] == 'M' || resultAB.backtrace[btOffset] == 'D');
+                aOffset += (resultAB.backtrace[btOffset] == 'M' || resultAB.backtrace[btOffset] == 'I');
+                btOffset++;
+            }
             offsetBbc = 0;
-            startAac = startAab + offsetBab;
+            offsetBab = btOffset;
+            startAac = startAab + aOffset;
             startCac = startCbc;
         } else if (startBab > startBbc) {
+            int bOffset = 0;
+            int cOffset = 0;
+            int btOffset = 0;
+            while(bOffset < distanceInB && btOffset < static_cast<int>(resultBC.backtrace.size())){
+                bOffset += (resultBC.backtrace[btOffset] == 'M'  || resultBC.backtrace[btOffset] == 'I');
+                cOffset += (resultBC.backtrace[btOffset] == 'M'  || resultBC.backtrace[btOffset] == 'D');
+                btOffset++;
+            }
             offsetBab = 0;
-            offsetBbc = maxB - minB;
+            offsetBbc = btOffset;
             startAac = startAab;
-            startCac = startCbc + offsetBbc;
+            startCac = startCbc + cOffset;
         } else {
             offsetBab = 0;
             offsetBbc = 0;
@@ -135,6 +153,7 @@ public:
         resultAC.dbLen = resultBC.dbLen;
         resultAC.backtrace.resize(lastM);
     }
+
 
 private:
     struct Transition {
