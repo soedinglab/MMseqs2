@@ -56,6 +56,7 @@ ffindexFilter::ffindexFilter(Parameters &par) {
     trimToOneColumn = par.trimToOneColumn;
     positiveFiltering = par.positiveFilter;
     shouldAddSelfMatch = par.includeIdentity;
+    parser = NULL;
     
 	initFiles();
 
@@ -160,6 +161,14 @@ ffindexFilter::ffindexFilter(Parameters &par) {
         std::cout << "Filtering by numerical comparison.\n";
         compValue = par.compValue;
         compOperator = par.compOperator;
+    } else if (par.filterExpression != "") {
+        mode = EXPRESSION_FILTERING;
+        parser = new ExpressionParser(par.filterExpression.c_str());
+        if (parser->isOk() == false){
+            Debug(Debug::INFO) << "Error in expression " << par.filterExpression << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        bindableParserColumns = parser->findBindableIndices();
     } else {
         mode = REGEX_FILTERING;
         std::cout << "Filtering by RegEx.\n";
@@ -262,14 +271,28 @@ int ffindexFilter::runFilter(){
                     double toCompare = strtod(columnValue, NULL);
                     if (compOperator == GREATER_OR_EQUAL) {
                         nomatch = !(toCompare >= compValue); // keep if the comparison is true
-                    } else if(compOperator == LOWER_OR_EQUAL) {
+                    } else if (compOperator == LOWER_OR_EQUAL) {
                         nomatch = !(toCompare <= compValue); // keep if the comparison is true
-                    } else if(compOperator == EQUAL) {
+                    } else if (compOperator == EQUAL) {
                         nomatch = !(toCompare == compValue); // keep if the comparison is true
                     } else {
                         nomatch = 0;
-                    } 
-
+                    }
+                } else if (mode == EXPRESSION_FILTERING) {
+				    const char* columnPointers[128];
+                    Util::getWordsOfLine(lineBuffer, columnPointers, 128);
+				    for (size_t i = 0; i < bindableParserColumns.size(); ++i) {
+				        size_t columnToBind = bindableParserColumns[i];
+				        char* rest;
+				        const double value = strtod(columnPointers[columnToBind], &rest);
+                        if ((rest == columnPointers[columnToBind]) || errno == ERANGE) {
+                            Debug(Debug::WARNING) << "Could not parse column " << columnToBind << "!\n";
+                            continue;
+                        }
+				        parser->bind(columnToBind, value);
+				    }
+				    const double result = parser->evaluate();
+                    nomatch = (result == 0);
                 } else if (mode == REGEX_FILTERING){
 					nomatch = regexec(&regex, columnValue, 0, NULL, 0);
                 } else if (mode == JOIN_DB){
