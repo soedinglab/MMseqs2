@@ -204,7 +204,7 @@ template <int N>
 #ifndef AVX2
 inline bool isInCodons(const char* sequence, simd_int codons, simd_int codons2) {
 #else
-inline bool isInCodons(const char* sequence, simd_int codons, simd_int) {
+    inline bool isInCodons(const char* sequence, simd_int codons, simd_int) {
 #endif
     simd_int c = simdi_loadu((simd_int*)sequence);
     // ATGA ATGA ATGA ATGA
@@ -448,7 +448,7 @@ size_t Orf::writeOrfHeader(char *buffer, unsigned int key, size_t fromPos, size_
     int complete = (hasIncompleteStart) | (hasIncompleteEnd << 1);
     if(complete != 0){
         *(tmpBuff-1) = '\t';
-        tmpBuff = Itoa::i32toa_sse2(len, tmpBuff);
+        tmpBuff = Itoa::i32toa_sse2(complete, tmpBuff);
     }
     *(tmpBuff-1) = '\n';
     *(tmpBuff) = '\0';

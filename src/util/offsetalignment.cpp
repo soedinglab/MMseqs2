@@ -87,7 +87,7 @@ void chainAlignmentHits(std::vector<Matcher::result_t> &results, std::vector<Mat
 // query update
 //   Nucl/Prot
 void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf::SequenceLocation *qloc,
-        IndexReader& tOrfDBr, bool targetNeedsUpdate, bool isNucleotideSearch, int thread_idx) {
+                  IndexReader& tOrfDBr, bool targetNeedsUpdate, bool isNucleotideSearch, int thread_idx) {
     size_t startPos = results.size();
     Matcher::readAlignmentResults(results, data, true);
     size_t endPos = results.size();
@@ -208,21 +208,22 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             tSourceDbr = qSourceDbr;
         }else{
             tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::SRC_SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0, DBReader<unsigned int>::USE_INDEX );
-            if(Parameters::isEqualDbtype(tSourceDbr->getDbtype(), Parameters::DBTYPE_INDEX_DB)){
-                IndexReader tseqDbr(par.db3, par.threads, IndexReader::SEQUENCES, 0, IndexReader::PRELOAD_INDEX);
-                seqtargetNuc = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
-                isTransNucTransNucSearch = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_AMINO_ACIDS);
-            }else{
-                if(par.searchType == Parameters::SEARCH_TYPE_AUTO && (targetNucl == true && queryNucl == true )){
-                    Debug(Debug::INFO) << "Assume nucl/nucl search was performed. \n";
-                    Debug(Debug::INFO) << "If this is not correct than please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
-                } else if(par.searchType == Parameters::SEARCH_TYPE_TRANSLATED){
-                    seqtargetNuc = false;
-                    isTransNucTransNucSearch = true;
-                } else if(par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES){
-                    seqtargetNuc = true;
-                    isTransNucTransNucSearch = false;
-                }
+        }
+
+        if(Parameters::isEqualDbtype(tSourceDbr->getDbtype(), Parameters::DBTYPE_INDEX_DB)){
+            IndexReader tseqDbr(par.db3, par.threads, IndexReader::SEQUENCES, 0, IndexReader::PRELOAD_INDEX);
+            seqtargetNuc = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+            isTransNucTransNucSearch = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_AMINO_ACIDS);
+        }else{
+            if(par.searchType == Parameters::SEARCH_TYPE_AUTO && (targetNucl == true && queryNucl == true )){
+                Debug(Debug::INFO) << "Assume nucl/nucl search was performed. \n";
+                Debug(Debug::INFO) << "If this is not correct than please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
+            } else if(par.searchType == Parameters::SEARCH_TYPE_TRANSLATED){
+                seqtargetNuc = false;
+                isTransNucTransNucSearch = true;
+            } else if(par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES){
+                seqtargetNuc = true;
+                isTransNucTransNucSearch = false;
             }
         }
 
