@@ -23,6 +23,8 @@ int result2rbh(int argc, const char **argv, const Command &command) {
         thread_idx = omp_get_thread_num();
 #endif
         const char *entry[255];
+        std::string rbhBsString;
+        rbhBsString.reserve(100000);
 
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < resultReader.getSize(); id++) {
@@ -30,45 +32,42 @@ int result2rbh(int argc, const char **argv, const Command &command) {
 
             unsigned int AdbID = resultReader.getDbKey(id);
             char *results = resultReader.getData(id, thread_idx);
-            char *startEntryAtoB = results;
-            char *endEntryAtoB = results;
-            size_t entryAtoBlength = 0;
-
             int bestAtoBbitScore = 0; // initialize - no match of current A to any B
-            unsigned int bestB = 0;
 
+            char *startRbhB = results;
+            char *endRbhB = results;
+            size_t RbhBlength  = 0;
+
+            // go over A->B direction (getting bestAtoBbitScore):
             while (*results != '\0') {
                 Util::getWordsOfLine(results, entry, 255);
-                unsigned int BdbID = Util::fast_atoi<int>(entry[0]);
                 int currAlnScore = Util::fast_atoi<int>(entry[1]);
-
-                results = Util::skipLine(results);
-
-                // initialize with first line: this line is A-->B best hit:
                 if (bestAtoBbitScore == 0) {
+                    // first iteration is an A->B line - update bestAtoBbitScore
                     bestAtoBbitScore = currAlnScore;
-                    bestB = BdbID;
-                    endEntryAtoB = results;
-                }
-                // after the first line the bitscore can only decrease:
-                else if (bestAtoBbitScore < currAlnScore) {
-                    Debug(Debug::ERROR) << "The merged results are assumed to be sorted by decreasing bitscore.\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                // go over B-->A best hits:
-                else if (currAlnScore == bestAtoBbitScore) {
-                    if (BdbID == bestB) {
-                        entryAtoBlength = (endEntryAtoB - startEntryAtoB);
-                        break;
-                        // no need to check anymore...
-                    }
+                    results = Util::skipLine(results);
                 } else {
-                    break;
-                    // worse bitscore - no need to check anymore...
+                    // this is a B->A line - the bitscore can only decrease:
+                    if (bestAtoBbitScore < currAlnScore) {
+                        Debug(Debug::ERROR) << "The merged results are assumed to be sorted by decreasing bitscore.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    if (currAlnScore < bestAtoBbitScore) {
+                        // worse bitscore - no need to check anymore...
+                        break;
+                    }
+                    // current B->A has bestAtoBbitScore - we retain this line for writing!
+                    startRbhB = results;
+                    results = Util::skipLine(results); 
+                    endRbhB = results;
+                    RbhBlength = (endRbhB - startRbhB);
+                    rbhBsString.append(startRbhB, RbhBlength);
                 }
             }
 
-            dbw.writeData(startEntryAtoB, entryAtoBlength, AdbID, thread_idx);
+            // write entry for A (write null byte);
+            dbw.writeData(rbhBsString.c_str(), rbhBsString.length(), AdbID, thread_idx);
+            rbhBsString.clear();
         }
     }
     dbw.close(true);
