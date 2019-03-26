@@ -101,7 +101,7 @@ std::vector<struct Command> commands = {
                 CITATION_MMSEQS2},
         {"rbh",                  rbh,                  &par.searchworkflow,       COMMAND_MAIN,
                 "Find reciprocal best hits between query and target",
-                "currently no support for equalities",
+                "",
                 "Eli Levy Karin",
                 "<i:queryDB> <i:targetDB> <o:alignmentDB> <tmpDir>",
                 CITATION_MMSEQS2},
