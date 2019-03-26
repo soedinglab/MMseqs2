@@ -63,6 +63,9 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
         bool needFullHeaders = false;
         Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
     }
+    if(par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM){
+        needBacktrace = true;
+    }
     if (needBacktrace) {
         Debug(Debug::INFO) << "Alignment backtraces will be computed, since they were requested by output format.\n";
         par.addBacktrace = true;

@@ -84,6 +84,7 @@ public:
 
     // convertalis alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
+    static const int FORMAT_ALIGNMENT_SAM = 1;
     static const int FORMAT_ALIGNMENT_BLAST_WITH_LEN = 2;
 
     // outfmt

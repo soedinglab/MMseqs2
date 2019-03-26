@@ -94,7 +94,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     bool needBacktrace = false;
     bool needFullHeaders = false;
     const std::vector<int> outcodes = Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
-
+    if(format == Parameters::FORMAT_ALIGNMENT_SAM){
+        needSequenceDB = true;
+        needBacktrace = true;
+    }
     bool isTranslatedSearch = false;
 
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
@@ -148,6 +151,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
+
+
+
     unsigned int localThreads = 1;
 #ifdef OPENMP
     localThreads = std::min((unsigned int)par.threads, (unsigned int)alnDbr.getSize());
@@ -161,6 +167,45 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     const bool isDb = par.dbOut;
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
+
+
+    if (format == Parameters::FORMAT_ALIGNMENT_SAM) {
+        char buffer[1024];
+        unsigned int lastKey = tDbr->sequenceReader->getLastKey();
+        bool *headerWritten = new bool[lastKey + 1];
+        memset(headerWritten, 0, sizeof(bool) * (lastKey + 1));
+        resultWriter.writeStart(0);
+        std::string header = "@HD\tVN:1.4\tSO:queryname\n";
+        resultWriter.writeAdd(header.c_str(), header.size(), 0);
+
+        for (size_t i = 0; i < alnDbr.getSize(); i++) {
+
+            char *data = alnDbr.getData(i, 0);
+
+            while (*data != '\0') {
+                char dbKeyBuffer[255 + 1];
+                Util::parseKey(data, dbKeyBuffer);
+                const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                if (headerWritten[dbKey] == false) {
+                    headerWritten[dbKey] = true;
+                    unsigned int tId = tDbr->sequenceReader->getId(dbKey);
+                    unsigned int seqLen = tDbr->sequenceReader->getSeqLens(tId) - 2;
+                    unsigned int tHeaderId = tDbrHeader->sequenceReader->getId(dbKey);
+                    const char *tHeader = tDbrHeader->sequenceReader->getData(tHeaderId, 0);
+                    std::string targetId = Util::parseFastaHeader(tHeader);
+                    int count = snprintf(buffer, sizeof(buffer), "@SQ\tSN:%s\tLN:%d\n", targetId.c_str(),
+                                         (int32_t) seqLen);
+                    if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
+                        Debug(Debug::WARNING) << "Truncated line in header " << i << "!\n";
+                        continue;
+                    }
+                    resultWriter.writeAdd(buffer, count, 0);
+                }
+                resultWriter.writeEnd(0, 0, false, 0);
+                data = Util::skipLine(data);
+            }
+        }
+    }
 
 #pragma omp parallel num_threads(localThreads)
     {
@@ -184,6 +229,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
         std::string targetProfData;
         targetProfData.reserve(1024);
+
 
 #pragma omp  for schedule(dynamic, 10)
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
@@ -427,6 +473,37 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         result.append(buffer, count);
                         break;
                     }
+                    case Parameters::FORMAT_ALIGNMENT_SAM:{
+
+                        uint32_t mapq = -4.343 * log( static_cast<double>(res.qcov * res.seqId));
+                        mapq = (uint32_t) (mapq + 4.99);
+                        mapq = mapq < 254 ? mapq : 254;
+                        bool strand = res.qEndPos > res.qStartPos;
+                        int start = std::min( res.qStartPos,  res.qEndPos);
+                        int end   = std::max( res.qStartPos,  res.qEndPos);
+
+                        std::string queryStr;
+                        if (queryProfile) {
+                            queryStr = std::string(queryProfData.c_str() + start, (end + 1)-start);
+                        } else {
+                            queryStr = std::string(querySeqData + start, (end + 1) - start);
+                        }
+
+                        int rawScore = static_cast<int>(evaluer->computeRawScoreFromBitScore(res.score) + 0.5);
+                        int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t%s\t*\t0\t0\t%s\t*\tAS:i:%d\tNM:i:%d\n",  queryId.c_str(), (strand) ? 16: 0,
+                                                                                  targetId.c_str(), res.dbStartPos + 1, mapq, res.backtrace.c_str(),  queryStr.c_str(),
+                                                                                  rawScore, missMatchCount);
+
+                        if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
+                            Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
+                            continue;
+                        }
+
+
+                        result.append(buffer, count);
+
+                        break;
+                        }
                     default:
                         Debug(Debug::ERROR) << "Not implemented yet";
                         EXIT(EXIT_FAILURE);
