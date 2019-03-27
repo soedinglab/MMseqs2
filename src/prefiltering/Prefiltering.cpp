@@ -557,6 +557,10 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
     splits = std::max(MMseqsMPI::numProc, splits);
     size_t fromSplit = 0;
     size_t splitCount = 1;
+    if(compressed == true && splitMode == Parameters::TARGET_DB_SPLIT){
+            Debug(Debug::ERROR) << "The output of the prefilter cannot be compressed during target split mode. Please remove --compress.\n";
+            EXIT(EXIT_FAILURE);
+    }
     // if split size is great than nodes than we have to
     // distribute all splits equally over all nodes
     unsigned int * splitCntPerProc = new unsigned int[MMseqsMPI::numProc];
@@ -717,10 +721,6 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
     // create index table based on split parameter
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
-        if(compressed == true){
-            Debug(Debug::ERROR) << "The output of the prefilter cannot be compressed during target split mode. Please remove --compress.\n";
-            EXIT(EXIT_FAILURE);
-        }
         Util::decomposeDomainByAminoAcid(tdbr->getDataSize(), tdbr->getSeqLens(), tdbr->getSize(),
                                          split, splitCount, &dbFrom, &dbSize);
         if (dbSize == 0) {
