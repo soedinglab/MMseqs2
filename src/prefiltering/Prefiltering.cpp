@@ -667,6 +667,11 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
     bool hasResult = false;
     size_t totalSplits = std::min(dbSize, (size_t) splits);
     if (splitProcessCount > 1) {
+        if(compressed == true && splitMode == Parameters::TARGET_DB_SPLIT){
+            Debug(Debug::ERROR) << "The output of the prefilter cannot be compressed during target split mode. Please remove --compress.\n";
+            EXIT(EXIT_FAILURE);
+//
+        }
         // splits template database into x sequence steps
         std::vector<std::pair<std::string, std::string> > splitFiles;
         for (size_t i = fromSplit; i < (fromSplit + splitProcessCount) && i < totalSplits; i++) {
@@ -712,6 +717,10 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
     // create index table based on split parameter
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
+        if(compressed == true){
+            Debug(Debug::ERROR) << "The output of the prefilter cannot be compressed during target split mode. Please remove --compress.\n";
+            EXIT(EXIT_FAILURE);
+        }
         Util::decomposeDomainByAminoAcid(tdbr->getDataSize(), tdbr->getSeqLens(), tdbr->getSize(),
                                          split, splitCount, &dbFrom, &dbSize);
         if (dbSize == 0) {
