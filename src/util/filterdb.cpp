@@ -186,7 +186,7 @@ ffindexFilter::~ffindexFilter() {
 	if (mode == REGEX_FILTERING)
 		regfree(&regex);
 	dataDb->close();
-        dbw->close(true);
+	dbw->close();
 	delete dataDb;
 	delete dbw;
 }
