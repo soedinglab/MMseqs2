@@ -3,6 +3,7 @@
 #include "Util.h"
 #include "DistanceCalculator.h"
 #include "Debug.h"
+#include "CommandCaller.h"
 
 #include <iomanip>
 #include <regex.h>
@@ -1426,6 +1427,10 @@ void Parameters::printParameters(const std::string &module, int argc, const char
         Debug(Debug::INFO) << pargv[i] << " ";
     }
     Debug(Debug::INFO) << "\n\n";
+
+    if (CommandCaller::getCallDepth() > 0) {
+        return;
+    }
 
     size_t maxWidth = 0;
     for(size_t i = 0; i < par.size(); i++) {
