@@ -702,13 +702,12 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         std::vector<char> repSequence(seqDbr.getLastKey()+1);
         std::fill(repSequence.begin(), repSequence.end(), false);
         // write result
-        DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed,
+        DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), 1, par.compressed,
                      (Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) ? Parameters::DBTYPE_PREFILTER_REV_RES : Parameters::DBTYPE_PREFILTER_RES );
         dbw.open();
 
         Timer timer;
         if(splits > 1) {
-            std::cout << "How many splits: " << splits<<std::endl;
             seqDbr.unmapData();
 
             if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
@@ -719,15 +718,15 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         } else {
             if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
                 writeKmerMatcherResult<Parameters::DBTYPE_NUCLEOTIDES>(dbw, hashSeqPair, totalKmers, repSequence,
-                                                                       par.threads);
+                                                                       1);
             }else{
-                writeKmerMatcherResult<Parameters::DBTYPE_AMINO_ACIDS>(dbw, hashSeqPair, totalKmers, repSequence, par.threads);
+                writeKmerMatcherResult<Parameters::DBTYPE_AMINO_ACIDS>(dbw, hashSeqPair, totalKmers, repSequence, 1);
             }
         }
         Debug(Debug::INFO) << "Time for fill: " << timer.lap() << "\n";
         // add missing entries to the result (needed for clustering)
 
-#pragma omp parallel
+#pragma omp parallel num_threads(1)
         {
             unsigned int thread_idx = 0;
 #ifdef OPENMP
@@ -786,7 +785,7 @@ void writeKmerMatcherResult(DBWriter & dbw,
         }
     }
     threadOffsets.push_back(totalKmers);
-#pragma omp parallel for schedule(dynamic, 1)
+#pragma omp parallel for schedule(dynamic, 1) num_threads(threads)
     for(size_t thread = 0; thread < threads; thread++){
         std::string prefResultsOutString;
         prefResultsOutString.reserve(100000000);
