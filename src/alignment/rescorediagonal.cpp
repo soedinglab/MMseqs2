@@ -362,7 +362,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     size_t dbFrom = 0;
     size_t dbSize = 0;
 
-    Util::decomposeDomainByAminoAcid(resultReader.getAminoAcidDBSize(), resultReader.getSeqLens(), resultReader.getSize(),
+    Util::decomposeDomainByAminoAcid(resultReader.getDataSize(), resultReader.getSeqLens(), resultReader.getSize(),
                                      MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
     std::string outfile = par.db4;
     std::string outfileIndex = par.db4Index;

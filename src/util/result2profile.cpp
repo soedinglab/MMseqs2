@@ -362,7 +362,7 @@ int result2profile(int argc, const char **argv, const Command &command) {
 #ifdef HAVE_MPI
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(resultReader.getAminoAcidDBSize(), resultReader.getSeqLens(), resultReader.getSize(),
+    Util::decomposeDomainByAminoAcid(resultReader.getDataSize(), resultReader.getSeqLens(), resultReader.getSize(),
                                      MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
 
     int status = result2profile(resultReader, par, dbFrom, dbSize);
