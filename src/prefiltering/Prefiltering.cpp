@@ -546,7 +546,7 @@ bool Prefiltering::isSameQTDB(const std::string &queryDB) {
 
 void Prefiltering::runAllSplits(const std::string &queryDB, const std::string &queryDBIndex,
                                 const std::string &resultDB, const std::string &resultDBIndex) {
-    runSplits(queryDB, queryDBIndex, resultDB, resultDBIndex, 0, splits);
+    runSplits(queryDB, queryDBIndex, resultDB, resultDBIndex, 0, splits, false);
 }
 
 #ifdef HAVE_MPI
@@ -596,7 +596,10 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
     }
 
     std::pair<std::string, std::string> result = Util::createTmpFileNames(procTmpResultDB, procTmpResultDBIndex, MMseqsMPI::rank);
-    int hasTmpResult = runSplits(queryDB, queryDBIndex, result.first, result.second, fromSplit, splitCount) == true ? 1 : 0;
+    bool merge = (splitMode == Parameters::QUERY_DB_SPLIT);
+
+    // target split do not need to be merged
+    int hasTmpResult = runSplits(queryDB, queryDBIndex, result.first, result.second, fromSplit, splitCount, merge) == true ? 1 : 0;
 
     // if result is on a local drive - copy it to shared drive and delete from local
     if (localTmpPath != "") {
@@ -642,7 +645,7 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
 
 bool Prefiltering::runSplits(const std::string &queryDB, const std::string &queryDBIndex,
                              const std::string &resultDB, const std::string &resultDBIndex,
-                             size_t fromSplit, size_t splitProcessCount) {
+                             size_t fromSplit, size_t splitProcessCount, bool merge) {
     bool sameQTDB = isSameQTDB(queryDB);
     DBReader<unsigned int> *qdbr;
     if (templateDBIsIndex == false && sameQTDB == true) {
@@ -680,7 +683,7 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
         std::vector<std::pair<std::string, std::string> > splitFiles;
         for (size_t i = fromSplit; i < (fromSplit + splitProcessCount) && i < totalSplits; i++) {
             std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(resultDB, resultDBIndex, i);
-            if (runSplit(qdbr, filenamePair.first.c_str(), filenamePair.second.c_str(), i, totalSplits, sameQTDB)) {
+            if (runSplit(qdbr, filenamePair.first.c_str(), filenamePair.second.c_str(), i, totalSplits, sameQTDB, merge)) {
                 splitFiles.push_back(filenamePair);
 
             }
@@ -690,7 +693,7 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
             hasResult = true;
         }
     } else if (splitProcessCount == 1) {
-        if (runSplit(qdbr, resultDB.c_str(), resultDBIndex.c_str(), fromSplit, totalSplits, sameQTDB)) {
+        if (runSplit(qdbr, resultDB.c_str(), resultDBIndex.c_str(), fromSplit, totalSplits, sameQTDB, merge)) {
             hasResult = true;
         }
     }
@@ -704,7 +707,7 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
 }
 
 bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &resultDB, const std::string &resultDBIndex,
-                            size_t split, size_t splitCount, bool sameQTDB) {
+                            size_t split, size_t splitCount, bool sameQTDB, bool merge) {
 
     Debug(Debug::INFO) << "Process prefiltering step " << (split + 1) << " of " << splitCount << "\n\n";
 
@@ -879,7 +882,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         printStatistics(stats, reslens, localThreads, empty, maxResults);
     }
     Debug(Debug::INFO) << "\nTime for prefiltering scores calculation: " << timer.lap() << "\n";
-    tmpDbw.close(); // sorts the index
+    tmpDbw.close(merge); // sorts the index
 
     // sort by ids
     // needed to speed up merge later one

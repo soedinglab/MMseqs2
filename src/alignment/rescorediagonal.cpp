@@ -364,18 +364,20 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
 
     Util::decomposeDomainByAminoAcid(resultReader.getAminoAcidDBSize(), resultReader.getSeqLens(), resultReader.getSize(),
                                      MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db4, par.db4Index, MMseqsMPI::rank);
+    std::string outfile = par.db4;
+    std::string outfileIndex = par.db4Index;
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outfile, outfileIndex, MMseqsMPI::rank);
 
     DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), par.threads, par.compressed, dbtype);
     resultWriter.open();
     int status = doRescorediagonal(par, resultWriter, resultReader, dbFrom, dbSize);
-    resultWriter.close();
+    resultWriter.close(true);
 
     MPI_Barrier(MPI_COMM_WORLD);
     if(MMseqsMPI::rank == 0) {
         std::vector<std::pair<std::string, std::string>> splitFiles;
         for(int proc = 0; proc < MMseqsMPI::numProc; ++proc){
-            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db4, par.db4Index, proc);
+            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(outfile, outfileIndex, proc);
             splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
         }
         DBWriter::mergeResults(par.db4, par.db4Index, splitFiles);

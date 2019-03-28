@@ -36,7 +36,7 @@ public:
 
     bool runSplits(const std::string &queryDB, const std::string &queryDBIndex,
                    const std::string &resultDB, const std::string &resultDBIndex,
-                   size_t fromSplit, size_t splitProcessCount);
+                   size_t fromSplit, size_t splitProcessCount, bool merge);
 
     // merge file
     void mergeFiles(const std::string &outDb, const std::string &outDBIndex,
@@ -101,7 +101,7 @@ private:
     const int compressed;
 
     bool runSplit(DBReader<unsigned int> *qdbr, const std::string &resultDB, const std::string &resultDBIndex,
-                  size_t split, size_t splitCount, bool sameQTDB);
+                  size_t split, size_t splitCount, bool sameQTDB, bool merge);
 
     // compute kmer size and split size for index table
     static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize,
