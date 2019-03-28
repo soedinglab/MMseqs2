@@ -133,6 +133,15 @@ int createindex(int argc, const char **argv, const Command& command) {
     int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
 
+    if(isNucl && par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES ){
+        if ( par.PARAM_K.wasSet == false) {
+            par.kmerSize = 15;
+        }
+        if ( par.PARAM_MAX_SEQ_LEN.wasSet == false) {
+            par.maxSeqLen = 10000;
+        }
+    }
+
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_AUTO){
         Debug(Debug::ERROR) << "Database " << par.db1 << " is a nucleotide database. \n"
                             << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";

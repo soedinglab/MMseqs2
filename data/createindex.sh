@@ -39,31 +39,7 @@ if [ -n "$TRANSLATED" ]; then
         "$MMSEQS" rmdb "$2/orfs_aa"
         rm -f "$2/createindex.sh"
     fi
-elif [ -n "$NUCL" ]; then
-      # 1. extract orf
-    if notExists "$2/nucl_split_seq.dbtype"; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" splitsequence "$INPUT" "$2/nucl_split_seq" $SPLIT_SEQ_PAR \
-            || fail "splitsequence died"
-    fi
-
-    if notExists "$2/nucl_split_seq_rev.dbtype"; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" extractframes "$2/nucl_split_seq" "$2/nucl_split_seq_rev" $EXTRACT_FRAMES_PAR  \
-            || fail "Extractframes died"
-    fi
-
-    # shellcheck disable=SC2086
-    "$MMSEQS" $INDEXER "$2/nucl_split_seq_rev.dbtype" "$INPUT" $INDEX_PAR \
-        || fail "indexdb died"
-
-    if [ -n "$REMOVE_TMP" ]; then
-        echo "Remove temporary files"
-        rm -f "$2/nucl_split_seq" "$2/nucl_split_seq.index" "$2/nucl_split_seq.dbtype"
-        rm -f "$2/nucl_split_seq_rev" "$2/nucl_split_seq_rev.index" "$2/nucl_split_seq_rev.dbtype"
-        rm -f "$2/createindex.sh"
-    fi
-elif [ -n "$LIN_NUCL" ]; then
+elif [ -n "$LIN_NUCL" ] || [ -n "$NUCL" ]; then
       # 1. extract orf
     if notExists "$2/nucl_split_seq.dbtype"; then
         # shellcheck disable=SC2086

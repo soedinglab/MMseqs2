@@ -56,12 +56,16 @@ int indexdb(int argc, const char **argv, const Command &command) {
     dbr.open(DBReader<unsigned int>::NOSORT);
 
     DBReader<unsigned int> *dbr2 = NULL;
+
     if (sameDB == false) {
         dbr2 = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         dbr2->open(DBReader<unsigned int>::NOSORT);
     }
 
-    BaseMatrix *seedSubMat = Prefiltering::getSubstitutionMatrix(par.seedScoringMatrixFile, par.alphabetSize, 8.0f, false);
+    bool db2IsNucl = dbr2 != NULL && Parameters::isEqualDbtype(dbr2->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+    bool db1IsNucl = Parameters::isEqualDbtype(dbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+
+    BaseMatrix *seedSubMat = Prefiltering::getSubstitutionMatrix(par.seedScoringMatrixFile, par.alphabetSize, 8.0f, false, (db1IsNucl && db2IsNucl));
 
     int split = 1;
     int splitMode = Parameters::TARGET_DB_SPLIT;
@@ -72,7 +76,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
-    Prefiltering::setupSplit(dbr, seedSubMat->alphabetSize, dbr.getDbtype(), par.threads, false, par.maxResListLen, memoryLimit, &par.kmerSize, &split, &splitMode);
+    Prefiltering::setupSplit(dbr, seedSubMat->alphabetSize - 1, dbr.getDbtype(), par.threads, false, par.maxResListLen, memoryLimit, &par.kmerSize, &split, &splitMode);
 
     bool kScoreSet = false;
     for (size_t i = 0; i < par.indexdb.size(); i++) {

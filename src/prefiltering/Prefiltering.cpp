@@ -55,6 +55,34 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     int indexMasked = maskMode;
     int minKmerThr = INT_MIN;
     int targetDbtype = DBReader<unsigned int>::parseDbType(targetDB.c_str());
+
+
+    // init the substitution matrices
+    switch (querySeqType & 0x7FFFFFFF) {
+        case Parameters::DBTYPE_NUCLEOTIDES:
+            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 1.0, false, true);
+            ungappedSubMat = kmerSubMat;
+            alphabetSize = kmerSubMat->alphabetSize;
+            break;
+        case Parameters::DBTYPE_AMINO_ACIDS:
+            kmerSubMat = getSubstitutionMatrix(seedScoringMatrixFile, alphabetSize, 8.0, false, false);
+            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false, false);
+            alphabetSize = kmerSubMat->alphabetSize;
+            break;
+        case Parameters::DBTYPE_HMM_PROFILE:
+            // needed for Background distributions
+            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false, false);
+            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false, false);
+            break;
+        case Parameters::DBTYPE_PROFILE_STATE_PROFILE:
+            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, true, false);
+            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false, false);
+            alphabetSize = kmerSubMat->alphabetSize;
+            break;
+        default:
+            Debug(Debug::ERROR) << "Query sequence type not implemented!\n";
+            EXIT(EXIT_FAILURE);
+    }
     if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
         Debug(Debug::INFO) << "Use index  " << targetDB << "\n";
 
@@ -151,32 +179,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         templateDBIsIndex = false;
     }
 
-    // init the substitution matrices
-    switch (querySeqType & 0x7FFFFFFF) {
-        case Parameters::DBTYPE_NUCLEOTIDES:
-            kmerSubMat = new NucleotideMatrix(scoringMatrixFile.c_str(), 1.0, 0.0);
-            ungappedSubMat = kmerSubMat;
-            alphabetSize = kmerSubMat->alphabetSize;
-            break;
-        case Parameters::DBTYPE_AMINO_ACIDS:
-            kmerSubMat = getSubstitutionMatrix(seedScoringMatrixFile, alphabetSize, 8.0, false);
-            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false);
-            alphabetSize = kmerSubMat->alphabetSize;
-            break;
-        case Parameters::DBTYPE_HMM_PROFILE:
-            // needed for Background distributions
-            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
-            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false);
-            break;
-        case Parameters::DBTYPE_PROFILE_STATE_PROFILE:
-            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, true);
-            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false);
-            alphabetSize = kmerSubMat->alphabetSize;
-            break;
-        default:
-            Debug(Debug::ERROR) << "Query sequence type not implemented!\n";
-            EXIT(EXIT_FAILURE);
-    }
+
 
     // investigate if it makes sense to mask the profile consensus sequence
     if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
@@ -983,10 +986,14 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
     Debug(Debug::INFO) << empty << " sequences with 0 size result lists.\n";
 }
 
-BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState) {
+
+BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState, bool isNucl) {
     Debug(Debug::INFO) << "Substitution matrices...\n";
     BaseMatrix *subMat;
-    if (alphabetSize < 21) {
+
+    if (isNucl){
+        subMat = new NucleotideMatrix(scoringMatrixFile.c_str(), bitFactor, 0.0);
+    } else if (alphabetSize < 21) {
         SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2f);
         subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, alphabetSize, bitFactor);
     }else if(profileState == true){

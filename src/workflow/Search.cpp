@@ -367,7 +367,9 @@ int search(int argc, const char **argv, const Command& command) {
                 break;
         }
         cmd.addVariable("SPLITSEQUENCE_PAR", par.createParameterString(par.splitsequence).c_str());
-        cmd.addVariable("NEEDTARGETSPLIT","TRUE");
+        if(indexStr=="") {
+            cmd.addVariable("NEEDTARGETSPLIT", "TRUE");
+        }
         cmd.addVariable("NEEDQUERYSPLIT","TRUE");
         cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());
