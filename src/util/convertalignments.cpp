@@ -509,7 +509,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         }
                         int rawScore = static_cast<int>(evaluer->computeRawScoreFromBitScore(res.score) + 0.5);
 
-                        uint32_t mapq = -4.343 * log(1.0- exp(static_cast<double>(rawScore)));
+                        uint32_t mapq = -4.343 * log(1.0- exp(static_cast<double>(-rawScore)));
                         mapq = (uint32_t) (mapq + 4.99);
                         mapq = mapq < 254 ? mapq : 254;
                         int start = std::min( res.qStartPos,  res.qEndPos);
