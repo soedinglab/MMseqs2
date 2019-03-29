@@ -10,6 +10,7 @@
 #include <cfloat>
 #include <algorithm>
 #include <vector>
+#include "itoa.h"
 
 #include "Sequence.h"
 #include "BaseMatrix.h"
@@ -115,7 +116,6 @@ public:
                     newBacktrace.append(buffer, len - 1);
                     newBacktrace.push_back(backtrace[pos]);
                 }
-
             }
         }
     };
