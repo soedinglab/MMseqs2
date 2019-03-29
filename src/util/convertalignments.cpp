@@ -316,24 +316,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                     const float bestMatchEstimate = static_cast<float>(std::min(abs(res.qEndPos - adjustQstart), abs(res.dbEndPos - adjustDBstart)));
                     missMatchCount = static_cast<unsigned int>(bestMatchEstimate * (1.0f - res.seqId) + 0.5);
                 }
-                // tblastx searches need to update the coordinates
-                if(isTranslatedSearch == true && targetNucs == true && queryNucs == true ) {
-                    bool strand = res.qEndPos > res.qStartPos;
-                    // account for last orf
-                    //  GGCACC
-                    //  GGCA
-                    //     ^
-                    //     last codon position
-                    //  GGCACC
-                    //    GGCA
-                    //    ^
-                    //     last codon position
-                    if(strand){
-                        res.qEndPos = std::min(res.qEndPos+2, static_cast<int>(res.qLen-1));
-                    }else{
-                        res.qEndPos = std::min(res.qEndPos-2, static_cast<int>(res.qLen-1));
-                    }
-                }
 
                 switch (format) {
                     case Parameters::FORMAT_ALIGNMENT_BLAST_TAB: {
