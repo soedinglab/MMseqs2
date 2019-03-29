@@ -507,7 +507,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
                             res.backtrace = newBacktrace;
                         }
-                        uint32_t mapq = -4.343 * log( static_cast<double>(res.qcov * res.seqId));
+                        uint32_t mapq = -4.343 * log(1- static_cast<double>(res.qcov * res.seqId));
                         mapq = (uint32_t) (mapq + 4.99);
                         mapq = mapq < 254 ? mapq : 254;
                         int start = std::min( res.qStartPos,  res.qEndPos);
