@@ -22,7 +22,16 @@ int prefilter(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << "Initialising data structures...\n";
 
     int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+
+    std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
     int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    if(Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB) == true){
+        DBReader<unsigned int> dbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+        dbr.open(DBReader<unsigned int>::NOSORT);
+        PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&dbr);
+        targetDbType = data.seqType;
+        dbr.close();
+    }
     if (queryDbType == -1 || targetDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
@@ -37,7 +46,6 @@ int prefilter(int argc, const char **argv, const Command& command) {
     } else if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         queryDbType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
     }
-
     Prefiltering pref(par.db2, par.db2Index, queryDbType, targetDbType, par);
     Debug(Debug::INFO) << "Time for init: " << timer.lap() << "\n";
 
