@@ -395,6 +395,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                             res.backtrace = newBacktrace;
                                         }
                                         result.append(SSTR(res.backtrace));
+                                        newBacktrace.clear();
                                         break;
                                     case Parameters::OUTFMT_QSEQ:
                                         if (queryProfile) {
@@ -504,6 +505,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t%s\t*\t0\t0\t%s\t*\tAS:i:%d\tNM:i:%d\n",  queryId.c_str(), (strand) ? 16: 0,
                                                                                   targetId.c_str(), res.dbStartPos + 1, mapq, res.backtrace.c_str(),  queryStr.c_str(),
                                                                                   rawScore, missMatchCount);
+                        newBacktrace.clear();
 
                         if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
                             Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
