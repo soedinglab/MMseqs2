@@ -507,7 +507,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
                             res.backtrace = newBacktrace;
                         }
-                        uint32_t mapq = -4.343 * log(1- static_cast<double>(res.qcov * res.seqId));
+                        int rawScore = static_cast<int>(evaluer->computeRawScoreFromBitScore(res.score) + 0.5);
+
+                        uint32_t mapq = -4.343 * log(1.0- exp(static_cast<double>(rawScore)));
                         mapq = (uint32_t) (mapq + 4.99);
                         mapq = mapq < 254 ? mapq : 254;
                         int start = std::min( res.qStartPos,  res.qEndPos);
@@ -520,7 +522,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             queryStr = std::string(querySeqData + start, (end + 1) - start);
                         }
 
-                        int rawScore = static_cast<int>(evaluer->computeRawScoreFromBitScore(res.score) + 0.5);
                         int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t%s\t*\t0\t0\t%s\t*\tAS:i:%d\tNM:i:%d\n",  queryId.c_str(), (strand) ? 16: 0,
                                              targetId.c_str(), res.dbStartPos + 1, mapq, res.backtrace.c_str(),  queryStr.c_str(),
                                              rawScore, missMatchCount);
