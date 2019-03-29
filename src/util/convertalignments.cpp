@@ -230,6 +230,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         std::string targetProfData;
         targetProfData.reserve(1024);
 
+        std::string newBacktrace;
+        newBacktrace.reserve(1024);
+
 
 #pragma omp  for schedule(dynamic, 10)
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
@@ -387,6 +390,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         result.append(SSTR(res.score));
                                         break;
                                     case Parameters::OUTFMT_CIGAR:
+                                        if(isTranslatedSearch == true && targetNucs == true && queryNucs == true ){
+                                            Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
+                                            res.backtrace = newBacktrace;
+                                        }
                                         result.append(SSTR(res.backtrace));
                                         break;
                                     case Parameters::OUTFMT_QSEQ:
@@ -474,7 +481,11 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         break;
                     }
                     case Parameters::FORMAT_ALIGNMENT_SAM:{
-
+                        // for TBLASTX
+                        if(isTranslatedSearch == true && targetNucs == true && queryNucs == true ){
+                            Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
+                            res.backtrace = newBacktrace;
+                        }
                         uint32_t mapq = -4.343 * log( static_cast<double>(res.qcov * res.seqId));
                         mapq = (uint32_t) (mapq + 4.99);
                         mapq = mapq < 254 ? mapq : 254;

@@ -90,6 +90,34 @@ public:
                 }
             }
         }
+
+        static void protein2nucl(std::string & backtrace, std::string &newBacktrace) {
+            char buffer[256];
+            for (size_t pos = 0; pos < backtrace.size(); pos++) {
+                int cnt =0;
+                if (isdigit(backtrace[pos])){
+                    cnt += Util::fast_atoi<int>(backtrace.c_str()+pos);
+                    while (isdigit(backtrace[pos])){
+                        pos++;
+                    }
+                }
+                bool update = false;
+                switch (backtrace[pos]) {
+                    case 'M':
+                    case 'D':
+                    case 'I':
+                        update = true;
+                        break;
+                }
+                if (update) {
+                    char *buffNext = Itoa::i32toa_sse2(cnt*3, buffer);
+                    size_t len = buffNext - buffer;
+                    newBacktrace.append(buffer, len - 1);
+                    newBacktrace.push_back(backtrace[pos]);
+                }
+
+            }
+        }
     };
 
     Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m,
