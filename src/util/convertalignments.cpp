@@ -483,14 +483,30 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                     }
                     case Parameters::FORMAT_ALIGNMENT_SAM:{
                         // for TBLASTX
+                        bool strand = res.qEndPos > res.qStartPos;
+
                         if(isTranslatedSearch == true && targetNucs == true && queryNucs == true ){
                             Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
                             res.backtrace = newBacktrace;
+                            // account for last orf
+                            //  GGCACC
+                            //  GGCA
+                            //     ^
+                            //     last codon position
+
+                            //  GGCACC
+                            //    GGCA
+                            //    ^
+                            //     last codon position
+                            if(strand){
+                                res.qEndPos = std::min(res.qEndPos+2, static_cast<int>(res.qLen-1));
+                            }else{
+                                res.qEndPos = std::min(res.qEndPos-2, static_cast<int>(res.qLen-1));
+                            }
                         }
                         uint32_t mapq = -4.343 * log( static_cast<double>(res.qcov * res.seqId));
                         mapq = (uint32_t) (mapq + 4.99);
                         mapq = mapq < 254 ? mapq : 254;
-                        bool strand = res.qEndPos > res.qStartPos;
                         int start = std::min( res.qStartPos,  res.qEndPos);
                         int end   = std::max( res.qStartPos,  res.qEndPos);
 
@@ -544,3 +560,4 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     return EXIT_SUCCESS;
 }
+
