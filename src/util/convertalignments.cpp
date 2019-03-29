@@ -317,6 +317,24 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                     missMatchCount = static_cast<unsigned int>(bestMatchEstimate * (1.0f - res.seqId) + 0.5);
                 }
 
+                if(isTranslatedSearch == true && targetNucs == true && queryNucs == true ) {
+                    bool strand = res.qEndPos > res.qStartPos;
+                    // account for last orf
+                    //  GGCACC
+                    //  GGCA
+                    //     ^
+                    //     last codon position
+                    //  GGCACC
+                    //    GGCA
+                    //    ^
+                    //     last codon position
+                    if(strand){
+                        res.qEndPos = std::min(res.qEndPos+2, static_cast<int>(res.qLen-1));
+                    }else{
+                        res.qEndPos = std::min(res.qEndPos-2, static_cast<int>(res.qLen-1));
+                    }
+                }
+
                 switch (format) {
                     case Parameters::FORMAT_ALIGNMENT_BLAST_TAB: {
                         if (outcodes.empty()) {
@@ -488,21 +506,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         if(isTranslatedSearch == true && targetNucs == true && queryNucs == true ){
                             Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
                             res.backtrace = newBacktrace;
-                            // account for last orf
-                            //  GGCACC
-                            //  GGCA
-                            //     ^
-                            //     last codon position
-
-                            //  GGCACC
-                            //    GGCA
-                            //    ^
-                            //     last codon position
-                            if(strand){
-                                res.qEndPos = std::min(res.qEndPos+2, static_cast<int>(res.qLen-1));
-                            }else{
-                                res.qEndPos = std::min(res.qEndPos-2, static_cast<int>(res.qLen-1));
-                            }
                         }
                         uint32_t mapq = -4.343 * log( static_cast<double>(res.qcov * res.seqId));
                         mapq = (uint32_t) (mapq + 4.99);
@@ -519,8 +522,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
                         int rawScore = static_cast<int>(evaluer->computeRawScoreFromBitScore(res.score) + 0.5);
                         int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t%s\t*\t0\t0\t%s\t*\tAS:i:%d\tNM:i:%d\n",  queryId.c_str(), (strand) ? 16: 0,
-                                                                                  targetId.c_str(), res.dbStartPos + 1, mapq, res.backtrace.c_str(),  queryStr.c_str(),
-                                                                                  rawScore, missMatchCount);
+                                             targetId.c_str(), res.dbStartPos + 1, mapq, res.backtrace.c_str(),  queryStr.c_str(),
+                                             rawScore, missMatchCount);
                         newBacktrace.clear();
 
                         if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
@@ -532,7 +535,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         result.append(buffer, count);
 
                         break;
-                        }
+                    }
                     default:
                         Debug(Debug::ERROR) << "Not implemented yet";
                         EXIT(EXIT_FAILURE);
