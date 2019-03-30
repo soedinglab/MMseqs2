@@ -107,6 +107,15 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf
             if (tloc.strand == Orf::STRAND_MINUS && tloc.id != UINT_MAX) {
                 res.dbStartPos = from - dbStartPos;
                 res.dbEndPos   = from - dbEndPos;
+                // account for last orf
+                //  GGCACC
+                //  GGCA
+                //     ^
+                //     last codon position
+                //  GGCACC
+                //    GGCA
+                //    ^
+                //     last codon position
                 if(isNucleotideSearch == false){
                     res.dbEndPos = res.dbEndPos - 2;
                 }
@@ -127,9 +136,15 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf
             if (qloc->strand == Orf::STRAND_MINUS && qloc->id != UINT_MAX) {
                 res.qStartPos  = from - qStartPos;
                 res.qEndPos    = from - qEndPos;
+                if(isNucleotideSearch == false){
+                    res.qEndPos = res.qEndPos - 2;
+                }
             } else {
                 res.qStartPos  = from + qStartPos;
                 res.qEndPos    = from + qEndPos;
+                if(isNucleotideSearch == false){
+                    res.qEndPos = res.qEndPos + 2;
+                }
             }
         }
     }
