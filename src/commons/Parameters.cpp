@@ -1697,7 +1697,7 @@ void Parameters::setDefaults() {
     skipNRepeatKmer = 0;
     hashShift = 5;
     pickNbest = 1;
-    adjustKmerLength = true;
+    adjustKmerLength = false;
     // result2stats
     stat = "";
 
