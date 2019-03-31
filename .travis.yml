@@ -46,6 +46,23 @@ matrix:
     dist: trusty
     addons:
       apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        - llvm-toolchain-trusty-8
+        packages:
+        - cmake
+        - ninja-build
+        - clang-8
+        - libc++-8-dev
+        - libc++abi-8-dev
+        - zlib1g-dev
+        - libbz2-dev
+        - vim-common
+    env: CC=clang-8 CXX=clang++-8
+  - os: linux
+    dist: trusty
+    addons:
+      apt:
         packages:
         - cmake
         - ninja-build
