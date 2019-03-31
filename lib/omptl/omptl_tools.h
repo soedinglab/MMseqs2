@@ -25,7 +25,7 @@
 #include <climits>
 #include <iterator>
 
-#include <tr1/cmath>
+//#include <tr1/cmath>
 
 namespace omptl
 {
