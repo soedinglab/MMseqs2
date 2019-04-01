@@ -138,6 +138,7 @@ MMseqs2 provides many additional search modes:
  * Very fast and sensitive Searches against [profile databases such as the PFAM](https://github.com/soedinglab/MMseqs2/wiki#how-to-create-a-target-profile-database-from-pfam)
  * [Reciprocal best hits search](https://github.com/soedinglab/MMseqs2/wiki#reciprocal-best-hit-using-mmseqs-rbh)
 
+
 Many modes can also be combined. You can, for example, do a translated nucleotide against protein profile search.
 
 ## How to cluster 
@@ -145,9 +146,14 @@ Before clustering, convert your database into the MMseqs2 database format:
 
         mmseqs createdb examples/DB.fasta DB
 
-Then execute the clustering:
+Adjust the [clustering criteria](htt ps://github.com/soedinglab/MMseqs2/wiki#clustering-criteria) and then execute the cluster workflow (more senstivie) 
 
         mmseqs cluster DB clu tmp
+
+or linclust (faster less sensitive):
+ 
+        mmseqs linclust DB clu tmp
+
 
 Please ensure that in case of large input databases the temporary direcotry provides enough free space.
 For disk space requirements, see the user guide.
@@ -166,7 +172,7 @@ To extract the representative sequences from the clustering result call:
         mmseqs result2repseq DB clu DB_clu_rep
         mmseqs result2flat DB DB DB_clu_rep DB_clu_rep.fasta --use-fasta-header
 
-Read more about the format [here](https://github.com/soedinglab/mmseqs2/wiki#clustering-format).
+Read more about the format [here](https://github.com/soedinglab/mmseqs2/wiki#clustering-format)
 
 ### Memory Requirements
 MMseqs2 checks the available memory of the computer and automatically divide the target database in parts that fit into memory. Splitting the database will increase the runtime slightly.
