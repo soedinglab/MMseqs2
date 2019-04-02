@@ -205,6 +205,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         const bool isProfileSearch = Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) ||
                                      Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE);
         kmerThr = getKmerThreshold(sensitivity, isProfileSearch, kmerScore, kmerSize);
+    }else {
+        kmerThr = 0;
     }
     if (templateDBIsIndex == true) {
         if (splits != originalSplits) {
