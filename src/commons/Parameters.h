@@ -486,6 +486,7 @@ public:
 
     // offsetalignments
     int chainAlignment;
+    int mergeQuery;
 
     // tsv2db
     int outputDbType;
@@ -759,6 +760,8 @@ public:
 
     // offsetalignment
     PARAMETER(PARAM_CHAIN_ALIGNMENT)
+    PARAMETER(PARAM_MERGE_QUERY)
+
 
     // tsv2db
     PARAMETER(PARAM_OUTPUT_DBTYPE)

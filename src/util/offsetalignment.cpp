@@ -358,10 +358,16 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < entryCount; ++i) {
             Debug::printProgress(i);
             unsigned int queryKey=UINT_MAX;
+            unsigned int qLen = UINT_MAX;
+
             if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
                 queryKey = i;
                 if (contigExists[i] == 0) {
                     continue;
+                }
+                if (qSourceDbr != NULL) {
+                    size_t queryId = qSourceDbr->sequenceReader->getId(queryKey);
+                    qLen = std::max(qSourceDbr->sequenceReader->getSeqLens(queryId), static_cast<size_t>(2)) - 2;
                 }
                 unsigned int *orfKeys = &contigLookup[contigOffsets[i]];
                 size_t orfCount = contigOffsets[i + 1] - contigOffsets[i];
@@ -381,40 +387,54 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     }else{
                         updateOffset(data, results, &qloc, *tOrfDbr, (isNuclNuclSearch||isTransNucTransNucSearch), isNuclNuclSearch, thread_idx);
                     }
+                    // do not merge entries
+                    if(par.mergeQuery == false){
+                        for(size_t i = 0; i < results.size(); i++) {
+                            Matcher::result_t &res = results[i];
+                            bool hasBacktrace = (res.backtrace.size() > 0);
+                            size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
+                            ss.append(buffer, len);
+                        }
+                        resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);
+                        results.clear();
+                        ss.clear();
+                        tmp.clear();
+                    }
                 }
             } else if (Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
                 queryKey = alnDbr.getDbKey(i);
+                if (qSourceDbr != NULL) {
+                    size_t queryId = qSourceDbr->sequenceReader->getId(queryKey);
+                    qLen = std::max(qSourceDbr->sequenceReader->getSeqLens(queryId), static_cast<size_t>(2)) - 2;
+                }
                 char *data = alnDbr.getData(i, thread_idx);
                 updateOffset(data, results, NULL, *tOrfDbr, true, isNuclNuclSearch, thread_idx);
             }
-            unsigned int qLen = UINT_MAX;
-            if (qSourceDbr != NULL) {
-                size_t queryId = qSourceDbr->sequenceReader->getId(queryKey);
-                qLen = std::max(qSourceDbr->sequenceReader->getSeqLens(queryId), static_cast<size_t>(2)) - 2;
-            }
-            updateLengths(results, qLen, tSourceDbr);
-            if(par.chainAlignment == false){
-                std::stable_sort(results.begin(), results.end(), Matcher::compareHits);
-                for(size_t i = 0; i < results.size(); i++){
-                    Matcher::result_t &res = results[i];
-                    bool hasBacktrace = (res.backtrace.size() > 0);
-                    size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
-                    ss.append(buffer, len);
+            if(par.mergeQuery == true){
+                updateLengths(results, qLen, tSourceDbr);
+                if(par.chainAlignment == false){
+                    std::stable_sort(results.begin(), results.end(), Matcher::compareHits);
+                    for(size_t i = 0; i < results.size(); i++){
+                        Matcher::result_t &res = results[i];
+                        bool hasBacktrace = (res.backtrace.size() > 0);
+                        size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
+                        ss.append(buffer, len);
+                    }
+                    resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);
+                } else if(par.chainAlignment == true){
+                    chainAlignmentHits(results, tmp);
+                    for(size_t i = 0; i < tmp.size(); i++){
+                        Matcher::result_t &res = tmp[i];
+                        bool hasBacktrace = (res.backtrace.size() > 0);
+                        size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
+                        ss.append(buffer, len);
+                    }
+                    resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);
                 }
-                resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);
-            } else if(par.chainAlignment == true){
-                chainAlignmentHits(results, tmp);
-                for(size_t i = 0; i < tmp.size(); i++){
-                    Matcher::result_t &res = tmp[i];
-                    bool hasBacktrace = (res.backtrace.size() > 0);
-                    size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
-                    ss.append(buffer, len);
-                }
-                resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);
+                ss.clear();
+                results.clear();
+                tmp.clear();
             }
-            ss.clear();
-            results.clear();
-            tmp.clear();
         }
         delete[] buffer;
     }

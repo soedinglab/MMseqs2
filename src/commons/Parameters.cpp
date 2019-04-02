@@ -204,6 +204,7 @@ Parameters::Parameters():
         PARAM_TAKE_LARGER_ENTRY(PARAM_TAKE_LARGER_ENTRY_ID,"--take-larger-entry", "Take the larger entry", "only keeps the larger entry (dataSize >) in the concatenation, both databases need the same keys in the index",typeid(bool), (void *) &takeLargerEntry, ""),
         // offsetalignment
         PARAM_CHAIN_ALIGNMENT(PARAM_CHAIN_ALIGNMENT_ID,"--chain-alignments", "Chain overlapping alignments", "Chain overlapping alignments",typeid(int),(void *) &chainAlignment, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_MERGE_QUERY(PARAM_MERGE_QUERY_ID,"--merge-query", "Merge query", "combine ORFs/splited sequences to a single entry",typeid(int),(void *) &mergeQuery, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
         // tsv2db
         PARAM_OUTPUT_DBTYPE(PARAM_OUTPUT_DBTYPE_ID,"--output-dbtype", "Output DB Type", "Set database type for resulting database: Amino acid sequences 0, Nucl. seq. 1, Profiles 2, Alignment result 5, Clustering result 6, Prefiltering result 7, Taxonomy result 8, Indexed database 9, cA3M MSAs 10, FASTA or A3M MSAs 11, Generic database 12, Omic dbtype file 13, Bi-directional prefiltering result 14, Offsetted headers 15",typeid(int),(void *) &outputDbType, "^(0|[1-9]{1}[0-9]*)$"),
         //diff
@@ -709,6 +710,7 @@ Parameters::Parameters():
 
     // offsetalignment
     offsetalignment.push_back(&PARAM_CHAIN_ALIGNMENT);
+    offsetalignment.push_back(&PARAM_MERGE_QUERY);
     offsetalignment.push_back(&PARAM_SEARCH_TYPE);
     offsetalignment.push_back(&PARAM_THREADS);
     offsetalignment.push_back(&PARAM_COMPRESSED);
@@ -1669,8 +1671,9 @@ void Parameters::setDefaults() {
     prefix = "";
     tsvOut = false;
 
-    // offset alignment
+    // offsetalignment
     chainAlignment = 0;
+    mergeQuery = 1;
 
     // tsv2db
     outputDbType = Parameters::DBTYPE_GENERIC_DB;
