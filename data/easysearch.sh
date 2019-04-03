@@ -78,7 +78,7 @@ if [ -n "${REMOVE_TMP}" ]; then
         "$MMSEQS" rmdb "${TMP_PATH}/result_best"
     fi
     "$MMSEQS" rmdb "${TMP_PATH}/result"
-    if [ ! -n "${LEAVE_INPUT}" ]; then
+    if [ -z "${LEAVE_INPUT}" ]; then
         if [ -f "${TMP_PATH}/target" ]; then
             "$MMSEQS" rmdb "${TMP_PATH}/target"
             "$MMSEQS" rmdb "${TMP_PATH}/target_h"
