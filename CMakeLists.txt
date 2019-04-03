@@ -6,7 +6,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(FRAMEWORK_ONLY 0 CACHE BOOL "Framework Mode")
 set(HAVE_SANITIZER 0 CACHE BOOL "Have Sanitizers")
-set(VERSION_OVERRIDE "" CACHE STRNG "Override version string in help and usage messages")
+set(VERSION_OVERRIDE "" CACHE STRING "Override version string in help and usage messages")
 
 #Sanitizers
 if (${HAVE_SANITIZER})
@@ -64,7 +64,7 @@ OPTION(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
 add_subdirectory(lib/zstd/build/cmake/lib EXCLUDE_FROM_ALL)
 
 # tinyexpr
-OPTION(TE_NAT_LOG "Evaluate exponents from right to left." ON)
+OPTION(TE_NAT_LOG "Define the log function as natural logarithm." ON)
 include_directories(lib/tinyexpr)
 add_subdirectory(lib/tinyexpr EXCLUDE_FROM_ALL)
 
