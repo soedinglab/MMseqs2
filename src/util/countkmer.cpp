@@ -1,16 +1,17 @@
-//
-// Created by Martin Steinegger on 2019-01-17.
-//
-
 #include "Parameters.h"
 #include "FileUtil.h"
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
+#include "IndexReader.h"
+#include "NucleotideMatrix.h"
+
 #include <climits>
-#include <IndexReader.h>
-#include <NucleotideMatrix.h>
+
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
 int countkmer(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
