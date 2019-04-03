@@ -801,13 +801,8 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     memset(notEmpty, 0, querySize * sizeof(char)); // init notEmpty
 
     std::list<int> **reslens = new std::list<int> *[localThreads];
-    #pragma omp parallel num_threads(localThreads)
-    {
-        int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = omp_get_thread_num();
-#endif
-        reslens[thread_idx] = new std::list<int>();
+    for (unsigned int i = 0; i < localThreads; ++i) {
+        reslens[i] = new std::list<int>();
     }
 
     Debug(Debug::INFO) << "Starting prefiltering scores calculation (step " << (split + 1) << " of " << splitCount << ")\n";
