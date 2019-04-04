@@ -50,6 +50,14 @@ if (CMAKE_COMPILER_IS_CLANG)
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -stdlib=libc++")
 endif ()
 
+# Apple specific features
+if (APPLE)
+    # macOS SDK started using _Atomic (in ucred.h) which g++ does not support
+    # __APPLE_API_STRICT_CONFORMANCE makes sysctl.h not include apis like ucred.h
+    # See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=89864
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -D__APPLE_API_STRICT_CONFORMANCE")
+endif ()
+
 # zstd
 SET(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/zstd")
 SET(CMAKE_INSTALL_LIBDIR bin)
