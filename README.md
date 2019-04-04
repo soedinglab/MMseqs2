@@ -43,8 +43,6 @@ MMseqs2 can be used by compiling from source, downloading a statically compiled 
      conda install -c bioconda mmseqs2 
      # install docker
      docker pull soedinglab/mmseqs2
-     # latest versions
-     brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs2.rb --HEAD
      # static build sse4.1
      wget https://mmseqs.com/latest/mmseqs-static_sse41.tar.gz; tar xvfz mmseqs-static_sse41.tar.gz; export PATH=$(pwd)/mmseqs2/bin/:$PATH
      # static build AVX2
