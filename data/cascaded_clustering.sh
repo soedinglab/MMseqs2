@@ -70,7 +70,7 @@ while [ "$STEP" -lt "$STEPS" ]; do
           fi
        else
             # shellcheck disable=SC2086
-            "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/clu_redundancy" ${CLUSTER_STR} \
+            "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/clu_redundancy" ${CLUSTER_STR} $MERGECLU_PAR \
             || fail "Merging of clusters has died"
        fi
     else
@@ -127,20 +127,20 @@ fi
 
 
 if [ -n "$REMOVE_TMP" ]; then
- echo "Remove temporary files"
- rm -f "${TMP_PATH}/order_redundancy"
- rm -f "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_redundancy.index"
- rm -f "${TMP_PATH}/aln_redundancy" "${TMP_PATH}/aln_redundancy.index"
- rm -f "${TMP_PATH}/input_step_redundancy" "${TMP_PATH}/input_step_redundancy.index"
- STEP=0
- while [ "$STEP" -lt "$STEPS" ]; do
-    rm -f "${TMP_PATH}/pref_step$STEP" "${TMP_PATH}/pref_step$STEP.index"
-    rm -f "${TMP_PATH}/aln_step$STEP" "${TMP_PATH}/aln_step$STEP.index"
-    rm -f "${TMP_PATH}/clu_step$STEP" "${TMP_PATH}/clu_step$STEP.index"
-    rm -f "${TMP_PATH}/input_step$STEP" "${TMP_PATH}/input_step$STEP.index"
-    rm -f "${TMP_PATH}/order_step$STEP"
-	STEP=$((STEP+1))
- done
+    echo "Remove temporary files"
+    rm -f "${TMP_PATH}/order_redundancy"
+    "$MMSEQS" rmdb "${TMP_PATH}/clu_redundancy"
+    "$MMSEQS" rmdb "${TMP_PATH}/aln_redundancy"
+    "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy"
+    STEP=0
+    while [ "$STEP" -lt "$STEPS" ]; do
+        "$MMSEQS" rmdb "${TMP_PATH}/pref_step$STEP"
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_step$STEP"
+        "$MMSEQS" rmdb "${TMP_PATH}/clu_step$STEP"
+        "$MMSEQS" rmdb "${TMP_PATH}/input_step$STEP"
+        rm -f "${TMP_PATH}/order_step$STEP"
+        STEP=$((STEP+1))
+    done
 
- rm -f "${TMP_PATH}/cascaded_clustering.sh"
+    rm -f "${TMP_PATH}/cascaded_clustering.sh"
 fi

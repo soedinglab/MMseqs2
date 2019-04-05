@@ -57,9 +57,10 @@ public:
 };
 
 
-void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedLookup, SequenceLookup **unmaskedLookup,
-                                BaseMatrix &subMat, Sequence *seq,
-                                DBReader<unsigned int> *dbr, size_t dbFrom, size_t dbTo, int kmerThr) {
+void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedLookup,
+                                SequenceLookup **unmaskedLookup,BaseMatrix &subMat, Sequence *seq,
+                                DBReader<unsigned int> *dbr, size_t dbFrom, size_t dbTo, int kmerThr,
+                                bool mask, bool maskLowerCaseMode) {
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
 
     const bool isProfile = Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_HMM_PROFILE);
@@ -136,7 +137,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                 if (unmaskedLookup != NULL) {
                     (*unmaskedLookup)->addSequence(s.int_sequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
                 }
-                if (maskedLookup != NULL) {
+                if (mask == true) {
                     for (int i = 0; i < s.L; ++i) {
                         charSequence[i] = (char) s.int_sequence[i];
                     }
@@ -155,8 +156,22 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                     for (int i = 0; i < s.L; i++) {
                         s.int_sequence[i] = charSequence[i];
                     }
+                }
+
+                if(maskLowerCaseMode == true && (Parameters::isEqualDbtype(s.getSequenceType(), Parameters::DBTYPE_AMINO_ACIDS) ||
+                                                  Parameters::isEqualDbtype(s.getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES))) {
+                    const char * charSeq = s.getSeqData();
+                    int maskLetter = subMat.aa2int[(int)'X'];
+                    for (int i = 0; i < s.L; i++) {
+                        bool isLowerCase = (islower(charSeq[i]));
+                        maskedResidues += isLowerCase;
+                        s.int_sequence[i] = isLowerCase ? maskLetter : s.int_sequence[i];
+                    }
+                }
+                if(maskedLookup != NULL){
                     (*maskedLookup)->addSequence(s.int_sequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
                 }
+
 
                 totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
             }

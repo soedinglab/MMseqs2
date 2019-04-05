@@ -177,7 +177,7 @@ void LinsearchIndexReader::writeIndex(DBWriter & dbw,
                                       KmerPosition *hashSeqPair, size_t totalKmers,
                                       int alphSize, int kmerSize) {
 
-    KmerIndex kmerIndex(alphSize, kmerSize);
+    KmerIndex kmerIndex(alphSize - 1, kmerSize);
     Debug(Debug::INFO) << "Write ENTRIES (" << PrefilteringIndexReader::ENTRIES << ")\n";
     // write entries
     dbw.writeStart(0);
@@ -267,7 +267,7 @@ bool LinsearchIndexReader::isIndexCompatible(DBReader<unsigned int> & index, Par
         return false;
     if (meta.spacedKmer != par.spacedKmer)
         return false;
-    if (par.scoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
+    if (par.seedScoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
         return false;
     if (par.spacedKmerPattern != PrefilteringIndexReader::getSpacedPattern(&index))
         return false;

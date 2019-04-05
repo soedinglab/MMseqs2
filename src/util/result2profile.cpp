@@ -317,8 +317,10 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par,
                    const size_t dbFrom, const size_t dbSize) {
     Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << dbFrom + dbSize << "\n";
 
-    const std::string &outname = par.db4;
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, "", MMseqsMPI::rank);
+    const std::string outname = par.db4;
+    const std::string outnameIndex = par.db4Index;
+
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, outnameIndex, MMseqsMPI::rank);
     int status = result2profile(resultReader, par, tmpOutput.first, dbFrom, dbSize);
 
 #ifdef HAVE_MPI
@@ -331,7 +333,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par,
         for (size_t i = 0; i < 2; i++) {
             std::vector<std::pair<std::string, std::string> > splitFiles;
             for (int procs = 0; procs < MMseqsMPI::numProc; procs++) {
-                std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(outname, "", procs);
+                std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(outname, outnameIndex, procs);
                 splitFiles.push_back(std::make_pair(tmpFile.first + ext[i], tmpFile.first + ext[i] + ".index"));
 
             }
@@ -357,11 +359,10 @@ int result2profile(int argc, const char **argv, const Command &command) {
     par.printParameters(command.cmd, argc, argv, *params);
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
 #ifdef HAVE_MPI
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(resultReader.getAminoAcidDBSize(), resultReader.getSeqLens(), resultReader.getSize(),
+    Util::decomposeDomainByAminoAcid(resultReader.getDataSize(), resultReader.getSeqLens(), resultReader.getSize(),
                                      MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
 
     int status = result2profile(resultReader, par, dbFrom, dbSize);

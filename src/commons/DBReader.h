@@ -12,6 +12,7 @@
 #include <string>
 #include "Sequence.h"
 #include "Parameters.h"
+#include "FileUtil.h"
 
 #define ZSTD_STATIC_LINKING_ONLY // ZSTD_findDecompressedSize
 #include <zstd/lib/zstd.h>
@@ -27,10 +28,26 @@ public:
             return (x.id <= y.id);
         }
     };
+
+
+    struct LookupEntry {
+        T id;
+        std::string entryName;
+        unsigned int fileNumber;
+        LookupEntry(){}
+        LookupEntry(T id) {
+            this->id = id;
+        }
+        static bool compareById(const LookupEntry& x, const LookupEntry& y){
+            return (x.id <= y.id);
+        }
+    };
+
     // = USE_DATA|USE_INDEX
     DBReader(const char* dataFileName, const char* indexFileName, int threads, int mode);
 
-    DBReader(Index* index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey, int dbType, unsigned int maxSeqLen, int threads);
+    DBReader(Index* index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey,
+             int dbType, unsigned int maxSeqLen, int threads);
 
     void setDataFile(const char* dataFileName);
 
@@ -44,7 +61,9 @@ public:
 
     const char* getIndexFileName() { return indexFileName; }
 
-    size_t getAminoAcidDBSize(){ return aaDbSize; }
+    size_t getAminoAcidDBSize();
+
+    size_t getDataSize() { return dataSize; }
 
     char* getData(size_t id, int thrIdx);
 
@@ -60,6 +79,9 @@ public:
 
     size_t getSize();
 
+    size_t getLookupSize();
+
+
     T getDbKey(size_t id);
 
     unsigned int * getSeqLens();
@@ -72,9 +94,14 @@ public:
 
     size_t bsearch(const Index * index, size_t size, T value);
 
-    // does a binary search in the ffindex and returns index of the entry with dbKey
+    // does a binary search in the index and returns index of the entry with dbKey
     // returns UINT_MAX if the key is not contained in index
     size_t getId (T dbKey);
+
+    // does a binary search in the lookup and returns index of the entry
+    size_t getLookupId(T dbKey);
+    std::string getLookupEntryName(size_t id);
+    unsigned int getLookupFileNumber(size_t id);
 
     static const int NOSORT = 0;
     static const int SORT_BY_LENGTH = 1;
@@ -90,6 +117,8 @@ public:
     static const int USE_DATA     = 1;
     static const int USE_WRITABLE = 2;
     static const int USE_FREAD    = 4;
+    static const int USE_LOOKUP   = 8;
+
 
     // compressed
     static const int UNCOMPRESSED    = 0;
@@ -112,9 +141,31 @@ public:
         return totalDataSize;
     }
 
+    static void removeDb(std::string  databaseName){
+        std::vector<std::string> files = FileUtil::findDatafiles(databaseName.c_str());
+        for (size_t i = 0; i < files.size(); ++i) {
+            FileUtil::remove(files[i].c_str());
+        }
+        std::string index = databaseName + ".index";
+        if (FileUtil::fileExists(index.c_str())) {
+            FileUtil::remove(index.c_str());
+        }
+        std::string dbTypeFile = databaseName + ".dbtype";
+        if (FileUtil::fileExists(dbTypeFile.c_str())) {
+            FileUtil::remove(dbTypeFile.c_str());
+
+        }
+        std::string lookupFile = databaseName + ".lookup";
+        if (FileUtil::fileExists(lookupFile.c_str())) {
+            FileUtil::remove(lookupFile.c_str());
+        }
+    }
+
     char *mmapData(FILE *file, size_t *dataSize);
 
     bool readIndex(char *data, size_t dataSize, Index *index, unsigned int *entryLength);
+
+    void readLookup(char *data, size_t dataSize, LookupEntry *lookup);
 
     void readIndexId(T* id, char * line, const char** cols);
 
@@ -239,7 +290,6 @@ public:
         return isCompressed(dbtype);
     }
 
-
     static int isCompressed(int dbtype);
 
     void setSequentialAdvice();
@@ -267,8 +317,8 @@ private:
     std::vector<std::string> dataFileNames;
 
 
-    // amino acid size
-    size_t aaDbSize;
+    // summed up size of all entries
+    size_t dataSize;
     // Last Key in Index
     T lastKey;
     // max seqLen
@@ -283,6 +333,8 @@ private:
     ZSTD_DStream ** dstream;
 
     Index * index;
+    size_t lookupSize;
+    LookupEntry * lookup;
     bool sortedByOffset;
 
     unsigned int * seqLens;

@@ -36,14 +36,14 @@ public:
 
     bool runSplits(const std::string &queryDB, const std::string &queryDBIndex,
                    const std::string &resultDB, const std::string &resultDBIndex,
-                   size_t fromSplit, size_t splitProcessCount);
+                   size_t fromSplit, size_t splitProcessCount, bool merge);
 
     // merge file
     void mergeFiles(const std::string &outDb, const std::string &outDBIndex,
                     const std::vector<std::pair<std::string, std::string>> &splitFiles);
 
     // get substitution matrix
-    static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState);
+    static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState, bool isNucl);
 
     static void setupSplit(DBReader<unsigned int>& dbr, const int alphabetSize, const unsigned int querySeqType, const int threads,
                            const bool templateDBIsIndex, const size_t maxResListLen, const size_t memoryLimit,
@@ -75,9 +75,11 @@ private:
     int alphabetSize;
     bool templateDBIsIndex;
     int maskMode;
+    int maskLowerCaseMode;
     int splitMode;
     int kmerThr;
     std::string scoringMatrixFile;
+    std::string seedScoringMatrixFile;
     int targetSeqType;
     bool takeOnlyBestKmer;
 
@@ -99,7 +101,7 @@ private:
     const int compressed;
 
     bool runSplit(DBReader<unsigned int> *qdbr, const std::string &resultDB, const std::string &resultDBIndex,
-                  size_t split, size_t splitCount, bool sameQTDB);
+                  size_t split, size_t splitCount, bool sameQTDB, bool merge);
 
     // compute kmer size and split size for index table
     static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize,

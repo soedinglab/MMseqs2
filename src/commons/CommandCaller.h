@@ -13,6 +13,8 @@ public:
 
     int callProgram(const char* program, size_t argc, const char **argv);
 
+    static unsigned int getCallDepth();
+
     // Does not return on success
     void execProgram(const char* program, const std::vector<std::string> &argv);
 };

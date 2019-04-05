@@ -15,7 +15,7 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 [![Travis CI](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)](https://travis-ci.org/soedinglab/MMseqs2)
 [![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.840208.svg)](https://zenodo.org/record/1718312)
 
-<p align="center"><img src="https://raw.githubusercontent.com/soedinglab/mmseqs2/master/mmseqs2_logo.png" height="256" /></p>
+<p align="center"><img src="https://raw.githubusercontent.com/soedinglab/mmseqs2/master/.github/mmseqs2_logo.png" height="256" /></p>
 
 
 ## Documentation 
@@ -43,8 +43,6 @@ MMseqs2 can be used by compiling from source, downloading a statically compiled 
      conda install -c bioconda mmseqs2 
      # install docker
      docker pull soedinglab/mmseqs2
-     # latest versions
-     brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs2.rb --HEAD
      # static build sse4.1
      wget https://mmseqs.com/latest/mmseqs-static_sse41.tar.gz; tar xvfz mmseqs-static_sse41.tar.gz; export PATH=$(pwd)/mmseqs2/bin/:$PATH
      # static build AVX2

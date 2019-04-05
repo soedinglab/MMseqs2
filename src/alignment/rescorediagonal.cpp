@@ -175,7 +175,7 @@ int doRescorediagonal(Parameters &par,
                     char *querySeqToAlign = querySeq;
                     bool isReverse = false;
                     if (reversePrefilterResult) {
-                        if (results[entryIdx].prefScore == 1) {
+                        if (results[entryIdx].prefScore < 0) {
                             querySeqToAlign = queryRevSeq;
                             isReverse=true;
                         }
@@ -250,8 +250,11 @@ int doRescorediagonal(Parameters &par,
 
                                 char *end = Itoa::i32toa_sse2(alnLen, buffer);
                                 size_t len = end - buffer;
-                                std::string backtrace(buffer, len - 1);
-                                backtrace.push_back('M');
+                                std::string backtrace = "";
+                                if(par.addBacktrace){
+                                    backtrace=std::string(buffer, len - 1);
+                                    backtrace.push_back('M');
+                                }
                                 queryCov = SmithWaterman::computeCov(qStartPos, qEndPos, queryLen);
                                 targetCov = SmithWaterman::computeCov(dbStartPos, dbEndPos, dbLen);
                                 if(isReverse){
@@ -300,7 +303,7 @@ int doRescorediagonal(Parameters &par,
                     std::sort(alnResults.begin(), alnResults.end(), Matcher::compareHits);
                 }
                 for (size_t i = 0; i < alnResults.size(); ++i) {
-                    size_t len = Matcher::resultToBuffer(buffer, alnResults[i], true, false);
+                    size_t len = Matcher::resultToBuffer(buffer, alnResults[i], par.addBacktrace, false);
                     resultBuffer.append(buffer, len);
                 }
 
@@ -359,20 +362,22 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     size_t dbFrom = 0;
     size_t dbSize = 0;
 
-    Util::decomposeDomainByAminoAcid(resultReader.getAminoAcidDBSize(), resultReader.getSeqLens(), resultReader.getSize(),
+    Util::decomposeDomainByAminoAcid(resultReader.getDataSize(), resultReader.getSeqLens(), resultReader.getSize(),
                                      MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db4, par.db4Index, MMseqsMPI::rank);
+    std::string outfile = par.db4;
+    std::string outfileIndex = par.db4Index;
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outfile, outfileIndex, MMseqsMPI::rank);
 
     DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), par.threads, par.compressed, dbtype);
     resultWriter.open();
     int status = doRescorediagonal(par, resultWriter, resultReader, dbFrom, dbSize);
-    resultWriter.close();
+    resultWriter.close(true);
 
     MPI_Barrier(MPI_COMM_WORLD);
     if(MMseqsMPI::rank == 0) {
         std::vector<std::pair<std::string, std::string>> splitFiles;
         for(int proc = 0; proc < MMseqsMPI::numProc; ++proc){
-            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db4, par.db4Index, proc);
+            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(outfile, outfileIndex, proc);
             splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
         }
         DBWriter::mergeResults(par.db4, par.db4Index, splitFiles);

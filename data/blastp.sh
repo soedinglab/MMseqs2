@@ -92,10 +92,10 @@ if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
     STEP=0
     while [ "$STEP" -lt "$STEPS" ]; do
-        rm -f "$TMP_PATH/pref_$STEP" "$TMP_PATH/pref_$STEP.index"
-        rm -f "$TMP_PATH/aln_$STEP" "$TMP_PATH/aln_$STEP.index"
-        NEXTINPUT="$TMP_PATH/input_step$STEP"
-        rm -f "$TMP_PATH/input_step$STEP" "$TMP_PATH/input_step$STEP.index"
+        "$MMSEQS" rmdb "${TMP_PATH}/pref_$STEP"
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_$STEP"
+        "$MMSEQS" rmdb "${TMP_PATH}/input_step$STEP"
+        #NEXTINPUT="$TMP_PATH/input_step$STEP" # this line is unused
         STEP="$((STEP+1))"
     done
     rm -f "$TMP_PATH/blastp.sh"

@@ -80,6 +80,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
 
     size_t writePos = 0;
     size_t mpiRank = 0;
+    size_t adjustedKmerSize = KMER_SIZE;
 #ifdef HAVE_MPI
     splits = std::max(static_cast<size_t>(MMseqsMPI::numProc), splits);
     size_t fromSplit = 0;
@@ -101,8 +102,8 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     for(size_t split = fromSplit; split < fromSplit+splitCount; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
         size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;
-        std::pair<size_t, KmerPosition *> kmerRet = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, 1);
-        hashSeqPair = kmerRet.second;
+        KmerSearch::ExtractKmerAndSortResult kmerRet  = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, 1, par.adjustKmerLength);
+        hashSeqPair = kmerRet.kmers;
         // assign rep. sequence to same kmer members
         // The longest sequence is the first since we sorted by kmer, seq.Len and id
         if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
@@ -124,8 +125,9 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     for(size_t split = 0; split < splits; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
         size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;
-        std::pair<size_t, KmerPosition *> kmerRet = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, 1);
-        hashSeqPair = kmerRet.second;
+        KmerSearch::ExtractKmerAndSortResult kmerRet = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, 1, par.adjustKmerLength);
+        hashSeqPair = kmerRet.kmers;
+        adjustedKmerSize = std::max(adjustedKmerSize, kmerRet.adjustedKmer);
         // assign rep. sequence to same kmer members
         // The longest sequence is the first since we sorted by kmer, seq.Len and id
         if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
@@ -153,7 +155,6 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         dbw.alignToPageSize();
 
         Debug(Debug::INFO) << "Write META (" << PrefilteringIndexReader::META << ")\n";
-        const int biasCorr = par.compBiasCorrection ? 1 : 0;
         const int mask = par.maskMode > 0;
         const int spacedKmer = (par.spacedKmer) ? 1 : 0;
         const bool sameDB = (par.db1 == par.db2);
@@ -161,7 +162,8 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         const int headers2 = (sameDB) ? 1 : 0;
         const int seqType = seqDbr.getDbtype();
         const int srcSeqType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
-        int metadata[] = {static_cast<int>(par.maxSeqLen), static_cast<int>(KMER_SIZE), biasCorr, subMat->alphabetSize, mask, spacedKmer, 0, seqType, srcSeqType, headers1, headers2};
+        // Reuse the compBiasCorr field to store the adjustedKmerSize, It is not needed in the linsearch
+        int metadata[] = {static_cast<int>(par.maxSeqLen), static_cast<int>(KMER_SIZE), static_cast<int>(adjustedKmerSize), subMat->alphabetSize, mask, spacedKmer, 0, seqType, srcSeqType, headers1, headers2};
         char *metadataptr = (char *) &metadata;
         dbw.writeData(metadataptr, sizeof(metadata), PrefilteringIndexReader::META, 0);
         dbw.alignToPageSize();
@@ -170,15 +172,15 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         if(splits > 1) {
             seqDbr.unmapData();
             if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-                LinsearchIndexReader::mergeAndWriteIndex<Parameters::DBTYPE_NUCLEOTIDES>(dbw, splitFiles, subMat->alphabetSize, KMER_SIZE);
+                LinsearchIndexReader::mergeAndWriteIndex<Parameters::DBTYPE_NUCLEOTIDES>(dbw, splitFiles, subMat->alphabetSize, adjustedKmerSize);
             }else{
-                LinsearchIndexReader::mergeAndWriteIndex<Parameters::DBTYPE_AMINO_ACIDS>(dbw, splitFiles, subMat->alphabetSize, KMER_SIZE);
+                LinsearchIndexReader::mergeAndWriteIndex<Parameters::DBTYPE_AMINO_ACIDS>(dbw, splitFiles, subMat->alphabetSize, adjustedKmerSize);
             }
         } else {
             if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-                LinsearchIndexReader::writeIndex<Parameters::DBTYPE_NUCLEOTIDES>(dbw, hashSeqPair, writePos, par.alphabetSize, KMER_SIZE);
+                LinsearchIndexReader::writeIndex<Parameters::DBTYPE_NUCLEOTIDES>(dbw, hashSeqPair, writePos, subMat->alphabetSize, adjustedKmerSize);
             }else{
-                LinsearchIndexReader::writeIndex<Parameters::DBTYPE_AMINO_ACIDS>(dbw, hashSeqPair, writePos, par.alphabetSize, KMER_SIZE);
+                LinsearchIndexReader::writeIndex<Parameters::DBTYPE_AMINO_ACIDS>(dbw, hashSeqPair, writePos, subMat->alphabetSize, adjustedKmerSize);
             }
         }
         if(hashSeqPair){
@@ -193,8 +195,10 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         dbw.alignToPageSize();
 
         Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << PrefilteringIndexReader::SCOREMATRIXNAME << ")\n";
-        dbw.writeData(subMat->getMatrixName().c_str(), subMat->getMatrixName().length(), PrefilteringIndexReader::SCOREMATRIXNAME, 0);
+        char* subData = BaseMatrix::serialize(subMat);
+        dbw.writeData(subData, BaseMatrix::memorySize(subMat), PrefilteringIndexReader::SCOREMATRIXNAME, 0);
         dbw.alignToPageSize();
+        free(subData);
 
         if (par.spacedKmerPattern.empty() != false) {
             Debug(Debug::INFO) << "Write SPACEDPATTERN (" << PrefilteringIndexReader::SPACEDPATTERN << ")\n";

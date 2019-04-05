@@ -88,18 +88,20 @@ int createlinindex(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, 2, false);
     int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
-    if(isNucl && par.indexType == 3 && par.PARAM_MAX_SEQ_LEN.wasSet == false){
-        par.maxSeqLen = 10000;
+    if(isNucl && par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES && par.PARAM_MAX_SEQ_LEN.wasSet == false){
+        if(par.PARAM_MAX_SEQ_LEN.wasSet == false){
+            par.maxSeqLen = 10000;
+        }
     }
     std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);
 
-    if(isNucl && par.indexType == 0){
+    if(isNucl && par.searchType == Parameters::SEARCH_TYPE_AUTO){
         Debug(Debug::ERROR) << "Database " << par.db1 << " is a nucleotide database. \n"
-                            << "Please provide the parameter --index-type 2 (translated) or 3 (nucleotide)\n";
+                            << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
         return EXIT_FAILURE;
     }
-    return createindex(par, "kmerindexdb", (isNucl == false) ? "" : (par.indexType == 2) ? "TRANSLATED" : "LIN_NUCL");
+    return createindex(par, "kmerindexdb", (isNucl == false) ? "" : (par.searchType == Parameters::SEARCH_TYPE_TRANSLATED) ? "TRANSLATED" : "LIN_NUCL");
 }
 
 int createindex(int argc, const char **argv, const Command& command) {
@@ -131,10 +133,19 @@ int createindex(int argc, const char **argv, const Command& command) {
     int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
 
-    if(isNucl && par.indexType == 0){
+    if(isNucl && par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES ){
+        if ( par.PARAM_K.wasSet == false) {
+            par.kmerSize = 15;
+        }
+        if ( par.PARAM_MAX_SEQ_LEN.wasSet == false) {
+            par.maxSeqLen = 10000;
+        }
+    }
+
+    if(isNucl && par.searchType == Parameters::SEARCH_TYPE_AUTO){
         Debug(Debug::ERROR) << "Database " << par.db1 << " is a nucleotide database. \n"
-                            << "Please provide the parameter --index-type 2 (translated) or 3 (nucleotide)\n";
+                            << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
         return EXIT_FAILURE;
     }
-    return createindex(par, "indexdb",  (isNucl == false) ? "" : (par.indexType == 2) ? "TRANSLATED" : "NUCL");
+    return createindex(par, "indexdb",  (isNucl == false) ? "" : (par.searchType == Parameters::SEARCH_TYPE_TRANSLATED) ? "TRANSLATED" : "NUCL");
 }

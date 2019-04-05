@@ -1700,7 +1700,7 @@ void sort(RandomAccessIterator first, RandomAccessIterator last,
 
 	std::vector<char> pivot_used(pivots.size(), false); // can't be bool due to parallel write
 
-	const unsigned max_depth = std::floor(std::tr1::log2(P));
+	const unsigned max_depth = std::floor(std::log2(P));
 	assert(1u << max_depth <= P);
 	for (unsigned i = 0; i < max_depth; ++i)
 	{

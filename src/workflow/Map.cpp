@@ -15,6 +15,10 @@ void setMapWorkflowDefaults(Parameters *p) {
     p->sensitivity = 2;
     p->rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
     p->sortResults = true;
+    //p->orfLongest = true;
+    p->orfStartMode = 1;
+    p->orfMinLength = 10;
+    p->orfMaxLength = 32734;
 }
 
 int map(int argc, const char **argv, const Command &command) {

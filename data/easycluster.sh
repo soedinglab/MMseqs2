@@ -63,10 +63,10 @@ mv "${TMP_PATH}/cluster.tsv"  "${RESULTS}_cluster.tsv"
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Removing temporary files"
-    rm -f "${TMP_PATH}/input" "${TMP_PATH}/input.index"
-    rm -f "${TMP_PATH}/clu_seqs" "${TMP_PATH}/clu_seqs.index"
-    rm -f "${TMP_PATH}/clu_rep" "${TMP_PATH}/clu_rep.index"
-    rm -f "${TMP_PATH}/clu" "${TMP_PATH}/clu.index"
+    "$MMSEQS" rmdb "${TMP_PATH}/input"
+    "$MMSEQS" rmdb "${TMP_PATH}/clu_seqs"
+    "$MMSEQS" rmdb "${TMP_PATH}/clu_rep"
+    "$MMSEQS" rmdb "${TMP_PATH}/clu"
     rm -rf "${TMP_PATH}/clu_tmp"
     rm -f "${TMP_PATH}/easycluster.sh"
 fi

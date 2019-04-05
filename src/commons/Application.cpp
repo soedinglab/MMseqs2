@@ -139,15 +139,15 @@ int main(int argc, const char **argv) {
 
         // Suggest some command that the user might have meant
         size_t index = SIZE_MAX;
-        size_t minDistance = SIZE_MAX;
+        int maxDistance = 0;
         for (size_t i = 0; i < commands.size(); ++i) {
             struct Command &p = commands[i];
             if(p.mode == COMMAND_HIDDEN)
                 continue;
 
-            size_t distance = DistanceCalculator::levenshteinDistance(argv[1], p.cmd);
-            if(distance < minDistance) {
-                minDistance = distance;
+            int distance = DistanceCalculator::localLevenshteinDistance(argv[1], p.cmd);
+            if(distance > maxDistance) {
+                maxDistance = distance;
                 index = i;
             }
         }

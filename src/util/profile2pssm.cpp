@@ -82,7 +82,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
         }
         delete[] buffer;
     }
-    writer.close();
+    writer.close(isDbOutput == false);
     if (isDbOutput == false) {
         remove(par.db2Index.c_str());
     }

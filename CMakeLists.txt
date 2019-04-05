@@ -6,7 +6,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(FRAMEWORK_ONLY 0 CACHE BOOL "Framework Mode")
 set(HAVE_SANITIZER 0 CACHE BOOL "Have Sanitizers")
-set(VERSION_OVERRIDE "" CACHE STRNG "Override version string in help and usage messages")
+set(VERSION_OVERRIDE "" CACHE STRING "Override version string in help and usage messages")
 
 #Sanitizers
 if (${HAVE_SANITIZER})
@@ -50,6 +50,14 @@ if (CMAKE_COMPILER_IS_CLANG)
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -stdlib=libc++")
 endif ()
 
+# Apple specific features
+if (APPLE)
+    # macOS SDK started using _Atomic (in ucred.h) which g++ does not support
+    # __APPLE_API_STRICT_CONFORMANCE makes sysctl.h not include apis like ucred.h
+    # See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=89864
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -D__APPLE_API_STRICT_CONFORMANCE")
+endif ()
+
 # zstd
 SET(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/zstd")
 SET(CMAKE_INSTALL_LIBDIR bin)
@@ -62,6 +70,11 @@ OPTION(ZSTD_BUILD_PROGRAMS "BUILD PROGRAMS" OFF)
 OPTION(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
 OPTION(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
 add_subdirectory(lib/zstd/build/cmake/lib EXCLUDE_FROM_ALL)
+
+# tinyexpr
+OPTION(TE_NAT_LOG "Define the log function as natural logarithm." ON)
+include_directories(lib/tinyexpr)
+add_subdirectory(lib/tinyexpr EXCLUDE_FROM_ALL)
 
 include_directories(lib)
 include_directories(lib/kseq)

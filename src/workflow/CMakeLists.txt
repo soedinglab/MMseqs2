@@ -8,6 +8,7 @@ set(workflow_source_files
         workflow/Enrich.cpp
         workflow/Linsearch.cpp
         workflow/Map.cpp
+        workflow/Rbh.cpp
         workflow/Search.cpp
         workflow/Taxonomy.cpp
         workflow/CreateIndex.cpp

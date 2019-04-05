@@ -10,6 +10,7 @@
 #include <cfloat>
 #include <algorithm>
 #include <vector>
+#include "itoa.h"
 
 #include "Sequence.h"
 #include "BaseMatrix.h"
@@ -67,6 +68,56 @@ public:
 
         result_t(){};
 
+        static void swapResult(result_t & res, EvalueComputation &evaluer, bool hasBacktrace){
+            double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
+            res.eval = evaluer.computeEvalue(rawScore, res.dbLen);
+
+            unsigned int qstart = res.qStartPos;
+            unsigned int qend = res.qEndPos;
+            unsigned int qLen = res.qLen;
+            res.qStartPos = res.dbStartPos;
+            res.qEndPos = res.dbEndPos;
+            res.qLen = res.dbLen;
+            res.dbStartPos = qstart;
+            res.dbEndPos = qend;
+            res.dbLen = qLen;
+            if (hasBacktrace) {
+                for (size_t j = 0; j < res.backtrace.size(); j++) {
+                    if (res.backtrace.at(j) == 'I') {
+                        res.backtrace.at(j) = 'D';
+                    } else if (res.backtrace.at(j) == 'D') {
+                        res.backtrace.at(j) = 'I';
+                    }
+                }
+            }
+        }
+
+        static void protein2nucl(std::string & backtrace, std::string &newBacktrace) {
+            char buffer[256];
+            for (size_t pos = 0; pos < backtrace.size(); pos++) {
+                int cnt =0;
+                if (isdigit(backtrace[pos])){
+                    cnt += Util::fast_atoi<int>(backtrace.c_str()+pos);
+                    while (isdigit(backtrace[pos])){
+                        pos++;
+                    }
+                }
+                bool update = false;
+                switch (backtrace[pos]) {
+                    case 'M':
+                    case 'D':
+                    case 'I':
+                        update = true;
+                        break;
+                }
+                if (update) {
+                    char *buffNext = Itoa::i32toa_sse2(cnt*3, buffer);
+                    size_t len = buffNext - buffer;
+                    newBacktrace.append(buffer, len - 1);
+                    newBacktrace.push_back(backtrace[pos]);
+                }
+            }
+        }
     };
 
     Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m,
@@ -89,6 +140,10 @@ public:
         if(first.score > second.score )
             return true;
         if(second.score > first.score )
+            return false;
+        if(first.dbLen < second.dbLen )
+            return true;
+        if(second.dbLen < first.dbLen )
             return false;
         if(first.dbKey < second.dbKey )
             return true;
@@ -150,7 +205,7 @@ public:
 
     static size_t resultToBuffer(char * buffer, const result_t &result, bool addBacktrace, bool compress  = true);
 
-    static size_t computeAlnLength(size_t anEnd, size_t start, size_t dbEnd, size_t dbStart);
+    static int computeAlnLength(int anEnd, int start, int dbEnd, int dbStart);
 
 
 private:

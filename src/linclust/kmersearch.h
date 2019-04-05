@@ -17,9 +17,17 @@ public:
     template  <int TYPE>
     static void writeResult(DBWriter & dbw, KmerPosition *kmers, size_t kmerCount);
 
-    static std::pair<size_t, KmerPosition *> extractKmerAndSort(size_t splitKmerCount, size_t split, size_t splits,
+
+    struct ExtractKmerAndSortResult{
+        ExtractKmerAndSortResult(size_t kmerCount, KmerPosition * kmers, size_t adjustedKmer)
+        : kmerCount(kmerCount), kmers(kmers), adjustedKmer(adjustedKmer)  {}
+        size_t kmerCount;
+        KmerPosition * kmers;
+        size_t adjustedKmer;
+    };
+    static ExtractKmerAndSortResult extractKmerAndSort(size_t splitKmerCount, size_t split, size_t splits,
                                                                 DBReader<unsigned int> &seqDbr, Parameters &par, BaseMatrix *subMat,
-                                                                size_t KMER_SIZE, size_t chooseTopKmer, size_t pickNBest);
+                                                                size_t KMER_SIZE, size_t chooseTopKmer, size_t pickNBest, bool adjustKmerLength);
 };
 
 

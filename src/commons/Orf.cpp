@@ -56,6 +56,7 @@ Orf::Orf(const unsigned int requestedGenCode, bool useAllTableStarts) {
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(requestedGenCode));
     std::vector<std::string> codons = translateNucl.getStopCodons();
     stopCodons = (char*)mem_align(ALIGN_INT, 8 * sizeof(int));
+    codon      = (char*)mem_align(ALIGN_INT, 8 * sizeof(int));
     memset(stopCodons, 0, 8 * sizeof(int));
     size_t count = 0;
     for (size_t i = 0; i < codons.size(); ++i) {
@@ -99,6 +100,7 @@ Orf::~Orf() {
     free(reverseComplement);
     free(startCodons);
     free(stopCodons);
+    free(codon);
 }
 
 Matcher::result_t Orf::getFromDatabase(const size_t id, DBReader<unsigned int> & contigsReader, DBReader<unsigned int> & orfHeadersReader, int thread_idx) {
@@ -139,10 +141,8 @@ bool Orf::setSequence(const char* seq, size_t length) {
 
     sequenceLength = length;
     for(size_t i = 0; i < sequenceLength; ++i) {
-        sequence[i] = seq[i] & ~0x20;
-        if(sequence[i] == 'U') {
-            sequence[i] = 'T';
-        }
+        sequence[i] = (seq[i] == 'U' ) ? 'T' : seq[i];
+        sequence[i] = (seq[i] == 'u' ) ? 't' : seq[i];
     }
 
     for(size_t i = 0; i < sequenceLength; ++i) {
@@ -204,7 +204,7 @@ template <int N>
 #ifndef AVX2
 inline bool isInCodons(const char* sequence, simd_int codons, simd_int codons2) {
 #else
-inline bool isInCodons(const char* sequence, simd_int codons, simd_int) {
+    inline bool isInCodons(const char* sequence, simd_int codons, simd_int) {
 #endif
     simd_int c = simdi_loadu((simd_int*)sequence);
     // ATGA ATGA ATGA ATGA
@@ -258,10 +258,12 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
 
     simd_int stopCodonsHi = simdi_load((simd_int*)stopCodons);
     simd_int stopCodonsLo = simdi_loadu((simd_int*)(stopCodons + 16));
-
     for (size_t i = 0;  i < sequenceLength - (FRAMES - 1);  i += FRAMES) {
         for(size_t position = i; position < i + FRAMES; position++) {
-            const char* codon = sequence + position;
+            // make everything that is not CHAR_MAX upper case
+            codon[0] = sequence[position + 0] == CHAR_MAX ? CHAR_MAX : sequence[position + 0] & static_cast<unsigned char>(~0x20);
+            codon[1] = sequence[position + 1] == CHAR_MAX ? CHAR_MAX : sequence[position + 1] & static_cast<unsigned char>(~0x20);
+            codon[2] = sequence[position + 2] == CHAR_MAX ? CHAR_MAX : sequence[position + 2] & static_cast<unsigned char>(~0x20);
             size_t frame = position % FRAMES;
 
             // skip frames outside of out the frame mask
@@ -270,7 +272,7 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
             }
 
             bool thisIncomplete = isIncomplete(codon);
-            bool isLast = !thisIncomplete && isIncomplete(codon + FRAMES);
+            bool isLast = !thisIncomplete && isIncomplete(sequence + position + FRAMES);
 
             // START_TO_STOP returns the longest fragment such that the first codon is a start
             // ANY_TO_STOP returns the longest fragment
@@ -446,7 +448,7 @@ size_t Orf::writeOrfHeader(char *buffer, unsigned int key, size_t fromPos, size_
     int complete = (hasIncompleteStart) | (hasIncompleteEnd << 1);
     if(complete != 0){
         *(tmpBuff-1) = '\t';
-        tmpBuff = Itoa::i32toa_sse2(len, tmpBuff);
+        tmpBuff = Itoa::i32toa_sse2(complete, tmpBuff);
     }
     *(tmpBuff-1) = '\n';
     *(tmpBuff) = '\0';

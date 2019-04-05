@@ -24,6 +24,24 @@ CommandCaller::CommandCaller() {
         EXIT(EXIT_FAILURE);
     }
 #endif
+
+    std::string depth = SSTR(getCallDepth());
+    addVariable("MMSEQS_CALL_DEPTH", depth.c_str());
+}
+
+unsigned int CommandCaller::getCallDepth() {
+    char* currentCallDepth = getenv("MMSEQS_CALL_DEPTH");
+    if (currentCallDepth == NULL) {
+        return 0;
+    }
+
+    char *rest;
+    int depth = strtol(currentCallDepth, &rest, 10);
+    if (rest == currentCallDepth || errno == ERANGE) {
+        Debug(Debug::ERROR) << "Invalid non-numeric value for environment variable MMSEQS_CALL_DEPTH!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return depth + 1;
 }
 
 void CommandCaller::addVariable(const char* key, const char* value) {

@@ -52,7 +52,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
                                               BaseMatrix *subMat, int maxSeqLen,
                                               bool hasSpacedKmer, const std::string &spacedKmerPattern,
                                               bool compBiasCorrection, int alphabetSize, int kmerSize,
-                                              int maskMode, int kmerThr) {
+                                              int maskMode, int maskLowerCase, int kmerThr) {
     DBWriter writer(outDB.c_str(), std::string(outDB).append(".index").c_str(), 1, Parameters::WRITER_ASCII_MODE, Parameters::DBTYPE_INDEX_DB);
     writer.open();
 
@@ -104,9 +104,9 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     IndexTable *indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
     SequenceLookup *sequenceLookup = NULL;
     IndexBuilder::fillDatabase(indexTable,
-                               (maskMode == 1 ) ? &sequenceLookup : NULL,
+                               (maskMode == 1 || maskLowerCase == 1) ? &sequenceLookup : NULL,
                                (maskMode == 0 ) ? &sequenceLookup : NULL,
-                               *subMat, &seq, dbr1, 0, dbr1->getSize(), kmerThr);
+                               *subMat, &seq, dbr1, 0, dbr1->getSize(), kmerThr, maskMode, maskLowerCase);
     indexTable->printStatistics(subMat->int2aa);
 
     if (sequenceLookup == NULL) {
@@ -164,8 +164,10 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     delete indexTable;
 
     Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << SCOREMATRIXNAME << ")\n";
-    writer.writeData(subMat->getMatrixName().c_str(), subMat->getMatrixName().length(), SCOREMATRIXNAME, 0);
+    char* subData = BaseMatrix::serialize(subMat);
+    writer.writeData(subData, BaseMatrix::memorySize(subMat), SCOREMATRIXNAME, 0);
     writer.alignToPageSize();
+    free(subData);
 
     if (spacedKmerPattern.empty() != false) {
         Debug(Debug::INFO) << "Write SPACEDPATTERN (" << SPACEDPATTERN << ")\n";
@@ -392,8 +394,19 @@ void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
 
     int *meta = (int *)dbr->getDataByDBKey(META, 0);
     printMeta(meta);
-
-    Debug(Debug::INFO) << "ScoreMatrix:  " << dbr->getDataByDBKey(SCOREMATRIXNAME, 0) << "\n";
+    char * subMatData = dbr->getDataByDBKey(SCOREMATRIXNAME, 0);
+    size_t pos = 0;
+    while(subMatData[pos]!='\0') {
+        if (subMatData[pos] == '.'
+            && subMatData[pos + 1] == 'o'
+            && subMatData[pos + 2] == 'u'
+            && subMatData[pos + 3] == 't'
+            && subMatData[pos + 4] == ':') {
+            break;
+        }
+        pos++;
+    }
+    Debug(Debug::INFO) << "ScoreMatrix:  " << std::string(subMatData, pos+4) << "\n";
 }
 
 PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int> *dbr) {
@@ -416,6 +429,31 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
 }
 
 std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<unsigned int> *dbr) {
+    unsigned int key = dbr->getDbKey(SCOREMATRIXNAME);
+    if (key == UINT_MAX) {
+        return "";
+    }
+    const char *data = dbr->getData(key, 0);
+    size_t len = dbr->getSeqLens(key) - 1;
+    std::string matrixName;
+    bool found = false;
+    for (size_t pos = 0; pos < std::max(len, (size_t)4) - 4 && found == false; pos++) {
+        if (data[pos] == '.'
+            && data[pos + 1] == 'o'
+            && data[pos + 2] == 'u'
+            && data[pos + 3] == 't'
+            && data[pos + 4] == ':') {
+            matrixName = std::string(data, pos + 4);
+            found = true;
+        }
+    }
+    if (found == false) {
+        matrixName = std::string(data);
+    }
+    return matrixName;
+}
+
+std::string PrefilteringIndexReader::getSubstitutionMatrix(DBReader<unsigned int> *dbr) {
     return std::string(dbr->getDataByDBKey(SCOREMATRIXNAME, 0));
 }
 

@@ -75,14 +75,16 @@ fi
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Removing temporary files"
     if [ -n "${GREEDY_BEST_HITS}" ]; then
-        rm -f "${TMP_PATH}/result_best" "${TMP_PATH}/result_best.index"
+        "$MMSEQS" rmdb "${TMP_PATH}/result_best"
     fi
-    rm -f "${TMP_PATH}/result" "${TMP_PATH}/result.index"
-    if [ ! -n "${LEAVE_INPUT}" ]; then
+    "$MMSEQS" rmdb "${TMP_PATH}/result"
+    if [ -z "${LEAVE_INPUT}" ]; then
         if [ -f "${TMP_PATH}/target" ]; then
-            rm -f "${TMP_PATH}/target" "${TMP_PATH}/target.index" "${TMP_PATH}/target_h" "${TMP_PATH}/target_h.index" "${TMP_PATH}/target.lookup" "${TMP_PATH}/target.dbtype"
+            "$MMSEQS" rmdb "${TMP_PATH}/target"
+            "$MMSEQS" rmdb "${TMP_PATH}/target_h"
         fi
-        rm -f "${TMP_PATH}/query" "${TMP_PATH}/query.index" "${TMP_PATH}/query_h" "${TMP_PATH}/query_h.index" "${TMP_PATH}/query.lookup" "${TMP_PATH}/query.dbtype"
+        "$MMSEQS" rmdb "${TMP_PATH}/query"
+        "$MMSEQS" rmdb "${TMP_PATH}/query_h"
     fi
     rm -rf "${TMP_PATH}/search_tmp"
     rm -f "${TMP_PATH}/easysearch.sh"

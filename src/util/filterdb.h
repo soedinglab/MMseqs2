@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 #include <regex.h>
+#include "ExpressionParser.h"
 
 #define REGEX_FILTERING 0
 #define FILE_FILTERING 1
@@ -22,6 +23,7 @@
 #define JOIN_DB 7
 #define COMPUTE_POSITIONS 8
 #define TRANSITIVE_REPLACE 9
+#define EXPRESSION_FILTERING 10
 
 #define GREATER_OR_EQUAL "ge"
 #define LOWER_OR_EQUAL "le"
@@ -97,6 +99,8 @@ private:
 	double compValue;
 	std::string compOperator;
     bool shouldAddSelfMatch;
+    ExpressionParser* parser;
+    std::vector<int> bindableParserColumns;
 
     DBWriter* dbw;
 	DBReader<unsigned int>* dataDb;

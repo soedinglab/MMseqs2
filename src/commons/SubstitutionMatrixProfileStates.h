@@ -14,7 +14,7 @@ class SubstitutionMatrixProfileStates : public BaseMatrix {
                                     double **probMatrix, double * pBack,
                                     float **rMatrix, float bitFactor, float scoreBias,
                                     int libAlphabetSize) {
-        alphabetSize = 32;
+//        alphabetSize = 32;
         int2aa[0] = 'A';
         int2aa[1] = 'C';
         int2aa[2] = 'D';
@@ -47,6 +47,7 @@ class SubstitutionMatrixProfileStates : public BaseMatrix {
         int2aa[29] = 'b';
         int2aa[30] = 'c';
         int2aa[31] = 'd';
+        alphabetSize = 21;
         initMatrixMemory(alphabetSize);
 
         for (int i = 0; i < alphabetSize; ++i){
@@ -71,7 +72,7 @@ class SubstitutionMatrixProfileStates : public BaseMatrix {
                 this->subMatrixPseudoCounts[i][j] = rMatrix[i][j];
             }
         }
-        
+
         ps = new ProfileStates(libAlphabetSize,this->pBack);
         this->scoreNormalization = ps->getScoreNormalization();
         this->bitFactor = bitFactor * scoreNormalization;

@@ -55,7 +55,7 @@ Alignment::Alignment(const std::string &querySeqDB,
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     tDbrIdx = new IndexReader(targetSeqDB, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     tdbr = tDbrIdx->sequenceReader;
-    targetSeqType = tDbrIdx->getDbtype();
+    targetSeqType = tdbr->getDbtype();
     sameQTDB = (targetSeqDB.compare(querySeqDB) == 0);
     if (sameQTDB == true) {
         qDbrIdx = tDbrIdx;
@@ -119,7 +119,7 @@ Alignment::Alignment(const std::string &querySeqDB,
         gapExtend = 2;
     } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
         SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, scoreBias);
-        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 255);
+        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 219);
         gapOpen = par.gapOpen;
         gapExtend = par.gapExtend;
     } else {
@@ -206,7 +206,7 @@ void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(prefdbr->getAminoAcidDBSize(), prefdbr->getSeqLens(),
+    Util::decomposeDomainByAminoAcid(prefdbr->getDataSize(), prefdbr->getSeqLens(),
                                      prefdbr->getSize(), mpiRank, mpiNumProc, &dbFrom, &dbSize);
 
     Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << (dbFrom + dbSize) << "\n";
@@ -306,7 +306,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     // Prefilter result (need to make this better)
                     if(elements == 3){
                         hit_t hit = QueryMatcher::parsePrefilterHit(data);
-                        isReverse = (reversePrefilterResult) ? hit.prefScore : false;
+                        isReverse = (reversePrefilterResult) ?  (hit.prefScore < 0) ? true : false : false;
                         diagonal = static_cast<short>(hit.diagonal);
                     }
 

@@ -27,18 +27,20 @@ set(util_source_files
         util/touchdb.cpp
         util/filterdb.cpp
         util/gff2db.cpp
+        util/masksequence.cpp
         util/maskbygff.cpp
         util/mergeclusters.cpp
         util/mergeresultsbyset.cpp
         util/mergedbs.cpp
         util/msa2profile.cpp
         util/mvdb.cpp
-
+        util/countkmer.cpp
         util/prefixid.cpp
         util/profile2cs.cpp
         util/profile2pssm.cpp
         util/result2flat.cpp
         util/result2msa.cpp
+        util/result2rbh.cpp
         util/result2profile.cpp
         util/result2pp.cpp
         util/result2repseq.cpp
@@ -55,6 +57,7 @@ set(util_source_files
         util/summarizeresult.cpp
         util/summarizetabs.cpp
         util/swapresults.cpp
+        util/transitivealign.cpp
         util/translatenucs.cpp
         util/translateaa.cpp
         util/tsv2db.cpp

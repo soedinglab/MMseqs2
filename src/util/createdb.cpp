@@ -261,6 +261,17 @@ int createdb(int argc, const char **argv, const Command& command) {
     hdrWriter.close(true);
     seqWriter.close(true);
 
+
+    if(entries_num == 0){
+        Debug(Debug::ERROR) << "The input files have no entry: ";
+        for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
+            Debug(Debug::ERROR) << " - " << filenames[fileIdx] << "\n";
+        }
+        Debug(Debug::ERROR) << "Please check your input files."
+                               "Only files in fasta/fastq[.gz|bz2] are supported \n";
+
+        EXIT(EXIT_FAILURE);
+    }
     // fix ids
     renumberIdsInIndexByOffsetOrder(seqWriter.getDataFileName(), seqWriter.getIndexFileName());
     renumberIdsInIndexByOffsetOrder(hdrWriter.getDataFileName(), hdrWriter.getIndexFileName());

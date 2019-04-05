@@ -489,12 +489,15 @@ public:
         int state = 0;
         for (int i = 0;  i < L;  i += 3) {
             // loop through one codon at a time
+            bool isLowerCase = false;
             for (int k = 0;  k < 3;  ++k) {
+                isLowerCase |= islower(nucl[i+k]);
                 state = getCodonState(state, nucl[i+k]);
             }
 //            std::cout << state  << " ";
             int pos = i/3;
-            aa[pos] = getCodonResidue(state);
+            char residue = getCodonResidue(state);
+            aa[pos] = (isLowerCase) ? tolower(residue) : residue;
         }
 //        std::cout << std::endl;
     }

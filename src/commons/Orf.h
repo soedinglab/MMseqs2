@@ -111,6 +111,7 @@ private:
     size_t bufferSize;
 
     char* stopCodons;
+    char* codon;
     size_t stopCodonCount;
     char* startCodons;
     size_t startCodonCount;

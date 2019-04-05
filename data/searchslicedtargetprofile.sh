@@ -153,7 +153,8 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     # shellcheck disable=SC2046,SC2005
     NUM_PROFILES="$(echo $(wc -l < "${PROFILEDB}.index"))"
     rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done" "${TMP_PATH}/pref_keep.list"
-    rm -f "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_swap.index" "${TMP_PATH}/aln_swap.dbtype" "${TMP_PATH}/aln_swap.done"
+    "$MMSEQS" rmdb "${TMP_PATH}/aln_swap"
+    rm -f "${TMP_PATH}/aln_swap.done"
     printf "%d\\t%d\\n" "${NUM_PROFILES}" "${OFFSET}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
 
     STEP="$((STEP+1))"
@@ -166,11 +167,12 @@ if [ -n "$REMOVE_TMP" ]; then
     STEP=0
     while [ "${STEP}" -lt "${MAX_STEPS}" ]; do
         if [ -f "${TMP_PATH}/aln_${STEP}.checkpoint" ]; then
-            rm -f "${TMP_PATH}/aln_${STEP}.checkpoint"
+            "$MMSEQS" rmdb "${TMP_PATH}/aln_${STEP}.checkpoint"
         fi
         STEP="$((STEP+1))"
     done
-    rm -f "${TMP_PATH}/profileDB" "${TMP_PATH}/profileDB.index" "${TMP_PATH}/profileDB.dbtype" "${TMP_PATH}/profileDB.meta"
+    "$MMSEQS" rmdb "${TMP_PATH}/profileDB"
+    rm -f "${TMP_PATH}/profileDB.meta"
     rm -f "$TMP_PATH/searchslicedtargetprofile.sh"
 fi
 

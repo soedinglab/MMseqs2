@@ -14,6 +14,11 @@ void setEasyLinclusterDefaults(Parameters *p) {
     p->covThr = 0.8;
     p->evalThr = 0.001;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    //p->orfLongest = true;
+    p->orfStartMode = 1;
+    p->orfMinLength = 10;
+    p->orfMaxLength = 32734;
+    p->evalProfile = 0.1;
 }
 
 int easylinclust(int argc, const char **argv, const Command &command) {

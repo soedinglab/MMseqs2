@@ -77,9 +77,19 @@ int search(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, 4, false, 0,
                         MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
 
+    std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
+    std::string targetDB =  (indexStr == "") ? par.db2.c_str() : indexStr.c_str();
+    int targetDbType;
+    if(indexStr != ""){
+        DBReader<unsigned int> dbr(targetDB.c_str(), (targetDB+".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+        dbr.open(DBReader<unsigned int>::NOSORT);
+        PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&dbr);
+        targetDbType = data.seqType;
+    }else{
+        targetDbType = DBReader<unsigned int>::parseDbType(targetDB.c_str());
+    }
 
     const int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
-    const int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
     if (queryDbType == -1 || targetDbType == -1) {
         Debug(Debug::ERROR)
                 << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
@@ -92,11 +102,13 @@ int search(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
-    const bool isNuclSearch = (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)
+    bool isNuclNuclSearch = (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)
                             && Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES));
-    if(isNuclSearch == true){
+    if(isNuclNuclSearch == true && par.searchType == Parameters::SEARCH_TYPE_AUTO) {
         setNuclSearchDefaults(&par);
-    }else{
+    } else if(isNuclNuclSearch == true && par.searchType == Parameters::SEARCH_TYPE_TRANSLATED) {
+        isNuclNuclSearch = false;
+    } else{
         par.overrideParameterDescription((Command &) command, par.PARAM_STRAND.uniqid, NULL, NULL,
                                          par.PARAM_STRAND.category | MMseqsParameter::COMMAND_EXPERT);
     }
@@ -107,7 +119,7 @@ int search(int argc, const char **argv, const Command& command) {
     }
 
     const bool isTranslatedNuclSearch =
-            isNuclSearch==false && (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) ||
+            isNuclNuclSearch==false && (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) ||
                                     Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES));
 
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
@@ -140,7 +152,12 @@ int search(int argc, const char **argv, const Command& command) {
         }
     }
     par.printParameters(command.cmd, argc, argv, par.searchworkflow);
-    if (FileUtil::directoryExists(par.db4.c_str()) == false) {
+
+    if(isNuclNuclSearch == true && par.searchType == Parameters::SEARCH_TYPE_AUTO) {
+        Debug(Debug::INFO) << "Perform nucleotide search. \n";
+        Debug(Debug::INFO) << "To perform a translated search use --search-type 2 \n";
+    }
+        if (FileUtil::directoryExists(par.db4.c_str()) == false) {
         Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db4.c_str()) == false) {
             Debug(Debug::ERROR) << "Could not create tmp folder " << par.db4 << ".\n";
@@ -173,8 +190,6 @@ int search(int argc, const char **argv, const Command& command) {
     std::string program;
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("ALIGNMENT_DB_EXT", Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ) ? ".255" : "");
-    std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
-    std::string targetDB =  (indexStr == "") ? par.db2.c_str() : indexStr.c_str();
     par.filenames[1] = targetDB;
     if (par.sliceSearch == true) {
         if (Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_HMM_PROFILE) == false) {
@@ -206,7 +221,10 @@ int search(int argc, const char **argv, const Command& command) {
         int originalCovMode = par.covMode;
         par.covMode = Util::swapCoverageMode(par.covMode);
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilter).c_str());
+        float originalEvalThr = par.evalThr;
+        par.evalThr = std::numeric_limits<float>::max();
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
+        par.evalThr = originalEvalThr;
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("SORTRESULT_PAR", par.createParameterString(par.sortresult).c_str());
         cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
@@ -325,11 +343,11 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("QUERY_NUCL", Parameters::isEqualDbtype(queryDbType,Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
         cmd.addVariable("TARGET_NUCL", Parameters::isEqualDbtype(targetDbType,Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
-        cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.onlythreads).c_str());
+        cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());
         cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");
-    }else if(isNuclSearch== true){
+    }else if(isNuclNuclSearch== true){
         FileUtil::writeFile(tmpDir + "/blastn.sh", blastn_sh, blastn_sh_len);
         //  0: reverse, 1: forward, 2: both
         switch (par.strand){
@@ -348,12 +366,13 @@ int search(int argc, const char **argv, const Command& command) {
                 cmd.addVariable("EXTRACTFRAMES","TRUE");
                 break;
         }
-        //TODO
         cmd.addVariable("SPLITSEQUENCE_PAR", par.createParameterString(par.splitsequence).c_str());
-        cmd.addVariable("NEEDTARGETSPLIT","TRUE");
+        if(indexStr=="") {
+            cmd.addVariable("NEEDTARGETSPLIT", "TRUE");
+        }
         cmd.addVariable("NEEDQUERYSPLIT","TRUE");
         cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
-        cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.onlythreads).c_str());
+        cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/blastn.sh");
 

@@ -94,29 +94,45 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     bool needBacktrace = false;
     bool needFullHeaders = false;
     const std::vector<int> outcodes = Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
-
+    if(format == Parameters::FORMAT_ALIGNMENT_SAM){
+        needSequenceDB = true;
+        needBacktrace = true;
+    }
     bool isTranslatedSearch = false;
 
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-    IndexReader qDbr(par.db1, par.threads,  IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+    int dbaccessMode = needSequenceDB ? (DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA) : (DBReader<unsigned int>::USE_INDEX);
+
+    IndexReader qDbr(par.db1, par.threads,  IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0, dbaccessMode);
     IndexReader qDbrHeader(par.db1, par.threads, IndexReader::SRC_HEADERS , (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
 
     IndexReader *tDbr;
     IndexReader *tDbrHeader;
-
     if (sameDB) {
         tDbr = &qDbr;
         tDbrHeader= &qDbrHeader;
     } else {
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        tDbr = new IndexReader(par.db2, par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        tDbr = new IndexReader(par.db2, par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0, dbaccessMode);
         tDbrHeader = new IndexReader(par.db2, par.threads, IndexReader::SRC_HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     }
 
-    bool queryNucs = Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
-    bool targetNucs = Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+    bool queryNucs = Parameters::isEqualDbtype(qDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+    bool targetNucs = Parameters::isEqualDbtype(tDbr->sequenceReader->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
     if (needSequenceDB) {
-        if((targetNucs == true || queryNucs == true ) && !(queryNucs == true && targetNucs == true)){
+        // try to figure out if search was translated. This is can not be solved perfectly.
+        bool seqtargetAA = false;
+        if(Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_INDEX_DB)){
+            IndexReader tseqDbr(par.db2, par.threads, IndexReader::SEQUENCES, 0, IndexReader::PRELOAD_INDEX);
+            seqtargetAA = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_AMINO_ACIDS);
+        } else if(targetNucs == true && queryNucs == true && par.searchType == Parameters::SEARCH_TYPE_AUTO){
+            Debug(Debug::INFO) << "Assume nucl/nucl search was performed. \n";
+            Debug(Debug::INFO) << "If this is not correct than please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
+        } else if(par.searchType == Parameters::SEARCH_TYPE_TRANSLATED){
+            seqtargetAA = true;
+        }
+
+        if((targetNucs == true && queryNucs == false )  || (targetNucs == false && queryNucs == true ) || (targetNucs == true && seqtargetAA == true && queryNucs == true )  ){
             isTranslatedSearch = true;
         }
     }
@@ -126,14 +142,17 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     bool queryProfile = false;
     bool targetProfile = false;
     if (needSequenceDB) {
-        queryProfile = Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
-        targetProfile = Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
+        queryProfile = Parameters::isEqualDbtype(qDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
+        targetProfile = Parameters::isEqualDbtype(tDbr->sequenceReader->getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
         evaluer = new EvalueComputation(tDbr->sequenceReader->getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
     }
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+
+
+
 
     unsigned int localThreads = 1;
 #ifdef OPENMP
@@ -148,6 +167,45 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     const bool isDb = par.dbOut;
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
+
+
+    if (format == Parameters::FORMAT_ALIGNMENT_SAM) {
+        char buffer[1024];
+        unsigned int lastKey = tDbr->sequenceReader->getLastKey();
+        bool *headerWritten = new bool[lastKey + 1];
+        memset(headerWritten, 0, sizeof(bool) * (lastKey + 1));
+        resultWriter.writeStart(0);
+        std::string header = "@HD\tVN:1.4\tSO:queryname\n";
+        resultWriter.writeAdd(header.c_str(), header.size(), 0);
+
+        for (size_t i = 0; i < alnDbr.getSize(); i++) {
+
+            char *data = alnDbr.getData(i, 0);
+
+            while (*data != '\0') {
+                char dbKeyBuffer[255 + 1];
+                Util::parseKey(data, dbKeyBuffer);
+                const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                if (headerWritten[dbKey] == false) {
+                    headerWritten[dbKey] = true;
+                    unsigned int tId = tDbr->sequenceReader->getId(dbKey);
+                    unsigned int seqLen = tDbr->sequenceReader->getSeqLens(tId) - 2;
+                    unsigned int tHeaderId = tDbrHeader->sequenceReader->getId(dbKey);
+                    const char *tHeader = tDbrHeader->sequenceReader->getData(tHeaderId, 0);
+                    std::string targetId = Util::parseFastaHeader(tHeader);
+                    int count = snprintf(buffer, sizeof(buffer), "@SQ\tSN:%s\tLN:%d\n", targetId.c_str(),
+                                         (int32_t) seqLen);
+                    if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
+                        Debug(Debug::WARNING) << "Truncated line in header " << i << "!\n";
+                        continue;
+                    }
+                    resultWriter.writeAdd(buffer, count, 0);
+                }
+                resultWriter.writeEnd(0, 0, false, 0);
+                data = Util::skipLine(data);
+            }
+        }
+    }
 
 #pragma omp parallel num_threads(localThreads)
     {
@@ -171,6 +229,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
         std::string targetProfData;
         targetProfData.reserve(1024);
+
+        std::string newBacktrace;
+        newBacktrace.reserve(1024);
+
 
 #pragma omp  for schedule(dynamic, 10)
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
@@ -251,7 +313,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 } else {
                     const int adjustQstart = (res.qStartPos == -1) ? 0 : res.qStartPos;
                     const int adjustDBstart = (res.dbStartPos == -1) ? 0 : res.dbStartPos;
-                    const float bestMatchEstimate = static_cast<float>(std::min(res.qEndPos - adjustQstart, res.dbEndPos - adjustDBstart));
+                    const float bestMatchEstimate = static_cast<float>(std::min(abs(res.qEndPos - adjustQstart), abs(res.dbEndPos - adjustDBstart)));
                     missMatchCount = static_cast<unsigned int>(bestMatchEstimate * (1.0f - res.seqId) + 0.5);
                 }
 
@@ -328,7 +390,12 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         result.append(SSTR(res.score));
                                         break;
                                     case Parameters::OUTFMT_CIGAR:
+                                        if(isTranslatedSearch == true && targetNucs == true && queryNucs == true ){
+                                            Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
+                                            res.backtrace = newBacktrace;
+                                        }
                                         result.append(SSTR(res.backtrace));
+                                        newBacktrace.clear();
                                         break;
                                     case Parameters::OUTFMT_QSEQ:
                                         if (queryProfile) {
@@ -414,6 +481,44 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         result.append(buffer, count);
                         break;
                     }
+                    case Parameters::FORMAT_ALIGNMENT_SAM:{
+                        // for TBLASTX
+                        bool strand = res.qEndPos > res.qStartPos;
+
+                        if(isTranslatedSearch == true && targetNucs == true && queryNucs == true ){
+                            Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
+                            res.backtrace = newBacktrace;
+                        }
+                        int rawScore = static_cast<int>(evaluer->computeRawScoreFromBitScore(res.score) + 0.5);
+
+                        uint32_t mapq = -4.343 * log(exp(static_cast<double>(-rawScore)));
+                        mapq = (uint32_t) (mapq + 4.99);
+                        mapq = mapq < 254 ? mapq : 254;
+                        int start = std::min( res.qStartPos,  res.qEndPos);
+                        int end   = std::max( res.qStartPos,  res.qEndPos);
+
+                        std::string queryStr;
+                        if (queryProfile) {
+                            queryStr = std::string(queryProfData.c_str() + start, (end + 1)-start);
+                        } else {
+                            queryStr = std::string(querySeqData + start, (end + 1) - start);
+                        }
+
+                        int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t%s\t*\t0\t0\t%s\t*\tAS:i:%d\tNM:i:%d\n",  queryId.c_str(), (strand) ? 16: 0,
+                                             targetId.c_str(), res.dbStartPos + 1, mapq, res.backtrace.c_str(),  queryStr.c_str(),
+                                             rawScore, missMatchCount);
+                        newBacktrace.clear();
+
+                        if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
+                            Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
+                            continue;
+                        }
+
+
+                        result.append(buffer, count);
+
+                        break;
+                    }
                     default:
                         Debug(Debug::ERROR) << "Not implemented yet";
                         EXIT(EXIT_FAILURE);
@@ -441,3 +546,4 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     return EXIT_SUCCESS;
 }
+

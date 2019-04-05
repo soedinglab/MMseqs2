@@ -118,18 +118,38 @@ public:
     void printKmer(const int* kmer, int kmerSize, char* int2aa);
     
     size_t * powers;
-    
+    size_t * workspace;
+
+
+    static size_t computeKmerIdx(const int *kmer, size_t kmerSize) {
+        uint64_t kmerIdx = 0;
+        for(size_t kmerPos = 0; kmerPos < kmerSize; kmerPos++){
+            kmerIdx = kmerIdx << 2;
+            kmerIdx = kmerIdx | kmer[kmerPos];
+        }
+        return kmerIdx;
+    }
+
+    static void printKmer(size_t idx, int kmerSize) {
+        char output[32];
+        char nuclCode[4] = {'A','C','T','G'};
+        for (int i=kmerSize-1; i>=0; i--)
+        {
+            output[i] = nuclCode[ idx&3 ];
+            idx = idx>>2;
+        }
+        output[kmerSize]='\0';
+        std::cout << output;
+
+    }
+
 private:
     
     size_t alphabetSize;
-    
     size_t maxKmerSize;
-    
     size_t lastKmerIndex;
-    
     size_t maxKmerIndex;
     
-    size_t * workspace;
 };
 #endif
 

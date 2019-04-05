@@ -33,7 +33,7 @@ public:
             }
         }
         max = (max<0) ? 0 : max;
-            
+
         return max;
     }
 
@@ -48,7 +48,7 @@ public:
         int diagonal;
 
         LocalAlignment(int startPos, int endPos, int score)
-        : startPos(startPos), endPos(endPos), score(score), diagonalLen(0), distToDiagonal(0), diagonal(0)
+                : startPos(startPos), endPos(endPos), score(score), diagonalLen(0), distToDiagonal(0), diagonal(0)
         {}
         LocalAlignment() : startPos(-1), endPos(-1), score(0), diagonalLen(0), distToDiagonal(0), diagonal(0)  {}
 
@@ -56,8 +56,8 @@ public:
 
     template<typename T>
     static LocalAlignment computeUngappedAlignment(const T *querySeq, unsigned int querySeqLen,
-                                                         const T *dbSeq, unsigned int dbSeqLen,
-                                                         const unsigned short diagonal, const char **subMat, int alnMode){
+                                                   const T *dbSeq, unsigned int dbSeqLen,
+                                                   const unsigned short diagonal, const char **subMat, int alnMode){
         LocalAlignment max;
         for(unsigned int devisions = 1; devisions <= 1 + dbSeqLen / 32768; devisions++) {
             int realDiagonal = (-devisions * 65536  + diagonal);
@@ -159,7 +159,7 @@ public:
             int res = simdi8_movemask(seqComparision);
             diff += MathUtil::popCount(res);  // subtract positions that should not contribute to coverage
         }
-         // compute missing rest
+        // compute missing rest
         for (unsigned int pos = simdBlock*(VECSIZE_INT*4); pos < length; pos++ ) {
             diff += (seq1[pos] == seq2[pos]);
         }
@@ -171,13 +171,14 @@ public:
      * Adapted from levenshtein.js (https://gist.github.com/andrei-m/982927)
      * Changed to hold only one row of the dynamic programing matrix
      * Copyright (c) 2011 Andrei Mackenzie
+     * Martin Steinegger: Changed to local alignment version
      * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
      * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
      * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-    static size_t levenshteinDistance(const std::string &s1, const std::string &s2) {
-        size_t m = s1.length();
-        size_t n = s2.length();
+    static int localLevenshteinDistance(const std::string &s1, const std::string &s2) {
+        int m = s1.length();
+        int n = s2.length();
 
         if (m == 0)
             return n;
@@ -186,36 +187,36 @@ public:
 
         // we don't need the full matrix just for the distance
         // we only need space for one row + the last value;
-        size_t *row  = new size_t[m + 1];
-        for (size_t i = 0; i <= m; ++i) {
-            row[i] = i;
+        int *currRow = new int[m + 1];
+        for (int i = 0; i <= m; ++i) {
+            currRow[i] = 0;
         }
-
+        int maxVal=0;
+        int val;
         // fill in the rest of the matrix
-        for (size_t i = 1; i <= n; i++) {
-            size_t prev = i;
-            for (size_t j = 1; j <= m; j++) {
-                size_t val;
-                if (s2[i - 1] == s1[j - 1]) {
-                    val = row[j - 1]; // match
-                } else {
-                    val = std::min(row[j - 1] + 1, // substitution
-                                   std::min(prev + 1,       // insertion
-                                            row[j] + 1));   // deletion
+        for (int i = 1; i <= n; i++) {
+            int prev = 0;
+            for (int j = 1; j <= m; j++) {
+                int subScore = (s2[i - 1] == s1[j - 1]) ? currRow[j - 1] + 1 : currRow[j - 1] - 1;
+                val = std::max(0,
+                               std::max(subScore, // substitution
+                                        std::max(prev - 1,       // insertion
+                                                 currRow[j] - 1)));   // deletion
 
+
+                if(val > maxVal){
+                    maxVal = val;
                 }
-                row[j - 1] = prev;
-
+                currRow[j - 1] = prev;
                 prev = val;
             }
-            row[m] = prev;
+//            std::swap(currRow, topRow);
         }
 
         // the last element of the matrix is the distance
-        size_t distance = row[m];
-        delete[] row;
+        delete[] currRow;
 
-        return distance;
+        return maxVal;
     }
 
     static double keywordDistance(const std::string &s1, const std::string &s2) {

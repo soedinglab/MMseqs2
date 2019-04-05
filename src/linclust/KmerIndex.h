@@ -60,7 +60,7 @@ public:
         this->entries = new KmerEntryRelative[entryCount];
         this->maxWriteEntries = entryCount;
         this->entryCount = 0;
-        this->indexGridSize = MathUtil::ceilIntDivision( MathUtil::ipow<size_t>(alphabetSize, kmerSize),indexGridResolution );
+        this->indexGridSize = MathUtil::ceilIntDivision( MathUtil::ipow<size_t>(alphabetSize, kmerSize),indexGridResolution);
         this->entryOffsets = new size_t[indexGridSize+1];
         memset(entryOffsets, 0, sizeof(size_t)*(indexGridSize + 1));
         this->prevKmerStartRange = 0;
@@ -214,9 +214,16 @@ public:
         while(hasNextEntry()){
             KmerEntry kmer = getNextEntry<TYPE>();
             Debug(Debug::INFO) << id++ << "\t";
-            indexer.printKmer(kmer.kmer, kmerSize, mat->int2aa);
+            size_t kmerIdx = kmer.kmer;
+            if(TYPE==Parameters::DBTYPE_NUCLEOTIDES){
+                kmerIdx = BIT_CLEAR(kmerIdx, 15);
+                Indexer::printKmer(kmerIdx, kmerSize);
+//                indexer.printKmer(kmer.kmer, kmerSize, mat->int2aa);
+            }else{
+                indexer.printKmer(kmerIdx, kmerSize, mat->int2aa);
+            }
             Debug(Debug::INFO) << "\t";
-            Debug(Debug::INFO) << kmer.kmer << "\t";
+            Debug(Debug::INFO) << kmerIdx << "\t";
             Debug(Debug::INFO) << kmer.id << "\t";
             Debug(Debug::INFO) << kmer.pos << "\t";
             Debug(Debug::INFO) << kmer.seqLen << "\t";

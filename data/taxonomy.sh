@@ -89,20 +89,24 @@ if [ -n "${REMOVE_TMP}" ]; then
     echo "Remove temporary files"
     rm -rf "${TMP_PATH}/tmp_hsp1"
     rm -rf "${TMP_PATH}/tmp_hsp2"
-    rm -f "${TMP_PATH}/first" "${TMP_PATH}/first.index"
+
+    "$MMSEQS" rmdb "${TMP_PATH}/first"
 
     if [ -n "${SEARCH2_PAR}" ]; then
-        rm -f "${TMP_PATH}/top1" "${TMP_PATH}/top1.index"
-        rm -f "${TMP_PATH}/aligned" "${TMP_PATH}/aligned.index" "${TMP_PATH}/round2" "${TMP_PATH}/round2.index"
-        rm -f "${TMP_PATH}/merged" "${TMP_PATH}/merged.index" "${TMP_PATH}/2b_ali" "${TMP_PATH}/2b_ali.index"
+        "$MMSEQS" rmdb "${TMP_PATH}/top1"
+        "$MMSEQS" rmdb "${TMP_PATH}/aligned"
+        "$MMSEQS" rmdb "${TMP_PATH}/round2"
+        "$MMSEQS" rmdb "${TMP_PATH}/merged"
+        "$MMSEQS" rmdb "${TMP_PATH}/2b_ali"
         if [ -n "${APPROX_2BLCA}" ]; then
-            rm -f "${TMP_PATH}/first_sub"  "${TMP_PATH}/first_sub.index"
+            "$MMSEQS" rmdb "${TMP_PATH}/first_sub"
         fi
     fi
     if [ -n "${LCA_PAR}" ]; then
-        rm -f "${TMP_PATH}/mapping" "${TMP_PATH}/mapping.index" "${TMP_PATH}/taxa" "${TMP_PATH}/taxa.index"
+        "$MMSEQS" rmdb "${TMP_PATH}/mapping"
+        "$MMSEQS" rmdb "${TMP_PATH}/taxa"
     else
-        rm -f "${TMP_PATH}/mapping" "${TMP_PATH}/mapping.index"
+        "$MMSEQS" rmdb "${TMP_PATH}/mapping"
     fi
 
     rm -f "${TMP_PATH}/taxonomy.sh"

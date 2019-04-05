@@ -65,6 +65,11 @@ public:
     static const int DBTYPE_OFFSETDB = 15;
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
+    static const int SEARCH_TYPE_AUTO = 0;
+    static const int SEARCH_TYPE_PROTEIN = 1;
+    static const int SEARCH_TYPE_TRANSLATED = 2;
+    static const int SEARCH_TYPE_NUCLEOTIDES = 3;
+
 
     static const unsigned int ALIGNMENT_MODE_FAST_AUTO = 0;
     static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 1;
@@ -79,6 +84,7 @@ public:
 
     // convertalis alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
+    static const int FORMAT_ALIGNMENT_SAM = 1;
     static const int FORMAT_ALIGNMENT_BLAST_WITH_LEN = 2;
 
     // outfmt
@@ -261,6 +267,7 @@ public:
     int restArgc;
 
     std::string scoringMatrixFile;       // path to scoring matrix
+    std::string seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
     int    verbosity;                    // log level
@@ -282,6 +289,7 @@ public:
     int    diagonalScoring;              // switch diagonal scoring
     int    exactKmerMatching;            // only exact k-mer matching
     int    maskMode;                     // mask low complex areas
+    int    maskLowerCaseMode;            // maske lowercase letters in prefilter and kmermatchers
 
     int    minDiagScoreThr;              // min diagonal score
     int    spacedKmer;                   // Spaced Kmers
@@ -397,6 +405,7 @@ public:
 
     // createtsv
     bool firstSeqRepr;
+    int idxSeqSrc;
     bool fullHeader;
     size_t targetTsvColumn;
 
@@ -409,10 +418,11 @@ public:
     int skipNRepeatKmer;
     int hashShift;
     int pickNbest;
+    int adjustKmerLength;
 
     // indexdb
     bool checkCompatible;
-    int indexType;
+    int searchType;
 
     // createdb
     int identifierOffset;
@@ -447,6 +457,7 @@ public:
     std::string filterColumnRegex;
     std::string filteringFile;
     std::string mappingFile;
+    std::string filterExpression;
     bool positiveFilter;
     bool trimToOneColumn;
     int extractLines;
@@ -483,6 +494,7 @@ public:
 
     // offsetalignments
     int chainAlignment;
+    int mergeQuery;
 
     // tsv2db
     int outputDbType;
@@ -506,6 +518,7 @@ public:
 
     // view
     std::string idList;
+    int idxEntryType;
     // lca
     std::string lcaRanks;
     std::string blacklist;
@@ -535,7 +548,7 @@ public:
                          int parseFlags = 0,
                          int outputFlags = 0);
     void printUsageMessage(const Command& command,
-                           int outputFlag);
+                           unsigned int outputFlag);
     void printParameters(const std::string &module, int argc, const char* pargv[],
                          const std::vector<MMseqsParameter*> &par);
 
@@ -553,6 +566,7 @@ public:
     PARAMETER(PARAM_DIAGONAL_SCORING)
     PARAMETER(PARAM_EXACT_KMER_MATCHING)
     PARAMETER(PARAM_MASK_RESIDUES)
+    PARAMETER(PARAM_MASK_LOWER_CASE)
 
     PARAMETER(PARAM_MIN_DIAG_SCORE)
     PARAMETER(PARAM_K_SCORE)
@@ -563,6 +577,7 @@ public:
     PARAMETER(PARAM_DISK_SPACE_LIMIT)
     PARAMETER(PARAM_SPLIT_AMINOACID)
     PARAMETER(PARAM_SUB_MAT)
+    PARAMETER(PARAM_SEED_SUB_MAT)
     PARAMETER(PARAM_NO_COMP_BIAS_CORR)
     PARAMETER(PARAM_SPACED_KMER_MODE)
     PARAMETER(PARAM_REMOVE_TMP_FILES)
@@ -656,6 +671,7 @@ public:
     PARAMETER(PARAM_TARGET_COLUMN)
     PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
     PARAMETER(PARAM_FULL_HEADER)
+    PARAMETER(PARAM_IDX_SEQ_SRC)
 
     // result2stat
     PARAMETER(PARAM_STAT)
@@ -666,6 +682,7 @@ public:
     PARAMETER(PARAM_SKIP_N_REPEAT_KMER)
     PARAMETER(PARAM_HASH_SHIFT)
     PARAMETER(PARAM_PICK_N_SIMILAR)
+    PARAMETER(PARAM_ADJUST_KMER_LEN)
 
     // workflow
     PARAMETER(PARAM_RUNNER)
@@ -695,7 +712,7 @@ public:
 
     // indexdb
     PARAMETER(PARAM_CHECK_COMPATIBLE)
-    PARAMETER(PARAM_INDEX_TYPE)
+    PARAMETER(PARAM_SEARCH_TYPE)
 
     // createdb
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
@@ -728,6 +745,7 @@ public:
     PARAMETER(PARAM_FILTER_REGEX)
     PARAMETER(PARAM_FILTER_POS)
     PARAMETER(PARAM_FILTER_FILE)
+    PARAMETER(PARAM_FILTER_EXPRESSION)
     PARAMETER(PARAM_MAPPING_FILE)
     PARAMETER(PARAM_TRIM_TO_ONE_COL)
     PARAMETER(PARAM_EXTRACT_LINES)
@@ -751,6 +769,8 @@ public:
 
     // offsetalignment
     PARAMETER(PARAM_CHAIN_ALIGNMENT)
+    PARAMETER(PARAM_MERGE_QUERY)
+
 
     // tsv2db
     PARAMETER(PARAM_OUTPUT_DBTYPE)
@@ -789,6 +809,7 @@ public:
 
     // view
     PARAMETER(PARAM_ID_LIST)
+    PARAMETER(PARAM_IDX_ENTRY_TYPE)
 
     // lca
     PARAMETER(PARAM_LCA_RANKS)
@@ -837,6 +858,7 @@ public:
     std::vector<MMseqsParameter*> clusthash;
     std::vector<MMseqsParameter*> kmermatcher;
     std::vector<MMseqsParameter*> kmersearch;
+    std::vector<MMseqsParameter*> countkmer;
     std::vector<MMseqsParameter*> easylinclustworkflow;
     std::vector<MMseqsParameter*> linclustworkflow;
     std::vector<MMseqsParameter*> easysearchworkflow;

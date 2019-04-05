@@ -6,6 +6,7 @@ set(COMPILED_RESOURCES
         blastp.sh
         blastpgp.sh
         map.sh
+        rbh.sh
         linclust.sh
         clustering.sh
         cascaded_clustering.sh
@@ -20,8 +21,10 @@ set(COMPILED_RESOURCES
         summarizeresultsbyset.sh
         enrich.sh
         blastn.sh
+        VTML80.out
         nucleotide.out
         blosum62.out
+        PAM30.out
         CovSeqidQscPercMinDiag.out
         CovSeqidQscPercMinDiagTargetCov.out
         ExpOpt3_8_polished.cs32.lib

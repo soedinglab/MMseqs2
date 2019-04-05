@@ -33,7 +33,11 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
         tdbr->open(DBReader<unsigned int>::NOSORT);
         tdbr->readMmapedDataInMemory();
     }
-
+    if(Parameters::isEqualDbtype(qdbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) == false ||
+       Parameters::isEqualDbtype(tdbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) == false ){
+        Debug(Debug::ERROR) << "This module only supports nucleotide query and target database input.\n";
+        return EXIT_FAILURE;
+    }
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
@@ -122,10 +126,9 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
 
                     }
                     if (update) {
-                        char *buffNext = Itoa::i32toa_sse2(cnt*3, buffer);
-                        size_t len = buffNext - buffer;
+
                         alnLen += cnt*3;
-                        newBacktrace.append(buffer, len - 1);
+                        newBacktrace.append(SSTR(cnt*3));
                         newBacktrace.push_back(res.backtrace[pos]);
                     }
 

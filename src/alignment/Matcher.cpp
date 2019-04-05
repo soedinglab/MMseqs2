@@ -204,8 +204,8 @@ void Matcher::readAlignmentResults(std::vector<result_t> &result, char *data, bo
     }
 }
 
-size_t Matcher::computeAlnLength(size_t qStart, size_t qEnd, size_t dbStart, size_t dbEnd) {
-    return std::max(qEnd - qStart, dbEnd - dbStart) + 1;
+int Matcher::computeAlnLength(int qStart, int qEnd, int dbStart, int dbEnd) {
+    return std::max(abs(qEnd - qStart), abs(dbEnd - dbStart)) + 1;
 }
 
 float Matcher::estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, unsigned int tLen) {

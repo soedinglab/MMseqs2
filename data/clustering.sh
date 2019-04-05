@@ -60,17 +60,18 @@ if notExists "${TMP_PATH}/clu_step0.dbtype"; then
 fi
 
 # merge clu_redundancy and clu
-"$MMSEQS" mergeclusters "$ORIGINAL" "$2" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_step0" \
+# shellcheck disable=SC2086
+"$MMSEQS" mergeclusters "$ORIGINAL" "$2" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_step0" $MERGECLU_PAR \
         || fail "Merging of clusters has died"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
-    rm -f "${TMP_PATH}/pref" "${TMP_PATH}/pref.index"
-    rm -f "${TMP_PATH}/aln" "${TMP_PATH}/aln.index"
-    rm -f "${TMP_PATH}/clu_step0" "${TMP_PATH}/clu_step0.index"
+    "$MMSEQS" rmdb "${TMP_PATH}/pref"
+    "$MMSEQS" rmdb "${TMP_PATH}/aln"
+    "$MMSEQS" rmdb "${TMP_PATH}/clu_step0"
+    "$MMSEQS" rmdb "${TMP_PATH}/clu_redundancy"
+    "$MMSEQS" rmdb "${TMP_PATH}/aln_redundancy"
+    "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy"
     rm -f "${TMP_PATH}/order_redundancy"
-    rm -f "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_redundancy.index"
-    rm -f "${TMP_PATH}/aln_redundancy" "${TMP_PATH}/aln_redundancy.index"
-    rm -f "${TMP_PATH}/input_step_redundancy" "${TMP_PATH}/input_step_redundancy.index"
     rm -f "${TMP_PATH}/clustering.sh"
 fi

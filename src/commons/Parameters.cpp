@@ -3,6 +3,7 @@
 #include "Util.h"
 #include "DistanceCalculator.h"
 #include "Debug.h"
+#include "CommandCaller.h"
 
 #include <iomanip>
 #include <regex.h>
@@ -30,28 +31,30 @@ Parameters::Parameters():
         // Regex for Range 1-32768
         // Please do not change manually, use a tool to regenerate
         // e.g.: http://gamon.webfactional.com/regexnumericrangegenerator/
-        PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "Maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_EXACT_KMER_MATCHING(PARAM_EXACT_KMER_MATCHING_ID,"--exact-kmer-matching", "Exact k-mer matching", "only exact k-mer matching [0,1]", typeid(int),(void *) &exactKmerMatching, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask Residues", "0: w/o low complexity masking, 1: with low complexity masking", typeid(int),(void *) &maskMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask Residues", "mask sequences in k-mer stage 0: w/o low complexity masking, 1: with low complexity masking", typeid(int),(void *) &maskMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_MASK_LOWER_CASE(PARAM_MASK_LOWER_CASE_ID,"--mask-lower-case", "Mask lower case residues", "lowercase letters will be excluded from k-mer search 0: include region, 1: exclude region", typeid(int),(void *) &maskLowerCaseMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-ungapped-score", "Minimum Diagonal score", "accept only matches with ungapped alignment score above this threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "k-mer threshold for generating similar-k-mer lists",typeid(int),(void *) &kmerScore,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "maximum result sequences per query (this parameter affects the sensitivity)",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "maximum result sequences per query that passes the prefilter (this parameter affects the sensitivity)",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "Splits input sets into N equally distributed chunks. The default value sets the best split automatically. createindex can only be used with split 1.",typeid(int),(void *) &split,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "0: split target db; 1: split query db;  2: auto, depending on main memory",typeid(int),(void *) &splitMode,  "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split Memory Limit", "Maximum system memory in megabyte that one split may use. Defaults (0) to all available system memory.", typeid(int), (void*) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*)$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set the maximum disk space (in Mb) to use for reverse profile searches. Defaults (0) to all available disk space in the temp folder.", typeid(int), (void*) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*)$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","Try to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Substitution Matrix", "amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SEED_SUB_MAT(PARAM_SEED_SUB_MAT_ID,"--seed-sub-mat", "Seed Substitution Matrix", "amino acid substitution matrix for kmer generation file",typeid(std::string),(void *) &seedScoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","correct for locally biased amino acid composition [0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "0: use consecutive positions a k-mers; 1: use spaced k-mers",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "",MMseqsParameter::COMMAND_EXPERT),
+        PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "",MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
         PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical Seq. Id.","artificially add entries of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_RES_LIST_OFFSET(PARAM_RES_LIST_OFFSET_ID,"--offset-result", "Offset result","Offset result list",typeid(int), (void *) &resListOffset, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PRELOAD_MODE(PARAM_PRELOAD_MODE_ID, "--db-load-mode", "Preload mode", "Database preload mode 0: auto, 1: fread, 2: mmap, 3: mmap+touch", typeid(int), (void*) &preloadMode, "[0-3]{1}", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPACED_KMER_PATTERN(PARAM_SPACED_KMER_PATTERN_ID, "--spaced-kmer-pattern", "Spaced k-mer pattern", "User-specified spaced k-mer pattern", typeid(std::string), (void *) &spacedKmerPattern, "^1[01]*1$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_LOCAL_TMP(PARAM_LOCAL_TMP_ID, "--local-tmp", "Local temporary path", "Path where some of the temporary files will be created", typeid(std::string), (void *) &localTmp, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
-
         // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "How to compute the alignment: 0: automatic; 1: only score and end_pos; 2: also start_pos and cov; 3: also seq.id; 4: only ungapped alignment",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
@@ -80,7 +83,7 @@ Parameters::Parameters():
         // create profile (HMM)
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "0: HMM (HHsuite) 1: PSSM or 2: HMMER3",typeid(int),(void *) &profileMode,  "^[0-2]{1}$"),
         // convertalignments
-        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format 0: BLAST-TAB, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
+        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format 0: BLAST-TAB, 1: SAM, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
         PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID,"--format-output", "Format alignment output", "format output 'query,target,evalue,gapopen,pident,nident,qstart,qend,qlen,tstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov'", typeid(std::string), (void*) &outfmt, ""),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database Output", "Output a result db instead of a text file", typeid(bool), (void*) &dbOut, ""),
         // rescorediagonal
@@ -118,8 +121,10 @@ Parameters::Parameters():
         PARAM_TAU(PARAM_TAU_ID, "--tau", "Tau", "Tau: context state pseudo count mixture (0.0,1.0)", typeid(float), (void*) &tau, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         //createtsv
         PARAM_TARGET_COLUMN(PARAM_TARGET_COLUMN_ID, "--target-column", "Target column", "Select a target column (default 1), 0 if no target id exists.",typeid(int),(void *) &targetTsvColumn, "^[0-9]*$"),
-        PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_MISC),
+        PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "First sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_MISC),
         PARAM_FULL_HEADER(PARAM_FULL_HEADER_ID, "--full-header", "Add Full Header", "Replace DB ID by its corresponding Full Header", typeid(bool), (void*) &fullHeader, ""),
+        PARAM_IDX_SEQ_SRC(PARAM_IDX_SEQ_SRC_ID, "--idx-seq-src", "Sequence source", "0: auto, 1: splitted/translated sequences, 2: input sequences", typeid(int), (void*) &idxSeqSrc, "^[0-2]{1}$", MMseqsParameter::COMMAND_MISC),
+
         // result2stats
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen, firstline.", typeid(std::string), (void*) &stat, ""),
         // linearcluster
@@ -128,14 +133,16 @@ Parameters::Parameters():
         PARAM_SKIP_N_REPEAT_KMER(PARAM_SKIP_N_REPEAT_KMER_ID, "--skip-n-repeat-kmer", "Skip sequence with n repeating k-mers", "Skip sequence with >= n exact repeating k-mers", typeid(int), (void*) &skipNRepeatKmer, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash", typeid(int), (void*) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PICK_N_SIMILAR(PARAM_HASH_SHIFT_ID, "--pick-n-sim-kmer", "Adds N similar to search", "adds N similar to search", typeid(int), (void*) &pickNbest, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_ADJUST_KMER_LEN(PARAM_ADJUST_KMER_LEN_ID, "--adjust-kmer-len", "Adjust k-mer length", "adjust k-mer length based on specificity (only for nucleotides)", typeid(bool), (void*) &adjustKmerLength, "", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
+
         // workflow
-        PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","use MPI on compute grid with this MPI command (e.g. \"mpirun -np 42\")",typeid(std::string),(void *) &runner, "", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart using the latest tmp","reuse tmp file in tmp/latest folder ignoring parameters and git version change", typeid(bool),(void *) &reuseLatest, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","use MPI on compute grid with this MPI command (e.g. \"mpirun -np 42\")",typeid(std::string),(void *) &runner, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart using the latest tmp","reuse tmp file in tmp/latest folder ignoring parameters and git version change", typeid(bool),(void *) &reuseLatest, "", MMseqsParameter::COMMAND_COMMON|COMMAND_EXPERT),
         // search workflow
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","Search iterations",typeid(int),(void *) &numIterations, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_START_SENS(PARAM_START_SENS_ID, "--start-sens", "Start sensitivity","start sensitivity",typeid(float),(void *) &startSens, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_SENS_STEPS(PARAM_SENS_STEPS_ID, "--sens-steps", "Search steps","Search steps performed from --start-sense and -s.",typeid(int),(void *) &sensSteps, "^[1-9]{1}$"),
-        PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Run a seq-profile search in slice mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results.", typeid(bool),(void *) &sliceSearch, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Run a seq-profile search in slice mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results.", typeid(bool),(void *) &sliceSearch, "", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_STRAND(PARAM_STRAND_ID, "--strand", "Strand selection", "Strand selection only works for DNA/DNA search 0: reverse, 1: forward, 2: both", typeid(int), (void *) &strand, "^[0-2]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // easysearch
         PARAM_GREEDY_BEST_HITS(PARAM_GREEDY_BEST_HITS_ID, "--greedy-best-hits", "Greedy best hits", "Choose the best hits greedily to cover the query.", typeid(bool), (void*)&greedyBestHits, ""),
@@ -150,8 +157,8 @@ Parameters::Parameters():
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
         PARAM_USE_ALL_TABLE_STARTS(PARAM_USE_ALL_TABLE_STARTS_ID,"--use-all-table-starts", "Use all table starts", "use all alteratives for a start codon in the genetic table, if false - only ATG (AUG)",typeid(bool),(void *) &useAllTableStarts, ""),
         // indexdb
-        PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check Compatible", "skip recreating an index if it is compatible with the specified parameters", typeid(bool), (void*) &checkCompatible, "", COMMAND_EXPERT),
-        PARAM_INDEX_TYPE(PARAM_INDEX_TYPE_ID, "--index-type", "Index type", "index type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &indexType, "^[0-3]{1}"),
+        PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check Compatible", "skip recreating an index if it is compatible with the specified parameters", typeid(bool), (void*) &checkCompatible, "", MMseqsParameter::COMMAND_MISC),
+        PARAM_SEARCH_TYPE(PARAM_SEARCH_TYPE_ID, "--search-type", "Search type", "search type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &searchType, "^[0-3]{1}"),
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
@@ -177,6 +184,7 @@ Parameters::Parameters():
         PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "regex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$"),
         PARAM_FILTER_POS(PARAM_FILTER_POS_ID,"--positive-filter", "Positive filter", "used in conjunction with --filter-file. If true, out  = in \\intersect filter ; if false, out = in - filter", typeid(bool),(void *) &positiveFilter,""),
         PARAM_FILTER_FILE(PARAM_FILTER_FILE_ID,"--filter-file", "Filter file", "specify a file that contains the filtering elements", typeid(std::string),(void *) &filteringFile,""),
+        PARAM_FILTER_EXPRESSION(PARAM_FILTER_EXPRESSION_ID, "--filter-expression", "Filter expression", "Specify a mathematical expression to filter lines", typeid(std::string), (void*) &filterExpression, ""),
         PARAM_MAPPING_FILE(PARAM_MAPPING_FILE_ID,"--mapping-file", "Mapping file", "specify a file that translates the keys of a DB to new keys, TSV format", typeid(std::string),(void *) &mappingFile,""),
         PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
         PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract n lines", "extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
@@ -196,7 +204,8 @@ Parameters::Parameters():
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         PARAM_TAKE_LARGER_ENTRY(PARAM_TAKE_LARGER_ENTRY_ID,"--take-larger-entry", "Take the larger entry", "only keeps the larger entry (dataSize >) in the concatenation, both databases need the same keys in the index",typeid(bool), (void *) &takeLargerEntry, ""),
         // offsetalignment
-        PARAM_CHAIN_ALIGNMENT(PARAM_CHAIN_ALIGNMENT_ID,"--chain-alignments", "Chain overlapping alignments", "Chain overlapping alignments",typeid(int),(void *) &chainAlignment, "^[0-1]{1}"),
+        PARAM_CHAIN_ALIGNMENT(PARAM_CHAIN_ALIGNMENT_ID,"--chain-alignments", "Chain overlapping alignments", "Chain overlapping alignments",typeid(int),(void *) &chainAlignment, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_MERGE_QUERY(PARAM_MERGE_QUERY_ID,"--merge-query", "Merge query", "combine ORFs/splited sequences to a single entry",typeid(int),(void *) &mergeQuery, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
         // tsv2db
         PARAM_OUTPUT_DBTYPE(PARAM_OUTPUT_DBTYPE_ID,"--output-dbtype", "Output DB Type", "Set database type for resulting database: Amino acid sequences 0, Nucl. seq. 1, Profiles 2, Alignment result 5, Clustering result 6, Prefiltering result 7, Taxonomy result 8, Indexed database 9, cA3M MSAs 10, FASTA or A3M MSAs 11, Generic database 12, Omic dbtype file 13, Bi-directional prefiltering result 14, Offsetted headers 15",typeid(int),(void *) &outputDbType, "^(0|[1-9]{1}[0-9]*)$"),
         //diff
@@ -220,8 +229,10 @@ Parameters::Parameters():
         // lca
         PARAM_TAXON_LIST(PARAM_TAXON_LIST_ID, "--taxon-list", "Selected taxons", "taxonomy ID, possibly multiple separated by ','", typeid(std::string), (void*) &taxonList, ""),
         PARAM_INVERT_SELECTION(PARAM_INVERT_SELECTION_ID, "--invert", "Invert selection", "Invert selection", typeid(bool), (void*)&invertSelection, ""),
-        // lca
+        // view
         PARAM_ID_LIST(PARAM_ID_LIST_ID, "--id-list", "Selected entries with key", "entries to be printed seperated by ','", typeid(std::string), (void*) &idList, ""),
+        PARAM_IDX_ENTRY_TYPE(PARAM_IDX_ENTRY_TYPE_ID, "--idx-entry-type", "Index entry type", "sequence; 0, src sequence 1: header: 2, src header :3 (default 0)", typeid(int), (void*) &idxEntryType, "^[0-3]{1}$"),
+
         // lca
         PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA Ranks", "Ranks to return in LCA computation", typeid(std::string), (void*) &lcaRanks, ""),
         PARAM_BLACKLIST(PARAM_BLACKLIST_ID, "--blacklist", "Blacklisted Taxa", "Comma separted list of ignored taxa in LCA computation", typeid(std::string), (void*)&blacklist, "([0-9]+,)?[0-9]+"),
@@ -264,7 +275,6 @@ Parameters::Parameters():
     align.push_back(&PARAM_C);
     align.push_back(&PARAM_COV_MODE);
     align.push_back(&PARAM_MAX_SEQ_LEN);
-    align.push_back(&PARAM_MAX_SEQS);
     align.push_back(&PARAM_NO_COMP_BIAS_CORR);
     align.push_back(&PARAM_REALIGN);
     align.push_back(&PARAM_MAX_REJECTED);
@@ -282,6 +292,7 @@ Parameters::Parameters():
 
     // prefilter
     prefilter.push_back(&PARAM_SUB_MAT);
+    prefilter.push_back(&PARAM_SEED_SUB_MAT);
     prefilter.push_back(&PARAM_S);
     prefilter.push_back(&PARAM_K);
     prefilter.push_back(&PARAM_K_SCORE);
@@ -298,6 +309,7 @@ Parameters::Parameters():
     prefilter.push_back(&PARAM_DIAGONAL_SCORING);
     prefilter.push_back(&PARAM_EXACT_KMER_MATCHING);
     prefilter.push_back(&PARAM_MASK_RESIDUES);
+    prefilter.push_back(&PARAM_MASK_LOWER_CASE);
     prefilter.push_back(&PARAM_MIN_DIAG_SCORE);
     prefilter.push_back(&PARAM_INCLUDE_IDENTITY);
     prefilter.push_back(&PARAM_SPACED_KMER_MODE);
@@ -335,6 +347,7 @@ Parameters::Parameters():
     rescorediagonal.push_back(&PARAM_FILTER_HITS);
     rescorediagonal.push_back(&PARAM_E);
     rescorediagonal.push_back(&PARAM_C);
+    rescorediagonal.push_back(&PARAM_ADD_BACKTRACE);
     rescorediagonal.push_back(&PARAM_COV_MODE);
     rescorediagonal.push_back(&PARAM_MIN_SEQ_ID);
     rescorediagonal.push_back(&PARAM_MIN_ALN_LEN);
@@ -435,6 +448,7 @@ Parameters::Parameters():
     createtsv.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
     createtsv.push_back(&PARAM_TARGET_COLUMN);
     createtsv.push_back(&PARAM_FULL_HEADER);
+    createtsv.push_back(&PARAM_IDX_SEQ_SRC);
     createtsv.push_back(&PARAM_DB_OUTPUT);
     createtsv.push_back(&PARAM_THREADS);
     createtsv.push_back(&PARAM_COMPRESSED);
@@ -455,6 +469,7 @@ Parameters::Parameters():
     convertalignments.push_back(&PARAM_GAP_EXTEND);
     convertalignments.push_back(&PARAM_DB_OUTPUT);
     convertalignments.push_back(&PARAM_PRELOAD_MODE);
+    convertalignments.push_back(&PARAM_SEARCH_TYPE);
     convertalignments.push_back(&PARAM_THREADS);
     convertalignments.push_back(&PARAM_COMPRESSED);
     convertalignments.push_back(&PARAM_V);
@@ -575,37 +590,39 @@ Parameters::Parameters():
     splitdb.push_back(&PARAM_V);
 
     // create index
-    indexdb.push_back(&PARAM_SUB_MAT);
+    indexdb.push_back(&PARAM_SEED_SUB_MAT);
     indexdb.push_back(&PARAM_K);
     indexdb.push_back(&PARAM_ALPH_SIZE);
     indexdb.push_back(&PARAM_NO_COMP_BIAS_CORR);
-    indexdb.push_back(&PARAM_MAX_SEQS);
     indexdb.push_back(&PARAM_MAX_SEQ_LEN);
     indexdb.push_back(&PARAM_MASK_RESIDUES);
+    indexdb.push_back(&PARAM_MASK_LOWER_CASE);
     indexdb.push_back(&PARAM_SPACED_KMER_MODE);
     indexdb.push_back(&PARAM_SPACED_KMER_PATTERN);
     indexdb.push_back(&PARAM_S);
     indexdb.push_back(&PARAM_K_SCORE);
     indexdb.push_back(&PARAM_CHECK_COMPATIBLE);
-    indexdb.push_back(&PARAM_INDEX_TYPE);
+    indexdb.push_back(&PARAM_SEARCH_TYPE);
     indexdb.push_back(&PARAM_SPLIT);
     indexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     indexdb.push_back(&PARAM_THREADS);
     indexdb.push_back(&PARAM_V);
 
     // create kmer index
-    kmerindexdb.push_back(&PARAM_SUB_MAT);
+    kmerindexdb.push_back(&PARAM_SEED_SUB_MAT);
     kmerindexdb.push_back(&PARAM_K);
     kmerindexdb.push_back(&PARAM_HASH_SHIFT);
     kmerindexdb.push_back(&PARAM_KMER_PER_SEQ);
     kmerindexdb.push_back(&PARAM_MIN_SEQ_ID);
+    kmerindexdb.push_back(&PARAM_ADJUST_KMER_LEN);
     kmerindexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     kmerindexdb.push_back(&PARAM_SKIP_N_REPEAT_KMER);
     kmerindexdb.push_back(&PARAM_ALPH_SIZE);
     kmerindexdb.push_back(&PARAM_MAX_SEQ_LEN);
     kmerindexdb.push_back(&PARAM_MASK_RESIDUES);
+    kmerindexdb.push_back(&PARAM_MASK_LOWER_CASE);
     kmerindexdb.push_back(&PARAM_CHECK_COMPATIBLE);
-    kmerindexdb.push_back(&PARAM_INDEX_TYPE);
+    kmerindexdb.push_back(&PARAM_SEARCH_TYPE);
     kmerindexdb.push_back(&PARAM_SPACED_KMER_MODE);
     kmerindexdb.push_back(&PARAM_SPACED_KMER_PATTERN);
     kmerindexdb.push_back(&PARAM_THREADS);
@@ -650,6 +667,7 @@ Parameters::Parameters():
     createseqfiledb.push_back(&PARAM_V);
 
     // filterDb
+    filterDb.push_back(&PARAM_FILTER_EXPRESSION);
     filterDb.push_back(&PARAM_FILTER_COL);
     filterDb.push_back(&PARAM_COLUMN_TO_TAKE);
     filterDb.push_back(&PARAM_FILTER_REGEX);
@@ -694,6 +712,8 @@ Parameters::Parameters():
 
     // offsetalignment
     offsetalignment.push_back(&PARAM_CHAIN_ALIGNMENT);
+    offsetalignment.push_back(&PARAM_MERGE_QUERY);
+    offsetalignment.push_back(&PARAM_SEARCH_TYPE);
     offsetalignment.push_back(&PARAM_THREADS);
     offsetalignment.push_back(&PARAM_COMPRESSED);
     offsetalignment.push_back(&PARAM_PRELOAD_MODE);
@@ -743,7 +763,9 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_ALPH_SIZE);
     kmermatcher.push_back(&PARAM_MIN_SEQ_ID);
     kmermatcher.push_back(&PARAM_KMER_PER_SEQ);
+    kmermatcher.push_back(&PARAM_ADJUST_KMER_LEN);
     kmermatcher.push_back(&PARAM_MASK_RESIDUES);
+    kmermatcher.push_back(&PARAM_MASK_LOWER_CASE);
     kmermatcher.push_back(&PARAM_COV_MODE);
     kmermatcher.push_back(&PARAM_K);
     kmermatcher.push_back(&PARAM_C);
@@ -760,6 +782,7 @@ Parameters::Parameters():
     kmersearch.push_back(&PARAM_SUB_MAT);
     kmersearch.push_back(&PARAM_KMER_PER_SEQ);
     kmersearch.push_back(&PARAM_MASK_RESIDUES);
+    kmersearch.push_back(&PARAM_MASK_LOWER_CASE);
     kmersearch.push_back(&PARAM_COV_MODE);
     kmersearch.push_back(&PARAM_C);
     kmersearch.push_back(&PARAM_MAX_SEQ_LEN);
@@ -769,6 +792,11 @@ Parameters::Parameters():
     kmersearch.push_back(&PARAM_COMPRESSED);
     kmersearch.push_back(&PARAM_V);
 
+    // countkmer
+    countkmer.push_back(&PARAM_K);
+    countkmer.push_back(&PARAM_SPACED_KMER_MODE);
+    countkmer.push_back(&PARAM_SPACED_KMER_PATTERN);
+    countkmer.push_back(&PARAM_THREADS);
 
 
     // mergedbs
@@ -857,6 +885,7 @@ Parameters::Parameters():
 
     // view
     view.push_back(&PARAM_ID_LIST);
+    view.push_back(&PARAM_IDX_ENTRY_TYPE);
     view.push_back(&PARAM_V);
 
     // exapandaln
@@ -879,7 +908,6 @@ Parameters::Parameters():
     expandaln.push_back(&PARAM_V);
 
     sortresult.push_back(&PARAM_COMPRESSED);
-    sortresult.push_back(&PARAM_MAX_SEQS);
     sortresult.push_back(&PARAM_THREADS);
     sortresult.push_back(&PARAM_V);
 
@@ -889,6 +917,7 @@ Parameters::Parameters():
     searchworkflow = combineList(searchworkflow, result2profile);
     searchworkflow = combineList(searchworkflow, extractorfs);
     searchworkflow = combineList(searchworkflow, translatenucs);
+    searchworkflow = combineList(searchworkflow, offsetalignment);
     // needed for slice search, however all its parameters are already present in searchworkflow
     // searchworkflow = combineList(searchworkflow, sortresult);
     searchworkflow.push_back(&PARAM_NUM_ITERATIONS);
@@ -905,12 +934,14 @@ Parameters::Parameters():
     linsearchworkflow = combineList(linsearchworkflow, swapresult);
     linsearchworkflow = combineList(linsearchworkflow, extractorfs);
     linsearchworkflow = combineList(linsearchworkflow, translatenucs);
+    linsearchworkflow = combineList(linsearchworkflow, offsetalignment);
     linsearchworkflow.push_back(&PARAM_RUNNER);
     linsearchworkflow.push_back(&PARAM_REUSELATEST);
     linsearchworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
 
     // easyslinsearch
     easylinsearchworkflow = combineList(createlinindex, linsearchworkflow);
+    easylinsearchworkflow = combineList(easylinsearchworkflow, convertalignments);
 
     // easysearch
     easysearchworkflow = combineList(searchworkflow, convertalignments);
@@ -998,65 +1029,49 @@ Parameters::Parameters():
 }
 
 void Parameters::printUsageMessage(const Command& command,
-                                   const int outputFlag){
+                                   const unsigned int outputFlag){
     const std::vector<MMseqsParameter*>& parameters = *command.params;
-
+    bool printWholeHelpText = (outputFlag == 0xFFFFFFFF);
     std::ostringstream ss;
-    ss << binary_name << " " << command.cmd << ":\n";
-    ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
-
-    if(command.citations > 0) {
-        ss << "Please cite:\n";
-        if(command.citations & CITATION_SERVER) {
-            ss << "Mirdita, M., Steinegger, M. & Soding, J. MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, (2019).\n\n";
-        }
-        if(command.citations & CITATION_PLASS) {
-            ss << "Steinegger, M. Mirdita, M., & Soding, J. Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, doi:10.1101/386110 (2018)\n\n";
-        }
-        if(command.citations & CITATION_LINCLUST) {
-            ss << "Steinegger, M. & Soding, J. Clustering huge protein sequence sets in linear time. Nature Communications, doi:10.1038/s41467-018-04964-5 (2018)\n\n";
-        }
-        if(command.citations & CITATION_MMSEQS1) {
-            ss << "Hauser, M., Steinegger, M. & Soding, J. MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n\n";
-        }
-        if(command.citations & CITATION_UNICLUST) {
-            ss << "Mirdita, M., von den Driesch, L., Galiez, C., Martin M., Soding J. & Steinegger M. Uniclust databases of clustered and deeply annotated protein sequences and alignments. Nucleic Acids Res (2017), D170-D176 (2016).\n\n";
-        }
-        if(command.citations & CITATION_MMSEQS2) {
-            ss << "Steinegger, M. & Soding, J. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi:10.1038/nbt.3988 (2017)\n\n";
-        }
+    ss << "Usage: " << binary_name << " " << command.cmd << " " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n";
+//    ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
+    const char * longDesc = ( command.longDescription != NULL) ?  command.longDescription : command.shortDescription;
+    const char * printDesc = (printWholeHelpText) ? longDesc : command.shortDescription;
+    ss << printDesc << "\n";
+    if(printWholeHelpText) {
+        ss <<" By " << command.author << "\n";
     }
-    ss << "© " << command.author << "\n\n";
-    ss << "Usage: " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n\n";
 
     struct {
         const char* title;
         int category;
     } categories[] = {
-            {"prefilter",MMseqsParameter::COMMAND_PREFILTER},
-            {"align",    MMseqsParameter::COMMAND_ALIGN},
-            {"clust",    MMseqsParameter::COMMAND_CLUST},
-            {"kmermatcher", MMseqsParameter::COMMAND_CLUSTLINEAR},
-            {"profile",  MMseqsParameter::COMMAND_PROFILE},
-            {"misc",     MMseqsParameter::COMMAND_MISC},
-            {"common",   MMseqsParameter::COMMAND_COMMON},
+            {"Prefilter",MMseqsParameter::COMMAND_PREFILTER},
+            {"Align",    MMseqsParameter::COMMAND_ALIGN},
+            {"Clust",    MMseqsParameter::COMMAND_CLUST},
+            {"Kmermatcher", MMseqsParameter::COMMAND_CLUSTLINEAR},
+            {"Profile",  MMseqsParameter::COMMAND_PROFILE},
+            {"Misc",     MMseqsParameter::COMMAND_MISC},
+            {"Common",   MMseqsParameter::COMMAND_COMMON},
+            {"Expert",   MMseqsParameter::COMMAND_EXPERT}
     };
 
     size_t maxWidth = 0;
     for(size_t i = 0; i < parameters.size(); i++) {
         maxWidth = std::max(strlen(parameters[i]->name), maxWidth);
     }
-    maxWidth+=2; // space in front of options
+    // space in front of options
+    maxWidth += 2;
     std::map<int, bool> alreadyPrintMap;
     // header
     ss << std::setprecision(3) << std::fixed;
     bool printExpert = (MMseqsParameter::COMMAND_EXPERT & outputFlag) ;
-
-    for(size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
+    bool printHeader = true;
+    for (size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
         bool categoryFound = false;
         for (size_t j = 0; j < parameters.size(); j++) {
             const MMseqsParameter * par = parameters[j];
-            bool isExpert =  (par->category & MMseqsParameter::COMMAND_EXPERT);
+            bool isExpert = (par->category & MMseqsParameter::COMMAND_EXPERT);
             bool alreadyPrint = alreadyPrintMap[par->uniqid];
             if (par->category & categories[i].category && (printExpert || isExpert == false ) && alreadyPrint == false ) {
 //                int others = (par.category ^ categories[i].category);
@@ -1066,19 +1081,24 @@ void Parameters::printUsageMessage(const Command& command,
                 break;
             }
         }
-        if(categoryFound){
+        if (categoryFound) {
             std::string title(categories[i].title);
-            title.append(" options");
-            ss << std::left << std::setw(maxWidth) << title << "\t";
-            ss << std::left << std::setw(10) << "default" << "\t";
-            ss << "description [value range]" << std::endl;
-
+            title.append(" options:");
+            ss << std::left << std::setw(maxWidth) << title;
+            if(printHeader==true){
+                ss << "\t";
+                ss << std::left << std::setw(10) << "default" << "\t";
+                ss << "description [value range]" << std::endl;
+                printHeader = false;
+            }else {
+                ss << std::endl;
+            }
             // body
             for (size_t j = 0; j < parameters.size(); j++) {
                 const MMseqsParameter * par = parameters[j];
-                bool isExpert =  (par->category & MMseqsParameter::COMMAND_EXPERT);
+                bool isExpert = (par->category & MMseqsParameter::COMMAND_EXPERT);
                 bool alreadyPrint = alreadyPrintMap[par->uniqid];
-                if(par->category & categories[i].category && (printExpert || isExpert == false ) && alreadyPrint == false ){
+                if (par->category & categories[i].category && (printExpert || isExpert == false) && alreadyPrint == false ){
                     ss << std::left << std::setw(maxWidth) << "  " + std::string(par->name) << "\t";
                     ss << std::boolalpha << std::left << std::setw(6);
                     if (par->type == typeid(int)) {
@@ -1092,26 +1112,38 @@ void Parameters::printUsageMessage(const Command& command,
                     } else if (par->type == typeid(std::string)) {
                         std::string &out = *((std::string *) par->value);
                         ss << std::left << std::setw(10) << out;
-                        //            for(std::string::const_iterator j = out.begin(); j != out.end(); ++j) {
-                        //                if(*j == '\n') {
-                        //                    ss << "\\n";
-                        //                } else if (*j == '\t') {
-                        //                    ss << "\\t";
-                        //                } else {
-                        //                    ss << *j;
-                        //                }
-                        //            }
                     }
                     ss << "\t";
                     ss << std::left << std::setw(60) << par->description << std::endl;
                     alreadyPrintMap[par->uniqid] = true;
                 }
             }
-            ss << "\n";
         }
     }
-    if (printExpert==false) {
-        ss << "An extended list of options can be obtained by calling '" << binary_name << " " << command.cmd << " -h'.\n";
+    if (printExpert == false) {
+        ss << "\n" << "An extended list of options can be obtained by calling '" << binary_name << " " << command.cmd << " -h'.\n";
+
+    if(command.citations > 0) {
+        //ss << "Please cite:\n";
+        if(command.citations & CITATION_SERVER) {
+            ss << " - Mirdita M, Steinegger M, Soding J: MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, doi: 10.1093/bioinformatics/bty1057 (2019).\n";
+        }
+        if(command.citations & CITATION_PLASS) {
+            ss << " - Steinegger M, Mirdita M, Soding J: Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, doi:10.1101/386110 (2018)\n";
+        }
+        if(command.citations & CITATION_LINCLUST) {
+            ss << " - Steinegger M, Soding J: Clustering huge protein sequence sets in linear time. Nature Communications, doi:10.1038/s41467-018-04964-5 (2018)\n";
+        }
+        if(command.citations & CITATION_MMSEQS1) {
+            ss << " - Hauser M, Steinegger M, Soding J: MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n";
+        }
+        if(command.citations & CITATION_UNICLUST) {
+            ss << " - Mirdita M, von den Driesch L, Galiez C, Martin M, Soding J, Steinegger M: Uniclust databases of clustered and deeply annotated protein sequences and alignments. Nucleic Acids Res (2017), D170-D176 (2016).\n";
+        }
+        if(command.citations & CITATION_MMSEQS2) {
+            ss << " - Steinegger M, Soding J: MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi:10.1038/nbt.3988 (2017)\n";
+        }
+    }
     }
     Debug(Debug::INFO) << ss.str();
 }
@@ -1238,11 +1270,11 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
                 // Suggest some parameter that the user might have meant
                 std::vector<MMseqsParameter *>::const_iterator index = par.end();
-                size_t minDistance = SIZE_MAX;
+                int maxDistance = 0;
                 for (std::vector<MMseqsParameter *>::const_iterator it = par.begin(); it != par.end(); ++it) {
-                    size_t distance = DistanceCalculator::levenshteinDistance(parameter, (*it)->name);
-                    if(distance < minDistance) {
-                        minDistance = distance;
+                    int distance = DistanceCalculator::localLevenshteinDistance(parameter, (*it)->name);
+                    if(distance > maxDistance) {
+                        maxDistance = distance;
                         index = it;
                     }
                 }
@@ -1400,6 +1432,10 @@ void Parameters::printParameters(const std::string &module, int argc, const char
     }
     Debug(Debug::INFO) << "\n\n";
 
+    if (CommandCaller::getCallDepth() > 0) {
+        return;
+    }
+
     size_t maxWidth = 0;
     for(size_t i = 0; i < par.size(); i++) {
         maxWidth = std::max(strlen(par[i]->display), maxWidth);
@@ -1433,6 +1469,7 @@ void Parameters::setDefaults() {
     restArgc = 0;
 
     scoringMatrixFile = "blosum62.out";
+    seedScoringMatrixFile = "VTML80.out";
 
     kmerSize =  0;
     kmerScore = INT_MAX;
@@ -1471,6 +1508,7 @@ void Parameters::setDefaults() {
     diagonalScoring = 1;
     exactKmerMatching = 0;
     maskMode = 1;
+    maskLowerCaseMode = 0;
     minDiagScoreThr = 15;
     spacedKmer = true;
     includeIdentity = false;
@@ -1515,7 +1553,7 @@ void Parameters::setDefaults() {
 
     // indexdb
     checkCompatible = false;
-    indexType = 0;
+    searchType = SEARCH_TYPE_AUTO;
 
     // createdb
     splitSeqByLen = true;
@@ -1610,6 +1648,7 @@ void Parameters::setDefaults() {
     filterColumnRegex = "^.*$";
     positiveFilter = true;
     filteringFile = "";
+    filterExpression = "";
     trimToOneColumn = false;
     extractLines = 0;
     compOperator = "";
@@ -1635,8 +1674,9 @@ void Parameters::setDefaults() {
     prefix = "";
     tsvOut = false;
 
-    // offset alignment
+    // offsetalignment
     chainAlignment = 0;
+    mergeQuery = 1;
 
     // tsv2db
     outputDbType = Parameters::DBTYPE_GENERIC_DB;
@@ -1663,12 +1703,14 @@ void Parameters::setDefaults() {
     skipNRepeatKmer = 0;
     hashShift = 5;
     pickNbest = 1;
+    adjustKmerLength = true;
     // result2stats
     stat = "";
 
     // createtsv
     firstSeqRepr = false;
     fullHeader = false;
+    idxSeqSrc = 0;
     targetTsvColumn = 1;
 
     // filtertaxdb
@@ -1677,7 +1719,7 @@ void Parameters::setDefaults() {
 
     // view
     idList = "";
-
+    idxEntryType = 0;
     // lca
     lcaRanks = "";
     // bin for all unclassified sequences

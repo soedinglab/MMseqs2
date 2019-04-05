@@ -7,8 +7,11 @@
 #include <iostream>
 #include <iterator>
 #include <cmath>
-
 #include <cstdlib>
+
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
 struct sort_by_score {
     bool operator()(const std::pair<short,unsigned int> &left, const std::pair<short,unsigned int> &right) const {
