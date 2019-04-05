@@ -8,12 +8,17 @@
 
 void setMultiHitSearchWorkflowDefaults(Parameters *p) {
     p->sensitivity = 7;
-    p->covThr = 0.7;
+    // TODO: Check query cov maybe?
+    // p->covThr = 0.7;
     p->evalThr = 100;
 
     // TODO: Needs to be more than the count of target sets (10x?)
     p->maxSequences = 1500;
+
+    // TODO: Why??
     p->scoreBias = 0.3;
+
+    // TODO: add a minimum alignment length cutoff, 4 residue alignments dont seem useful
 
     p->simpleBestHit = false;
 }
