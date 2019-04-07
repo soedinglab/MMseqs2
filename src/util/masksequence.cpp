@@ -49,7 +49,7 @@ int masksequence(int argc, const char **argv, const Command& command) {
 #endif
         char *charSequence = new char[maxSeqLen];
 
-#pragma omp for schedule(dynamic, 10)
+#pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < reader.getSize(); ++id) {
             char *seqData = reader.getData(id, thread_idx);
             unsigned int qKey = reader.getDbKey(id);
