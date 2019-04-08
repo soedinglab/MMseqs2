@@ -129,11 +129,13 @@ The output can be customized wit the `--format-output` option e.g. `--format-out
 
 MMseqs2 provides many additional search modes:
  * Iterative sequences-profile searches (like PSI-BLAST) with the `--num-iterations` parameter
- * [Translated searches](https://github.com/soedinglab/MMseqs2/wiki#translated-sequence-searching) of nucleotides against proteins or proteins against nucleotides
+ * [Translated searches](https://github.com/soedinglab/MMseqs2/wiki#translated-sequence-searching) of nucleotides against proteins (blastx), proteins against nucleotides (tblastn) or nucleotide against nucleotide (tblastx)
  * [Iterative increasing sensitivity searches](https://github.com/soedinglab/MMseqs2/wiki#how-to-find-the-best-hit-the-fastest-way) to find only the best hits faster
  * [Taxonomic assignment](https://github.com/soedinglab/MMseqs2/wiki#taxonomy-assignment-using-mmseqs-taxonomy) using 2bLCA or LCA
  * Fast ungapped alignment searches to find [very similar sequence matches](https://github.com/soedinglab/MMseqs2/wiki#mapping-very-similar-sequences-using-mmseqs-map)
  * Very fast and sensitive Searches against [profile databases such as the PFAM](https://github.com/soedinglab/MMseqs2/wiki#how-to-create-a-target-profile-database-from-pfam)
+ * [Reciprocal best hits search](https://github.com/soedinglab/MMseqs2/wiki#reciprocal-best-hit-using-mmseqs-rbh)
+
 
 Many modes can also be combined. You can, for example, do a translated nucleotide against protein profile search.
 
@@ -145,9 +147,12 @@ Before clustering, convert your database into the MMseqs2 database format:
 Then execute the clustering:
 
         mmseqs cluster DB clu tmp
+        
+or linear time clutering (faster but less sensitive):
 
-Please ensure that in case of large input databases the temporary direcotry provides enough free space.
-For disk space requirements, see the user guide.
+        mmseqs linclust DB clu tmp
+
+Please adjust the [clustering criteria](https://github.com/soedinglab/MMseqs2/wiki#clustering-criteria) and check if temporary direcotry provides enough free space. For disk space requirements, see the user guide.
 
 To generate a FASTA-style formatted output file from the ffindex output file, type:
 
