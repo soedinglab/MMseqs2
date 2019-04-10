@@ -55,7 +55,7 @@ int prefilter(int argc, const char **argv, const Command& command) {
         queryDbType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
     }
     Prefiltering pref(par.db2, par.db2Index, queryDbType, targetDbType, par);
-    Debug(Debug::INFO) << "Time for init: " << timer.lap() << "\n";
+    //Debug(Debug::INFO) << "Time for init: " << timer.lap() << "\n";
 
 #ifdef HAVE_MPI
     pref.runMpiSplits(par.db1, par.db1Index, par.db3, par.db3Index, par.localTmp);

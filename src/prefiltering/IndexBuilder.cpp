@@ -221,6 +221,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     indexTable->init();
 
     delete info;
+    Debug::Progress progress2(dbTo-dbFrom);
 
     Debug(Debug::INFO) << "Index table: fill\n";
     #pragma omp parallel
@@ -242,7 +243,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         #pragma omp for schedule(dynamic, 100)
         for (size_t id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
-            progress.updateProgress();
+            progress2.updateProgress();
 
             unsigned int qKey = dbr->getDbKey(id);
             if (isProfile) {

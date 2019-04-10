@@ -442,7 +442,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     scores = new(std::nothrow) unsigned short[symmetricElementCount];
     Util::checkAllocation(scores, "Can not allocate scores memory in readInClusterData");
     std::fill_n(scores, symmetricElementCount, 0);
-    Debug(Debug::INFO) << "\nFound " << symmetricElementCount - totalElementCount << " new connections.\n";
+    Debug(Debug::INFO) << "Found " << symmetricElementCount - totalElementCount << " new connections.\n";
     AlignmentSymmetry::setupPointers<unsigned int>  (elements, elementLookupTable, newElementOffsets, dbSize, symmetricElementCount);
     AlignmentSymmetry::setupPointers<unsigned short>(scores, scoreLookupTable, newElementOffsets, dbSize, symmetricElementCount);
     //time

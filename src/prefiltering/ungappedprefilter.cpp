@@ -21,7 +21,6 @@
 
 int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter &resultWriter, size_t dbStart, size_t dbSize) {
     int querySeqType = qdbr.getDbtype();
-    Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
     DBReader<unsigned int> *tdbr = NULL;
     bool sameDB = false;
     if (par.db1.compare(par.db2) == 0) {
@@ -145,7 +144,6 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         }
     }
 
-    Debug(Debug::INFO) << "\nDone.\n";
     qdbr.close();
     if (sameDB == false) {
         tdbr->close();
@@ -162,7 +160,6 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
     MMseqsMPI::init(argc, argv);
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
-    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
     DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     qdbr.open(DBReader<unsigned int>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {

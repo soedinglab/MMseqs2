@@ -42,7 +42,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
     unsigned int maxTargetId = 0;
     char *targetElementExists = NULL;
     if (isGeneralMode) {
-        Debug(Debug::INFO) << "Result database: " << parResultDbStr << "\n";
+
         DBReader<unsigned int> resultReader(parResultDb, parResultDbIndex, par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
         //search for the maxTargetId (value of first column) in parallel
@@ -69,12 +69,12 @@ int doswap(Parameters& par, bool isGeneralMode) {
         };
         resultReader.close();
     } else {
-        Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
+
         bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
         IndexReader query(par.db1, par.threads, IndexReader::SEQUENCES,  (touch) ? IndexReader::PRELOAD_INDEX : 0 );
         aaResSize = query.sequenceReader->getAminoAcidDBSize();
 
-        Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
+
         IndexReader target(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0);
         maxTargetId = target.sequenceReader->getLastKey();
 
@@ -89,7 +89,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     EvalueComputation evaluer(aaResSize, &subMat, par.gapOpen, par.gapExtend);
 
-    Debug(Debug::INFO) << "Result database: " << parResultDbStr << "\n";
+
     DBReader<unsigned int> resultDbr(parResultDb, parResultDbIndex, par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 

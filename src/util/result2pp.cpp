@@ -268,7 +268,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
 
     qDbr->close();
     delete qDbr;
-    Debug(Debug::INFO) << "\nDone.\n";
+
 
     return EXIT_SUCCESS;
 }

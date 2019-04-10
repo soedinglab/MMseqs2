@@ -88,7 +88,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
         remove(par.db2Index.c_str());
     }
 
-    Debug(Debug::INFO) << "\nDone.\n";
+
 
     profileReader.close();
 

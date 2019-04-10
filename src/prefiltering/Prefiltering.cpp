@@ -167,7 +167,6 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             EXIT(EXIT_FAILURE);
         }
     } else {
-        Debug(Debug::INFO) << "Compute index\n";
         tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tdbr->open(DBReader<unsigned int>::NOSORT);
 
@@ -226,7 +225,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         }
     }
 
-    Debug(Debug::INFO) << "Target database: " << targetDB << "(Size: " << tdbr->getSize() << ")\n";
+    Debug(Debug::INFO) << "Target database: " << targetDB << " (size: " << tdbr->getSize() << " type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << ")\n";
 
     if (splitMode == Parameters::QUERY_DB_SPLIT) {
         // create the whole index table
@@ -238,9 +237,6 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         Debug(Debug::ERROR) << "Invalid split mode: " << splitMode << "\n";
         EXIT(EXIT_FAILURE);
     }
-
-    Debug(Debug::INFO) << "Query  database type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
-    Debug(Debug::INFO) << "Target database type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
 }
 
 Prefiltering::~Prefiltering() {
@@ -349,8 +345,6 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSiz
             }
         }
     }
-
-    Debug(Debug::INFO) << "Using Kmer size=" << *kmerSize << "\n";
 
     if(*split > 1){
         Debug(Debug::INFO) << Parameters::getSplitModeName(*splitMode) << " split mode. Search " << *split << " splits\n";
@@ -498,7 +492,7 @@ void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
         SequenceLookup **maskedLookup   = maskMode == 1 || maskLowerCaseMode == 1 ? &sequenceLookup : NULL;
         SequenceLookup **unmaskedLookup = maskMode == 0 ? &sequenceLookup : NULL;
 
-        Debug(Debug::INFO) << "Index table k-mer threshold: " << localKmerThr << "\n";
+        Debug(Debug::INFO) << "Index table k-mer threshold: " << localKmerThr << " at k-mer size " << kmerSize << " \n";
         IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *kmerSubMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr, maskMode, maskLowerCaseMode);
 
         if (diagonalScoring == false) {
@@ -661,7 +655,7 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
         qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         qdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     }
-    Debug(Debug::INFO) << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
+    Debug(Debug::INFO) << "Query  database: " << queryDB << " (size=" << qdbr->getSize() << " type: "<< DBReader<unsigned int>::getDbTypeName(querySeqType) << ")\n";
 
     size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(resultDB).c_str());
     size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qdbr->getSize(), maxResListLen);
@@ -764,14 +758,14 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     }
 
     double kmerMatchProb;
+    Debug(Debug::INFO) << "k-mer similarity threshold: " << kmerThr << "\n";
     if (diagonalScoring) {
         kmerMatchProb = 0.0f;
     } else {
         // run small query sample against the index table to calibrate p-match
         kmerMatchProb = setKmerThreshold(qdbr);
+        Debug(Debug::INFO) << "k-mer match probability: " << kmerMatchProb << "\n\n";
     }
-    Debug(Debug::INFO) << "k-mer similarity threshold: " << kmerThr << "\n";
-    Debug(Debug::INFO) << "k-mer match probability: " << kmerMatchProb << "\n\n";
 
     Timer timer;
 

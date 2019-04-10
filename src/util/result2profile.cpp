@@ -309,7 +309,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         delete tDbrIdx;
     }
 
-    Debug(Debug::INFO) << "\nDone.\n";
+
 
     return EXIT_SUCCESS;
 }

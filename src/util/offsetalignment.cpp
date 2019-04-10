@@ -185,7 +185,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         idxdbr.close();
     }
 
-    Debug(Debug::INFO) << "Query database: " << par.db2 << "\n";
     IndexReader qOrfDbr(par.db2.c_str(), par.threads, IndexReader::HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     if (queryDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
@@ -194,11 +193,9 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     const bool queryNucl = Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES);
     IndexReader *qSourceDbr = NULL;
     if (queryNucl) {
-        Debug(Debug::INFO) << "Source Query database: " << par.db1 << "\n";
         qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX) : 0, DBReader<unsigned int>::USE_INDEX);
     }
 
-    Debug(Debug::INFO) << "Target database: " << par.db4 << "\n";
     IndexReader * tOrfDbr;
     bool isSameOrfDB = (par.db2.compare(par.db4) == 0);
     if(isSameOrfDB){
@@ -217,7 +214,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     bool isNuclNuclSearch = false;
     bool isTransNucTransNucSearch = false;
     if (targetNucl) {
-        Debug(Debug::INFO) << "Source Target database: " << par.db3 << "\n";
         bool seqtargetNuc = true;
         if(isSameSrcDB){
             tSourceDbr = qSourceDbr;
@@ -245,7 +241,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         isNuclNuclSearch = (queryNucl && targetNucl && seqtargetNuc);
     }
 
-    Debug(Debug::INFO) << "Result database: " << par.db5 << "\n";
     DBReader<unsigned int> alnDbr(par.db5.c_str(), par.db5Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 

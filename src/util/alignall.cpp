@@ -17,7 +17,6 @@ int alignall(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    Debug(Debug::INFO) << "Target database: " << par.db1 << "\n";
     DBReader<unsigned int> tdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     tdbr.open(DBReader<unsigned int>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
@@ -33,11 +32,9 @@ int alignall(int argc, const char **argv, const Command &command) {
         subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     }
 
-    Debug(Debug::INFO) << "Prefilter database: " << par.db2 << "\n";
     DBReader<unsigned int> dbr_res(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_PREFILTER_RES);
     resultWriter.open();
 

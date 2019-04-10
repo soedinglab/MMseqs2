@@ -101,7 +101,6 @@ int doRescorediagonal(Parameters &par,
         globalAliStat.prepareGlobalAliParam(*subMat);
     }
 
-    Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 100000000;
     if (totalMemory > resultReader.getTotalDataSize()) {
@@ -330,7 +329,7 @@ int doRescorediagonal(Parameters &par,
         }
         resultReader.remapData();
     }
-    Debug(Debug::INFO) << "\nDone.\n";
+
 
     if (tDbrIdx != NULL) {
         delete tDbrIdx;

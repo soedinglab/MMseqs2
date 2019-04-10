@@ -124,7 +124,7 @@ int createdb(int argc, const char **argv, const Command& command) {
     size_t isNuclCnt = 0;
     std::string dataStr;
     dataStr.reserve(1000000);
-
+    Debug::Progress progress;
     std::vector<unsigned short>* sourceLookup = new std::vector<unsigned short>[shuffleSplits]();
     for (size_t i = 0; i < shuffleSplits; ++i) {
         sourceLookup[i].reserve(16384);
@@ -139,7 +139,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         splitId.reserve(1024);
         kseq = KSeqFactory(filenames[fileIdx].c_str());
         while (kseq->ReadEntry()) {
-//            progress.updateProgress();
+            progress.updateProgress();
             const KSeqWrapper::KSeqEntry &e = kseq->entry;
             if (e.name.l == 0) {
                 Debug(Debug::ERROR) << "Fasta entry: " << entries_num << " is invalid.\n";
@@ -258,6 +258,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         }
         delete kseq;
     }
+    Debug(Debug::INFO) << "\n";
     hdrWriter.close(true);
     seqWriter.close(true);
 

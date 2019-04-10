@@ -314,7 +314,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
         delete tDbr;
     }
 
-    Debug(Debug::INFO) << "\nDone.\n";
+
 
     return EXIT_SUCCESS;
 }

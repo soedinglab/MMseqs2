@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include "Util.h"
-#include <ostream>
+#include "Timer.h"
 #include <unistd.h>
 #include <cstddef>
 
@@ -37,14 +37,14 @@ public:
         if (level <= ERROR && level <= debugLevel){
             std::cout << std::flush;
             if(errIsTty){
-                std::cerr << "\033[" << Color::FG_RED << "m" << buffer;
+                std::cerr << "\033[" << Color::FG_RED << "m" << buffer << "\033[" << Color::FG_DEFAULT << "m";;
             }else{
                 std::cerr << buffer;
             }
             std::cerr << std::flush;
         } else if(level == WARNING && level <= debugLevel){
             if(outIsTty){
-                std::cout << "\033[" << Color::FG_YELLOW << "m" << buffer;
+                std::cout << "\033[" << Color::FG_YELLOW << "m" << buffer << "\033[" << Color::FG_DEFAULT << "m";
             }else{
                 std::cout << buffer;
             }
@@ -81,35 +81,56 @@ public:
     class Progress{
         private:
             size_t currentPos;
+            size_t prevPrintedId;
             size_t totalEntries;
             float prevPrintedProgress;
             const static int BARWIDTH = 70;
-        public:
-            Progress(size_t totalEntries) :  currentPos(0), totalEntries(totalEntries){
+            Timer timer;
+
+    public:
+            Progress(size_t totalEntries) :  currentPos(0), prevPrintedId(0), totalEntries(totalEntries){
                 prevPrintedProgress = 0.0;
             }
 
-            void updateProgress(){
-                size_t id = __sync_add_and_fetch(&currentPos, 1);
-                float progress = (static_cast<float>(id) / static_cast<float>(totalEntries-1));
-                if(progress-prevPrintedProgress > 0.001 || id == (totalEntries - 1)  ){
+            Progress():  currentPos(0),  prevPrintedId(0), totalEntries(SIZE_MAX){
+                prevPrintedId = 0;
+            }
 
-                    Debug(Debug::INFO)  << "[";
-                    int pos = BARWIDTH * progress;
-                    for (int i = 0; i < BARWIDTH; ++i) {
-                        if (i < pos) Debug(Debug::INFO) << "=";
-                        else if (i == pos) Debug(Debug::INFO)  << ">";
-                        else Debug(Debug::INFO)  << " ";
+            void updateProgress(){
+                size_t id = __sync_fetch_and_add(&currentPos, 1);
+
+                if(totalEntries==SIZE_MAX){
+                    if( prevPrintedId + 10000 > id){
+                        Debug(Debug::INFO) << "[" << SSTR(id) <<  "] " << timer.lapProgress() << "\r";
+                        prevPrintedId = id;
                     }
-                    char buffer[32];
-                    int n = sprintf(buffer, "%.2f", progress * 100.0f);
-                    std::string progressPercent(buffer, n);
-                    Debug(Debug::INFO)  << "] " << progressPercent << " %\r";
-                    std::cout.flush();
-                    prevPrintedProgress=progress;
-                }
-                if(id == (totalEntries - 1) ){
-                    Debug(Debug::INFO)  << "\n";
+                }else{
+                    float progress = (static_cast<float>(id) / static_cast<float>(totalEntries-1));
+                    if(progress-prevPrintedProgress > 0.001 || id == (totalEntries - 1)  ){
+                        std::string line;
+                        line.push_back('[');
+                        int pos = BARWIDTH * progress;
+                        for (int i = 0; i < BARWIDTH; ++i) {
+                            if (i < pos) {
+                                line.push_back('=');
+                            }else if (i == pos) {
+                                line.push_back('>');
+                            } else {
+                                line.push_back(' ');
+                            }
+                        }
+                        char buffer[32];
+                        int n = sprintf(buffer, "%.2f", progress * 100.0f);
+                        line.append("] ");
+                        line.append(buffer, n);
+                        line.append(" % ");
+                        line.append(timer.lapProgress());
+                        //printf("%zu\t%zu\t%f\n", id, totalEntries, progress);
+                        line.push_back((id == (totalEntries - 1) ) ? '\n' : '\r' );
+                        Debug(Debug::INFO) << line;
+                        std::cout.flush();
+                        prevPrintedProgress=progress;
+                    }
                 }
             }
     };

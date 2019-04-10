@@ -101,7 +101,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
         }
         writer.close();
     }
-    Debug(Debug::INFO) << "\nDone.\n";
+
     profileReader.close();
     return EXIT_SUCCESS;
 }

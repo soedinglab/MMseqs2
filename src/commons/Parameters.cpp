@@ -1278,7 +1278,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                 }
 
                 if(index != par.end()) {
-                    Debug(Debug::INFO) << "Did you mean \"" << (*index)->name << "\"?\n";
+                    Debug(Debug::WARNING) << "Did you mean \"" << (*index)->name << "\"?\n";
                 }
 
                 EXIT(EXIT_FAILURE);

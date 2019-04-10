@@ -374,7 +374,7 @@ int apply(int argc, const char **argv, const Command& command) {
             }
         }
     }
-    Debug(Debug::INFO) << "\nDone.\n";
+
 
     reader.close();
 

@@ -95,7 +95,6 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
     DBReader<unsigned int> sequenceDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     sequenceDbr.open(DBReader<unsigned int>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
@@ -111,15 +110,12 @@ int transitivealign(int argc, const char **argv, const Command &command) {
         subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     }
 
-
-
-    Debug(Debug::INFO) << "Prefilter database: " << par.db2 << "\n";
     DBReader<unsigned int> alnReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     alnReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
 
-    Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
+
     std::string tmpRes = par.db3+".tmp";
     std::string tmpResIndex = par.db3+".tmp.index";
     DBWriter resultWriter(tmpRes.c_str(), tmpResIndex.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
@@ -246,7 +242,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     }
 
 
-    Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
+
     DBReader<unsigned int> resultDbr(tmpRes.c_str(), tmpResIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 

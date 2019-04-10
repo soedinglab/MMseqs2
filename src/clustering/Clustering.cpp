@@ -32,7 +32,6 @@ Clustering::~Clustering() {
 
 void Clustering::run(int mode) {
     Timer timer;
-
     DBWriter *dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1, compressed, Parameters::DBTYPE_CLUSTER_RES);
     dbw->open();
 
@@ -58,25 +57,30 @@ void Clustering::run(int mode) {
         EXIT(EXIT_FAILURE);
     }
 
-    Debug(Debug::INFO) << "Writing results\n";
-    writeData(dbw, ret);
-    Debug(Debug::INFO) << "Time for clustering: " << timer.lap() << "\n";
-
-    delete algorithm;
+    Timer timerWrite;
 
     size_t dbSize = alnDbr->getSize();
     size_t seqDbSize = seqDbr->getSize();
     size_t cluNum = ret.size();
+
+    Debug(Debug::INFO) << "Total time: " << timer.lap() << "\n";
+    Debug(Debug::INFO) << "\nSize of the sequence database: " << seqDbSize << "\n";
+    Debug(Debug::INFO) << "Size of the alignment database: " << dbSize << "\n";
+    Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n\n";
+
+    Debug(Debug::INFO) << "Writing results ";
+    writeData(dbw, ret);
+    Debug(Debug::INFO) << timerWrite.lap() << "\n";
+
+    delete algorithm;
+
+
 
     seqDbr->close();
     alnDbr->close();
     dbw->close();
     delete dbw;
 
-    Debug(Debug::INFO) << "Total time: " << timer.lap() << "\n";
-    Debug(Debug::INFO) << "\nSize of the sequence database: " << seqDbSize << "\n";
-    Debug(Debug::INFO) << "Size of the alignment database: " << dbSize << "\n";
-    Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n";
 }
 
 void Clustering::writeData(DBWriter *dbw, const std::unordered_map<unsigned int, std::vector<unsigned int>> &ret) {

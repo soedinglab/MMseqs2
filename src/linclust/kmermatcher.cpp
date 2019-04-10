@@ -398,12 +398,11 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
                              DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat,
                              size_t KMER_SIZE, size_t chooseTopKmer, bool adjustLength) {
 
-    Debug(Debug::INFO) << "Generate k-mers list " << split <<"\n";
+    Debug(Debug::INFO) << "Generate k-mers list for " << (split+1) <<" split\n";
 
     size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;
 
     KmerPosition * hashSeqPair = initKmerPositionMemory(splitKmerCount);
-    Timer timer;
     size_t elementsToSort;
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
         std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, true, splits, split, 1, adjustLength);
@@ -414,18 +413,19 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
         std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, true, splits, split, 1, false);
         elementsToSort = ret.first;
     }
-    Debug(Debug::INFO) << "\nTime for fill: " << timer.lap() << "\n";
     if(splits == 1){
         seqDbr.unmapData();
     }
 
-    Debug(Debug::INFO) << "Sort kmer\n";
-    timer.reset();
+    Debug(Debug::INFO) << "Sort kmer ";
+    Timer timer;
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
         omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPosReverse);
     }else{
         omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPos);
     }
+    Debug(Debug::INFO) << timer.lap() << "\n";
+
 //    {
 //        Indexer indexer(subMat->alphabetSize, KMER_SIZE);
 //        for(size_t i = 0; i < elementsToSort; i++){
@@ -435,7 +435,6 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
 //    }
     //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, KmerComparision());
 
-    Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
     // assign rep. sequence to same kmer members
     // The longest sequence is the first since we sorted by kmer, seq.Len and id
     size_t writePos;
@@ -446,7 +445,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
     }
 
     // sort by rep. sequence (stored in kmer) and sequence id
-    Debug(Debug::INFO) << "Sort by rep. sequence\n";
+    Debug(Debug::INFO) << "Sort by rep. sequence ";
     timer.reset();
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
         omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiagReverse);
@@ -455,7 +454,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
     }
     //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, SequenceComparision());
 
-    Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
+    Debug(Debug::INFO) << timer.lap() << "\n";
 
     if(splits > 1){
         if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
@@ -658,8 +657,9 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         // security buffer
         splits += 1;
     }
-
-    Debug(Debug::INFO) << "Process file into " << splits << " parts\n";
+    if(splits > 1){
+        Debug(Debug::INFO) << "Process file into " << splits << " parts\n";
+    }
     std::vector<std::string> splitFiles;
     KmerPosition *hashSeqPair = NULL;
 
