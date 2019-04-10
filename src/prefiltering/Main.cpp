@@ -19,7 +19,6 @@ int prefilter(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, 3, true, 0, MMseqsParameter::COMMAND_PREFILTER);
 
     Timer timer;
-    Debug(Debug::INFO) << "Initialising data structures...\n";
 
     int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
 

@@ -54,10 +54,10 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
 
 
     bool invertSelection = par.invertSelection;
-    Debug(Debug::INFO) << "Loading NCBI taxonomy...\n";
+    Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
 
-    Debug(Debug::INFO) << "Computing LCA...\n";
+    Debug(Debug::INFO) << "Computing LCA\n";
     #pragma omp parallel
     {
         unsigned int thread_idx = 0;

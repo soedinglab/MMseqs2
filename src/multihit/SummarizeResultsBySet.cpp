@@ -13,7 +13,7 @@ int summerizeresultsbyset(int argc, const char **argv, const Command &command) {
     if (FileUtil::directoryExists(par.db5.c_str()) == false) {
         Debug(Debug::INFO) << "Tmp " << par.db5 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db5.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not create tmp folder " << par.db5 << ".\n";
+            Debug(Debug::ERROR) << "Can not create tmp folder " << par.db5 << ".\n";
             EXIT(EXIT_FAILURE);
         } else {
             Debug(Debug::INFO) << "Created dir " << par.db5 << "\n";
@@ -24,7 +24,7 @@ int summerizeresultsbyset(int argc, const char **argv, const Command &command) {
     std::string tmpDir = par.db5 + "/" + SSTR(hash);
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
             EXIT(EXIT_FAILURE);
         }
     }

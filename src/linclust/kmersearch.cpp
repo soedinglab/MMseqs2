@@ -45,7 +45,7 @@ KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t split
     if(splits == 1){
         seqDbr.unmapData();
     }
-    Debug(Debug::INFO) << "Done." << "\n";
+
     Debug(Debug::INFO) << "Sort kmer ... ";
     timer.reset();
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
@@ -54,7 +54,7 @@ KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t split
         omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPos);
     }
 
-    Debug(Debug::INFO) << "Done." << "\n";
+
     Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
 
     return ExtractKmerAndSortResult(elementsToSort, hashSeqPair, KMER_SIZE);
@@ -220,7 +220,8 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "\n";
     size_t totalKmers = computeKmerCount(queryDbr, KMER_SIZE, chooseTopKmer);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
-    Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << memoryLimit << " byte)\n";
+    Debug(Debug::INFO) << "Estimated memory consumption " << totalSizeNeeded/1024/1024 << " MB\n";
+
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
 //    size_t splits = 2;

@@ -149,13 +149,13 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
             size_t tabLength = blastTabReader.getSeqLens(i) - 1;
             const std::vector<Domain> entries = getEntries(id, tabData, tabLength, lengths);
             if (entries.size() == 0) {
-                Debug(Debug::WARNING) << "Could not map any entries for entry " << id << "!\n";
+                Debug(Debug::WARNING) << "Can not map any entries for entry " << id << "!\n";
                 continue;
             }
 
             std::vector<Domain> result = mapDomains(entries, par.overlap, par.covThr, par.evalThr);
             if (result.size() == 0) {
-                Debug(Debug::WARNING) << "Could not map any domains for entry " << id << "!\n";
+                Debug(Debug::WARNING) << "Can not map any domains for entry " << id << "!\n";
                 continue;
             }
 

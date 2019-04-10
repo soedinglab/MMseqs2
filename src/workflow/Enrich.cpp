@@ -19,7 +19,7 @@ int enrich(int argc, const char **argv, const Command &command) {
     if (FileUtil::directoryExists(par.db6.c_str()) == false) {
         Debug(Debug::INFO) << "Tmp " << par.db6 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db6.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db6 << ".\n";
+            Debug(Debug::ERROR) << "Can not crate tmp folder " << par.db6 << ".\n";
             EXIT(EXIT_FAILURE);
         } else {
             Debug(Debug::INFO) << "Created dir " << par.db6 << "\n";
@@ -32,7 +32,7 @@ int enrich(int argc, const char **argv, const Command &command) {
     std::string tmpDir = par.db6+"/"+hash;
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
             EXIT(EXIT_FAILURE);
         }
     }

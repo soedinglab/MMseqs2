@@ -15,7 +15,7 @@ int align(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4, true, 0, MMseqsParameter::COMMAND_ALIGN);
 
-    Debug(Debug::INFO) << "Init data structures...\n";
+    Debug(Debug::INFO) << "Init data structures\n";
     Alignment aln(par.db1, par.db2,
                   par.db3, par.db3Index,
                   par.db4, par.db4Index, par);

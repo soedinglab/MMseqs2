@@ -230,7 +230,7 @@ int ffindexFilter::runFilter(){
                 }
                     
 				if(!Util::getLine(data, dataLength, lineBuffer, LINE_BUFFER_SIZE)) {
-					Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
+					Debug(Debug::WARNING) << "Identifier was too long and was cut off!\n";
 					data = Util::skipLine(data);
 					continue;
 				}
@@ -286,7 +286,7 @@ int ffindexFilter::runFilter(){
 				        char* rest;
 				        const double value = strtod(columnPointers[columnToBind], &rest);
                         if ((rest == columnPointers[columnToBind]) || errno == ERANGE) {
-                            Debug(Debug::WARNING) << "Could not parse column " << columnToBind << "!\n";
+                            Debug(Debug::WARNING) << "Can not parse column " << columnToBind << "!\n";
                             continue;
                         }
 				        parser->bind(columnToBind, value);

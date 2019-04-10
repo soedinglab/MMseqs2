@@ -30,7 +30,7 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     if(FileUtil::directoryExists(par.db6.c_str())==false){
         Debug(Debug::INFO) << "Tmp " << par.db6 << " folder does not exist or is not a directory.\n";
         if(FileUtil::makeDir(par.db6.c_str()) == false){
-            Debug(Debug::ERROR) << "Could not create tmp folder " << par.db6 << ".\n";
+            Debug(Debug::ERROR) << "Can not create tmp folder " << par.db6 << ".\n";
             EXIT(EXIT_FAILURE);
         }else{
             Debug(Debug::INFO) << "Created dir " << par.db6 << "\n";

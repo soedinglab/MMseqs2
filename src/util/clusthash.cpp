@@ -61,7 +61,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
             hashSeqPair[id] = std::make_pair(seqHash, id);
         }
     }
-    Debug(Debug::INFO) << "Done." << "\n";
+
 
 
     // sort by hash and set up the pointer for parallel processing

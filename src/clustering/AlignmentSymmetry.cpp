@@ -41,7 +41,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                 char *data = alnDbr->getDataByDBKey(clusterId, thread_idx);
 
                 if (*data == '\0') { // check if file contains entry
-                    Debug(Debug::ERROR) << "ERROR: Sequence " << i
+                    Debug(Debug::ERROR) << "Sequence " << i
                                         << " does not contain any sequence for key " << clusterId
                                         << "!\n";
                     continue;
@@ -50,7 +50,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                 size_t writePos = 0;
                 while (*data != '\0') {
                     if (writePos >= setSize) {
-                        Debug(Debug::ERROR) << "ERROR: Set " << i
+                        Debug(Debug::ERROR) << "Set " << i
                                             << " has more elements than allocated (" << setSize
                                             << ")!\n";
                         continue;
@@ -72,7 +72,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                         }
                     }
                     if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
-                        Debug(Debug::ERROR) << "ERROR: Element " << dbKey
+                        Debug(Debug::ERROR) << "Element " << dbKey
                                             << " contained in some alignment list, but not contained in the sequence database!\n";
                         EXIT(EXIT_FAILURE);
                     }
@@ -89,7 +89,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
 size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, size_t * offsetTable, size_t dbSize, int threads) {
     // init memory for parallel merge
     unsigned int * tmpSize = new(std::nothrow) unsigned int[threads * dbSize];
-    Util::checkAllocation(tmpSize, "Could not allocate memory in findMissingLinks");
+    Util::checkAllocation(tmpSize, "Can not allocate memory in findMissingLinks");
     memset(tmpSize, 0, static_cast<size_t>(threads) * dbSize * sizeof(unsigned int));
 #pragma omp parallel
     {

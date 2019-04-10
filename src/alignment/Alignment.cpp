@@ -106,7 +106,7 @@ Alignment::Alignment(const std::string &querySeqDB,
     } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         querySeqType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
     }
-    Debug(Debug::INFO) << "Query database type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
+    Debug(Debug::INFO) << "Query  database type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
     Debug(Debug::INFO) << "Target database type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
 
     prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
@@ -280,7 +280,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 if(*data != '\0'){
                     char *querySeqData = qdbr->getDataByDBKey(queryDbKey, thread_idx);
                     if (querySeqData == NULL) {
-                        Debug(Debug::ERROR) << "ERROR: Query sequence " << queryDbKey
+                        Debug(Debug::ERROR) << "Query sequence " << queryDbKey
                                             << " is required in the prefiltering, but is not contained in the query sequence database.\nPlease check your database.\n";
                         EXIT(EXIT_FAILURE);
                     }
@@ -312,7 +312,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                     char *dbSeqData = tdbr->getDataByDBKey(dbKey, thread_idx);
                     if (dbSeqData == NULL) {
-                        Debug(Debug::ERROR) << "ERROR: Sequence " << dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
+                        Debug(Debug::ERROR) << "Sequence " << dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
                         EXIT(EXIT_FAILURE);
                     }
                     dbSeq.mapSequence(static_cast<size_t>(-1), dbKey, dbSeqData);
@@ -357,7 +357,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     for (size_t result = 0; result < swResults.size(); result++) {
                         char *dbSeqData = tdbr->getDataByDBKey(swResults[result].dbKey, thread_idx);
                         if (dbSeqData == NULL) {
-                            Debug(Debug::ERROR) << "ERROR: Sequence " << swResults[result].dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
+                            Debug(Debug::ERROR) << "Sequence " << swResults[result].dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
                             EXIT(EXIT_FAILURE);
                         }
                         dbSeq.mapSequence(static_cast<size_t>(-1), swResults[result].dbKey, dbSeqData);
@@ -458,7 +458,7 @@ void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &d
         }
         char *dbSeqData = tdbr->getDataByDBKey(swResults[i].dbKey, thread_idx);
         if (dbSeqData == NULL) {
-            Debug(Debug::ERROR) << "ERROR: Sequence " << swResults[i].dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
+            Debug(Debug::ERROR) << "Sequence " << swResults[i].dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
             EXIT(EXIT_FAILURE);
         }
         dbSeq.mapSequence(static_cast<size_t>(-1), swResults[i].dbKey, dbSeqData);

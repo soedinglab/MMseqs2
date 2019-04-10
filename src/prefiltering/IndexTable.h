@@ -70,7 +70,7 @@ public:
         if (externalData == false) {
             offsets = new(std::nothrow) size_t[tableSize + 1];
             memset(offsets, 0, (tableSize + 1) * sizeof(size_t));
-            Util::checkAllocation(offsets, "Could not allocate entries memory in IndexTable");
+            Util::checkAllocation(offsets, "Can not allocate entries memory in IndexTable");
         }
     }
 
@@ -218,7 +218,7 @@ public:
 
         // allocate memory for the sequence id lists
         entries = new(std::nothrow) IndexEntryLocal[tableEntriesNum];
-        Util::checkAllocation(entries, "Could not allocate entries memory in IndexTable::initMemory");
+        Util::checkAllocation(entries, "Can not allocate entries memory in IndexTable::initMemory");
     }
 
     // allocates memory for index tables
@@ -281,7 +281,7 @@ public:
         double avgKmer = ((double) entrySize) / ((double) tableSize);
         Debug(Debug::INFO) << "DB statistic\n";
         Debug(Debug::INFO) << "Entries:         " << entrySize << "\n";
-        Debug(Debug::INFO) << "DB Size:         " << entrySize * sizeof(IndexEntryLocal) + tableSize * sizeof(size_t) << " (byte)\n";
+        Debug(Debug::INFO) << "DB Size:         " << (entrySize * sizeof(IndexEntryLocal) + tableSize * sizeof(size_t))/1024/1024 << " MB\n";
         Debug(Debug::INFO) << "Avg Kmer Size:   " << avgKmer << "\n";
         Debug(Debug::INFO) << "Top " << top_N << " Kmers\n   ";
         for (size_t j = 0; j < top_N; j++) {

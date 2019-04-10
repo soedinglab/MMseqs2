@@ -56,12 +56,12 @@ void DBReader<T>::setDataFile(const char* dataFileName_)  {
 template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
     if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
-        Debug(Debug::INFO) << "Touch data file " << dataFileName << " ... ";
+        Debug(Debug::INFO) << "Touch data file " << dataFileName << "\n";
         for(size_t fileIdx = 0; fileIdx < dataFileCnt; fileIdx++){
             size_t dataSize = dataSizeOffset[fileIdx+1]-dataSizeOffset[fileIdx];
             magicBytes += Util::touchMemory(dataFiles[fileIdx], dataSize);
         }
-        Debug(Debug::INFO) << "Done.\n";
+
     }
 }
 
@@ -121,7 +121,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         for(size_t fileIdx = 0; fileIdx < dataFileNames.size(); fileIdx++){
             FILE* dataFile = fopen(dataFileNames[fileIdx].c_str(), "r");
             if (dataFile == NULL) {
-                Debug(Debug::ERROR) << "Could not open data file " << dataFileName << "!\n";
+                Debug(Debug::ERROR) << "Can not open data file " << dataFileName << "!\n";
                 EXIT(EXIT_FAILURE);
             }
             size_t dataSize;
@@ -139,7 +139,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
     if (dataMode & USE_LOOKUP) {
         std::string lookupFilename = (std::string(dataFileName) + ".lookup");
         if(FileUtil::fileExists(lookupFilename.c_str()) == false){
-            Debug(Debug::ERROR) << "Could not open index file " << lookupFilename << "!\n";
+            Debug(Debug::ERROR) << "Can not open index file " << lookupFilename << "!\n";
             EXIT(EXIT_FAILURE);
         }
         MemoryMapped indexData(lookupFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
@@ -153,12 +153,12 @@ template <typename T> bool DBReader<T>::open(int accessType){
     bool isSortedById = false;
     if (externalData == false) {
         if(FileUtil::fileExists(indexFileName)==false){
-            Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "!\n";
+            Debug(Debug::ERROR) << "Can not open index file " << indexFileName << "!\n";
             EXIT(EXIT_FAILURE);
         }
         MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
         if (!indexData.isValid()){
-            Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
+            Debug(Debug::ERROR) << "Can not open index file " << indexFileName << "\n";
             EXIT(EXIT_FAILURE);
         }
         char* indexDataChar = (char *) indexData.getData();
@@ -166,9 +166,9 @@ template <typename T> bool DBReader<T>::open(int accessType){
         size = Util::ompCountLines(indexDataChar,indexDataSize);
 
         index = new(std::nothrow) Index[this->size];
-        Util::checkAllocation(index, "Could not allocate index memory in DBReader");
+        Util::checkAllocation(index, "Can not allocate index memory in DBReader");
         seqLens = new(std::nothrow) unsigned int[this->size];
-        Util::checkAllocation(seqLens, "Could not allocate seqLens memory in DBReader");
+        Util::checkAllocation(seqLens, "Can not allocate seqLens memory in DBReader");
         bool isSortedById = readIndex(indexDataChar, indexDataSize, index, seqLens);
         indexData.close();
 
@@ -200,7 +200,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
             compressedBufferSizes[i] = std::max(maxSeqLen+1, 1024u);
             compressedBuffers[i] = (char*) malloc(compressedBufferSizes[i]);
             if(compressedBuffers[i]==NULL){
-                Debug(Debug::ERROR) << "Could not allocate compressedBuffer!\n";
+                Debug(Debug::ERROR) << "Can not allocate compressedBuffer!\n";
                 EXIT(EXIT_FAILURE);
             }
             dstream[i] = ZSTD_createDStream();
@@ -495,7 +495,7 @@ template <typename T> char* DBReader<T>::getDataCompressed(size_t id, int thrIdx
             // size of next compressed block
             size_t toRead = ZSTD_decompressStream(dstream[thrIdx], &output, &input);
             if (ZSTD_isError(toRead)) {
-                Debug(Debug::ERROR) << "ERROR: " << id << " ZSTD_decompressStream " << ZSTD_getErrorName(toRead) << "\n";
+                Debug(Debug::ERROR) << id << " ZSTD_decompressStream " << ZSTD_getErrorName(toRead) << "\n";
                 EXIT(EXIT_FAILURE);
             }
             totalSize += output.pos;

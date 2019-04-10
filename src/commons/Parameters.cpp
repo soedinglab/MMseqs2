@@ -1423,7 +1423,6 @@ void Parameters::printParameters(const std::string &module, int argc, const char
         return;
     }
 
-    Debug(Debug::INFO) << "Program call:\n";
     Debug(Debug::INFO) << module << " ";
     for (int i = 0; i < argc; i++) {
         Debug(Debug::INFO) << pargv[i] << " ";

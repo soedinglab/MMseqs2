@@ -56,7 +56,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     };
     cluStepDbr->close();
     delete cluStepDbr;
-    Debug(Debug::INFO) << "Clustering step 1...\n";
+    Debug(Debug::INFO) << "Clustering step 1\n";
 
     // merge later clustering steps into the initial clustering step
     int cnt = 2;
@@ -97,11 +97,11 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         }
         cluStepDbr->close();
         delete cluStepDbr;
-        Debug(Debug::INFO) << "Clustering step " << cnt << "...\n";
+        Debug(Debug::INFO) << "Clustering step " << cnt << "\n";
         cnt++;
     }
 
-    Debug(Debug::INFO) << "Writing the results...\n";
+    Debug(Debug::INFO) << "Writing the results\n";
 
     std::string outDBIndex = outDB + ".index";
     DBWriter* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_CLUSTER_RES);

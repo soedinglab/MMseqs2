@@ -753,6 +753,9 @@ float Util::averageValueOnAminoAcids(const std::unordered_map<char, float> &valu
 template<> std::string SSTR(char x) { return std::string(1, x); }
 template<> std::string SSTR(const std::string &x) { return x; }
 template<> std::string SSTR(const char* x) { return x; }
+template<> std::string SSTR(char* x) { return x; }
+template<> std::string SSTR(bool x) { return (x) ? "1" : "0"; }
+
 template<> std::string SSTR(std::string x) { return x; }
 
 template<>

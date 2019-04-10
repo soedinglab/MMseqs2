@@ -161,7 +161,7 @@ int createdb(int argc, const char **argv, const Command& command) {
             std::string headerId = Util::parseFastaHeader(header);
             if (headerId.empty()) {
                 // An identifier is necessary for these two cases, so we should just give up
-                Debug(Debug::WARNING) << "Could not extract identifier from entry " << entries_num << ".\n";
+                Debug(Debug::WARNING) << "Can not extract identifier from entry " << entries_num << ".\n";
 
             }
             for (size_t split = 0; split < splitCnt; split++) {
@@ -300,7 +300,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         std::string headerId = Util::parseFastaHeader(header);
         if (headerId.empty()) {
             // An identifier is necessary for these two cases, so we should just give up
-            Debug(Debug::WARNING) << "Could not extract identifier from entry " << entries_num << ".\n";
+            Debug(Debug::WARNING) << "Can not extract identifier from entry " << entries_num << ".\n";
         }
         lookupFile.writeStart(0);
         char *tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);

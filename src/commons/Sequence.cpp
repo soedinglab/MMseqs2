@@ -231,16 +231,16 @@ std::pair<const char *, unsigned int> Sequence::parseSpacedPattern(unsigned int 
                 pattern[i] = 1;
                 break;
             default:
-                Debug(Debug::ERROR) << "ERROR: Invalid character in user-specified k-mer pattern\n";
+                Debug(Debug::ERROR) << "Invalid character in user-specified k-mer pattern\n";
                 EXIT(EXIT_FAILURE);  
                 break;
         }
     }
     if (spacedKmerPatternKmerSize != kmerSize){
-        Debug(Debug::ERROR) << "ERROR: User-specified k-mer pattern is not consistent with stated k-mer size\n";
+        Debug(Debug::ERROR) << "User-specified k-mer pattern is not consistent with stated k-mer size\n";
         EXIT(EXIT_FAILURE);        
     } else if (spacedKmerPatternSpaced != spaced) {
-        Debug(Debug::ERROR) << "ERROR: User-specified k-mer pattern is not consistent with spaced k-mer true/false\n";
+        Debug(Debug::ERROR) << "User-specified k-mer pattern is not consistent with spaced k-mer true/false\n";
         EXIT(EXIT_FAILURE);         
     }
     return std::make_pair<const char *, unsigned int>((const char *) pattern, spacedKmerPattern.size());
@@ -271,12 +271,12 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence) 
                 mapProfileState<255>(sequence);
                 break;
             default:
-                Debug(Debug::ERROR) << "ERROR: Invalid alphabet size type!\n";
+                Debug(Debug::ERROR) << "Invalid alphabet size type!\n";
                 EXIT(EXIT_FAILURE);
                 break;
         }
     } else {
-        Debug(Debug::ERROR) << "ERROR: Invalid sequence type!\n";
+        Debug(Debug::ERROR) << "Invalid sequence type!\n";
         EXIT(EXIT_FAILURE);
     }
     currItPos = -1;
@@ -294,7 +294,7 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
             this->int_sequence[aa] = data.first[aa];
         }
     } else {
-        Debug(Debug::ERROR) << "ERROR: Invalid sequence type!\n";
+        Debug(Debug::ERROR) << "Invalid sequence type!\n";
         EXIT(EXIT_FAILURE);
     }
     currItPos = -1;
@@ -310,7 +310,7 @@ void Sequence::mapProfileStateSequence(const char * sequence){
 
         l++;
         if (l >= maxLen){
-            Debug(Debug::ERROR) << "ERROR: Sequence too long! Max length allowed would be " << maxLen << "\n";
+            Debug(Debug::ERROR) << "Sequence too long! Max length allowed would be " << maxLen << "\n";
             EXIT(EXIT_FAILURE);
         }
         pos++;
@@ -361,7 +361,7 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
             neffM[l] = MathUtil::convertNeffToFloat(neff);
             l++;
             if (l >= this->maxLen ){
-                Debug(Debug::ERROR) << "ERROR: Sequence with id: " << this->dbKey << " is longer than maxRes.\n";
+                Debug(Debug::ERROR) << "Sequence with id: " << this->dbKey << " is longer than maxRes.\n";
                 break;
             }
 

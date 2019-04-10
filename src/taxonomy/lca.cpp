@@ -62,10 +62,10 @@ int lca(int argc, const char **argv, const Command& command) {
         taxaBlacklist[i] = Util::fast_atoi<int>(blacklist[i].c_str());
     }
 
-    Debug(Debug::INFO) << "Loading NCBI taxonomy...\n";
+    Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
     size_t taxonNotFound=0;
-    Debug(Debug::INFO) << "Computing LCA...\n";
+    Debug(Debug::INFO) << "Computing LCA\n";
     #pragma omp parallel
     {
         const char *entry[255];

@@ -253,7 +253,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
             unsigned int id = blastTabReader.getDbKey(i);
             size_t entry = msaReader.getId(id);
             if (entry == UINT_MAX) {
-                Debug(Debug::WARNING) << "Could not find MSA for key " << id << "!\n";
+                Debug(Debug::WARNING) << "Can not find MSA for key " << id << "!\n";
                 continue;
             }
 
@@ -262,7 +262,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
             size_t tabLength = blastTabReader.getSeqLens(i) - 1;
             const std::vector<Domain> result = getEntries(std::string(tabData, tabLength));
             if (result.size() == 0) {
-                Debug(Debug::WARNING) << "Could not map any entries for entry " << id << "!\n";
+                Debug(Debug::WARNING) << "Can not map any entries for entry " << id << "!\n";
                 continue;
             }
 

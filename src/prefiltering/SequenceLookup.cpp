@@ -11,10 +11,10 @@
 SequenceLookup::SequenceLookup(size_t dbSize, size_t entrySize)
         : sequenceCount(dbSize), dataSize(entrySize), currentIndex(0), currentOffset(0), externalData(false) {
     data = new(std::nothrow) char[dataSize + 1];
-    Util::checkAllocation(data, "Could not allocate data memory in SequenceLookup");
+    Util::checkAllocation(data, "Can not allocate data memory in SequenceLookup");
 
     offsets = new(std::nothrow) size_t[sequenceCount + 1];
-    Util::checkAllocation(offsets, "Could not allocate offsets memory in SequenceLookup");
+    Util::checkAllocation(offsets, "Can not allocate offsets memory in SequenceLookup");
     offsets[sequenceCount] = dataSize;
 }
 

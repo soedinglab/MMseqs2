@@ -35,8 +35,8 @@ float parsePrecisionLib(const std::string &scoreFile, double targetSeqid, double
             return scorePerCol;
         }
     }
-    Debug(Debug::WARNING) << "Could not find any score per column for cov "
-                          << targetCov << " seq.id. " << targetSeqid << ". No hit will be filtered.\n";
+    Debug(Debug::WARNING) << "Can not find any score per column for coverage "
+                          << targetCov << " and sequence identity " << targetSeqid << ". No hit will be filtered.\n";
 
     return 0;
 }

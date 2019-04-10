@@ -61,7 +61,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                                 SequenceLookup **unmaskedLookup,BaseMatrix &subMat, Sequence *seq,
                                 DBReader<unsigned int> *dbr, size_t dbFrom, size_t dbTo, int kmerThr,
                                 bool mask, bool maskLowerCaseMode) {
-    Debug(Debug::INFO) << "Index table: counting k-mers...\n";
+    Debug(Debug::INFO) << "Index table: counting k-mers\n";
 
     const bool isProfile = Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_HMM_PROFILE);
 
@@ -221,7 +221,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 
     delete info;
 
-    Debug(Debug::INFO) << "Index table: fill...\n";
+    Debug(Debug::INFO) << "Index table: fill\n";
     #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -264,7 +264,6 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     }
 
     indexTable->sortDBSeqLists();
-    Debug(Debug::INFO) << "\nIndex table: removing duplicate entries...\n";
     indexTable->revertPointer();
     Debug(Debug::INFO) << "Index table init done.\n\n";
 }

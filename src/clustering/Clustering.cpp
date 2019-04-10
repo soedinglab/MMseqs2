@@ -14,16 +14,15 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                                                                compressed(compressed),
                                                                outDB(outDB),
                                                                outDBIndex(outDBIndex) {
-    Debug(Debug::INFO) << "Init...\n";
-    Debug(Debug::INFO) << "Opening sequence database...\n";
+    Debug(Debug::INFO) << "Init\n";
+    Debug(Debug::INFO) << "Opening sequence database\n";
     seqDbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX);
     seqDbr->open(DBReader<unsigned int>::SORT_BY_LENGTH);
 
-    Debug(Debug::INFO) << "Opening alignment database...\n";
+    Debug(Debug::INFO) << "Opening alignment database\n";
     alnDbr = new DBReader<unsigned int>(alnDB.c_str(), alnDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     alnDbr->open(DBReader<unsigned int>::NOSORT);
 
-    Debug(Debug::INFO) << "done.\n";
 }
 
 Clustering::~Clustering() {
@@ -56,11 +55,11 @@ void Clustering::run(int mode) {
         Debug(Debug::INFO) << "Clustering mode: Connected Component\n";
         ret = algorithm->execute(3);
     } else {
-        Debug(Debug::ERROR) << "ERROR: Wrong clustering mode!\n";
+        Debug(Debug::ERROR) << "Wrong clustering mode!\n";
         EXIT(EXIT_FAILURE);
     }
 
-    Debug(Debug::INFO) << "Writing results...\n";
+    Debug(Debug::INFO) << "Writing results\n";
     writeData(dbw, ret);
     Debug(Debug::INFO) << "...done.\n";
     Debug(Debug::INFO) << "Time for clustering: " << timer.lap() << "\n";

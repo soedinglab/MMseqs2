@@ -267,7 +267,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     unsigned int maxContigKey = 0;
     if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
         Timer timer;
-        Debug(Debug::INFO) << "Computing ORF lookup...\n";
+        Debug(Debug::INFO) << "Computing ORF lookup\n";
         unsigned int maxOrfKey = alnDbr.getLastKey();
         unsigned int *orfLookup = new unsigned int[maxOrfKey + 2]();
 #pragma omp parallel num_threads(localThreads)
@@ -290,7 +290,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 orfLookup[i] = id;
             }
         }
-        Debug(Debug::INFO) << "Computing contig offsets...\n";
+        Debug(Debug::INFO) << "Computing contig offsets\n";
         maxContigKey = qSourceDbr->sequenceReader->getLastKey();
         unsigned int *contigSizes = new unsigned int[maxContigKey + 2]();
 #pragma omp parallel for schedule(static) num_threads(localThreads)
@@ -310,7 +310,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             contigExists[qSourceDbr->sequenceReader->getDbKey(i)] = 1;
         }
 
-        Debug(Debug::INFO) << "Computing contig lookup...\n";
+        Debug(Debug::INFO) << "Computing contig lookup\n";
         contigLookup = new unsigned int[maxOrfKey + 2]();
 #pragma omp parallel for schedule(static) num_threads(localThreads)
         for (size_t i = 0; i <= maxOrfKey; ++i) {

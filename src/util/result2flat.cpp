@@ -90,7 +90,7 @@ int result2flat(int argc, const char **argv, const Command &command) {
         }
     }
     delete[] dbKeyBuffer;
-    Debug(Debug::INFO) << "Done." << "\n";
+
 
     fclose(fastaFP);
     targetdb_header.close();

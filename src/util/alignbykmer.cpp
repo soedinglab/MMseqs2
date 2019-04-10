@@ -493,7 +493,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         }
         dbr_res.remapData();
     }
-    Debug(Debug::INFO) << "Done." << "\n";
+
     resultWriter.close();
     dbr_res.close();
 

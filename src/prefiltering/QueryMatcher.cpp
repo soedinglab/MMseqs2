@@ -51,12 +51,12 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
     this->resList = (hit_t *) mem_align(ALIGN_INT, maxHitsPerQuery * sizeof(hit_t) );
     this->resListOffset = resListOffset;
     this->databaseHits = new(std::nothrow) IndexEntryLocal[maxDbMatches];
-    Util::checkAllocation(databaseHits, "Could not allocate databaseHits memory in QueryMatcher");
+    Util::checkAllocation(databaseHits, "Can not allocate databaseHits memory in QueryMatcher");
     this->foundDiagonals = (CounterResult*)calloc(counterResultSize, sizeof(CounterResult));
-    Util::checkAllocation(foundDiagonals, "Could not allocate foundDiagonals memory in QueryMatcher");
+    Util::checkAllocation(foundDiagonals, "Can not allocate foundDiagonals memory in QueryMatcher");
     this->lastSequenceHit = this->databaseHits + maxDbMatches;
     this->indexPointer = new(std::nothrow) IndexEntryLocal*[maxSeqLen + 1];
-    Util::checkAllocation(indexPointer, "Could not allocate indexPointer memory in QueryMatcher");
+    Util::checkAllocation(indexPointer, "Can not allocate indexPointer memory in QueryMatcher");
     this->diagonalScoring = diagonalScoring;
     this->minDiagScoreThr = minDiagScoreThr;
     // data for histogram of score distribution

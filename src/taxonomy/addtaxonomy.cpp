@@ -53,10 +53,10 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
 
-    Debug(Debug::INFO) << "Loading NCBI taxonomy...\n";
+    Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
 
-    Debug(Debug::INFO) << "Add taxonomy information ...\n";
+    Debug(Debug::INFO) << "Add taxonomy information \n";
     size_t taxonNotFound=0;
 
     #pragma omp parallel

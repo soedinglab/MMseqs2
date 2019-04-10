@@ -63,7 +63,7 @@ unsigned circ_hash_next(const int * x, unsigned length, int x_first, short unsig
 
 KmerPosition *initKmerPositionMemory(size_t size) {
     KmerPosition * hashSeqPair = new(std::nothrow) KmerPosition[size + 1];
-    Util::checkAllocation(hashSeqPair, "Could not allocate memory");
+    Util::checkAllocation(hashSeqPair, "Can not allocate memory");
     size_t pageSize = Util::getPageSize()/sizeof(KmerPosition);
 
 #pragma omp parallel
@@ -416,7 +416,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
     if(splits == 1){
         seqDbr.unmapData();
     }
-    Debug(Debug::INFO) << "Done." << "\n";
+
     Debug(Debug::INFO) << "Sort kmer ... ";
     timer.reset();
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
@@ -432,7 +432,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
 //        }
 //    }
     //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, KmerComparision());
-    Debug(Debug::INFO) << "Done." << "\n";
+
     Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
     // assign rep. sequence to same kmer members
     // The longest sequence is the first since we sorted by kmer, seq.Len and id
@@ -452,7 +452,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
         omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiag);
     }
     //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, SequenceComparision());
-    Debug(Debug::INFO) << "Done\n";
+
     Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
 
     if(splits > 1){
@@ -648,7 +648,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "\n";
     size_t totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
-    Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << memoryLimit << " byte)\n";
+    Debug(Debug::INFO) << "Estimated memory consumption " << totalSizeNeeded/1024/1024 << " MB\n";
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
 //    size_t splits = 2;
@@ -1004,7 +1004,7 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
             EXIT(EXIT_FAILURE);
         }
     }
-    Debug(Debug::INFO) << "Done\n";
+
 
     delete [] dataSizes;
     delete [] offsetPos;

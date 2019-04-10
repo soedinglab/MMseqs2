@@ -167,7 +167,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             EXIT(EXIT_FAILURE);
         }
     } else {
-        Debug(Debug::INFO) << "Could not find precomputed index. Compute index.\n";
+        Debug(Debug::INFO) << "Compute index\n";
         tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tdbr->open(DBReader<unsigned int>::NOSORT);
 
@@ -239,7 +239,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         EXIT(EXIT_FAILURE);
     }
 
-    Debug(Debug::INFO) << "Query database type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
+    Debug(Debug::INFO) << "Query  database type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
     Debug(Debug::INFO) << "Target database type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
 }
 
@@ -350,17 +350,19 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSiz
         }
     }
 
-    Debug(Debug::INFO) << "Use kmer size " << *kmerSize << " and split "
-                       << *split << " using " << Parameters::getSplitModeName(*splitMode) << " split mode.\n";
+    Debug(Debug::INFO) << "Using Kmer size=" << *kmerSize << "\n";
+
+    if(*split > 1){
+        Debug(Debug::INFO) << Parameters::getSplitModeName(*splitMode) << " split mode. Search " << *split << " splits\n";
+    }
     neededSize = estimateMemoryConsumption((*splitMode == Parameters::TARGET_DB_SPLIT) ? *split : 1, dbr.getSize(),
                                            dbr.getAminoAcidDBSize(), maxResListLen, alphabetSize, *kmerSize, querySeqTyp, threads);
-    Debug(Debug::INFO) << "Needed memory (" << neededSize << " byte) of total memory (" << memoryLimit
-                       << " byte)\n";
+    Debug(Debug::INFO) << "Estimated memory consumption " << neededSize/1024/1024 << " MB\n";
     if (neededSize > 0.9 * memoryLimit) {
-        Debug(Debug::WARNING) << "WARNING: MMseqs processes needs more main memory than available."
-                "Increase the size of --split or set it to 0 to automatically optimize target database split.\n";
+        Debug(Debug::WARNING) << "Processes needs more than " << memoryLimit/1024/1024 << " MB main memory.\n" <<
+                                 "Increase the size of --split or set it to 0 to automatically optimize target database split.\n";
         if (templateDBIsIndex == true) {
-            Debug(Debug::WARNING) << "WARNING: Split has to be computed by createindex if precomputed index is used.\n";
+            Debug(Debug::WARNING) << "Computed index is too large. Avoid using the index.\n";
         }
     }
 }
@@ -388,12 +390,12 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         // remove split
         int error = remove(filenames[i].first.c_str());
         if(error != 0){
-            Debug(Debug::ERROR) << "Error while deleting " << filenames[i].first << " in mergeOutput!\n";
+            Debug(Debug::ERROR) << "Can not delete " << filenames[i].first << " in mergeOutput!\n";
             EXIT(EXIT_FAILURE);
         }
         error = remove(filenames[i].second.c_str());
         if(error != 0){
-            Debug(Debug::ERROR) << "Error while deleting " << filenames[i].second << " in mergeOutput!\n";
+            Debug(Debug::ERROR) << "Can not delete " << filenames[i].second << " in mergeOutput!\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -433,12 +435,12 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
     dbr.close();
     int error = remove(out.first.c_str());
     if(error != 0){
-        Debug(Debug::ERROR) << "Error while deleting " << out.first << " in mergeOutput!\n";
+        Debug(Debug::ERROR) << "Can not delete " << out.first << " in mergeOutput!\n";
         EXIT(EXIT_FAILURE);
     }
     error = remove(out.second.c_str());
     if(error != 0){
-        Debug(Debug::ERROR) << "Error while deleting " << out.second << " in mergeOutput!\n";
+        Debug(Debug::ERROR) << "Can not delete " << out.second << " in mergeOutput!\n";
         EXIT(EXIT_FAILURE);
     }
 
@@ -592,7 +594,7 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
         if (FileUtil::directoryExists(localTmpPath.c_str()) == false) {
             Debug(Debug::INFO) << "Local tmp dir " << localTmpPath << " does not exist or is not a directory\n";
             if (FileUtil::makeDir(localTmpPath.c_str()) == false) {
-                Debug(Debug::ERROR) << "Could not create local tmp dir " << localTmpPath << "\n";
+                Debug(Debug::ERROR) << "Can not create local tmp dir " << localTmpPath << "\n";
                 EXIT(EXIT_FAILURE);
             } else {
                 Debug(Debug::INFO) << "Created local tmp dir " << localTmpPath << "\n";
@@ -664,7 +666,7 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
     size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(resultDB).c_str());
     size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qdbr->getSize(), maxResListLen);
     if (freeSpace < estimatedHDDMemory){
-        Debug(Debug::WARNING) << "Warning: Hard disk might not have enough free space (" << freeSpace << " bytes left)."
+        Debug(Debug::WARNING) << "Hard disk might not have enough free space (" << freeSpace << " bytes left)."
                             << "The prefilter result might need maximal " << estimatedHDDMemory << " bytes.\n";
 //        EXIT(EXIT_FAILURE);
     }
@@ -773,7 +775,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
     Timer timer;
 
-    size_t kmersPerPos = 0;
+    double kmersPerPos = 0;
     size_t dbMatches = 0;
     size_t doubleMatches = 0;
     size_t querySeqLenSum = 0;
@@ -854,7 +856,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
                 notEmpty[id - queryFrom] = 1;
             }
 
-            kmersPerPos += (size_t) matcher.getStatistics()->kmersPerPos;
+            kmersPerPos += matcher.getStatistics()->kmersPerPos;
             dbMatches += matcher.getStatistics()->dbMatches;
             doubleMatches += matcher.getStatistics()->doubleMatches;
             querySeqLenSum += seq.L;
@@ -866,7 +868,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     }
 
     if (Debug::debugLevel >= Debug::INFO) {
-        statistics_t stats(kmersPerPos / totalQueryDBSize,
+        statistics_t stats(kmersPerPos / static_cast<double>(totalQueryDBSize),
                            dbMatches / totalQueryDBSize,
                            doubleMatches / totalQueryDBSize,
                            querySeqLenSum, diagonalOverflow,
@@ -967,25 +969,24 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
         reslens[i]->sort();
         reslens[0]->merge(*reslens[i]);
     }
-    Debug(Debug::INFO) << "\n" << stats.kmersPerPos << " k-mers per position.\n";
-    Debug(Debug::INFO) << stats.dbMatches << " DB matches per sequence.\n";
-    Debug(Debug::INFO) << stats.diagonalOverflow << " Overflows.\n";
+    Debug(Debug::INFO) << "\n" << stats.kmersPerPos << " k-mers per position\n";
+    Debug(Debug::INFO) << stats.dbMatches << " DB matches per sequence\n";
+    Debug(Debug::INFO) << stats.diagonalOverflow << " Overflows\n";
     Debug(Debug::INFO) << stats.resultsPassedPrefPerSeq << " sequences passed prefiltering per query sequence";
     if (stats.resultsPassedPrefPerSeq > maxResults)
-        Debug(Debug::INFO) << " (ATTENTION: max. " << maxResults
-                           << " best scoring sequences were written to the output prefiltering database).\n";
+        Debug(Debug::WARNING) << " (ATTENTION: max. " << maxResults
+                           << " best scoring sequences were written to the output prefiltering database)\n";
     else
-        Debug(Debug::INFO) << ".\n";
+        Debug(Debug::INFO) << "\n";
     size_t mid = reslens[0]->size() / 2;
     std::list<int>::iterator it = reslens[0]->begin();
     std::advance(it, mid);
     Debug(Debug::INFO) << "Median result list size: " << *it << "\n";
-    Debug(Debug::INFO) << empty << " sequences with 0 size result lists.\n";
+    Debug(Debug::INFO) << empty << " sequences with 0 size result lists\n";
 }
 
 
 BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState, bool isNucl) {
-    Debug(Debug::INFO) << "Substitution matrices...\n";
     BaseMatrix *subMat;
 
     if (isNucl){

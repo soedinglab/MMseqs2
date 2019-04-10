@@ -153,7 +153,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
         unsigned int dbKeyToWrite = splits[split].first;
         size_t bytesToWrite = splits[split].second;
         char *tmpData = new char[bytesToWrite];
-        Util::checkAllocation(tmpData, "Could not allocate tmpData memory in doswap");
+        Util::checkAllocation(tmpData, "Can not allocate tmpData memory in doswap");
         Debug(Debug::INFO) << "\nReading results.\n";
 #pragma omp parallel
         {

@@ -92,7 +92,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    Debug(Debug::INFO) << "Query database type: " << qDbr.getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Query  database type: " << qDbr.getDbTypeName() << "\n";
     Debug(Debug::INFO) << "Target database type: " << tDbr->getDbTypeName() << "\n";
     const bool isFiltering = par.filterMsa != 0;
 #pragma omp parallel
@@ -166,7 +166,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                 if (dbSeqData == NULL) {
 #pragma omp critical
                     {
-                        Debug(Debug::ERROR) << "ERROR: Sequence " << key << " is required in the prefiltering,"
+                        Debug(Debug::ERROR) << "Sequence " << key << " is required in the prefiltering,"
                                             << "but is not contained in the target sequence database!\n"
                                             << "Please check your database.\n";
                         EXIT(EXIT_FAILURE);

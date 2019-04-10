@@ -57,7 +57,7 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
             char *tabData = resultReader.getData(i,  thread_idx);
             Matcher::readAlignmentResults(alnResults, tabData);
             if (alnResults.size() == 0) {
-                Debug(Debug::WARNING) << "Could not map any alingment results for entry " << id << "!\n";
+                Debug(Debug::WARNING) << "Can not map any alingment results for entry " << id << "!\n";
                 continue;
             }
 

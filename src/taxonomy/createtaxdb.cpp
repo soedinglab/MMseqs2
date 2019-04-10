@@ -15,7 +15,7 @@ int createtaxdb(int argc, const char **argv, const Command& command) {
     if (FileUtil::directoryExists(tmp.c_str())==false){
         Debug(Debug::INFO) << "Tmp " << tmp << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(tmp.c_str()) == false){
-            Debug(Debug::ERROR) << "Could not create tmp folder " << tmp << ".\n";
+            Debug(Debug::ERROR) << "Can not create tmp folder " << tmp << ".\n";
             EXIT(EXIT_FAILURE);
         } else {
             Debug(Debug::INFO) << "Created dir " << tmp << "\n";
