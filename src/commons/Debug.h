@@ -3,7 +3,8 @@
 
 #include <iostream>
 #include "Util.h"
-
+#include <ostream>
+#include <unistd.h>
 #include <cstddef>
 
 class Debug
@@ -15,17 +16,40 @@ public:
     static const int WARNING = 2;
     static const int INFO = 3;
 
+    enum Color {
+        FG_RED      = 31,
+        FG_GREEN    = 32,
+        FG_YELLOW    = 33,
+        FG_BLUE     = 34,
+        FG_DEFAULT  = 39,
+        BG_RED      = 41,
+        BG_GREEN    = 42,
+        BG_BLUE     = 44,
+        BG_DEFAULT  = 49
+    };
+
     static int debugLevel;
-    Debug( int level ) : level(level) {};
+
+
+    Debug( int level ) : level(level), errIsTty(isatty(fileno(stderr))), outIsTty(isatty(fileno(stdout))) {};
 
     ~Debug(){
         if (level <= ERROR && level <= debugLevel){
             std::cout << std::flush;
-            std::cerr << buffer;
+            if(errIsTty){
+                std::cerr << "\033[" << Color::FG_RED << "m" << buffer;
+            }else{
+                std::cerr << buffer;
+            }
             std::cerr << std::flush;
-        }
-        else if(level > ERROR && level <= debugLevel)
-        {
+        } else if(level == WARNING && level <= debugLevel){
+            if(outIsTty){
+                std::cout << "\033[" << Color::FG_YELLOW << "m" << buffer;
+            }else{
+                std::cout << buffer;
+            }
+            std::cout << std::flush;
+        } else if(level > WARNING && level <= debugLevel) {
             std::cout << buffer;
             std::cout << std::flush;
         }
@@ -59,6 +83,8 @@ public:
 private:
     const int level;
     std::string buffer;
+    const int errIsTty;
+    const int outIsTty;
 
 };
 
