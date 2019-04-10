@@ -165,6 +165,8 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     for (size_t i = 0; i < iterations; i++) {
         size_t start = (i * flushSize);
         size_t bucketSize = std::min(dbr_res.getSize() - (i * flushSize), flushSize);
+        Debug::Progress progress(bucketSize);
+
 #pragma omp parallel
         {
             Sequence query(par.maxSeqLen, querySeqType, subMat, par.kmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
@@ -190,7 +192,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
-                Debug::printProgress(id);
+                progress.updateProgress();
                 std::string prefResultsOutString;
                 prefResultsOutString.reserve(1000000);
 

@@ -16,6 +16,8 @@ int result2rbh(int argc, const char **argv, const Command &command) {
 
     DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, resultReader.getDbtype());
     dbw.open();
+    Debug::Progress progress(resultReader.getSize());
+
 #pragma omp parallel
     {
         int thread_idx = 0;
@@ -28,7 +30,7 @@ int result2rbh(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < resultReader.getSize(); id++) {
-            Debug::printProgress(id);
+            progress.updateProgress();
 
             unsigned int AdbID = resultReader.getDbKey(id);
             char *results = resultReader.getData(id, thread_idx);

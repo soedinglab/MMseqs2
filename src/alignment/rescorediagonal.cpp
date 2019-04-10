@@ -108,9 +108,12 @@ int doRescorediagonal(Parameters &par,
         flushSize = resultReader.getSize();
     }
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
+
     for (size_t i = 0; i < iterations; i++) {
         size_t start = dbFrom + (i * flushSize);
         size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
+        Debug::Progress progress(bucketSize);
+
 #pragma omp parallel
         {
             unsigned int thread_idx = 0;
@@ -133,7 +136,7 @@ int doRescorediagonal(Parameters &par,
             }
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
-                Debug::printProgress(id);
+                progress.updateProgress();
 
                 char *data = resultReader.getData(id, thread_idx);
                 size_t queryKey = resultReader.getDbKey(id);

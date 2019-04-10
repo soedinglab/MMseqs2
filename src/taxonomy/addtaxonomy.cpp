@@ -58,6 +58,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
 
     Debug(Debug::INFO) << "Add taxonomy information \n";
     size_t taxonNotFound=0;
+    Debug::Progress progress(reader.getSize());
 
     #pragma omp parallel
     {
@@ -72,7 +73,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
 
         #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < reader.getSize(); ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);

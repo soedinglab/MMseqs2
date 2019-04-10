@@ -52,6 +52,7 @@ int Aggregation::run() {
     std::string outputDBIndex = outputDbName + ".index";
     DBWriter writer(outputDbName.c_str(), outputDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_GENERIC_DB);
     writer.open();
+    Debug::Progress progress(reader.getSize());
 
 #pragma omp parallel
     {
@@ -65,7 +66,7 @@ int Aggregation::run() {
         std::map<unsigned int, std::vector<std::vector<std::string>>> dataToMerge;
 #pragma omp for
         for (size_t i = 0; i < reader.getSize(); i++) {
-            Debug::printProgress(i);
+            progress.updateProgress();
             dataToMerge.clear();
 
             unsigned int key = reader.getDbKey(i);

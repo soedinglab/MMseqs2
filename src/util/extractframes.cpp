@@ -36,6 +36,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
 
     unsigned int forwardFrames = Orf::getFrames(par.forwardFrames);
     unsigned int reverseFrames = Orf::getFrames(par.reverseFrames);
+    Debug::Progress progress(reader.getSize());
 
 #pragma omp parallel
     {
@@ -56,7 +57,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
         std::string reverseComplementStr;
         reverseComplementStr.reserve(32000);
         for (unsigned int i = queryFrom; i < (queryFrom + querySize); ++i){
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int key = reader.getDbKey(i);
             const char* data = reader.getData(i, thread_idx);

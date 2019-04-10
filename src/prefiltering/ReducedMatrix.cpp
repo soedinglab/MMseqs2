@@ -70,7 +70,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
         char reduced_aa=reducedAlphabet->at(reduced_index);
         char lost_aa   =reducedAlphabet->at(lost_index);
 
-        Debug(Debug::INFO)  << lost_aa  << " -> " << reduced_aa << "\n";
+        // Debug(Debug::INFO)  << lost_aa  << " -> " << reduced_aa << "\n";
         reducedAlphabet->erase(reducedAlphabet->begin()+lost_index);
 
         int reduced_int=this->orig_aa2int[(int)reduced_aa];
@@ -90,7 +90,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
     }
 
     // map big index to new small index
-    Debug(Debug::INFO) << "Reduced amino acid alphabet:\n";
+    Debug(Debug::INFO) << "Reduced amino acid alphabet: ";
     int* aa2int_new = new int[UCHAR_MAX+1];
     for (int i = 0; i <= UCHAR_MAX; ++i){
         aa2int_new[i] = -1;
@@ -98,12 +98,16 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
     char* int2aa_new = new char[origAlphabetSize];
     for(size_t i = 0; i<reducedAlphabet->size(); i++){
         const char representative_aa = reducedAlphabet->at(i);
-        Debug(Debug::INFO) << representative_aa << " ";
+        Debug(Debug::INFO) << "(" << representative_aa;
         for(size_t j =0; j < UCHAR_MAX; j++){
             if(this->aa2int[(int)j] == this->aa2int[(int)representative_aa]){
+                if(j>=65 && j <=90 && static_cast<char>(j) != representative_aa && representative_aa != 'X'){ // only upper case letters
+                    Debug(Debug::INFO) << " " << static_cast<char>(j);
+                }
                 aa2int_new[j] = i;
             }
         }
+        Debug(Debug::INFO) << ") ";
         int2aa_new[i] = representative_aa;
     }
     Debug(Debug::INFO) << "\n";

@@ -25,6 +25,7 @@ int convertca3m(int argc, const char **argv, const Command &command) {
     writer.open();
 
     unsigned int* sizes = reader.getSeqLens();
+    Debug::Progress progress(reader.getSize());
 
 #pragma omp parallel
     {
@@ -40,7 +41,7 @@ int convertca3m(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < reader.getSize(); ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
             results.clear();
 
             unsigned int key;

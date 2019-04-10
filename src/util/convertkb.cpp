@@ -128,7 +128,7 @@ int convertkb(int argc, const char **argv, const Command &command) {
             }
 
             if (kb.readLine(line.c_str())) {
-                Debug::printProgress(i);
+//                progress.updateProgress();
                 std::string accession = getPrimaryAccession(kb.getColumn(UniprotKB::COL_KB_AC));
 
                 for (std::vector<unsigned int>::const_iterator it = enabledColumns.begin();

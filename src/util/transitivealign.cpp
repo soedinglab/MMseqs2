@@ -131,6 +131,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     for (size_t i = 0; i < iterations; i++) {
         size_t start = (i * flushSize);
         size_t bucketSize = std::min(alnReader.getSize() - (i * flushSize), flushSize);
+        Debug::Progress progress(bucketSize);
 #pragma omp parallel
         {
             unsigned int thread_idx = 0;
@@ -152,7 +153,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
-                Debug::printProgress(id);
+                progress.updateProgress();
 
                 const unsigned int alnKey = alnReader.getDbKey(id);
                 char *data = alnReader.getData(id, thread_idx);
@@ -253,6 +254,8 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Computing offsets.\n";
     size_t *targetElementSize = new size_t[maxTargetId + 2]; // extra element for offset + 1 index id
     memset(targetElementSize, 0, sizeof(size_t) * (maxTargetId + 2));
+    Debug::Progress progress(resultSize);
+
 #pragma omp parallel
     {
         int thread_idx = 0;
@@ -261,7 +264,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 #endif
 #pragma omp  for schedule(dynamic, 100)
         for (size_t i = 0; i < resultSize; ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
             const unsigned int resultId = resultDbr.getDbKey(i);
             char queryKeyStr[1024];
             char *tmpBuff = Itoa::u32toa_sse2((uint32_t) resultId, queryKeyStr);
@@ -321,7 +324,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 10)
             for (size_t i = 0; i < resultSize; ++i) {
-                Debug::printProgress(i);
+                progress.updateProgress();
                 char *data = resultDbr.getData(i, thread_idx);
                 unsigned int queryKey = resultDbr.getDbKey(i);
                 char queryKeyStr[1024];
@@ -378,7 +381,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 100)
             for (size_t i = prevDbKeyToWrite; i <= dbKeyToWrite; ++i) {
-                Debug::printProgress(i);
+                progress.updateProgress();
 
                 char *data = &tmpData[targetElementSize[i] - prevBytesToWrite];
                 size_t dataSize = targetElementSize[i + 1] - targetElementSize[i];

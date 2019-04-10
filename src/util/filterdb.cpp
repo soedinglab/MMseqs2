@@ -195,6 +195,8 @@ ffindexFilter::~ffindexFilter() {
 
 int ffindexFilter::runFilter(){
 	const size_t LINE_BUFFER_SIZE = 1000000;
+    Debug::Progress progress(dataDb->getSize());
+
 #pragma omp parallel
 	{
         int thread_idx = 0;
@@ -211,7 +213,7 @@ int ffindexFilter::runFilter(){
 
 #pragma omp for schedule(dynamic, 10)
 		for (size_t id = 0; id < dataDb->getSize(); id++) {
-			Debug::printProgress(id);
+			progress.updateProgress();
 
 			char *data = dataDb->getData(id,  thread_idx);
             unsigned int queryKey = dataDb->getDbKey(id);

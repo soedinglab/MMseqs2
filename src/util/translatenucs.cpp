@@ -42,6 +42,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     }
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), localThreads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
     writer.open();
+    Debug::Progress progress(entries);
 
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
 #pragma omp parallel num_threads(localThreads)
@@ -55,7 +56,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         char* aa = new char[par.maxSeqLen + 3 + 1];
 #pragma omp for schedule(dynamic, 5)
         for (size_t i = 0; i < entries; ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             bool addStopAtStart = false;
             bool addStopAtEnd = false;

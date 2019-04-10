@@ -96,6 +96,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     if (Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_PROFILE_STATE_SEQ) == false) {
         idScoreLookup = getScoreLookup(subMat);
     }
+    Debug::Progress progress(dbTo-dbFrom);
 
     size_t maskedResidues = 0;
     size_t totalKmerCount = 0;
@@ -120,7 +121,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 
         #pragma omp for schedule(dynamic, 100) reduction(+:totalKmerCount, maskedResidues)
         for (size_t id = dbFrom; id < dbTo; id++) {
-            Debug::printProgress(id - dbFrom);
+            progress.updateProgress();
 
             s.resetCurrPos();
             char *seqData = dbr->getData(id, thread_idx);
@@ -241,7 +242,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         #pragma omp for schedule(dynamic, 100)
         for (size_t id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
-            Debug::printProgress(id - dbFrom);
+            progress.updateProgress();
 
             unsigned int qKey = dbr->getDbKey(id);
             if (isProfile) {

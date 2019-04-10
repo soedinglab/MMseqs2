@@ -133,6 +133,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
     std::map<std::string, unsigned int> lengths = readLength(par.db2);
 
     Debug(Debug::INFO) << "Start writing to file " << par.db3 << "\n";
+    Debug::Progress progress(dbSize);
 
 #pragma omp parallel
     {
@@ -142,7 +143,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
 #endif
 #pragma omp for schedule(dynamic, 100)
         for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
-            Debug::printProgress(i - dbFrom);
+            progress.updateProgress();
             unsigned int id = blastTabReader.getDbKey(i);
 
             char *tabData = blastTabReader.getData(i, thread_idx);

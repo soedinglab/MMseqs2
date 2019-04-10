@@ -26,6 +26,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
     for(size_t it = 0; it < iterations; it++) {
         size_t start = it * flushSize;
         size_t bucketSize = std::min(dbSize - (it * flushSize), flushSize);
+        Debug::Progress progress(bucketSize);
 #pragma omp parallel
         {
             unsigned int thread_idx = 0;
@@ -34,7 +35,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
 #endif
 #pragma omp for schedule(dynamic, 100)
             for (size_t i = start; i < (start + bucketSize); i++) {
-                Debug::printProgress(i);
+                progress.updateProgress();
                 // seqDbr is descending sorted by length
                 // the assumption is that clustering is B -> B (not A -> B)
                 const unsigned int clusterId = seqDbr->getDbKey(i);
@@ -135,8 +136,10 @@ void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
 
     // iterate over all connections and check if it exists in the corresponding set
     // if not add it
+    Debug::Progress progress(dbSize);
+
     for(size_t setId = 0; setId < dbSize; setId++) {
-        Debug::printProgress(setId);
+        progress.updateProgress();
         const size_t oldElementSize = LEN(offsetTableWithOutNewLinks, setId);
         const size_t newElementSize = LEN(offsetTableWithNewLinks, setId);
         if(oldElementSize > newElementSize){

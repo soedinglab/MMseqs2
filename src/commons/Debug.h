@@ -51,7 +51,7 @@ public:
             std::cout << std::flush;
         } else if(level > WARNING && level <= debugLevel) {
             std::cout << buffer;
-            std::cout << std::flush;
+//            std::cout << std::flush;
         }
     }
 
@@ -78,8 +78,41 @@ public:
     }
     static void setDebugLevel(int i);
 
-    static void printProgress(size_t id);
+    class Progress{
+        private:
+            size_t currentPos;
+            size_t totalEntries;
+            float prevPrintedProgress;
+            const static int BARWIDTH = 70;
+        public:
+            Progress(size_t totalEntries) :  currentPos(0), totalEntries(totalEntries){
+                prevPrintedProgress = 0.0;
+            }
 
+            void updateProgress(){
+                size_t id = __sync_add_and_fetch(&currentPos, 1);
+                float progress = (static_cast<float>(id) / static_cast<float>(totalEntries-1));
+                if(progress-prevPrintedProgress > 0.001 || id == (totalEntries - 1)  ){
+
+                    Debug(Debug::INFO)  << "[";
+                    int pos = BARWIDTH * progress;
+                    for (int i = 0; i < BARWIDTH; ++i) {
+                        if (i < pos) Debug(Debug::INFO) << "=";
+                        else if (i == pos) Debug(Debug::INFO)  << ">";
+                        else Debug(Debug::INFO)  << " ";
+                    }
+                    char buffer[32];
+                    int n = sprintf(buffer, "%.2f", progress * 100.0f);
+                    std::string progressPercent(buffer, n);
+                    Debug(Debug::INFO)  << "] " << progressPercent << " %\r";
+                    std::cout.flush();
+                    prevPrintedProgress=progress;
+                }
+                if(id == (totalEntries - 1) ){
+                    Debug(Debug::INFO)  << "\n";
+                }
+            }
+    };
 private:
     const int level;
     std::string buffer;

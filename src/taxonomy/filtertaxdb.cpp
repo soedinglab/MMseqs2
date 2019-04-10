@@ -56,6 +56,7 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
     bool invertSelection = par.invertSelection;
     Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
+    Debug::Progress progress(reader.getSize());
 
     Debug(Debug::INFO) << "Computing LCA\n";
     #pragma omp parallel
@@ -69,7 +70,7 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
 
         #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < reader.getSize(); ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);

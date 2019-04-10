@@ -38,6 +38,7 @@ int doExtractAlignedRegion(Parameters &par) {
     Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
     DBWriter dbw(par.db4.c_str(), par.db4Index.c_str(), static_cast<unsigned int>(par.threads), par.compressed, tdbr->getDbtype());
     dbw.open();
+    Debug::Progress progress(alndbr.getSize());
 
     const char newline = '\n';
 #pragma omp parallel
@@ -50,7 +51,7 @@ int doExtractAlignedRegion(Parameters &par) {
         results.reserve(300);
 #pragma omp for schedule(dynamic, 1000)
         for (size_t i = 0; i < alndbr.getSize(); i++) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int queryKey = alndbr.getDbKey(i);
             char *qSeq = NULL;

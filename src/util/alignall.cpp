@@ -44,9 +44,11 @@ int alignall(int argc, const char **argv, const Command &command) {
     EvalueComputation evaluer(tdbr.getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
     const size_t flushSize = 100000000;
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbr_res.getSize()) / static_cast<double>(flushSize)));
+
     for (size_t i = 0; i < iterations; i++) {
         size_t start = (i * flushSize);
         size_t bucketSize = std::min(dbr_res.getSize() - (i * flushSize), flushSize);
+        Debug::Progress progress(bucketSize);
 #pragma omp parallel
         {
             unsigned int thread_idx = 0;
@@ -66,7 +68,7 @@ int alignall(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
-                Debug::printProgress(id);
+                progress.updateProgress();
 
                 const unsigned int key = dbr_res.getDbKey(id);
                 char *data = dbr_res.getData(id, thread_idx);

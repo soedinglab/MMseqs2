@@ -268,10 +268,11 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
         for (size_t i = 0; i < iterations; i++) {
             size_t start = dbFrom + (i * flushSize);
             size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
+            Debug::Progress progress(bucketSize);
 
 #pragma omp for schedule(dynamic, 5) reduction(+: alignmentsNum, totalPassedNum)
             for (size_t id = start; id < (start + bucketSize); id++) {
-                Debug::printProgress(id);
+                progress.updateProgress();
 
                 // get the prefiltering list
                 char *data = prefdbr->getData(id, thread_idx);

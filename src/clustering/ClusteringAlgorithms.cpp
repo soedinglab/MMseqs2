@@ -374,10 +374,11 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
 
 void ClusteringAlgorithms::greedyIncremental(unsigned int **elementLookupTable, size_t *elementOffsets,
                                              size_t n, unsigned int *assignedcluster) {
+    Debug::Progress progress(n);
     for(size_t i = 0; i < n; i++) {
         // seqDbr is descending sorted by length
         // the assumption is that clustering is B -> B (not A -> B)
-        Debug::printProgress(i);
+        progress.updateProgress();
         if(assignedcluster[i] == UINT_MAX){
             size_t elementSize = (elementOffsets[i + 1] - elementOffsets[i]);
             for (size_t elementId = 0; elementId < elementSize; elementId++) {

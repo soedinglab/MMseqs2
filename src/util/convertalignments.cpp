@@ -233,10 +233,11 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         std::string newBacktrace;
         newBacktrace.reserve(1024);
 
+        Debug::Progress progress(alnDbr.getSize());
 
 #pragma omp  for schedule(dynamic, 10)
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             const unsigned int queryKey = alnDbr.getDbKey(i);
             char *querySeqData = NULL;

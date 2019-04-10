@@ -333,6 +333,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(par.db6.c_str(), par.db6Index.c_str(), localThreads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
 
+    Debug::Progress progress(alnDbr.getSize());
 
 #pragma omp parallel num_threads(localThreads)
     {
@@ -356,7 +357,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < entryCount; ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
             unsigned int queryKey=UINT_MAX;
             unsigned int qLen = UINT_MAX;
 

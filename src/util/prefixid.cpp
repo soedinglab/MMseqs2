@@ -22,6 +22,7 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
     const bool shouldWriteNullByte = !tsvOut;
 
     size_t entries = reader.getSize();
+    Debug::Progress progress(entries);
 
     Debug(Debug::INFO) << "Start adding to database.\n";
     std::map<unsigned int, std::string> mapping = Util::readLookup(mappingFile);
@@ -34,7 +35,7 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
 
 #pragma omp for schedule(dynamic, 100)
         for (size_t i = 0; i < entries; ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int key = reader.getDbKey(i);
             std::istringstream data(reader.getData(i, thread_idx));

@@ -35,6 +35,8 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
     Debug(Debug::INFO) << "Start writing to file " << resultdb.first << "\n";
     DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), localThreads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
+    Debug::Progress progress(dbSize);
+
 #pragma omp parallel num_threads(localThreads)
     {
         unsigned int thread_idx = 0;
@@ -51,7 +53,7 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
 
 #pragma omp for schedule(dynamic, 100)
         for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int id = resultReader.getDbKey(i);
             char *tabData = resultReader.getData(i,  thread_idx);

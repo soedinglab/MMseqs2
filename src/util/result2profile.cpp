@@ -130,6 +130,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         std::string result;
         result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
         char *charSequence = new char[maxSequenceLength];
+        Debug::Progress progress(dbSize);
 
         unsigned int thread_idx = 0;
 #ifdef OPENMP
@@ -140,7 +141,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
-            Debug::printProgress(id);
+            progress.updateProgress();
 
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader.getDbKey(id);

@@ -95,6 +95,8 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
     Debug(Debug::INFO) << "Query  database type: " << qDbr.getDbTypeName() << "\n";
     Debug(Debug::INFO) << "Target database type: " << tDbr->getDbTypeName() << "\n";
     const bool isFiltering = par.filterMsa != 0;
+    Debug::Progress progress(dbSize-dbFrom);
+
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -119,7 +121,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
 
 #pragma omp  for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
-            Debug::printProgress(id);
+            progress.updateProgress();
 
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader.getDbKey(id);

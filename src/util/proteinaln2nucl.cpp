@@ -46,6 +46,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
     Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
+    Debug::Progress progress(alnDbr.getSize());
 
 #pragma omp parallel
     {
@@ -66,7 +67,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int alnKey = alnDbr.getDbKey(i);
             char *data = alnDbr.getData(i, thread_idx);

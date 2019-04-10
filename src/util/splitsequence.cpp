@@ -35,6 +35,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
     headerWriter.open();
 
     size_t sequenceOverlap = par.sequenceOverlap;
+    Debug::Progress progress(reader.getSize());
 
 #pragma omp parallel
     {
@@ -52,7 +53,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
         char buffer[LINE_MAX];
 
         for (unsigned int i = queryFrom; i < (queryFrom + querySize); ++i){
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int key = reader.getDbKey(i);
             const char* data = reader.getData(i, thread_idx);

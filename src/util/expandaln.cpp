@@ -140,6 +140,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
     BacktraceTranslator translator;
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, par.scoreBias);
     EvalueComputation evaluer(targetReader.getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
+    Debug::Progress progress(resultReader->getSize());
 
     Debug(Debug::INFO) << "Computing expanded alignment result...\n";
 #pragma omp parallel
@@ -165,7 +166,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < resultReader->getSize(); ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
             unsigned int queryKey = resultReader->getDbKey(i);
 
             size_t querySeqId = queryReader.getId(queryKey);

@@ -129,6 +129,8 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
             return false;
         }
     };
+    Debug::Progress progress(seqDbr.getSize());
+
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -166,7 +168,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
 
 #pragma omp for schedule(dynamic, 100)
             for (size_t id = start; id < (start + bucketSize); id++) {
-                Debug::printProgress(id);
+                progress.updateProgress();
                 seq.mapSequence(id, seqDbr.getDbKey(id), seqDbr.getData(id, thread_idx));
                 size_t seqHash =  SIZE_T_MAX;
                 if(includeIdenticalKmer){
@@ -417,7 +419,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
         seqDbr.unmapData();
     }
 
-    Debug(Debug::INFO) << "Sort kmer ... ";
+    Debug(Debug::INFO) << "Sort kmer\n";
     timer.reset();
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
         omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPosReverse);
@@ -444,7 +446,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
     }
 
     // sort by rep. sequence (stored in kmer) and sequence id
-    Debug(Debug::INFO) << "Sort by rep. sequence ... ";
+    Debug(Debug::INFO) << "Sort by rep. sequence\n";
     timer.reset();
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
         omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiagReverse);

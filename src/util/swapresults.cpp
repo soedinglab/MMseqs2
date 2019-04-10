@@ -46,6 +46,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
         DBReader<unsigned int> resultReader(parResultDb, parResultDbIndex, par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
         //search for the maxTargetId (value of first column) in parallel
+        Debug::Progress progress(resultReader.getSize());
+
 #pragma omp parallel
         {
             int thread_idx = 0;
@@ -55,7 +57,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
             char key[255];
 #pragma omp for schedule(dynamic, 100) reduction(max:maxTargetId)
             for (size_t i = 0; i < resultReader.getSize(); ++i) {
-                Debug::printProgress(i);
+                progress.updateProgress();
                 char *data = resultReader.getData(i, thread_idx);
                 while (*data != '\0') {
                     Util::parseKey(data, key);
@@ -95,6 +97,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
     Debug(Debug::INFO) << "Computing offsets.\n";
     size_t *targetElementSize = new size_t[maxTargetId + 2]; // extra element for offset + 1 index id
     memset(targetElementSize, 0, sizeof(size_t) * (maxTargetId + 2));
+    Debug::Progress progress(resultSize);
+
 #pragma omp parallel
     {
         int thread_idx = 0;
@@ -103,7 +107,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
 #endif
 #pragma omp  for schedule(dynamic, 100)
         for (size_t i = 0; i < resultSize; ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
             const unsigned int resultId = resultDbr.getDbKey(i);
             char queryKeyStr[1024];
             char *tmpBuff = Itoa::u32toa_sse2((uint32_t) resultId, queryKeyStr);
@@ -164,7 +168,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
 
 #pragma omp for schedule(dynamic, 10)
             for (size_t i = 0; i < resultSize; ++i) {
-                Debug::printProgress(i);
+                progress.updateProgress();
                 char *data = resultDbr.getData(i, thread_idx);
                 unsigned int queryKey = resultDbr.getDbKey(i);
                 char queryKeyStr[1024];
@@ -234,7 +238,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
 
 #pragma omp for schedule(dynamic, 100)
             for (size_t i = prevDbKeyToWrite; i <= dbKeyToWrite; ++i) {
-                Debug::printProgress(i);
+                progress.updateProgress();
 
                 char *data = &tmpData[targetElementSize[i] - prevBytesToWrite];
                 size_t dataSize = targetElementSize[i + 1] - targetElementSize[i];

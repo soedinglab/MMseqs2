@@ -75,6 +75,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
     }
 
 
+    Debug::Progress progress(dbSize);
 
 #pragma omp parallel
     {
@@ -93,7 +94,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         resultBuffer.reserve(262144);
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = dbStart; id < (dbStart+dbSize); id++) {
-            Debug::printProgress(id);
+            progress.updateProgress();
             char *querySeqData = qdbr.getData(id, thread_idx);
             size_t queryKey = qdbr.getDbKey(id);
             qSeq.mapSequence(id, queryKey, querySeqData);

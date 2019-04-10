@@ -139,7 +139,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         splitId.reserve(1024);
         kseq = KSeqFactory(filenames[fileIdx].c_str());
         while (kseq->ReadEntry()) {
-            Debug::printProgress(count);
+//            progress.updateProgress();
             const KSeqWrapper::KSeqEntry &e = kseq->entry;
             if (e.name.l == 0) {
                 Debug(Debug::ERROR) << "Fasta entry: " << entries_num << " is invalid.\n";

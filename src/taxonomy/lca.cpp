@@ -61,7 +61,7 @@ int lca(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < taxaBlacklistSize; ++i) {
         taxaBlacklist[i] = Util::fast_atoi<int>(blacklist[i].c_str());
     }
-
+    Debug::Progress progress(reader.getSize());
     Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
     size_t taxonNotFound=0;
@@ -77,7 +77,7 @@ int lca(int argc, const char **argv, const Command& command) {
 
         #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < reader.getSize(); ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
