@@ -422,9 +422,9 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
                                                    totalElementCount);
     // fill elements
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, NULL, 0, elementOffsets);
-    Debug(Debug::INFO) << "\nSort entries.\n";
+    Debug(Debug::INFO) << "Sort entries\n";
     AlignmentSymmetry::sortElements(elementLookupTable, elementOffsets, dbSize);
-    Debug(Debug::INFO) << "\nFind missing connections.\n";
+    Debug(Debug::INFO) << "Find missing connections\n";
 
     size_t *newElementOffsets = new size_t[dbSize + 1];
     memcpy(newElementOffsets, elementOffsets, sizeof(size_t) * (dbSize + 1));
@@ -446,11 +446,11 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     AlignmentSymmetry::setupPointers<unsigned int>  (elements, elementLookupTable, newElementOffsets, dbSize, symmetricElementCount);
     AlignmentSymmetry::setupPointers<unsigned short>(scores, scoreLookupTable, newElementOffsets, dbSize, symmetricElementCount);
     //time
-    Debug(Debug::INFO) << "\nReconstruct initial order.\n";
+    Debug(Debug::INFO) << "Reconstruct initial order\n";
     alnDbr->remapData(); // need to free memory
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, scoreLookupTable, scoretype, elementOffsets);
     alnDbr->remapData(); // need to free memory
-    Debug(Debug::INFO) << "\nAdd missing connections.\n";
+    Debug(Debug::INFO) << "Add missing connections\n";
     AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, newElementOffsets, dbSize, scoreLookupTable);
     maxClustersize = 0;
     for (size_t i = 0; i < dbSize; i++) {

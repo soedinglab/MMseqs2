@@ -14,7 +14,6 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                                                                compressed(compressed),
                                                                outDB(outDB),
                                                                outDBIndex(outDBIndex) {
-    Debug(Debug::INFO) << "Init\n";
     Debug(Debug::INFO) << "Opening sequence database\n";
     seqDbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX);
     seqDbr->open(DBReader<unsigned int>::SORT_BY_LENGTH);
@@ -61,7 +60,6 @@ void Clustering::run(int mode) {
 
     Debug(Debug::INFO) << "Writing results\n";
     writeData(dbw, ret);
-    Debug(Debug::INFO) << "...done.\n";
     Debug(Debug::INFO) << "Time for clustering: " << timer.lap() << "\n";
 
     delete algorithm;
