@@ -9,9 +9,6 @@
 #include <typeinfo>
 #include "Command.h"
 
-#define USE_ONLY_SET_PARAMETERS true // when createParameterString, generates
-// flags only for the param set by the user
-
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
 
@@ -264,8 +261,6 @@ public:
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
     int    verbosity;                    // log level
-//    int    querySeqType;                 // Query sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
-//    int    targetSeqType;                // Target sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    threads;                      // Amounts of threads
     int    compressed;                   // compressed writer
     bool   removeTmpFiles;               // Do not delete temp files
@@ -276,8 +271,6 @@ public:
     int    kmerSize;                     // kmer size for the prefilter
     int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
-    //bool   queryProfile;                 // using queryProfile information
-    //bool   targetProfile;                // using targetProfile information
     int    compBiasCorrection;           // Aminoacid composiont correction
     int    diagonalScoring;              // switch diagonal scoring
     int    exactKmerMatching;            // only exact k-mer matching
@@ -552,9 +545,6 @@ public:
     PARAMETER(PARAM_COMPRESSED)
     PARAMETER(PARAM_ALPH_SIZE)
     PARAMETER(PARAM_MAX_SEQ_LEN)
-//    PARAMETER(PARAM_QUERY_PROFILE)
-//    PARAMETER(PARAM_TARGET_PROFILE)
-    //PARAMETER(PARAM_NUCL)
     PARAMETER(PARAM_DIAGONAL_SCORING)
     PARAMETER(PARAM_EXACT_KMER_MATCHING)
     PARAMETER(PARAM_MASK_RESIDUES)
