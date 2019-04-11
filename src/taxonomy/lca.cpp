@@ -4,12 +4,15 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "Util.h"
-#include "filterdb.h"
 #include <algorithm>
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
+
+static bool compareToFirstInt(const std::pair<unsigned int, unsigned int>& lhs, const std::pair<unsigned int, unsigned int>&  rhs){
+    return (lhs.first <= rhs.first);
+}
 
 int lca(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
@@ -42,7 +45,7 @@ int lca(int argc, const char **argv, const Command& command) {
     }
     bool isSorted = Util::readMapping( par.db1 + "_mapping", mapping);
     if(isSorted == false){
-        std::stable_sort(mapping.begin(), mapping.end(), ffindexFilter::compareFirstInt());
+        std::stable_sort(mapping.begin(), mapping.end(), compareToFirstInt);
     }
 
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
@@ -98,8 +101,7 @@ int lca(int argc, const char **argv, const Command& command) {
                 id = Util::fast_atoi<unsigned int>(entry[0]);
 
                 val.first = id;
-                mappingIt = std::upper_bound(
-                        mapping.begin(), mapping.end(), val,  ffindexFilter::compareToFirstInt);
+                mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
 
                 if (mappingIt->first != val.first) {
                     __sync_fetch_and_add(&taxonNotFound, 1);

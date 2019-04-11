@@ -4,13 +4,16 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "Util.h"
-#include "filterdb.h"
 #include <algorithm>
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
+
+static bool compareToFirstInt(const std::pair<unsigned int, unsigned int>& lhs, const std::pair<unsigned int, unsigned int>&  rhs){
+    return (lhs.first <= rhs.first);
+}
 
 int addtaxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
@@ -43,7 +46,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
     }
     bool isSorted = Util::readMapping( par.db1 + "_mapping", mapping);
     if(isSorted == false){
-        std::stable_sort(mapping.begin(), mapping.end(), ffindexFilter::compareFirstInt());
+        std::stable_sort(mapping.begin(), mapping.end(), compareToFirstInt);
     }
     std::vector<std::string> ranks = Util::split(par.lcaRanks, ":");
 
@@ -94,9 +97,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
                 unsigned int id = Util::fast_atoi<unsigned int>(entry[0]);
                 std::pair<unsigned int, unsigned int> val;
                 val.first = id;
-                std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt = std::upper_bound(
-                        mapping.begin(), mapping.end(), val,  ffindexFilter::compareToFirstInt);
-
+                std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
                 if (mappingIt->first != val.first) {
                      __sync_fetch_and_add(&taxonNotFound, 1);
 //                    Debug(Debug::WARNING) << "No taxon mapping provided for id " << id << "\n";
