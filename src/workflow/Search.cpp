@@ -230,7 +230,7 @@ int search(int argc, const char **argv, const Command& command) {
         par.evalThr = originalEvalThr;
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("SORTRESULT_PAR", par.createParameterString(par.sortresult).c_str());
-        cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
+        cmd.addVariable("THREADS_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
         cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
         par.covMode = originalCovMode;
 

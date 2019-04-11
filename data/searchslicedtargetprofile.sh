@@ -45,7 +45,7 @@ RESULT="$3"
 TMP_PATH="$4"
 
 PROFILEDB="${TMP_PATH}/profileDB"
-if notExists "${TMP_PATH}/profileDB"; then
+if notExists "${PROFILEDB}.index"; then
     # symlink the profile DB that can be reduced at every iteration the search
     ln -s "${TARGET}" "${PROFILEDB}"
     ln -s "${TARGET}.dbtype" "${PROFILEDB}.dbtype"
@@ -93,10 +93,10 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         touch "${TMP_PATH}/pref.done"
     fi
 
-    if notExists "${TMP_PATH}/pref_count" || notExists "${TMP_PATH}/pref_keep.list"; then
+    if notExists "${TMP_PATH}/pref_count.index" || notExists "${TMP_PATH}/pref_keep.list"; then
         # shellcheck disable=SC2086
         "$MMSEQS" result2stats "$PROFILEDB" "$INPUT" "${TMP_PATH}/pref" "${TMP_PATH}/pref_count" \
-            --stat linecount ${THREADS_PAR} \
+            --stat linecount ${THREADS_COMP_PAR} \
             || fail "result2stats died"
     fi
 
@@ -104,7 +104,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         # remove profiles that do not provide more hits
         # shellcheck disable=SC2086
         "$MMSEQS" filterdb "${TMP_PATH}/pref_count" "${TMP_PATH}/pref_keep" \
-            --filter-column 1 --comparison-operator ge --comparison-value "${MAX_SEQS}" ${THREADS_PAR} \
+            --filter-column 1 --comparison-operator ge --comparison-value "${MAX_SEQS}" ${THREADS_COMP_PAR} \
             || fail "filterdb died"
         "$MMSEQS" rmdb "${TMP_PATH}/pref_count"
         awk '$3 > 1 { print $1 }' "${TMP_PATH}/pref_keep.index" | sort -k1,1 > "${TMP_PATH}/pref_keep.list"
@@ -115,26 +115,30 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         # shellcheck disable=SC2086
         ${RUNNER} "$MMSEQS" align "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
             || fail "align died"
-        "$MMSEQS" rmdb "${TMP_PATH}/pref"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/pref" ${VERBOSITY_PAR}
         touch "${TMP_PATH}/aln.done"
     fi
 
     if notExists "${TMP_PATH}/aln_swap.done"; then
-        # note: the evalue has been corrected for inverted search by MMseqs wrapper
+        # note: the evalue has been corrected for inverted search by the workflow caller
         # shellcheck disable=SC2086
         "$MMSEQS" swapresults "${TARGET}" "${INPUT}" "${TMP_PATH}/aln" "${TMP_PATH}/aln_swap" ${SWAP_PAR} \
             || fail "swapresults died"
-        "$MMSEQS" rmdb "${TMP_PATH}/aln"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY_PAR}
         touch "${TMP_PATH}/aln_swap.done"
     fi
 
     MERGED="${TMP_PATH}/aln_swap"
-    if [ -f "${TMP_PATH}/aln_merged" ]; then
+    if [ -f "${TMP_PATH}/aln_merged.index" ]; then
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${INPUT}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} \
             || fail "mergedbs died"
-        "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged"
-        "$MMSEQS" rmdb "${TMP_PATH}/aln_swap"
+        # shellcheck disable=SC2086
+        "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR}
         MERGED="${TMP_PATH}/aln_merged"
     fi
 
@@ -143,7 +147,8 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     "$MMSEQS" sortresult "${MERGED}" "${TMP_PATH}/aln_merged_trunc" ${SORTRESULT_PAR} \
         || fail "sortresult died"
 
-    "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_trunc" "${TMP_PATH}/aln_merged"
+    # shellcheck disable=SC2086
+    "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_trunc" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR}
     
     join "${TMP_PATH}/pref_keep.list" "${PROFILEDB}.index" > "${PROFILEDB}.index.tmp"
     mv -f "${PROFILEDB}.index.tmp" "${PROFILEDB}.index"
@@ -153,26 +158,29 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     # shellcheck disable=SC2046,SC2005
     NUM_PROFILES="$(echo $(wc -l < "${PROFILEDB}.index"))"
     rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done" "${TMP_PATH}/pref_keep.list"
-    "$MMSEQS" rmdb "${TMP_PATH}/aln_swap"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR}
     rm -f "${TMP_PATH}/aln_swap.done"
     printf "%d\\t%d\\n" "${NUM_PROFILES}" "${OFFSET}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
 
     STEP="$((STEP+1))"
 done
 
-"$MMSEQS" mvdb "${TMP_PATH}/aln_merged" "${RESULT}"
+# shellcheck disable=SC2086
+"$MMSEQS" mvdb "${TMP_PATH}/aln_merged" "${RESULT}" ${VERBOSITY_PAR}
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
     STEP=0
     while [ "${STEP}" -lt "${MAX_STEPS}" ]; do
         if [ -f "${TMP_PATH}/aln_${STEP}.checkpoint" ]; then
-            "$MMSEQS" rmdb "${TMP_PATH}/aln_${STEP}.checkpoint"
+            rm -f "${TMP_PATH}/aln_${STEP}.checkpoint"
         fi
         STEP="$((STEP+1))"
     done
-    "$MMSEQS" rmdb "${TMP_PATH}/profileDB"
-    rm -f "${TMP_PATH}/profileDB.meta"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${PROFILEDB}" ${VERBOSITY_PAR}
+    rm -f "${PROFILEDB}.meta"
     rm -f "$TMP_PATH/searchslicedtargetprofile.sh"
 fi
 
