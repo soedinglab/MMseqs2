@@ -61,9 +61,11 @@ while [ $STEP -lt $NUM_IT ]; do
         eval TMP="\$$PARAM"
 
         if [ $STEP -eq 0 ]; then
+            # shellcheck disable=SC2086
             $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" ${TMP} \
                 || fail "Alignment died"
         else
+            # shellcheck disable=SC2086
             $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_tmp_$STEP" ${TMP} \
                 || fail "Alignment died"
         fi
