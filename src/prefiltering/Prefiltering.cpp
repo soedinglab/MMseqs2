@@ -225,7 +225,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         }
     }
 
-    Debug(Debug::INFO) << "Target database: " << targetDB << " (size: " << tdbr->getSize() << " type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << ")\n";
+    Debug(Debug::INFO) << "Target database size: " << tdbr->getSize() << " type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
 
     if (splitMode == Parameters::QUERY_DB_SPLIT) {
         // create the whole index table
@@ -655,7 +655,7 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
         qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         qdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     }
-    Debug(Debug::INFO) << "Query  database: " << queryDB << " (size=" << qdbr->getSize() << " type: "<< DBReader<unsigned int>::getDbTypeName(querySeqType) << ")\n";
+    Debug(Debug::INFO) << "Query database size: " << qdbr->getSize() << " type: "<< DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
 
     size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(resultDB).c_str());
     size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qdbr->getSize(), maxResListLen);
@@ -966,7 +966,7 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
     }
     Debug(Debug::INFO) << "\n" << stats.kmersPerPos << " k-mers per position\n";
     Debug(Debug::INFO) << stats.dbMatches << " DB matches per sequence\n";
-    Debug(Debug::INFO) << stats.diagonalOverflow << " Overflows\n";
+    Debug(Debug::INFO) << stats.diagonalOverflow << " overflows\n";
     Debug(Debug::INFO) << stats.resultsPassedPrefPerSeq << " sequences passed prefiltering per query sequence";
     if (stats.resultsPassedPrefPerSeq > maxResults)
         Debug(Debug::WARNING) << " (ATTENTION: max. " << maxResults
@@ -976,7 +976,7 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
     size_t mid = reslens[0]->size() / 2;
     std::list<int>::iterator it = reslens[0]->begin();
     std::advance(it, mid);
-    Debug(Debug::INFO) << "Median result list size: " << *it << "\n";
+    Debug(Debug::INFO) << *it << " median result list length\n";
     Debug(Debug::INFO) << empty << " sequences with 0 size result lists\n";
 }
 

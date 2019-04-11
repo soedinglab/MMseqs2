@@ -279,19 +279,16 @@ public:
         }
 
         double avgKmer = ((double) entrySize) / ((double) tableSize);
-        Debug(Debug::INFO) << "DB statistic\n";
-        Debug(Debug::INFO) << "Entries:         " << entrySize << "\n";
-        Debug(Debug::INFO) << "DB Size:         " << (entrySize * sizeof(IndexEntryLocal) + tableSize * sizeof(size_t))/1024/1024 << " MB\n";
-        Debug(Debug::INFO) << "Avg Kmer Size:   " << avgKmer << "\n";
-        Debug(Debug::INFO) << "Top " << top_N << " Kmers\n   ";
+        Debug(Debug::INFO) << "Index statistics\n";
+        Debug(Debug::INFO) << "Entries:          " << entrySize << "\n";
+        Debug(Debug::INFO) << "DB size:          " << (entrySize * sizeof(IndexEntryLocal) + tableSize * sizeof(size_t))/1024/1024 << " MB\n";
+        Debug(Debug::INFO) << "Avg k-mer size:   " << avgKmer << "\n";
+        Debug(Debug::INFO) << "Top " << top_N << " k-mers\n";
         for (size_t j = 0; j < top_N; j++) {
-            Debug(Debug::INFO) << "\t";
+            Debug(Debug::INFO) << "    ";
             indexer->printKmer(topElements[j].second, kmerSize, int2aa);
-            Debug(Debug::INFO) << "\t\t" << topElements[j].first << "\n";
+            Debug(Debug::INFO) << "\t" << topElements[j].first << "\n";
         }
-        Debug(Debug::INFO) << "Min Kmer Size:   " << minKmer << "\n";
-        Debug(Debug::INFO) << "Empty list: " << emptyKmer << "\n\n";
-
     }
 
     // FUNCTIONS TO OVERWRITE

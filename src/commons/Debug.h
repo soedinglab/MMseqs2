@@ -31,7 +31,7 @@ public:
     static int debugLevel;
 
 
-    Debug( int level ) : level(level), errIsTty(isatty(fileno(stderr))), outIsTty(isatty(fileno(stdout))) {};
+    explicit Debug( int level ) : level(level), errIsTty(isatty(fileno(stderr))), outIsTty(isatty(fileno(stdout))) {};
 
     ~Debug(){
         if (level <= ERROR && level <= debugLevel){
@@ -79,33 +79,74 @@ public:
     static void setDebugLevel(int i);
 
     class Progress{
-        private:
-            size_t currentPos;
-            size_t prevPrintedId;
-            size_t totalEntries;
-            float prevPrintedProgress;
-            const static int BARWIDTH = 70;
-            Timer timer;
+    private:
+        size_t currentPos;
+        size_t prevPrintedId;
+        size_t totalEntries;
+        const int outIsTty;
+        Timer timer;
+
+        const static int BARWIDTH = 70;
 
     public:
-            Progress(size_t totalEntries) :  currentPos(0), prevPrintedId(0), totalEntries(totalEntries){
-                prevPrintedProgress = 0.0;
-            }
+        Progress(size_t totalEntries)
+                :  currentPos(0), prevPrintedId(0), totalEntries(totalEntries), outIsTty(isatty(fileno(stdout))){}
 
-            Progress():  currentPos(0),  prevPrintedId(0), totalEntries(SIZE_MAX){
-                prevPrintedId = 0;
-            }
+        Progress() : currentPos(0),  prevPrintedId(0), totalEntries(SIZE_MAX), outIsTty(isatty(fileno(stdout))) {}
 
-            void updateProgress(){
-                size_t id = __sync_fetch_and_add(&currentPos, 1);
+        void updateProgress(){
+            size_t id = __sync_fetch_and_add(&currentPos, 1);
+            // if no active terminal exists write dots
+            if(outIsTty == false){
+                if(totalEntries==SIZE_MAX) {
+                    if(id==0) {
+                        Debug(INFO) << '[';
+                    }
+                    if (id % 1000000 == 0 && id > 0){
+                        Debug(INFO) << "\t" << (id / 1000000) << " Mio. sequences processed\n";
+                        fflush(stdout);
+                    }
+                    else if (id % 10000 == 0 && id > 0) {
+                        Debug(INFO) << "=";
+                        fflush(stdout);
+                    }
+                }else{
+                    if(id==0) {
+                        Debug(INFO) << '[';
+                    }
+                    float progress = (static_cast<float>(id) / static_cast<float>(totalEntries-1));
+                    if(id > 0) {
+                        float prevPrintedProgress = (static_cast<float>(id-1) / static_cast<float>(totalEntries-1));
+                        int prevPos = BARWIDTH * prevPrintedProgress;
+                        int pos     = BARWIDTH * progress;
+                        for (int write = prevPos; write < pos; write++) {
+                            Debug(INFO) << '=';
+                            fflush(stdout);
+                        }
+                    }
 
+                    if(id == (totalEntries - 1) ){
+                        Debug(INFO) << "] ";
+                        Debug(INFO) << timer.lapProgress();
+                        Debug(INFO) << "\n";
+                    }
+                }
+            }else{
                 if(totalEntries==SIZE_MAX){
-                    if( prevPrintedId + 10000 > id){
-                        Debug(Debug::INFO) << "[" << SSTR(id) <<  "] " << timer.lapProgress() << "\r";
+                    if(id > prevPrintedId + 100) {
+                        std::string line;
+                        line.push_back('[');
+                        line.append(SSTR(id+1));
+                        line.append("] ");
+                        line.append(timer.lapProgress());
+                        line.push_back('\r');
+                        Debug(Debug::INFO) << line;
+                        fflush(stdout);
                         prevPrintedId = id;
                     }
                 }else{
                     float progress = (static_cast<float>(id) / static_cast<float>(totalEntries-1));
+                    float prevPrintedProgress = (static_cast<float>(prevPrintedId) / static_cast<float>(totalEntries-1));
                     if(progress-prevPrintedProgress > 0.001 || id == (totalEntries - 1)  ){
                         std::string line;
                         line.push_back('[');
@@ -128,17 +169,25 @@ public:
                         //printf("%zu\t%zu\t%f\n", id, totalEntries, progress);
                         line.push_back((id == (totalEntries - 1) ) ? '\n' : '\r' );
                         Debug(Debug::INFO) << line;
-                        std::cout.flush();
-                        prevPrintedProgress=progress;
+                        fflush(stdout);
+                        prevPrintedId=id;
                     }
                 }
             }
+        }
     };
+
+
+
+
 private:
     const int level;
     std::string buffer;
     const int errIsTty;
     const int outIsTty;
+
+
+
 
 };
 

@@ -267,5 +267,4 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 
     indexTable->sortDBSeqLists();
     indexTable->revertPointer();
-    Debug(Debug::INFO) << "Index table init done.\n\n";
 }

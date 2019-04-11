@@ -161,16 +161,16 @@ void Alignment::initSWMode(unsigned int alignmentMode) {
     // print out mode and check for errors
     switch (swMode) {
         case Matcher::SCORE_ONLY:
-            Debug(Debug::INFO) << "Compute score only.\n";
+            Debug(Debug::INFO) << "Compute score only\n";
             break;
         case Matcher::SCORE_COV:
-            Debug(Debug::INFO) << "Compute score and coverage.\n";
+            Debug(Debug::INFO) << "Compute score and coverage\n";
             break;
         case Matcher::SCORE_COV_SEQID:
-            Debug(Debug::INFO) << "Compute score, coverage and sequence id.\n";
+            Debug(Debug::INFO) << "Compute score, coverage and sequence identity\n";
             break;
         default:
-            Debug(Debug::ERROR) << "Wrong swMode mode.\n";
+            Debug(Debug::ERROR) << "Wrong swMode mode\n";
             EXIT(EXIT_FAILURE);
     }
 }
@@ -247,29 +247,30 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
         flushSize = dbSize;
     }
 
+
+
+    size_t iterations = static_cast<size_t>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
+    for (size_t i = 0; i < iterations; i++) {
+        size_t start = dbFrom + (i * flushSize);
+        size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
+        Debug::Progress progress(bucketSize);
+
 #pragma omp parallel num_threads(threads)
-    {
-        unsigned int thread_idx = 0;
+        {
+            unsigned int thread_idx = 0;
 #ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        std::string alnResultsOutString;
-        alnResultsOutString.reserve(1024*1024);
-        char buffer[1024+32768];
-        Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
-        Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
-        Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
-        Matcher *realigner = NULL;
-        if (realign ==  true) {
-            realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
-        }
-
-        size_t iterations = static_cast<size_t>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
-        for (size_t i = 0; i < iterations; i++) {
-            size_t start = dbFrom + (i * flushSize);
-            size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
-            Debug::Progress progress(bucketSize);
-
+            std::string alnResultsOutString;
+            alnResultsOutString.reserve(1024*1024);
+            char buffer[1024+32768];
+            Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
+            Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
+            Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
+            Matcher *realigner = NULL;
+            if (realign ==  true) {
+                realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
+            }
 #pragma omp for schedule(dynamic, 5) reduction(+: alignmentsNum, totalPassedNum)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
@@ -393,7 +394,9 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 dbw.writeData(alnResultsOutString.c_str(), alnResultsOutString.length(), queryDbKey, thread_idx);
                 alnResultsOutString.clear();
             }
-
+            if (realign == true) {
+                delete realigner;
+            }
 #pragma omp barrier
             if (thread_idx == 0) {
                 prefdbr->remapData();
@@ -401,15 +404,12 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 #pragma omp barrier
         }
 
-        if (realign == true) {
-            delete realigner;
-        }
+
     }
 
     dbw.close(merge);
 
-    Debug(Debug::INFO) << "\nAll sequences processed.\n\n";
-    Debug(Debug::INFO) << alignmentsNum << " alignments calculated.\n";
+    Debug(Debug::INFO) << "\n" << alignmentsNum << " alignments calculated.\n";
     Debug(Debug::INFO) << totalPassedNum << " sequence pairs passed the thresholds ("
                        << ((float) totalPassedNum / (float) alignmentsNum) << " of overall calculated).\n";
 
