@@ -28,8 +28,6 @@ abspath() {
 
 hasCommand awk
 hasCommand wc
-hasCommand join
-hasCommand sort
 
 # check amount of input variables
 [ "$#" -ne 4 ] && echo "Please provide <queryDB> <targetDB> <resultDB> <tmpDir>" && exit 1;
@@ -49,16 +47,14 @@ if notExists "${PROFILEDB}.index"; then
     # symlink the profile DB that can be reduced at every iteration the search
     ln -s "${TARGET}" "${PROFILEDB}"
     ln -s "${TARGET}.dbtype" "${PROFILEDB}.dbtype"
-    sort -k1,1 "${TARGET}.index" > "${PROFILEDB}.index"
+    cp -f "${TARGET}.index" "${PROFILEDB}.index"
 
     echo "${AVAIL_DISK}" > "${PROFILEDB}.meta"
 else
     read -r AVAIL_DISK < "${PROFILEDB}.meta"
 fi
 
-# echo call to trim whitespace wc produces
-# shellcheck disable=SC2046,SC2005
-NUM_PROFILES="$(echo $(wc -l < "${PROFILEDB}.index"))"
+NUM_PROFILES=$(wc -l < "${PROFILEDB}.index")
 
 OFFSET=0
 STEP=0
@@ -106,9 +102,11 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         "$MMSEQS" filterdb "${TMP_PATH}/pref_count" "${TMP_PATH}/pref_keep" \
             --filter-column 1 --comparison-operator ge --comparison-value "${MAX_SEQS}" ${THREADS_COMP_PAR} \
             || fail "filterdb died"
-        "$MMSEQS" rmdb "${TMP_PATH}/pref_count"
-        awk '$3 > 1 { print $1 }' "${TMP_PATH}/pref_keep.index" | sort -k1,1 > "${TMP_PATH}/pref_keep.list"
-         "$MMSEQS" rmdb "${TMP_PATH}/pref_keep"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/pref_count" ${VERBOSITY_PAR}
+        awk '$3 > 1 { print $1 }' "${TMP_PATH}/pref_keep.index" > "${TMP_PATH}/pref_keep.list"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/pref_keep"
     fi
 
     if notExists "${TMP_PATH}/aln.done"; then
@@ -150,13 +148,13 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     # shellcheck disable=SC2086
     "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_trunc" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR}
     
-    join "${TMP_PATH}/pref_keep.list" "${PROFILEDB}.index" > "${PROFILEDB}.index.tmp"
+    awk 'NR == FNR { f[$1] = 0; next; } $1 in f[$1] { print; }' "${TMP_PATH}/pref_keep.list" "${PROFILEDB}.index" > "${PROFILEDB}.index.tmp"
     mv -f "${PROFILEDB}.index.tmp" "${PROFILEDB}.index"
 
     # keep for the prefilter only the next hits
     OFFSET="$SEARCH_LIM"
-    # shellcheck disable=SC2046,SC2005
-    NUM_PROFILES="$(echo $(wc -l < "${PROFILEDB}.index"))"
+    # shellcheck disable=SC2046
+    NUM_PROFILES=$(wc -l < "${PROFILEDB}.index")
     rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done" "${TMP_PATH}/pref_keep.list"
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR}
