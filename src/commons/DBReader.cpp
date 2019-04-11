@@ -56,7 +56,7 @@ void DBReader<T>::setDataFile(const char* dataFileName_)  {
 template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
     if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
-        Debug(Debug::INFO) << "Touch data file " << dataFileName << "\n";
+        //Debug(Debug::INFO) << "Touch data file " << dataFileName << "\n";
         for(size_t fileIdx = 0; fileIdx < dataFileCnt; fileIdx++){
             size_t dataSize = dataSizeOffset[fileIdx+1]-dataSizeOffset[fileIdx];
             magicBytes += Util::touchMemory(dataFiles[fileIdx], dataSize);

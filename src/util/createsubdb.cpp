@@ -30,7 +30,6 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, 0, reader.getDbtype() & ~(1 << 31));
     writer.open();
 
-    Debug(Debug::INFO) << "Start writing to database " << par.db3 << "\n";
     char *line = (char*)malloc(1024);
     size_t len = 0;
     char dbKey[256];

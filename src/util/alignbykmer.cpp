@@ -22,7 +22,6 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4, false);
 
-    Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     IndexReader * qDbrIdx = NULL;
@@ -65,7 +64,6 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     }
     par.printParameters(command.cmd, argc, argv, *command.params);
 
-    Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> dbr_res(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 

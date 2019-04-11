@@ -26,7 +26,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     setKmerLengthAndAlphabet(par, seqDbr.getAminoAcidDBSize(), querySeqType);
     std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);
-    Debug(Debug::INFO) << "Database type: " << seqDbr.getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Database size: "  << seqDbr.getSize() << " type: " << seqDbr.getDbTypeName() << "\n";
     std::string indexDB = LinsearchIndexReader::indexName(par.db2);
     if (par.checkCompatible && FileUtil::fileExists(indexDB.c_str())) {
         Debug(Debug::INFO) << "Check index " << indexDB << "\n";

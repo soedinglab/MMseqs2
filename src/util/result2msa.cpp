@@ -92,8 +92,9 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    Debug(Debug::INFO) << "Query  database type: " << qDbr.getDbTypeName() << "\n";
-    Debug(Debug::INFO) << "Target database type: " << tDbr->getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Query database size: "  << qDbr.getSize() << " type: " << qDbr.getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Target database size: " << tDbr->getSize() << " type: " << tDbr->getDbTypeName() << "\n";
+
     const bool isFiltering = par.filterMsa != 0;
     Debug::Progress progress(dbSize-dbFrom);
 

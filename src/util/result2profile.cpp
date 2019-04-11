@@ -102,20 +102,22 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
     ProbabilityMatrix probMatrix(subMat);
 
-    Debug(Debug::INFO) << "Start computing profiles.\n";
+    Debug(Debug::INFO) << "Start computing profiles\n";
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
 
     if (qDbr->getDbtype() == -1 || targetSeqType == -1) {
-        Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
+        Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database\n";
         return EXIT_FAILURE;
     }
     if (Parameters::isEqualDbtype(qDbr->getDbtype(), Parameters::DBTYPE_HMM_PROFILE) &&
         Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)){
-        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
+        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database\n";
         return EXIT_FAILURE;
     }
-    Debug(Debug::INFO) << "Query  database type: " << qDbr->getDbTypeName() << "\n";
-    Debug(Debug::INFO) << "Target database type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
+
+    Debug(Debug::INFO) << "Query database size: "  << qDbr->getSize() << " type: " << qDbr->getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Target database size: " << tDbr->getSize() << " type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
+
 
     const bool isFiltering = par.filterMsa != 0;
     int xAmioAcid = subMat.aa2int[(int)'X'];

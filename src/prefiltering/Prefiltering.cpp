@@ -84,8 +84,6 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             EXIT(EXIT_FAILURE);
     }
     if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
-        Debug(Debug::INFO) << "Use index  " << targetDB << "\n";
-
         int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
         if(preloadMode == Parameters::PRELOAD_MODE_AUTO){
             if(sensitivity > 6.0){

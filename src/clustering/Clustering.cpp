@@ -14,11 +14,10 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                                                                compressed(compressed),
                                                                outDB(outDB),
                                                                outDBIndex(outDBIndex) {
-    Debug(Debug::INFO) << "Opening sequence database\n";
+
     seqDbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX);
     seqDbr->open(DBReader<unsigned int>::SORT_BY_LENGTH);
 
-    Debug(Debug::INFO) << "Opening alignment database\n";
     alnDbr = new DBReader<unsigned int>(alnDB.c_str(), alnDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     alnDbr->open(DBReader<unsigned int>::NOSORT);
 

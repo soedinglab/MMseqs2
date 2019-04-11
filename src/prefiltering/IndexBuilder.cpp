@@ -190,7 +190,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         delete probMatrix;
     }
 
-    Debug(Debug::INFO) << "\nIndex table: Masked residues: " << maskedResidues << "\n";
+    Debug(Debug::INFO) << "Index table: Masked residues: " << maskedResidues << "\n";
     if(totalKmerCount == 0) {
         Debug(Debug::ERROR) << "No k-mer could be extracted for the database " << dbr->getDataFileName() << ".\n"
                             << "Maybe the sequences length is less than 14 residues.\n";

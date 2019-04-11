@@ -129,6 +129,8 @@ int createdb(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < shuffleSplits; ++i) {
         sourceLookup[i].reserve(16384);
     }
+    Debug(Debug::INFO) << "Converting sequences\n";
+
     for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
         unsigned int numEntriesInCurrFile = 0;
         std::string splitHeader;

@@ -65,7 +65,6 @@ int createtsv(int argc, const char **argv, const Command &command) {
     const std::string& indexFile = hasTargetDB ? par.db4Index : par.db3Index;
     const bool shouldCompress = par.dbOut == true && par.compressed == true;
     const int dbType = par.dbOut == true ? Parameters::DBTYPE_GENERIC_DB : Parameters::DBTYPE_OMIT_FILE;
-    Debug(Debug::INFO) << "Start writing to " << dataFile << "\n";
     DBWriter writer(dataFile.c_str(), indexFile.c_str(), par.threads, shouldCompress, dbType);
     writer.open();
 

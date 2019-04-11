@@ -32,7 +32,6 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
         localThreads = resultReader.getSize();
     }
 
-    Debug(Debug::INFO) << "Start writing to file " << resultdb.first << "\n";
     DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), localThreads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
     Debug::Progress progress(dbSize);

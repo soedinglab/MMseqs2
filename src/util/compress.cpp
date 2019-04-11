@@ -28,7 +28,6 @@ int doCompression(int argc, const char **argv, const Command& command, bool shou
     writer.open();
     Debug::Progress progress(reader.getSize());
 
-    Debug(Debug::INFO) << "Start writing to database " << par.db2 << "\n";
     unsigned int* seqLens = reader.getSeqLens();
 #pragma omp parallel
     {

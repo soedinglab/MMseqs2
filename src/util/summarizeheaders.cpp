@@ -36,7 +36,6 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
     }
     Debug::Progress progress(reader.getSize());
 
-    Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
 #pragma omp parallel
     {
         int thread_idx = 0;

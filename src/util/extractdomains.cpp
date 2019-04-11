@@ -238,7 +238,6 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
     DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads), par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
 
-    Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
     Debug::Progress progress(dbSize);
 
 #pragma omp parallel

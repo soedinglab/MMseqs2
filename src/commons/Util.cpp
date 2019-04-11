@@ -436,6 +436,7 @@ uint64_t Util::getL2CacheSize() {
 
 char Util::touchMemory(const char *memory, size_t size) {
     int threadCnt = 1;
+
 #ifdef OPENMP
     const int totalThreadCnt = omp_get_max_threads();
     if (totalThreadCnt > 4) {
@@ -444,6 +445,8 @@ char Util::touchMemory(const char *memory, size_t size) {
 #endif
 
     size_t pageSize = getPageSize();
+//    Debug::Progress progress(size/pageSize);
+
     char **buffer = new char *[threadCnt];
     for (int i = 0; i < threadCnt; i++) {
         buffer[i] = new char[pageSize];
@@ -463,6 +466,7 @@ char Util::touchMemory(const char *memory, size_t size) {
                 currentPageSize = pageSize;
             }
             memcpy(buffer[threadIdx], memory + pos, currentPageSize);
+//            progress.updateProgress();
         }
     }
 

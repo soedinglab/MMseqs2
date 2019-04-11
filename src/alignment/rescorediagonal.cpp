@@ -353,7 +353,6 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 4);
 
 
-    Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     int dbtype = Parameters::DBTYPE_PREFILTER_RES;
