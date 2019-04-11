@@ -328,7 +328,11 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(par.db6.c_str(), par.db6Index.c_str(), localThreads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
 
-    Debug::Progress progress(alnDbr.getSize());
+    size_t entryCount = alnDbr.getSize();
+    if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
+        entryCount = maxContigKey + 1;
+    }
+    Debug::Progress progress(entryCount);
 
 #pragma omp parallel num_threads(localThreads)
     {
@@ -345,10 +349,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         std::vector<Matcher::result_t> tmp;
         results.reserve(300);
         tmp.reserve(300);
-        size_t entryCount = alnDbr.getSize();
-        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
-            entryCount = maxContigKey + 1;
-        }
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < entryCount; ++i) {
