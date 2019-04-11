@@ -47,7 +47,7 @@ int result2repseq(int argc, const char **argv, const Command &command) {
         }
     }
     Debug(Debug::INFO) << "\n";
-    resultWriter.close();
+    resultWriter.close(true);
     resultReader.close();
     seqReader.close();
 
