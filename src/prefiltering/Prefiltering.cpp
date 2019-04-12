@@ -636,7 +636,7 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
             EXIT(EXIT_FAILURE);
         }
 
-        delete results;
+        delete [] results;
     }
 
 }
