@@ -152,6 +152,8 @@ public:
     }
 
 protected:
+    const static int KMER_SCORE = 0;
+    const static int UNGAPPED_DIAGONAL_SCORE = 0;
 
     // keeps stats for run
     statistics_t * stats;
@@ -236,13 +238,14 @@ protected:
     size_t match(Sequence *seq, float *pDouble);
 
     // extract result from databaseHits
+    template <int TYPE>
     std::pair<hit_t *, size_t> getResult(CounterResult * results,
                                          size_t resultSize,
                                          size_t maxHitPerQuery,
                                          const unsigned int id,
                                          const unsigned short thr,
                                          UngappedAlignment *ungappedAlignment,
-                                         const bool diagonalScoring, const int rescale);
+                                         const int rescale);
     // compute double hits
     size_t getDoubleDiagonalMatches();
 

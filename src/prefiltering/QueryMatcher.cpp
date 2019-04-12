@@ -41,7 +41,6 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
     this->kmerGenerator = new KmerGenerator(kmerSize, indexTable->getAlphabetSize(), kmerThr);
     this->aaBiasCorrection = aaBiasCorrection;
     this->takeOnlyBestKmer = takeOnlyBestKmer;
-
     this->stats = new statistics_t();
     // assure that the whole database can be matched (extreme case)
     // this array will need 500 MB for 50 Mio. sequences ( dbSize * 2 * 5byte)
@@ -166,26 +165,25 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
                 size_t newResultSize = rescoreResult.first;
                 unsigned int maxSelfScoreMinusDiag = rescoreResult.second;
                 elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals, 0, foundDiagonals + resultSize, newResultSize);
-                queryResult = getResult(foundDiagonals, elementsCntAboveDiagonalThr, maxHitsPerQuery,
-                                        identityId, 0, ungappedAlignment, true, maxSelfScoreMinusDiag);
+                queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(foundDiagonals, elementsCntAboveDiagonalThr, maxHitsPerQuery,
+                                        identityId, 0, ungappedAlignment, maxSelfScoreMinusDiag);
             }else{
-                queryResult = getResult(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, maxHitsPerQuery, identityId, diagonalThr, ungappedAlignment, true, 0);
+                queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, maxHitsPerQuery, identityId, diagonalThr, ungappedAlignment, false);
             }
         }else{
             Debug(Debug::WARNING) << "Sequence " << querySeq->getDbKey() << " produces too many hits. Results might be truncated\n";
-            queryResult = getResult(foundDiagonals, resultSize, maxHitsPerQuery, identityId, diagonalThr, ungappedAlignment, true, false);
+            queryResult =  getResult<UNGAPPED_DIAGONAL_SCORE>(foundDiagonals, resultSize, maxHitsPerQuery, identityId, diagonalThr, ungappedAlignment, false);
         }
     }else{
         unsigned int thr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         if(resultSize < counterResultSize/2) {
-
             int elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, thr, foundDiagonals, resultSize);
-            queryResult = getResult(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, maxHitsPerQuery, identityId, thr, ungappedAlignment,
-                                    false, 0);
+            queryResult = getResult<KMER_SCORE>(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, maxHitsPerQuery, identityId, thr, ungappedAlignment,
+                                    false);
         }else{
             Debug(Debug::WARNING) << "Sequence " << querySeq->getDbKey() << " produces too many hits. Results might be truncated\n";
-            queryResult = getResult(foundDiagonals, resultSize, maxHitsPerQuery, identityId, thr, ungappedAlignment,
-                                    false, 0);
+            queryResult = getResult<KMER_SCORE>(foundDiagonals, resultSize, maxHitsPerQuery, identityId, thr, ungappedAlignment,
+                                    false);
         }
     }
     if(queryResult.second > 1){
@@ -341,36 +339,43 @@ void QueryMatcher::updateScoreBins(CounterResult *result, size_t elementCount) {
     }
 }
 
+template <int TYPE>
 std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
                                                     size_t resultSize,
                                                     size_t maxHitPerQuery,
                                                     const unsigned int id,
                                                     const unsigned short thr,
                                                     UngappedAlignment * align,
-                                                    const bool diagonalScoring,
                                                     const int rescaleScore) {
     size_t elementCounter = 0;
+    size_t scoreGreaterUcharMax=0;
+    size_t seqLenNull = 0;
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
-        const unsigned short rawScore  = (diagonalScoring == false) ? UCHAR_MAX : USHRT_MAX;
+        unsigned short rawScore;
+        if(TYPE == KMER_SCORE){
+            rawScore = UCHAR_MAX;
+        }else{
+            rawScore = USHRT_MAX;
+        }
         result->seqId = id;
         result->prefScore = rawScore;
         result->diagonal = 0;
         //result->pScore = (((float)rawScore) - mu)/ sqrtMu;
-        if(diagonalScoring == false){
+        if(TYPE == KMER_SCORE){
             float logProb = -computeLogProbability(rawScore, seqLens[id], mu, logMatchProb, logScoreFactorial[rawScore]);
             result->prefScore = static_cast<int>(logProb);
         }
         elementCounter++;
     }
 
-    for (size_t i = 0; i < resultSize; i++) {
+    for (size_t i = 0; i < resultSize && elementCounter < maxHitPerQuery; i++) {
         const unsigned int seqIdCurr = results[i].id;
         const unsigned int scoreCurr = results[i].count;
         const unsigned int diagCurr  = results[i].diagonal;
 
         bool aboveThreshold = scoreCurr >= thr;
-        bool isNotQueryId = id != seqIdCurr;
+        bool isNotQueryId = (id != seqIdCurr);
         // write result to list
         //std::cout << i << "\t" << results[i].id << "\t" << (int)results[i].count << "\t" << results[i].diagonal << std::endl;
         if(aboveThreshold && isNotQueryId){
@@ -384,9 +389,13 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
             result->prefScore = scoreCurr;
             result->diagonal = diagCurr;
             //printf("%d\t%d\t%f\t%f\t%f\t%f\t%f\n", result->seqId, scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[scoreCurr]);
-            if(diagonalScoring == false){
-                result->prefScore =  (diagonalScoring) ? 0.0 :  -computeLogProbability(scoreCurr, seqLens[seqIdCurr],
-                                                                                    mu, logMatchProb, logScoreFactorial[scoreCurr]);
+            if(TYPE == KMER_SCORE){
+                // make sure score is not great > 255
+                scoreGreaterUcharMax += (scoreCurr > UCHAR_MAX);
+                size_t seqLen = (seqIdCurr > indexTable->getSize()) ? 0 : seqLens[seqIdCurr];
+                seqLenNull += (seqLen == 0);
+                unsigned char lookupScore = static_cast<unsigned char>(scoreCurr);
+                result->prefScore =   -computeLogProbability(scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[lookupScore]);
             }else{
                 //need to get the real score
                 if(rescaleScore != 0) {
@@ -399,9 +408,13 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
                 }
             }
             elementCounter++;
-            if (elementCounter >= maxHitPerQuery)
-                break;
         }
+    }
+    if(scoreGreaterUcharMax){
+        Debug(Debug::ERROR) << "Score was in " << scoreGreaterUcharMax << " cases greater UCHAR_MAX\n";
+    }
+    if(seqLenNull){
+        Debug(Debug::ERROR) << "Sequence id. was larger than database size in " << seqLenNull << " cases\n";
     }
     std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter - resListOffset);
     return pair;
@@ -521,6 +534,15 @@ std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, u
     }
     return std::make_pair(elements, maxSelfScore);
 }
+
+template std::pair<hit_t *, size_t>  QueryMatcher::getResult<0>(CounterResult * results,
+                                                    size_t resultSize, size_t maxHitPerQuery,
+                                                    const unsigned int id, const unsigned short thr,
+                                                    UngappedAlignment * align, const int rescaleScore);
+template std::pair<hit_t *, size_t>  QueryMatcher::getResult<1>(CounterResult * results,
+                                                                size_t resultSize, size_t maxHitPerQuery,
+                                                                const unsigned int id, const unsigned short thr,
+                                                                UngappedAlignment * align, const int rescaleScore);
 
 #undef FOR_EACH
 #undef GET_MACRO
