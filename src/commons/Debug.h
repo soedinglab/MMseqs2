@@ -5,6 +5,7 @@
 #include "Util.h"
 #include "Timer.h"
 #include <unistd.h>
+#include <stdlib.h>
 #include <cstddef>
 #include <sys/stat.h>
 
@@ -20,9 +21,18 @@ public:
         bool isChr = S_ISCHR (stats.st_mode) == true; // is terminal
         bool isFifo = S_ISFIFO(stats.st_mode) == false; // is no pipe
         bool isReg = S_ISREG(stats.st_mode) == false;
-        if (isFifo && stdoutIsTty  && stderrtIsTty && isReg && isChr ) {
+        if (isFifo && stdoutIsTty && stderrtIsTty && isReg && isChr) {
             tty = true;
         }
+
+        char* ttyEnv = getenv("TTY");
+        if(ttyEnv != NULL && strcasecmp(ttyEnv, "1") == 0) {
+            tty = true;
+        }
+        if(ttyEnv != NULL && strcasecmp(ttyEnv, "0") == 0) {
+            tty = false;
+        }
+
     };
     bool tty;
 };
