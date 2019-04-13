@@ -21,7 +21,6 @@ public:
         bool isFifo = S_ISFIFO(stats.st_mode) == false; // is no pipe
         bool isReg = S_ISREG(stats.st_mode) == false;
         if (isFifo && stdoutIsTty  && stderrtIsTty && isReg && isChr ) {
-            std::cout << "Is tty";
             tty = true;
         }
     };
