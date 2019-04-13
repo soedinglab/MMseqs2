@@ -227,8 +227,8 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             isTransNucTransNucSearch = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_AMINO_ACIDS);
         }else{
             if(par.searchType == Parameters::SEARCH_TYPE_AUTO && (targetNucl == true && queryNucl == true )){
-                Debug(Debug::INFO) << "Assume nucl/nucl search was performed. \n";
-                Debug(Debug::INFO) << "If this is not correct than please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
+                Debug(Debug::WARNING) << "Assume that nucleotide search was performed\n";
+                Debug(Debug::WARNING) << "If this is not correct than please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
             } else if(par.searchType == Parameters::SEARCH_TYPE_TRANSLATED){
                 seqtargetNuc = false;
                 isTransNucTransNucSearch = true;

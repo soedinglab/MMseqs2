@@ -18,7 +18,7 @@ notExists() {
 [ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
 [ ! -f "$3" ] &&  echo "$3 not found!" && exit 1;
 [ ! -f "$4" ] &&  echo "$4 not found!" && exit 1;
-[   -f "$5" ] &&  echo "$5 exists already!" && exit 1;
+[   -f "$5.dbtype" ] &&  echo "$5 exists already!" && exit 1;
 [ ! -d "$6" ] &&  echo "tmp directory $6 not found!" && mkdir -p "$6";
 
 QUERYDB="$1"

@@ -389,8 +389,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
             //printf("%d\t%d\t%f\t%f\t%f\t%f\t%f\n", result->seqId, scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[scoreCurr]);
             if(TYPE == KMER_SCORE){
                 // make sure score is not great > 255
-                unsigned char lookupScore = static_cast<unsigned char>(scoreCurr);
-                result->prefScore =   -computeLogProbability(scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[lookupScore]);
+                result->prefScore =   -computeLogProbability(scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[scoreCurr]);
             }else{
                 //need to get the real score
                 if(rescaleScore != 0) {

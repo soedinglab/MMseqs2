@@ -31,7 +31,10 @@ void setSearchDefaults(Parameters *p) {
 
 
 void setNuclSearchDefaults(Parameters *p) {
-    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    // leave ungapped alignment untouched
+    if(p->alignmentMode != Parameters::ALIGNMENT_MODE_UNGAPPED){
+        p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    }
     //p->orfLongest = true;
     p->exactKmerMatching = true;
 
@@ -154,8 +157,8 @@ int search(int argc, const char **argv, const Command& command) {
     par.printParameters(command.cmd, argc, argv, par.searchworkflow);
 
     if(isNuclNuclSearch == true && par.searchType == Parameters::SEARCH_TYPE_AUTO) {
-        Debug(Debug::INFO) << "Perform nucleotide search. \n";
-        Debug(Debug::INFO) << "To perform a translated search use --search-type 2 \n";
+        Debug(Debug::WARNING) << "Perform nucleotide search. \n";
+        Debug(Debug::WARNING) << "To perform a translated search use --search-type 2 \n";
     }
         if (FileUtil::directoryExists(par.db4.c_str()) == false) {
         Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
