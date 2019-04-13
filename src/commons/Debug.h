@@ -6,12 +6,26 @@
 #include "Timer.h"
 #include <unistd.h>
 #include <cstddef>
-
+#include <sys/stat.h>
 
 class TtyCheck {
 public:
-    TtyCheck() : tty(isatty(fileno(stdout)) && isatty(fileno(stderr))) {};
-    const bool tty;
+    TtyCheck()  {
+        tty = false;
+
+        bool stdoutIsTty = isatty(fileno(stdout));
+        bool stderrtIsTty = isatty(fileno(stderr));
+        struct stat stats;
+        fstat(fileno(stdin), &stats);
+        bool isChr = S_ISCHR (stats.st_mode) == true; // is terminal
+        bool isFifo = S_ISFIFO(stats.st_mode) == false; // is no pipe
+        bool isReg = S_ISREG(stats.st_mode) == false;
+        if (isFifo && stdoutIsTty  && stderrtIsTty && isReg && isChr ) {
+            std::cout << "Is tty";
+            tty = true;
+        }
+    };
+    bool tty;
 };
 
 class Debug
@@ -163,7 +177,7 @@ public:
                 }else{
                     float progress = (static_cast<float>(id) / static_cast<float>(totalEntries-1));
                     float prevPrintedProgress = (static_cast<float>(prevPrintedId) / static_cast<float>(totalEntries-1));
-                    if(progress-prevPrintedProgress > 0.001 || id == (totalEntries - 1)  ){
+                    if(progress-prevPrintedProgress > 0.001 || id == (totalEntries - 1)  || id == 0 ){
                         std::string line;
                         line.push_back('[');
                         int pos = BARWIDTH * progress;
