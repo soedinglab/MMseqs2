@@ -348,8 +348,6 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
                                                     UngappedAlignment * align,
                                                     const int rescaleScore) {
     size_t elementCounter = 0;
-    size_t scoreGreaterUcharMax=0;
-    size_t seqLenNull = 0;
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
         unsigned short rawScore;
@@ -391,9 +389,6 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
             //printf("%d\t%d\t%f\t%f\t%f\t%f\t%f\n", result->seqId, scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[scoreCurr]);
             if(TYPE == KMER_SCORE){
                 // make sure score is not great > 255
-                scoreGreaterUcharMax += (scoreCurr > UCHAR_MAX);
-                size_t seqLen = (seqIdCurr > indexTable->getSize()) ? 0 : seqLens[seqIdCurr];
-                seqLenNull += (seqLen == 0);
                 unsigned char lookupScore = static_cast<unsigned char>(scoreCurr);
                 result->prefScore =   -computeLogProbability(scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[lookupScore]);
             }else{
@@ -409,12 +404,6 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
             }
             elementCounter++;
         }
-    }
-    if(scoreGreaterUcharMax){
-        Debug(Debug::ERROR) << "Score was in " << scoreGreaterUcharMax << " cases greater UCHAR_MAX\n";
-    }
-    if(seqLenNull){
-        Debug(Debug::ERROR) << "Sequence id. was larger than database size in " << seqLenNull << " cases\n";
     }
     std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter - resListOffset);
     return pair;
