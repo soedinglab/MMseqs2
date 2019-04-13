@@ -121,6 +121,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
     const bool isFiltering = par.filterMsa != 0;
     int xAmioAcid = subMat.aa2int[(int)'X'];
+    Debug::Progress progress(dbSize);
 
 #pragma omp parallel num_threads(localThreads)
     {
@@ -132,7 +133,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         std::string result;
         result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
         char *charSequence = new char[maxSequenceLength];
-        Debug::Progress progress(dbSize);
 
         unsigned int thread_idx = 0;
 #ifdef OPENMP
