@@ -153,7 +153,7 @@ public:
 
 protected:
     const static int KMER_SCORE = 0;
-    const static int UNGAPPED_DIAGONAL_SCORE = 0;
+    const static int UNGAPPED_DIAGONAL_SCORE = 1;
 
     // keeps stats for run
     statistics_t * stats;
