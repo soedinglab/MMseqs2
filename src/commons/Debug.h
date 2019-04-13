@@ -7,6 +7,13 @@
 #include <unistd.h>
 #include <cstddef>
 
+
+class TtyCheck {
+public:
+    TtyCheck() : tty(isatty(fileno(stdout)) && isatty(fileno(stderr))) {};
+    const bool tty;
+};
+
 class Debug
 {
 
@@ -31,19 +38,22 @@ public:
     static int debugLevel;
 
 
-    explicit Debug( int level ) : level(level), errIsTty(isatty(fileno(stderr))), outIsTty(isatty(fileno(stdout))) {};
+    explicit Debug( int level ) : level(level) {
+        static TtyCheck check;
+        interactive = check.tty;
+    };
 
     ~Debug(){
         if (level <= ERROR && level <= debugLevel){
             std::cout << std::flush;
-            if(errIsTty){
+            if(interactive){
                 std::cerr << "\033[" << Color::FG_RED << "m" << buffer << "\033[" << Color::FG_DEFAULT << "m";;
             }else{
                 std::cerr << buffer;
             }
             std::cerr << std::flush;
         } else if(level == WARNING && level <= debugLevel){
-            if(outIsTty){
+            if(interactive){
                 std::cout << "\033[" << Color::FG_YELLOW << "m" << buffer << "\033[" << Color::FG_DEFAULT << "m";
             }else{
                 std::cout << buffer;
@@ -83,21 +93,27 @@ public:
         size_t currentPos;
         size_t prevPrintedId;
         size_t totalEntries;
-        const int outIsTty;
+        bool interactive;
         Timer timer;
 
         const static int BARWIDTH = 70;
 
     public:
         Progress(size_t totalEntries)
-                :  currentPos(0), prevPrintedId(0), totalEntries(totalEntries), outIsTty(isatty(fileno(stdout))){}
+                :  currentPos(0), prevPrintedId(0), totalEntries(totalEntries){
+            static TtyCheck check;
+            interactive = check.tty;
+        }
 
-        Progress() : currentPos(0),  prevPrintedId(0), totalEntries(SIZE_MAX), outIsTty(isatty(fileno(stdout))) {}
+        Progress() : currentPos(0),  prevPrintedId(0), totalEntries(SIZE_MAX){
+            static TtyCheck check;
+            interactive = check.tty;
+        }
 
         void updateProgress(){
             size_t id = __sync_fetch_and_add(&currentPos, 1);
             // if no active terminal exists write dots
-            if(outIsTty == false){
+            if(interactive == false){
                 if(totalEntries==SIZE_MAX) {
                     if(id==0) {
                         Debug(INFO) << '[';
@@ -183,12 +199,7 @@ public:
 private:
     const int level;
     std::string buffer;
-    const int errIsTty;
-    const int outIsTty;
-
-
-
-
+    bool interactive;
 };
 
 
