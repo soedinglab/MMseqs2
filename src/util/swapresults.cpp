@@ -97,34 +97,36 @@ int doswap(Parameters& par, bool isGeneralMode) {
     Debug(Debug::INFO) << "Computing offsets.\n";
     size_t *targetElementSize = new size_t[maxTargetId + 2]; // extra element for offset + 1 index id
     memset(targetElementSize, 0, sizeof(size_t) * (maxTargetId + 2));
-    Debug::Progress progress(resultSize);
+    {
+        Debug::Progress progress(resultSize);
 
 #pragma omp parallel
-    {
-        int thread_idx = 0;
+        {
+            int thread_idx = 0;
 #ifdef OPENMP
-        thread_idx = omp_get_thread_num();
+            thread_idx = omp_get_thread_num();
 #endif
 #pragma omp  for schedule(dynamic, 100)
-        for (size_t i = 0; i < resultSize; ++i) {
-            progress.updateProgress();
-            const unsigned int resultId = resultDbr.getDbKey(i);
-            char queryKeyStr[1024];
-            char *tmpBuff = Itoa::u32toa_sse2((uint32_t) resultId, queryKeyStr);
-            *(tmpBuff) = '\0';
-            size_t queryKeyLen = strlen(queryKeyStr);
-            char *data = resultDbr.getData(i, thread_idx);
-            char dbKeyBuffer[255 + 1];
-            while (*data != '\0') {
-                Util::parseKey(data, dbKeyBuffer);
-                size_t targetKeyLen = strlen(dbKeyBuffer);
-                const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
-                char *nextLine = Util::skipLine(data);
-                size_t lineLen = nextLine - data;
-                lineLen -= targetKeyLen;
-                lineLen += queryKeyLen;
-                __sync_fetch_and_add(&(targetElementSize[dbKey]), lineLen);
-                data = nextLine;
+            for (size_t i = 0; i < resultSize; ++i) {
+                progress.updateProgress();
+                const unsigned int resultId = resultDbr.getDbKey(i);
+                char queryKeyStr[1024];
+                char *tmpBuff = Itoa::u32toa_sse2((uint32_t) resultId, queryKeyStr);
+                *(tmpBuff) = '\0';
+                size_t queryKeyLen = strlen(queryKeyStr);
+                char *data = resultDbr.getData(i, thread_idx);
+                char dbKeyBuffer[255 + 1];
+                while (*data != '\0') {
+                    Util::parseKey(data, dbKeyBuffer);
+                    size_t targetKeyLen = strlen(dbKeyBuffer);
+                    const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                    char *nextLine = Util::skipLine(data);
+                    size_t lineLen = nextLine - data;
+                    lineLen -= targetKeyLen;
+                    lineLen += queryKeyLen;
+                    __sync_fetch_and_add(&(targetElementSize[dbKey]), lineLen);
+                    data = nextLine;
+                }
             }
         }
     }
@@ -159,6 +161,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
         char *tmpData = new char[bytesToWrite];
         Util::checkAllocation(tmpData, "Can not allocate tmpData memory in doswap");
         Debug(Debug::INFO) << "\nReading results.\n";
+        Debug::Progress progress(resultSize);
 #pragma omp parallel
         {
             int thread_idx = 0;
@@ -217,8 +220,9 @@ int doswap(Parameters& par, bool isGeneralMode) {
 
         std::string splitDbw = parOutDbStr + "_" + SSTR(split);
         std::pair<std::string, std::string> splitNamePair = (splits.size() > 1) ? std::make_pair(splitDbw, splitDbw + ".index") :
-                                                                                  std::make_pair(parOutDb, parOutDbIndex) ;
+                                                            std::make_pair(parOutDb, parOutDbIndex) ;
         splitFileNames.push_back(splitNamePair);
+        Debug::Progress progress2(dbKeyToWrite - prevDbKeyToWrite  + 1);
 
         DBWriter resultWriter(splitNamePair.first.c_str(), splitNamePair.second.c_str(), par.threads, par.compressed, resultDbr.getDbtype());
         resultWriter.open();
@@ -238,7 +242,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
 
 #pragma omp for schedule(dynamic, 100)
             for (size_t i = prevDbKeyToWrite; i <= dbKeyToWrite; ++i) {
-                progress.updateProgress();
+                progress2.updateProgress();
 
                 char *data = &tmpData[targetElementSize[i] - prevBytesToWrite];
                 size_t dataSize = targetElementSize[i + 1] - targetElementSize[i];
