@@ -126,8 +126,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             IndexReader tseqDbr(par.db2, par.threads, IndexReader::SEQUENCES, 0, IndexReader::PRELOAD_INDEX);
             seqtargetAA = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_AMINO_ACIDS);
         } else if(targetNucs == true && queryNucs == true && par.searchType == Parameters::SEARCH_TYPE_AUTO){
-            Debug(Debug::WARNING) << "Assume that nucleotide search was performed\n";
-            Debug(Debug::WARNING) << "If this is not correct than please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
+            Debug(Debug::WARNING) << "It is unclear from the input if a translated or nucleotide search was performed\n "
+                                     "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
+            EXIT(EXIT_FAILURE);
         } else if(par.searchType == Parameters::SEARCH_TYPE_TRANSLATED){
             seqtargetAA = true;
         }
