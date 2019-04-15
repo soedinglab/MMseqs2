@@ -22,5 +22,5 @@ steps:
       export TTY=0
       export MMSEQS_NUM_THREADS=8
       export PATH="$(pwd)/mmseqs-benchmark/:$PATH"
-      ./mmseqs-benchmark/run_regression.sh "$(pwd)/build/src/mmseqs" ~/regression/results/sse
+      ./mmseqs-benchmark/run_regression.sh "${BUILD_SOURCESDIRECTORY}/build/src/mmseqs" ~/regression/results/sse
   displayName: 'Run regression test'
