@@ -1,0 +1,26 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: 'Ubuntu-16.04'
+
+steps:
+- script: |
+      mkdir build
+      cd build
+      cmake -DENABLE_WERROR=1 -DHAVE_SSE4_1=1 ..
+      make -j $(nproc --all)
+  displayName: 'Run build'
+- script: |
+      mkdir ~/regression && cd ~/regression
+      git clone https://bitbucket.org/martin_steinegger/mmseqs-benchmark.git
+      export TTY=0
+      export MMSEQS_NUM_THREADS=8
+      export PATH="$(pwd)/mmseqs-benchmark/:$PATH"
+      ./mmseqs-benchmark/run_regression.sh "$(pwd)/build/src/mmseqs" ~/regression/results/sse
+  displayName: 'Run regression test'
