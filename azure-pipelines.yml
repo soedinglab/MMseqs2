@@ -8,19 +8,71 @@ trigger:
 
 pool:
   vmImage: 'Ubuntu-16.04'
+  
+strategy:
+  matrix:
+    avx2:
+      SIMD: 'AVX2'
+      FILENAME: 'mmseqs-static_avx2.tar.gz'
+      MPI: 0
+    sse:
+      SIMD: 'SSE4.1'
+      FILENAME: 'mmseqs-static_sse41.tar.gz'
+      MPI: 0
+    avx2_mpi:
+      SIMD: 'AVX2' 
+      FILENAME: '' 
+      MPI: 1
 
 steps:
 - script: |
-      mkdir build
-      cd build
-      cmake -DENABLE_WERROR=1 -DHAVE_SSE4_1=1 ..
-      make -j $(nproc --all)
-  displayName: 'Run build'
+    sudo apt-get -y install pandoc mpi-default-dev mpi-default-bin
+  displayName: 'Install dependencies'
+
 - script: |
-      mkdir ~/regression && cd ~/regression
-      git clone https://bitbucket.org/martin_steinegger/mmseqs-benchmark.git
-      export TTY=0
-      export MMSEQS_NUM_THREADS=8
-      export PATH="$(pwd)/mmseqs-benchmark/:$PATH"
-      ./mmseqs-benchmark/run_regression.sh "${BUILD_SOURCESDIRECTORY}/build/src/mmseqs" ~/regression/results/sse
+    mkdir build
+    cd build
+    cmake -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
+    make -j $(nproc --all)
+  displayName: 'Run build'
+
+- script: |
+    mkdir ~/regression && cd ~/regression
+    git clone https://bitbucket.org/martin_steinegger/mmseqs-benchmark.git
+    export TTY=0
+    export MMSEQS_NUM_THREADS=8
+    export PATH="$(pwd)/mmseqs-benchmark/:$PATH"
+    ./mmseqs-benchmark/run_regression.sh "${BUILD_SOURCESDIRECTORY}/build/src/mmseqs" ~/regression/results/
   displayName: 'Run regression test'
+
+- task: DownloadSecureFile@1
+  inputs:
+    secureFile: secretKeyPleaseDontSteal
+  displayName: 'Get the deploy key'  
+
+- script: |
+    [ ! -z "${FILENAME}" ] || exit 0
+    mkdir ~/.ssh && mv $DOWNLOADSECUREFILE_SECUREFILEPATH ~/.ssh/id_rsa
+    chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_rsa
+    ssh-keyscan -t rsa uniclust.mmseqs.com >> ~/.ssh/known_hosts
+    ssh codeship@uniclust.mmseqs.com "mkdir -p \"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}\""
+    mkdir -p ~/mmseqs2.wiki
+    cd ~/mmseqs2.wiki
+    git clone https://github.com/soedinglab/MMseqs2.wiki.git .
+    .pandoc/make-pdf.sh
+    scp userguide.pdf codeship@uniclust.mmseqs.com:"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}"
+    cd ${BUILD_SOURCESDIRECTORY}/build
+    CURR_BUILD="mmseqs2"
+    mkdir -p ${CURR_BUILD}/bin
+    mkdir -p ${CURR_BUILD}/util
+    mkdir -p ${CURR_BUILD}
+    cp src/mmseqs ${CURR_BUILD}/bin
+    chmod +x ${CURR_BUILD}/bin/mmseqs
+    cp ../util/bash-completion.sh ${CURR_BUILD}/util
+    chmod +x ${CURR_BUILD}/util/bash-completion.sh
+    cp -r ../LICENCE.md ../README.md ~/clone/mmseqs2.wiki/userguide.pdf ../examples ${CURR_BUILD}
+    chmod -R g-w,o-w ${CURR_BUILD}
+    tar czvf ${FILENAME} ${CURR_BUILD}
+    scp mmseqs-static_avx2.tar.gz codeship@uniclust.mmseqs.com:"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}"
+    ssh codeship@uniclust.mmseqs.com "update-latest-mmseqs.sh \"${BUILD_SOURCEVERSION}\""
+  displayName: 'Upload build'  
