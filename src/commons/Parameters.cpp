@@ -1494,12 +1494,18 @@ void Parameters::setDefaults() {
     threads = 1;
     compressed = WRITER_ASCII_MODE;
 #ifdef OPENMP
-    #ifdef _SC_NPROCESSORS_ONLN
-    threads = sysconf(_SC_NPROCESSORS_ONLN);
-#endif
-    if(threads  <= 1){
-        threads = Util::omp_thread_count();
+    char * threadEnv = getenv("MMSEQS_NUM_THREADS");
+    if (threadEnv != NULL) {
+        threads = (int) Util::fast_atoi<unsigned int>(threadEnv);
+    } else {
+        #ifdef _SC_NPROCESSORS_ONLN
+            threads = sysconf(_SC_NPROCESSORS_ONLN);
+        #endif
+        if(threads <= 1){
+            threads = Util::omp_thread_count();
+        }
     }
+
 #endif
     compBiasCorrection = 1;
     diagonalScoring = 1;
