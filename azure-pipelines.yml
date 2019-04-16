@@ -26,7 +26,7 @@ strategy:
 
 steps:
 - script: |
-    sudo apt-get -y install pandoc mpi-default-dev mpi-default-bin
+    sudo apt-get -y install pandoc mpi-default-dev mpi-default-bin texlive-latex-base
   displayName: 'Install dependencies'
 
 - script: |
