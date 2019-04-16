@@ -27,7 +27,7 @@ strategy:
 steps:
 - script: |
     sudo apt-get update
-    sudo apt-get -y install pandoc mpi-default-dev mpi-default-bin texlive-base
+    sudo apt-get -y install pandoc mpi-default-dev mpi-default-bin texlive-full
   displayName: 'Install dependencies'
 
 - script: |
@@ -71,9 +71,9 @@ steps:
     chmod +x ${CURR_BUILD}/bin/mmseqs
     cp ../util/bash-completion.sh ${CURR_BUILD}/util
     chmod +x ${CURR_BUILD}/util/bash-completion.sh
-    cp -r ../LICENCE.md ../README.md ~/clone/mmseqs2.wiki/userguide.pdf ../examples ${CURR_BUILD}
+    cp -r ../LICENCE.md ../README.md ~/mmseqs2.wiki/userguide.pdf ../examples ${CURR_BUILD}
     chmod -R g-w,o-w ${CURR_BUILD}
     tar czvf ${FILENAME} ${CURR_BUILD}
-    scp mmseqs-static_avx2.tar.gz codeship@uniclust.mmseqs.com:"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}"
+    scp ${FILENAME} codeship@uniclust.mmseqs.com:"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}"
     ssh codeship@uniclust.mmseqs.com "update-latest-mmseqs.sh \"${BUILD_SOURCEVERSION}\""
   displayName: 'Upload build'  
