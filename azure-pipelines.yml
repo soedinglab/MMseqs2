@@ -36,12 +36,16 @@ steps:
 - script: |
     mkdir build
     cd build
-    STATIC_FLAGS=""
     if [ "${STATIC}" -eq "1" ]; then
-      STATIC_FLAGS='-DBUILD_SHARED_LIBS=OFF -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a"'
-    fi
-    cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${STATIC_FLAGS} \
+        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc \
+          -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
           -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
+    else
+        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+          -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
+    fi
+
     make -j $(nproc --all)
   displayName: 'Run build'
 
