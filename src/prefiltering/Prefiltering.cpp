@@ -785,16 +785,10 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     size_t diagonalOverflow = 0;
     size_t totalQueryDBSize = querySize;
 
+    unsigned int localThreads = 1;
 #ifdef OPENMP
-    unsigned int totalThreads = threads;
-#else
-    unsigned int totalThreads = 1;
+    localThreads = std::min((unsigned int)threads, (unsigned int)querySize);
 #endif
-
-    unsigned int localThreads = totalThreads;
-    if (querySize <= totalThreads) {
-        localThreads = querySize;
-    }
 
     DBWriter tmpDbw(resultDB.c_str(), resultDBIndex.c_str(), localThreads, compressed, Parameters::DBTYPE_PREFILTER_RES);
     tmpDbw.open();
