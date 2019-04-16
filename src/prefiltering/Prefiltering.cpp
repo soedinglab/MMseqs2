@@ -37,9 +37,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         seedScoringMatrixFile(par.seedScoringMatrixFile),
         targetSeqType(targetSeqType_),
         maxResListLen(par.maxResListLen),
+        prevMaxResListLengths(par.prevMaxResListLengths),
         kmerScore(par.kmerScore),
         sensitivity(par.sensitivity),
-        resListOffset(par.resListOffset),
         maxSeqLen(par.maxSeqLen),
         querySeqType(querySeqType),
         diagonalScoring(par.diagonalScoring != 0),
@@ -716,9 +716,18 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     size_t querySize = qdbr->getSize();
 
     size_t maxResults = maxResListLen;
+
     if (splitCount > 1) {
         size_t fourTimesStdDeviation = 4*sqrt(static_cast<double>(maxResListLen) / static_cast<double>(splitCount));
         maxResults = (maxResListLen / splitCount) + std::max(static_cast<size_t >(1), fourTimesStdDeviation);
+    }
+
+    size_t resListOffset = 0;
+    std::vector<std::string> prevMaxVals = Util::split(prevMaxResListLengths, ",");
+    for (size_t i = 0; i < prevMaxVals.size(); ++i) {
+        size_t value = strtoull(prevMaxVals[i].c_str(), NULL, 10);
+        size_t offset = splitCount > 1 ? std::max(static_cast<size_t>(1), static_cast<size_t>(4*sqrt(static_cast<double>(value) / static_cast<double>(splitCount)))) : 0;
+        resListOffset += (value / splitCount) + offset;
     }
 
     // create index table based on split parameter
@@ -815,7 +824,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
                              tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
                              kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
-                             maxResults, aaBiasCorrection, diagonalScoring, minDiagScoreThr, takeOnlyBestKmer,resListOffset);
+                             maxResults, aaBiasCorrection, diagonalScoring, minDiagScoreThr, takeOnlyBestKmer, resListOffset);
 
         if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
             matcher.setProfileMatrix(seq.profile_matrix);

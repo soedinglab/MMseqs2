@@ -85,9 +85,9 @@ private:
 
 
     const size_t maxResListLen;
+    const std::string prevMaxResListLengths;
     const int kmerScore;
     const float sensitivity;
-    const size_t resListOffset;
     size_t maxSeqLen;
     int querySeqType;
     const bool diagonalScoring;

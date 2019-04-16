@@ -56,14 +56,14 @@ fi
 
 NUM_PROFILES=$(wc -l < "${PROFILEDB}.index")
 
-OFFSET=0
+PREV_MAX_SEQS=""
 STEP=0
 # MAX_STEPS is set by the workflow
 # shellcheck disable=SC2153
 while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     if [ -f "${TMP_PATH}/aln_${STEP}.checkpoint" ]; then
         # restore values from previous run, in case it was aborted
-        read -r NUM_PROFILES OFFSET < "${TMP_PATH}/aln_${STEP}.checkpoint"
+        read -r NUM_PROFILES PREV_MAX_SEQS < "${TMP_PATH}/aln_${STEP}.checkpoint"
         continue
     fi
 
@@ -78,14 +78,16 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         MAX_SEQS="$((1024*AVAIL_DISK/NUM_PROFILES/90))"
     fi
 
-    # Max result to go into the prefilter list
-    SEARCH_LIM="$((OFFSET+MAX_SEQS))"
-
     if notExists "${TMP_PATH}/pref.done"; then
         # shellcheck disable=SC2086
         ${RUNNER} "$MMSEQS" prefilter "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" \
-            --max-seqs "${SEARCH_LIM}" --offset-result "${OFFSET}" ${PREFILTER_PAR} \
+            --max-seqs "${MAX_SEQS}" --prev-max-seqs "${PREV_MAX_SEQS}" ${PREFILTER_PAR} \
             || fail "prefilter died"
+        if [ "${PREV_MAX_SEQS}" = "" ]; then
+            PREV_MAX_SEQS="${MAX_SEQS}"
+        else
+            PREV_MAX_SEQS="${PREV_MAX_SEQS},${MAX_SEQS}"
+        fi
         touch "${TMP_PATH}/pref.done"
     fi
 
@@ -151,15 +153,13 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     awk 'NR == FNR { f[$1] = 0; next; } $1 in f[$1] { print; }' "${TMP_PATH}/pref_keep.list" "${PROFILEDB}.index" > "${PROFILEDB}.index.tmp"
     mv -f "${PROFILEDB}.index.tmp" "${PROFILEDB}.index"
 
-    # keep for the prefilter only the next hits
-    OFFSET="$SEARCH_LIM"
     # shellcheck disable=SC2046
     NUM_PROFILES=$(wc -l < "${PROFILEDB}.index")
     rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done" "${TMP_PATH}/pref_keep.list"
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR}
     rm -f "${TMP_PATH}/aln_swap.done"
-    printf "%d\\t%d\\n" "${NUM_PROFILES}" "${OFFSET}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
+    printf "%d\\t%d\\n" "${NUM_PROFILES}" "${PREV_MAX_SEQS}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
 
     STEP="$((STEP+1))"
 done

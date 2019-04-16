@@ -211,7 +211,7 @@ int search(int argc, const char **argv, const Command& command) {
         // --max-seqs and --offset-results are set inside the workflow
         std::vector<MMseqsParameter*> prefilter;
         for (size_t i = 0; i < par.prefilter.size(); i++){
-            if (par.prefilter[i]->uniqid != par.PARAM_MAX_SEQS.uniqid && par.prefilter[i]->uniqid != par.PARAM_RES_LIST_OFFSET.uniqid){
+            if (par.prefilter[i]->uniqid != par.PARAM_MAX_SEQS.uniqid && par.prefilter[i]->uniqid != par.PARAM_PREV_MAX_SEQS.uniqid){
                 prefilter.push_back(par.prefilter[i]);
             }
         }

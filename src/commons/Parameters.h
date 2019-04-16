@@ -260,6 +260,7 @@ public:
     std::string seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
+    std::string prevMaxResListLengths;   // all max-seqs in previous iterations
     int    verbosity;                    // log level
     int    threads;                      // Amounts of threads
     int    compressed;                   // compressed writer
@@ -284,7 +285,6 @@ public:
     int    splitMemoryLimit;             // Maximum amount of memory a split can use
     int    diskSpaceLimit;               // Disk space max usage for sliced reverse profile search
     bool   splitAA;                      // Split database by amino acid count instead
-    size_t resListOffset;                // Offsets result list
     int    preloadMode;                  // Preload mode of database
     float  scoreBias;                    // Add this bias to the score when computing the alignements
     std::string spacedKmerPattern;       // User-specified kmer pattern
@@ -553,6 +553,7 @@ public:
     PARAMETER(PARAM_MIN_DIAG_SCORE)
     PARAMETER(PARAM_K_SCORE)
     PARAMETER(PARAM_MAX_SEQS)
+    PARAMETER(PARAM_PREV_MAX_SEQS)
     PARAMETER(PARAM_SPLIT)
     PARAMETER(PARAM_SPLIT_MODE)
     PARAMETER(PARAM_SPLIT_MEMORY_LIMIT)
@@ -564,7 +565,6 @@ public:
     PARAMETER(PARAM_SPACED_KMER_MODE)
     PARAMETER(PARAM_REMOVE_TMP_FILES)
     PARAMETER(PARAM_INCLUDE_IDENTITY)
-    PARAMETER(PARAM_RES_LIST_OFFSET)
     PARAMETER(PARAM_PRELOAD_MODE)
     PARAMETER(PARAM_SPACED_KMER_PATTERN)
     PARAMETER(PARAM_LOCAL_TMP)

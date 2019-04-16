@@ -377,8 +377,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
         // write result to list
         //std::cout << i << "\t" << results[i].id << "\t" << (int)results[i].count << "\t" << results[i].diagonal << std::endl;
         if(aboveThreshold && isNotQueryId){
-            if (elementCounter<resListOffset)
-            {
+            if (elementCounter < resListOffset) {
                 elementCounter++;
                 continue;
             }
