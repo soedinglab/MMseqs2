@@ -150,7 +150,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     # shellcheck disable=SC2086
     "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_trunc" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR}
     
-    awk 'NR == FNR { f[$1] = 0; next; } $1 in f[$1] { print; }' "${TMP_PATH}/pref_keep.list" "${PROFILEDB}.index" > "${PROFILEDB}.index.tmp"
+    awk 'NR == FNR { f[$1] = 0; next; } $1 in f { print; }' "${TMP_PATH}/pref_keep.list" "${PROFILEDB}.index" > "${PROFILEDB}.index.tmp"
     mv -f "${PROFILEDB}.index.tmp" "${PROFILEDB}.index"
 
     # shellcheck disable=SC2046
@@ -159,7 +159,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR}
     rm -f "${TMP_PATH}/aln_swap.done"
-    printf "%d\\t%d\\n" "${NUM_PROFILES}" "${PREV_MAX_SEQS}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
+    printf "%d\\t%s\\n" "${NUM_PROFILES}" "${PREV_MAX_SEQS}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
 
     STEP="$((STEP+1))"
 done

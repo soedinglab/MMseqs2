@@ -127,10 +127,8 @@ private:
      */
     double setKmerThreshold(DBReader<unsigned int> *qdb);
 
-    // write prefiltering to ffindex database
     void writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *dbWriter, unsigned int thread_idx, size_t id,
-                              const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset,
-                              size_t resultOffsetPos, size_t maxResults);
+                              const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset);
 
     void printStatistics(const statistics_t &stats, std::list<int> **reslens,
                          unsigned int resLensSize, size_t empty, size_t maxResults);
