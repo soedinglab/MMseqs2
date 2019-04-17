@@ -29,6 +29,101 @@ void setSearchDefaults(Parameters *p) {
 }
 
 
+int computeSearchMode(int queryDbType, int targetDbType, int targetSrcDbType, int searchMode){
+    // reject unvalid search
+    if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE) &&
+        Parameters::isEqualDbtype(targetDbType,Parameters::DBTYPE_HMM_PROFILE)) {
+        Debug(Debug::ERROR) << "Profile-Profile searches are not supported.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    // index was used
+    if(targetSrcDbType == -1) {
+        if(Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) &&
+           Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES))
+        {
+            if(searchMode == Parameters::SEARCH_TYPE_AUTO){
+                // WARNING because its not really an error, just a req. parameter
+                Debug(Debug::WARNING) << "It is unclear from the input if a translated or nucleotide search should be performed\n"
+                                         "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
+                EXIT(EXIT_FAILURE);
+            }
+            // nucl/nucl
+            // nucl/nucl translated
+            if(searchMode == Parameters::SEARCH_TYPE_TRANSLATED ||  searchMode == Parameters::SEARCH_TYPE_NUCLEOTIDES ){
+                return searchMode;
+            } else {
+                Debug(Debug::ERROR) << "--search-type 1 (amino acid) can not used in combination with a nucleotide database\n "
+                                       "The only possible options --search-types 2 (translated) or 3 (nucleotide)\n";
+                EXIT(EXIT_FAILURE);
+            }
+        }
+        // prot/prot
+        if (Parameters::isEqualDbtype(queryDbType,  Parameters::DBTYPE_AMINO_ACIDS) &&
+            Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_AMINO_ACIDS)){
+            return Parameters::SEARCH_TYPE_PROTEIN;
+        }
+        // prot/profile
+        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_AMINO_ACIDS) &&
+            Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_HMM_PROFILE)){
+            return Parameters::SEARCH_TYPE_TARGET_PROFILE;
+        }
+
+        // nucl/prot
+        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) &&
+            Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_AMINO_ACIDS)){
+            return Parameters::SEARCH_TYPE_TRANSLATED_QUERY;
+        }
+        // prot/nucl
+        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_AMINO_ACIDS) &&
+            Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES)){
+            return Parameters::SEARCH_TYPE_TRANSLATED_TARGET;
+        }
+    } else{
+
+        // prot/prot
+        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_AMINO_ACIDS) &&
+            Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_AMINO_ACIDS) &&
+            Parameters::isEqualDbtype(targetSrcDbType, Parameters::DBTYPE_AMINO_ACIDS)){
+            return Parameters::SEARCH_TYPE_PROTEIN;
+        }
+
+        // nucl/prot
+        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) &&
+            Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_AMINO_ACIDS) &&
+            (Parameters::isEqualDbtype(targetSrcDbType, Parameters::DBTYPE_AMINO_ACIDS))) {
+            return Parameters::SEARCH_TYPE_TRANSLATED_QUERY;
+        }
+
+        // prot/nucl
+        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_AMINO_ACIDS) &&
+            Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_AMINO_ACIDS) &&
+            (Parameters::isEqualDbtype(targetSrcDbType, Parameters::DBTYPE_NUCLEOTIDES))) {
+            return Parameters::SEARCH_TYPE_TRANSLATED_TARGET;
+        }
+
+        // nucl/nucl
+        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) &&
+            Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES) &&
+            Parameters::isEqualDbtype(targetSrcDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
+            return Parameters::SEARCH_TYPE_NUCLEOTIDES;
+        }
+
+        // nucl/nucl translated
+        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) &&
+            Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_AMINO_ACIDS) &&
+            Parameters::isEqualDbtype(targetSrcDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
+            return Parameters::SEARCH_TYPE_TRANSLATED;
+        }
+    }
+    Debug(Debug::ERROR) << "Invalid input database and --search-type combination\n"
+                        << "queryDbType: " << DBReader<unsigned int>::getDbTypeName(queryDbType) << "\n"
+                        << "targetDbType: " <<  DBReader<unsigned int>::getDbTypeName(targetDbType) << "\n"
+                        << "targetSrcDbType: " <<  DBReader<unsigned int>::getDbTypeName(targetSrcDbType) << "\n"
+                        << "searchMode: " << searchMode << "\n";
+    EXIT(EXIT_FAILURE);
+}
+
+
 
 void setNuclSearchDefaults(Parameters *p) {
     // leave ungapped alignment untouched
@@ -81,17 +176,18 @@ int search(int argc, const char **argv, const Command& command) {
                         MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
 
     std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
+
+    int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
     std::string targetDB =  (indexStr == "") ? par.db2.c_str() : indexStr.c_str();
-    int targetDbType;
-    if(indexStr != ""){
+    int targetSrcDbType = -1;
+    if(indexStr != "" || Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB)){
+        indexStr = par.db2;
         DBReader<unsigned int> dbr(targetDB.c_str(), (targetDB+".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         dbr.open(DBReader<unsigned int>::NOSORT);
         PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&dbr);
+        targetSrcDbType = data.srcSeqType;
         targetDbType = data.seqType;
-    }else{
-        targetDbType = DBReader<unsigned int>::parseDbType(targetDB.c_str());
     }
-
     const int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     if (queryDbType == -1 || targetDbType == -1) {
         Debug(Debug::ERROR)
@@ -99,34 +195,22 @@ int search(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
-    if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE) &&
-            Parameters::isEqualDbtype(targetDbType,Parameters::DBTYPE_HMM_PROFILE)) {
-        Debug(Debug::ERROR) << "Profile-Profile searches are not supported.\n";
-        EXIT(EXIT_FAILURE);
-    }
+    int searchMode = computeSearchMode(queryDbType, targetDbType, targetSrcDbType, par.searchType);
 
-    bool isNuclNuclSearch = (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)
-                            && Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES));
-    if(isNuclNuclSearch == true && par.searchType == Parameters::SEARCH_TYPE_AUTO) {
+    if(searchMode == Parameters::SEARCH_TYPE_NUCLEOTIDES) {
         setNuclSearchDefaults(&par);
-    } else if(isNuclNuclSearch == true && par.searchType == Parameters::SEARCH_TYPE_TRANSLATED) {
-        isNuclNuclSearch = false;
     } else{
         par.overrideParameterDescription((Command &) command, par.PARAM_STRAND.uniqid, NULL, NULL,
                                          par.PARAM_STRAND.category | MMseqsParameter::COMMAND_EXPERT);
     }
     // FIXME: use larger default k-mer size in target-profile case if memory is available
     // overwrite default kmerSize for target-profile searches and parse parameters again
-    if (par.sliceSearch == false && Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_HMM_PROFILE) && par.PARAM_K.wasSet == false) {
+    if (par.sliceSearch == false && searchMode == Parameters::SEARCH_TYPE_TARGET_PROFILE && par.PARAM_K.wasSet == false) {
         par.kmerSize = 5;
     }
 
-    const bool isTranslatedNuclSearch =
-            isNuclNuclSearch==false && (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) ||
-                                    Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES));
-
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
-    if (isUngappedMode && (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(targetDbType,Parameters::DBTYPE_HMM_PROFILE))) {
+    if (isUngappedMode && (searchMode == Parameters::SEARCH_TYPE_QUERY_PROFILE || searchMode == Parameters::SEARCH_TYPE_TARGET_PROFILE )) {
         par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
         Debug(Debug::ERROR) << "Cannot use ungapped alignment mode with profile databases.\n";
         EXIT(EXIT_FAILURE);
@@ -134,14 +218,14 @@ int search(int argc, const char **argv, const Command& command) {
 
     // validate and set parameters for iterative search
     if (par.numIterations > 1) {
-        if (Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_HMM_PROFILE)) {
+        if (searchMode == Parameters::SEARCH_TYPE_TARGET_PROFILE) {
             par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
             Debug(Debug::ERROR) << "Iterative target-profile searches are not supported.\n";
             EXIT(EXIT_FAILURE);
         }
 
         par.addBacktrace = true;
-        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE)) {
+        if (searchMode == Parameters::SEARCH_TYPE_QUERY_PROFILE) {
             for (size_t i = 0; i < par.searchworkflow.size(); i++) {
                 if (par.searchworkflow[i]->uniqid == par.PARAM_REALIGN.uniqid && par.searchworkflow[i]->wasSet) {
                     par.printUsageMessage(command,
@@ -156,17 +240,13 @@ int search(int argc, const char **argv, const Command& command) {
     }
     par.printParameters(command.cmd, argc, argv, par.searchworkflow);
 
-    if(isNuclNuclSearch == true && par.searchType == Parameters::SEARCH_TYPE_AUTO) {
-        Debug(Debug::WARNING) << "Perform nucleotide search. \n";
-        Debug(Debug::WARNING) << "To perform a translated search use --search-type 2 \n";
-    }
-        if (FileUtil::directoryExists(par.db4.c_str()) == false) {
+    if (FileUtil::directoryExists(par.db4.c_str()) == false) {
         Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db4.c_str()) == false) {
             Debug(Debug::ERROR) << "Can not create tmp folder " << par.db4 << ".\n";
             EXIT(EXIT_FAILURE);
         } else {
-            Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
+            Debug(Debug::INFO) << "Create dir " << par.db4 << "\n";
         }
     }
 
@@ -186,16 +266,15 @@ int search(int argc, const char **argv, const Command& command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     const int originalRescoreMode = par.rescoreMode;
-
     CommandCaller cmd;
     cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     std::string program;
     cmd.addVariable("RUNNER", par.runner.c_str());
-    cmd.addVariable("ALIGNMENT_DB_EXT", Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ) ? ".255" : "");
+//    cmd.addVariable("ALIGNMENT_DB_EXT", Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ) ? ".255" : "");
     par.filenames[1] = targetDB;
     if (par.sliceSearch == true) {
-        if (Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_HMM_PROFILE) == false) {
+        if (searchMode != Parameters::SEARCH_TYPE_TARGET_PROFILE) {
             par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
             Debug(Debug::ERROR) << "Sliced search only works with profiles as targets.\n";
             EXIT(EXIT_FAILURE);
@@ -236,7 +315,7 @@ int search(int argc, const char **argv, const Command& command) {
 
         program = tmpDir + "/searchslicedtargetprofile.sh";
         FileUtil::writeFile(program, searchslicedtargetprofile_sh, searchslicedtargetprofile_sh_len);
-    } else if (Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_HMM_PROFILE)) {
+    } else if (searchMode == Parameters::SEARCH_TYPE_TARGET_PROFILE) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         // we need to align all hits in case of target Profile hits
         size_t maxResListLen = par.maxResListLen;
@@ -263,7 +342,7 @@ int search(int argc, const char **argv, const Command& command) {
         float originalEval = par.evalThr;
         par.evalThr = (par.evalThr < par.evalProfile) ? par.evalThr  : par.evalProfile;
         for (int i = 0; i < par.numIterations; i++) {
-            if (i == 0 && Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE) == false) {
+            if (i == 0 && searchMode != Parameters::SEARCH_TYPE_TARGET_PROFILE) {
                 par.realign = true;
             }
 
@@ -338,19 +417,21 @@ int search(int argc, const char **argv, const Command& command) {
         program = std::string(tmpDir + "/blastp.sh");
     }
 
-
-
-    if (isTranslatedNuclSearch == true) {
+    if (searchMode == Parameters::SEARCH_TYPE_TRANSLATED
+       || searchMode == Parameters::SEARCH_TYPE_TRANSLATED_QUERY
+       || searchMode == Parameters::SEARCH_TYPE_TRANSLATED_TARGET) {
         cmd.addVariable("NO_TARGET_INDEX", (indexStr == "") ? "TRUE" : NULL);
         FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
-        cmd.addVariable("QUERY_NUCL", Parameters::isEqualDbtype(queryDbType,Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
-        cmd.addVariable("TARGET_NUCL", Parameters::isEqualDbtype(targetDbType,Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
+        cmd.addVariable("QUERY_NUCL", (searchMode == Parameters::SEARCH_TYPE_TRANSLATED
+                                      || searchMode == Parameters::SEARCH_TYPE_TRANSLATED_QUERY) ? "TRUE" : NULL);
+        cmd.addVariable("TARGET_NUCL", (searchMode == Parameters::SEARCH_TYPE_TRANSLATED
+                                        || searchMode == Parameters::SEARCH_TYPE_TRANSLATED_TARGET)  ? "TRUE" : NULL);
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());
         cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");
-    }else if(isNuclNuclSearch== true){
+    }else if(searchMode == Parameters::SEARCH_TYPE_NUCLEOTIDES){
         FileUtil::writeFile(tmpDir + "/blastn.sh", blastn_sh, blastn_sh_len);
         //  0: reverse, 1: forward, 2: both
         switch (par.strand){
