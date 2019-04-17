@@ -744,6 +744,7 @@ void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::strin
     for (size_t i = 0; i < fileNames.size(); ++i) {
         fclose(files[i]);
     }
+    delete[] files;
 
     Debug(Debug::INFO) << "Merge file " << fileNames[0].first << " and " << fileNames[0].second << "\n";
     DBReader<unsigned int> reader1(fileNames[0].first.c_str(), fileNames[0].second.c_str(), 1,

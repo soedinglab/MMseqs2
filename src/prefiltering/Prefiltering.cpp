@@ -716,18 +716,20 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     size_t querySize = qdbr->getSize();
 
     size_t maxResults = maxResListLen;
-
-    if (splitCount > 1) {
-        size_t fourTimesStdDeviation = 4*sqrt(static_cast<double>(maxResListLen) / static_cast<double>(splitCount));
+    size_t targetSplitCount = splitCount;
+    if (splitMode == Parameters::TARGET_DB_SPLIT && splitCount > 1) {
+        size_t fourTimesStdDeviation = 4 * sqrt(static_cast<double>(maxResListLen) / static_cast<double>(splitCount));
         maxResults = (maxResListLen / splitCount) + std::max(static_cast<size_t >(1), fourTimesStdDeviation);
+    } else {
+        targetSplitCount = 1;
     }
 
     size_t resListOffset = 0;
     std::vector<std::string> prevMaxVals = Util::split(prevMaxResListLengths, ",");
     for (size_t i = 0; i < prevMaxVals.size(); ++i) {
         size_t value = strtoull(prevMaxVals[i].c_str(), NULL, 10);
-        size_t offset = splitCount > 1 ? std::max(static_cast<size_t>(1), static_cast<size_t>(4*sqrt(static_cast<double>(value) / static_cast<double>(splitCount)))) : 0;
-        resListOffset += (value / splitCount) + offset;
+        size_t offset = targetSplitCount > 1 ? std::max(static_cast<size_t>(1), static_cast<size_t>(4 * sqrt(static_cast<double>(value) / static_cast<double>(targetSplitCount)))) : 0;
+        resListOffset += (value / targetSplitCount) + offset;
     }
 
     // create index table based on split parameter
@@ -851,7 +853,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId);
             size_t resultSize = prefResults.second;
             // write
-            writePrefilterOutput(qdbr, &tmpDbw, thread_idx, id, prefResults, dbFrom, 0, maxResults);
+            writePrefilterOutput(qdbr, &tmpDbw, thread_idx, id, prefResults, dbFrom);
 
             // update statistics counters
             if (resultSize != 0) {
@@ -921,46 +923,38 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     return true;
 }
 
-// write prefiltering to ffindex database
 void Prefiltering::writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *dbWriter, unsigned int thread_idx, size_t id,
-                                        const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset,
-                                        size_t resultOffsetPos, size_t maxResults) {
-    // write prefiltering results to a string
-    size_t l = 0;
-    hit_t *resultVector = prefResults.first + resultOffsetPos;
-    const size_t resultSize = (prefResults.second < resultOffsetPos) ? 0 : prefResults.second - resultOffsetPos;
+                                        const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset) {
+    hit_t *resultVector = prefResults.first;
     std::string prefResultsOutString;
     prefResultsOutString.reserve(BUFFER_SIZE);
     char buffer[100];
-    for (size_t i = 0; i < resultSize; i++) {
+    for (size_t i = 0; i < prefResults.second; i++) {
         hit_t *res = resultVector + i;
+        // correct the 0 indexed sequence id again to its real identifier
         size_t targetSeqId = res->seqId + seqIdOffset;
+        // replace id with key
+        res->seqId = tdbr->getDbKey(targetSeqId);
         if (targetSeqId >= tdbr->getSize()) {
-            Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id) << " -> " << targetSeqId
-                               << "\t" << res->prefScore << "\n";
+            Debug(Debug::WARNING) << "Wrong prefiltering result for query: " << qdbr->getDbKey(id) << " -> " << targetSeqId
+                                  << "\t" << res->prefScore << "\n";
         }
-        if(covThr > 0.0 && (covMode == Parameters::COV_MODE_BIDIRECTIONAL || covMode == Parameters::COV_MODE_QUERY)){
+
+        // TODO: check if this should happen when diagonalScoring == false
+        if (covThr > 0.0 && (covMode == Parameters::COV_MODE_BIDIRECTIONAL || covMode == Parameters::COV_MODE_QUERY)) {
             float queryLength = static_cast<float>(qdbr->getSeqLens(id));
             float targetLength = static_cast<float>(tdbr->getSeqLens(targetSeqId));
-            if(Util::canBeCovered(covThr, covMode, queryLength, targetLength)==false){
+            if (Util::canBeCovered(covThr, covMode, queryLength, targetLength) == false) {
                 continue;
             }
         }
 
-
-        res->seqId = tdbr->getDbKey(targetSeqId);
+        // write prefiltering results to a string
         int len = QueryMatcher::prefilterHitToBuffer(buffer, *res);
         // TODO: error handling for len
         prefResultsOutString.append(buffer, len);
-        l++;
-        // maximum allowed result list length is reached
-        if (l >= maxResults)
-            break;
     }
-    // write prefiltering results string to ffindex database
-    const size_t prefResultsLength = prefResultsOutString.length();
-    char *prefResultsOutData = (char *) prefResultsOutString.c_str();
-    dbWriter->writeData(prefResultsOutData, prefResultsLength, qdbr->getDbKey(id), thread_idx);
+    dbWriter->writeData(prefResultsOutString.c_str(), prefResultsOutString.length(), qdbr->getDbKey(id), thread_idx);
 }
 
 void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **reslens,

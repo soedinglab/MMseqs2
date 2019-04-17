@@ -241,7 +241,6 @@ protected:
     template <int TYPE>
     std::pair<hit_t *, size_t> getResult(CounterResult * results,
                                          size_t resultSize,
-                                         size_t maxHitPerQuery,
                                          const unsigned int id,
                                          const unsigned short thr,
                                          UngappedAlignment *ungappedAlignment,
