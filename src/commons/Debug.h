@@ -153,15 +153,13 @@ public:
                     if(id==0) {
                         Debug(INFO) << '[';
                     }
-                    float progress = (static_cast<float>(id) / static_cast<float>(totalEntries-1));
-                    if(id > 0) {
-                        float prevPrintedProgress = (static_cast<float>(id-1) / static_cast<float>(totalEntries-1));
-                        int prevPos = BARWIDTH * prevPrintedProgress;
-                        int pos     = BARWIDTH * progress;
-                        for (int write = prevPos; write < pos; write++) {
-                            Debug(INFO) << '=';
-                            fflush(stdout);
-                        }
+                    float progress = (totalEntries==1) ? 1.0 : (static_cast<float>(id) / static_cast<float>(totalEntries-1));
+                    float prevPrintedProgress = (totalEntries==1) ? 0.0 : (static_cast<float>(id-1) / static_cast<float>(totalEntries-1));
+                    int prevPos = BARWIDTH * prevPrintedProgress;
+                    int pos     = BARWIDTH * progress;
+                    for (int write = prevPos; write < pos; write++) {
+                        Debug(INFO) << '=';
+                        fflush(stdout);
                     }
 
                     if(id == (totalEntries - 1) ){
@@ -184,8 +182,8 @@ public:
                         prevPrintedId = id;
                     }
                 }else{
-                    float progress = (static_cast<float>(id) / static_cast<float>(totalEntries-1));
-                    float prevPrintedProgress = (static_cast<float>(prevPrintedId) / static_cast<float>(totalEntries-1));
+                    float progress = (totalEntries==1) ? 1.0 : (static_cast<float>(id) / static_cast<float>(totalEntries-1));
+                    float prevPrintedProgress = (totalEntries==1) ? 0.0 : (static_cast<float>(prevPrintedId) / static_cast<float>(totalEntries-1));
                     if(progress-prevPrintedProgress > 0.001 || id == (totalEntries - 1)  || id == 0 ){
                         std::string line;
                         line.push_back('[');
