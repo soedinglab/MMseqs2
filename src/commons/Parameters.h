@@ -60,6 +60,11 @@ public:
     static const int DBTYPE_OMIT_FILE = 13;
     static const int DBTYPE_PREFILTER_REV_RES = 14;
     static const int DBTYPE_OFFSETDB = 15;
+    static const int DBTYPE_DIRECTORY = 16; // needed for verification
+    static const int DBTYPE_FLATFILE = 17; // needed for verification
+    static const int DBTYPE_SEQTAXDB = 18; // needed for verification
+    static const int DBTYPE_TAX_RES_DB = 19; // needed for verification
+
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
     static const int SEARCH_TYPE_AUTO = 0;
