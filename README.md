@@ -16,6 +16,7 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 
 <p align="center"><img src="https://raw.githubusercontent.com/soedinglab/mmseqs2/master/.github/mmseqs2_logo.png" height="256" /></p>
 
+
 ## Documentation 
 The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). We provide a tutorial of MMseqs2 [here](https://github.com/soedinglab/metaG-ECCB18-partII).
 
