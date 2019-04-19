@@ -30,7 +30,7 @@ strategy:
 steps:
 - script: |
     sudo apt-get update
-    sudo apt-get -y install pandoc mpi-default-dev mpi-default-bin texlive-full
+    sudo apt-get -y install pandoc mpi-default-dev mpi-default-bin texlive-latex-recommended texlive-fonts-extra
   displayName: 'Install dependencies'
 
 - script: |
