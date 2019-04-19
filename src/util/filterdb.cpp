@@ -211,7 +211,7 @@ int ffindexFilter::runFilter(){
 		std::string buffer = "";
 		buffer.reserve(LINE_BUFFER_SIZE);
 
-#pragma omp for schedule(dynamic, 10)
+#pragma omp for schedule(dynamic, 10) private(compValue)
 		for (size_t id = 0; id < dataDb->getSize(); id++) {
 			progress.updateProgress();
 
