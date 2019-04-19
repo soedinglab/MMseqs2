@@ -154,7 +154,7 @@ public:
                         Debug(INFO) << '[';
                     }
                     float progress = (totalEntries==1) ? 1.0 : (static_cast<float>(id) / static_cast<float>(totalEntries-1));
-                    float prevPrintedProgress = (totalEntries==1) ? 0.0 : (static_cast<float>(id-1) / static_cast<float>(totalEntries-1));
+                    float prevPrintedProgress = (totalEntries==1 || id == 0) ? 0.0 : (static_cast<float>(id-1) / static_cast<float>(totalEntries-1));
                     int prevPos = BARWIDTH * prevPrintedProgress;
                     int pos     = BARWIDTH * progress;
                     for (int write = prevPos; write < pos; write++) {
