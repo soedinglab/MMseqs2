@@ -133,7 +133,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                     }
                 }
                 if(par.prefilter[i]->wasSet && par.prefilter[i]->uniqid == par.PARAM_NO_COMP_BIAS_CORR.uniqid){
-                    if(data.compBiasCorr != aaBiasCorrection && Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE)){
+                    if(data.compBiasCorr != aaBiasCorrection && Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_HMM_PROFILE)){
                         Debug(Debug::ERROR) << "Index was created with --comp-bias-corr " << data.compBiasCorr  <<" please recreate index with --comp-bias-corr " << aaBiasCorrection << "!\n";
                         Debug(Debug::ERROR) << "createindex --comp-bias-corr " << aaBiasCorrection << "\n";
                         EXIT(EXIT_FAILURE);
