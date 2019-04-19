@@ -16,10 +16,11 @@
 #endif
 
 #include "simd.h"
+#include "MemoryMapped.h"
 
 #include <fstream>
 #include <algorithm>
-#include "MemoryMapped.h"
+#include <sys/mman.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -439,8 +440,15 @@ char Util::touchMemory(const char *memory, size_t size) {
 
 #ifdef OPENMP
     const int totalThreadCnt = omp_get_max_threads();
-    if (totalThreadCnt > 4) {
-        threadCnt = 4;
+    if (totalThreadCnt > 2) {
+        threadCnt = 2;
+    }
+#endif
+
+
+#ifdef HAVE_POSIX_MADVISE
+    if (posix_madvise ((void*)memory, size, POSIX_MADV_SEQUENTIAL) != 0){
+        Debug(Debug::ERROR) << "posix_madvise returned an error (touchMemory)\n";
     }
 #endif
 
@@ -459,7 +467,7 @@ char Util::touchMemory(const char *memory, size_t size) {
         threadIdx = omp_get_thread_num();
 #endif
 
-#pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic,10)
         for (size_t pos = 0; pos < size; pos += pageSize) {
             size_t currentPageSize = size - pos;
             if (currentPageSize > pageSize) {
