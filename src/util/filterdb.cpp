@@ -197,7 +197,7 @@ int ffindexFilter::runFilter(){
 	const size_t LINE_BUFFER_SIZE = 1000000;
     Debug::Progress progress(dataDb->getSize());
 
-#pragma omp parallel
+#pragma omp parallel private(compValue)
 	{
         int thread_idx = 0;
 #ifdef OPENMP
@@ -211,7 +211,7 @@ int ffindexFilter::runFilter(){
 		std::string buffer = "";
 		buffer.reserve(LINE_BUFFER_SIZE);
 
-#pragma omp for schedule(dynamic, 10) private(compValue)
+#pragma omp for schedule(dynamic, 10)
 		for (size_t id = 0; id < dataDb->getSize(); id++) {
 			progress.updateProgress();
 
