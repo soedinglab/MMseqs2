@@ -240,14 +240,18 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     dbw.open();
 
+    // handle no alignment case early, below would divide by 0 otherwise
+    if (dbSize == 0) {
+        dbw.close(merge);
+        return;
+    }
+
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), this->m, gapOpen, gapExtend);
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 1000000;
     if(totalMemory > prefdbr->getTotalDataSize()){
         flushSize = dbSize;
     }
-
-
 
     size_t iterations = static_cast<size_t>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
     for (size_t i = 0; i < iterations; i++) {

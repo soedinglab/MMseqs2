@@ -552,14 +552,11 @@ void Prefiltering::runAllSplits(const std::string &queryDB, const std::string &q
 void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &queryDBIndex,
                                 const std::string &resultDB, const std::string &resultDBIndex,
                                 const std::string &localTmpPath) {
-
-    splits = std::max(MMseqsMPI::numProc, splits);
-    size_t fromSplit = 0;
-    size_t splitCount = 1;
     if(compressed == true && splitMode == Parameters::TARGET_DB_SPLIT){
             Debug(Debug::ERROR) << "The output of the prefilter cannot be compressed during target split mode. Please remove --compress.\n";
             EXIT(EXIT_FAILURE);
     }
+
     // if split size is great than nodes than we have to
     // distribute all splits equally over all nodes
     unsigned int * splitCntPerProc = new unsigned int[MMseqsMPI::numProc];
@@ -567,11 +564,13 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
     for(int i = 0; i < splits; i++){
         splitCntPerProc[i % MMseqsMPI::numProc] += 1;
     }
+
+    size_t fromSplit = 0;
     for(int i = 0; i < MMseqsMPI::rank; i++){
         fromSplit += splitCntPerProc[i];
     }
 
-    splitCount = splitCntPerProc[MMseqsMPI::rank];
+    size_t splitCount = splitCntPerProc[MMseqsMPI::rank];
     delete[] splitCntPerProc;
 
     std::string procTmpResultDB = localTmpPath;
@@ -759,8 +758,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
         getIndexTable(split, dbFrom, dbSize);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
-        Util::decomposeDomainByAminoAcid(qdbr->getDataSize(), qdbr->getSeqLens(), qdbr->getSize(),
-                                         split, splitCount, &queryFrom, &querySize);
+        Util::decomposeDomainByAminoAcid(qdbr->getDataSize(), qdbr->getSeqLens(), qdbr->getSize(), split, splitCount, &queryFrom, &querySize);
         if (querySize == 0) {
             return false;
         }
