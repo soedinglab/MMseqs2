@@ -67,7 +67,9 @@ int lca(int argc, const char **argv, const Command& command) {
     Debug::Progress progress(reader.getSize());
     Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
-    size_t taxonNotFound=0;
+    size_t taxonNotFound = 0;
+    size_t found = 0;
+
     Debug(Debug::INFO) << "Computing LCA\n";
     #pragma omp parallel
     {
@@ -78,7 +80,7 @@ int lca(int argc, const char **argv, const Command& command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        #pragma omp for schedule(dynamic, 10)
+        #pragma omp for schedule(dynamic, 10) reduction (+:taxonNotFound, found)
         for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
 
@@ -103,15 +105,18 @@ int lca(int argc, const char **argv, const Command& command) {
                 val.first = id;
                 mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
 
-                if (mappingIt->first != val.first) {
-                    __sync_fetch_and_add(&taxonNotFound, 1);
+                if (mappingIt == mapping.end() || mappingIt->first != val.first) {
+                    taxonNotFound += 1;
                     data = Util::skipLine(data);
                     continue;
                 }
+                found++;
                 taxon = mappingIt->second;
 
                 // remove blacklisted taxa
                 for (size_t j = 0; j < taxaBlacklistSize; ++j) {
+                    if(taxaBlacklist[j] == 0)
+                        continue;
                     if (t.IsAncestor(taxaBlacklist[j], taxon)) {
                         goto next;
                     }
@@ -149,7 +154,7 @@ int lca(int argc, const char **argv, const Command& command) {
         }
     };
     Debug(Debug::INFO) << "\n";
-    Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " entries not found.\n";
+    Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " entries not found out of " << taxonNotFound+found << "\n";
 
     writer.close();
     reader.close();
