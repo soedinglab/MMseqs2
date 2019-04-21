@@ -112,10 +112,10 @@ int createindex(int argc, const char **argv, const Command& command) {
     par.kmerScore = 0; // extract all k-mers
     par.sensitivity = 7.5;
     par.maskMode = 1;
+    par.parseParameters(argc, argv, command, 2, false);
 
     int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
-    par.parseParameters(argc, argv, command, 2, false);
 
     if(par.PARAM_STRAND.wasSet == false){
         par.strand = 1;
