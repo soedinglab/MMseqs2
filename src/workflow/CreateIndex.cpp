@@ -97,7 +97,7 @@ int createlinindex(int argc, const char **argv, const Command& command) {
     par.printParameters(command.cmd, argc, argv, *params);
 
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_AUTO){
-        Debug(Debug::ERROR) << "Database " << par.db1 << " is a nucleotide database. \n"
+        Debug(Debug::WARNING) << "Database " << par.db1 << " is a nucleotide database. \n"
                             << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
         return EXIT_FAILURE;
     }
@@ -149,7 +149,7 @@ int createindex(int argc, const char **argv, const Command& command) {
     std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_AUTO){
-        Debug(Debug::ERROR) << "Database " << par.db1 << " is a nucleotide database. \n"
+        Debug(Debug::WARNING) << "Database " << par.db1 << " is a nucleotide database. \n"
                             << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
         return EXIT_FAILURE;
     }
