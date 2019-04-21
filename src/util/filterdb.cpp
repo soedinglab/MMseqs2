@@ -208,6 +208,8 @@ int ffindexFilter::runFilter(){
 		char *columnValue = new char[LINE_BUFFER_SIZE];
 		const char **columnPointer = new const char*[column + 1];
 
+		double threadCompValue = compValue;
+
 		std::string buffer = "";
 		buffer.reserve(LINE_BUFFER_SIZE);
 
@@ -272,11 +274,11 @@ int ffindexFilter::runFilter(){
 				} else if (mode == NUMERIC_COMPARISON) {
                     double toCompare = strtod(columnValue, NULL);
                     if (compOperator == GREATER_OR_EQUAL) {
-                        nomatch = !(toCompare >= compValue); // keep if the comparison is true
+                        nomatch = !(toCompare >= threadCompValue); // keep if the comparison is true
                     } else if (compOperator == LOWER_OR_EQUAL) {
-                        nomatch = !(toCompare <= compValue); // keep if the comparison is true
+                        nomatch = !(toCompare <= threadCompValue); // keep if the comparison is true
                     } else if (compOperator == EQUAL) {
-                        nomatch = !(toCompare == compValue); // keep if the comparison is true
+                        nomatch = !(toCompare == threadCompValue); // keep if the comparison is true
                     } else {
                         nomatch = 0;
                     }
@@ -413,15 +415,15 @@ int ffindexFilter::runFilter(){
                 }
                 else if (mode == BEATS_FIRST){
                     if (counter == 1) {
-                        compValue = strtod(columnValue, NULL);
+                        threadCompValue = strtod(columnValue, NULL);
                     } else {
                         double toCompare = strtod(columnValue, NULL);
                         if (compOperator == GREATER_OR_EQUAL) {
-                            nomatch = !(toCompare >= compValue); // keep if the comparison is true
+                            nomatch = !(toCompare >= threadCompValue); // keep if the comparison is true
                         } else if(compOperator == LOWER_OR_EQUAL) {
-                            nomatch = !(toCompare <= compValue); // keep if the comparison is true
+                            nomatch = !(toCompare <= threadCompValue); // keep if the comparison is true
                         } else if(compOperator == EQUAL) {
-                            nomatch = !(toCompare == compValue); // keep if the comparison is true
+                            nomatch = !(toCompare == threadCompValue); // keep if the comparison is true
                         } else {
                             nomatch = 0;
                         }

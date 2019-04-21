@@ -447,7 +447,7 @@ char Util::touchMemory(const char *memory, size_t size) {
 
 
 #ifdef HAVE_POSIX_MADVISE
-    if (posix_madvise ((void*)memory, size, POSIX_MADV_SEQUENTIAL) != 0){
+    if (posix_madvise ((void*)memory, size, POSIX_MADV_SEQUENTIAL|POSIX_MADV_WILLNEED) != 0){
         Debug(Debug::ERROR) << "posix_madvise returned an error (touchMemory)\n";
     }
 #endif
@@ -473,7 +473,8 @@ char Util::touchMemory(const char *memory, size_t size) {
             if (currentPageSize > pageSize) {
                 currentPageSize = pageSize;
             }
-            memcpy(buffer[threadIdx], memory + pos, currentPageSize);
+            // just load a single byte, whole page is
+            memcpy(buffer[threadIdx], memory + pos, 1);
 //            progress.updateProgress();
         }
     }
