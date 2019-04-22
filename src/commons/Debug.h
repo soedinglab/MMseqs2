@@ -4,6 +4,7 @@
 #include <iostream>
 #include "Util.h"
 #include "Timer.h"
+#include "MathUtil.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <cstddef>
@@ -119,7 +120,39 @@ public:
         bool interactive;
         Timer timer;
 
-        const static int BARWIDTH = 70;
+        const static int BARWIDTH = 65;
+
+        std::string buildItemString(size_t id){
+            std::string line;
+            unsigned int exp = MathUtil::log10(static_cast<unsigned int>(id+1));
+            unsigned int base = 100;
+
+            char appending=' ';
+            switch(exp){
+                case 3:
+                case 4:
+                case 5:
+                    base = MathUtil::log10base(1000);
+                    appending = 'K';
+                    break;
+                case 6:
+                case 7:
+                case 8:
+                    base = MathUtil::log10base(1000000);
+                    appending = 'M';
+                    break;
+                case 9:
+                case 10:
+                case 11:
+                    base = MathUtil::log10base(1000000000);
+                    appending = 'B';
+            }
+            char fmtbuffer[32];
+            int fmtElm = sprintf(fmtbuffer, "%.2f", static_cast<float>(id+1)/ static_cast<float>(base));
+            line.append(fmtbuffer, fmtElm);
+            line.push_back(appending);
+            return line;
+        }
 
     public:
         Progress(size_t totalEntries)
@@ -164,6 +197,8 @@ public:
 
                     if(id == (totalEntries - 1) ){
                         Debug(INFO) << "] ";
+                        Debug(INFO) << buildItemString(id);
+                        Debug(INFO) << " ";
                         Debug(INFO) << timer.lapProgress();
                         Debug(INFO) << "\n";
                     }
@@ -174,7 +209,7 @@ public:
                         std::string line;
                         line.push_back('[');
                         line.append(SSTR(id+1));
-                        line.append("] ");
+                        line.append("]");
                         line.append(timer.lapProgress());
                         line.push_back('\r');
                         Debug(Debug::INFO) << line;
@@ -201,7 +236,9 @@ public:
                         int n = sprintf(buffer, "%.2f", progress * 100.0f);
                         line.append("] ");
                         line.append(buffer, n);
-                        line.append(" % ");
+                        line.append("% ");
+                        line.append(buildItemString(id));
+                        line.push_back(' ');
                         line.append(timer.lapProgress());
                         //printf("%zu\t%zu\t%f\n", id, totalEntries, progress);
                         line.push_back((id == (totalEntries - 1) ) ? '\n' : '\r' );
