@@ -205,23 +205,23 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     }else {
         kmerThr = 0;
     }
-    if (templateDBIsIndex == true) {
-        if (splits != originalSplits) {
-            Debug(Debug::WARNING) << "Required split count does not match index table split count. Recomputing index table!\n";
-            reopenTargetDb();
-        } else if (kmerThr < minKmerThr) {
-            Debug(Debug::WARNING) << "Required k-mer threshold (" << kmerThr
-                                  << ") does not match index table k-mer threshold (" << minKmerThr << "). "
-                                  << "Recomputing index table!\n";
-            reopenTargetDb();
-        } else if ((Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) && minKmerThr != 0) {
-            Debug(Debug::WARNING) << "Query profiles require an index table k-mer threshold of 0. Recomputing index table!\n";
-            reopenTargetDb();
-        } else if (indexMasked != maskMode) {
-            Debug(Debug::WARNING) << "Can not use masked index for unmasked prefiltering. Recomputing index table!\n";
-            reopenTargetDb();
-        }
-    }
+//    if (templateDBIsIndex == true) {
+//        if (splits != originalSplits) {
+//            Debug(Debug::WARNING) << "Required split count does not match index table split count. Recomputing index table!\n";
+//            reopenTargetDb();
+//        } else if (kmerThr < minKmerThr) {
+//            Debug(Debug::WARNING) << "Required k-mer threshold (" << kmerThr
+//                                  << ") does not match index table k-mer threshold (" << minKmerThr << "). "
+//                                  << "Recomputing index table!\n";
+//            reopenTargetDb();
+//        } else if ((Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) && minKmerThr != 0) {
+//            Debug(Debug::WARNING) << "Query profiles require an index table k-mer threshold of 0. Recomputing index table!\n";
+//            reopenTargetDb();
+//        } else if (indexMasked != maskMode) {
+//            Debug(Debug::WARNING) << "Can not use masked index for unmasked prefiltering. Recomputing index table!\n";
+//            reopenTargetDb();
+//        }
+//    }
 
     Debug(Debug::INFO) << "Target database size: " << tdbr->getSize() << " type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
 
