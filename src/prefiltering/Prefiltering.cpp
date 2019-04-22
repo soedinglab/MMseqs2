@@ -52,8 +52,6 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
 
-    int indexMasked = maskMode;
-    int minKmerThr = INT_MIN;
     int targetDbtype = DBReader<unsigned int>::parseDbType(targetDB.c_str());
 
 
@@ -113,30 +111,26 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             for(size_t i = 0; i < par.prefilter.size(); i++){
                 if(par.prefilter[i]->wasSet && par.prefilter[i]->uniqid == par.PARAM_K.uniqid){
                     if(kmerSize != 0 && data.kmerSize != kmerSize){
-                        Debug(Debug::ERROR) << "Index was created with -k " << data.kmerSize << " but the prefilter was called with -k " << kmerSize << "!\n";
-                        Debug(Debug::ERROR) << "createindex -k " << kmerSize << "\n";
-                        EXIT(EXIT_FAILURE);
+                        Debug(Debug::WARNING) << "Index was created with -k " << data.kmerSize << " but the prefilter was called with -k " << kmerSize << "!\n";
+                        Debug(Debug::WARNING) << "Search with -k " <<  data.kmerSize << "\n";
                     }
                 }
                 if(par.prefilter[i]->wasSet && par.prefilter[i]->uniqid == par.PARAM_ALPH_SIZE.uniqid){
                     if(data.alphabetSize != alphabetSize){
-                        Debug(Debug::ERROR) << "Index was created with --alph-size  " << data.alphabetSize << " but the prefilter was called with --alph-size " << alphabetSize << "!\n";
-                        Debug(Debug::ERROR) << "createindex --alph-size " << alphabetSize << "\n";
-                        EXIT(EXIT_FAILURE);
+                        Debug(Debug::WARNING) << "Index was created with --alph-size  " << data.alphabetSize << " but the prefilter was called with --alph-size " << alphabetSize << "!\n";
+                        Debug(Debug::WARNING) << "Current search will use --alph-size " <<  data.alphabetSize  << "\n";
                     }
                 }
                 if(par.prefilter[i]->wasSet && par.prefilter[i]->uniqid == par.PARAM_SPACED_KMER_MODE.uniqid){
                     if(data.spacedKmer != spacedKmer){
-                        Debug(Debug::ERROR) << "Index was created with --spaced-kmer-mode " << data.spacedKmer << " but the prefilter was called with --spaced-kmer-mode " << spacedKmer << "!\n";
-                        Debug(Debug::ERROR) << "createindex --spaced-kmer-mode " << spacedKmer << "\n";
-                        EXIT(EXIT_FAILURE);
+                        Debug(Debug::WARNING) << "Index was created with --spaced-kmer-mode " << data.spacedKmer << " but the prefilter was called with --spaced-kmer-mode " << spacedKmer << "!\n";
+                        Debug(Debug::WARNING) <<  "Current search will use  --spaced-kmer-mode " <<  data.spacedKmer << "\n";
                     }
                 }
                 if(par.prefilter[i]->wasSet && par.prefilter[i]->uniqid == par.PARAM_NO_COMP_BIAS_CORR.uniqid){
                     if(data.compBiasCorr != aaBiasCorrection && Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_HMM_PROFILE)){
-                        Debug(Debug::ERROR) << "Index was created with --comp-bias-corr " << data.compBiasCorr  <<" please recreate index with --comp-bias-corr " << aaBiasCorrection << "!\n";
-                        Debug(Debug::ERROR) << "createindex --comp-bias-corr " << aaBiasCorrection << "\n";
-                        EXIT(EXIT_FAILURE);
+                        Debug(Debug::WARNING) << "Index was created with --comp-bias-corr " << data.compBiasCorr  <<" please recreate index with --comp-bias-corr " << aaBiasCorrection << "!\n";
+                        Debug(Debug::WARNING) <<  "Current search will use --comp-bias-corr " <<  data.compBiasCorr << "\n";
                     }
                 }
             }
@@ -145,7 +139,6 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             alphabetSize = data.alphabetSize;
             targetSeqType = data.seqType;
             spacedKmer   = (data.spacedKmer == 1) ? true : false;
-            indexMasked = data.mask;
             maxSeqLen = data.maxSeqLength;
             aaBiasCorrection = data.compBiasCorr;
 
@@ -158,7 +151,6 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             splits = 1;
             spacedKmer = data.spacedKmer != 0;
             spacedKmerPattern = PrefilteringIndexReader::getSpacedPattern(tidxdbr);
-            minKmerThr = data.kmerThr;
             seedScoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrix(tidxdbr);
         } else {
             Debug(Debug::ERROR) << "Outdated index version. Please recompute it with 'createindex'!\n";
@@ -187,7 +179,6 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                        (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_AMINO_ACIDS)) ||
                        (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES) && Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_NUCLEOTIDES));
 
-    int originalSplits = splits;
     size_t memoryLimit;
     if (par.splitMemoryLimit > 0) {
         memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
