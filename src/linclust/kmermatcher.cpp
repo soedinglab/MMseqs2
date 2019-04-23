@@ -149,7 +149,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
             three = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
             generator->setDivideStrategy(three, two);
         }
-        Indexer idxer(subMat->alphabetSize, KMER_SIZE);
+        Indexer idxer(subMat->alphabetSize - 1, KMER_SIZE);
         char * charSequence = new char[par.maxSeqLen];
         const unsigned int BUFFER_SIZE = 1024;
         size_t bufferPos = 0;
@@ -174,7 +174,6 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
                 if(includeIdenticalKmer){
                     seqHash = highestPossibleIndex + static_cast<unsigned int>(Util::hash(seq.int_sequence, seq.L));
                 }
-
                 // mask using tantan
                 if (par.maskMode == 1) {
                     for (int i = 0; i < seq.L; i++) {
@@ -1105,7 +1104,10 @@ void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTy
         }
     }else{
         if(parameters.kmerSize == 0){
-            if((parameters.seqIdThr+0.001)>=0.9){
+            if((parameters.seqIdThr+0.001)>=0.99){
+                parameters.kmerSize = 14;
+                parameters.alphabetSize = 21;
+            }else if((parameters.seqIdThr+0.001)>=0.9){
                 parameters.kmerSize = 14;
                 parameters.alphabetSize = 13;
             }else{
