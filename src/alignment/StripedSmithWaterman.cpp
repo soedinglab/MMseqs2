@@ -847,7 +847,7 @@ SmithWaterman::cigar * SmithWaterman::banded_sw(const int *db_sequence, const in
 				f1 = f > 0 ? f : 0;
 				temp1 = e1 > f1 ? e1 : f1;
 				if(type == SUBSTITUTIONMATRIX){
-					temp2 = h_b[d] + mat[db_sequence[j] * n + query_sequence[i]] + compositionBias[i];
+					temp2 = h_b[d] + mat[query_sequence[i] * n + db_sequence[j]] + compositionBias[i];
 				}
 				if(type == PROFILE) {
 					temp2 = h_b[d] + mat[db_sequence[j] * n + (queryStart + i)];
