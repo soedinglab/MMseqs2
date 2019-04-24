@@ -893,7 +893,7 @@ SmithWaterman::cigar * SmithWaterman::banded_sw(const int *db_sequence, const in
 	l = 0;	// record length of current cigar
 	op = prev_op = 'M';
 	temp2 = 2;	// h
-	while (LIKELY(i > 0)) {
+	while (LIKELY(i > 0) || LIKELY(j > 0)) {
 		set_d(temp1, band_width, i, j, temp2);
 		switch (direction_line[temp1]) {
 			case 1:
