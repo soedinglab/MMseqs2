@@ -235,16 +235,16 @@ s_align SmithWaterman::ssw_align (
 
 	if(Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
 		path = banded_sw<PROFILE>(db_sequence + r.dbStartPos1, profile->query_sequence + r.qStartPos1,
-				NULL, db_length, query_length,
-				r.qStartPos1, r.score1, gap_open, gap_extend, band_width,
-				profile->mat, profile->query_length);
+								  NULL, db_length, query_length,
+								  r.qStartPos1, r.score1, gap_open, gap_extend, band_width,
+								  profile->mat, profile->query_length);
 	}else {
 		path = banded_sw<SUBSTITUTIONMATRIX>(db_sequence + r.dbStartPos1,
-				profile->query_sequence + r.qStartPos1,
-				profile->composition_bias + r.qStartPos1,
-				db_length, query_length, r.qStartPos1, r.score1,
-				gap_open, gap_extend, band_width,
-				profile->mat, profile->alphabetSize);
+											 profile->query_sequence + r.qStartPos1,
+											 profile->composition_bias + r.qStartPos1,
+											 db_length, query_length, r.qStartPos1, r.score1,
+											 gap_open, gap_extend, band_width,
+											 profile->mat, profile->alphabetSize);
 	}
 	if (path == 0) {
 		;
@@ -408,27 +408,48 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 
 		/* Lazy_F loop: has been revised to disallow adjecent insertion and then deletion, so don't update E(i, j), learn from SWPS3 */
 		/* reset pointers to the start of the saved data */
-		for (int k = 0; LIKELY(k < 16); ++k) {
-			vF = simdi8_shiftl(vF, 1);
-			for (j = 0; LIKELY(j < segLen); ++j) {
-				vH = simdi_load(pvHStore + j);
-				vH = simdui8_max(vH, vF);
-				vMaxColumn = simdui8_max(vMaxColumn, vH);	// newly added line
-				simdi_store(pvHStore + j, vH);
-				vH = simdui8_subs(vH, vGapO);
-				vF = simdui8_subs(vF, vGapE);
-				//	vF = _mm_max_epu8(vH, vF);
-				if (UNLIKELY(! simdi8_movemask(simdi8_gt(vF, vH)))) goto end;
+		j = 0;
+		vH = simdi_load (pvHStore + j);
+
+		/*  the computed vF value is for the given column.  since */
+		/*  we are at the end, we need to shift the vF value over */
+		/*  to the next column. */
+		vF = simdi8_shiftl (vF, 1);
+		vTemp = simdui8_subs (vH, vGapO);
+		vTemp = simdui8_subs (vF, vTemp);
+		vTemp = simdi8_eq (vTemp, vZero);
+		uint32_t cmp = simdi8_movemask (vTemp);
+#ifdef AVX2
+		while (cmp != 0xffffffff)
+#else
+		while (cmp != 0xffff)
+#endif
+		{
+			vH = simdui8_max (vH, vF);
+			vMaxColumn = simdui8_max(vMaxColumn, vH);
+			simdi_store (pvHStore + j, vH);
+			vF = simdui8_subs (vF, vGapE);
+			j++;
+			if (j >= segLen)
+			{
+				j = 0;
+				vF = simdi8_shiftl (vF, 1);
 			}
+			vH = simdi_load (pvHStore + j);
+
+			vTemp = simdui8_subs (vH, vGapO);
+			vTemp = simdui8_subs (vF, vTemp);
+			vTemp = simdi8_eq (vTemp, vZero);
+			cmp  = simdi8_movemask (vTemp);
 		}
-end:
+
 		vMaxScore = simdui8_max(vMaxScore, vMaxColumn);
 		vTemp = simdi8_eq(vMaxMark, vMaxScore);
-		uint32_t cmp = simdi8_movemask(vTemp);
+		cmp = simdi8_movemask(vTemp);
 #ifdef AVX2
 		if (cmp != 0xffffffff)
 #else
-			if (cmp != 0xffff)
+		if (cmp != 0xffff)
 #endif
 		{
 			uint8_t temp;
@@ -594,7 +615,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
 			for (j = 0; LIKELY(j < segLen); ++j) {
 				vH = simdi_load(pvHStore + j);
 				vH = simdi16_max(vH, vF);
-                                vMaxColumn = simdi16_max(vMaxColumn, vH); //newly added line
+				vMaxColumn = simdi16_max(vMaxColumn, vH); //newly added line
 				simdi_store(pvHStore + j, vH);
 				vH = simdui16_subs(vH, vGapO);
 				vF = simdui16_subs(vF, vGapE);
@@ -609,7 +630,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
 #ifdef AVX2
 		if (cmp != (int32_t)0xffffffff)
 #else
-			if (cmp != 0xffff)
+		if (cmp != 0xffff)
 #endif
 		{
 			uint16_t temp;
@@ -1040,7 +1061,7 @@ unsigned short SmithWaterman::sse2_extract_epi16(__m128i v, int pos) {
 }
 
 float SmithWaterman::computeCov(unsigned int startPos, unsigned int endPos, unsigned int len) {
-    return (std::min(len, endPos) - startPos + 1) / (float) len;
+	return (std::min(len, endPos) - startPos + 1) / (float) len;
 }
 
 s_align SmithWaterman::scoreIdentical(int *dbSeq, int L, EvalueComputation * evaluer, int alignmentMode) {
