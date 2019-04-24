@@ -408,44 +408,23 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 
 		/* Lazy_F loop: has been revised to disallow adjecent insertion and then deletion, so don't update E(i, j), learn from SWPS3 */
 		/* reset pointers to the start of the saved data */
-		j = 0;
-		vH = simdi_load (pvHStore + j);
-
-		/*  the computed vF value is for the given column.  since */
-		/*  we are at the end, we need to shift the vF value over */
-		/*  to the next column. */
-		vF = simdi8_shiftl (vF, 1);
-		vTemp = simdui8_subs (vH, vGapO);
-		vTemp = simdui8_subs (vF, vTemp);
-		vTemp = simdi8_eq (vTemp, vZero);
-		uint32_t cmp = simdi8_movemask (vTemp);
-#ifdef AVX2
-		while (cmp != 0xffffffff)
-#else
-			while (cmp != 0xffff)
-#endif
-		{
-			vH = simdui8_max (vH, vF);
-			vMaxColumn = simdui8_max(vMaxColumn, vH);
-			simdi_store (pvHStore + j, vH);
-			vF = simdui8_subs (vF, vGapE);
-			j++;
-			if (j >= segLen)
-			{
-				j = 0;
-				vF = simdi8_shiftl (vF, 1);
+		for (int k = 0; LIKELY(k < 16); ++k) {
+			vF = simdi8_shiftl(vF, 1);
+			for (j = 0; LIKELY(j < segLen); ++j) {
+				vH = simdi_load(pvHStore + j);
+				vH = simdui8_max(vH, vF);
+				vMaxColumn = simdui8_max(vMaxColumn, vH);	// newly added line
+				simdi_store(pvHStore + j, vH);
+				vH = simdui8_subs(vH, vGapO);
+				vF = simdui8_subs(vF, vGapE);
+				//	vF = _mm_max_epu8(vH, vF);
+				if (UNLIKELY(! simdi8_movemask(simdi8_gt(vF, vH)))) goto end;
 			}
-			vH = simdi_load (pvHStore + j);
-
-			vTemp = simdui8_subs (vH, vGapO);
-			vTemp = simdui8_subs (vF, vTemp);
-			vTemp = simdi8_eq (vTemp, vZero);
-			cmp  = simdi8_movemask (vTemp);
 		}
-
+end:
 		vMaxScore = simdui8_max(vMaxScore, vMaxColumn);
 		vTemp = simdi8_eq(vMaxMark, vMaxScore);
-		cmp = simdi8_movemask(vTemp);
+		uint32_t cmp = simdi8_movemask(vTemp);
 #ifdef AVX2
 		if (cmp != 0xffffffff)
 #else
