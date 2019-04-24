@@ -70,11 +70,16 @@ public:
     static const int SEARCH_TYPE_AUTO = 0;
     static const int SEARCH_TYPE_PROTEIN = 1;
     static const int SEARCH_TYPE_TRANSLATED = 2;
-    static const int SEARCH_TYPE_NUCLEOTIDES = 3; // overlaps with flag space, but should be fine
-    static const int SEARCH_TYPE_TRANSLATED_QUERY = 4;
-    static const int SEARCH_TYPE_TRANSLATED_TARGET = 5;
-    static const int SEARCH_TYPE_TARGET_PROFILE = 6;
-    static const int SEARCH_TYPE_QUERY_PROFILE = 7;
+    static const int SEARCH_TYPE_NUCLEOTIDES = 3;
+    // flag
+    static const int SEARCH_MODE_FLAG_QUERY_AMINOACID = 1;
+    static const int SEARCH_MODE_FLAG_TARGET_AMINOACID = 2;
+    static const int SEARCH_MODE_FLAG_QUERY_TRANSLATED = 4;
+    static const int SEARCH_MODE_FLAG_TARGET_TRANSLATED = 8;
+    static const int SEARCH_MODE_FLAG_QUERY_PROFILE = 16;
+    static const int SEARCH_MODE_FLAG_TARGET_PROFILE = 32;
+    static const int SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE = 64;
+    static const int SEARCH_MODE_FLAG_TARGET_NUCLEOTIDE = 128;
 
 
 
