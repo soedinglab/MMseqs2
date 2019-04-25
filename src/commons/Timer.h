@@ -40,6 +40,13 @@ public:
         return ss.str();
     }
 
+    double getTimediff(){
+        struct timeval end;
+        gettimeofday(&end, NULL);
+        double timediff = (end.tv_sec - start.tv_sec) + 1e-6 * (end.tv_usec - start.tv_usec);
+        return timediff;
+    }
+
     void reset() {
         gettimeofday(&start, NULL);
     }

@@ -209,7 +209,7 @@ public:
                         std::string line;
                         line.push_back('[');
                         line.append(SSTR(id+1));
-                        line.append("]");
+                        line.append("] ");
                         line.append(timer.lapProgress());
                         line.push_back('\r');
                         Debug(Debug::INFO) << line;
@@ -239,7 +239,29 @@ public:
                         line.append("% ");
                         line.append(buildItemString(id));
                         line.push_back(' ');
-                        line.append(timer.lapProgress());
+                        if(id == 0){
+                            line.append("eta -");
+                        }else if(id == (totalEntries - 1) ){
+                            line.append(timer.lapProgress());
+                        }else{
+                            double timeDiff = timer.getTimediff();
+                            double eta = (timeDiff/progress * 1.0) - timeDiff;
+                            long long sec = (time_t)eta;
+//                            long long msec = (time_t)((eta - sec) * 1e3);
+//                            std::cout << timeDiff << "\t" << progress << std::endl;
+                            line.append("eta ");
+                            if(sec >= 3600){
+                                line.append(SSTR(sec / 3600));
+                                line.append("h ");
+                            }
+                            if(sec >= 60){
+                                line.append(SSTR( (sec % 3600 / 60)));
+                                line.append("m ");
+                            }
+                            line.append(SSTR(sec % 60));
+                            // need to overwrite the rest
+                            line.append("s       ");
+                        }
                         //printf("%zu\t%zu\t%f\n", id, totalEntries, progress);
                         line.push_back((id == (totalEntries - 1) ) ? '\n' : '\r' );
                         Debug(Debug::INFO) << line;
