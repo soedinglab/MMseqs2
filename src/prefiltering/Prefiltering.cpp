@@ -591,7 +591,7 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
     int hasTmpResult = runSplits(queryDB, queryDBIndex, result.first, result.second, fromSplit, splitCount, merge) == true ? 1 : 0;
 
     // if result is on a local drive - copy it to shared drive and delete from local
-    if (localTmpPath != "") {
+    if ((localTmpPath != "") && (FileUtil::fileExists(result.first.c_str())) && (FileUtil::fileExists(result.second.c_str()))) {
         std::pair<std::string, std::string> resultShared = Util::createTmpFileNames(resultDB, resultDBIndex, MMseqsMPI::rank);
         FileUtil::copyFile(result.first.c_str(), resultShared.first.c_str());
         FileUtil::copyFile(result.second.c_str(), resultShared.second.c_str());
