@@ -18,12 +18,16 @@ struct TaxonNode {
     TaxID parentTaxId;
     std::string rank;
     std::string name;
-    std::vector<TaxID> children;
 
     TaxonNode(int id, TaxID taxId, TaxID parentTaxId, const std::string& rank)
             : id(id), taxId(taxId), parentTaxId(parentTaxId), rank(rank), name("") {};
 };
 
+struct TaxonCounts {
+    unsigned int taxCount;       // number of reads/sequences matching to taxa
+    unsigned int cladeCount;     // number of reads/sequences matching to taxa or its children
+    std::vector<TaxID> children; // list of children
+};
 
 class NcbiTaxonomy {
 public:
@@ -39,23 +43,21 @@ public:
 
     bool IsAncestor(TaxID ancestor, TaxID child);
     TaxonNode const* taxonNode(TaxID taxonId, bool fail = true) const;
-    std::unordered_map<TaxID, unsigned int> getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts, TaxID taxon = 1) const;
+    //std::unordered_map<TaxID, unsigned int> getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts, TaxID taxon = 1) const;
+    std::unordered_map<TaxID, TaxonCounts> getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts) const;
 
 private:
     void InitLevels();
     size_t loadNodes(const std::string &nodesFile);
     size_t loadMerged(const std::string &mergedFile);
     void loadNames(const std::string &namesFile);
-    void elh(int node, int level);
+    void elh(std::vector<std::vector<TaxID>> const & children, int node, int level);
     void InitRangeMinimumQuery();
     int nodeId(TaxID taxId) const;
     bool nodeExists(TaxID taxId) const;
 
     int RangeMinimumQuery(int i, int j) const;
     int lcaHelper(int i, int j) const;
-
-    unsigned int cladeSummation(const std::unordered_map<TaxID, unsigned int>& taxonCounts,
-                                std::unordered_map<TaxID, unsigned int>& cladeCounts, TaxID taxID) const;
 
     std::vector<TaxonNode> taxonNodes;
     std::vector<int> D; // maps from taxID to node ID in taxonNodes

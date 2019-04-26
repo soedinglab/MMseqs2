@@ -25,32 +25,50 @@ V at(const std::unordered_map<K, V>& map, K key, V default_value = V()) {
     }
 }
 
+unsigned int cladeCountVal(const std::unordered_map<TaxID, TaxonCounts>& map, TaxID key) {
+    typename std::unordered_map<TaxID, TaxonCounts>::const_iterator it = map.find(key);
+    if (it == map.end()) {
+        return 0;
+    } else {
+        return it->second.cladeCount;
+    }
+}
+
+
 void taxReport(FILE* FP,
         const NcbiTaxonomy& taxDB,
-        const std::unordered_map<TaxID, unsigned int>& cladeCounts,
-        const std::unordered_map<TaxID, unsigned int>& taxCounts,
+        const std::unordered_map<TaxID, TaxonCounts> & cladeCounts,
         unsigned long totalReads,
         TaxID taxID = 0, int depth = 0) {
 
-    unsigned int taxCladeCount = at(cladeCounts, taxID);
+    std::unordered_map<TaxID, TaxonCounts>::const_iterator it = cladeCounts.find(taxID);
+    unsigned int cladeCount = it == cladeCounts.end()? 0 : it->second.cladeCount;
+    unsigned int taxCount = it == cladeCounts.end()? 0 : it->second.taxCount;
     if (taxID == 0) {
-        if (taxCladeCount > 0) {
-            fprintf(FP, "%.4f\t%i\t%i\t%i\tno rank\tunidentified\n", 100*taxCladeCount/double(totalReads), taxCladeCount, at(taxCounts,taxID), taxID);
+        if (cladeCount > 0) {
+            fprintf(FP, "%.4f\t%i\t%i\t%i\tno rank\tunidentified\n",
+                    100 * cladeCount / double(totalReads),
+                    cladeCount, taxCount, taxID);
         }
-        taxID = 1;
-        taxCladeCount = at(cladeCounts, taxID);
-    }
-    const TaxonNode* taxon = taxDB.taxonNode(taxID);
-    fprintf(FP, "%.4f\t%i\t%i\t%i\t%s\t%s%s\n", 100*taxCladeCount/double(totalReads), taxCladeCount, at(taxCounts,taxID), taxID,
-            taxon->rank.c_str(), std::string(2*depth, ' ').c_str(), taxon->name.c_str());
+        taxReport(FP, taxDB, cladeCounts, totalReads, 1);
+    } else {
+        if (cladeCount == 0) {
+            return;
+        }
+        const TaxonNode* taxon = taxDB.taxonNode(taxID);
+        fprintf(FP, "%.4f\t%i\t%i\t%i\t%s\t%s%s\n",
+                100*cladeCount/double(totalReads), cladeCount, taxCount, taxID,
+               taxon->rank.c_str(), std::string(2*depth, ' ').c_str(), taxon->name.c_str());
 
-    std::vector<int> children = taxon->children;
-    std::sort(children.begin(), children.end(), [&](int a, int b) { return at(cladeCounts, a) > at(cladeCounts,b); });
-    for (TaxID childTaxId : children) {
-        if (at(cladeCounts, childTaxId) == 0) {
-            break;
+        std::vector<TaxID> children = it->second.children;
+        std::sort(children.begin(), children.end(), [&](int a, int b) { return cladeCountVal(cladeCounts, a) > cladeCountVal(cladeCounts,b); });
+        for (TaxID childTaxId : children) {
+            if (cladeCounts.count(childTaxId)) {
+                taxReport(FP, taxDB, cladeCounts, totalReads, childTaxId, depth + 1);
+            } else {
+                break;
+            }
         }
-        taxReport(FP, taxDB, cladeCounts, taxCounts, totalReads, childTaxId, depth+1);
     }
 }
 
@@ -105,10 +123,11 @@ int taxonomyreport(int argc, const char **argv, const Command& command) {
 
     std::unordered_map<TaxID, unsigned int> taxCounts;
 
+//  Currentlly not parallel
 //    #pragma omp parallel
     {
         const char *entry[255];
-        char buffer[1024];
+        //char buffer[1024];
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
@@ -134,9 +153,8 @@ int taxonomyreport(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << "Found " << taxCounts.size() << " different taxa for " << reader.getSize() << " different reads.\n";
     Debug(Debug::INFO) << taxCounts.at(0) << " reads are unclassified.\n";
 
-    std::unordered_map<TaxID, unsigned int> cladeCounts = taxDB.getCladeCounts(taxCounts);
-    cladeCounts.emplace(0, at(taxCounts, 0));
-    taxReport(resultFP, taxDB, cladeCounts, taxCounts, reader.getSize());
+    std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB.getCladeCounts(taxCounts);
+    taxReport(resultFP, taxDB, cladeCounts, reader.getSize());
 
     reader.close();
     return EXIT_SUCCESS;

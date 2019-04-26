@@ -32,7 +32,6 @@ void deleteMatrix(int** M, size_t maxNodes) {
 }
 
 
-
 NcbiTaxonomy::NcbiTaxonomy(const std::string &namesFile,  const std::string &nodesFile,
                            const std::string &mergedFile) {
     InitLevels();
@@ -49,7 +48,14 @@ NcbiTaxonomy::NcbiTaxonomy(const std::string &namesFile,  const std::string &nod
     H = new int[maxNodes];
     std::fill(H, H + maxNodes, 0);
 
-    elh(1, 0);
+    std::vector< std::vector<TaxID> > children(taxonNodes.size());
+    for (const TaxonNode& tn : taxonNodes) {
+        if (tn.parentTaxId != tn.taxId) {
+            children[nodeId(tn.parentTaxId)].push_back(tn.taxId);
+        }
+    }
+
+    elh(children, 1, 0);
     E.resize(maxNodes * 2, 0);
     L.resize(maxNodes * 2, 0);
 
@@ -144,9 +150,6 @@ size_t NcbiTaxonomy::loadNodes(const std::string &nodesFile) {
             Debug(Debug::ERROR) << "Inconsistent taxonomy! Cannot find parent taxon with ID " << tn.parentTaxId << "!\n";
             EXIT(EXIT_FAILURE);
         }
-        if (tn.parentTaxId != tn.taxId) {
-            taxonNodes[nodeId(tn.parentTaxId)].children.push_back(tn.taxId);
-        }
     }
     Debug(Debug::INFO) << " Done, got " << taxonNodes.size() << " nodes\n";
     return taxonNodes.size();
@@ -186,7 +189,7 @@ void NcbiTaxonomy::loadNames(const std::string &namesFile) {
 }
 
 // Euler traversal of tree
-void NcbiTaxonomy::elh(TaxID taxId, int level) {
+void NcbiTaxonomy::elh(std::vector<std::vector<TaxID>> const & children, TaxID taxId, int level) {
     assert (taxId > 0);
     int id = nodeId(taxId);
 
@@ -197,8 +200,8 @@ void NcbiTaxonomy::elh(TaxID taxId, int level) {
     E.emplace_back(id);
     L.emplace_back(level);
 
-    for (int childTaxId : taxonNodes[id].children) {
-        elh(childTaxId, level + 1);
+    for (TaxID childTaxId : children[id]) {
+        elh(children, childTaxId, level + 1);
     }
     E.emplace_back(nodeId(taxonNodes[id].parentTaxId));
     L.emplace_back(level - 1);
@@ -418,24 +421,30 @@ size_t NcbiTaxonomy::loadMerged(const std::string &mergedFile) {
     return count;
 }
 
-std::unordered_map<TaxID, unsigned int> NcbiTaxonomy::getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts, TaxID taxon) const {
+std::unordered_map<TaxID, TaxonCounts> NcbiTaxonomy::getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts) const {
     Debug(Debug::INFO) << "Calculating clade counts ... ";
-    std::unordered_map<TaxID, unsigned int> cladeCounts;
-    cladeSummation(taxonCounts, cladeCounts, taxon);
+    std::unordered_map<TaxID, TaxonCounts> cladeCounts;
+
+    for (std::unordered_map<TaxID, unsigned int>::const_iterator it = taxonCounts.begin(); it != taxonCounts.end(); ++it) {
+        cladeCounts[it->first].taxCount = it->second;
+        cladeCounts[it->first].cladeCount += it->second;
+        if (nodeExists(it->first)) {
+            TaxonNode const* taxon = taxonNode(it->first);
+            while (taxon->parentTaxId != taxon->taxId && nodeExists(taxon->parentTaxId)) {
+                taxon = taxonNode(taxon->parentTaxId);
+                cladeCounts[taxon->taxId].cladeCount += it->second;
+            }
+        }
+    }
+
+    for (const TaxonNode& tn : taxonNodes) {
+        if (tn.parentTaxId != tn.taxId && cladeCounts.count(tn.taxId)) {
+            std::unordered_map<TaxID, TaxonCounts>::iterator itp = cladeCounts.find(tn.parentTaxId);
+            itp->second.children.push_back(tn.taxId);
+        }
+    }
+
     Debug(Debug::INFO) << " Done\n";
     return cladeCounts;
 }
-
-unsigned int NcbiTaxonomy::cladeSummation(const std::unordered_map<TaxID, unsigned int>& taxonCounts,
-                                          std::unordered_map<TaxID, unsigned int>& cladeCounts, TaxID taxId) const {
-
-    std::unordered_map<TaxID, unsigned int>::const_iterator it = taxonCounts.find(taxId);
-    unsigned int cladeCount = it == taxonCounts.end()? 0 : it->second;
-    for (int childTaxId : taxonNode(taxId)->children) {
-        cladeCount += cladeSummation(taxonCounts, cladeCounts, childTaxId);
-    }
-    cladeCounts.emplace(taxId, cladeCount);
-    return cladeCount;
-}
-
 
