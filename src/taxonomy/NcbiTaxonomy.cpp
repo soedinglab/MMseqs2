@@ -97,6 +97,15 @@ void NcbiTaxonomy::InitLevels() {
     sortedLevels["subkingdom"] = 26;
     sortedLevels["kingdom"] = 27;
     sortedLevels["superkingdom"] = 28;
+
+    shortRank["species"] = 's';
+    shortRank["genus"] = 'g';
+    shortRank["family"] = 'f';
+    shortRank["order"] = 'o';
+    shortRank["class"] = 'c';
+    shortRank["phylum"] = 'p';
+    shortRank["kingdom"] = 'k';
+    shortRank["superkingdom"] = 'd';
 }
 
 std::vector<std::string> splitByDelimiter(const std::string &s, const std::string &delimiter, int maxCol) {
@@ -342,16 +351,28 @@ std::vector<std::string> NcbiTaxonomy::AtRanks(TaxonNode const *node, const std:
     return result;
 }
 
+char NcbiTaxonomy::getShortRank(const std::string& rank) const {
+    std::map<std::string, char>::const_iterator it = shortRank.find(rank);
+    if (it == shortRank.end()) {
+        return '-';
+    } else {
+        return it->second;
+    }
+}
+
 std::string NcbiTaxonomy::taxLineage(TaxonNode const *node) {
-    std::vector<std::string> taxLineageVec;
+    std::vector<TaxonNode const *> taxLineageVec;
     std::string taxLineage;
+    taxLineage.reserve(4096);
     do {
-        taxLineageVec.push_back(node->name);
+        taxLineageVec.push_back(node);
         node = taxonNode(node->parentTaxId);
     } while (node->parentTaxId != node->taxId);
 
     for (int i = taxLineageVec.size() - 1; i >= 0; --i) {
-        taxLineage += taxLineageVec[i];
+        taxLineage += getShortRank(taxLineageVec[i]->rank);
+        taxLineage += '_';
+        taxLineage += taxLineageVec[i]->name;
         if (i > 0) {
             taxLineage += ";";
         }

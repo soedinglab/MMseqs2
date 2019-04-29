@@ -67,7 +67,6 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
         const char *entry[255];
-        char buffer[10000];
         std::string resultData;
         resultData.reserve(4096);
 
@@ -111,23 +110,21 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
                 char * nextData = Util::skipLine(data);
                 size_t dataSize = nextData - data;
                 resultData.append(data, dataSize-1);
-                resultData.push_back('\t');
-                int len = snprintf(buffer, 10000, "%d\t%s\t%s", node->taxId, node->rank.c_str(), node->name.c_str());
+                resultData += '\t' + SSTR(node->taxId) + '\t' + node->rank + '\t' + node->name;
                 if (!ranks.empty()) {
                     std::string lcaRanks = Util::implode(t.AtRanks(node, ranks), ':');
-                    len += snprintf(buffer+len, 10000, "\t%s", lcaRanks.c_str());
+                    resultData += '\t' + lcaRanks;
                 }
                 if (par.showTaxLineage) {
-                    len += snprintf(buffer+len, 10000, "\t%s", t.taxLineage(node).c_str());
+                    resultData += '\t' + t.taxLineage(node);
                 }
-                len += snprintf(buffer+len, 10000, "\n");
+                resultData += '\n';
 
-                if(len < 0){
+                if(resultData.size() == 0){
                     Debug(Debug::WARNING) << "Taxon record could not be written. Entry: " << i << "\t" << columns << "!\n";
                     data = Util::skipLine(data);
                     continue;
                 }
-                resultData.append(buffer, len),
                 data = Util::skipLine(data);
             }
             writer.writeData(resultData.c_str(), resultData.size(), key, thread_idx);

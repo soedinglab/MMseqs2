@@ -58,6 +58,7 @@ private:
 
     int RangeMinimumQuery(int i, int j) const;
     int lcaHelper(int i, int j) const;
+    char getShortRank(const std::string& rank) const;
 
     std::vector<TaxonNode> taxonNodes;
     std::vector<int> D; // maps from taxID to node ID in taxonNodes
@@ -68,6 +69,7 @@ private:
     size_t maxNodes;
 
     std::map<std::string, int> sortedLevels;
+    std::map<std::string, char> shortRank;
 };
 
 #endif
