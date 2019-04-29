@@ -133,7 +133,7 @@ size_t NcbiTaxonomy::loadNodes(const std::string &nodesFile) {
         if (taxId > maxTaxID) {
             maxTaxID = taxId;
         }
-        taxonNodes.emplace_back(TaxonNode(currentId, taxId, parentTaxId, result[2]));
+        taxonNodes.emplace_back(currentId, taxId, parentTaxId, result[2]);
         Dm.emplace(taxId, currentId);
         ++currentId;
     }
