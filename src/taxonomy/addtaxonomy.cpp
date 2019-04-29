@@ -36,7 +36,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
         Debug(Debug::ERROR) << "names.dmp, nodes.dmp, merged.dmp or delnodes.dmp from NCBI taxdump could not be found!\n";
         EXIT(EXIT_FAILURE);
     }
-    std::vector<std::pair<unsigned int, unsigned int>> mapping;
+    std::vector< std::pair<unsigned int, unsigned int> > mapping;
     if(FileUtil::fileExists(std::string(par.db1 + "_mapping").c_str()) == false){
         Debug(Debug::ERROR) << par.db1 + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
         EXIT(EXIT_FAILURE);
@@ -94,7 +94,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
                 unsigned int id = Util::fast_atoi<unsigned int>(entry[0]);
                 std::pair<unsigned int, unsigned int> val;
                 val.first = id;
-                std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
+                std::vector< std::pair<unsigned int, unsigned int> >::iterator mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
                 if (mappingIt->first != val.first) {
                      __sync_fetch_and_add(&taxonNotFound, 1);
 //                    Debug(Debug::WARNING) << "No taxon mapping provided for id " << id << "\n";

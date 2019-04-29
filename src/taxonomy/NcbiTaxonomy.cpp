@@ -49,9 +49,9 @@ NcbiTaxonomy::NcbiTaxonomy(const std::string &namesFile,  const std::string &nod
     std::fill(H, H + maxNodes, 0);
 
     std::vector< std::vector<TaxID> > children(taxonNodes.size());
-    for (const TaxonNode& tn : taxonNodes) {
-        if (tn.parentTaxId != tn.taxId) {
-            children[nodeId(tn.parentTaxId)].push_back(tn.taxId);
+    for (std::vector<TaxonNode>::iterator it = taxonNodes.begin(); it != taxonNodes.end(); ++it) {
+        if (it->parentTaxId != it->taxId) {
+            children[nodeId(it->parentTaxId)].push_back(it->taxId);
         }
     }
 
@@ -144,13 +144,14 @@ size_t NcbiTaxonomy::loadNodes(const std::string &nodesFile) {
         D[it->first] = it->second;
     }
 
-    // Loop over taxonNodes and check no parents are NULL
-    for (const TaxonNode& tn : taxonNodes) {
-        if (!nodeExists(tn.parentTaxId)) {
-            Debug(Debug::ERROR) << "Inconsistent taxonomy! Cannot find parent taxon with ID " << tn.parentTaxId << "!\n";
+    // Loop over taxonNodes and check all parents exist
+    for (std::vector<TaxonNode>::iterator it = taxonNodes.begin(); it != taxonNodes.end(); ++it) {
+        if (!nodeExists(it->parentTaxId)) {
+            Debug(Debug::ERROR) << "Inconsistent nodes.dmp taxonomy file! Cannot find parent taxon with ID " << it->parentTaxId << "!\n";
             EXIT(EXIT_FAILURE);
         }
     }
+
     Debug(Debug::INFO) << " Done, got " << taxonNodes.size() << " nodes\n";
     return taxonNodes.size();
 }
@@ -189,7 +190,7 @@ void NcbiTaxonomy::loadNames(const std::string &namesFile) {
 }
 
 // Euler traversal of tree
-void NcbiTaxonomy::elh(std::vector<std::vector<TaxID>> const & children, TaxID taxId, int level) {
+void NcbiTaxonomy::elh(std::vector< std::vector<TaxID> > const & children, TaxID taxId, int level) {
     assert (taxId > 0);
     int id = nodeId(taxId);
 
@@ -200,8 +201,8 @@ void NcbiTaxonomy::elh(std::vector<std::vector<TaxID>> const & children, TaxID t
     E.emplace_back(id);
     L.emplace_back(level);
 
-    for (TaxID childTaxId : children[id]) {
-        elh(children, childTaxId, level + 1);
+    for (std::vector<TaxID>::const_iterator child_it = children[id].begin(); child_it != children[id].end(); ++child_it) {
+        elh(children, *child_it, level + 1);
     }
     E.emplace_back(nodeId(taxonNodes[id].parentTaxId));
     L.emplace_back(level - 1);

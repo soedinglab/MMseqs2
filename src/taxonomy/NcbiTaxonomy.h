@@ -10,7 +10,7 @@
 #include <vector>
 #include <string>
 
-using TaxID = int;
+typedef int TaxID;
 
 struct TaxonNode {
     int id;
@@ -51,7 +51,7 @@ private:
     size_t loadNodes(const std::string &nodesFile);
     size_t loadMerged(const std::string &mergedFile);
     void loadNames(const std::string &namesFile);
-    void elh(std::vector<std::vector<TaxID>> const & children, int node, int level);
+    void elh(std::vector< std::vector<TaxID> > const & children, int node, int level);
     void InitRangeMinimumQuery();
     int nodeId(TaxID taxId) const;
     bool nodeExists(TaxID taxId) const;
