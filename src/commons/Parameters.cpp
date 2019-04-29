@@ -881,6 +881,13 @@ Parameters::Parameters():
     lca.push_back(&PARAM_THREADS);
     lca.push_back(&PARAM_V);
 
+    // addtaxonomy
+    addtaxonomy.push_back(&PARAM_COMPRESSED);
+    addtaxonomy.push_back(&PARAM_TAXON_ADD_LINEAGE);
+    addtaxonomy.push_back(&PARAM_LCA_RANKS);
+    addtaxonomy.push_back(&PARAM_THREADS);
+    addtaxonomy.push_back(&PARAM_V);
+
     // view
     view.push_back(&PARAM_ID_LIST);
     view.push_back(&PARAM_IDX_ENTRY_TYPE);
@@ -1723,6 +1730,7 @@ void Parameters::setDefaults() {
     idxEntryType = 0;
     // lca
     lcaRanks = "";
+    showTaxLineage = false;
     // bin for all unclassified sequences
     // https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=12908
     // other sequences (plasmids, etc)

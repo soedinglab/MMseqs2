@@ -182,7 +182,7 @@ std::vector<struct Command> commands = {
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:sequenceDB> [<i:taxMappingFile> <i:ncbi-taxdump-folder>]  <tmpDir>",
                 CITATION_MMSEQS2,{{"",DbType::ACCESS_MODE_INPUT, NULL}}},
-        {"addtaxonomy",          addtaxonomy,          &par.lca, COMMAND_TAXONOMY,
+        {"addtaxonomy",          addtaxonomy,          &par.addtaxonomy, COMMAND_TAXONOMY,
                 "Add taxonomy information to result database.",
                 NULL,
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
