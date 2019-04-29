@@ -72,7 +72,10 @@ int lca(int argc, const char **argv, const Command& command) {
     {
         const char *entry[255];
         char buffer[1024];
+        std::string resultData;
+        resultData.reserve(4096);
         unsigned int thread_idx = 0;
+
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
@@ -139,17 +142,17 @@ int lca(int argc, const char **argv, const Command& command) {
             }
 
 
-            int len = snprintf(buffer, 10000, "%d\t%s\t%s", node->taxId, node->rank.c_str(), node->name.c_str());
+            resultData = SSTR(node->taxId) + '\t' + node->rank + '\t' + node->name;
             if (!ranks.empty()) {
                 std::string lcaRanks = Util::implode(t.AtRanks(node, ranks), ':');
-                len += snprintf(buffer+len, 10000, "\t%s", lcaRanks.c_str());
+                resultData += '\t' + lcaRanks;
             }
             if (par.showTaxLineage) {
-                len += snprintf(buffer+len, 10000, "\t%s", t.taxLineage(node).c_str());
+                resultData += '\t' + t.taxLineage(node);
             }
-            len += snprintf(buffer+len, 10000, "\n");
-            writer.writeData(buffer, len, key, thread_idx);
-
+            resultData += '\n';
+            writer.writeData(resultData.c_str(), resultData.size(), key, thread_idx);
+            resultData.clear();
         }
     };
     Debug(Debug::INFO) << "\n";
