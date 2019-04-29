@@ -22,11 +22,9 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
     std::string nodesFile = par.db1 + "_nodes.dmp";
     std::string namesFile = par.db1 + "_names.dmp";
     std::string mergedFile = par.db1 + "_merged.dmp";
-    std::string delnodesFile = par.db1 + "_delnodes.dmp";
     if (FileUtil::fileExists(nodesFile.c_str())
         && FileUtil::fileExists(namesFile.c_str())
-           && FileUtil::fileExists(mergedFile.c_str())
-              && FileUtil::fileExists(delnodesFile.c_str())) {
+           && FileUtil::fileExists(mergedFile.c_str())) {
     } else if (FileUtil::fileExists("nodes.dmp")
                && FileUtil::fileExists("names.dmp")
 		  && FileUtil::fileExists("merged.dmp")
@@ -34,12 +32,11 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
         nodesFile = "nodes.dmp";
         namesFile = "names.dmp";
         mergedFile = "merged.dmp";
-        delnodesFile = "delnodes.dmp";
     } else {
         Debug(Debug::ERROR) << "names.dmp, nodes.dmp, merged.dmp or delnodes.dmp from NCBI taxdump could not be found!\n";
         EXIT(EXIT_FAILURE);
     }
-    std::vector<std::pair<unsigned int, unsigned int>> mapping;
+    std::vector< std::pair<unsigned int, unsigned int> > mapping;
     if(FileUtil::fileExists(std::string(par.db1 + "_mapping").c_str()) == false){
         Debug(Debug::ERROR) << par.db1 + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
         EXIT(EXIT_FAILURE);
@@ -57,7 +54,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
     writer.open();
 
     Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
-    NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
+    NcbiTaxonomy t(namesFile, nodesFile, mergedFile);
 
     Debug(Debug::INFO) << "Add taxonomy information \n";
     size_t taxonNotFound=0;
@@ -70,7 +67,6 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
         const char *entry[255];
-        char buffer[10000];
         std::string resultData;
         resultData.reserve(4096);
 
@@ -97,7 +93,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
                 unsigned int id = Util::fast_atoi<unsigned int>(entry[0]);
                 std::pair<unsigned int, unsigned int> val;
                 val.first = id;
-                std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
+                std::vector< std::pair<unsigned int, unsigned int> >::iterator mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
                 if (mappingIt->first != val.first) {
                      __sync_fetch_and_add(&taxonNotFound, 1);
 //                    Debug(Debug::WARNING) << "No taxon mapping provided for id " << id << "\n";
@@ -105,7 +101,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
                     continue;
                 }
                 unsigned int taxon = mappingIt->second;
-                TaxonNode* node = t.findNode(taxon);
+                TaxonNode const * node = t.taxonNode(taxon, false);
                 if(node == NULL){
                     Debug(Debug::WARNING) << "Deleted node " << taxon << "!\n";
                     data = Util::skipLine(data);
@@ -114,22 +110,21 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
                 char * nextData = Util::skipLine(data);
                 size_t dataSize = nextData - data;
                 resultData.append(data, dataSize-1);
-                resultData.push_back('\t');
-                std::string lcaRanks = Util::implode(t.AtRanks(node, ranks), ':');
-                int len;
-                if (ranks.empty() == false) {
-                    len = snprintf(buffer, 10000, "%d\t%s\t%s\n",
-                                   node->taxon, node->rank.c_str(), node->name.c_str());
-                } else {
-                    len = snprintf(buffer, 10000, "%d\t%s\t%s\t%s\n",
-                         node->taxon, node->rank.c_str(), node->name.c_str(), lcaRanks.c_str());
+                resultData += '\t' + SSTR(node->taxId) + '\t' + node->rank + '\t' + node->name;
+                if (!ranks.empty()) {
+                    std::string lcaRanks = Util::implode(t.AtRanks(node, ranks), ':');
+                    resultData += '\t' + lcaRanks;
                 }
-                if(len < 0){
+                if (par.showTaxLineage) {
+                    resultData += '\t' + t.taxLineage(node);
+                }
+                resultData += '\n';
+
+                if(resultData.size() == 0){
                     Debug(Debug::WARNING) << "Taxon record could not be written. Entry: " << i << "\t" << columns << "!\n";
                     data = Util::skipLine(data);
                     continue;
                 }
-                resultData.append(buffer, len),
                 data = Util::skipLine(data);
             }
             writer.writeData(resultData.c_str(), resultData.size(), key, thread_idx);

@@ -21,11 +21,9 @@ int lca(int argc, const char **argv, const Command& command) {
     std::string nodesFile = par.db1 + "_nodes.dmp";
     std::string namesFile = par.db1 + "_names.dmp";
     std::string mergedFile = par.db1 + "_merged.dmp";
-    std::string delnodesFile = par.db1 + "_delnodes.dmp";
     if (FileUtil::fileExists(nodesFile.c_str())
         && FileUtil::fileExists(namesFile.c_str())
-        && FileUtil::fileExists(mergedFile.c_str())
-        && FileUtil::fileExists(delnodesFile.c_str())) {
+        && FileUtil::fileExists(mergedFile.c_str())) {
     } else if (FileUtil::fileExists("nodes.dmp")
                && FileUtil::fileExists("names.dmp")
                && FileUtil::fileExists("merged.dmp")
@@ -33,7 +31,6 @@ int lca(int argc, const char **argv, const Command& command) {
         nodesFile = "nodes.dmp";
         namesFile = "names.dmp";
         mergedFile = "merged.dmp";
-        delnodesFile = "delnodes.dmp";
     } else {
         Debug(Debug::ERROR) << "names.dmp, nodes.dmp, merged.dmp or delnodes.dmp from NCBI taxdump could not be found!\n";
         EXIT(EXIT_FAILURE);
@@ -66,7 +63,7 @@ int lca(int argc, const char **argv, const Command& command) {
     }
     Debug::Progress progress(reader.getSize());
     Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
-    NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
+    NcbiTaxonomy t(namesFile, nodesFile, mergedFile);
     size_t taxonNotFound = 0;
     size_t found = 0;
 
@@ -75,7 +72,10 @@ int lca(int argc, const char **argv, const Command& command) {
     {
         const char *entry[255];
         char buffer[1024];
+        std::string resultData;
+        resultData.reserve(4096);
         unsigned int thread_idx = 0;
+
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
@@ -90,7 +90,7 @@ int lca(int argc, const char **argv, const Command& command) {
 
             std::vector<int> taxa;
             while (*data != '\0') {
-                int taxon;
+                TaxID taxon;
                 unsigned int id;
                 std::pair<unsigned int, unsigned int> val;
                 std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
@@ -101,11 +101,11 @@ int lca(int argc, const char **argv, const Command& command) {
                 }
 
                 id = Util::fast_atoi<unsigned int>(entry[0]);
-
                 val.first = id;
                 mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
 
                 if (mappingIt == mapping.end() || mappingIt->first != val.first) {
+                    // TODO: Check which taxa were not found
                     taxonNotFound += 1;
                     data = Util::skipLine(data);
                     continue;
@@ -134,23 +134,25 @@ int lca(int argc, const char **argv, const Command& command) {
                 continue;
             }
 
-            TaxonNode* node = t.LCA(taxa);
+            TaxonNode const * node = t.LCA(taxa);
             if (node == NULL) {
                 snprintf(buffer, 1024, "0\tno rank\tunclassified\n");
                 writer.writeData(buffer, strlen(buffer), key, thread_idx);
                 continue;
             }
 
-            if (ranks.empty() == false) {
+
+            resultData = SSTR(node->taxId) + '\t' + node->rank + '\t' + node->name;
+            if (!ranks.empty()) {
                 std::string lcaRanks = Util::implode(t.AtRanks(node, ranks), ':');
-                snprintf(buffer, 1024, "%d\t%s\t%s\t%s\n",
-                         node->taxon, node->rank.c_str(), node->name.c_str(), lcaRanks.c_str());
-                writer.writeData(buffer, strlen(buffer), key, thread_idx);
-            } else {
-                snprintf(buffer, 1024, "%d\t%s\t%s\n",
-                         node->taxon, node->rank.c_str(), node->name.c_str());
-                writer.writeData(buffer, strlen(buffer), key, thread_idx);
+                resultData += '\t' + lcaRanks;
             }
+            if (par.showTaxLineage) {
+                resultData += '\t' + t.taxLineage(node);
+            }
+            resultData += '\n';
+            writer.writeData(resultData.c_str(), resultData.size(), key, thread_idx);
+            resultData.clear();
         }
     };
     Debug(Debug::INFO) << "\n";

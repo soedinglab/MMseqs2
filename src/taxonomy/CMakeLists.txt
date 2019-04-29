@@ -10,5 +10,6 @@ set(taxonomy_source_files
         taxonomy/NcbiTaxonomy.cpp
         taxonomy/filtertaxdb.cpp
         taxonomy/createtaxdb.cpp
+        taxonomy/taxonomyreport.cpp
         PARENT_SCOPE
         )

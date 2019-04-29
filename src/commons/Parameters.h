@@ -519,8 +519,10 @@ public:
     // view
     std::string idList;
     int idxEntryType;
+
     // lca
     std::string lcaRanks;
+    bool showTaxLineage;
     std::string blacklist;
 
     // exapandaln
@@ -807,9 +809,10 @@ public:
     PARAMETER(PARAM_ID_LIST)
     PARAMETER(PARAM_IDX_ENTRY_TYPE)
 
-    // lca
+    // lca and addtaxonomy
     PARAMETER(PARAM_LCA_RANKS)
     PARAMETER(PARAM_BLACKLIST)
+    PARAMETER(PARAM_TAXON_ADD_LINEAGE)
 
     // exapandaln
     PARAMETER(PARAM_EXPANSION_MODE)
