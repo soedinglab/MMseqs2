@@ -54,6 +54,7 @@ int summarizealis(int argc, const char **argv, const Command &command) {
             float uniqCov = 0;
             std::vector<bool> covered(alnResults[0].qLen, false);
             int prevQEndPos = -1;
+
             for (size_t i = 0; i < alnResults.size(); i++) {
                 Matcher::result_t res = alnResults[i];
                 seqLen = res.qLen;
@@ -62,7 +63,7 @@ int summarizealis(int argc, const char **argv, const Command &command) {
                 uniqCov += std::max(prevQEndPos, res.qEndPos) - std::max(prevQEndPos, res.qStartPos);
                 resCov += static_cast<float>(qEndPos - qStartPos);
                 avgSeqId += res.seqId;
-                prevQEndPos = qEndPos;
+                prevQEndPos = std::max(prevQEndPos, res.qEndPos);
             }
             avgSeqId = avgSeqId / static_cast<float>(alnResults.size());
             resCov = resCov / static_cast<float>(seqLen);
