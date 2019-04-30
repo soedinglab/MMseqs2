@@ -52,7 +52,6 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         thread_idx = omp_get_thread_num();
 #endif
 
-        const char * entry[255];
         char* aa = new char[par.maxSeqLen + 3 + 1];
 #pragma omp for schedule(dynamic, 5)
         for (size_t i = 0; i < entries; ++i) {
