@@ -69,7 +69,7 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     }
 
     if (par.taxonomyOutpuMode == Parameters::TAXONOMY_OUTPUT_LCA) {
-        cmd.addVariable("TAX_OUTPUT_LCA", "" );
+        cmd.addVariable("TAX_OUTPUT_LCA", "1" );
         cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
     }
 
