@@ -8,6 +8,7 @@
 
 void setEasyTaxonomyDefaults(Parameters *p) {
     p->spacedKmer = true;
+    p->removeTmpFiles = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
     p->sensitivity = 5.7;
     p->evalThr = 1;
@@ -65,7 +66,8 @@ int easytaxonomy(int argc, const char **argv, const Command& command) {
     cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
     cmd.addVariable("THREADS_PAR", par.createParameterString(par.threadsandcompression).c_str());
     cmd.addVariable("CREATETSV_PAR", par.createParameterString(par.createtsv).c_str());
-
+    par.evalThr = 100000000;
+    cmd.addVariable("SWAPRESULT_PAR", par.createParameterString(par.swapresult).c_str());
     FileUtil::writeFile(tmpDir + "/easy-taxonomy.sh", easytaxonomy_sh, easytaxonomy_sh_len);
     std::string program(tmpDir + "/easy-taxonomy.sh");
     cmd.execProgram(program.c_str(), par.filenames);

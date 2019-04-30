@@ -27,7 +27,7 @@ if notExists "${TMP_PATH}/query.dbtype"; then
         || fail "query createdb died"
 fi
 
-if notExists "${INTERMEDIATE}.dbtype"; then
+if notExists "${TMP_PATH}/result.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" taxonomy "${TMP_PATH}/query" "${TARGET}" "${TMP_PATH}/result" "${TMP_PATH}/taxonomy_tmp" ${TAXONOMY_PAR} \
         || fail "Search died"
@@ -36,20 +36,51 @@ fi
 if notExists "${TMP_PATH}/result_lca.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" lca "${TARGET}"  "${TMP_PATH}/result"  "${TMP_PATH}/result_lca" ${LCA_PAR} \
-        || fail "Convert Alignments died"
+        || fail "lca died"
 fi
 
 if notExists "${RESULTS}_lca.tsv"; then
     # shellcheck disable=SC2086
     "$MMSEQS" createtsv "${TMP_PATH}/query" "${TMP_PATH}/result_lca" "${RESULTS}_lca.tsv" ${CREATETSV_PAR} \
-        || fail "Convert Alignments died"
+        || fail "createtsv died"
 fi
 
 if notExists "${RESULTS}_report"; then
     # shellcheck disable=SC2086
     "$MMSEQS" taxonomyreport "${TARGET}" "${TMP_PATH}/result_lca" "${RESULTS}_report" ${THREADS_PAR} \
-        || fail "Convert Alignments died"
+        || fail "taxonomyreport died"
 fi
+
+if notExists "${TMP_PATH}/result_tophit1.dbtype"; then
+    # shellcheck disable=SC2086
+     "$MMSEQS" filterdb "${TMP_PATH}/result" "${TMP_PATH}/result_top1" --extract-lines 1 ${THREADS_PAR} \
+        || fail "filterdb died"
+fi
+
+if notExists "${TMP_PATH}/result_top1_swapped.dbtype"; then
+    # shellcheck disable=SC2086
+     "$MMSEQS" swapresults "${TMP_PATH}/query" "${TARGET}" "${TMP_PATH}/result_top1" "${TMP_PATH}/result_top1_swapped" ${SWAPRESULT_PAR}  \
+        || fail "filterdb died"
+fi
+
+if notExists "${TMP_PATH}/result_top1_swapped_sum.dbtype"; then
+    # shellcheck disable=SC2086
+     "$MMSEQS" summarizealis "${TMP_PATH}/result_top1_swapped" "${TMP_PATH}/result_top1_swapped_sum" ${THREADS_PAR}  \
+        || fail "filterdb died"
+fi
+
+if notExists "${TMP_PATH}/result_top1_swapped_sum_tax.dbtype"; then
+    # shellcheck disable=SC2086
+     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum" "${TMP_PATH}/result_top1_swapped_sum_tax"  ${THREADS_PAR} --tax-lineage  \
+        || fail "filterdb died"
+fi
+
+if notExists "${RESULTS}_tophit_report"; then
+    # shellcheck disable=SC2086
+     "$MMSEQS" createtsv "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum_tax" "${RESULTS}_tophit_report" ${CREATETSV_PAR} \
+        || fail "filterdb died"
+fi
+
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Removing temporary files"
@@ -58,6 +89,11 @@ if [ -n "${REMOVE_TMP}" ]; then
         "$MMSEQS" rmdb "${TMP_PATH}/query"
         "$MMSEQS" rmdb "${TMP_PATH}/query_h"
     fi
+    "$MMSEQS" rmdb "${TMP_PATH}/result_top1"
+    "$MMSEQS" rmdb "${TMP_PATH}/result_top1_swapped"
+    "$MMSEQS" rmdb "${TMP_PATH}/result_top1_swapped_sum"
+    "$MMSEQS" rmdb "${TMP_PATH}/result_top1_swapped_sum_tax"
+
     rm -rf "${TMP_PATH}/taxonomy_tmp"
     rm -f "${TMP_PATH}/easytaxonomy.sh"
 fi
