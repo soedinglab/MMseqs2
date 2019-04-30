@@ -53,6 +53,7 @@ set(util_source_files
         util/splitdb.cpp
         util/splitsequence.cpp
         util/subtractdbs.cpp
+        util/summarizealis.cpp
         util/summarizeheaders.cpp
         util/summarizeresult.cpp
         util/summarizetabs.cpp

@@ -92,6 +92,7 @@ extern int subtractdbs(int argc, const char **argv, const Command& command);
 extern int suffixid(int argc, const char **argv, const Command& command);
 extern int summarizeheaders(int argc, const char **argv, const Command& command);
 extern int summarizeresult(int argc, const char **argv, const Command& command);
+extern int summarizealis(int argc, const char **argv, const Command &command);
 extern int summarizetabs(int argc, const char **argv, const Command& command);
 extern int summerizeresultsbyset(int argc, const char **argv, const Command &command);
 extern int swapdb(int argc, const char **argv, const Command& command);

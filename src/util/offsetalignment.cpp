@@ -16,7 +16,7 @@
 
 void chainAlignmentHits(std::vector<Matcher::result_t> &results, std::vector<Matcher::result_t> &tmp) {
     if(results.size() > 1){
-        std::stable_sort(results.begin(), results.end(), Matcher::compareHitsByPos);
+        std::stable_sort(results.begin(), results.end(), Matcher::compareHitsByPosAndStrand);
         int prevDiagonal = INT_MAX;
         Matcher::result_t  currRegion;
         currRegion.dbKey = UINT_MAX;
