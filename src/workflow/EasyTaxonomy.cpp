@@ -8,6 +8,7 @@
 
 void setEasyTaxonomyDefaults(Parameters *p) {
     p->spacedKmer = true;
+    p->removeTmpFiles = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
     p->sensitivity = 5.7;
     p->evalThr = 1;
