@@ -237,7 +237,8 @@ Parameters::Parameters():
         // expandaln
         PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion mode", "Which hits (still meeting the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void*) &expansionMode, "^[0-2]{1}$"),
         // taxonomy
-        PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA mode", "LCA Mode: No LCA 0, Single Search LCA 1, 2bLCA 2, 2bLCA Approx. 3", typeid(int), (void*) &lcaMode, "^[0-3]{1}$")
+        PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA mode", "LCA Mode 1: Single Search LCA , 2: 2bLCA, 3: approx. 2bLCA, 4: top hit", typeid(int), (void*) &taxonomySearchMode, "^[1-4]{1}$"),
+        PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void*) &taxonomyOutpuMode, "^[0-1]{1}$")
 {
     if (instance) {
         Debug(Debug::ERROR) << "Parameter instance already exists!\n";
@@ -994,9 +995,14 @@ Parameters::Parameters():
     // taxonomy
     taxonomy = combineList(searchworkflow, lca);
     taxonomy.push_back(&PARAM_LCA_MODE);
+    taxonomy.push_back(&PARAM_TAX_OUTPUT_MODE);
     taxonomy.push_back(&PARAM_USESEQID);
     taxonomy.push_back(&PARAM_REMOVE_TMP_FILES);
     taxonomy.push_back(&PARAM_RUNNER);
+
+    // easy taxonomy
+    easytaxonomy = combineList(taxonomy, addtaxonomy);
+    easytaxonomy = combineList(taxonomy, createtsv);
 
     // multi hit db
     multihitdb = combineList(createdb, extractorfs);
@@ -1741,7 +1747,8 @@ void Parameters::setDefaults() {
     expansionMode = 1;
 
     // taxonomy
-    lcaMode = Parameters::TAXONOMY_2BLCA_APPROX;
+    taxonomySearchMode = Parameters::TAXONOMY_2BLCA_APPROX;
+    taxonomyOutpuMode = Parameters::TAXONOMY_OUTPUT_LCA;
 }
 
 std::vector<MMseqsParameter*> Parameters::combineList(const std::vector<MMseqsParameter*> &par1,

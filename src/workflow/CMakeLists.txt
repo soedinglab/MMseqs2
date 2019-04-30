@@ -11,6 +11,7 @@ set(workflow_source_files
         workflow/Rbh.cpp
         workflow/Search.cpp
         workflow/Taxonomy.cpp
+        workflow/EasyTaxonomy.cpp
         workflow/CreateIndex.cpp
         PARENT_SCOPE
         )

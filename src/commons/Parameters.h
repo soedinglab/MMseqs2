@@ -149,11 +149,15 @@ public:
     static const int QUERY_DB_SPLIT = 1;
     static const int DETECT_BEST_DB_SPLIT = 2;
 
-    static const int TAXONOMY_NO_LCA = 0;
+    // taxonomy output
+    static const int TAXONOMY_OUTPUT_LCA = 0;
+    static const int TAXONOMY_OUTPUT_ALIGNMENT = 1;
+
+    // taxonomy search strategy
     static const int TAXONOMY_SINGLE_SEARCH = 1;
     static const int TAXONOMY_2BLCA = 2;
     static const int TAXONOMY_2BLCA_APPROX = 3;
-
+    static const int TAXONOMY_TOP_HIT = 4;
 
     static const int PARSE_VARIADIC = 1;
     static const int PARSE_REST = 2;
@@ -529,7 +533,8 @@ public:
     int expansionMode;
 
     // taxonomy
-    int lcaMode;
+    int taxonomySearchMode;
+    int taxonomyOutpuMode;
 
     static Parameters& getInstance()
     {
@@ -819,6 +824,7 @@ public:
 
     // taxonomy
     PARAMETER(PARAM_LCA_MODE)
+    PARAMETER(PARAM_TAX_OUTPUT_MODE)
 
     std::vector<MMseqsParameter*> empty;
     std::vector<MMseqsParameter*> onlyverbosity;
@@ -893,6 +899,7 @@ public:
     std::vector<MMseqsParameter*> addtaxonomy;
     std::vector<MMseqsParameter*> filtertaxdb;
     std::vector<MMseqsParameter*> taxonomy;
+    std::vector<MMseqsParameter*> easytaxonomy;
     std::vector<MMseqsParameter*> profile2pssm;
     std::vector<MMseqsParameter*> profile2cs;
     std::vector<MMseqsParameter*> besthitbyset;
