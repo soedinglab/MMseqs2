@@ -54,9 +54,9 @@ hasCommand sort
 [ "$#" -ne 6 ] && echo "Please provide <i:oldSequenceDB> <i:newSequenceDB> <i:oldClusteringDB> <o:newMappedSequenceDB> <o:newClusteringDB> <o:tmpDir>" && exit 1;
 
 # check if files exists
-[ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
-[ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
-[ ! -f "$3" ] &&  echo "$3 not found!" && exit 1;
+[ ! -f "$1.dbtype" ] &&  echo "$1 not found!" && exit 1;
+[ ! -f "$2.dbtype" ] &&  echo "$2 not found!" && exit 1;
+[ ! -f "$3.dbtype" ] &&  echo "$3 not found!" && exit 1;
 [   -f "$5" ] &&  echo "$5 exists already!" && exit 1;
 [ ! -d "$6" ] &&  echo "tmp directory $6 not found!" && exit 1;
 
@@ -101,7 +101,7 @@ if [ -n "${RECOVER_DELETED}" ] && [ -s "${TMP_PATH}/removedSeqs" ]; then
         ) || fail "Could not create ${TMP_PATH}/OLDDB.removedMapping"
     fi
 
-    if notExists "${TMP_PATH}/NEWDB.withOld"; then
+    if notExists "${TMP_PATH}/NEWDB.withOld.dbtype"; then
         (
             ln -sf "${OLDDB}" "${TMP}/OLDDB.removedDb"
             ln -sf "${OLDDB}_h" "${TMP}/OLDDB.removedDb_h"
@@ -164,14 +164,15 @@ NEWDB="${NEWMAPDB}"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files 2/3"
-    rm -f "${TMP_PATH}/NEWDB.withOld" "${TMP_PATH}/NEWDB.withOld.index" "${TMP_PATH}/NEWDB.withOld.lookup" "${TMP_PATH}/NEWDB.withOld_h" "${TMP_PATH}/NEWDB.withOld_h.index"
+    "$MMSEQS" rmdb "${TMP_PATH}/NEWDB.withOld"
+    "$MMSEQS" rmdb "${TMP_PATH}/NEWDB.withOld_h"
 fi
 
 debugWait
 echo "==================================================="
 echo "====== Filter out the new from old sequences ======"
 echo "==================================================="
-if notExists "${TMP_PATH}/NEWDB.newSeqs"; then
+if notExists "${TMP_PATH}/NEWDB.newSeqs.dbtype"; then
     "$MMSEQS" createsubdb "${TMP_PATH}/newSeqs" "$NEWDB" "${TMP_PATH}/NEWDB.newSeqs" \
         || fail "Order died"
     ln -sf "${NEWDB}.dbtype" "${TMP_PATH}/NEWDB.newSeqs.dbtype"
@@ -181,7 +182,7 @@ debugWait
 echo "==================================================="
 echo "======= Extract representative sequences =========="
 echo "==================================================="
-if notExists "${TMP_PATH}/OLDDB.repSeq"; then
+if notExists "${TMP_PATH}/OLDDB.repSeq.dbtype"; then
     "$MMSEQS" result2repseq "$OLDDB" "$OLDCLUST" "${TMP_PATH}/OLDDB.repSeq" \
     || fail "result2repseq died"
     ln -sf "${OLDDB}.dbtype" "${TMP_PATH}/OLDDB.repSeq.dbtype"
@@ -193,14 +194,14 @@ echo "======== Search the new sequences against ========="
 echo "========= previous (rep seq of) clusters =========="
 echo "==================================================="
 mkdir -p "${TMP_PATH}/search"
-if notExists "${TMP_PATH}/newSeqsHits"; then
+if notExists "${TMP_PATH}/newSeqsHits.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" search "${TMP_PATH}/NEWDB.newSeqs" "${TMP_PATH}/OLDDB.repSeq" "${TMP_PATH}/newSeqsHits" "${TMP_PATH}/search" ${SEARCH_PAR} \
         || fail "Search died"
 fi
 
 if notExists "${TMP_PATH}/newSeqsHits.swapped.all"; then
-    "$MMSEQS" swapresults "${TMP_PATH}/NEWDB.newSeqs" "${TMP_PATH}/OLDDB.repSeq" "${TMP_PATH}/newSeqsHits" "${TMP_PATH}/newSeqsHits.swapped.all" \
+    "$MMSEQS" swapdb "${TMP_PATH}/newSeqsHits" "${TMP_PATH}/newSeqsHits.swapped.all" \
         || fail "Swapresults died"
 fi
 
@@ -215,8 +216,8 @@ debugWait
 echo "==================================================="
 echo "=  Merge found sequences with previous clustering ="
 echo "==================================================="
-if [ -f "${TMP_PATH}/newSeqsHits.swapped" ]; then
-    if notExists "${TMP_PATH}/updatedClust"; then
+if [ -f "${TMP_PATH}/newSeqsHits.swapped.dbtype" ]; then
+    if notExists "${TMP_PATH}/updatedClust.dbtype"; then
         "$MMSEQS" mergedbs "$OLDCLUST" "${TMP_PATH}/updatedClust" "$OLDCLUST" "${TMP_PATH}/newSeqsHits.swapped" \
             || fail "Mergeffindex died"
     fi
@@ -239,11 +240,11 @@ debugWait
 echo "==================================================="
 echo "=========== Extract unmapped sequences ============"
 echo "==================================================="
-if notExists "${TMP_PATH}/noHitSeqList"; then
+if notExists "${TMP_PATH}/noHitSeqList.dbtype"; then
     awk '$3==1 {print $1}' "${TMP_PATH}/newSeqsHits.index" > "${TMP_PATH}/noHitSeqList" \
         || fail "awk died"
 fi
-if notExists "${TMP_PATH}/toBeClusteredSeparately"; then
+if notExists "${TMP_PATH}/toBeClusteredSeparately.dbtype"; then
     "$MMSEQS" createsubdb "${TMP_PATH}/noHitSeqList" "$NEWDB" "${TMP_PATH}/toBeClusteredSeparately" \
         || fail "Order of no hit seq. died"
     ln -sf "${NEWDB}.dbtype" "${TMP_PATH}/toBeClusteredSeparately.dbtype"
@@ -255,7 +256,7 @@ echo "===== Cluster separately the alone sequences ======"
 echo "==================================================="
 
 mkdir -p "${TMP_PATH}/cluster"
-if notExists "${TMP_PATH}/newClusters"; then
+if notExists "${TMP_PATH}/newClusters.dbtype"; then
     if  [ -s "${TMP_PATH}/toBeClusteredSeparately" ]; then
         # shellcheck disable=SC2086
         "$MMSEQS" cluster "${TMP_PATH}/toBeClusteredSeparately" "${TMP_PATH}/newClusters" "${TMP_PATH}/cluster" ${CLUST_PAR} \
@@ -268,44 +269,29 @@ echo "==================================================="
 echo "==== Merge the updated clustering together with ==="
 echo "=====         the new clusters               ======"
 echo "==================================================="
-if [ -f "${TMP_PATH}/newClusters" ]; then
+if [ -f "${TMP_PATH}/newClusters.dbtype" ]; then
     if notExists "$NEWCLUST"; then
         "$MMSEQS" concatdbs "${TMP_PATH}/updatedClust" "${TMP_PATH}/newClusters" "$NEWCLUST" --preserve-keys \
             || fail "Dbconcat died"
     fi
 else
-    if notExists "$NEWCLUST"; then
-        mv "${TMP_PATH}/updatedClust" "$NEWCLUST" \
-            || fail "Mv died"
-    fi
-
-    if notExists "${NEWCLUST}.index"; then
-        mv "${TMP_PATH}/updatedClust.index" "${NEWCLUST}.index" \
-            || fail "Mv died"
-    fi
-
-    if notExists "${NEWCLUST}.dbtype"; then
-        mv "${TMP_PATH}/updatedClust.dbtype" "${NEWCLUST}.dbtype" \
-            || fail "Mv died"
-    fi
+    "$MMSEQS" mvdb "${TMP_PATH}/updatedClust" "$NEWCLUST" || fail "Mvdb died"
 fi
 
 debugWait
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files 3/3"
     rm -f "${TMP_PATH}/newSeqs.mapped" "${TMP_PATH}/mappingSeqs.reverse" "${TMP_PATH}/newMappingSeqs"
+	rm -f  "${TMP_PATH}/noHitSeqList" "${TMP_PATH}/mappingSeqs" "${TMP_PATH}/newSeqs" "${TMP_PATH}/removedSeqs"
 
-	rm -f "${TMP_PATH}/newClusters" "${TMP_PATH}/newClusters.index" \
-	      "${TMP_PATH}/toBeClusteredSeparately" "${TMP_PATH}/toBeClusteredSeparately.index" \
-	      "${TMP_PATH}/noHitSeqList" "${TMP_PATH}/newSeqsHits.index" "${TMP_PATH}/newSeqsHits" \
-	      "${TMP_PATH}/newSeqsHits.swapped" "${TMP_PATH}/newSeqsHits.swapped.index"
-
-	rm -f "${TMP_PATH}/newSeqsHits.swapped.all" "${TMP_PATH}/newSeqsHits.swapped.all.index" \
-	      "${TMP_PATH}/NEWDB.newSeqs" "${TMP_PATH}/NEWDB.newSeqs.index" \
-	      "${TMP_PATH}/mappingSeqs" "${TMP_PATH}/newSeqs" "${TMP_PATH}/removedSeqs"
-
-	rm -f "${TMP_PATH}/OLDDB.repSeq" "${TMP_PATH}/OLDDB.repSeq.index" \
-	      "${TMP_PATH}/updatedClust" "${TMP_PATH}/updatedClust.index" "${TMP_PATH}/updatedClust.dbtype"
+	"$MMSEQS" rmdb "${TMP_PATH}/newSeqsHits.swapped"
+	"$MMSEQS" rmdb "${TMP_PATH}/newClusters"
+	"$MMSEQS" rmdb "${TMP_PATH}/newSeqsHits"
+	"$MMSEQS" rmdb "${TMP_PATH}/toBeClusteredSeparately"
+	"$MMSEQS" rmdb "${TMP_PATH}/NEWDB.newSeqs"
+    "$MMSEQS" rmdb "${TMP_PATH}/newSeqsHits.swapped.all"
+	"$MMSEQS" rmdb "${TMP_PATH}/OLDDB.repSeq"
+	"$MMSEQS" rmdb "${TMP_PATH}/updatedClust"
 
 	rmdir "${TMP_PATH}/search" "${TMP_PATH}/cluster"
 
