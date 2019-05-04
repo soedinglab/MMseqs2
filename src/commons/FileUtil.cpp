@@ -183,6 +183,9 @@ void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
 }
 
 void FileUtil::symlinkAbs(const std::string &target, const std::string &link) {
+    if(FileUtil::fileExists(link.c_str())){
+        FileUtil::remove(link.c_str());
+    }
     char *t = realpath(target.c_str(), NULL);
     if (t == NULL) {
         Debug(Debug::ERROR) << "Could not get realpath of " << target << "!\n";
