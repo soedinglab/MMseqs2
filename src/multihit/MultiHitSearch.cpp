@@ -17,10 +17,12 @@ void setMultiHitSearchWorkflowDefaults(Parameters *p) {
 
     // TODO: Why??
     p->scoreBias = 0.3;
-
+    
+    p->simpleBestHit = true;
     // TODO: add a minimum alignment length cutoff, 4 residue alignments dont seem useful
 
-    p->simpleBestHit = false;
+    // Set alignment mode
+    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV; 
 }
 
 int multihitsearch(int argc, const char **argv, const Command &command) {
