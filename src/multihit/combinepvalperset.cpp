@@ -140,19 +140,20 @@ public:
             for (size_t i = 0; i < orfCount; ++i) { 
                 truncatedFisherPval += exp(i*logR - lGammaLookup[i+1] + logBiLookup[thread_idx][i]);
             }            
-            updatedPval = expMinusR * truncatedFisherPval;
+            updatedPval = expMinusR * truncatedFisherPval;       
         } 
 
         //1) the minimum of all P-values(as a baseline)
         else if(aggregationMode == Parameters::AGGREGATION_MODE_MIN_PVAL){
-            float minLogPval = 0;
+            unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
+            double minLogPval = 0;
             for (size_t i = 0; i < dataToAggregate.size(); ++i) { 
                 double currentLogPval = std::strtod(dataToAggregate[i][1].c_str(), NULL);
                 if (currentLogPval < minLogPval) {
                     minLogPval = currentLogPval;
                 };
             }
-            updatedPval = exp(minLogPval);    
+            updatedPval = 1 -  exp( - exp(minLogPval) * orfCount);;    
         }      
 
         //2) the P-value for the product-of-P-values
@@ -167,8 +168,8 @@ public:
 
         //3) the P-values of the truncated product method 
         else if(aggregationMode == Parameters::AGGREGATION_MODE_TRUNCATED_PRODUCT){
-            unsigned int targetGeneCount = Util::fast_atoi<unsigned int>(targetSizeReader->getDataByDBKey(targetSetKey, thread_idx)); 
-            double logPvalThreshold = log(alpha / targetGeneCount);
+            unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
+            double logPvalThreshold = log(alpha / (orfCount + 1));
             double sumLogPval = 0;
             for (size_t i = 0; i < dataToAggregate.size(); ++i) {
                 double logPvalue = std::strtod(dataToAggregate[i][1].c_str(), NULL);
