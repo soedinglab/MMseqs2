@@ -55,14 +55,15 @@ int taxonomy(int argc, const char **argv, const Command& command) {
         int targetMode = (int)Parameters::ALIGNMENT_MODE_SCORE_COV;
         par.alignmentMode = std::max(par.alignmentMode, targetMode);
     }
-    cmd.addVariable("SEARCH1_PAR", par.createParameterString(par.searchworkflow).c_str());
+    cmd.addVariable("SEARCH1_PAR", par.createParameterString(par.searchworkflow, true).c_str());
     par.alignmentMode = alignmentMode;
 
     if (par.taxonomySearchMode == Parameters::TAXONOMY_TOP_HIT) {
         cmd.addVariable("TOP_HIT", "1");
     }else if (par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA){
         par.sensSteps = 1;
-        cmd.addVariable("SEARCH2_PAR", par.createParameterString(par.searchworkflow).c_str());
+        par.PARAM_SENS_STEPS.wasSet = true;
+        cmd.addVariable("SEARCH2_PAR", par.createParameterString(par.searchworkflow, true).c_str());
     }else if(par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA_APPROX){
         cmd.addVariable("APPROX_2BLCA", "1");
         cmd.addVariable("SEARCH2_PAR", par.createParameterString(par.align).c_str());
