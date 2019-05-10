@@ -131,6 +131,7 @@ MMseqs2 provides many additional search modes:
  * Fast ungapped alignment searches to find [very similar sequence matches](https://github.com/soedinglab/MMseqs2/wiki#mapping-very-similar-sequences-using-mmseqs-map)
  * Very fast and sensitive Searches against [profile databases such as the PFAM](https://github.com/soedinglab/MMseqs2/wiki#how-to-create-a-target-profile-database-from-pfam)
  * [Reciprocal best hits search](https://github.com/soedinglab/MMseqs2/wiki#reciprocal-best-hit-using-mmseqs-rbh)
+ * [Web search API and user interface](https://github.com/soedinglab/MMseqs2-App)
 
 
 Many modes can also be combined. You can, for example, do a translated nucleotide against protein profile search.
