@@ -36,8 +36,11 @@ LCA_SOURCE="${TMP_PATH}/first"
 
 # top hip mode
 if [ -n "${TOP_HIT}" ]; then
-    "$MMSEQS" filterdb "${TMP_PATH}/first" "${TMP_PATH}/top1" --extract-lines 1 \
-        || fail "Filterdb died"
+
+    if [ ! -e "${TMP_PATH}/top1" ]; then
+        "$MMSEQS" filterdb "${TMP_PATH}/first" "${TMP_PATH}/top1" --beats-first --filter-column 4 --comparison-operator le \
+            || fail "First filterdb died"
+    fi
     LCA_SOURCE="${TMP_PATH}/top1"
 else
     # 2bLCA mode

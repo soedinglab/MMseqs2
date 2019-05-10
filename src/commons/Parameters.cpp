@@ -997,8 +997,6 @@ Parameters::Parameters():
     taxonomy.push_back(&PARAM_LCA_MODE);
     taxonomy.push_back(&PARAM_TAX_OUTPUT_MODE);
     taxonomy.push_back(&PARAM_USESEQID);
-    taxonomy.push_back(&PARAM_REMOVE_TMP_FILES);
-    taxonomy.push_back(&PARAM_RUNNER);
 
     // easy taxonomy
     easytaxonomy = combineList(taxonomy, addtaxonomy);
@@ -1747,7 +1745,7 @@ void Parameters::setDefaults() {
     expansionMode = 1;
 
     // taxonomy
-    taxonomySearchMode = Parameters::TAXONOMY_2BLCA_APPROX;
+    taxonomySearchMode = Parameters::TAXONOMY_TOP_HIT;
     taxonomyOutpuMode = Parameters::TAXONOMY_OUTPUT_LCA;
 }
 
