@@ -183,7 +183,9 @@ void setNuclSearchDefaults(Parameters *p) {
     }
     //p->orfLongest = true;
     p->exactKmerMatching = true;
-
+    if ( p->PARAM_DIAGONAL_SCORING.wasSet == false) {
+        p->diagonalScoring = 0;
+    }
     if ( p->PARAM_STRAND.wasSet == false) {
         p->strand = 2;
     }
