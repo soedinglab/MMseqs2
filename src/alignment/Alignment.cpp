@@ -115,8 +115,14 @@ Alignment::Alignment(const std::string &querySeqDB,
 
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         m = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, scoreBias);
-        gapOpen = 5;
-        gapExtend = 2;
+        gapOpen = par.gapOpen;
+        gapExtend = par.gapExtend;
+        if(par.PARAM_GAP_OPEN.wasSet==false){
+            gapOpen = 5;
+        }
+        if(par.PARAM_GAP_EXTEND.wasSet==false){
+            gapExtend = 2;
+        }
     } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
         SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, scoreBias);
         this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 219);

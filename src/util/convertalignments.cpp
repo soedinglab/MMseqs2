@@ -138,14 +138,25 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         }
     }
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+    SubstitutionMatrix * subMat= NULL;
+    if (targetNucs == true && queryNucs == true && isTranslatedSearch == false) {
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        if(par.PARAM_GAP_OPEN.wasSet==false){
+            par.gapOpen = 5;
+        }
+        if(par.PARAM_GAP_EXTEND.wasSet==false){
+            par.gapExtend = 2;
+        }
+    }else{
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+    }
     EvalueComputation *evaluer = NULL;
     bool queryProfile = false;
     bool targetProfile = false;
     if (needSequenceDB) {
         queryProfile = Parameters::isEqualDbtype(qDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
         targetProfile = Parameters::isEqualDbtype(tDbr->sequenceReader->getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
-        evaluer = new EvalueComputation(tDbr->sequenceReader->getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
+        evaluer = new EvalueComputation(tDbr->sequenceReader->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
     }
 
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
@@ -251,7 +262,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                     querySeqData = (char*) queryBuffer.c_str();
                 }
                 if (queryProfile) {
-                    Sequence::extractProfileConsensus(querySeqData, subMat, queryProfData);
+                    Sequence::extractProfileConsensus(querySeqData, *subMat, queryProfData);
                 }
             }
 
@@ -340,7 +351,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                 size_t tId = tDbr->sequenceReader->getId(res.dbKey);
                                 targetSeqData = tDbr->sequenceReader->getData(tId, thread_idx);
                                 if (targetProfile) {
-                                    Sequence::extractProfileConsensus(targetSeqData, subMat, targetProfData);
+                                    Sequence::extractProfileConsensus(targetSeqData, *subMat, targetProfData);
                                 }
                             }
                             for(size_t i = 0; i < outcodes.size(); i++) {
@@ -552,6 +563,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         }
         delete evaluer;
     }
+    delete subMat;
 
     return EXIT_SUCCESS;
 }
