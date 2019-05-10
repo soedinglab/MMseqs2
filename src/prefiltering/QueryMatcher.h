@@ -56,9 +56,8 @@ class QueryMatcher {
 public:
     QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLookup,
                  BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
-                 unsigned int *seqLens, short kmerThr,
-                 double kmerMatchProb, int kmerSize, size_t dbSize,
-                 unsigned int maxSeqLen, unsigned int effectiveKmerSize,
+                 short kmerThr, int kmerSize, size_t dbSize,
+                 unsigned int maxSeqLen,
                  size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring,
                  unsigned int minDiagScoreThr, bool takeOnlyBestKmer,size_t resListOffset);
     ~QueryMatcher();
@@ -215,24 +214,11 @@ protected:
     // last data pointer (for overflow check)
     IndexEntryLocal * lastSequenceHit;
 
-    // the following variables are needed to calculate the Z-score computation
-    double mu;
-
-    //log match prob (mu) of poisson distribution
-    double logMatchProb;
-
-    //pre computed score factorials
-    // S_fact = score!
-    double *logScoreFactorial;
-
     // max seq. per query
     size_t maxHitsPerQuery;
 
     // offset in the result list
     size_t resListOffset;
-
-    //pointer to seqLens
-    float *seqLens;
 
     // match sequence against the IndexTable
     size_t match(Sequence *seq, float *pDouble);

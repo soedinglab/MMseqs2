@@ -121,12 +121,6 @@ private:
     // needed for index lookup
     void getIndexTable(int split, size_t dbFrom, size_t dbSize);
 
-    /*
-     * Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
-     * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
-     */
-    double setKmerThreshold(DBReader<unsigned int> *qdb);
-
     void writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *dbWriter, unsigned int thread_idx, size_t id,
                               const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset);
 

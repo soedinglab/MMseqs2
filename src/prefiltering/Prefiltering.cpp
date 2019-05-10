@@ -755,17 +755,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         }
     }
 
-    double kmerMatchProb;
     Debug(Debug::INFO) << "k-mer similarity threshold: " << kmerThr << "\n";
-    if (diagonalScoring) {
-        kmerMatchProb = 0.0f;
-    } else {
-        // run small query sample against the index table to calibrate p-match
-        kmerMatchProb = setKmerThreshold(qdbr);
-        Debug(Debug::INFO) << "k-mer match probability: " << kmerMatchProb << "\n\n";
-    }
-
-    Timer timer;
 
     double kmersPerPos = 0;
     size_t dbMatches = 0;
@@ -807,9 +797,8 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         Sequence seq(maxSeqLen, querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
 
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
-                             tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
-                             kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
-                             maxResults, aaBiasCorrection, diagonalScoring, minDiagScoreThr, takeOnlyBestKmer, resListOffset);
+                            kmerThr, kmerSize, dbSize, maxSeqLen, maxResults, aaBiasCorrection,
+                            diagonalScoring, minDiagScoreThr, takeOnlyBestKmer, resListOffset);
 
         if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
             matcher.setProfileMatrix(seq.profile_matrix);
@@ -876,7 +865,6 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
         printStatistics(stats, reslens, localThreads, empty, maxResults);
     }
-    Debug(Debug::INFO) << "\nTime for prefiltering scores calculation: " << timer.lap() << "\n";
     tmpDbw.close(merge); // sorts the index
 
     // sort by ids
@@ -987,76 +975,6 @@ BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrix
         subMat = new SubstitutionMatrix(scoringMatrixFile.c_str(), bitFactor, -0.2f);
     }
     return subMat;
-}
-
-double Prefiltering::setKmerThreshold(DBReader<unsigned int> *qdbr) {
-    // generate a small random sequence set for testing
-    size_t querySetSize = std::min(qdbr->getSize(), (size_t) 1000);
-    unsigned int *querySeqs = new unsigned int[querySetSize];
-    srand(1);
-    for (size_t i = 0; i < querySetSize; i++) {
-        querySeqs[i] = rand() % qdbr->getSize();
-    }
-
-    double kmersPerPos = 0.0;
-    size_t doubleMatches = 0;
-    size_t querySeqLenSum = 0;
-
-    unsigned int effectiveKmerSize = 0;
-
-    #pragma omp parallel shared(effectiveKmerSize)
-    {
-        int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = omp_get_thread_num();
-#endif
-        Sequence seq(maxSeqLen, querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
-
-        if (thread_idx == 0) {
-            effectiveKmerSize = seq.getEffectiveKmerSize();
-        }
-
-        QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat, ungappedSubMat, tdbr->getSeqLens(), kmerThr, 1.0,
-                             kmerSize, indexTable->getSize(), maxSeqLen, seq.getEffectiveKmerSize(),
-                             150000, aaBiasCorrection, false, minDiagScoreThr, takeOnlyBestKmer,0);
-        if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) ){
-            matcher.setProfileMatrix(seq.profile_matrix);
-        } else {
-            matcher.setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
-        }
-
-        #pragma omp for schedule(dynamic, 2) reduction (+: doubleMatches, kmersPerPos, querySeqLenSum)
-        for (size_t i = 0; i < querySetSize; i++) {
-            size_t id = querySeqs[i];
-
-            char *seqData = qdbr->getData(id, thread_idx);
-            seq.mapSequence(id, 0, seqData);
-            seq.reverse();
-
-            matcher.matchQuery(&seq, UINT_MAX);
-            kmersPerPos += matcher.getStatistics()->kmersPerPos;
-            querySeqLenSum += matcher.getStatistics()->querySeqLen;
-            doubleMatches += matcher.getStatistics()->doubleMatches;
-        }
-    }
-
-    size_t targetDbSize = indexTable->getSize();
-    size_t targetSeqLenSum = 0;
-
-    unsigned int* tSeqLens = tdbr->getSeqLens();
-    for (size_t i = 0; i < targetDbSize; i++) {
-        targetSeqLenSum += (tSeqLens[i] - effectiveKmerSize);
-    }
-
-    // compute match prob for local match
-    double kmerMatchProb = ((double) doubleMatches) / ((double) (querySeqLenSum * targetSeqLenSum));
-    kmerMatchProb /= 256;
-
-    kmerMatchProb = std::max(kmerMatchProb, std::numeric_limits<double>::min());
-    Debug(Debug::INFO) << "\tk-mers per position = " << (kmersPerPos / (double) querySetSize)
-                       << ", k-mer match probability: " << kmerMatchProb << "\n";
-    delete[] querySeqs;
-    return kmerMatchProb;
 }
 
 void Prefiltering::mergeFiles(const std::string &outDB, const std::string &outDBIndex,

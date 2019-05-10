@@ -26,10 +26,8 @@
 
 QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLookup,
                            BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
-                           unsigned int *seqLens, short kmerThr,
-                           double kmerMatchProb, int kmerSize, size_t dbSize,
-                           unsigned int maxSeqLen, unsigned int effectiveKmerSize,
-                           size_t maxHitsPerQuery, bool aaBiasCorrection,
+                           short kmerThr, int kmerSize, size_t dbSize,
+                           unsigned int maxSeqLen, size_t maxHitsPerQuery, bool aaBiasCorrection,
                            bool diagonalScoring, unsigned int minDiagScoreThr,
                            bool takeOnlyBestKmer, size_t resListOffset)
 {
@@ -66,25 +64,9 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
     initDiagonalMatcher(dbSize, maxDbMatches);
 //    this->diagonalMatcher = new CacheFriendlyOperations(dbSize, maxDbMatches / 128 );
     // needed for p-value calc.
-    this->logScoreFactorial=NULL;
+    ungappedAlignment = NULL;
     if (diagonalScoring == true) {
         ungappedAlignment = new UngappedAlignment(maxSeqLen, ungappedAlignmentSubMat, sequenceLookup);
-        this->seqLens = NULL;
-    } else {
-        this->mu = kmerMatchProb;
-        this->logMatchProb = log(kmerMatchProb);
-        this->logScoreFactorial = new double[SCORE_RANGE];
-        MathUtil::computeFactorial(logScoreFactorial, SCORE_RANGE);
-        ungappedAlignment = NULL;
-        // initialize sequence lenghts with each seqLens[i] = L_i - k + 1
-        this->seqLens = new float[dbSize];
-        for (size_t i = 0; i < dbSize; i++) {
-            if (seqLens[i] > (effectiveKmerSize - 1)) {
-                this->seqLens[i] = static_cast<float>(seqLens[i] - effectiveKmerSize + 1);
-            } else {
-                this->seqLens[i] = 1.0f;
-            }
-        }
     }
     compositionBias = new float[maxSeqLen];
 }
@@ -96,10 +78,6 @@ QueryMatcher::~QueryMatcher(){
     delete [] databaseHits;
     delete [] indexPointer;
     free(foundDiagonals);
-    if(logScoreFactorial != NULL){
-        delete [] logScoreFactorial;
-    }
-    delete [] seqLens;
     delete [] compositionBias;
     if(ungappedAlignment != NULL){
         delete ungappedAlignment;
@@ -357,7 +335,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
         result->diagonal = 0;
         //result->pScore = (((float)rawScore) - mu)/ sqrtMu;
         if (TYPE == KMER_SCORE) {
-            float logProb = -computeLogProbability(rawScore, seqLens[id], mu, logMatchProb, logScoreFactorial[rawScore]);
+            float logProb = rawScore;
             result->prefScore = static_cast<int>(logProb);
         }
         currentHits++;
@@ -385,7 +363,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
             //printf("%d\t%d\t%f\t%f\t%f\t%f\t%f\n", result->seqId, scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[scoreCurr]);
             if (TYPE == KMER_SCORE) {
                 // make sure score is not great > 255
-                result->prefScore = -computeLogProbability(scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[scoreCurr]);
+                result->prefScore = scoreCurr;
             } else {
                 //need to get the real score
                 if (rescaleScore != 0) {
