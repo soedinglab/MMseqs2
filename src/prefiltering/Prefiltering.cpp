@@ -543,6 +543,7 @@ void Prefiltering::runAllSplits(const std::string &queryDB, const std::string &q
 void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &queryDBIndex,
                                 const std::string &resultDB, const std::string &resultDBIndex,
                                 const std::string &localTmpPath) {
+    splits = std::max(MMseqsMPI::numProc, splits);
     if(compressed == true && splitMode == Parameters::TARGET_DB_SPLIT){
             Debug(Debug::ERROR) << "The output of the prefilter cannot be compressed during target split mode. Please remove --compress.\n";
             EXIT(EXIT_FAILURE);
