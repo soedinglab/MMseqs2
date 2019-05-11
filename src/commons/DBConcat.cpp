@@ -134,7 +134,7 @@ void DBConcat::concat(bool write) {
     std::stable_sort(keysB, keysB + indexSizeB, compareFirstEntry());
 
     if (write) {
-        concatWriter->close();
+        concatWriter->close(true);
         delete concatWriter;
     }
     dbA.close();
