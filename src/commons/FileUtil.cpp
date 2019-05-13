@@ -296,7 +296,7 @@ std::vector<std::string> FileUtil::findDatafiles(const char * datafiles){
 
 void FileUtil::remove(const char * file ) {
     if (std::remove(file) != 0){
-        Debug(Debug::ERROR) << "Could delete " << file << "!\n";
+        Debug(Debug::ERROR) << "Could not delete " << file << "!\n";
         EXIT(EXIT_FAILURE);
     }
 }
