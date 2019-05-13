@@ -46,9 +46,9 @@ void taxReport(FILE* FP,
     unsigned int taxCount = it == cladeCounts.end()? 0 : it->second.taxCount;
     if (taxID == 0) {
         if (cladeCount > 0) {
-            fprintf(FP, "%.4f\t%i\t%i\t%i\tno rank\tunidentified\n",
+            fprintf(FP, "%.4f\t%i\t%i\tno rank\t0\tunclassified\n",
                     100 * cladeCount / double(totalReads),
-                    cladeCount, taxCount, taxID);
+                    cladeCount, taxCount);
         }
         taxReport(FP, taxDB, cladeCounts, totalReads, 1);
     } else {
@@ -56,9 +56,9 @@ void taxReport(FILE* FP,
             return;
         }
         const TaxonNode* taxon = taxDB.taxonNode(taxID);
-        fprintf(FP, "%.4f\t%i\t%i\t%i\t%s\t%s%s\n",
-                100*cladeCount/double(totalReads), cladeCount, taxCount, taxID,
-               taxon->rank.c_str(), std::string(2*depth, ' ').c_str(), taxon->name.c_str());
+        fprintf(FP, "%.4f\t%i\t%i\t%s\t%i\t%s%s\n",
+                100*cladeCount/double(totalReads), cladeCount, taxCount,
+                taxon->rank.c_str(), taxID, std::string(2*depth, ' ').c_str(), taxon->name.c_str());
 
         std::vector<TaxID> children = it->second.children;
         std::sort(children.begin(), children.end(), [&](int a, int b) { return cladeCountVal(cladeCounts, a) > cladeCountVal(cladeCounts,b); });
