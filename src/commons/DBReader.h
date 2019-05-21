@@ -231,6 +231,15 @@ public:
         }
     }
 
+    
+    struct sortIndecesById {
+        sortIndecesById(const Index * ind) : _ind(ind) {}
+        bool operator() (unsigned int i, unsigned int j) const { 
+            return (_ind[i].id < _ind[j].id); 
+        }
+        const Index * _ind;
+    };
+
     struct compareIndexLengthPairById {
         bool operator() (const std::pair<Index, unsigned  int>& lhs, const std::pair<Index, unsigned  int>& rhs) const{
             return (lhs.first.id < rhs.first.id);
