@@ -548,7 +548,8 @@ void DBWriter::mergeResultsNormal(const char *outFileName, const char *outFileNa
     Timer timer;
     // merge results from each thread into one result file
     if (fileCount > 1) {
-        FILE *outFile = fopen(outFileName, "w");
+        FILE *outFile = FileUtil::openAndDelete(outFileName, "w");
+        
         FILE **infiles = new FILE *[fileCount];
         std::vector<size_t> threadDataFileSizes;
         for (unsigned int i = 0; i < fileCount; i++) {
