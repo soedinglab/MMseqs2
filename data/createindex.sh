@@ -8,11 +8,11 @@ notExists() {
 	[ ! -f "$1" ]
 }
 
-# check amount of input variables
+# check number of input variables
 [ "$#" -ne 2 ] && echo "Please provide <sequenceDB> <tmp>" && exit 1;
-# check if files exists
-[ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
-[ ! -d "$2" ] &&  echo "tmp directory $2 not found!" && mkdir -p "$2";
+# check if files exist
+[ ! -f "$1.dbtype" ] && echo "$1.dbtype not found!" && exit 1;
+[ ! -d "$2" ] && echo "tmp directory $2 not found!" && mkdir -p "$2";
 
 INPUT="$1"
 if [ -n "$TRANSLATED" ]; then

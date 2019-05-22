@@ -11,15 +11,15 @@ notExists() {
 
 #pre processing
 [ -z "${MMSEQS}" ] && echo "Please set the environment variable \$MMSEQS to your MMSEQS binary." && exit 1;
-# check amount of input variables
+# check number of input variables
 [ "$#" -ne 6 ] && echo "Please provide <queryDB> <targetDB> <targetProf> <targetRes> <outDB> <tmp>" && exit 1;
-# check if files exists
-[ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
-[ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
-[ ! -f "$3" ] &&  echo "$3 not found!" && exit 1;
-[ ! -f "$4" ] &&  echo "$4 not found!" && exit 1;
-[   -f "$5.dbtype" ] &&  echo "$5 exists already!" && exit 1;
-[ ! -d "$6" ] &&  echo "tmp directory $6 not found!" && mkdir -p "$6";
+# check if files exist
+[ ! -f "$1.dbtype" ] && echo "$1.dbtype not found!" && exit 1;
+[ ! -f "$2.dbtype" ] && echo "$2.dbtype not found!" && exit 1;
+[ ! -f "$3.dbtype" ] && echo "$3.dbtype not found!" && exit 1;
+[ ! -f "$4.dbtype" ] && echo "$4.dbtype not found!" && exit 1;
+[   -f "$5.dbtype" ] && echo "$5.dbtype exists already!" && exit 1;
+[ ! -d "$6" ] && echo "tmp directory $6 not found!" && mkdir -p "$6";
 
 QUERYDB="$1"
 PROFTARGETSEQ="$2"
