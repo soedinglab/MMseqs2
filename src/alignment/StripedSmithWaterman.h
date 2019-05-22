@@ -37,7 +37,7 @@
 #include <cstdlib>
 #include <iostream>
 
-#if !defined(__APPLE__)
+#if !defined(__llvm__)
 #include <malloc.h>
 #endif
 
