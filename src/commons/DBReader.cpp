@@ -230,7 +230,6 @@ void DBReader<std::string>::sortIndex(bool isSortedById) {
         if (isSortedById) {
             return;
         }
-
         std::pair<Index, unsigned int> *sortArray = new std::pair<Index, unsigned int>[size];
         for (size_t i = 0; i < size; i++) {
             sortArray[i] = std::make_pair(index[i], seqLens[i]);
@@ -242,7 +241,7 @@ void DBReader<std::string>::sortIndex(bool isSortedById) {
             seqLens[i] = sortArray[i].second;
         }
         delete[] sortArray;
-    }else{
+    } else {
         if(accessType != NOSORT && accessType != HARDNOSORT){
             Debug(Debug::ERROR) << "DBReader<std::string> can not be opened in sort mode\n";
             EXIT(EXIT_FAILURE);
@@ -255,33 +254,63 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
     // First, we sort the index by IDs and we keep track of the original
     // ordering in mappingToOriginalIndex array
     size_t* mappingToOriginalIndex=NULL;
-    if(accessType==SORT_BY_LINE){
+    if (accessType == SORT_BY_LINE) {
         mappingToOriginalIndex = new size_t[size];
     }
-    if(isSortedById == false){
-        std::pair<Index, std::pair<size_t,unsigned int> > *sortArray = new std::pair<Index, std::pair<size_t,unsigned int> >[size];
-        for (size_t i = 0; i < size; i++) {
-            sortArray[i] = std::make_pair(index[i], std::make_pair(i,seqLens[i]));
+    
+    if (isSortedById == false) {
+        // create an array of the joint original indeces --> this will be sorted:
+        unsigned int *sortedIndices = new unsigned int[size];
+        for (unsigned int i = 0; i < size; ++i) {
+            sortedIndices[i] = i;
         }
-        omptl::sort(sortArray, sortArray + size, compareIndexLengthPairByIdKeepTrack());
+        // sort sortedIndices based on index.id:
+        omptl::sort(sortedIndices, sortedIndices + size, sortIndecesById(index));
+
+        // re-order will destroy sortedIndices so copy it, if needed:
+        if (accessType == SORT_BY_LINE) {
+            for (size_t i = 0; i < size; ++i) {
+                mappingToOriginalIndex[i] = sortedIndices[i];
+            }
+        }
+
+        // re-order in-place according to sortedIndices (ruined in the process)
+        // based on: https://stackoverflow.com/questions/7365814/in-place-array-reordering
+        unsigned int lengthBuff;
+        Index indexAndOffsetBuff;
+
+        for (unsigned int i = 0; i < size; i++) {
+            // fill buffers with what will be overwritten:
+            lengthBuff = seqLens[i];
+            indexAndOffsetBuff.id = index[i].id;
+            indexAndOffsetBuff.offset = index[i].offset;
+
+            unsigned int j = i;
+            while (1) {
+                // The inner loop won't re-process already processed elements
+                unsigned int k = sortedIndices[j];
+                sortedIndices[j] = j; // mutating sortedIndices in the process
+                if (k == i) {
+                    break;
+                }
+                // overwite at destination place:
+                seqLens[j] = seqLens[k];
+                index[j].id = index[k].id;
+                index[j].offset = index[k].offset;
+                // re-write what was overwritten at its destination: 
+                j = k;
+                seqLens[j] = lengthBuff;
+                index[j].id = indexAndOffsetBuff.id;
+                index[j].offset = indexAndOffsetBuff.offset;
+            }
+        }
+        delete[] sortedIndices;
+    } else if (accessType == SORT_BY_LINE) {
         for (size_t i = 0; i < size; ++i) {
-            index[i].id = sortArray[i].first.id;
-            index[i].offset = sortArray[i].first.offset;
-            seqLens[i] = (sortArray[i].second).second;
-        }
-        if(accessType==SORT_BY_LINE){
-            for (size_t i = 0; i < size; ++i) {
-                mappingToOriginalIndex[i] = (sortArray[i].second).first;
-            }
-        }
-        delete[] sortArray;
-    }else {
-        if(accessType== SORT_BY_LINE){
-            for (size_t i = 0; i < size; ++i) {
-                mappingToOriginalIndex[i] = i;
-            }
+            mappingToOriginalIndex[i] = i;
         }
     }
+
     if (accessType == SORT_BY_LENGTH) {
         // sort the entries by the length of the sequences
         std::pair<unsigned int, unsigned int> *sortForMapping = new std::pair<unsigned int, unsigned int>[size];
