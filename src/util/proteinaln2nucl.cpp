@@ -34,7 +34,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     if(Parameters::isEqualDbtype(qdbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) == false ||
        Parameters::isEqualDbtype(tdbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) == false ){
         Debug(Debug::ERROR) << "This module only supports nucleotide query and target database input.\n";
-        return EXIT_FAILURE;
+        EXIT(EXIT_FAILURE);
     }
 
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
@@ -79,7 +79,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
                 if(!hasBacktrace ){
                     Debug(Debug::ERROR) << "This module only supports database "\
                                            "input with backtrace string.\n";
-                    return EXIT_FAILURE;
+                    EXIT(EXIT_FAILURE);
                 }
 
 
