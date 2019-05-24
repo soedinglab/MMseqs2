@@ -56,12 +56,12 @@ void DBReader<T>::setDataFile(const char* dataFileName_)  {
 template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
     if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
-        Debug(Debug::INFO) << "Touch data file " << dataFileName << " ... ";
+        //Debug(Debug::INFO) << "Touch data file " << dataFileName << "\n";
         for(size_t fileIdx = 0; fileIdx < dataFileCnt; fileIdx++){
             size_t dataSize = dataSizeOffset[fileIdx+1]-dataSizeOffset[fileIdx];
             magicBytes += Util::touchMemory(dataFiles[fileIdx], dataSize);
         }
-        Debug(Debug::INFO) << "Done.\n";
+
     }
 }
 
@@ -121,7 +121,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         for(size_t fileIdx = 0; fileIdx < dataFileNames.size(); fileIdx++){
             FILE* dataFile = fopen(dataFileNames[fileIdx].c_str(), "r");
             if (dataFile == NULL) {
-                Debug(Debug::ERROR) << "Could not open data file " << dataFileName << "!\n";
+                Debug(Debug::ERROR) << "Can not open data file " << dataFileName << "!\n";
                 EXIT(EXIT_FAILURE);
             }
             size_t dataSize;
@@ -139,7 +139,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
     if (dataMode & USE_LOOKUP) {
         std::string lookupFilename = (std::string(dataFileName) + ".lookup");
         if(FileUtil::fileExists(lookupFilename.c_str()) == false){
-            Debug(Debug::ERROR) << "Could not open index file " << lookupFilename << "!\n";
+            Debug(Debug::ERROR) << "Can not open index file " << lookupFilename << "!\n";
             EXIT(EXIT_FAILURE);
         }
         MemoryMapped indexData(lookupFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
@@ -153,12 +153,12 @@ template <typename T> bool DBReader<T>::open(int accessType){
     bool isSortedById = false;
     if (externalData == false) {
         if(FileUtil::fileExists(indexFileName)==false){
-            Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "!\n";
+            Debug(Debug::ERROR) << "Can not open index file " << indexFileName << "!\n";
             EXIT(EXIT_FAILURE);
         }
         MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
         if (!indexData.isValid()){
-            Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
+            Debug(Debug::ERROR) << "Can not open index file " << indexFileName << "\n";
             EXIT(EXIT_FAILURE);
         }
         char* indexDataChar = (char *) indexData.getData();
@@ -166,9 +166,9 @@ template <typename T> bool DBReader<T>::open(int accessType){
         size = Util::ompCountLines(indexDataChar,indexDataSize);
 
         index = new(std::nothrow) Index[this->size];
-        Util::checkAllocation(index, "Could not allocate index memory in DBReader");
+        Util::checkAllocation(index, "Can not allocate index memory in DBReader");
         seqLens = new(std::nothrow) unsigned int[this->size];
-        Util::checkAllocation(seqLens, "Could not allocate seqLens memory in DBReader");
+        Util::checkAllocation(seqLens, "Can not allocate seqLens memory in DBReader");
         bool isSortedById = readIndex(indexDataChar, indexDataSize, index, seqLens);
         indexData.close();
 
@@ -200,7 +200,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
             compressedBufferSizes[i] = std::max(maxSeqLen+1, 1024u);
             compressedBuffers[i] = (char*) malloc(compressedBufferSizes[i]);
             if(compressedBuffers[i]==NULL){
-                Debug(Debug::ERROR) << "Could not allocate compressedBuffer!\n";
+                Debug(Debug::ERROR) << "Can not allocate compressedBuffer!\n";
                 EXIT(EXIT_FAILURE);
             }
             dstream[i] = ZSTD_createDStream();
@@ -230,7 +230,6 @@ void DBReader<std::string>::sortIndex(bool isSortedById) {
         if (isSortedById) {
             return;
         }
-
         std::pair<Index, unsigned int> *sortArray = new std::pair<Index, unsigned int>[size];
         for (size_t i = 0; i < size; i++) {
             sortArray[i] = std::make_pair(index[i], seqLens[i]);
@@ -242,7 +241,7 @@ void DBReader<std::string>::sortIndex(bool isSortedById) {
             seqLens[i] = sortArray[i].second;
         }
         delete[] sortArray;
-    }else{
+    } else {
         if(accessType != NOSORT && accessType != HARDNOSORT){
             Debug(Debug::ERROR) << "DBReader<std::string> can not be opened in sort mode\n";
             EXIT(EXIT_FAILURE);
@@ -255,33 +254,63 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
     // First, we sort the index by IDs and we keep track of the original
     // ordering in mappingToOriginalIndex array
     size_t* mappingToOriginalIndex=NULL;
-    if(accessType==SORT_BY_LINE){
+    if (accessType == SORT_BY_LINE) {
         mappingToOriginalIndex = new size_t[size];
     }
-    if(isSortedById == false){
-        std::pair<Index, std::pair<size_t,unsigned int> > *sortArray = new std::pair<Index, std::pair<size_t,unsigned int> >[size];
-        for (size_t i = 0; i < size; i++) {
-            sortArray[i] = std::make_pair(index[i], std::make_pair(i,seqLens[i]));
+    
+    if (isSortedById == false) {
+        // create an array of the joint original indeces --> this will be sorted:
+        unsigned int *sortedIndices = new unsigned int[size];
+        for (unsigned int i = 0; i < size; ++i) {
+            sortedIndices[i] = i;
         }
-        omptl::sort(sortArray, sortArray + size, compareIndexLengthPairByIdKeepTrack());
+        // sort sortedIndices based on index.id:
+        omptl::sort(sortedIndices, sortedIndices + size, sortIndecesById(index));
+
+        // re-order will destroy sortedIndices so copy it, if needed:
+        if (accessType == SORT_BY_LINE) {
+            for (size_t i = 0; i < size; ++i) {
+                mappingToOriginalIndex[i] = sortedIndices[i];
+            }
+        }
+
+        // re-order in-place according to sortedIndices (ruined in the process)
+        // based on: https://stackoverflow.com/questions/7365814/in-place-array-reordering
+        unsigned int lengthBuff;
+        Index indexAndOffsetBuff;
+
+        for (unsigned int i = 0; i < size; i++) {
+            // fill buffers with what will be overwritten:
+            lengthBuff = seqLens[i];
+            indexAndOffsetBuff.id = index[i].id;
+            indexAndOffsetBuff.offset = index[i].offset;
+
+            unsigned int j = i;
+            while (1) {
+                // The inner loop won't re-process already processed elements
+                unsigned int k = sortedIndices[j];
+                sortedIndices[j] = j; // mutating sortedIndices in the process
+                if (k == i) {
+                    break;
+                }
+                // overwite at destination place:
+                seqLens[j] = seqLens[k];
+                index[j].id = index[k].id;
+                index[j].offset = index[k].offset;
+                // re-write what was overwritten at its destination: 
+                j = k;
+                seqLens[j] = lengthBuff;
+                index[j].id = indexAndOffsetBuff.id;
+                index[j].offset = indexAndOffsetBuff.offset;
+            }
+        }
+        delete[] sortedIndices;
+    } else if (accessType == SORT_BY_LINE) {
         for (size_t i = 0; i < size; ++i) {
-            index[i].id = sortArray[i].first.id;
-            index[i].offset = sortArray[i].first.offset;
-            seqLens[i] = (sortArray[i].second).second;
-        }
-        if(accessType==SORT_BY_LINE){
-            for (size_t i = 0; i < size; ++i) {
-                mappingToOriginalIndex[i] = (sortArray[i].second).first;
-            }
-        }
-        delete[] sortArray;
-    }else {
-        if(accessType== SORT_BY_LINE){
-            for (size_t i = 0; i < size; ++i) {
-                mappingToOriginalIndex[i] = i;
-            }
+            mappingToOriginalIndex[i] = i;
         }
     }
+
     if (accessType == SORT_BY_LENGTH) {
         // sort the entries by the length of the sequences
         std::pair<unsigned int, unsigned int> *sortForMapping = new std::pair<unsigned int, unsigned int>[size];
@@ -495,7 +524,7 @@ template <typename T> char* DBReader<T>::getDataCompressed(size_t id, int thrIdx
             // size of next compressed block
             size_t toRead = ZSTD_decompressStream(dstream[thrIdx], &output, &input);
             if (ZSTD_isError(toRead)) {
-                Debug(Debug::ERROR) << "ERROR: " << id << " ZSTD_decompressStream " << ZSTD_getErrorName(toRead) << "\n";
+                Debug(Debug::ERROR) << id << " ZSTD_decompressStream " << ZSTD_getErrorName(toRead) << "\n";
                 EXIT(EXIT_FAILURE);
             }
             totalSize += output.pos;

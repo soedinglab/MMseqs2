@@ -10,17 +10,14 @@ int result2flat(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 
-    Debug(Debug::INFO) << "Query file is " << par.db1 << "\n";
     DBReader<unsigned int> querydb_header(par.hdr1.c_str(), par.hdr1Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     querydb_header.open(DBReader<unsigned int>::NOSORT);
     querydb_header.readMmapedDataInMemory();
 
-    Debug(Debug::INFO) << "Target file is " << par.db2 << "\n";
     DBReader<unsigned int> targetdb_header(par.hdr2.c_str(), par.hdr2Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     targetdb_header.open(DBReader<unsigned int>::NOSORT);
     targetdb_header.readMmapedDataInMemory();
 
-    Debug(Debug::INFO) << "Data file is " << par.db3 << "\n";
     DBReader<unsigned int> dbr_data(par.db3.c_str(), par.db3Index.c_str(),  1, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr_data.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
@@ -29,7 +26,6 @@ int result2flat(int argc, const char **argv, const Command &command) {
     char header_start[] = {'>'};
     char newline[] = {'\n'};
 
-    Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
     char *dbKeyBuffer = new char[par.maxSeqLen * 20];
     for (size_t i = 0; i < dbr_data.getSize(); i++) {
 
@@ -90,7 +86,7 @@ int result2flat(int argc, const char **argv, const Command &command) {
         }
     }
     delete[] dbKeyBuffer;
-    Debug(Debug::INFO) << "Done." << "\n";
+
 
     fclose(fastaFP);
     targetdb_header.close();

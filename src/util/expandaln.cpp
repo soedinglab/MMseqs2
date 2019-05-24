@@ -90,7 +90,6 @@ int expandaln(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 5);
 
-    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
     DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     queryReader.open(DBReader<unsigned int>::NOSORT);
     const int queryDbType = queryReader.getDbtype();
@@ -98,7 +97,6 @@ int expandaln(int argc, const char **argv, const Command& command) {
         queryReader.readMmapedDataInMemory();
     }
 
-    Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
     DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     targetReader.open(DBReader<unsigned int>::NOSORT);
     const int targetDbType = targetReader.getDbtype();
@@ -114,19 +112,18 @@ int expandaln(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> *resultReader = NULL;
     DBReader<unsigned int> *ca3mSequenceReader = NULL;
     if (FileUtil::fileExists((par.db3 + "_ca3m.ffdata").c_str())) {
-        Debug(Debug::INFO) << "Result database: " << par.db3 << "_ca3m\n";
+
         resultReader = new DBReader<unsigned int>((par.db3 + "_ca3m.ffdata").c_str(), (par.db3 + "_ca3m.ffindex").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
         ca3mSequenceReader = new DBReader<unsigned int>((par.db3 + "_sequence.ffdata").c_str(), (par.db3 + "_sequence.ffindex").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         ca3mSequenceReader->open(DBReader<unsigned int>::SORT_BY_LINE);
     } else {
-        Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
+
         resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     }
 
-    Debug(Debug::INFO) << "Expansion result database: " << par.db4 << "\n";
     DBReader<unsigned int> expansionReader(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     expansionReader.open(DBReader<unsigned int>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
@@ -140,6 +137,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
     BacktraceTranslator translator;
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, par.scoreBias);
     EvalueComputation evaluer(targetReader.getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
+    Debug::Progress progress(resultReader->getSize());
 
     Debug(Debug::INFO) << "Computing expanded alignment result...\n";
 #pragma omp parallel
@@ -165,7 +163,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < resultReader->getSize(); ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
             unsigned int queryKey = resultReader->getDbKey(i);
 
             size_t querySeqId = queryReader.getId(queryKey);

@@ -85,9 +85,9 @@ private:
 
 
     const size_t maxResListLen;
+    const std::string prevMaxResListLengths;
     const int kmerScore;
     const float sensitivity;
-    const size_t resListOffset;
     size_t maxSeqLen;
     int querySeqType;
     const bool diagonalScoring;
@@ -121,16 +121,8 @@ private:
     // needed for index lookup
     void getIndexTable(int split, size_t dbFrom, size_t dbSize);
 
-    /*
-     * Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
-     * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
-     */
-    double setKmerThreshold(DBReader<unsigned int> *qdb);
-
-    // write prefiltering to ffindex database
     void writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *dbWriter, unsigned int thread_idx, size_t id,
-                              const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset,
-                              size_t resultOffsetPos, size_t maxResults);
+                              const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset);
 
     void printStatistics(const statistics_t &stats, std::list<int> **reslens,
                          unsigned int resLensSize, size_t empty, size_t maxResults);

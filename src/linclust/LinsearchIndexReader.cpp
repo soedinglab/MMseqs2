@@ -130,7 +130,7 @@ void LinsearchIndexReader::mergeAndWriteIndex(DBWriter & dbw, std::vector<std::s
         }
         prevKmer = res.kmer;
     }
-    Debug(Debug::INFO) << "Done\n";
+
 
     kmerIndex.flush(dbw);
     dbw.writeEnd(PrefilteringIndexReader::ENTRIES, 0);

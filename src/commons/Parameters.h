@@ -9,9 +9,6 @@
 #include <typeinfo>
 #include "Command.h"
 
-#define USE_ONLY_SET_PARAMETERS true // when createParameterString, generates
-// flags only for the param set by the user
-
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
 
@@ -23,22 +20,22 @@ struct MMseqsParameter {
     void * value;
     const char * regex;
     const int uniqid;
-    int category;
+    unsigned int category;
     bool wasSet;
 
-    static const int COMMAND_PREFILTER = 1;
-    static const int COMMAND_ALIGN = 2;
-    static const int COMMAND_CLUST = 4;
-    static const int COMMAND_COMMON = 8;
-    static const int COMMAND_PROFILE = 16;
-    static const int COMMAND_MISC = 32;
-    static const int COMMAND_CLUSTLINEAR = 64;
-    static const int COMMAND_EXPERT = 128;
+    static const unsigned int COMMAND_PREFILTER = 1;
+    static const unsigned int COMMAND_ALIGN = 2;
+    static const unsigned int COMMAND_CLUST = 4;
+    static const unsigned int COMMAND_COMMON = 8;
+    static const unsigned int COMMAND_PROFILE = 16;
+    static const unsigned int COMMAND_MISC = 32;
+    static const unsigned int COMMAND_CLUSTLINEAR = 64;
+    static const unsigned int COMMAND_EXPERT = 128;
 
 
     MMseqsParameter(int uid, const char * n, const char *display,
                     const char * d, const std::type_info &hash,
-                    void * value, const char * regex, int category = COMMAND_MISC):
+                    void * value, const char * regex, unsigned int category = COMMAND_MISC):
             name(n), display(display), description(d), type(hash), value(value),
             regex(regex), uniqid(uid), category(category), wasSet(false){}
 };
@@ -63,12 +60,27 @@ public:
     static const int DBTYPE_OMIT_FILE = 13;
     static const int DBTYPE_PREFILTER_REV_RES = 14;
     static const int DBTYPE_OFFSETDB = 15;
+    static const int DBTYPE_DIRECTORY = 16; // needed for verification
+    static const int DBTYPE_FLATFILE = 17; // needed for verification
+    static const int DBTYPE_SEQTAXDB = 18; // needed for verification
+    static const int DBTYPE_TAX_RES_DB = 19; // needed for verification
+
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
     static const int SEARCH_TYPE_AUTO = 0;
     static const int SEARCH_TYPE_PROTEIN = 1;
     static const int SEARCH_TYPE_TRANSLATED = 2;
     static const int SEARCH_TYPE_NUCLEOTIDES = 3;
+    // flag
+    static const int SEARCH_MODE_FLAG_QUERY_AMINOACID = 1;
+    static const int SEARCH_MODE_FLAG_TARGET_AMINOACID = 2;
+    static const int SEARCH_MODE_FLAG_QUERY_TRANSLATED = 4;
+    static const int SEARCH_MODE_FLAG_TARGET_TRANSLATED = 8;
+    static const int SEARCH_MODE_FLAG_QUERY_PROFILE = 16;
+    static const int SEARCH_MODE_FLAG_TARGET_PROFILE = 32;
+    static const int SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE = 64;
+    static const int SEARCH_MODE_FLAG_TARGET_NUCLEOTIDE = 128;
+
 
 
     static const unsigned int ALIGNMENT_MODE_FAST_AUTO = 0;
@@ -137,11 +149,15 @@ public:
     static const int QUERY_DB_SPLIT = 1;
     static const int DETECT_BEST_DB_SPLIT = 2;
 
-    static const int TAXONOMY_NO_LCA = 0;
+    // taxonomy output
+    static const int TAXONOMY_OUTPUT_LCA = 0;
+    static const int TAXONOMY_OUTPUT_ALIGNMENT = 1;
+
+    // taxonomy search strategy
     static const int TAXONOMY_SINGLE_SEARCH = 1;
     static const int TAXONOMY_2BLCA = 2;
     static const int TAXONOMY_2BLCA_APPROX = 3;
-
+    static const int TAXONOMY_TOP_HIT = 4;
 
     static const int PARSE_VARIADIC = 1;
     static const int PARSE_REST = 2;
@@ -270,9 +286,8 @@ public:
     std::string seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
+    std::string prevMaxResListLengths;   // all max-seqs in previous iterations
     int    verbosity;                    // log level
-//    int    querySeqType;                 // Query sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
-//    int    targetSeqType;                // Target sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    threads;                      // Amounts of threads
     int    compressed;                   // compressed writer
     bool   removeTmpFiles;               // Do not delete temp files
@@ -283,8 +298,6 @@ public:
     int    kmerSize;                     // kmer size for the prefilter
     int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
-    //bool   queryProfile;                 // using queryProfile information
-    //bool   targetProfile;                // using targetProfile information
     int    compBiasCorrection;           // Aminoacid composiont correction
     int    diagonalScoring;              // switch diagonal scoring
     int    exactKmerMatching;            // only exact k-mer matching
@@ -298,7 +311,6 @@ public:
     int    splitMemoryLimit;             // Maximum amount of memory a split can use
     int    diskSpaceLimit;               // Disk space max usage for sliced reverse profile search
     bool   splitAA;                      // Split database by amino acid count instead
-    size_t resListOffset;                // Offsets result list
     int    preloadMode;                  // Preload mode of database
     float  scoreBias;                    // Add this bias to the score when computing the alignements
     std::string spacedKmerPattern;       // User-specified kmer pattern
@@ -519,15 +531,18 @@ public:
     // view
     std::string idList;
     int idxEntryType;
+
     // lca
     std::string lcaRanks;
+    bool showTaxLineage;
     std::string blacklist;
 
     // exapandaln
     int expansionMode;
 
     // taxonomy
-    int lcaMode;
+    int taxonomySearchMode;
+    int taxonomyOutpuMode;
 
     static Parameters& getInstance()
     {
@@ -560,9 +575,6 @@ public:
     PARAMETER(PARAM_COMPRESSED)
     PARAMETER(PARAM_ALPH_SIZE)
     PARAMETER(PARAM_MAX_SEQ_LEN)
-//    PARAMETER(PARAM_QUERY_PROFILE)
-//    PARAMETER(PARAM_TARGET_PROFILE)
-    //PARAMETER(PARAM_NUCL)
     PARAMETER(PARAM_DIAGONAL_SCORING)
     PARAMETER(PARAM_EXACT_KMER_MATCHING)
     PARAMETER(PARAM_MASK_RESIDUES)
@@ -571,6 +583,7 @@ public:
     PARAMETER(PARAM_MIN_DIAG_SCORE)
     PARAMETER(PARAM_K_SCORE)
     PARAMETER(PARAM_MAX_SEQS)
+    PARAMETER(PARAM_PREV_MAX_SEQS)
     PARAMETER(PARAM_SPLIT)
     PARAMETER(PARAM_SPLIT_MODE)
     PARAMETER(PARAM_SPLIT_MEMORY_LIMIT)
@@ -582,7 +595,6 @@ public:
     PARAMETER(PARAM_SPACED_KMER_MODE)
     PARAMETER(PARAM_REMOVE_TMP_FILES)
     PARAMETER(PARAM_INCLUDE_IDENTITY)
-    PARAMETER(PARAM_RES_LIST_OFFSET)
     PARAMETER(PARAM_PRELOAD_MODE)
     PARAMETER(PARAM_SPACED_KMER_PATTERN)
     PARAMETER(PARAM_LOCAL_TMP)
@@ -811,15 +823,17 @@ public:
     PARAMETER(PARAM_ID_LIST)
     PARAMETER(PARAM_IDX_ENTRY_TYPE)
 
-    // lca
+    // lca and addtaxonomy
     PARAMETER(PARAM_LCA_RANKS)
     PARAMETER(PARAM_BLACKLIST)
+    PARAMETER(PARAM_TAXON_ADD_LINEAGE)
 
     // exapandaln
     PARAMETER(PARAM_EXPANSION_MODE)
 
     // taxonomy
     PARAMETER(PARAM_LCA_MODE)
+    PARAMETER(PARAM_TAX_OUTPUT_MODE)
 
     std::vector<MMseqsParameter*> empty;
     std::vector<MMseqsParameter*> onlyverbosity;
@@ -891,8 +905,10 @@ public:
     std::vector<MMseqsParameter*> convertkb;
     std::vector<MMseqsParameter*> tsv2db;
     std::vector<MMseqsParameter*> lca;
+    std::vector<MMseqsParameter*> addtaxonomy;
     std::vector<MMseqsParameter*> filtertaxdb;
     std::vector<MMseqsParameter*> taxonomy;
+    std::vector<MMseqsParameter*> easytaxonomy;
     std::vector<MMseqsParameter*> profile2pssm;
     std::vector<MMseqsParameter*> profile2cs;
     std::vector<MMseqsParameter*> besthitbyset;

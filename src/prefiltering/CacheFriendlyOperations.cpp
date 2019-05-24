@@ -10,17 +10,17 @@ template<unsigned int BINSIZE> CacheFriendlyOperations<BINSIZE>::CacheFriendlyOp
     size = std::max(size  >> MASK_0_5_BIT, (size_t) 1); // space needed in bit array
     duplicateBitArraySize = size;
     duplicateBitArray = new(std::nothrow) unsigned char[size];
-    Util::checkAllocation(duplicateBitArray, "Could not allocate duplicateBitArray memory in CacheFriendlyOperations");
+    Util::checkAllocation(duplicateBitArray, "Can not allocate duplicateBitArray memory in CacheFriendlyOperations");
     memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
     // find nearest upper power of 2^(x)
     initBinSize = pow(2, ceil(log(initBinSize)/log(2)));
     binSize = initBinSize;
     tmpElementBuffer = new(std::nothrow) TmpResult[binSize];
-    Util::checkAllocation(tmpElementBuffer, "Could not allocate tmpElementBuffer memory in CacheFriendlyOperations");
+    Util::checkAllocation(tmpElementBuffer, "Can not allocate tmpElementBuffer memory in CacheFriendlyOperations");
 
     bins = new CounterResult*[BINCOUNT];
     binDataFrame = new(std::nothrow) CounterResult[BINCOUNT * binSize];
-    Util::checkAllocation(binDataFrame, "Could not allocate binDataFrame memory in CacheFriendlyOperations");
+    Util::checkAllocation(binDataFrame, "Can not allocate binDataFrame memory in CacheFriendlyOperations");
 
 }
 
@@ -266,10 +266,10 @@ template<unsigned int BINSIZE> void CacheFriendlyOperations<BINSIZE>::reallocBin
     delete [] tmpElementBuffer;
     binDataFrame     = new(std::nothrow) CounterResult[binCount * binSize];
     memset(binDataFrame, 0, sizeof(CounterResult) * binSize * binCount);
-    Util::checkAllocation(binDataFrame, "Could not allocate reallocBinMemory memory in CacheFriendlyOperations::reallocBinMemory");
+    Util::checkAllocation(binDataFrame, "Can not allocate reallocBinMemory memory in CacheFriendlyOperations::reallocBinMemory");
     tmpElementBuffer = new(std::nothrow) TmpResult[binSize];
     memset(tmpElementBuffer, 0, sizeof(TmpResult) * binSize);
-    Util::checkAllocation(tmpElementBuffer, "Could not allocate tmpElementBuffer memory in CacheFriendlyOperations::reallocBinMemory");
+    Util::checkAllocation(tmpElementBuffer, "Can not allocate tmpElementBuffer memory in CacheFriendlyOperations::reallocBinMemory");
 }
 
 template<unsigned int BINSIZE> void CacheFriendlyOperations<BINSIZE>::setupBinPointer(CounterResult **bins, const unsigned int binCount,

@@ -124,11 +124,13 @@ int createdb(int argc, const char **argv, const Command& command) {
     size_t isNuclCnt = 0;
     std::string dataStr;
     dataStr.reserve(1000000);
-
+    Debug::Progress progress;
     std::vector<unsigned short>* sourceLookup = new std::vector<unsigned short>[shuffleSplits]();
     for (size_t i = 0; i < shuffleSplits; ++i) {
         sourceLookup[i].reserve(16384);
     }
+    Debug(Debug::INFO) << "Converting sequences\n";
+
     for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
         unsigned int numEntriesInCurrFile = 0;
         std::string splitHeader;
@@ -139,7 +141,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         splitId.reserve(1024);
         kseq = KSeqFactory(filenames[fileIdx].c_str());
         while (kseq->ReadEntry()) {
-            Debug::printProgress(count);
+            progress.updateProgress();
             const KSeqWrapper::KSeqEntry &e = kseq->entry;
             if (e.name.l == 0) {
                 Debug(Debug::ERROR) << "Fasta entry: " << entries_num << " is invalid.\n";
@@ -161,7 +163,7 @@ int createdb(int argc, const char **argv, const Command& command) {
             std::string headerId = Util::parseFastaHeader(header);
             if (headerId.empty()) {
                 // An identifier is necessary for these two cases, so we should just give up
-                Debug(Debug::WARNING) << "Could not extract identifier from entry " << entries_num << ".\n";
+                Debug(Debug::WARNING) << "Can not extract identifier from entry " << entries_num << ".\n";
 
             }
             for (size_t split = 0; split < splitCnt; split++) {
@@ -258,6 +260,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         }
         delete kseq;
     }
+    Debug(Debug::INFO) << "\n";
     hdrWriter.close(true);
     seqWriter.close(true);
 
@@ -300,7 +303,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         std::string headerId = Util::parseFastaHeader(header);
         if (headerId.empty()) {
             // An identifier is necessary for these two cases, so we should just give up
-            Debug(Debug::WARNING) << "Could not extract identifier from entry " << entries_num << ".\n";
+            Debug(Debug::WARNING) << "Can not extract identifier from entry " << entries_num << ".\n";
         }
         lookupFile.writeStart(0);
         char *tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);

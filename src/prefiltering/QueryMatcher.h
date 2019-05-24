@@ -56,9 +56,8 @@ class QueryMatcher {
 public:
     QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLookup,
                  BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
-                 unsigned int *seqLens, short kmerThr,
-                 double kmerMatchProb, int kmerSize, size_t dbSize,
-                 unsigned int maxSeqLen, unsigned int effectiveKmerSize,
+                 short kmerThr, int kmerSize, size_t dbSize,
+                 unsigned int maxSeqLen,
                  size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring,
                  unsigned int minDiagScoreThr, bool takeOnlyBestKmer,size_t resListOffset);
     ~QueryMatcher();
@@ -152,6 +151,8 @@ public:
     }
 
 protected:
+    const static int KMER_SCORE = 0;
+    const static int UNGAPPED_DIAGONAL_SCORE = 1;
 
     // keeps stats for run
     statistics_t * stats;
@@ -213,36 +214,23 @@ protected:
     // last data pointer (for overflow check)
     IndexEntryLocal * lastSequenceHit;
 
-    // the following variables are needed to calculate the Z-score computation
-    double mu;
-
-    //log match prob (mu) of poisson distribution
-    double logMatchProb;
-
-    //pre computed score factorials
-    // S_fact = score!
-    double *logScoreFactorial;
-
     // max seq. per query
     size_t maxHitsPerQuery;
 
     // offset in the result list
     size_t resListOffset;
 
-    //pointer to seqLens
-    float *seqLens;
-
     // match sequence against the IndexTable
     size_t match(Sequence *seq, float *pDouble);
 
     // extract result from databaseHits
+    template <int TYPE>
     std::pair<hit_t *, size_t> getResult(CounterResult * results,
                                          size_t resultSize,
-                                         size_t maxHitPerQuery,
                                          const unsigned int id,
                                          const unsigned short thr,
                                          UngappedAlignment *ungappedAlignment,
-                                         const bool diagonalScoring, const int rescale);
+                                         const int rescale);
     // compute double hits
     size_t getDoubleDiagonalMatches();
 

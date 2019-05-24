@@ -63,10 +63,11 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
         result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
         const char *entry[255];
+        Debug::Progress progress(dbSize-dbFrom);
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
-            Debug::printProgress(id);
+            progress.updateProgress();
             unsigned int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
@@ -267,7 +268,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
 
     qDbr->close();
     delete qDbr;
-    Debug(Debug::INFO) << "\nDone.\n";
+
 
     return EXIT_SUCCESS;
 }

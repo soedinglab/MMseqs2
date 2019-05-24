@@ -10,7 +10,7 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 [![BioConda Install](https://img.shields.io/conda/dn/bioconda/mmseqs2.svg?style=flag&label=BioConda%20install)](https://anaconda.org/bioconda/mmseqs2)
 [![Github All Releases](https://img.shields.io/github/downloads/soedinglab/mmseqs2/total.svg)](https://github.com/soedinglab/mmseqs2/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/soedinglab/mmseqs2.svg)](https://hub.docker.com/r/soedinglab/mmseqs2)
-![Codeship CI](https://codeship.com/projects/58db4570-5f19-0134-0f23-2e28d2b4319e/status?branch=master)
+[![Build Status](https://dev.azure.com/themartinsteinegger/mmseqs2/_apis/build/status/soedinglab.MMseqs2?branchName=master)](https://dev.azure.com/themartinsteinegger/mmseqs2/_build/latest?definitionId=2&branchName=master)
 ![AppVeyor CI](https://ci.appveyor.com/api/projects/status/lq8nxeb0j8v38d1a?svg=true)
 [![Travis CI](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)](https://travis-ci.org/soedinglab/MMseqs2)
 [![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.840208.svg)](https://zenodo.org/record/1718312)
@@ -29,10 +29,6 @@ Keep posted about MMseqs2/Linclust updates by following Martin on [Twitter](http
 07/07/2018 Linclust has just been published at [Nature Communications](https://www.nature.com/articles/s41467-018-04964-5).
 
 17/10/2017 MMseqs2 has just been published at [Nature Biotechnology](https://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3988.html).
-
-## Help welcome! 
-If you would like to contribute to MMseqs2 development, we would be glad to hear from you. This can be as paid research assistant or intern, bachelor, master or PhD student or postdoc.  Contact: johannes.soeding at mpibpc.mpg.de.
-
 
 ## Installation
 MMseqs2 can be used by compiling from source, downloading a statically compiled version, using [Homebrew](https://github.com/Homebrew/brew), [conda](https://github.com/conda/conda) or [Docker](https://github.com/moby/moby). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux or `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
@@ -135,6 +131,7 @@ MMseqs2 provides many additional search modes:
  * Fast ungapped alignment searches to find [very similar sequence matches](https://github.com/soedinglab/MMseqs2/wiki#mapping-very-similar-sequences-using-mmseqs-map)
  * Very fast and sensitive Searches against [profile databases such as the PFAM](https://github.com/soedinglab/MMseqs2/wiki#how-to-create-a-target-profile-database-from-pfam)
  * [Reciprocal best hits search](https://github.com/soedinglab/MMseqs2/wiki#reciprocal-best-hit-using-mmseqs-rbh)
+ * [Web search API and user interface](https://github.com/soedinglab/MMseqs2-App)
 
 
 Many modes can also be combined. You can, for example, do a translated nucleotide against protein profile search.

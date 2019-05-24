@@ -36,6 +36,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
         size_t entries = profileReader.getSize();
 
         SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0);
+        Debug::Progress progress(entries);
 
         Debug(Debug::INFO) << "Start converting profiles.\n";
 #pragma omp parallel
@@ -52,7 +53,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 1000)
             for (size_t i = 0; i < entries; ++i) {
-                Debug::printProgress(i);
+                progress.updateProgress();
                 result.clear();
 
                 unsigned int key = profileReader.getDbKey(i);
@@ -100,7 +101,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
         }
         writer.close();
     }
-    Debug(Debug::INFO) << "\nDone.\n";
+
     profileReader.close();
     return EXIT_SUCCESS;
 }

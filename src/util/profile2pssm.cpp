@@ -26,6 +26,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
     const bool isDbOutput = par.dbOut;
 
     size_t entries = profileReader.getSize();
+    Debug::Progress progress(entries);
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0);
     Debug(Debug::INFO) << "Start converting profiles.\n";
@@ -44,7 +45,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 1000)
         for (size_t i = 0; i < entries; ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
             result.clear();
 
             unsigned int key = profileReader.getDbKey(i);
@@ -87,7 +88,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
         remove(par.db2Index.c_str());
     }
 
-    Debug(Debug::INFO) << "\nDone.\n";
+
 
     profileReader.close();
 

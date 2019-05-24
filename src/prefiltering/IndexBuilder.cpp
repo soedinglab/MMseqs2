@@ -61,7 +61,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                                 SequenceLookup **unmaskedLookup,BaseMatrix &subMat, Sequence *seq,
                                 DBReader<unsigned int> *dbr, size_t dbFrom, size_t dbTo, int kmerThr,
                                 bool mask, bool maskLowerCaseMode) {
-    Debug(Debug::INFO) << "Index table: counting k-mers...\n";
+    Debug(Debug::INFO) << "Index table: counting k-mers\n";
 
     const bool isProfile = Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_HMM_PROFILE);
 
@@ -96,6 +96,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     if (Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_PROFILE_STATE_SEQ) == false) {
         idScoreLookup = getScoreLookup(subMat);
     }
+    Debug::Progress progress(dbTo-dbFrom);
 
     size_t maskedResidues = 0;
     size_t totalKmerCount = 0;
@@ -120,7 +121,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 
         #pragma omp for schedule(dynamic, 100) reduction(+:totalKmerCount, maskedResidues)
         for (size_t id = dbFrom; id < dbTo; id++) {
-            Debug::printProgress(id - dbFrom);
+            progress.updateProgress();
 
             s.resetCurrPos();
             char *seqData = dbr->getData(id, thread_idx);
@@ -189,7 +190,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         delete probMatrix;
     }
 
-    Debug(Debug::INFO) << "\nIndex table: Masked residues: " << maskedResidues << "\n";
+    Debug(Debug::INFO) << "Index table: Masked residues: " << maskedResidues << "\n";
     if(totalKmerCount == 0) {
         Debug(Debug::ERROR) << "No k-mer could be extracted for the database " << dbr->getDataFileName() << ".\n"
                             << "Maybe the sequences length is less than 14 residues.\n";
@@ -220,8 +221,9 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     indexTable->init();
 
     delete info;
+    Debug::Progress progress2(dbTo-dbFrom);
 
-    Debug(Debug::INFO) << "Index table: fill...\n";
+    Debug(Debug::INFO) << "Index table: fill\n";
     #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -241,7 +243,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         #pragma omp for schedule(dynamic, 100)
         for (size_t id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
-            Debug::printProgress(id - dbFrom);
+            progress2.updateProgress();
 
             unsigned int qKey = dbr->getDbKey(id);
             if (isProfile) {
@@ -264,7 +266,5 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     }
 
     indexTable->sortDBSeqLists();
-    Debug(Debug::INFO) << "\nIndex table: removing duplicate entries...\n";
     indexTable->revertPointer();
-    Debug(Debug::INFO) << "Index table init done.\n\n";
 }

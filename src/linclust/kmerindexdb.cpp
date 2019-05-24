@@ -26,7 +26,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     setKmerLengthAndAlphabet(par, seqDbr.getAminoAcidDBSize(), querySeqType);
     std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);
-    Debug(Debug::INFO) << "Database type: " << seqDbr.getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Database size: "  << seqDbr.getSize() << " type: " << seqDbr.getDbTypeName() << "\n";
     std::string indexDB = LinsearchIndexReader::indexName(par.db2);
     if (par.checkCompatible && FileUtil::fileExists(indexDB.c_str())) {
         Debug(Debug::INFO) << "Check index " << indexDB << "\n";
@@ -65,7 +65,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "\n";
     size_t totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
-    Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << memoryLimit << " byte)\n";
+    Debug(Debug::INFO) << "Estimated memory consumption " << totalSizeNeeded/1024/1024 << " MB\n";
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
 //    size_t splits = 2;

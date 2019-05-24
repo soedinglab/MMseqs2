@@ -280,6 +280,7 @@ int apply(int argc, const char **argv, const Command& command) {
     reader.open(DBReader<unsigned int>::SORT_BY_LENGTH);
 
     const unsigned int *sizes = reader.getSeqLens();
+    Debug::Progress progress(reader.getSize());
 
 #ifdef HAVE_MPI
     struct worker_s {
@@ -328,7 +329,7 @@ int apply(int argc, const char **argv, const Command& command) {
                         continue;
                     }
 
-                    Debug::printProgress(i);
+                    progress.updateProgress();
 
                     size_t index = i;
                     size_t size = sizes[i] - 1;
@@ -373,7 +374,7 @@ int apply(int argc, const char **argv, const Command& command) {
             }
         }
     }
-    Debug(Debug::INFO) << "\nDone.\n";
+
 
     reader.close();
 

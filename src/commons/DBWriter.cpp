@@ -109,7 +109,7 @@ void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
             writeData(data, (length == 0 ? 0 : length - 1), dbr.getDbKey(id), thread_idx);
         }
     };
-    Debug(Debug::INFO) << "Done\n";
+
 }
 
 void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr,
@@ -151,7 +151,7 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr,
     }
     delete [] filesToMerge;
 
-    Debug(Debug::INFO) << "Done\n";
+
 }
 
 // allocates heap memory, careful
@@ -171,7 +171,7 @@ void DBWriter::open(size_t bufferSize) {
         int fd = fileno(dataFiles[i]);
         int flags;
         if ((flags = fcntl(fd, F_GETFL, 0)) < 0 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
-            Debug(Debug::ERROR) << "Could not set mode for " << dataFileNames[i] << "!\n";
+            Debug(Debug::ERROR) << "Can not set mode for " << dataFileNames[i] << "!\n";
             EXIT(EXIT_FAILURE);
         }
 
@@ -186,7 +186,7 @@ void DBWriter::open(size_t bufferSize) {
         indexFiles[i] =  FileUtil::openAndDelete(indexFileNames[i], "w");
         fd = fileno(indexFiles[i]);
         if ((flags = fcntl(fd, F_GETFL, 0)) < 0 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
-            Debug(Debug::ERROR) << "Could not set mode for " << indexFileNames[i] << "!\n";
+            Debug(Debug::ERROR) << "Can not set mode for " << indexFileNames[i] << "!\n";
             EXIT(EXIT_FAILURE);
         }
 
@@ -227,7 +227,7 @@ void DBWriter::writeDbtypeFile(const char* path, int dbtype, bool isCompressed) 
     dbtype = isCompressed ? dbtype | (1 << 31) : dbtype & ~(1 << 31);
     size_t written = fwrite(&dbtype, sizeof(int), 1, file);
     if (written != 1) {
-        Debug(Debug::ERROR) << "Could not write to data file " << name << "\n";
+        Debug(Debug::ERROR) << "Can not write to data file " << name << "\n";
         EXIT(EXIT_FAILURE);
     }
     fclose(file);
@@ -272,7 +272,7 @@ void DBWriter::close(bool merge) {
 void DBWriter::writeStart(unsigned int thrIdx) {
     checkClosed();
     if (thrIdx >= threads) {
-        Debug(Debug::ERROR) << "ERROR: Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
+        Debug(Debug::ERROR) << "Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
         EXIT(EXIT_FAILURE);
     }
     starts[thrIdx] = offsets[thrIdx];
@@ -282,7 +282,7 @@ void DBWriter::writeStart(unsigned int thrIdx) {
         int cLevel = 3;
         size_t const initResult = ZSTD_initCStream(cstream[thrIdx], cLevel);
         if (ZSTD_isError(initResult)) {
-            Debug(Debug::ERROR) << "ERROR: ZSTD_initCStream() error in thread " << thrIdx << ". Error "
+            Debug(Debug::ERROR) << "ZSTD_initCStream() error in thread " << thrIdx << ". Error "
                                 << ZSTD_getErrorName(initResult) << "\n";
             EXIT(EXIT_FAILURE);
         }
@@ -292,7 +292,7 @@ void DBWriter::writeStart(unsigned int thrIdx) {
 size_t DBWriter::writeAdd(const char* data, size_t dataSize, unsigned int thrIdx) {
     checkClosed();
     if (thrIdx >= threads) {
-        Debug(Debug::ERROR) << "ERROR: Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
+        Debug(Debug::ERROR) << "Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
         EXIT(EXIT_FAILURE);
     }
     bool isCompressedDB = (mode & Parameters::WRITER_COMPRESSED_MODE) != 0;
@@ -308,13 +308,13 @@ size_t DBWriter::writeAdd(const char* data, size_t dataSize, unsigned int thrIdx
             ZSTD_outBuffer output = {compressedBuffers[thrIdx], compressedBufferSizes[thrIdx], 0};
             size_t toRead = ZSTD_compressStream( cstream[thrIdx], &output, &input);   /* toRead is guaranteed to be <= ZSTD_CStreamInSize() */
             if (ZSTD_isError(toRead)) {
-                Debug(Debug::ERROR) << "ERROR: ZSTD_compressStream() error in thread " << thrIdx << ". Error "
+                Debug(Debug::ERROR) << "ZSTD_compressStream() error in thread " << thrIdx << ". Error "
                                     << ZSTD_getErrorName(toRead) << "\n";
                 EXIT(EXIT_FAILURE);
             }
             size_t written = addToThreadBuffer(compressedBuffers[thrIdx], sizeof(char), output.pos, thrIdx);
             if (written != output.pos) {
-                Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
+                Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[thrIdx] << "\n";
                 EXIT(EXIT_FAILURE);
             }
             offsets[thrIdx] += written;
@@ -328,7 +328,7 @@ size_t DBWriter::writeAdd(const char* data, size_t dataSize, unsigned int thrIdx
             written = fwrite(data, sizeof(char), dataSize, dataFiles[thrIdx]);
         }
         if (written != dataSize) {
-            Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
+            Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[thrIdx] << "\n";
             EXIT(EXIT_FAILURE);
         }
         offsets[thrIdx] += written;
@@ -348,7 +348,7 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
 
             //        std::cout << compressedLength << std::endl;
             if (ZSTD_isError(remainingToFlush)) {
-                Debug(Debug::ERROR) << "ERROR: ZSTD_endStream() error in thread " << thrIdx << ". Error "
+                Debug(Debug::ERROR) << "ZSTD_endStream() error in thread " << thrIdx << ". Error "
                                     << ZSTD_getErrorName(remainingToFlush) << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -360,7 +360,7 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
             compressedLength = threadBufferOffset[thrIdx];
             offsets[thrIdx] += written;
             if (written != output.pos) {
-                Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
+                Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[thrIdx] << "\n";
                 EXIT(EXIT_FAILURE);
             }
         }else {
@@ -369,7 +369,7 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
         unsigned int compressedLengthInt = static_cast<unsigned int>(compressedLength);
         size_t written2 = fwrite(&compressedLengthInt, sizeof(unsigned int), 1, dataFiles[thrIdx]);
         if (written2 != 1) {
-            Debug(Debug::ERROR) << "Could not write entry length to data file " << dataFileNames[thrIdx] << "\n";
+            Debug(Debug::ERROR) << "Can not write entry length to data file " << dataFileNames[thrIdx] << "\n";
             EXIT(EXIT_FAILURE);
         }
         offsets[thrIdx] +=  sizeof(unsigned int);
@@ -386,7 +386,7 @@ void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte,
         }
         const size_t written = fwrite(&nullByte, sizeof(char), 1, dataFiles[thrIdx]);
         if (written != 1) {
-            Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
+            Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[thrIdx] << "\n";
             EXIT(EXIT_FAILURE);
         }
         totalWritten += written;
@@ -412,7 +412,7 @@ void DBWriter::writeIndexEntry(unsigned int key, size_t offset, size_t length, u
     size_t len = indexToBuffer(buffer, key, offset, length );
     size_t written = fwrite(buffer, sizeof(char), len, indexFiles[thrIdx]);
     if (written != len) {
-        Debug(Debug::ERROR) << "Could not write to data file " << indexFiles[thrIdx] << "\n";
+        Debug(Debug::ERROR) << "Can not write to data file " << dataFileName[thrIdx] << "\n";
         EXIT(EXIT_FAILURE);
     }
 }
@@ -449,7 +449,7 @@ void DBWriter::alignToPageSize() {
     for (size_t i = currentOffset; i < newOffset; ++i) {
         size_t written = fwrite(&nullByte, sizeof(char), 1, dataFiles[0]);
         if (written != 1) {
-            Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[0] << "\n";
+            Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[0] << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -548,13 +548,14 @@ void DBWriter::mergeResultsNormal(const char *outFileName, const char *outFileNa
     Timer timer;
     // merge results from each thread into one result file
     if (fileCount > 1) {
-        FILE *outFile = fopen(outFileName, "w");
+        FILE *outFile = FileUtil::openAndDelete(outFileName, "w");
+        
         FILE **infiles = new FILE *[fileCount];
         std::vector<size_t> threadDataFileSizes;
         for (unsigned int i = 0; i < fileCount; i++) {
             infiles[i] = fopen(dataFileNames[i], "r");
             if (infiles[i] == NULL) {
-                Debug(Debug::ERROR) << "Could not open result file " << dataFileNames[i] << "!\n";
+                Debug(Debug::ERROR) << "Can not open result file " << dataFileNames[i] << "!\n";
                 EXIT(EXIT_FAILURE);
             }
             struct stat sb;
@@ -569,7 +570,7 @@ void DBWriter::mergeResultsNormal(const char *outFileName, const char *outFileNa
         for (unsigned int i = 0; i < fileCount; i++) {
             fclose(infiles[i]);
             if (std::remove(dataFileNames[i]) != 0) {
-                Debug(Debug::WARNING) << "Could not remove file " << dataFileNames[i] << "\n";
+                Debug(Debug::WARNING) << "Can not remove file " << dataFileNames[i] << "\n";
             }
         }
         delete[] infiles;
@@ -579,7 +580,7 @@ void DBWriter::mergeResultsNormal(const char *outFileName, const char *outFileNa
         mergeIndex(indexFileNames, threadDataFileSizes, fileCount);
     } else {
         if (std::rename(dataFileNames[0], outFileName) != 0) {
-            Debug(Debug::ERROR) << "Could not move result " << dataFileNames[0] << " to final location " << outFileName << "!\n";
+            Debug(Debug::ERROR) << "Can not move result " << dataFileNames[0] << " to final location " << outFileName << "!\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -611,7 +612,7 @@ void DBWriter::mergeIndex(const char **indexFileNames,
         }
         reader.close();
         if (std::remove(indexFileNames[fileIdx]) != 0) {
-            Debug(Debug::WARNING) << "Could not remove file " << indexFileNames[fileIdx] << "\n";
+            Debug(Debug::WARNING) << "Can not remove file " << indexFileNames[fileIdx] << "\n";
         }
 
         globalOffset += threadDataFileSizes[fileIdx];
@@ -630,7 +631,7 @@ void DBWriter::mergeResultsIndexOnly(const char *outFileName, const char *outFil
         for (unsigned int i = 0; i < fileCount; i++) {
             FILE * infile = fopen(dataFileNames[i], "r");
             if (infile == NULL) {
-                Debug(Debug::ERROR) << "Could not open result file " << dataFileNames[i] << "!\n";
+                Debug(Debug::ERROR) << "Can not open result file " << dataFileNames[i] << "!\n";
                 EXIT(EXIT_FAILURE);
             }
 
@@ -648,12 +649,12 @@ void DBWriter::mergeResultsIndexOnly(const char *outFileName, const char *outFil
         FileUtil::remove(indexFileNames[0]);
     } else {
         if (std::rename(dataFileNames[0], outFileName) != 0) {
-            Debug(Debug::ERROR) << "Could not move result " << dataFileNames[0] << " to final location " << outFileName << "!\n";
+            Debug(Debug::ERROR) << "Can not move result " << dataFileNames[0] << " to final location " << outFileName << "!\n";
             EXIT(EXIT_FAILURE);
         }
 
         if (std::rename(indexFileNames[0], outFileNameIndex) != 0) {
-            Debug(Debug::ERROR) << "Could not move result index " << indexFileNames[0] << " to final location " << outFileNameIndex << "!\n";
+            Debug(Debug::ERROR) << "Can not move result index " << indexFileNames[0] << " to final location " << outFileNameIndex << "!\n";
             EXIT(EXIT_FAILURE);
         }
         DBWriter::sortIndex(outFileNameIndex, outFileNameIndex, lexicographicOrder);
@@ -713,7 +714,7 @@ void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::strin
                 if (writePos == bufferSize) {
                     size_t written = write(dataFilefd, buffer, bufferSize);
                     if (written != bufferSize) {
-                        Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[0] << "\n";
+                        Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[0] << "\n";
                         EXIT(EXIT_FAILURE);
                     }
                     writePos = 0;
@@ -725,7 +726,7 @@ void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::strin
         if (writePos == bufferSize) {
             size_t written = write(dataFilefd, buffer, bufferSize);
             if (written != bufferSize) {
-                Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[0] << "\n";
+                Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[0] << "\n";
                 EXIT(EXIT_FAILURE);
             }
             writePos = 0;
@@ -736,7 +737,7 @@ void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::strin
         // if there is data in the buffer that is not yet written
         size_t written = write(dataFilefd, (const void *) dataFilesBuffer[0], writePos);
         if (written != writePos) {
-            Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[0] << "\n";
+            Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[0] << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -744,6 +745,7 @@ void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::strin
     for (size_t i = 0; i < fileNames.size(); ++i) {
         fclose(files[i]);
     }
+    delete[] files;
 
     Debug(Debug::INFO) << "Merge file " << fileNames[0].first << " and " << fileNames[0].second << "\n";
     DBReader<unsigned int> reader1(fileNames[0].first.c_str(), fileNames[0].second.c_str(), 1,

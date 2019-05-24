@@ -20,7 +20,7 @@
 #endif
 
 int result2msa(Parameters &par, const std::string &resultData, const std::string &resultIndex,
-               const size_t dbFrom, const size_t dbSize, bool merge, DBConcat *referenceDBr = NULL) {
+               const size_t dbFrom, const size_t dbSize, DBConcat *referenceDBr = NULL) {
     if (par.compressMSA && referenceDBr == NULL) {
         Debug(Debug::ERROR) << "Need a sequence and header database for ca3m output!\n";
         EXIT(EXIT_FAILURE);
@@ -92,9 +92,12 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    Debug(Debug::INFO) << "Query database type: " << qDbr.getDbTypeName() << "\n";
-    Debug(Debug::INFO) << "Target database type: " << tDbr->getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Query database size: "  << qDbr.getSize() << " type: " << qDbr.getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Target database size: " << tDbr->getSize() << " type: " << tDbr->getDbTypeName() << "\n";
+
     const bool isFiltering = par.filterMsa != 0;
+    Debug::Progress progress(dbSize-dbFrom);
+
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -119,7 +122,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
 
 #pragma omp  for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
-            Debug::printProgress(id);
+            progress.updateProgress();
 
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader.getDbKey(id);
@@ -166,7 +169,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                 if (dbSeqData == NULL) {
 #pragma omp critical
                     {
-                        Debug(Debug::ERROR) << "ERROR: Sequence " << key << " is required in the prefiltering,"
+                        Debug(Debug::ERROR) << "Sequence " << key << " is required in the prefiltering,"
                                             << "but is not contained in the target sequence database!\n"
                                             << "Please check your database.\n";
                         EXIT(EXIT_FAILURE);
@@ -300,7 +303,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
     }
 
     // cleanup
-    resultWriter.close(merge);
+    resultWriter.close(true);
     resultReader.close();
     queryHeaderReader.close();
     qDbr.close();
@@ -312,7 +315,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
         delete tDbr;
     }
 
-    Debug(Debug::INFO) << "\nDone.\n";
+
 
     return EXIT_SUCCESS;
 }
@@ -359,7 +362,7 @@ int result2msa(Parameters &par) {
         outIndex.append("_ca3m.ffindex");
     }
 
-    int status = result2msa(par, outDb, outIndex, 0, resultSize, false, referenceDBr);
+    int status = result2msa(par, outDb, outIndex, 0, resultSize, referenceDBr);
 
     if (referenceDBr != NULL) {
         referenceDBr->close();
@@ -424,7 +427,7 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
     }
 
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outDb, outIndex, mpiRank);
-    int status = result2msa(par, tmpOutput.first, tmpOutput.second, dbFrom, dbSize, true, referenceDBr);
+    int status = result2msa(par, tmpOutput.first, tmpOutput.second, dbFrom, dbSize, referenceDBr);
 
     // close reader to reduce memory
     if (referenceDBr != NULL) {

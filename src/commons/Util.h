@@ -34,6 +34,9 @@ std::string SSTR(T) {
 }
 
 template<> std::string SSTR(const char*);
+template<> std::string SSTR(char*);
+template<> std::string SSTR(bool);
+template<> std::string SSTR(const char[]);
 template<> std::string SSTR(const std::string&);
 template<> std::string SSTR(std::string);
 template<> std::string SSTR(char);

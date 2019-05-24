@@ -35,8 +35,8 @@ float parsePrecisionLib(const std::string &scoreFile, double targetSeqid, double
             return scorePerCol;
         }
     }
-    Debug(Debug::WARNING) << "Could not find any score per column for cov "
-                          << targetCov << " seq.id. " << targetSeqid << ". No hit will be filtered.\n";
+    Debug(Debug::WARNING) << "Can not find any score per column for coverage "
+                          << targetCov << " and sequence identity " << targetSeqid << ". No hit will be filtered.\n";
 
     return 0;
 }
@@ -101,16 +101,18 @@ int doRescorediagonal(Parameters &par,
         globalAliStat.prepareGlobalAliParam(*subMat);
     }
 
-    Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 100000000;
     if (totalMemory > resultReader.getTotalDataSize()) {
         flushSize = resultReader.getSize();
     }
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
+
     for (size_t i = 0; i < iterations; i++) {
         size_t start = dbFrom + (i * flushSize);
         size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
+        Debug::Progress progress(bucketSize);
+
 #pragma omp parallel
         {
             unsigned int thread_idx = 0;
@@ -133,7 +135,7 @@ int doRescorediagonal(Parameters &par,
             }
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
-                Debug::printProgress(id);
+                progress.updateProgress();
 
                 char *data = resultReader.getData(id, thread_idx);
                 size_t queryKey = resultReader.getDbKey(id);
@@ -327,7 +329,7 @@ int doRescorediagonal(Parameters &par,
         }
         resultReader.remapData();
     }
-    Debug(Debug::INFO) << "\nDone.\n";
+
 
     if (tDbrIdx != NULL) {
         delete tDbrIdx;
@@ -351,7 +353,6 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 4);
 
 
-    Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     int dbtype = Parameters::DBTYPE_PREFILTER_RES;

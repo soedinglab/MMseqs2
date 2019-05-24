@@ -44,6 +44,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << "Hashing sequences ... \n";
     std::pair<size_t, unsigned int> * hashSeqPair = new  std::pair<size_t, unsigned int>[seqDbr.getSize()+1];
     hashSeqPair[seqDbr.getSize()] = std::make_pair(UINT_MAX, 0); // needed later to check if one of array
+    Debug::Progress progress(seqDbr.getSize());
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -53,7 +54,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
         Sequence seq(par.maxSeqLen, Parameters::DBTYPE_AMINO_ACIDS, &redSubMat, 0, false, false);
 #pragma omp for schedule(dynamic, 10000)
         for(size_t id = 0; id < seqDbr.getSize(); id++){
-            Debug::printProgress(id);
+            progress.updateProgress();
             unsigned int queryKey = seqDbr.getDbKey(id);
             char * data = seqDbr.getData(id, thread_idx);
             seq.mapSequence(id, queryKey, data);
@@ -61,7 +62,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
             hashSeqPair[id] = std::make_pair(seqHash, id);
         }
     }
-    Debug(Debug::INFO) << "Done." << "\n";
+
 
 
     // sort by hash and set up the pointer for parallel processing
@@ -96,7 +97,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
         for(size_t hashId = 0; hashId < uniqHashes; hashId++) {
             size_t initHash = hashLookup[hashId]->first;
             size_t pos = 0;
-            Debug::printProgress(hashId);
+            progress.updateProgress();
 
             int thread_idx = 0;
 #ifdef OPENMP

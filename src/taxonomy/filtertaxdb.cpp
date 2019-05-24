@@ -16,21 +16,17 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
     std::string nodesFile = par.db1 + "_nodes.dmp";
     std::string namesFile = par.db1 + "_names.dmp";
     std::string mergedFile = par.db1 + "_merged.dmp";
-    std::string delnodesFile = par.db1 + "_delnodes.dmp";
     if (FileUtil::fileExists(nodesFile.c_str())
         && FileUtil::fileExists(namesFile.c_str())
-        && FileUtil::fileExists(mergedFile.c_str())
-        && FileUtil::fileExists(delnodesFile.c_str())) {
+        && FileUtil::fileExists(mergedFile.c_str())) {
     } else if (FileUtil::fileExists("nodes.dmp")
                && FileUtil::fileExists("names.dmp")
-               && FileUtil::fileExists("merged.dmp")
-               && FileUtil::fileExists("delnodes.dmp")) {
+               && FileUtil::fileExists("merged.dmp")) {
         nodesFile = "nodes.dmp";
         namesFile = "names.dmp";
         mergedFile = "merged.dmp";
-        delnodesFile = "delnodes.dmp";
     } else {
-        Debug(Debug::ERROR) << "names.dmp, nodes.dmp, merged.dmp or delnodes.dmp from NCBI taxdump could not be found!\n";
+        Debug(Debug::ERROR) << "names.dmp, nodes.dmp or merged.dmp from NCBI taxdump could not be found!\n";
         EXIT(EXIT_FAILURE);
     }
 
@@ -54,10 +50,11 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
 
 
     bool invertSelection = par.invertSelection;
-    Debug(Debug::INFO) << "Loading NCBI taxonomy...\n";
-    NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
+    Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
+    NcbiTaxonomy t(namesFile, nodesFile, mergedFile);
+    Debug::Progress progress(reader.getSize());
 
-    Debug(Debug::INFO) << "Computing LCA...\n";
+    Debug(Debug::INFO) << "Computing LCA\n";
     #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -69,7 +66,7 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
 
         #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < reader.getSize(); ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
@@ -82,9 +79,10 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
             std::vector<int> taxa;
             while (*data != '\0') {
                 int taxon;
-                bool isAncestor = false;
                 size_t j;
-                std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
+                bool isAncestor = false;
+                bool filterTaxon = false;
+
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
                 if (columns == 0) {
                     Debug(Debug::WARNING) << "Empty entry: " << i << "!";
@@ -94,35 +92,16 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
                 taxon = Util::fast_atoi<unsigned int>(entry[0]);
                 writer.writeStart(thread_idx);
 
-
                 // remove blacklisted taxa
-                for (j = 0; j < taxListSize && isAncestor == false; ++j) {
-                    if(taxalist[j] == 0){
-                        isAncestor = std::max(isAncestor, (taxon == 0) ? true : false);
-                        continue;
-                    }
-                    if(taxon == 0){
-                        continue;
-                    }
-                    isAncestor = std::max(isAncestor, t.IsAncestor(taxalist[j], taxon));
+                for (j = 0; j < taxListSize && !isAncestor; ++j) {
+                    isAncestor |= t.IsAncestor(taxalist[j], taxon);
                 }
 
-                if(invertSelection == true) {
-                    if (isAncestor == true) {
-                        goto next;
-                    } else if (isAncestor == false) {
-                        char * nextData = Util::skipLine(data);
-                        size_t dataSize = nextData - data;
-                        writer.writeAdd(data, dataSize, thread_idx);
-                    }
-                } else {
-                    if (isAncestor == true) {
-                        char * nextData = Util::skipLine(data);
-                        size_t dataSize = nextData - data;
-                        writer.writeAdd(data, dataSize, thread_idx);
-                    } else if (isAncestor == false) {
-                        goto next;
-                    }
+                filterTaxon = invertSelection? isAncestor: !isAncestor;
+                if (!filterTaxon) {
+                    char * nextData = Util::skipLine(data);
+                    size_t dataSize = nextData - data;
+                    writer.writeAdd(data, dataSize, thread_idx);
                 }
                 next:
                 data = Util::skipLine(data);

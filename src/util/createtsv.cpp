@@ -19,7 +19,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true, Parameters::PARSE_VARIADIC);
 
-    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
+
 
     bool queryNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db1.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
     bool targetNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
@@ -41,7 +41,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
             tHeaderLength = qHeaderLength;
             targetDB = queryDB;
         } else {
-            Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
+
             int targetHeaderType = (targetNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS;
             targetHeaderType = (par.idxSeqSrc == 0) ? targetHeaderType :  (par.idxSeqSrc == 1) ?  IndexReader::HEADERS : IndexReader::SRC_HEADERS;
 
@@ -53,10 +53,10 @@ int createtsv(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> *reader;
     if (hasTargetDB) {
-        Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
+
         reader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     } else {
-        Debug(Debug::INFO) << "Result database: " << par.db2 << "\n";
+
         reader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     }
     reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -65,7 +65,6 @@ int createtsv(int argc, const char **argv, const Command &command) {
     const std::string& indexFile = hasTargetDB ? par.db4Index : par.db3Index;
     const bool shouldCompress = par.dbOut == true && par.compressed == true;
     const int dbType = par.dbOut == true ? Parameters::DBTYPE_GENERIC_DB : Parameters::DBTYPE_OMIT_FILE;
-    Debug(Debug::INFO) << "Start writing to " << dataFile << "\n";
     DBWriter writer(dataFile.c_str(), indexFile.c_str(), par.threads, shouldCompress, dbType);
     writer.open();
 

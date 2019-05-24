@@ -22,7 +22,6 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4, false);
 
-    Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     IndexReader * qDbrIdx = NULL;
@@ -65,7 +64,6 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     }
     par.printParameters(command.cmd, argc, argv, *command.params);
 
-    Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> dbr_res(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
@@ -90,7 +88,6 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
 
-    Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
 
@@ -165,6 +162,8 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     for (size_t i = 0; i < iterations; i++) {
         size_t start = (i * flushSize);
         size_t bucketSize = std::min(dbr_res.getSize() - (i * flushSize), flushSize);
+        Debug::Progress progress(bucketSize);
+
 #pragma omp parallel
         {
             Sequence query(par.maxSeqLen, querySeqType, subMat, par.kmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
@@ -190,7 +189,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
-                Debug::printProgress(id);
+                progress.updateProgress();
                 std::string prefResultsOutString;
                 prefResultsOutString.reserve(1000000);
 
@@ -493,7 +492,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         }
         dbr_res.remapData();
     }
-    Debug(Debug::INFO) << "Done." << "\n";
+
     resultWriter.close();
     dbr_res.close();
 

@@ -106,8 +106,8 @@ Alignment::Alignment(const std::string &querySeqDB,
     } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         querySeqType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
     }
-    Debug(Debug::INFO) << "Query database type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
-    Debug(Debug::INFO) << "Target database type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
+    Debug(Debug::INFO) << "Query database size: "  << qdbr->getSize() << " type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
+    Debug(Debug::INFO) << "Target database size: " << tdbr->getSize() << " type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
 
     prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -115,8 +115,14 @@ Alignment::Alignment(const std::string &querySeqDB,
 
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         m = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, scoreBias);
-        gapOpen = 5;
-        gapExtend = 2;
+        gapOpen = par.gapOpen;
+        gapExtend = par.gapExtend;
+        if(par.PARAM_GAP_OPEN.wasSet==false){
+            gapOpen = 5;
+        }
+        if(par.PARAM_GAP_EXTEND.wasSet==false){
+            gapExtend = 2;
+        }
     } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
         SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, scoreBias);
         this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 219);
@@ -161,16 +167,16 @@ void Alignment::initSWMode(unsigned int alignmentMode) {
     // print out mode and check for errors
     switch (swMode) {
         case Matcher::SCORE_ONLY:
-            Debug(Debug::INFO) << "Compute score only.\n";
+            Debug(Debug::INFO) << "Compute score only\n";
             break;
         case Matcher::SCORE_COV:
-            Debug(Debug::INFO) << "Compute score and coverage.\n";
+            Debug(Debug::INFO) << "Compute score and coverage\n";
             break;
         case Matcher::SCORE_COV_SEQID:
-            Debug(Debug::INFO) << "Compute score, coverage and sequence id.\n";
+            Debug(Debug::INFO) << "Compute score, coverage and sequence identity\n";
             break;
         default:
-            Debug(Debug::ERROR) << "Wrong swMode mode.\n";
+            Debug(Debug::ERROR) << "Wrong swMode mode\n";
             EXIT(EXIT_FAILURE);
     }
 }
@@ -240,6 +246,12 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     dbw.open();
 
+    // handle no alignment case early, below would divide by 0 otherwise
+    if (dbSize == 0) {
+        dbw.close(merge);
+        return;
+    }
+
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), this->m, gapOpen, gapExtend);
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 1000000;
@@ -247,31 +259,31 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
         flushSize = dbSize;
     }
 
+    size_t iterations = static_cast<size_t>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
+    for (size_t i = 0; i < iterations; i++) {
+        size_t start = dbFrom + (i * flushSize);
+        size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
+        Debug::Progress progress(bucketSize);
+
 #pragma omp parallel num_threads(threads)
-    {
-        unsigned int thread_idx = 0;
+        {
+            unsigned int thread_idx = 0;
 #ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        std::string alnResultsOutString;
-        alnResultsOutString.reserve(1024*1024);
-        char buffer[1024+32768];
-        Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
-        Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
-        Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
-        Matcher *realigner = NULL;
-        if (realign ==  true) {
-            realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
-        }
-
-        size_t iterations = static_cast<size_t>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
-        for (size_t i = 0; i < iterations; i++) {
-            size_t start = dbFrom + (i * flushSize);
-            size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
-
+            std::string alnResultsOutString;
+            alnResultsOutString.reserve(1024*1024);
+            char buffer[1024+32768];
+            Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
+            Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
+            Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
+            Matcher *realigner = NULL;
+            if (realign ==  true) {
+                realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
+            }
 #pragma omp for schedule(dynamic, 5) reduction(+: alignmentsNum, totalPassedNum)
             for (size_t id = start; id < (start + bucketSize); id++) {
-                Debug::printProgress(id);
+                progress.updateProgress();
 
                 // get the prefiltering list
                 char *data = prefdbr->getData(id, thread_idx);
@@ -280,7 +292,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 if(*data != '\0'){
                     char *querySeqData = qdbr->getDataByDBKey(queryDbKey, thread_idx);
                     if (querySeqData == NULL) {
-                        Debug(Debug::ERROR) << "ERROR: Query sequence " << queryDbKey
+                        Debug(Debug::ERROR) << "Query sequence " << queryDbKey
                                             << " is required in the prefiltering, but is not contained in the query sequence database.\nPlease check your database.\n";
                         EXIT(EXIT_FAILURE);
                     }
@@ -312,7 +324,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                     char *dbSeqData = tdbr->getDataByDBKey(dbKey, thread_idx);
                     if (dbSeqData == NULL) {
-                        Debug(Debug::ERROR) << "ERROR: Sequence " << dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
+                        Debug(Debug::ERROR) << "Sequence " << dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
                         EXIT(EXIT_FAILURE);
                     }
                     dbSeq.mapSequence(static_cast<size_t>(-1), dbKey, dbSeqData);
@@ -357,7 +369,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     for (size_t result = 0; result < swResults.size(); result++) {
                         char *dbSeqData = tdbr->getDataByDBKey(swResults[result].dbKey, thread_idx);
                         if (dbSeqData == NULL) {
-                            Debug(Debug::ERROR) << "ERROR: Sequence " << swResults[result].dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
+                            Debug(Debug::ERROR) << "Sequence " << swResults[result].dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
                             EXIT(EXIT_FAILURE);
                         }
                         dbSeq.mapSequence(static_cast<size_t>(-1), swResults[result].dbKey, dbSeqData);
@@ -392,7 +404,9 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 dbw.writeData(alnResultsOutString.c_str(), alnResultsOutString.length(), queryDbKey, thread_idx);
                 alnResultsOutString.clear();
             }
-
+            if (realign == true) {
+                delete realigner;
+            }
 #pragma omp barrier
             if (thread_idx == 0) {
                 prefdbr->remapData();
@@ -400,15 +414,12 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 #pragma omp barrier
         }
 
-        if (realign == true) {
-            delete realigner;
-        }
+
     }
 
     dbw.close(merge);
 
-    Debug(Debug::INFO) << "\nAll sequences processed.\n\n";
-    Debug(Debug::INFO) << alignmentsNum << " alignments calculated.\n";
+    Debug(Debug::INFO) << "\n" << alignmentsNum << " alignments calculated.\n";
     Debug(Debug::INFO) << totalPassedNum << " sequence pairs passed the thresholds ("
                        << ((float) totalPassedNum / (float) alignmentsNum) << " of overall calculated).\n";
 
@@ -458,7 +469,7 @@ void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &d
         }
         char *dbSeqData = tdbr->getDataByDBKey(swResults[i].dbKey, thread_idx);
         if (dbSeqData == NULL) {
-            Debug(Debug::ERROR) << "ERROR: Sequence " << swResults[i].dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
+            Debug(Debug::ERROR) << "Sequence " << swResults[i].dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
             EXIT(EXIT_FAILURE);
         }
         dbSeq.mapSequence(static_cast<size_t>(-1), swResults[i].dbKey, dbSeqData);

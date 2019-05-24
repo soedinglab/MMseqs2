@@ -21,6 +21,7 @@ int sortresult(int argc, const char **argv, const Command &command) {
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
+    Debug::Progress progress(reader.getSize());
 
    #pragma omp parallel
     {
@@ -39,7 +40,7 @@ int sortresult(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 5)
         for (size_t i = 0; i < reader.getSize(); ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);

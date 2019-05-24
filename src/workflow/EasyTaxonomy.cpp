@@ -3,11 +3,12 @@
 #include "Debug.h"
 #include "Util.h"
 #include "CommandCaller.h"
-#include "taxonomy.sh.h"
+#include "easytaxonomy.sh.h"
 
 
-void setTaxonomyDefaults(Parameters *p) {
+void setEasyTaxonomyDefaults(Parameters *p) {
     p->spacedKmer = true;
+    p->removeTmpFiles = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
     p->sensitivity = 5.7;
     p->evalThr = 1;
@@ -16,9 +17,12 @@ void setTaxonomyDefaults(Parameters *p) {
     p->orfMaxLength = 32734;
 }
 
-int taxonomy(int argc, const char **argv, const Command& command) {
+int easytaxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    setTaxonomyDefaults(&par);
+    setEasyTaxonomyDefaults(&par);
+
+//    par.overrideParameterDescription((Command &) command, par.PARAM_TAX_OUTPUT_MODE.uniqid, "", "",
+//                                     par.PARAM_TAX_OUTPUT_MODE.category | MMseqsParameter::COMMAND_EXPERT);
     par.parseParameters(argc, argv, command, 4);
 
     if(FileUtil::directoryExists(par.db4.c_str())==false){
@@ -55,27 +59,17 @@ int taxonomy(int argc, const char **argv, const Command& command) {
         int targetMode = (int)Parameters::ALIGNMENT_MODE_SCORE_COV;
         par.alignmentMode = std::max(par.alignmentMode, targetMode);
     }
-    cmd.addVariable("SEARCH1_PAR", par.createParameterString(par.searchworkflow, true).c_str());
+    par.taxonomyOutpuMode = Parameters::TAXONOMY_OUTPUT_ALIGNMENT;
+    par.PARAM_TAX_OUTPUT_MODE.wasSet = true;
+    cmd.addVariable("TAXONOMY_PAR", par.createParameterString(par.taxonomy, true).c_str());
     par.alignmentMode = alignmentMode;
-
-    if (par.taxonomySearchMode == Parameters::TAXONOMY_TOP_HIT) {
-        cmd.addVariable("TOP_HIT", "1");
-    }else if (par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA){
-        par.sensSteps = 1;
-        par.PARAM_SENS_STEPS.wasSet = true;
-        cmd.addVariable("SEARCH2_PAR", par.createParameterString(par.searchworkflow, true).c_str());
-    }else if(par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA_APPROX){
-        cmd.addVariable("APPROX_2BLCA", "1");
-        cmd.addVariable("SEARCH2_PAR", par.createParameterString(par.align).c_str());
-    }
-
-    if (par.taxonomyOutpuMode == Parameters::TAXONOMY_OUTPUT_LCA) {
-        cmd.addVariable("TAX_OUTPUT_LCA", "1" );
-        cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
-    }
-
-    FileUtil::writeFile(tmpDir + "/taxonomy.sh", taxonomy_sh, taxonomy_sh_len);
-    std::string program(tmpDir + "/taxonomy.sh");
+    cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
+    cmd.addVariable("THREADS_PAR", par.createParameterString(par.threadsandcompression).c_str());
+    cmd.addVariable("CREATETSV_PAR", par.createParameterString(par.createtsv).c_str());
+    par.evalThr = 100000000;
+    cmd.addVariable("SWAPRESULT_PAR", par.createParameterString(par.swapresult).c_str());
+    FileUtil::writeFile(tmpDir + "/easy-taxonomy.sh", easytaxonomy_sh, easytaxonomy_sh_len);
+    std::string program(tmpDir + "/easy-taxonomy.sh");
     cmd.execProgram(program.c_str(), par.filenames);
 
     return EXIT_SUCCESS;

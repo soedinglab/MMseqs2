@@ -38,7 +38,7 @@ std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithm
     // init data
 
     unsigned int *assignedcluster = new(std::nothrow) unsigned int[dbSize];
-    Util::checkAllocation(assignedcluster, "Could not allocate assignedcluster memory in ClusteringAlgorithms::execute");
+    Util::checkAllocation(assignedcluster, "Can not allocate assignedcluster memory in ClusteringAlgorithms::execute");
     std::fill_n(assignedcluster, dbSize, UINT_MAX);
 
     //time
@@ -60,17 +60,17 @@ std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithm
             }
         }
         unsigned int * elements = new(std::nothrow) unsigned int[elementCount];
-        Util::checkAllocation(elements, "Could not allocate elements memory in ClusteringAlgorithms::execute");
+        Util::checkAllocation(elements, "Can not allocate elements memory in ClusteringAlgorithms::execute");
         unsigned int ** elementLookupTable = new(std::nothrow) unsigned int*[dbSize];
-        Util::checkAllocation(elementLookupTable, "Could not allocate elementLookupTable memory in ClusteringAlgorithms::execute");
+        Util::checkAllocation(elementLookupTable, "Can not allocate elementLookupTable memory in ClusteringAlgorithms::execute");
         unsigned short **scoreLookupTable = new(std::nothrow) unsigned short *[dbSize];
-        Util::checkAllocation(scoreLookupTable, "Could not allocate scoreLookupTable memory in ClusteringAlgorithms::execute");
+        Util::checkAllocation(scoreLookupTable, "Can not allocate scoreLookupTable memory in ClusteringAlgorithms::execute");
         unsigned short *score = NULL;
         size_t *elementOffsets = new(std::nothrow) size_t[dbSize + 1];
-        Util::checkAllocation(elementOffsets, "Could not allocate elementOffsets memory in ClusteringAlgorithms::execute");
+        Util::checkAllocation(elementOffsets, "Can not allocate elementOffsets memory in ClusteringAlgorithms::execute");
         elementOffsets[dbSize] = 0;
         short *bestscore = new(std::nothrow) short[dbSize];
-        Util::checkAllocation(bestscore, "Could not allocate bestscore memory in ClusteringAlgorithms::execute");
+        Util::checkAllocation(bestscore, "Can not allocate bestscore memory in ClusteringAlgorithms::execute");
         std::fill_n(bestscore, dbSize, SHRT_MIN);
 
         readInClusterData(elementLookupTable, elements, scoreLookupTable, score, elementOffsets, elementCount);
@@ -168,11 +168,11 @@ void ClusteringAlgorithms::initClustersizes(){
     }
     //fill array
     sorted_clustersizes = new(std::nothrow)  unsigned int[dbSize + 1];
-    Util::checkAllocation(sorted_clustersizes, "Could not allocate sorted_clustersizes memory in ClusteringAlgorithms::initClustersizes");
+    Util::checkAllocation(sorted_clustersizes, "Can not allocate sorted_clustersizes memory in ClusteringAlgorithms::initClustersizes");
 
     std::fill_n(sorted_clustersizes, dbSize+1, 0);
     clusterid_to_arrayposition = new(std::nothrow)  unsigned int[dbSize + 1];
-    Util::checkAllocation(clusterid_to_arrayposition, "Could not allocate sorted_clustersizes memory in ClusteringAlgorithms::initClustersizes");
+    Util::checkAllocation(clusterid_to_arrayposition, "Can not allocate sorted_clustersizes memory in ClusteringAlgorithms::initClustersizes");
 
     std::fill_n(clusterid_to_arrayposition, dbSize + 1, 0);
     //reuse setsize_abundance as offset counter
@@ -317,7 +317,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
                 } while (!__atomic_compare_exchange(&assignedcluster[currElement],  &targetId,  &clusterId , false,  __ATOMIC_RELAXED, __ATOMIC_RELAXED));
 
                 if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
-                    Debug(Debug::ERROR) << "ERROR: Element " << dbKey
+                    Debug(Debug::ERROR) << "Element " << dbKey
                                         << " contained in some alignment list, but not contained in the sequence database!\n";
                     EXIT(EXIT_FAILURE);
                 }
@@ -354,7 +354,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
                                                     __ATOMIC_RELAXED, __ATOMIC_RELAXED));
 
                 if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
-                    Debug(Debug::ERROR) << "ERROR: Element " << dbKey
+                    Debug(Debug::ERROR) << "Element " << dbKey
                                         << " contained in some alignment list, but not contained in the sequence database!\n";
                     EXIT(EXIT_FAILURE);
                 }
@@ -374,10 +374,11 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
 
 void ClusteringAlgorithms::greedyIncremental(unsigned int **elementLookupTable, size_t *elementOffsets,
                                              size_t n, unsigned int *assignedcluster) {
+    Debug::Progress progress(n);
     for(size_t i = 0; i < n; i++) {
         // seqDbr is descending sorted by length
         // the assumption is that clustering is B -> B (not A -> B)
-        Debug::printProgress(i);
+        progress.updateProgress();
         if(assignedcluster[i] == UINT_MAX){
             size_t elementSize = (elementOffsets[i + 1] - elementOffsets[i]);
             for (size_t elementId = 0; elementId < elementSize; elementId++) {
@@ -421,9 +422,9 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
                                                    totalElementCount);
     // fill elements
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, NULL, 0, elementOffsets);
-    Debug(Debug::INFO) << "\nSort entries.\n";
+    Debug(Debug::INFO) << "Sort entries\n";
     AlignmentSymmetry::sortElements(elementLookupTable, elementOffsets, dbSize);
-    Debug(Debug::INFO) << "\nFind missing connections.\n";
+    Debug(Debug::INFO) << "Find missing connections\n";
 
     size_t *newElementOffsets = new size_t[dbSize + 1];
     memcpy(newElementOffsets, elementOffsets, sizeof(size_t) * (dbSize + 1));
@@ -435,21 +436,21 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     // resize elements
     delete[] elements;
     elements = new(std::nothrow) unsigned int[symmetricElementCount];
-    Util::checkAllocation(elements, "Could not allocate elements memory in readInClusterData");
+    Util::checkAllocation(elements, "Can not allocate elements memory in readInClusterData");
     std::fill_n(elements, symmetricElementCount, UINT_MAX);
     // init score vector
     scores = new(std::nothrow) unsigned short[symmetricElementCount];
-    Util::checkAllocation(scores, "Could not allocate scores memory in readInClusterData");
+    Util::checkAllocation(scores, "Can not allocate scores memory in readInClusterData");
     std::fill_n(scores, symmetricElementCount, 0);
-    Debug(Debug::INFO) << "\nFound " << symmetricElementCount - totalElementCount << " new connections.\n";
+    Debug(Debug::INFO) << "Found " << symmetricElementCount - totalElementCount << " new connections.\n";
     AlignmentSymmetry::setupPointers<unsigned int>  (elements, elementLookupTable, newElementOffsets, dbSize, symmetricElementCount);
     AlignmentSymmetry::setupPointers<unsigned short>(scores, scoreLookupTable, newElementOffsets, dbSize, symmetricElementCount);
     //time
-    Debug(Debug::INFO) << "\nReconstruct initial order.\n";
+    Debug(Debug::INFO) << "Reconstruct initial order\n";
     alnDbr->remapData(); // need to free memory
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, scoreLookupTable, scoretype, elementOffsets);
     alnDbr->remapData(); // need to free memory
-    Debug(Debug::INFO) << "\nAdd missing connections.\n";
+    Debug(Debug::INFO) << "Add missing connections\n";
     AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, newElementOffsets, dbSize, scoreLookupTable);
     maxClustersize = 0;
     for (size_t i = 0; i < dbSize; i++) {

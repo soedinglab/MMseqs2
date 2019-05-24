@@ -75,7 +75,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     if (FileUtil::directoryExists(par.db4.c_str()) == false) {
         Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db4.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not create tmp folder " << par.db4 << ".\n";
+            Debug(Debug::ERROR) << "Can not create tmp folder " << par.db4 << ".\n";
             return EXIT_FAILURE;
         } else {
             Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
@@ -89,7 +89,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     std::string tmpDir = par.db4+"/"+hash;
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
             return EXIT_FAILURE;
         }
     }

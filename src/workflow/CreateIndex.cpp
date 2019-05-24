@@ -36,7 +36,7 @@ int createindex(Parameters &par, std::string indexerModule, std::string flag) {
     if (FileUtil::directoryExists(par.db2.c_str())==false) {
         Debug(Debug::INFO) << "Tmp " << par.db2 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db2.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not create tmp folder " << par.db2 << ".\n";
+            Debug(Debug::ERROR) << "Can not create tmp folder " << par.db2 << ".\n";
             return EXIT_FAILURE;
         } else {
             Debug(Debug::INFO) << "Created dir " << par.db2 << "\n";
@@ -46,7 +46,7 @@ int createindex(Parameters &par, std::string indexerModule, std::string flag) {
     std::string tmpDir = par.db2 + "/" + SSTR(hash);
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
             return EXIT_FAILURE;
         }
     }
@@ -81,7 +81,7 @@ int createlinindex(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.orfStartMode = 1;
     par.orfMinLength = 30;
-    par.orfMaxLength = 98202; // 32734 AA (just to be sure)
+    par.orfMaxLength = 32734;
     par.kmerScore = 0; // extract all k-mers
     par.maskMode = 0;
 
@@ -97,7 +97,7 @@ int createlinindex(int argc, const char **argv, const Command& command) {
     par.printParameters(command.cmd, argc, argv, *params);
 
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_AUTO){
-        Debug(Debug::ERROR) << "Database " << par.db1 << " is a nucleotide database. \n"
+        Debug(Debug::WARNING) << "Database " << par.db1 << " is a nucleotide database. \n"
                             << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
         return EXIT_FAILURE;
     }
@@ -108,30 +108,19 @@ int createindex(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.orfStartMode = 1;
     par.orfMinLength = 30;
-    par.orfMaxLength = 98202; // 32734 AA (just to be sure)
+    par.orfMaxLength = 32734;
     par.kmerScore = 0; // extract all k-mers
     par.sensitivity = 7.5;
     par.maskMode = 1;
-    par.strand = 1;
-    par.overrideParameterDescription((Command &) command, par.PARAM_MASK_RESIDUES.uniqid, "0: w/o low complexity masking, 1: with low complexity masking, 2: add both masked and unmasked sequences to index", "^[0-2]{1}", par.PARAM_MASK_RESIDUES.category);
-    par.parseParameters(argc, argv, command, 2);
-    //  0: reverse, 1: forward, 2: both
-    switch (par.strand){
-        case 0:
-            par.forwardFrames= "";
-            par.reverseFrames= "1";
-            break;
-        case 1:
-            par.forwardFrames= "1";
-            par.reverseFrames= "";
-            break;
-        case 2:
-            par.forwardFrames= "1";
-            par.reverseFrames= "1";
-            break;
-    }
+    par.parseParameters(argc, argv, command, 2, false);
+
     int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
+
+    if(par.PARAM_STRAND.wasSet == false){
+        par.strand = 1;
+    }
+    par.overrideParameterDescription((Command &) command, par.PARAM_MASK_RESIDUES.uniqid, "0: w/o low complexity masking, 1: with low complexity masking, 2: add both masked and unmasked sequences to index", "^[0-2]{1}", par.PARAM_MASK_RESIDUES.category);
 
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES ){
         if ( par.PARAM_K.wasSet == false) {
@@ -140,10 +129,27 @@ int createindex(int argc, const char **argv, const Command& command) {
         if ( par.PARAM_MAX_SEQ_LEN.wasSet == false) {
             par.maxSeqLen = 10000;
         }
-    }
 
+        //  0: reverse, 1: forward, 2: both
+        switch (par.strand){
+            case 0:
+                par.forwardFrames= "";
+                par.reverseFrames= "1";
+                break;
+            case 1:
+                par.forwardFrames= "1";
+                par.reverseFrames= "";
+                break;
+            case 2:
+                par.forwardFrames= "1";
+                par.reverseFrames= "1";
+                break;
+        }
+    }
+    std::vector<MMseqsParameter*>* params = command.params;
+    par.printParameters(command.cmd, argc, argv, *params);
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_AUTO){
-        Debug(Debug::ERROR) << "Database " << par.db1 << " is a nucleotide database. \n"
+        Debug(Debug::WARNING) << "Database " << par.db1 << " is a nucleotide database. \n"
                             << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
         return EXIT_FAILURE;
     }

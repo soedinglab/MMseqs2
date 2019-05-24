@@ -235,16 +235,16 @@ s_align SmithWaterman::ssw_align (
 
 	if(Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
 		path = banded_sw<PROFILE>(db_sequence + r.dbStartPos1, profile->query_sequence + r.qStartPos1,
-				NULL, db_length, query_length,
-				r.qStartPos1, r.score1, gap_open, gap_extend, band_width,
-				profile->mat, profile->query_length);
+								  NULL, db_length, query_length,
+								  r.qStartPos1, r.score1, gap_open, gap_extend, band_width,
+								  profile->mat, profile->query_length);
 	}else {
 		path = banded_sw<SUBSTITUTIONMATRIX>(db_sequence + r.dbStartPos1,
-				profile->query_sequence + r.qStartPos1,
-				profile->composition_bias + r.qStartPos1,
-				db_length, query_length, r.qStartPos1, r.score1,
-				gap_open, gap_extend, band_width,
-				profile->mat, profile->alphabetSize);
+											 profile->query_sequence + r.qStartPos1,
+											 profile->composition_bias + r.qStartPos1,
+											 db_length, query_length, r.qStartPos1, r.score1,
+											 gap_open, gap_extend, band_width,
+											 profile->mat, profile->alphabetSize);
 	}
 	if (path == 0) {
 		;
@@ -422,7 +422,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 #ifdef AVX2
 		while (cmp != 0xffffffff)
 #else
-			while (cmp != 0xffff)
+		while (cmp != 0xffff)
 #endif
 		{
 			vH = simdui8_max (vH, vF);
@@ -449,7 +449,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 #ifdef AVX2
 		if (cmp != 0xffffffff)
 #else
-			if (cmp != 0xffff)
+		if (cmp != 0xffff)
 #endif
 		{
 			uint8_t temp;
@@ -615,7 +615,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
 			for (j = 0; LIKELY(j < segLen); ++j) {
 				vH = simdi_load(pvHStore + j);
 				vH = simdi16_max(vH, vF);
-                                vMaxColumn = simdi16_max(vMaxColumn, vH); //newly added line
+				vMaxColumn = simdi16_max(vMaxColumn, vH); //newly added line
 				simdi_store(pvHStore + j, vH);
 				vH = simdui16_subs(vH, vGapO);
 				vF = simdui16_subs(vF, vGapE);
@@ -630,7 +630,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
 #ifdef AVX2
 		if (cmp != (int32_t)0xffffffff)
 #else
-			if (cmp != 0xffff)
+		if (cmp != 0xffff)
 #endif
 		{
 			uint16_t temp;
@@ -868,7 +868,7 @@ SmithWaterman::cigar * SmithWaterman::banded_sw(const int *db_sequence, const in
 				f1 = f > 0 ? f : 0;
 				temp1 = e1 > f1 ? e1 : f1;
 				if(type == SUBSTITUTIONMATRIX){
-					temp2 = h_b[d] + mat[db_sequence[j] * n + query_sequence[i]] + compositionBias[i];
+					temp2 = h_b[d] + mat[query_sequence[i] * n + db_sequence[j]] + compositionBias[i];
 				}
 				if(type == PROFILE) {
 					temp2 = h_b[d] + mat[db_sequence[j] * n + (queryStart + i)];
@@ -893,7 +893,7 @@ SmithWaterman::cigar * SmithWaterman::banded_sw(const int *db_sequence, const in
 	l = 0;	// record length of current cigar
 	op = prev_op = 'M';
 	temp2 = 2;	// h
-	while (LIKELY(i > 0)) {
+	while (LIKELY(i > 0) || LIKELY(j > 0)) {
 		set_d(temp1, band_width, i, j, temp2);
 		switch (direction_line[temp1]) {
 			case 1:
@@ -1061,7 +1061,7 @@ unsigned short SmithWaterman::sse2_extract_epi16(__m128i v, int pos) {
 }
 
 float SmithWaterman::computeCov(unsigned int startPos, unsigned int endPos, unsigned int len) {
-    return (std::min(len, endPos) - startPos + 1) / (float) len;
+	return (std::min(len, endPos) - startPos + 1) / (float) len;
 }
 
 s_align SmithWaterman::scoreIdentical(int *dbSeq, int L, EvalueComputation * evaluer, int alignmentMode) {

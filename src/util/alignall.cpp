@@ -17,7 +17,6 @@ int alignall(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    Debug(Debug::INFO) << "Target database: " << par.db1 << "\n";
     DBReader<unsigned int> tdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     tdbr.open(DBReader<unsigned int>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
@@ -33,20 +32,20 @@ int alignall(int argc, const char **argv, const Command &command) {
         subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     }
 
-    Debug(Debug::INFO) << "Prefilter database: " << par.db2 << "\n";
     DBReader<unsigned int> dbr_res(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_PREFILTER_RES);
     resultWriter.open();
 
     EvalueComputation evaluer(tdbr.getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
     const size_t flushSize = 100000000;
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbr_res.getSize()) / static_cast<double>(flushSize)));
+
     for (size_t i = 0; i < iterations; i++) {
         size_t start = (i * flushSize);
         size_t bucketSize = std::min(dbr_res.getSize() - (i * flushSize), flushSize);
+        Debug::Progress progress(bucketSize);
 #pragma omp parallel
         {
             unsigned int thread_idx = 0;
@@ -66,7 +65,7 @@ int alignall(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
-                Debug::printProgress(id);
+                progress.updateProgress();
 
                 const unsigned int key = dbr_res.getDbKey(id);
                 char *data = dbr_res.getData(id, thread_idx);

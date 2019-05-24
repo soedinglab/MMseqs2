@@ -238,7 +238,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
     DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads), par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
 
-    Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
+    Debug::Progress progress(dbSize);
 
 #pragma omp parallel
     {
@@ -248,12 +248,12 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
 #endif
 #pragma omp for schedule(dynamic, 100)
         for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
-            Debug::printProgress(i - dbFrom);
+            progress.updateProgress();
 
             unsigned int id = blastTabReader.getDbKey(i);
             size_t entry = msaReader.getId(id);
             if (entry == UINT_MAX) {
-                Debug(Debug::WARNING) << "Could not find MSA for key " << id << "!\n";
+                Debug(Debug::WARNING) << "Can not find MSA for key " << id << "!\n";
                 continue;
             }
 
@@ -262,7 +262,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
             size_t tabLength = blastTabReader.getSeqLens(i) - 1;
             const std::vector<Domain> result = getEntries(std::string(tabData, tabLength));
             if (result.size() == 0) {
-                Debug(Debug::WARNING) << "Could not map any entries for entry " << id << "!\n";
+                Debug(Debug::WARNING) << "Can not map any entries for entry " << id << "!\n";
                 continue;
             }
 

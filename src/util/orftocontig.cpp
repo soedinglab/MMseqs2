@@ -25,6 +25,7 @@ int orftocontig(int argn, const char **argv, const Command& command) {
     // writing in alignment format:
     DBWriter alignmentFormatWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     alignmentFormatWriter.open();
+    Debug::Progress progress(orfHeadersReader.getSize());
 
 #pragma omp parallel
     {
@@ -36,7 +37,7 @@ int orftocontig(int argn, const char **argv, const Command& command) {
         
 #pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < orfHeadersReader.getSize(); ++id) {
-            Debug::printProgress(id);
+            progress.updateProgress();
             unsigned int orfKey = orfHeadersReader.getDbKey(id);
             Matcher::result_t orfToContigResult = Orf::getFromDatabase(id, contigsReader, orfHeadersReader, thread_idx);
             size_t len = Matcher::resultToBuffer(orfToContigBuffer, orfToContigResult, true);

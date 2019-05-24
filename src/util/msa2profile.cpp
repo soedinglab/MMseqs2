@@ -128,6 +128,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                              std::string(par.db2 + "_consensus.index").c_str(),
                              threads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
     consensusWriter.open();
+    Debug::Progress progress(qDbr.getSize());
 
     Debug(Debug::INFO) << "Compute profiles from MSAs.\n";
 #pragma omp parallel
@@ -156,11 +157,10 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
         const bool maskByFirst = par.matchMode == 0;
         const float matchRatio = par.matchRatio;
-
         MsaFilter filter(maxSeqLength, maxSetSize, &subMat, par.gapOpen, par.gapExtend);
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < qDbr.getSize(); ++id) {
-            Debug::printProgress(id);
+            progress.updateProgress();
 
             unsigned int queryKey = qDbr.getDbKey(id);
 

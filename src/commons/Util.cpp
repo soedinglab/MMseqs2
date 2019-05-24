@@ -16,10 +16,11 @@
 #endif
 
 #include "simd.h"
+#include "MemoryMapped.h"
 
 #include <fstream>
 #include <algorithm>
-#include "MemoryMapped.h"
+#include <sys/mman.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -436,14 +437,24 @@ uint64_t Util::getL2CacheSize() {
 
 char Util::touchMemory(const char *memory, size_t size) {
     int threadCnt = 1;
+
 #ifdef OPENMP
     const int totalThreadCnt = omp_get_max_threads();
-    if (totalThreadCnt > 4) {
-        threadCnt = 4;
+    if (totalThreadCnt > 2) {
+        threadCnt = 2;
+    }
+#endif
+
+
+#ifdef HAVE_POSIX_MADVISE
+    if (posix_madvise ((void*)memory, size, POSIX_MADV_SEQUENTIAL|POSIX_MADV_WILLNEED) != 0){
+        Debug(Debug::ERROR) << "posix_madvise returned an error (touchMemory)\n";
     }
 #endif
 
     size_t pageSize = getPageSize();
+//    Debug::Progress progress(size/pageSize);
+
     char **buffer = new char *[threadCnt];
     for (int i = 0; i < threadCnt; i++) {
         buffer[i] = new char[pageSize];
@@ -456,13 +467,15 @@ char Util::touchMemory(const char *memory, size_t size) {
         threadIdx = omp_get_thread_num();
 #endif
 
-#pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic,10)
         for (size_t pos = 0; pos < size; pos += pageSize) {
             size_t currentPageSize = size - pos;
             if (currentPageSize > pageSize) {
                 currentPageSize = pageSize;
             }
-            memcpy(buffer[threadIdx], memory + pos, currentPageSize);
+            // just load a single byte, whole page is
+            memcpy(buffer[threadIdx], memory + pos, 1);
+//            progress.updateProgress();
         }
     }
 
@@ -753,6 +766,9 @@ float Util::averageValueOnAminoAcids(const std::unordered_map<char, float> &valu
 template<> std::string SSTR(char x) { return std::string(1, x); }
 template<> std::string SSTR(const std::string &x) { return x; }
 template<> std::string SSTR(const char* x) { return x; }
+template<> std::string SSTR(char* x) { return x; }
+template<> std::string SSTR(bool x) { return (x) ? "1" : "0"; }
+
 template<> std::string SSTR(std::string x) { return x; }
 
 template<>

@@ -195,6 +195,8 @@ ffindexFilter::~ffindexFilter() {
 
 int ffindexFilter::runFilter(){
 	const size_t LINE_BUFFER_SIZE = 1000000;
+    Debug::Progress progress(dataDb->getSize());
+
 #pragma omp parallel
 	{
         int thread_idx = 0;
@@ -206,12 +208,14 @@ int ffindexFilter::runFilter(){
 		char *columnValue = new char[LINE_BUFFER_SIZE];
 		const char **columnPointer = new const char*[column + 1];
 
+		double threadCompValue = compValue;
+
 		std::string buffer = "";
 		buffer.reserve(LINE_BUFFER_SIZE);
 
 #pragma omp for schedule(dynamic, 10)
 		for (size_t id = 0; id < dataDb->getSize(); id++) {
-			Debug::printProgress(id);
+			progress.updateProgress();
 
 			char *data = dataDb->getData(id,  thread_idx);
             unsigned int queryKey = dataDb->getDbKey(id);
@@ -230,7 +234,7 @@ int ffindexFilter::runFilter(){
                 }
                     
 				if(!Util::getLine(data, dataLength, lineBuffer, LINE_BUFFER_SIZE)) {
-					Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
+					Debug(Debug::WARNING) << "Identifier was too long and was cut off!\n";
 					data = Util::skipLine(data);
 					continue;
 				}
@@ -270,11 +274,11 @@ int ffindexFilter::runFilter(){
 				} else if (mode == NUMERIC_COMPARISON) {
                     double toCompare = strtod(columnValue, NULL);
                     if (compOperator == GREATER_OR_EQUAL) {
-                        nomatch = !(toCompare >= compValue); // keep if the comparison is true
+                        nomatch = !(toCompare >= threadCompValue); // keep if the comparison is true
                     } else if (compOperator == LOWER_OR_EQUAL) {
-                        nomatch = !(toCompare <= compValue); // keep if the comparison is true
+                        nomatch = !(toCompare <= threadCompValue); // keep if the comparison is true
                     } else if (compOperator == EQUAL) {
-                        nomatch = !(toCompare == compValue); // keep if the comparison is true
+                        nomatch = !(toCompare == threadCompValue); // keep if the comparison is true
                     } else {
                         nomatch = 0;
                     }
@@ -286,7 +290,7 @@ int ffindexFilter::runFilter(){
 				        char* rest;
 				        const double value = strtod(columnPointers[columnToBind], &rest);
                         if ((rest == columnPointers[columnToBind]) || errno == ERANGE) {
-                            Debug(Debug::WARNING) << "Could not parse column " << columnToBind << "!\n";
+                            Debug(Debug::WARNING) << "Can not parse column " << columnToBind << "!\n";
                             continue;
                         }
 				        parser->bind(columnToBind, value);
@@ -411,15 +415,15 @@ int ffindexFilter::runFilter(){
                 }
                 else if (mode == BEATS_FIRST){
                     if (counter == 1) {
-                        compValue = strtod(columnValue, NULL);
+                        threadCompValue = strtod(columnValue, NULL);
                     } else {
                         double toCompare = strtod(columnValue, NULL);
                         if (compOperator == GREATER_OR_EQUAL) {
-                            nomatch = !(toCompare >= compValue); // keep if the comparison is true
+                            nomatch = !(toCompare >= threadCompValue); // keep if the comparison is true
                         } else if(compOperator == LOWER_OR_EQUAL) {
-                            nomatch = !(toCompare <= compValue); // keep if the comparison is true
+                            nomatch = !(toCompare <= threadCompValue); // keep if the comparison is true
                         } else if(compOperator == EQUAL) {
-                            nomatch = !(toCompare == compValue); // keep if the comparison is true
+                            nomatch = !(toCompare == threadCompValue); // keep if the comparison is true
                         } else {
                             nomatch = 0;
                         }

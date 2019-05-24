@@ -52,7 +52,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     if (FileUtil::directoryExists(par.db3.c_str())==false) {
         Debug(Debug::INFO) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db3.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not create tmp folder " << par.db3 << ".\n";
+            Debug(Debug::ERROR) << "Can not create tmp folder " << par.db3 << ".\n";
             EXIT(EXIT_FAILURE);
         } else {
             Debug(Debug::INFO) << "Created dir " << par.db3 << "\n";
@@ -119,12 +119,12 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         Debug(Debug::INFO) << "Set cluster mode " << cluMode << ".\n";
     }
     if (nonSymetric && par.clusteringMode != Parameters::GREEDY && par.clusteringMode != Parameters::GREEDY_MEM) {
-        Debug(Debug::WARNING) << "WARNING: combining cluster mode " << par.clusteringMode
+        Debug(Debug::WARNING) << "combining cluster mode " << par.clusteringMode
                               << " in combination with coverage mode " << par.covMode << " can produce wrong results.\n"
                               << "Please use --cov-mode 2\n";
     }
     if (par.cascaded == true && par.clusteringMode == Parameters::CONNECTED_COMPONENT) {
-        Debug(Debug::WARNING) << "WARNING: connected component clustering produces less clusters in a single step clustering.\n"
+        Debug(Debug::WARNING) << "connected component clustering produces less clusters in a single step clustering.\n"
                               << "Please use --single-step-cluster";
     }
     if (clusterStepsSet == false) {
@@ -140,7 +140,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
 
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
             EXIT(EXIT_FAILURE);
         }
     }

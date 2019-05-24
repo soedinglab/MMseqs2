@@ -63,7 +63,7 @@ unsigned circ_hash_next(const int * x, unsigned length, int x_first, short unsig
 
 KmerPosition *initKmerPositionMemory(size_t size) {
     KmerPosition * hashSeqPair = new(std::nothrow) KmerPosition[size + 1];
-    Util::checkAllocation(hashSeqPair, "Could not allocate memory");
+    Util::checkAllocation(hashSeqPair, "Can not allocate memory");
     size_t pageSize = Util::getPageSize()/sizeof(KmerPosition);
 
 #pragma omp parallel
@@ -129,6 +129,8 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
             return false;
         }
     };
+    Debug::Progress progress(seqDbr.getSize());
+
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -147,7 +149,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
             three = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
             generator->setDivideStrategy(three, two);
         }
-        Indexer idxer(subMat->alphabetSize, KMER_SIZE);
+        Indexer idxer(subMat->alphabetSize - 1, KMER_SIZE);
         char * charSequence = new char[par.maxSeqLen];
         const unsigned int BUFFER_SIZE = 1024;
         size_t bufferPos = 0;
@@ -166,13 +168,12 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
 
 #pragma omp for schedule(dynamic, 100)
             for (size_t id = start; id < (start + bucketSize); id++) {
-                Debug::printProgress(id);
+                progress.updateProgress();
                 seq.mapSequence(id, seqDbr.getDbKey(id), seqDbr.getData(id, thread_idx));
                 size_t seqHash =  SIZE_T_MAX;
                 if(includeIdenticalKmer){
                     seqHash = highestPossibleIndex + static_cast<unsigned int>(Util::hash(seq.int_sequence, seq.L));
                 }
-
                 // mask using tantan
                 if (par.maskMode == 1) {
                     for (int i = 0; i < seq.L; i++) {
@@ -396,12 +397,11 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
                              DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat,
                              size_t KMER_SIZE, size_t chooseTopKmer, bool adjustLength) {
 
-    Debug(Debug::INFO) << "Generate k-mers list " << split <<"\n";
+    Debug(Debug::INFO) << "Generate k-mers list for " << (split+1) <<" split\n";
 
     size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;
 
     KmerPosition * hashSeqPair = initKmerPositionMemory(splitKmerCount);
-    Timer timer;
     size_t elementsToSort;
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
         std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, true, splits, split, 1, adjustLength);
@@ -412,18 +412,19 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
         std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, true, splits, split, 1, false);
         elementsToSort = ret.first;
     }
-    Debug(Debug::INFO) << "\nTime for fill: " << timer.lap() << "\n";
     if(splits == 1){
         seqDbr.unmapData();
     }
-    Debug(Debug::INFO) << "Done." << "\n";
-    Debug(Debug::INFO) << "Sort kmer ... ";
-    timer.reset();
+
+    Debug(Debug::INFO) << "Sort kmer ";
+    Timer timer;
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
         omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPosReverse);
     }else{
         omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPos);
     }
+    Debug(Debug::INFO) << timer.lap() << "\n";
+
 //    {
 //        Indexer indexer(subMat->alphabetSize, KMER_SIZE);
 //        for(size_t i = 0; i < elementsToSort; i++){
@@ -432,8 +433,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
 //        }
 //    }
     //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, KmerComparision());
-    Debug(Debug::INFO) << "Done." << "\n";
-    Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
+
     // assign rep. sequence to same kmer members
     // The longest sequence is the first since we sorted by kmer, seq.Len and id
     size_t writePos;
@@ -444,7 +444,7 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
     }
 
     // sort by rep. sequence (stored in kmer) and sequence id
-    Debug(Debug::INFO) << "Sort by rep. sequence ... ";
+    Debug(Debug::INFO) << "Sort by rep. sequence ";
     timer.reset();
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
         omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiagReverse);
@@ -452,8 +452,8 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
         omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiag);
     }
     //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, SequenceComparision());
-    Debug(Debug::INFO) << "Done\n";
-    Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
+
+    Debug(Debug::INFO) << timer.lap() << "\n";
 
     if(splits > 1){
         if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
@@ -621,7 +621,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     setKmerLengthAndAlphabet(par, seqDbr.getAminoAcidDBSize(), querySeqType);
     std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);
-    Debug(Debug::INFO) << "Database type: " << seqDbr.getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Database size: "  << seqDbr.getSize() << " type: " << seqDbr.getDbTypeName() << "\n";
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
@@ -648,7 +648,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "\n";
     size_t totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
-    Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << memoryLimit << " byte)\n";
+    Debug(Debug::INFO) << "Estimated memory consumption " << totalSizeNeeded/1024/1024 << " MB\n";
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
 //    size_t splits = 2;
@@ -656,8 +656,9 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         // security buffer
         splits += 1;
     }
-
-    Debug(Debug::INFO) << "Process file into " << splits << " parts\n";
+    if(splits > 1){
+        Debug(Debug::INFO) << "Process file into " << splits << " parts\n";
+    }
     std::vector<std::string> splitFiles;
     KmerPosition *hashSeqPair = NULL;
 
@@ -1004,7 +1005,7 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
             EXIT(EXIT_FAILURE);
         }
     }
-    Debug(Debug::INFO) << "Done\n";
+
 
     delete [] dataSizes;
     delete [] offsetPos;
@@ -1103,7 +1104,10 @@ void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTy
         }
     }else{
         if(parameters.kmerSize == 0){
-            if((parameters.seqIdThr+0.001)>=0.9){
+            if((parameters.seqIdThr+0.001)>=0.99){
+                parameters.kmerSize = 14;
+                parameters.alphabetSize = 21;
+            }else if((parameters.seqIdThr+0.001)>=0.9){
                 parameters.kmerSize = 14;
                 parameters.alphabetSize = 13;
             }else{

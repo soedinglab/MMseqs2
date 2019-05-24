@@ -151,9 +151,19 @@ public:
             return false;
         return false;
     }
+    static bool compareHitByPos(const result_t &first, const result_t &second){
 
+        int firstQStartPos  = std::min( first.qStartPos, first.qEndPos);
+        int secondQStartPos = std::min( second.qStartPos, second.qEndPos);
+        if(secondQStartPos < firstQStartPos )
+            return false;
+        if(firstQStartPos < secondQStartPos)
+            return true;
+        return false;
+
+    }
     // need for sorting the results
-    static bool compareHitsByPos (const result_t &first, const result_t &second){
+    static bool compareHitsByPosAndStrand (const result_t &first, const result_t &second){
         //return (first.eval < second.eval);
         if(second.dbKey < first.dbKey)
             return false;
@@ -186,7 +196,6 @@ public:
         if(firstDbStart < secondDbStart)
             return true;
         return false;
-
     }
 
     // map new query into memory (create queryProfile, ...)

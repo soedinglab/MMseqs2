@@ -183,6 +183,9 @@ void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
 }
 
 void FileUtil::symlinkAbs(const std::string &target, const std::string &link) {
+    if(FileUtil::fileExists(link.c_str())){
+        FileUtil::remove(link.c_str());
+    }
     char *t = realpath(target.c_str(), NULL);
     if (t == NULL) {
         Debug(Debug::ERROR) << "Could not get realpath of " << target << "!\n";
@@ -293,7 +296,7 @@ std::vector<std::string> FileUtil::findDatafiles(const char * datafiles){
 
 void FileUtil::remove(const char * file ) {
     if (std::remove(file) != 0){
-        Debug(Debug::ERROR) << "Could delete " << file << "!\n";
+        Debug(Debug::ERROR) << "Could not delete " << file << "!\n";
         EXIT(EXIT_FAILURE);
     }
 }
@@ -311,7 +314,7 @@ void FileUtil::move(const char * src, const char * dst) {
     FILE * dstDir = FileUtil::openFileOrDie(dirName.c_str(), "r", true);
     if (fstat(fileno(dstDir), &srcDirInfo) < 0) {
         int errsv = errno;
-        Debug(Debug::ERROR) << "Failed to fstat File=" << dstDir << ". Error " << errsv << ".\n";
+        Debug(Debug::ERROR) << "Failed to fstat File=" << dirName << ". Error " << errsv << ".\n";
         EXIT(EXIT_FAILURE);
     }
     bool sameFileSystem = (srcDirInfo.st_dev == srcFileInfo.st_dev);

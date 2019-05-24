@@ -10,7 +10,6 @@
 #endif
 
 int doExtractAlignedRegion(Parameters &par) {
-    Debug(Debug::INFO) << "Query file: " << par.db1 << "\n";
     DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     qdbr.open(DBReader<unsigned int>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
@@ -18,7 +17,6 @@ int doExtractAlignedRegion(Parameters &par) {
     }
 
     bool sameDB = false;
-    Debug(Debug::INFO) << "Target file: " << par.db2 << "\n";
     DBReader<unsigned int> *tdbr = NULL;
     if (par.db1.compare(par.db2) == 0) {
         sameDB = true;
@@ -31,13 +29,12 @@ int doExtractAlignedRegion(Parameters &par) {
         }
     }
 
-    Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
     DBReader<unsigned int> alndbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alndbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
     DBWriter dbw(par.db4.c_str(), par.db4Index.c_str(), static_cast<unsigned int>(par.threads), par.compressed, tdbr->getDbtype());
     dbw.open();
+    Debug::Progress progress(alndbr.getSize());
 
     const char newline = '\n';
 #pragma omp parallel
@@ -50,7 +47,7 @@ int doExtractAlignedRegion(Parameters &par) {
         results.reserve(300);
 #pragma omp for schedule(dynamic, 1000)
         for (size_t i = 0; i < alndbr.getSize(); i++) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int queryKey = alndbr.getDbKey(i);
             char *qSeq = NULL;

@@ -95,7 +95,6 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
     DBReader<unsigned int> sequenceDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     sequenceDbr.open(DBReader<unsigned int>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
@@ -111,15 +110,12 @@ int transitivealign(int argc, const char **argv, const Command &command) {
         subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     }
 
-
-
-    Debug(Debug::INFO) << "Prefilter database: " << par.db2 << "\n";
     DBReader<unsigned int> alnReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     alnReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
 
-    Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
+
     std::string tmpRes = par.db3+".tmp";
     std::string tmpResIndex = par.db3+".tmp.index";
     DBWriter resultWriter(tmpRes.c_str(), tmpResIndex.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
@@ -131,6 +127,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     for (size_t i = 0; i < iterations; i++) {
         size_t start = (i * flushSize);
         size_t bucketSize = std::min(alnReader.getSize() - (i * flushSize), flushSize);
+        Debug::Progress progress(bucketSize);
 #pragma omp parallel
         {
             unsigned int thread_idx = 0;
@@ -152,7 +149,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
-                Debug::printProgress(id);
+                progress.updateProgress();
 
                 const unsigned int alnKey = alnReader.getDbKey(id);
                 char *data = alnReader.getData(id, thread_idx);
@@ -245,7 +242,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     }
 
 
-    Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
+
     DBReader<unsigned int> resultDbr(tmpRes.c_str(), tmpResIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
@@ -253,6 +250,8 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Computing offsets.\n";
     size_t *targetElementSize = new size_t[maxTargetId + 2]; // extra element for offset + 1 index id
     memset(targetElementSize, 0, sizeof(size_t) * (maxTargetId + 2));
+    Debug::Progress progress(resultSize);
+
 #pragma omp parallel
     {
         int thread_idx = 0;
@@ -261,7 +260,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 #endif
 #pragma omp  for schedule(dynamic, 100)
         for (size_t i = 0; i < resultSize; ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
             const unsigned int resultId = resultDbr.getDbKey(i);
             char queryKeyStr[1024];
             char *tmpBuff = Itoa::u32toa_sse2((uint32_t) resultId, queryKeyStr);
@@ -321,7 +320,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 10)
             for (size_t i = 0; i < resultSize; ++i) {
-                Debug::printProgress(i);
+                progress.updateProgress();
                 char *data = resultDbr.getData(i, thread_idx);
                 unsigned int queryKey = resultDbr.getDbKey(i);
                 char queryKeyStr[1024];
@@ -378,7 +377,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 100)
             for (size_t i = prevDbKeyToWrite; i <= dbKeyToWrite; ++i) {
-                Debug::printProgress(i);
+                progress.updateProgress();
 
                 char *data = &tmpData[targetElementSize[i] - prevBytesToWrite];
                 size_t dataSize = targetElementSize[i + 1] - targetElementSize[i];

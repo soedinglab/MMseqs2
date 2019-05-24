@@ -126,7 +126,7 @@ int convertmsa(int argc, const char **argv, const Command &command) {
     }
     writer.close();
 
-    Debug(Debug::INFO) << "\nDone.\n";
+
 
     delete in;
     return EXIT_SUCCESS;

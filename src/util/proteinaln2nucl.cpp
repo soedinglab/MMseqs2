@@ -15,7 +15,6 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 
-    Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
     DBReader<unsigned int> *qdbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     qdbr->open(DBReader<unsigned int>::NOSORT);
     qdbr->readMmapedDataInMemory();
@@ -23,7 +22,6 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> *tdbr = NULL;
 //    BaseMatrix * subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
 
-    Debug(Debug::INFO) << "Target  file: " << par.db2 << "\n";
     bool sameDB = false;
     if (par.db1.compare(par.db2) == 0) {
         sameDB = true;
@@ -36,16 +34,15 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     if(Parameters::isEqualDbtype(qdbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) == false ||
        Parameters::isEqualDbtype(tdbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) == false ){
         Debug(Debug::ERROR) << "This module only supports nucleotide query and target database input.\n";
-        return EXIT_FAILURE;
+        EXIT(EXIT_FAILURE);
     }
 
-    Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
-    Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
+    Debug::Progress progress(alnDbr.getSize());
 
 #pragma omp parallel
     {
@@ -66,7 +63,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int alnKey = alnDbr.getDbKey(i);
             char *data = alnDbr.getData(i, thread_idx);
@@ -78,14 +75,23 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
             for (size_t j = 0; j < results.size(); j++) {
                 Matcher::result_t &res = results[j];
                 bool hasBacktrace = (res.backtrace.size() > 0);
+
+                if(!hasBacktrace ){
+                    Debug(Debug::ERROR) << "This module only supports database "\
+                                           "input with backtrace string.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+
+
+
                 unsigned int targetId = tdbr->getId(results[j].dbKey);
                 char *targetSeq = tdbr->getData(targetId, thread_idx);
 
                 res.dbStartPos = res.dbStartPos*3;
-                res.dbEndPos   = res.dbEndPos*3;
+                res.dbEndPos   = res.dbEndPos*3+2;
                 res.dbLen      = res.dbLen*3;
                 res.qStartPos  = res.qStartPos*3;
-                res.qEndPos    = res.qEndPos*3;
+                res.qEndPos    = res.qEndPos*3+2;
                 res.qLen       = res.qLen*3;
                 size_t idCnt = 0;
                 size_t alnLen = 0;

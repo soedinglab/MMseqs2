@@ -41,6 +41,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     unsigned int forwardFrames = Orf::getFrames(par.forwardFrames);
     unsigned int reverseFrames = Orf::getFrames(par.reverseFrames);
     const char newline = '\n';
+    Debug::Progress progress(reader.getSize());
 
 #pragma omp parallel
     {
@@ -60,7 +61,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         std::vector<Orf::SequenceLocation> res;
         res.reserve(1000);
         for (unsigned int i = queryFrom; i < (queryFrom + querySize); ++i){
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int key = reader.getDbKey(i);
             const char* data = reader.getData(i, thread_idx);

@@ -3,6 +3,7 @@ include(MMseqsResourceCompiler)
 set(COMPILED_RESOURCES
         easysearch.sh
         easycluster.sh
+        easytaxonomy.sh
         blastp.sh
         blastpgp.sh
         map.sh

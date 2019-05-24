@@ -132,7 +132,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
 
     std::map<std::string, unsigned int> lengths = readLength(par.db2);
 
-    Debug(Debug::INFO) << "Start writing to file " << par.db3 << "\n";
+    Debug::Progress progress(dbSize);
 
 #pragma omp parallel
     {
@@ -142,20 +142,20 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
 #endif
 #pragma omp for schedule(dynamic, 100)
         for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
-            Debug::printProgress(i - dbFrom);
+            progress.updateProgress();
             unsigned int id = blastTabReader.getDbKey(i);
 
             char *tabData = blastTabReader.getData(i, thread_idx);
             size_t tabLength = blastTabReader.getSeqLens(i) - 1;
             const std::vector<Domain> entries = getEntries(id, tabData, tabLength, lengths);
             if (entries.size() == 0) {
-                Debug(Debug::WARNING) << "Could not map any entries for entry " << id << "!\n";
+                Debug(Debug::WARNING) << "Can not map any entries for entry " << id << "!\n";
                 continue;
             }
 
             std::vector<Domain> result = mapDomains(entries, par.overlap, par.covThr, par.evalThr);
             if (result.size() == 0) {
-                Debug(Debug::WARNING) << "Could not map any domains for entry " << id << "!\n";
+                Debug(Debug::WARNING) << "Can not map any domains for entry " << id << "!\n";
                 continue;
             }
 

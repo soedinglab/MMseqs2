@@ -34,8 +34,8 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
         Debug(Debug::ERROR) << "Header type is not supported\n";
         return EXIT_FAILURE;
     }
+    Debug::Progress progress(reader.getSize());
 
-    Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
 #pragma omp parallel
     {
         int thread_idx = 0;
@@ -44,7 +44,7 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
 #endif
 #pragma omp for schedule(dynamic, 100)
         for (size_t i = 0; i < reader.getSize(); ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int id = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);

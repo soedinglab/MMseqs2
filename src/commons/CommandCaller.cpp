@@ -20,7 +20,7 @@ CommandCaller::CommandCaller() {
     char* procBind = getenv("OMP_PROC_BIND");
     if(procBind != NULL && strcasecmp(procBind, "false") != 0  && strcasecmp(procBind, "0") != 0) {
 #endif
-        Debug(Debug::ERROR) << "Error: Calling program has OMP_PROC_BIND set in its environment. Please unset OMP_PROC_BIND.\n";
+        Debug(Debug::ERROR) << "Calling program has OMP_PROC_BIND set in its environment. Please unset OMP_PROC_BIND.\n";
         EXIT(EXIT_FAILURE);
     }
 #endif

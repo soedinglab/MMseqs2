@@ -52,7 +52,7 @@ void DBConcat::concat(bool write) {
         concatWriter->open();
     }
 
-
+    Debug::Progress progress(indexSizeA);
     // where the new key numbering of B should start
     unsigned int maxKeyA = 0;
 #pragma omp parallel num_threads(threads)
@@ -63,7 +63,7 @@ void DBConcat::concat(bool write) {
 #endif
 #pragma omp for schedule(dynamic, 10) reduction(max:maxKeyA)
         for (size_t id = 0; id < indexSizeA; id++) {
-            Debug::printProgress(id);
+            progress.updateProgress();
 
             unsigned int newKey;
             if (preserveKeysA) {
@@ -101,7 +101,7 @@ void DBConcat::concat(bool write) {
 #endif
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = 0; id < indexSizeB; id++) {
-            Debug::printProgress(id);
+            progress.updateProgress();
 
             unsigned int newKey;
             if (preserveKeysB) {
@@ -134,7 +134,7 @@ void DBConcat::concat(bool write) {
     std::stable_sort(keysB, keysB + indexSizeB, compareFirstEntry());
 
     if (write) {
-        concatWriter->close();
+        concatWriter->close(true);
         delete concatWriter;
     }
     dbA.close();

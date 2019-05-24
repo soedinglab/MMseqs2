@@ -118,6 +118,8 @@ StatsComputer::~StatsComputer() {
 }
 
 int StatsComputer::countNumberOfLines() {
+    Debug::Progress progress(resultReader->getSize());
+
 #pragma omp parallel
     {
         int thread_idx = 0;
@@ -126,7 +128,7 @@ int StatsComputer::countNumberOfLines() {
 #endif
 #pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < resultReader->getSize(); id++) {
-            Debug::printProgress(id);
+            progress.updateProgress();
 
             unsigned int lineCount(0);
             std::string lineCountString;
@@ -149,6 +151,8 @@ int StatsComputer::countNumberOfLines() {
 
 
 int StatsComputer::meanValue() {
+    Debug::Progress progress(resultReader->getSize());
+
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -157,7 +161,7 @@ int StatsComputer::meanValue() {
 #endif
 #pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < resultReader->getSize(); id++) {
-            Debug::printProgress(id);
+            progress.updateProgress();
             char *results = resultReader->getData(id, thread_idx);
 
             double meanVal = 0.0;
@@ -185,6 +189,8 @@ int StatsComputer::meanValue() {
 }
 
 int StatsComputer::sumValue() {
+    Debug::Progress progress(resultReader->getSize());
+
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -194,7 +200,7 @@ int StatsComputer::sumValue() {
         char buffer[1024];
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = 0; id < resultReader->getSize(); id++) {
-            Debug::printProgress(id);
+            progress.updateProgress();
             char *results = resultReader->getData(id, thread_idx);
 
             size_t sum = 0;
@@ -246,6 +252,7 @@ int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyRes
         targetReader = new DBReader<unsigned int>(targetDb.c_str(), targetDbIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         targetReader->open(DBReader<unsigned int>::NOSORT);
     }
+    Debug::Progress progress(resultReader->getSize());
 
 #pragma omp parallel
     {
@@ -259,7 +266,7 @@ int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyRes
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = 0; id < resultReader->getSize(); id++) {
-            Debug::printProgress(id);
+            progress.updateProgress();
 
             char *results = resultReader->getData(id, thread_idx);
             if (onlyResultDb) {

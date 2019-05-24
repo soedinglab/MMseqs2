@@ -38,6 +38,20 @@ public:
         return res;
     }
 
+    static inline unsigned int log10base(unsigned int v){
+        return (v >= 1000000000u) ? 1000000000u : (v >= 100000000u) ? 100000000u :
+                                        (v >= 10000000u) ? 10000000u : (v >= 1000000u) ? 1000000u:
+                                                               (v >= 100000u) ?  100000u: (v >= 10000u) ? 10000u:
+                                                                                    (v >= 1000u) ? 1000u: (v >= 100u) ? 100u: (v >= 10u) ? 10u: 1u;
+    }
+
+    static inline unsigned int log10(unsigned int v){
+        return (v >= 1000000000u) ? 9 : (v >= 100000000u) ? 8 :
+                                        (v >= 10000000u) ? 7 : (v >= 1000000u) ? 6 :
+                                                               (v >= 100000u) ? 5 : (v >= 10000u) ? 4 :
+                                                                                    (v >= 1000u) ? 3 : (v >= 100u) ? 2 : (v >= 10u) ? 1u : 0u;
+    }
+
     static bool AreSame(float a, float b)
     {
         return fabs(a - b) < std::numeric_limits<float>::epsilon();
@@ -149,18 +163,18 @@ public:
 #pragma GCC diagnostic ignored "-Wconstant-conversion"
 #pragma GCC diagnostic ignored "-Woverflow"
     /** A single gain expressed as minifloat */
-    #define EXPONENT_BITS   3
-    #define MANTISSA_BITS   5
-    #define EXPONENT_MAX    ((1 << EXPONENT_BITS) - 1)
-    #define EXCESS          ((1 << EXPONENT_BITS) - 2)
-    #define MANTISSA_MAX    ((1 << MANTISSA_BITS) - 1)
-    #define HIDDEN_BIT      (1 << MANTISSA_BITS)
-    #define ONE_FLOAT       ((float) (1 << (MANTISSA_BITS + 1)))
-    #define MINIFLOAT_MAX   ((EXPONENT_MAX << MANTISSA_BITS) | MANTISSA_MAX)
-    #define MINIFLOAT_MIN   1
-    #if EXPONENT_BITS + MANTISSA_BITS != 8
-    #error EXPONENT_BITS and MANTISSA_BITS must sum to 16
-    #endif
+#define EXPONENT_BITS   3
+#define MANTISSA_BITS   5
+#define EXPONENT_MAX    ((1 << EXPONENT_BITS) - 1)
+#define EXCESS          ((1 << EXPONENT_BITS) - 2)
+#define MANTISSA_MAX    ((1 << MANTISSA_BITS) - 1)
+#define HIDDEN_BIT      (1 << MANTISSA_BITS)
+#define ONE_FLOAT       ((float) (1 << (MANTISSA_BITS + 1)))
+#define MINIFLOAT_MAX   ((EXPONENT_MAX << MANTISSA_BITS) | MANTISSA_MAX)
+#define MINIFLOAT_MIN   1
+#if EXPONENT_BITS + MANTISSA_BITS != 8
+#error EXPONENT_BITS and MANTISSA_BITS must sum to 16
+#endif
 
     static char convertFloatToChar(float v)
     {

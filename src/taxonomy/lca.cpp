@@ -4,12 +4,15 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "Util.h"
-#include "filterdb.h"
 #include <algorithm>
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
+
+static bool compareToFirstInt(const std::pair<unsigned int, unsigned int>& lhs, const std::pair<unsigned int, unsigned int>&  rhs){
+    return (lhs.first <= rhs.first);
+}
 
 int lca(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
@@ -18,11 +21,9 @@ int lca(int argc, const char **argv, const Command& command) {
     std::string nodesFile = par.db1 + "_nodes.dmp";
     std::string namesFile = par.db1 + "_names.dmp";
     std::string mergedFile = par.db1 + "_merged.dmp";
-    std::string delnodesFile = par.db1 + "_delnodes.dmp";
     if (FileUtil::fileExists(nodesFile.c_str())
         && FileUtil::fileExists(namesFile.c_str())
-        && FileUtil::fileExists(mergedFile.c_str())
-        && FileUtil::fileExists(delnodesFile.c_str())) {
+        && FileUtil::fileExists(mergedFile.c_str())) {
     } else if (FileUtil::fileExists("nodes.dmp")
                && FileUtil::fileExists("names.dmp")
                && FileUtil::fileExists("merged.dmp")
@@ -30,7 +31,6 @@ int lca(int argc, const char **argv, const Command& command) {
         nodesFile = "nodes.dmp";
         namesFile = "names.dmp";
         mergedFile = "merged.dmp";
-        delnodesFile = "delnodes.dmp";
     } else {
         Debug(Debug::ERROR) << "names.dmp, nodes.dmp, merged.dmp or delnodes.dmp from NCBI taxdump could not be found!\n";
         EXIT(EXIT_FAILURE);
@@ -42,7 +42,7 @@ int lca(int argc, const char **argv, const Command& command) {
     }
     bool isSorted = Util::readMapping( par.db1 + "_mapping", mapping);
     if(isSorted == false){
-        std::stable_sort(mapping.begin(), mapping.end(), ffindexFilter::compareFirstInt());
+        std::stable_sort(mapping.begin(), mapping.end(), compareToFirstInt);
     }
 
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
@@ -61,23 +61,28 @@ int lca(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < taxaBlacklistSize; ++i) {
         taxaBlacklist[i] = Util::fast_atoi<int>(blacklist[i].c_str());
     }
+    Debug::Progress progress(reader.getSize());
+    Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
+    NcbiTaxonomy t(namesFile, nodesFile, mergedFile);
+    size_t taxonNotFound = 0;
+    size_t found = 0;
 
-    Debug(Debug::INFO) << "Loading NCBI taxonomy...\n";
-    NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
-    size_t taxonNotFound=0;
-    Debug(Debug::INFO) << "Computing LCA...\n";
+    Debug(Debug::INFO) << "Computing LCA\n";
     #pragma omp parallel
     {
         const char *entry[255];
         char buffer[1024];
+        std::string resultData;
+        resultData.reserve(4096);
         unsigned int thread_idx = 0;
+
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        #pragma omp for schedule(dynamic, 10)
+        #pragma omp for schedule(dynamic, 10) reduction (+:taxonNotFound, found)
         for (size_t i = 0; i < reader.getSize(); ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
@@ -85,7 +90,7 @@ int lca(int argc, const char **argv, const Command& command) {
 
             std::vector<int> taxa;
             while (*data != '\0') {
-                int taxon;
+                TaxID taxon;
                 unsigned int id;
                 std::pair<unsigned int, unsigned int> val;
                 std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
@@ -96,20 +101,22 @@ int lca(int argc, const char **argv, const Command& command) {
                 }
 
                 id = Util::fast_atoi<unsigned int>(entry[0]);
-
                 val.first = id;
-                mappingIt = std::upper_bound(
-                        mapping.begin(), mapping.end(), val,  ffindexFilter::compareToFirstInt);
+                mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
 
-                if (mappingIt->first != val.first) {
-                    __sync_fetch_and_add(&taxonNotFound, 1);
+                if (mappingIt == mapping.end() || mappingIt->first != val.first) {
+                    // TODO: Check which taxa were not found
+                    taxonNotFound += 1;
                     data = Util::skipLine(data);
                     continue;
                 }
+                found++;
                 taxon = mappingIt->second;
 
                 // remove blacklisted taxa
                 for (size_t j = 0; j < taxaBlacklistSize; ++j) {
+                    if(taxaBlacklist[j] == 0)
+                        continue;
                     if (t.IsAncestor(taxaBlacklist[j], taxon)) {
                         goto next;
                     }
@@ -127,27 +134,29 @@ int lca(int argc, const char **argv, const Command& command) {
                 continue;
             }
 
-            TaxonNode* node = t.LCA(taxa);
+            TaxonNode const * node = t.LCA(taxa);
             if (node == NULL) {
                 snprintf(buffer, 1024, "0\tno rank\tunclassified\n");
                 writer.writeData(buffer, strlen(buffer), key, thread_idx);
                 continue;
             }
 
-            if (ranks.empty() == false) {
+
+            resultData = SSTR(node->taxId) + '\t' + node->rank + '\t' + node->name;
+            if (!ranks.empty()) {
                 std::string lcaRanks = Util::implode(t.AtRanks(node, ranks), ':');
-                snprintf(buffer, 1024, "%d\t%s\t%s\t%s\n",
-                         node->taxon, node->rank.c_str(), node->name.c_str(), lcaRanks.c_str());
-                writer.writeData(buffer, strlen(buffer), key, thread_idx);
-            } else {
-                snprintf(buffer, 1024, "%d\t%s\t%s\n",
-                         node->taxon, node->rank.c_str(), node->name.c_str());
-                writer.writeData(buffer, strlen(buffer), key, thread_idx);
+                resultData += '\t' + lcaRanks;
             }
+            if (par.showTaxLineage) {
+                resultData += '\t' + t.taxLineage(node);
+            }
+            resultData += '\n';
+            writer.writeData(resultData.c_str(), resultData.size(), key, thread_idx);
+            resultData.clear();
         }
     };
     Debug(Debug::INFO) << "\n";
-    Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " entries not found.\n";
+    Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " entries not found out of " << taxonNotFound+found << "\n";
 
     writer.close();
     reader.close();

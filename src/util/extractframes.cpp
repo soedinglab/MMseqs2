@@ -36,6 +36,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
 
     unsigned int forwardFrames = Orf::getFrames(par.forwardFrames);
     unsigned int reverseFrames = Orf::getFrames(par.reverseFrames);
+    Debug::Progress progress(reader.getSize());
 
 #pragma omp parallel
     {
@@ -56,7 +57,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
         std::string reverseComplementStr;
         reverseComplementStr.reserve(32000);
         for (unsigned int i = queryFrom; i < (queryFrom + querySize); ++i){
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             unsigned int key = reader.getDbKey(i);
             const char* data = reader.getData(i, thread_idx);
@@ -139,7 +140,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
                 frameHeaderReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
                 FILE *hIndex = fopen((par.hdr2Index + "_tmp").c_str(), "w");
                 if (hIndex == NULL) {
-                    Debug(Debug::ERROR) << "Could not open " << par.hdr2Index << "_tmp for writing!\n";
+                    Debug(Debug::ERROR) << "Can not open " << par.hdr2Index << "_tmp for writing!\n";
                     EXIT(EXIT_FAILURE);
                 }
                 for (size_t i = 0; i < frameHeaderReader.getSize(); i++) {
@@ -148,7 +149,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
                     size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, frameHeaderReader.getSeqLens(i));
                     int written = fwrite(buffer, sizeof(char), len, hIndex);
                     if (written != (int) len) {
-                        Debug(Debug::ERROR) << "Could not write to data file " << par.hdr2Index << "_tmp\n";
+                        Debug(Debug::ERROR) << "Can not write to data file " << par.hdr2Index << "_tmp\n";
                         EXIT(EXIT_FAILURE);
                     }
                 }
@@ -166,7 +167,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
 
                 FILE *sIndex = fopen((par.db2Index + "_tmp").c_str(), "w");
                 if (sIndex == NULL) {
-                    Debug(Debug::ERROR) << "Could not open " << par.db2Index << "_tmp for writing!\n";
+                    Debug(Debug::ERROR) << "Can not open " << par.db2Index << "_tmp for writing!\n";
                     EXIT(EXIT_FAILURE);
                 }
 
@@ -176,7 +177,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
                     size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, frameSequenceReader.getSeqLens(i));
                     int written = fwrite(buffer, sizeof(char), len, sIndex);
                     if (written != (int) len) {
-                        Debug(Debug::ERROR) << "Could not write to data file " << par.db2Index << "_tmp\n";
+                        Debug(Debug::ERROR) << "Can not write to data file " << par.db2Index << "_tmp\n";
                         EXIT(EXIT_FAILURE);
                     }
                 }

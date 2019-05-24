@@ -100,7 +100,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     }
     bool isTranslatedSearch = false;
 
-    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
+
     int dbaccessMode = needSequenceDB ? (DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA) : (DBReader<unsigned int>::USE_INDEX);
 
     IndexReader qDbr(par.db1, par.threads,  IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0, dbaccessMode);
@@ -112,7 +112,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         tDbr = &qDbr;
         tDbrHeader= &qDbrHeader;
     } else {
-        Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
+
         tDbr = new IndexReader(par.db2, par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0, dbaccessMode);
         tDbrHeader = new IndexReader(par.db2, par.threads, IndexReader::SRC_HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     }
@@ -126,8 +126,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             IndexReader tseqDbr(par.db2, par.threads, IndexReader::SEQUENCES, 0, IndexReader::PRELOAD_INDEX);
             seqtargetAA = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_AMINO_ACIDS);
         } else if(targetNucs == true && queryNucs == true && par.searchType == Parameters::SEARCH_TYPE_AUTO){
-            Debug(Debug::INFO) << "Assume nucl/nucl search was performed. \n";
-            Debug(Debug::INFO) << "If this is not correct than please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
+            Debug(Debug::WARNING) << "It is unclear from the input if a translated or nucleotide search was performed\n "
+                                     "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
+            EXIT(EXIT_FAILURE);
         } else if(par.searchType == Parameters::SEARCH_TYPE_TRANSLATED){
             seqtargetAA = true;
         }
@@ -137,17 +138,27 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         }
     }
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+    SubstitutionMatrix * subMat= NULL;
+    if (targetNucs == true && queryNucs == true && isTranslatedSearch == false) {
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        if(par.PARAM_GAP_OPEN.wasSet==false){
+            par.gapOpen = 5;
+        }
+        if(par.PARAM_GAP_EXTEND.wasSet==false){
+            par.gapExtend = 2;
+        }
+    }else{
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+    }
     EvalueComputation *evaluer = NULL;
     bool queryProfile = false;
     bool targetProfile = false;
     if (needSequenceDB) {
         queryProfile = Parameters::isEqualDbtype(qDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
         targetProfile = Parameters::isEqualDbtype(tDbr->sequenceReader->getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
-        evaluer = new EvalueComputation(tDbr->sequenceReader->getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
+        evaluer = new EvalueComputation(tDbr->sequenceReader->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
     }
 
-    Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
@@ -163,7 +174,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     const int dbType = par.dbOut == true ? Parameters::DBTYPE_GENERIC_DB : Parameters::DBTYPE_OMIT_FILE;
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), localThreads, shouldCompress, dbType);
     resultWriter.open();
-    Debug(Debug::INFO) << "Start writing to " << par.db4 << "\n";
 
     const bool isDb = par.dbOut;
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
@@ -207,6 +217,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         }
     }
 
+    Debug::Progress progress(alnDbr.getSize());
+
 #pragma omp parallel num_threads(localThreads)
     {
         unsigned int thread_idx = 0;
@@ -236,7 +248,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
 #pragma omp  for schedule(dynamic, 10)
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
-            Debug::printProgress(i);
+            progress.updateProgress();
 
             const unsigned int queryKey = alnDbr.getDbKey(i);
             char *querySeqData = NULL;
@@ -250,7 +262,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                     querySeqData = (char*) queryBuffer.c_str();
                 }
                 if (queryProfile) {
-                    Sequence::extractProfileConsensus(querySeqData, subMat, queryProfData);
+                    Sequence::extractProfileConsensus(querySeqData, *subMat, queryProfData);
                 }
             }
 
@@ -339,7 +351,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                 size_t tId = tDbr->sequenceReader->getId(res.dbKey);
                                 targetSeqData = tDbr->sequenceReader->getData(tId, thread_idx);
                                 if (targetProfile) {
-                                    Sequence::extractProfileConsensus(targetSeqData, subMat, targetProfData);
+                                    Sequence::extractProfileConsensus(targetSeqData, *subMat, targetProfData);
                                 }
                             }
                             for(size_t i = 0; i < outcodes.size(); i++) {
@@ -504,18 +516,26 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             queryStr = std::string(querySeqData + start, (end + 1) - start);
                         }
 
-                        int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t%s\t*\t0\t0\t%s\t*\tAS:i:%d\tNM:i:%d\n",  queryId.c_str(), (strand) ? 16: 0,
-                                             targetId.c_str(), res.dbStartPos + 1, mapq, res.backtrace.c_str(),  queryStr.c_str(),
-                                             rawScore, missMatchCount);
-                        newBacktrace.clear();
+                        int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t",  queryId.c_str(), (strand) ? 16: 0,
+                                             targetId.c_str(), res.dbStartPos + 1, mapq);
 
                         if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
                             Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
                             continue;
                         }
-
-
                         result.append(buffer, count);
+                        result.append(res.backtrace.c_str());
+                        result.append("\t*\t0\t0\t");
+                        result.append(queryStr.c_str());
+                        count = snprintf(buffer, sizeof(buffer), "\t*\tAS:i:%d\tNM:i:%d\n",  rawScore, missMatchCount);
+                        if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
+                            Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
+                            continue;
+                        }
+                        result.append(buffer, count);
+                        newBacktrace.clear();
+
+
 
                         break;
                     }
@@ -543,6 +563,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         }
         delete evaluer;
     }
+    delete subMat;
 
     return EXIT_SUCCESS;
 }

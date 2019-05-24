@@ -20,6 +20,7 @@ int result2repseq(int argc, const char **argv, const Command &command) {
 
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads,  par.compressed, seqReader.getDbtype());
     resultWriter.open();
+    Debug::Progress progress(resultReader.getSize());
 
     Debug(Debug::INFO) << "Start computing representative sequences.\n";
 #pragma omp parallel
@@ -32,7 +33,7 @@ int result2repseq(int argc, const char **argv, const Command &command) {
         char dbKey[255];
 #pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < resultReader.getSize(); ++id) {
-            Debug::printProgress(id);
+            progress.updateProgress();
 
             char *results = resultReader.getData(id, thread_idx);
             if (*results == '\0') {
@@ -46,7 +47,7 @@ int result2repseq(int argc, const char **argv, const Command &command) {
         }
     }
     Debug(Debug::INFO) << "\n";
-    resultWriter.close();
+    resultWriter.close(true);
     resultReader.close();
     seqReader.close();
 

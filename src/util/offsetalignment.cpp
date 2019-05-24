@@ -16,7 +16,7 @@
 
 void chainAlignmentHits(std::vector<Matcher::result_t> &results, std::vector<Matcher::result_t> &tmp) {
     if(results.size() > 1){
-        std::stable_sort(results.begin(), results.end(), Matcher::compareHitsByPos);
+        std::stable_sort(results.begin(), results.end(), Matcher::compareHitsByPosAndStrand);
         int prevDiagonal = INT_MAX;
         Matcher::result_t  currRegion;
         currRegion.dbKey = UINT_MAX;
@@ -185,7 +185,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         idxdbr.close();
     }
 
-    Debug(Debug::INFO) << "Query database: " << par.db2 << "\n";
     IndexReader qOrfDbr(par.db2.c_str(), par.threads, IndexReader::HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     if (queryDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
@@ -194,11 +193,9 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     const bool queryNucl = Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES);
     IndexReader *qSourceDbr = NULL;
     if (queryNucl) {
-        Debug(Debug::INFO) << "Source Query database: " << par.db1 << "\n";
         qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX) : 0, DBReader<unsigned int>::USE_INDEX);
     }
 
-    Debug(Debug::INFO) << "Target database: " << par.db4 << "\n";
     IndexReader * tOrfDbr;
     bool isSameOrfDB = (par.db2.compare(par.db4) == 0);
     if(isSameOrfDB){
@@ -217,7 +214,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     bool isNuclNuclSearch = false;
     bool isTransNucTransNucSearch = false;
     if (targetNucl) {
-        Debug(Debug::INFO) << "Source Target database: " << par.db3 << "\n";
         bool seqtargetNuc = true;
         if(isSameSrcDB){
             tSourceDbr = qSourceDbr;
@@ -231,8 +227,8 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             isTransNucTransNucSearch = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_AMINO_ACIDS);
         }else{
             if(par.searchType == Parameters::SEARCH_TYPE_AUTO && (targetNucl == true && queryNucl == true )){
-                Debug(Debug::INFO) << "Assume nucl/nucl search was performed. \n";
-                Debug(Debug::INFO) << "If this is not correct than please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
+                Debug(Debug::WARNING) << "Assume that nucleotide search was performed\n";
+                Debug(Debug::WARNING) << "If this is not correct than please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
             } else if(par.searchType == Parameters::SEARCH_TYPE_TRANSLATED){
                 seqtargetNuc = false;
                 isTransNucTransNucSearch = true;
@@ -245,7 +241,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         isNuclNuclSearch = (queryNucl && targetNucl && seqtargetNuc);
     }
 
-    Debug(Debug::INFO) << "Result database: " << par.db5 << "\n";
     DBReader<unsigned int> alnDbr(par.db5.c_str(), par.db5Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
@@ -267,7 +262,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     unsigned int maxContigKey = 0;
     if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
         Timer timer;
-        Debug(Debug::INFO) << "Computing ORF lookup...\n";
+        Debug(Debug::INFO) << "Computing ORF lookup\n";
         unsigned int maxOrfKey = alnDbr.getLastKey();
         unsigned int *orfLookup = new unsigned int[maxOrfKey + 2]();
 #pragma omp parallel num_threads(localThreads)
@@ -290,7 +285,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 orfLookup[i] = id;
             }
         }
-        Debug(Debug::INFO) << "Computing contig offsets...\n";
+        Debug(Debug::INFO) << "Computing contig offsets\n";
         maxContigKey = qSourceDbr->sequenceReader->getLastKey();
         unsigned int *contigSizes = new unsigned int[maxContigKey + 2]();
 #pragma omp parallel for schedule(static) num_threads(localThreads)
@@ -310,7 +305,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             contigExists[qSourceDbr->sequenceReader->getDbKey(i)] = 1;
         }
 
-        Debug(Debug::INFO) << "Computing contig lookup...\n";
+        Debug(Debug::INFO) << "Computing contig lookup\n";
         contigLookup = new unsigned int[maxOrfKey + 2]();
 #pragma omp parallel for schedule(static) num_threads(localThreads)
         for (size_t i = 0; i <= maxOrfKey; ++i) {
@@ -333,6 +328,11 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(par.db6.c_str(), par.db6Index.c_str(), localThreads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
 
+    size_t entryCount = alnDbr.getSize();
+    if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
+        entryCount = maxContigKey + 1;
+    }
+    Debug::Progress progress(entryCount);
 
 #pragma omp parallel num_threads(localThreads)
     {
@@ -349,14 +349,10 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         std::vector<Matcher::result_t> tmp;
         results.reserve(300);
         tmp.reserve(300);
-        size_t entryCount = alnDbr.getSize();
-        if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
-            entryCount = maxContigKey + 1;
-        }
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < entryCount; ++i) {
-            Debug::printProgress(i);
+            progress.updateProgress();
             unsigned int queryKey=UINT_MAX;
             unsigned int qLen = UINT_MAX;
 
