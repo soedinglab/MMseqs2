@@ -824,6 +824,25 @@ void writeKmerMatcherResult(DBWriter & dbw,
             }
             unsigned int targetId = hashSeqPair[kmerPos].id;
             unsigned short diagonal = hashSeqPair[kmerPos].pos;
+            size_t kmerOffset = 0;
+            unsigned short prevDiagonal = diagonal;
+            size_t maxDiagonal = 0;
+            size_t diagonalCnt = 0;
+            while(lastTargetId != targetId
+                   && kmerPos+kmerOffset < threadOffsets[thread+1]
+                   && hashSeqPair[kmerPos+kmerOffset].id == targetId){
+                 if(prevDiagonal == hashSeqPair[kmerPos+kmerOffset].pos){
+                     diagonalCnt++;
+                 }else{
+                     diagonalCnt = 1;
+                 }
+                 if(diagonalCnt > maxDiagonal){
+                     diagonal = prevDiagonal;
+                     maxDiagonal = diagonalCnt;
+                 }
+                prevDiagonal = hashSeqPair[kmerPos+kmerOffset].pos;
+                kmerOffset++;
+            }
             // remove similar double sequence hit
             if(targetId != repSeqId && lastTargetId != targetId ){
                 ;
