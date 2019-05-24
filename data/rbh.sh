@@ -11,11 +11,11 @@ notExists() {
 
 # check number of input variables
 [ "$#" -ne 4 ] && echo "Please provide <sequenceDB> <sequenceDB> <outDB> <tmp>" && exit 1;
-# check if files exists
-[ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
-[ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
-[   -f "$3.dbtype" ] &&  echo "$3 exists already!" && exit 1;
-[ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
+# check if files exist
+[ ! -f "$1.dbtype" ] && echo "$1.dbtype not found!" && exit 1;
+[ ! -f "$2.dbtype" ] && echo "$2.dbtype not found!" && exit 1;
+[   -f "$3.dbtype" ] && echo "$3.dbtype exists already!" && exit 1;
+[ ! -d "$4" ] && echo "tmp directory $4 not found!" && mkdir -p "$4";
 
 A_DB="$1"
 B_DB="$2"

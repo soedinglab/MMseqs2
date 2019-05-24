@@ -34,7 +34,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     if(Parameters::isEqualDbtype(qdbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) == false ||
        Parameters::isEqualDbtype(tdbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) == false ){
         Debug(Debug::ERROR) << "This module only supports nucleotide query and target database input.\n";
-        return EXIT_FAILURE;
+        EXIT(EXIT_FAILURE);
     }
 
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
@@ -75,14 +75,23 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
             for (size_t j = 0; j < results.size(); j++) {
                 Matcher::result_t &res = results[j];
                 bool hasBacktrace = (res.backtrace.size() > 0);
+
+                if(!hasBacktrace ){
+                    Debug(Debug::ERROR) << "This module only supports database "\
+                                           "input with backtrace string.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+
+
+
                 unsigned int targetId = tdbr->getId(results[j].dbKey);
                 char *targetSeq = tdbr->getData(targetId, thread_idx);
 
                 res.dbStartPos = res.dbStartPos*3;
-                res.dbEndPos   = res.dbEndPos*3;
+                res.dbEndPos   = res.dbEndPos*3+2;
                 res.dbLen      = res.dbLen*3;
                 res.qStartPos  = res.qStartPos*3;
-                res.qEndPos    = res.qEndPos*3;
+                res.qEndPos    = res.qEndPos*3+2;
                 res.qLen       = res.qLen*3;
                 size_t idCnt = 0;
                 size_t alnLen = 0;

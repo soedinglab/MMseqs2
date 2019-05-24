@@ -10,8 +10,8 @@ notExists() {
 
 #pre processing
 [ -z "$MMSEQS" ] && echo "Please set the environment variable \$MMSEQS to your MMSEQS binary." && exit 1;
-# check amount of input variables
-[ "$#" -ne 5 ] && echo "Please provide <quertDB>  <targetDB> <resultDB> <outDB> <tmpDir>" && exit 1;
+# check number of input variables
+[ "$#" -ne 5 ] && echo "Please provide <quertDB> <targetDB> <resultDB> <outDB> <tmpDir>" && exit 1;
 
 QUERYDB="$1"
 TARGETDB="$2"
