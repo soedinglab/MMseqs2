@@ -275,6 +275,10 @@ int apply(int argc, const char **argv, const Command& command) {
 
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2, true, Parameters::PARSE_REST);
+#ifdef OPENMP
+    // forking does not play well with OpenMP threads
+    omp_set_num_threads(1);
+#endif
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::SORT_BY_LENGTH);
