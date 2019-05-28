@@ -488,11 +488,11 @@ char Util::touchMemory(const char *memory, size_t size) {
     return retVal;
 }
 
-size_t Util::ompCountLines(const char* data, size_t dataSize) {
+size_t Util::ompCountLines(const char* data, size_t dataSize, unsigned int threads) {
     size_t cnt = 0;
 #ifdef OPENMP
     int threadCnt = 1;
-    const int totalThreadCnt = omp_get_max_threads();
+    const int totalThreadCnt = threads;
     if (totalThreadCnt > 4) {
         threadCnt = 4;
     }

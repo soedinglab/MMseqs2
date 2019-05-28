@@ -88,7 +88,7 @@ public:
 
     static size_t countLines(const char *data, size_t length);
 
-    static size_t ompCountLines(const char *data, size_t length);
+    static size_t ompCountLines(const char *data, size_t length, unsigned int threads);
 
     static int readMapping(std::string mappingFilename, std::vector<std::pair<unsigned int, unsigned int> > & mapping);
 

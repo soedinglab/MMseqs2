@@ -18,10 +18,6 @@
 #include "Util.h"
 #include "FileUtil.h"
 
-#ifdef OPENMP
-#include <omp.h>
-#endif
-
 template <typename T>
 DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int threads, int dataMode) :
 threads(threads), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
@@ -145,7 +141,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         MemoryMapped indexData(lookupFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
         char* lookupDataChar = (char *) indexData.getData();
         size_t lookupDataSize = indexData.size();
-        lookupSize = Util::ompCountLines(lookupDataChar, lookupDataSize);
+        lookupSize = Util::ompCountLines(lookupDataChar, lookupDataSize, threads);
         lookup = new(std::nothrow) LookupEntry[this->lookupSize];
         readLookup(lookupDataChar, lookupDataSize, lookup);
         indexData.close();
@@ -163,7 +159,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
         char* indexDataChar = (char *) indexData.getData();
         size_t indexDataSize = indexData.size();
-        size = Util::ompCountLines(indexDataChar,indexDataSize);
+        size = Util::ompCountLines(indexDataChar, indexDataSize, threads);
 
         index = new(std::nothrow) Index[this->size];
         Util::checkAllocation(index, "Can not allocate index memory in DBReader");
