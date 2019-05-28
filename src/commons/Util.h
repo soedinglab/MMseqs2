@@ -65,7 +65,15 @@ template<> std::string SSTR(float);
 #define UNLIKELY(x) (x)
 #endif
 
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
 
+#if defined(__GNUC__) || __has_attribute(unused)
+#  define MAYBE_UNUSED(x) x __attribute__((__unused__))
+#else
+#  define MAYBE_UNUSED(x) x
+#endif
 
 class Util {
 public:

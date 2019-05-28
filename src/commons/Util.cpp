@@ -488,7 +488,7 @@ char Util::touchMemory(const char *memory, size_t size) {
     return retVal;
 }
 
-size_t Util::ompCountLines(const char* data, size_t dataSize, unsigned int threads) {
+size_t Util::ompCountLines(const char* data, size_t dataSize, unsigned int MAYBE_UNUSED(threads)) {
     size_t cnt = 0;
 #ifdef OPENMP
     int threadCnt = 1;
