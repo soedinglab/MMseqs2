@@ -118,7 +118,7 @@ public:
         size_t cols = Util::getWordsOfLine(data, wordCnt, 254);
         if (cols == 3) {
             result.seqId = Util::fast_atoi<unsigned int>(wordCnt[0]);
-            result.prefScore = Util::fast_atoi<short>(wordCnt[1]);
+            result.prefScore = Util::fast_atoi<int>(wordCnt[1]);
             result.diagonal = static_cast<unsigned short>(Util::fast_atoi<short>(wordCnt[2]));
         } else {
             Debug(Debug::INFO) << "Invalid prefilter input: cols = " << cols << " wordCnt[0]: " << wordCnt[0] << "\n" ;
