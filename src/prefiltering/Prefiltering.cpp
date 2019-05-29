@@ -311,7 +311,8 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSiz
         if (*splitMode == Parameters::DETECT_BEST_DB_SPLIT) {
             *splitMode = Parameters::TARGET_DB_SPLIT;
         }
-    } else { // memory is  enough to compute everything with split setting
+    } else {
+        // memory is enough to compute everything with split setting
         if (*kmerSize == 0) {
             const int tmpSplit = (*split > 1) ? *split : 1;
             size_t aaSize = dbr.getAminoAcidDBSize() / tmpSplit;
@@ -334,8 +335,18 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSiz
             }
         }
     }
+// in case of MPI we want to use all computers 
+// this is useful for QUERY_DB_SPLIT and TARGET_DB_SPLIT
+#ifdef HAVE_MPI
+    *split = std::max(MMseqsMPI::numProc, *split);
+    if (*splitMode == Parameters::TARGET_DB_SPLIT) {
+        size_t dbSize = dbr.getSize();
+        *split = std::min((int)dbSize, *split);
+    }
+    //TODO: we cannot get the qdbr here but maybe we do not need it
+#endif
 
-    if(*split > 1){
+    if (*split > 1) {
         Debug(Debug::INFO) << Parameters::getSplitModeName(*splitMode) << " split mode. Search " << *split << " splits\n";
     }
     neededSize = estimateMemoryConsumption((*splitMode == Parameters::TARGET_DB_SPLIT) ? *split : 1, dbr.getSize(),
@@ -354,36 +365,22 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
                                const std::vector<std::pair<std::string, std::string>> &filenames) {
     Timer timer;
     if (filenames.size() < 2) {
-        std::rename(filenames[0].first.c_str(), outDB.c_str());
-        std::rename(filenames[0].second.c_str(), outDBIndex.c_str());
+        DBReader<unsigned int>::moveDb(filenames[0].first, outDB);
         Debug(Debug::INFO) << "No merging needed.\n";
         return;
     }
-    std::list<std::pair<std::string, std::string>> files(filenames.begin(), filenames.end());
 
-    const std::pair<std::string, std::string> out = std::make_pair((outDB + "_merged" ),
-                                                                   (outDBIndex + "_merged"));
-
-
-    DBWriter writer(out.first.c_str(), out.second.c_str(), 1, compressed, Parameters::DBTYPE_PREFILTER_RES);
+    const std::pair<std::string, std::string> tmpDb = Util::databaseNames((outDB + "_merged"));
+    DBWriter writer(tmpDb.first.c_str(), tmpDb.second.c_str(), 1, compressed, Parameters::DBTYPE_PREFILTER_RES);
     writer.open(1024 * 1024 * 1024); // 1 GB buffer
     writer.mergeFilePair(filenames);
     writer.close();
     for(size_t i = 0; i < filenames.size(); i++){
         // remove split
-        int error = remove(filenames[i].first.c_str());
-        if(error != 0){
-            Debug(Debug::ERROR) << "Can not delete " << filenames[i].first << " in mergeOutput!\n";
-            EXIT(EXIT_FAILURE);
+        DBReader<unsigned int>::removeDb(filenames[i].first);
         }
-        error = remove(filenames[i].second.c_str());
-        if(error != 0){
-            Debug(Debug::ERROR) << "Can not delete " << filenames[i].second << " in mergeOutput!\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
     // sort merged entries by evalue
-    DBReader<unsigned int> dbr(out.first.c_str(), out.second.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    DBReader<unsigned int> dbr(tmpDb.first.c_str(), tmpDb.second.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_PREFILTER_RES);
     dbw.open(1024 * 1024 * 1024);
@@ -397,7 +394,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         std::string result;
         result.reserve(BUFFER_SIZE);
         char buffer[100];
-#pragma omp  for schedule(dynamic, 2)
+#pragma omp for schedule(dynamic, 2)
         for (size_t id = 0; id < dbr.getSize(); id++) {
             unsigned int dbKey = dbr.getDbKey(id);
             char *data = dbr.getData(id, thread_idx);
@@ -413,19 +410,9 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
             result.clear();
         }
     }
-    Debug(Debug::INFO) << out.first << " " << out.second << "\n";
-    dbw.close();
+    dbw.close(true);
     dbr.close();
-    int error = remove(out.first.c_str());
-    if(error != 0){
-        Debug(Debug::ERROR) << "Can not delete " << out.first << " in mergeOutput!\n";
-        EXIT(EXIT_FAILURE);
-    }
-    error = remove(out.second.c_str());
-    if(error != 0){
-        Debug(Debug::ERROR) << "Can not delete " << out.second << " in mergeOutput!\n";
-        EXIT(EXIT_FAILURE);
-    }
+    DBReader<unsigned int>::removeDb(tmpDb.first);
 
     Debug(Debug::INFO) << "\nTime for merging results: " << timer.lap() << "\n";
 }
@@ -543,7 +530,6 @@ void Prefiltering::runAllSplits(const std::string &queryDB, const std::string &q
 void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &queryDBIndex,
                                 const std::string &resultDB, const std::string &resultDBIndex,
                                 const std::string &localTmpPath) {
-    splits = std::max(MMseqsMPI::numProc, splits);
     if(compressed == true && splitMode == Parameters::TARGET_DB_SPLIT){
             Debug(Debug::ERROR) << "The output of the prefilter cannot be compressed during target split mode. Please remove --compress.\n";
             EXIT(EXIT_FAILURE);
@@ -565,19 +551,20 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
     size_t splitCount = splitCntPerProc[MMseqsMPI::rank];
     delete[] splitCntPerProc;
 
+    // setting names in case of localTmp path
     std::string procTmpResultDB = localTmpPath;
     std::string procTmpResultDBIndex = localTmpPath;
     if (localTmpPath == "") {
-        procTmpResultDB += resultDB;
-        procTmpResultDBIndex += resultDBIndex;
+        procTmpResultDB = resultDB;
+        procTmpResultDBIndex = resultDBIndex;
     } else {
-        procTmpResultDB += FileUtil::baseName(resultDB);
-        procTmpResultDBIndex += FileUtil::baseName(resultDBIndex);
+        procTmpResultDB = procTmpResultDB + "/" + FileUtil::baseName(resultDB);
+        procTmpResultDBIndex = procTmpResultDBIndex + "/" + FileUtil::baseName(resultDBIndex);
 
         if (FileUtil::directoryExists(localTmpPath.c_str()) == false) {
             Debug(Debug::INFO) << "Local tmp dir " << localTmpPath << " does not exist or is not a directory\n";
             if (FileUtil::makeDir(localTmpPath.c_str()) == false) {
-                Debug(Debug::ERROR) << "Can not create local tmp dir " << localTmpPath << "\n";
+                Debug(Debug::ERROR) << "Cannot create local tmp dir " << localTmpPath << "\n";
                 EXIT(EXIT_FAILURE);
             } else {
                 Debug(Debug::INFO) << "Created local tmp dir " << localTmpPath << "\n";
@@ -588,19 +575,13 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
     std::pair<std::string, std::string> result = Util::createTmpFileNames(procTmpResultDB, procTmpResultDBIndex, MMseqsMPI::rank);
     bool merge = (splitMode == Parameters::QUERY_DB_SPLIT);
 
-    // target split do not need to be merged
-    int hasTmpResult = runSplits(queryDB, queryDBIndex, result.first, result.second, fromSplit, splitCount, merge) == true ? 1 : 0;
+    int hasResult = runSplits(queryDB, queryDBIndex, result.first, result.second, fromSplit, splitCount, merge) == true ? 1 : 0;
 
-    // if result is on a local drive - copy it to shared drive and delete from local
-    if ((localTmpPath != "") && (FileUtil::fileExists(result.first.c_str())) && (FileUtil::fileExists(result.second.c_str()))) {
+    if ((localTmpPath != "") && (FileUtil::fileExists((result.first + ".dbtype").c_str()))) {
         std::pair<std::string, std::string> resultShared = Util::createTmpFileNames(resultDB, resultDBIndex, MMseqsMPI::rank);
-        FileUtil::copyFile(result.first.c_str(), resultShared.first.c_str());
-        FileUtil::copyFile(result.second.c_str(), resultShared.second.c_str());
-        // copy exits on failure so if here - copy succeeded, local can be deleted
-        FileUtil::remove(result.first.c_str());
-        FileUtil::remove(result.second.c_str());
+        DBReader<unsigned int>::moveDb(result.first, resultShared.first);
     }
-    int hasResult = hasTmpResult;
+    
 
     int *results = NULL;
     if (MMseqsMPI::isMaster()) {
@@ -615,12 +596,16 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
         std::vector<std::pair<std::string, std::string>> splitFiles;
         for (int i = 0; i < MMseqsMPI::numProc; ++i) {
             if (results[i] == 1) {
-                splitFiles.push_back(Util::createTmpFileNames(resultDB, resultDBIndex, i));
+                std::pair<std::string, std::string> resultOfRanki = Util::createTmpFileNames(resultDB, resultDBIndex, i);
+                std::vector<std::string> files = FileUtil::findDatafiles(resultOfRanki.first.c_str());
+                for (size_t j = 0; j < files.size(); ++j) {
+                    splitFiles.push_back(std::make_pair(files[j], resultOfRanki.second));
             }
+        }
         }
 
         if (splitFiles.size() > 0) {
-            // merge output ffindex databases
+            // merge output databases
             mergeFiles(resultDB, resultDBIndex, splitFiles);
         } else {
             Debug(Debug::ERROR) << "Aborting. No results were computed!\n";
@@ -633,9 +618,13 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
 }
 #endif
 
-bool Prefiltering::runSplits(const std::string &queryDB, const std::string &queryDBIndex,
+int Prefiltering::runSplits(const std::string &queryDB, const std::string &queryDBIndex,
                              const std::string &resultDB, const std::string &resultDBIndex,
                              size_t fromSplit, size_t splitProcessCount, bool merge) {
+    if (fromSplit + splitProcessCount > static_cast<size_t>(splits)) {
+        Debug(Debug::ERROR) << "Start split " << fromSplit << " plus split count " << splitProcessCount << " cannot be larger than splits " << splits << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     bool sameQTDB = isSameQTDB(queryDB);
     DBReader<unsigned int> *qdbr;
     if (templateDBIsIndex == false && sameQTDB == true) {
@@ -654,26 +643,17 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
 //        EXIT(EXIT_FAILURE);
     }
 
-    size_t dbSize = 0;
-    if (splitMode == Parameters::TARGET_DB_SPLIT) {
-        dbSize = tdbr->getSize();
-    } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
-        dbSize = qdbr->getSize();
-    }
-
     bool hasResult = false;
-    size_t totalSplits = std::min(dbSize, (size_t) splits);
     if (splitProcessCount > 1) {
         if(compressed == true && splitMode == Parameters::TARGET_DB_SPLIT){
             Debug(Debug::ERROR) << "The output of the prefilter cannot be compressed during target split mode. Please remove --compress.\n";
             EXIT(EXIT_FAILURE);
-//
         }
         // splits template database into x sequence steps
         std::vector<std::pair<std::string, std::string> > splitFiles;
-        for (size_t i = fromSplit; i < (fromSplit + splitProcessCount) && i < totalSplits; i++) {
+        for (size_t i = fromSplit; i < (fromSplit + splitProcessCount); i++) {
             std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(resultDB, resultDBIndex, i);
-            if (runSplit(qdbr, filenamePair.first.c_str(), filenamePair.second.c_str(), i, totalSplits, sameQTDB, merge)) {
+            if (runSplit(qdbr, filenamePair.first.c_str(), filenamePair.second.c_str(), i, splits, sameQTDB, merge)) {
                 splitFiles.push_back(filenamePair);
 
             }
@@ -683,7 +663,7 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
             hasResult = true;
         }
     } else if (splitProcessCount == 1) {
-        if (runSplit(qdbr, resultDB.c_str(), resultDBIndex.c_str(), fromSplit, totalSplits, sameQTDB, merge)) {
+        if (runSplit(qdbr, resultDB.c_str(), resultDBIndex.c_str(), fromSplit, splits, sameQTDB, merge)) {
             hasResult = true;
         }
     }
@@ -866,10 +846,20 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
         printStatistics(stats, reslens, localThreads, empty, maxResults);
     }
-    tmpDbw.close(merge); // sorts the index
+
+    if (splitCount == 1 && splitMode == Parameters::TARGET_DB_SPLIT) {
+#ifdef HAVE_MPI
+        // if a mpi rank processed a single split, it must have it merged before all ranks can be united
+        tmpDbw.close(true);
+#else
+        tmpDbw.close(merge);
+#endif
+    } else {
+        tmpDbw.close(merge);
+    }
 
     // sort by ids
-    // needed to speed up merge later one
+    // needed to speed up merge later on
     // sorts this datafile according to the index file
     if (splitCount > 1 && splitMode == Parameters::TARGET_DB_SPLIT) {
         // delete indexTable to free memory:
@@ -880,15 +870,15 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         DBReader<unsigned int> resultReader(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         resultReader.open(DBReader<unsigned int>::NOSORT);
         resultReader.readMmapedDataInMemory();
-        DBWriter resultWriter((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), localThreads, compressed, Parameters::DBTYPE_PREFILTER_RES);
+        
+        const std::pair<std::string, std::string> tempDb = Util::databaseNames((resultDB + "_tmp"));
+        DBWriter resultWriter(tempDb.first.c_str(), tempDb.second.c_str(), localThreads, compressed, Parameters::DBTYPE_PREFILTER_RES);
         resultWriter.open();
         resultWriter.sortDatafileByIdOrder(resultReader);
         resultWriter.close(true);
         resultReader.close();
-        remove(resultDB.c_str());
-        remove(resultDBIndex.c_str());
-        std::rename((resultDB + "_tmp").c_str(), resultDB.c_str());
-        std::rename((resultDBIndex + "_tmp").c_str(), resultDBIndex.c_str());
+        DBReader<unsigned int>::removeDb(resultDB);
+        DBReader<unsigned int>::moveDb(tempDb.first, resultDB);
     }
 
     for (unsigned int i = 0; i < localThreads; i++) {

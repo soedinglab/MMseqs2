@@ -982,3 +982,49 @@ void DBReader<T>::readLookup(char *data, size_t dataSize, DBReader::LookupEntry 
 
 template class DBReader<unsigned int>;
 template class DBReader<std::string>;
+
+// TODO: Move to DbUtils?
+template<typename T>
+void DBReader<T>::moveDb(const std::string &srcDbName, const std::string &dstDbName) {
+    std::vector<std::string> files = FileUtil::findDatafiles(srcDbName.c_str());
+    for (size_t i = 0; i < files.size(); i++) {
+        std::string extention = files[i].substr(files[i].find_last_of(".") + 1);
+        if (Util::isNumber(extention)) {
+            std::string dst = (dstDbName + "." + extention);
+            FileUtil::move(files[i].c_str(), dst.c_str());
+        } else {
+            FileUtil::move(files[i].c_str(), dstDbName.c_str());
+        }
+    }
+
+    if (FileUtil::fileExists((srcDbName + ".index").c_str())) {
+        FileUtil::move((srcDbName + ".index").c_str(), (dstDbName + ".index").c_str());
+    }
+    if (FileUtil::fileExists((srcDbName + ".dbtype").c_str())) {
+        FileUtil::move((srcDbName + ".dbtype").c_str(), (dstDbName + ".dbtype").c_str());
+    }
+    if (FileUtil::fileExists((srcDbName + ".lookup").c_str())) {
+        FileUtil::move((srcDbName + ".lookup").c_str(), (dstDbName + ".lookup").c_str());
+    }
+}
+
+template<typename T>
+void DBReader<T>::removeDb(const std::string &databaseName){
+    std::vector<std::string> files = FileUtil::findDatafiles(databaseName.c_str());
+    for (size_t i = 0; i < files.size(); ++i) {
+        FileUtil::remove(files[i].c_str());
+    }
+    std::string index = databaseName + ".index";
+    if (FileUtil::fileExists(index.c_str())) {
+        FileUtil::remove(index.c_str());
+    }
+    std::string dbTypeFile = databaseName + ".dbtype";
+    if (FileUtil::fileExists(dbTypeFile.c_str())) {
+        FileUtil::remove(dbTypeFile.c_str());
+
+    }
+    std::string lookupFile = databaseName + ".lookup";
+    if (FileUtil::fileExists(lookupFile.c_str())) {
+        FileUtil::remove(lookupFile.c_str());
+    }
+}

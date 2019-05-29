@@ -209,9 +209,19 @@ public:
 
     static std::pair<std::string, std::string> createTmpFileNames(const std::string &db,
                                                                   const std::string &dbindex, int count){
+        // TODO take only db and not db and dbindex
+        // TODO check naming of old database paths
         std::string suffix = std::string("_tmp_") + SSTR(count);
-        std::string data  = db + suffix;
-        std::string index = dbindex + suffix;
+        std::string data = db + suffix;
+        
+        std::string index = "";
+        if (dbindex.compare(db + ".index") == 0) {
+            index.append(db + suffix + ".index");
+        } else {
+            //Debug(Debug::WARNING) << "Database index name is deprecated (" << dbindex << ")\n";
+            index.append(dbindex + suffix);
+        }
+
         return std::make_pair(data, index);
     }
 
