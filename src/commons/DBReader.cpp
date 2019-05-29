@@ -980,9 +980,6 @@ void DBReader<T>::readLookup(char *data, size_t dataSize, DBReader::LookupEntry 
     }
 }
 
-template class DBReader<unsigned int>;
-template class DBReader<std::string>;
-
 // TODO: Move to DbUtils?
 template<typename T>
 void DBReader<T>::moveDb(const std::string &srcDbName, const std::string &dstDbName) {
@@ -1028,3 +1025,6 @@ void DBReader<T>::removeDb(const std::string &databaseName){
         FileUtil::remove(lookupFile.c_str());
     }
 }
+
+template class DBReader<unsigned int>;
+template class DBReader<std::string>;
