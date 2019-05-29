@@ -394,7 +394,8 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         std::string result;
         result.reserve(BUFFER_SIZE);
         char buffer[100];
-#pragma omp for schedule(dynamic, 2)
+// dynamic schedule causes mis-order of the input files during merge. Needs to be fixed there
+#pragma omp for schedule(static)
         for (size_t id = 0; id < dbr.getSize(); id++) {
             unsigned int dbKey = dbr.getDbKey(id);
             char *data = dbr.getData(id, thread_idx);
@@ -410,8 +411,11 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
             result.clear();
         }
     }
+
+    // TODO: we close with "true" because multiple calls to mergeOutput call mergeFilePair that expects two file (merged input)
     dbw.close(true);
     dbr.close();
+
     DBReader<unsigned int>::removeDb(tmpDb.first);
 
     Debug(Debug::INFO) << "\nTime for merging results: " << timer.lap() << "\n";
