@@ -375,10 +375,10 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
     writer.open(1024 * 1024 * 1024); // 1 GB buffer
     writer.mergeFilePair(filenames);
     writer.close();
-    for(size_t i = 0; i < filenames.size(); i++){
+    for (size_t i = 0; i < filenames.size(); i++) {
         // remove split
         DBReader<unsigned int>::removeDb(filenames[i].first);
-        }
+    }
     // sort merged entries by evalue
     DBReader<unsigned int> dbr(tmpDb.first.c_str(), tmpDb.second.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
