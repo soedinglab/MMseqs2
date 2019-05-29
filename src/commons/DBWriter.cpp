@@ -487,7 +487,7 @@ void DBWriter::mergeResults(const std::string &outFileName, const std::string &o
         for (size_t i = 1; i < files.size(); i++) {
             std::string typeFile = files[i].first + ".dbtype";
             if (FileUtil::fileExists(typeFile.c_str())) {
-                std::remove(typeFile.c_str());
+                FileUtil::remove(typeFile.c_str());
             }
         }
     }
@@ -569,9 +569,7 @@ void DBWriter::mergeResultsNormal(const char *outFileName, const char *outFileNa
         Concat::concatFiles(infiles, fileCount, outFile);
         for (unsigned int i = 0; i < fileCount; i++) {
             fclose(infiles[i]);
-            if (std::remove(dataFileNames[i]) != 0) {
-                Debug(Debug::WARNING) << "Can not remove file " << dataFileNames[i] << "\n";
-            }
+            FileUtil::remove(dataFileNames[i]);
         }
         delete[] infiles;
         fclose(outFile);
@@ -611,9 +609,7 @@ void DBWriter::mergeIndex(const char **indexFileNames,
             writeIndex(index_file, reader.getSize(), index, reader.getSeqLens());
         }
         reader.close();
-        if (std::remove(indexFileNames[fileIdx]) != 0) {
-            Debug(Debug::WARNING) << "Can not remove file " << indexFileNames[fileIdx] << "\n";
-        }
+        FileUtil::remove(indexFileNames[fileIdx]);
 
         globalOffset += threadDataFileSizes[fileIdx];
     }
