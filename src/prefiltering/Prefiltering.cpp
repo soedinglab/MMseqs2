@@ -581,8 +581,9 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
 
     int hasResult = runSplits(queryDB, queryDBIndex, result.first, result.second, fromSplit, splitCount, merge) == true ? 1 : 0;
 
-    if ((localTmpPath != "") && (FileUtil::fileExists((result.first + ".dbtype").c_str()))) {
+    if (localTmpPath != "") {
         std::pair<std::string, std::string> resultShared = Util::createTmpFileNames(resultDB, resultDBIndex, MMseqsMPI::rank);
+        // moveDb takes care if file doesn't exist
         DBReader<unsigned int>::moveDb(result.first, resultShared.first);
     }
     
@@ -604,8 +605,8 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
                 std::vector<std::string> files = FileUtil::findDatafiles(resultOfRanki.first.c_str());
                 for (size_t j = 0; j < files.size(); ++j) {
                     splitFiles.push_back(std::make_pair(files[j], resultOfRanki.second));
+                }
             }
-        }
         }
 
         if (splitFiles.size() > 0) {
