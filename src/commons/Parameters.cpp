@@ -1052,14 +1052,6 @@ void Parameters::printUsageMessage(const Command& command,
     ss << printDesc << "\n";
     if(printWholeHelpText) {
         ss <<" By " << command.author << "\n";
-
-        if (command.databases.size() > 0 && command.databases[0].usageText != "") {
-            ss << "\nRequired positional arguments:";
-
-            for (size_t i = 0; i < command.databases.size(); ++i) {
-                ss << "\n  " << command.databases[i].usageText;
-            }
-        }
     }
     ss << "\nOptions: ";
 

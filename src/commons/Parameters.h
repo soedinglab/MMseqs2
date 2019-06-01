@@ -17,7 +17,6 @@ struct MMseqsParameter {
     const char *display;
     const char *description;
     const std::type_info &type;
-    const char * type_info;
     void * value;
     const char * regex;
     const int uniqid;
@@ -36,9 +35,8 @@ struct MMseqsParameter {
 
     MMseqsParameter(int uid, const char * n, const char *display,
                     const char * d, const std::type_info &hash,
-                    void * value, const char * regex, unsigned int category = COMMAND_MISC,
-                    const char * type_info = ""):
-            name(n), display(display), description(d), type(hash), type_info(type_info), value(value),
+                    void * value, const char * regex, unsigned int category = COMMAND_MISC):
+            name(n), display(display), description(d), type(hash), value(value),
             regex(regex), uniqid(uid), category(category), wasSet(false){}
 };
 
