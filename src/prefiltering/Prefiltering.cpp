@@ -602,10 +602,7 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
         for (int i = 0; i < MMseqsMPI::numProc; ++i) {
             if (results[i] == 1) {
                 std::pair<std::string, std::string> resultOfRanki = Util::createTmpFileNames(resultDB, resultDBIndex, i);
-                std::vector<std::string> files = FileUtil::findDatafiles(resultOfRanki.first.c_str());
-                for (size_t j = 0; j < files.size(); ++j) {
-                    splitFiles.push_back(std::make_pair(files[j], resultOfRanki.second));
-                }
+                splitFiles.push_back(std::make_pair(resultOfRanki.first, resultOfRanki.second));
             }
         }
 

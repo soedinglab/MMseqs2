@@ -546,30 +546,50 @@ void DBWriter::mergeResultsNormal(const char *outFileName, const char *outFileNa
                                   const char **dataFileNames, const char **indexFileNames,
                                   unsigned long fileCount, bool lexicographicOrder) {
     Timer timer;
-    // merge results from each thread into one result file
-    if (fileCount > 1) {
+    size_t fileCountIncludingUnmerged = 0;
+    for (unsigned int i = 0; i < fileCount; ++i) {
+        std::vector<std::string> iDataFiles = FileUtil::findDatafiles(dataFileNames[i]);
+        fileCountIncludingUnmerged += iDataFiles.size();
+    }
+
+    // merge results into one result file
+    if (fileCountIncludingUnmerged > 1) {
         FILE *outFile = FileUtil::openAndDelete(outFileName, "w");
         
-        FILE **infiles = new FILE *[fileCount];
+        FILE **infiles = new FILE *[fileCountIncludingUnmerged];
         std::vector<size_t> threadDataFileSizes;
+        size_t fileInd = 0;
         for (unsigned int i = 0; i < fileCount; i++) {
-            infiles[i] = fopen(dataFileNames[i], "r");
-            if (infiles[i] == NULL) {
-                Debug(Debug::ERROR) << "Can not open result file " << dataFileNames[i] << "!\n";
-                EXIT(EXIT_FAILURE);
+            size_t iDataFilesCumuSize = 0;
+            std::vector<std::string> iDataFiles = FileUtil::findDatafiles(dataFileNames[i]);
+            for (size_t j = 0; j < iDataFiles.size(); ++j) {
+                infiles[fileInd] = fopen(iDataFiles[j].c_str(), "r");
+                if (infiles[fileInd] == NULL) {
+                    Debug(Debug::ERROR) << "Can not open result file " << iDataFiles[j] << "!\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                struct stat sb;
+                if (fstat(fileno(infiles[fileInd]), &sb) < 0) {
+                    int errsv = errno;
+                    Debug(Debug::ERROR) << "Failed to fstat file " << iDataFiles[j] << ". Error " << errsv << ".\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                iDataFilesCumuSize += sb.st_size;
+                fileInd++;
             }
-            struct stat sb;
-            if (fstat(fileno(infiles[i]), &sb) < 0) {
-                int errsv = errno;
-                Debug(Debug::ERROR) << "Failed to fstat file " << dataFileNames[i] << ". Error " << errsv << ".\n";
-                EXIT(EXIT_FAILURE);
-            }
-            threadDataFileSizes.push_back(sb.st_size);
+            threadDataFileSizes.push_back(iDataFilesCumuSize);
         }
-        Concat::concatFiles(infiles, fileCount, outFile);
+
+        Concat::concatFiles(infiles, fileCountIncludingUnmerged, outFile);
+
+        for (unsigned int k = 0; k < fileCountIncludingUnmerged; ++k) {
+            fclose(infiles[k]);
+        }
         for (unsigned int i = 0; i < fileCount; i++) {
-            fclose(infiles[i]);
-            FileUtil::remove(dataFileNames[i]);
+            std::vector<std::string> iDataFiles = FileUtil::findDatafiles(dataFileNames[i]);
+            for (size_t j = 0; j < iDataFiles.size(); ++j) {
+                FileUtil::remove(iDataFiles[j].c_str());
+            }
         }
         delete[] infiles;
         fclose(outFile);
