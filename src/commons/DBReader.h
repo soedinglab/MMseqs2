@@ -141,6 +141,8 @@ public:
         return totalDataSize;
     }
 
+    static void moveDatafiles(const std::vector<std::string>& files, const std::string& destination);
+
     static void moveDb(const std::string &srcDbName, const std::string &dstDbName);
 
     static void removeDb(const std::string &databaseName);

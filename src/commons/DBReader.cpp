@@ -981,18 +981,29 @@ void DBReader<T>::readLookup(char *data, size_t dataSize, DBReader::LookupEntry 
 }
 
 // TODO: Move to DbUtils?
+
 template<typename T>
-void DBReader<T>::moveDb(const std::string &srcDbName, const std::string &dstDbName) {
-    std::vector<std::string> files = FileUtil::findDatafiles(srcDbName.c_str());
+void DBReader<T>::moveDatafiles(const std::vector<std::string>& files, const std::string& destination) {
     for (size_t i = 0; i < files.size(); i++) {
         std::string extention = files[i].substr(files[i].find_last_of(".") + 1);
         if (Util::isNumber(extention)) {
-            std::string dst = (dstDbName + "." + extention);
+            std::string dst = (destination + "." + extention);
             FileUtil::move(files[i].c_str(), dst.c_str());
         } else {
-            FileUtil::move(files[i].c_str(), dstDbName.c_str());
+            if (files.size() > 1) {
+                Debug(Debug::ERROR) << "Both merged and unmerged database exist at the same path\n";
+                EXIT(EXIT_FAILURE);
+            }
+            
+            FileUtil::move(files[i].c_str(), destination.c_str());
         }
     }
+}
+
+template<typename T>
+void DBReader<T>::moveDb(const std::string &srcDbName, const std::string &dstDbName) {
+    std::vector<std::string> files = FileUtil::findDatafiles(srcDbName.c_str());
+    moveDatafiles(files, dstDbName);
 
     if (FileUtil::fileExists((srcDbName + ".index").c_str())) {
         FileUtil::move((srcDbName + ".index").c_str(), (dstDbName + ".index").c_str());
@@ -1018,7 +1029,6 @@ void DBReader<T>::removeDb(const std::string &databaseName){
     std::string dbTypeFile = databaseName + ".dbtype";
     if (FileUtil::fileExists(dbTypeFile.c_str())) {
         FileUtil::remove(dbTypeFile.c_str());
-
     }
     std::string lookupFile = databaseName + ".lookup";
     if (FileUtil::fileExists(lookupFile.c_str())) {
