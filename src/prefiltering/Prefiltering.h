@@ -34,7 +34,7 @@ public:
                       const std::string &localTmpPath);
 #endif
 
-    bool runSplits(const std::string &queryDB, const std::string &queryDBIndex,
+    int runSplits(const std::string &queryDB, const std::string &queryDBIndex,
                    const std::string &resultDB, const std::string &resultDBIndex,
                    size_t fromSplit, size_t splitProcessCount, bool merge);
 

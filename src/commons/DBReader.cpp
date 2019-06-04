@@ -18,10 +18,6 @@
 #include "Util.h"
 #include "FileUtil.h"
 
-#ifdef OPENMP
-#include <omp.h>
-#endif
-
 template <typename T>
 DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int threads, int dataMode) :
 threads(threads), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
@@ -145,7 +141,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         MemoryMapped indexData(lookupFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
         char* lookupDataChar = (char *) indexData.getData();
         size_t lookupDataSize = indexData.size();
-        lookupSize = Util::ompCountLines(lookupDataChar, lookupDataSize);
+        lookupSize = Util::ompCountLines(lookupDataChar, lookupDataSize, threads);
         lookup = new(std::nothrow) LookupEntry[this->lookupSize];
         readLookup(lookupDataChar, lookupDataSize, lookup);
         indexData.close();
@@ -163,7 +159,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
         char* indexDataChar = (char *) indexData.getData();
         size_t indexDataSize = indexData.size();
-        size = Util::ompCountLines(indexDataChar,indexDataSize);
+        size = Util::ompCountLines(indexDataChar, indexDataSize, threads);
 
         index = new(std::nothrow) Index[this->size];
         Util::checkAllocation(index, "Can not allocate index memory in DBReader");
@@ -981,6 +977,62 @@ void DBReader<T>::readLookup(char *data, size_t dataSize, DBReader::LookupEntry 
         currPos = lookupData - (char *) data;
 
         i++;
+    }
+}
+
+// TODO: Move to DbUtils?
+
+template<typename T>
+void DBReader<T>::moveDatafiles(const std::vector<std::string>& files, const std::string& destination) {
+    for (size_t i = 0; i < files.size(); i++) {
+        std::string extention = files[i].substr(files[i].find_last_of(".") + 1);
+        if (Util::isNumber(extention)) {
+            std::string dst = (destination + "." + extention);
+            FileUtil::move(files[i].c_str(), dst.c_str());
+        } else {
+            if (files.size() > 1) {
+                Debug(Debug::ERROR) << "Both merged and unmerged database exist at the same path\n";
+                EXIT(EXIT_FAILURE);
+            }
+            
+            FileUtil::move(files[i].c_str(), destination.c_str());
+        }
+    }
+}
+
+template<typename T>
+void DBReader<T>::moveDb(const std::string &srcDbName, const std::string &dstDbName) {
+    std::vector<std::string> files = FileUtil::findDatafiles(srcDbName.c_str());
+    moveDatafiles(files, dstDbName);
+
+    if (FileUtil::fileExists((srcDbName + ".index").c_str())) {
+        FileUtil::move((srcDbName + ".index").c_str(), (dstDbName + ".index").c_str());
+    }
+    if (FileUtil::fileExists((srcDbName + ".dbtype").c_str())) {
+        FileUtil::move((srcDbName + ".dbtype").c_str(), (dstDbName + ".dbtype").c_str());
+    }
+    if (FileUtil::fileExists((srcDbName + ".lookup").c_str())) {
+        FileUtil::move((srcDbName + ".lookup").c_str(), (dstDbName + ".lookup").c_str());
+    }
+}
+
+template<typename T>
+void DBReader<T>::removeDb(const std::string &databaseName){
+    std::vector<std::string> files = FileUtil::findDatafiles(databaseName.c_str());
+    for (size_t i = 0; i < files.size(); ++i) {
+        FileUtil::remove(files[i].c_str());
+    }
+    std::string index = databaseName + ".index";
+    if (FileUtil::fileExists(index.c_str())) {
+        FileUtil::remove(index.c_str());
+    }
+    std::string dbTypeFile = databaseName + ".dbtype";
+    if (FileUtil::fileExists(dbTypeFile.c_str())) {
+        FileUtil::remove(dbTypeFile.c_str());
+    }
+    std::string lookupFile = databaseName + ".lookup";
+    if (FileUtil::fileExists(lookupFile.c_str())) {
+        FileUtil::remove(lookupFile.c_str());
     }
 }
 

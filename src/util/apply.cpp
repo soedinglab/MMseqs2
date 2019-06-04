@@ -275,6 +275,10 @@ int apply(int argc, const char **argv, const Command& command) {
 
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2, true, Parameters::PARSE_REST);
+#ifdef OPENMP
+    // forking does not play well with OpenMP threads
+    omp_set_num_threads(1);
+#endif
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::SORT_BY_LENGTH);
@@ -305,6 +309,11 @@ int apply(int argc, const char **argv, const Command& command) {
                 int mpiRank = 0;
                 int mpiProcs = 1;
 
+                // get progress only from first thread on master
+                if (thread != 0 || mpiRank != MMseqsMPI::MASTER) {
+                    Debug::setDebugLevel(0);
+                }
+
 #ifdef HAVE_MPI
                 while (shared_memory->ready == 0) {
                     usleep(10);
@@ -325,11 +334,10 @@ int apply(int argc, const char **argv, const Command& command) {
 
                 ignore_signal(SIGPIPE);
                 for (size_t i = 0; i < reader.getSize(); ++i) {
+                    progress.updateProgress();
                     if (static_cast<ssize_t>(i) % (mpiProcs * par.threads) != (thread * mpiProcs + mpiRank)) {
                         continue;
                     }
-
-                    progress.updateProgress();
 
                     size_t index = i;
                     size_t size = sizes[i] - 1;
@@ -351,7 +359,6 @@ int apply(int argc, const char **argv, const Command& command) {
                     }
                 }
 
-                Debug::setDebugLevel(0);
                 writer.close(true);
                 reader.close();
                 free_local_environment(local_environ);

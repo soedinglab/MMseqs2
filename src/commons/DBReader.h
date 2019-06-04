@@ -141,25 +141,11 @@ public:
         return totalDataSize;
     }
 
-    static void removeDb(std::string  databaseName){
-        std::vector<std::string> files = FileUtil::findDatafiles(databaseName.c_str());
-        for (size_t i = 0; i < files.size(); ++i) {
-            FileUtil::remove(files[i].c_str());
-        }
-        std::string index = databaseName + ".index";
-        if (FileUtil::fileExists(index.c_str())) {
-            FileUtil::remove(index.c_str());
-        }
-        std::string dbTypeFile = databaseName + ".dbtype";
-        if (FileUtil::fileExists(dbTypeFile.c_str())) {
-            FileUtil::remove(dbTypeFile.c_str());
+    static void moveDatafiles(const std::vector<std::string>& files, const std::string& destination);
 
-        }
-        std::string lookupFile = databaseName + ".lookup";
-        if (FileUtil::fileExists(lookupFile.c_str())) {
-            FileUtil::remove(lookupFile.c_str());
-        }
-    }
+    static void moveDb(const std::string &srcDbName, const std::string &dstDbName);
+
+    static void removeDb(const std::string &databaseName);
 
     char *mmapData(FILE *file, size_t *dataSize);
 
