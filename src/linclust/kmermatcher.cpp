@@ -399,7 +399,17 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
 
     Debug(Debug::INFO) << "Generate k-mers list for " << (split+1) <<" split\n";
 
-    size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;
+    size_t splitKmerCount = totalKmers;
+    if(splits > 1){
+        size_t memoryLimit;
+        if (par.splitMemoryLimit > 0) {
+            memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+        } else {
+            memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
+        }
+        // we do not really know how much memory is needed. So this is our best choice
+        splitKmerCount = (memoryLimit / sizeof(KmerPosition));
+    }
 
     KmerPosition * hashSeqPair = initKmerPositionMemory(splitKmerCount);
     size_t elementsToSort;
