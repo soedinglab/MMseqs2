@@ -4,19 +4,11 @@
 #include "Debug.h"
 #include <string>
 
-struct ByteParser {
-    static size_t highestOneBitPosition(size_t number) {
-        size_t bits = 0;
-        while (number != 0) {
-            bits++;
-            number >>= 1;
-        };
-        return bits;
-    };
-    
+class ByteParser {
+public:    
     static size_t parse(const std::string& sizeAndUnit) {
         // default unit is M
-        size_t unitFactor = 1024 * 1024;
+        size_t unitFactor = TWO_POW_10 * TWO_POW_10;
         size_t size = 0;
 
         size_t strLen = sizeAndUnit.size();
@@ -30,13 +22,13 @@ struct ByteParser {
             digitsString = sizeAndUnit.substr(0,(strLen - 1));
 
             if ((lastChar == 't') || (lastChar == 'T')) {
-                unitFactor = 1024 * 1024 * 1024 * 1024;
+                unitFactor = TWO_POW_10 * TWO_POW_10 * TWO_POW_10 * TWO_POW_10;
             } else if ((lastChar == 'g') || (lastChar == 'G')) {
-                unitFactor = 1024 * 1024 * 1024;
+                unitFactor = TWO_POW_10 * TWO_POW_10 * TWO_POW_10;
             } else if ((lastChar == 'm') || (lastChar == 'M')) {
-                unitFactor = 1024 * 1024;
+                unitFactor = TWO_POW_10 * TWO_POW_10;
             } else if ((lastChar == 'k') || (lastChar == 'K')){
-                unitFactor = 1024;
+                unitFactor = TWO_POW_10;
             } else if ((lastChar == 'b') || (lastChar == 'B')) {
                 unitFactor = 1;
             } else {
@@ -65,13 +57,13 @@ struct ByteParser {
     static std::string format(size_t numBytes, char unit='a') {
         if (unit == 'a') {
             // auto-detect the unit to use:
-            if ((numBytes / (1024 * 1024 * 1024 * 1024)) > 0) {
+            if ((numBytes / (TWO_POW_10 * TWO_POW_10 * TWO_POW_10 * TWO_POW_10)) > 0) {
                 unit = 'T';
-            } else if ((numBytes / (1024 * 1024 * 1024)) > 0) {
+            } else if ((numBytes / (TWO_POW_10 * TWO_POW_10 * TWO_POW_10)) > 0) {
                 unit = 'G';
-            } else if ((numBytes / (1024 * 1024)) > 0) {
+            } else if ((numBytes / (TWO_POW_10 * TWO_POW_10)) > 0) {
                 unit = 'M';
-            } else if ((numBytes / 1024) > 0) {
+            } else if ((numBytes / TWO_POW_10) > 0) {
                 unit = 'K';
             } else {
                 unit = 'B';
@@ -80,13 +72,13 @@ struct ByteParser {
 
         size_t unitFactor = 1;
         if ((unit == 't') || (unit == 'T')) {
-            unitFactor = 1024 * 1024 * 1024 * 1024;
+            unitFactor = TWO_POW_10 * TWO_POW_10 * TWO_POW_10 * TWO_POW_10;
         } else if ((unit == 'g') || (unit == 'G')) {
-            unitFactor = 1024 * 1024 * 1024;
+            unitFactor = TWO_POW_10 * TWO_POW_10 * TWO_POW_10;
         } else if ((unit == 'm') || (unit == 'M')) {
-            unitFactor = 1024 * 1024;
+            unitFactor = TWO_POW_10 * TWO_POW_10;
         } else if ((unit == 'k') || (unit == 'K')) {
-            unitFactor = 1024;
+            unitFactor = TWO_POW_10;
         } else if ((unit == 'b') || (unit == 'B')) {
             unitFactor = 1;
         } else {
@@ -102,6 +94,17 @@ struct ByteParser {
     };
 
     static const size_t INVALID_SIZE = SIZE_MAX;
+private:
+    static size_t highestOneBitPosition(size_t number) {
+        size_t bits = 0;
+        while (number != 0) {
+            bits++;
+            number >>= 1;
+        };
+        return bits;
+    };
+
+    static const size_t TWO_POW_10 = 1024;
 };
 
 #endif
