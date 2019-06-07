@@ -75,7 +75,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         # 90 bytes/query-result line max.
         MAX_SEQS="$((1024*CURRENT_AVAIL_DISK_SPACE/NUM_PROFILES/90))"
     else
-        MAX_SEQS="$((1024*AVAIL_DISK/NUM_PROFILES/90))"
+        MAX_SEQS="$((AVAIL_DISK/NUM_PROFILES/90))"
     fi
 
     if notExists "${TMP_PATH}/pref.done"; then
