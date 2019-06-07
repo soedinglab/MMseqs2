@@ -24,17 +24,17 @@ extern const char* binary_name;
 extern const char* version;
 
 Parameters::Parameters():
-        PARAM_S(PARAM_S_ID,"-s", "Sensitivity","sensitivity: 1.0 faster; 4.0 fast default; 7.5 sensitive [1.0,7.5]", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
+        PARAM_S(PARAM_S_ID,"-s", "Sensitivity","sensitivity: 1.0 faster; 4.0 fast default; 7.5 sensitive (range 1.0-7.5)", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range (0: set automatically to optimum)",typeid(int),  (void *) &kmerSize, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "number of cores used for the computation (uses all cores by default)",typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
         PARAM_COMPRESSED(PARAM_COMPRESSED_ID,"--compressed", "Compressed", "write results in compressed format",typeid(int), (void *) &compressed, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
-        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "alphabet size (range 2-21)",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         // Regex for Range 1-32768
         // Please do not change manually, use a tool to regenerate
         // e.g.: http://gamon.webfactional.com/regexnumericrangegenerator/
-        PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max sequence length", "maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal scoring", "use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_EXACT_KMER_MATCHING(PARAM_EXACT_KMER_MATCHING_ID,"--exact-kmer-matching", "Exact k-mer matching", "only exact k-mer matching [0,1]", typeid(int),(void *) &exactKmerMatching, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max sequence length", "maximum sequence length (range 1-32768])",typeid(int), (void *) &maxSeqLen, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal scoring", "use diagonal score for sorting the prefilter results (range 0-1)", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_EXACT_KMER_MATCHING(PARAM_EXACT_KMER_MATCHING_ID,"--exact-kmer-matching", "Exact k-mer matching", "only exact k-mer matching (range 0-1)", typeid(int),(void *) &exactKmerMatching, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask residues", "mask sequences in k-mer stage 0: w/o low complexity masking, 1: with low complexity masking", typeid(int),(void *) &maskMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_LOWER_CASE(PARAM_MASK_LOWER_CASE_ID,"--mask-lower-case", "Mask lower case residues", "lowercase letters will be excluded from k-mer search 0: include region, 1: exclude region", typeid(int),(void *) &maskLowerCaseMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-ungapped-score", "Minimum diagonal score", "accept only matches with ungapped alignment score above this threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
@@ -48,7 +48,7 @@ Parameters::Parameters():
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","Try to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Substitution matrix", "amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SEED_SUB_MAT(PARAM_SEED_SUB_MAT_ID,"--seed-sub-mat", "Seed substitution matrix", "amino acid substitution matrix for kmer generation file",typeid(std::string),(void *) &seedScoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","correct for locally biased amino acid composition [0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","correct for locally biased amino acid composition (range 0-1)",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced k-mers", "0: use consecutive positions a k-mers; 1: use spaced k-mers",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove temporary files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "",MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
         PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical seq. id.","artificially add entries of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
@@ -57,7 +57,7 @@ Parameters::Parameters():
         PARAM_LOCAL_TMP(PARAM_LOCAL_TMP_ID, "--local-tmp", "Local temporary path", "Path where some of the temporary files will be created", typeid(std::string), (void *) &localTmp, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "How to compute the alignment: 0: automatic; 1: only score and end_pos; 2: also start_pos and cov; 3: also seq.id; 4: only ungapped alignment",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value (range 0.0-inf)",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "list matches above this fraction of aligned (covered) residues (see --cov-mode)",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|^1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN| MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_COV_MODE(PARAM_COV_MODE_ID, "--cov-mode", "Coverage mode", "0: coverage of query and target, 1: coverage of target, 2: coverage of query 3: target seq. length needs be at least x% of query length, 4: query seq. length needs be at least x% of target length", typeid(int), (void *) &covMode, "^[0-3]{1}$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_SEQ_ID_MODE(PARAM_SEQ_ID_MODE_ID, "--seq-id-mode", "Seq. id. mode", "0: alignment length 1: shorter, 2: longer sequence", typeid(int), (void *) &seqIdMode, "^[0-2]{1}$", MMseqsParameter::COMMAND_ALIGN),
@@ -65,8 +65,8 @@ Parameters::Parameters():
         PARAM_MAX_ACCEPT(PARAM_MAX_ACCEPT_ID,"--max-accept", "Max accept", "maximum accepted alignments before alignment calculation for a query is stopped",typeid(int),(void *) &maxAccept, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hits", "compute more conservative, shorter alignments (scores and E-values not changed)", typeid(bool), (void *) &realign, "", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. id. threshold","list matches above this sequence identity (for clustering) [0.0,1.0]",typeid(float), (void *) &seqIdThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
-        PARAM_MIN_ALN_LEN(PARAM_MIN_ALN_LEN_ID,"--min-aln-len", "Min. alignment length","minimum alignment length [0,INT_MAX]",typeid(int), (void *) &alnLenThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. id. threshold","list matches above this sequence identity (for clustering) (range 0.0-1.0)",typeid(float), (void *) &seqIdThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_MIN_ALN_LEN(PARAM_MIN_ALN_LEN_ID,"--min-aln-len", "Min. alignment length","minimum alignment length (range 0-INT_MAX)",typeid(int), (void *) &alnLenThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID,"--score-bias", "Score bias", "Score bias when computing the SW alignment (in bits)",typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID,"--alt-ali", "Alternative alignments","Show up to this many alternative alignments",typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID,"--gap-open", "Gap open cost","Gap open cost",typeid(int), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
@@ -77,7 +77,7 @@ Parameters::Parameters():
         PARAM_CASCADED(PARAM_CASCADED_ID,"--single-step-clustering", "Single step clustering", "switches from cascaded to simple clustering workflow",typeid(bool), (void *) &cascaded, "", MMseqsParameter::COMMAND_CLUST),
         // affinity clustering
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max depth connected component", "maximum depth of breadth first search in connected component",typeid(int), (void *) &maxIteration,  "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "type of score used for clustering [1:2]. 1=alignment score. 2=sequence identity ",typeid(int),(void *) &similarityScoreType,  "^[1-2]{1}$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "type of score used for clustering (range 1,2). 1=alignment score. 2=sequence identity ",typeid(int),(void *) &similarityScoreType,  "^[1-2]{1}$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
         // logging
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","verbosity level: 0=nothing, 1: +errors, 2: +warnings, 3: +info",typeid(int), (void *) &verbosity, "^[0-3]{1}$", MMseqsParameter::COMMAND_COMMON),
         // create profile (HMM)
@@ -106,7 +106,7 @@ Parameters::Parameters():
         PARAM_MATCH_RATIO(PARAM_MATCH_RATIO_ID, "--match-ratio", "Match ratio", "columns that have a residue in this ratio of all sequences are kept", typeid(float), (void*)&matchRatio, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE),
         // result2profile
         PARAM_MASK_PROFILE(PARAM_MASK_PROFILE_ID,"--mask-profile", "Mask profile", "mask query sequence of profile using tantan [0,1]", typeid(int),(void *) &maskProfile, "^[0-1]{1}$", MMseqsParameter::COMMAND_PROFILE |MMseqsParameter::COMMAND_EXPERT),
-        PARAM_E_PROFILE(PARAM_E_PROFILE_ID,"--e-profile", "Profile e-value threshold", "includes sequences matches with < e-value thr. into the profile [>=0.0]", typeid(float), (void *) &evalProfile, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$", MMseqsParameter::COMMAND_PROFILE),
+        PARAM_E_PROFILE(PARAM_E_PROFILE_ID,"--e-profile", "Profile e-value threshold", "includes sequences matches with < e-value thr. into the profile (>=0.0)", typeid(float), (void *) &evalProfile, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_FILTER_MSA(PARAM_FILTER_MSA_ID,"--filter-msa", "Filter MSA", "filter msa: 0: do not filter, 1: filter", typeid(int), (void*) &filterMsa, "^[0-1]{1}$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_MAX_SEQ_ID(PARAM_FILTER_MAX_SEQ_ID_ID,"--max-seq-id", "Maximum seq. id. threshold", "reduce redundancy of output MSA using max. pairwise sequence identity [0.0,1.0]", typeid(float), (void*) &filterMaxSeqId, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_QSC(PARAM_FILTER_QSC_ID, "--qsc", "Minimum score per column", "reduce diversity of output MSAs using min. score per aligned residue with query sequences [-50.0,100.0]", typeid(float), (void*) &qsc, "^\\-*[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
@@ -115,7 +115,7 @@ Parameters::Parameters():
         PARAM_FILTER_NDIFF(PARAM_FILTER_NDIFF_ID, "--diff", "Select N most diverse seqs", "filter MSAs by selecting most diverse set of sequences, keeping at least this many seqs in each MSA block of length 50", typeid(int), (void*) &Ndiff, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, "", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "pseudo count admixture strength", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "pseudo counts: Neff at half of maximum admixture (0.0,infinity)", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "pseudo counts: Neff at half of maximum admixture (range 0.0-inf)", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         // sequence2profile
         PARAM_NEFF(PARAM_NEFF_ID, "--neff", "Neff", "Neff included into context state profile (1.0,20.0)", typeid(float), (void*) &neff, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_TAU(PARAM_TAU_ID, "--tau", "Tau", "Tau: context state pseudo count mixture (0.0,1.0)", typeid(float), (void*) &tau, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
@@ -1038,12 +1038,13 @@ Parameters::Parameters():
     setDefaults();
 }
 
+
 void Parameters::printUsageMessage(const Command& command,
                                    const unsigned int outputFlag){
     const std::vector<MMseqsParameter*>& parameters = *command.params;
     bool printWholeHelpText = (outputFlag == 0xFFFFFFFF);
     std::ostringstream ss;
-    ss << "Usage: " << binary_name << " " << command.cmd << " " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n";
+    ss << "Usage: " << binary_name << " " << command.cmd << " " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n\n";
 //    ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
     const char * longDesc = ( command.longDescription != NULL) ?  command.longDescription : command.shortDescription;
     const char * printDesc = (printWholeHelpText) ? longDesc : command.shortDescription;
@@ -1051,6 +1052,7 @@ void Parameters::printUsageMessage(const Command& command,
     if(printWholeHelpText) {
         ss <<" By " << command.author << "\n";
     }
+    ss << "\nOptions: ";
 
     struct {
         const char* title;
@@ -1066,17 +1068,25 @@ void Parameters::printUsageMessage(const Command& command,
             {"Expert",   MMseqsParameter::COMMAND_EXPERT}
     };
 
-    size_t maxWidth = 0;
-    for(size_t i = 0; i < parameters.size(); i++) {
-        maxWidth = std::max(strlen(parameters[i]->name), maxWidth);
+    bool printExpert = (MMseqsParameter::COMMAND_EXPERT & outputFlag) ;
+    size_t maxParamWidth = 0;
+    for (size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
+        for (size_t j = 0; j < parameters.size(); j++) {
+            const MMseqsParameter *par = parameters[j];
+            bool isExpert = (par->category & MMseqsParameter::COMMAND_EXPERT);
+            if (par->category & categories[i].category && (printExpert || isExpert == false)) {
+                maxParamWidth = std::max(strlen(parameters[j]->name), maxParamWidth);
+            }
+        }
     }
     // space in front of options
-    maxWidth += 2;
+    maxParamWidth += 6;
     std::map<int, bool> alreadyPrintMap;
     // header
     ss << std::setprecision(3) << std::fixed;
-    bool printExpert = (MMseqsParameter::COMMAND_EXPERT & outputFlag) ;
     bool printHeader = true;
+    std::string paramString;
+    paramString.reserve(100);
     for (size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
         bool categoryFound = false;
         for (size_t j = 0; j < parameters.size(); j++) {
@@ -1092,41 +1102,51 @@ void Parameters::printUsageMessage(const Command& command,
             }
         }
         if (categoryFound) {
-            std::string title(categories[i].title);
-            title.append(" options:");
-            ss << std::left << std::setw(maxWidth) << title;
+            paramString.clear();
+            paramString.append("\n ").append(categories[i].title).append(":");
+            ss << paramString << std::string(maxParamWidth < paramString.size()? 1 : maxParamWidth - paramString.size(), ' ');
+
             if(printHeader==true){
-                ss << "\t";
-                ss << std::left << std::setw(10) << "default" << "\t";
-                ss << "description [value range]" << std::endl;
+                //ss << " ";
+                //ss << std::left << std::setw(10) << "default" << " ";
+                //ss << std::fixed << "description [value range]";
                 printHeader = false;
-            }else {
-                ss << std::endl;
             }
+            ss << std::endl;
             // body
             for (size_t j = 0; j < parameters.size(); j++) {
+                paramString.clear();
                 const MMseqsParameter * par = parameters[j];
                 bool isExpert = (par->category & MMseqsParameter::COMMAND_EXPERT);
                 bool alreadyPrint = alreadyPrintMap[par->uniqid];
-                if (par->category & categories[i].category && (printExpert || isExpert == false) && alreadyPrint == false ){
-                    ss << std::left << std::setw(maxWidth) << "  " + std::string(par->name) << "\t";
-                    ss << std::boolalpha << std::left << std::setw(6);
+                if (par->category & categories[i].category && (printExpert || isExpert == false) && alreadyPrint == false ) {
+                    paramString.append(par->name);
+                    std::string valueString;
                     if (par->type == typeid(int)) {
-                        ss << std::left << std::setw(10) << *((int *) par->value);
+                        paramString.append(" INT");
+                        valueString = SSTR(*(int *) par->value);
                     } else if (par->type == typeid(float)) {
-                        ss << std::left << std::setw(10) << *((float *) par->value);
+                        paramString.append(" FLOAT");
+                        valueString = SSTR(*(float *) par->value);
                     } else if (par->type == typeid(ByteParser)) {
-                        ss << std::left << std::setw(10) << ByteParser::format(*((size_t *) par->value));
+                        paramString.append(" BYTE");
+                        valueString = ByteParser::format(*((size_t *) par->value));
                     } else if (par->type == typeid(bool)) {
-                        bool flag = *((bool *) par->value);
-                        std::string flagOutput = (flag) ? "true" : "false";
-                        ss << std::left << std::setw(10) << flagOutput;
+                        if (*(bool *)par->value == true) {
+                            paramString.append(" 0");
+                        }
+                        valueString = "1, set to 0 to disable";
                     } else if (par->type == typeid(std::string)) {
-                        std::string &out = *((std::string *) par->value);
-                        ss << std::left << std::setw(10) << out;
+                        paramString.append(" STR");
+                        valueString = *((std::string *) par->value);
                     }
-                    ss << "\t";
-                    ss << std::left << std::setw(60) << par->description << std::endl;
+                    ss << "   " << paramString << std::string(maxParamWidth < paramString.size()? 1 : maxParamWidth - paramString.size(), ' ');
+
+                    ss << " " << par->description;
+                    if (!(par->type == typeid(bool) && !(*(bool *)par->value))) {
+                        ss << " [" << valueString << "]";
+                    }
+                    ss << std::endl;
                     alreadyPrintMap[par->uniqid] = true;
                 }
             }
@@ -1199,12 +1219,13 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                 break;
             }
             std::string parameter(pargv[argIdx]);
+            if (parameter.compare("-h") == 0 || parameter.compare("--help") == 0) {
+                printUsageMessage(command, 0xFFFFFFFF);
+                EXIT(EXIT_SUCCESS);
+            }
+
             bool hasUnrecognizedParameter = true;
             for(size_t parIdx = 0; parIdx < par.size(); parIdx++){
-                if (parameter.compare("-h") == 0) {
-                    printUsageMessage(command, 0xFFFFFFFF);
-                    EXIT(EXIT_SUCCESS);
-                }
 
                 if(parameter.compare(par[parIdx]->name) == 0) {
                     if (typeid(bool) != par[parIdx]->type && argIdx + 1 == argc) {
