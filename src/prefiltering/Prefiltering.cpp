@@ -7,6 +7,7 @@
 #include "FileUtil.h"
 #include "IndexBuilder.h"
 #include "Timer.h"
+#include "ByteParser.h"
 
 namespace prefilter {
 #include "ExpOpt3_8_polished.cs32.lib.h"
@@ -179,9 +180,10 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                        (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_AMINO_ACIDS)) ||
                        (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES) && Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_NUCLEOTIDES));
 
+    // memoryLimit in bytes
     size_t memoryLimit;
     if (par.splitMemoryLimit > 0) {
-        memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+        memoryLimit = par.splitMemoryLimit;
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
@@ -637,12 +639,13 @@ int Prefiltering::runSplits(const std::string &queryDB, const std::string &query
     }
     Debug(Debug::INFO) << "Query database size: " << qdbr->getSize() << " type: "<< DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
 
-    size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(resultDB).c_str());
+    size_t freeSpace = FileUtil::getFreeSpace(FileUtil::dirName(resultDB).c_str());
     size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qdbr->getSize(), maxResListLen);
-    if (freeSpace < estimatedHDDMemory){
-        Debug(Debug::WARNING) << "Hard disk might not have enough free space (" << freeSpace << " bytes left)."
-                            << "The prefilter result might need maximal " << estimatedHDDMemory << " bytes.\n";
-//        EXIT(EXIT_FAILURE);
+    if (freeSpace < estimatedHDDMemory) {
+        std::string freeSpaceToPrint = ByteParser::format(freeSpace);
+        std::string estimatedHDDMemoryToPrint = ByteParser::format(estimatedHDDMemory);
+        Debug(Debug::WARNING) << "Hard disk might not have enough free space (" << freeSpaceToPrint << " left)."
+                              << "The prefilter result might need up to " << estimatedHDDMemoryToPrint << ".\n";
     }
 
     bool hasResult = false;
@@ -1042,6 +1045,7 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
     }
     // some memory needed to keep the index, ....
     size_t background = dbSize * 22;
+    // return result in bytes
     return residueSize + indexTableSize + threadSize + background + extendedMatrix;
 }
 

@@ -131,9 +131,10 @@ int doswap(Parameters& par, bool isGeneralMode) {
         }
     }
 
+    // memoryLimit in bytes
     size_t memoryLimit;
     if (par.splitMemoryLimit > 0) {
-        memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+        memoryLimit = par.splitMemoryLimit;
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }

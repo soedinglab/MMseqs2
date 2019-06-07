@@ -2,6 +2,7 @@ set(commons_header_files
         commons/A3MReader.h
         commons/AminoAcidLookupTables.h
         commons/BacktraceTranslator.h
+        commons/ByteParser.h
         commons/Command.h
         commons/CommandCaller.h
         commons/Concat.h

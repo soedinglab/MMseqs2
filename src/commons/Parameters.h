@@ -301,8 +301,8 @@ public:
     int    spacedKmer;                   // Spaced Kmers
     int    split;                        // Split database in n equal chunks
     int    splitMode;                    // Split by query or target DB
-    int    splitMemoryLimit;             // Maximum amount of memory a split can use
-    int    diskSpaceLimit;               // Disk space max usage for sliced reverse profile search
+    size_t splitMemoryLimit;             // Maximum memory in bytes a split can use
+    size_t diskSpaceLimit;               // Maximum disk space in bytes for sliced reverse profile search
     bool   splitAA;                      // Split database by amino acid count instead
     int    preloadMode;                  // Preload mode of database
     float  scoreBias;                    // Add this bias to the score when computing the alignements

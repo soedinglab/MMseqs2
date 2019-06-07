@@ -70,9 +70,10 @@ int indexdb(int argc, const char **argv, const Command &command) {
     int split = 1;
     int splitMode = Parameters::TARGET_DB_SPLIT;
 
+    // memoryLimit in bytes
     size_t memoryLimit;
     if (par.splitMemoryLimit > 0) {
-        memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+        memoryLimit = par.splitMemoryLimit;
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }

@@ -334,11 +334,9 @@ int search(int argc, const char **argv, const Command& command) {
         }
         cmd.addVariable("MAX_STEPS", SSTR(30).c_str());
         cmd.addVariable("MAX_RESULTS_PER_QUERY", SSTR(par.maxResListLen).c_str());
-        size_t diskLimit;
 
-        // By default (0), diskSpaceLimit will be set in the workflow to use as much as possible
-        diskLimit = static_cast<size_t>(par.diskSpaceLimit) * 1024; // in kb
-        cmd.addVariable("AVAIL_DISK", SSTR(static_cast<size_t>(diskLimit)).c_str());
+        // By default (0), diskSpaceLimit (in bytes) will be set in the workflow to use as much as possible
+        cmd.addVariable("AVAIL_DISK", SSTR(static_cast<size_t>(par.diskSpaceLimit)).c_str());
 
         // --max-seqs and --offset-results are set inside the workflow
         std::vector<MMseqsParameter*> prefilter;

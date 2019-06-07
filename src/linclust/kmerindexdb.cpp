@@ -56,9 +56,10 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     const size_t KMER_SIZE = par.kmerSize;
     size_t chooseTopKmer = par.kmersPerSequence;
 
+    // memoryLimit in bytes
     size_t memoryLimit;
     if (par.splitMemoryLimit > 0) {
-        memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+        memoryLimit = par.splitMemoryLimit;
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
