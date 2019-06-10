@@ -348,9 +348,9 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSi
         split = optimalNumSplits;
     } 
     
-    if (split < minimalNumSplits) {
-        Debug(Debug::ERROR) << "split was set to " << split << " but at least " << minimalNumSplits << " are required. Please run with default paramerters\n";
-        EXIT(EXIT_FAILURE);
+    // templateDBIsIndex = false when called from indexdb
+    if ((split < minimalNumSplits) && (templateDBIsIndex)) {
+        Debug(Debug::WARNING) << "split was set to " << split << " but at least " << minimalNumSplits << " are required. Please run with default paramerters\n";
     } else if (split > (int)sizeOfDbToSplit) {
         Debug(Debug::ERROR) << "split was set to " << split << " but the db to split has only " << sizeOfDbToSplit << " sequences. Please run with default paramerters\n";
         EXIT(EXIT_FAILURE);
