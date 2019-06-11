@@ -27,7 +27,7 @@ public:
                 unitFactor = TWO_POW_10 * TWO_POW_10 * TWO_POW_10;
             } else if ((lastChar == 'm') || (lastChar == 'M')) {
                 unitFactor = TWO_POW_10 * TWO_POW_10;
-            } else if ((lastChar == 'k') || (lastChar == 'K')){
+            } else if ((lastChar == 'k') || (lastChar == 'K')) {
                 unitFactor = TWO_POW_10;
             } else if ((lastChar == 'b') || (lastChar == 'B')) {
                 unitFactor = 1;
