@@ -73,7 +73,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         CURRENT_AVAIL_DISK_SPACE=$(($("$MMSEQS" diskspaceavail "${TMP_PATH}")/2))
         # Compute the max number of sequence according to the number of profiles
         # 90 bytes/query-result line max.
-        MAX_SEQS="$((1024*CURRENT_AVAIL_DISK_SPACE/NUM_PROFILES/90))"
+        MAX_SEQS="$((CURRENT_AVAIL_DISK_SPACE/NUM_PROFILES/90))"
     else
         MAX_SEQS="$((AVAIL_DISK/NUM_PROFILES/90))"
     fi

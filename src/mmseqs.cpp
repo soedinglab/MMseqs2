@@ -797,7 +797,7 @@ std::vector<struct Command> commands = {
                 "",
                 CITATION_MMSEQS2, {{"",DbType::ACCESS_MODE_INPUT, NULL}}},
         {"diskspaceavail",       diskspaceavail,       &par.empty,                COMMAND_HIDDEN,
-                "",
+                "available disk space in bytes",
                 NULL,
                 "",
                 "",
