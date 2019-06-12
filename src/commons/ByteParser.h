@@ -89,6 +89,9 @@ public:
 
         size_t value = (size_t)(numBytes / unitFactor);
         std::string str(SSTR(value));
+        if (value > 0) {
+            str.append(1, unit);
+        }
         str.append(1, unit);
         return str;
     };
