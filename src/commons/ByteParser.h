@@ -92,7 +92,6 @@ public:
         if (value > 0) {
             str.append(1, unit);
         }
-        str.append(1, unit);
         return str;
     };
 
