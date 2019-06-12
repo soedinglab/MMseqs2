@@ -141,7 +141,13 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
-    DBReader<std::string> dataIn(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    std::string data = par.db1;
+    std::string index = par.db1Index;
+    if (FileUtil::fileExists((par.db1 + ".ffdata").c_str()) && FileUtil::fileExists((par.db1 + ".ffindex").c_str())) {
+        data = par.db1 + ".ffdata";
+        index = par.db1 + ".ffindex";
+    }
+    DBReader<std::string> dataIn(data.c_str(), index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dataIn.open(DBReader<std::string>::NOSORT);
 
     DBWriter dataOut(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_HMM_PROFILE);
