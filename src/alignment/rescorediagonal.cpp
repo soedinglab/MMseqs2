@@ -245,7 +245,9 @@ int doRescorediagonal(Parameters &par,
                                 if (evalue <= par.evalThr || isIdentity) {
                                     int idCnt = 0;
                                     for (int i = qStartPos; i <= qEndPos; i++) {
-                                        idCnt += (querySeqToAlign[i] == targetSeq[dbStartPos + (i - qStartPos)]) ? 1 : 0;
+                                        char qLetter = querySeqToAlign[i] & static_cast<unsigned char>(~0x20);
+                                        char tLetter = targetSeq[dbStartPos + (i - qStartPos)] & static_cast<unsigned char>(~0x20);
+                                        idCnt += (qLetter == tLetter) ? 1 : 0;
                                     }
                                     seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLen);
                                 }
