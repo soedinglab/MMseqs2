@@ -5,7 +5,6 @@ set(HAVE_NEON 0 CACHE BOOL "Have NEON")
 set(HAVE_TESTS 1 CACHE BOOL "Have Tests")
 set(HAVE_SHELLCHECK 1 CACHE BOOL "Have ShellCheck")
 set(HAVE_GPROF 0 CACHE BOOL "Have GPROF Profiler")
-set(HAVE_OMP 1 CACHE BOOL "Have OpenMP")
 set(ENABLE_WERROR 0 CACHE BOOL "Enable Warnings as Errors")
 
 include(AppendTargetProperty)
@@ -215,21 +214,16 @@ if (${HAVE_MPI})
     endif ()
 endif ()
 
-if (${HAVE_OMP})
-    find_package(OpenMP REQUIRED)
-    if (OPENMP_FOUND)
-        message("-- Found OpenMP")
-        target_compile_definitions(mmseqs-framework PUBLIC -DOPENMP=1)
-        if (CMAKE_COMPILER_IS_CLANG)
-            # Clang does not seem to be able to resolve the path to the library itself
-            # For GCC we dont want to do this since it breaks macOS static builds
-            # It will link libgomp.a internally (through -fopenmp I guess)
-            # and also link libgomp.dylib thus breaking static builds
-            target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
-        endif ()
-        append_target_property(mmseqs-framework COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
-        append_target_property(mmseqs-framework LINK_FLAGS ${OpenMP_CXX_FLAGS})
-    endif ()
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    message("-- Found OpenMP")
+    target_compile_definitions(mmseqs-framework PUBLIC -DOPENMP=1)
+    # For GCC we dont want to do this since it breaks macOS static builds
+    # It will link libgomp.a internally (through -fopenmp I guess)
+    # and also link libgomp.dylib thus breaking static builds
+    # target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
+    append_target_property(mmseqs-framework COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
+    append_target_property(mmseqs-framework LINK_FLAGS ${OpenMP_CXX_FLAGS})
 endif ()
 
 if (${HAVE_GPROF})
