@@ -175,7 +175,7 @@ ffindexFilter::ffindexFilter(Parameters &par) {
         regexStr = par.filterColumnRegex;
         int status = regcomp(&regex, regexStr.c_str(), REG_EXTENDED | REG_NEWLINE);
         if (status != 0 ){
-            Debug(Debug::INFO) << "Error in regex " << regexStr << "\n";
+            Debug(Debug::ERROR) << "Error in regex " << regexStr << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
