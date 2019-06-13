@@ -214,12 +214,14 @@ if (${HAVE_MPI})
     endif ()
 endif ()
 
-# openmp integration
 find_package(OpenMP)
 if (OPENMP_FOUND)
     message("-- Found OpenMP")
     target_compile_definitions(mmseqs-framework PUBLIC -DOPENMP=1)
-    target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
+    # For GCC we dont want to do this since it breaks macOS static builds
+    # It will link libgomp.a internally (through -fopenmp I guess)
+    # and also link libgomp.dylib thus breaking static builds
+    # target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
     append_target_property(mmseqs-framework COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
     append_target_property(mmseqs-framework LINK_FLAGS ${OpenMP_CXX_FLAGS})
 endif ()

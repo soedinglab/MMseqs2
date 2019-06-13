@@ -21,7 +21,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif (NOT CMAKE_BUILD_TYPE)
 
 # find compiler
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     # using Clang
     message("-- Compiler is clang(++)")
     set(CMAKE_COMPILER_IS_CLANG 1)
