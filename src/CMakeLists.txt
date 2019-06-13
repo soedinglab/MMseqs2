@@ -220,9 +220,13 @@ if (${HAVE_OMP})
     if (OPENMP_FOUND)
         message("-- Found OpenMP")
         target_compile_definitions(mmseqs-framework PUBLIC -DOPENMP=1)
-        # compiler should already link OpenMP libraries itself
-        # if we leave this in we might link the openmp libraries twice
-        # target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
+        if (CMAKE_COMPILER_IS_CLANG)
+            # Clang does not seem to be able to resolve the path to the library itself
+            # For GCC we dont want to do this since it breaks macOS static builds
+            # It will link libgomp.a internally (through -fopenmp I guess)
+            # and also link libgomp.dylib thus breaking static builds
+            target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
+        endif ()
         append_target_property(mmseqs-framework COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
         append_target_property(mmseqs-framework LINK_FLAGS ${OpenMP_CXX_FLAGS})
     endif ()
