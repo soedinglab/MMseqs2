@@ -839,6 +839,9 @@ void writeKmerMatcherResult(DBWriter & dbw,
             unsigned short prevDiagonal = diagonal;
             size_t maxDiagonal = 0;
             size_t diagonalCnt = 0;
+            size_t topScore =0;
+            int bestReverMask = reverMask;
+            // compute best diagonal and score for every group of target sequences
             while(lastTargetId != targetId
                    && kmerPos+kmerOffset < threadOffsets[thread+1]
                    && hashSeqPair[kmerPos+kmerOffset].id == targetId){
@@ -850,9 +853,13 @@ void writeKmerMatcherResult(DBWriter & dbw,
                  if(diagonalCnt > maxDiagonal){
                      diagonal = prevDiagonal;
                      maxDiagonal = diagonalCnt;
+                     if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+                         bestReverMask = BIT_CHECK(hashSeqPair[kmerPos+kmerOffset].kmer, 63) == false;
+                     }
                  }
                 prevDiagonal = hashSeqPair[kmerPos+kmerOffset].pos;
                 kmerOffset++;
+                topScore++;
             }
             // remove similar double sequence hit
             if(targetId != repSeqId && lastTargetId != targetId ){
@@ -863,7 +870,7 @@ void writeKmerMatcherResult(DBWriter & dbw,
             }
             hit_t h;
             h.seqId = targetId;
-            h.prefScore = reverMask;
+            h.prefScore = (bestReverMask) ? -topScore : topScore;
             h.diagonal = diagonal;
             int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
             prefResultsOutString.append(buffer, len);
