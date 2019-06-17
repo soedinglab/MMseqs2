@@ -13,34 +13,52 @@
 
 int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4);
+    par.parseParameters(argc, argv, command, 6);
 
-    DBReader<unsigned int> *qdbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    qdbr->open(DBReader<unsigned int>::NOSORT);
-    qdbr->readMmapedDataInMemory();
+    DBReader<unsigned int> *qdbr_nuc = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    qdbr_nuc->open(DBReader<unsigned int>::NOSORT);
+    qdbr_nuc->readMmapedDataInMemory();
 
-    DBReader<unsigned int> *tdbr = NULL;
+    DBReader<unsigned int> *qdbr_aa = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    qdbr_aa->open(DBReader<unsigned int>::NOSORT);
+    qdbr_aa->readMmapedDataInMemory();
+
+    DBReader<unsigned int> *tdbr_nuc = NULL;
+    DBReader<unsigned int> *tdbr_aa = NULL;
 //    BaseMatrix * subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
 
     bool sameDB = false;
-    if (par.db1.compare(par.db2) == 0) {
+    if (par.db1.compare(par.db2) == 0 && par.db3.compare(par.db4) == 0) {
         sameDB = true;
-        tdbr = qdbr;
-    } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        tdbr->open(DBReader<unsigned int>::NOSORT);
-        tdbr->readMmapedDataInMemory();
+        tdbr_nuc = qdbr_nuc;
+        tdbr_aa = qdbr_aa;
+
+    } else if (par.db1.compare(par.db2) != 0 && par.db3.compare(par.db4) != 0) {
+        tdbr_nuc = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+        tdbr_nuc->open(DBReader<unsigned int>::NOSORT);
+        tdbr_nuc->readMmapedDataInMemory();
+
+        tdbr_aa =  new DBReader<unsigned int>(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+        tdbr_aa->open(DBReader<unsigned int>::NOSORT);
+        tdbr_aa->readMmapedDataInMemory();
     }
-    if(Parameters::isEqualDbtype(qdbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) == false ||
-       Parameters::isEqualDbtype(tdbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) == false ){
-        Debug(Debug::ERROR) << "This module only supports nucleotide query and target database input.\n";
+    else{
+        Debug(Debug::ERROR) << "Either query database == target database for nucleotide and amino acid or != for both .\n";
         EXIT(EXIT_FAILURE);
     }
 
-    DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    if(Parameters::isEqualDbtype(qdbr_nuc->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) == false ||
+       Parameters::isEqualDbtype(tdbr_nuc->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) == false ||
+       Parameters::isEqualDbtype(qdbr_aa->getDbtype(), Parameters::DBTYPE_AMINO_ACIDS) == false ||
+       Parameters::isEqualDbtype(tdbr_aa->getDbtype(), Parameters::DBTYPE_AMINO_ACIDS) == false){
+        Debug(Debug::ERROR) << "Wrong query and target database input.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    DBReader<unsigned int> alnDbr(par.db5.c_str(), par.db5Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
+    DBWriter resultWriter(par.db6.c_str(), par.db6Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
     Debug::Progress progress(alnDbr.getSize());
 
@@ -68,8 +86,13 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
             unsigned int alnKey = alnDbr.getDbKey(i);
             char *data = alnDbr.getData(i, thread_idx);
 
-            unsigned int queryId = qdbr->getId(alnKey);
-            char *querySeq = qdbr->getData(queryId, thread_idx);
+            unsigned int queryId = qdbr_nuc->getId(alnKey);
+            char *nuclQuerySeq = qdbr_nuc->getData(queryId, thread_idx);
+            char *aaQuerySeq = qdbr_aa->getData(queryId, thread_idx);
+
+            bool qStartCodon = false;
+            if (aaQuerySeq[0] == '*' )
+                qStartCodon = true;
 
             Matcher::readAlignmentResults(results, data, true);
             for (size_t j = 0; j < results.size(); j++) {
@@ -84,14 +107,29 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
 
 
 
-                unsigned int targetId = tdbr->getId(results[j].dbKey);
-                char *targetSeq = tdbr->getData(targetId, thread_idx);
+                unsigned int targetId = tdbr_nuc->getId(results[j].dbKey);
+                char *nuclTargetSeq = tdbr_nuc->getData(targetId, thread_idx);
+                char *aaTargetSeq = tdbr_aa->getData(targetId, thread_idx);
 
-                res.dbStartPos = res.dbStartPos*3;
-                res.dbEndPos   = res.dbEndPos*3+2;
+                bool tStartCodon = false;
+                if (aaTargetSeq[0] == '*' )
+                    tStartCodon = true;
+
+                if (tStartCodon && res.dbStartPos == 0){
+                    Debug(Debug::ERROR) << "Alignment contains unalignable character.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                if (qStartCodon && res.qStartPos == 0){
+                    Debug(Debug::ERROR) << "Alignment contains unalignable character.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+
+
+                res.dbStartPos = res.dbStartPos*3 + (tStartCodon? -3:0);
+                res.dbEndPos   = res.dbEndPos*3+2 + (tStartCodon? -3:0);
                 res.dbLen      = res.dbLen*3;
-                res.qStartPos  = res.qStartPos*3;
-                res.qEndPos    = res.qEndPos*3+2;
+                res.qStartPos  = res.qStartPos*3 + (qStartCodon? -3:0);
+                res.qEndPos    = res.qEndPos*3+2 + (qStartCodon? -3:0);
                 res.qLen       = res.qLen*3;
                 size_t idCnt = 0;
                 size_t alnLen = 0;
@@ -111,7 +149,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
                     switch (res.backtrace[pos]) {
                         case 'M':
                             for (int bt = 0; bt < cnt*3; bt++) {
-                                idCnt += (querySeq[qPos] == targetSeq[tPos]);
+                                idCnt += (nuclQuerySeq[qPos] == nuclTargetSeq[tPos]);
                                 tPos++;
                                 qPos++;
                             }
@@ -155,8 +193,10 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     resultWriter.close();
     alnDbr.close();
     if (sameDB == false) {
-        tdbr->close();
-        delete tdbr;
+        tdbr_nuc->close();
+        tdbr_aa->close();
+        delete tdbr_nuc;
+        delete tdbr_aa;
     }
     return EXIT_SUCCESS;
 }
