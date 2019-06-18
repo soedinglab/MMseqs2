@@ -42,9 +42,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
     unsigned int maxTargetId = 0;
     char *targetElementExists = NULL;
     if (isGeneralMode) {
-
         DBReader<unsigned int> resultReader(parResultDb, parResultDbIndex, par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+        resultReader.open(DBReader<unsigned int>::SORT_BY_OFFSET);
         //search for the maxTargetId (value of first column) in parallel
         Debug::Progress progress(resultReader.getSize());
 
@@ -69,11 +68,9 @@ int doswap(Parameters& par, bool isGeneralMode) {
         };
         resultReader.close();
     } else {
-
         bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-        IndexReader query(par.db1, par.threads, IndexReader::SEQUENCES,  (touch) ? IndexReader::PRELOAD_INDEX : 0 );
+        IndexReader query(par.db1, par.threads, IndexReader::SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0);
         aaResSize = query.sequenceReader->getAminoAcidDBSize();
-
 
         IndexReader target(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0);
         maxTargetId = target.sequenceReader->getLastKey();
@@ -89,9 +86,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     EvalueComputation evaluer(aaResSize, &subMat, par.gapOpen, par.gapExtend);
 
-
     DBReader<unsigned int> resultDbr(parResultDb, parResultDbIndex, par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    resultDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    resultDbr.open(DBReader<unsigned int>::SORT_BY_OFFSET);
 
     const size_t resultSize = resultDbr.getSize();
     Debug(Debug::INFO) << "Computing offsets.\n";
@@ -138,6 +134,9 @@ int doswap(Parameters& par, bool isGeneralMode) {
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
+    size_t bytesForTargetElements = sizeof(size_t) * (maxTargetId + 2);
+    memoryLimit = (memoryLimit > bytesForTargetElements) ? (memoryLimit - bytesForTargetElements) : 0;
+
     // compute splits
     std::vector<std::pair<unsigned int, size_t > > splits;
     std::vector<std::pair<std::string , std::string > > splitFileNames;
@@ -210,10 +209,11 @@ int doswap(Parameters& par, bool isGeneralMode) {
         bool hasBacktrace = false;
         const char *entry[255];
         for (size_t i = 0; i < resultDbr.getSize(); i++){
-            if (resultDbr.getSeqLens(i) <= 1){
+            char *data = resultDbr.getData(i, 0);
+            if (*data == '\0'){
                 continue;
             }
-            const size_t columns = Util::getWordsOfLine(resultDbr.getData(i, 0), entry, 255);
+            const size_t columns = Util::getWordsOfLine(data, entry, 255);
             isAlignmentResult = columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT;
             hasBacktrace = columns >= Matcher::ALN_RES_WITH_BT_COL_CNT;
             break;
@@ -237,6 +237,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
             // qcov is used for pScore because its the first float value
             // and alnLength for diagonal because its the first int value after
             std::vector<Matcher::result_t> curRes;
+            curRes.reserve(300);
+
             char buffer[1024+32768];
             std::string ss;
             ss.reserve(100000);

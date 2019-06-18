@@ -128,7 +128,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
         dataSizeOffset[dataFileNames.size()]=totalDataSize;
         dataMapped = true;
-        if(accessType==LINEAR_ACCCESS){
+        if (accessType == LINEAR_ACCCESS || accessType == SORT_BY_OFFSET) {
             setSequentialAdvice();
         }
     }
@@ -163,26 +163,26 @@ template <typename T> bool DBReader<T>::open(int accessType){
 
         index = new(std::nothrow) Index[this->size];
         Util::checkAllocation(index, "Can not allocate index memory in DBReader");
-        seqLens = new(std::nothrow) unsigned int[this->size];
-        Util::checkAllocation(seqLens, "Can not allocate seqLens memory in DBReader");
-        bool isSortedById = readIndex(indexDataChar, indexDataSize, index, seqLens);
+
+        seqLens = NULL;
+        // SORT_BY_OFFSET keeps only the index and if a sequence length is required, it is computed from consecutive offests
+        // TODO probably makes sense to avoid allocation also if HARDNOSORT
+        if (accessType != SORT_BY_OFFSET) {
+            seqLens = new(std::nothrow) unsigned int[this->size];
+            Util::checkAllocation(seqLens, "Can not allocate seqLens memory in DBReader");
+        }
+
+        bool isSortedById = readIndex(indexDataChar, indexDataSize, index, seqLens, dataSize);
         indexData.close();
 
-        if (accessType != HARDNOSORT) {
-            sortIndex(isSortedById);
-        }
+        // sortIndex also handles access modes that don't require sorting
+        sortIndex(isSortedById);
+
         size_t prevOffset = 0; // makes 0 or empty string
         sortedByOffset = true;
         for (size_t i = 0; i < size; i++) {
             sortedByOffset = sortedByOffset && index[i].offset >= prevOffset;
             prevOffset = index[i].offset;
-        }
-
-        // init seq lens array and dbKey mapping
-        dataSize = 0;
-        for (size_t i = 0; i < size; i++){
-            unsigned int size = seqLens[i];
-            dataSize += size;
         }
     }
 
@@ -254,7 +254,7 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
         mappingToOriginalIndex = new size_t[size];
     }
     
-    if (isSortedById == false) {
+    if ((isSortedById == false) && (accessType != HARDNOSORT) && (accessType != SORT_BY_OFFSET)) {
         // create an array of the joint original indeces --> this will be sorted:
         unsigned int *sortedIndices = new unsigned int[size];
         for (unsigned int i = 0; i < size; ++i) {
@@ -406,8 +406,11 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             seqLens[i] = tmpSizeArray[local2id[i]];
         }
         delete[] tmpSizeArray;
+    } else if (accessType == SORT_BY_OFFSET) {
+        // sort index based on index.offset (no id sorting):
+        omptl::sort(index, index + size, Index::compareByOffset);
     }
-    if(mappingToOriginalIndex){
+    if (mappingToOriginalIndex) {
         delete [] mappingToOriginalIndex;
     }
 }
@@ -737,7 +740,7 @@ template <typename T> void DBReader<T>::checkClosed(){
 }
 
 template<typename T>
-bool DBReader<T>::readIndex(char *data, size_t dataSize, Index *index, unsigned int *entryLength) {
+bool DBReader<T>::readIndex(char *data, size_t indexDataSize, Index *index, unsigned int *entryLength, size_t & dataSize) {
     size_t i = 0;
     size_t currPos = 0;
     char* indexDataChar = (char *) data;
@@ -745,7 +748,7 @@ bool DBReader<T>::readIndex(char *data, size_t dataSize, Index *index, unsigned 
     T prevId=T(); // makes 0 or empty string
     size_t isSortedById = true;
     maxSeqLen=0;
-    while (currPos < dataSize){
+    while (currPos < indexDataSize){
         if (i >= this->size) {
             Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
             EXIT(EXIT_FAILURE);
@@ -755,8 +758,11 @@ bool DBReader<T>::readIndex(char *data, size_t dataSize, Index *index, unsigned 
         isSortedById *= (index[i].id >= prevId);
         size_t offset = Util::fast_atoi<size_t>(cols[1]);
         size_t length = Util::fast_atoi<size_t>(cols[2]);
+        dataSize += length;
         index[i].offset = offset;
-        entryLength[i] = length;
+        if (entryLength != NULL) {
+            entryLength[i] = length;
+        }
         maxSeqLen = std::max(static_cast<unsigned int>(length), maxSeqLen);
         indexDataChar = Util::skipLine(indexDataChar);
         currPos = indexDataChar - (char *) data;

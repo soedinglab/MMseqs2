@@ -27,6 +27,9 @@ public:
         static bool compareById(const Index& x, const Index& y){
             return (x.id <= y.id);
         }
+        static bool compareByOffset(const Index& x, const Index& y){
+            return (x.offset <= y.offset);
+        }
     };
 
 
@@ -111,6 +114,7 @@ public:
     static const int SHUFFLE        = 5;
     static const int HARDNOSORT = 6; // do not even sort by ids.
     static const int SORT_BY_ID_OFFSET = 7;
+    static const int SORT_BY_OFFSET = 8; // only offset sorting saves memory and does not support random access
 
 
     static const int USE_INDEX    = 0;
@@ -149,7 +153,7 @@ public:
 
     char *mmapData(FILE *file, size_t *dataSize);
 
-    bool readIndex(char *data, size_t dataSize, Index *index, unsigned int *entryLength);
+    bool readIndex(char *data, size_t indexDataSize, Index *index, unsigned int *entryLength, size_t & dataSize);
 
     void readLookup(char *data, size_t dataSize, LookupEntry *lookup);
 
