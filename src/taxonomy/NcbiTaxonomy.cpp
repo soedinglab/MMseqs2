@@ -148,8 +148,9 @@ size_t NcbiTaxonomy::loadNodes(const std::string &nodesFile) {
     }
 
     D.clear();
-    D.resize(maxTaxID, -1);
+    D.resize(maxTaxID + 1, -1);
     for (std::map<TaxID, int>::iterator it = Dm.begin(); it != Dm.end(); ++it) {
+        assert(it->first <= maxTaxID);
         D[it->first] = it->second;
     }
 
