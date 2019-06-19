@@ -184,4 +184,4 @@ Make sure that MMseqs2 was compiled with MPI by using the `-DHAVE_MPI=1` flag (`
 
 To search with multiple servers call the `search` or `cluster` workflow with the MPI command exported in the RUNNER environment variable. The databases and temporary folder have to be shared between all nodes (e.g. through NFS):
 
-        RUNNER="mpirun -np 42" mmseqs search queryDB targetDB resultDB tmp
+        RUNNER="mpirun -pernode -np 42" mmseqs search queryDB targetDB resultDB tmp
