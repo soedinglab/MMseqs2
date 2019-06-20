@@ -163,6 +163,16 @@ char* makeResultFilename(const char* name, size_t split) {
 }
 
 void DBWriter::open(size_t bufferSize) {
+    if (bufferSize == SIZE_MAX) {
+        if (Util::getTotalSystemMemory() < (8ull * 1024 * 1024 * 1024)) {
+            // reduce this buffer if our system does not have much memory
+            // createdb runs into trouble since it creates 2x32 splits with 64MB each (=4GB)
+            // 8MB should be enough
+            bufferSize = 8ull * 1024 * 1024;
+        } else {
+            bufferSize = 64ull * 1024 * 1024;
+        }
+    }
     for (unsigned int i = 0; i < threads; i++) {
         dataFileNames[i] = makeResultFilename(dataFileName, i);
         indexFileNames[i] = makeResultFilename(indexFileName, i);
@@ -175,7 +185,8 @@ void DBWriter::open(size_t bufferSize) {
             EXIT(EXIT_FAILURE);
         }
 
-        dataFilesBuffer[i] = new char[bufferSize];
+        dataFilesBuffer[i] = new(std::nothrow) char[bufferSize];
+        Util::checkAllocation(dataFilesBuffer[i], "Cannot allocate buffer for DBWriter");
         this->bufferSize = bufferSize;
 
         // set buffer to 64

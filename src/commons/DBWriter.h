@@ -21,7 +21,7 @@ public:
 
     ~DBWriter();
 
-    void open(size_t bufferSize = 64 * 1024 * 1024);
+    void open(size_t bufferSize = SIZE_MAX);
 
     void close(bool merge = false);
 
