@@ -124,18 +124,3 @@ script:
       exit 1; \
     fi
 
-after_success:
-  - |
-    if [[ "$TRAVIS_PULL_REQUEST" != "false" ]] || [[ "$TRAVIS_OS_NAME" != "osx" ]]; then \
-      exit 0; \
-    fi; \
-    if [[ "$encrypted_4188a201d0b5_key" == "" ]] || [[ "$encrypted_4188a201d0b5_iv" == "" ]]; then \
-      exit 0; \
-    fi; \
-    openssl aes-256-cbc -K "$encrypted_4188a201d0b5_key" -iv "$encrypted_4188a201d0b5_iv" -in ./util/.travis.enc -out "$HOME/.ssh/id_rsa" -d; \
-    chmod 400 "$HOME/.ssh/id_rsa"; \
-    ssh -o StrictHostKeyChecking=no codeship@uniclust.mmseqs.com \
-      "mkdir -p /home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT}"; \
-    cd build; \
-    scp -o StrictHostKeyChecking=no mmseqs-osx-static_sse41.tar.gz mmseqs-osx-static_avx2.tar.gz \
-        codeship@uniclust.mmseqs.com:/home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT};

@@ -1,91 +1,259 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
 trigger:
-- master
+  - master
 
-pool:
-  vmImage: 'Ubuntu-16.04'
-  
-strategy:
-  matrix:
-    avx2:
-      SIMD: 'AVX2'
-      FILENAME: 'mmseqs-static_avx2.tar.gz'
-      STATIC: 1
-      MPI: 0
-    sse:
-      SIMD: 'SSE4.1'
-      FILENAME: 'mmseqs-static_sse41.tar.gz'
-      STATIC: 1
-      MPI: 0
-    avx2_mpi:
-      SIMD: 'AVX2' 
-      STATIC: 0
-      FILENAME: '' 
-      MPI: 1
+variables:
+    regression: 1
 
-steps:
-- script: |
-    sudo apt-get update
-    sudo apt-get -y install pandoc mpi-default-dev mpi-default-bin texlive-latex-recommended texlive-fonts-extra
-  displayName: 'Install dependencies'
+jobs:
+  - job: build_ubuntu_1604_userguide
+    displayName: Ubuntu 1604 Userguide
+    pool:
+      vmImage: 'Ubuntu-16.04'
+    steps:
+      - checkout: "none"
+      - script: |
+          sudo apt-get update
+          sudo apt-get -y install pandoc texlive-latex-recommended texlive-fonts-extra
+        displayName: Install Dependencies
+      - script: |
+          cd ${SYSTEM_DEFAULTWORKINGDIRECTORY}
+          git clone https://github.com/soedinglab/MMseqs2.wiki.git .
+          .pandoc/make-pdf.sh
+        displayName: Build Userguide
+      - task: PublishPipelineArtifact@0
+        inputs:
+          targetPath: $(System.DefaultWorkingDirectory)/userguide.pdf
+          artifactName: userguide
 
-- script: |
-    mkdir build
-    cd build
-    if [ "${STATIC}" -eq "1" ]; then
-        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF \
-          -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc \
-          -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
-          -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
-    else
-        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-          -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
-    fi
+  - job: build_macos_1014
+    displayName: macOS 1014
+    pool:
+      vmImage: 'macOS-10.14'
+    steps:
+      - script: |
+          brew install cmake gcc@9 zlib bzip2 coreutils
+        displayName: Install Dependencies
+      - script: |
+          cd ${BUILD_SOURCESDIRECTORY}
+          CC=gcc-9 CXX=g++-9 ./util/build_osx.sh . build
+        displayName: Build MMseqs2
+      - script: |
+          git clone https://bitbucket.org/martin_steinegger/mmseqs-benchmark.git ${BUILD_SOURCESDIRECTORY}/benchmark
+        displayName: Checkout Regression Suite
+        condition: eq(variables['regression'], 1)
+      - script: |
+          ${BUILD_SOURCESDIRECTORY}/benchmark/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/build_sse41/src/mmseqs ${BUILD_SOURCESDIRECTORY}/regression
+        displayName: Run Regression Suite
+        condition: eq(variables['regression'], 1)
+      - task: PublishPipelineArtifact@0
+        inputs:
+          targetPath: $(Build.SourcesDirectory)/build/build_sse41/src/mmseqs
+          artifactName: mmseqs-darwin-sse41
+      - task: PublishPipelineArtifact@0
+        inputs:
+          targetPath: $(Build.SourcesDirectory)/build/build_avx2/src/mmseqs
+          artifactName: mmseqs-darwin-avx2
 
-    make -j $(nproc --all)
-  displayName: 'Run build'
+  - job: build_ubuntu_1604
+    displayName: Ubuntu 1604 MMseqs2
+    pool:
+      vmImage: 'Ubuntu-16.04'
 
-- script: |
-    mkdir ~/regression && cd ~/regression
-    git clone https://bitbucket.org/martin_steinegger/mmseqs-benchmark.git
-    export TTY=0
-    export MMSEQS_NUM_THREADS=8
-    export PATH="$(pwd)/mmseqs-benchmark/:$PATH"
-    ./mmseqs-benchmark/run_regression.sh "${BUILD_SOURCESDIRECTORY}/build/src/mmseqs" ~/regression/results/
-  displayName: 'Run regression test'
+    strategy:
+      matrix:
+        avx2:
+          SIMD: 'AVX2'
+          STATIC: 1
+          MPI: 0
+        sse:
+          SIMD: 'SSE4_1'
+          STATIC: 1
+          MPI: 0
+        avx2_mpi:
+          SIMD: 'AVX2'
+          STATIC: 0
+          MPI: 1
 
-- task: DownloadSecureFile@1
-  inputs:
-    secureFile: secretKeyPleaseDontSteal
-  displayName: 'Get the deploy key'  
+    steps:
+      - script: |
+          sudo apt-get update
+          sudo apt-get -y install mpi-default-dev mpi-default-bin
+        displayName: Install Dependencies
+        condition: eq(variables['MPI'], 1)
+      - script: |
+          mkdir build && cd build
+          if [ "${STATIC}" -eq "1" ]; then
+              cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF \
+                -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc \
+                -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+                -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
+          else
+              cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+                -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
+          fi
 
-- script: |
-    [ ! -z "${FILENAME}" ] || exit 0
-    mkdir ~/.ssh && mv $DOWNLOADSECUREFILE_SECUREFILEPATH ~/.ssh/id_rsa
-    chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_rsa
-    ssh-keyscan -t rsa uniclust.mmseqs.com >> ~/.ssh/known_hosts
-    ssh codeship@uniclust.mmseqs.com "mkdir -p \"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}\""
-    mkdir -p ~/mmseqs2.wiki
-    cd ~/mmseqs2.wiki
-    git clone https://github.com/soedinglab/MMseqs2.wiki.git .
-    .pandoc/make-pdf.sh
-    scp userguide.pdf codeship@uniclust.mmseqs.com:"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}"
-    cd ${BUILD_SOURCESDIRECTORY}/build
-    CURR_BUILD="mmseqs2"
-    mkdir -p ${CURR_BUILD}/bin
-    mkdir -p ${CURR_BUILD}/util
-    mkdir -p ${CURR_BUILD}
-    cp src/mmseqs ${CURR_BUILD}/bin
-    chmod +x ${CURR_BUILD}/bin/mmseqs
-    cp ../util/bash-completion.sh ${CURR_BUILD}/util
-    chmod +x ${CURR_BUILD}/util/bash-completion.sh
-    cp -r ../LICENCE.md ../README.md ~/mmseqs2.wiki/userguide.pdf ../examples ${CURR_BUILD}
-    chmod -R g-w,o-w ${CURR_BUILD}
-    tar czvf ${FILENAME} ${CURR_BUILD}
-    scp ${FILENAME} codeship@uniclust.mmseqs.com:"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}"
-    ssh codeship@uniclust.mmseqs.com "update-latest-mmseqs.sh \"${BUILD_SOURCEVERSION}\""
-  displayName: 'Upload build'  
+          make -j $(nproc --all)
+        displayName: Build MMseqs2
+      - script: |
+          mkdir ~/regression && cd ~/regression
+          git clone https://bitbucket.org/martin_steinegger/mmseqs-benchmark.git
+          export TTY=0
+          export MMSEQS_NUM_THREADS=$(nproc --all)
+          ./mmseqs-benchmark/run_regression.sh "${BUILD_SOURCESDIRECTORY}/build/src/mmseqs" ~/regression/results/
+        displayName: Run Regression Suite
+        condition: eq(variables['regression'], 1)
+      - task: PublishPipelineArtifact@0
+        condition: eq(variables['STATIC'], 1)
+        inputs:
+          targetPath: $(Build.SourcesDirectory)/build/src/mmseqs
+          artifactName: mmseqs-linux-$(SIMD)
+
+  - job: build_windows_2019
+    displayName: Windows 2019
+    pool:
+      vmImage: 'windows-2019'
+    variables:
+      CYGWIN_ROOT: $(System.Workfolder)\cygwin
+      CYGWIN_MIRROR: http://cygwin.mirror.constant.com
+    steps:
+      - powershell: git config --global core.autocrlf false
+        displayName: core.autocrlf false
+      - checkout: self
+      - script: |
+          choco install cygwin --params="/InstallDir:%CYGWIN_ROOT%"
+        displayName: Install Cygwin
+      - script: |
+          %CYGWIN_ROOT%\cygwinsetup.exe -qnNdO -R "%CYGWIN_ROOT%" -s "%CYGWIN_MIRROR%" -g -P ^
+          bash,^
+          xxd,^
+          cmake,^
+          make,^
+          gcc-core,^
+          gcc-g++,^
+          zlib-devel,^
+          libbz2-devel,^
+          busybox-standalone,^
+          git,^
+          binutils,^
+          wget
+        displayName: Install Dependencies
+      - script: |
+          %CYGWIN_ROOT%\bin\bash.exe -cl "${BUILD_SOURCESDIRECTORY}/util/build_windows.sh $(cygpath ${BUILD_SOURCESDIRECTORY}) $(cygpath ${BUILD_SOURCESDIRECTORY}/build)"
+        displayName: Build MMseqs2
+      - task: "ArchiveFiles@2"
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)\build\mmseqs
+          archiveFile: $(Build.SourcesDirectory)\mmseqs-win64.zip
+          includeRootFolder: true
+          archiveType: zip
+      - task: PublishPipelineArtifact@0
+        inputs:
+          targetPath: $(Build.SourcesDirectory)\mmseqs-win64.zip
+          artifactName: mmseqs-win64
+      - script: |
+          %BUILD_SOURCESDIRECTORY%\build\mmseqs\mmseqs.bat version
+        displayName: Setup Busybox
+      - script: |
+          git clone https://bitbucket.org/martin_steinegger/mmseqs-benchmark.git %BUILD_SOURCESDIRECTORY%\benchmark
+        displayName: Checkout Regression Suite
+        condition: eq(variables['regression'], 1)
+      - script: |
+          %CYGWIN_ROOT%\bin\bash.exe -cl "${BUILD_SOURCESDIRECTORY}/benchmark/run_regression.sh $(cygpath ${BUILD_SOURCESDIRECTORY}/build/mmseqs/bin/mmseqs.exe) $(cygpath ${BUILD_SOURCESDIRECTORY}/regression)"
+        displayName: Run Regression Suite
+        condition: eq(variables['regression'], 1)
+        timeoutInMinutes: 120
+
+  - job: upload_artifacts
+    displayName: Upload Artifacts
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    pool:
+      vmImage: 'Ubuntu-16.04'
+    dependsOn:
+      - build_ubuntu_1604_userguide
+      - build_macos_1014
+      - build_ubuntu_1604
+      - build_windows_2019
+    steps:
+      - script: |
+          cd "${BUILD_SOURCESDIRECTORY}"
+          mkdir mmseqs
+          cp -f README.md LICENCE.md mmseqs
+          cp -r examples mmseqs
+          mkdir mmseqs/matrices
+          cp -f data/*.out mmseqs/matrices
+          mkdir mmseqs/share
+          cp -f util/bash-completion.sh mmseqs/share
+          mkdir mmseqs/bin
+      - task: DownloadPipelineArtifact@1
+        inputs:
+          artifactName: userguide
+          targetPath: $(Build.SourcesDirectory)/mmseqs
+      - task: DownloadPipelineArtifact@1
+        inputs:
+          artifactName: mmseqs-darwin-sse41
+          targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-osx-sse41.tar.gz
+          includeRootFolder: true
+          archiveType: tar
+      - task: DownloadPipelineArtifact@1
+        inputs:
+          artifactName: mmseqs-darwin-avx2
+          targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-osx-avx2.tar.gz
+          includeRootFolder: true
+          archiveType: tar
+      - task: DownloadPipelineArtifact@1
+        inputs:
+          artifactName: mmseqs-linux-SSE4_1
+          targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-sse41.tar.gz
+          includeRootFolder: true
+          archiveType: tar
+      - task: DownloadPipelineArtifact@1
+        inputs:
+          artifactName: mmseqs-linux-AVX2
+          targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-avx2.tar.gz
+          includeRootFolder: true
+          archiveType: tar
+      - script:
+          rm "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
+      - task: DownloadPipelineArtifact@1
+        inputs:
+          artifactName: mmseqs-win64
+          targetPath: $(Build.SourcesDirectory)
+      - script: |
+          unzip "${BUILD_SOURCESDIRECTORY}/mmseqs-win64.zip"
+          chmod +x mmseqs/mmseqs.bat mmseqs/bin/*
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-win64.zip
+          includeRootFolder: true
+          archiveType: zip
+      - task: DownloadSecureFile@1
+        inputs:
+          secureFile: secretKeyPleaseDontSteal
+        displayName: Get Deployment Key
+      - script: |
+          mkdir ~/.ssh && mv $DOWNLOADSECUREFILE_SECUREFILEPATH ~/.ssh/id_rsa
+          chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -t rsa uniclust.mmseqs.com >> ~/.ssh/known_hosts
+          cd "${BUILD_SOURCESDIRECTORY}"
+          ssh codeship@uniclust.mmseqs.com "mkdir -p \"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}\""
+          scp mmseqs/userguide.pdf mmseqs-osx-sse41.tar.gz mmseqs-osx-avx2.tar.gz mmseqs-linux-sse41.tar.gz mmseqs-linux-avx2.tar.gz mmseqs-win64.zip codeship@uniclust.mmseqs.com:"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}"
+          ssh codeship@uniclust.mmseqs.com "update-latest-mmseqs.sh \"${BUILD_SOURCEVERSION}\""
