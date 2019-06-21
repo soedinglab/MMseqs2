@@ -331,7 +331,12 @@ TaxonNode const * NcbiTaxonomy::LCA(const std::vector<TaxID>& taxa) const {
 std::vector<std::string> NcbiTaxonomy::AtRanks(TaxonNode const *node, const std::vector<std::string> &levels) const {
     std::vector<std::string> result;
     std::map<std::string, std::string> allRanks = AllRanks(node);
-    int baseRankIndex = sortedLevels.at(node->rank);
+    // map does not include "no rank" nor "no_rank"
+    int baseRankIndex = -1;
+    if (sortedLevels.find(node->rank) != sortedLevels.end()) {
+        // found rank in map:
+        baseRankIndex = sortedLevels.at(node->rank);
+    }
     std::string baseRank = "uc_" + node->name;
     for (std::vector<std::string>::const_iterator it = levels.begin(); it != levels.end(); ++it) {
         std::map<std::string, std::string>::iterator jt = allRanks.find(*it);
@@ -408,7 +413,7 @@ std::map<std::string, std::string> NcbiTaxonomy::AllRanks(TaxonNode const *node)
             return result;
         }
 
-        if (node->rank != "no_rank") {
+        if ((node->rank != "no_rank") && (node->rank != "no rank")) {
             result.emplace(node->rank, node->name);
         }
 
