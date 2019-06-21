@@ -88,7 +88,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
 
             unsigned int queryId = qdbr_nuc->getId(alnKey);
             char *nuclQuerySeq = qdbr_nuc->getData(queryId, thread_idx);
-            char *aaQuerySeq = qdbr_aa->getData(queryId, thread_idx);
+            char *aaQuerySeq = qdbr_aa->getDataByDBKey(alnKey, thread_idx);
 
             bool qStartCodon = false;
             if (aaQuerySeq[0] == '*' )
@@ -109,7 +109,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
 
                 unsigned int targetId = tdbr_nuc->getId(results[j].dbKey);
                 char *nuclTargetSeq = tdbr_nuc->getData(targetId, thread_idx);
-                char *aaTargetSeq = tdbr_aa->getData(targetId, thread_idx);
+                char *aaTargetSeq = tdbr_aa->getDataByDBKey(results[j].dbKey, thread_idx);
 
                 bool tStartCodon = false;
                 if (aaTargetSeq[0] == '*' )
