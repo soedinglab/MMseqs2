@@ -183,8 +183,8 @@ jobs:
           cp -r examples mmseqs
           mkdir mmseqs/matrices
           cp -f data/*.out mmseqs/matrices
-          mkdir mmseqs/share
-          cp -f util/bash-completion.sh mmseqs/share
+          mkdir mmseqs/util
+          cp -f util/bash-completion.sh mmseqs/util
           mkdir mmseqs/bin
       - task: DownloadPipelineArtifact@1
         inputs:
