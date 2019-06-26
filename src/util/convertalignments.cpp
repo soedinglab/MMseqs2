@@ -84,7 +84,7 @@ tcov        Fraction of target sequence covered by alignment
 
 int convertalignments(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
     const bool sameDB = par.db1.compare(par.db2) == 0 ? true : false;
     const int format = par.formatAlignmentMode;
@@ -539,6 +539,30 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
                         break;
                     }
+
+//                    case Parameters::FORMAT_ALIGNMENT_GFF:{
+//                        // for TBLASTX
+//                        bool strand = res.qEndPos > res.qStartPos;
+//                        int currStart = std::min(res.qStartPos, res.qEndPos);
+//                        int currEnd = std::max(res.qStartPos, res.qEndPos);
+//                        int currLen = currEnd - currStart;
+//                        result.append(queryId);
+//                        result.append("\tconserve\tprotein_match\t");
+//                        result.append(SSTR(currStart+1));
+//                        result.push_back('\t');
+//                        result.append(SSTR(currEnd+1));
+//                        result.push_back('\t');
+//                        result.append(SSTR(currLen));
+//                        result.push_back('\t');
+//                        result.push_back((strand) ? '-' : '+');
+//                        result.append("\t.\t");
+//                        result.append("ID=");
+//                        result.append(queryId);
+//                        result.append(":hsp:");
+//                        result.append(SSTR(counter));
+//                        result.append(";");
+//                        break;
+//                    }
                     default:
                         Debug(Debug::ERROR) << "Not implemented yet";
                         EXIT(EXIT_FAILURE);

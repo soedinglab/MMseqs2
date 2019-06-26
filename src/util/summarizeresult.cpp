@@ -143,7 +143,7 @@ int doSummarize(Parameters &par) {
 
 int summarizeresult(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
     MMseqsMPI::init(argc, argv);
 

@@ -23,7 +23,7 @@ int easytaxonomy(int argc, const char **argv, const Command& command) {
 
 //    par.overrideParameterDescription((Command &) command, par.PARAM_TAX_OUTPUT_MODE.uniqid, "", "",
 //                                     par.PARAM_TAX_OUTPUT_MODE.category | MMseqsParameter::COMMAND_EXPERT);
-    par.parseParameters(argc, argv, command, 4);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
     if(FileUtil::directoryExists(par.db4.c_str())==false){
         Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";

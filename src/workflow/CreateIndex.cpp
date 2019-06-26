@@ -21,7 +21,7 @@ int createindex(Parameters &par, std::string indexerModule, std::string flag) {
         }
     }
 
-    int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    int dbType = FileUtil::parseDbType(par.db1.c_str());
     if (dbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
@@ -85,8 +85,8 @@ int createlinindex(int argc, const char **argv, const Command& command) {
     par.kmerScore = 0; // extract all k-mers
     par.maskMode = 0;
 
-    par.parseParameters(argc, argv, command, 2, false);
-    int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    par.parseParameters(argc, argv, command, false, 0, 0);
+    int dbType = FileUtil::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES && par.PARAM_MAX_SEQ_LEN.wasSet == false){
         if(par.PARAM_MAX_SEQ_LEN.wasSet == false){
@@ -112,9 +112,9 @@ int createindex(int argc, const char **argv, const Command& command) {
     par.kmerScore = 0; // extract all k-mers
     par.sensitivity = 7.5;
     par.maskMode = 1;
-    par.parseParameters(argc, argv, command, 2, false);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
-    int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    int dbType = FileUtil::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
 
     if(par.PARAM_STRAND.wasSet == false){

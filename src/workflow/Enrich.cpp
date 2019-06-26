@@ -14,7 +14,7 @@ void setEnrichWorkflowDefaults(Parameters *p) {
 int enrich(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setEnrichWorkflowDefaults(&par);
-    par.parseParameters(argc, argv, command, 6);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
     if (FileUtil::directoryExists(par.db6.c_str()) == false) {
         Debug(Debug::INFO) << "Tmp " << par.db6 << " folder does not exist or is not a directory.\n";

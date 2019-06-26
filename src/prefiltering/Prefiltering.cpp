@@ -8,6 +8,7 @@
 #include "IndexBuilder.h"
 #include "Timer.h"
 #include "ByteParser.h"
+#include "Parameters.h"
 
 namespace prefilter {
 #include "ExpOpt3_8_polished.cs32.lib.h"
@@ -85,7 +86,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
             EXIT(EXIT_FAILURE);
     }
 
-    if (Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(targetDB.c_str()), Parameters::DBTYPE_INDEX_DB)) {
+    if (Parameters::isEqualDbtype(FileUtil::parseDbType(targetDB.c_str()), Parameters::DBTYPE_INDEX_DB)) {
         int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
         if(preloadMode == Parameters::PRELOAD_MODE_AUTO){
             if(sensitivity > 6.0){
@@ -195,7 +196,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         qdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     }
-    Debug(Debug::INFO) << "Query database size: " << qdbr->getSize() << " type: "<< DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
+    Debug(Debug::INFO) << "Query database size: " << qdbr->getSize() << " type: "<< Parameters::getDbTypeName(querySeqType) << "\n";
 
     setupSplit(*tdbr, alphabetSize - 1, querySeqType,
                threads, templateDBIsIndex, memoryLimit, qdbr->getSize(),
@@ -209,7 +210,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         kmerThr = 0;
     }
 
-    Debug(Debug::INFO) << "Target database size: " << tdbr->getSize() << " type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
+    Debug(Debug::INFO) << "Target database size: " << tdbr->getSize() << " type: " <<Parameters::getDbTypeName(targetSeqType) << "\n";
 
     if (splitMode == Parameters::QUERY_DB_SPLIT) {
         // create the whole index table

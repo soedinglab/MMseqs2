@@ -108,7 +108,7 @@ private:
 
 int besthitperset(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3, true);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     BestHitBySetFilter aggregation(par.db2, par.db3, par.db4, par.simpleBestHit, (unsigned int) par.threads, par.compressed);
     return aggregation.run();

@@ -101,7 +101,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
     // count the number of entries
     this->accessType = accessType;
     if (dataFileName != NULL) {
-        dbtype = parseDbType(dataFileName);
+        dbtype = FileUtil::parseDbType(dataFileName);
     }
 
     if (dataMode & USE_DATA) {
@@ -872,34 +872,6 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data, in
     return new DBReader<unsigned int>(idx, seqLens, size, dataSize, lastKey, dbType, maxSeqLen, threads);
 }
 
-template <typename T>
-int DBReader<T>::parseDbType(const char *name) {
-    std::string dbTypeFile = std::string(name) + ".dbtype";
-    if (FileUtil::fileExists(dbTypeFile.c_str()) == false) {
-        return Parameters::DBTYPE_GENERIC_DB;
-    }
-
-    size_t fileSize = FileUtil::getFileSize(dbTypeFile);
-    if (fileSize != sizeof(int)) {
-        Debug(Debug::ERROR) << "File size of " << dbTypeFile << " seems to be wrong!\n";
-        Debug(Debug::ERROR) << "It should have 4 bytes but it has " <<  fileSize << " bytes.";
-        EXIT(EXIT_FAILURE);
-    }
-    FILE *file = fopen(dbTypeFile.c_str(), "r");
-    if (file == NULL) {
-        Debug(Debug::ERROR) << "Could not open data file " << dbTypeFile << "!\n";
-        EXIT(EXIT_FAILURE);
-    }
-    int dbtype;
-    size_t result = fread(&dbtype, 1, fileSize, file);
-    if (result != fileSize) {
-        Debug(Debug::ERROR) << "Could not read " << dbTypeFile << "!\n";
-        EXIT(EXIT_FAILURE);
-    }
-    fclose(file);
-    return dbtype;
-}
-
 template<typename T>
 void DBReader<T>::setData(char *data, size_t dataSize) {
     if(dataFiles == NULL){
@@ -953,7 +925,7 @@ int DBReader<T>::isCompressed(int dbtype) {
 
 template<typename T>
 void DBReader<T>::setSequentialAdvice() {
-#if HAVE_POSIX_MADVISE
+#ifdef HAVE_POSIX_MADVISE
     for(size_t i = 0; i < dataFileCnt; i++){
         size_t dataSize = dataSizeOffset[i+1] - dataSizeOffset[i];
         if (posix_madvise (dataFiles[i], dataSize, POSIX_MADV_SEQUENTIAL) != 0){

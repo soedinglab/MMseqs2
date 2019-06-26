@@ -17,7 +17,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
 
     Parameters &par = Parameters::getInstance();
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, command, 2, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    par.parseParameters(argc, argv, command, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
 
     DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     seqDbr.open(DBReader<unsigned int>::NOSORT);
@@ -162,7 +162,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         const int headers1 =  1;
         const int headers2 = (sameDB) ? 1 : 0;
         const int seqType = seqDbr.getDbtype();
-        const int srcSeqType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+        const int srcSeqType = FileUtil::parseDbType(par.db2.c_str());
         // Reuse the compBiasCorr field to store the adjustedKmerSize, It is not needed in the linsearch
         int metadata[] = {static_cast<int>(par.maxSeqLen), static_cast<int>(KMER_SIZE), static_cast<int>(adjustedKmerSize), subMat->alphabetSize, mask, spacedKmer, 0, seqType, srcSeqType, headers1, headers2};
         char *metadataptr = (char *) &metadata;

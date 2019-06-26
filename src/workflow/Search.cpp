@@ -10,6 +10,7 @@
 #include "translated_search.sh.h"
 #include "blastp.sh.h"
 #include "blastn.sh.h"
+#include "Parameters.h"
 
 #include <iomanip>
 #include <climits>
@@ -167,9 +168,9 @@ int computeSearchMode(int queryDbType, int targetDbType, int targetSrcDbType, in
 
     }
     Debug(Debug::ERROR) << "Invalid input database and --search-type combination\n"
-                        << "queryDbType: " << DBReader<unsigned int>::getDbTypeName(queryDbType) << "\n"
-                        << "targetDbType: " <<  DBReader<unsigned int>::getDbTypeName(targetDbType) << "\n"
-                        << "targetSrcDbType: " <<  DBReader<unsigned int>::getDbTypeName(targetSrcDbType) << "\n"
+                        << "queryDbType: " << Parameters::getDbTypeName(queryDbType) << "\n"
+                        << "targetDbType: " <<  Parameters::getDbTypeName(targetDbType) << "\n"
+                        << "targetSrcDbType: " <<  Parameters::getDbTypeName(targetSrcDbType) << "\n"
                         << "searchMode: " << searchType << "\n";
     EXIT(EXIT_FAILURE);
 }
@@ -225,12 +226,12 @@ int search(int argc, const char **argv, const Command& command) {
                                      par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
                                      par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
-    par.parseParameters(argc, argv, command, 4, false, 0,
+    par.parseParameters(argc, argv, command, false, 0,
                         MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
 
     std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
 
-    int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    int targetDbType = FileUtil::parseDbType(par.db2.c_str());
     std::string targetDB =  (indexStr == "") ? par.db2.c_str() : indexStr.c_str();
     int targetSrcDbType = -1;
     if(indexStr != "" || Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB)){
@@ -241,7 +242,7 @@ int search(int argc, const char **argv, const Command& command) {
         targetSrcDbType = data.srcSeqType;
         targetDbType = data.seqType;
     }
-    const int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    const int queryDbType = FileUtil::parseDbType(par.db1.c_str());
     if (queryDbType == -1 || targetDbType == -1) {
         Debug(Debug::ERROR)
                 << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";

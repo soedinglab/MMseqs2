@@ -68,7 +68,7 @@ int convertkb(int argc, const char **argv, const Command &command) {
 
     Parameters &par = Parameters::getInstance();
     setConvertKbDefaults(&par, columns);
-    par.parseParameters(argc, argv, command, 2, true, Parameters::PARSE_VARIADIC);
+    par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
 
     std::string outputBase = par.filenames.back();
     par.filenames.pop_back();

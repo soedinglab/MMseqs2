@@ -1,13 +1,17 @@
 // Written by Martin Steinegger martin.steinegger@mpibpc.mpg.de
 //
-// Represents a parameter of MMseqs
+// Represents parameters of MMseqs2
 //
 #ifndef MMSEQS_PARAMETERS
 #define MMSEQS_PARAMETERS
 #include <string>
 #include <vector>
 #include <typeinfo>
+#include <cstddef>
+#include <utility>
+#include <zstd/lib/zstd.h>
 #include "Command.h"
+#include "FileUtil.h"
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
@@ -63,7 +67,6 @@ public:
     static const int DBTYPE_DIRECTORY = 16; // needed for verification
     static const int DBTYPE_FLATFILE = 17; // needed for verification
     static const int DBTYPE_SEQTAXDB = 18; // needed for verification
-    static const int DBTYPE_TAX_RES_DB = 19; // needed for verification
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
@@ -529,6 +532,10 @@ public:
     bool showTaxLineage;
     std::string blacklist;
 
+    // createtaxdb
+    std::string ncbiTaxDump;
+    std::string taxMappingFile;
+
     // exapandaln
     int expansionMode;
 
@@ -548,16 +555,14 @@ public:
     }
 
     void setDefaults();
-    void parseParameters(int argc, const char* argv[],
-                         const Command& command,
-                         size_t requiredParameterCount,
-                         bool printParameters = true,
-                         int parseFlags = 0,
-                         int outputFlags = 0);
+    void parseParameters(int argc, const char *pargv[], const Command &command, bool printPar, int parseFlags,
+                         int outputFlags);
     void printUsageMessage(const Command& command,
                            unsigned int outputFlag);
     void printParameters(const std::string &module, int argc, const char* pargv[],
                          const std::vector<MMseqsParameter*> &par);
+
+    void checkIfDatabaseIsValid(const Command& command);
 
     std::vector<MMseqsParameter*> removeParameter(const std::vector<MMseqsParameter*>& par, const MMseqsParameter& x);
 
@@ -818,7 +823,9 @@ public:
     PARAMETER(PARAM_LCA_RANKS)
     PARAMETER(PARAM_BLACKLIST)
     PARAMETER(PARAM_TAXON_ADD_LINEAGE)
-
+    // createtaxdb
+    PARAMETER(PARAM_NCBI_TAX_DUMP)
+    PARAMETER(PARAM_TAX_MAPPING_FILE)
     // exapandaln
     PARAMETER(PARAM_EXPANSION_MODE)
 
@@ -900,6 +907,7 @@ public:
     std::vector<MMseqsParameter*> filtertaxdb;
     std::vector<MMseqsParameter*> taxonomy;
     std::vector<MMseqsParameter*> easytaxonomy;
+    std::vector<MMseqsParameter*> createtaxdb;
     std::vector<MMseqsParameter*> profile2pssm;
     std::vector<MMseqsParameter*> profile2cs;
     std::vector<MMseqsParameter*> besthitbyset;
@@ -921,7 +929,31 @@ public:
     void overrideParameterDescription(Command& command, int uid, const char* description, const char* regex = NULL, int category = 0);
 
     static bool isEqualDbtype(const int type1, const int type2) {
-        return ((type1 & 0x7FFFFFFF) == (type2 & 0x7FFFFFFF));
+        return ((type1 & 0x3FFFFFFF) == (type2 & 0x3FFFFFFF));
+    }
+
+    static const char* getDbTypeName(int dbtype) {
+        switch (dbtype & 0x7FFFFFFF) {
+            case DBTYPE_AMINO_ACIDS: return "Aminoacid";
+            case DBTYPE_NUCLEOTIDES: return "Nucleotide";
+            case DBTYPE_HMM_PROFILE: return "Profile";
+            case DBTYPE_PROFILE_STATE_SEQ: return "Profile state";
+            case DBTYPE_PROFILE_STATE_PROFILE: return "Profile profile";
+            case DBTYPE_ALIGNMENT_RES: return "Alignment";
+            case DBTYPE_CLUSTER_RES: return "Clustering";
+            case DBTYPE_PREFILTER_RES: return "Prefilter";
+            case DBTYPE_TAXONOMICAL_RESULT: return "Taxonomy";
+            case DBTYPE_INDEX_DB: return "Index";
+            case DBTYPE_CA3M_DB: return "CA3M";
+            case DBTYPE_MSA_DB: return "MSA";
+            case DBTYPE_GENERIC_DB: return "Generic";
+            case DBTYPE_PREFILTER_REV_RES: return "Bi-directional prefilter";
+            case DBTYPE_OFFSETDB: return "Offsetted headers";
+            case DBTYPE_DIRECTORY: return "Directory";
+            case DBTYPE_FLATFILE: return "Flatfile";
+
+            default: return "Unknown";
+        }
     }
 
 protected:

@@ -332,7 +332,7 @@ public:
                 break;
         }
 
-        if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE)||
+        if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) ||
             Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
             nextProfileKmer();
             for (unsigned int i = 0; i < this->kmerSize; i++) {

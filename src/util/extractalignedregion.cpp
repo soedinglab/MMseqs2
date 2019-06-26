@@ -103,7 +103,7 @@ int doExtractAlignedRegion(Parameters &par) {
 
 int extractalignedregion(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
     // never allow deletions
     par.allowDeletion = false;

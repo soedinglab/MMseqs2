@@ -1,10 +1,11 @@
 #include "Parameters.h"
-#include "Sequence.h"
 #include "Util.h"
 #include "DistanceCalculator.h"
 #include "Debug.h"
 #include "CommandCaller.h"
 #include "ByteParser.h"
+#include "FileUtil.h"
+#include <cstdio>
 
 #include <iomanip>
 #include <regex.h>
@@ -235,6 +236,9 @@ Parameters::Parameters():
         PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA ranks", "Add column with specified ranks (':' separated)", typeid(std::string), (void*) &lcaRanks, ""),
         PARAM_BLACKLIST(PARAM_BLACKLIST_ID, "--blacklist", "Blacklisted taxa", "Comma separated list of ignored taxa in LCA computation", typeid(std::string), (void*)&blacklist, "([0-9]+,)?[0-9]+"),
         PARAM_TAXON_ADD_LINEAGE(PARAM_TAXON_ADD_LINEAGE_ID, "--tax-lineage", "Show taxon lineage", "Add column with full taxonomy lineage", typeid(bool), (void*)&showTaxLineage, ""),
+        // createtaxcb
+        PARAM_NCBI_TAX_DUMP(PARAM_NCBI_TAX_DUMP_ID, "--ncbi-tax-dump", "NCBI tax dump directory", "NCBI tax dump directory. The tax dump can be downloaded here \"ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz\"", typeid(std::string), (void*) &ncbiTaxDump, ""),
+            PARAM_TAX_MAPPING_FILE(PARAM_TAX_MAPPING_FILE_ID, "--tax-mapping-file", "Taxonomical mapping file", "File to map sequence identifer to taxonomical identifier", typeid(std::string), (void*) &taxMappingFile, ""),
         // expandaln
         PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion mode", "Which hits (still meeting the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void*) &expansionMode, "^[0-2]{1}$"),
         // taxonomy
@@ -883,6 +887,12 @@ Parameters::Parameters():
     lca.push_back(&PARAM_THREADS);
     lca.push_back(&PARAM_V);
 
+    // createtaxdb
+    createtaxdb.push_back(&PARAM_NCBI_TAX_DUMP);
+    createtaxdb.push_back(&PARAM_TAX_MAPPING_FILE);
+    createtaxdb.push_back(&PARAM_THREADS);
+    createtaxdb.push_back(&PARAM_V);
+
     // addtaxonomy
     addtaxonomy.push_back(&PARAM_COMPRESSED);
     addtaxonomy.push_back(&PARAM_TAXON_ADD_LINEAGE);
@@ -1155,27 +1165,27 @@ void Parameters::printUsageMessage(const Command& command,
     if (printExpert == false) {
         ss << "\n" << "An extended list of options can be obtained by calling '" << binary_name << " " << command.cmd << " -h'.\n";
 
-    if(command.citations > 0) {
-        //ss << "Please cite:\n";
-        if(command.citations & CITATION_SERVER) {
-            ss << " - Mirdita M, Steinegger M, Soding J: MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, doi: 10.1093/bioinformatics/bty1057 (2019).\n";
+        if(command.citations > 0) {
+            //ss << "Please cite:\n";
+            if(command.citations & CITATION_SERVER) {
+                ss << " - Mirdita M, Steinegger M, Soding J: MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, doi: 10.1093/bioinformatics/bty1057 (2019).\n";
+            }
+            if(command.citations & CITATION_PLASS) {
+                ss << " - Steinegger M, Mirdita M, Soding J: Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, doi:10.1101/386110 (2018)\n";
+            }
+            if(command.citations & CITATION_LINCLUST) {
+                ss << " - Steinegger M, Soding J: Clustering huge protein sequence sets in linear time. Nature Communications, doi:10.1038/s41467-018-04964-5 (2018)\n";
+            }
+            if(command.citations & CITATION_MMSEQS1) {
+                ss << " - Hauser M, Steinegger M, Soding J: MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n";
+            }
+            if(command.citations & CITATION_UNICLUST) {
+                ss << " - Mirdita M, von den Driesch L, Galiez C, Martin M, Soding J, Steinegger M: Uniclust databases of clustered and deeply annotated protein sequences and alignments. Nucleic Acids Res (2017), D170-D176 (2016).\n";
+            }
+            if(command.citations & CITATION_MMSEQS2) {
+                ss << " - Steinegger M, Soding J: MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi:10.1038/nbt.3988 (2017)\n";
+            }
         }
-        if(command.citations & CITATION_PLASS) {
-            ss << " - Steinegger M, Mirdita M, Soding J: Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, doi:10.1101/386110 (2018)\n";
-        }
-        if(command.citations & CITATION_LINCLUST) {
-            ss << " - Steinegger M, Soding J: Clustering huge protein sequence sets in linear time. Nature Communications, doi:10.1038/s41467-018-04964-5 (2018)\n";
-        }
-        if(command.citations & CITATION_MMSEQS1) {
-            ss << " - Hauser M, Steinegger M, Soding J: MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n";
-        }
-        if(command.citations & CITATION_UNICLUST) {
-            ss << " - Mirdita M, von den Driesch L, Galiez C, Martin M, Soding J, Steinegger M: Uniclust databases of clustered and deeply annotated protein sequences and alignments. Nucleic Acids Res (2017), D170-D176 (2016).\n";
-        }
-        if(command.citations & CITATION_MMSEQS2) {
-            ss << " - Steinegger M, Soding J: MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi:10.1038/nbt.3988 (2017)\n";
-        }
-    }
     }
     Debug(Debug::INFO) << ss.str();
 }
@@ -1200,11 +1210,7 @@ bool parseBool(const std::string &p) {
     }
 }
 
-void Parameters::parseParameters(int argc, const char* pargv[],
-                                 const Command& command,
-                                 size_t requiredParameterCount,
-                                 bool printPar,
-                                 int parseFlags,
+void Parameters::parseParameters(int argc, const char *pargv[], const Command &command, bool printPar, int parseFlags,
                                  int outputFlags) {
     filenames.clear();
     std::vector<MMseqsParameter*> & par = *command.params;
@@ -1381,14 +1387,14 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
     const size_t MAX_DB_PARAMETER = 6;
 
-    if (requiredParameterCount > MAX_DB_PARAMETER) {
+    if (command.databases.size() > MAX_DB_PARAMETER) {
         Debug(Debug::ERROR) << "Use argv if you need more than " << MAX_DB_PARAMETER << " db parameters" << "\n";
         EXIT(EXIT_FAILURE);
     }
 
-    if (filenames.size() < requiredParameterCount){
+    if (filenames.size() < command.databases.size()){
         printUsageMessage(command, outputFlags);
-        Debug(Debug::ERROR) << requiredParameterCount << " Database paths are required" << "\n";
+        Debug(Debug::ERROR) << command.databases.size() << " Database paths are required" << "\n";
         EXIT(EXIT_FAILURE);
     }
 
@@ -1470,10 +1476,115 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             printParameters(command.cmd, argc, pargv, par);
             EXIT(EXIT_FAILURE);
     }
+    checkIfDatabaseIsValid(command);
+
     if(printPar == true) {
         printParameters(command.cmd, argc, pargv, par);
     }
 }
+
+void Parameters::checkIfDatabaseIsValid(const Command& command) {
+    for (size_t dbIdx = 0; dbIdx < command.databases.size(); dbIdx++) {
+        const DbType &db = command.databases[dbIdx];
+        // special checks
+        if (db.specialType & DbType::NEED_HEADER) {
+            if (FileUtil::fileExists((filenames[dbIdx] + "_h").c_str()) == false) {
+                Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need header information.\n"
+                                    << "The " << filenames[dbIdx] << "_h is missing.\n";
+                EXIT(EXIT_FAILURE);
+            }
+        }
+        if (db.specialType & DbType::NEED_TAXONOMY) {
+            if (FileUtil::fileExists((filenames[dbIdx] + "_mapping").c_str()) == false) {
+                Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
+                                    << "The " << filenames[dbIdx] << "_mapping is missing.\n";
+                EXIT(EXIT_FAILURE);
+            }
+            if (FileUtil::fileExists((filenames[dbIdx] + "_nodes.dmp").c_str()) == false) {
+                Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
+                                    << "The " << filenames[dbIdx] << "_nodes.dmp is missing.\n";
+                EXIT(EXIT_FAILURE);
+            }
+            if (FileUtil::fileExists((filenames[dbIdx] + "_names.dmp").c_str()) == false) {
+                Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
+                                    << "The " << filenames[dbIdx] << "_names.dmp is missing.\n";
+                EXIT(EXIT_FAILURE);
+            }
+            if (FileUtil::fileExists((filenames[dbIdx] + "_merged.dmp").c_str()) == false) {
+                Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
+                                    << "The " << filenames[dbIdx] << "_merged.dmp is missing.\n";
+                EXIT(EXIT_FAILURE);
+            }
+        }
+        if (db.specialType & DbType::NEED_LOOKUP) {
+            if (FileUtil::fileExists((filenames[dbIdx] + ".lookup").c_str()) == false) {
+                Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need a lookup file.\n"
+                                    << "The " << filenames[dbIdx] << ".lookup is missing.\n";
+                EXIT(EXIT_FAILURE);
+            }
+        }
+        if (db.accessMode == db.ACCESS_MODE_INPUT) {
+            int dbtype = FileUtil::parseDbType(filenames[dbIdx].c_str());
+            bool dbtypeFound = false;
+            if (db.validator == NULL) {
+                continue;
+            }
+            for (size_t i = 0; i < db.validator->size() && dbtypeFound == false; i++) {
+                int validatorDbtype = db.validator->at(i);
+                if (validatorDbtype == Parameters::DBTYPE_FLATFILE) {
+                    dbtypeFound = (FileUtil::fileExists(filenames[dbIdx].c_str()) == true &&
+                                   FileUtil::directoryExists(filenames[dbIdx].c_str()) == false);
+                } else if (validatorDbtype == Parameters::DBTYPE_DIRECTORY) {
+                    dbtypeFound = FileUtil::directoryExists(filenames[dbIdx].c_str());
+                } else if (Parameters::isEqualDbtype(db.validator->at(i), dbtype)) {
+                    dbtypeFound = true;
+                }
+            }
+            if (dbtypeFound == false) {
+                Debug(Debug::ERROR) << "Input database \"" << filenames[dbIdx] << "\" is wrong!" << "\n"
+                                    << "Current input: " << Parameters::getDbTypeName(dbtype) << ". Allowed input: ";
+                for (size_t i = 0; i < db.validator->size() && dbtypeFound == false; i++) {
+                    Debug(Debug::ERROR) << Parameters::getDbTypeName(db.validator->at(i));
+                    if (i != db.validator->size() - 1) {
+                        Debug(Debug::ERROR) << ", ";
+                    }
+                }
+                Debug(Debug::ERROR) << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+        } else if (db.accessMode == db.ACCESS_MODE_OUTPUT) {
+            if (db.validator == &DbValidator::directory) {
+                if (FileUtil::directoryExists(filenames[dbIdx].c_str()) == false) {
+                    Debug(Debug::WARNING) << "Tmp " << filenames[dbIdx]
+                                          << " folder does not exist or is not a directory.\n";
+                    if (FileUtil::makeDir(filenames[dbIdx].c_str()) == false) {
+                        Debug(Debug::ERROR) << "Can not create tmp folder " << filenames[dbIdx] << ".\n";
+                        EXIT(EXIT_FAILURE);
+                    } else {
+                        Debug(Debug::INFO) << "Create dir " << filenames[dbIdx] << "\n";
+                    }
+                }
+            } else {
+                if (FileUtil::fileExists(filenames[dbIdx].c_str()) == true) {
+                    Debug(Debug::WARNING) << filenames[dbIdx] << " exists and will be overwritten.\n";
+                }
+                FILE *fp = fopen(filenames[dbIdx].c_str(), "a");
+                if (fp == NULL) {
+                    if (errno == EACCES) {
+                        Debug(Debug::ERROR) << "No permission to write file " << filenames[dbIdx] << ".\n";
+                        EXIT(EXIT_FAILURE);
+                    } else {
+                        Debug(Debug::ERROR) << "Error while writing file " << filenames[dbIdx] << ".\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                }
+                fclose(fp);
+                FileUtil::remove(filenames[dbIdx].c_str());
+            }
+        }
+    }
+}
+
 
 void Parameters::printParameters(const std::string &module, int argc, const char* pargv[],
                                  const std::vector<MMseqsParameter*> &par){
@@ -1720,7 +1831,7 @@ void Parameters::setDefaults() {
 
 
     //besthitperset
-    simpleBestHit = true; 
+    simpleBestHit = true;
     alpha = 1;
     shortOutput = false;
 
@@ -1773,6 +1884,10 @@ void Parameters::setDefaults() {
     fullHeader = false;
     idxSeqSrc = 0;
     targetTsvColumn = 1;
+
+    // createtaxdb
+    taxMappingFile = "";
+    ncbiTaxDump = "";
 
     // filtertaxdb
     taxonList = "";

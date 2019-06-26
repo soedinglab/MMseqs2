@@ -19,7 +19,7 @@ void setTaxonomyDefaults(Parameters *p) {
 int taxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setTaxonomyDefaults(&par);
-    par.parseParameters(argc, argv, command, 4);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
     if(FileUtil::directoryExists(par.db4.c_str())==false){
         Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";

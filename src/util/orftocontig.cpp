@@ -12,7 +12,7 @@
 
 int orftocontig(int argn, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argn, argv, command, 3, true, true);
+    par.parseParameters(argn, argv, command, true, true, 0);
 
     // contig length is needed for computation:
     DBReader<unsigned int> contigsReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);

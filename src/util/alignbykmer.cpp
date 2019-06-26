@@ -20,7 +20,7 @@
 int alignbykmer(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Rescore diagonals.\n";
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4, false);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );

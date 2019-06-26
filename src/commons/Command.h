@@ -55,8 +55,14 @@ struct DbValidator {
 struct DbType{
     static const int ACCESS_MODE_INPUT = 1;
     static const int ACCESS_MODE_OUTPUT = 2;
+    static const int NEED_DATA = 0;
+    static const int NEED_HEADER = 1;
+    static const int NEED_LOOKUP = 2;
+    static const int NEED_TAXONOMY = 4;
+
     const char *usageText;
     int accessMode;
+    int specialType;
     std::vector<int> * validator;
 };
 

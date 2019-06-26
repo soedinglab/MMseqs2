@@ -4,6 +4,8 @@
 #include "Parameters.h"
 #include "MMseqsMPI.h"
 #include "DBReader.h"
+#include "Timer.h"
+#include "FileUtil.h"
 
 #include <iostream>
 #include <string>
@@ -16,12 +18,14 @@ int prefilter(int argc, const char **argv, const Command& command) {
     MMseqsMPI::init(argc, argv);
 
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3, true, 0, MMseqsParameter::COMMAND_PREFILTER);
+    par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_PREFILTER);
 
-    int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    Timer timer;
+
+    int queryDbType = FileUtil::parseDbType(par.db1.c_str());
 
     std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
-    int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    int targetDbType = FileUtil::parseDbType(par.db2.c_str());
     if(Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB) == true){
         DBReader<unsigned int> dbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         dbr.open(DBReader<unsigned int>::NOSORT);

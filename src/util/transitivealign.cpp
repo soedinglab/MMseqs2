@@ -93,7 +93,7 @@ void updateResultByRescoringBacktrace(char *querySeq, char *targetSeq, const cha
 
 int transitivealign(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
     DBReader<unsigned int> sequenceDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     sequenceDbr.open(DBReader<unsigned int>::NOSORT);

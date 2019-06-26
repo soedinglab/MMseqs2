@@ -328,7 +328,7 @@ int computeProfileProfile(Parameters &par,const unsigned int mpiRank, const unsi
 
 int result2pp(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4,false);
+    par.parseParameters(argc, argv, command, false, 0, 0);
     par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
     std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);

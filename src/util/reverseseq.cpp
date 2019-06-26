@@ -11,7 +11,7 @@
 
 int reverseseq(int argn, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argn, argv, command, 2, true, true);
+    par.parseParameters(argn, argv, command, true, true, 0);
 
     DBReader<unsigned int> seqReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     seqReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);

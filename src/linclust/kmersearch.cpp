@@ -14,6 +14,7 @@
 #include "Timer.h"
 #include "omptl/omptl_algorithm"
 #include "KmerIndex.h"
+#include "FileUtil.h"
 
 #ifndef SIZE_T_MAX
 #define SIZE_T_MAX ((size_t) -1)
@@ -137,10 +138,10 @@ template void KmerSearch::writeResult<1>(DBWriter & dbw, KmerPosition *kmers, si
 int kmersearch(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, command, 2, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    par.parseParameters(argc, argv, command, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
     int targetSeqType;
     DBReader<unsigned int> * tidxdbr;
-    int targetDbtype = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    int targetDbtype = FileUtil::parseDbType(par.db2.c_str());
     int adjustedKmerSize = 0;
     bool isAdjustedKmerLen = false;
     if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)==true) {

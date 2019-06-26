@@ -9,7 +9,7 @@
 
 int maskbygff(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
     DBReader<std::string> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads,
                                  DBReader<std::string>::USE_DATA | DBReader<std::string>::USE_WRITABLE);

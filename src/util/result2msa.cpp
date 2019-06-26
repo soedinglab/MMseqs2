@@ -461,7 +461,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
     // do not filter as default
     par.filterMsa = 0;
     par.pca = 0.0;
-    par.parseParameters(argc, argv, command, 4);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
 #ifdef HAVE_MPI
     int status = result2msa(par, MMseqsMPI::rank, MMseqsMPI::numProc);

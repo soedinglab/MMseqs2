@@ -41,7 +41,7 @@ void renumberIdsInIndexByOffsetOrder(char * dataName, char * indexName) {
 
 int createdb(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2, true, Parameters::PARSE_VARIADIC);
+    par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
 
     if (par.maxSeqLen == Parameters::MAX_SEQ_LEN) {
         par.maxSeqLen = Parameters::MAX_SEQ_LEN - 1;

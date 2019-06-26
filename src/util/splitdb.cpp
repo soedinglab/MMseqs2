@@ -7,7 +7,7 @@
 
 int splitdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
     if(par.split < 1) {
         Debug(Debug::ERROR) << "Cannot split databases into 0 or negative chunks.";

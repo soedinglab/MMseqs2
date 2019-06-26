@@ -9,7 +9,7 @@
 
 int createsubdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
     FILE *orderFile = NULL;
     if (FileUtil::fileExists(par.db1Index.c_str())) {

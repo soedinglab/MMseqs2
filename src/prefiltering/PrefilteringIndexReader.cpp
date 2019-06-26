@@ -4,6 +4,7 @@
 #include "ExtendedSubstitutionMatrix.h"
 #include "FileUtil.h"
 #include "IndexBuilder.h"
+#include "Parameters.h"
 
 const char*  PrefilteringIndexReader::CURRENT_VERSION = "15";
 unsigned int PrefilteringIndexReader::VERSION = 0;
@@ -377,8 +378,8 @@ void PrefilteringIndexReader::printMeta(int *metadata_tmp) {
     Debug(Debug::INFO) << "Masked:       " << metadata_tmp[4] << "\n";
     Debug(Debug::INFO) << "Spaced:       " << metadata_tmp[5] << "\n";
     Debug(Debug::INFO) << "KmerScore:    " << metadata_tmp[6] << "\n";
-    Debug(Debug::INFO) << "SequenceType: " << DBReader<unsigned int>::getDbTypeName(metadata_tmp[7]) << "\n";
-    Debug(Debug::INFO) << "SourcSeqType: " << DBReader<unsigned int>::getDbTypeName(metadata_tmp[8]) << "\n";
+    Debug(Debug::INFO) << "SequenceType: " << Parameters::getDbTypeName(metadata_tmp[7]) << "\n";
+    Debug(Debug::INFO) << "SourcSeqType: " << Parameters::getDbTypeName(metadata_tmp[8]) << "\n";
     Debug(Debug::INFO) << "Headers1:     " << metadata_tmp[9] << "\n";
     Debug(Debug::INFO) << "Headers2:     " << metadata_tmp[10] << "\n";
 }

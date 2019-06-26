@@ -622,7 +622,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 
     Parameters &par = Parameters::getInstance();
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, command, 2, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    par.parseParameters(argc, argv, command, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
 
     DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     seqDbr.open(DBReader<unsigned int>::NOSORT);

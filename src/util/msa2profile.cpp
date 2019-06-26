@@ -26,7 +26,7 @@ void setMsa2ProfileDefaults(Parameters *p) {
 int msa2profile(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setMsa2ProfileDefaults(&par);
-    par.parseParameters(argc, argv, command, 2, true, 0, MMseqsParameter::COMMAND_PROFILE);
+    par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_PROFILE);
 
     std::string msaData = par.db1;
     std::string msaIndex = par.db1Index;

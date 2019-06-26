@@ -4,6 +4,7 @@
 #include "DBReader.h"
 #include "Debug.h"
 #include "PrefilteringIndexReader.h"
+#include "FileUtil.h"
 
 class IndexReader {
 public:
@@ -13,7 +14,7 @@ public:
     const static int PRELOAD_INDEX = 2;
     IndexReader(const std::string &dataName, int threads, int databaseType = SEQUENCES | HEADERS, int preloadMode = false, int dataMode=(DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA))
             : sequenceReader(NULL), index(NULL) {
-        int targetDbtype = DBReader<unsigned int>::parseDbType(dataName.c_str());
+        int targetDbtype = FileUtil::parseDbType(dataName.c_str());
         if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
             index = new DBReader<unsigned int>(dataName.c_str(), (dataName + ".index").c_str(), 1, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
             index->open(DBReader<unsigned int>::NOSORT);

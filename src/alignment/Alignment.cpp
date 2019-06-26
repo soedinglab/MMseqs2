@@ -12,6 +12,7 @@
 #include "FileUtil.h"
 #include "LinsearchIndexReader.h"
 #include "IndexReader.h"
+#include "Parameters.h"
 
 
 #ifdef OPENMP
@@ -106,8 +107,8 @@ Alignment::Alignment(const std::string &querySeqDB,
     } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         querySeqType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
     }
-    Debug(Debug::INFO) << "Query database size: "  << qdbr->getSize() << " type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
-    Debug(Debug::INFO) << "Target database size: " << tdbr->getSize() << " type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
+    Debug(Debug::INFO) << "Query database size: "  << qdbr->getSize() << " type: " << Parameters::getDbTypeName(querySeqType) << "\n";
+    Debug(Debug::INFO) << "Target database size: " << tdbr->getSize() << " type: " << Parameters::getDbTypeName(targetSeqType) << "\n";
 
     prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);

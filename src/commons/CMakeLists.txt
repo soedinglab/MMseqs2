@@ -9,6 +9,7 @@ set(commons_header_files
         commons/CpuInfo.h
         commons/DBConcat.h
         commons/DBReader.h
+        commons/DBReaderWrapper.h
         commons/DBWriter.h
         commons/Debug.h
         commons/Domain.h

@@ -16,7 +16,7 @@
 int profile2cs(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.alphabetSize = 8;
-    par.parseParameters(argc, argv, command, 2,  true, 0, MMseqsParameter::COMMAND_PROFILE);
+    par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_PROFILE);
 
     DBReader<unsigned int> profileReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     profileReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);

@@ -17,12 +17,10 @@
 
 int createtsv(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3, true, Parameters::PARSE_VARIADIC);
+    par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
 
-
-
-    bool queryNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db1.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
-    bool targetNucs = Parameters::isEqualDbtype(DBReader<unsigned int>::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
+    bool queryNucs = Parameters::isEqualDbtype(FileUtil::parseDbType(par.db1.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
+    bool targetNucs = Parameters::isEqualDbtype(FileUtil::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
     const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     int queryHeaderType = (queryNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS;
     queryHeaderType = (par.idxSeqSrc == 0) ? queryHeaderType :  (par.idxSeqSrc == 1) ?  IndexReader::HEADERS : IndexReader::SRC_HEADERS;

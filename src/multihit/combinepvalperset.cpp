@@ -152,7 +152,7 @@ private:
 
 int combinepvalperset(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4, true);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     PvalueAggregator aggregation(par.db1, par.db2, par.db3, par.db4, par.alpha, (unsigned int) par.threads, par.compressed);
     return aggregation.run();

@@ -34,7 +34,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     bool templateDBIsIndex = false;
 
     int targetSeqType = -1;
-    int targetDbtype = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    int targetDbtype = FileUtil::parseDbType(par.db2.c_str());
     if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
         bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
         tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
@@ -116,7 +116,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     }
 
     Debug(Debug::INFO) << "Query database size: "  << qDbr->getSize() << " type: " << qDbr->getDbTypeName() << "\n";
-    Debug(Debug::INFO) << "Target database size: " << tDbr->getSize() << " type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
+    Debug(Debug::INFO) << "Target database size: " << tDbr->getSize() << " type: " << Parameters::getDbTypeName(targetSeqType) << "\n";
 
 
     const bool isFiltering = par.filterMsa != 0;
@@ -356,7 +356,7 @@ int result2profile(int argc, const char **argv, const Command &command) {
     par.filterMsa = 1;
     // no pseudo counts
     par.pca = 0.0;
-    par.parseParameters(argc, argv, command, 4, false);
+    par.parseParameters(argc, argv, command, false, 0, 0);
     par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
     std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);

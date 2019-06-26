@@ -46,11 +46,7 @@ struct hit_t {
             return false;
         return false;
     }
-
-
 };
-
-
 
 class QueryMatcher {
 public:
@@ -98,18 +94,6 @@ public:
                 break;
         }
         return scoreThr;
-    }
-
-// compute -log(p)
-    static inline double computeLogProbability(const unsigned short rawScore, const unsigned int dbSeqLen,
-                                               const double kmerMatchProb, const double logMatchProb,
-                                               const double logScoreFactorial) {
-        const double score = static_cast<double>(rawScore);
-        const double dbSeqLenDbl = static_cast<double>(dbSeqLen);
-        const double mu = kmerMatchProb * dbSeqLenDbl;
-        const double mid_term = score * (logMatchProb + log(dbSeqLenDbl));
-        const double first_term = -(mu * score /(score + 1));
-        return first_term + mid_term - logScoreFactorial;
     }
 
     static hit_t parsePrefilterHit(char* data) {

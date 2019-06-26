@@ -43,7 +43,7 @@ bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, con
 int indexdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setIndexDbDefaults(&par);
-    par.parseParameters(argc, argv, command, 2);
+    par.parseParameters(argc, argv, command, false, 0, 0);
 
     if (par.split > 1) {
         Debug(Debug::ERROR) << "Creating a split index is not supported currently.\n";

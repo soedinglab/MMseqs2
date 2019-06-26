@@ -274,7 +274,8 @@ int apply(int argc, const char **argv, const Command& command) {
     MMseqsMPI::init(argc, argv);
 
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2, true, Parameters::PARSE_REST);
+    par.parseParameters(argc, argv, command, true, Parameters::PARSE_REST, 0);
+
 #ifdef OPENMP
     // forking does not play well with OpenMP threads
     omp_set_num_threads(1);
