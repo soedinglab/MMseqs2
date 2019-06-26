@@ -194,6 +194,8 @@ jobs:
         inputs:
           artifactName: mmseqs-darwin-sse41
           targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - script:
+          chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
       - task: ArchiveFiles@2
         inputs:
           rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
@@ -204,6 +206,8 @@ jobs:
         inputs:
           artifactName: mmseqs-darwin-avx2
           targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - script:
+          chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
       - task: ArchiveFiles@2
         inputs:
           rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
@@ -214,6 +218,8 @@ jobs:
         inputs:
           artifactName: mmseqs-linux-SSE4_1
           targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - script:
+          chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
       - task: ArchiveFiles@2
         inputs:
           rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
@@ -224,6 +230,8 @@ jobs:
         inputs:
           artifactName: mmseqs-linux-AVX2
           targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - script:
+          chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
       - task: ArchiveFiles@2
         inputs:
           rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
