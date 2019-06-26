@@ -26,8 +26,8 @@ set(COMPILED_RESOURCES
         nucleotide.out
         blosum62.out
         PAM30.out
-        CovSeqidQscPercMinDiag.out
-        CovSeqidQscPercMinDiagTargetCov.out
+        CovSeqidQscPercMinDiag.lib
+        CovSeqidQscPercMinDiagTargetCov.lib
         ExpOpt3_8_polished.cs32.lib
         Library255_may17.lib
         libPure_blosum62_255.lib
