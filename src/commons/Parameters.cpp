@@ -1568,18 +1568,18 @@ void Parameters::checkIfDatabaseIsValid(const Command& command) {
                 if (FileUtil::fileExists(filenames[dbIdx].c_str()) == true) {
                     Debug(Debug::WARNING) << filenames[dbIdx] << " exists and will be overwritten.\n";
                 }
-                FILE *fp = fopen(filenames[dbIdx].c_str(), "a");
-                if (fp == NULL) {
-                    if (errno == EACCES) {
-                        Debug(Debug::ERROR) << "No permission to write file " << filenames[dbIdx] << ".\n";
-                        EXIT(EXIT_FAILURE);
-                    } else {
-                        Debug(Debug::ERROR) << "Error while writing file " << filenames[dbIdx] << ".\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                }
-                fclose(fp);
-                FileUtil::remove(filenames[dbIdx].c_str());
+//                FILE *fp = fopen(filenames[dbIdx].c_str(), "a");
+//                if (fp == NULL) {
+//                    if (errno == EACCES) {
+//                        Debug(Debug::ERROR) << "No permission to write file " << filenames[dbIdx] << ".\n";
+//                        EXIT(EXIT_FAILURE);
+//                    } else {
+//                        Debug(Debug::ERROR) << "Error while writing file " << filenames[dbIdx] << ".\n";
+//                        EXIT(EXIT_FAILURE);
+//                    }
+//                }
+//                fclose(fp);
+//                FileUtil::remove(filenames[dbIdx].c_str());
             }
         }
     }
