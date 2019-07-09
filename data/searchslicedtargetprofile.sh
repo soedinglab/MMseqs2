@@ -137,11 +137,11 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
             || fail "mergedbs died"
         # shellcheck disable=SC2086
         # rmdb of aln_merged to avoid conflict with unmerged dbs: aln_merged.0, .1...
-        "$MMSEQS" rmdb "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR}
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR} || fail "rmdb aln_merged died"
         # shellcheck disable=SC2086
-        "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR}
+        "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR} || fail "mv aln_merged_new aln_merged died"
         # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR}
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} || fail "rmdb aln_swap died"
         MERGED="${TMP_PATH}/aln_merged"
     fi
 
@@ -159,8 +159,10 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
     # shellcheck disable=SC2046
     NUM_PROFILES=$(wc -l < "${PROFILEDB}.index")
     rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done" "${TMP_PATH}/pref_keep.list"
-    # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR}
+    if [ -f "${TMP_PATH}/aln_swap.dbtype" ]; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR}
+    fi
     rm -f "${TMP_PATH}/aln_swap.done"
     printf "%d\\t%s\\n" "${NUM_PROFILES}" "${PREV_MAX_SEQS}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
 
