@@ -1495,7 +1495,7 @@ void Parameters::checkIfDatabaseIsValid(const Command& command) {
             // check if file exists
             // if file is not a
             if (FileUtil::fileExists((filenames[dbIdx]).c_str()) == false && FileUtil::fileExists(dbTypeFile.c_str()) == false ) {
-                Debug(Debug::ERROR) << "Input " << filenames[dbIdx] << " does not exist.\n"
+                Debug(Debug::ERROR) << "Input " << filenames[dbIdx] << " does not exist.\n";
                 EXIT(EXIT_FAILURE);
             }
             int dbtype = FileUtil::parseDbType(filenames[dbIdx].c_str());
