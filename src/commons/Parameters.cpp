@@ -1500,7 +1500,7 @@ void Parameters::checkIfDatabaseIsValid(const Command& command) {
             }
             int dbtype = FileUtil::parseDbType(filenames[dbIdx].c_str());
             if (db.specialType & DbType::NEED_HEADER) {
-                if (FileUtil::fileExists((filenames[dbIdx] + "_h").c_str()) == false && Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_INDEX_DB)) {
+                if (FileUtil::fileExists((filenames[dbIdx] + "_h").c_str()) == false && Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_INDEX_DB)==false) {
                     Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need header information.\n"
                                         << "The " << filenames[dbIdx] << "_h is missing.\n";
                     EXIT(EXIT_FAILURE);
