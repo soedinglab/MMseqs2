@@ -1487,45 +1487,55 @@ void Parameters::checkIfDatabaseIsValid(const Command& command) {
     for (size_t dbIdx = 0; dbIdx < command.databases.size(); dbIdx++) {
         const DbType &db = command.databases[dbIdx];
         // special checks
-        if (db.specialType & DbType::NEED_HEADER) {
-            if (FileUtil::fileExists((filenames[dbIdx] + "_h").c_str()) == false) {
-                Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need header information.\n"
-                                    << "The " << filenames[dbIdx] << "_h is missing.\n";
-                EXIT(EXIT_FAILURE);
-            }
-        }
-        if (db.specialType & DbType::NEED_TAXONOMY) {
-            if (FileUtil::fileExists((filenames[dbIdx] + "_mapping").c_str()) == false) {
-                Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
-                                    << "The " << filenames[dbIdx] << "_mapping is missing.\n";
-                EXIT(EXIT_FAILURE);
-            }
-            if (FileUtil::fileExists((filenames[dbIdx] + "_nodes.dmp").c_str()) == false) {
-                Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
-                                    << "The " << filenames[dbIdx] << "_nodes.dmp is missing.\n";
-                EXIT(EXIT_FAILURE);
-            }
-            if (FileUtil::fileExists((filenames[dbIdx] + "_names.dmp").c_str()) == false) {
-                Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
-                                    << "The " << filenames[dbIdx] << "_names.dmp is missing.\n";
-                EXIT(EXIT_FAILURE);
-            }
-            if (FileUtil::fileExists((filenames[dbIdx] + "_merged.dmp").c_str()) == false) {
-                Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
-                                    << "The " << filenames[dbIdx] << "_merged.dmp is missing.\n";
-                EXIT(EXIT_FAILURE);
-            }
-        }
-        if (db.specialType & DbType::NEED_LOOKUP) {
-            if (FileUtil::fileExists((filenames[dbIdx] + ".lookup").c_str()) == false) {
-                Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need a lookup file.\n"
-                                    << "The " << filenames[dbIdx] << ".lookup is missing.\n";
-                EXIT(EXIT_FAILURE);
-            }
-        }
+
         if (db.accessMode == db.ACCESS_MODE_INPUT) {
+
+            std::string dbTypeFile = std::string(filenames[dbIdx]) + ".dbtype";
+
+            // check if file exists
+            // if file is not a
+            if (FileUtil::fileExists((filenames[dbIdx]).c_str()) == false && FileUtil::fileExists(dbTypeFile.c_str()) == false ) {
+                Debug(Debug::ERROR) << "Input " << filenames[dbIdx] << " does not exist.\n"
+                EXIT(EXIT_FAILURE);
+            }
             int dbtype = FileUtil::parseDbType(filenames[dbIdx].c_str());
-            bool dbtypeFound = false;
+            if (db.specialType & DbType::NEED_HEADER) {
+                if (FileUtil::fileExists((filenames[dbIdx] + "_h").c_str()) == false && Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_INDEX_DB)) {
+                    Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need header information.\n"
+                                        << "The " << filenames[dbIdx] << "_h is missing.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+            }
+            if (db.specialType & DbType::NEED_TAXONOMY) {
+                if (FileUtil::fileExists((filenames[dbIdx] + "_mapping").c_str()) == false) {
+                    Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
+                                        << "The " << filenames[dbIdx] << "_mapping is missing.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                if (FileUtil::fileExists((filenames[dbIdx] + "_nodes.dmp").c_str()) == false) {
+                    Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
+                                        << "The " << filenames[dbIdx] << "_nodes.dmp is missing.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                if (FileUtil::fileExists((filenames[dbIdx] + "_names.dmp").c_str()) == false) {
+                    Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
+                                        << "The " << filenames[dbIdx] << "_names.dmp is missing.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                if (FileUtil::fileExists((filenames[dbIdx] + "_merged.dmp").c_str()) == false) {
+                    Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
+                                        << "The " << filenames[dbIdx] << "_merged.dmp is missing.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+            }
+            if (db.specialType & DbType::NEED_LOOKUP) {
+                if (FileUtil::fileExists((filenames[dbIdx] + ".lookup").c_str()) == false) {
+                    Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need a lookup file.\n"
+                                        << "The " << filenames[dbIdx] << ".lookup is missing.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+            }
+                bool dbtypeFound = false;
             if (db.validator == NULL) {
                 continue;
             }
