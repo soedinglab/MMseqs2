@@ -11,6 +11,8 @@
 #include <regex.h>
 #include <unistd.h>
 
+#include <zstd/lib/zstd.h>
+
 #ifdef __CYGWIN__
 #include <sys/cygwin.h>
 #endif

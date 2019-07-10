@@ -9,9 +9,7 @@
 #include <typeinfo>
 #include <cstddef>
 #include <utility>
-#include <zstd/lib/zstd.h>
 #include "Command.h"
-#include "FileUtil.h"
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
