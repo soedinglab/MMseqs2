@@ -218,7 +218,7 @@ Parameters::Parameters():
         // mergedbs
         PARAM_MERGE_PREFIXES(PARAM_MERGE_PREFIXES_ID, "--prefixes", "Merge prefixes", "Comma separated list of prefixes for each entry", typeid(std::string),(void *) &mergePrefixes,""),
         // summarizeresult
-        PARAM_OVERLAP(PARAM_OVERLAP_ID, "--overlap", "Overlap", "maximum overlap", typeid(float), (void*) &overlap, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_OVERLAP(PARAM_OVERLAP_ID, "--overlap", "Overlap threshold", "Maximum overlap of covered regions", typeid(float), (void*) &overlap, "^[0-9]*(\\.[0-9]+)?$"),
         // msa2profile
         PARAM_MSA_TYPE(PARAM_MSA_TYPE_ID,"--msa-type", "MSA type", "MSA Type: cA3M 0, A3M 1, FASTA 2", typeid(int), (void *) &msaType, "^[0-2]{1}$"),
         // extractalignedregion
@@ -831,7 +831,6 @@ Parameters::Parameters():
     // summarizeresult
     summarizeresult.push_back(&PARAM_ADD_BACKTRACE);
     summarizeresult.push_back(&PARAM_OVERLAP);
-    summarizeresult.push_back(&PARAM_E);
     summarizeresult.push_back(&PARAM_C);
     summarizeresult.push_back(&PARAM_THREADS);
     summarizeresult.push_back(&PARAM_COMPRESSED);
