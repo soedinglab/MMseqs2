@@ -7,11 +7,9 @@ set(multihit_header_files
 set(multihit_source_files
         multihit/besthitperset.cpp
         multihit/combinepvalperset.cpp
-        multihit/resultsbyset.cpp
         multihit/Aggregation.h
         multihit/Aggregation.cpp
         multihit/MultiHitDb.cpp
         multihit/MultiHitSearch.cpp
-        multihit/SummarizeResultsBySet.cpp
         PARENT_SCOPE
         )

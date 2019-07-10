@@ -703,12 +703,6 @@ Parameters::Parameters():
     combinepvalbyset.push_back(&PARAM_COMPRESSED);
     combinepvalbyset.push_back(&PARAM_V);
 
-    // combinepvalperset
-    summerizeresultsbyset.push_back(&PARAM_ALPHA);
-    summerizeresultsbyset.push_back(&PARAM_SHORT_OUTPUT);
-    summerizeresultsbyset.push_back(&PARAM_THREADS);
-    summerizeresultsbyset.push_back(&PARAM_COMPRESSED);
-    summerizeresultsbyset.push_back(&PARAM_V);
 
     // offsetalignment
     offsetalignment.push_back(&PARAM_CHAIN_ALIGNMENT);

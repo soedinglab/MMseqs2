@@ -19,7 +19,6 @@ set(COMPILED_RESOURCES
         taxonomy.sh
         multihitdb.sh
         multihitsearch.sh
-        summarizeresultsbyset.sh
         enrich.sh
         blastn.sh
         VTML80.out
