@@ -326,7 +326,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
                 }
 
                 // add k-mer to represent the identity
-                //TODO, how to hand this in reverse?
+                //TODO, how to handle this in reverse?
                 if (seqHash%splits == split) {
                     threadKmerBuffer[bufferPos].kmer = seqHash;
                     threadKmerBuffer[bufferPos].id = seqId;
@@ -988,9 +988,9 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
             }
         }
 
-        bool hitIsRepSeq = (res.score == 0);
+        bool hitIsRepSeq = (currRepSeq == res.id);
         // skip rep. seq. if set does not have rep. sequences
-        if(hitIsRepSeq && hasRepSeq == false){
+        if(hitIsRepSeq && hasRepSeq == true){
             continue;
         }
         // if its not a duplicate
@@ -1096,13 +1096,20 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
 
         unsigned int targetId = hashSeqPair[kmerPos].id;
         unsigned short diagonal = hashSeqPair[kmerPos].pos;
+        int forward = 0;
+        int reverse = 0;
         // find diagonal score
         do{
             diagonalScore += (diagonalScore == 0 || (lastTargetId == targetId && lastDiagonal == diagonal) );
             lastTargetId = hashSeqPair[kmerPos].id;
             lastDiagonal = hashSeqPair[kmerPos].pos;
+            if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+                bool isReverse  = BIT_CHECK(hashSeqPair[kmerPos].kmer, 63)==false;
+                forward += isReverse == false;
+                reverse += isReverse == true;
+            }
             kmerPos++;
-        }while(targetId == hashSeqPair[kmerPos].id && lastDiagonal == diagonal && kmerPos < totalKmers);
+        }while(targetId == hashSeqPair[kmerPos].id && lastDiagonal == diagonal && kmerPos < totalKmers && hashSeqPair[kmerPos].kmer != SIZE_T_MAX);
         kmerPos--;
 
         elemenetCnt++;
@@ -1111,7 +1118,7 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
         diagonalScore = 0;
         writeBuffer[bufferPos].diagonal = diagonal;
         if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
-            bool isReverse  = BIT_CHECK(hashSeqPair[kmerPos].kmer, 63)==false;
+            bool isReverse = (reverse>forward)? true : false;
             writeBuffer[bufferPos].setReverse(isReverse);
         }
         bufferPos++;
