@@ -429,7 +429,7 @@ public:
     int adjustKmerLength;
 
     // indexdb
-    bool checkCompatible;
+    int checkCompatible;
     int searchType;
 
     // createdb

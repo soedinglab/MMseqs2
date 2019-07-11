@@ -28,7 +28,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     par.printParameters(command.cmd, argc, argv, *params);
     Debug(Debug::INFO) << "Database size: "  << seqDbr.getSize() << " type: " << seqDbr.getDbTypeName() << "\n";
     std::string indexDB = LinsearchIndexReader::indexName(par.db2);
-    if (par.checkCompatible && FileUtil::fileExists(indexDB.c_str())) {
+    if (par.checkCompatible > 0 && FileUtil::fileExists(indexDB.c_str())) {
         Debug(Debug::INFO) << "Check index " << indexDB << "\n";
         DBReader<unsigned int> index(indexDB.c_str(), (indexDB + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         index.open(DBReader<unsigned int>::NOSORT);
@@ -36,7 +36,12 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
             Debug(Debug::INFO) << "Index is already up to date and compatible. Force recreation with --check-compatibility 0 parameter.\n";
             return EXIT_SUCCESS;
         } else {
-            Debug(Debug::WARNING) << "Index is incompatible and will be recreated.\n";
+            if (par.checkCompatible == 2) {
+                Debug(Debug::ERROR) << "Index is incompatible.\n";
+                return EXIT_FAILURE;
+            } else {
+                Debug(Debug::WARNING) << "Index is incompatible and will be recreated.\n";
+            }
         }
     }
 
