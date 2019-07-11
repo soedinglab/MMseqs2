@@ -156,7 +156,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
             splits = 1;
             spacedKmer = data.spacedKmer != 0;
             spacedKmerPattern = PrefilteringIndexReader::getSpacedPattern(tidxdbr);
-            seedScoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrix(tidxdbr);
+            seedScoringMatrixFile = ScoreMatrixFile(PrefilteringIndexReader::getSubstitutionMatrix(tidxdbr));
         } else {
             Debug(Debug::ERROR) << "Outdated index version. Please recompute it with 'createindex'!\n";
             EXIT(EXIT_FAILURE);
@@ -946,20 +946,20 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
 }
 
 
-BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState, bool isNucl) {
+BaseMatrix *Prefiltering::getSubstitutionMatrix(const ScoreMatrixFile &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState, bool isNucl) {
     BaseMatrix *subMat;
 
     if (isNucl){
-        subMat = new NucleotideMatrix(scoringMatrixFile.c_str(), bitFactor, 0.0);
+        subMat = new NucleotideMatrix(scoringMatrixFile.nucleotides, bitFactor, 0.0);
     } else if (alphabetSize < 21) {
-        SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2f);
+        SubstitutionMatrix sMat(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
         subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, alphabetSize, bitFactor);
     }else if(profileState == true){
-        SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2f);
+        SubstitutionMatrix sMat(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
         subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,
                                                      sMat.subMatrixPseudoCounts, bitFactor, 0.0, 8);
     } else {
-        subMat = new SubstitutionMatrix(scoringMatrixFile.c_str(), bitFactor, -0.2f);
+        subMat = new SubstitutionMatrix(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
     }
     return subMat;
 }

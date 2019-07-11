@@ -21,7 +21,7 @@ int main (int, const char**) {
 
 
     Parameters& par = Parameters::getInstance();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 8.0, 0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 8.0, 0);
     std::cout << "Subustitution matrix:\n";
 
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);

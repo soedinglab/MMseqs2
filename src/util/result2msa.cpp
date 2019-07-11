@@ -79,7 +79,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
     size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
 
     Debug(Debug::INFO) << "Start computing "
                        << (par.compressMSA ? "compressed" : "") << " multiple sequence alignments.\n";

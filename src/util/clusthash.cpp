@@ -32,7 +32,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
     setClustHashDefaults(&par);
     par.parseParameters(argc, argv, command, false, 0, 0);
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, -0.2);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, -0.2);
     ReducedMatrix redSubMat(subMat.probMatrix, subMat.subMatrixPseudoCounts, subMat.aa2int, subMat.int2aa, subMat.alphabetSize, par.alphabetSize, 2.0);
 
     DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);

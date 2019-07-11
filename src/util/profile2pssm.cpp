@@ -28,7 +28,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
     size_t entries = profileReader.getSize();
     Debug::Progress progress(entries);
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, 0.0);
     Debug(Debug::INFO) << "Start converting profiles.\n";
 #pragma omp parallel
     {

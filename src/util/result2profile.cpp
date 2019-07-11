@@ -99,7 +99,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
     ProbabilityMatrix probMatrix(subMat);
 
     Debug(Debug::INFO) << "Start computing profiles\n";

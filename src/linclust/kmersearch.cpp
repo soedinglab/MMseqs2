@@ -198,12 +198,12 @@ int kmersearch(int argc, const char **argv, const Command &command) {
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
     }else {
         if (par.alphabetSize == 21) {
-            subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 8.0, -0.2);
+            subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 8.0, -0.2);
         } else {
-            SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 8.0, -0.2);
+            SubstitutionMatrix sMat(par.scoringMatrixFile.aminoacids, 8.0, -0.2);
             subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, par.alphabetSize, 8.0);
         }
     }

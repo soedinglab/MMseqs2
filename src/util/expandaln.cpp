@@ -135,7 +135,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
     writer.open();
 
     BacktraceTranslator translator;
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, par.scoreBias);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, par.scoreBias);
     EvalueComputation evaluer(targetReader.getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
     Debug::Progress progress(resultReader->getSize());
 

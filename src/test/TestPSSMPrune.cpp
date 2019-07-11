@@ -19,7 +19,7 @@ const char* binary_name = "test_pssmprune";
 
 int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, -0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, -0.0);
     std::cout << "Subustitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);

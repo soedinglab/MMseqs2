@@ -49,7 +49,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
     resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     DBWriter resultWriter(outpath.c_str(), (outpath + ".index").c_str(), par.threads, par.compressed, Parameters::DBTYPE_HMM_PROFILE);
     resultWriter.open();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, 0.0f);
 
 //#pragma omp parallel
     {

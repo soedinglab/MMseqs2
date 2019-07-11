@@ -42,7 +42,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
     EvalueComputation * evaluer;
     int8_t * tinySubMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
         evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), subMat);
         tinySubMat = new int8_t[subMat->alphabetSize*subMat->alphabetSize];
         for (int i = 0; i < subMat->alphabetSize; i++) {
@@ -51,7 +51,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
             }
         }
     } else if(Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ) ){
-        SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        SubstitutionMatrix sMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
         evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), &sMat);
         subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,
                                                      sMat.subMatrixPseudoCounts, 2.0, 0.0, 219);
@@ -63,7 +63,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         }
     } else {
         // keep score bias at 0.0 (improved ROC)
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
         evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), subMat);
         tinySubMat = new int8_t[subMat->alphabetSize*subMat->alphabetSize];
         for (int i = 0; i < subMat->alphabetSize; i++) {
