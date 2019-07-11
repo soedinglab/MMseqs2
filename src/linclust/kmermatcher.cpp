@@ -462,7 +462,9 @@ KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std
         omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiag);
     }
     //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, SequenceComparision());
-
+//    for(size_t i = 0; i < writePos; i++){
+//        std::cout << BIT_CLEAR(hashSeqPair[i].kmer, 63) << "\t" << hashSeqPair[i].id << "\t" << hashSeqPair[i].pos << std::endl;
+//    }
     Debug(Debug::INFO) << timer.lap() << "\n";
 
     if(splits > 1){
@@ -729,8 +731,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             }
         } else {
             if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-                writeKmerMatcherResult<Parameters::DBTYPE_NUCLEOTIDES>(dbw, hashSeqPair, totalKmers, repSequence,
-                                                                       1);
+                writeKmerMatcherResult<Parameters::DBTYPE_NUCLEOTIDES>(dbw, hashSeqPair, totalKmers, repSequence, 1);
             }else{
                 writeKmerMatcherResult<Parameters::DBTYPE_AMINO_ACIDS>(dbw, hashSeqPair, totalKmers, repSequence, 1);
             }
@@ -836,7 +837,7 @@ void writeKmerMatcherResult(DBWriter & dbw,
             unsigned int targetId = hashSeqPair[kmerPos].id;
             unsigned short diagonal = hashSeqPair[kmerPos].pos;
             size_t kmerOffset = 0;
-            unsigned short prevDiagonal = diagonal;
+            short prevDiagonal = diagonal;
             size_t maxDiagonal = 0;
             size_t diagonalCnt = 0;
             size_t topScore =0;
@@ -850,8 +851,8 @@ void writeKmerMatcherResult(DBWriter & dbw,
                  }else{
                      diagonalCnt = 1;
                  }
-                 if(diagonalCnt > maxDiagonal){
-                     diagonal = prevDiagonal;
+                 if(diagonalCnt >= maxDiagonal){
+                     diagonal = hashSeqPair[kmerPos+kmerOffset].pos;
                      maxDiagonal = diagonalCnt;
                      if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
                          bestReverMask = BIT_CHECK(hashSeqPair[kmerPos+kmerOffset].kmer, 63) == false;
@@ -956,6 +957,14 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
             prefResultsOutString.append(buffer, len);
         }
     }
+
+//    while(queue.empty() == false) {
+//        res = queue.top();
+//        std::cout << (int)res.repSeq << "\t" << (int)res.id << "\t" <<(int) res.pos << "\t" << (int) res.reverse << std::endl;
+//        queue.pop();
+//        offsetPos[res.file] = queueNextEntry<TYPE,T>(queue, res.file, offsetPos[res.file],
+//                                                     entries[res.file], entrySizes[res.file]);
+//    }
     while(queue.empty() == false) {
         res = queue.top();
         queue.pop();
@@ -977,6 +986,7 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
             if(queue.empty() == false) {
                 res = queue.top();
                 currRepSeq = res.repSeq;
+                queue.pop();
                 if(hasRepSeq){
                     hit_t h;
                     h.seqId = res.repSeq;
@@ -1006,7 +1016,7 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
         do {
             prevHitId = res.id;
             diagonalScore = (diagonalScore == 0 || prevDiagonal!=res.pos) ? res.score : diagonalScore + res.score;
-            if(diagonalScore > bestDiagonalCnt){
+            if(diagonalScore >= bestDiagonalCnt){
                 bestDiagonalCnt = diagonalScore;
                 bestDiagonal = res.pos;
                 bestRevertMask = res.reverse;
@@ -1109,7 +1119,7 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
                 reverse += isReverse == true;
             }
             kmerPos++;
-        }while(targetId == hashSeqPair[kmerPos].id && lastDiagonal == diagonal && kmerPos < totalKmers && hashSeqPair[kmerPos].kmer != SIZE_T_MAX);
+        }while(targetId == hashSeqPair[kmerPos].id && hashSeqPair[kmerPos].id == diagonal && kmerPos < totalKmers && hashSeqPair[kmerPos].kmer != SIZE_T_MAX);
         kmerPos--;
 
         elemenetCnt++;
