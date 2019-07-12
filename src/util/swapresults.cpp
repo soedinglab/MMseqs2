@@ -333,12 +333,12 @@ int doswap(Parameters& par, bool isGeneralMode) {
 
 int swapdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
     return doswap(par, true);
 }
 
 int swapresults(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
     return doswap(par, false);
 }
