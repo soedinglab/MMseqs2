@@ -53,5 +53,5 @@ int compress(int argc, const char **argv, const Command& command) {
 }
 
 int decompress(int argc, const char **argv, const Command& command) {
-    return doCompression(argc, argv, command, true);
+    return doCompression(argc, argv, command, false);
 }

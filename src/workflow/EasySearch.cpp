@@ -134,7 +134,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
 }
 
 int easysearch(int argc, const char **argv, const Command &command) {
-    return doeasysearch(argc, argv, command, true);
+    return doeasysearch(argc, argv, command, false);
 }
 
 int easylinsearch(int argc, const char **argv, const Command &command) {
