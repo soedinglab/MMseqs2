@@ -364,7 +364,7 @@ int extractdomains(int argc, const char **argv, const Command& command) {
     MMseqsMPI::init(argc, argv);
 
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
 #ifdef HAVE_MPI
     int status = doExtract(par, MMseqsMPI::rank, MMseqsMPI::numProc);

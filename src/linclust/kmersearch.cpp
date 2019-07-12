@@ -138,7 +138,7 @@ template void KmerSearch::writeResult<1>(DBWriter & dbw, KmerPosition *kmers, si
 int kmersearch(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, command, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
     int targetSeqType;
     DBReader<unsigned int> * tidxdbr;
     int targetDbtype = FileUtil::parseDbType(par.db2.c_str());

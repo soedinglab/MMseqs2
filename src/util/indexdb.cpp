@@ -41,7 +41,7 @@ std::string findIncompatibleParameter(DBReader<unsigned int>& index, const Param
 int indexdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setIndexDbDefaults(&par);
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     if (par.split > 1) {
         Debug(Debug::ERROR) << "Creating a split index is not supported currently.\n";

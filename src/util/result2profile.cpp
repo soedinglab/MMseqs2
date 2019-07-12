@@ -356,7 +356,7 @@ int result2profile(int argc, const char **argv, const Command &command) {
     par.filterMsa = 1;
     // no pseudo counts
     par.pca = 0.0;
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
     par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
     std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);

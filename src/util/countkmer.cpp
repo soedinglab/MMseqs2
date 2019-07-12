@@ -18,7 +18,7 @@ int countkmer(int argc, const char **argv, const Command& command) {
     par.verbosity = 1;
     par.kmerSize = 5;
     par.spacedKmer = false;
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
     std::vector<std::string> ids = Util::split(par.idList, ",");
     int indexSrcType = IndexReader::SEQUENCES;
 
