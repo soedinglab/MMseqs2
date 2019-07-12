@@ -83,7 +83,8 @@ int createlinindex(int argc, const char **argv, const Command& command) {
     par.orfMaxLength = 32734;
     par.kmerScore = 0; // extract all k-mers
     par.maskMode = 0;
-
+    // VTML has a slightly lower sensitivity in the regression test
+    par.seedScoringMatrixFile = ScoreMatrixFile("blosum62.out", "nucleotide.out");
     par.parseParameters(argc, argv, command, true, 0, 0);
     int dbType = FileUtil::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
@@ -111,8 +112,6 @@ int createindex(int argc, const char **argv, const Command& command) {
     par.kmerScore = 0; // extract all k-mers
     par.sensitivity = 7.5;
     par.maskMode = 1;
-    // VTML has a slightly lower sensitivity in the regression test
-    par.seedScoringMatrixFile = ScoreMatrixFile("blosum62.out", "nucleotide.out");
     par.parseParameters(argc, argv, command, true, 0, 0);
 
     int dbType = FileUtil::parseDbType(par.db1.c_str());
