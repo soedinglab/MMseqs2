@@ -2,13 +2,12 @@
 #include <string>
 #include <cassert>
 #include <climits>
-#include <Util.h>
-#include <DBReader.h>
+#include "Util.h"
+#include "DBReader.h"
 #include "createindex.sh.h"
 #include "CommandCaller.h"
 #include "Debug.h"
 #include "FileUtil.h"
-
 
 int createindex(Parameters &par, std::string indexerModule, std::string flag) {
     bool sensitivity = false;
@@ -112,6 +111,8 @@ int createindex(int argc, const char **argv, const Command& command) {
     par.kmerScore = 0; // extract all k-mers
     par.sensitivity = 7.5;
     par.maskMode = 1;
+    // VTML has a slightly lower sensitivity in the regression test
+    par.seedScoringMatrixFile = ScoreMatrixFile("blosum62.out", "nucleotide.out");
     par.parseParameters(argc, argv, command, false, 0, 0);
 
     int dbType = FileUtil::parseDbType(par.db1.c_str());

@@ -13,31 +13,29 @@ void setIndexDbDefaults(Parameters *p) {
     p->sensitivity = 5.7;
 }
 
-bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, const int dbtype) {
+std::string findIncompatibleParameter(DBReader<unsigned int>& index, const Parameters& par, const int dbtype) {
     PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
     if (meta.compBiasCorr != par.compBiasCorrection)
-        return false;
+        return "compBiasCorrection";
     if (meta.maxSeqLength != static_cast<int>(par.maxSeqLen))
-        return false;
+        return "maxSeqLen";
     if (meta.seqType != dbtype)
-        return false;
-    if (meta.alphabetSize != par.alphabetSize)
-        return false;
+        return "seqType";
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES) == false && par.searchType != Parameters::SEARCH_TYPE_NUCLEOTIDES && meta.alphabetSize != par.alphabetSize)
+        return "alphabetSize";
     if (meta.kmerSize != par.kmerSize)
-        return false;
+        return "kmerSize";
     if (meta.mask != par.maskMode)
-        return false;
+        return "maskMode";
     if (meta.kmerThr != par.kmerScore)
-        return false;
+        return "kmerScore";
     if (meta.spacedKmer != par.spacedKmer)
-        return false;
+        return "spacedKmer";
     if (par.seedScoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
-        return false;
+        return "seedScoringMatrixFile";
     if (par.spacedKmerPattern != PrefilteringIndexReader::getSpacedPattern(&index))
-        return false;
-    if (meta.headers2 == 1 && (par.db1 != par.db2))
-        return true;
-    return true;
+        return "spacedKmerPattern";
+    return "";
 }
 
 int indexdb(int argc, const char **argv, const Command &command) {
@@ -104,15 +102,21 @@ int indexdb(int argc, const char **argv, const Command &command) {
         Debug(Debug::INFO) << "Check index " << indexDB << "\n";
         DBReader<unsigned int> index(indexDB.c_str(), (indexDB + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         index.open(DBReader<unsigned int>::NOSORT);
-        if (PrefilteringIndexReader::checkIfIndexFile(&index) && isIndexCompatible(index, par, dbr.getDbtype())) {
+
+        if (Parameters::isEqualDbtype(dbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) && par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES && par.PARAM_ALPH_SIZE.wasSet) {
+            Debug(Debug::WARNING) << "Alphabet size is not taken into account for compatibility check in nucleotide search.\n";
+        }
+
+        std::string check;
+        if (PrefilteringIndexReader::checkIfIndexFile(&index) && (check = findIncompatibleParameter(index, par, dbr.getDbtype())) == "") {
             Debug(Debug::INFO) << "Index is already up to date and compatible. Force recreation with --check-compatibility 0 parameter.\n";
             return EXIT_SUCCESS;
         } else {
             if (par.checkCompatible == 2) {
-                Debug(Debug::ERROR) << "Index is incompatible.\n";
+                Debug(Debug::ERROR) << "Index is incompatible. Incompatible parameter: " << check << "\n";
                 return EXIT_FAILURE;
             } else {
-                Debug(Debug::WARNING) << "Index is incompatible and will be recreated.\n";
+                Debug(Debug::WARNING) << "Index is incompatible and will be recreated. Incompatible parameter: " << check << "\n";
             }
         }
     }

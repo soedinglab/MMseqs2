@@ -786,7 +786,7 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_V);
 
     // kmermatcher
-    kmersearch.push_back(&PARAM_SUB_MAT);
+    kmersearch.push_back(&PARAM_SEED_SUB_MAT);
     kmersearch.push_back(&PARAM_KMER_PER_SEQ);
     kmersearch.push_back(&PARAM_MASK_RESIDUES);
     kmersearch.push_back(&PARAM_MASK_LOWER_CASE);
