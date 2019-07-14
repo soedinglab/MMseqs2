@@ -562,7 +562,7 @@ public:
     void printParameters(const std::string &module, int argc, const char* pargv[],
                          const std::vector<MMseqsParameter*> &par);
 
-    void checkIfDatabaseIsValid(const Command& command);
+    void checkIfDatabaseIsValid(const Command& command, bool isStartVar, bool isEndVar);
 
     std::vector<MMseqsParameter*> removeParameter(const std::vector<MMseqsParameter*>& par, const MMseqsParameter& x);
 

@@ -447,7 +447,6 @@ Parameters::Parameters():
     result2pp.push_back(&PARAM_COMPRESSED);
     result2pp.push_back(&PARAM_V);
 
-
     // createtsv
     createtsv.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
     createtsv.push_back(&PARAM_TARGET_COLUMN);
@@ -501,7 +500,6 @@ Parameters::Parameters():
     result2msa.push_back(&PARAM_COMPRESSED);
     //result2msa.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
     result2msa.push_back(&PARAM_V);
-
 
     // convertmsa
     convertmsa.push_back(&PARAM_IDENTIFIER_FIELD);
@@ -1394,10 +1392,27 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
 
     if (filenames.size() < command.databases.size()){
         printUsageMessage(command, outputFlags);
-        Debug(Debug::ERROR) << command.databases.size() << " Database paths are required" << "\n";
+        Debug(Debug::ERROR) << "Not enough input paths provied. Require " << command.databases.size() << " paths" << "\n";
         EXIT(EXIT_FAILURE);
     }
 
+    bool isVar = false;
+    bool isStartVar = false;
+    bool isEndVar = false;
+    if(command.databases[0].validator != NULL){
+    	if(command.databases.size() >= 2){
+        	isStartVar |= (command.databases[0].specialType & DbType::VARIADIC);
+        	isEndVar |= (command.databases[command.databases.size()-1].specialType & DbType::VARIADIC);
+        	isVar = isStartVar | isEndVar;
+    	}
+    	if(isVar == false){
+        	if (filenames.size() > command.databases.size()){
+            		printUsageMessage(command, outputFlags);
+            		Debug(Debug::ERROR) <<"Too many input paths provided. Only " << SSTR(command.databases.size()) << " are allowed\n";
+           		EXIT(EXIT_FAILURE);
+        	}
+   	}
+   }
     switch (std::min(filenames.size(), MAX_DB_PARAMETER)) {
         case 6:
             db6 = filenames[5];
@@ -1476,91 +1491,101 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             printParameters(command.cmd, argc, pargv, par);
             EXIT(EXIT_FAILURE);
     }
-    checkIfDatabaseIsValid(command);
+    checkIfDatabaseIsValid(command, isStartVar, isEndVar);
 
     if(printPar == true) {
         printParameters(command.cmd, argc, pargv, par);
     }
 }
 
-void Parameters::checkIfDatabaseIsValid(const Command& command) {
+void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar, bool isEndVar) {
+
     for (size_t dbIdx = 0; dbIdx < command.databases.size(); dbIdx++) {
         const DbType &db = command.databases[dbIdx];
         // special checks
 
         if (db.accessMode == db.ACCESS_MODE_INPUT) {
+            size_t argumentDist = 0;
+            if(dbIdx == 0 && isStartVar){
+                argumentDist = (filenames.size() - command.databases.size());
+            }
+            if(dbIdx == command.databases.size() - 1 && isEndVar){
+                argumentDist = (filenames.size() - command.databases.size());
+            }
 
-            std::string dbTypeFile = std::string(filenames[dbIdx]) + ".dbtype";
+            for(size_t fileIdx = dbIdx; fileIdx <= dbIdx+argumentDist; fileIdx++){
+                std::string dbTypeFile = std::string(filenames[fileIdx]) + ".dbtype";
 
-            // check if file exists
-            // if file is not a
-            if (FileUtil::fileExists((filenames[dbIdx]).c_str()) == false && FileUtil::fileExists(dbTypeFile.c_str()) == false ) {
-                Debug(Debug::ERROR) << "Input " << filenames[dbIdx] << " does not exist.\n";
-                EXIT(EXIT_FAILURE);
-            }
-            int dbtype = FileUtil::parseDbType(filenames[dbIdx].c_str());
-            if (db.specialType & DbType::NEED_HEADER) {
-                if (FileUtil::fileExists((filenames[dbIdx] + "_h").c_str()) == false && Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_INDEX_DB)==false) {
-                    Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need header information.\n"
-                                        << "The " << filenames[dbIdx] << "_h is missing.\n";
+                // check if file exists
+                // if file is not a
+                if (FileUtil::fileExists((filenames[fileIdx]).c_str()) == false && FileUtil::fileExists(dbTypeFile.c_str()) == false ) {
+                    Debug(Debug::ERROR) << "Input " << filenames[fileIdx] << " does not exist.\n";
                     EXIT(EXIT_FAILURE);
                 }
-            }
-            if (db.specialType & DbType::NEED_TAXONOMY) {
-                if (FileUtil::fileExists((filenames[dbIdx] + "_mapping").c_str()) == false) {
-                    Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
-                                        << "The " << filenames[dbIdx] << "_mapping is missing.\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                if (FileUtil::fileExists((filenames[dbIdx] + "_nodes.dmp").c_str()) == false) {
-                    Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
-                                        << "The " << filenames[dbIdx] << "_nodes.dmp is missing.\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                if (FileUtil::fileExists((filenames[dbIdx] + "_names.dmp").c_str()) == false) {
-                    Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
-                                        << "The " << filenames[dbIdx] << "_names.dmp is missing.\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                if (FileUtil::fileExists((filenames[dbIdx] + "_merged.dmp").c_str()) == false) {
-                    Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need taxonomical information.\n"
-                                        << "The " << filenames[dbIdx] << "_merged.dmp is missing.\n";
-                    EXIT(EXIT_FAILURE);
-                }
-            }
-            if (db.specialType & DbType::NEED_LOOKUP) {
-                if (FileUtil::fileExists((filenames[dbIdx] + ".lookup").c_str()) == false) {
-                    Debug(Debug::ERROR) << "Database " << filenames[dbIdx] << " need a lookup file.\n"
-                                        << "The " << filenames[dbIdx] << ".lookup is missing.\n";
-                    EXIT(EXIT_FAILURE);
-                }
-            }
-                bool dbtypeFound = false;
-            if (db.validator == NULL) {
-                continue;
-            }
-            for (size_t i = 0; i < db.validator->size() && dbtypeFound == false; i++) {
-                int validatorDbtype = db.validator->at(i);
-                if (validatorDbtype == Parameters::DBTYPE_FLATFILE) {
-                    dbtypeFound = (FileUtil::fileExists(filenames[dbIdx].c_str()) == true &&
-                                   FileUtil::directoryExists(filenames[dbIdx].c_str()) == false);
-                } else if (validatorDbtype == Parameters::DBTYPE_DIRECTORY) {
-                    dbtypeFound = FileUtil::directoryExists(filenames[dbIdx].c_str());
-                } else if (Parameters::isEqualDbtype(db.validator->at(i), dbtype)) {
-                    dbtypeFound = true;
-                }
-            }
-            if (dbtypeFound == false) {
-                Debug(Debug::ERROR) << "Input database \"" << filenames[dbIdx] << "\" is wrong!" << "\n"
-                                    << "Current input: " << Parameters::getDbTypeName(dbtype) << ". Allowed input: ";
-                for (size_t i = 0; i < db.validator->size() && dbtypeFound == false; i++) {
-                    Debug(Debug::ERROR) << Parameters::getDbTypeName(db.validator->at(i));
-                    if (i != db.validator->size() - 1) {
-                        Debug(Debug::ERROR) << ", ";
+                int dbtype = FileUtil::parseDbType(filenames[fileIdx].c_str());
+                if (db.specialType & DbType::NEED_HEADER) {
+                    if (FileUtil::fileExists((filenames[fileIdx] + "_h").c_str()) == false && Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_INDEX_DB)==false) {
+                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " need header information.\n"
+                                            << "The " << filenames[fileIdx] << "_h is missing.\n";
+                        EXIT(EXIT_FAILURE);
                     }
                 }
-                Debug(Debug::ERROR) << "\n";
-                EXIT(EXIT_FAILURE);
+                if (db.specialType & DbType::NEED_TAXONOMY) {
+                    if (FileUtil::fileExists((filenames[fileIdx] + "_mapping").c_str()) == false) {
+                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " need taxonomical information.\n"
+                                            << "The " << filenames[fileIdx] << "_mapping is missing.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    if (FileUtil::fileExists((filenames[fileIdx] + "_nodes.dmp").c_str()) == false) {
+                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " need taxonomical information.\n"
+                                            << "The " << filenames[fileIdx] << "_nodes.dmp is missing.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    if (FileUtil::fileExists((filenames[fileIdx] + "_names.dmp").c_str()) == false) {
+                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " need taxonomical information.\n"
+                                            << "The " << filenames[fileIdx] << "_names.dmp is missing.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    if (FileUtil::fileExists((filenames[fileIdx] + "_merged.dmp").c_str()) == false) {
+                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " need taxonomical information.\n"
+                                            << "The " << filenames[fileIdx] << "_merged.dmp is missing.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                }
+                if (db.specialType & DbType::NEED_LOOKUP) {
+                    if (FileUtil::fileExists((filenames[fileIdx] + ".lookup").c_str()) == false) {
+                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " need a lookup file.\n"
+                                            << "The " << filenames[fileIdx] << ".lookup is missing.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                }
+                    bool dbtypeFound = false;
+                if (db.validator == NULL) {
+                    continue;
+                }
+                for (size_t i = 0; i < db.validator->size() && dbtypeFound == false; i++) {
+                    int validatorDbtype = db.validator->at(i);
+                    if (validatorDbtype == Parameters::DBTYPE_FLATFILE) {
+                        dbtypeFound = (FileUtil::fileExists(filenames[fileIdx].c_str()) == true &&
+                                       FileUtil::directoryExists(filenames[fileIdx].c_str()) == false);
+                    } else if (validatorDbtype == Parameters::DBTYPE_DIRECTORY) {
+                        dbtypeFound = FileUtil::directoryExists(filenames[fileIdx].c_str());
+                    } else if (Parameters::isEqualDbtype(db.validator->at(i), dbtype)) {
+                        dbtypeFound = true;
+                    }
+                }
+                if (dbtypeFound == false) {
+                    Debug(Debug::ERROR) << "Input database \"" << filenames[fileIdx] << "\" is wrong!" << "\n"
+                                        << "Current input: " << Parameters::getDbTypeName(dbtype) << ". Allowed input: ";
+                    for (size_t i = 0; i < db.validator->size() && dbtypeFound == false; i++) {
+                        Debug(Debug::ERROR) << Parameters::getDbTypeName(db.validator->at(i));
+                        if (i != db.validator->size() - 1) {
+                            Debug(Debug::ERROR) << ", ";
+                        }
+                    }
+                    Debug(Debug::ERROR) << "\n";
+                    EXIT(EXIT_FAILURE);
+                }
             }
         } else if (db.accessMode == db.ACCESS_MODE_OUTPUT) {
             if (db.validator == &DbValidator::directory) {
