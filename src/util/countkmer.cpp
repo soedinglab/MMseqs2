@@ -18,7 +18,7 @@ int countkmer(int argc, const char **argv, const Command& command) {
     par.verbosity = 1;
     par.kmerSize = 5;
     par.spacedKmer = false;
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
     std::vector<std::string> ids = Util::split(par.idList, ",");
     int indexSrcType = IndexReader::SEQUENCES;
 
@@ -27,9 +27,9 @@ int countkmer(int argc, const char **argv, const Command& command) {
     BaseMatrix * subMat;
     size_t isNucl=Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES);
     if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
     } else {
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
     }
     size_t maxLen = 0;
     for(size_t i = 0; i < reader.sequenceReader->getSize(); i++){

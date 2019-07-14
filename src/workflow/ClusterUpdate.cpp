@@ -10,7 +10,7 @@
 
 int clusterupdate(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     CommandCaller cmd;
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);

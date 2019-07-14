@@ -52,7 +52,6 @@ Alignment::Alignment(const std::string &querySeqDB,
         }
     }
 
-    std::string scoringMatrixFile = par.scoringMatrixFile;
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     tDbrIdx = new IndexReader(targetSeqDB, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     tdbr = tDbrIdx->sequenceReader;
@@ -115,7 +114,7 @@ Alignment::Alignment(const std::string &querySeqDB,
     reversePrefilterResult = (Parameters::isEqualDbtype(prefdbr->getDbtype(), Parameters::DBTYPE_PREFILTER_REV_RES));
 
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        m = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, scoreBias);
+        m = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, scoreBias);
         gapOpen = par.gapOpen;
         gapExtend = par.gapExtend;
         if(par.PARAM_GAP_OPEN.wasSet==false){
@@ -125,19 +124,23 @@ Alignment::Alignment(const std::string &querySeqDB,
             gapExtend = 2;
         }
     } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
-        SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, scoreBias);
+        SubstitutionMatrix s(par.scoringMatrixFile.aminoacids, 2.0, scoreBias);
         this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 219);
         gapOpen = par.gapOpen;
         gapExtend = par.gapExtend;
     } else {
         // keep score bias at 0.0 (improved ROC)
-        m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, scoreBias);
+        m = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, scoreBias);
         gapOpen = par.gapOpen;
         gapExtend = par.gapExtend;
     }
 
     if (realign == true) {
-        realign_m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, scoreBias-0.2f);
+        if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
+            realign_m = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, scoreBias-0.2f);
+        } else {
+            realign_m = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, scoreBias-0.2f);
+        }
     } else {
         realign_m = NULL;
     }

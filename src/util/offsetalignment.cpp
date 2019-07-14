@@ -166,7 +166,7 @@ void updateLengths(std::vector<Matcher::result_t> &results, unsigned int qSource
 
 int offsetalignment(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     const bool touch = par.preloadMode != Parameters::PRELOAD_MODE_MMAP;
     int queryDbType = FileUtil::parseDbType(par.db1.c_str());

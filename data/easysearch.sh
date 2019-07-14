@@ -52,7 +52,7 @@ fi
 if [ -n "${GREEDY_BEST_HITS}" ]; then
     if notExists "${TMP_PATH}/result_best.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" summarizeresult "${TMP_PATH}/result" "${TMP_PATH}/result_best" ${SUMMARIZE_PAR} \
+        $RUNNER "$MMSEQS" summarizeresult "${TMP_PATH}/result" "${TMP_PATH}/result_best" ${SUMMARIZE_PAR} \
             || fail "Search died"
     fi
     INTERMEDIATE="${TMP_PATH}/result_best"

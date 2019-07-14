@@ -11,6 +11,8 @@
 #include <regex.h>
 #include <unistd.h>
 
+#include <zstd/lib/zstd.h>
+
 #ifdef __CYGWIN__
 #include <sys/cygwin.h>
 #endif
@@ -25,6 +27,8 @@ extern const char* binary_name;
 extern const char* version;
 
 Parameters::Parameters():
+        scoringMatrixFile("INVALID", "INVALID"),
+        seedScoringMatrixFile("INVALID", "INVALID"),
         PARAM_S(PARAM_S_ID,"-s", "Sensitivity","sensitivity: 1.0 faster; 4.0 fast default; 7.5 sensitive (range 1.0-7.5)", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range (0: set automatically to optimum)",typeid(int),  (void *) &kmerSize, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "number of cores used for the computation (uses all cores by default)",typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
@@ -47,8 +51,8 @@ Parameters::Parameters():
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split memory limit", "Set max memory per split. E.g. 800B, 5K, 10M, 1G. Defaults (0) to all available system memory.", typeid(ByteParser), (void*) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set max disk space to use for reverse profile searches. E.g. 800B, 5K, 10M, 1G. Defaults (0) to all available disk space in the temp folder.", typeid(ByteParser), (void*) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","Try to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Substitution matrix", "amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_SEED_SUB_MAT(PARAM_SEED_SUB_MAT_ID,"--seed-sub-mat", "Seed substitution matrix", "amino acid substitution matrix for kmer generation file",typeid(std::string),(void *) &seedScoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Substitution matrix", "amino acid substitution matrix file",typeid(ScoreMatrixFile),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SEED_SUB_MAT(PARAM_SEED_SUB_MAT_ID,"--seed-sub-mat", "Seed substitution matrix", "amino acid substitution matrix for kmer generation file",typeid(ScoreMatrixFile),(void *) &seedScoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","correct for locally biased amino acid composition (range 0-1)",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced k-mers", "0: use consecutive positions a k-mers; 1: use spaced k-mers",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove temporary files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "",MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
@@ -158,7 +162,7 @@ Parameters::Parameters():
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
         PARAM_USE_ALL_TABLE_STARTS(PARAM_USE_ALL_TABLE_STARTS_ID,"--use-all-table-starts", "Use all table starts", "use all alteratives for a start codon in the genetic table, if false - only ATG (AUG)",typeid(bool),(void *) &useAllTableStarts, ""),
         // indexdb
-        PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check compatible", "skip recreating an index if it is compatible with the specified parameters", typeid(bool), (void*) &checkCompatible, "", MMseqsParameter::COMMAND_MISC),
+        PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check compatible", "0) Always recreate index 1) Check if recreating index is needed 2) Fail if index is incompatible", typeid(int), (void*) &checkCompatible, "^[0-2]{1}$", MMseqsParameter::COMMAND_MISC),
         PARAM_SEARCH_TYPE(PARAM_SEARCH_TYPE_ID, "--search-type", "Search type", "search type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &searchType, "^[0-3]{1}"),
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
@@ -218,7 +222,7 @@ Parameters::Parameters():
         // mergedbs
         PARAM_MERGE_PREFIXES(PARAM_MERGE_PREFIXES_ID, "--prefixes", "Merge prefixes", "Comma separated list of prefixes for each entry", typeid(std::string),(void *) &mergePrefixes,""),
         // summarizeresult
-        PARAM_OVERLAP(PARAM_OVERLAP_ID, "--overlap", "Overlap", "maximum overlap", typeid(float), (void*) &overlap, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_OVERLAP(PARAM_OVERLAP_ID, "--overlap", "Overlap threshold", "Maximum overlap of covered regions", typeid(float), (void*) &overlap, "^[0-9]*(\\.[0-9]+)?$"),
         // msa2profile
         PARAM_MSA_TYPE(PARAM_MSA_TYPE_ID,"--msa-type", "MSA type", "MSA Type: cA3M 0, A3M 1, FASTA 2", typeid(int), (void *) &msaType, "^[0-2]{1}$"),
         // extractalignedregion
@@ -780,7 +784,7 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_V);
 
     // kmermatcher
-    kmersearch.push_back(&PARAM_SUB_MAT);
+    kmersearch.push_back(&PARAM_SEED_SUB_MAT);
     kmersearch.push_back(&PARAM_KMER_PER_SEQ);
     kmersearch.push_back(&PARAM_MASK_RESIDUES);
     kmersearch.push_back(&PARAM_MASK_LOWER_CASE);
@@ -829,7 +833,6 @@ Parameters::Parameters():
     // summarizeresult
     summarizeresult.push_back(&PARAM_ADD_BACKTRACE);
     summarizeresult.push_back(&PARAM_OVERLAP);
-    summarizeresult.push_back(&PARAM_E);
     summarizeresult.push_back(&PARAM_C);
     summarizeresult.push_back(&PARAM_THREADS);
     summarizeresult.push_back(&PARAM_COMPRESSED);
@@ -1139,6 +1142,9 @@ void Parameters::printUsageMessage(const Command& command,
                     } else if (par->type == typeid(ByteParser)) {
                         paramString.append(" BYTE");
                         valueString = ByteParser::format(*((size_t *) par->value));
+                    } else if (par->type == typeid(ScoreMatrixFile)) {
+                        paramString.append(" MAT");
+                        valueString = ScoreMatrixFile::format(*((ScoreMatrixFile *) par->value));
                     } else if (par->type == typeid(bool)) {
                         if (*(bool *)par->value == true) {
                             paramString.append(" 0");
@@ -1280,6 +1286,17 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                                 *((size_t *) par[parIdx]->value) = value;
                                 par[parIdx]->wasSet = true;
                             }
+                        }
+                        argIdx++;
+                    } else if (typeid(ScoreMatrixFile) == par[parIdx]->type) {
+                        ScoreMatrixFile value = ScoreMatrixFile(pargv[argIdx+1]);
+                        if (value == ScoreMatrixFile("INVALID", "INVALID")) {
+                            printUsageMessage(command, outputFlags);
+                            Debug(Debug::ERROR) << "Error in value parsing " << par[parIdx]->name << "\n";
+                            EXIT(EXIT_FAILURE);
+                        } else {
+                            *((ScoreMatrixFile *) par[parIdx]->value) = value;
+                            par[parIdx]->wasSet = true;
                         }
                         argIdx++;
                     } else if (typeid(float) == par[parIdx]->type) {
@@ -1652,11 +1669,13 @@ void Parameters::printParameters(const std::string &module, int argc, const char
         ss << std::setw(maxWidth) << std::left << par[i]->display << "\t";
         if(typeid(int) == par[i]->type ){
             ss << *((int *)par[i]->value);
-        } else if(typeid(ByteParser) == par[i]->type ) {
+        } else if(typeid(ByteParser) == par[i]->type) {
             ss << ByteParser::format(*((size_t *)par[i]->value));
-        } else if(typeid(float) == par[i]->type ) {
+        } else if(typeid(ScoreMatrixFile) == par[i]->type) {
+            ss << ScoreMatrixFile::format(*((ScoreMatrixFile *)par[i]->value));
+        } else if(typeid(float) == par[i]->type) {
             ss << *((float *)par[i]->value);
-        } else if(typeid(std::string) == par[i]->type ) {
+        } else if(typeid(std::string) == par[i]->type) {
             ss << *((std::string *) par[i]->value);
         } else if (typeid(bool) == par[i]->type) {
             ss << *((bool *)par[i]->value);
@@ -1671,8 +1690,8 @@ void Parameters::setDefaults() {
     restArgv = NULL;
     restArgc = 0;
 
-    scoringMatrixFile = "blosum62.out";
-    seedScoringMatrixFile = "VTML80.out";
+    scoringMatrixFile =  ScoreMatrixFile("blosum62.out", "nucleotide.out");
+    seedScoringMatrixFile = ScoreMatrixFile("VTML80.out", "nucleotide.out");
 
     kmerSize =  0;
     kmerScore = INT_MAX;
@@ -1760,7 +1779,7 @@ void Parameters::setDefaults() {
     profileMode = PROFILE_MODE_HMM;
 
     // indexdb
-    checkCompatible = false;
+    checkCompatible = 0;
     searchType = SEARCH_TYPE_AUTO;
 
     // createdb
@@ -2005,6 +2024,9 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
         } else if (typeid(ByteParser) == par[i]->type) {
             ss << par[i]->name << " ";
             ss << ByteParser::format(*((size_t *)par[i]->value)) << " ";
+        } else if (typeid(ScoreMatrixFile) == par[i]->type) {
+            ss << par[i]->name << " ";
+            ss << ScoreMatrixFile::format(*((ScoreMatrixFile *)par[i]->value)) << " ";
         } else if (typeid(float) == par[i]->type){
             ss << par[i]->name << " ";
             ss << *((float *)par[i]->value) << " ";
@@ -2100,4 +2122,3 @@ std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool 
     }
     return formatCodes;
 }
-

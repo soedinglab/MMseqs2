@@ -117,11 +117,11 @@ public:
     static const int SORT_BY_OFFSET = 8; // only offset sorting saves memory and does not support random access
 
 
-    static const int USE_INDEX    = 0;
-    static const int USE_DATA     = 1;
-    static const int USE_WRITABLE = 2;
-    static const int USE_FREAD    = 4;
-    static const int USE_LOOKUP   = 8;
+    static const unsigned int USE_INDEX    = 0;
+    static const unsigned int USE_DATA     = 1;
+    static const unsigned int USE_WRITABLE = 2;
+    static const unsigned int USE_FREAD    = 4;
+    static const unsigned int USE_LOOKUP   = 8;
 
 
     // compressed

@@ -54,7 +54,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
                                      par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
                                      par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
 
     bool needBacktrace = false;
@@ -63,7 +63,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
         bool needFullHeaders = false;
         Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
     }
-    if(par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM){
+    if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM || par.greedyBestHits) {
         needBacktrace = true;
     }
     if (needBacktrace) {

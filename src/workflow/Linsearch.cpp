@@ -7,9 +7,7 @@
 #include "linsearch.sh.h"
 
 namespace Linsearch {
-
 #include "translated_search.sh.h"
-
 }
 
 #include <iomanip>
@@ -28,6 +26,9 @@ void setLinsearchDefaults(Parameters *p) {
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
     p->evalProfile = 0.1;
+
+    // VTML has a slightly lower sensitivity in the regression test
+    p->seedScoringMatrixFile = ScoreMatrixFile("blosum62.out", "nucleotide.out");
 }
 
 
@@ -52,7 +53,7 @@ int linsearch(int argc, const char **argv, const Command &command) {
                                      par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
                                      par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
-    par.parseParameters(argc, argv, command, false, 0,
+    par.parseParameters(argc, argv, command, true, 0,
                         MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
 
 

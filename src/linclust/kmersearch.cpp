@@ -138,7 +138,7 @@ template void KmerSearch::writeResult<1>(DBWriter & dbw, KmerPosition *kmers, si
 int kmersearch(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, command, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
     int targetSeqType;
     DBReader<unsigned int> * tidxdbr;
     int targetDbtype = FileUtil::parseDbType(par.db2.c_str());
@@ -198,12 +198,12 @@ int kmersearch(int argc, const char **argv, const Command &command) {
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.seedScoringMatrixFile.nucleotides, 1.0, 0.0);
     }else {
         if (par.alphabetSize == 21) {
-            subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 8.0, -0.2);
+            subMat = new SubstitutionMatrix(par.seedScoringMatrixFile.aminoacids, 8.0, -0.2);
         } else {
-            SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 8.0, -0.2);
+            SubstitutionMatrix sMat(par.seedScoringMatrixFile.aminoacids, 8.0, -0.2);
             subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, par.alphabetSize, 8.0);
         }
     }

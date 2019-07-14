@@ -48,7 +48,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     par.overrideParameterDescription((Command &)command, par.PARAM_S.uniqid, "sensitivity will be automatically determined but can be adjusted", NULL,  par.PARAM_S.category |MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &)command, par.PARAM_INCLUDE_ONLY_EXTENDABLE.uniqid, NULL, NULL, par.PARAM_INCLUDE_ONLY_EXTENDABLE.category |MMseqsParameter::COMMAND_EXPERT);
 
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
     if (FileUtil::directoryExists(par.db3.c_str())==false) {
         Debug(Debug::INFO) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db3.c_str()) == false) {

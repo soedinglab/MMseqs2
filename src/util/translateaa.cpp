@@ -13,7 +13,7 @@
 
 int translateaa(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -22,7 +22,7 @@ int translateaa(int argc, const char **argv, const Command &command) {
     writer.open();
 
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.0f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.0f);
 
     char lookupAA[21][3];
     const char nucLookup[4] = {'A', 'C', 'G', 'T'};

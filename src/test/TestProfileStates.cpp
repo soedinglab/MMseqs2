@@ -20,7 +20,7 @@ const char* binary_name = "test_profilestates";
 
 int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
 
 
 

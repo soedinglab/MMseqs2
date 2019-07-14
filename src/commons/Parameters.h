@@ -9,9 +9,9 @@
 #include <typeinfo>
 #include <cstddef>
 #include <utility>
-#include <zstd/lib/zstd.h>
+
 #include "Command.h"
-#include "FileUtil.h"
+#include "ScoreMatrixFile.h"
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
@@ -278,8 +278,8 @@ public:
     const char** restArgv;
     int restArgc;
 
-    std::string scoringMatrixFile;       // path to scoring matrix
-    std::string seedScoringMatrixFile;   // seed sub. matrix
+    ScoreMatrixFile scoringMatrixFile;       // path to scoring matrix
+    ScoreMatrixFile seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
     std::string prevMaxResListLengths;   // all max-seqs in previous iterations
@@ -429,7 +429,7 @@ public:
     int adjustKmerLength;
 
     // indexdb
-    bool checkCompatible;
+    int checkCompatible;
     int searchType;
 
     // createdb
