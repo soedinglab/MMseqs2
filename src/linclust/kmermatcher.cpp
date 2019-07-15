@@ -1026,8 +1026,6 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
             if(queue.empty() == false) {
                 res = queue.top();
                 queue.pop();
-                offsetPos[res.file] = queueNextEntry<TYPE,T>(queue, res.file, offsetPos[res.file],
-                                                             entries[res.file], entrySizes[res.file]);
                 hitId = res.id;
                 if(hitId != prevHitId){
                     queue.push(res);
