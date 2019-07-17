@@ -48,7 +48,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         sensitivity(par.sensitivity),
         maxSeqLen(par.maxSeqLen),
         querySeqType(querySeqType),
-        diagonalScoring(par.diagonalScoring != 0),
+        diagonalScoring(par.diagonalScoring),
         minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
         aaBiasCorrection(par.compBiasCorrection != 0),
         covThr(par.covThr), covMode(par.covMode), includeIdentical(par.includeIdentity),
@@ -499,7 +499,9 @@ void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
         Debug(Debug::INFO) << "Index table k-mer threshold: " << localKmerThr << " at k-mer size " << kmerSize << " \n";
         IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *kmerSubMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr, maskMode, maskLowerCaseMode);
 
-        if (diagonalScoring == false) {
+        // sequenceLookup has to be temporarily present to speed up masking
+        // afterwards its not needed anymore in DIAG_SCORE_OFF
+        if (diagonalScoring == Parameters::DIAG_SCORE_OFF) {
             delete sequenceLookup;
             sequenceLookup = NULL;
         }
@@ -904,7 +906,7 @@ void Prefiltering::writePrefilterOutput(DBWriter *dbWriter, unsigned int thread_
                                   << "\t" << res->prefScore << "\n";
         }
 
-        // TODO: check if this should happen when diagonalScoring == false
+        // TODO: check if this should happen when diagonalScoring == Parameters::DIAG_SCORE_OFF
         if (covThr > 0.0 && (covMode == Parameters::COV_MODE_BIDIRECTIONAL || covMode == Parameters::COV_MODE_QUERY)) {
             float queryLength = static_cast<float>(qdbr->getSeqLens(id));
             float targetLength = static_cast<float>(tdbr->getSeqLens(targetSeqId));
