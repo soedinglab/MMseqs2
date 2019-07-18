@@ -26,7 +26,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     }
 
     size_t entries = reader.getSize();
-    unsigned int localThreads = std::min((unsigned int)par.threads, (unsigned int)entries);
+    unsigned int localThreads = std::max(std::min((unsigned int)par.threads, (unsigned int)entries), 1u);
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), localThreads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
     writer.open();
@@ -47,7 +47,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
 
             unsigned int key = reader.getDbKey(i);
             char* data = reader.getData(i, thread_idx);
-            if (*data == NULL) {
+            if (*data == '\0') {
                 continue;
             }
 
@@ -104,7 +104,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
 
     FileUtil::symlinkAbs(par.hdr1, par.hdr2);
     FileUtil::symlinkAbs(par.hdr1Index, par.hdr2Index);
-    FileUtil::symlinkAbs(par.hdr1dbtype, par.hdr2dbtype);
+    FileUtil::symlinkAbs(par.hdr1 + ".dbtype", par.hdr2 + ".dbtype");
 
     if (addOrfStop == true) {
         header->close();
