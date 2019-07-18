@@ -1,6 +1,3 @@
-#include <string>
-#include <limits.h>
-
 #include "Orf.h"
 #include "Parameters.h"
 #include "DBReader.h"
@@ -29,21 +26,12 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     }
 
     size_t entries = reader.getSize();
+    unsigned int localThreads = std::min((unsigned int)par.threads, (unsigned int)entries);
 
-#ifdef OPENMP
-    unsigned int totalThreads = par.threads;
-#else
-    unsigned int totalThreads = 1;
-#endif
-
-    unsigned int localThreads = totalThreads;
-    if (entries <= totalThreads) {
-        localThreads = entries;
-    }
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), localThreads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
     writer.open();
-    Debug::Progress progress(entries);
 
+    Debug::Progress progress(entries);
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
 #pragma omp parallel num_threads(localThreads)
     {
@@ -57,15 +45,14 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         for (size_t i = 0; i < entries; ++i) {
             progress.updateProgress();
 
-            bool addStopAtStart = false;
-            bool addStopAtEnd = false;
-
             unsigned int key = reader.getDbKey(i);
             char* data = reader.getData(i, thread_idx);
             if (*data == NULL) {
                 continue;
             }
 
+            bool addStopAtStart = false;
+            bool addStopAtEnd = false;
             if (addOrfStop == true) {
                 char* headData = header->getDataByDBKey(key, thread_idx);
                 Orf::SequenceLocation loc = Orf::parseOrfHeader(headData);
@@ -117,7 +104,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
 
     FileUtil::symlinkAbs(par.hdr1, par.hdr2);
     FileUtil::symlinkAbs(par.hdr1Index, par.hdr2Index);
-    DBWriter::writeDbtypeFile(par.hdr2.c_str(), Parameters::DBTYPE_GENERIC_DB, par.compressed);
+    FileUtil::symlinkAbs(par.hdr1dbtype, par.hdr2dbtype);
 
     if (addOrfStop == true) {
         header->close();
