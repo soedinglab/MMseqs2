@@ -62,6 +62,10 @@ int translatenucs(int argc, const char **argv, const Command& command) {
 
             unsigned int key = reader.getDbKey(i);
             char* data = reader.getData(i, thread_idx);
+            if (*data == NULL) {
+                continue;
+            }
+
             if (addOrfStop == true) {
                 char* headData = header->getDataByDBKey(key, thread_idx);
                 Orf::SequenceLocation loc = Orf::parseOrfHeader(headData);
