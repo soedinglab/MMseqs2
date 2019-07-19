@@ -5,11 +5,11 @@
 #include <cstdlib>
 
 ScoreMatrixFile::ScoreMatrixFile(const char* filename) {
-    if (strchr(filename, '|') != NULL) {
+    if (strchr(filename, ',') != NULL) {
         size_t len = strlen(filename);
         aminoacids = (char*) malloc(len * sizeof(char));
         nucleotides = (char*) malloc(len * sizeof(char));
-        if (sscanf(filename, "aa:%[^|]|nucl:%s", aminoacids, nucleotides) != 2 && sscanf(filename, "nucl:%[^|]|aa:%s", nucleotides, aminoacids) != 2) {
+        if (sscanf(filename, "aa:%[^,],nucl:%s", aminoacids, nucleotides) != 2 && sscanf(filename, "nucl:%[^,],aa:%s", nucleotides, aminoacids) != 2) {
             nucleotides = strdup("INVALID");
             aminoacids = strdup("INVALID");
         }
@@ -18,6 +18,7 @@ ScoreMatrixFile::ScoreMatrixFile(const char* filename) {
         aminoacids = strdup(filename);
     }
 }
+
 ScoreMatrixFile::ScoreMatrixFile(const char* aminoacids, const char* nucleotides) {
     this->nucleotides = strdup(nucleotides);
     this->aminoacids = strdup(aminoacids);
@@ -41,6 +42,7 @@ bool ScoreMatrixFile::operator==(const char* other) const {
 bool ScoreMatrixFile::operator==(const std::string& other) const {
     return strncmp(other.c_str(), nucleotides, strlen(nucleotides)) == 0 || strncmp(other.c_str(), aminoacids, strlen(aminoacids)) == 0;
 }
+
 bool ScoreMatrixFile::operator==(const ScoreMatrixFile& other) const {
     return strncmp(other.nucleotides, nucleotides, strlen(nucleotides)) == 0 && strncmp(other.aminoacids, aminoacids, strlen(aminoacids)) == 0;
 }
@@ -49,6 +51,6 @@ std::string ScoreMatrixFile::format(const ScoreMatrixFile &file) {
     if (strncmp(file.nucleotides, file.aminoacids, strlen(file.aminoacids)) == 0) {
         return file.nucleotides;
     } else {
-        return std::string("nucl:") + file.nucleotides + "|aa:" + file.aminoacids;
+        return std::string("nucl:") + file.nucleotides + ",aa:" + file.aminoacids;
     }
 }
