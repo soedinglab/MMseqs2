@@ -54,7 +54,7 @@ public:
                  BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
                  short kmerThr, int kmerSize, size_t dbSize,
                  unsigned int maxSeqLen,
-                 size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring,
+                 size_t maxHitsPerQuery, bool aaBiasCorrection, unsigned int diagonalScoringMode,
                  unsigned int minDiagScoreThr, bool takeOnlyBestKmer,size_t resListOffset);
     ~QueryMatcher();
 
@@ -223,7 +223,7 @@ protected:
     float *compositionBias;
 
     // diagonal scoring active
-    bool diagonalScoring;
+    unsigned int diagonalScoringMode;
     unsigned int minDiagScoreThr;
     // size of max diagonalMatcher result objects
     size_t counterResultSize;
@@ -232,7 +232,7 @@ protected:
 
     void deleteDiagonalMatcher(unsigned int activeCounter);
 
-    size_t mergeElements(bool diagonalScoring, CounterResult *foundDiagonals, size_t hitCounter);
+    size_t mergeElements(CounterResult *foundDiagonals, size_t hitCounter);
 
     size_t keepMaxScoreElementOnly(CounterResult *foundDiagonals, size_t resultSize);
 

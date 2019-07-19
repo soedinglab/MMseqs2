@@ -38,7 +38,10 @@ add_library(mmseqs-framework
         ${linclust_source_files}
         ${util_header_files}
         ${util_source_files}
-        ${workflow_source_files})
+        ${workflow_source_files}
+        CommandDeclarations.h
+        MMseqsBase.cpp
+        )
 
 target_include_directories(mmseqs-framework PUBLIC ${CMAKE_BINARY_DIR}/generated)
 target_include_directories(mmseqs-framework PUBLIC ${PROJECT_BINARY_DIR}/generated)
@@ -240,10 +243,7 @@ endif ()
 if (NOT FRAMEWORK_ONLY)
     include(MMseqsSetupDerivedTarget)
     add_subdirectory(version)
-    set(mmseqs_source_files
-            CommandDeclarations.h
-            mmseqs.cpp
-            )
+    set(mmseqs_source_files mmseqs.cpp)
 
     add_executable(mmseqs ${mmseqs_source_files})
     mmseqs_setup_derived_target(mmseqs)

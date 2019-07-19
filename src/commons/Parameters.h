@@ -171,6 +171,9 @@ public:
     static const int PRELOAD_MODE_MMAP = 2;
     static const int PRELOAD_MODE_MMAP_TOUCH = 3;
 
+    static const int DIAG_SCORE_OFF = 0;
+    static const int DIAG_SCORE_ON = 1;
+    static const int DIAG_SCORE_NO_RESCALE = 2;
 
     static std::string getSplitModeName(int splitMode) {
         switch (splitMode) {
