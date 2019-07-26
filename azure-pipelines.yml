@@ -134,6 +134,7 @@ jobs:
           make,^
           gcc-core,^
           gcc-g++,^
+          libgomp1,^
           zlib-devel,^
           libbz2-devel,^
           busybox-standalone,^
