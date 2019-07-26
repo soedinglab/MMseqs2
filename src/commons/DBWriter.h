@@ -10,7 +10,7 @@
 
 #include <string>
 #include <vector>
-#include <zstd/lib/zstd.h>
+
 #include "DBReader.h"
 
 template <typename T> class DBReader;

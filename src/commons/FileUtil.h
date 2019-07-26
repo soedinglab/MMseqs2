@@ -7,7 +7,6 @@
 #include <vector>
 #include <cstddef>
 #include <utility>
-#include <zstd/lib/zstd.h>
 #include "Parameters.h"
 
 class FileUtil {

@@ -4,9 +4,9 @@
 // Wrapper for KSW2 aligner.
 // Local banded nucleotide aligner
 //
-#include <Parameters.h>
-#include <DistanceCalculator.h>
-#include <ksw2/ksw2.h>
+#include "Parameters.h"
+#include "DistanceCalculator.h"
+#include "ksw2.h"
 #include "BandedNucleotideAligner.h"
 
 #include "Util.h"
