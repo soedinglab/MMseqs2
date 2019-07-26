@@ -11,6 +11,7 @@
 
 void setEasyClusterDefaults(Parameters *p) {
     p->spacedKmer = true;
+    p->removeTmpFiles = true;
     p->covThr = 0.8;
     p->evalThr = 0.001;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
