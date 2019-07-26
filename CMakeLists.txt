@@ -79,7 +79,6 @@ include_directories(lib/zstd/lib)
 add_subdirectory(lib/zstd/build/cmake/lib EXCLUDE_FROM_ALL)
 
 # tinyexpr
-OPTION(TE_NAT_LOG "Define the log function as natural logarithm." ON)
 include_directories(lib/tinyexpr)
 add_subdirectory(lib/tinyexpr EXCLUDE_FROM_ALL)
 
