@@ -1014,7 +1014,8 @@ Parameters::Parameters():
 
     // easy taxonomy
     easytaxonomy = combineList(taxonomy, addtaxonomy);
-    easytaxonomy = combineList(taxonomy, createtsv);
+    easytaxonomy = combineList(easytaxonomy, convertalignments);
+    easytaxonomy = combineList(easytaxonomy, createtsv);
 
     // multi hit db
     multihitdb = combineList(createdb, extractorfs);

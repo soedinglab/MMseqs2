@@ -71,7 +71,7 @@ fi
 
 if notExists "${TMP_PATH}/result_top1_swapped_sum_tax.dbtype"; then
     # shellcheck disable=SC2086
-     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum" "${TMP_PATH}/result_top1_swapped_sum_tax"  ${THREADS_PAR} --tax-lineage  \
+     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum" "${TMP_PATH}/result_top1_swapped_sum_tax"  ${THREADS_PAR} --pick-id-from 1 --tax-lineage  \
         || fail "filterdb died"
 fi
 
@@ -81,6 +81,11 @@ if notExists "${RESULTS}_tophit_report"; then
         || fail "filterdb died"
 fi
 
+if notExists "${RESULTS}_tophit_aln"; then
+    # shellcheck disable=SC2086
+     "$MMSEQS" convertalis "${TMP_PATH}/query" "${TARGET}" "${TMP_PATH}/result_top1" "${RESULTS}_tophit_aln" ${CONVERT_PAR} \
+        || fail "convertalis died"
+fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Removing temporary files"

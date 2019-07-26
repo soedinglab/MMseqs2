@@ -64,6 +64,7 @@ int easytaxonomy(int argc, const char **argv, const Command& command) {
     cmd.addVariable("TAXONOMY_PAR", par.createParameterString(par.taxonomy, true).c_str());
     par.alignmentMode = alignmentMode;
     cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
+    cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());
     cmd.addVariable("THREADS_PAR", par.createParameterString(par.threadsandcompression).c_str());
     cmd.addVariable("CREATETSV_PAR", par.createParameterString(par.createtsv).c_str());
     par.evalThr = 100000000;
