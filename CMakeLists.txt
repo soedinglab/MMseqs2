@@ -6,6 +6,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(FRAMEWORK_ONLY 0 CACHE BOOL "Framework Mode")
 set(HAVE_SANITIZER 0 CACHE BOOL "Have Sanitizers")
+set(INSTALL_UTIL 1 CACHE BOOL "Install util scripts")
 set(VERSION_OVERRIDE "" CACHE STRING "Override version string in help and usage messages")
 
 #Sanitizers
@@ -94,6 +95,6 @@ add_subdirectory(lib/alp)
 add_subdirectory(lib/ksw2)
 add_subdirectory(data)
 add_subdirectory(src)
-if (NOT FRAMEWORK_ONLY)
+if (NOT FRAMEWORK_ONLY AND INSTALL_UTIL)
     add_subdirectory(util)
 endif ()
