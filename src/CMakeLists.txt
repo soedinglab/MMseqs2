@@ -6,6 +6,7 @@ set(HAVE_TESTS 0 CACHE BOOL "Have Tests")
 set(HAVE_SHELLCHECK 1 CACHE BOOL "Have ShellCheck")
 set(HAVE_GPROF 0 CACHE BOOL "Have GPROF Profiler")
 set(ENABLE_WERROR 0 CACHE BOOL "Enable Warnings as Errors")
+set(REQUIRE_OPENMP 1 CACHE BOOL "Require availability of OpenMP")
 
 include(AppendTargetProperty)
 
@@ -217,8 +218,9 @@ if (${HAVE_MPI})
     endif ()
 endif ()
 
-find_package(OpenMP)
-if (OPENMP_FOUND)
+
+find_package(OpenMP QUIET)
+if (OPENMP_CXX_FOUND)
     message("-- Found OpenMP")
     target_compile_definitions(mmseqs-framework PUBLIC -DOPENMP=1)
     # For GCC we dont want to do this since it breaks macOS static builds
@@ -227,6 +229,8 @@ if (OPENMP_FOUND)
     # target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
     append_target_property(mmseqs-framework COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
     append_target_property(mmseqs-framework LINK_FLAGS ${OpenMP_CXX_FLAGS})
+elseif (REQUIRE_OPENMP)
+    message(FATAL_ERROR "-- Could not find OpenMP. Skip check with -DREQUIRE_OPENMP=0.")
 endif ()
 
 if (${HAVE_GPROF})
