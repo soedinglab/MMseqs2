@@ -531,6 +531,7 @@ public:
     int idxEntryType;
 
     // lca
+    int pickIdFrom;
     std::string lcaRanks;
     bool showTaxLineage;
     std::string blacklist;
@@ -823,6 +824,7 @@ public:
     PARAMETER(PARAM_IDX_ENTRY_TYPE)
 
     // lca and addtaxonomy
+    PARAMETER(PARAM_PICK_ID_FROM)
     PARAMETER(PARAM_LCA_RANKS)
     PARAMETER(PARAM_BLACKLIST)
     PARAMETER(PARAM_TAXON_ADD_LINEAGE)
