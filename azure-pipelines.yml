@@ -85,12 +85,13 @@ jobs:
       - script: |
           mkdir build && cd build
           if [ "${STATIC}" -eq "1" ]; then
-              cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF \
+              cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHAVE_TESTS=1 \
+                -DBUILD_SHARED_LIBS=OFF \
                 -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc \
                 -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
                 -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           else
-              cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+              cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHAVE_TESTS=1 \
                 -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           fi
 
