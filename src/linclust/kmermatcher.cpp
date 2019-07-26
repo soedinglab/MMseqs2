@@ -708,7 +708,10 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 #else
     for(size_t split = 0; split < splits; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
-        hashSeqPair = doComputation(totalKmers, split, splits, splitFileName, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, par.adjustKmerLength);
+        std::string splitFileNameDone = splitFileName + ".done";
+        if(FileUtil::fileExists(splitFileNameDone.c_str()) == false){
+            hashSeqPair = doComputation(totalKmers, split, splits, splitFileName, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, par.adjustKmerLength);
+        }
         splitFiles.push_back(splitFileName);
     }
 #endif
@@ -723,11 +726,15 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         Timer timer;
         if(splits > 1) {
             seqDbr.unmapData();
-
             if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
                 mergeKmerFilesAndOutput<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(dbw, splitFiles, repSequence);
             }else{
                 mergeKmerFilesAndOutput<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(dbw, splitFiles, repSequence);
+            }
+            for(size_t i = 0; i < splitFiles.size(); i++){
+                FileUtil::remove(splitFiles[i].c_str());
+                std::string splitFilesDone = splitFiles[i] + ".done";
+                FileUtil::remove(splitFilesDone.c_str());
             }
         } else {
             if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
@@ -1142,6 +1149,9 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
         fwrite(&nullEntry,  sizeof(T), 1, filePtr);
     }
     fclose(filePtr);
+    std::string fileName = tmpFile + ".done";
+    FILE  * done = FileUtil::openFileOrDie(fileName.c_str(),"w", false);
+    fclose(done);
 }
 
 void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTyp) {
