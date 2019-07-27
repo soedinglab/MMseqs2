@@ -124,6 +124,9 @@ jobs:
         displayName: core.autocrlf false
       - checkout: self
       - script: |
+          rmdir /s /q C:\Strawberry
+        displayName: Remove Strawberry Perl (Conflict with Cygwin)
+      - script: |
           choco install cygwin --params="/InstallDir:%CYGWIN_ROOT%"
         displayName: Install Cygwin
       - script: |
