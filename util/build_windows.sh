@@ -8,7 +8,7 @@ if [ ! -d "$REPO" ]; then
     exit 1
 fi
 
-CMAKE_DEBUG="--debug-output --trace --trace-expand"
+CMAKE_DEBUG="--debug-output --trace --trace-expand -DREQUIRE_OPENMP=0"
 mkdir -p "$BUILD/build_sse41" && cd "$BUILD/build_sse41"
 cmake ${CMAKE_DEBUG} -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=0 -DHAVE_MPI=0 -DHAVE_SSE4_1=1 -DBUILD_SHARED_LIBS=OFF -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" "$REPO"
 make -j 4
