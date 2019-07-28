@@ -342,6 +342,7 @@ public:
     int    clusteringMode;
     int    clusterSteps;
     bool   cascaded;
+    int    clusterReassignment;
 
     // SEARCH WORKFLOW
     int numIterations;
@@ -625,6 +626,7 @@ public:
     PARAMETER(PARAM_CLUSTER_MODE)
     PARAMETER(PARAM_CLUSTER_STEPS)
     PARAMETER(PARAM_CASCADED)
+    PARAMETER(PARAM_CLUSTER_REASSIGN)
 
     // affinity clustering
     PARAMETER(PARAM_MAXITERATIONS)

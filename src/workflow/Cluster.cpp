@@ -204,7 +204,14 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
             cmd.addVariable(std::string("CLUSTER"  +SSTR(step)+"_PAR").c_str(), par.createParameterString(par.clust).c_str());
         }
         cmd.addVariable("STEPS", SSTR(par.clusterSteps).c_str());
-        //cmd.addVariable("REASSIGN","TRUE");
+        // correct for cascading clustering errors
+        if(par.clusterReassignment){
+            cmd.addVariable("REASSIGN","TRUE");
+        }
+        cmd.addVariable("THREADSANDCOMPRESS", par.createParameterString(par.threadsandcompression).c_str());
+        cmd.addVariable("VERBCOMPRESS", par.createParameterString(par.verbandcompression).c_str());
+        cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
+
         size_t olfMaxResSize = par.maxResListLen;
         par.maxResListLen = INT_MAX;
         cmd.addVariable("ALIGNMENT_REASSIGN_PAR", par.createParameterString(par.align).c_str());
