@@ -99,7 +99,7 @@ jobs:
         displayName: Build MMseqs2
       - script: |
           export TTY=0
-          ${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/build_sse41/src/mmseqs ${BUILD_SOURCESDIRECTORY}/regression
+          ${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/src/mmseqs ${BUILD_SOURCESDIRECTORY}/regression
         displayName: Run Regression Suite
         condition: eq(variables['regression'], 1)
       - task: PublishPipelineArtifact@0
