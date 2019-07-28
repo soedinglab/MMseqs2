@@ -73,10 +73,10 @@ int doRescorediagonal(Parameters &par,
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
     } else {
         // keep score bias at 0.0 (improved ROC)
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
     }
 
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
@@ -352,7 +352,7 @@ int doRescorediagonal(Parameters &par,
 int rescorediagonal(int argc, const char **argv, const Command &command) {
     MMseqsMPI::init(argc, argv);
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
 
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);

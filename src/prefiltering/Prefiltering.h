@@ -40,7 +40,7 @@ public:
                     const std::vector<std::pair<std::string, std::string>> &splitFiles);
 
     // get substitution matrix
-    static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState, bool isNucl);
+    static BaseMatrix *getSubstitutionMatrix(const ScoreMatrixFile &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState, bool isNucl);
 
     static void setupSplit(DBReader<unsigned int>& dbr, const int alphabetSize, const unsigned int querySeqType, const int threads,
                            const bool templateDBIsIndex, const size_t memoryLimit, const size_t qDbSize,
@@ -79,8 +79,8 @@ private:
     int maskLowerCaseMode;
     int splitMode;
     int kmerThr;
-    std::string scoringMatrixFile;
-    std::string seedScoringMatrixFile;
+    ScoreMatrixFile scoringMatrixFile;
+    ScoreMatrixFile seedScoringMatrixFile;
     int targetSeqType;
     bool takeOnlyBestKmer;
     size_t maxResListLen;
@@ -90,7 +90,7 @@ private:
     const float sensitivity;
     size_t maxSeqLen;
     int querySeqType;
-    const bool diagonalScoring;
+    const unsigned int diagonalScoring;
     const unsigned int minDiagScoreThr;
     bool aaBiasCorrection;
     const float covThr;

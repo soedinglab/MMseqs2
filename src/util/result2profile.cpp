@@ -99,7 +99,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
     ProbabilityMatrix probMatrix(subMat);
 
     Debug(Debug::INFO) << "Start computing profiles\n";
@@ -356,7 +356,7 @@ int result2profile(int argc, const char **argv, const Command &command) {
     par.filterMsa = 1;
     // no pseudo counts
     par.pca = 0.0;
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
     par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
     std::vector<MMseqsParameter*>* params = command.params;
     par.printParameters(command.cmd, argc, argv, *params);

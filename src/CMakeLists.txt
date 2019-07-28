@@ -2,10 +2,11 @@ set(HAVE_MPI 0 CACHE BOOL "Have MPI")
 set(HAVE_AVX2 0 CACHE BOOL "Have AVX2")
 set(HAVE_SSE4_1 0 CACHE BOOL "Have SSE4.1")
 set(HAVE_NEON 0 CACHE BOOL "Have NEON")
-set(HAVE_TESTS 1 CACHE BOOL "Have Tests")
+set(HAVE_TESTS 0 CACHE BOOL "Have Tests")
 set(HAVE_SHELLCHECK 1 CACHE BOOL "Have ShellCheck")
 set(HAVE_GPROF 0 CACHE BOOL "Have GPROF Profiler")
 set(ENABLE_WERROR 0 CACHE BOOL "Enable Warnings as Errors")
+set(REQUIRE_OPENMP 1 CACHE BOOL "Require availability of OpenMP")
 
 include(AppendTargetProperty)
 
@@ -38,7 +39,10 @@ add_library(mmseqs-framework
         ${linclust_source_files}
         ${util_header_files}
         ${util_source_files}
-        ${workflow_source_files})
+        ${workflow_source_files}
+        CommandDeclarations.h
+        MMseqsBase.cpp
+        )
 
 target_include_directories(mmseqs-framework PUBLIC ${CMAKE_BINARY_DIR}/generated)
 target_include_directories(mmseqs-framework PUBLIC ${PROJECT_BINARY_DIR}/generated)
@@ -67,7 +71,7 @@ endif ()
 append_target_property(mmseqs-framework COMPILE_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Wdisabled-optimization)
 append_target_property(mmseqs-framework LINK_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Wdisabled-optimization)
 
-if (${ENABLE_WERROR})
+if (ENABLE_WERROR)
     append_target_property(mmseqs-framework COMPILE_FLAGS -Werror)
     append_target_property(mmseqs-framework LINK_FLAGS -Werror)
 endif()
@@ -113,32 +117,32 @@ if (HAVE_POSIX_MADVISE)
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_POSIX_MADVISE=1)
 endif ()
 
-#SSE
-if (${HAVE_AVX2})
+# SIMD instruction sets support
+if (HAVE_AVX2)
     target_compile_definitions(mmseqs-framework PUBLIC -DAVX2=1)
     append_target_property(mmseqs-framework COMPILE_FLAGS -mavx2 -Wa,-q)
     append_target_property(mmseqs-framework LINK_FLAGS -mavx2 -Wa,-q)
-elseif (${HAVE_SSE4_1})
+elseif (HAVE_SSE4_1)
     target_compile_definitions(mmseqs-framework PUBLIC -DSSE=1)
     append_target_property(mmseqs-framework COMPILE_FLAGS -msse4.1)
     append_target_property(mmseqs-framework LINK_FLAGS -msse4.1)
-elseif (${HAVE_NEON})
+elseif (HAVE_NEON)
     target_compile_definitions(mmseqs-framework PUBLIC -DSSE=1 -DNEON=1)
 else ()
     include(CheckSSEFeatures)
     append_target_property(mmseqs-framework COMPILE_FLAGS ${SSE_FLAGS})
     append_target_property(mmseqs-framework LINK_FLAGS ${SSE_FLAGS})
-    if (${HAVE_AVX2_EXTENSIONS})
+    if (HAVE_AVX2_EXTENSIONS)
         target_compile_definitions(mmseqs-framework PUBLIC -DAVX2=1)
         # debugging
         #   list(APPEND MMSEQS_DEFINITIONS -DSSE=1)
     else ()
-        if (${HAVE_SSE4_1_EXTENSIONS})
+        if (HAVE_SSE4_1_EXTENSIONS)
             target_compile_definitions(mmseqs-framework PUBLIC -DSSE=1)
         else ()
             message(FATAL_ERROR "At least SSE4.2 is needed to compile!")
-        endif (${HAVE_SSE4_1_EXTENSIONS})
-    endif (${HAVE_AVX2_EXTENSIONS})
+        endif (HAVE_SSE4_1_EXTENSIONS)
+    endif (HAVE_AVX2_EXTENSIONS)
 endif ()
 
 # tinyexpr
@@ -201,7 +205,7 @@ else ()
 endif ()
 
 # MPI
-if (${HAVE_MPI})
+if (HAVE_MPI)
     find_package(MPI REQUIRED)
     if (MPI_FOUND)
         message("-- Found MPI")
@@ -214,8 +218,9 @@ if (${HAVE_MPI})
     endif ()
 endif ()
 
-find_package(OpenMP)
-if (OPENMP_FOUND)
+
+find_package(OpenMP QUIET)
+if (OpenMP_CXX_FOUND)
     message("-- Found OpenMP")
     target_compile_definitions(mmseqs-framework PUBLIC -DOPENMP=1)
     # For GCC we dont want to do this since it breaks macOS static builds
@@ -224,9 +229,11 @@ if (OPENMP_FOUND)
     # target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
     append_target_property(mmseqs-framework COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
     append_target_property(mmseqs-framework LINK_FLAGS ${OpenMP_CXX_FLAGS})
+elseif (REQUIRE_OPENMP)
+    message(FATAL_ERROR "-- Could not find OpenMP. Skip check with -DREQUIRE_OPENMP=0.")
 endif ()
 
-if (${HAVE_GPROF})
+if (HAVE_GPROF)
     include(CheckCXXCompilerFlag)
     check_cxx_compiler_flag(-pg GPROF_FOUND)
     if (GPROF_FOUND)
@@ -240,10 +247,7 @@ endif ()
 if (NOT FRAMEWORK_ONLY)
     include(MMseqsSetupDerivedTarget)
     add_subdirectory(version)
-    set(mmseqs_source_files
-            CommandDeclarations.h
-            mmseqs.cpp
-            )
+    set(mmseqs_source_files mmseqs.cpp)
 
     add_executable(mmseqs ${mmseqs_source_files})
     mmseqs_setup_derived_target(mmseqs)

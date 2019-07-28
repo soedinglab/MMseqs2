@@ -624,7 +624,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 
     Parameters &par = Parameters::getInstance();
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, command, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
 
     DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     seqDbr.open(DBReader<unsigned int>::NOSORT);
@@ -637,12 +637,12 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
     }else {
         if (par.alphabetSize == 21) {
-            subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+            subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
         } else {
-            SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 8.0, -0.2f);
+            SubstitutionMatrix sMat(par.scoringMatrixFile.aminoacids, 8.0, -0.2f);
             subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, par.alphabetSize, 2.0);
         }
     }
@@ -709,7 +709,12 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 #else
     for(size_t split = 0; split < splits; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
-        hashSeqPair = doComputation(totalKmers, split, splits, splitFileName, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, par.adjustKmerLength, chooseTopKmerScale);
+
+        std::string splitFileNameDone = splitFileName + ".done";
+        if(FileUtil::fileExists(splitFileNameDone.c_str()) == false){
+            hashSeqPair = doComputation(totalKmers, split, splits, splitFileName, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, par.adjustKmerLength, chooseTopKmerScale);
+        }
+
         splitFiles.push_back(splitFileName);
     }
 #endif
@@ -724,11 +729,15 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         Timer timer;
         if(splits > 1) {
             seqDbr.unmapData();
-
             if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
                 mergeKmerFilesAndOutput<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(dbw, splitFiles, repSequence);
             }else{
                 mergeKmerFilesAndOutput<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(dbw, splitFiles, repSequence);
+            }
+            for(size_t i = 0; i < splitFiles.size(); i++){
+                FileUtil::remove(splitFiles[i].c_str());
+                std::string splitFilesDone = splitFiles[i] + ".done";
+                FileUtil::remove(splitFilesDone.c_str());
             }
         } else {
             if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
@@ -1027,8 +1036,6 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
             if(queue.empty() == false) {
                 res = queue.top();
                 queue.pop();
-                offsetPos[res.file] = queueNextEntry<TYPE,T>(queue, res.file, offsetPos[res.file],
-                                                             entries[res.file], entrySizes[res.file]);
                 hitId = res.id;
                 if(hitId != prevHitId){
                     queue.push(res);
@@ -1145,6 +1152,9 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
         fwrite(&nullEntry,  sizeof(T), 1, filePtr);
     }
     fclose(filePtr);
+    std::string fileName = tmpFile + ".done";
+    FILE  * done = FileUtil::openFileOrDie(fileName.c_str(),"w", false);
+    fclose(done);
 }
 
 void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTyp) {

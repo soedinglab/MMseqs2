@@ -17,7 +17,7 @@ static bool compareToFirstInt(const std::pair<unsigned int, unsigned int>& lhs, 
 
 int addtaxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     std::string nodesFile = par.db1 + "_nodes.dmp";
     std::string namesFile = par.db1 + "_names.dmp";
@@ -81,6 +81,12 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
             if (length == 1) {
                 continue;
             }
+            std::pair<unsigned int, unsigned int> val;
+            std::vector< std::pair<unsigned int, unsigned int> >::iterator mappingIt;
+            if(par.pickIdFrom == Parameters::EXTRACT_QUERY){
+                val.first = key;
+                mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
+            }
 
             std::vector<int> taxa;
             while (*data != '\0') {
@@ -90,10 +96,11 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
                     data = Util::skipLine(data);
                     continue;
                 }
-                unsigned int id = Util::fast_atoi<unsigned int>(entry[0]);
-                std::pair<unsigned int, unsigned int> val;
-                val.first = id;
-                std::vector< std::pair<unsigned int, unsigned int> >::iterator mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
+                if(par.pickIdFrom == Parameters::EXTRACT_TARGET){
+                    unsigned int id = Util::fast_atoi<unsigned int>(entry[0]);
+                    val.first = id;
+                    mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
+                }
                 if (mappingIt->first != val.first) {
                     taxonNotFound++;
 //                    Debug(Debug::WARNING) << "No taxon mapping provided for id " << id << "\n";

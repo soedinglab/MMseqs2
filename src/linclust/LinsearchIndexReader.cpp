@@ -249,31 +249,25 @@ void LinsearchIndexReader::writeKmerIndexToDisk(std::string fileName, KmerPositi
 }
 
 
-bool LinsearchIndexReader::isIndexCompatible(DBReader<unsigned int> & index, Parameters &par, int dbtype) {
+std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned int> & index, Parameters &par, int dbtype) {
     PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
-    if (meta.compBiasCorr != (par.compBiasCorrection == 1))
-        return false;
     if (meta.maxSeqLength != static_cast<int>(par.maxSeqLen))
-        return false;
+        return "maxSeqLen";
     if (meta.seqType != dbtype)
-        return false;
-    if (meta.alphabetSize != par.alphabetSize)
-        return false;
+        return "seqType";
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES) == false && meta.alphabetSize != par.alphabetSize)
+        return "alphabetSize";
     if (meta.kmerSize != par.kmerSize)
-        return false;
+        return "kmerSize";
     if (meta.mask != (par.maskMode > 0))
-        return false;
-    if (meta.kmerThr != par.kmerScore)
-        return false;
+        return "maskMode";
     if (meta.spacedKmer != par.spacedKmer)
-        return false;
+        return "spacedKmer";
     if (par.seedScoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
-        return false;
+        return "seedScoringMatrixFile";
     if (par.spacedKmerPattern != PrefilteringIndexReader::getSpacedPattern(&index))
-        return false;
-    if (meta.headers2 == 1 && (par.db1 != par.db2))
-        return true;
-    return true;
+        return "spacedKmerPattern";
+    return "";
 }
 
 std::string LinsearchIndexReader::searchForIndex(std::string dbName) {

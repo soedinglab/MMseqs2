@@ -18,7 +18,7 @@
 
 int masksequence(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads,
                                   DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
@@ -26,10 +26,10 @@ int masksequence(int argc, const char **argv, const Command& command) {
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
     } else {
         // keep score bias at 0.0 (improved ROC)
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
     }
     size_t maxSeqLen = 0;
     for(size_t i = 0; i < reader.getSize(); i++){

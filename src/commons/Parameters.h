@@ -9,9 +9,9 @@
 #include <typeinfo>
 #include <cstddef>
 #include <utility>
-#include <zstd/lib/zstd.h>
+
 #include "Command.h"
-#include "FileUtil.h"
+#include "ScoreMatrixFile.h"
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
@@ -171,6 +171,9 @@ public:
     static const int PRELOAD_MODE_MMAP = 2;
     static const int PRELOAD_MODE_MMAP_TOUCH = 3;
 
+    static const int DIAG_SCORE_OFF = 0;
+    static const int DIAG_SCORE_ON = 1;
+    static const int DIAG_SCORE_NO_RESCALE = 2;
 
     static std::string getSplitModeName(int splitMode) {
         switch (splitMode) {
@@ -202,6 +205,7 @@ public:
     static const int COV_MODE_QUERY = 2;
     static const int COV_MODE_LENGTH_QUERY = 3;
     static const int COV_MODE_LENGTH_TARGET = 4;
+    static const int COV_MODE_LENGTH_SHORTER = 5;
 
     // seq. id mode
     static const int SEQ_ID_ALN_LEN  = 0;
@@ -278,8 +282,8 @@ public:
     const char** restArgv;
     int restArgc;
 
-    std::string scoringMatrixFile;       // path to scoring matrix
-    std::string seedScoringMatrixFile;   // seed sub. matrix
+    ScoreMatrixFile scoringMatrixFile;       // path to scoring matrix
+    ScoreMatrixFile seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
     std::string prevMaxResListLengths;   // all max-seqs in previous iterations
@@ -338,6 +342,7 @@ public:
     int    clusteringMode;
     int    clusterSteps;
     bool   cascaded;
+    int    clusterReassignment;
 
     // SEARCH WORKFLOW
     int numIterations;
@@ -430,7 +435,7 @@ public:
     int adjustKmerLength;
 
     // indexdb
-    bool checkCompatible;
+    int checkCompatible;
     int searchType;
 
     // createdb
@@ -529,6 +534,7 @@ public:
     int idxEntryType;
 
     // lca
+    int pickIdFrom;
     std::string lcaRanks;
     bool showTaxLineage;
     std::string blacklist;
@@ -563,7 +569,7 @@ public:
     void printParameters(const std::string &module, int argc, const char* pargv[],
                          const std::vector<MMseqsParameter*> &par);
 
-    void checkIfDatabaseIsValid(const Command& command);
+    void checkIfDatabaseIsValid(const Command& command, bool isStartVar, bool isEndVar);
 
     std::vector<MMseqsParameter*> removeParameter(const std::vector<MMseqsParameter*>& par, const MMseqsParameter& x);
 
@@ -621,6 +627,7 @@ public:
     PARAMETER(PARAM_CLUSTER_MODE)
     PARAMETER(PARAM_CLUSTER_STEPS)
     PARAMETER(PARAM_CASCADED)
+    PARAMETER(PARAM_CLUSTER_REASSIGN)
 
     // affinity clustering
     PARAMETER(PARAM_MAXITERATIONS)
@@ -822,6 +829,7 @@ public:
     PARAMETER(PARAM_IDX_ENTRY_TYPE)
 
     // lca and addtaxonomy
+    PARAMETER(PARAM_PICK_ID_FROM)
     PARAMETER(PARAM_LCA_RANKS)
     PARAMETER(PARAM_BLACKLIST)
     PARAMETER(PARAM_TAXON_ADD_LINEAGE)

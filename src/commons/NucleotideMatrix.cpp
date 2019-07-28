@@ -1,13 +1,11 @@
 #include "NucleotideMatrix.h"
 #include <climits>
 
-// TODO think about making the matrix dynamic
-NucleotideMatrix::NucleotideMatrix(const char* /*scoringMatrixFileName_*/, float bitFactor, float scoreBias)
-        : SubstitutionMatrix("nucleotide.out", bitFactor, scoreBias) {
-//    this->alphabetSize = 5;
-    matrixName = "nucleotide.out";
+NucleotideMatrix::NucleotideMatrix(const char* scoringMatrixFileName, float bitFactor, float scoreBias)
+        : SubstitutionMatrix(scoringMatrixFileName, bitFactor, scoreBias) {
     setupLetterMapping();
     reverseLookup = new int[alphabetSize];
+    // TODO think about making the matrix dynamic
     reverseLookup[aa2int[static_cast<int>('A')]] = aa2int[static_cast<int>('T')];
     reverseLookup[aa2int[static_cast<int>('G')]] = aa2int[static_cast<int>('C')];
     reverseLookup[aa2int[static_cast<int>('C')]] = aa2int[static_cast<int>('G')];

@@ -139,7 +139,7 @@ void parseHMM(char *data, std::string *sequence, std::string *header, char *prof
 
 int convertprofiledb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     std::string data = par.db1;
     std::string index = par.db1Index;
@@ -159,7 +159,7 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
     DBWriter headerOut(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerOut.open();
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
 
     unsigned int *lengths = dataIn.getSeqLens();
     unsigned int maxElementSize = 0;

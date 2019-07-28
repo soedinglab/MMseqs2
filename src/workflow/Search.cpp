@@ -226,7 +226,7 @@ int search(int argc, const char **argv, const Command& command) {
                                      par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
                                      par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
-    par.parseParameters(argc, argv, command, false, 0,
+    par.parseParameters(argc, argv, command, true, 0,
                         MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
 
     std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
@@ -334,7 +334,6 @@ int search(int argc, const char **argv, const Command& command) {
             EXIT(EXIT_FAILURE);
         }
         cmd.addVariable("MAX_STEPS", SSTR(30).c_str());
-        cmd.addVariable("MAX_RESULTS_PER_QUERY", SSTR(par.maxResListLen).c_str());
 
         // By default (0), diskSpaceLimit (in bytes) will be set in the workflow to use as much as possible
         cmd.addVariable("AVAIL_DISK", SSTR(static_cast<size_t>(par.diskSpaceLimit)).c_str());
@@ -354,6 +353,7 @@ int search(int argc, const char **argv, const Command& command) {
 
         int originalCovMode = par.covMode;
         par.covMode = Util::swapCoverageMode(par.covMode);
+        par.diagonalScoring = Parameters::DIAG_SCORE_NO_RESCALE;
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilter).c_str());
         float originalEvalThr = par.evalThr;
         par.evalThr = std::numeric_limits<float>::max();

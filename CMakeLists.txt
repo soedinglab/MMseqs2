@@ -6,6 +6,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(FRAMEWORK_ONLY 0 CACHE BOOL "Framework Mode")
 set(HAVE_SANITIZER 0 CACHE BOOL "Have Sanitizers")
+set(INSTALL_UTIL 1 CACHE BOOL "Install util scripts")
 set(VERSION_OVERRIDE "" CACHE STRING "Override version string in help and usage messages")
 
 #Sanitizers
@@ -63,20 +64,22 @@ if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
 endif()
 
 # zstd
-SET(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/zstd")
-SET(CMAKE_INSTALL_LIBDIR bin)
+# We use ZSTD_findDecompressedSize which is only available with ZSTD_STATIC_LINKING_ONLY
+# Thus we cannot use a system provided libzstd
+set(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/zstd")
+set(CMAKE_INSTALL_LIBDIR bin)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/lib/zstd/build/cmake/CMakeModules")
-OPTION(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)
-OPTION(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" ON)
-OPTION(ZSTD_BUILD_SHARED "BUILD SHARED LIBRARIES" OFF)
-OPTION(ZSTD_MULTITHREAD_SUPPORT "MULTITHREADING SUPPORT" OFF)
-OPTION(ZSTD_BUILD_PROGRAMS "BUILD PROGRAMS" OFF)
-OPTION(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
-OPTION(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
+option(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)
+option(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" ON)
+option(ZSTD_BUILD_SHARED "BUILD SHARED LIBRARIES" OFF)
+option(ZSTD_MULTITHREAD_SUPPORT "MULTITHREADING SUPPORT" OFF)
+option(ZSTD_BUILD_PROGRAMS "BUILD PROGRAMS" OFF)
+option(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
+option(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
+include_directories(lib/zstd/lib)
 add_subdirectory(lib/zstd/build/cmake/lib EXCLUDE_FROM_ALL)
 
 # tinyexpr
-OPTION(TE_NAT_LOG "Define the log function as natural logarithm." ON)
 include_directories(lib/tinyexpr)
 add_subdirectory(lib/tinyexpr EXCLUDE_FROM_ALL)
 
@@ -92,6 +95,6 @@ add_subdirectory(lib/alp)
 add_subdirectory(lib/ksw2)
 add_subdirectory(data)
 add_subdirectory(src)
-if (NOT FRAMEWORK_ONLY)
+if (NOT FRAMEWORK_ONLY AND INSTALL_UTIL)
     add_subdirectory(util)
 endif ()

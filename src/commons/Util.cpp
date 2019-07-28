@@ -637,6 +637,8 @@ bool Util::canBeCovered(const float covThr, const int covMode, float queryLength
             return ((targetLength / queryLength) >= covThr) && (targetLength / queryLength) <= 1.0;
         case Parameters::COV_MODE_LENGTH_TARGET:
             return ((queryLength / targetLength) >= covThr) && (queryLength / targetLength) <= 1.0;
+        case Parameters::COV_MODE_LENGTH_SHORTER:
+            return (std::min(targetLength, queryLength) / std::max(targetLength, queryLength)) >= covThr;
         default:
             return true;
     }
@@ -652,6 +654,7 @@ bool Util::hasCoverage(float covThr, int covMode, float queryCov, float targetCo
             return (targetCov >= covThr);
         case Parameters::COV_MODE_LENGTH_QUERY:
         case Parameters::COV_MODE_LENGTH_TARGET:
+        case Parameters::COV_MODE_LENGTH_SHORTER:
             return true;
         default:
             return true;

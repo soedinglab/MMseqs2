@@ -58,7 +58,7 @@ public:
 
     static bool checkIfIndexFile(DBReader<unsigned int> *pReader);
 
-    static bool isIndexCompatible(DBReader<unsigned int> & index, Parameters &parameters, int dbtype);
+    static std::string findIncompatibleParameter(DBReader<unsigned int> & index, Parameters &parameters, int dbtype);
 
     static std::string searchForIndex(std::string dbName);
 };

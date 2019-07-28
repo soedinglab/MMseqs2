@@ -84,7 +84,7 @@ tcov        Fraction of target sequence covered by alignment
 
 int convertalignments(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     const bool sameDB = par.db1.compare(par.db2) == 0 ? true : false;
     const int format = par.formatAlignmentMode;
@@ -140,7 +140,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     SubstitutionMatrix * subMat= NULL;
     if (targetNucs == true && queryNucs == true && isTranslatedSearch == false) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
         if(par.PARAM_GAP_OPEN.wasSet==false){
             par.gapOpen = 5;
         }
@@ -148,7 +148,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             par.gapExtend = 2;
         }
     }else{
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
     }
     EvalueComputation *evaluer = NULL;
     bool queryProfile = false;

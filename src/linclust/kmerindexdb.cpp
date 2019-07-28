@@ -1,6 +1,6 @@
 #include "LinsearchIndexReader.h"
-#include <FileUtil.h>
-#include <PrefilteringIndexReader.h>
+#include "FileUtil.h"
+#include "PrefilteringIndexReader.h"
 #include "Debug.h"
 #include "Timer.h"
 #include "NucleotideMatrix.h"
@@ -11,13 +11,12 @@
 
 extern const char* version;
 
-
 int kmerindexdb(int argc, const char **argv, const Command &command) {
     MMseqsMPI::init(argc, argv);
 
     Parameters &par = Parameters::getInstance();
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, command, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
 
     DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     seqDbr.open(DBReader<unsigned int>::NOSORT);
@@ -28,26 +27,37 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     par.printParameters(command.cmd, argc, argv, *params);
     Debug(Debug::INFO) << "Database size: "  << seqDbr.getSize() << " type: " << seqDbr.getDbTypeName() << "\n";
     std::string indexDB = LinsearchIndexReader::indexName(par.db2);
-    if (par.checkCompatible && FileUtil::fileExists(indexDB.c_str())) {
+    if (par.checkCompatible > 0 && FileUtil::fileExists(indexDB.c_str())) {
         Debug(Debug::INFO) << "Check index " << indexDB << "\n";
         DBReader<unsigned int> index(indexDB.c_str(), (indexDB + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         index.open(DBReader<unsigned int>::NOSORT);
-        if (LinsearchIndexReader::checkIfIndexFile(&index) && LinsearchIndexReader::isIndexCompatible(index, par, seqDbr.getDbtype())) {
+
+        if (Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) && par.PARAM_ALPH_SIZE.wasSet) {
+            Debug(Debug::WARNING) << "Alphabet size is not taken into account for compatibility check in nucleotide search.\n";
+        }
+
+        std::string check;
+        if (LinsearchIndexReader::checkIfIndexFile(&index) && (check = LinsearchIndexReader::findIncompatibleParameter(index, par, seqDbr.getDbtype())) == "") {
             Debug(Debug::INFO) << "Index is already up to date and compatible. Force recreation with --check-compatibility 0 parameter.\n";
             return EXIT_SUCCESS;
         } else {
-            Debug(Debug::WARNING) << "Index is incompatible and will be recreated.\n";
+            if (par.checkCompatible == 2) {
+                Debug(Debug::ERROR) << "Index is incompatible. Incompatible parameter: " << check << "\n";
+                return EXIT_FAILURE;
+            } else {
+                Debug(Debug::WARNING) << "Index is incompatible and will be recreated. Incompatible parameter: " << check << "\n";
+            }
         }
     }
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.seedScoringMatrixFile.nucleotides, 1.0, 0.0);
     }else {
         if (par.alphabetSize == 21) {
-            subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+            subMat = new SubstitutionMatrix(par.seedScoringMatrixFile.aminoacids, 2.0, 0.0);
         } else {
-            SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+            SubstitutionMatrix sMat(par.seedScoringMatrixFile.aminoacids, 2.0, 0.0);
             subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, par.alphabetSize, 2.0);
         }
     }

@@ -1,13 +1,14 @@
-//
-// Created by mad on 9/14/16.
-//
+// FeatureDetector
+// Copyright: 2017 Alexander Yee
+// License: CC0 1.0 Universal
+// https://github.com/Mysticial/FeatureDetector
 
 #ifndef MMSEQS_CPU_H
 #define MMSEQS_CPU_H
 #include <cpuid.h>
 // Code taken from
 // http://stackoverflow.com/questions/6121792/how-to-check-if-a-cpu-supports-the-sse3-instruction-set/7495023#7495023
-class CpuInfo{
+class CpuInfo {
 public:
     //  Misc.
     bool HW_MMX = false;

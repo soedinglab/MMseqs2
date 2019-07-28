@@ -33,7 +33,7 @@ if [ "$DOWNLOAD_MAPPING" -eq "1" ]; then
     # Download the latest UniProt ID mapping to extract taxon identifiers
     if notExists "${TMP_PATH}/mapping_download.complete"; then
         echo "Download idmapping.dat.gz"
-        URL="ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/idmapping.dat.gz"
+        URL="ftp://ftp.expasy.org/databases/uniprot/current_release/knowledgebase/idmapping/idmapping.dat.gz"
         wget -nv -O - "$URL" | zcat | awk '$2 == "NCBI_TaxID" {print $1"\t"$3 }' > "${TMP_PATH}/taxidmapping"
         touch "${TMP_PATH}/mapping_download.complete"
     fi

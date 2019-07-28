@@ -35,7 +35,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
         size_t alphSize = alphabetSize[i];
         size_t entries = profileReader.getSize();
 
-        SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0);
+        SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, 0.0);
         Debug::Progress progress(entries);
 
         Debug(Debug::INFO) << "Start converting profiles.\n";
