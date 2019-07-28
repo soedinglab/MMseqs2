@@ -422,6 +422,7 @@ public:
 
     // linearcluster
     int kmersPerSequence;
+    float kmersPerSequenceScale;
     bool includeOnlyExtendable;
     int skipNRepeatKmer;
     int hashShift;
@@ -687,6 +688,7 @@ public:
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)
+    PARAMETER(PARAM_KMER_PER_SEQ_SCALE)
     PARAMETER(PARAM_INCLUDE_ONLY_EXTENDABLE)
     PARAMETER(PARAM_SKIP_N_REPEAT_KMER)
     PARAMETER(PARAM_HASH_SHIFT)
