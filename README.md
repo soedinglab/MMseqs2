@@ -105,7 +105,7 @@ To run the search execute:
 
         mmseqs search queryDB targetDB resultDB tmp
 
-The sensitivity of the `search` can be adjusted with `-s` parameter and should be adapted based on your use case (see [setting sensitivity -s parameter](https://github.com/soedinglab/mmseqs2/wiki#set-sensitivity--s-parameter)). 
+The speed and sensitivity of the `search` can be adjusted with `-s` parameter and should be adapted based on your use case (see [setting sensitivity -s parameter](https://github.com/soedinglab/mmseqs2/wiki#set-sensitivity--s-parameter)). Very fast search -s 1.0, very sensitve -s 7.0.
 
 If you require the exact alignment information (Sequence identity, alignment string, ...) in later steps add the option `-a`, without this parameter MMseqs2 will automatically decide if the exact alignment criteria to optimize computational time.
 
