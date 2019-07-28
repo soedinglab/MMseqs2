@@ -697,7 +697,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 
     for(size_t split = fromSplit; split < fromSplit+splitCount; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
-        hashSeqPair = doComputation(totalKmers, split, splits, splitFileName, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, par.adjustKmerLength);
+        hashSeqPair = doComputation(totalKmers, split, splits, splitFileName, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, par.adjustKmerLength, chooseTopKmerScale);
     }
     MPI_Barrier(MPI_COMM_WORLD);
     if(mpiRank == 0){
