@@ -8,19 +8,10 @@ notExists() {
    [ ! -f "$1" ]
 }
 
-# check number of input variables
-[ "$#" -ne 3 ] && echo "Please provide <sequenceFASTA> <outFile> <tmp>" && exit 1;
-[ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
-[   -f "$2" ] &&  echo "$2 exists already!" && exit 1;
-[ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && mkdir -p "$3";
-
-INPUT="$1"
-RESULTS="$2"
-TMP_PATH="$3"
 
 if notExists "${TMP_PATH}/input.dbtype"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" createdb "${INPUT}" "${TMP_PATH}/input" ${CREATEDB_PAR} \
+    "$MMSEQS" createdb "$@" "${TMP_PATH}/input" ${CREATEDB_PAR} \
         || fail "query createdb died"
 fi
 
@@ -29,7 +20,6 @@ if notExists "${TMP_PATH}/clu.dbtype"; then
     "$MMSEQS" "${CLUSTER_MODULE}" "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/clu_tmp" ${CLUSTER_PAR} \
         || fail "Search died"
 fi
-
 
 if notExists "${TMP_PATH}/cluster.tsv"; then
     # shellcheck disable=SC2086
