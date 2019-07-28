@@ -1,7 +1,7 @@
-#include <simd/simd.h>
 #include <climits>
 #include "BaseMatrix.h"
 
+#include "simd.h"
 #include "Debug.h"
 #include "Util.h"
 #include "MathUtil.h"

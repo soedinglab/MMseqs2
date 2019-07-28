@@ -15,7 +15,7 @@
 #include "FileUtil.h"
 
 #define ZSTD_STATIC_LINKING_ONLY // ZSTD_findDecompressedSize
-#include <zstd/lib/zstd.h>
+#include <zstd.h>
 
 template <typename T>
 class DBReader {

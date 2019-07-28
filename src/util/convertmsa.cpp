@@ -2,7 +2,11 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
+
+#ifdef HAVE_ZLIB
 #include "gzstream.h"
+#endif
+
 #include <algorithm>
 
 int convertmsa(int argc, const char **argv, const Command &command) {

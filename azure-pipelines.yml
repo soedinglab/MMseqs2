@@ -32,6 +32,8 @@ jobs:
     pool:
       vmImage: 'macOS-10.14'
     steps:
+      - checkout: self
+        submodules: true
       - script: |
           brew install cmake gcc@9 zlib bzip2 coreutils
         displayName: Install Dependencies
@@ -40,11 +42,7 @@ jobs:
           CC=gcc-9 CXX=g++-9 ./util/build_osx.sh . build
         displayName: Build MMseqs2
       - script: |
-          git clone https://bitbucket.org/martin_steinegger/mmseqs-benchmark.git ${BUILD_SOURCESDIRECTORY}/benchmark
-        displayName: Checkout Regression Suite
-        condition: eq(variables['regression'], 1)
-      - script: |
-          ${BUILD_SOURCESDIRECTORY}/benchmark/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/build_sse41/src/mmseqs ${BUILD_SOURCESDIRECTORY}/regression
+          ${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/build_sse41/src/mmseqs ${BUILD_SOURCESDIRECTORY}/regression
         displayName: Run Regression Suite
         condition: eq(variables['regression'], 1)
       - task: PublishPipelineArtifact@0
@@ -77,6 +75,8 @@ jobs:
           MPI: 1
 
     steps:
+      - checkout: self
+        submodules: true
       - script: |
           sudo apt-get update
           sudo apt-get -y install mpi-default-dev mpi-default-bin
@@ -85,23 +85,21 @@ jobs:
       - script: |
           mkdir build && cd build
           if [ "${STATIC}" -eq "1" ]; then
-              cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF \
+              cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHAVE_TESTS=1 \
+                -DBUILD_SHARED_LIBS=OFF \
                 -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc \
                 -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
                 -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           else
-              cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+              cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHAVE_TESTS=1 \
                 -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           fi
 
           make -j $(nproc --all)
         displayName: Build MMseqs2
       - script: |
-          mkdir ~/regression && cd ~/regression
-          git clone https://bitbucket.org/martin_steinegger/mmseqs-benchmark.git
           export TTY=0
-          export MMSEQS_NUM_THREADS=$(nproc --all)
-          ./mmseqs-benchmark/run_regression.sh "${BUILD_SOURCESDIRECTORY}/build/src/mmseqs" ~/regression/results/
+          ${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/src/mmseqs ${BUILD_SOURCESDIRECTORY}/regression
         displayName: Run Regression Suite
         condition: eq(variables['regression'], 1)
       - task: PublishPipelineArtifact@0
@@ -122,6 +120,10 @@ jobs:
       - powershell: git config --global core.autocrlf false
         displayName: core.autocrlf false
       - checkout: self
+        submodules: true
+      - script: |
+          rmdir /s /q C:\Strawberry
+        displayName: Remove Strawberry Perl (Conflict with Cygwin)
       - script: |
           choco install cygwin --params="/InstallDir:%CYGWIN_ROOT%"
         displayName: Install Cygwin
@@ -157,11 +159,7 @@ jobs:
           %BUILD_SOURCESDIRECTORY%\build\mmseqs\mmseqs.bat version
         displayName: Setup Busybox
       - script: |
-          git clone https://bitbucket.org/martin_steinegger/mmseqs-benchmark.git %BUILD_SOURCESDIRECTORY%\benchmark
-        displayName: Checkout Regression Suite
-        condition: eq(variables['regression'], 1)
-      - script: |
-          %CYGWIN_ROOT%\bin\bash.exe -cl "${BUILD_SOURCESDIRECTORY}/benchmark/run_regression.sh $(cygpath ${BUILD_SOURCESDIRECTORY}/build/mmseqs/bin/mmseqs.exe) $(cygpath ${BUILD_SOURCESDIRECTORY}/regression)"
+          %CYGWIN_ROOT%\bin\bash.exe -cl "${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh $(cygpath ${BUILD_SOURCESDIRECTORY}/build/mmseqs/bin/mmseqs.exe) $(cygpath ${BUILD_SOURCESDIRECTORY}/regression)"
         displayName: Run Regression Suite
         condition: eq(variables['regression'], 1)
 
