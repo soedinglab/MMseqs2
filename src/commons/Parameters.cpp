@@ -1519,7 +1519,7 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
 }
 
 void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar, bool isEndVar) {
-
+    size_t fileIdx = 0;
     for (size_t dbIdx = 0; dbIdx < command.databases.size(); dbIdx++) {
         const DbType &db = command.databases[dbIdx];
         // special checks
@@ -1532,8 +1532,8 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
             if(dbIdx == command.databases.size() - 1 && isEndVar){
                 argumentDist = (filenames.size() - command.databases.size());
             }
-
-            for(size_t fileIdx = dbIdx; fileIdx <= dbIdx+argumentDist; fileIdx++){
+            size_t currFileIdx = fileIdx;
+            for(; fileIdx <= currFileIdx+argumentDist; fileIdx++){
                 std::string dbTypeFile = std::string(filenames[fileIdx]) + ".dbtype";
 
                 // check if file exists
@@ -1579,7 +1579,7 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
                         EXIT(EXIT_FAILURE);
                     }
                 }
-                    bool dbtypeFound = false;
+                bool dbtypeFound = false;
                 if (db.validator == NULL) {
                     continue;
                 }
@@ -1609,20 +1609,22 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
             }
         } else if (db.accessMode == db.ACCESS_MODE_OUTPUT) {
             if (db.validator == &DbValidator::directory) {
-                if (FileUtil::directoryExists(filenames[dbIdx].c_str()) == false) {
+                if (FileUtil::directoryExists(filenames[fileIdx].c_str()) == false) {
                     Debug(Debug::WARNING) << "Tmp " << filenames[dbIdx]
                                           << " folder does not exist or is not a directory.\n";
-                    if (FileUtil::makeDir(filenames[dbIdx].c_str()) == false) {
+                    if (FileUtil::makeDir(filenames[fileIdx].c_str()) == false) {
                         Debug(Debug::ERROR) << "Can not create tmp folder " << filenames[dbIdx] << ".\n";
                         EXIT(EXIT_FAILURE);
                     } else {
                         Debug(Debug::INFO) << "Create dir " << filenames[dbIdx] << "\n";
                     }
                 }
+                fileIdx++;
             } else {
-                if (FileUtil::fileExists(filenames[dbIdx].c_str()) == true) {
+                if (FileUtil::fileExists(filenames[fileIdx].c_str()) == true) {
                     Debug(Debug::WARNING) << filenames[dbIdx] << " exists and will be overwritten.\n";
                 }
+                fileIdx++;
 //                FILE *fp = fopen(filenames[dbIdx].c_str(), "a");
 //                if (fp == NULL) {
 //                    if (errno == EACCES) {
