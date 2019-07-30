@@ -8,7 +8,7 @@
 
 Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
                  bool aaBiasCorrection, int gapOpen, int gapExtend)
-                 : gapOpen(gapOpen), gapExtend(gapExtend), maxSeqLen(maxSeqLen), m(m), evaluer(evaluer), tinySubMat(NULL) {
+                 : gapOpen(gapOpen), gapExtend(gapExtend), m(m), evaluer(evaluer), tinySubMat(NULL) {
     if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) == false ) {
         setSubstitutionMatrix(m);
     }

@@ -224,9 +224,6 @@ private:
     // costs to extend a gap
     int gapExtend;
 
-    // calculate the query queryProfile for SIMD registers processing 8 elements
-    int maxSeqLen;
-
     // holds values of the current active query
     Sequence * currentQuery;
 
