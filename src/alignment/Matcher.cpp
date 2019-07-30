@@ -7,30 +7,25 @@
 
 
 Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
-                 bool aaBiasCorrection, int gapOpen, int gapExtend){
-    this->m = m;
-    this->tinySubMat = NULL;
-    this->gapOpen = gapOpen;
-    this->gapExtend = gapExtend;
+                 bool aaBiasCorrection, int gapOpen, int gapExtend)
+                 : gapOpen(gapOpen), gapExtend(gapExtend), m(m), evaluer(evaluer), tinySubMat(NULL) {
     if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) == false ) {
         setSubstitutionMatrix(m);
     }
 
-    this->maxSeqLen = maxSeqLen;
-    nuclaligner=NULL;
-    aligner=NULL;
-    if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)){
-        nuclaligner = new  BandedNucleotideAligner(m, maxSeqLen, gapOpen, gapExtend);
-    }else{
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
+        nuclaligner = new BandedNucleotideAligner(m, maxSeqLen, gapOpen, gapExtend);
+        aligner = NULL;
+    } else {
+        nuclaligner = NULL;
         aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection);
     }
-    this->evaluer = evaluer;
     //std::cout << "lambda=" << lambdaLog2 << " logKLog2=" << logKLog2 << std::endl;
 }
 
 
 void Matcher::setSubstitutionMatrix(BaseMatrix *m){
-    this->tinySubMat = new int8_t[m->alphabetSize*m->alphabetSize];
+    tinySubMat = new int8_t[m->alphabetSize*m->alphabetSize];
     for (int i = 0; i < m->alphabetSize; i++) {
         for (int j = 0; j < m->alphabetSize; j++) {
             tinySubMat[i*m->alphabetSize + j] = m->subMatrix[i][j];
@@ -64,8 +59,7 @@ void Matcher::initQuery(Sequence* query){
 
 
 Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool isReverse, const int covMode, const float covThr,
-                                       const double evalThr, unsigned int alignmentMode, unsigned int seqIdMode,
-                                       bool isIdentity){
+                                       const double evalThr, unsigned int alignmentMode, unsigned int seqIdMode, bool isIdentity){
     // calculation of the score and traceback of the alignment
     int32_t maskLen = currentQuery->L / 2;
 

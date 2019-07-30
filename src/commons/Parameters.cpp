@@ -134,6 +134,7 @@ Parameters::Parameters():
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen, firstline.", typeid(std::string), (void*) &stat, ""),
         // linearcluster
         PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "K-mers per sequence", "kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
+        PARAM_KMER_PER_SEQ_SCALE(PARAM_KMER_PER_SEQ_SCALE_ID, "--kmer-per-seq-scale", "scale k-mers per sequence", "scale kmer per sequence based on sequence length as kmer-per-seq val + scale x seqlen", typeid(float), (void*) &kmersPerSequenceScale, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_INCLUDE_ONLY_EXTENDABLE(PARAM_INCLUDE_ONLY_EXTENDABLE_ID, "--include-only-extendable", "Include only extendable", "Include only extendable", typeid(bool), (void*) &includeOnlyExtendable, "", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_SKIP_N_REPEAT_KMER(PARAM_SKIP_N_REPEAT_KMER_ID, "--skip-n-repeat-kmer", "Skip sequence with n repeating k-mers", "Skip sequence with >= n exact repeating k-mers", typeid(int), (void*) &skipNRepeatKmer, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash", typeid(int), (void*) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
@@ -769,6 +770,7 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_ALPH_SIZE);
     kmermatcher.push_back(&PARAM_MIN_SEQ_ID);
     kmermatcher.push_back(&PARAM_KMER_PER_SEQ);
+    kmermatcher.push_back(&PARAM_KMER_PER_SEQ_SCALE);
     kmermatcher.push_back(&PARAM_ADJUST_KMER_LEN);
     kmermatcher.push_back(&PARAM_MASK_RESIDUES);
     kmermatcher.push_back(&PARAM_MASK_LOWER_CASE);
@@ -1932,6 +1934,7 @@ void Parameters::setDefaults() {
 
     // linearcluster
     kmersPerSequence = 21;
+    kmersPerSequenceScale = 0.0;
     includeOnlyExtendable = false;
     skipNRepeatKmer = 0;
     hashShift = 5;

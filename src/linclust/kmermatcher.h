@@ -174,7 +174,7 @@ void writeKmerMatcherResult(DBWriter & dbw, KmerPosition *hashSeqPair, size_t to
 
 KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std::string splitFile,
                              DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat,
-                             size_t KMER_SIZE, size_t chooseTopKmer);
+                             size_t KMER_SIZE, size_t chooseTopKmer, float chooseTopKmerScale = 0.0);
 
 KmerPosition *initKmerPositionMemory(size_t size);
 
@@ -183,12 +183,13 @@ std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition * hashSeqPair, DBR
                              Parameters & par, BaseMatrix * subMat,
                              const size_t KMER_SIZE, size_t chooseTopKmer,
                              bool includeIdenticalKmer, size_t splits, size_t split, size_t pickNBest,
-                             bool adjustLength);
+                             bool adjustLength, float chooseTopKmerScale = 0.0);
 
 
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);
 
-size_t computeKmerCount(DBReader<unsigned int> &reader, size_t KMER_SIZE, size_t chooseTopKmer);
+size_t computeKmerCount(DBReader<unsigned int> &reader, size_t KMER_SIZE, size_t chooseTopKmer,
+                        float chooseTopKmerScale = 0.0);
 
 void setLinearFilterDefault(Parameters *p);
 
