@@ -24,7 +24,7 @@ std::vector<int> DbValidator::taxSequenceDb = {Parameters::DBTYPE_SEQTAXDB, Para
 std::vector<int> DbValidator::allDb = {Parameters::DBTYPE_SEQTAXDB, Parameters::DBTYPE_INDEX_DB, Parameters::DBTYPE_NUCLEOTIDES,
                                       Parameters::DBTYPE_HMM_PROFILE, Parameters::DBTYPE_AMINO_ACIDS, Parameters::DBTYPE_ALIGNMENT_RES,
                                       Parameters::DBTYPE_PREFILTER_RES, Parameters::DBTYPE_PREFILTER_REV_RES, Parameters::DBTYPE_CLUSTER_RES,
-                                      Parameters::DBTYPE_OFFSETDB, Parameters::DBTYPE_GENERIC_DB};
+                                      Parameters::DBTYPE_OFFSETDB, Parameters::DBTYPE_GENERIC_DB, Parameters::DBTYPE_TAXONOMICAL_RESULT};
 std::vector<int> DbValidator::allDbAndFlat = {Parameters::DBTYPE_SEQTAXDB, Parameters::DBTYPE_INDEX_DB, Parameters::DBTYPE_NUCLEOTIDES,
                                               Parameters::DBTYPE_HMM_PROFILE, Parameters::DBTYPE_AMINO_ACIDS, Parameters::DBTYPE_ALIGNMENT_RES,
                                               Parameters::DBTYPE_PREFILTER_RES, Parameters::DBTYPE_CLUSTER_RES, Parameters::DBTYPE_GENERIC_DB,
