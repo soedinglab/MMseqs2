@@ -3,11 +3,12 @@
 #include "Debug.h"
 #include "Util.h"
 
+#include <fstream>
+#include <algorithm>
+
 #ifdef HAVE_ZLIB
 #include "gzstream.h"
 #endif
-
-#include <algorithm>
 
 int convertmsa(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
@@ -129,8 +130,6 @@ int convertmsa(int argc, const char **argv, const Command &command) {
         }
     }
     writer.close();
-
-
 
     delete in;
     return EXIT_SUCCESS;
