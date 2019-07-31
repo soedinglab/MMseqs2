@@ -8,9 +8,9 @@
 
 int tsv2db(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
-    Debug(Debug::INFO) << "Output database type: " << DBReader<unsigned int>::getDbTypeName(par.outputDbType) << "\n";
+    Debug(Debug::INFO) << "Output database type: " << Parameters::getDbTypeName(par.outputDbType) << "\n";
     if (par.PARAM_OUTPUT_DBTYPE.wasSet == false) {
         Debug(Debug::INFO) << "Consider setting --output-dbtype.\n";
     }

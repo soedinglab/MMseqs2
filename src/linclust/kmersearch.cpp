@@ -14,6 +14,7 @@
 #include "Timer.h"
 #include "omptl/omptl_algorithm"
 #include "KmerIndex.h"
+#include "FileUtil.h"
 
 #ifndef SIZE_T_MAX
 #define SIZE_T_MAX ((size_t) -1)
@@ -137,10 +138,10 @@ template void KmerSearch::writeResult<1>(DBWriter & dbw, KmerPosition *kmers, si
 int kmersearch(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, command, 2, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
     int targetSeqType;
     DBReader<unsigned int> * tidxdbr;
-    int targetDbtype = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    int targetDbtype = FileUtil::parseDbType(par.db2.c_str());
     int adjustedKmerSize = 0;
     bool isAdjustedKmerLen = false;
     if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)==true) {
@@ -197,12 +198,12 @@ int kmersearch(int argc, const char **argv, const Command &command) {
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.seedScoringMatrixFile.nucleotides, 1.0, 0.0);
     }else {
         if (par.alphabetSize == 21) {
-            subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 8.0, -0.2);
+            subMat = new SubstitutionMatrix(par.seedScoringMatrixFile.aminoacids, 8.0, -0.2);
         } else {
-            SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 8.0, -0.2);
+            SubstitutionMatrix sMat(par.seedScoringMatrixFile.aminoacids, 8.0, -0.2);
             subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, par.alphabetSize, 8.0);
         }
     }
@@ -211,9 +212,10 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     const size_t KMER_SIZE = par.kmerSize;
     size_t chooseTopKmer = par.kmersPerSequence;
 
+    // memoryLimit in bytes
     size_t memoryLimit;
     if (par.splitMemoryLimit > 0) {
-        memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+        memoryLimit = par.splitMemoryLimit;
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }

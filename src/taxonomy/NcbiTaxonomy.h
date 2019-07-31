@@ -1,6 +1,7 @@
 // Ported from blast2lca
+// Copyright: 2010 Miguel Pignatelli
+// License: GPLv2 or later
 // https://github.com/emepyc/Blast2lca
-// Originally licensed under GPLv2 or later
 
 #ifndef MMSEQS_NCBITAXONOMY_H
 #define MMSEQS_NCBITAXONOMY_H

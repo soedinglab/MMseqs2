@@ -17,11 +17,9 @@ hasCommand touch
 hasCommand tar
 
 TAXDBNAME="$1"
-MAPPINGFILE=$2
-NCBITAXINFO="$3"
-TMP_PATH="${4:-$2}"
+TMP_PATH="$2"
 
-if [ "$DOWNLOAD_DATA" -eq "1" ]; then
+if [ "$DOWNLOAD_NCBITAXDUMP" -eq "1" ]; then
     # Download NCBI taxon information
     if notExists "$4/ncbi_download.complete"; then
         echo "Download taxdump.tar.gz"
@@ -30,11 +28,12 @@ if [ "$DOWNLOAD_DATA" -eq "1" ]; then
         touch "${TMP_PATH}/ncbi_download.complete"
     fi
     NCBITAXINFO="${TMP_PATH}"
-
+fi
+if [ "$DOWNLOAD_MAPPING" -eq "1" ]; then
     # Download the latest UniProt ID mapping to extract taxon identifiers
     if notExists "${TMP_PATH}/mapping_download.complete"; then
         echo "Download idmapping.dat.gz"
-        URL="ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/idmapping.dat.gz"
+        URL="ftp://ftp.expasy.org/databases/uniprot/current_release/knowledgebase/idmapping/idmapping.dat.gz"
         wget -nv -O - "$URL" | zcat | awk '$2 == "NCBI_TaxID" {print $1"\t"$3 }' > "${TMP_PATH}/taxidmapping"
         touch "${TMP_PATH}/mapping_download.complete"
     fi

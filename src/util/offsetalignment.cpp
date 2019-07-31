@@ -8,6 +8,7 @@
 #include "AlignmentSymmetry.h"
 #include "Timer.h"
 #include "IndexReader.h"
+#include "FileUtil.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -165,10 +166,10 @@ void updateLengths(std::vector<Matcher::result_t> &results, unsigned int qSource
 
 int offsetalignment(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 6);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     const bool touch = par.preloadMode != Parameters::PRELOAD_MODE_MMAP;
-    int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    int queryDbType = FileUtil::parseDbType(par.db1.c_str());
     if(Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_INDEX_DB)){
         DBReader<unsigned int> idxdbr(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         idxdbr.open(DBReader<unsigned int>::NOSORT);
@@ -176,7 +177,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         queryDbType=data.srcSeqType;
         idxdbr.close();
     }
-    int targetDbType = DBReader<unsigned int>::parseDbType(par.db3.c_str());
+    int targetDbType = FileUtil::parseDbType(par.db3.c_str());
     if(Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB)){
         DBReader<unsigned int> idxdbr(par.db3.c_str(), par.db3Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         idxdbr.open(DBReader<unsigned int>::NOSORT);

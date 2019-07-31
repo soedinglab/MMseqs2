@@ -7,6 +7,8 @@
 #include "FileUtil.h"
 #include "IndexBuilder.h"
 #include "Timer.h"
+#include "ByteParser.h"
+#include "Parameters.h"
 
 namespace prefilter {
 #include "ExpOpt3_8_polished.cs32.lib.h"
@@ -16,10 +18,14 @@ namespace prefilter {
 #include <omp.h>
 #endif
 
-Prefiltering::Prefiltering(const std::string &targetDB,
+Prefiltering::Prefiltering(const std::string &queryDB,
+                           const std::string &queryDBIndex,
+                           const std::string &targetDB,
                            const std::string &targetDBIndex,
                            int querySeqType, int targetSeqType_,
                            const Parameters &par) :
+        queryDB(queryDB),
+        queryDBIndex(queryDBIndex),
         targetDB(targetDB),
         targetDBIndex(targetDBIndex),
         _2merSubMatrix(NULL),
@@ -42,7 +48,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         sensitivity(par.sensitivity),
         maxSeqLen(par.maxSeqLen),
         querySeqType(querySeqType),
-        diagonalScoring(par.diagonalScoring != 0),
+        diagonalScoring(par.diagonalScoring),
         minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
         aaBiasCorrection(par.compBiasCorrection != 0),
         covThr(par.covThr), covMode(par.covMode), includeIdentical(par.includeIdentity),
@@ -51,9 +57,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 #ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
-
-    int targetDbtype = DBReader<unsigned int>::parseDbType(targetDB.c_str());
-
+    sameQTDB = isSameQTDB();
 
     // init the substitution matrices
     switch (querySeqType & 0x7FFFFFFF) {
@@ -81,7 +85,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             Debug(Debug::ERROR) << "Query sequence type not implemented!\n";
             EXIT(EXIT_FAILURE);
     }
-    if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
+
+    if (Parameters::isEqualDbtype(FileUtil::parseDbType(targetDB.c_str()), Parameters::DBTYPE_INDEX_DB)) {
         int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
         if(preloadMode == Parameters::PRELOAD_MODE_AUTO){
             if(sensitivity > 6.0){
@@ -128,7 +133,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                     }
                 }
                 if(par.prefilter[i]->wasSet && par.prefilter[i]->uniqid == par.PARAM_NO_COMP_BIAS_CORR.uniqid){
-                    if(data.compBiasCorr != aaBiasCorrection && Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_HMM_PROFILE)){
+                    if(data.compBiasCorr != aaBiasCorrection && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)){
                         Debug(Debug::WARNING) << "Index was created with --comp-bias-corr " << data.compBiasCorr  <<" please recreate index with --comp-bias-corr " << aaBiasCorrection << "!\n";
                         Debug(Debug::WARNING) <<  "Current search will use --comp-bias-corr " <<  data.compBiasCorr << "\n";
                     }
@@ -151,7 +156,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             splits = 1;
             spacedKmer = data.spacedKmer != 0;
             spacedKmerPattern = PrefilteringIndexReader::getSpacedPattern(tidxdbr);
-            seedScoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrix(tidxdbr);
+            seedScoringMatrixFile = ScoreMatrixFile(PrefilteringIndexReader::getSubstitutionMatrix(tidxdbr));
         } else {
             Debug(Debug::ERROR) << "Outdated index version. Please recompute it with 'createindex'!\n";
             EXIT(EXIT_FAILURE);
@@ -168,8 +173,6 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         templateDBIsIndex = false;
     }
 
-
-
     // investigate if it makes sense to mask the profile consensus sequence
     if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         maskMode = 0;
@@ -179,15 +182,25 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                        (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_AMINO_ACIDS)) ||
                        (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES) && Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_NUCLEOTIDES));
 
+    // memoryLimit in bytes
     size_t memoryLimit;
     if (par.splitMemoryLimit > 0) {
-        memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+        memoryLimit = par.splitMemoryLimit;
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
+
+    if (templateDBIsIndex == false && sameQTDB == true) {
+        qdbr = tdbr;
+    } else {
+        qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+        qdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    }
+    Debug(Debug::INFO) << "Query database size: " << qdbr->getSize() << " type: "<< Parameters::getDbTypeName(querySeqType) << "\n";
+
     setupSplit(*tdbr, alphabetSize - 1, querySeqType,
-               threads, templateDBIsIndex, maxResListLen,
-               memoryLimit, &kmerSize, &splits, &splitMode);
+               threads, templateDBIsIndex, memoryLimit, qdbr->getSize(),
+               maxResListLen, kmerSize, splits, splitMode);
 
     if(Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES) == false){
         const bool isProfileSearch = Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) ||
@@ -196,25 +209,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     }else {
         kmerThr = 0;
     }
-//    if (templateDBIsIndex == true) {
-//        if (splits != originalSplits) {
-//            Debug(Debug::WARNING) << "Required split count does not match index table split count. Recomputing index table!\n";
-//            reopenTargetDb();
-//        } else if (kmerThr < minKmerThr) {
-//            Debug(Debug::WARNING) << "Required k-mer threshold (" << kmerThr
-//                                  << ") does not match index table k-mer threshold (" << minKmerThr << "). "
-//                                  << "Recomputing index table!\n";
-//            reopenTargetDb();
-//        } else if ((Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) && minKmerThr != 0) {
-//            Debug(Debug::WARNING) << "Query profiles require an index table k-mer threshold of 0. Recomputing index table!\n";
-//            reopenTargetDb();
-//        } else if (indexMasked != maskMode) {
-//            Debug(Debug::WARNING) << "Can not use masked index for unmasked prefiltering. Recomputing index table!\n";
-//            reopenTargetDb();
-//        }
-//    }
 
-    Debug(Debug::INFO) << "Target database size: " << tdbr->getSize() << " type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
+    Debug(Debug::INFO) << "Target database size: " << tdbr->getSize() << " type: " <<Parameters::getDbTypeName(targetSeqType) << "\n";
 
     if (splitMode == Parameters::QUERY_DB_SPLIT) {
         // create the whole index table
@@ -229,6 +225,11 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 }
 
 Prefiltering::~Prefiltering() {
+    if (sameQTDB == false) {
+        qdbr->close();
+        delete qdbr;
+    }
+
     if (indexTable != NULL) {
         delete indexTable;
     }
@@ -280,69 +281,103 @@ void Prefiltering::reopenTargetDb() {
     templateDBIsIndex = false;
 }
 
-void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSize, const unsigned int querySeqTyp, const int threads,
-                              const bool templateDBIsIndex, const size_t maxResListLen, const size_t memoryLimit,
-                              int *kmerSize, int *split, int *splitMode) {
-    size_t neededSize = estimateMemoryConsumption(1,
-                                                  dbr.getSize(), dbr.getAminoAcidDBSize(),  maxResListLen, alphabetSize,
-                                                  *kmerSize == 0 ? // if auto detect kmerSize
-                                                  IndexTable::computeKmerSize(dbr.getAminoAcidDBSize()) : *kmerSize, querySeqTyp,
+void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSize, const unsigned int querySeqTyp, const int threads,
+                              const bool templateDBIsIndex, const size_t memoryLimit, const size_t qDbSize,
+                               size_t &maxResListLen, int &kmerSize, int &split, int &splitMode) {
+    size_t memoryNeeded = estimateMemoryConsumption(1,
+                                                  tdbr.getSize(), tdbr.getAminoAcidDBSize(), maxResListLen, alphabetSize,
+                                                  kmerSize == 0 ? // if auto detect kmerSize
+                                                  IndexTable::computeKmerSize(tdbr.getAminoAcidDBSize()) : kmerSize, querySeqTyp,
                                                   threads);
-    if (neededSize > 0.9 * memoryLimit) {
-        // memory is not enough to compute everything at once
-        //TODO add PROFILE_STATE (just 6-mers)
-        std::pair<int, int> splitSettings = Prefiltering::optimizeSplit(memoryLimit, &dbr,
-                                                                        alphabetSize, *kmerSize, querySeqTyp, threads);
-        if (splitSettings.second == -1) {
-            Debug(Debug::ERROR) << "Can not fit databased into " << memoryLimit
-                                << " byte. Please use a computer with more main memory.\n";
+    
+    int optimalSplitMode = Parameters::TARGET_DB_SPLIT;
+    if (memoryNeeded > 0.9 * memoryLimit) {
+        if (splitMode == Parameters::QUERY_DB_SPLIT) {
+            Debug(Debug::ERROR) << "--split-mode was set to query-split (" << Parameters::QUERY_DB_SPLIT << ") but memory limit requires target-split." << 
+                                   " Please use a computer with more main memory or run with default --split-mode setting.\n";
             EXIT(EXIT_FAILURE);
         }
-        if (*kmerSize == 0) {
+    } else {
+#ifdef HAVE_MPI
+        // TODO Currently we dont support split target indeces, we need MPI TARGET_DB_SPLIT when we have split index support again
+        // if (templateDBIsIndex ) {
+        //     optimalSplitMode = Parameters::TARGET_DB_SPLIT;
+        // } else ...
+        // if enough memory + MPI -> optimal mode is query
+        optimalSplitMode = Parameters::QUERY_DB_SPLIT;
+#endif
+    }
+
+    // user split mode is legal and respected, only set this if we are in automatic detection
+    if (splitMode == Parameters::DETECT_BEST_DB_SPLIT) {
+        splitMode = optimalSplitMode;
+    }
+
+    // ideally we always run without splitting
+    int minimalNumSplits = 1;
+    // get minimal number of splits in case of target split
+    // we EXITed already in query split mode
+    if (memoryNeeded > 0.9 * memoryLimit) {
+        // memory is not enough to compute everything at once
+        //TODO add PROFILE_STATE (just 6-mers)
+        std::pair<int, int> splitSettings = Prefiltering::optimizeSplit(memoryLimit, &tdbr, alphabetSize, kmerSize, querySeqTyp, threads);
+        if (splitSettings.second == -1) {
+            Debug(Debug::ERROR) << "Cannot fit databased into " << ByteParser::format(memoryLimit) << ". Please use a computer with more main memory.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (kmerSize == 0) {
             // set k-mer based on aa size in database
             // if we have less than 10Mio * 335 amino acids use 6mers
-            *kmerSize = splitSettings.first;
+            kmerSize = splitSettings.first;
         }
+        minimalNumSplits = splitSettings.second;
+    } 
 
-        if (*split == Parameters::AUTO_SPLIT_DETECTION) {
-            *split = splitSettings.second;
-        }
+    int optimalNumSplits = minimalNumSplits;
 
-        if (*splitMode == Parameters::DETECT_BEST_DB_SPLIT) {
-            *splitMode = Parameters::TARGET_DB_SPLIT;
-        }
-    } else { // memory is  enough to compute everything with split setting
-        if (*kmerSize == 0) {
-            const int tmpSplit = (*split > 1) ? *split : 1;
-            size_t aaSize = dbr.getAminoAcidDBSize() / tmpSplit;
-            *kmerSize = IndexTable::computeKmerSize(aaSize);
-        }
-
-        if (*split == Parameters::AUTO_SPLIT_DETECTION) {
-            *split = 1;
-        }
-
-        if (*splitMode == Parameters::DETECT_BEST_DB_SPLIT) {
-            if (templateDBIsIndex == true && *split > 1) {
-                *splitMode = Parameters::TARGET_DB_SPLIT;
-            } else {
+    size_t sizeOfDbToSplit = tdbr.getSize();
+    if (splitMode == Parameters::QUERY_DB_SPLIT) {
+        sizeOfDbToSplit = qDbSize;
+    }
 #ifdef HAVE_MPI
-                *splitMode = Parameters::QUERY_DB_SPLIT;
-#else
-                *splitMode = Parameters::TARGET_DB_SPLIT;
+    optimalNumSplits = std::max(MMseqsMPI::numProc, optimalNumSplits);
 #endif
-            }
-        }
+    optimalNumSplits = std::min((int)sizeOfDbToSplit, optimalNumSplits);
+
+    // set the final number of splits
+    if (split == Parameters::AUTO_SPLIT_DETECTION) {
+        split = optimalNumSplits;
+    } 
+    
+    // templateDBIsIndex = false when called from indexdb
+    if ((split < minimalNumSplits) && (templateDBIsIndex)) {
+        Debug(Debug::WARNING) << "split was set to " << split << " but at least " << minimalNumSplits << " are required. Please run with default paramerters\n";
+    } else if (split > (int)sizeOfDbToSplit) {
+        Debug(Debug::ERROR) << "split was set to " << split << " but the db to split has only " << sizeOfDbToSplit << " sequences. Please run with default paramerters\n";
+        EXIT(EXIT_FAILURE);
     }
 
-    if(*split > 1){
-        Debug(Debug::INFO) << Parameters::getSplitModeName(*splitMode) << " split mode. Search " << *split << " splits\n";
+    if (kmerSize == 0) {
+        size_t aaSize = tdbr.getAminoAcidDBSize() / std::max(split, 1);
+        kmerSize = IndexTable::computeKmerSize(aaSize);
     }
-    neededSize = estimateMemoryConsumption((*splitMode == Parameters::TARGET_DB_SPLIT) ? *split : 1, dbr.getSize(),
-                                           dbr.getAminoAcidDBSize(), maxResListLen, alphabetSize, *kmerSize, querySeqTyp, threads);
-    Debug(Debug::INFO) << "Estimated memory consumption " << neededSize/1024/1024 << " MB\n";
-    if (neededSize > 0.9 * memoryLimit) {
-        Debug(Debug::WARNING) << "Processes needs more than " << memoryLimit/1024/1024 << " MB main memory.\n" <<
+
+    // in TARGET_DB_SPLIT we have to reduce the number of prefilter hits can produce,
+    // so that the merged database does not contain more than maxResListLen
+    if (splitMode == Parameters::TARGET_DB_SPLIT && split > 1) {
+        size_t fourTimesStdDeviation = 4 * sqrt(static_cast<double>(maxResListLen) / static_cast<double>(split));
+        maxResListLen = std::max(static_cast<size_t>(1), (maxResListLen / split) + fourTimesStdDeviation);
+    }
+
+    if (split > 1) {
+        Debug(Debug::INFO) << Parameters::getSplitModeName(splitMode) << " split mode. Searching through " << split << " splits\n";
+    }
+
+    size_t memoryNeededPerSplit = estimateMemoryConsumption((splitMode == Parameters::TARGET_DB_SPLIT) ? split : 1, tdbr.getSize(),
+                                             tdbr.getAminoAcidDBSize(), maxResListLen, alphabetSize, kmerSize, querySeqTyp, threads);
+    Debug(Debug::INFO) << "Estimated memory consumption: " << ByteParser::format(memoryNeededPerSplit) << "\n";
+    if (memoryNeededPerSplit > 0.9 * memoryLimit) {
+        Debug(Debug::WARNING) << "Process needs more than " << ByteParser::format(memoryLimit) << " main memory.\n" <<
                                  "Increase the size of --split or set it to 0 to automatically optimize target database split.\n";
         if (templateDBIsIndex == true) {
             Debug(Debug::WARNING) << "Computed index is too large. Avoid using the index.\n";
@@ -354,36 +389,22 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
                                const std::vector<std::pair<std::string, std::string>> &filenames) {
     Timer timer;
     if (filenames.size() < 2) {
-        std::rename(filenames[0].first.c_str(), outDB.c_str());
-        std::rename(filenames[0].second.c_str(), outDBIndex.c_str());
+        DBReader<unsigned int>::moveDb(filenames[0].first, outDB);
         Debug(Debug::INFO) << "No merging needed.\n";
         return;
     }
-    std::list<std::pair<std::string, std::string>> files(filenames.begin(), filenames.end());
 
-    const std::pair<std::string, std::string> out = std::make_pair((outDB + "_merged" ),
-                                                                   (outDBIndex + "_merged"));
-
-
-    DBWriter writer(out.first.c_str(), out.second.c_str(), 1, compressed, Parameters::DBTYPE_PREFILTER_RES);
+    const std::pair<std::string, std::string> tmpDb = Util::databaseNames((outDB + "_merged"));
+    DBWriter writer(tmpDb.first.c_str(), tmpDb.second.c_str(), 1, compressed, Parameters::DBTYPE_PREFILTER_RES);
     writer.open(1024 * 1024 * 1024); // 1 GB buffer
     writer.mergeFilePair(filenames);
     writer.close();
-    for(size_t i = 0; i < filenames.size(); i++){
+    for (size_t i = 0; i < filenames.size(); i++) {
         // remove split
-        int error = remove(filenames[i].first.c_str());
-        if(error != 0){
-            Debug(Debug::ERROR) << "Can not delete " << filenames[i].first << " in mergeOutput!\n";
-            EXIT(EXIT_FAILURE);
-        }
-        error = remove(filenames[i].second.c_str());
-        if(error != 0){
-            Debug(Debug::ERROR) << "Can not delete " << filenames[i].second << " in mergeOutput!\n";
-            EXIT(EXIT_FAILURE);
-        }
+        DBReader<unsigned int>::removeDb(filenames[i].first);
     }
     // sort merged entries by evalue
-    DBReader<unsigned int> dbr(out.first.c_str(), out.second.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    DBReader<unsigned int> dbr(tmpDb.first.c_str(), tmpDb.second.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_PREFILTER_RES);
     dbw.open(1024 * 1024 * 1024);
@@ -397,7 +418,8 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         std::string result;
         result.reserve(BUFFER_SIZE);
         char buffer[100];
-#pragma omp  for schedule(dynamic, 2)
+// dynamic schedule causes mis-order of the input files during merge. Needs to be fixed there
+#pragma omp for schedule(static)
         for (size_t id = 0; id < dbr.getSize(); id++) {
             unsigned int dbKey = dbr.getDbKey(id);
             char *data = dbr.getData(id, thread_idx);
@@ -413,19 +435,12 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
             result.clear();
         }
     }
-    Debug(Debug::INFO) << out.first << " " << out.second << "\n";
-    dbw.close();
+
+    // TODO: we close with "true" because multiple calls to mergeOutput call mergeFilePair that expects two file (merged input)
+    dbw.close(true);
     dbr.close();
-    int error = remove(out.first.c_str());
-    if(error != 0){
-        Debug(Debug::ERROR) << "Can not delete " << out.first << " in mergeOutput!\n";
-        EXIT(EXIT_FAILURE);
-    }
-    error = remove(out.second.c_str());
-    if(error != 0){
-        Debug(Debug::ERROR) << "Can not delete " << out.second << " in mergeOutput!\n";
-        EXIT(EXIT_FAILURE);
-    }
+
+    DBReader<unsigned int>::removeDb(tmpDb.first);
 
     Debug(Debug::INFO) << "\nTime for merging results: " << timer.lap() << "\n";
 }
@@ -484,7 +499,9 @@ void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
         Debug(Debug::INFO) << "Index table k-mer threshold: " << localKmerThr << " at k-mer size " << kmerSize << " \n";
         IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *kmerSubMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr, maskMode, maskLowerCaseMode);
 
-        if (diagonalScoring == false) {
+        // sequenceLookup has to be temporarily present to speed up masking
+        // afterwards its not needed anymore in DIAG_SCORE_OFF
+        if (diagonalScoring == Parameters::DIAG_SCORE_OFF) {
             delete sequenceLookup;
             sequenceLookup = NULL;
         }
@@ -520,13 +537,14 @@ void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
     }
 }
 
-bool Prefiltering::isSameQTDB(const std::string &queryDB) {
+bool Prefiltering::isSameQTDB() {
     //  check if when qdb and tdb have the same name an index extension exists
     std::string check(targetDB);
     size_t pos = check.find(queryDB);
     int match = false;
     if (pos == 0) {
         check.replace(0, queryDB.length(), "");
+        // TODO name changed to .idx
         PatternCompiler regex("^\\.s?k[5-7]$");
         match = regex.isMatch(check.c_str());
     }
@@ -534,16 +552,12 @@ bool Prefiltering::isSameQTDB(const std::string &queryDB) {
     return (queryDB.compare(targetDB) == 0 || (match == true));
 }
 
-void Prefiltering::runAllSplits(const std::string &queryDB, const std::string &queryDBIndex,
-                                const std::string &resultDB, const std::string &resultDBIndex) {
-    runSplits(queryDB, queryDBIndex, resultDB, resultDBIndex, 0, splits, false);
+void Prefiltering::runAllSplits(const std::string &resultDB, const std::string &resultDBIndex) {
+    runSplits(resultDB, resultDBIndex, 0, splits, false);
 }
 
 #ifdef HAVE_MPI
-void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &queryDBIndex,
-                                const std::string &resultDB, const std::string &resultDBIndex,
-                                const std::string &localTmpPath) {
-    splits = std::max(MMseqsMPI::numProc, splits);
+void Prefiltering::runMpiSplits(const std::string &resultDB, const std::string &resultDBIndex, const std::string &localTmpPath) {
     if(compressed == true && splitMode == Parameters::TARGET_DB_SPLIT){
             Debug(Debug::ERROR) << "The output of the prefilter cannot be compressed during target split mode. Please remove --compress.\n";
             EXIT(EXIT_FAILURE);
@@ -565,19 +579,20 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
     size_t splitCount = splitCntPerProc[MMseqsMPI::rank];
     delete[] splitCntPerProc;
 
+    // setting names in case of localTmp path
     std::string procTmpResultDB = localTmpPath;
     std::string procTmpResultDBIndex = localTmpPath;
     if (localTmpPath == "") {
-        procTmpResultDB += resultDB;
-        procTmpResultDBIndex += resultDBIndex;
+        procTmpResultDB = resultDB;
+        procTmpResultDBIndex = resultDBIndex;
     } else {
-        procTmpResultDB += FileUtil::baseName(resultDB);
-        procTmpResultDBIndex += FileUtil::baseName(resultDBIndex);
+        procTmpResultDB = procTmpResultDB + "/" + FileUtil::baseName(resultDB);
+        procTmpResultDBIndex = procTmpResultDBIndex + "/" + FileUtil::baseName(resultDBIndex);
 
         if (FileUtil::directoryExists(localTmpPath.c_str()) == false) {
             Debug(Debug::INFO) << "Local tmp dir " << localTmpPath << " does not exist or is not a directory\n";
             if (FileUtil::makeDir(localTmpPath.c_str()) == false) {
-                Debug(Debug::ERROR) << "Can not create local tmp dir " << localTmpPath << "\n";
+                Debug(Debug::ERROR) << "Cannot create local tmp dir " << localTmpPath << "\n";
                 EXIT(EXIT_FAILURE);
             } else {
                 Debug(Debug::INFO) << "Created local tmp dir " << localTmpPath << "\n";
@@ -588,19 +603,14 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
     std::pair<std::string, std::string> result = Util::createTmpFileNames(procTmpResultDB, procTmpResultDBIndex, MMseqsMPI::rank);
     bool merge = (splitMode == Parameters::QUERY_DB_SPLIT);
 
-    // target split do not need to be merged
-    int hasTmpResult = runSplits(queryDB, queryDBIndex, result.first, result.second, fromSplit, splitCount, merge) == true ? 1 : 0;
+    int hasResult = runSplits(result.first, result.second, fromSplit, splitCount, merge) == true ? 1 : 0;
 
-    // if result is on a local drive - copy it to shared drive and delete from local
-    if ((localTmpPath != "") && (FileUtil::fileExists(result.first.c_str())) && (FileUtil::fileExists(result.second.c_str()))) {
+    if (localTmpPath != "") {
         std::pair<std::string, std::string> resultShared = Util::createTmpFileNames(resultDB, resultDBIndex, MMseqsMPI::rank);
-        FileUtil::copyFile(result.first.c_str(), resultShared.first.c_str());
-        FileUtil::copyFile(result.second.c_str(), resultShared.second.c_str());
-        // copy exits on failure so if here - copy succeeded, local can be deleted
-        FileUtil::remove(result.first.c_str());
-        FileUtil::remove(result.second.c_str());
+        // moveDb takes care if file doesn't exist
+        DBReader<unsigned int>::moveDb(result.first, resultShared.first);
     }
-    int hasResult = hasTmpResult;
+    
 
     int *results = NULL;
     if (MMseqsMPI::isMaster()) {
@@ -615,12 +625,13 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
         std::vector<std::pair<std::string, std::string>> splitFiles;
         for (int i = 0; i < MMseqsMPI::numProc; ++i) {
             if (results[i] == 1) {
-                splitFiles.push_back(Util::createTmpFileNames(resultDB, resultDBIndex, i));
+                std::pair<std::string, std::string> resultOfRanki = Util::createTmpFileNames(resultDB, resultDBIndex, i);
+                splitFiles.push_back(std::make_pair(resultOfRanki.first, resultOfRanki.second));
             }
         }
 
         if (splitFiles.size() > 0) {
-            // merge output ffindex databases
+            // merge output databases
             mergeFiles(resultDB, resultDBIndex, splitFiles);
         } else {
             Debug(Debug::ERROR) << "Aborting. No results were computed!\n";
@@ -633,47 +644,33 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
 }
 #endif
 
-bool Prefiltering::runSplits(const std::string &queryDB, const std::string &queryDBIndex,
-                             const std::string &resultDB, const std::string &resultDBIndex,
-                             size_t fromSplit, size_t splitProcessCount, bool merge) {
-    bool sameQTDB = isSameQTDB(queryDB);
-    DBReader<unsigned int> *qdbr;
-    if (templateDBIsIndex == false && sameQTDB == true) {
-        qdbr = tdbr;
-    } else {
-        qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        qdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+int Prefiltering::runSplits(const std::string &resultDB, const std::string &resultDBIndex,
+                            size_t fromSplit, size_t splitProcessCount, bool merge) {
+    if (fromSplit + splitProcessCount > static_cast<size_t>(splits)) {
+        Debug(Debug::ERROR) << "Start split " << fromSplit << " plus split count " << splitProcessCount << " cannot be larger than splits " << splits << "\n";
+        EXIT(EXIT_FAILURE);
     }
-    Debug(Debug::INFO) << "Query database size: " << qdbr->getSize() << " type: "<< DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
 
-    size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(resultDB).c_str());
+    size_t freeSpace = FileUtil::getFreeSpace(FileUtil::dirName(resultDB).c_str());
     size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qdbr->getSize(), maxResListLen);
-    if (freeSpace < estimatedHDDMemory){
-        Debug(Debug::WARNING) << "Hard disk might not have enough free space (" << freeSpace << " bytes left)."
-                            << "The prefilter result might need maximal " << estimatedHDDMemory << " bytes.\n";
-//        EXIT(EXIT_FAILURE);
-    }
-
-    size_t dbSize = 0;
-    if (splitMode == Parameters::TARGET_DB_SPLIT) {
-        dbSize = tdbr->getSize();
-    } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
-        dbSize = qdbr->getSize();
+    if (freeSpace < estimatedHDDMemory) {
+        std::string freeSpaceToPrint = ByteParser::format(freeSpace);
+        std::string estimatedHDDMemoryToPrint = ByteParser::format(estimatedHDDMemory);
+        Debug(Debug::WARNING) << "Hard disk might not have enough free space (" << freeSpaceToPrint << " left)."
+                              << "The prefilter result might need up to " << estimatedHDDMemoryToPrint << ".\n";
     }
 
     bool hasResult = false;
-    size_t totalSplits = std::min(dbSize, (size_t) splits);
     if (splitProcessCount > 1) {
         if(compressed == true && splitMode == Parameters::TARGET_DB_SPLIT){
             Debug(Debug::ERROR) << "The output of the prefilter cannot be compressed during target split mode. Please remove --compress.\n";
             EXIT(EXIT_FAILURE);
-//
         }
         // splits template database into x sequence steps
         std::vector<std::pair<std::string, std::string> > splitFiles;
-        for (size_t i = fromSplit; i < (fromSplit + splitProcessCount) && i < totalSplits; i++) {
+        for (size_t i = fromSplit; i < (fromSplit + splitProcessCount); i++) {
             std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(resultDB, resultDBIndex, i);
-            if (runSplit(qdbr, filenamePair.first.c_str(), filenamePair.second.c_str(), i, totalSplits, sameQTDB, merge)) {
+            if (runSplit(filenamePair.first.c_str(), filenamePair.second.c_str(), i, merge)) {
                 splitFiles.push_back(filenamePair);
 
             }
@@ -683,50 +680,38 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
             hasResult = true;
         }
     } else if (splitProcessCount == 1) {
-        if (runSplit(qdbr, resultDB.c_str(), resultDBIndex.c_str(), fromSplit, totalSplits, sameQTDB, merge)) {
+        if (runSplit(resultDB.c_str(), resultDBIndex.c_str(), fromSplit, merge)) {
             hasResult = true;
         }
-    }
-
-    if (sameQTDB == false) {
-        qdbr->close();
-        delete qdbr;
     }
 
     return hasResult;
 }
 
-bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &resultDB, const std::string &resultDBIndex,
-                            size_t split, size_t splitCount, bool sameQTDB, bool merge) {
-
-    Debug(Debug::INFO) << "Process prefiltering step " << (split + 1) << " of " << splitCount << "\n\n";
+bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resultDBIndex, size_t split, bool merge) {
+    Debug(Debug::INFO) << "Process prefiltering step " << (split + 1) << " of " << splits << "\n\n";
 
     size_t dbFrom = 0;
     size_t dbSize = tdbr->getSize();
     size_t queryFrom = 0;
     size_t querySize = qdbr->getSize();
-
-    size_t maxResults = maxResListLen;
-    size_t targetSplitCount = splitCount;
-    if (splitMode == Parameters::TARGET_DB_SPLIT && splitCount > 1) {
-        size_t fourTimesStdDeviation = 4 * sqrt(static_cast<double>(maxResListLen) / static_cast<double>(splitCount));
-        maxResults = (maxResListLen / splitCount) + std::max(static_cast<size_t >(1), fourTimesStdDeviation);
-    } else {
-        targetSplitCount = 1;
-    }
-
+    
     size_t resListOffset = 0;
     std::vector<std::string> prevMaxVals = Util::split(prevMaxResListLengths, ",");
     for (size_t i = 0; i < prevMaxVals.size(); ++i) {
         size_t value = strtoull(prevMaxVals[i].c_str(), NULL, 10);
-        size_t offset = targetSplitCount > 1 ? std::max(static_cast<size_t>(1), static_cast<size_t>(4 * sqrt(static_cast<double>(value) / static_cast<double>(targetSplitCount)))) : 0;
-        resListOffset += (value / targetSplitCount) + offset;
+        if (splitMode == Parameters::TARGET_DB_SPLIT) {
+            size_t fourTimesStdDeviation = splits > 1 ? static_cast<size_t>(4 * sqrt(static_cast<double>(value) / static_cast<double>(splits))) : 0;
+            resListOffset += std::max(static_cast<size_t>(1), (value / splits) + fourTimesStdDeviation);
+        } else {
+            resListOffset += value;
+        }
     }
 
     // create index table based on split parameter
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
         Util::decomposeDomainByAminoAcid(tdbr->getDataSize(), tdbr->getSeqLens(), tdbr->getSize(),
-                                         split, splitCount, &dbFrom, &dbSize);
+                                         split, splits, &dbFrom, &dbSize);
         if (dbSize == 0) {
             return false;
         }
@@ -741,16 +726,9 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             sequenceLookup = NULL;
         }
 
-        if(splitCount != (size_t) splits) {
-            reopenTargetDb();
-            if (sameQTDB == true) {
-                qdbr = tdbr;
-            }
-        }
-
         getIndexTable(split, dbFrom, dbSize);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
-        Util::decomposeDomainByAminoAcid(qdbr->getDataSize(), qdbr->getSeqLens(), qdbr->getSize(), split, splitCount, &queryFrom, &querySize);
+        Util::decomposeDomainByAminoAcid(qdbr->getDataSize(), qdbr->getSeqLens(), qdbr->getSize(), split, splits, &queryFrom, &querySize);
         if (querySize == 0) {
             return false;
         }
@@ -784,9 +762,9 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         reslens[i] = new std::list<int>();
     }
 
-    Debug(Debug::INFO) << "Starting prefiltering scores calculation (step " << (split + 1) << " of " << splitCount << ")\n";
-    Debug(Debug::INFO) << "Query db start  " << (queryFrom + 1) << " to " << queryFrom + querySize << "\n";
-    Debug(Debug::INFO) << "Target db start  " << (dbFrom + 1) << " to " << dbFrom + dbSize << "\n";
+    Debug(Debug::INFO) << "Starting prefiltering scores calculation (step " << (split + 1) << " of " << splits << ")\n";
+    Debug(Debug::INFO) << "Query db start " << (queryFrom + 1) << " to " << queryFrom + querySize << "\n";
+    Debug(Debug::INFO) << "Target db start " << (dbFrom + 1) << " to " << dbFrom + dbSize << "\n";
     Debug::Progress progress(querySize);
 
 #pragma omp parallel num_threads(localThreads)
@@ -798,7 +776,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         Sequence seq(maxSeqLen, querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
 
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
-                            kmerThr, kmerSize, dbSize, maxSeqLen, maxResults, aaBiasCorrection,
+                            kmerThr, kmerSize, dbSize, maxSeqLen, maxResListLen, aaBiasCorrection,
                             diagonalScoring, minDiagScoreThr, takeOnlyBestKmer, resListOffset);
 
         if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
@@ -832,7 +810,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId);
             size_t resultSize = prefResults.second;
             // write
-            writePrefilterOutput(qdbr, &tmpDbw, thread_idx, id, prefResults, dbFrom);
+            writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults, dbFrom);
 
             // update statistics counters
             if (resultSize != 0) {
@@ -845,7 +823,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             querySeqLenSum += seq.L;
             diagonalOverflow += matcher.getStatistics()->diagonalOverflow;
             resSize += resultSize;
-            realResSize += std::min(resultSize, maxResults);
+            realResSize += std::min(resultSize, maxResListLen);
             reslens[thread_idx]->emplace_back(resultSize);
         } // step end
     }
@@ -864,14 +842,24 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             }
         }
 
-        printStatistics(stats, reslens, localThreads, empty, maxResults);
+        printStatistics(stats, reslens, localThreads, empty, maxResListLen);
     }
-    tmpDbw.close(merge); // sorts the index
+
+    if (splitMode == Parameters::TARGET_DB_SPLIT && splits == 1) {
+#ifdef HAVE_MPI
+        // if a mpi rank processed a single split, it must have it merged before all ranks can be united
+        tmpDbw.close(true);
+#else
+        tmpDbw.close(merge);
+#endif
+    } else {
+        tmpDbw.close(merge);
+    }
 
     // sort by ids
-    // needed to speed up merge later one
+    // needed to speed up merge later on
     // sorts this datafile according to the index file
-    if (splitCount > 1 && splitMode == Parameters::TARGET_DB_SPLIT) {
+    if (splitMode == Parameters::TARGET_DB_SPLIT && splits > 1) {
         // delete indexTable to free memory:
         if (indexTable != NULL) {
             delete indexTable;
@@ -880,15 +868,15 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         DBReader<unsigned int> resultReader(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         resultReader.open(DBReader<unsigned int>::NOSORT);
         resultReader.readMmapedDataInMemory();
-        DBWriter resultWriter((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), localThreads, compressed, Parameters::DBTYPE_PREFILTER_RES);
+        
+        const std::pair<std::string, std::string> tempDb = Util::databaseNames((resultDB + "_tmp"));
+        DBWriter resultWriter(tempDb.first.c_str(), tempDb.second.c_str(), localThreads, compressed, Parameters::DBTYPE_PREFILTER_RES);
         resultWriter.open();
         resultWriter.sortDatafileByIdOrder(resultReader);
         resultWriter.close(true);
         resultReader.close();
-        remove(resultDB.c_str());
-        remove(resultDBIndex.c_str());
-        std::rename((resultDB + "_tmp").c_str(), resultDB.c_str());
-        std::rename((resultDBIndex + "_tmp").c_str(), resultDBIndex.c_str());
+        DBReader<unsigned int>::removeDb(resultDB);
+        DBReader<unsigned int>::moveDb(tempDb.first, resultDB);
     }
 
     for (unsigned int i = 0; i < localThreads; i++) {
@@ -901,7 +889,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     return true;
 }
 
-void Prefiltering::writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *dbWriter, unsigned int thread_idx, size_t id,
+void Prefiltering::writePrefilterOutput(DBWriter *dbWriter, unsigned int thread_idx, size_t id,
                                         const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset) {
     hit_t *resultVector = prefResults.first;
     std::string prefResultsOutString;
@@ -918,7 +906,7 @@ void Prefiltering::writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *
                                   << "\t" << res->prefScore << "\n";
         }
 
-        // TODO: check if this should happen when diagonalScoring == false
+        // TODO: check if this should happen when diagonalScoring == Parameters::DIAG_SCORE_OFF
         if (covThr > 0.0 && (covMode == Parameters::COV_MODE_BIDIRECTIONAL || covMode == Parameters::COV_MODE_QUERY)) {
             float queryLength = static_cast<float>(qdbr->getSeqLens(id));
             float targetLength = static_cast<float>(tdbr->getSeqLens(targetSeqId));
@@ -960,20 +948,20 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
 }
 
 
-BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState, bool isNucl) {
+BaseMatrix *Prefiltering::getSubstitutionMatrix(const ScoreMatrixFile &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState, bool isNucl) {
     BaseMatrix *subMat;
 
     if (isNucl){
-        subMat = new NucleotideMatrix(scoringMatrixFile.c_str(), bitFactor, 0.0);
+        subMat = new NucleotideMatrix(scoringMatrixFile.nucleotides, bitFactor, 0.0);
     } else if (alphabetSize < 21) {
-        SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2f);
+        SubstitutionMatrix sMat(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
         subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, alphabetSize, bitFactor);
     }else if(profileState == true){
-        SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2f);
+        SubstitutionMatrix sMat(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
         subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,
                                                      sMat.subMatrixPseudoCounts, bitFactor, 0.0, 8);
     } else {
-        subMat = new SubstitutionMatrix(scoringMatrixFile.c_str(), bitFactor, -0.2f);
+        subMat = new SubstitutionMatrix(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
     }
     return subMat;
 }
@@ -1024,7 +1012,7 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile
 }
 
 size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t resSize,
-                                               size_t maxHitsPerQuery,
+                                               size_t maxResListLen,
                                                int alphabetSize, int kmerSize, unsigned int querySeqType,
                                                int threads) {
     // for each residue in the database we need 7 byte
@@ -1037,7 +1025,7 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
     size_t threadSize = threads * (
             (dbSizeSplit * 2 * sizeof(IndexEntryLocal)) // databaseHits in QueryMatcher
             + (dbSizeSplit * sizeof(CounterResult)) // databaseHits in QueryMatcher
-            + (maxHitsPerQuery * sizeof(hit_t))
+            + (maxResListLen * sizeof(hit_t))
             + (dbSizeSplit * 2 * sizeof(CounterResult) * 2) // BINS * binSize, (binSize = dbSize * 2 / BINS)
             // 2 is a security factor the size can increase during run
     );
@@ -1050,6 +1038,7 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
     }
     // some memory needed to keep the index, ....
     size_t background = dbSize * 22;
+    // return result in bytes
     return residueSize + indexTableSize + threadSize + background + extendedMatrix;
 }
 

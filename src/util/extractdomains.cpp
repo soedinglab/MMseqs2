@@ -208,7 +208,7 @@ std::vector<Domain> mapMsa(const std::string &msa, const std::vector<Domain> &do
 int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
               const std::pair<std::string, std::string>& resultdb,
               const size_t dbFrom, const size_t dbSize) {
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0);
 
     std::string msaDataName = par.db2;
     std::string msaIndexName = par.db2Index;
@@ -364,7 +364,7 @@ int extractdomains(int argc, const char **argv, const Command& command) {
     MMseqsMPI::init(argc, argv);
 
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
 #ifdef HAVE_MPI
     int status = doExtract(par, MMseqsMPI::rank, MMseqsMPI::numProc);

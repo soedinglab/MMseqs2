@@ -148,9 +148,14 @@ public:
                     appending = 'B';
             }
             char fmtbuffer[32];
-            int fmtElm = sprintf(fmtbuffer, "%.2f", static_cast<float>(id+1)/ static_cast<float>(base));
-            line.append(fmtbuffer, fmtElm);
-            line.push_back(appending);
+            if(exp < 3){
+                int fmtElm = sprintf(fmtbuffer, "%d",  static_cast<int>(id+1));
+                line.append(fmtbuffer, fmtElm);
+            }else{
+                int fmtElm = sprintf(fmtbuffer, "%.2f", static_cast<float>(id+1)/ static_cast<float>(base));
+                line.append(fmtbuffer, fmtElm);
+                line.push_back(appending);
+            }
             return line;
         }
 

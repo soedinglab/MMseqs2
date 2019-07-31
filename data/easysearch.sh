@@ -8,22 +8,13 @@ notExists() {
 	[ ! -f "$1" ]
 }
 
-# check number of input variables
-[ "$#" -ne 4 ] && echo "Please provide <queryFASTA> <targetFASTA>|<targetDB> <outFile> <tmp>" && exit 1;
-# check paths
-[ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
-[ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
-[   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
-[ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
-INPUT="$1"
-TARGET="$2"
-RESULTS="$3"
-TMP_PATH="$4"
+INPUT="$INPUT"
+
 
 if notExists "${TMP_PATH}/query.dbtype"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" createdb "${INPUT}" "${TMP_PATH}/query" ${CREATEDB_PAR} \
+    "$MMSEQS" createdb "$@" "${TMP_PATH}/query" ${CREATEDB_PAR} \
         || fail "query createdb died"
 fi
 
@@ -52,7 +43,7 @@ fi
 if [ -n "${GREEDY_BEST_HITS}" ]; then
     if notExists "${TMP_PATH}/result_best.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" summarizeresult "${TMP_PATH}/result" "${TMP_PATH}/result_best" ${SUMMARIZE_PAR} \
+        $RUNNER "$MMSEQS" summarizeresult "${TMP_PATH}/result" "${TMP_PATH}/result_best" ${SUMMARIZE_PAR} \
             || fail "Search died"
     fi
     INTERMEDIATE="${TMP_PATH}/result_best"

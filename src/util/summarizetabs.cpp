@@ -218,7 +218,7 @@ int doAnnotate(Parameters &par) {
 
 int summarizetabs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     MMseqsMPI::init(argc, argv);
 

@@ -14,7 +14,7 @@ int sortresult(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.overrideParameterDescription((Command &) command, par.PARAM_MAX_SEQS.uniqid, "maximum result sequences per query", NULL,
                                      par.PARAM_MAX_SEQS.category & ~MMseqsParameter::COMMAND_EXPERT);
-    par.parseParameters(argc, argv, command, 2);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);

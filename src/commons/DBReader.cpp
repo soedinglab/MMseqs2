@@ -18,10 +18,6 @@
 #include "Util.h"
 #include "FileUtil.h"
 
-#ifdef OPENMP
-#include <omp.h>
-#endif
-
 template <typename T>
 DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int threads, int dataMode) :
 threads(threads), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
@@ -105,7 +101,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
     // count the number of entries
     this->accessType = accessType;
     if (dataFileName != NULL) {
-        dbtype = parseDbType(dataFileName);
+        dbtype = FileUtil::parseDbType(dataFileName);
     }
 
     if (dataMode & USE_DATA) {
@@ -132,7 +128,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
         dataSizeOffset[dataFileNames.size()]=totalDataSize;
         dataMapped = true;
-        if(accessType==LINEAR_ACCCESS){
+        if (accessType == LINEAR_ACCCESS || accessType == SORT_BY_OFFSET) {
             setSequentialAdvice();
         }
     }
@@ -145,7 +141,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         MemoryMapped indexData(lookupFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
         char* lookupDataChar = (char *) indexData.getData();
         size_t lookupDataSize = indexData.size();
-        lookupSize = Util::ompCountLines(lookupDataChar, lookupDataSize);
+        lookupSize = Util::ompCountLines(lookupDataChar, lookupDataSize, threads);
         lookup = new(std::nothrow) LookupEntry[this->lookupSize];
         readLookup(lookupDataChar, lookupDataSize, lookup);
         indexData.close();
@@ -163,30 +159,30 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
         char* indexDataChar = (char *) indexData.getData();
         size_t indexDataSize = indexData.size();
-        size = Util::ompCountLines(indexDataChar,indexDataSize);
+        size = Util::ompCountLines(indexDataChar, indexDataSize, threads);
 
         index = new(std::nothrow) Index[this->size];
         Util::checkAllocation(index, "Can not allocate index memory in DBReader");
-        seqLens = new(std::nothrow) unsigned int[this->size];
-        Util::checkAllocation(seqLens, "Can not allocate seqLens memory in DBReader");
-        bool isSortedById = readIndex(indexDataChar, indexDataSize, index, seqLens);
+
+        seqLens = NULL;
+        // SORT_BY_OFFSET keeps only the index and if a sequence length is required, it is computed from consecutive offests
+        // TODO probably makes sense to avoid allocation also if HARDNOSORT
+        if (accessType != SORT_BY_OFFSET) {
+            seqLens = new(std::nothrow) unsigned int[this->size];
+            Util::checkAllocation(seqLens, "Can not allocate seqLens memory in DBReader");
+        }
+
+        bool isSortedById = readIndex(indexDataChar, indexDataSize, index, seqLens, dataSize);
         indexData.close();
 
-        if (accessType != HARDNOSORT) {
-            sortIndex(isSortedById);
-        }
+        // sortIndex also handles access modes that don't require sorting
+        sortIndex(isSortedById);
+
         size_t prevOffset = 0; // makes 0 or empty string
         sortedByOffset = true;
         for (size_t i = 0; i < size; i++) {
             sortedByOffset = sortedByOffset && index[i].offset >= prevOffset;
             prevOffset = index[i].offset;
-        }
-
-        // init seq lens array and dbKey mapping
-        dataSize = 0;
-        for (size_t i = 0; i < size; i++){
-            unsigned int size = seqLens[i];
-            dataSize += size;
         }
     }
 
@@ -258,7 +254,7 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
         mappingToOriginalIndex = new size_t[size];
     }
     
-    if (isSortedById == false) {
+    if ((isSortedById == false) && (accessType != HARDNOSORT) && (accessType != SORT_BY_OFFSET)) {
         // create an array of the joint original indeces --> this will be sorted:
         unsigned int *sortedIndices = new unsigned int[size];
         for (unsigned int i = 0; i < size; ++i) {
@@ -410,8 +406,11 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             seqLens[i] = tmpSizeArray[local2id[i]];
         }
         delete[] tmpSizeArray;
+    } else if (accessType == SORT_BY_OFFSET) {
+        // sort index based on index.offset (no id sorting):
+        omptl::sort(index, index + size, Index::compareByOffset);
     }
-    if(mappingToOriginalIndex){
+    if (mappingToOriginalIndex) {
         delete [] mappingToOriginalIndex;
     }
 }
@@ -741,7 +740,7 @@ template <typename T> void DBReader<T>::checkClosed(){
 }
 
 template<typename T>
-bool DBReader<T>::readIndex(char *data, size_t dataSize, Index *index, unsigned int *entryLength) {
+bool DBReader<T>::readIndex(char *data, size_t indexDataSize, Index *index, unsigned int *entryLength, size_t & dataSize) {
     size_t i = 0;
     size_t currPos = 0;
     char* indexDataChar = (char *) data;
@@ -749,7 +748,7 @@ bool DBReader<T>::readIndex(char *data, size_t dataSize, Index *index, unsigned 
     T prevId=T(); // makes 0 or empty string
     size_t isSortedById = true;
     maxSeqLen=0;
-    while (currPos < dataSize){
+    while (currPos < indexDataSize){
         if (i >= this->size) {
             Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
             EXIT(EXIT_FAILURE);
@@ -759,8 +758,11 @@ bool DBReader<T>::readIndex(char *data, size_t dataSize, Index *index, unsigned 
         isSortedById *= (index[i].id >= prevId);
         size_t offset = Util::fast_atoi<size_t>(cols[1]);
         size_t length = Util::fast_atoi<size_t>(cols[2]);
+        dataSize += length;
         index[i].offset = offset;
-        entryLength[i] = length;
+        if (entryLength != NULL) {
+            entryLength[i] = length;
+        }
         maxSeqLen = std::max(static_cast<unsigned int>(length), maxSeqLen);
         indexDataChar = Util::skipLine(indexDataChar);
         currPos = indexDataChar - (char *) data;
@@ -870,34 +872,6 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data, in
     return new DBReader<unsigned int>(idx, seqLens, size, dataSize, lastKey, dbType, maxSeqLen, threads);
 }
 
-template <typename T>
-int DBReader<T>::parseDbType(const char *name) {
-    std::string dbTypeFile = std::string(name) + ".dbtype";
-    if (FileUtil::fileExists(dbTypeFile.c_str()) == false) {
-        return Parameters::DBTYPE_GENERIC_DB;
-    }
-
-    size_t fileSize = FileUtil::getFileSize(dbTypeFile);
-    if (fileSize != sizeof(int)) {
-        Debug(Debug::ERROR) << "File size of " << dbTypeFile << " seems to be wrong!\n";
-        Debug(Debug::ERROR) << "It should have 4 bytes but it has " <<  fileSize << " bytes.";
-        EXIT(EXIT_FAILURE);
-    }
-    FILE *file = fopen(dbTypeFile.c_str(), "r");
-    if (file == NULL) {
-        Debug(Debug::ERROR) << "Could not open data file " << dbTypeFile << "!\n";
-        EXIT(EXIT_FAILURE);
-    }
-    int dbtype;
-    size_t result = fread(&dbtype, 1, fileSize, file);
-    if (result != fileSize) {
-        Debug(Debug::ERROR) << "Could not read " << dbTypeFile << "!\n";
-        EXIT(EXIT_FAILURE);
-    }
-    fclose(file);
-    return dbtype;
-}
-
 template<typename T>
 void DBReader<T>::setData(char *data, size_t dataSize) {
     if(dataFiles == NULL){
@@ -951,7 +925,7 @@ int DBReader<T>::isCompressed(int dbtype) {
 
 template<typename T>
 void DBReader<T>::setSequentialAdvice() {
-#if HAVE_POSIX_MADVISE
+#ifdef HAVE_POSIX_MADVISE
     for(size_t i = 0; i < dataFileCnt; i++){
         size_t dataSize = dataSizeOffset[i+1] - dataSizeOffset[i];
         if (posix_madvise (dataFiles[i], dataSize, POSIX_MADV_SEQUENTIAL) != 0){
@@ -981,6 +955,62 @@ void DBReader<T>::readLookup(char *data, size_t dataSize, DBReader::LookupEntry 
         currPos = lookupData - (char *) data;
 
         i++;
+    }
+}
+
+// TODO: Move to DbUtils?
+
+template<typename T>
+void DBReader<T>::moveDatafiles(const std::vector<std::string>& files, const std::string& destination) {
+    for (size_t i = 0; i < files.size(); i++) {
+        std::string extention = files[i].substr(files[i].find_last_of(".") + 1);
+        if (Util::isNumber(extention)) {
+            std::string dst = (destination + "." + extention);
+            FileUtil::move(files[i].c_str(), dst.c_str());
+        } else {
+            if (files.size() > 1) {
+                Debug(Debug::ERROR) << "Both merged and unmerged database exist at the same path\n";
+                EXIT(EXIT_FAILURE);
+            }
+            
+            FileUtil::move(files[i].c_str(), destination.c_str());
+        }
+    }
+}
+
+template<typename T>
+void DBReader<T>::moveDb(const std::string &srcDbName, const std::string &dstDbName) {
+    std::vector<std::string> files = FileUtil::findDatafiles(srcDbName.c_str());
+    moveDatafiles(files, dstDbName);
+
+    if (FileUtil::fileExists((srcDbName + ".index").c_str())) {
+        FileUtil::move((srcDbName + ".index").c_str(), (dstDbName + ".index").c_str());
+    }
+    if (FileUtil::fileExists((srcDbName + ".dbtype").c_str())) {
+        FileUtil::move((srcDbName + ".dbtype").c_str(), (dstDbName + ".dbtype").c_str());
+    }
+    if (FileUtil::fileExists((srcDbName + ".lookup").c_str())) {
+        FileUtil::move((srcDbName + ".lookup").c_str(), (dstDbName + ".lookup").c_str());
+    }
+}
+
+template<typename T>
+void DBReader<T>::removeDb(const std::string &databaseName){
+    std::vector<std::string> files = FileUtil::findDatafiles(databaseName.c_str());
+    for (size_t i = 0; i < files.size(); ++i) {
+        FileUtil::remove(files[i].c_str());
+    }
+    std::string index = databaseName + ".index";
+    if (FileUtil::fileExists(index.c_str())) {
+        FileUtil::remove(index.c_str());
+    }
+    std::string dbTypeFile = databaseName + ".dbtype";
+    if (FileUtil::fileExists(dbTypeFile.c_str())) {
+        FileUtil::remove(dbTypeFile.c_str());
+    }
+    std::string lookupFile = databaseName + ".lookup";
+    if (FileUtil::fileExists(lookupFile.c_str())) {
+        FileUtil::remove(lookupFile.c_str());
     }
 }
 

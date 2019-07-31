@@ -9,7 +9,7 @@
 
 int createtaxdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 1, true, Parameters::PARSE_VARIADIC);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     std::string tmp = par.filenames.back();
     if (FileUtil::directoryExists(tmp.c_str())==false){
@@ -21,16 +21,22 @@ int createtaxdb(int argc, const char **argv, const Command& command) {
             Debug(Debug::INFO) << "Created dir " << tmp << "\n";
         }
     }
-
+    //[<i:taxMappingFile> <i:ncbi-taxdump-folder>]
     CommandCaller cmd;
 
     cmd.addVariable("TMP_PATH", tmp.c_str());
+    if(par.taxMappingFile.size() == 0){
+        cmd.addVariable("DOWNLOAD_MAPPING", "1");
+    }else{
+        cmd.addVariable("DOWNLOAD_MAPPING", "0");
+        cmd.addVariable("MAPPINGFILE", par.taxMappingFile.c_str());
 
-    if(par.filenames.size() == 4) {
-        cmd.addVariable("DOWNLOAD_DATA", "0");
-
-    }else if(par.filenames.size() == 2) {
-        cmd.addVariable("DOWNLOAD_DATA", "1");
+    }
+    if(par.ncbiTaxDump.size() == 0){
+        cmd.addVariable("DOWNLOAD_NCBITAXDUMP", "1");
+    }else{
+        cmd.addVariable("DOWNLOAD_NCBITAXDUMP", "0");
+        cmd.addVariable("NCBITAXINFO", par.ncbiTaxDump.c_str());
     }
 
     FileUtil::writeFile(tmp + "/createindex.sh", createtaxdb_sh, createtaxdb_sh_len);

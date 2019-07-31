@@ -109,7 +109,7 @@ public:
     }
 
 
-    static void concatFiles(FILE * files[], size_t n, FILE *outFile) {
+    static void concatFiles(const std::vector<FILE*> &files, FILE *outFile) {
         int output_desc = fileno(outFile);
         struct stat stat_buf;
         if (fstat(output_desc, &stat_buf) < 0) {
@@ -118,7 +118,7 @@ public:
         }
         size_t outsize = io_blksize(stat_buf);
         /* Actual number of characters read, and therefore written.  */
-        for(size_t fileIdx = 0; fileIdx < n; fileIdx++) {
+        for(size_t fileIdx = 0; fileIdx < files.size(); fileIdx++) {
             int input_desc = fileno(files[fileIdx]);
             if (fstat(input_desc, &stat_buf) < 0) {
                 Debug(Debug::ERROR) << "Error with input descriptor\n";

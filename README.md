@@ -11,7 +11,6 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 [![Github All Releases](https://img.shields.io/github/downloads/soedinglab/mmseqs2/total.svg)](https://github.com/soedinglab/mmseqs2/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/soedinglab/mmseqs2.svg)](https://hub.docker.com/r/soedinglab/mmseqs2)
 [![Build Status](https://dev.azure.com/themartinsteinegger/mmseqs2/_apis/build/status/soedinglab.MMseqs2?branchName=master)](https://dev.azure.com/themartinsteinegger/mmseqs2/_build/latest?definitionId=2&branchName=master)
-![AppVeyor CI](https://ci.appveyor.com/api/projects/status/lq8nxeb0j8v38d1a?svg=true)
 [![Travis CI](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)](https://travis-ci.org/soedinglab/MMseqs2)
 [![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.840208.svg)](https://zenodo.org/record/1718312)
 
@@ -106,7 +105,7 @@ To run the search execute:
 
         mmseqs search queryDB targetDB resultDB tmp
 
-The sensitivity of the `search` can be adjusted with `-s` parameter and should be adapted based on your use case (see [setting sensitivity -s parameter](https://github.com/soedinglab/mmseqs2/wiki#set-sensitivity--s-parameter)). 
+The speed and sensitivity of the `search` can be adjusted with `-s` parameter and should be adapted based on your use case (see [setting sensitivity -s parameter](https://github.com/soedinglab/mmseqs2/wiki#set-sensitivity--s-parameter)). Very fast search -s 1.0, very sensitve -s 7.0.
 
 If you require the exact alignment information (Sequence identity, alignment string, ...) in later steps add the option `-a`, without this parameter MMseqs2 will automatically decide if the exact alignment criteria to optimize computational time.
 
@@ -184,4 +183,4 @@ Make sure that MMseqs2 was compiled with MPI by using the `-DHAVE_MPI=1` flag (`
 
 To search with multiple servers call the `search` or `cluster` workflow with the MPI command exported in the RUNNER environment variable. The databases and temporary folder have to be shared between all nodes (e.g. through NFS):
 
-        RUNNER="mpirun -np 42" mmseqs search queryDB targetDB resultDB tmp
+        RUNNER="mpirun -pernode -np 42" mmseqs search queryDB targetDB resultDB tmp

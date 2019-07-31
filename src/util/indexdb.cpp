@@ -13,37 +13,35 @@ void setIndexDbDefaults(Parameters *p) {
     p->sensitivity = 5.7;
 }
 
-bool isIndexCompatible(DBReader<unsigned int>& index, const Parameters& par, const int dbtype) {
+std::string findIncompatibleParameter(DBReader<unsigned int>& index, const Parameters& par, const int dbtype) {
     PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
     if (meta.compBiasCorr != par.compBiasCorrection)
-        return false;
+        return "compBiasCorrection";
     if (meta.maxSeqLength != static_cast<int>(par.maxSeqLen))
-        return false;
+        return "maxSeqLen";
     if (meta.seqType != dbtype)
-        return false;
-    if (meta.alphabetSize != par.alphabetSize)
-        return false;
+        return "seqType";
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES) == false && par.searchType != Parameters::SEARCH_TYPE_NUCLEOTIDES && meta.alphabetSize != par.alphabetSize)
+        return "alphabetSize";
     if (meta.kmerSize != par.kmerSize)
-        return false;
+        return "kmerSize";
     if (meta.mask != par.maskMode)
-        return false;
+        return "maskMode";
     if (meta.kmerThr != par.kmerScore)
-        return false;
+        return "kmerScore";
     if (meta.spacedKmer != par.spacedKmer)
-        return false;
+        return "spacedKmer";
     if (par.seedScoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
-        return false;
+        return "seedScoringMatrixFile";
     if (par.spacedKmerPattern != PrefilteringIndexReader::getSpacedPattern(&index))
-        return false;
-    if (meta.headers2 == 1 && (par.db1 != par.db2))
-        return true;
-    return true;
+        return "spacedKmerPattern";
+    return "";
 }
 
 int indexdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setIndexDbDefaults(&par);
-    par.parseParameters(argc, argv, command, 2);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     if (par.split > 1) {
         Debug(Debug::ERROR) << "Creating a split index is not supported currently.\n";
@@ -70,13 +68,14 @@ int indexdb(int argc, const char **argv, const Command &command) {
     int split = 1;
     int splitMode = Parameters::TARGET_DB_SPLIT;
 
+    // memoryLimit in bytes
     size_t memoryLimit;
     if (par.splitMemoryLimit > 0) {
-        memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+        memoryLimit = par.splitMemoryLimit;
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
-    Prefiltering::setupSplit(dbr, seedSubMat->alphabetSize - 1, dbr.getDbtype(), par.threads, false, par.maxResListLen, memoryLimit, &par.kmerSize, &split, &splitMode);
+    Prefiltering::setupSplit(dbr, seedSubMat->alphabetSize - 1, dbr.getDbtype(), par.threads, false, memoryLimit, 1, par.maxResListLen, par.kmerSize, split, splitMode);
 
     bool kScoreSet = false;
     for (size_t i = 0; i < par.indexdb.size(); i++) {
@@ -99,15 +98,26 @@ int indexdb(int argc, const char **argv, const Command &command) {
     par.kmerScore = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, par.kmerScore, par.kmerSize);
 
     std::string indexDB = PrefilteringIndexReader::indexName(par.db2);
-    if (par.checkCompatible && FileUtil::fileExists(indexDB.c_str())) {
+    if (par.checkCompatible > 0 && FileUtil::fileExists(indexDB.c_str())) {
         Debug(Debug::INFO) << "Check index " << indexDB << "\n";
         DBReader<unsigned int> index(indexDB.c_str(), (indexDB + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         index.open(DBReader<unsigned int>::NOSORT);
-        if (PrefilteringIndexReader::checkIfIndexFile(&index) && isIndexCompatible(index, par, dbr.getDbtype())) {
+
+        if (Parameters::isEqualDbtype(dbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) && par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES && par.PARAM_ALPH_SIZE.wasSet) {
+            Debug(Debug::WARNING) << "Alphabet size is not taken into account for compatibility check in nucleotide search.\n";
+        }
+
+        std::string check;
+        if (PrefilteringIndexReader::checkIfIndexFile(&index) && (check = findIncompatibleParameter(index, par, dbr.getDbtype())) == "") {
             Debug(Debug::INFO) << "Index is already up to date and compatible. Force recreation with --check-compatibility 0 parameter.\n";
             return EXIT_SUCCESS;
         } else {
-            Debug(Debug::WARNING) << "Index is incompatible and will be recreated.\n";
+            if (par.checkCompatible == 2) {
+                Debug(Debug::ERROR) << "Index is incompatible. Incompatible parameter: " << check << "\n";
+                return EXIT_FAILURE;
+            } else {
+                Debug(Debug::WARNING) << "Index is incompatible and will be recreated. Incompatible parameter: " << check << "\n";
+            }
         }
     }
 

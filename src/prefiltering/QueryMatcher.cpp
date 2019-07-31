@@ -28,7 +28,7 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
                            BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
                            short kmerThr, int kmerSize, size_t dbSize,
                            unsigned int maxSeqLen, size_t maxHitsPerQuery, bool aaBiasCorrection,
-                           bool diagonalScoring, unsigned int minDiagScoreThr,
+                           unsigned int diagonalScoringMode, unsigned int minDiagScoreThr,
                            bool takeOnlyBestKmer, size_t resListOffset)
 {
     this->kmerSubMat = kmerSubMat;
@@ -54,7 +54,7 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
     this->lastSequenceHit = this->databaseHits + maxDbMatches;
     this->indexPointer = new(std::nothrow) IndexEntryLocal*[maxSeqLen + 1];
     Util::checkAllocation(indexPointer, "Can not allocate indexPointer memory in QueryMatcher");
-    this->diagonalScoring = diagonalScoring;
+    this->diagonalScoringMode = diagonalScoringMode;
     this->minDiagScoreThr = minDiagScoreThr;
     // data for histogram of score distribution
     this->scoreSizes = new unsigned int[SCORE_RANGE];
@@ -65,7 +65,7 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
 //    this->diagonalMatcher = new CacheFriendlyOperations(dbSize, maxDbMatches / 128 );
     // needed for p-value calc.
     ungappedAlignment = NULL;
-    if (diagonalScoring == true) {
+    if (diagonalScoringMode != Parameters::DIAG_SCORE_OFF) {
         ungappedAlignment = new UngappedAlignment(maxSeqLen, ungappedAlignmentSubMat, sequenceLookup);
     }
     compositionBias = new float[maxSeqLen];
@@ -119,7 +119,7 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
 
     size_t resultSize = match(querySeq, compositionBias);
     std::pair<hit_t *, size_t > queryResult;
-    if(diagonalScoring == true) {
+    if (diagonalScoringMode != Parameters::DIAG_SCORE_OFF) {
         // write diagonal scores in count value
         ungappedAlignment->processQuery(querySeq, compositionBias, foundDiagonals, resultSize);
         memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
@@ -137,7 +137,7 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
             unsigned int maxDiagonalScoreThr = (UCHAR_MAX - ungappedAlignment->getQueryBias());
             bool scoreIsTruncated = (diagonalThr >= maxDiagonalScoreThr) ? true : false;
             size_t elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
-            if(scoreIsTruncated == true){
+            if (scoreIsTruncated == true && diagonalScoringMode != Parameters::DIAG_SCORE_NO_RESCALE) {
                 memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
                 std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, scoreSizes, foundDiagonals + resultSize, elementsCntAboveDiagonalThr, ungappedAlignment, maxDiagonalScoreThr);
                 size_t newResultSize = rescoreResult.first;
@@ -256,10 +256,10 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
                 const size_t hitCount = evaluateBins(indexPointer,
                                                      foundDiagonals + overflowHitCount,
                                                      counterResultSize - overflowHitCount,
-                                                     indexStart, current_i, (diagonalScoring == false));
+                                                     indexStart, current_i, (diagonalScoringMode == Parameters::DIAG_SCORE_OFF));
                 if(overflowHitCount != 0){ //merge lists
                     // hitCount is max. dbSize so there can be no overflow in mergeElemens
-                    overflowHitCount = mergeElements(diagonalScoring, foundDiagonals, overflowHitCount +  hitCount);
+                    overflowHitCount = mergeElements(foundDiagonals, overflowHitCount +  hitCount);
                 } else {
                     overflowHitCount = hitCount;
                 }
@@ -282,13 +282,13 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     outer:
     indexPointer[indexTo + 1] = databaseHits + numMatches;
     size_t hitCount = evaluateBins(indexPointer, foundDiagonals + overflowHitCount,
-                                   counterResultSize - overflowHitCount, indexStart, indexTo,  (diagonalScoring == false));
+                                   counterResultSize - overflowHitCount, indexStart, indexTo, (diagonalScoringMode == Parameters::DIAG_SCORE_OFF));
     //fill the output
     if(overflowHitCount != 0){ // overflow occurred
-        hitCount = mergeElements(diagonalScoring, foundDiagonals, overflowHitCount + hitCount);
+        hitCount = mergeElements(foundDiagonals, overflowHitCount + hitCount);
     }
     stats->doubleMatches = 0;
-    if(diagonalScoring == false) {
+    if (diagonalScoringMode == Parameters::DIAG_SCORE_OFF) {
         // remove double entries
         updateScoreBins(foundDiagonals, hitCount);
         stats->doubleMatches = getDoubleDiagonalMatches();
@@ -420,10 +420,10 @@ void QueryMatcher::deleteDiagonalMatcher(unsigned int activeCounter){
 #undef DELETE_CASE
 }
 
-size_t QueryMatcher::mergeElements(bool diagonalScoring, CounterResult *foundDiagonals, size_t hitCounter) {
+size_t QueryMatcher::mergeElements(CounterResult *foundDiagonals, size_t hitCounter) {
     size_t overflowHitCount = 0;
 #define MERGE_CASE(x) \
-    case x: overflowHitCount = (diagonalScoring == true) ? \
+    case x: overflowHitCount = (diagonalScoringMode != Parameters::DIAG_SCORE_OFF) ? \
                                 cachedOperation##x->mergeElementsByDiagonal(foundDiagonals,hitCounter) : \
                                 cachedOperation##x->mergeElementsByScore(foundDiagonals,hitCounter); \
     break;

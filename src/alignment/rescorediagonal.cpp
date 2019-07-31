@@ -6,8 +6,8 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "QueryMatcher.h"
-#include "CovSeqidQscPercMinDiag.out.h"
-#include "CovSeqidQscPercMinDiagTargetCov.out.h"
+#include "CovSeqidQscPercMinDiag.lib.h"
+#include "CovSeqidQscPercMinDiagTargetCov.lib.h"
 #include "QueryMatcher.h"
 #include "NucleotideMatrix.h"
 #include "IndexReader.h"
@@ -73,10 +73,10 @@ int doRescorediagonal(Parameters &par,
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
     } else {
         // keep score bias at 0.0 (improved ROC)
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
     }
 
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
@@ -90,8 +90,8 @@ int doRescorediagonal(Parameters &par,
         }
 
         std::string libraryString = (par.covMode == Parameters::COV_MODE_BIDIRECTIONAL)
-                                    ? std::string((const char*)CovSeqidQscPercMinDiag_out, CovSeqidQscPercMinDiag_out_len)
-                                    : std::string((const char*)CovSeqidQscPercMinDiagTargetCov_out, CovSeqidQscPercMinDiagTargetCov_out_len);
+                                    ? std::string((const char*)CovSeqidQscPercMinDiag_lib, CovSeqidQscPercMinDiag_lib_len)
+                                    : std::string((const char*)CovSeqidQscPercMinDiagTargetCov_lib, CovSeqidQscPercMinDiagTargetCov_lib_len);
         scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
     }
     bool reversePrefilterResult = (Parameters::isEqualDbtype(resultReader.getDbtype(), Parameters::DBTYPE_PREFILTER_REV_RES));
@@ -245,7 +245,9 @@ int doRescorediagonal(Parameters &par,
                                 if (evalue <= par.evalThr || isIdentity) {
                                     int idCnt = 0;
                                     for (int i = qStartPos; i <= qEndPos; i++) {
-                                        idCnt += (querySeqToAlign[i] == targetSeq[dbStartPos + (i - qStartPos)]) ? 1 : 0;
+                                        char qLetter = querySeqToAlign[i] & static_cast<unsigned char>(~0x20);
+                                        char tLetter = targetSeq[dbStartPos + (i - qStartPos)] & static_cast<unsigned char>(~0x20);
+                                        idCnt += (qLetter == tLetter) ? 1 : 0;
                                     }
                                     seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLen);
                                 }
@@ -350,7 +352,7 @@ int doRescorediagonal(Parameters &par,
 int rescorediagonal(int argc, const char **argv, const Command &command) {
     MMseqsMPI::init(argc, argv);
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
 
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);

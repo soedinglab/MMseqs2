@@ -151,7 +151,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
 
 int mergeclusters(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3, true, true);
+    par.parseParameters(argc, argv, command, true, true, 0);
 
     std::list<std::string> clusterings;
     for (size_t i = 2; i < par.filenames.size(); i++) {

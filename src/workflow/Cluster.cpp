@@ -48,7 +48,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     par.overrideParameterDescription((Command &)command, par.PARAM_S.uniqid, "sensitivity will be automatically determined but can be adjusted", NULL,  par.PARAM_S.category |MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &)command, par.PARAM_INCLUDE_ONLY_EXTENDABLE.uniqid, NULL, NULL, par.PARAM_INCLUDE_ONLY_EXTENDABLE.category |MMseqsParameter::COMMAND_EXPERT);
 
-    par.parseParameters(argc, argv, command, 3);
+    par.parseParameters(argc, argv, command, true, 0, 0);
     if (FileUtil::directoryExists(par.db3.c_str())==false) {
         Debug(Debug::INFO) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db3.c_str()) == false) {
@@ -100,7 +100,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         Debug(Debug::INFO) << "Set cluster settings automatically to s=" << par.sensitivity << "\n";
     }
 
-    const int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    const int dbType = FileUtil::parseDbType(par.db1.c_str());
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
     if (isUngappedMode && Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_HMM_PROFILE)) {
         par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
@@ -204,7 +204,14 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
             cmd.addVariable(std::string("CLUSTER"  +SSTR(step)+"_PAR").c_str(), par.createParameterString(par.clust).c_str());
         }
         cmd.addVariable("STEPS", SSTR(par.clusterSteps).c_str());
-        //cmd.addVariable("REASSIGN","TRUE");
+        // correct for cascading clustering errors
+        if(par.clusterReassignment){
+            cmd.addVariable("REASSIGN","TRUE");
+        }
+        cmd.addVariable("THREADSANDCOMPRESS", par.createParameterString(par.threadsandcompression).c_str());
+        cmd.addVariable("VERBCOMPRESS", par.createParameterString(par.verbandcompression).c_str());
+        cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
+
         size_t olfMaxResSize = par.maxResListLen;
         par.maxResListLen = INT_MAX;
         cmd.addVariable("ALIGNMENT_REASSIGN_PAR", par.createParameterString(par.align).c_str());

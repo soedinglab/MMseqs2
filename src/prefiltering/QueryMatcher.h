@@ -46,11 +46,7 @@ struct hit_t {
             return false;
         return false;
     }
-
-
 };
-
-
 
 class QueryMatcher {
 public:
@@ -58,7 +54,7 @@ public:
                  BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
                  short kmerThr, int kmerSize, size_t dbSize,
                  unsigned int maxSeqLen,
-                 size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring,
+                 size_t maxHitsPerQuery, bool aaBiasCorrection, unsigned int diagonalScoringMode,
                  unsigned int minDiagScoreThr, bool takeOnlyBestKmer,size_t resListOffset);
     ~QueryMatcher();
 
@@ -100,27 +96,17 @@ public:
         return scoreThr;
     }
 
-// compute -log(p)
-    static inline double computeLogProbability(const unsigned short rawScore, const unsigned int dbSeqLen,
-                                               const double kmerMatchProb, const double logMatchProb,
-                                               const double logScoreFactorial) {
-        const double score = static_cast<double>(rawScore);
-        const double dbSeqLenDbl = static_cast<double>(dbSeqLen);
-        const double mu = kmerMatchProb * dbSeqLenDbl;
-        const double mid_term = score * (logMatchProb + log(dbSeqLenDbl));
-        const double first_term = -(mu * score /(score + 1));
-        return first_term + mid_term - logScoreFactorial;
-    }
-
-    static hit_t parsePrefilterHit(char* data)
-    {
+    static hit_t parsePrefilterHit(char* data) {
         hit_t result;
         const char *wordCnt[255];
         size_t cols = Util::getWordsOfLine(data, wordCnt, 254);
         if (cols == 3) {
             result.seqId = Util::fast_atoi<unsigned int>(wordCnt[0]);
-            result.prefScore = Util::fast_atoi<short>(wordCnt[1]);
+            result.prefScore = Util::fast_atoi<int>(wordCnt[1]);
             result.diagonal = static_cast<unsigned short>(Util::fast_atoi<short>(wordCnt[2]));
+        } else {
+            Debug(Debug::INFO) << "Invalid prefilter input: cols = " << cols << " wordCnt[0]: " << wordCnt[0] << "\n" ;
+            EXIT(EXIT_FAILURE);
         }
         return result;
     }
@@ -237,7 +223,7 @@ protected:
     float *compositionBias;
 
     // diagonal scoring active
-    bool diagonalScoring;
+    unsigned int diagonalScoringMode;
     unsigned int minDiagScoreThr;
     // size of max diagonalMatcher result objects
     size_t counterResultSize;
@@ -246,7 +232,7 @@ protected:
 
     void deleteDiagonalMatcher(unsigned int activeCounter);
 
-    size_t mergeElements(bool diagonalScoring, CounterResult *foundDiagonals, size_t hitCounter);
+    size_t mergeElements(CounterResult *foundDiagonals, size_t hitCounter);
 
     size_t keepMaxScoreElementOnly(CounterResult *foundDiagonals, size_t resultSize);
 

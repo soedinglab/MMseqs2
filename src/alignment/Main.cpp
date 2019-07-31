@@ -13,7 +13,7 @@ int align(int argc, const char **argv, const Command& command) {
     MMseqsMPI::init(argc, argv);
 
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4, true, 0, MMseqsParameter::COMMAND_ALIGN);
+    par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_ALIGN);
 
     Alignment aln(par.db1, par.db2,
                   par.db3, par.db3Index,

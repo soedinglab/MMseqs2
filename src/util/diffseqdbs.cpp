@@ -36,7 +36,7 @@ struct compareKeyToFirstEntry {
 
 int diffseqdbs(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 5);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     DBReader<unsigned int> oldReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     oldReader.open(DBReader<unsigned int>::NOSORT);

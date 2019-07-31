@@ -1,13 +1,17 @@
 // Written by Martin Steinegger martin.steinegger@mpibpc.mpg.de
 //
-// Represents a parameter of MMseqs
+// Represents parameters of MMseqs2
 //
 #ifndef MMSEQS_PARAMETERS
 #define MMSEQS_PARAMETERS
 #include <string>
 #include <vector>
 #include <typeinfo>
+#include <cstddef>
+#include <utility>
+
 #include "Command.h"
+#include "ScoreMatrixFile.h"
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
@@ -63,7 +67,6 @@ public:
     static const int DBTYPE_DIRECTORY = 16; // needed for verification
     static const int DBTYPE_FLATFILE = 17; // needed for verification
     static const int DBTYPE_SEQTAXDB = 18; // needed for verification
-    static const int DBTYPE_TAX_RES_DB = 19; // needed for verification
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
@@ -168,6 +171,9 @@ public:
     static const int PRELOAD_MODE_MMAP = 2;
     static const int PRELOAD_MODE_MMAP_TOUCH = 3;
 
+    static const int DIAG_SCORE_OFF = 0;
+    static const int DIAG_SCORE_ON = 1;
+    static const int DIAG_SCORE_NO_RESCALE = 2;
 
     static std::string getSplitModeName(int splitMode) {
         switch (splitMode) {
@@ -199,6 +205,7 @@ public:
     static const int COV_MODE_QUERY = 2;
     static const int COV_MODE_LENGTH_QUERY = 3;
     static const int COV_MODE_LENGTH_TARGET = 4;
+    static const int COV_MODE_LENGTH_SHORTER = 5;
 
     // seq. id mode
     static const int SEQ_ID_ALN_LEN  = 0;
@@ -282,8 +289,8 @@ public:
     const char** restArgv;
     int restArgc;
 
-    std::string scoringMatrixFile;       // path to scoring matrix
-    std::string seedScoringMatrixFile;   // seed sub. matrix
+    ScoreMatrixFile scoringMatrixFile;       // path to scoring matrix
+    ScoreMatrixFile seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
     std::string prevMaxResListLengths;   // all max-seqs in previous iterations
@@ -308,8 +315,8 @@ public:
     int    spacedKmer;                   // Spaced Kmers
     int    split;                        // Split database in n equal chunks
     int    splitMode;                    // Split by query or target DB
-    int    splitMemoryLimit;             // Maximum amount of memory a split can use
-    int    diskSpaceLimit;               // Disk space max usage for sliced reverse profile search
+    size_t splitMemoryLimit;             // Maximum memory in bytes a split can use
+    size_t diskSpaceLimit;               // Maximum disk space in bytes for sliced reverse profile search
     bool   splitAA;                      // Split database by amino acid count instead
     int    preloadMode;                  // Preload mode of database
     float  scoreBias;                    // Add this bias to the score when computing the alignements
@@ -342,6 +349,7 @@ public:
     int    clusteringMode;
     int    clusterSteps;
     bool   cascaded;
+    int    clusterReassignment;
 
     // SEARCH WORKFLOW
     int numIterations;
@@ -426,6 +434,7 @@ public:
 
     // linearcluster
     int kmersPerSequence;
+    float kmersPerSequenceScale;
     bool includeOnlyExtendable;
     int skipNRepeatKmer;
     int hashShift;
@@ -433,7 +442,7 @@ public:
     int adjustKmerLength;
 
     // indexdb
-    bool checkCompatible;
+    int checkCompatible;
     int searchType;
 
     // createdb
@@ -533,9 +542,14 @@ public:
     int idxEntryType;
 
     // lca
+    int pickIdFrom;
     std::string lcaRanks;
     bool showTaxLineage;
     std::string blacklist;
+
+    // createtaxdb
+    std::string ncbiTaxDump;
+    std::string taxMappingFile;
 
     // exapandaln
     int expansionMode;
@@ -556,16 +570,14 @@ public:
     }
 
     void setDefaults();
-    void parseParameters(int argc, const char* argv[],
-                         const Command& command,
-                         size_t requiredParameterCount,
-                         bool printParameters = true,
-                         int parseFlags = 0,
-                         int outputFlags = 0);
+    void parseParameters(int argc, const char *pargv[], const Command &command, bool printPar, int parseFlags,
+                         int outputFlags);
     void printUsageMessage(const Command& command,
                            unsigned int outputFlag);
     void printParameters(const std::string &module, int argc, const char* pargv[],
                          const std::vector<MMseqsParameter*> &par);
+
+    void checkIfDatabaseIsValid(const Command& command, bool isStartVar, bool isEndVar);
 
     std::vector<MMseqsParameter*> removeParameter(const std::vector<MMseqsParameter*>& par, const MMseqsParameter& x);
 
@@ -623,6 +635,7 @@ public:
     PARAMETER(PARAM_CLUSTER_MODE)
     PARAMETER(PARAM_CLUSTER_STEPS)
     PARAMETER(PARAM_CASCADED)
+    PARAMETER(PARAM_CLUSTER_REASSIGN)
 
     // affinity clustering
     PARAMETER(PARAM_MAXITERATIONS)
@@ -690,6 +703,7 @@ public:
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)
+    PARAMETER(PARAM_KMER_PER_SEQ_SCALE)
     PARAMETER(PARAM_INCLUDE_ONLY_EXTENDABLE)
     PARAMETER(PARAM_SKIP_N_REPEAT_KMER)
     PARAMETER(PARAM_HASH_SHIFT)
@@ -824,10 +838,13 @@ public:
     PARAMETER(PARAM_IDX_ENTRY_TYPE)
 
     // lca and addtaxonomy
+    PARAMETER(PARAM_PICK_ID_FROM)
     PARAMETER(PARAM_LCA_RANKS)
     PARAMETER(PARAM_BLACKLIST)
     PARAMETER(PARAM_TAXON_ADD_LINEAGE)
-
+    // createtaxdb
+    PARAMETER(PARAM_NCBI_TAX_DUMP)
+    PARAMETER(PARAM_TAX_MAPPING_FILE)
     // exapandaln
     PARAMETER(PARAM_EXPANSION_MODE)
 
@@ -909,6 +926,7 @@ public:
     std::vector<MMseqsParameter*> filtertaxdb;
     std::vector<MMseqsParameter*> taxonomy;
     std::vector<MMseqsParameter*> easytaxonomy;
+    std::vector<MMseqsParameter*> createtaxdb;
     std::vector<MMseqsParameter*> profile2pssm;
     std::vector<MMseqsParameter*> profile2cs;
     std::vector<MMseqsParameter*> besthitbyset;
@@ -929,7 +947,31 @@ public:
     void overrideParameterDescription(Command& command, int uid, const char* description, const char* regex = NULL, int category = 0);
 
     static bool isEqualDbtype(const int type1, const int type2) {
-        return ((type1 & 0x7FFFFFFF) == (type2 & 0x7FFFFFFF));
+        return ((type1 & 0x3FFFFFFF) == (type2 & 0x3FFFFFFF));
+    }
+
+    static const char* getDbTypeName(int dbtype) {
+        switch (dbtype & 0x7FFFFFFF) {
+            case DBTYPE_AMINO_ACIDS: return "Aminoacid";
+            case DBTYPE_NUCLEOTIDES: return "Nucleotide";
+            case DBTYPE_HMM_PROFILE: return "Profile";
+            case DBTYPE_PROFILE_STATE_SEQ: return "Profile state";
+            case DBTYPE_PROFILE_STATE_PROFILE: return "Profile profile";
+            case DBTYPE_ALIGNMENT_RES: return "Alignment";
+            case DBTYPE_CLUSTER_RES: return "Clustering";
+            case DBTYPE_PREFILTER_RES: return "Prefilter";
+            case DBTYPE_TAXONOMICAL_RESULT: return "Taxonomy";
+            case DBTYPE_INDEX_DB: return "Index";
+            case DBTYPE_CA3M_DB: return "CA3M";
+            case DBTYPE_MSA_DB: return "MSA";
+            case DBTYPE_GENERIC_DB: return "Generic";
+            case DBTYPE_PREFILTER_REV_RES: return "Bi-directional prefilter";
+            case DBTYPE_OFFSETDB: return "Offsetted headers";
+            case DBTYPE_DIRECTORY: return "Directory";
+            case DBTYPE_FLATFILE: return "Flatfile";
+
+            default: return "Unknown";
+        }
     }
 
 protected:

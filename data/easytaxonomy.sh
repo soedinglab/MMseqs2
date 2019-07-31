@@ -8,22 +8,9 @@ notExists() {
 	[ ! -f "$1" ]
 }
 
-# check number of input variables
-[ "$#" -ne 4 ] && echo "Please provide <queryFASTA> <targetFASTA>|<targetDB> <outFile> <tmp>" && exit 1;
-# check paths
-[ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
-[ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
-[   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
-[ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
-
-INPUT="$1"
-TARGET="$2"
-RESULTS="$3"
-TMP_PATH="$4"
-
 if notExists "${TMP_PATH}/query.dbtype"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" createdb "${INPUT}" "${TMP_PATH}/query" ${CREATEDB_PAR} \
+    "$MMSEQS" createdb "$@" "${TMP_PATH}/query" ${CREATEDB_PAR} \
         || fail "query createdb died"
 fi
 
@@ -71,7 +58,7 @@ fi
 
 if notExists "${TMP_PATH}/result_top1_swapped_sum_tax.dbtype"; then
     # shellcheck disable=SC2086
-     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum" "${TMP_PATH}/result_top1_swapped_sum_tax"  ${THREADS_PAR} --tax-lineage  \
+     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum" "${TMP_PATH}/result_top1_swapped_sum_tax"  ${THREADS_PAR} --pick-id-from 1 --tax-lineage  \
         || fail "filterdb died"
 fi
 
@@ -81,6 +68,11 @@ if notExists "${RESULTS}_tophit_report"; then
         || fail "filterdb died"
 fi
 
+if notExists "${RESULTS}_tophit_aln"; then
+    # shellcheck disable=SC2086
+     "$MMSEQS" convertalis "${TMP_PATH}/query" "${TARGET}" "${TMP_PATH}/result_top1" "${RESULTS}_tophit_aln" ${CONVERT_PAR} \
+        || fail "convertalis died"
+fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Removing temporary files"

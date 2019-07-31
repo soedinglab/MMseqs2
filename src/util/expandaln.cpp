@@ -88,7 +88,7 @@ static bool compareHitsByKeyEvalScore(const Matcher::result_t &first, const Matc
 
 int expandaln(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 5);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     queryReader.open(DBReader<unsigned int>::NOSORT);
@@ -135,7 +135,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
     writer.open();
 
     BacktraceTranslator translator;
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, par.scoreBias);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, par.scoreBias);
     EvalueComputation evaluer(targetReader.getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
     Debug::Progress progress(resultReader->getSize());
 

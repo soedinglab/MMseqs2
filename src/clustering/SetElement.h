@@ -11,17 +11,14 @@
 
 struct set {
     struct element {
-        set * parent_set;
         element * last;
         element * next;
-        unsigned int element_id;
         unsigned short weight;
 
     };
     element * elements;
     set * last;
     set * next;
-    unsigned int set_id;
     unsigned short weight;
 };
 

@@ -65,7 +65,15 @@ template<> std::string SSTR(float);
 #define UNLIKELY(x) (x)
 #endif
 
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
 
+#if defined(__GNUC__) || __has_attribute(unused)
+#  define MAYBE_UNUSED(x) x __attribute__((__unused__))
+#else
+#  define MAYBE_UNUSED(x) x
+#endif
 
 class Util {
 public:
@@ -88,7 +96,7 @@ public:
 
     static size_t countLines(const char *data, size_t length);
 
-    static size_t ompCountLines(const char *data, size_t length);
+    static size_t ompCountLines(const char *data, size_t length, unsigned int threads);
 
     static int readMapping(std::string mappingFilename, std::vector<std::pair<unsigned int, unsigned int> > & mapping);
 
@@ -201,9 +209,19 @@ public:
 
     static std::pair<std::string, std::string> createTmpFileNames(const std::string &db,
                                                                   const std::string &dbindex, int count){
+        // TODO take only db and not db and dbindex
+        // TODO check naming of old database paths
         std::string suffix = std::string("_tmp_") + SSTR(count);
-        std::string data  = db + suffix;
-        std::string index = dbindex + suffix;
+        std::string data = db + suffix;
+        
+        std::string index = "";
+        if (dbindex.compare(db + ".index") == 0) {
+            index.append(db + suffix + ".index");
+        } else {
+            //Debug(Debug::WARNING) << "Database index name is deprecated (" << dbindex << ")\n";
+            index.append(dbindex + suffix);
+        }
+
         return std::make_pair(data, index);
     }
 

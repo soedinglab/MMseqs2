@@ -83,7 +83,6 @@ extern int result2stats(int argc, const char **argv, const Command& command);
 extern int reverseseq(int argc, const char **argv, const Command& command);
 extern int search(int argc, const char **argv, const Command& command);
 extern int linsearch(int argc, const char **argv, const Command& command);
-extern int shellcompletion(int argc, const char **argv, const Command& command);
 extern int sortresult(int argc, const char **argv, const Command& command);
 extern int splitdb(int argc, const char **argv, const Command& command);
 extern int splitsequence(int argc, const char **argv, const Command& command);

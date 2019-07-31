@@ -15,7 +15,7 @@
 #include "FileUtil.h"
 
 #define ZSTD_STATIC_LINKING_ONLY // ZSTD_findDecompressedSize
-#include <zstd/lib/zstd.h>
+#include <zstd.h>
 
 template <typename T>
 class DBReader {
@@ -26,6 +26,9 @@ public:
         size_t offset;
         static bool compareById(const Index& x, const Index& y){
             return (x.id <= y.id);
+        }
+        static bool compareByOffset(const Index& x, const Index& y){
+            return (x.offset <= y.offset);
         }
     };
 
@@ -111,13 +114,14 @@ public:
     static const int SHUFFLE        = 5;
     static const int HARDNOSORT = 6; // do not even sort by ids.
     static const int SORT_BY_ID_OFFSET = 7;
+    static const int SORT_BY_OFFSET = 8; // only offset sorting saves memory and does not support random access
 
 
-    static const int USE_INDEX    = 0;
-    static const int USE_DATA     = 1;
-    static const int USE_WRITABLE = 2;
-    static const int USE_FREAD    = 4;
-    static const int USE_LOOKUP   = 8;
+    static const unsigned int USE_INDEX    = 0;
+    static const unsigned int USE_DATA     = 1;
+    static const unsigned int USE_WRITABLE = 2;
+    static const unsigned int USE_FREAD    = 4;
+    static const unsigned int USE_LOOKUP   = 8;
 
 
     // compressed
@@ -141,29 +145,15 @@ public:
         return totalDataSize;
     }
 
-    static void removeDb(std::string  databaseName){
-        std::vector<std::string> files = FileUtil::findDatafiles(databaseName.c_str());
-        for (size_t i = 0; i < files.size(); ++i) {
-            FileUtil::remove(files[i].c_str());
-        }
-        std::string index = databaseName + ".index";
-        if (FileUtil::fileExists(index.c_str())) {
-            FileUtil::remove(index.c_str());
-        }
-        std::string dbTypeFile = databaseName + ".dbtype";
-        if (FileUtil::fileExists(dbTypeFile.c_str())) {
-            FileUtil::remove(dbTypeFile.c_str());
+    static void moveDatafiles(const std::vector<std::string>& files, const std::string& destination);
 
-        }
-        std::string lookupFile = databaseName + ".lookup";
-        if (FileUtil::fileExists(lookupFile.c_str())) {
-            FileUtil::remove(lookupFile.c_str());
-        }
-    }
+    static void moveDb(const std::string &srcDbName, const std::string &dstDbName);
+
+    static void removeDb(const std::string &databaseName);
 
     char *mmapData(FILE *file, size_t *dataSize);
 
-    bool readIndex(char *data, size_t dataSize, Index *index, unsigned int *entryLength);
+    bool readIndex(char *data, size_t indexDataSize, Index *index, unsigned int *entryLength, size_t & dataSize);
 
     void readLookup(char *data, size_t dataSize, LookupEntry *lookup);
 
@@ -188,10 +178,10 @@ public:
     Index* getIndex(size_t id) {
         return index + local2id[id];
     }
-    
+
 
     void printMagicNumber();
-    
+
     T getLastKey();
 
     static size_t indexMemorySize(const DBReader<unsigned int> &idx);
@@ -200,38 +190,15 @@ public:
 
     static DBReader<unsigned int> *unserialize(const char* data, int threads);
 
-    static int parseDbType(const char *name);
-
     int getDbtype(){
         return dbtype;
     }
 
     const char* getDbTypeName() const {
-        return getDbTypeName(dbtype);
+        return Parameters::getDbTypeName(dbtype);
     }
 
-    static const char* getDbTypeName(int dbtype) {
-        switch (dbtype & 0x7FFFFFFF) {
-            case Parameters::DBTYPE_AMINO_ACIDS: return "Aminoacid";
-            case Parameters::DBTYPE_NUCLEOTIDES: return "Nucleotide";
-            case Parameters::DBTYPE_HMM_PROFILE: return "Profile";
-            case Parameters::DBTYPE_PROFILE_STATE_SEQ: return "Profile state";
-            case Parameters::DBTYPE_PROFILE_STATE_PROFILE: return "Profile profile";
-            case Parameters::DBTYPE_ALIGNMENT_RES: return "Alignment";
-            case Parameters::DBTYPE_CLUSTER_RES: return "Clustering";
-            case Parameters::DBTYPE_PREFILTER_RES: return "Prefilter";
-            case Parameters::DBTYPE_TAXONOMICAL_RESULT: return "Taxonomy";
-            case Parameters::DBTYPE_INDEX_DB: return "Index";
-            case Parameters::DBTYPE_CA3M_DB: return "CA3M";
-            case Parameters::DBTYPE_MSA_DB: return "MSA";
-            case Parameters::DBTYPE_GENERIC_DB: return "Generic";
-            case Parameters::DBTYPE_PREFILTER_REV_RES: return "Bi-directional prefilter";
-            case Parameters::DBTYPE_OFFSETDB: return "Offsetted headers";
-            default: return "Unknown";
-        }
-    }
 
-    
     struct sortIndecesById {
         sortIndecesById(const Index * ind) : _ind(ind) {}
         bool operator() (unsigned int i, unsigned int j) const { 
@@ -245,7 +212,7 @@ public:
             return (lhs.first.id < rhs.first.id);
         }
     };
-	
+
     struct compareIndexLengthPairByIdKeepTrack {
         bool operator() (const std::pair<Index, std::pair<size_t, unsigned int> >& lhs, const std::pair<Index, std::pair<size_t, unsigned int> >& rhs) const{
             return (lhs.first.id < rhs.first.id);

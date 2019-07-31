@@ -14,7 +14,7 @@ void setMultiHitDbWorkflowDefaults(Parameters *p) {
 int multihitdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setMultiHitDbWorkflowDefaults(&par);
-    par.parseParameters(argc, argv, command, 2, true);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     std::string tmpDir = par.filenames.back();
     par.filenames.pop_back();

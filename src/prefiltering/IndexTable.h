@@ -69,14 +69,13 @@ public:
               indexer(new Indexer(alphabetSize, kmerSize)), entries(NULL), offsets(NULL) {
         if (externalData == false) {
             offsets = new(std::nothrow) size_t[tableSize + 1];
-            memset(offsets, 0, (tableSize + 1) * sizeof(size_t));
             Util::checkAllocation(offsets, "Can not allocate entries memory in IndexTable");
+            memset(offsets, 0, (tableSize + 1) * sizeof(size_t));
         }
     }
 
     virtual ~IndexTable() {
         deleteEntries();
-
         delete indexer;
     }
 

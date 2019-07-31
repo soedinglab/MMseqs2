@@ -488,11 +488,11 @@ char Util::touchMemory(const char *memory, size_t size) {
     return retVal;
 }
 
-size_t Util::ompCountLines(const char* data, size_t dataSize) {
+size_t Util::ompCountLines(const char* data, size_t dataSize, unsigned int MAYBE_UNUSED(threads)) {
     size_t cnt = 0;
 #ifdef OPENMP
     int threadCnt = 1;
-    const int totalThreadCnt = omp_get_max_threads();
+    const int totalThreadCnt = threads;
     if (totalThreadCnt > 4) {
         threadCnt = 4;
     }
@@ -637,6 +637,8 @@ bool Util::canBeCovered(const float covThr, const int covMode, float queryLength
             return ((targetLength / queryLength) >= covThr) && (targetLength / queryLength) <= 1.0;
         case Parameters::COV_MODE_LENGTH_TARGET:
             return ((queryLength / targetLength) >= covThr) && (queryLength / targetLength) <= 1.0;
+        case Parameters::COV_MODE_LENGTH_SHORTER:
+            return (std::min(targetLength, queryLength) / std::max(targetLength, queryLength)) >= covThr;
         default:
             return true;
     }
@@ -652,6 +654,7 @@ bool Util::hasCoverage(float covThr, int covMode, float queryCov, float targetCo
             return (targetCov >= covThr);
         case Parameters::COV_MODE_LENGTH_QUERY:
         case Parameters::COV_MODE_LENGTH_TARGET:
+        case Parameters::COV_MODE_LENGTH_SHORTER:
             return true;
         default:
             return true;

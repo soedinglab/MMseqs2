@@ -5,6 +5,9 @@
 #include <list>
 #include <string>
 #include <vector>
+#include <cstddef>
+#include <utility>
+#include "Parameters.h"
 
 class FileUtil {
 
@@ -51,6 +54,8 @@ public:
     static void remove(const char * file);
 
     static void move(const char * src, const char * dst);
+
+    static int parseDbType(const char *name);
 };
 
 

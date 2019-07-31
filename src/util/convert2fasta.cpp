@@ -17,7 +17,7 @@ const char newline[] = {'\n'};
 
 int convert2fasta(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     DBReader<unsigned int> db(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     db.open(DBReader<unsigned int>::NOSORT);

@@ -15,7 +15,7 @@
 int view(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.verbosity = 1;
-    par.parseParameters(argc, argv, command, 1, false);
+    par.parseParameters(argc, argv, command, true, 0, 0);
     std::vector<std::string> ids = Util::split(par.idList, ",");
     int indexSrcType = IndexReader::SEQUENCES;
     switch(par.idxEntryType){

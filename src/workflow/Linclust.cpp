@@ -25,9 +25,9 @@ int linclust(int argc, const char **argv, const Command& command) {
     par.overrideParameterDescription((Command &)command, par.PARAM_MAX_REJECTED.uniqid, NULL, NULL, par.PARAM_MAX_REJECTED.category |MMseqsParameter::COMMAND_EXPERT );
     par.overrideParameterDescription((Command &)command, par.PARAM_MAX_ACCEPT.uniqid, NULL, NULL, par.PARAM_MAX_ACCEPT.category |MMseqsParameter::COMMAND_EXPERT );
 
-    par.parseParameters(argc, argv, command, 3);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
-    const int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    const int dbType = FileUtil::parseDbType(par.db1.c_str());
 
     if (FileUtil::directoryExists(par.db3.c_str()) == false) {
         Debug(Debug::INFO) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";

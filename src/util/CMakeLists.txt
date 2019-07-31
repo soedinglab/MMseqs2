@@ -47,7 +47,6 @@ set(util_source_files
         util/result2stats.cpp
         util/reverseseq.cpp
         util/rmdb.cpp
-        util/shellcompletion.cpp
         util/extractframes.cpp
         util/sortresult.cpp
         util/splitdb.cpp

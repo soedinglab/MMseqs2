@@ -3,68 +3,68 @@
 #include "Debug.h"
 #include "DBReader.h"
 #include "DBWriter.h"
-#include "MathUtil.h"
 #include "Matcher.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-static inline float getOverlap(const std::vector<bool> &covered, unsigned int qStart, unsigned int qEnd) {
-    size_t counter = 0;
-    for (size_t i = qStart; i < qEnd; ++i) {
-        counter += covered[i] ? 1 : 0;
-    }
-    return static_cast<float>(counter) / static_cast<float>(qEnd - qStart + 1);
-}
+int summarizeresult(int argc, const char **argv, const Command &command) {
+    Parameters &par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, true, 0, 0);
+    MMseqsMPI::init(argc, argv);
 
-int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
-                const std::pair<std::string, std::string> &resultdb,
-                const size_t dbFrom, const size_t dbSize, bool merge) {
-#ifdef OPENMP
-    unsigned int totalThreads = par.threads;
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+
+#ifdef HAVE_MPI
+    size_t dbFrom = 0;
+    size_t dbSize = 0;
+    Util::decomposeDomainByAminoAcid(reader.getDataSize(), reader.getSeqLens(), reader.getSize(), MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db2, par.db2Index, MMseqsMPI::rank);
+    const char* outData = tmpOutput.first.c_str();
+    const char* outIndex = tmpOutput.second.c_str();
+    const bool merge = true;
 #else
-    unsigned int totalThreads = 1;
+    size_t dbFrom = 0;
+    size_t dbSize = reader.getSize();
+    const char* outData = par.db2.c_str();
+    const char* outIndex = par.db2Index.c_str();
+    const bool merge = false;
 #endif
 
-    unsigned int localThreads = totalThreads;
-    if (resultReader.getSize() <= totalThreads) {
-        localThreads = resultReader.getSize();
-    }
-
-    DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), localThreads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
+    unsigned int localThreads = std::min((unsigned int)par.threads, (unsigned int)dbSize);
+    DBWriter writer(outData, outIndex, localThreads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
-    Debug::Progress progress(dbSize);
 
+    Debug::Progress progress(dbSize);
 #pragma omp parallel num_threads(localThreads)
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
+
         char buffer[32768];
+        std::vector<bool> covered(par.maxSeqLen, false);
 
-        std::vector<Matcher::result_t> alnResults;
-        alnResults.reserve(300);
-
-        std::string annotation;
-        annotation.reserve(1024*1024);
-
-#pragma omp for schedule(dynamic, 100)
+#pragma omp for schedule(dynamic, 10)
         for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
             progress.updateProgress();
+            char *data = reader.getData(i, thread_idx);
 
-            unsigned int id = resultReader.getDbKey(i);
-            char *tabData = resultReader.getData(i,  thread_idx);
-            Matcher::readAlignmentResults(alnResults, tabData);
-            if (alnResults.size() == 0) {
-                Debug(Debug::WARNING) << "Can not map any alingment results for entry " << id << "!\n";
-                continue;
-            }
+            bool readFirst = false;
+            writer.writeStart(thread_idx);
+            while (*data != '\0') {
+                Matcher::result_t domain = Matcher::parseAlignmentRecord(data, true);
+                data = Util::skipLine(data);
 
-            std::vector<bool> covered(alnResults[0].qLen, false);
-            for (size_t i = 0; i < alnResults.size(); i++) {
-                Matcher::result_t domain = alnResults[i];
+                if (readFirst == false) {
+                    covered.reserve(domain.qLen);
+                    std::fill_n(covered.begin(), domain.qLen, false);
+                    readFirst = true;
+                }
+
                 if (domain.qStartPos > static_cast<int>(domain.qLen) || domain.qEndPos > static_cast<int>(domain.qLen)) {
                     Debug(Debug::WARNING) << "Query alignment start or end is greater than query length! Skipping line.\n";
                     continue;
@@ -73,7 +73,6 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
                     Debug(Debug::WARNING) << "Query alignment end is greater than start! Skipping line.\n";
                     continue;
                 }
-                float percentageOverlap = getOverlap(covered, domain.qStartPos, domain.qEndPos);
                 if (domain.dbStartPos > domain.dbEndPos) {
                     Debug(Debug::WARNING) << "Target alignment end is greater than start! Skipping line.\n";
                     continue;
@@ -82,76 +81,39 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
                     Debug(Debug::WARNING) << "Target alignment start or end is greater than target length! Skipping line.\n";
                     continue;
                 }
-                float targetCov = MathUtil::getCoverage(domain.dbStartPos, domain.dbEndPos, domain.dbLen);
-                if (percentageOverlap <= par.overlap && targetCov > par.covThr && domain.eval < par.evalThr) {
+
+                if (domain.dbcov <= par.covThr) {
+                    continue;
+                }
+
+                size_t counter = 0;
+                for (int j = domain.qStartPos; j < domain.qEndPos; ++j) {
+                    counter += covered[j] ? 1 : 0;
+                }
+                const float percentageOverlap = static_cast<float>(counter) / static_cast<float>(domain.qEndPos - domain.qStartPos + 1);
+                if (percentageOverlap <= par.overlap) {
                     for (int j = domain.qStartPos; j < domain.qEndPos; ++j) {
                         covered[j] = true;
                     }
-                    size_t len = Matcher::resultToBuffer(buffer, domain, par.addBacktrace);
-                    annotation.append(buffer, len);
+                    size_t len = Matcher::resultToBuffer(buffer, domain, par.addBacktrace, false);
+                    writer.writeAdd(buffer, len, thread_idx);
                 }
             }
-
-            writer.writeData(annotation.c_str(), annotation.length(), id, thread_idx);
-
-            alnResults.clear();
-            annotation.clear();
+            writer.writeEnd(reader.getDbKey(i), thread_idx);
         }
     }
     writer.close(merge);
 
-    return EXIT_SUCCESS;
-}
-
-int doSummarize(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
-    size_t dbFrom = 0;
-    size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(reader.getDataSize(), reader.getSeqLens(), reader.getSize(),
-                                     mpiRank, mpiNumProc, &dbFrom, &dbSize);
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db2, par.db2Index, mpiRank);
-
-    int status = doSummarize(par, reader, tmpOutput, dbFrom, dbSize, true);
-
-    reader.close();
-
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
-#endif
-    // master reduces results
-    if (mpiRank == 0) {
+    if (MMseqsMPI::isMaster()) {
         std::vector<std::pair<std::string, std::string>> splitFiles;
-        for (unsigned int proc = 0; proc < mpiNumProc; ++proc) {
-            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db2, par.db2Index, proc);
-            splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.second));
+        for (int i = 0; i < MMseqsMPI::numProc; ++i) {
+            splitFiles.push_back(Util::createTmpFileNames(par.db2, par.db2Index, i));
         }
         DBWriter::mergeResults(par.db2, par.db2Index, splitFiles);
     }
-    return status;
-}
-
-int doSummarize(Parameters &par) {
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-    size_t resultSize = reader.getSize();
-    int status = doSummarize(par, reader, std::make_pair(par.db2, par.db2Index), 0, resultSize, false);
-    reader.close();
-    return status;
-}
-
-int summarizeresult(int argc, const char **argv, const Command &command) {
-    Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2);
-
-    MMseqsMPI::init(argc, argv);
-
-#ifdef HAVE_MPI
-    int status = doSummarize(par, MMseqsMPI::rank, MMseqsMPI::numProc);
-#else
-    int status = doSummarize(par);
 #endif
 
-    return status;
+    return EXIT_SUCCESS;
 }

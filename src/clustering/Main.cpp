@@ -10,7 +10,7 @@
 
 int clust(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     Clustering* clu = new Clustering(par.db1, par.db1Index, par.db2, par.db2Index,
                                      par.db3, par.db3Index, par.maxIteration,

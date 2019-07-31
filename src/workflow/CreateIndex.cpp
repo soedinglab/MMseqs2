@@ -2,13 +2,12 @@
 #include <string>
 #include <cassert>
 #include <climits>
-#include <Util.h>
-#include <DBReader.h>
+#include "Util.h"
+#include "DBReader.h"
 #include "createindex.sh.h"
 #include "CommandCaller.h"
 #include "Debug.h"
 #include "FileUtil.h"
-
 
 int createindex(Parameters &par, std::string indexerModule, std::string flag) {
     bool sensitivity = false;
@@ -21,7 +20,7 @@ int createindex(Parameters &par, std::string indexerModule, std::string flag) {
         }
     }
 
-    int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    int dbType = FileUtil::parseDbType(par.db1.c_str());
     if (dbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
@@ -84,9 +83,10 @@ int createlinindex(int argc, const char **argv, const Command& command) {
     par.orfMaxLength = 32734;
     par.kmerScore = 0; // extract all k-mers
     par.maskMode = 0;
-
-    par.parseParameters(argc, argv, command, 2, false);
-    int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    // VTML has a slightly lower sensitivity in the regression test
+    par.seedScoringMatrixFile = ScoreMatrixFile("blosum62.out", "nucleotide.out");
+    par.parseParameters(argc, argv, command, true, 0, 0);
+    int dbType = FileUtil::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES && par.PARAM_MAX_SEQ_LEN.wasSet == false){
         if(par.PARAM_MAX_SEQ_LEN.wasSet == false){
@@ -112,9 +112,9 @@ int createindex(int argc, const char **argv, const Command& command) {
     par.kmerScore = 0; // extract all k-mers
     par.sensitivity = 7.5;
     par.maskMode = 1;
-    par.parseParameters(argc, argv, command, 2, false);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
-    int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    int dbType = FileUtil::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
 
     if(par.PARAM_STRAND.wasSet == false){

@@ -116,7 +116,7 @@ script:
     elif [[ "$TRAVIS_OS_NAME" == "linux" ]]; then \
       if [[ -n "$MPI" ]]; then MPI=1; else MPI=0; fi; \
       mkdir build; cd build; \
-      cmake -G Ninja -DENABLE_WERROR=1 -DHAVE_MPI="$MPI" -DHAVE_SSE4_1=1 .. \
+      cmake -G Ninja -DENABLE_WERROR=1 -DHAVE_MPI="$MPI" -DHAVE_SSE4_1=1 -DHAVE_TESTS=1 -DREQUIRE_OPENMP=0 .. \
         || exit 1; ninja || exit 1; \
     elif [[ "$TRAVIS_OS_NAME" == "osx" ]]; then \
       ./util/build_osx.sh . build || exit 1; \
@@ -124,18 +124,3 @@ script:
       exit 1; \
     fi
 
-after_success:
-  - |
-    if [[ "$TRAVIS_PULL_REQUEST" != "false" ]] || [[ "$TRAVIS_OS_NAME" != "osx" ]]; then \
-      exit 0; \
-    fi; \
-    if [[ "$encrypted_4188a201d0b5_key" == "" ]] || [[ "$encrypted_4188a201d0b5_iv" == "" ]]; then \
-      exit 0; \
-    fi; \
-    openssl aes-256-cbc -K "$encrypted_4188a201d0b5_key" -iv "$encrypted_4188a201d0b5_iv" -in ./util/.travis.enc -out "$HOME/.ssh/id_rsa" -d; \
-    chmod 400 "$HOME/.ssh/id_rsa"; \
-    ssh -o StrictHostKeyChecking=no codeship@uniclust.mmseqs.com \
-      "mkdir -p /home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT}"; \
-    cd build; \
-    scp -o StrictHostKeyChecking=no mmseqs-osx-static_sse41.tar.gz mmseqs-osx-static_avx2.tar.gz \
-        codeship@uniclust.mmseqs.com:/home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT};

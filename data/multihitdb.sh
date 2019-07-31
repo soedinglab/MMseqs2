@@ -16,7 +16,7 @@ if notExists "${OUTDB}"; then
         || fail "createdb failed"
 fi
 
-if [ "$("${MMSEQS}" dbtype "${OUTDB}")" = "Nucleotide" ]; then
+
     mv -f "${OUTDB}" "${OUTDB}_nucl"
     mv -f "${OUTDB}.index" "${OUTDB}_nucl.index"
     mv -f "${OUTDB}.lookup" "${OUTDB}_nucl.lookup"
@@ -80,13 +80,6 @@ if [ "$("${MMSEQS}" dbtype "${OUTDB}")" = "Nucleotide" ]; then
             || fail "result2stats failed"
     fi
 
-else
-    # in case of a protein db...
-    # shellcheck disable=SC2086
-    fail "protein mode not implemented"
-    #"${MMSEQS}" swapdb "${OUTDB}_member_lookup" "${OUTDB}_set_lookup" ${SWAPDB_PAR} \
-    #         || fail "swapdb failed"
-fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Remove temporary files"

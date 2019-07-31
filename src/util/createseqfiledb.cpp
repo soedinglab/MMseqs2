@@ -12,7 +12,7 @@
 
 int createseqfiledb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     DBReader<unsigned int> clusters(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     clusters.open(DBReader<unsigned int>::LINEAR_ACCCESS);

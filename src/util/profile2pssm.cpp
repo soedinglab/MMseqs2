@@ -13,7 +13,7 @@
 
 int profile2pssm(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2,  true, 0, MMseqsParameter::COMMAND_PROFILE);
+    par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_PROFILE);
 
     DBReader<unsigned int> profileReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     profileReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -28,7 +28,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
     size_t entries = profileReader.getSize();
     Debug::Progress progress(entries);
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, 0.0);
     Debug(Debug::INFO) << "Start converting profiles.\n";
 #pragma omp parallel
     {

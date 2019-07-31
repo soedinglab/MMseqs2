@@ -26,7 +26,7 @@ void setMsa2ProfileDefaults(Parameters *p) {
 int msa2profile(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setMsa2ProfileDefaults(&par);
-    par.parseParameters(argc, argv, command, 2, true, 0, MMseqsParameter::COMMAND_PROFILE);
+    par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_PROFILE);
 
     std::string msaData = par.db1;
     std::string msaIndex = par.db1Index;
@@ -138,7 +138,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+        SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
         PSSMCalculator calculator(&subMat, maxSeqLength, maxSetSize, par.pca, par.pcb);
         Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 

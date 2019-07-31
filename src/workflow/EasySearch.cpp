@@ -54,8 +54,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
                                      par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
                                      par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
-    par.parseParameters(argc, argv, command, 4);
-
+    par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
 
     bool needBacktrace = false;
     {
@@ -63,7 +62,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
         bool needFullHeaders = false;
         Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
     }
-    if(par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM){
+    if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM || par.greedyBestHits) {
         needBacktrace = true;
     }
     if (needBacktrace) {
@@ -72,41 +71,47 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
         par.PARAM_ADD_BACKTRACE.wasSet = true;
     }
 
-    if (FileUtil::directoryExists(par.db4.c_str()) == false) {
-        Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
-        if (FileUtil::makeDir(par.db4.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create tmp folder " << par.db4 << ".\n";
+    std::string tmpDir = par.filenames.back();
+    par.filenames.pop_back();
+    if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
+        Debug(Debug::INFO) << "Tmp " << tmpDir << " folder does not exist or is not a directory.\n";
+        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
+            Debug(Debug::ERROR) << "Can not create tmp folder " << tmpDir << ".\n";
             return EXIT_FAILURE;
         } else {
-            Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
+            Debug(Debug::INFO) << "Created dir " << tmpDir << "\n";
         }
     }
 
     std::string hash = SSTR(par.hashParameter(par.filenames, *command.params));
     if(par.reuseLatest){
-        hash = FileUtil::getHashFromSymLink(par.db4+"/latest");
+        hash = FileUtil::getHashFromSymLink(tmpDir+"/latest");
     }
-    std::string tmpDir = par.db4+"/"+hash;
+    tmpDir += "/" + hash;
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
             Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
             return EXIT_FAILURE;
         }
     }
-    par.filenames.pop_back();
-    par.filenames.push_back(tmpDir);
-    FileUtil::symlinkAlias(tmpDir, "latest");
-
     CommandCaller cmd;
+    cmd.addVariable("TMP_PATH", tmpDir.c_str());
+    FileUtil::symlinkAlias(tmpDir, "latest");
+    cmd.addVariable("RESULTS", par.filenames.back().c_str());
+    par.filenames.pop_back();
+    std::string target = par.filenames.back().c_str();
+    cmd.addVariable("TARGET", target.c_str());
+    par.filenames.pop_back();
+
     if (linsearch) {
-        const bool isIndex = LinsearchIndexReader::searchForIndex(par.db2).empty() == false;
+        const bool isIndex = LinsearchIndexReader::searchForIndex(target).empty() == false;
         cmd.addVariable("INDEXEXT", isIndex ? ".linidx" : NULL);
         cmd.addVariable("SEARCH_MODULE", "linsearch");
         cmd.addVariable("LINSEARCH", "TRUE");
         cmd.addVariable("CREATELININDEX_PAR", par.createParameterString(par.createlinindex).c_str());
         cmd.addVariable("SEARCH_PAR", par.createParameterString(par.linsearchworkflow, true).c_str());
     } else {
-        const bool isIndex = PrefilteringIndexReader::searchForIndex(par.db2).empty() == false;
+        const bool isIndex = PrefilteringIndexReader::searchForIndex(target).empty() == false;
         cmd.addVariable("INDEXEXT", isIndex ? ".idx" : NULL);
         cmd.addVariable("SEARCH_MODULE", "search");
         cmd.addVariable("LINSEARCH", NULL);

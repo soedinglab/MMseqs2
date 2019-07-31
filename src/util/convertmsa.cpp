@@ -2,12 +2,17 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
-#include "gzstream.h"
+
+#include <fstream>
 #include <algorithm>
+
+#ifdef HAVE_ZLIB
+#include "gzstream.h"
+#endif
 
 int convertmsa(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     std::istream *in;
     if (Util::endsWith(".gz", par.db1)) {
@@ -125,8 +130,6 @@ int convertmsa(int argc, const char **argv, const Command &command) {
         }
     }
     writer.close();
-
-
 
     delete in;
     return EXIT_SUCCESS;

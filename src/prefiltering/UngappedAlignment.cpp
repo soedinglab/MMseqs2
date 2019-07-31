@@ -204,7 +204,7 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
                 std::pair<const unsigned char *, const unsigned int> dbSeq =  sequenceLookup->getSequence(hits[hitIdx]->id);
                 if(dbSeq.second >= 32768){
                     int max = computeLongScore(queryProfile, queryLen, dbSeq, diagonal, bias);
-                    hits[hitIdx]->count = static_cast<unsigned char>(std::min(255, max));
+                    hits[hitIdx]->count = static_cast<unsigned char>(std::min(255-bias, max));
                 }
             }
         }
@@ -218,7 +218,7 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
             }else{
                 max = computeSingelSequenceScores(queryProfile, queryLen, dbSeq, diagonal, minDistToDiagonal, bias);
             }
-            hits[hitIdx]->count = static_cast<unsigned char>(std::min(255, max));
+            hits[hitIdx]->count = static_cast<unsigned char>(std::min(255-bias, max));
         }
 
     }
