@@ -175,7 +175,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
 
     // restrict amount of allocated memory if all results are requested
     // INT_MAX would allocate 72GB RAM per thread for no reason
-    maxResListLen = std::min(tdbr.getSize(), maxResListLen);
+    maxResListLen = std::min(tdbr->getSize(), maxResListLen);
 
     // investigate if it makes sense to mask the profile consensus sequence
     if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {

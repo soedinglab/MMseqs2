@@ -151,7 +151,7 @@ int linsearch(int argc, const char **argv, const Command &command) {
         cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");
-        FileUtil::writeFile(program, translated_search_sh, translated_search_sh_len);
+        FileUtil::writeFile(program, Linsearch::translated_search_sh, Linsearch::translated_search_sh_len);
     } else {
         FileUtil::writeFile(program, linsearch_sh, linsearch_sh_len);
     }

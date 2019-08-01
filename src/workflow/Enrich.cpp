@@ -6,6 +6,8 @@
 
 #include "enrich.sh.h"
 
+#include <cassert>
+
 void setEnrichWorkflowDefaults(Parameters *p) {
     p->numIterations = 3;
     p->expansionMode = 1;

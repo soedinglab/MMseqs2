@@ -6,6 +6,8 @@
 
 #include "map.sh.h"
 
+#include <cassert>
+
 void setMapWorkflowDefaults(Parameters *p) {
     p->compBiasCorrection = 0;
     p->maskMode = 0;

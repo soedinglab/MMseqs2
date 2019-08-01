@@ -5,6 +5,8 @@
 #include "Parameters.h"
 #include "rbh.sh.h"
 
+#include <cassert>
+
 void setRbhDefaults(Parameters *p) {
     p->compBiasCorrection = 0;
     p->maskMode = 0;
