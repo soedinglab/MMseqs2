@@ -366,17 +366,17 @@ std::string FileUtil::createTemporaryDirectory(const std::string& basePath, cons
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         Debug(Debug::INFO) << "Path " << tmpDir << " does not exist or is not a directory.\n";
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Cannot create tmp folder " << tmpDir << ".\n";
-            return EXIT_FAILURE;
+            Debug(Debug::ERROR) << "Cannot create temporary folder " << tmpDir << ".\n";
+            EXIT(EXIT_FAILURE);
         } else {
-            Debug(Debug::INFO) << "Created dir " << tmpDir << "\n";
+            Debug(Debug::INFO) << "Created directory " << tmpDir << "\n";
         }
     }
     tmpDir += "/" + subDirectory;
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Cannot create sub tmp folder " << tmpDir << ".\n";
-            return EXIT_FAILURE;
+            Debug(Debug::ERROR) << "Cannot create temporary subfolder " << tmpDir << ".\n";
+            EXIT(EXIT_FAILURE);
         }
     }
     FileUtil::symlinkAlias(tmpDir, "latest");
