@@ -603,6 +603,7 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_ALPH_SIZE);
     indexdb.push_back(&PARAM_NO_COMP_BIAS_CORR);
     indexdb.push_back(&PARAM_MAX_SEQ_LEN);
+    indexdb.push_back(&PARAM_MAX_SEQS);
     indexdb.push_back(&PARAM_MASK_RESIDUES);
     indexdb.push_back(&PARAM_MASK_LOWER_CASE);
     indexdb.push_back(&PARAM_SPACED_KMER_MODE);

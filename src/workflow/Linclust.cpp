@@ -127,9 +127,8 @@ int linclust(int argc, const char **argv, const Command& command) {
     // # 3. Ungapped alignment filtering
     par.filterHits = true;
     cmd.addVariable("UNGAPPED_ALN_PAR", par.createParameterString(par.rescorediagonal).c_str());
-    // # 4. Local gapped sequence alignment.
-    par.maxResListLen = INT_MAX;
 
+    // # 4. Local gapped sequence alignment.
     if (isUngappedMode) {
         const int originalRescoreMode = par.rescoreMode;
         par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
@@ -142,8 +141,8 @@ int linclust(int argc, const char **argv, const Command& command) {
     cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
     cmd.addVariable("MERGECLU_PAR", par.createParameterString(par.threadsandcompression).c_str());
 
-    FileUtil::writeFile(tmpDir + "/linclust.sh", linclust_sh, linclust_sh_len);
-    std::string program(tmpDir + "/linclust.sh");
+    std::string program = tmpDir + "/linclust.sh";
+    FileUtil::writeFile(program, linclust_sh, linclust_sh_len);
     cmd.execProgram(program.c_str(), par.filenames);
 
     // Unreachable

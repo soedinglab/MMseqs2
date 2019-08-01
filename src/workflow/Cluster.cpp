@@ -212,13 +212,10 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         cmd.addVariable("VERBCOMPRESS", par.createParameterString(par.verbandcompression).c_str());
         cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
 
-        size_t olfMaxResSize = par.maxResListLen;
-        par.maxResListLen = INT_MAX;
         cmd.addVariable("ALIGNMENT_REASSIGN_PAR", par.createParameterString(par.align).c_str());
-        par.maxResListLen = olfMaxResSize;
-        // set parameter for first step
-        FileUtil::writeFile(tmpDir + "/cascaded_clustering.sh", cascaded_clustering_sh, cascaded_clustering_sh_len);
-        std::string program(tmpDir + "/cascaded_clustering.sh");
+
+        std::string program = tmpDir + "/cascaded_clustering.sh";
+        FileUtil::writeFile(program, cascaded_clustering_sh, cascaded_clustering_sh_len);
         cmd.execProgram(program.c_str(), par.filenames);
     } else {
         // same as above, clusthash needs a smaller alphabetsize

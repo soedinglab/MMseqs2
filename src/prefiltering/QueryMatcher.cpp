@@ -45,6 +45,8 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
     this->dbSize = dbSize;
     this->counterResultSize = std::max((size_t)1000000, dbSize);
     this->maxDbMatches = std::max((size_t)1000000, dbSize) * 2;
+    // we can never find more hits than dbSize
+    this->maxHitsPerQuery = std::min(maxHitsPerQuery, dbSize);
     this->resList = (hit_t *) mem_align(ALIGN_INT, maxHitsPerQuery * sizeof(hit_t) );
     this->resListOffset = resListOffset;
     this->databaseHits = new(std::nothrow) IndexEntryLocal[maxDbMatches];
@@ -59,7 +61,6 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
     // data for histogram of score distribution
     this->scoreSizes = new unsigned int[SCORE_RANGE];
     memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
-    this->maxHitsPerQuery = maxHitsPerQuery;
     // this array will need 128 * (maxDbMatches / 128) * 5byte ~ 500MB for 50 Mio. Sequences
     initDiagonalMatcher(dbSize, maxDbMatches);
 //    this->diagonalMatcher = new CacheFriendlyOperations(dbSize, maxDbMatches / 128 );
