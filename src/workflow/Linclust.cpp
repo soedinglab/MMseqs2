@@ -27,32 +27,14 @@ int linclust(int argc, const char **argv, const Command& command) {
 
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    const int dbType = FileUtil::parseDbType(par.db1.c_str());
-
-    if (FileUtil::directoryExists(par.db3.c_str()) == false) {
-        Debug(Debug::INFO) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
-        if (FileUtil::makeDir(par.db3.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create tmp folder " << par.db3 << ".\n";
-            EXIT(EXIT_FAILURE);
-        } else {
-            Debug(Debug::INFO) << "Created dir " << par.db3 << "\n";
-        }
-    }
-
+    std::string tmpDir = par.db3;
     std::string hash = SSTR(par.hashParameter(par.filenames, par.linclustworkflow));
-    if(par.reuseLatest){
-        hash = FileUtil::getHashFromSymLink(par.db3+"/latest");
+    if (par.reuseLatest) {
+        hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
-    std::string tmpDir = par.db3+"/"+hash;
-    if (FileUtil::directoryExists(tmpDir.c_str())==false) {
-        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
+    tmpDir = FileUtil::createTemporaryDirectory(tmpDir, hash);
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
-    FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
@@ -95,6 +77,7 @@ int linclust(int argc, const char **argv, const Command& command) {
         par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
     }
 
+    const int dbType = FileUtil::parseDbType(par.db1.c_str());
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
     if (isUngappedMode && Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_HMM_PROFILE)) {
         par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);

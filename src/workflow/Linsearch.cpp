@@ -4,17 +4,16 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "PrefilteringIndexReader.h"
+#include "LinsearchIndexReader.h"
+
 #include "linsearch.sh.h"
 
 namespace Linsearch {
 #include "translated_search.sh.h"
 }
 
-#include <iomanip>
 #include <climits>
 #include <cassert>
-#include <LinsearchIndexReader.h>
-
 
 void setLinsearchDefaults(Parameters *p) {
     p->spacedKmer = true;
@@ -70,6 +69,7 @@ int linsearch(int argc, const char **argv, const Command &command) {
         dbr.open(DBReader<unsigned int>::NOSORT);
         PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&dbr);
         targetDbType = data.seqType;
+        dbr.close();
     }
 
     if (queryDbType == -1 || targetDbType == -1) {
@@ -108,34 +108,17 @@ int linsearch(int argc, const char **argv, const Command &command) {
     }
 
     par.printParameters(command.cmd, argc, argv, par.searchworkflow);
-    if (FileUtil::directoryExists(par.db4.c_str()) == false) {
-        Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
-        if (FileUtil::makeDir(par.db4.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create tmp folder " << par.db4 << ".\n";
-            EXIT(EXIT_FAILURE);
-        } else {
-            Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
-        }
-    }
 
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.searchworkflow));
+    std::string tmpDir = par.db4;
+    std::string hash = SSTR(par.hashParameter(par.filenames, par.linsearchworkflow));
     if (par.reuseLatest) {
-        hash = FileUtil::getHashFromSymLink(par.db4 + "/latest");
+        hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
-    std::string tmpDir = par.db4 + "/" + hash;
-    if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
-        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
+    tmpDir = FileUtil::createTemporaryDirectory(tmpDir, hash);
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
-    FileUtil::symlinkAlias(tmpDir, "latest");
+
     CommandCaller cmd;
-
-    std::string program = tmpDir + "/linsearch.sh";
-
     cmd.addVariable("FILTER", "1");
     int oldCovMode = par.covMode;
     par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
@@ -155,29 +138,26 @@ int linsearch(int argc, const char **argv, const Command &command) {
     cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
     par.evalThr = oldEval;
     cmd.addVariable("SWAPRESULT_PAR", par.createParameterString(par.swapresult).c_str());
-    if (isNuclSearch) {
-        cmd.addVariable("NUCL", "1");
-    }
-    FileUtil::writeFile(program, linsearch_sh, linsearch_sh_len);
+    cmd.addVariable("NUCL", isNuclSearch ? "1" : NULL);
 
+    std::string program = tmpDir + "/linsearch.sh";
     if (isTranslatedNuclSearch == true) {
         cmd.addVariable("NO_TARGET_INDEX", (indexStr == "") ? "TRUE" : NULL);
-        FileUtil::writeFile(tmpDir + "/translated_search.sh", Linsearch::translated_search_sh,
-                            Linsearch::translated_search_sh_len);
-        cmd.addVariable("QUERY_NUCL",
-                        Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
-        cmd.addVariable("TARGET_NUCL",
-                        Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
+        FileUtil::writeFile(tmpDir + "/translated_search.sh", Linsearch::translated_search_sh, Linsearch::translated_search_sh_len);
+        cmd.addVariable("QUERY_NUCL", Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
+        cmd.addVariable("TARGET_NUCL", Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());
         cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");
+        FileUtil::writeFile(program, translated_search_sh, translated_search_sh_len);
+    } else {
+        FileUtil::writeFile(program, linsearch_sh, linsearch_sh_len);
     }
     cmd.execProgram(program.c_str(), par.filenames);
 
     // Should never get here
     assert(false);
-
     return 0;
 }
