@@ -17,7 +17,7 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter dbw(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_CLUSTER_RES);
+    DBWriter dbw(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, resultReader.getDbtype());
     dbw.open();
 #pragma omp parallel
     {

@@ -16,7 +16,7 @@ if notExists "${OUTDB}"; then
         || fail "createdb failed"
 fi
 
-
+if [ "$("${MMSEQS}" dbtype "${OUTDB}")" = "Nucleotide" ]; then
     mv -f "${OUTDB}" "${OUTDB}_nucl"
     mv -f "${OUTDB}.index" "${OUTDB}_nucl.index"
     mv -f "${OUTDB}.lookup" "${OUTDB}_nucl.lookup"
@@ -80,6 +80,9 @@ fi
             || fail "result2stats failed"
     fi
 
+else
+    fail "protein mode not implemented"
+fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Remove temporary files"
