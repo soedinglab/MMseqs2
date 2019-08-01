@@ -141,9 +141,10 @@ int linsearch(int argc, const char **argv, const Command &command) {
     cmd.addVariable("NUCL", isNuclSearch ? "1" : NULL);
 
     std::string program = tmpDir + "/linsearch.sh";
+    FileUtil::writeFile(program, linsearch_sh, linsearch_sh_len);
+
     if (isTranslatedNuclSearch == true) {
         cmd.addVariable("NO_TARGET_INDEX", (indexStr == "") ? "TRUE" : NULL);
-        FileUtil::writeFile(tmpDir + "/translated_search.sh", Linsearch::translated_search_sh, Linsearch::translated_search_sh_len);
         cmd.addVariable("QUERY_NUCL", Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
         cmd.addVariable("TARGET_NUCL", Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
@@ -152,8 +153,6 @@ int linsearch(int argc, const char **argv, const Command &command) {
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");
         FileUtil::writeFile(program, Linsearch::translated_search_sh, Linsearch::translated_search_sh_len);
-    } else {
-        FileUtil::writeFile(program, linsearch_sh, linsearch_sh_len);
     }
     cmd.execProgram(program.c_str(), par.filenames);
 
