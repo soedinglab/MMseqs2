@@ -18,6 +18,7 @@ struct PrefilteringIndexData {
     int srcSeqType;
     int headers1;
     int headers2;
+    int splits;
 };
 
 
@@ -56,17 +57,15 @@ public:
                                 DBReader<unsigned int> *dbr1, DBReader<unsigned int> *dbr2,
                                 DBReader<unsigned int> *hdbr1, DBReader<unsigned int> *hdbr2,
                                 BaseMatrix *seedSubMat, int maxSeqLen, bool spacedKmer, const std::string &spacedKmerPattern,
-                                bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode, int maskLowerCase, int kmerThr);
+                                bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode, int maskLowerCase, int kmerThr, int splits);
 
     static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads, bool touchIndex, bool touchData);
 
     static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touchIndex, bool touchData);
 
-    static SequenceLookup *getSequenceLookup(DBReader<unsigned int> *dbr, bool touch);
+    static SequenceLookup *getSequenceLookup(unsigned int split, DBReader<unsigned int> *dbr, bool touch);
 
-    static SequenceLookup *getUnmaskedSequenceLookup(DBReader<unsigned int> *dbr, bool touch);
-
-    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, bool touch);
+    static IndexTable *getIndexTable(unsigned int split, DBReader<unsigned int> *dbr, bool touch);
 
     static void printSummary(DBReader<unsigned int> *dbr);
 

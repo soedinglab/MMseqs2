@@ -37,7 +37,9 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         }
 
         std::string check;
-        if (LinsearchIndexReader::checkIfIndexFile(&index) && (check = LinsearchIndexReader::findIncompatibleParameter(index, par, seqDbr.getDbtype())) == "") {
+        const bool compatible = LinsearchIndexReader::checkIfIndexFile(&index) && (check = LinsearchIndexReader::findIncompatibleParameter(index, par, seqDbr.getDbtype())) == "";
+        index.close();
+        if (compatible) {
             Debug(Debug::INFO) << "Index is already up to date and compatible. Force recreation with --check-compatibility 0 parameter.\n";
             return EXIT_SUCCESS;
         } else {
