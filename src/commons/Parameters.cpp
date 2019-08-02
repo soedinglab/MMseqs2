@@ -465,6 +465,7 @@ Parameters::Parameters():
 
     //result2stats
     result2stats.push_back(&PARAM_STAT);
+    result2stats.push_back(&PARAM_TSV);
     result2stats.push_back(&PARAM_COMPRESSED);
     result2stats.push_back(&PARAM_THREADS);
     result2stats.push_back(&PARAM_V);

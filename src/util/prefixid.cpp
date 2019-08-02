@@ -64,6 +64,9 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
         }
     }
     writer.close(tsvOut);
+    if (tsvOut) {
+        FileUtil::remove(writer.getIndexFileName());
+    }
     reader.close();
 
     return EXIT_SUCCESS;

@@ -55,11 +55,14 @@ int MapStatString(const std::string &str) {
 StatsComputer::StatsComputer(const Parameters &par)
         : stat(MapStatString(par.stat)),
           queryDb(par.db1), queryDbIndex(par.db1Index),
-          targetDb(par.db2), targetDbIndex(par.db2Index) {
+          targetDb(par.db2), targetDbIndex(par.db2Index), tsvOut(par.tsvOut) {
     resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     this->threads = par.threads;
-    statWriter = new DBWriter(par.db4.c_str(), par.db4Index.c_str(), (unsigned int) par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
+
+    const bool shouldCompress = tsvOut == false && par.compressed == true;
+    const int dbType = tsvOut == true ? Parameters::DBTYPE_OMIT_FILE : Parameters::DBTYPE_GENERIC_DB;
+    statWriter = new DBWriter(par.db4.c_str(), par.db4Index.c_str(), (unsigned int) par.threads, shouldCompress, dbType);
     statWriter->open();
 }
 
@@ -111,7 +114,10 @@ int StatsComputer::run() {
 }
 
 StatsComputer::~StatsComputer() {
-    statWriter->close();
+    statWriter->close(tsvOut);
+    if (tsvOut) {
+        FileUtil::remove(statWriter->getIndexFileName());
+    }
     resultReader->close();
     delete statWriter;
     delete resultReader;
@@ -143,7 +149,7 @@ int StatsComputer::countNumberOfLines() {
 
             lineCountString = SSTR(lineCount) + "\n";
 
-            statWriter->writeData(lineCountString.c_str(), lineCountString.length(), resultReader->getDbKey(id), thread_idx);
+            statWriter->writeData(lineCountString.c_str(), lineCountString.length(), resultReader->getDbKey(id), thread_idx, !tsvOut);
         }
     }
     return 0;
