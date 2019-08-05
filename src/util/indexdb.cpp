@@ -90,6 +90,9 @@ int indexdb(int argc, const char **argv, const Command &command) {
     par.kmerScore = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, par.kmerScore, par.kmerSize);
 
     std::string indexDB = PrefilteringIndexReader::indexName(par.db2);
+
+    int status = EXIT_SUCCESS;
+    bool recreate = true;
     std::string indexDbType = indexDB + ".dbtype";
     if (par.checkCompatible > 0 && FileUtil::fileExists(indexDbType.c_str())) {
         Debug(Debug::INFO) << "Check index " << indexDB << "\n";
@@ -104,39 +107,43 @@ int indexdb(int argc, const char **argv, const Command &command) {
         const bool compatible = PrefilteringIndexReader::checkIfIndexFile(&index) && (check = findIncompatibleParameter(index, par, dbr.getDbtype())) == "";
         index.close();
         if (compatible) {
-            Debug(Debug::INFO) << "Index is already up to date and compatible. Force recreation with --check-compatibility 0 parameter.\n";
-            return EXIT_SUCCESS;
+            Debug(Debug::INFO) << "Index is up to date and compatible. Force recreation with --check-compatibility 0 parameter.\n";
+            recreate = false;
         } else {
             if (par.checkCompatible == 2) {
                 Debug(Debug::ERROR) << "Index is incompatible. Incompatible parameter: " << check << "\n";
-                return EXIT_FAILURE;
+                recreate = false;
+                status = EXIT_FAILURE;
             } else {
                 Debug(Debug::WARNING) << "Index is incompatible and will be recreated. Incompatible parameter: " << check << "\n";
+                recreate = true;
             }
         }
     }
 
-    DBReader<unsigned int> hdbr1(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    hdbr1.open(DBReader<unsigned int>::NOSORT);
+    if (recreate) {
+        DBReader<unsigned int> hdbr1(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        hdbr1.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> *hdbr2 = NULL;
-    if (sameDB == false) {
-        hdbr2 = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        hdbr2->open(DBReader<unsigned int>::NOSORT);
+        DBReader<unsigned int> *hdbr2 = NULL;
+        if (sameDB == false) {
+            hdbr2 = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+            hdbr2->open(DBReader<unsigned int>::NOSORT);
+        }
+
+        DBReader<unsigned int>::removeDb(indexDB);
+        PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, &hdbr1, hdbr2, seedSubMat, par.maxSeqLen,
+                                                 par.spacedKmer, par.spacedKmerPattern, par.compBiasCorrection,
+                                                 seedSubMat->alphabetSize, par.kmerSize, par.maskMode, par.maskLowerCaseMode,
+                                                 par.kmerScore, par.split);
+
+        if (hdbr2 != NULL) {
+            hdbr2->close();
+            delete hdbr2;
+        }
+
+        hdbr1.close();
     }
-
-    DBReader<unsigned int>::removeDb(indexDB);
-    PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, &hdbr1, hdbr2, seedSubMat, par.maxSeqLen,
-                                             par.spacedKmer, par.spacedKmerPattern, par.compBiasCorrection,
-                                             seedSubMat->alphabetSize, par.kmerSize, par.maskMode, par.maskLowerCaseMode,
-                                             par.kmerScore, par.split);
-
-    if (hdbr2 != NULL) {
-        hdbr2->close();
-        delete hdbr2;
-    }
-
-    hdbr1.close();
 
     if (dbr2 != NULL) {
         dbr2->close();
@@ -146,5 +153,5 @@ int indexdb(int argc, const char **argv, const Command &command) {
     delete seedSubMat;
     dbr.close();
 
-    return EXIT_SUCCESS;
+    return status;
 }

@@ -23,8 +23,8 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     int querySeqType = seqDbr.getDbtype();
 
     setKmerLengthAndAlphabet(par, seqDbr.getAminoAcidDBSize(), querySeqType);
-    std::vector<MMseqsParameter*>* params = command.params;
-    par.printParameters(command.cmd, argc, argv, *params);
+    par.printParameters(command.cmd, argc, argv, *command.params);
+
     Debug(Debug::INFO) << "Database size: "  << seqDbr.getSize() << " type: " << seqDbr.getDbTypeName() << "\n";
     std::string indexDB = LinsearchIndexReader::indexName(par.db2);
     if (par.checkCompatible > 0 && FileUtil::fileExists(indexDB.c_str())) {
@@ -39,6 +39,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         std::string check;
         const bool compatible = LinsearchIndexReader::checkIfIndexFile(&index) && (check = LinsearchIndexReader::findIncompatibleParameter(index, par, seqDbr.getDbtype())) == "";
         index.close();
+        seqDbr.close();
         if (compatible) {
             Debug(Debug::INFO) << "Index is already up to date and compatible. Force recreation with --check-compatibility 0 parameter.\n";
             return EXIT_SUCCESS;
@@ -299,6 +300,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
                 }
                 dbw.writeEnd(PrefilteringIndexReader::HDR2DATA, 0);
                 dbw.alignToPageSize();
+                hdbr2.close();
                 free(data);
             }
         }

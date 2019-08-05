@@ -112,7 +112,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         tDbr = &qDbr;
         tDbrHeader= &qDbrHeader;
     } else {
-
         tDbr = new IndexReader(par.db2, par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0, dbaccessMode);
         tDbrHeader = new IndexReader(par.db2, par.threads, IndexReader::SRC_HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     }
@@ -161,9 +160,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
-
-
 
     unsigned int localThreads = 1;
 #ifdef OPENMP
@@ -580,11 +576,11 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     }
 
     alnDbr.close();
+    if (sameDB == false) {
+        delete tDbr;
+        delete tDbrHeader;
+    }
     if (needSequenceDB) {
-        if (sameDB == false) {
-            delete tDbr;
-            delete tDbrHeader;
-        }
         delete evaluer;
     }
     delete subMat;
