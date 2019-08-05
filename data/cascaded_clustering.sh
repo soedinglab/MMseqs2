@@ -99,13 +99,13 @@ if [ -n "$REASSIGN" ]; then
     # create file of cluster that do not align based on given criteria
     if notExists "${TMP_PATH}/clu_not_accepted.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" subtractdbs "${TMP_PATH}/clu" "${TMP_PATH}/aln" "${TMP_PATH}/clu_not_accepted" --e-profile 100000000 ${THREADSANDCOMPRESS} \
+        "$MMSEQS" subtractdbs "${TMP_PATH}/clu" "${TMP_PATH}/aln" "${TMP_PATH}/clu_not_accepted" --e-profile 100000000 -e 100000000 ${THREADSANDCOMPRESS} \
                  || fail "subtractdbs1 reassign died"
     fi
     # create file of cluster that do align based on given criteria
     if notExists "${TMP_PATH}/clu_accepted.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" subtractdbs "${TMP_PATH}/clu" "${TMP_PATH}/clu_not_accepted" "${TMP_PATH}/clu_accepted" --e-profile 100000000 ${THREADSANDCOMPRESS} \
+        "$MMSEQS" subtractdbs "${TMP_PATH}/clu" "${TMP_PATH}/clu_not_accepted" "${TMP_PATH}/clu_accepted" --e-profile 100000000 -e 100000000 ${THREADSANDCOMPRESS} \
                  || fail "subtractdbs2 reassign died"
     fi
     if notExists "${TMP_PATH}/clu_not_accepted_swap.dbtype"; then
@@ -151,33 +151,23 @@ if [ -n "$REASSIGN" ]; then
                                             "${TMP_PATH}/seq_wrong_assigned_pref_swaped" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln" ${ALIGNMENT_REASSIGN_PAR} \
                  || fail "align2 reassign died"
     fi
-    # extract only top hit and trim to frist column
-    if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.dbtype"; then
+
+    if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_ocol.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" swapdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped" ${THREADSANDCOMPRESS} \
-                 || fail "swapdb3 reassign died"
-    fi
-    if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol.dbtype"; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" filterdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol" --trim-to-one-column ${THREADSANDCOMPRESS} \
+        "$MMSEQS" filterdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_ocol" --trim-to-one-column ${THREADSANDCOMPRESS} \
                     || fail "filterdb2 reassign died"
-    fi
-    if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol_swaped.dbtype"; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" swapdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol_swaped" ${THREADSANDCOMPRESS} \
-                        || fail "swapdb2 reassign died"
     fi
 
     if notExists "${TMP_PATH}/clu_accepted_plus_wrong.dbtype"; then
         # combine clusters
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${TMP_PATH}/seq_seeds.merged" "${TMP_PATH}/clu_accepted_plus_wrong" "${TMP_PATH}/clu_accepted" \
-                        "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol_swaped" \
+                        "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_ocol" \
                              || fail "mergedbs reassign died"
     fi
 
     if notExists "${TMP_PATH}/missing.single.seqs.db.dbtype"; then
-         awk 'FNR==NR{f[$1]=1;next} !($1 in f){print $1"\t"$1}' "${SOURCE}.index" "${TMP_PATH}/clu_accepted_plus_wrong.index" > "${TMP_PATH}/missing.single.seqs"
+         awk 'FNR==NR{if($3 > 1){ f[$1]=1; }next} !($1 in f){print $1"\t"$1}' "${TMP_PATH}/clu_accepted_plus_wrong.index" "${SOURCE}.index" > "${TMP_PATH}/missing.single.seqs"
         "$MMSEQS" tsv2db "${TMP_PATH}/missing.single.seqs" "${TMP_PATH}/missing.single.seqs.db" --output-dbtype 6 ${VERBCOMPRESS} \
                             || fail "tsv2db reassign died"
     fi
