@@ -129,8 +129,15 @@ if [ -n "$REASSIGN" ]; then
     eval PREFILTER_PAR="\$$PARAM"
     # try to find best matching centroid sequences for prev. wrong assigned sequences
     if notExists "${TMP_PATH}/seq_wrong_assigned_pref.dbtype"; then
+        # combine seq dbs
+        MAXOFFSET=$(awk '$2 > max{max=$2+$3}END{print max}' "${TMP_PATH}/seq_seeds.index")
+        awk -vOFFSET=${MAXOFFSET} 'FNR==NR{print $0; next}{print $1"\t"$2+OFFSET"\t"$3}' "${TMP_PATH}/seq_seeds.index" \
+             "${TMP_PATH}/seq_wrong_assigned.index" > "${TMP_PATH}/seq_seeds.merged.index"
+        ln -s "${TMP_PATH}/seq_seeds" "${TMP_PATH}/seq_seeds.merged.0"
+        ln -s "${TMP_PATH}/seq_wrong_assigned" "${TMP_PATH}/seq_seeds.merged.1"
+        cp "${TMP_PATH}/seq_seeds.dbtype" "${TMP_PATH}/seq_seeds.merged.dbtype"
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" prefilter "${TMP_PATH}/seq_wrong_assigned" "${TMP_PATH}/seq_seeds" "${TMP_PATH}/seq_wrong_assigned_pref" ${PREFILTER_PAR} \
+        $RUNNER "$MMSEQS" prefilter "${TMP_PATH}/seq_wrong_assigned" "${TMP_PATH}/seq_seeds.merged" "${TMP_PATH}/seq_wrong_assigned_pref" ${PREFILTER_PAR} \
                  || fail "Prefilter reassign died"
     fi
     if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped.dbtype"; then
@@ -140,7 +147,7 @@ if [ -n "$REASSIGN" ]; then
     fi
     if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln.dbtype"; then
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "${TMP_PATH}/seq_seeds" "${TMP_PATH}/seq_wrong_assigned" \
+        $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "${TMP_PATH}/seq_seeds.merged" "${TMP_PATH}/seq_wrong_assigned" \
                                             "${TMP_PATH}/seq_wrong_assigned_pref_swaped" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln" ${ALIGNMENT_REASSIGN_PAR} \
                  || fail "align2 reassign died"
     fi
@@ -150,33 +157,45 @@ if [ -n "$REASSIGN" ]; then
         "$MMSEQS" swapdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped" ${THREADSANDCOMPRESS} \
                  || fail "swapdb3 reassign died"
     fi
-    if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1.dbtype"; then
+    if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" filterdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1" --extract-lines 1 ${THREADSANDCOMPRESS} \
-                    || fail "filterdb1 reassign died"
-    fi
-    if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol.dbtype"; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" filterdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol" --trim-to-one-column ${THREADSANDCOMPRESS} \
+        "$MMSEQS" filterdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol" --trim-to-one-column ${THREADSANDCOMPRESS} \
                     || fail "filterdb2 reassign died"
     fi
-    if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol_swaped.dbtype"; then
+    if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol_swaped.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" swapdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol_swaped" ${THREADSANDCOMPRESS} \
+        "$MMSEQS" swapdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol_swaped" ${THREADSANDCOMPRESS} \
                         || fail "swapdb2 reassign died"
     fi
-    if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.nohit.db.dbtype"; then
-        awk 'FNR==NR{f[$1]=1;next} !($1 in f){print $1"\t"$1}' "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.index" \
-                                                      "${TMP_PATH}/seq_wrong_assigned.index"  > "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.nohit"
-        "$MMSEQS" tsv2db "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.nohit" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.nohit.db" --output-dbtype 6 ${VERBCOMPRESS} \
+
+    if notExists "${TMP_PATH}/clu_accepted_plus_wrong.dbtype"; then
+        # combine clusters
+        # shellcheck disable=SC2086
+        "$MMSEQS" mergedbs "${TMP_PATH}/seq_seeds.merged" "${TMP_PATH}/clu_accepted_plus_wrong" "${TMP_PATH}/clu_accepted" \
+                        "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol_swaped" \
+                             || fail "mergedbs reassign died"
+    fi
+
+    if notExists "${TMP_PATH}/missing.single.seqs.db.dbtype"; then
+         awk 'FNR==NR{f[$1]=1;next} !($1 in f){print $1"\t"$1}' "${SOURCE}.index" "${TMP_PATH}/clu_accepted_plus_wrong.index" > "${TMP_PATH}/missing.single.seqs"
+        "$MMSEQS" tsv2db "${TMP_PATH}/missing.single.seqs" "${TMP_PATH}/missing.single.seqs.db" --output-dbtype 6 ${VERBCOMPRESS} \
                             || fail "tsv2db reassign died"
     fi
-    # combine clusters
+
+    if notExists "${TMP_PATH}/clu_accepted_plus_wrong_plus_single.dbtype"; then
+        # combine clusters
+        # shellcheck disable=SC2086
+        "$MMSEQS" mergedbs "${SOURCE}" "${TMP_PATH}/clu_accepted_plus_wrong_plus_single" "${TMP_PATH}/clu_accepted_plus_wrong" \
+                        "${TMP_PATH}/missing.single.seqs.db" \
+                             || fail "mergedbs2 reassign died"
+    fi
+
+    PARAM=CLUSTER${STEP}_PAR
+    eval TMP="\$$PARAM"
     # shellcheck disable=SC2086
-    "$MMSEQS" mergedbs "$SOURCE" "$2" "${TMP_PATH}/clu_accepted" \
-                        "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol_swaped" \
-                        "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.nohit.db" ${VERBCOMPRESS} \
-                             || fail "mergedbs reassign died"
+    "$MMSEQS" clust "${SOURCE}" "${TMP_PATH}/clu_accepted_plus_wrong_plus_single" "${2}" ${TMP} \
+            || fail "Clustering step $STEP died"
+
     if [ -n "$REMOVE_TMP" ]; then
         echo "Remove temporary files"
         "$MMSEQS" rmdb "${TMP_PATH}/aln"
@@ -185,13 +204,17 @@ if [ -n "$REASSIGN" ]; then
         "$MMSEQS" rmdb "${TMP_PATH}/clu_not_accepted_swap"
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned"
         "$MMSEQS" rmdb "${TMP_PATH}/seq_seeds"
+        "$MMSEQS" rmdb "${TMP_PATH}/seq_seeds.merged"
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref"
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped"
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln"
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol_swaped"
+        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol"
+        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol_swaped"
+        rm -f "${TMP_PATH}/missing.single.seqs"
+        "$MMSEQS" rmdb "${TMP_PATH}/missing.single.seqs.db"
+        "$MMSEQS" rmdb "${TMP_PATH}/clu_accepted_plus_wrong_plus_single"
+
     fi
 fi
 
