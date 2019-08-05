@@ -131,7 +131,7 @@ if [ -n "$REASSIGN" ]; then
     if notExists "${TMP_PATH}/seq_wrong_assigned_pref.dbtype"; then
         # combine seq dbs
         MAXOFFSET=$(awk '$2 > max{max=$2+$3}END{print max}' "${TMP_PATH}/seq_seeds.index")
-        awk -vOFFSET=${MAXOFFSET} 'FNR==NR{print $0; next}{print $1"\t"$2+OFFSET"\t"$3}' "${TMP_PATH}/seq_seeds.index" \
+        awk -v OFFSET="${MAXOFFSET}" 'FNR==NR{print $0; next}{print $1"\t"$2+OFFSET"\t"$3}' "${TMP_PATH}/seq_seeds.index" \
              "${TMP_PATH}/seq_wrong_assigned.index" > "${TMP_PATH}/seq_seeds.merged.index"
         ln -s "${TMP_PATH}/seq_seeds" "${TMP_PATH}/seq_seeds.merged.0"
         ln -s "${TMP_PATH}/seq_wrong_assigned" "${TMP_PATH}/seq_seeds.merged.1"
@@ -198,11 +198,11 @@ if [ -n "$REASSIGN" ]; then
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref"
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped"
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol"
+        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_ocol"
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol_swaped"
         rm -f "${TMP_PATH}/missing.single.seqs"
         "$MMSEQS" rmdb "${TMP_PATH}/missing.single.seqs.db"
+        "$MMSEQS" rmdb "${TMP_PATH}/clu_accepted_plus_wrong"
         "$MMSEQS" rmdb "${TMP_PATH}/clu_accepted_plus_wrong_plus_single"
 
     fi
