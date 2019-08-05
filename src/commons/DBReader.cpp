@@ -486,7 +486,7 @@ template <typename T> void DBReader<T>::close(){
     if(compressedBuffers){
         for(int i = 0; i < threads; i++){
             ZSTD_freeDStream(dstream[i]);
-            delete [] compressedBuffers[i];
+            free(compressedBuffers[i]);
         }
         delete [] compressedBuffers;
         delete [] compressedBufferSizes;
