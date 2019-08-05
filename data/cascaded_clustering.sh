@@ -165,9 +165,17 @@ if [ -n "$REASSIGN" ]; then
         "$MMSEQS" swapdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol_swaped" ${THREADSANDCOMPRESS} \
                         || fail "swapdb2 reassign died"
     fi
+    if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.nohit.db.dbtype"; then
+        awk 'FNR==NR{f[$1]=1;next} !($1 in f){print $1"\t"$1}' "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.index" \
+                                                      "${TMP_PATH}/seq_wrong_assigned.index"  > "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.nohit"
+        "$MMSEQS" tsv2db "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.nohit" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.nohit.db" --output-dbtype 6 ${VERBCOMPRESS} \
+                            || fail "tsv2db reassign died"
+    fi
     # combine clusters
     # shellcheck disable=SC2086
-    "$MMSEQS" mergedbs "$SOURCE" "$2" "${TMP_PATH}/clu_accepted" "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol_swaped" ${VERBCOMPRESS} \
+    "$MMSEQS" mergedbs "$SOURCE" "$2" "${TMP_PATH}/clu_accepted" \
+                        "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_top1_ocol_swaped" \
+                        "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped.nohit.db" ${VERBCOMPRESS} \
                              || fail "mergedbs reassign died"
     if [ -n "$REMOVE_TMP" ]; then
         echo "Remove temporary files"
