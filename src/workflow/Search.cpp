@@ -294,30 +294,14 @@ int search(int argc, const char **argv, const Command& command) {
     }
     par.printParameters(command.cmd, argc, argv, par.searchworkflow);
 
-    if (FileUtil::directoryExists(par.db4.c_str()) == false) {
-        Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
-        if (FileUtil::makeDir(par.db4.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create tmp folder " << par.db4 << ".\n";
-            EXIT(EXIT_FAILURE);
-        } else {
-            Debug(Debug::INFO) << "Create dir " << par.db4 << "\n";
-        }
-    }
-
+    std::string tmpDir = par.db4;
     std::string hash = SSTR(par.hashParameter(par.filenames, par.searchworkflow));
-    if(par.reuseLatest){
-        hash = FileUtil::getHashFromSymLink(par.db4+"/latest");
+    if (par.reuseLatest) {
+        hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
-    std::string tmpDir = par.db4+"/"+hash;
-    if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
-        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
+    tmpDir = FileUtil::createTemporaryDirectory(tmpDir, hash);
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
-    FileUtil::symlinkAlias(tmpDir, "latest");
 
     const int originalRescoreMode = par.rescoreMode;
     CommandCaller cmd;
@@ -333,18 +317,9 @@ int search(int argc, const char **argv, const Command& command) {
             Debug(Debug::ERROR) << "Sliced search only works with profiles as targets.\n";
             EXIT(EXIT_FAILURE);
         }
-        cmd.addVariable("MAX_STEPS", SSTR(30).c_str());
 
         // By default (0), diskSpaceLimit (in bytes) will be set in the workflow to use as much as possible
         cmd.addVariable("AVAIL_DISK", SSTR(static_cast<size_t>(par.diskSpaceLimit)).c_str());
-
-        // --max-seqs and --offset-results are set inside the workflow
-        std::vector<MMseqsParameter*> prefilter;
-        for (size_t i = 0; i < par.prefilter.size(); i++){
-            if (par.prefilter[i]->uniqid != par.PARAM_MAX_SEQS.uniqid && par.prefilter[i]->uniqid != par.PARAM_PREV_MAX_SEQS.uniqid){
-                prefilter.push_back(par.prefilter[i]);
-            }
-        }
 
         // correct Eval threshold for inverted search
         const size_t queryDbSize = FileUtil::countLines(par.db1Index.c_str());
@@ -353,17 +328,19 @@ int search(int argc, const char **argv, const Command& command) {
 
         int originalCovMode = par.covMode;
         par.covMode = Util::swapCoverageMode(par.covMode);
-        par.diagonalScoring = Parameters::DIAG_SCORE_NO_RESCALE;
-        cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilter).c_str());
+        size_t maxResListLen = par.maxResListLen;
+        par.maxResListLen = INT_MAX;
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
+        par.maxResListLen = maxResListLen;
         float originalEvalThr = par.evalThr;
         par.evalThr = std::numeric_limits<float>::max();
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         par.evalThr = originalEvalThr;
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("SORTRESULT_PAR", par.createParameterString(par.sortresult).c_str());
+        par.covMode = originalCovMode;
         cmd.addVariable("THREADS_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
         cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
-        par.covMode = originalCovMode;
 
         program = tmpDir + "/searchslicedtargetprofile.sh";
         FileUtil::writeFile(program, searchslicedtargetprofile_sh, searchslicedtargetprofile_sh_len);

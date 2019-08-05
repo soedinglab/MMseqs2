@@ -26,28 +26,12 @@ int easytaxonomy(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
 
     std::string tmpDir = par.filenames.back();
-    par.filenames.pop_back();
-    if(FileUtil::directoryExists(tmpDir.c_str())==false){
-        Debug(Debug::INFO) << "Tmp " << tmpDir << " folder does not exist or is not a directory.\n";
-        if(FileUtil::makeDir(tmpDir.c_str()) == false){
-            Debug(Debug::ERROR) << "Can not create tmp folder " << tmpDir << ".\n";
-            EXIT(EXIT_FAILURE);
-        }else{
-            Debug(Debug::INFO) << "Created dir " << tmpDir << "\n";
-        }
-    }
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.taxonomy));
-    if(par.reuseLatest){
+    std::string hash = SSTR(par.hashParameter(par.filenames, *command.params));
+    if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
-    tmpDir = tmpDir + "/" +hash;
-    if(FileUtil::directoryExists(tmpDir.c_str())==false) {
-        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
-    FileUtil::symlinkAlias(tmpDir, "latest");
+    tmpDir = FileUtil::createTemporaryDirectory(tmpDir, hash);
+    par.filenames.pop_back();
 
     CommandCaller cmd;
     cmd.addVariable("RESULTS", par.filenames.back().c_str());

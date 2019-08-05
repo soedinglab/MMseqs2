@@ -6,6 +6,8 @@
 
 #include "enrich.sh.h"
 
+#include <cassert>
+
 void setEnrichWorkflowDefaults(Parameters *p) {
     p->numIterations = 3;
     p->expansionMode = 1;
@@ -16,29 +18,14 @@ int enrich(int argc, const char **argv, const Command &command) {
     setEnrichWorkflowDefaults(&par);
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    if (FileUtil::directoryExists(par.db6.c_str()) == false) {
-        Debug(Debug::INFO) << "Tmp " << par.db6 << " folder does not exist or is not a directory.\n";
-        if (FileUtil::makeDir(par.db6.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not crate tmp folder " << par.db6 << ".\n";
-            EXIT(EXIT_FAILURE);
-        } else {
-            Debug(Debug::INFO) << "Created dir " << par.db6 << "\n";
-        }
-    }
+    std::string tmpDir = par.db6;
     std::string hash = SSTR(par.hashParameter(par.filenames, par.enrichworkflow));
-    if(par.reuseLatest){
-        hash = FileUtil::getHashFromSymLink(par.db6+"/latest");
+    if (par.reuseLatest) {
+        hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
-    std::string tmpDir = par.db6+"/"+hash;
-    if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
-        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
+    tmpDir = FileUtil::createTemporaryDirectory(tmpDir, hash);
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
-    FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
     cmd.addVariable("RUNNER", par.runner.c_str());
@@ -88,9 +75,11 @@ int enrich(int argc, const char **argv, const Command &command) {
         par.pca = 1.0;
     }
 
-    std::string program(tmpDir + "/enrich.sh");
+    std::string program = tmpDir + "/enrich.sh";
     FileUtil::writeFile(program, enrich_sh, enrich_sh_len);
     cmd.execProgram(program.c_str(), par.filenames);
 
-    return EXIT_SUCCESS;
+    // Should never get here
+    assert(false);
+    return 0;
 }

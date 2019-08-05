@@ -465,6 +465,7 @@ Parameters::Parameters():
 
     //result2stats
     result2stats.push_back(&PARAM_STAT);
+    result2stats.push_back(&PARAM_TSV);
     result2stats.push_back(&PARAM_COMPRESSED);
     result2stats.push_back(&PARAM_THREADS);
     result2stats.push_back(&PARAM_V);
@@ -603,6 +604,7 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_ALPH_SIZE);
     indexdb.push_back(&PARAM_NO_COMP_BIAS_CORR);
     indexdb.push_back(&PARAM_MAX_SEQ_LEN);
+    indexdb.push_back(&PARAM_MAX_SEQS);
     indexdb.push_back(&PARAM_MASK_RESIDUES);
     indexdb.push_back(&PARAM_MASK_LOWER_CASE);
     indexdb.push_back(&PARAM_SPACED_KMER_MODE);

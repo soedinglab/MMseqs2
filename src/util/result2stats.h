@@ -22,6 +22,8 @@ private:
     std::string targetDb;
     std::string targetDbIndex;
 
+    const bool tsvOut;
+
     DBReader<unsigned int> *resultReader;
     DBWriter *statWriter;
 
