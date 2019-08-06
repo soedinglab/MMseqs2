@@ -19,7 +19,7 @@ struct sort_by_score {
     }
 };
 
-ScoreMatrix* ExtendedSubstitutionMatrix::calcScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize){
+ScoreMatrix ExtendedSubstitutionMatrix::calcScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize){
     short ** subMatrix = matrix.subMatrix;
     const size_t alphabetSize = matrix.alphabetSize;
     size_t size = pow(alphabetSize, kmerSize);
@@ -67,7 +67,12 @@ ScoreMatrix* ExtendedSubstitutionMatrix::calcScoreMatrix(const BaseMatrix& matri
     outputTemp.clear();
     permutation.clear();
 
-    return new ScoreMatrix(score, index, size, row_size);
+    return ScoreMatrix(score, index, size, row_size);
+}
+
+void ExtendedSubstitutionMatrix::freeScoreMatrix(ScoreMatrix& matrix) {
+    free(matrix.score);
+    free(matrix.index);
 }
 
 short ExtendedSubstitutionMatrix::calcScore(int * i_seq,int * j_seq,size_t seq_size, short **subMatrix){

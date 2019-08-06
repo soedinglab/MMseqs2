@@ -78,22 +78,23 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
         Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_SEQ) == false) {
         int alphabetSize = subMat->alphabetSize;
         subMat->alphabetSize = subMat->alphabetSize-1;
-        ScoreMatrix *s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
-        ScoreMatrix *s2 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
+        ScoreMatrix s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
+        ScoreMatrix s2 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
         subMat->alphabetSize = alphabetSize;
-        char* serialized3mer = ScoreMatrix::serialize(*s3);
-        Debug(Debug::INFO) << "Write SCOREMATRIX3MER (" << SCOREMATRIX3MER << ")\n";
-        writer.writeData(serialized3mer, ScoreMatrix::size(*s3), SCOREMATRIX3MER, 0);
-        writer.alignToPageSize();
-        free(serialized3mer);
-        ScoreMatrix::cleanup(s3);
 
-        char* serialized2mer = ScoreMatrix::serialize(*s2);
-        Debug(Debug::INFO) << "Write SCOREMATRIX2MER (" << SCOREMATRIX2MER << ")\n";
-        writer.writeData(serialized2mer, ScoreMatrix::size(*s2), SCOREMATRIX2MER, 0);
+        char* serialized3mer = ScoreMatrix::serialize(s3);
+        Debug(Debug::INFO) << "Write SCOREMATRIX3MER (" << SCOREMATRIX3MER << ")\n";
+        writer.writeData(serialized3mer, ScoreMatrix::size(s3), SCOREMATRIX3MER, 0);
         writer.alignToPageSize();
+        ExtendedSubstitutionMatrix::freeScoreMatrix(s3);
+        free(serialized3mer);
+
+        char* serialized2mer = ScoreMatrix::serialize(s2);
+        Debug(Debug::INFO) << "Write SCOREMATRIX2MER (" << SCOREMATRIX2MER << ")\n";
+        writer.writeData(serialized2mer, ScoreMatrix::size(s2), SCOREMATRIX2MER, 0);
+        writer.alignToPageSize();
+        ExtendedSubstitutionMatrix::freeScoreMatrix(s2);
         free(serialized2mer);
-        ScoreMatrix::cleanup(s2);
     }
 
     Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << SCOREMATRIXNAME << ")\n";
@@ -486,14 +487,13 @@ std::string PrefilteringIndexReader::getSpacedPattern(DBReader<unsigned int> *db
     return std::string(dbr->getDataUncompressed(id));
 }
 
-ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch) {
+ScoreMatrix PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch) {
     size_t id = dbr->getId(SCOREMATRIX2MER);
     if (id == UINT_MAX) {
-        return NULL;
+        return ScoreMatrix();
     }
 
     char *data = dbr->getDataUncompressed(id);
-
     if (touch) {
         dbr->touchData(id);
     }
@@ -503,14 +503,13 @@ ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> 
     return ScoreMatrix::unserialize(data, meta.alphabetSize-1, 2);
 }
 
-ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch) {
+ScoreMatrix PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch) {
     size_t id = dbr->getId(SCOREMATRIX3MER);
     if (id == UINT_MAX) {
-        return NULL;
+        return ScoreMatrix();
     }
 
     char *data = dbr->getDataUncompressed(id);
-
     if (touch) {
         dbr->touchData(id);
     }

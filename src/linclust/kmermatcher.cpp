@@ -129,8 +129,15 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
             return false;
         }
     };
-    Debug::Progress progress(seqDbr.getSize());
 
+    ScoreMatrix two;
+    ScoreMatrix three;
+    if (TYPE == Parameters::DBTYPE_HMM_PROFILE) {
+        two = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
+        three = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
+    }
+
+    Debug::Progress progress(seqDbr.getSize());
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -139,15 +146,10 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
 #endif
         const size_t adjustedKmerSize = (adjustLength) ? std::min(KMER_SIZE+5, static_cast<size_t >(23)) :  KMER_SIZE;
         Sequence seq(par.maxSeqLen, querySeqType, subMat, adjustedKmerSize, false, false);
-        KmerGenerator * generator;
-        ScoreMatrix * two=NULL;
-        ScoreMatrix * three=NULL;
-
-        if(TYPE == Parameters::DBTYPE_HMM_PROFILE){
+        KmerGenerator* generator;
+        if (TYPE == Parameters::DBTYPE_HMM_PROFILE) {
             generator = new KmerGenerator(KMER_SIZE, subMat->alphabetSize, 150);
-            two   = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
-            three = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
-            generator->setDivideStrategy(three, two);
+            generator->setDivideStrategy(&three, &two);
         }
         Indexer idxer(subMat->alphabetSize - 1, KMER_SIZE);
         char * charSequence = new char[par.maxSeqLen];
@@ -376,14 +378,17 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
             size_t writeOffset = __sync_fetch_and_add(&offset, bufferPos);
             memcpy(hashSeqPair+writeOffset, threadKmerBuffer, sizeof(KmerPosition) * bufferPos);
         }
-        delete [] kmers;
-        delete [] charSequence;
-        delete [] threadKmerBuffer;
-        if(TYPE == Parameters::DBTYPE_HMM_PROFILE) {
+        delete[] kmers;
+        delete[] charSequence;
+        delete[] threadKmerBuffer;
+        if (TYPE == Parameters::DBTYPE_HMM_PROFILE) {
             delete generator;
-            ScoreMatrix::cleanup(two);
-            ScoreMatrix::cleanup(three);
         }
+    }
+
+    if (TYPE == Parameters::DBTYPE_HMM_PROFILE) {
+        ExtendedSubstitutionMatrix::freeScoreMatrix(three);
+        ExtendedSubstitutionMatrix::freeScoreMatrix(two);
     }
 
     if (probMatrix != NULL) {

@@ -62,8 +62,8 @@ private:
 
     BaseMatrix *kmerSubMat;
     BaseMatrix *ungappedSubMat;
-    ScoreMatrix *_2merSubMatrix;
-    ScoreMatrix *_3merSubMatrix;
+    ScoreMatrix _2merSubMatrix;
+    ScoreMatrix _3merSubMatrix;
     IndexTable *indexTable;
     SequenceLookup *sequenceLookup;
 
@@ -114,7 +114,7 @@ private:
 
     static size_t estimateHDDMemoryConsumption(size_t dbSize, size_t maxResListLen);
 
-    ScoreMatrix *getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize);
+    ScoreMatrix getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize);
 
 
     // needed for index lookup

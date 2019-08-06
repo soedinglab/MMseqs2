@@ -77,9 +77,9 @@ public:
 
     static std::string getSpacedPattern(DBReader<unsigned int> *dbr);
 
-    static ScoreMatrix *get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch);
+    static ScoreMatrix get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch);
 
-    static ScoreMatrix *get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch);
+    static ScoreMatrix get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch);
 
     static std::string searchForIndex(const std::string &pathToDB);
 

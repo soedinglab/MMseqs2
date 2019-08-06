@@ -28,8 +28,6 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         queryDBIndex(queryDBIndex),
         targetDB(targetDB),
         targetDBIndex(targetDBIndex),
-        _2merSubMatrix(NULL),
-        _3merSubMatrix(NULL),
         splits(par.split),
         kmerSize(par.kmerSize),
         spacedKmerPattern(par.spacedKmerPattern),
@@ -230,6 +228,13 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         Debug(Debug::ERROR) << "Invalid split mode: " << splitMode << "\n";
         EXIT(EXIT_FAILURE);
     }
+
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_AMINO_ACIDS)) {
+        kmerSubMat->alphabetSize = kmerSubMat->alphabetSize - 1;
+        _2merSubMatrix = getScoreMatrix(*kmerSubMat, 2);
+        _3merSubMatrix = getScoreMatrix(*kmerSubMat, 3);
+        kmerSubMat->alphabetSize = alphabetSize;
+    }
 }
 
 Prefiltering::~Prefiltering() {
@@ -252,19 +257,15 @@ Prefiltering::~Prefiltering() {
     if (templateDBIsIndex == true) {
         tidxdbr->close();
         delete tidxdbr;
+    } else {
+        ExtendedSubstitutionMatrix::freeScoreMatrix(_3merSubMatrix);
+        ExtendedSubstitutionMatrix::freeScoreMatrix(_2merSubMatrix);
     }
+
     if(kmerSubMat != ungappedSubMat){
         delete ungappedSubMat;
     }
     delete kmerSubMat;
-
-
-    if (_2merSubMatrix != NULL && templateDBIsIndex == false) {
-        ScoreMatrix::cleanup(_2merSubMatrix);
-    }
-    if (_3merSubMatrix != NULL && templateDBIsIndex == false) {
-        ScoreMatrix::cleanup(_3merSubMatrix);
-    }
 }
 
 void Prefiltering::reopenTargetDb() {
@@ -452,29 +453,17 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
 }
 
 
-ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize) {
-    // profile only uses the 2mer, 3mer matrix
-    if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
-        return NULL;
-    }
-
+ScoreMatrix Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize) {
     const bool touch = preloadMode == Parameters::PRELOAD_MODE_MMAP_TOUCH;
-    ScoreMatrix *result = NULL;
     if (templateDBIsIndex == true) {
         switch(kmerSize) {
             case 2:
-                result = PrefilteringIndexReader::get2MerScoreMatrix(tidxdbr, touch);
-                break;
+                return PrefilteringIndexReader::get2MerScoreMatrix(tidxdbr, touch);
             case 3:
-                result = PrefilteringIndexReader::get3MerScoreMatrix(tidxdbr, touch);
-                break;
+                return PrefilteringIndexReader::get3MerScoreMatrix(tidxdbr, touch);
             default:
                 break;
         }
-    }
-
-    if (result != NULL) {
-        return result;
     }
     return ExtendedSubstitutionMatrix::calcScoreMatrix(matrix, kmerSize);
 
@@ -515,31 +504,6 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
         indexTable->printStatistics(kmerSubMat->int2aa);
         tdbr->remapData();
         Debug(Debug::INFO) << "Time for index table init: " << timer.lap() << "\n";
-    }
-
-    // init the substitution matrices
-    switch (querySeqType  & 0x7FFFFFFF) {
-        case Parameters::DBTYPE_AMINO_ACIDS:
-            // Do not add X
-            kmerSubMat->alphabetSize = kmerSubMat->alphabetSize - 1;
-            _2merSubMatrix = getScoreMatrix(*kmerSubMat, 2);
-            _3merSubMatrix = getScoreMatrix(*kmerSubMat, 3);
-            kmerSubMat->alphabetSize = alphabetSize;
-            break;
-        case Parameters::DBTYPE_HMM_PROFILE:
-        case Parameters::DBTYPE_PROFILE_STATE_PROFILE:
-        case Parameters::DBTYPE_NUCLEOTIDES:
-        default:
-            if (_2merSubMatrix != NULL && templateDBIsIndex == false) {
-                delete _2merSubMatrix;
-            }
-
-            if (_3merSubMatrix != NULL && templateDBIsIndex == false) {
-                delete _3merSubMatrix;
-            }
-            _2merSubMatrix = NULL;
-            _3merSubMatrix = NULL;
-            break;
     }
 }
 
@@ -784,10 +748,12 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                             kmerThr, kmerSize, dbSize, maxSeqLen, maxResListLen, aaBiasCorrection,
                             diagonalScoring, minDiagScoreThr, takeOnlyBestKmer, resListOffset);
 
-        if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
+        if (seq.profile_matrix != NULL) {
             matcher.setProfileMatrix(seq.profile_matrix);
+        } else if (_3merSubMatrix.isValid() && _2merSubMatrix.isValid()) {
+            matcher.setSubstitutionMatrix(&_3merSubMatrix, &_2merSubMatrix);
         } else {
-            matcher.setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
+            matcher.setSubstitutionMatrix(NULL, NULL);
         }
 
 #pragma omp for schedule(dynamic, 2) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
