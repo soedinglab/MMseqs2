@@ -185,9 +185,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         resultWriter.writeAdd(header.c_str(), header.size(), 0);
 
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
-
             char *data = alnDbr.getData(i, 0);
-
             while (*data != '\0') {
                 char dbKeyBuffer[255 + 1];
                 Util::parseKey(data, dbKeyBuffer);
@@ -211,6 +209,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 data = Util::skipLine(data);
             }
         }
+        delete[] headerWritten;
     }
 
     Debug::Progress progress(alnDbr.getSize());
