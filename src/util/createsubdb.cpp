@@ -4,6 +4,7 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
+#include "MemoryMapped.h"
 
 #include <climits>
 
@@ -11,36 +12,37 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    FILE *orderFile = NULL;
-    if (FileUtil::fileExists(par.db1Index.c_str())) {
-        orderFile = fopen(par.db1Index.c_str(), "r");
-    } else {
-        if(FileUtil::fileExists(par.db1.c_str())){
-            orderFile = fopen(par.db1.c_str(), "r");
-        }else{
-            Debug(Debug::ERROR) << "File " << par.db1 << " does not exist.\n";
+    std::string& file = par.db1Index;
+    if (FileUtil::fileExists(file.c_str()) == false) {
+        file = par.db1;
+        if (FileUtil::fileExists(file.c_str()) == false) {
+            Debug(Debug::ERROR) << "File " << file << " does not exist.\n";
             EXIT(EXIT_FAILURE);
         }
     }
+
+    MemoryMapped order(file, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+    char* data = (char *) order.getData();
 
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::NOSORT);
     const bool isCompressed = reader.isCompressed();
 
-    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, 0, reader.getDbtype() & ~(1 << 31));
+    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, 0, Parameters::DBTYPE_OMIT_FILE);
     writer.open();
 
-    char *line = (char*)malloc(1024);
-    size_t len = 0;
     char dbKey[256];
-    while (getline(&line, &len, orderFile) != -1) {
-        Util::parseKey(line, dbKey);
+    while (*data != '\0') {
+        Util::parseKey(data, dbKey);
+        data = Util::skipLine(data);
+
         const unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
         const size_t id = reader.getId(key);
         if (id >= UINT_MAX) {
-            Debug(Debug::WARNING) << "Key " << line << " not found in database\n";
+            Debug(Debug::WARNING) << "Key " << dbKey << " not found in database\n";
             continue;
         }
+
         char* data = reader.getDataUncompressed(id);
         size_t originalLength = reader.getSeqLens(id);
         size_t entryLength = std::max(originalLength, static_cast<size_t>(1)) - 1;
@@ -51,14 +53,13 @@ int createsubdb(int argc, const char **argv, const Command& command) {
         }else{
             writer.writeData(data, entryLength, key, 0, true, false);
         }
-        // do not write null byte since
+        // do not write null byte
         writer.writeIndexEntry(key, writer.getStart(0), originalLength, 0);
     }
     writer.close();
     DBWriter::writeDbtypeFile(par.db3.c_str(), reader.getDbtype(), isCompressed);
-    free(line);
     reader.close();
-    fclose(orderFile);
+    order.close();
 
     return EXIT_SUCCESS;
 }
