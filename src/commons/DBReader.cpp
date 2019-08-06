@@ -478,9 +478,12 @@ template <typename T> void DBReader<T>::close(){
     if(dataMode & USE_DATA){
         unmapData();
     }
-    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){
-        delete [] id2local;
-        delete [] local2id;
+
+    if (id2local != NULL) {
+        delete[] id2local;
+    }
+    if (local2id != NULL) {
+        delete[] local2id;
     }
 
     if(compressedBuffers){
@@ -664,8 +667,8 @@ template <typename T> unsigned int DBReader<T>::getLookupFileNumber(size_t id){
 
 template <typename T> size_t DBReader<T>::getId (T dbKey){
     size_t id = bsearch(index, size, dbKey);
-    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){
-        return  (id < size && index[id].id == dbKey) ? id2local[id] : UINT_MAX;
+    if (id2local != NULL) {
+        return (id < size && index[id].id == dbKey) ? id2local[id] : UINT_MAX;
     }
     return (id < size && index[id].id == dbKey ) ? id : UINT_MAX;
 }
@@ -900,7 +903,7 @@ size_t DBReader<T>::getOffset(size_t id) {
         Debug(Debug::ERROR) << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
         EXIT(EXIT_FAILURE);
     }
-    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){
+    if (local2id != NULL) {
         id = local2id[id];
     }
     return index[id].offset;
