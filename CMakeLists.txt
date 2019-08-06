@@ -84,7 +84,6 @@ include_directories(lib/tinyexpr)
 add_subdirectory(lib/tinyexpr EXCLUDE_FROM_ALL)
 
 include_directories(lib)
-include_directories(lib/kseq)
 include_directories(lib/simd)
 include_directories(lib/gzstream)
 include_directories(lib/alp)

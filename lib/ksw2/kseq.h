@@ -39,7 +39,7 @@
 
 #define __KS_TYPE(type_t)						\
 	typedef struct __kstream_t {				\
-		unsigned char *buf;						\
+		char *buf;						\
 		int begin, end, is_eof;					\
 		type_t f;								\
 	} kstream_t;
@@ -53,7 +53,7 @@
 	{																\
 		kstream_t *ks = (kstream_t*)calloc(1, sizeof(kstream_t));	\
 		ks->f = f;													\
-		ks->buf = (unsigned char*)malloc(__bufsize);				\
+		ks->buf = (char*)malloc(__bufsize);				\
 		return ks;													\
 	}																\
 	static inline void ks_destroy(kstream_t *ks)					\
