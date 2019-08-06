@@ -76,26 +76,9 @@ int taxonomyreport(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    std::string nodesFile = par.db1 + "_nodes.dmp";
-    std::string namesFile = par.db1 + "_names.dmp";
-    std::string mergedFile = par.db1 + "_merged.dmp";
-    std::string delnodesFile = par.db1 + "_delnodes.dmp";
-    if (FileUtil::fileExists(nodesFile.c_str())
-        && FileUtil::fileExists(namesFile.c_str())
-        && FileUtil::fileExists(mergedFile.c_str())
-        && FileUtil::fileExists(delnodesFile.c_str())) {
-    } else if (FileUtil::fileExists("nodes.dmp")
-               && FileUtil::fileExists("names.dmp")
-               && FileUtil::fileExists("merged.dmp")
-               && FileUtil::fileExists("delnodes.dmp")) {
-        nodesFile = "nodes.dmp";
-        namesFile = "names.dmp";
-        mergedFile = "merged.dmp";
-        delnodesFile = "delnodes.dmp";
-    } else {
-        Debug(Debug::ERROR) << "names.dmp, nodes.dmp, merged.dmp or delnodes.dmp from NCBI taxdump could not be found!\n";
-        EXIT(EXIT_FAILURE);
-    }
+    // 1. Read taxonomy
+    NcbiTaxonomy * taxDB = NcbiTaxonomy::openTaxonomy(par.db1);
+
     std::vector<std::pair<unsigned int, unsigned int>> mapping;
     if(FileUtil::fileExists(std::string(par.db1 + "_mapping").c_str()) == false){
         Debug(Debug::ERROR) << par.db1 + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
@@ -112,9 +95,6 @@ int taxonomyreport(int argc, const char **argv, const Command& command) {
     // TODO: Better way to get file specified by param3?
     FILE *resultFP = fopen(par.db3.c_str(), "w");
 
-    // 1. Read taxonomy
-    Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
-    NcbiTaxonomy taxDB(namesFile, nodesFile, mergedFile);
 
     // 2. Read LCA file
     Debug::Progress progress(reader.getSize());
@@ -153,9 +133,9 @@ int taxonomyreport(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << "Found " << taxCounts.size() << " different taxa for " << reader.getSize() << " different reads.\n";
     Debug(Debug::INFO) << taxCounts.at(0) << " reads are unclassified.\n";
 
-    std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB.getCladeCounts(taxCounts);
-    taxReport(resultFP, taxDB, cladeCounts, reader.getSize());
-
+    std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB->getCladeCounts(taxCounts);
+    taxReport(resultFP, *taxDB, cladeCounts, reader.getSize());
+    delete taxDB;
     reader.close();
     return EXIT_SUCCESS;
 }
