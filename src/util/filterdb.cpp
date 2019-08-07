@@ -79,7 +79,7 @@ ffindexFilter::ffindexFilter(Parameters &par) {
             Debug(Debug::ERROR) << "File " << filterFile << " does not exist.\n";
             EXIT(EXIT_FAILURE);
         }
-        char *line = (char*)malloc(65536 * sizeof(char));
+        char *line = NULL;
         size_t len = 0;
         char key[4096];
         for (size_t i = 0; i < filenames.size(); i++) {
