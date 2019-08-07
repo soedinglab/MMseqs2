@@ -14,10 +14,10 @@
 
 Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC, const std::string& spacedKmerPattern)
  : spacedKmerPattern(spacedKmerPattern) {
-    this->int_sequence = new int[maxLen];
-    this->int_consensus_sequence = new int[maxLen];
-    this->aaBiasCorrection = aaBiasCorrection;
     this->maxLen = maxLen;
+    this->int_sequence = new int[maxLen + 1];
+    this->int_consensus_sequence = new int[maxLen + 1];
+    this->aaBiasCorrection = aaBiasCorrection;
     this->subMat = (BaseMatrix*)subMat;
     this->spaced = spaced;
     this->seqType = seqType;
@@ -59,17 +59,17 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
         for (size_t i = 0; i < kmerSize; i++) {
             profile_matrix[i] = new ScoreMatrix(NULL, NULL, PROFILE_AA_SIZE, profile_row_size);
         }
-        this->pNullBuffer           = new float[maxLen];
-        this->neffM                 = new float[maxLen];
-        this->profile_score         = (short *)        mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(short));
-        this->profile_index         = (unsigned int *) mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(int));
-        this->profile               = (float *)        mem_align(ALIGN_INT, maxLen * PROFILE_AA_SIZE * sizeof(float));
-        this->pseudocountsWeight    = (float *)        mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(float));
-        this->profile_for_alignment = (int8_t *)       mem_align(ALIGN_INT, maxLen * subMat->alphabetSize * sizeof(int8_t));
+        this->pNullBuffer           = new float[maxLen + 1];
+        this->neffM                 = new float[maxLen + 1];
+        this->profile_score         = (short *)        mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(short));
+        this->profile_index         = (unsigned int *) mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(int));
+        this->profile               = (float *)        mem_align(ALIGN_INT, (maxLen + 1) * PROFILE_AA_SIZE * sizeof(float));
+        this->pseudocountsWeight    = (float *)        mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(float));
+        this->profile_for_alignment = (int8_t *)       mem_align(ALIGN_INT, (maxLen + 1) * subMat->alphabetSize * sizeof(int8_t));
         // init profile
-        memset(this->profile_for_alignment, 0, maxLen * subMat->alphabetSize * sizeof(int8_t));
-        memset(this->profile, 0, maxLen * PROFILE_AA_SIZE * sizeof(float));
-        for (size_t i = 0; i < maxLen * profile_row_size; ++i){
+        memset(this->profile_for_alignment, 0, (maxLen + 1) * subMat->alphabetSize * sizeof(int8_t));
+        memset(this->profile, 0, (maxLen + 1) * PROFILE_AA_SIZE * sizeof(float));
+        for (size_t i = 0; i < (maxLen + 1) * profile_row_size; ++i){
             profile_score[i] = -SHRT_MAX;
             profile_index[i] = -1;
         }
@@ -311,7 +311,7 @@ void Sequence::mapProfileStateSequence(const char * sequence){
         this->int_sequence[l]  = curr - 1;
 
         l++;
-        if (l >= maxLen){
+        if (l > maxLen){
             Debug(Debug::ERROR) << "Sequence too long! Max length allowed would be " << maxLen << "\n";
             EXIT(EXIT_FAILURE);
         }
@@ -362,7 +362,7 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
             unsigned short neff = data[currPos + PROFILE_AA_SIZE+2];
             neffM[l] = MathUtil::convertNeffToFloat(neff);
             l++;
-            if (l >= this->maxLen ){
+            if (l > maxLen ){
                 Debug(Debug::ERROR) << "Sequence with id: " << this->dbKey << " is longer than maxRes.\n";
                 break;
             }
@@ -539,7 +539,7 @@ void Sequence::mapSequence(const char * sequence){
         curr  = sequence[l];
     }
 
-    if(l == maxLen && curr != '\0' && curr != '\n' ){
+    if(l > maxLen && curr != '\0' && curr != '\n' ){
         Debug(Debug::INFO) << "Entry " << dbKey << " is longer than max seq. len " << maxLen << "\n";
     }
     this->L = l;

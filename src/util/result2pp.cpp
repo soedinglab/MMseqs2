@@ -57,10 +57,10 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                               par.compBiasCorrection,false);
         Sequence targetProfile(par.maxSeqLen, tDbr->getDbtype(), &subMat, 0, false,
                                par.compBiasCorrection,false);
-        float * outProfile=new float[par.maxSeqLen * Sequence::PROFILE_AA_SIZE];
-        float * neffM=new float[par.maxSeqLen];
+        float * outProfile = new float[(par.maxSeqLen + 1) * Sequence::PROFILE_AA_SIZE];
+        float * neffM = new float[par.maxSeqLen + 1];
         std::string result;
-        result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
+        result.reserve((par.maxSeqLen + 1) * Sequence::PROFILE_READIN_SIZE);
 
         const char *entry[255];
         Debug::Progress progress(dbSize-dbFrom);

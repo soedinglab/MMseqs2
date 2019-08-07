@@ -19,13 +19,13 @@ BandedNucleotideAligner::BandedNucleotideAligner(BaseMatrix * subMat, size_t max
 fastMatrix(SubstitutionMatrix::createAsciiSubMat(*subMat))
 {
 
-    targetSeq =  new uint8_t[maxSequenceLength];
-    targetSeqRev =  new uint8_t[maxSequenceLength];
-    querySeq =  new uint8_t[maxSequenceLength];
-    querySeqRev =  new uint8_t[maxSequenceLength];
-    queryRevCompSeq =  new uint8_t[maxSequenceLength];
-    queryRevCompSeqRev =  new uint8_t[maxSequenceLength];
-    queryRevCompCharSeq  =  new char[maxSequenceLength];
+    targetSeq =  new uint8_t[maxSequenceLength + 1];
+    targetSeqRev =  new uint8_t[maxSequenceLength + 1];
+    querySeq =  new uint8_t[maxSequenceLength + 1];
+    querySeqRev =  new uint8_t[maxSequenceLength + 1];
+    queryRevCompSeq =  new uint8_t[maxSequenceLength + 1];
+    queryRevCompSeqRev =  new uint8_t[maxSequenceLength + 1];
+    queryRevCompCharSeq  =  new char[maxSequenceLength + 1];
     mat = new int8_t[subMat->alphabetSize*subMat->alphabetSize];
     this->subMat = (NucleotideMatrix*) subMat;
     for (int i = 0; i < subMat->alphabetSize; i++) {

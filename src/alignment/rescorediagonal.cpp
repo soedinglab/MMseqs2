@@ -129,7 +129,7 @@ int doRescorediagonal(Parameters &par,
             std::vector<hit_t> shortResults;
             shortResults.reserve(300);
             char *queryRevSeq = NULL;
-            int queryRevSeqLen = par.maxSeqLen;
+            int queryRevSeqLen = par.maxSeqLen + 1;
             if (reversePrefilterResult == true) {
                 queryRevSeq = new char[queryRevSeqLen];
             }

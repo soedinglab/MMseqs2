@@ -46,7 +46,7 @@ int summarizeresult(int argc, const char **argv, const Command &command) {
 #endif
 
         char buffer[32768];
-        std::vector<bool> covered(par.maxSeqLen, false);
+        std::vector<bool> covered(par.maxSeqLen + 1, false);
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {

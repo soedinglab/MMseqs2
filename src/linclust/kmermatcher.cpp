@@ -152,11 +152,11 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
             generator->setDivideStrategy(&three, &two);
         }
         Indexer idxer(subMat->alphabetSize - 1, KMER_SIZE);
-        char * charSequence = new char[par.maxSeqLen];
+        char * charSequence = new char[par.maxSeqLen + 1];
         const unsigned int BUFFER_SIZE = 1024;
         size_t bufferPos = 0;
         KmerPosition * threadKmerBuffer = new KmerPosition[BUFFER_SIZE];
-        SequencePosition * kmers = new SequencePosition[pickNBest*par.maxSeqLen+1];
+        SequencePosition * kmers = new SequencePosition[(pickNBest * (par.maxSeqLen + 1)) + 1];
         int highestSeq[32];
         for(size_t i = 0; i< KMER_SIZE; i++){
             highestSeq[i]=subMat->alphabetSize-1;

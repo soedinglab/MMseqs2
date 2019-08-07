@@ -175,10 +175,10 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
             memset(queryPosLookup, 255, lookupSize * sizeof(unsigned short) );
 
             Indexer idxer(subMat->alphabetSize, par.kmerSize);
-            KmerPos * kmerPosVec = new KmerPos[par.maxSeqLen];
-            Stretche * stretcheVec = new Stretche[par.maxSeqLen];
-            DpMatrixRow * dpMatrixRow = new DpMatrixRow[par.maxSeqLen];
-            int * scores = new int[par.maxSeqLen];
+            KmerPos * kmerPosVec = new KmerPos[par.maxSeqLen + 1];
+            Stretche * stretcheVec = new Stretche[par.maxSeqLen + 1];
+            DpMatrixRow * dpMatrixRow = new DpMatrixRow[par.maxSeqLen + 1];
+            int * scores = new int[par.maxSeqLen + 1];
             std::string bt;
 
             unsigned int thread_idx = 0;

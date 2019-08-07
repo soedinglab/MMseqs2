@@ -143,7 +143,8 @@ Prefiltering::Prefiltering(const std::string &queryDB,
             alphabetSize = data.alphabetSize;
             targetSeqType = data.seqType;
             spacedKmer = data.spacedKmer == 1 ? true : false;
-            maxSeqLen = data.maxSeqLength;
+            // the query database could have longer sequences than the target database, do not cut them short
+            maxSeqLen = std::max(maxSeqLen, (size_t)data.maxSeqLength);
             aaBiasCorrection = data.compBiasCorr;
 
             if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) &&

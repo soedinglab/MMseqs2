@@ -13,21 +13,21 @@
 PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb) :
         subMat(subMat)
 {
-    this->profile            = new float[Sequence::PROFILE_AA_SIZE * maxSeqLength];
-    this->Neff_M             = new float[maxSeqLength];
-    this->seqWeight          = new float[maxSetSize];
-    this->pssm = new char[Sequence::PROFILE_AA_SIZE * maxSeqLength];
     this->maxSeqLength = maxSeqLength;
-    this->matchWeight        = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * maxSeqLength * sizeof(float));
-    this->pseudocountsWeight = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * maxSeqLength * sizeof(float));
-    this->nseqs = new int[maxSeqLength];
+    this->profile            = new float[(maxSeqLength + 1) * Sequence::PROFILE_AA_SIZE];
+    this->Neff_M             = new float[(maxSeqLength + 1)];
+    this->seqWeight          = new float[maxSetSize];
+    this->pssm               = new char[(maxSeqLength + 1) * Sequence::PROFILE_AA_SIZE];
+    this->matchWeight        = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * (maxSeqLength + 1) * sizeof(float));
+    this->pseudocountsWeight = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * (maxSeqLength + 1) * sizeof(float));
+    this->nseqs              = new int[maxSeqLength + 1];
     const unsigned int NAA_VECSIZE = ((MultipleAlignment::NAA+ 3 + VECSIZE_INT - 1) / VECSIZE_INT) * VECSIZE_INT;
-    this->w_contrib = new float*[maxSeqLength];
-    for (size_t j = 0; j < maxSeqLength; j++) {
+    this->w_contrib          = new float*[maxSeqLength + 1];
+    for (size_t j = 0; j < (maxSeqLength + 1); j++) {
         this->w_contrib[j] = (float *) malloc_simd_int(NAA_VECSIZE * sizeof(float));
     }
     wi = new float[maxSetSize];
-    naa = new int[maxSeqLength];
+    naa = new int[maxSeqLength + 1];
     this->pca = pca;
     this->pcb = pcb;
 
@@ -41,7 +41,7 @@ PSSMCalculator::~PSSMCalculator() {
     delete [] nseqs;
     free(matchWeight);
     free(pseudocountsWeight);
-    for (size_t j = 0; j < maxSeqLength; j++) {
+    for (size_t j = 0; j < (maxSeqLength + 1); j++) {
         free(w_contrib[j]);
     }
     delete [] w_contrib;

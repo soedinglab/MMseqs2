@@ -46,9 +46,8 @@ int profile2cs(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
             thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-            char* buffer = new char[64];
             std::string result;
-            result.reserve(par.maxSeqLen);
+            result.reserve(par.maxSeqLen + 1);
             ProfileStates ps(alphabetSize[i], subMat.pBack);
 
 #pragma omp for schedule(dynamic, 1000)
@@ -97,7 +96,6 @@ int profile2cs(int argc, const char **argv, const Command &command) {
                 }
                 writer.writeData(result.c_str(), result.length(), key, thread_idx);
             }
-            delete[] buffer;
         }
         writer.close();
     }

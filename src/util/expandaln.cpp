@@ -148,7 +148,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
 #endif
         Sequence qSeq(par.maxSeqLen, queryDbType, &subMat, 0, false, par.compBiasCorrection);
         Sequence tSeq(par.maxSeqLen, targetDbType, &subMat, 0, false, false);
-        float *compositionBias = new float[par.maxSeqLen]();
+        float *compositionBias = new float[par.maxSeqLen + 1]();
 
         std::vector<Matcher::result_t> expanded;
         expanded.reserve(300);
@@ -159,7 +159,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
         char buffer[1024];
 
         Matcher::result_t resultAC;
-        resultAC.backtrace.reserve(par.maxSeqLen);
+        resultAC.backtrace.reserve(par.maxSeqLen + 1);
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < resultReader->getSize(); ++i) {
