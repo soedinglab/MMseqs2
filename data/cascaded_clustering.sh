@@ -133,8 +133,8 @@ if [ -n "$REASSIGN" ]; then
         MAXOFFSET=$(awk '$2 > max{max=$2+$3}END{print max}' "${TMP_PATH}/seq_seeds.index")
         awk -v OFFSET="${MAXOFFSET}" 'FNR==NR{print $0; next}{print $1"\t"$2+OFFSET"\t"$3}' "${TMP_PATH}/seq_seeds.index" \
              "${TMP_PATH}/seq_wrong_assigned.index" > "${TMP_PATH}/seq_seeds.merged.index"
-        ln -s "${TMP_PATH}/seq_seeds" "${TMP_PATH}/seq_seeds.merged.0"
-        ln -s "${TMP_PATH}/seq_wrong_assigned" "${TMP_PATH}/seq_seeds.merged.1"
+        ln -s $(realpath "${TMP_PATH}/seq_seeds") "${TMP_PATH}/seq_seeds.merged.0"
+        ln -s $(realpath "${TMP_PATH}/seq_wrong_assigned") "${TMP_PATH}/seq_seeds.merged.1"
         cp "${TMP_PATH}/seq_seeds.dbtype" "${TMP_PATH}/seq_seeds.merged.dbtype"
         # shellcheck disable=SC2086
         $RUNNER "$MMSEQS" prefilter "${TMP_PATH}/seq_wrong_assigned" "${TMP_PATH}/seq_seeds.merged" "${TMP_PATH}/seq_wrong_assigned_pref" ${PREFILTER_PAR} \
@@ -199,7 +199,6 @@ if [ -n "$REASSIGN" ]; then
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped"
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln"
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_ocol"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_swaped_ocol_swaped"
         rm -f "${TMP_PATH}/missing.single.seqs"
         "$MMSEQS" rmdb "${TMP_PATH}/missing.single.seqs.db"
         "$MMSEQS" rmdb "${TMP_PATH}/clu_accepted_plus_wrong"
@@ -229,4 +228,5 @@ if [ -n "$REMOVE_TMP" ]; then
 
     rm -f "${TMP_PATH}/cascaded_clustering.sh"
 fi
+
 
