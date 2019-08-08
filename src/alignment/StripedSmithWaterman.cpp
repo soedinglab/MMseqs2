@@ -172,6 +172,7 @@ s_align SmithWaterman::ssw_align (
 	r.score1 = bests[0].score;
 	r.dbEndPos1 = bests[0].ref;
 	r.qEndPos1 = bests[0].read;
+
 	if (maskLen >= 15) {
 		r.score2 = bests[1].score;
 		r.ref_end2 = bests[1].ref;
@@ -179,13 +180,22 @@ s_align SmithWaterman::ssw_align (
 		r.score2 = 0;
 		r.ref_end2 = -1;
 	}
-	free(bests);
-	int32_t queryOffset = query_length - r.qEndPos1;
+    free(bests);
+
+    // need to be defined before goto end
+    int32_t queryOffset;
+    bool hasLowerEvalue;
+    bool hasLowerCoverage;
+    // no residue could be aligned
+    if (r.dbEndPos1 == -1) {
+        goto end;
+    }
+	queryOffset = query_length - r.qEndPos1;
 	r.evalue = evaluer->computeEvalue(r.score1, query_length);
-	bool hasLowerEvalue = r.evalue > evalueThr;
+	hasLowerEvalue = r.evalue > evalueThr;
 	r.qCov = computeCov(0, r.qEndPos1, query_length);
 	r.tCov = computeCov(0, r.dbEndPos1, db_length);
-    bool hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
+    hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
 
 	if (alignmentMode == 0 || ((alignmentMode == 2 || alignmentMode == 1) && hasLowerEvalue && hasLowerCoverage)){
 		goto end;
@@ -221,6 +231,12 @@ s_align SmithWaterman::ssw_align (
 
 	r.dbStartPos1 = bests_reverse[0].ref;
 	r.qStartPos1 = r.qEndPos1 - bests_reverse[0].read;
+
+    if (r.dbStartPos1 == -1) {
+        fprintf(stderr, "Target start position is -1. This should not happen.\n");
+        EXIT(EXIT_FAILURE);
+    }
+
 	r.qCov = computeCov(r.qStartPos1, r.qEndPos1, query_length);
 	r.tCov = computeCov(r.dbStartPos1, r.dbEndPos1, db_length);
 	hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
