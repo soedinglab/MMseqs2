@@ -54,6 +54,7 @@ mv "${TMP_PATH}/cluster.tsv"  "${RESULTS}_cluster.tsv"
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Removing temporary files"
     "$MMSEQS" rmdb "${TMP_PATH}/input"
+    "$MMSEQS" rmdb "${TMP_PATH}/input_h"
     "$MMSEQS" rmdb "${TMP_PATH}/clu_seqs"
     "$MMSEQS" rmdb "${TMP_PATH}/clu_rep"
     "$MMSEQS" rmdb "${TMP_PATH}/clu"

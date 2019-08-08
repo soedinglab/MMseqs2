@@ -41,21 +41,47 @@ int createsubdb(int argc, const char **argv, const Command& command) {
             Debug(Debug::WARNING) << "Key " << line << " not found in database\n";
             continue;
         }
-        char* data = reader.getDataUncompressed(id);
-        size_t originalLength = reader.getSeqLens(id);
-        size_t entryLength = std::max(originalLength, static_cast<size_t>(1)) - 1;
-        if (isCompressed) {
-            // copy also the null byte since it contains the information if compressed or not
-            entryLength = *(reinterpret_cast<unsigned int*>(data)) + sizeof(unsigned int) + 1;
-            writer.writeData(data, entryLength, key, 0, false, false);
-        }else{
-            writer.writeData(data, entryLength, key, 0, true, false);
+        if(par.subDbMode == Parameters::SUBDB_MODE_SOFT){
+            writer.writeIndexEntry(key, reader.getOffset(id), reader.getSeqLens(id), 0);
+        }else {
+            char* data = reader.getDataUncompressed(id);
+            size_t originalLength = reader.getSeqLens(id);
+            size_t entryLength = std::max(originalLength, static_cast<size_t>(1)) - 1;
+
+            if (isCompressed) {
+                // copy also the null byte since it contains the information if compressed or not
+                entryLength = *(reinterpret_cast<unsigned int *>(data)) + sizeof(unsigned int) + 1;
+                writer.writeData(data, entryLength, key, 0, false, false);
+            } else {
+                writer.writeData(data, entryLength, key, 0, true, false);
+            }
+            // do not write null byte since
+            writer.writeIndexEntry(key, writer.getStart(0), originalLength, 0);
         }
-        // do not write null byte since
-        writer.writeIndexEntry(key, writer.getStart(0), originalLength, 0);
     }
     writer.close();
-    DBWriter::writeDbtypeFile(par.db3.c_str(), reader.getDbtype(), isCompressed);
+
+    if(par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
+        std::vector<std::string> names = reader.getDataFileNames();
+        if(names.size() == 1){
+            FileUtil::symlinkAbs(names[0], par.db3);
+        }else{
+            for(size_t i = 0; i < names.size(); i++){
+                std::string::size_type idx = names[i].rfind('.');
+                std::string ext;
+                if(idx != std::string::npos){
+                    ext = names[i].substr(idx);
+                }else{
+                    Debug(Debug::ERROR) << "File extention was not found but it is expected to be there!\n"
+                                        << "Filename: " << names[i] << ".\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                FileUtil::symlinkAbs(names[i], par.db3 + ext);
+            }
+        }
+    }else{
+        DBWriter::writeDbtypeFile(par.db3.c_str(), reader.getDbtype(), isCompressed);
+    }
     free(line);
     reader.close();
     fclose(orderFile);

@@ -89,6 +89,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     // filter by diagonal in case of AA (do not filter for nucl, profiles, ...)
     cmd.addVariable("FILTER", Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_AMINO_ACIDS) ? "1" : NULL);
     cmd.addVariable("KMERMATCHER_PAR", par.createParameterString(par.kmermatcher).c_str());
+    cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
     par.alphabetSize = alphabetSize;
     par.kmerSize = kmerSize;
 

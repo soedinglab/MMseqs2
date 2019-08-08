@@ -19,23 +19,8 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    std::string nodesFile = par.db1 + "_nodes.dmp";
-    std::string namesFile = par.db1 + "_names.dmp";
-    std::string mergedFile = par.db1 + "_merged.dmp";
-    if (FileUtil::fileExists(nodesFile.c_str())
-        && FileUtil::fileExists(namesFile.c_str())
-           && FileUtil::fileExists(mergedFile.c_str())) {
-    } else if (FileUtil::fileExists("nodes.dmp")
-               && FileUtil::fileExists("names.dmp")
-		  && FileUtil::fileExists("merged.dmp")
-                     && FileUtil::fileExists("delnodes.dmp")) {
-        nodesFile = "nodes.dmp";
-        namesFile = "names.dmp";
-        mergedFile = "merged.dmp";
-    } else {
-        Debug(Debug::ERROR) << "names.dmp, nodes.dmp, merged.dmp or delnodes.dmp from NCBI taxdump could not be found!\n";
-        EXIT(EXIT_FAILURE);
-    }
+    NcbiTaxonomy * t = NcbiTaxonomy::openTaxonomy(par.db1);
+
     std::vector< std::pair<unsigned int, unsigned int> > mapping;
     if(FileUtil::fileExists(std::string(par.db1 + "_mapping").c_str()) == false){
         Debug(Debug::ERROR) << par.db1 + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
@@ -52,9 +37,6 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
 
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
-
-    Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
-    NcbiTaxonomy t(namesFile, nodesFile, mergedFile);
 
     Debug(Debug::INFO) << "Add taxonomy information \n";
     size_t taxonNotFound=0;
@@ -108,7 +90,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
                     continue;
                 }
                 unsigned int taxon = mappingIt->second;
-                TaxonNode const * node = t.taxonNode(taxon, false);
+                TaxonNode const * node = t->taxonNode(taxon, false);
                 if(node == NULL){
                     deletedNodes++;
                     data = Util::skipLine(data);
@@ -119,11 +101,11 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
                 resultData.append(data, dataSize-1);
                 resultData += '\t' + SSTR(node->taxId) + '\t' + node->rank + '\t' + node->name;
                 if (!ranks.empty()) {
-                    std::string lcaRanks = Util::implode(t.AtRanks(node, ranks), ':');
+                    std::string lcaRanks = Util::implode(t->AtRanks(node, ranks), ':');
                     resultData += '\t' + lcaRanks;
                 }
                 if (par.showTaxLineage) {
-                    resultData += '\t' + t.taxLineage(node);
+                    resultData += '\t' + t->taxLineage(node);
                 }
                 resultData += '\n';
 
@@ -140,7 +122,7 @@ int addtaxonomy(int argc, const char **argv, const Command& command) {
     }
     Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " entries not found and " << deletedNodes << " are deleted\n";
-
+    delete t;
     writer.close();
     reader.close();
     return EXIT_SUCCESS;

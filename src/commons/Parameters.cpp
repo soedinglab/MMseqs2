@@ -249,7 +249,9 @@ Parameters::Parameters():
         PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion mode", "Which hits (still meeting the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void*) &expansionMode, "^[0-2]{1}$"),
         // taxonomy
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA mode", "LCA Mode 1: Single Search LCA , 2: 2bLCA, 3: approx. 2bLCA, 4: top hit", typeid(int), (void*) &taxonomySearchMode, "^[1-4]{1}$"),
-        PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void*) &taxonomyOutpuMode, "^[0-1]{1}$")
+        PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void*) &taxonomyOutpuMode, "^[0-1]{1}$"),
+        // createsubdb
+        PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "LCA Mode 0: copy data  1: soft link data", typeid(int), (void*) &subDbMode, "^[0-1]{1}$")
 {
     if (instance) {
         Debug(Debug::ERROR) << "Parameter instance already exists!\n";
@@ -465,6 +467,7 @@ Parameters::Parameters():
 
     //result2stats
     result2stats.push_back(&PARAM_STAT);
+    result2stats.push_back(&PARAM_TSV);
     result2stats.push_back(&PARAM_COMPRESSED);
     result2stats.push_back(&PARAM_THREADS);
     result2stats.push_back(&PARAM_V);
@@ -891,6 +894,10 @@ Parameters::Parameters():
     lca.push_back(&PARAM_TAXON_ADD_LINEAGE);
     lca.push_back(&PARAM_THREADS);
     lca.push_back(&PARAM_V);
+
+    // createsubdb
+    createsubdb.push_back(&PARAM_SUBDB_MODE);
+    createsubdb.push_back(&PARAM_V);
 
     // createtaxdb
     createtaxdb.push_back(&PARAM_NCBI_TAX_DUMP);
@@ -1448,6 +1455,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             hdr6.append("_h");
             hdr6Index = hdr6;
             hdr6Index.append(".index");
+            hdr6dbtype = hdr6;
+            hdr6dbtype.append(".dbtype");
             // FALLTHROUGH
         case 5:
             db5 = filenames[4];
@@ -1459,6 +1468,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             hdr5.append("_h");
             hdr5Index = hdr5;
             hdr5Index.append(".index");
+            hdr5dbtype = hdr5;
+            hdr5dbtype.append(".dbtype");
             // FALLTHROUGH
         case 4:
             db4 = filenames[3];
@@ -1470,6 +1481,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             hdr4.append("_h");
             hdr4Index = hdr4;
             hdr4Index.append(".index");
+            hdr4dbtype = hdr4;
+            hdr4dbtype.append(".dbtype");
             // FALLTHROUGH
         case 3:
             db3 = filenames[2];
@@ -1481,6 +1494,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             hdr3.append("_h");
             hdr3Index = hdr3;
             hdr3Index.append(".index");
+            hdr3dbtype = hdr3;
+            hdr3dbtype.append(".dbtype");
             // FALLTHROUGH
         case 2:
             db2 = filenames[1];
@@ -1492,6 +1507,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             hdr2.append("_h");
             hdr2Index = hdr2;
             hdr2Index.append(".index");
+            hdr2dbtype = hdr2;
+            hdr2dbtype.append(".dbtype");
             // FALLTHROUGH
         case 1:
             db1 = filenames[0];
@@ -1503,6 +1520,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             hdr1.append("_h");
             hdr1Index = hdr1;
             hdr1Index.append(".index");
+            hdr1dbtype = hdr1;
+            hdr1dbtype.append(".dbtype");
             break;
         default:
             // Do not abort execution if we expect a variable amount of parameters
@@ -1964,6 +1983,9 @@ void Parameters::setDefaults() {
 
     // lca
     pickIdFrom = Parameters::EXTRACT_TARGET;
+
+    // createsubdb
+    subDbMode = Parameters::SUBDB_MODE_HARD;
 
     lcaRanks = "";
     showTaxLineage = false;
