@@ -197,7 +197,7 @@ s_align SmithWaterman::ssw_align (
 	r.tCov = computeCov(0, r.dbEndPos1, db_length);
     hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
 
-	if (alignmentMode == 0 || ((alignmentMode == 2 || alignmentMode == 1) && hasLowerEvalue && hasLowerCoverage)){
+	if (alignmentMode == 0 || ((alignmentMode == 2 || alignmentMode == 1) && (hasLowerEvalue || hasLowerCoverage))) {
 		goto end;
 	}
 
