@@ -499,7 +499,7 @@ std::vector<Command> baseCommands = {
                 "<i:resultDB> <o:resultDB>",
                 CITATION_MMSEQS2, {{"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
                                          {"resultDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
-        {"createsubdb",          createsubdb,          &par.onlyverbosity,        COMMAND_DB,
+        {"createsubdb",          createsubdb,          &par.createsubdb,        COMMAND_DB,
                 "Create a subset of a DB from a file of IDs of entries",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",

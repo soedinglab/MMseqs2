@@ -47,8 +47,6 @@ void DBReader<T>::setDataFile(const char* dataFileName_)  {
     dataFileName = strdup(dataFileName_);
 }
 
-
-
 template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
     if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {

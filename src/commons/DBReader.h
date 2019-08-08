@@ -140,6 +140,9 @@ public:
         return dataSizeOffset[fileIdx+1]-dataSizeOffset[fileIdx];
     }
 
+    std::vector<std::string> getDataFileNames(){
+        return dataFileNames;
+    }
 
     size_t getTotalDataSize(){
         return totalDataSize;

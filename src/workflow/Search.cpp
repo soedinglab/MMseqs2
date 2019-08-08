@@ -305,6 +305,7 @@ int search(int argc, const char **argv, const Command& command) {
 
     const int originalRescoreMode = par.rescoreMode;
     CommandCaller cmd;
+    cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
     cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     std::string program;
