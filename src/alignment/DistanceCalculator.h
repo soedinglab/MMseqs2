@@ -170,8 +170,8 @@ public:
                                                                     const unsigned int length,
                                                                     const char **subMat) {
 
-        int first =  (seq1[0] =='*' || seq2[0] == '*')? 1:0;
-        int last = (seq1[length-1] =='*' || seq2[length-1] == '*')? length-2 : length-1;
+        unsigned int first =  (seq1[0] =='*' || seq2[0] == '*')? 1:0;
+        unsigned int last = (seq1[length-1] =='*' || seq2[length-1] == '*')? length-2 : length-1;
         int64_t score = 0;
         for(unsigned int pos = first; pos <= last; pos++){
             int curr = subMat[static_cast<int>(seq1[pos])][static_cast<int>(seq2[pos])];
@@ -189,16 +189,16 @@ public:
                                                                                  unsigned int historyErrors = 5) {
         uint64_t window = 0;
         uint64_t windowMask = (uint64_t)1 << (windowSize-1);
-        int currErrors = 0;
-        int maxLength = -1;
-        int currLength = 0;
-        int maxEndPos = 0;
-        int maxStartPos = 0;
+        unsigned int currErrors = 0;
+	unsigned int maxLength = 0;
+        unsigned int currLength = 0;
+        unsigned int maxEndPos = 0;
+        unsigned int maxStartPos = 0;
         int maxScore = 0;
-        int first =  (seq1[0] =='*' || seq2[0] == '*')? 1:0;
-        int last = (seq1[length-1] =='*' || seq2[length-1] == '*')? length-2 : length-1;
+        unsigned int first =  (seq1[0] =='*' || seq2[0] == '*')? 1:0;
+        unsigned int last = (seq1[length-1] =='*' || seq2[length-1] == '*')? length-2 : length-1;
 
-        int startPos = first;
+        unsigned int startPos = first;
         for(unsigned int pos = first; pos <= last; pos++){
 
             bool currMatch = seq1[pos]==seq2[pos];
