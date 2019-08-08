@@ -116,13 +116,13 @@ if [ -n "$REASSIGN" ]; then
     # create sequences database that were wrong assigned
     if notExists "${TMP_PATH}/seq_wrong_assigned.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" createsubdb "${TMP_PATH}/clu_not_accepted_swap" "$SOURCE" "${TMP_PATH}/seq_wrong_assigned" ${VERBOSITY} --subdb-mode 1 \
+        "$MMSEQS" createsubdb "${TMP_PATH}/clu_not_accepted_swap" "$SOURCE" "${TMP_PATH}/seq_wrong_assigned" ${VERBOSITY} \
                  || fail "createsubdb1 reassign died"
     fi
     # build seed sequences
     if notExists "${TMP_PATH}/seq_seeds.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" createsubdb "${TMP_PATH}/clu" "$SOURCE" "${TMP_PATH}/seq_seeds" ${VERBOSITY} --subdb-mode 1 \
+        "$MMSEQS" createsubdb "${TMP_PATH}/clu" "$SOURCE" "${TMP_PATH}/seq_seeds" ${VERBOSITY} \
                 || fail "createsubdb2 reassign died"
     fi
     PARAM=PREFILTER${STEP}_PAR
