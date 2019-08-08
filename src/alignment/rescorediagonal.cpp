@@ -139,6 +139,7 @@ int doRescorediagonal(Parameters &par,
 
                 char *data = resultReader.getData(id, thread_idx);
                 size_t queryKey = resultReader.getDbKey(id);
+
                 char *querySeq = NULL;
                 unsigned int queryId = UINT_MAX;
                 int queryLen = -1;
@@ -213,7 +214,9 @@ int doRescorediagonal(Parameters &par,
                         seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, diagonalLen);
                         alnLen = diagonalLen;
                     } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION ||
-                               par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
+                               par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
+                               par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+                               par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
                         //seqId = exp(static_cast<float>(distance) / static_cast<float>(diagonalLen));
                         if (par.globalAlignment) {
                             // FIXME: value is never written to file
@@ -222,7 +225,9 @@ int doRescorediagonal(Parameters &par,
                             evalue = evaluer.computeEvalue(distance, queryLen);
                             bitScore = static_cast<int>(evaluer.computeBitScore(distance) + 0.5);
 
-                            if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
+                            if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT||
+                                par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+                                par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
                                 alnLen = (alignment.endPos - alignment.startPos) + 1;
                                 int qStartPos, qEndPos, dbStartPos, dbEndPos;
                                 // -1 since diagonal is computed from sequence Len which starts by 1
@@ -251,7 +256,6 @@ int doRescorediagonal(Parameters &par,
                                     }
                                     seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLen);
                                 }
-
                                 char *end = Itoa::i32toa_sse2(alnLen, buffer);
                                 size_t len = end - buffer;
                                 std::string backtrace = "";
@@ -285,7 +289,9 @@ int doRescorediagonal(Parameters &par,
                     // --filter-hits
                     bool hasToFilter = (par.filterHits == true && currScorePerCol >= scorePerColThr);
                     if (isIdentity || hasToFilter || (hasAlnLen && hasCov && hasSeqId && hasEvalue)) {
-                        if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
+                        if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT||
+                            par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+                            par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
                             alnResults.emplace_back(result);
                         } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
                             hit_t hit;
@@ -358,7 +364,9 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     int dbtype = Parameters::DBTYPE_PREFILTER_RES;
-    if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
+    if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
+       par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+       par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT){
         dbtype = Parameters::DBTYPE_ALIGNMENT_RES;
     }
 #ifdef HAVE_MPI
