@@ -162,6 +162,7 @@ Parameters::Parameters():
         PARAM_ORF_FORWARD_FRAMES(PARAM_ORF_FORWARD_FRAMES_ID, "--forward-frames", "Forward frames", "comma-seperated list of ORF frames on the forward strand to be extracted", typeid(std::string), (void *) &forwardFrames, ""),
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
         PARAM_USE_ALL_TABLE_STARTS(PARAM_USE_ALL_TABLE_STARTS_ID,"--use-all-table-starts", "Use all table starts", "use all alteratives for a start codon in the genetic table, if false - only ATG (AUG)",typeid(bool),(void *) &useAllTableStarts, ""),
+        PARAM_TRANSLATE(PARAM_TRANSLATE_ID,"--translate", "Translate orf", "translate ORF to amino acid",typeid(int),(void *) &translate, "^[0-1]{1}"),
         // indexdb
         PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check compatible", "0: Always recreate index, 1: Check if recreating index is needed, 2: Fail if index is incompatible", typeid(int), (void*) &checkCompatible, "^[0-2]{1}$", MMseqsParameter::COMMAND_MISC),
         PARAM_SEARCH_TYPE(PARAM_SEARCH_TYPE_ID, "--search-type", "Search type", "search type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &searchType, "^[0-3]{1}"),
@@ -564,6 +565,7 @@ Parameters::Parameters():
     extractorfs.push_back(&PARAM_ORF_FORWARD_FRAMES);
     extractorfs.push_back(&PARAM_ORF_REVERSE_FRAMES);
     extractorfs.push_back(&PARAM_TRANSLATION_TABLE);
+    extractorfs.push_back(&PARAM_TRANSLATE);
     extractorfs.push_back(&PARAM_USE_ALL_TABLE_STARTS);
     extractorfs.push_back(&PARAM_ID_OFFSET);
     extractorfs.push_back(&PARAM_THREADS);
@@ -1870,7 +1872,7 @@ void Parameters::setDefaults() {
     forwardFrames = "1,2,3";
     reverseFrames = "1,2,3";
     useAllTableStarts = false;
-
+    translate = 0;
     // createdb
     identifierOffset = 0;
     dbType = 0;

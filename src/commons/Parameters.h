@@ -374,6 +374,7 @@ public:
     std::string forwardFrames;
     std::string reverseFrames;
     bool useAllTableStarts;
+    int translate;
 
     // convertprofiledb
     int profileMode;
@@ -736,6 +737,7 @@ public:
     PARAMETER(PARAM_ORF_FORWARD_FRAMES)
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
     PARAMETER(PARAM_USE_ALL_TABLE_STARTS)
+    PARAMETER(PARAM_TRANSLATE)
 
     // indexdb
     PARAMETER(PARAM_CHECK_COMPATIBLE)

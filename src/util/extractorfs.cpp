@@ -5,7 +5,7 @@
 #include "Matcher.h"
 #include "Util.h"
 #include "itoa.h"
-
+#include "TranslateNucl.h"
 #include "Orf.h"
 
 #include <unistd.h>
@@ -25,9 +25,12 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     reader.open(DBReader<unsigned int>::NOSORT);
 
     DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    int outputDbtype = Parameters::DBTYPE_NUCLEOTIDES;
     headerReader.open(DBReader<unsigned int>::NOSORT);
-
-    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_NUCLEOTIDES);
+    if(par.translate) {
+        outputDbtype = Parameters::DBTYPE_AMINO_ACIDS;
+    }
+    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, outputDbtype);
     sequenceWriter.open();
 
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, false, Parameters::DBTYPE_OFFSETDB);
@@ -42,6 +45,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     unsigned int reverseFrames = Orf::getFrames(par.reverseFrames);
     const char newline = '\n';
     Debug::Progress progress(reader.getSize());
+    TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
 
 #pragma omp parallel
     {
@@ -57,6 +61,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         if (querySize == 0) {
             queryFrom = 0;
         }
+        char* aa = new char[par.maxSeqLen + 3 + 1];
 
         std::vector<Orf::SequenceLocation> res;
         res.reserve(1000);
@@ -99,7 +104,24 @@ int extractorfs(int argc, const char **argv, const Command& command) {
 //                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(),
 //                          toPos, loc.hasIncompleteStart, loc.hasIncompleteEnd);
                 sequenceWriter.writeStart(thread_idx);
-                sequenceWriter.writeAdd(sequence.first, sequence.second, thread_idx);
+                if(par.translate){
+                    if ((data[sequence.second] != '\n' && sequence.second % 3 != 0) && (data[sequence.second - 1] == '\n' && (sequence.second - 1) % 3 != 0)) {
+                        sequence.second = sequence.second - (sequence.second % 3);
+                    }
+
+                    if (sequence.second < 3) {
+                        continue;
+                    }
+
+                    if (sequence.second > (3 * par.maxSeqLen)) {
+                        sequence.second = (3 * par.maxSeqLen);
+                    }
+                    translateNucl.translate(aa, sequence.first, sequence.second);
+                    sequenceWriter.writeAdd(aa, (sequence.second / 3), thread_idx);
+
+                }else{
+                    sequenceWriter.writeAdd(sequence.first, sequence.second, thread_idx);
+                }
                 sequenceWriter.writeAdd(&newline, 1, thread_idx);
                 sequenceWriter.writeEnd(key, thread_idx);
 

@@ -273,6 +273,8 @@ public:
 
     void setSequentialAdvice();
 
+    static void softLink(DBReader<unsigned int> &reader, std::string &outDb);
+
 private:
 
     void checkClosed();

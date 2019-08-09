@@ -62,23 +62,7 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     writer.close();
 
     if(par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
-        std::vector<std::string> names = reader.getDataFileNames();
-        if(names.size() == 1){
-            FileUtil::symlinkAbs(names[0], par.db3);
-        }else{
-            for(size_t i = 0; i < names.size(); i++){
-                std::string::size_type idx = names[i].rfind('.');
-                std::string ext;
-                if(idx != std::string::npos){
-                    ext = names[i].substr(idx);
-                }else{
-                    Debug(Debug::ERROR) << "File extention was not found but it is expected to be there!\n"
-                                        << "Filename: " << names[i] << ".\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                FileUtil::symlinkAbs(names[i], par.db3 + ext);
-            }
-        }
+        DBReader<unsigned int>::softLink(reader, par.db3);
     }else{
         DBWriter::writeDbtypeFile(par.db3.c_str(), reader.getDbtype(), isCompressed);
     }
