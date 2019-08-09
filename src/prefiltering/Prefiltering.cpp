@@ -488,8 +488,8 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
         IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *kmerSubMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr, maskMode, maskLowerCaseMode);
 
         // sequenceLookup has to be temporarily present to speed up masking
-        // afterwards its not needed anymore in DIAG_SCORE_OFF
-        if (diagonalScoring == Parameters::DIAG_SCORE_OFF) {
+        // afterwards its not needed anymore without diagonal scoring
+        if (diagonalScoring == false) {
             delete sequenceLookup;
             sequenceLookup = NULL;
         }
@@ -858,7 +858,7 @@ void Prefiltering::writePrefilterOutput(DBWriter *dbWriter, unsigned int thread_
                                   << "\t" << res->prefScore << "\n";
         }
 
-        // TODO: check if this should happen when diagonalScoring == Parameters::DIAG_SCORE_OFF
+        // TODO: check if this should happen when diagonalScoring == false
         if (covThr > 0.0 && (covMode == Parameters::COV_MODE_BIDIRECTIONAL || covMode == Parameters::COV_MODE_QUERY)) {
             float queryLength = static_cast<float>(qdbr->getSeqLens(id));
             float targetLength = static_cast<float>(tdbr->getSeqLens(targetSeqId));
