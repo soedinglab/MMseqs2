@@ -58,7 +58,7 @@ jobs:
     displayName: Ubuntu 1604 MMseqs2
     pool:
       vmImage: 'Ubuntu-16.04'
-
+    timeoutInMinutes: 120
     strategy:
       matrix:
         avx2:
