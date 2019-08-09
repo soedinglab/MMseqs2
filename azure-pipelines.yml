@@ -108,7 +108,7 @@ jobs:
       - script: |
           export TTY=0
           if [ "${BUILD_TYPE}" = "ASan" ]; then
-            cat "leak:libgomp1" > ${BUILD_SOURCESDIRECTORY}/ASan.supp
+            echo "leak:libgomp1" > ${BUILD_SOURCESDIRECTORY}/ASan.supp
             export export ASAN_OPTIONS=suppressions=${BUILD_SOURCESDIRECTORY}/ASan.supp
           fi
           ${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/src/mmseqs ${BUILD_SOURCESDIRECTORY}/regression
