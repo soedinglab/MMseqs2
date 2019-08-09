@@ -214,7 +214,9 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
             break;
     }
     char * pattern = new char[pair.second];
-    memcpy(pattern, pair.first, pair.second * sizeof(char));
+    if (pair.second > 0) {
+        memcpy(pattern, pair.first, pair.second * sizeof(char));
+    }
     return std::make_pair<const char *, unsigned int>(pattern, static_cast<unsigned int>(pair.second));
 }
 
