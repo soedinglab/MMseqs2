@@ -94,7 +94,6 @@ Parameters::Parameters():
         // --include-only-extendablediagonal
         PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "Rescore diagonal with: 0: Hamming distance, 1: local alignment (score only), 2: local alignment, 3: global alignment or 4: longest alignment fullfilling window quality criterion", typeid(int), (void *) &rescoreMode, "^[0-4]{1}$"),
         PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID,"--filter-hits", "Remove hits by seq. id. and coverage", "filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, "", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_GLOBAL_ALIGNMENT(PARAM_GLOBAL_ALIGNMENT_ID,"--global-alignment", "Global diagonal rescoring", "In substitution scoring mode perform global alignment along the diagonal", typeid(bool), (void *) &globalAlignment, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by evalue (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow deletions", "allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
@@ -367,7 +366,6 @@ Parameters::Parameters():
     rescorediagonal.push_back(&PARAM_SEQ_ID_MODE);
     rescorediagonal.push_back(&PARAM_INCLUDE_IDENTITY);
     rescorediagonal.push_back(&PARAM_SORT_RESULTS);
-    rescorediagonal.push_back(&PARAM_GLOBAL_ALIGNMENT);
     rescorediagonal.push_back(&PARAM_PRELOAD_MODE);
     rescorediagonal.push_back(&PARAM_THREADS);
     rescorediagonal.push_back(&PARAM_COMPRESSED);
@@ -1821,9 +1819,6 @@ void Parameters::setDefaults() {
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
     outfmt = "query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits";
     dbOut = false;
-
-    // rescore diagonal
-    globalAlignment = false;
 
     // result2msa
     allowDeletion = false;

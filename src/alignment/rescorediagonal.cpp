@@ -96,10 +96,6 @@ int doRescorediagonal(Parameters &par,
     }
     bool reversePrefilterResult = (Parameters::isEqualDbtype(resultReader.getDbtype(), Parameters::DBTYPE_PREFILTER_REV_RES));
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat);
-    DistanceCalculator globalAliStat;
-    if (par.globalAlignment) {
-        globalAliStat.prepareGlobalAliParam(*subMat);
-    }
 
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 100000000;
@@ -217,63 +213,54 @@ int doRescorediagonal(Parameters &par,
                                par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
                                par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
                                par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
-                        //seqId = exp(static_cast<float>(distance) / static_cast<float>(diagonalLen));
-                        if (par.globalAlignment) {
-                            // FIXME: value is never written to file
-                            seqId = globalAliStat.getPvalGlobalAli((float) distance, diagonalLen);
-                        } else {
-                            evalue = evaluer.computeEvalue(distance, queryLen);
-                            bitScore = static_cast<int>(evaluer.computeBitScore(distance) + 0.5);
+                        evalue = evaluer.computeEvalue(distance, queryLen);
+                        bitScore = static_cast<int>(evaluer.computeBitScore(distance) + 0.5);
 
-                            if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT||
-                                par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
-                                par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
-                                alnLen = (alignment.endPos - alignment.startPos) + 1;
-                                int qStartPos, qEndPos, dbStartPos, dbEndPos;
-                                // -1 since diagonal is computed from sequence Len which starts by 1
-                                if (diagonal >= 0) {
-                                    qStartPos = alignment.startPos + distanceToDiagonal;
-                                    qEndPos = alignment.endPos + distanceToDiagonal;
-                                    dbStartPos = alignment.startPos;
-                                    dbEndPos = alignment.endPos;
-                                } else {
-                                    qStartPos = alignment.startPos;
-                                    qEndPos = alignment.endPos;
-                                    dbStartPos = alignment.startPos + distanceToDiagonal;
-                                    dbEndPos = alignment.endPos + distanceToDiagonal;
-                                }
+                        if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT||
+                            par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+                            par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
+                            alnLen = (alignment.endPos - alignment.startPos) + 1;
+                            int qStartPos, qEndPos, dbStartPos, dbEndPos;
+                            // -1 since diagonal is computed from sequence Len which starts by 1
+                            if (diagonal >= 0) {
+                                qStartPos = alignment.startPos + distanceToDiagonal;
+                                qEndPos = alignment.endPos + distanceToDiagonal;
+                                dbStartPos = alignment.startPos;
+                                dbEndPos = alignment.endPos;
+                            } else {
+                                qStartPos = alignment.startPos;
+                                qEndPos = alignment.endPos;
+                                dbStartPos = alignment.startPos + distanceToDiagonal;
+                                dbEndPos = alignment.endPos + distanceToDiagonal;
+                            }
 //                                int qAlnLen = std::max(qEndPos - qStartPos, static_cast<int>(1));
 //                                int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<int>(1));
 //                                seqId = (alignment.score1 / static_cast<float>(std::max(qAlnLength, dbAlnLength)))  * 0.1656 + 0.1141;
 
-                                // compute seq.id if hit fulfills e-value but not by seqId criteria
-                                if (evalue <= par.evalThr || isIdentity) {
-                                    int idCnt = 0;
-                                    for (int i = qStartPos; i <= qEndPos; i++) {
-                                        char qLetter = querySeqToAlign[i] & static_cast<unsigned char>(~0x20);
-                                        char tLetter = targetSeq[dbStartPos + (i - qStartPos)] & static_cast<unsigned char>(~0x20);
-                                        idCnt += (qLetter == tLetter) ? 1 : 0;
-                                    }
-                                    seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLen);
+                            // compute seq.id if hit fulfills e-value but not by seqId criteria
+                            if (evalue <= par.evalThr || isIdentity) {
+                                int idCnt = 0;
+                                for (int i = qStartPos; i <= qEndPos; i++) {
+                                    char qLetter = querySeqToAlign[i] & static_cast<unsigned char>(~0x20);
+                                    char tLetter = targetSeq[dbStartPos + (i - qStartPos)] & static_cast<unsigned char>(~0x20);
+                                    idCnt += (qLetter == tLetter) ? 1 : 0;
                                 }
-                                char *end = Itoa::i32toa_sse2(alnLen, buffer);
-                                size_t len = end - buffer;
-                                std::string backtrace = "";
-                                if(par.addBacktrace){
-                                    backtrace=std::string(buffer, len - 1);
-                                    backtrace.push_back('M');
-                                }
-                                queryCov = SmithWaterman::computeCov(qStartPos, qEndPos, queryLen);
-                                targetCov = SmithWaterman::computeCov(dbStartPos, dbEndPos, dbLen);
-                                if(isReverse){
-                                    qStartPos = queryLen - qStartPos - 1;
-                                    qEndPos = queryLen - qEndPos - 1;
-                                }
-                                result = Matcher::result_t(results[entryIdx].seqId, bitScore, queryCov, targetCov,
-                                                           seqId, evalue, alnLen,
-                                                           qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, dbLen,
-                                                           backtrace);
+                                seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLen);
                             }
+                            char *end = Itoa::i32toa_sse2(alnLen, buffer);
+                            size_t len = end - buffer;
+                            std::string backtrace = "";
+                            if (par.addBacktrace) {
+                                backtrace=std::string(buffer, len - 1);
+                                backtrace.push_back('M');
+                            }
+                            queryCov = SmithWaterman::computeCov(qStartPos, qEndPos, queryLen);
+                            targetCov = SmithWaterman::computeCov(dbStartPos, dbEndPos, dbLen);
+                            if (isReverse) {
+                                qStartPos = queryLen - qStartPos - 1;
+                                qEndPos = queryLen - qEndPos - 1;
+                            }
+                            result = Matcher::result_t(results[entryIdx].seqId, bitScore, queryCov, targetCov, seqId, evalue, alnLen, qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, dbLen, backtrace);
                         }
                     }
 
