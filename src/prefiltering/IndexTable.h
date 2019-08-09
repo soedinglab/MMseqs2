@@ -233,13 +233,25 @@ public:
     }
 
     // init index table with external data (needed for index readin)
-    void initTableByExternalData(size_t sequenceCount, size_t tableEntriesNum,
-                                 IndexEntryLocal *entries, size_t *entryOffsets) {
+    void initTableByExternalData(size_t sequenceCount, size_t tableEntriesNum, IndexEntryLocal *entries, size_t *entryOffsets) {
         this->tableEntriesNum = tableEntriesNum;
         this->size = sequenceCount;
 
         this->entries = entries;
         this->offsets = entryOffsets;
+    }
+
+    void initTableByExternalDataCopy(size_t sequenceCount, size_t tableEntriesNum, IndexEntryLocal *entries, size_t *entryOffsets) {
+        this->tableEntriesNum = tableEntriesNum;
+        this->size = sequenceCount;
+
+        this->entries = new(std::nothrow) IndexEntryLocal[tableEntriesNum];
+        Util::checkAllocation(entries, "Can not allocate entries memory in IndexTable::initMemory");
+        memcpy(this->entries, entryOffsets, tableEntriesNum * sizeof(IndexEntryLocal));
+
+        offsets = new(std::nothrow) size_t[tableSize + 1];
+        Util::checkAllocation(offsets, "Can not allocate entries memory in IndexTable");
+        memcpy(offsets, entryOffsets, (tableSize + 1) * sizeof(size_t));
     }
 
     void revertPointer() {

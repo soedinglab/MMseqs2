@@ -63,9 +63,9 @@ public:
 
     static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touchIndex, bool touchData);
 
-    static SequenceLookup *getSequenceLookup(unsigned int split, DBReader<unsigned int> *dbr, bool touch);
+    static SequenceLookup *getSequenceLookup(unsigned int split, DBReader<unsigned int> *dbr, int preloadMode);
 
-    static IndexTable *getIndexTable(unsigned int split, DBReader<unsigned int> *dbr, bool touch);
+    static IndexTable *getIndexTable(unsigned int split, DBReader<unsigned int> *dbr, int preloadMode);
 
     static void printSummary(DBReader<unsigned int> *dbr);
 
@@ -77,9 +77,9 @@ public:
 
     static std::string getSpacedPattern(DBReader<unsigned int> *dbr);
 
-    static ScoreMatrix get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch);
+    static ScoreMatrix get2MerScoreMatrix(DBReader<unsigned int> *dbr, int preloadMode);
 
-    static ScoreMatrix get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch);
+    static ScoreMatrix get3MerScoreMatrix(DBReader<unsigned int> *dbr, int preloadMode);
 
     static std::string searchForIndex(const std::string &pathToDB);
 

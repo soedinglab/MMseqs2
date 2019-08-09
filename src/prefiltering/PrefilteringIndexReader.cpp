@@ -285,8 +285,7 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<un
     return reader;
 }
 
-DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr,
-        unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touchIndex, bool touchData) {
+DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touchIndex, bool touchData) {
     size_t id = dbr->getId(indexIdx);
     char *data = dbr->getDataUncompressed(id);
     if (touchIndex) {
@@ -317,7 +316,7 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned
     return reader;
 }
 
-SequenceLookup *PrefilteringIndexReader::getSequenceLookup(unsigned int split, DBReader<unsigned int> *dbr, bool touch) {
+SequenceLookup *PrefilteringIndexReader::getSequenceLookup(unsigned int split, DBReader<unsigned int> *dbr, int preloadMode) {
     PrefilteringIndexData data = getMetadata(dbr);
     if (split >= (unsigned int)data.splits) {
         Debug(Debug::ERROR) << "Invalid split " << split << " out of " << data.splits << " chosen.\n";
@@ -342,7 +341,13 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(unsigned int split, D
     size_t sequenceCountId = dbr->getId(splitOffset + SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getDataUncompressed(sequenceCountId));
 
-    if (touch) {
+    if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
+        SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount, seqDataSize);
+        sequenceLookup->initLookupByExternalDataCopy(seqData, seqDataSize, (size_t *) seqOffsetsData);
+        return sequenceLookup;
+    }
+
+    if (preloadMode == Parameters::PRELOAD_MODE_MMAP_TOUCH) {
         dbr->touchData(id);
         dbr->touchData(seqOffsetsId);
     }
@@ -352,7 +357,7 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(unsigned int split, D
     return sequenceLookup;
 }
 
-IndexTable *PrefilteringIndexReader::getIndexTable(unsigned int split, DBReader<unsigned int> *dbr, bool touch) {
+IndexTable *PrefilteringIndexReader::getIndexTable(unsigned int split, DBReader<unsigned int> *dbr, int preloadMode) {
     PrefilteringIndexData data = getMetadata(dbr);
     if (split >= (unsigned int)data.splits) {
         Debug(Debug::ERROR) << "Invalid split " << split << " out of " << data.splits << " chosen.\n";
@@ -371,19 +376,26 @@ IndexTable *PrefilteringIndexReader::getIndexTable(unsigned int split, DBReader<
     size_t entriesOffsetsDataId = dbr->getId(splitOffset + ENTRIESOFFSETS);
     char *entriesOffsetsData = dbr->getDataUncompressed(entriesOffsetsDataId);
 
-    if (touch) {
-        dbr->touchData(entriesNumId);
-        dbr->touchData(sequenceCountId);
-        dbr->touchData(entriesDataId);
-        dbr->touchData(entriesOffsetsDataId);
-    }
-
     int adjustAlphabetSize;
     if (Parameters::isEqualDbtype(data.seqType, Parameters::DBTYPE_NUCLEOTIDES) || Parameters::isEqualDbtype(data.seqType, Parameters::DBTYPE_AMINO_ACIDS)) {
         adjustAlphabetSize = data.alphabetSize - 1;
     } else {
         adjustAlphabetSize = data.alphabetSize;
     }
+
+    if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
+        IndexTable* table = new IndexTable(adjustAlphabetSize, data.kmerSize, true);
+        table->initTableByExternalDataCopy(sequenceCount, entriesNum, (IndexEntryLocal*) entriesData, (size_t *)entriesOffsetsData);
+        return table;
+    }
+
+    if (preloadMode == Parameters::PRELOAD_MODE_MMAP_TOUCH) {
+        dbr->touchData(entriesNumId);
+        dbr->touchData(sequenceCountId);
+        dbr->touchData(entriesDataId);
+        dbr->touchData(entriesOffsetsDataId);
+    }
+
     IndexTable* table = new IndexTable(adjustAlphabetSize, data.kmerSize, true);
     table->initTableByExternalData(sequenceCount, entriesNum, (IndexEntryLocal*) entriesData, (size_t *)entriesOffsetsData);
     return table;
@@ -487,35 +499,43 @@ std::string PrefilteringIndexReader::getSpacedPattern(DBReader<unsigned int> *db
     return std::string(dbr->getDataUncompressed(id));
 }
 
-ScoreMatrix PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch) {
+ScoreMatrix PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr, int preloadMode) {
     size_t id = dbr->getId(SCOREMATRIX2MER);
     if (id == UINT_MAX) {
         return ScoreMatrix();
     }
 
+    // read alphabetsize to remove x (not needed in index)
+    PrefilteringIndexData meta = getMetadata(dbr);
+
     char *data = dbr->getDataUncompressed(id);
-    if (touch) {
-        dbr->touchData(id);
+    if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
+        return ScoreMatrix::unserializeCopy(data, meta.alphabetSize-1, 2);
     }
 
-    // remove x (not needed in index)
-    PrefilteringIndexData meta = getMetadata(dbr);
+    if (preloadMode == Parameters::PRELOAD_MODE_MMAP_TOUCH) {
+        dbr->touchData(id);
+    }
     return ScoreMatrix::unserialize(data, meta.alphabetSize-1, 2);
 }
 
-ScoreMatrix PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch) {
+ScoreMatrix PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr, int preloadMode) {
     size_t id = dbr->getId(SCOREMATRIX3MER);
     if (id == UINT_MAX) {
         return ScoreMatrix();
     }
 
+    // read alphabetsize to remove x (not needed in index)
+    PrefilteringIndexData meta = getMetadata(dbr);
+
     char *data = dbr->getDataUncompressed(id);
-    if (touch) {
-        dbr->touchData(id);
+    if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
+        return ScoreMatrix::unserializeCopy(data, meta.alphabetSize-1, 3);
     }
 
-    // remove x (not needed in index)
-    PrefilteringIndexData meta = getMetadata(dbr);
+    if (preloadMode == Parameters::PRELOAD_MODE_MMAP_TOUCH) {
+        dbr->touchData(id);
+    }
     return ScoreMatrix::unserialize(data, meta.alphabetSize-1, 3);
 }
 

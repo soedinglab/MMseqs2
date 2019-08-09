@@ -90,12 +90,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
             }
         }
 
-        int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
-        if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
-            dataMode |= DBReader<unsigned int>::USE_FREAD;
-        }
-
-        tidxdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str(), threads, dataMode);
+        tidxdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         tidxdbr->open(DBReader<unsigned int>::NOSORT);
 
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
@@ -168,7 +163,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tdbr->open(DBReader<unsigned int>::NOSORT);
 
-        if (par.preloadMode == Parameters::PRELOAD_MODE_MMAP_TOUCH) {
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             tdbr->readMmapedDataInMemory();
             tdbr->mlock();
         }
@@ -255,7 +250,7 @@ Prefiltering::~Prefiltering() {
     tdbr->close();
     delete tdbr;
 
-    if (templateDBIsIndex == true) {
+    if (templateDBIsIndex == true && preloadMode != Parameters::PRELOAD_MODE_FREAD) {
         tidxdbr->close();
         delete tidxdbr;
     } else {
@@ -263,7 +258,7 @@ Prefiltering::~Prefiltering() {
         ExtendedSubstitutionMatrix::freeScoreMatrix(_2merSubMatrix);
     }
 
-    if(kmerSubMat != ungappedSubMat){
+    if (kmerSubMat != ungappedSubMat) {
         delete ungappedSubMat;
     }
     delete kmerSubMat;
@@ -455,13 +450,12 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
 
 
 ScoreMatrix Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize) {
-    const bool touch = preloadMode == Parameters::PRELOAD_MODE_MMAP_TOUCH;
     if (templateDBIsIndex == true) {
         switch(kmerSize) {
             case 2:
-                return PrefilteringIndexReader::get2MerScoreMatrix(tidxdbr, touch);
+                return PrefilteringIndexReader::get2MerScoreMatrix(tidxdbr, preloadMode);
             case 3:
-                return PrefilteringIndexReader::get3MerScoreMatrix(tidxdbr, touch);
+                return PrefilteringIndexReader::get3MerScoreMatrix(tidxdbr, preloadMode);
             default:
                 break;
         }
@@ -472,9 +466,8 @@ ScoreMatrix Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t 
 
 void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
     if (templateDBIsIndex == true) {
-        const bool touch = preloadMode == Parameters::PRELOAD_MODE_MMAP_TOUCH;
-        indexTable = PrefilteringIndexReader::getIndexTable(split, tidxdbr, touch);
-        sequenceLookup = PrefilteringIndexReader::getSequenceLookup(split, tidxdbr, touch);
+        indexTable = PrefilteringIndexReader::getIndexTable(split, tidxdbr, preloadMode);
+        sequenceLookup = PrefilteringIndexReader::getSequenceLookup(split, tidxdbr, preloadMode);
     } else {
         Timer timer;
 
