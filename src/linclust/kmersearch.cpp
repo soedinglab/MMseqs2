@@ -21,9 +21,22 @@
 #define SIZE_T_MAX ((size_t) -1)
 #endif
 
-KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t splitKmerCount, size_t split, size_t splits, DBReader<unsigned int> & seqDbr,
+KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t totalKmers, size_t split, size_t splits, DBReader<unsigned int> & seqDbr,
                                                                  Parameters & par, BaseMatrix  * subMat, size_t KMER_SIZE, size_t chooseTopKmer, size_t pickNBest, bool adjustLength) {
     Debug(Debug::INFO) << "Generate k-mers list " << split <<"\n";
+
+    size_t splitKmerCount = totalKmers;
+    if(splits > 1){
+        size_t memoryLimit;
+        if (par.splitMemoryLimit > 0) {
+            memoryLimit = static_cast<size_t>(par.splitMemoryLimit);
+        } else {
+            memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
+        }
+        // we do not really know how much memory is needed. So this is our best choice
+        splitKmerCount = (memoryLimit / sizeof(KmerPosition));
+    }
+
     KmerPosition * hashSeqPair = initKmerPositionMemory(splitKmerCount*pickNBest);
     Timer timer;
     size_t elementsToSort;
@@ -247,12 +260,10 @@ int kmersearch(int argc, const char **argv, const Command &command) {
             tmpFiles = std::make_pair(par.db3, par.db3Index);
         }
         splitFiles.push_back(tmpFiles.first);
-
-        size_t splitKmerCount = (splits > 1) ? static_cast<size_t>(static_cast<double>(totalKmers / splits) * 1.2) : totalKmers;
-
+        
         std::string splitFileNameDone = tmpFiles.first + ".done";
         if(FileUtil::fileExists(splitFileNameDone.c_str()) == false) {
-            KmerSearch::ExtractKmerAndSortResult sortedKmers = KmerSearch::extractKmerAndSort(splitKmerCount, split,
+            KmerSearch::ExtractKmerAndSortResult sortedKmers = KmerSearch::extractKmerAndSort(totalKmers, split,
                                                                                               splits, queryDbr, par,
                                                                                               subMat,
                                                                                               KMER_SIZE, chooseTopKmer,
