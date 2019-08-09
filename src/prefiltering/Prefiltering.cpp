@@ -41,7 +41,6 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         seedScoringMatrixFile(par.seedScoringMatrixFile),
         targetSeqType(targetSeqType),
         maxResListLen(par.maxResListLen),
-        prevMaxResListLengths(par.prevMaxResListLengths),
         kmerScore(par.kmerScore),
         sensitivity(par.sensitivity),
         maxSeqLen(par.maxSeqLen),
@@ -660,18 +659,6 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
     size_t queryFrom = 0;
     size_t querySize = qdbr->getSize();
     
-    size_t resListOffset = 0;
-    std::vector<std::string> prevMaxVals = Util::split(prevMaxResListLengths, ",");
-    for (size_t i = 0; i < prevMaxVals.size(); ++i) {
-        size_t value = strtoull(prevMaxVals[i].c_str(), NULL, 10);
-        if (splitMode == Parameters::TARGET_DB_SPLIT) {
-            size_t fourTimesStdDeviation = splits > 1 ? static_cast<size_t>(4 * sqrt(static_cast<double>(value) / static_cast<double>(splits))) : 0;
-            resListOffset += std::max(static_cast<size_t>(1), (value / splits) + fourTimesStdDeviation);
-        } else {
-            resListOffset += value;
-        }
-    }
-
     // create index table based on split parameter
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
         Util::decomposeDomainByAminoAcid(tdbr->getDataSize(), tdbr->getSeqLens(), tdbr->getSize(), split, splits, &dbFrom, &dbSize);
@@ -740,7 +727,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
 
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
                             kmerThr, kmerSize, dbSize, maxSeqLen, maxResListLen, aaBiasCorrection,
-                            diagonalScoring, minDiagScoreThr, takeOnlyBestKmer, resListOffset);
+                            diagonalScoring, minDiagScoreThr, takeOnlyBestKmer);
 
         if (seq.profile_matrix != NULL) {
             matcher.setProfileMatrix(seq.profile_matrix);

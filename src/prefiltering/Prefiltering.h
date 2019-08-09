@@ -85,12 +85,11 @@ private:
     bool takeOnlyBestKmer;
     size_t maxResListLen;
 
-    const std::string prevMaxResListLengths;
     const int kmerScore;
     const float sensitivity;
     size_t maxSeqLen;
     int querySeqType;
-    const unsigned int diagonalScoring;
+    const bool diagonalScoring;
     const unsigned int minDiagScoreThr;
     bool aaBiasCorrection;
     const float covThr;

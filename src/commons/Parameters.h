@@ -171,10 +171,6 @@ public:
     static const int PRELOAD_MODE_MMAP = 2;
     static const int PRELOAD_MODE_MMAP_TOUCH = 3;
 
-    static const int DIAG_SCORE_OFF = 0;
-    static const int DIAG_SCORE_ON = 1;
-    static const int DIAG_SCORE_NO_RESCALE = 2;
-
     static std::string getSplitModeName(int splitMode) {
         switch (splitMode) {
             case 0: return "Target";
@@ -292,7 +288,6 @@ public:
     ScoreMatrixFile seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
-    std::string prevMaxResListLengths;   // all max-seqs in previous iterations
     int    verbosity;                    // log level
     int    threads;                      // Amounts of threads
     int    compressed;                   // compressed writer
@@ -305,7 +300,7 @@ public:
     int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
     int    compBiasCorrection;           // Aminoacid composiont correction
-    int    diagonalScoring;              // switch diagonal scoring
+    bool   diagonalScoring;              // switch diagonal scoring
     int    exactKmerMatching;            // only exact k-mer matching
     int    maskMode;                     // mask low complex areas
     int    maskLowerCaseMode;            // maske lowercase letters in prefilter and kmermatchers
@@ -597,7 +592,6 @@ public:
     PARAMETER(PARAM_MIN_DIAG_SCORE)
     PARAMETER(PARAM_K_SCORE)
     PARAMETER(PARAM_MAX_SEQS)
-    PARAMETER(PARAM_PREV_MAX_SEQS)
     PARAMETER(PARAM_SPLIT)
     PARAMETER(PARAM_SPLIT_MODE)
     PARAMETER(PARAM_SPLIT_MEMORY_LIMIT)

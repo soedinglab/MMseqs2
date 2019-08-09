@@ -37,14 +37,13 @@ Parameters::Parameters():
         // Please do not change manually, use a tool to regenerate
         // e.g.: http://gamon.webfactional.com/regexnumericrangegenerator/
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max sequence length", "maximum sequence length (range 1-32768])",typeid(int), (void *) &maxSeqLen, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal scoring", "0: Don't use diagonal scoring for sorting prefilter results, 1: Use diagonal scoring, 2: Use diagonal scoring without rescaling", typeid(int),(void *) &diagonalScoring, "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal scoring", "Use ungapped diagonal scoring during prefilter", typeid(bool), (void *) &diagonalScoring, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_EXACT_KMER_MATCHING(PARAM_EXACT_KMER_MATCHING_ID,"--exact-kmer-matching", "Exact k-mer matching", "only exact k-mer matching (range 0-1)", typeid(int),(void *) &exactKmerMatching, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask residues", "mask sequences in k-mer stage 0: w/o low complexity masking, 1: with low complexity masking", typeid(int),(void *) &maskMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_LOWER_CASE(PARAM_MASK_LOWER_CASE_ID,"--mask-lower-case", "Mask lower case residues", "lowercase letters will be excluded from k-mer search 0: include region, 1: exclude region", typeid(int),(void *) &maskLowerCaseMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-ungapped-score", "Minimum diagonal score", "accept only matches with ungapped alignment score above this threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "K-mer threshold for generating similar k-mer lists",typeid(int),(void *) &kmerScore,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max results per query", "Maximum result sequences per query allowed to pass the prefilter (this parameter affects sensitivity)",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
-        PARAM_PREV_MAX_SEQS(PARAM_PREV_MAX_SEQS_ID, "--prev-max-seqs", "Previous max results per query", "Max results per query in previous calls to prefiltering. Used to compute the correct output offset", typeid(std::string), (void*) &prevMaxResListLengths, "([0-9]+,)?[0-9]+", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split database", "Splits input sets into N equally distributed chunks. The default value sets the best split automatically. createindex can only be used with split 1.",typeid(int),(void *) &split,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "0: split target db; 1: split query db;  2: auto, depending on main memory",typeid(int),(void *) &splitMode,  "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split memory limit", "Set max memory per split. E.g. 800B, 5K, 10M, 1G. Defaults (0) to all available system memory.", typeid(ByteParser), (void*) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
@@ -311,7 +310,6 @@ Parameters::Parameters():
     prefilter.push_back(&PARAM_ALPH_SIZE);
     prefilter.push_back(&PARAM_MAX_SEQ_LEN);
     prefilter.push_back(&PARAM_MAX_SEQS);
-    prefilter.push_back(&PARAM_PREV_MAX_SEQS);
     prefilter.push_back(&PARAM_SPLIT);
     prefilter.push_back(&PARAM_SPLIT_MODE);
     prefilter.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
@@ -1761,7 +1759,7 @@ void Parameters::setDefaults() {
 
 #endif
     compBiasCorrection = 1;
-    diagonalScoring = 1;
+    diagonalScoring = true;
     exactKmerMatching = 0;
     maskMode = 1;
     maskLowerCaseMode = 0;
