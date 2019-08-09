@@ -57,8 +57,9 @@ else
         if [ ! -e "${TMP_PATH}/round2.dbtype" ]; then
                 if [ -n "${APPROX_2BLCA}" ]; then
                     if [ ! -e "${TMP_PATH}/first_sub" ]; then
+                        # shellcheck disable=SC2086
                         "$MMSEQS" createsubdb  "${TMP_PATH}/aligned" "${TMP_PATH}/first" "${TMP_PATH}/first_sub" ${VERBOSITY} --subdb-mode 1 \
-                        || fail "createsubdb"
+                            || fail "createsubdb"
                     fi
                     # shellcheck disable=SC2086
                     $RUNNER "$MMSEQS" align "${TMP_PATH}/aligned" "${TARGET}" "${TMP_PATH}/first_sub" "${TMP_PATH}/round2" ${SEARCH2_PAR} \

@@ -32,6 +32,7 @@ if notExists "${TMP_PATH}/clu_redundancy.dbtype"; then
 fi
 
 if notExists "${TMP_PATH}/input_step_redundancy.dbtype"; then
+    # shellcheck disable=SC2086
     "$MMSEQS" createsubdb "${TMP_PATH}/clu_redundancy" "$INPUT" "${TMP_PATH}/input_step_redundancy" ${VERBOSITY} --subdb-mode 1 \
         || fail "MMseqs order step $STEP died"
 fi
