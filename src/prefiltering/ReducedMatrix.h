@@ -59,7 +59,6 @@ class ReducedMatrix : public BaseMatrix {
     private:
 
         /*contains the original matrix before the alphabet reduction*/
-        short ** origSubMatrix;
         int*   orig_aa2int;
         char*  orig_int2aa;
         /* size of the original alphabet*/
