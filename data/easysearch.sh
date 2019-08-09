@@ -51,17 +51,10 @@ fi
 
 if notExists "${TMP_PATH}/alis.dbtype"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" convertalis "${TMP_PATH}/query" "${TARGET}${INDEXEXT}" "${INTERMEDIATE}" "${TMP_PATH}/alis" ${CONVERT_PAR} \
+    "$MMSEQS" convertalis "${TMP_PATH}/query" "${TARGET}${INDEXEXT}" "${INTERMEDIATE}" "${RESULTS}" ${CONVERT_PAR} \
         || fail "Convert Alignments died"
 fi
 
-mv -f "${TMP_PATH}/alis" "${RESULTS}" || fail "Could not move result to ${RESULTS}"
-if [ -f "${TMP_PATH}/alis.index" ]; then
-    mv -f "${TMP_PATH}/alis.index" "${RESULTS}.index" || fail "Could not move result index to ${RESULTS}"
-fi
-if [ -f "${TMP_PATH}/alis.dbtype" ]; then
-    mv -f "${TMP_PATH}/alis.dbtype" "${RESULTS}.dbtype" || fail "Could not move result dbtype to ${RESULTS}"
-fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Removing temporary files"
