@@ -452,6 +452,17 @@ public:
         }
     }
 
+    static size_t getUpperBoundNucCountForKmerSize(int kmerSize) {
+        switch (kmerSize) {
+            case 14:
+                return 3350000000;
+            case 15:
+                return (SIZE_MAX - 1); // SIZE_MAX is often reserved as safe flag
+            default:
+                Debug(Debug::ERROR) << "Invalid kmer size of " << kmerSize << "!\n";
+                EXIT(EXIT_FAILURE);
+        }
+    }
 
 protected:
     // alphabetSize**kmerSize
