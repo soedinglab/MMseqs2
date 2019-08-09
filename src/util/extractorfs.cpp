@@ -126,11 +126,10 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                 sequenceWriter.writeEnd(key, thread_idx);
 
                 headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
-
-
             }
             res.clear();
         }
+        delete[] aa;
     }
     headerWriter.close(true);
     sequenceWriter.close(true);
