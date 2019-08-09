@@ -217,10 +217,16 @@ public:
     static const int RESCORE_MODE_HAMMING = 0;
     static const int RESCORE_MODE_SUBSTITUTION = 1;
     static const int RESCORE_MODE_ALIGNMENT = 2;
+    static const int RESCORE_MODE_GLOBAL_ALIGNMENT = 3;
+    static const int RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT = 4;
 
     // header type
     static const int HEADER_TYPE_UNICLUST = 1;
     static const int HEADER_TYPE_METACLUST = 2;
+
+    // create subdb type
+    static const int SUBDB_MODE_HARD = 0;
+    static const int SUBDB_MODE_SOFT = 1;
 
     // path to databases
     std::string db1;
@@ -368,6 +374,7 @@ public:
     std::string forwardFrames;
     std::string reverseFrames;
     bool useAllTableStarts;
+    int translate;
 
     // convertprofiledb
     int profileMode;
@@ -550,6 +557,9 @@ public:
     int taxonomySearchMode;
     int taxonomyOutpuMode;
 
+    // createsubdb
+    int subDbMode;
+
     static Parameters& getInstance()
     {
         if (instance == NULL) {
@@ -727,6 +737,7 @@ public:
     PARAMETER(PARAM_ORF_FORWARD_FRAMES)
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
     PARAMETER(PARAM_USE_ALL_TABLE_STARTS)
+    PARAMETER(PARAM_TRANSLATE)
 
     // indexdb
     PARAMETER(PARAM_CHECK_COMPATIBLE)
@@ -843,6 +854,10 @@ public:
     PARAMETER(PARAM_LCA_MODE)
     PARAMETER(PARAM_TAX_OUTPUT_MODE)
 
+    // createsubdb
+    PARAMETER(PARAM_SUBDB_MODE)
+
+
     std::vector<MMseqsParameter*> empty;
     std::vector<MMseqsParameter*> onlyverbosity;
     std::vector<MMseqsParameter*> view;
@@ -917,6 +932,7 @@ public:
     std::vector<MMseqsParameter*> filtertaxdb;
     std::vector<MMseqsParameter*> taxonomy;
     std::vector<MMseqsParameter*> easytaxonomy;
+    std::vector<MMseqsParameter*> createsubdb;
     std::vector<MMseqsParameter*> createtaxdb;
     std::vector<MMseqsParameter*> profile2pssm;
     std::vector<MMseqsParameter*> profile2cs;

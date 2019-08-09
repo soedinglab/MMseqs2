@@ -41,10 +41,10 @@ int createindex(Parameters &par, std::string indexerModule, std::string flag) {
     CommandCaller cmd;
     cmd.addVariable("INDEXER", indexerModule.c_str());
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
+    par.translate = 1;
     cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
     cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
     cmd.addVariable("SPLIT_SEQ_PAR", par.createParameterString(par.splitsequence).c_str());
-    cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
     if(indexerModule == "kmerindexdb"){
         cmd.addVariable("INDEX_PAR", par.createParameterString(par.kmerindexdb).c_str());
     }else{

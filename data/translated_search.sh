@@ -20,36 +20,26 @@ notExists() {
 QUERY="$1"
 QUERY_ORF="$1"
 if [ -n "$QUERY_NUCL" ]; then
-    if notExists "$4/q_orfs.dbtype"; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" extractorfs "$1" "$4/q_orfs" ${ORF_PAR} \
-            || fail  "extract orfs step died"
-    fi
     if notExists "$4/q_orfs_aa.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" translatenucs "$4/q_orfs" "$4/q_orfs_aa" ${TRANSLATE_PAR} \
-            || fail  "translate step died"
+        "$MMSEQS" extractorfs "$1" "$4/q_orfs_aa" ${ORF_PAR} \
+            || fail  "extract orfs step died"
     fi
     QUERY="$4/q_orfs_aa"
-    QUERY_ORF="$4/q_orfs"
+    QUERY_ORF="$4/q_orfs_aa"
 fi
 
 TARGET="$2"
 TARGET_ORF="$2"
 if [ -n "$TARGET_NUCL" ]; then
 if [ -n "$NO_TARGET_INDEX" ]; then
-    if notExists "$4/t_orfs.dbtype"; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" extractorfs "$2" "$4/t_orfs" ${ORF_PAR} \
-            || fail  "extract target orfs step died"
-    fi
     if notExists "$4/t_orfs_aa.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" translatenucs "$4/t_orfs" "$4/t_orfs_aa" ${TRANSLATE_PAR} \
-            || fail  "translate target step died"
+        "$MMSEQS" extractorfs "$2" "$4/t_orfs_aa" ${ORF_PAR} \
+            || fail  "extract target orfs step died"
     fi
     TARGET="$4/t_orfs_aa"
-    TARGET_ORF="$4/t_orfs"
+    TARGET_ORF="$4/t_orfs_aa"
 fi
 fi
 
@@ -66,12 +56,9 @@ if notExists "$3.dbtype"; then
         || fail "Offset step died"
 fi
 
-
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
-    "$MMSEQS" rmdb "$4/q_orfs"
     "$MMSEQS" rmdb "$4/q_orfs_aa"
-    "$MMSEQS" rmdb "$4/t_orfs"
     "$MMSEQS" rmdb "$4/t_orfs_aa"
 fi
 

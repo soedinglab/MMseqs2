@@ -17,16 +17,10 @@ notExists() {
 INPUT="$1"
 if [ -n "$TRANSLATED" ]; then
     # 1. extract orf
-    if notExists "$2/orfs.dbtype"; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" extractorfs "$INPUT" "$2/orfs" $ORF_PAR \
-            || fail "extractorfs died"
-    fi
-
     if notExists "$2/orfs_aa.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" translatenucs "$2/orfs" "$2/orfs_aa" $TRANSLATE_PAR \
-            || fail "translatenucs died"
+        "$MMSEQS" extractorfs "$INPUT" "$2/orfs_aa" $ORF_PAR \
+            || fail "extractorfs died"
     fi
 
     # shellcheck disable=SC2086
@@ -35,7 +29,6 @@ if [ -n "$TRANSLATED" ]; then
 
     if [ -n "$REMOVE_TMP" ]; then
         echo "Remove temporary files"
-        "$MMSEQS" rmdb "$2/orfs"
         "$MMSEQS" rmdb "$2/orfs_aa"
         rm -f "$2/createindex.sh"
     fi

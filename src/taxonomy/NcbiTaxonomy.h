@@ -47,6 +47,7 @@ public:
     //std::unordered_map<TaxID, unsigned int> getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts, TaxID taxon = 1) const;
     std::unordered_map<TaxID, TaxonCounts> getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts) const;
 
+    static NcbiTaxonomy * openTaxonomy(std::string & database);
 private:
     void InitLevels();
     size_t loadNodes(const std::string &nodesFile);
@@ -71,6 +72,7 @@ private:
 
     std::map<std::string, int> sortedLevels;
     std::map<std::string, char> shortRank;
+
 };
 
 #endif

@@ -476,3 +476,23 @@ std::unordered_map<TaxID, TaxonCounts> NcbiTaxonomy::getCladeCounts(std::unorder
     return cladeCounts;
 }
 
+NcbiTaxonomy * NcbiTaxonomy::openTaxonomy(std::string &database){
+    Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
+    std::string nodesFile = database + "_nodes.dmp";
+    std::string namesFile = database + "_names.dmp";
+    std::string mergedFile = database + "_merged.dmp";
+    if (FileUtil::fileExists(nodesFile.c_str())
+        && FileUtil::fileExists(namesFile.c_str())
+        && FileUtil::fileExists(mergedFile.c_str())) {
+    } else if (FileUtil::fileExists("nodes.dmp")
+               && FileUtil::fileExists("names.dmp")
+               && FileUtil::fileExists("merged.dmp")) {
+        nodesFile = "nodes.dmp";
+        namesFile = "names.dmp";
+        mergedFile = "merged.dmp";
+    } else {
+        Debug(Debug::ERROR) << "names.dmp, nodes.dmp, merged.dmp from NCBI taxdump could not be found!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return new NcbiTaxonomy(namesFile, nodesFile, mergedFile);
+}

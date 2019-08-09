@@ -47,8 +47,6 @@ void DBReader<T>::setDataFile(const char* dataFileName_)  {
     dataFileName = strdup(dataFileName_);
 }
 
-
-
 template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
     if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
@@ -1014,6 +1012,27 @@ void DBReader<T>::removeDb(const std::string &databaseName){
     std::string lookupFile = databaseName + ".lookup";
     if (FileUtil::fileExists(lookupFile.c_str())) {
         FileUtil::remove(lookupFile.c_str());
+    }
+}
+
+template<typename T>
+void DBReader<T>::softLink(DBReader<unsigned int> &reader, std::string &outDb) {
+    std::vector<std::string> names = reader.getDataFileNames();
+    if(names.size() == 1){
+        FileUtil::symlinkAbs(names[0], outDb);
+    }else{
+        for(size_t i = 0; i < names.size(); i++){
+            std::string::size_type idx = names[i].rfind('.');
+            std::string ext;
+            if(idx != std::string::npos){
+                ext = names[i].substr(idx);
+            }else{
+                Debug(Debug::ERROR) << "File extention was not found but it is expected to be there!\n"
+                                    << "Filename: " << names[i] << ".\n";
+                EXIT(EXIT_FAILURE);
+            }
+            FileUtil::symlinkAbs(names[i], outDb + ext);
+        }
     }
 }
 

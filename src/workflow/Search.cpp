@@ -305,6 +305,7 @@ int search(int argc, const char **argv, const Command& command) {
 
     const int originalRescoreMode = par.rescoreMode;
     CommandCaller cmd;
+    cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
     cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     std::string program;
@@ -451,9 +452,9 @@ int search(int argc, const char **argv, const Command& command) {
         FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
         cmd.addVariable("QUERY_NUCL", (searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_TRANSLATED) ? "TRUE" : NULL);
         cmd.addVariable("TARGET_NUCL", (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_TRANSLATED)  ? "TRUE" : NULL);
+        par.translate = 1;
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());
-        cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");
     }else if(searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE &&
