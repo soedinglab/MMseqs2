@@ -249,34 +249,45 @@ int kmersearch(int argc, const char **argv, const Command &command) {
         splitFiles.push_back(tmpFiles.first);
 
         size_t splitKmerCount = (splits > 1) ? static_cast<size_t>(static_cast<double>(totalKmers / splits) * 1.2) : totalKmers;
-        KmerSearch::ExtractKmerAndSortResult sortedKmers = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, queryDbr, par, subMat,
-                                                                                          KMER_SIZE, chooseTopKmer, par.pickNbest, isAdjustedKmerLen);
-        std::pair<KmerPosition *, size_t> result;
-        if (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-            result = KmerSearch::searchInIndex<Parameters::DBTYPE_NUCLEOTIDES>(sortedKmers.kmers, sortedKmers.kmerCount, kmerIndex);
-        } else {
-            result = KmerSearch::searchInIndex<Parameters::DBTYPE_AMINO_ACIDS>(sortedKmers.kmers, sortedKmers.kmerCount, kmerIndex);
-        }
 
-        KmerPosition *kmers = result.first;
-        size_t kmerCount = result.second;
-        if (splits == 1) {
-            DBWriter dbw(tmpFiles.first.c_str(), tmpFiles.second.c_str(), 1, par.compressed, outDbType);
-            dbw.open();
+        std::string splitFileNameDone = tmpFiles.first + ".done";
+        if(FileUtil::fileExists(splitFileNameDone.c_str()) == false) {
+            KmerSearch::ExtractKmerAndSortResult sortedKmers = KmerSearch::extractKmerAndSort(splitKmerCount, split,
+                                                                                              splits, queryDbr, par,
+                                                                                              subMat,
+                                                                                              KMER_SIZE, chooseTopKmer,
+                                                                                              par.pickNbest,
+                                                                                              isAdjustedKmerLen);
+            std::pair<KmerPosition *, size_t> result;
             if (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-                KmerSearch::writeResult<Parameters::DBTYPE_NUCLEOTIDES>(dbw, kmers, kmerCount);
+                result = KmerSearch::searchInIndex<Parameters::DBTYPE_NUCLEOTIDES>(sortedKmers.kmers,
+                                                                                   sortedKmers.kmerCount, kmerIndex);
             } else {
-                KmerSearch::writeResult<Parameters::DBTYPE_AMINO_ACIDS>(dbw, kmers, kmerCount);
+                result = KmerSearch::searchInIndex<Parameters::DBTYPE_AMINO_ACIDS>(sortedKmers.kmers,
+                                                                                   sortedKmers.kmerCount, kmerIndex);
             }
-            dbw.close();
-        } else {
-            if (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-                writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(tmpFiles.first, kmers, kmerCount + 1);
+
+            KmerPosition *kmers = result.first;
+            size_t kmerCount = result.second;
+            if (splits == 1) {
+                DBWriter dbw(tmpFiles.first.c_str(), tmpFiles.second.c_str(), 1, par.compressed, outDbType);
+                dbw.open();
+                if (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
+                    KmerSearch::writeResult<Parameters::DBTYPE_NUCLEOTIDES>(dbw, kmers, kmerCount);
+                } else {
+                    KmerSearch::writeResult<Parameters::DBTYPE_AMINO_ACIDS>(dbw, kmers, kmerCount);
+                }
+                dbw.close();
             } else {
-                writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(tmpFiles.first, kmers, kmerCount + 1);
+                if (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
+                    writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(tmpFiles.first, kmers,
+                                                                                   kmerCount + 1);
+                } else {
+                    writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(tmpFiles.first, kmers, kmerCount + 1);
+                }
             }
+            delete[] kmers;
         }
-        delete[] kmers;
     }
     delete subMat;
     tidxdbr.close();
@@ -289,6 +300,11 @@ int kmersearch(int argc, const char **argv, const Command &command) {
             mergeKmerFilesAndOutput<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(writer, splitFiles, empty);
         }else{
             mergeKmerFilesAndOutput<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(writer, splitFiles, empty);
+        }
+        for(size_t i = 0; i < splitFiles.size(); i++){
+            FileUtil::remove(splitFiles[i].c_str());
+            std::string splitFilesDone = splitFiles[i] + ".done";
+            FileUtil::remove(splitFilesDone.c_str());
         }
         writer.close();
     }

@@ -1015,7 +1015,7 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
 
         bool hitIsRepSeq = (currRepSeq == res.id);
         // skip rep. seq. if set does not have rep. sequences
-        if(hitIsRepSeq && hasRepSeq == true){
+        if(hitIsRepSeq){
             continue;
         }
         // if its not a duplicate
