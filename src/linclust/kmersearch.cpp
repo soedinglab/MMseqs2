@@ -292,9 +292,9 @@ int kmersearch(int argc, const char **argv, const Command &command) {
             } else {
                 if (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
                     writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(tmpFiles.first, kmers,
-                                                                                   kmerCount + 1);
+                                                                                   kmerCount );
                 } else {
-                    writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(tmpFiles.first, kmers, kmerCount + 1);
+                    writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(tmpFiles.first, kmers, kmerCount );
                 }
             }
             delete[] kmers;
