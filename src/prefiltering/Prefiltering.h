@@ -62,8 +62,8 @@ private:
 
     BaseMatrix *kmerSubMat;
     BaseMatrix *ungappedSubMat;
-    ScoreMatrix *_2merSubMatrix;
-    ScoreMatrix *_3merSubMatrix;
+    ScoreMatrix _2merSubMatrix;
+    ScoreMatrix _3merSubMatrix;
     IndexTable *indexTable;
     SequenceLookup *sequenceLookup;
 
@@ -85,12 +85,11 @@ private:
     bool takeOnlyBestKmer;
     size_t maxResListLen;
 
-    const std::string prevMaxResListLengths;
     const int kmerScore;
     const float sensitivity;
     size_t maxSeqLen;
     int querySeqType;
-    const unsigned int diagonalScoring;
+    const bool diagonalScoring;
     const unsigned int minDiagScoreThr;
     bool aaBiasCorrection;
     const float covThr;
@@ -114,7 +113,7 @@ private:
 
     static size_t estimateHDDMemoryConsumption(size_t dbSize, size_t maxResListLen);
 
-    ScoreMatrix *getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize);
+    ScoreMatrix getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize);
 
 
     // needed for index lookup

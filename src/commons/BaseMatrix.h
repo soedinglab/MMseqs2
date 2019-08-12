@@ -18,6 +18,9 @@ public:
     /* size of alphabet*/
     int alphabetSize;
 
+    // allocated alphabet size
+    int allocatedAlphabetSize;
+
     /* matrixData */
     std::string matrixData;
 

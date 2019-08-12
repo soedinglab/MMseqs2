@@ -84,7 +84,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
             SubstitutionMatrix::print(subMat->subMatrix, subMat->int2aa, subMat->alphabetSize );
         }
     }
-    ScoreMatrix * _2merSubMatrix =  ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
+    ScoreMatrix _2merSubMatrix = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
 
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
 
@@ -169,16 +169,16 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
             Sequence query(par.maxSeqLen, querySeqType, subMat, par.kmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
             Sequence target(par.maxSeqLen, targetSeqType, subMat, par.kmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
             KmerGenerator kmerGenerator(par.kmerSize, subMat->alphabetSize, 70.0);
-            kmerGenerator.setDivideStrategy(NULL, _2merSubMatrix);
+            kmerGenerator.setDivideStrategy(NULL, &_2merSubMatrix);
             size_t lookupSize = MathUtil::ipow<size_t>(par.alphabetSize, par.kmerSize);
             unsigned short * queryPosLookup = new unsigned short[lookupSize];
             memset(queryPosLookup, 255, lookupSize * sizeof(unsigned short) );
 
             Indexer idxer(subMat->alphabetSize, par.kmerSize);
-            KmerPos * kmerPosVec = new KmerPos[par.maxSeqLen];
-            Stretche * stretcheVec = new Stretche[par.maxSeqLen];
-            DpMatrixRow * dpMatrixRow = new DpMatrixRow[par.maxSeqLen];
-            int * scores = new int[par.maxSeqLen];
+            KmerPos * kmerPosVec = new KmerPos[par.maxSeqLen + 1];
+            Stretche * stretcheVec = new Stretche[par.maxSeqLen + 1];
+            DpMatrixRow * dpMatrixRow = new DpMatrixRow[par.maxSeqLen + 1];
+            int * scores = new int[par.maxSeqLen + 1];
             std::string bt;
 
             unsigned int thread_idx = 0;
@@ -496,8 +496,8 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     resultWriter.close();
     dbr_res.close();
 
+    ExtendedSubstitutionMatrix::freeScoreMatrix(_2merSubMatrix);
     delete subMat;
-    ScoreMatrix::cleanup(_2merSubMatrix);
 
     if (tDbrIdx != NULL) {
         delete tDbrIdx;

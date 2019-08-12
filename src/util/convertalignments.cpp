@@ -112,7 +112,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         tDbr = &qDbr;
         tDbrHeader= &qDbrHeader;
     } else {
-
         tDbr = new IndexReader(par.db2, par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0, dbaccessMode);
         tDbrHeader = new IndexReader(par.db2, par.threads, IndexReader::SRC_HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     }
@@ -162,9 +161,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-
-
-
     unsigned int localThreads = 1;
 #ifdef OPENMP
     localThreads = std::min((unsigned int)par.threads, (unsigned int)alnDbr.getSize());
@@ -189,9 +185,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         resultWriter.writeAdd(header.c_str(), header.size(), 0);
 
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
-
             char *data = alnDbr.getData(i, 0);
-
             while (*data != '\0') {
                 char dbKeyBuffer[255 + 1];
                 Util::parseKey(data, dbKeyBuffer);
@@ -215,6 +209,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 data = Util::skipLine(data);
             }
         }
+        delete[] headerWritten;
     }
 
     Debug::Progress progress(alnDbr.getSize());
@@ -580,11 +575,11 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     }
 
     alnDbr.close();
+    if (sameDB == false) {
+        delete tDbr;
+        delete tDbrHeader;
+    }
     if (needSequenceDB) {
-        if (sameDB == false) {
-            delete tDbr;
-            delete tDbrHeader;
-        }
         delete evaluer;
     }
     delete subMat;

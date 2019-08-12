@@ -79,7 +79,8 @@ while [ "$STEP" -lt "$STEPS" ]; do
         if [ ! -s "$TMP_PATH/order_step$STEP" ]; then break; fi
 
         if notExists "$NEXTINPUT.dbtype"; then
-            "$MMSEQS" createsubdb "$TMP_PATH/order_step$STEP" "$INPUT" "$NEXTINPUT" \
+            # shellcheck disable=SC2086
+            "$MMSEQS" createsubdb "$TMP_PATH/order_step$STEP" "$INPUT" "$NEXTINPUT" ${VERBOSITY} --subdb-mode 1 \
                 || fail "Order step $STEP died"
         fi
     fi

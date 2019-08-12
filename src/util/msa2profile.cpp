@@ -8,7 +8,7 @@
 #include "MathUtil.h"
 
 #include "kseq.h"
-#include "kseq_buffer_reader.h"
+#include "KSeqBufferReader.h"
 
 KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 
@@ -148,7 +148,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         char *seqBuffer = new char[maxSeqLength + 1];
         bool *maskedColumns = new bool[maxSeqLength];
         std::string result;
-        result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
+        result.reserve((par.maxSeqLen + 1) * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
         kseq_buffer_t d;
         kseq_t *seq = kseq_init(&d);

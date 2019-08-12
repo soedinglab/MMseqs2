@@ -60,7 +60,7 @@ int translateaa(int argc, const char **argv, const Command &command) {
         thread_idx = omp_get_thread_num();
 #endif
 
-        char *aa = new char[par.maxSeqLen / 3 + 3 + 1];
+        char *aa = new char[(par.maxSeqLen + 1) / 3 + 3 + 1];
         std::string nucSeq;
         nucSeq.reserve(10000);
         Sequence aaSequence(par.maxSeqLen, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection);

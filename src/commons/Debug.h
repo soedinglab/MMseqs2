@@ -171,6 +171,12 @@ public:
             interactive = check.tty;
         }
 
+        void reset(size_t totalEntries) {
+            this->totalEntries = totalEntries;
+            currentPos = 0;
+            prevPrintedId = 0;
+        }
+
         void updateProgress(){
             size_t id = __sync_fetch_and_add(&currentPos, 1);
             // if no active terminal exists write dots

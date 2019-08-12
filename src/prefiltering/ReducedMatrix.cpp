@@ -6,34 +6,29 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
                              int* aa2int, char* int2aa,
                              size_t orgAlphabetSize,
                              size_t reducedAlphabetSize, float bitFactor){
-    alphabetSize = orgAlphabetSize;
     if(reducedAlphabetSize >= orgAlphabetSize) {
         Debug(Debug::ERROR) << "Reduced alphabet has to be smaller than the original one!";
         EXIT(EXIT_FAILURE);
     }
-    initMatrixMemory(alphabetSize);
+    initMatrixMemory(orgAlphabetSize);
     // swap the matrix and alphabet mappings
     this->origAlphabetSize = orgAlphabetSize;
     this->orig_aa2int = new int[UCHAR_MAX];
     memcpy(orig_aa2int, aa2int, sizeof(int) * UCHAR_MAX);
-    this->orig_int2aa = new char[alphabetSize];
-    memcpy(orig_int2aa, int2aa, sizeof(char) * alphabetSize);
-    this->origSubMatrix = this->subMatrix;
+    this->orig_int2aa = new char[orgAlphabetSize];
+    memcpy(orig_int2aa, int2aa, sizeof(char) * orgAlphabetSize);
 
-    for(int i = 0; i < this->alphabetSize; i++) {
-        for (int j = 0; j < this->alphabetSize; j++) {
+    for(size_t i = 0; i < this->origAlphabetSize; i++) {
+        for (size_t j = 0; j < this->origAlphabetSize; j++) {
             this->probMatrix[i][j] = probMatrix[i][j];
         }
     }
     // initialize new matrices and alphabet mappings
     this->alphabetSize = reducedAlphabetSize;
-    this->aa2int = new int[UCHAR_MAX];
-    this->int2aa = new char[origAlphabetSize];
-    this->reducedAlphabet = new std::vector<char>();
     for (size_t i = 0; i < UCHAR_MAX; ++i) { this->aa2int[i] = orig_aa2int[i]; };
     for (size_t i = 0; i < origAlphabetSize; ++i){
         this->int2aa[i] = orig_int2aa[i];
-        reducedAlphabet->push_back(this->int2aa[i]);
+        reducedAlphabet.push_back(this->int2aa[i]);
     }
 
     double ** subMatrix_tmp=new double*[origAlphabetSize-1];
@@ -49,10 +44,10 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
 //    Debug(Debug::INFO) << "20 " << info << "\n";
     //print(subMatrix, origAlphabetSize -1,  )
 
-    size_t reduce_steps=origAlphabetSize-alphabetSize;
+    size_t reduce_steps = origAlphabetSize - reducedAlphabetSize;
 
 
-    for(size_t step = 0 ; step < reduce_steps; step++){
+    for(size_t step = 0; step < reduce_steps; step++){
         // Ensuring every element is 0.
         for(size_t j = 0; j < this->origAlphabetSize-1; j++)
         {
@@ -67,23 +62,23 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
         int reduced_index=reduce_bases.first;
         int lost_index=reduce_bases.second;
 
-        char reduced_aa=reducedAlphabet->at(reduced_index);
-        char lost_aa   =reducedAlphabet->at(lost_index);
+        char reduced_aa= reducedAlphabet.at(reduced_index);
+        char lost_aa   = reducedAlphabet.at(lost_index);
 
         // Debug(Debug::INFO)  << lost_aa  << " -> " << reduced_aa << "\n";
-        reducedAlphabet->erase(reducedAlphabet->begin()+lost_index);
+        reducedAlphabet.erase(reducedAlphabet.begin() + lost_index);
 
         int reduced_int=this->orig_aa2int[(int)reduced_aa];
         int lost_int   =this->aa2int[(int)lost_aa];
 
-        for(size_t i =0; i < this->origAlphabetSize;i++){
+        for (size_t i = 0; i < this->origAlphabetSize; i++) {
             if(this->int2aa[i]==lost_aa){
                 this->int2aa[i]=reduced_aa;
             }
         }
-        for(int i =0; i < UCHAR_MAX; i++){
-            if(this->aa2int[i]==lost_int){
-                this->aa2int[i]=(int)reduced_int;
+        for (int i =0; i < UCHAR_MAX; i++) {
+            if (this->aa2int[i]==lost_int) {
+                this->aa2int[i] = (int) reduced_int;
             }
         }
         copyMatrix(probMatrix_new, this->probMatrix, origAlphabetSize-1);
@@ -96,8 +91,8 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
         aa2int_new[i] = -1;
     }
     char* int2aa_new = new char[origAlphabetSize];
-    for(size_t i = 0; i<reducedAlphabet->size(); i++){
-        const char representative_aa = reducedAlphabet->at(i);
+    for(size_t i = 0; i<reducedAlphabet.size(); i++){
+        const char representative_aa = reducedAlphabet.at(i);
         Debug(Debug::INFO) << "(" << representative_aa;
         for(size_t j =0; j < UCHAR_MAX; j++){
             if(this->aa2int[(int)j] == this->aa2int[(int)representative_aa]){
@@ -111,10 +106,6 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
         int2aa_new[i] = representative_aa;
     }
     Debug(Debug::INFO) << "\n";
-
-    this->subMatrix = new short*[alphabetSize];
-    for (int i = 0; i<alphabetSize; i++)
-        this->subMatrix[i] = new short[alphabetSize];
 
     // compute background
     computeBackground(probMatrix_new, pBack, alphabetSize, true);
@@ -145,27 +136,20 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
 
 
     setupLetterMapping();
-    for (size_t i = 0; i < origAlphabetSize-1; i++)
-    {
-        delete[]probMatrix_new[i];
-        delete[]subMatrix_tmp[i];
+    for (size_t i = 0; i < origAlphabetSize-1; i++) {
+        delete[] probMatrix_new[i];
+        delete[] subMatrix_tmp[i];
     }
-    delete[]subMatrix_tmp;
-    delete[]probMatrix_new;
+    delete[] subMatrix_tmp;
+    delete[] probMatrix_new;
 }
 
 ReducedMatrix::~ReducedMatrix(){
-    delete [] orig_int2aa;
-    delete [] orig_aa2int;
-    for(int i = 0; i<alphabetSize;i++){
-        delete[] origSubMatrix[i];
-    }
-    delete[] origSubMatrix;
-    delete reducedAlphabet;
+    delete[] orig_int2aa;
+    delete[] orig_aa2int;
 }
 
 void ReducedMatrix::copyMatrix(double ** input,double ** output, size_t size){
-
     for (size_t i=0; i< size; i++){
         for (size_t j=0; j< size; j++){
             output[i][j] = input[i][j];

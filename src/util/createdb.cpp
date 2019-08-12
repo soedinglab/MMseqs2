@@ -319,6 +319,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         splitCounter++;
     }
     lookupFile.close(true);
+    readerHeader.close();
     FileUtil::remove(lookupIndexFile.c_str());
     delete[] sourceLookup;
 

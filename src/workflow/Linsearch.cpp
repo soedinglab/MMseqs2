@@ -147,6 +147,7 @@ int linsearch(int argc, const char **argv, const Command &command) {
         cmd.addVariable("NO_TARGET_INDEX", (indexStr == "") ? "TRUE" : NULL);
         cmd.addVariable("QUERY_NUCL", Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
         cmd.addVariable("TARGET_NUCL", Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES) ? "TRUE" : NULL);
+        par.translate = 1;
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());
         cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());

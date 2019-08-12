@@ -1,13 +1,15 @@
 #include "Parameters.h"
-#include <string>
-#include <cassert>
-#include <climits>
 #include "Util.h"
 #include "DBReader.h"
-#include "createindex.sh.h"
 #include "CommandCaller.h"
 #include "Debug.h"
 #include "FileUtil.h"
+
+#include "createindex.sh.h"
+
+#include <string>
+#include <cassert>
+#include <climits>
 
 int createindex(Parameters &par, std::string indexerModule, std::string flag) {
     bool sensitivity = false;
@@ -39,10 +41,10 @@ int createindex(Parameters &par, std::string indexerModule, std::string flag) {
     CommandCaller cmd;
     cmd.addVariable("INDEXER", indexerModule.c_str());
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
+    par.translate = 1;
     cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
     cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
     cmd.addVariable("SPLIT_SEQ_PAR", par.createParameterString(par.splitsequence).c_str());
-    cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
     if(indexerModule == "kmerindexdb"){
         cmd.addVariable("INDEX_PAR", par.createParameterString(par.kmerindexdb).c_str());
     }else{
@@ -76,8 +78,7 @@ int createlinindex(int argc, const char **argv, const Command& command) {
             par.maxSeqLen = 10000;
         }
     }
-    std::vector<MMseqsParameter*>* params = command.params;
-    par.printParameters(command.cmd, argc, argv, *params);
+    par.printParameters(command.cmd, argc, argv, *command.params);
 
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_AUTO){
         Debug(Debug::WARNING) << "Database " << par.db1 << " is a nucleotide database. \n"
@@ -129,8 +130,7 @@ int createindex(int argc, const char **argv, const Command& command) {
                 break;
         }
     }
-    std::vector<MMseqsParameter*>* params = command.params;
-    par.printParameters(command.cmd, argc, argv, *params);
+    par.printParameters(command.cmd, argc, argv, *command.params);
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_AUTO){
         Debug(Debug::WARNING) << "Database " << par.db1 << " is a nucleotide database. \n"
                             << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";

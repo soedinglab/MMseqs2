@@ -24,6 +24,21 @@ int splitsequence(int argc, const char **argv, const Command& command) {
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::NOSORT);
+    bool sizeLarger = false;
+    for(size_t i = 0; i < reader.getSize(); i++){
+        sizeLarger |= (reader.getSeqLens(i) > par.maxSeqLen);
+    }
+    // if no sequence needs to be splitted
+    if(sizeLarger == false){
+        FileUtil::symlinkAbs(par.db1, par.db2);
+        FileUtil::symlinkAbs(par.db1Index, par.db2Index);
+        FileUtil::copyFile(par.db1dbtype.c_str(),par.db2dbtype.c_str());
+        FileUtil::symlinkAbs(par.hdr1, par.hdr2);
+        FileUtil::symlinkAbs(par.hdr1Index, par.hdr2Index);
+        FileUtil::copyFile(par.hdr1dbtype.c_str(),par.hdr2dbtype.c_str());
+        reader.close();
+        return EXIT_SUCCESS;
+    }
 
     DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     headerReader.open(DBReader<unsigned int>::NOSORT);

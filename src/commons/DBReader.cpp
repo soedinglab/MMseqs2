@@ -47,8 +47,6 @@ void DBReader<T>::setDataFile(const char* dataFileName_)  {
     dataFileName = strdup(dataFileName_);
 }
 
-
-
 template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
     if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
@@ -478,15 +476,18 @@ template <typename T> void DBReader<T>::close(){
     if(dataMode & USE_DATA){
         unmapData();
     }
-    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){
-        delete [] id2local;
-        delete [] local2id;
+
+    if (id2local != NULL) {
+        delete[] id2local;
+    }
+    if (local2id != NULL) {
+        delete[] local2id;
     }
 
     if(compressedBuffers){
         for(int i = 0; i < threads; i++){
             ZSTD_freeDStream(dstream[i]);
-            delete [] compressedBuffers[i];
+            free(compressedBuffers[i]);
         }
         delete [] compressedBuffers;
         delete [] compressedBufferSizes;
@@ -664,8 +665,8 @@ template <typename T> unsigned int DBReader<T>::getLookupFileNumber(size_t id){
 
 template <typename T> size_t DBReader<T>::getId (T dbKey){
     size_t id = bsearch(index, size, dbKey);
-    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){
-        return  (id < size && index[id].id == dbKey) ? id2local[id] : UINT_MAX;
+    if (id2local != NULL) {
+        return (id < size && index[id].id == dbKey) ? id2local[id] : UINT_MAX;
     }
     return (id < size && index[id].id == dbKey ) ? id : UINT_MAX;
 }
@@ -900,7 +901,7 @@ size_t DBReader<T>::getOffset(size_t id) {
         Debug(Debug::ERROR) << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
         EXIT(EXIT_FAILURE);
     }
-    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){
+    if (local2id != NULL) {
         id = local2id[id];
     }
     return index[id].offset;
@@ -1011,6 +1012,27 @@ void DBReader<T>::removeDb(const std::string &databaseName){
     std::string lookupFile = databaseName + ".lookup";
     if (FileUtil::fileExists(lookupFile.c_str())) {
         FileUtil::remove(lookupFile.c_str());
+    }
+}
+
+template<typename T>
+void DBReader<T>::softLink(DBReader<unsigned int> &reader, std::string &outDb) {
+    std::vector<std::string> names = reader.getDataFileNames();
+    if(names.size() == 1){
+        FileUtil::symlinkAbs(names[0], outDb);
+    }else{
+        for(size_t i = 0; i < names.size(); i++){
+            std::string::size_type idx = names[i].rfind('.');
+            std::string ext;
+            if(idx != std::string::npos){
+                ext = names[i].substr(idx);
+            }else{
+                Debug(Debug::ERROR) << "File extention was not found but it is expected to be there!\n"
+                                    << "Filename: " << names[i] << ".\n";
+                EXIT(EXIT_FAILURE);
+            }
+            FileUtil::symlinkAbs(names[i], outDb + ext);
+        }
     }
 }
 

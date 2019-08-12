@@ -131,7 +131,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen, par.gapExtend);
         Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
         std::string result;
-        result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
+        result.reserve((par.maxSeqLen + 1) * Sequence::PROFILE_READIN_SIZE);
         char *charSequence = new char[maxSequenceLength];
 
         unsigned int thread_idx = 0;

@@ -10,6 +10,8 @@ ScoreMatrixFile::ScoreMatrixFile(const char* filename) {
         aminoacids = (char*) malloc(len * sizeof(char));
         nucleotides = (char*) malloc(len * sizeof(char));
         if (sscanf(filename, "aa:%[^,],nucl:%s", aminoacids, nucleotides) != 2 && sscanf(filename, "nucl:%[^,],aa:%s", nucleotides, aminoacids) != 2) {
+            free(nucleotides);
+            free(aminoacids);
             nucleotides = strdup("INVALID");
             aminoacids = strdup("INVALID");
         }
@@ -25,6 +27,12 @@ ScoreMatrixFile::ScoreMatrixFile(const char* aminoacids, const char* nucleotides
 }
 
 ScoreMatrixFile& ScoreMatrixFile::operator=(const ScoreMatrixFile& other) {
+    if (nucleotides != NULL) {
+        free(nucleotides);
+    }
+    if (aminoacids != NULL) {
+        free(aminoacids);
+    }
     nucleotides = strdup(other.nucleotides);
     aminoacids = strdup(other.aminoacids);
     return *this;

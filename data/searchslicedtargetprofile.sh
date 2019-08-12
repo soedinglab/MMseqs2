@@ -142,7 +142,6 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
     fi
 
     # merge swapped alignment of current chunk to previous steps
-    MERGED="${TMP_PATH}/aln_swap"
     if [ -f "${TMP_PATH}/aln_merged.dbtype" ]; then
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${INPUT}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} \
@@ -154,7 +153,6 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
         "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR} || fail "mv aln_merged_new aln_merged died"
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} || fail "rmdb aln_swap died"
-        MERGED="${TMP_PATH}/aln_merged"
     else
         # shellcheck disable=SC2086
         "$MMSEQS" mvdb "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR} \
@@ -176,6 +174,7 @@ if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR}
+    # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${PROFILEDB}" ${VERBOSITY_PAR}
     rm -f "${TMP_PATH}/aln.checkpoint" "${PROFILEDB}.meta"
     rm -f "$TMP_PATH/searchslicedtargetprofile.sh"

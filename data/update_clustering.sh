@@ -172,7 +172,8 @@ echo "==================================================="
 echo "====== Filter out the new from old sequences ======"
 echo "==================================================="
 if notExists "${TMP_PATH}/NEWDB.newSeqs.dbtype"; then
-    "$MMSEQS" createsubdb "${TMP_PATH}/newSeqs" "$NEWDB" "${TMP_PATH}/NEWDB.newSeqs" \
+    # shellcheck disable=SC2086
+    "$MMSEQS" createsubdb "${TMP_PATH}/newSeqs" "$NEWDB" "${TMP_PATH}/NEWDB.newSeqs" ${VERBOSITY} --subdb-mode 1 \
         || fail "Order died"
     ln -sf "${NEWDB}.dbtype" "${TMP_PATH}/NEWDB.newSeqs.dbtype"
 fi
@@ -244,7 +245,8 @@ if notExists "${TMP_PATH}/noHitSeqList.dbtype"; then
         || fail "awk died"
 fi
 if notExists "${TMP_PATH}/toBeClusteredSeparately.dbtype"; then
-    "$MMSEQS" createsubdb "${TMP_PATH}/noHitSeqList" "$NEWDB" "${TMP_PATH}/toBeClusteredSeparately" \
+    # shellcheck disable=SC2086
+    "$MMSEQS" createsubdb "${TMP_PATH}/noHitSeqList" "$NEWDB" "${TMP_PATH}/toBeClusteredSeparately" ${VERBOSITY} --subdb-mode 1 \
         || fail "Order of no hit seq. died"
     ln -sf "${NEWDB}.dbtype" "${TMP_PATH}/toBeClusteredSeparately.dbtype"
 fi

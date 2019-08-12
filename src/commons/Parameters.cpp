@@ -37,14 +37,13 @@ Parameters::Parameters():
         // Please do not change manually, use a tool to regenerate
         // e.g.: http://gamon.webfactional.com/regexnumericrangegenerator/
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max sequence length", "maximum sequence length (range 1-32768])",typeid(int), (void *) &maxSeqLen, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal scoring", "0: Don't use diagonal scoring for sorting prefilter results, 1: Use diagonal scoring, 2: Use diagonal scoring without rescaling", typeid(int),(void *) &diagonalScoring, "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal scoring", "Use ungapped diagonal scoring during prefilter", typeid(bool), (void *) &diagonalScoring, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_EXACT_KMER_MATCHING(PARAM_EXACT_KMER_MATCHING_ID,"--exact-kmer-matching", "Exact k-mer matching", "only exact k-mer matching (range 0-1)", typeid(int),(void *) &exactKmerMatching, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask residues", "mask sequences in k-mer stage 0: w/o low complexity masking, 1: with low complexity masking", typeid(int),(void *) &maskMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_LOWER_CASE(PARAM_MASK_LOWER_CASE_ID,"--mask-lower-case", "Mask lower case residues", "lowercase letters will be excluded from k-mer search 0: include region, 1: exclude region", typeid(int),(void *) &maskLowerCaseMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-ungapped-score", "Minimum diagonal score", "accept only matches with ungapped alignment score above this threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "K-mer threshold for generating similar k-mer lists",typeid(int),(void *) &kmerScore,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max results per query", "Maximum result sequences per query allowed to pass the prefilter (this parameter affects sensitivity)",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
-        PARAM_PREV_MAX_SEQS(PARAM_PREV_MAX_SEQS_ID, "--prev-max-seqs", "Previous max results per query", "Max results per query in previous calls to prefiltering. Used to compute the correct output offset", typeid(std::string), (void*) &prevMaxResListLengths, "([0-9]+,)?[0-9]+", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split database", "Splits input sets into N equally distributed chunks. The default value sets the best split automatically. createindex can only be used with split 1.",typeid(int),(void *) &split,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "0: split target db; 1: split query db;  2: auto, depending on main memory",typeid(int),(void *) &splitMode,  "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split memory limit", "Set max memory per split. E.g. 800B, 5K, 10M, 1G. Defaults (0) to all available system memory.", typeid(ByteParser), (void*) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
@@ -91,10 +90,9 @@ Parameters::Parameters():
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment format", "output format 0: BLAST-TAB, 1: SAM, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
         PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID,"--format-output", "Format alignment output", "format output 'query,target,evalue,gapopen,pident,nident,qstart,qend,qlen,tstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov'", typeid(std::string), (void*) &outfmt, ""),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database output", "Output a result db instead of a text file", typeid(bool), (void*) &dbOut, ""),
-        // rescorediagonal
-        PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "Rescore diagonal with: 0: Hamming distance, 1: local alignment (score only) or 2: local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),
+        // --include-only-extendablediagonal
+        PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "Rescore diagonal with: 0: Hamming distance, 1: local alignment (score only), 2: local alignment, 3: global alignment or 4: longest alignment fullfilling window quality criterion", typeid(int), (void *) &rescoreMode, "^[0-4]{1}$"),
         PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID,"--filter-hits", "Remove hits by seq. id. and coverage", "filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, "", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_GLOBAL_ALIGNMENT(PARAM_GLOBAL_ALIGNMENT_ID,"--global-alignment", "Global diagonal rescoring", "In substitution scoring mode perform global alignment along the diagonal", typeid(bool), (void *) &globalAlignment, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by evalue (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow deletions", "allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
@@ -162,6 +160,7 @@ Parameters::Parameters():
         PARAM_ORF_FORWARD_FRAMES(PARAM_ORF_FORWARD_FRAMES_ID, "--forward-frames", "Forward frames", "comma-seperated list of ORF frames on the forward strand to be extracted", typeid(std::string), (void *) &forwardFrames, ""),
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
         PARAM_USE_ALL_TABLE_STARTS(PARAM_USE_ALL_TABLE_STARTS_ID,"--use-all-table-starts", "Use all table starts", "use all alteratives for a start codon in the genetic table, if false - only ATG (AUG)",typeid(bool),(void *) &useAllTableStarts, ""),
+        PARAM_TRANSLATE(PARAM_TRANSLATE_ID,"--translate", "Translate orf", "translate ORF to amino acid",typeid(int),(void *) &translate, "^[0-1]{1}"),
         // indexdb
         PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check compatible", "0: Always recreate index, 1: Check if recreating index is needed, 2: Fail if index is incompatible", typeid(int), (void*) &checkCompatible, "^[0-2]{1}$", MMseqsParameter::COMMAND_MISC),
         PARAM_SEARCH_TYPE(PARAM_SEARCH_TYPE_ID, "--search-type", "Search type", "search type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &searchType, "^[0-3]{1}"),
@@ -249,7 +248,9 @@ Parameters::Parameters():
         PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion mode", "Which hits (still meeting the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void*) &expansionMode, "^[0-2]{1}$"),
         // taxonomy
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA mode", "LCA Mode 1: Single Search LCA , 2: 2bLCA, 3: approx. 2bLCA, 4: top hit", typeid(int), (void*) &taxonomySearchMode, "^[1-4]{1}$"),
-        PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void*) &taxonomyOutpuMode, "^[0-1]{1}$")
+        PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void*) &taxonomyOutpuMode, "^[0-1]{1}$"),
+        // createsubdb
+        PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "LCA Mode 0: copy data  1: soft link data", typeid(int), (void*) &subDbMode, "^[0-1]{1}$")
 {
     if (instance) {
         Debug(Debug::ERROR) << "Parameter instance already exists!\n";
@@ -309,7 +310,6 @@ Parameters::Parameters():
     prefilter.push_back(&PARAM_ALPH_SIZE);
     prefilter.push_back(&PARAM_MAX_SEQ_LEN);
     prefilter.push_back(&PARAM_MAX_SEQS);
-    prefilter.push_back(&PARAM_PREV_MAX_SEQS);
     prefilter.push_back(&PARAM_SPLIT);
     prefilter.push_back(&PARAM_SPLIT_MODE);
     prefilter.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
@@ -364,7 +364,6 @@ Parameters::Parameters():
     rescorediagonal.push_back(&PARAM_SEQ_ID_MODE);
     rescorediagonal.push_back(&PARAM_INCLUDE_IDENTITY);
     rescorediagonal.push_back(&PARAM_SORT_RESULTS);
-    rescorediagonal.push_back(&PARAM_GLOBAL_ALIGNMENT);
     rescorediagonal.push_back(&PARAM_PRELOAD_MODE);
     rescorediagonal.push_back(&PARAM_THREADS);
     rescorediagonal.push_back(&PARAM_COMPRESSED);
@@ -562,6 +561,7 @@ Parameters::Parameters():
     extractorfs.push_back(&PARAM_ORF_FORWARD_FRAMES);
     extractorfs.push_back(&PARAM_ORF_REVERSE_FRAMES);
     extractorfs.push_back(&PARAM_TRANSLATION_TABLE);
+    extractorfs.push_back(&PARAM_TRANSLATE);
     extractorfs.push_back(&PARAM_USE_ALL_TABLE_STARTS);
     extractorfs.push_back(&PARAM_ID_OFFSET);
     extractorfs.push_back(&PARAM_THREADS);
@@ -892,6 +892,10 @@ Parameters::Parameters():
     lca.push_back(&PARAM_TAXON_ADD_LINEAGE);
     lca.push_back(&PARAM_THREADS);
     lca.push_back(&PARAM_V);
+
+    // createsubdb
+    createsubdb.push_back(&PARAM_SUBDB_MODE);
+    createsubdb.push_back(&PARAM_V);
 
     // createtaxdb
     createtaxdb.push_back(&PARAM_NCBI_TAX_DUMP);
@@ -1449,6 +1453,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             hdr6.append("_h");
             hdr6Index = hdr6;
             hdr6Index.append(".index");
+            hdr6dbtype = hdr6;
+            hdr6dbtype.append(".dbtype");
             // FALLTHROUGH
         case 5:
             db5 = filenames[4];
@@ -1460,6 +1466,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             hdr5.append("_h");
             hdr5Index = hdr5;
             hdr5Index.append(".index");
+            hdr5dbtype = hdr5;
+            hdr5dbtype.append(".dbtype");
             // FALLTHROUGH
         case 4:
             db4 = filenames[3];
@@ -1471,6 +1479,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             hdr4.append("_h");
             hdr4Index = hdr4;
             hdr4Index.append(".index");
+            hdr4dbtype = hdr4;
+            hdr4dbtype.append(".dbtype");
             // FALLTHROUGH
         case 3:
             db3 = filenames[2];
@@ -1482,6 +1492,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             hdr3.append("_h");
             hdr3Index = hdr3;
             hdr3Index.append(".index");
+            hdr3dbtype = hdr3;
+            hdr3dbtype.append(".dbtype");
             // FALLTHROUGH
         case 2:
             db2 = filenames[1];
@@ -1493,6 +1505,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             hdr2.append("_h");
             hdr2Index = hdr2;
             hdr2Index.append(".index");
+            hdr2dbtype = hdr2;
+            hdr2dbtype.append(".dbtype");
             // FALLTHROUGH
         case 1:
             db1 = filenames[0];
@@ -1504,6 +1518,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             hdr1.append("_h");
             hdr1Index = hdr1;
             hdr1Index.append(".index");
+            hdr1dbtype = hdr1;
+            hdr1dbtype.append(".dbtype");
             break;
         default:
             // Do not abort execution if we expect a variable amount of parameters
@@ -1743,7 +1759,7 @@ void Parameters::setDefaults() {
 
 #endif
     compBiasCorrection = 1;
-    diagonalScoring = 1;
+    diagonalScoring = true;
     exactKmerMatching = 0;
     maskMode = 1;
     maskLowerCaseMode = 0;
@@ -1802,9 +1818,6 @@ void Parameters::setDefaults() {
     outfmt = "query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits";
     dbOut = false;
 
-    // rescore diagonal
-    globalAlignment = false;
-
     // result2msa
     allowDeletion = false;
     addInternalId = false;
@@ -1852,7 +1865,7 @@ void Parameters::setDefaults() {
     forwardFrames = "1,2,3";
     reverseFrames = "1,2,3";
     useAllTableStarts = false;
-
+    translate = 0;
     // createdb
     identifierOffset = 0;
     dbType = 0;
@@ -1965,6 +1978,9 @@ void Parameters::setDefaults() {
 
     // lca
     pickIdFrom = Parameters::EXTRACT_TARGET;
+
+    // createsubdb
+    subDbMode = Parameters::SUBDB_MODE_HARD;
 
     lcaRanks = "";
     showTaxLineage = false;

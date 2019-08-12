@@ -37,7 +37,7 @@ public:
 
     static size_t indexToBuffer(char *buff1, unsigned int key, size_t offsetStart, size_t len);
 
-    void alignToPageSize();
+    void alignToPageSize(int thrIdx = 0);
 
     void mergeFiles(DBReader<unsigned int>& qdbr,
                     const std::vector<std::pair<std::string, std::string> >& files,

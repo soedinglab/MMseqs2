@@ -52,10 +52,9 @@ class QueryMatcher {
 public:
     QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLookup,
                  BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
-                 short kmerThr, int kmerSize, size_t dbSize,
-                 unsigned int maxSeqLen,
-                 size_t maxHitsPerQuery, bool aaBiasCorrection, unsigned int diagonalScoringMode,
-                 unsigned int minDiagScoreThr, bool takeOnlyBestKmer,size_t resListOffset);
+                 short kmerThr, int kmerSize, size_t dbSize, unsigned int maxSeqLen,
+                 size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoringMode,
+                 unsigned int minDiagScoreThr, bool takeOnlyBestKmer);
     ~QueryMatcher();
 
     // returns result for the sequence
@@ -203,9 +202,6 @@ protected:
     // max seq. per query
     size_t maxHitsPerQuery;
 
-    // offset in the result list
-    size_t resListOffset;
-
     // match sequence against the IndexTable
     size_t match(Sequence *seq, float *pDouble);
 
@@ -223,7 +219,7 @@ protected:
     float *compositionBias;
 
     // diagonal scoring active
-    unsigned int diagonalScoringMode;
+    bool diagonalScoring;
     unsigned int minDiagScoreThr;
     // size of max diagonalMatcher result objects
     size_t counterResultSize;

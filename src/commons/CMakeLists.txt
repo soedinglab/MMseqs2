@@ -17,6 +17,8 @@ set(commons_header_files
         commons/HeaderSummarizer.h
         commons/IndexReader.h
         commons/itoa.h
+        commons/KSeqBufferReader.h
+        commons/KSeqWrapper.h
         commons/MathUtil.h
         commons/MemoryMapped.h
         commons/MMseqsMPI.h

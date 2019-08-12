@@ -58,21 +58,29 @@ jobs:
     displayName: Ubuntu 1604 MMseqs2
     pool:
       vmImage: 'Ubuntu-16.04'
-
+    timeoutInMinutes: 120
     strategy:
       matrix:
         avx2:
           SIMD: 'AVX2'
           STATIC: 1
           MPI: 0
+          BUILD_TYPE: RelWithDebInfo
         sse:
           SIMD: 'SSE4_1'
           STATIC: 1
           MPI: 0
+          BUILD_TYPE: RelWithDebInfo
         avx2_mpi:
           SIMD: 'AVX2'
           STATIC: 0
           MPI: 1
+          BUILD_TYPE: RelWithDebInfo
+        asan:
+          SIMD: 'AVX2'
+          STATIC: 0
+          MPI: 0
+          BUILD_TYPE: ASan
 
     steps:
       - checkout: self
@@ -85,13 +93,13 @@ jobs:
       - script: |
           mkdir build && cd build
           if [ "${STATIC}" -eq "1" ]; then
-              cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHAVE_TESTS=1 \
+              cmake -DHAVE_SANITIZER=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
                 -DBUILD_SHARED_LIBS=OFF \
                 -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc \
                 -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
                 -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           else
-              cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHAVE_TESTS=1 \
+              cmake -DHAVE_SANITIZER=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
                 -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           fi
 
@@ -99,6 +107,10 @@ jobs:
         displayName: Build MMseqs2
       - script: |
           export TTY=0
+          if [ "${BUILD_TYPE}" = "ASan" ]; then
+            echo "leak:libgomp1" > ${BUILD_SOURCESDIRECTORY}/ASan.supp
+            export export ASAN_OPTIONS=suppressions=${BUILD_SOURCESDIRECTORY}/ASan.supp
+          fi
           ${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/src/mmseqs ${BUILD_SOURCESDIRECTORY}/regression
         displayName: Run Regression Suite
         condition: eq(variables['regression'], 1)

@@ -140,6 +140,9 @@ public:
         return dataSizeOffset[fileIdx+1]-dataSizeOffset[fileIdx];
     }
 
+    std::vector<std::string> getDataFileNames(){
+        return dataFileNames;
+    }
 
     size_t getTotalDataSize(){
         return totalDataSize;
@@ -269,6 +272,8 @@ public:
     static int isCompressed(int dbtype);
 
     void setSequentialAdvice();
+
+    static void softLink(DBReader<unsigned int> &reader, std::string &outDb);
 
 private:
 

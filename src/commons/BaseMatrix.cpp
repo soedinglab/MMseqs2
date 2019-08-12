@@ -25,7 +25,7 @@ BaseMatrix::~BaseMatrix(){
     delete[] int2aa;
     delete[] aa2int;
     delete[] pBack;
-    for (int i = 0; i < alphabetSize; i++){
+    for (int i = 0; i < allocatedAlphabetSize; i++){
         delete[] probMatrix[i];
         delete[] subMatrix[i];
         free(subMatrixPseudoCounts[i]);
@@ -37,6 +37,8 @@ BaseMatrix::~BaseMatrix(){
 
 
 void BaseMatrix::initMatrixMemory(int alphabetSize) {
+    allocatedAlphabetSize = alphabetSize;
+
     // init the background probabilities, joint probability and scoring matrices with zeros
     pBack = new double[alphabetSize];
     probMatrix = new double*[alphabetSize];

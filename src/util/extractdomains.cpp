@@ -16,7 +16,7 @@
 #endif
 
 #include "kseq.h"
-#include "kseq_buffer_reader.h"
+#include "KSeqBufferReader.h"
 
 KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 

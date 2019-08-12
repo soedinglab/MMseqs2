@@ -440,24 +440,19 @@ size_t DBWriter::indexToBuffer(char *buff1, unsigned int key, size_t offsetStart
     return tmpBuff - basePos;
 }
 
-void DBWriter::alignToPageSize() {
-    if (threads > 1) {
-        Debug(Debug::ERROR) << "Data file can only be aligned in single threaded mode.\n";
-        EXIT(EXIT_FAILURE);
-    }
-
-    size_t currentOffset = offsets[0];
+void DBWriter::alignToPageSize(int thrIdx) {
+    size_t currentOffset = offsets[thrIdx];
     size_t pageSize = Util::getPageSize();
     size_t newOffset = ((pageSize - 1) & currentOffset) ? ((currentOffset + pageSize) & ~(pageSize - 1)) : currentOffset;
     char nullByte = '\0';
     for (size_t i = currentOffset; i < newOffset; ++i) {
-        size_t written = fwrite(&nullByte, sizeof(char), 1, dataFiles[0]);
+        size_t written = fwrite(&nullByte, sizeof(char), 1, dataFiles[thrIdx]);
         if (written != 1) {
-            Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[0] << "\n";
+            Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[thrIdx] << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
-    offsets[0] = newOffset;
+    offsets[thrIdx] = newOffset;
 }
 
 
