@@ -466,7 +466,10 @@ ScoreMatrix Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t 
 void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
     if (templateDBIsIndex == true) {
         indexTable = PrefilteringIndexReader::getIndexTable(split, tidxdbr, preloadMode);
-        sequenceLookup = PrefilteringIndexReader::getSequenceLookup(split, tidxdbr, preloadMode);
+        // only the ungapped alignment needs the sequence lookup, we can save quite some memory here
+        if (diagonalScoring) {
+            sequenceLookup = PrefilteringIndexReader::getSequenceLookup(split, tidxdbr, preloadMode);
+        }
     } else {
         Timer timer;
 
