@@ -36,7 +36,7 @@ public:
     int runSplits(const std::string &resultDB, const std::string &resultDBIndex, size_t fromSplit, size_t splitProcessCount, bool merge);
 
     // merge file
-    void mergeFiles(const std::string &outDb, const std::string &outDBIndex,
+    void mergePrefilterSplits(const std::string &outDb, const std::string &outDBIndex,
                     const std::vector<std::pair<std::string, std::string>> &splitFiles);
 
     // get substitution matrix
@@ -125,7 +125,7 @@ private:
     void printStatistics(const statistics_t &stats, std::list<int> **reslens,
                          unsigned int resLensSize, size_t empty, size_t maxResults);
 
-    void mergeOutput(const std::string &outDb, const std::string &outDBIndex,
+    void mergeTargetSplits(const std::string &outDb, const std::string &outDBIndex,
                      const std::vector<std::pair<std::string, std::string>> &filenames);
 
     bool isSameQTDB();
