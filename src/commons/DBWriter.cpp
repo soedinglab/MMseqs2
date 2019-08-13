@@ -493,7 +493,7 @@ void DBWriter::mergeResults(const std::string &outFileName, const std::string &o
 }
 
 template <>
-void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<unsigned int>::Index &index,  unsigned int seqLen){
+void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<unsigned int>::Index &index, unsigned int seqLen){
     char * tmpBuff = Itoa::u32toa_sse2((uint32_t)index.id,buff1);
     *(tmpBuff-1) = '\t';
     size_t currOffset = index.offset;
@@ -525,7 +525,7 @@ void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<std::s
 }
 
 template <>
-void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<unsigned int>::Index *index,  unsigned int *seqLen) {
+void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<unsigned int>::Index *index, unsigned int *seqLen) {
     char buff1[1024];
     for (size_t id = 0; id < indexSize; id++) {
         writeIndexEntryToFile(outFile, buff1, index[id], seqLen[id]);
@@ -658,96 +658,6 @@ void DBWriter::sortIndex(const char *inFileNameIndex, const char *outFileNameInd
         fclose(index_file);
         indexReader.close();
     }
-}
-
-
-void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::string>> &fileNames) {
-    FILE ** files = new FILE*[fileNames.size()];
-    for (size_t i = 0; i < fileNames.size();i++) {
-        files[i] = FileUtil::openFileOrDie(fileNames[i].first.c_str(), "r", true);
-#if HAVE_POSIX_FADVISE
-        int status;
-        if ((status = posix_fadvise (fileno(files[i]), 0, 0, POSIX_FADV_SEQUENTIAL)) != 0){
-           Debug(Debug::ERROR) << "posix_fadvise returned an error: " << strerror(status) << "\n";
-        }
-#endif
-    }
-
-    int c1 = EOF;
-    char * buffer = dataFilesBuffer[0];
-    size_t writePos = 0;
-    int dataFilefd = fileno(dataFiles[0]);
-    do {
-        for (size_t i = 0; i < fileNames.size(); ++i) {
-            while ((c1 = getc_unlocked(files[i])) != EOF) {
-                if (c1 == '\0') {
-                    break;
-                }
-                buffer[writePos] = (char) c1;
-                writePos++;
-                if (writePos == bufferSize) {
-                    size_t written = write(dataFilefd, buffer, bufferSize);
-                    if (written != bufferSize) {
-                        Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[0] << "\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    writePos = 0;
-                }
-            }
-        }
-        buffer[writePos] = '\0';
-        writePos++;
-        if (writePos == bufferSize) {
-            size_t written = write(dataFilefd, buffer, bufferSize);
-            if (written != bufferSize) {
-                Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[0] << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-            writePos = 0;
-        }
-    } while (c1!=EOF);
-
-    if (writePos != 0) {
-        // if there is data in the buffer that is not yet written
-        size_t written = write(dataFilefd, (const void *) dataFilesBuffer[0], writePos);
-        if (written != writePos) {
-            Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[0] << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
-
-    for (size_t i = 0; i < fileNames.size(); ++i) {
-        fclose(files[i]);
-    }
-    delete[] files;
-
-    Debug(Debug::INFO) << "Will merge " << fileNames.size() << " files into " << fileNames[0].first << " and into " << fileNames[0].second << "\n";
-    DBReader<unsigned int> reader1(fileNames[0].first.c_str(), fileNames[0].second.c_str(), 1,
-                                   DBReader<unsigned int>::USE_INDEX);
-    reader1.open(DBReader<unsigned int>::NOSORT);
-    unsigned int *seqLen1 = reader1.getSeqLens();
-    DBReader<unsigned int>::Index *index1 = reader1.getIndex();
-
-    for (size_t i = 1; i < fileNames.size(); i++) {
-        Debug(Debug::INFO) << "Adding files " << fileNames[i].first << " and " << fileNames[i].second << " to the merge \n";
-        DBReader<unsigned int> reader2(fileNames[i].first.c_str(), fileNames[i].second.c_str(), 1,
-                                       DBReader<unsigned int>::USE_INDEX);
-        reader2.open(DBReader<unsigned int>::NOSORT);
-        unsigned int *seqLen2 = reader2.getSeqLens();
-        size_t currOffset = 0;
-
-        for (size_t id = 0; id < reader1.getSize(); id++) {
-            // add length for file1 and file2 and subtract -1 for one null byte
-            size_t seqLen = seqLen1[id] + seqLen2[id] - 1;
-            seqLen1[id] = seqLen;
-            index1[id].offset = currOffset;
-            currOffset += seqLen;
-        }
-        reader2.close();
-    }
-
-    writeIndex(indexFiles[0], reader1.getSize(), index1, seqLen1);
-    reader1.close();
 }
 
 void DBWriter::writeThreadBuffer(unsigned int idx, size_t dataSize) {
