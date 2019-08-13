@@ -595,8 +595,10 @@ template <typename T>
 void DBReader<T>::touchData(size_t id) {
     if((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
         char *data = getDataUncompressed(id);
-        size_t size = getSeqLens(id);
-        magicBytes = Util::touchMemory(data, size);
+        size_t currDataOffset = getOffset(id);
+        size_t nextDataOffset = findNextOffsetid(id);
+        size_t dataSize = nextDataOffset-currDataOffset;
+        magicBytes = Util::touchMemory(data, dataSize);
     }
 }
 
@@ -911,10 +913,15 @@ template<typename T>
 size_t DBReader<T>::findNextOffsetid(size_t id) {
     size_t idOffset = getOffset(id);
     size_t nextOffset = SIZE_MAX;
+    size_t maxOffset = 0;
     for(size_t i = 0; i < size; i++){
         if(index[i].offset > idOffset && index[i].offset < nextOffset){
             nextOffset=index[i].offset;
         }
+    }
+    // if the offset is the last element in the index
+    if(nextOffset == SIZE_MAX){
+        nextOffset = dataSizeOffset[dataFileCnt];
     }
     return nextOffset;
 }
