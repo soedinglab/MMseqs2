@@ -33,7 +33,7 @@ public :
         double bestScore = -DBL_MAX;
         double secondBestScore = -DBL_MAX;
         double bestEval = DBL_MAX;
-        double logBestHitCalibration = log(5);
+        double logBestHitCalibration = log(1);
 
         double logCorrectedPval = 0;
 

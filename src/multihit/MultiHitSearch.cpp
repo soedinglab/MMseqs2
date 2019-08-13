@@ -7,7 +7,7 @@
 #include "multihitsearch.sh.h"
 
 void setMultiHitSearchWorkflowDefaults(Parameters *p) {
-    p->sensitivity = 7;
+    //p->sensitivity = 7;
     // TODO: Check query cov maybe?
     // p->covThr = 0.7;
     p->evalThr = 100;
@@ -16,7 +16,7 @@ void setMultiHitSearchWorkflowDefaults(Parameters *p) {
     p->maxSequences = 1500;
 
     // TODO: Why??
-    p->scoreBias = 0.3;
+    //p->scoreBias = 0.3;
     
     p->simpleBestHit = true;
     // TODO: add a minimum alignment length cutoff, 4 residue alignments dont seem useful

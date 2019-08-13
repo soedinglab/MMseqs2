@@ -44,7 +44,7 @@ int reverseseq(int argn, const char **argv, const Command& command) {
             revStr.clear();
         }
     }
-    revSeqWriter.close();
+    revSeqWriter.close(true);
     seqReader.close();
 
     FileUtil::symlinkAbs(par.hdr1, par.hdr2);
