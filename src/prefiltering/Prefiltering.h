@@ -125,8 +125,7 @@ private:
     void printStatistics(const statistics_t &stats, std::list<int> **reslens,
                          unsigned int resLensSize, size_t empty, size_t maxResults);
 
-    void mergeTargetSplits(const std::string &outDb, const std::string &outDBIndex,
-                     const std::vector<std::pair<std::string, std::string>> &filenames);
+    void mergeTargetSplits(const std::string &outDB, const std::string &outDBIndex, const std::vector<std::pair<std::string, std::string>> &fileNames);
 
     bool isSameQTDB();
 

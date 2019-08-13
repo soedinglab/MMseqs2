@@ -753,7 +753,7 @@ bool DBReader<T>::readIndex(char *data, size_t indexDataSize, Index *index, unsi
     maxSeqLen=0;
     while (currPos < indexDataSize){
         if (i >= this->size) {
-            Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
+            Debug(Debug::ERROR) << "Corrupt memory, too many entries: " << i << " >= " << this->size << "\n";
             EXIT(EXIT_FAILURE);
         }
         Util::getWordsOfLine(indexDataChar, cols, 3);

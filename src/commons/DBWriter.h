@@ -49,8 +49,6 @@ public:
                              const std::vector<std::pair<std::string, std::string>> &files,
                              bool lexicographicOrder = false);
 
-    void mergeFilePair(const std::vector<std::pair<std::string, std::string>> &fileNames);
-
     void writeIndexEntry(unsigned int key, size_t offset, size_t length, unsigned int thrIdx);
 
     static void writeDbtypeFile(const char* path, int dbtype, bool isCompressed);
