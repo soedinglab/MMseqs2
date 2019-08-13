@@ -131,6 +131,13 @@ int createdb(int argc, const char **argv, const Command& command) {
     }
     Debug(Debug::INFO) << "Converting sequences\n";
 
+    std::string sourceFile = dataFile + ".source";
+    FILE *source = fopen(sourceFile.c_str(), "w");
+    if (source == NULL) {
+        Debug(Debug::ERROR) << "Can not open " << sourceFile << " for writing!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
         unsigned int numEntriesInCurrFile = 0;
         std::string splitHeader;
@@ -139,6 +146,15 @@ int createdb(int argc, const char **argv, const Command& command) {
         header.reserve(1024);
         std::string splitId;
         splitId.reserve(1024);
+
+        char buffer[4096];
+        size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\n", fileIdx, FileUtil::baseName(filenames[fileIdx]).c_str());
+        int written = fwrite(buffer, sizeof(char), len, source);
+        if (written != (int) len) {
+            Debug(Debug::ERROR) << "Cannot write to source file " << sourceFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+
         kseq = KSeqFactory(filenames[fileIdx].c_str());
         while (kseq->ReadEntry()) {
             progress.updateProgress();
@@ -261,6 +277,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         delete kseq;
     }
     Debug(Debug::INFO) << "\n";
+    fclose(source);
     hdrWriter.close(true);
     seqWriter.close(true);
 

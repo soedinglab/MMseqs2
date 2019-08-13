@@ -131,7 +131,12 @@ public:
     static const int OUTFMT_QCOV = 25;
     static const int OUTFMT_TCOV = 26;
     static const int OUTFMT_EMPTY = 27;
-    static std::vector<int> getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders);
+    static const int OUTFMT_QSET = 28;
+    static const int OUTFMT_QSETID = 29;
+    static const int OUTFMT_TSET = 30;
+    static const int OUTFMT_TSETID = 31;
+
+    static std::vector<int> getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders, bool &needLookup, bool &needSource);
 
     // convertprofiledb
     static const int PROFILE_MODE_HMM = 0;

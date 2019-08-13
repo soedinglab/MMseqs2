@@ -271,8 +271,6 @@ public:
         return p > 0 && p != std::string::npos ? filename.substr(0, p) : filename;
     }
 
-    static std::map<std::string, size_t> readMapping(const char *fastaFile);
-
     static std::map<unsigned int, std::string> readLookup(const std::string& lookupFile,
                                                           const bool removeSplit = false);
 
