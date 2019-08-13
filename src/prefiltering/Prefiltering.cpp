@@ -387,7 +387,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSi
     }
 }
 
-void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outDBIndex,
+void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string &outDBIndex,
                                const std::vector<std::pair<std::string, std::string>> &filenames) {
     Timer timer;
     if (filenames.size() < 2) {
@@ -444,7 +444,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
 
     DBReader<unsigned int>::removeDb(tmpDb.first);
 
-    Debug(Debug::INFO) << "\nTime for merging results: " << timer.lap() << "\n";
+    Debug(Debug::INFO) << "\nTime for merging into " << outDB << " by mergeTargetSplits: " << timer.lap() << "\n";
 }
 
 
@@ -466,7 +466,10 @@ ScoreMatrix Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t 
 void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
     if (templateDBIsIndex == true) {
         indexTable = PrefilteringIndexReader::getIndexTable(split, tidxdbr, preloadMode);
-        sequenceLookup = PrefilteringIndexReader::getSequenceLookup(split, tidxdbr, preloadMode);
+        // only the ungapped alignment needs the sequence lookup, we can save quite some memory here
+        if (diagonalScoring) {
+            sequenceLookup = PrefilteringIndexReader::getSequenceLookup(split, tidxdbr, preloadMode);
+        }
     } else {
         Timer timer;
 
@@ -595,7 +598,7 @@ void Prefiltering::runMpiSplits(const std::string &resultDB, const std::string &
 
         if (splitFiles.size() > 0) {
             // merge output databases
-            mergeFiles(resultDB, resultDBIndex, splitFiles);
+            mergePrefilterSplits(resultDB, resultDBIndex, splitFiles);
         } else {
             Debug(Debug::ERROR) << "Aborting. No results were computed!\n";
             EXIT(EXIT_FAILURE);
@@ -639,7 +642,7 @@ int Prefiltering::runSplits(const std::string &resultDB, const std::string &resu
             }
         }
         if (splitFiles.size() > 0) {
-            mergeFiles(resultDB, resultDBIndex, splitFiles);
+            mergePrefilterSplits(resultDB, resultDBIndex, splitFiles);
             hasResult = true;
         }
     } else if (splitProcessCount == 1) {
@@ -918,10 +921,10 @@ BaseMatrix *Prefiltering::getSubstitutionMatrix(const ScoreMatrixFile &scoringMa
     return subMat;
 }
 
-void Prefiltering::mergeFiles(const std::string &outDB, const std::string &outDBIndex,
+void Prefiltering::mergePrefilterSplits(const std::string &outDB, const std::string &outDBIndex,
                               const std::vector<std::pair<std::string, std::string>> &splitFiles) {
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
-        mergeOutput(outDB, outDBIndex, splitFiles);
+        mergeTargetSplits(outDB, outDBIndex, splitFiles);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
         DBWriter::mergeResults(outDB, outDBIndex, splitFiles);
     }

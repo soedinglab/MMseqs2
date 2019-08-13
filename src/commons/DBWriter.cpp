@@ -609,7 +609,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
 
     DBWriter::sortIndex(indexFileNames[0], outFileNameIndex, lexicographicOrder);
     FileUtil::remove(indexFileNames[0]);
-    Debug(Debug::INFO) << "Time for merging files: " << timer.lap() << "\n";
+    Debug(Debug::INFO) << "Time for merging into " << outFileName << " by mergeResults: " << timer.lap() << "\n";
 }
 
 void DBWriter::mergeIndex(const char** indexFilenames, unsigned int fileCount, const std::vector<size_t> &dataSizes) {
@@ -721,7 +721,7 @@ void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::strin
     }
     delete[] files;
 
-    Debug(Debug::INFO) << "Merge file " << fileNames[0].first << " and " << fileNames[0].second << "\n";
+    Debug(Debug::INFO) << "Will merge " << fileNames.size() << " files into " << fileNames[0].first << " and into " << fileNames[0].second << "\n";
     DBReader<unsigned int> reader1(fileNames[0].first.c_str(), fileNames[0].second.c_str(), 1,
                                    DBReader<unsigned int>::USE_INDEX);
     reader1.open(DBReader<unsigned int>::NOSORT);
@@ -729,6 +729,7 @@ void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::strin
     DBReader<unsigned int>::Index *index1 = reader1.getIndex();
 
     for (size_t i = 1; i < fileNames.size(); i++) {
+        Debug(Debug::INFO) << "Adding files " << fileNames[i].first << " and " << fileNames[i].second << " to the merge \n";
         DBReader<unsigned int> reader2(fileNames[i].first.c_str(), fileNames[i].second.c_str(), 1,
                                        DBReader<unsigned int>::USE_INDEX);
         reader2.open(DBReader<unsigned int>::NOSORT);
