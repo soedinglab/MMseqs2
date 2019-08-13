@@ -24,6 +24,7 @@ matrix:
         - zlib1g-dev
         - libbz2-dev
         - vim-common
+        - shellcheck
     env: CC=clang-3.6 CXX=clang++-3.6
   - os: linux
     dist: trusty
@@ -41,6 +42,7 @@ matrix:
         - zlib1g-dev
         - libbz2-dev
         - vim-common
+        - shellcheck
     env: CC=clang-7 CXX=clang++-7
   - os: linux
     dist: trusty
@@ -54,6 +56,7 @@ matrix:
         - zlib1g-dev
         - libbz2-dev
         - vim-common
+        - shellcheck
     env: CC=gcc-4.8 CXX=g++-4.8
   - os: linux
     dist: trusty
@@ -69,6 +72,7 @@ matrix:
         - zlib1g-dev
         - libbz2-dev
         - vim-common
+        - shellcheck
     env: CC=gcc-8 CXX=g++-8
   - os: linux
     dist: trusty
@@ -85,6 +89,7 @@ matrix:
         - libbz2-dev
         - vim-common
         - libopenmpi-dev
+        - shellcheck
     env: MPI=1 CC=gcc-8 CXX=g++-8
   - os: osx
     osx_image: xcode10.1
@@ -96,6 +101,7 @@ matrix:
         - gcc@8
         - zlib
         - bzip2
+        - shellcheck
     env: CC=gcc-8 CXX=g++-8
   allow_failures:
   - env: QEMU_ARM=1
