@@ -17,7 +17,6 @@
 #include "simd.h"
 #include "MemoryMapped.h"
 
-#include <fstream>
 #include <algorithm>
 #include <sys/mman.h>
 
@@ -511,62 +510,6 @@ size_t Util::ompCountLines(const char* data, size_t dataSize, unsigned int MAYBE
 //                4.02,3.05,2.87,2.71,1.88,2.63,3.46,3.45,1.79,3.19,
 //                3.77,3.64,1.71,2.62,3.00,3.63,2.83,1.32,2.18,2.92
 //        };
-
-
-std::map<unsigned int, std::string> Util::readLookup(const std::string& file, const bool removeSplit) {
-    std::map<unsigned int, std::string> mapping;
-    if (file.length() > 0) {
-        std::ifstream mappingStream(file);
-        if (mappingStream.fail()) {
-            Debug(Debug::ERROR) << "File " << file << " not found!\n";
-            EXIT(EXIT_FAILURE);
-        }
-
-        std::string line;
-        while (std::getline(mappingStream, line)) {
-            std::vector<std::string> split = Util::split(line, "\t");
-            unsigned int id = strtoul(split[0].c_str(), NULL, 10);
-
-            std::string& name = split[1];
-
-            size_t pos;
-            if (removeSplit && (pos = name.find_last_of('_')) != std::string::npos) {
-                name = name.substr(0, pos);
-            }
-
-            mapping.emplace(id, name);
-        }
-    }
-
-    return mapping;
-}
-
-std::map<std::string, unsigned int> Util::readLookupReverse(const std::string& file, const bool removeSplit) {
-    std::map<std::string, unsigned int> mapping;
-    if (file.length() > 0) {
-        std::ifstream mappingStream(file);
-        if (mappingStream.fail()) {
-            Debug(Debug::ERROR) << "File " << file << " not found!\n";
-            EXIT(EXIT_FAILURE);
-        }
-
-        std::string line;
-        while (std::getline(mappingStream, line)) {
-            std::vector<std::string> split = Util::split(line, "\t");
-            unsigned int id = strtoul(split[0].c_str(), NULL, 10);
-            std::string& name = split[1];
-
-            size_t pos;
-            if (removeSplit && (pos = name.find_last_of('_')) != std::string::npos) {
-                name = name.substr(0, pos);
-            }
-
-            mapping.emplace(name, id);
-        }
-    }
-
-    return mapping;
-}
 
 int Util::omp_thread_count() {
     int n = 0;

@@ -271,12 +271,6 @@ public:
         return p > 0 && p != std::string::npos ? filename.substr(0, p) : filename;
     }
 
-    static std::map<unsigned int, std::string> readLookup(const std::string& lookupFile,
-                                                          const bool removeSplit = false);
-
-    static std::map<std::string, unsigned int> readLookupReverse(const std::string& lookupFile,
-                                                                 const bool removeSplit = false);
-
     static void checkAllocation(void *pointer, std::string message);
 
     template <typename Iterator, typename Container>

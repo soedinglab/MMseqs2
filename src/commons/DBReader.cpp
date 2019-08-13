@@ -17,6 +17,7 @@
 #include "Debug.h"
 #include "Util.h"
 #include "FileUtil.h"
+#include "itoa.h"
 
 template <typename T>
 DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int threads, int dataMode) :
@@ -130,7 +131,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
             setSequentialAdvice();
         }
     }
-    if (dataMode & USE_LOOKUP) {
+    if (dataMode & USE_LOOKUP || dataMode & USE_LOOKUP_REV) {
         std::string lookupFilename = (std::string(dataFileName) + ".lookup");
         if(FileUtil::fileExists(lookupFilename.c_str()) == false){
             Debug(Debug::ERROR) << "Can not open index file " << lookupFilename << "!\n";
@@ -142,6 +143,11 @@ template <typename T> bool DBReader<T>::open(int accessType){
         lookupSize = Util::ompCountLines(lookupDataChar, lookupDataSize, threads);
         lookup = new(std::nothrow) LookupEntry[this->lookupSize];
         readLookup(lookupDataChar, lookupDataSize, lookup);
+        if (dataMode & USE_LOOKUP) {
+            omptl::sort(lookup, lookup + lookupSize, LookupEntry::compareById);
+        } else {
+            omptl::sort(lookup, lookup + lookupSize, LookupEntry::compareByAccession);
+        }
         indexData.close();
     }
     bool isSortedById = false;
@@ -481,8 +487,8 @@ template <typename T> void DBReader<T>::remapData(){
 }
 
 template <typename T> void DBReader<T>::close(){
-    if(dataMode & USE_LOOKUP){
-        delete [] lookup;
+    if (dataMode & USE_LOOKUP || dataMode & USE_LOOKUP_REV) {
+        delete[] lookup;
     }
 
     if(dataMode & USE_DATA){
@@ -646,7 +652,7 @@ template <typename T> T DBReader<T>::getDbKey (size_t id){
     return index[id].id;
 }
 
-template <typename T> size_t DBReader<T>::getLookupId (T dbKey){
+template <typename T> size_t DBReader<T>::getLookupIdByKey(T dbKey) {
     if ((dataMode & USE_LOOKUP) == 0) {
         Debug(Debug::ERROR) << "DBReader for datafile=" << dataFileName << ".lookup was not opened with lookup mode\n";
         EXIT(EXIT_FAILURE);
@@ -655,7 +661,28 @@ template <typename T> size_t DBReader<T>::getLookupId (T dbKey){
     val.id = dbKey;
     size_t id = std::upper_bound(lookup, lookup + lookupSize, val, LookupEntry::compareById) - lookup;
 
-    return (id < size && index[id].id == dbKey ) ? id : UINT_MAX;
+    return (id < lookupSize && lookup[id].id == dbKey) ? id : SIZE_MAX;
+}
+
+template <typename T> size_t DBReader<T>::getLookupIdByAccession(const std::string& accession) {
+    if ((dataMode & USE_LOOKUP_REV) == 0) {
+        Debug(Debug::ERROR) << "DBReader for datafile=" << dataFileName << ".lookup was not opened with lookup mode\n";
+        EXIT(EXIT_FAILURE);
+    }
+    LookupEntry val;
+    val.entryName = accession;
+    size_t id = std::upper_bound(lookup, lookup + lookupSize, val, LookupEntry::compareByAccession) - lookup;
+
+    return (id < lookupSize && lookup[id].entryName == accession) ? id : SIZE_MAX;
+}
+
+template <typename T> T DBReader<T>::getLookupKey(size_t id){
+    if (id >= lookupSize){
+        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << dataFileName << ".lookup\n";
+        Debug(Debug::ERROR) << "getLookupFileNumber: local id (" << id << ") >= db size (" << lookupSize << ")\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return lookup[id].id;
 }
 
 template <typename T> std::string DBReader<T>::getLookupEntryName (size_t id){
@@ -676,6 +703,38 @@ template <typename T> unsigned int DBReader<T>::getLookupFileNumber(size_t id){
     return lookup[id].fileNumber;
 }
 
+template<>
+size_t DBReader<unsigned int>::lookupEntryToBuffer(char* buffer, const LookupEntry& entry) {
+    char *basePos = buffer;
+    char *tmpBuff = Itoa::u32toa_sse2(entry.id, buffer);
+    *(tmpBuff - 1) = '\t';
+    memcpy(tmpBuff, entry.entryName.c_str(), entry.entryName.size());
+    tmpBuff += entry.entryName.size();
+    *tmpBuff = '\t';
+    tmpBuff++;
+    tmpBuff = Itoa::u32toa_sse2(entry.fileNumber, tmpBuff);
+    *(tmpBuff - 1) = '\n';
+    *tmpBuff = '\0';
+    return tmpBuff - basePos;
+}
+
+template<>
+size_t DBReader<std::string>::lookupEntryToBuffer(char* buffer, const LookupEntry& entry) {
+    char *basePos = buffer;
+    char *tmpBuff = basePos;
+    memcpy(tmpBuff, entry.id.c_str(), entry.id.size());
+    tmpBuff += entry.entryName.size();
+    *tmpBuff = '\t';
+    tmpBuff++;
+    memcpy(tmpBuff, entry.entryName.c_str(), entry.entryName.size());
+    tmpBuff += entry.entryName.size();
+    *tmpBuff = '\t';
+    tmpBuff++;
+    tmpBuff = Itoa::u32toa_sse2(entry.fileNumber, tmpBuff);
+    *(tmpBuff - 1) = '\n';
+    *tmpBuff = '\0';
+    return tmpBuff - basePos;
+}
 
 template <typename T> size_t DBReader<T>::getId (T dbKey){
     size_t id = bsearch(index, size, dbKey);
@@ -1034,22 +1093,56 @@ void DBReader<T>::removeDb(const std::string &databaseName){
 }
 
 template<typename T>
-void DBReader<T>::softLink(DBReader<unsigned int> &reader, std::string &outDb) {
-    std::vector<std::string> names = reader.getDataFileNames();
-    if(names.size() == 1){
-        FileUtil::symlinkAbs(names[0], outDb);
-    }else{
-        for(size_t i = 0; i < names.size(); i++){
-            std::string::size_type idx = names[i].rfind('.');
-            std::string ext;
-            if(idx != std::string::npos){
-                ext = names[i].substr(idx);
-            }else{
-                Debug(Debug::ERROR) << "File extention was not found but it is expected to be there!\n"
-                                    << "Filename: " << names[i] << ".\n";
-                EXIT(EXIT_FAILURE);
+void DBReader<T>::softlinkDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags) {
+    if (dbFilesFlags & DBFiles::DATA) {
+        std::vector<std::string> names = FileUtil::findDatafiles(databaseName.c_str());
+        if (names.size() == 1) {
+            FileUtil::symlinkAbs(names[0], outDb);
+        } else {
+            for (size_t i = 0; i < names.size(); i++) {
+                std::string::size_type idx = names[i].rfind('.');
+                std::string ext;
+                if (idx != std::string::npos) {
+                    ext = names[i].substr(idx);
+                } else {
+                    Debug(Debug::ERROR) << "File extention was not found but it is expected to be there!\n"
+                                        << "Filename: " << names[i] << ".\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                FileUtil::symlinkAbs(names[i], outDb + ext);
             }
-            FileUtil::symlinkAbs(names[i], outDb + ext);
+        }
+    }
+
+    struct DBSuffix {
+        DBFiles::Files flag;
+        const char* suffix;
+    };
+
+    const DBSuffix suffices[] = {
+        { DBFiles::DATA_INDEX,    ".index"            },
+        { DBFiles::DATA_DBTYPE,   ".dbtype"           },
+        { DBFiles::HEADER,        "_h"                },
+        { DBFiles::HEADER_INDEX,  "_h.index"          },
+        { DBFiles::HEADER_DBTYPE, "_h.dbtype"         },
+        { DBFiles::LOOKUP,        ".lookup"           },
+        { DBFiles::SOURCE,        ".source"           },
+        { DBFiles::TAX_MAPPING,   "_mapping"          },
+        { DBFiles::TAX_NAMES,     "_names.dmp"        },
+        { DBFiles::TAX_NODES,     "_nodes.dmp"        },
+        { DBFiles::TAX_MERGED,    "_merged.dmp"       },
+        { DBFiles::CA3M_DATA,     "_ca3m.ffdata"      },
+        { DBFiles::CA3M_INDEX,    "_ca3m.ffindex"     },
+        { DBFiles::CA3M_SEQ,      "_sequence.ffdata"  },
+        { DBFiles::CA3M_SEQ_IDX,  "_sequence.ffindex" },
+        { DBFiles::CA3M_HDR,      "_header.ffdata"    },
+        { DBFiles::CA3M_HDR_IDX,  "_header.ffindex"   },
+    };
+
+    for (size_t i = 0; i < ARRAY_SIZE(suffices); ++i) {
+        std::string file = databaseName + suffices[i].suffix;
+        if (dbFilesFlags & suffices[i].flag && FileUtil::fileExists(file.c_str())) {
+            FileUtil::symlinkAbs(file, outDb + suffices[i].suffix);
         }
     }
 }

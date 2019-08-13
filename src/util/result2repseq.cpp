@@ -12,17 +12,16 @@ int result2repseq(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> seqReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    DBReader<unsigned int> seqReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     seqReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads,  par.compressed, seqReader.getDbtype());
+    DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, seqReader.getDbtype());
     resultWriter.open();
     Debug::Progress progress(resultReader.getSize());
 
-    Debug(Debug::INFO) << "Start computing representative sequences.\n";
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -46,10 +45,10 @@ int result2repseq(int argc, const char **argv, const Command &command) {
             resultWriter.writeData(seqReader.getData(edgeId, thread_idx), seqReader.getSeqLens(edgeId) - 1, resultReader.getDbKey(id), thread_idx);
         }
     }
-    Debug(Debug::INFO) << "\n";
     resultWriter.close(true);
     resultReader.close();
     seqReader.close();
+    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
 
     return EXIT_SUCCESS;
 }

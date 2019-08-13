@@ -24,8 +24,8 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
     size_t entries = reader.getSize();
     Debug::Progress progress(entries);
 
-    Debug(Debug::INFO) << "Start adding to database.\n";
-    std::map<unsigned int, std::string> mapping = Util::readLookup(mappingFile);
+    DBReader<unsigned int> lookupReader(mappingFile.c_str(), mappingFile.c_str(), 1, DBReader<unsigned int>::USE_LOOKUP);
+    const bool doMapping = lookupReader.getLookupSize() > 0;
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -46,8 +46,13 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
                 std::string strToAdd = "";
                 if (userStrToAdd != "") {
                     strToAdd = userStrToAdd;
-                } else if (mappingFile.length() > 0) {
-                    strToAdd = mapping[key];
+                } else if (doMapping) {
+                    size_t lookupId = lookupReader.getLookupIdByKey(key);
+                    if (lookupId == SIZE_MAX) {
+                        Debug(Debug::ERROR) << "Could not find key " << key << " in lookup\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    strToAdd = lookupReader.getLookupEntryName(lookupId);
                 } else {
                     strToAdd = SSTR(key);
                 }

@@ -541,6 +541,13 @@ Parameters::Parameters():
     profile2pssm.push_back(&PARAM_COMPRESSED);
     profile2pssm.push_back(&PARAM_V);
 
+    // profile2seq (profile2consensus + profile2repseq)
+    profile2seq.push_back(&PARAM_SUB_MAT);
+    profile2seq.push_back(&PARAM_MAX_SEQ_LEN);
+    profile2seq.push_back(&PARAM_THREADS);
+    profile2seq.push_back(&PARAM_COMPRESSED);
+    profile2seq.push_back(&PARAM_V);
+
     // profile2cs
     profile2cs.push_back(&PARAM_SUB_MAT);
 //    profile2cs.push_back(&PARAM_ALPH_SIZE);
