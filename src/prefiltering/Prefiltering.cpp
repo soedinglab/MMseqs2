@@ -491,7 +491,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
         writePos = 0;
     } while (c1 != EOF);
     fclose(outDBFILE);
-    delete hitsBuffer;
+    delete[] hitsBuffer;
 
     // write output dbtype
     DBWriter::writeDbtypeFile(outDB.c_str(), Parameters::DBTYPE_PREFILTER_RES, compressed);
