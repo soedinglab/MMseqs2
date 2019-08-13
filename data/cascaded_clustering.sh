@@ -145,7 +145,7 @@ if [ -n "$REASSIGN" ]; then
     # try to find best matching centroid sequences for prev. wrong assigned sequences
     if notExists "${TMP_PATH}/seq_wrong_assigned_pref.dbtype"; then
         # combine seq dbs
-        MAXOFFSET=$(awk '$2 > max{max=$2+$3}END{print max}' "${TMP_PATH}/seq_seeds.index")
+        MAXOFFSET=$(awk '($2+$3) > max{max=$2+$3}END{print max}' "${TMP_PATH}/seq_seeds.index")
         awk -v OFFSET="${MAXOFFSET}" 'FNR==NR{print $0; next}{print $1"\t"$2+OFFSET"\t"$3}' "${TMP_PATH}/seq_seeds.index" \
              "${TMP_PATH}/seq_wrong_assigned.index" > "${TMP_PATH}/seq_seeds.merged.index"
         ln -s "$(abspath "${TMP_PATH}/seq_seeds")" "${TMP_PATH}/seq_seeds.merged.0"
@@ -182,7 +182,8 @@ if [ -n "$REASSIGN" ]; then
     fi
 
     if notExists "${TMP_PATH}/missing.single.seqs.db.dbtype"; then
-        awk 'FNR==NR{if($3 > 1){ f[$1]=1; }next} !($1 in f){print $1"\t"$1}' "${TMP_PATH}/clu_accepted_plus_wrong.index" "${SOURCE}.index" > "${TMP_PATH}/missing.single.seqs"
+        "$MMSEQS" prefixid "${TMP_PATH}/clu_accepted_plus_wrong" "${TMP_PATH}/clu_accepted_plus_wrong.tsv" --tsv 1 ${THREADSANDCOMPRESS}
+        awk 'FNR==NR{f[$2]=1; next} !($1 in f){print $1"\t"$1}' "${TMP_PATH}/clu_accepted_plus_wrong.tsv" "${SOURCE}.index" > "${TMP_PATH}/missing.single.seqs"
         # shellcheck disable=SC2086
         "$MMSEQS" tsv2db "${TMP_PATH}/missing.single.seqs" "${TMP_PATH}/missing.single.seqs.db" --output-dbtype 6 ${VERBCOMPRESS} \
                             || fail "tsv2db reassign died"
