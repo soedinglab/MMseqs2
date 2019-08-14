@@ -164,7 +164,7 @@ std::vector<Command> baseCommands = {
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",
                 "<i:sequenceDB> <o:fastaFile>",
-                CITATION_MMSEQS2, {{"sequenceDB",  DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_HEADER, &DbValidator::nuclAaDb },
+                CITATION_MMSEQS2, {{"sequenceDB",  DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_HEADER, &DbValidator::allDb },
                                          {"fastaFile", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
         {"result2flat",          result2flat,          &par.result2flat,          COMMAND_FORMAT_CONVERSION,
                 "Create a FASTA-like flat file from prefilter DB, alignment DB, or cluster DB",
