@@ -152,7 +152,7 @@ if [ -n "$REASSIGN" ]; then
         ln -s "$(abspath "${TMP_PATH}/seq_wrong_assigned")" "${TMP_PATH}/seq_seeds.merged.1"
         cp "${TMP_PATH}/seq_seeds.dbtype" "${TMP_PATH}/seq_seeds.merged.dbtype"
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" prefilter "${TMP_PATH}/seq_wrong_assigned" "${TMP_PATH}/seq_seeds.merged" "${TMP_PATH}/seq_wrong_assigned_pref" ${PREFILTER_PAR} \
+        $RUNNER "$MMSEQS" prefilter "${TMP_PATH}/seq_wrong_assigned" "${TMP_PATH}/seq_seeds.merged" "${TMP_PATH}/seq_wrong_assigned_pref" ${PREFILTER_REASSIGN_PAR} \
                  || fail "Prefilter reassign died"
     fi
     if notExists "${TMP_PATH}/seq_wrong_assigned_pref_swaped.dbtype"; then
@@ -182,9 +182,7 @@ if [ -n "$REASSIGN" ]; then
     fi
 
     if notExists "${TMP_PATH}/missing.single.seqs.db.dbtype"; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" prefixid "${TMP_PATH}/clu_accepted_plus_wrong" "${TMP_PATH}/clu_accepted_plus_wrong.tsv" --tsv 1 ${THREADSANDCOMPRESS}
-        awk 'FNR==NR{f[$2]=1; next} !($1 in f){print $1"\t"$1}' "${TMP_PATH}/clu_accepted_plus_wrong.tsv" "${SOURCE}.index" > "${TMP_PATH}/missing.single.seqs"
+         awk 'FNR==NR{if($3 > 1){ f[$1]=1; }next} !($1 in f){print $1"\t"$1}' "${TMP_PATH}/clu_accepted_plus_wrong.index" "${SOURCE}.index" > "${TMP_PATH}/missing.single.seqs"
         # shellcheck disable=SC2086
         "$MMSEQS" tsv2db "${TMP_PATH}/missing.single.seqs" "${TMP_PATH}/missing.single.seqs.db" --output-dbtype 6 ${VERBCOMPRESS} \
                             || fail "tsv2db reassign died"
@@ -218,6 +216,7 @@ if [ -n "$REASSIGN" ]; then
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln"
         "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_ocol"
         rm -f "${TMP_PATH}/missing.single.seqs"
+        rm -f "${TMP_PATH}/clu_accepted_plus_wrong.tsv"
         "$MMSEQS" rmdb "${TMP_PATH}/missing.single.seqs.db"
         "$MMSEQS" rmdb "${TMP_PATH}/clu_accepted_plus_wrong"
         "$MMSEQS" rmdb "${TMP_PATH}/clu_accepted_plus_wrong_plus_single"
