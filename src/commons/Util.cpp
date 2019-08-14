@@ -450,7 +450,10 @@ char Util::touchMemory(const char *memory, size_t size) {
     char buffer4 = 0;
 
     // touch first page
-    buffer1 += *(memory);
+    if(size > 0){
+       buffer1 += *(memory);
+    }
+
     // load always four pages to reduce data dependency
     for (size_t pos = 0; (pos + fourTimesPageSize) < size; pos += 4*pageSize) {
         buffer1 += *(memory + pos);
