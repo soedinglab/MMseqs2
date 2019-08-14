@@ -436,56 +436,30 @@ uint64_t Util::getL2CacheSize() {
 }
 
 char Util::touchMemory(const char *memory, size_t size) {
-    int threadCnt = 1;
-
-#ifdef OPENMP
-    const int totalThreadCnt = omp_get_max_threads();
-    if (totalThreadCnt > 2) {
-        threadCnt = 2;
-    }
-#endif
-
-
 #ifdef HAVE_POSIX_MADVISE
-    if (posix_madvise ((void*)memory, size, POSIX_MADV_SEQUENTIAL|POSIX_MADV_WILLNEED) != 0){
+    if (posix_madvise ((void*)memory, size, POSIX_MADV_WILLNEED) != 0){
         Debug(Debug::ERROR) << "posix_madvise returned an error (touchMemory)\n";
     }
 #endif
-
     size_t pageSize = getPageSize();
 //    Debug::Progress progress(size/pageSize);
+    size_t fourTimesPageSize = 4*pageSize;
+    char buffer1 = 0;
+    char buffer2 = 0;
+    char buffer3 = 0;
+    char buffer4 = 0;
 
-    char **buffer = new char *[threadCnt];
-    for (int i = 0; i < threadCnt; i++) {
-        buffer[i] = new char[pageSize];
+    // touch first page
+    buffer1 += *(memory);
+    // load always four pages to reduce data dependency
+    for (size_t pos = 0; (pos + fourTimesPageSize) < size; pos += 4*pageSize) {
+        buffer1 += *(memory + pos);
+        buffer2 += *(memory + pos + 2*pageSize);
+        buffer3 += *(memory + pos + 3*pageSize);
+        buffer4 += *(memory + pos + 4*pageSize);
     }
 
-#pragma omp parallel num_threads(threadCnt)
-    {
-        int threadIdx = 0;
-#ifdef OPENMP
-        threadIdx = omp_get_thread_num();
-#endif
-
-#pragma omp for schedule(dynamic,10)
-        for (size_t pos = 0; pos < size; pos += pageSize) {
-            size_t currentPageSize = size - pos;
-            if (currentPageSize > pageSize) {
-                currentPageSize = pageSize;
-            }
-            // just load a single byte, whole page is
-            memcpy(buffer[threadIdx], memory + pos, 1);
-//            progress.updateProgress();
-        }
-    }
-
-    char retVal = 0;
-    for (int i = 0; i < threadCnt; ++i) {
-        retVal += buffer[i][0];
-        delete[] buffer[i];
-    }
-    delete[] buffer;
-    return retVal;
+    return buffer1+buffer2+buffer3+buffer4;
 }
 
 size_t Util::ompCountLines(const char* data, size_t dataSize, unsigned int MAYBE_UNUSED(threads)) {
