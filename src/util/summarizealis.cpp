@@ -59,7 +59,7 @@ int summarizealis(int argc, const char **argv, const Command &command) {
                 seqLen = res.qLen;
                 int qStartPos = std::min(res.qStartPos, res.qEndPos);
                 int qEndPos = std::max(res.qStartPos, res.qEndPos);
-                uniqCov += std::max(prevQEndPos, res.qEndPos) - std::max(prevQEndPos, res.qStartPos);
+                uniqCov += std::max(prevQEndPos, qEndPos) - std::max(prevQEndPos, qStartPos);
                 resCov += static_cast<float>(qEndPos - qStartPos);
                 avgSeqId += res.seqId;
                 prevQEndPos = std::max(prevQEndPos, res.qEndPos);
