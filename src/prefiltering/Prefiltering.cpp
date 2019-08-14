@@ -338,7 +338,6 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSi
     }
 
     int optimalNumSplits = minimalNumSplits;
-
     size_t sizeOfDbToSplit = tdbr.getSize();
     if (splitMode == Parameters::QUERY_DB_SPLIT) {
         sizeOfDbToSplit = qDbSize;
@@ -349,7 +348,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSi
     optimalNumSplits = std::min((int)sizeOfDbToSplit, optimalNumSplits);
 
     // set the final number of splits
-    if (split == Parameters::AUTO_SPLIT_DETECTION) {
+    if (splitMode == Parameters::AUTO_SPLIT_DETECTION) {
         split = optimalNumSplits;
     }
 
