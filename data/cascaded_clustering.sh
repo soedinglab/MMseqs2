@@ -182,6 +182,7 @@ if [ -n "$REASSIGN" ]; then
     fi
 
     if notExists "${TMP_PATH}/missing.single.seqs.db.dbtype"; then
+        # shellcheck disable=SC2086
         "$MMSEQS" prefixid "${TMP_PATH}/clu_accepted_plus_wrong" "${TMP_PATH}/clu_accepted_plus_wrong.tsv" --tsv 1 ${THREADSANDCOMPRESS}
         awk 'FNR==NR{f[$2]=1; next} !($1 in f){print $1"\t"$1}' "${TMP_PATH}/clu_accepted_plus_wrong.tsv" "${SOURCE}.index" > "${TMP_PATH}/missing.single.seqs"
         # shellcheck disable=SC2086

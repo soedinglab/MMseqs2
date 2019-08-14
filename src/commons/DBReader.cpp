@@ -913,7 +913,6 @@ template<typename T>
 size_t DBReader<T>::findNextOffsetid(size_t id) {
     size_t idOffset = getOffset(id);
     size_t nextOffset = SIZE_MAX;
-    size_t maxOffset = 0;
     for(size_t i = 0; i < size; i++){
         if(index[i].offset > idOffset && index[i].offset < nextOffset){
             nextOffset=index[i].offset;
