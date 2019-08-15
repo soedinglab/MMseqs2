@@ -455,7 +455,6 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
     result.reserve(largestEntrySize + 1);
 
     FILE * outDBFILE = FileUtil::openAndDelete(outDB.c_str(), "w");
-    int dataFilefd = fileno(outDBFILE);
     do {
         // go over all files
         for (size_t i = 0; i < fileNames.size(); ++i) {
@@ -484,7 +483,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
         result.append(1, '\0');
 
         // write sorted hits
-        size_t written = write(dataFilefd, result.c_str(), result.size());
+        size_t written = fwrite(result.c_str(), sizeof(char), result.size(), outDBFILE);
         result.clear();
         if (written != writePos) {
             Debug(Debug::ERROR) << "Cannot write to data file " << outDB << "\n";
