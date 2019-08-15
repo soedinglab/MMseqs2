@@ -343,7 +343,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSi
         sizeOfDbToSplit = qDbSize;
     }
 #ifdef HAVE_MPI
-    optimalNumSplits = std::max(static_cast<size_t>(MMseqsMPI::numProc), optimalNumSplits);
+    optimalNumSplits = std::max(static_cast<size_t>(std::max(MMseqsMPI::numProc, 1)), optimalNumSplits);
 #endif
     optimalNumSplits = std::min(sizeOfDbToSplit, optimalNumSplits);
 
