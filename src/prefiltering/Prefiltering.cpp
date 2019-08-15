@@ -318,7 +318,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSi
     }
 
     // ideally we always run without splitting
-    int minimalNumSplits = 1;
+    size_t minimalNumSplits = 1;
     // get minimal number of splits in case of target split
     // we EXITed already in query split mode
     if (memoryNeeded > 0.9 * memoryLimit) {
@@ -337,8 +337,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSi
         minimalNumSplits = splitSettings.second;
     }
 
-    int optimalNumSplits = minimalNumSplits;
-
+    size_t optimalNumSplits = minimalNumSplits;
     size_t sizeOfDbToSplit = tdbr.getSize();
     if (splitMode == Parameters::QUERY_DB_SPLIT) {
         sizeOfDbToSplit = qDbSize;
@@ -346,17 +345,21 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSi
 #ifdef HAVE_MPI
     optimalNumSplits = std::max(MMseqsMPI::numProc, optimalNumSplits);
 #endif
-    optimalNumSplits = std::min((int)sizeOfDbToSplit, optimalNumSplits);
+    optimalNumSplits = std::min(sizeOfDbToSplit, optimalNumSplits);
 
     // set the final number of splits
-    if (split == Parameters::AUTO_SPLIT_DETECTION) {
+    if (split == 0) {
+        if(optimalNumSplits > INT_MAX){
+            Debug(Debug::ERROR) << "optimalNumSplits is greater INT_MAX\n";
+            EXIT(EXIT_FAILURE);
+        }
         split = optimalNumSplits;
     }
 
     // templateDBIsIndex = false when called from indexdb
     if ((split < minimalNumSplits) && (templateDBIsIndex)) {
         Debug(Debug::WARNING) << "split was set to " << split << " but at least " << minimalNumSplits << " are required. Please run with default paramerters\n";
-    } else if (split > (int)sizeOfDbToSplit) {
+    } else if (static_cast<size_t>(split) > sizeOfDbToSplit) {
         Debug(Debug::ERROR) << "split was set to " << split << " but the db to split has only " << sizeOfDbToSplit << " sequences. Please run with default paramerters\n";
         EXIT(EXIT_FAILURE);
     }
