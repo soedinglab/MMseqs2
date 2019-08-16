@@ -10,14 +10,18 @@
 
 void setEasyLinsearchDefaults(Parameters *p) {
     p->shuffleDatabase = false;
+    p->PARAM_DONT_SHUFFLE.wasSet = true;
     p->removeTmpFiles = true;
+    p->PARAM_REMOVE_TMP_FILES.wasSet = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    p->PARAM_ALIGNMENT_MODE.wasSet = true;
 }
 
 void setEasySearchDefaults(Parameters *p) {
-    p->sensitivity = 5.7;
     p->removeTmpFiles = true;
+    p->PARAM_REMOVE_TMP_FILES.wasSet = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    p->PARAM_ALIGNMENT_MODE.wasSet = true;
 }
 
 int doeasysearch(int argc, const char **argv, const Command &command, bool linsearch) {
@@ -119,7 +123,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
 
     // Should never get here
     assert(false);
-    return 0;
+    return EXIT_FAILURE;
 }
 
 int easysearch(int argc, const char **argv, const Command &command) {
