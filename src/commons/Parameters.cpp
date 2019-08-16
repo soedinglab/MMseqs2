@@ -1555,8 +1555,11 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
             }
             size_t currFileIdx = fileIdx;
             for(; fileIdx <= currFileIdx+argumentDist; fileIdx++){
-                std::string dbTypeFile = std::string(filenames[fileIdx]) + ".dbtype";
+                if (db.validator == NULL) {
+                    continue;
+                }
 
+                std::string dbTypeFile = std::string(filenames[fileIdx]) + ".dbtype";
                 // check if file exists
                 // if file is not a
                 if (FileUtil::fileExists((filenames[fileIdx]).c_str()) == false && FileUtil::fileExists(dbTypeFile.c_str()) == false ) {
@@ -1601,9 +1604,6 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
                     }
                 }
                 bool dbtypeFound = false;
-                if (db.validator == NULL) {
-                    continue;
-                }
                 for (size_t i = 0; i < db.validator->size() && dbtypeFound == false; i++) {
                     int validatorDbtype = db.validator->at(i);
                     if (validatorDbtype == Parameters::DBTYPE_FLATFILE) {
