@@ -540,9 +540,8 @@ ScoreMatrix PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *
 }
 
 std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB) {
-    std::string outIndexName = pathToDB;
-    outIndexName.append(".idx");
-    if (FileUtil::fileExists(outIndexName.c_str()) == true) {
+    std::string outIndexName = pathToDB + ".idx";
+    if (FileUtil::fileExists((outIndexName + ".dbtype").c_str()) == true) {
         return outIndexName;
     }
     return "";

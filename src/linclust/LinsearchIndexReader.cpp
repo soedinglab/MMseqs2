@@ -270,10 +270,9 @@ std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned in
     return "";
 }
 
-std::string LinsearchIndexReader::searchForIndex(std::string dbName) {
-    std::string outIndexName = dbName;
-    outIndexName.append(".linidx");
-    if (FileUtil::fileExists(outIndexName.c_str()) == true) {
+std::string LinsearchIndexReader::searchForIndex(const std::string& dbName) {
+    std::string outIndexName = dbName + ".linidx";
+    if (FileUtil::fileExists((outIndexName + ".dbtype").c_str()) == true) {
         return outIndexName;
     }
     return "";

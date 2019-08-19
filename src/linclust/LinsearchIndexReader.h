@@ -60,6 +60,6 @@ public:
 
     static std::string findIncompatibleParameter(DBReader<unsigned int> & index, Parameters &parameters, int dbtype);
 
-    static std::string searchForIndex(std::string dbName);
+    static std::string searchForIndex(const std::string& dbName);
 };
 #endif
