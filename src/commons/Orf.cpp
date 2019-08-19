@@ -351,8 +351,8 @@ Orf::SequenceLocation Orf::parseOrfHeader(const char *data) {
     const char* entry[255];
     size_t columns = Util::getWordsOfLine(data, entry, 255);
     bool found = false;
-    unsigned int from;
-    unsigned int to;
+    unsigned int from = 0;
+    unsigned int to = 0;
     //623 30400+1000
     if(columns >= 2) {
         size_t entryLen = entry[2]-entry[1];
