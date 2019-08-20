@@ -98,5 +98,10 @@ public:
         return index;
     }
 
+
+    std::vector<std::vector<TaxonomyTerm>> getTaxTerms(){
+        return taxTerms;
+    }
+
 };
 #endif //MMSEQS_TAXONOMYEXPRESSION_H
