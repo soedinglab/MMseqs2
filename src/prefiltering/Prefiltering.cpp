@@ -343,7 +343,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSi
         sizeOfDbToSplit = qDbSize;
     }
 #ifdef HAVE_MPI
-    optimalNumSplits = std::max(static_cast<size_t>(MMseqsMPI::numProc), optimalNumSplits);
+    optimalNumSplits = std::max(static_cast<size_t>(std::max(MMseqsMPI::numProc, 1)), optimalNumSplits);
 #endif
     optimalNumSplits = std::min(sizeOfDbToSplit, optimalNumSplits);
 
@@ -455,7 +455,6 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
     result.reserve(largestEntrySize + 1);
 
     FILE * outDBFILE = FileUtil::openAndDelete(outDB.c_str(), "w");
-    int dataFilefd = fileno(outDBFILE);
     do {
         // go over all files
         for (size_t i = 0; i < fileNames.size(); ++i) {
@@ -484,7 +483,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
         result.append(1, '\0');
 
         // write sorted hits
-        size_t written = write(dataFilefd, result.c_str(), result.size());
+        size_t written = fwrite(result.c_str(), sizeof(char), result.size(), outDBFILE);
         result.clear();
         if (written != writePos) {
             Debug(Debug::ERROR) << "Cannot write to data file " << outDB << "\n";
@@ -801,6 +800,10 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
             matcher.setSubstitutionMatrix(NULL, NULL);
         }
 
+        char buffer[128];
+        std::string result;
+        result.reserve(1000000);
+
 #pragma omp for schedule(dynamic, 2) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
         for (size_t id = queryFrom; id < queryFrom + querySize; id++) {
             progress.updateProgress();
@@ -825,8 +828,31 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
             // calculate prefiltering results
             std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId);
             size_t resultSize = prefResults.second;
-            // write
-            writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults, dbFrom);
+            const float queryLength = static_cast<float>(qdbr->getSeqLens(id));
+            for (size_t i = 0; i < resultSize; i++) {
+                hit_t *res = prefResults.first + i;
+                // correct the 0 indexed sequence id again to its real identifier
+                size_t targetSeqId1 = res->seqId + dbFrom;
+                // replace id with key
+                res->seqId = tdbr->getDbKey(targetSeqId1);
+                if (UNLIKELY(targetSeqId1 >= tdbr->getSize())) {
+                    Debug(Debug::WARNING) << "Wrong prefiltering result for query: " << qdbr->getDbKey(id) << " -> " << targetSeqId1 << "\t" << res->prefScore << "\n";
+                }
+
+                // TODO: check if this should happen when diagonalScoring == false
+                if (covThr > 0.0 && (covMode == Parameters::COV_MODE_BIDIRECTIONAL || covMode == Parameters::COV_MODE_QUERY)) {
+                    const float targetLength = static_cast<float>(tdbr->getSeqLens(targetSeqId1));
+                    if (Util::canBeCovered(covThr, covMode, queryLength, targetLength) == false) {
+                        continue;
+                    }
+                }
+
+                // write prefiltering results to a string
+                int len = QueryMatcher::prefilterHitToBuffer(buffer, *res);
+                result.append(buffer, len);
+            }
+            tmpDbw.writeData(result.c_str(), result.length(), qKey, thread_idx);
+            result.clear();
 
             // update statistics counters
             if (resultSize != 0) {
@@ -903,40 +929,6 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
     delete[] notEmpty;
 
     return true;
-}
-
-void Prefiltering::writePrefilterOutput(DBWriter *dbWriter, unsigned int thread_idx, size_t id,
-                                        const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset) {
-    hit_t *resultVector = prefResults.first;
-    std::string prefResultsOutString;
-    prefResultsOutString.reserve(BUFFER_SIZE);
-    char buffer[100];
-    for (size_t i = 0; i < prefResults.second; i++) {
-        hit_t *res = resultVector + i;
-        // correct the 0 indexed sequence id again to its real identifier
-        size_t targetSeqId = res->seqId + seqIdOffset;
-        // replace id with key
-        res->seqId = tdbr->getDbKey(targetSeqId);
-        if (targetSeqId >= tdbr->getSize()) {
-            Debug(Debug::WARNING) << "Wrong prefiltering result for query: " << qdbr->getDbKey(id) << " -> " << targetSeqId
-                                  << "\t" << res->prefScore << "\n";
-        }
-
-        // TODO: check if this should happen when diagonalScoring == false
-        if (covThr > 0.0 && (covMode == Parameters::COV_MODE_BIDIRECTIONAL || covMode == Parameters::COV_MODE_QUERY)) {
-            float queryLength = static_cast<float>(qdbr->getSeqLens(id));
-            float targetLength = static_cast<float>(tdbr->getSeqLens(targetSeqId));
-            if (Util::canBeCovered(covThr, covMode, queryLength, targetLength) == false) {
-                continue;
-            }
-        }
-
-        // write prefiltering results to a string
-        int len = QueryMatcher::prefilterHitToBuffer(buffer, *res);
-        // TODO: error handling for len
-        prefResultsOutString.append(buffer, len);
-    }
-    dbWriter->writeData(prefResultsOutString.c_str(), prefResultsOutString.length(), qdbr->getDbKey(id), thread_idx);
 }
 
 void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **reslens,

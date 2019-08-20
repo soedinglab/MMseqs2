@@ -306,6 +306,8 @@ int search(int argc, const char **argv, const Command& command) {
     const int originalRescoreMode = par.rescoreMode;
     CommandCaller cmd;
     cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
+    cmd.addVariable("THREADS_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
+    cmd.addVariable("VERB_COMP_PAR", par.createParameterString(par.verbandcompression).c_str());
     cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     std::string program;
@@ -340,7 +342,6 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("SORTRESULT_PAR", par.createParameterString(par.sortresult).c_str());
         par.covMode = originalCovMode;
-        cmd.addVariable("THREADS_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
         cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
 
         program = tmpDir + "/searchslicedtargetprofile.sh";

@@ -201,7 +201,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
         IndexBuilder::fillDatabase(&indexTable,
                                    (maskMode == 1 || maskLowerCase == 1) ? &sequenceLookup : NULL,
                                    (maskMode == 0 ) ? &sequenceLookup : NULL,
-                                   *subMat, &seq, dbr1, dbFrom, dbSize, kmerThr, maskMode, maskLowerCase);
+                                   *subMat, &seq, dbr1, dbFrom, dbFrom + dbSize, kmerThr, maskMode, maskLowerCase);
         indexTable.printStatistics(subMat->int2aa);
 
         if (sequenceLookup == NULL) {
@@ -540,9 +540,8 @@ ScoreMatrix PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *
 }
 
 std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB) {
-    std::string outIndexName = pathToDB;
-    outIndexName.append(".idx");
-    if (FileUtil::fileExists(outIndexName.c_str()) == true) {
+    std::string outIndexName = pathToDB + ".idx";
+    if (FileUtil::fileExists((outIndexName + ".dbtype").c_str()) == true) {
         return outIndexName;
     }
     return "";

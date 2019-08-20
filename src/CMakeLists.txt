@@ -220,7 +220,7 @@ endif ()
 
 
 find_package(OpenMP QUIET)
-if (OpenMP_FOUND)
+if (OPENMP_FOUND)
     message("-- Found OpenMP")
     target_compile_definitions(mmseqs-framework PUBLIC -DOPENMP=1)
     # For GCC we dont want to do this since it breaks macOS static builds

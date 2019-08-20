@@ -34,7 +34,6 @@ include(CheckCXXCompilerFlag)
 # Set -Werror to catch "argument unused during compilation" warnings
 set(CMAKE_REQUIRED_FLAGS "-Werror -fsanitize=address") # Also needs to be a link flag for test to pass
 check_cxx_compiler_flag("-fsanitize=address" HAVE_FLAG_SANITIZE_ADDRESS)
-
 unset(CMAKE_REQUIRED_FLAGS)
 
 if(HAVE_FLAG_SANITIZE_ADDRESS)
@@ -48,12 +47,19 @@ else(NOT ADDRESS_SANITIZER_FLAG)
   set(HAVE_ADDRESS_SANITIZER FALSE)
 endif()
 
+check_cxx_compiler_flag("-Og" HAVE_OPTIMIZE_DEBUG)
+if(HAVE_OPTIMIZE_DEBUG)
+  set(OPTIMIZE_DEBUG_FLAG "-Og")
+else()
+  set(OPTIMIZE_DEBUG_FLAG "-O0")
+endif()
+
 set(HAVE_ADDRESS_SANITIZER TRUE)
 
-set(CMAKE_C_FLAGS_ASAN "-O0 -g ${ADDRESS_SANITIZER_FLAG} -fno-omit-frame-pointer -fno-optimize-sibling-calls"
+set(CMAKE_C_FLAGS_ASAN "${OPTIMIZE_DEBUG_FLAG} -g ${ADDRESS_SANITIZER_FLAG} -fno-omit-frame-pointer -fno-optimize-sibling-calls"
     CACHE STRING "Flags used by the C compiler during ASan builds."
     FORCE)
-set(CMAKE_CXX_FLAGS_ASAN "-O0 -g ${ADDRESS_SANITIZER_FLAG} -fno-omit-frame-pointer -fno-optimize-sibling-calls"
+set(CMAKE_CXX_FLAGS_ASAN "${OPTIMIZE_DEBUG_FLAG} -g ${ADDRESS_SANITIZER_FLAG} -fno-omit-frame-pointer -fno-optimize-sibling-calls"
     CACHE STRING "Flags used by the C++ compiler during ASan builds."
     FORCE)
 set(CMAKE_EXE_LINKER_FLAGS_ASAN "${ADDRESS_SANITIZER_FLAG}"
