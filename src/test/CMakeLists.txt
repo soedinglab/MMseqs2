@@ -30,6 +30,7 @@ set(TESTS
         TestTaxonomy.cpp
         TestTranslate.cpp
         TestTinyExpr.cpp
+        TestTaxExpr.cpp
         TestProfileStates.cpp
         TestUtil.cpp
         TestKsw2.cpp

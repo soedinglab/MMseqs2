@@ -11,5 +11,6 @@ set(taxonomy_source_files
         taxonomy/filtertaxdb.cpp
         taxonomy/createtaxdb.cpp
         taxonomy/taxonomyreport.cpp
+        taxonomy/TaxonomyExpression.h
         PARENT_SCOPE
         )

@@ -529,7 +529,6 @@ public:
 
     // filtertaxdb
     std::string taxonList;
-    bool invertSelection;
 
     // view
     std::string idList;
@@ -826,7 +825,6 @@ public:
 
     // filtertaxdb
     PARAMETER(PARAM_TAXON_LIST)
-    PARAMETER(PARAM_INVERT_SELECTION)
 
     // view
     PARAMETER(PARAM_ID_LIST)

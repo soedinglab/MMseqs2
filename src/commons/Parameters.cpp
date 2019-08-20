@@ -232,7 +232,6 @@ Parameters::Parameters():
         PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover deleted", "Indicates if sequences are allowed to be be removed during updating", typeid(bool), (void*) &recoverDeleted, ""),
         // filtertaxdb
         PARAM_TAXON_LIST(PARAM_TAXON_LIST_ID, "--taxon-list", "Selected taxons", "taxonomy ID, possibly multiple separated by ','", typeid(std::string), (void*) &taxonList, ""),
-        PARAM_INVERT_SELECTION(PARAM_INVERT_SELECTION_ID, "--invert", "Invert selection", "Invert selection", typeid(bool), (void*)&invertSelection, ""),
         // view
         PARAM_ID_LIST(PARAM_ID_LIST_ID, "--id-list", "Selected entries with key", "entries to be printed seperated by ','", typeid(std::string), (void*) &idList, ""),
         PARAM_IDX_ENTRY_TYPE(PARAM_IDX_ENTRY_TYPE_ID, "--idx-entry-type", "Index entry type", "sequence; 0, src sequence 1: header: 2, src header :3 (default 0)", typeid(int), (void*) &idxEntryType, "^[0-3]{1}$"),
@@ -883,7 +882,6 @@ Parameters::Parameters():
     // filtertaxdb
     filtertaxdb.push_back(&PARAM_COMPRESSED);
     filtertaxdb.push_back(&PARAM_TAXON_LIST);
-    filtertaxdb.push_back(&PARAM_INVERT_SELECTION);
 
     // lca
     lca.push_back(&PARAM_COMPRESSED);
@@ -1970,7 +1968,6 @@ void Parameters::setDefaults() {
 
     // filtertaxdb
     taxonList = "";
-    invertSelection = false;
 
     // view
     idList = "";

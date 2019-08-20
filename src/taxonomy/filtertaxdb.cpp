@@ -4,6 +4,7 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "Util.h"
+#include "TaxonomyExpression.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -25,15 +26,8 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
 
     // a few NCBI taxa are blacklisted by default, they contain unclassified sequences (e.g. metagenomes) or other sequences (e.g. plasmids)
     // if we do not remove those, a lot of sequences would be classified as Root, even though they have a sensible LCA
-    std::vector<std::string> list = Util::split(par.taxonList, ",");
-    const size_t taxListSize = list.size();
-    int* taxalist = new int[taxListSize];
-    for (size_t i = 0; i < taxListSize; ++i) {
-        taxalist[i] = Util::fast_atoi<int>(list[i].c_str());
-    }
+    TaxonomyExpression taxonomyExpression(par.taxonList);
 
-
-    bool invertSelection = par.invertSelection;
     Debug::Progress progress(reader.getSize());
 
     Debug(Debug::INFO) << "Computing LCA\n";
@@ -60,11 +54,8 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
 
             std::vector<int> taxa;
             while (*data != '\0') {
-                int taxon;
-                size_t j;
-                bool isAncestor = false;
-                bool filterTaxon = false;
-
+                unsigned int taxon;
+                bool isAncestor;
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
                 if (columns == 0) {
                     Debug(Debug::WARNING) << "Empty entry: " << i << "!";
@@ -74,13 +65,8 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
                 taxon = Util::fast_atoi<unsigned int>(entry[0]);
                 writer.writeStart(thread_idx);
 
-                // remove blacklisted taxa
-                for (j = 0; j < taxListSize && !isAncestor; ++j) {
-                    isAncestor |= t->IsAncestor(taxalist[j], taxon);
-                }
-
-                filterTaxon = invertSelection? isAncestor: !isAncestor;
-                if (!filterTaxon) {
+                isAncestor = (taxonomyExpression.isAncestorOf(*t, taxon) != -1);
+                if (isAncestor) {
                     char * nextData = Util::skipLine(data);
                     size_t dataSize = nextData - data;
                     writer.writeAdd(data, dataSize, thread_idx);
@@ -97,7 +83,6 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
     writer.close();
     reader.close();
     delete t;
-    delete[] taxalist;
 
     return EXIT_SUCCESS;
 }
