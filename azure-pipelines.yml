@@ -171,7 +171,7 @@ jobs:
           %BUILD_SOURCESDIRECTORY%\build\mmseqs\mmseqs.bat version
         displayName: Setup Busybox
       - script: |
-          %CYGWIN_ROOT%\bin\bash.exe -cl "${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh $(cygpath ${BUILD_SOURCESDIRECTORY}/build/mmseqs/bin/mmseqs.exe) $(cygpath ${BUILD_SOURCESDIRECTORY}/regression)"
+          %CYGWIN_ROOT%\bin\bash.exe -cl "MMSEQS_NUM_THREADS=1 ${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh $(cygpath ${BUILD_SOURCESDIRECTORY}/build/mmseqs/bin/mmseqs.exe) $(cygpath ${BUILD_SOURCESDIRECTORY}/regression)"
         displayName: Run Regression Suite
         condition: eq(variables['regression'], 1)
 
