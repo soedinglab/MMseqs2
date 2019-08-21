@@ -1029,7 +1029,7 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
     size_t dbSizeSplit = (dbSize) / split;
     size_t residueSize = (resSize / split * 7);
     // 21^7 * pointer size is needed for the index
-    size_t indexTableSize = static_cast<size_t>(pow(alphabetSize, kmerSize)) * sizeof(size_t *);
+    size_t indexTableSize = static_cast<size_t>(pow(alphabetSize, kmerSize)) * sizeof(size_t);
     // memory needed for the threads
     // This memory is an approx. for Countint32Array and QueryTemplateLocalFast
     size_t threadSize = threads * (
