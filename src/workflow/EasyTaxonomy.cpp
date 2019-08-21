@@ -5,7 +5,6 @@
 #include "CommandCaller.h"
 #include "easytaxonomy.sh.h"
 
-
 void setEasyTaxonomyDefaults(Parameters *p) {
     p->spacedKmer = true;
     p->removeTmpFiles = true;
@@ -16,14 +15,22 @@ void setEasyTaxonomyDefaults(Parameters *p) {
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
 }
+void setEasyTaxonomyMustPassAlong(Parameters *p) {
+    p->PARAM_SPACED_KMER_MODE.wasSet = true;
+    p->PARAM_REMOVE_TMP_FILES.wasSet = true;
+    p->PARAM_ALIGNMENT_MODE.wasSet = true;
+    p->PARAM_S.wasSet = true;
+    p->PARAM_E.wasSet = true;
+    p->PARAM_ORF_START_MODE.wasSet = true;
+    p->PARAM_ORF_MIN_LENGTH.wasSet = true;
+    p->PARAM_ORF_MAX_LENGTH.wasSet = true;
+}
 
 int easytaxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setEasyTaxonomyDefaults(&par);
-
-//    par.overrideParameterDescription((Command &) command, par.PARAM_TAX_OUTPUT_MODE.uniqid, "", "",
-//                                     par.PARAM_TAX_OUTPUT_MODE.category | MMseqsParameter::COMMAND_EXPERT);
     par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
+    setEasyTaxonomyMustPassAlong(&par);
 
     std::string tmpDir = par.filenames.back();
     std::string hash = SSTR(par.hashParameter(par.filenames, *command.params));

@@ -5,26 +5,36 @@
 #include "Util.h"
 #include "Debug.h"
 #include "Parameters.h"
+
 namespace linclust {
 #include "easycluster.sh.h"
 }
 
-void setEasyLinclusterDefaults(Parameters *p) {
+void setEasyLinclustDefaults(Parameters *p) {
     p->spacedKmer = true;
     p->removeTmpFiles = true;
     p->covThr = 0.8;
     p->evalThr = 0.001;
-    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
-    //p->orfLongest = true;
+    //p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     p->orfStartMode = 1;
     p->orfMinLength = 10;
     p->orfMaxLength = 32734;
     p->evalProfile = 0.1;
 }
+void setEasyLinclustMustPassAlong(Parameters *p) {
+    p->PARAM_SPACED_KMER_MODE.wasSet = true;
+    p->PARAM_REMOVE_TMP_FILES.wasSet = true;
+    p->PARAM_C.wasSet = true;
+    p->PARAM_E.wasSet = true;
+    //p->PARAM_ALIGNMENT_MODE.wasSet = true;
+    p->PARAM_ORF_START_MODE.wasSet = true;
+    p->PARAM_ORF_MIN_LENGTH.wasSet = true;
+    p->PARAM_ORF_MAX_LENGTH.wasSet = true;
+    p->PARAM_E_PROFILE.wasSet = true;
+}
 
 int easylinclust(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    setEasyLinclusterDefaults(&par);
     par.overrideParameterDescription((Command &)command, par.PARAM_ADD_BACKTRACE.uniqid, NULL, NULL, par.PARAM_ADD_BACKTRACE.category | MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &)command, par.PARAM_ALT_ALIGNMENT.uniqid, NULL, NULL, par.PARAM_ALT_ALIGNMENT.category | MMseqsParameter::COMMAND_EXPERT);
     par.overrideParameterDescription((Command &)command, par.PARAM_RESCORE_MODE.uniqid, NULL, NULL, par.PARAM_RESCORE_MODE.category | MMseqsParameter::COMMAND_EXPERT);
@@ -35,11 +45,12 @@ int easylinclust(int argc, const char **argv, const Command &command) {
     for (size_t i = 0; i < par.createdb.size(); i++){
         par.overrideParameterDescription((Command &)command, par.createdb[i]->uniqid, NULL, NULL, par.createdb[i]->category | MMseqsParameter::COMMAND_EXPERT);
     }
-    par.overrideParameterDescription((Command &) command, par.PARAM_THREADS.uniqid, NULL, NULL,
-                                     par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
-    par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
-                                     par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_THREADS.uniqid, NULL, NULL, par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL, par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
+
+    setEasyLinclustDefaults(&par);
     par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
+    setEasyLinclustMustPassAlong(&par);
 
     std::string tmpDir = par.filenames.back();
     std::string hash = SSTR(par.hashParameter(par.filenames, *command.params));
