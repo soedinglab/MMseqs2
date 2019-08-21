@@ -246,11 +246,11 @@ public:
         this->size = sequenceCount;
 
         this->entries = new(std::nothrow) IndexEntryLocal[tableEntriesNum];
-        Util::checkAllocation(entries, "Can not allocate entries memory in IndexTable::initMemory");
+        Util::checkAllocation(entries, "Can not allocate " + SSTR(tableEntriesNum * sizeof(IndexEntryLocal)) + " bytes for entries in IndexTable::initMemory");
         memcpy(this->entries, entryOffsets, tableEntriesNum * sizeof(IndexEntryLocal));
 
         offsets = new(std::nothrow) size_t[tableSize + 1];
-        Util::checkAllocation(offsets, "Can not allocate entries memory in IndexTable");
+        Util::checkAllocation(offsets, "Can not allocate " + SSTR((tableSize +1) * sizeof(size_t))  + " bytes for offsets in IndexTable::initMemory");
         memcpy(offsets, entryOffsets, (tableSize + 1) * sizeof(size_t));
     }
 
