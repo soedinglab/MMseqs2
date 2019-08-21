@@ -285,6 +285,12 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             if (realign ==  true) {
                 realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
             }
+
+            std::vector<Matcher::result_t> swResults;
+            swResults.reserve(300);
+            std::vector<Matcher::result_t> swRealignResults;
+            swRealignResults.reserve(300);
+
 #pragma omp for schedule(dynamic, 5) reduction(+: alignmentsNum, totalPassedNum)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
@@ -303,12 +309,10 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     qSeq.mapSequence(id, queryDbKey, querySeqData);
                     matcher.initQuery(&qSeq);
                 }
+
                 // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list
-                std::vector<Matcher::result_t> swResults;
-                std::vector<Matcher::result_t> swRealignResults;
                 size_t passedNum = 0;
                 unsigned int rejected = 0;
-
                 while (*data != '\0' && passedNum < maxAlnNum && rejected < maxRejected) {
                     // DB key of the db sequence
                     char dbKeyBuffer[255 + 1];
@@ -333,8 +337,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     }
                     dbSeq.mapSequence(static_cast<size_t>(-1), dbKey, dbSeqData);
                     // check if the sequences could pass the coverage threshold
-                    if(Util::canBeCovered(canCovThr, covMode, static_cast<float>(qSeq.L), static_cast<float>(dbSeq.L)) == false )
-                    {
+                    if(Util::canBeCovered(canCovThr, covMode, static_cast<float>(qSeq.L), static_cast<float>(dbSeq.L)) == false) {
                         rejected++;
                         data = Util::skipLine(data);
                         continue;
@@ -407,6 +410,8 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 }
                 dbw.writeData(alnResultsOutString.c_str(), alnResultsOutString.length(), queryDbKey, thread_idx);
                 alnResultsOutString.clear();
+                swResults.clear();
+                swRealignResults.clear();
             }
             if (realign == true) {
                 delete realigner;

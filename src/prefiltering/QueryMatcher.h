@@ -224,6 +224,8 @@ protected:
     // size of max diagonalMatcher result objects
     size_t counterResultSize;
 
+    Indexer idx;
+
     void initDiagonalMatcher(size_t dbsize, unsigned int maxDbMatches);
 
     void deleteDiagonalMatcher(unsigned int activeCounter);

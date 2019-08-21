@@ -859,14 +859,16 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                 notEmpty[id - queryFrom] = 1;
             }
 
-            kmersPerPos += matcher.getStatistics()->kmersPerPos;
-            dbMatches += matcher.getStatistics()->dbMatches;
-            doubleMatches += matcher.getStatistics()->doubleMatches;
-            querySeqLenSum += seq.L;
-            diagonalOverflow += matcher.getStatistics()->diagonalOverflow;
-            resSize += resultSize;
-            realResSize += std::min(resultSize, maxResListLen);
-            reslens[thread_idx]->emplace_back(resultSize);
+            if (Debug::debugLevel >= Debug::INFO) {
+                kmersPerPos += matcher.getStatistics()->kmersPerPos;
+                dbMatches += matcher.getStatistics()->dbMatches;
+                doubleMatches += matcher.getStatistics()->doubleMatches;
+                querySeqLenSum += seq.L;
+                diagonalOverflow += matcher.getStatistics()->diagonalOverflow;
+                resSize += resultSize;
+                realResSize += std::min(resultSize, maxResListLen);
+                reslens[thread_idx]->emplace_back(resultSize);
+            }
         } // step end
     }
 
