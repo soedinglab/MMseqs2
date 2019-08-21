@@ -347,6 +347,18 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
         }
         delete[] tmpSize;
     } else if (accessType == LINEAR_ACCCESS) {
+        // do not sort if its already in correct order
+        bool isSortedByOffset = true;
+        size_t prevOffset = index[0].offset;
+        for (size_t i = 0; i < size; i++) {
+            isSortedByOffset &= (prevOffset <= index[i].offset);
+            prevOffset = index[i].offset;
+        }
+        if(isSortedByOffset == true && isSortedById == true){
+            accessType = NOSORT;
+            return;
+        }
+
         // sort the entries by the offset of the sequences
         std::pair<unsigned int, size_t> *sortForMapping = new std::pair<unsigned int, size_t>[size];
         id2local = new unsigned int[size];
