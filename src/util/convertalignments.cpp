@@ -488,50 +488,40 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         result.append(buffer, count);
                         break;
                     }
-                    case Parameters::FORMAT_ALIGNMENT_SAM:{
-                        // for TBLASTX
+                    case Parameters::FORMAT_ALIGNMENT_SAM: {
                         bool strand = res.qEndPos > res.qStartPos;
-
-                        if(isTranslatedSearch == true && targetNucs == true && queryNucs == true ){
-                            Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
-                            res.backtrace = newBacktrace;
-                        }
                         int rawScore = static_cast<int>(evaluer->computeRawScoreFromBitScore(res.score) + 0.5);
-
                         uint32_t mapq = -4.343 * log(exp(static_cast<double>(-rawScore)));
                         mapq = (uint32_t) (mapq + 4.99);
                         mapq = mapq < 254 ? mapq : 254;
-                        int start = std::min( res.qStartPos,  res.qEndPos);
-                        int end   = std::max( res.qStartPos,  res.qEndPos);
+                        int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t",  queryId.c_str(), (strand) ? 16: 0, targetId.c_str(), res.dbStartPos + 1, mapq);
+                        if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
+                            Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
+                            continue;
+                        }
+                        result.append(buffer, count);
+                        if (isTranslatedSearch == true && targetNucs == true && queryNucs == true) {
+                            Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
+                            result.append(newBacktrace);
+                            newBacktrace.clear();
 
-                        std::string queryStr;
-                        if (queryProfile) {
-                            queryStr = std::string(queryProfData.c_str() + start, (end + 1)-start);
                         } else {
-                            queryStr = std::string(querySeqData + start, (end + 1) - start);
+                            result.append(res.backtrace);
                         }
-
-                        int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t",  queryId.c_str(), (strand) ? 16: 0,
-                                             targetId.c_str(), res.dbStartPos + 1, mapq);
-
-                        if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
-                            Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
-                            continue;
-                        }
-                        result.append(buffer, count);
-                        result.append(res.backtrace.c_str());
                         result.append("\t*\t0\t0\t");
-                        result.append(queryStr.c_str());
-                        count = snprintf(buffer, sizeof(buffer), "\t*\tAS:i:%d\tNM:i:%d\n",  rawScore, missMatchCount);
+                        int start = std::min(res.qStartPos, res.qEndPos);
+                        int end   = std::max(res.qStartPos, res.qEndPos);
+                        if (queryProfile) {
+                            result.append(queryProfData.c_str() + start, (end + 1) - start);
+                        } else {
+                            result.append(querySeqData + start, (end + 1) - start);
+                        }
+                        count = snprintf(buffer, sizeof(buffer), "\t*\tAS:i:%d\tNM:i:%d\n", rawScore, missMatchCount);
                         if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
                             Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
                             continue;
                         }
                         result.append(buffer, count);
-                        newBacktrace.clear();
-
-
-
                         break;
                     }
 
