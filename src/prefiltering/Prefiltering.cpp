@@ -163,12 +163,6 @@ Prefiltering::Prefiltering(const std::string &queryDB,
     } else {
         tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tdbr->open(DBReader<unsigned int>::NOSORT);
-
-        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-            tdbr->readMmapedDataInMemory();
-            tdbr->mlock();
-        }
-
         templateDBIsIndex = false;
     }
 
