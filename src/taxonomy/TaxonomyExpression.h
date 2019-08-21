@@ -12,8 +12,9 @@ class TaxonomyExpression{
     struct TaxonomyTerm{
         unsigned int taxId;
         bool shouldBeAncestor;
-        TaxonomyTerm( unsigned int taxId, bool negaitve)
-                :taxId(taxId), shouldBeAncestor(negaitve){}
+        bool orTerm;
+        TaxonomyTerm( unsigned int taxId, bool negaitve, bool orTerm)
+                :taxId(taxId), shouldBeAncestor(negaitve), orTerm(orTerm){}
     };
     std::vector<std::vector<TaxonomyTerm>> taxTerms;
 
@@ -21,6 +22,8 @@ public:
     TaxonomyExpression(std::string expression){
         bool inBracket = false;
         bool shouldBeAncestor = true;
+        bool isOr = false;
+        bool isAnd = false;
         unsigned int taxId;
         std::vector<TaxonomyTerm> term;
         for(size_t pos = 0; pos < expression.size(); pos++){
@@ -33,16 +36,42 @@ public:
                     inBracket = true;
                     break;
                 case ')':
+                    if(inBracket == false){
+                        Debug(Debug::ERROR) << "Error in expression " << expression << " closes a bracket without opening it\n";
+                        EXIT(EXIT_FAILURE);
+                    }
                     inBracket = false;
                     break;
                 case '!':
                     shouldBeAncestor = false;
                     break;
                 case '&':
+                    if(inBracket == false){
+                        Debug(Debug::ERROR) << "It is not supported to use & without a bracket\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    if(isOr == true){
+                        Debug(Debug::ERROR) << "It is not supported to mix & and | \n";
+                        EXIT(EXIT_FAILURE);
+                    }
                     shouldBeAncestor = true;
+                    isAnd = true;
+                    break;
+                case '|':
+                    if(inBracket == false){
+                        Debug(Debug::ERROR) << "It is not supported to use | without a bracket\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    if(isAnd == true){
+                        Debug(Debug::ERROR) << "It is not supported to mix & and | \n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    isOr = true;
                     break;
                 case ',':
                     shouldBeAncestor = true;
+                    isOr = false;
+                    isAnd = false;
                     if(inBracket == false){
                         taxTerms.push_back(term);
                         term.clear();
@@ -66,7 +95,7 @@ public:
                         pos++;
                     }
                     pos--;
-                    term.emplace_back(taxId, shouldBeAncestor);
+                    term.emplace_back(taxId, shouldBeAncestor, isOr);
                     shouldBeAncestor = true;
                     break;
                 default:
@@ -76,15 +105,18 @@ public:
             }
         }
         taxTerms.push_back(term);
-
     }
 
     bool isAncestor(NcbiTaxonomy &taxonomy, std::vector<TaxonomyTerm> &termToCheck, unsigned int taxId){
         size_t ancestorCnt = 0;
         for (size_t j = 0; j < termToCheck.size(); ++j) {
-            ancestorCnt += (taxonomy.IsAncestor(termToCheck[j].taxId, taxId) == termToCheck[j].shouldBeAncestor);
+                ancestorCnt += (taxonomy.IsAncestor(termToCheck[j].taxId, taxId) == termToCheck[j].shouldBeAncestor);
         }
-        return (ancestorCnt == termToCheck.size());
+        if(termToCheck.back().orTerm){
+            return (ancestorCnt >= 1);
+        }else{
+            return (ancestorCnt == termToCheck.size());
+        }
     }
     // this function returns the index of the term that fulfils the criteria
     // -1 means no term fulfils the criteria

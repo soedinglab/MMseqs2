@@ -80,6 +80,41 @@ int main (int, const char**) {
     }
 
 
+    TaxonomyExpression expression5("!2759");
+
+    if(expression5.isAncestorOf(*taxonomy, 2) == 0){
+        std::cout << "Found Bacteria" << std::endl;
+    } else{
+        assert(false);
+    }
+
+    if(expression5.isAncestorOf(*taxonomy, 2759) == -1){
+        std::cout << "Eukaryota not in" << std::endl;
+    } else{
+        assert(false);
+    }
+
+
+    TaxonomyExpression expression6("(2|2759)");
+
+    if(expression6.isAncestorOf(*taxonomy, 2) == 0){
+        std::cout << "Found Bacteria" << std::endl;
+    } else{
+        assert(false);
+    }
+
+    if(expression6.isAncestorOf(*taxonomy, 2759) == 0){
+        std::cout << "Found Eukaryota" << std::endl;
+    } else{
+        assert(false);
+    }
+
+    if(expression6.isAncestorOf(*taxonomy, 10239) == -1){
+        std::cout << "Virus sample not in" << std::endl;
+    } else{
+        assert(false);
+    }
+
     delete taxonomy;
 }
 
