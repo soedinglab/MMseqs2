@@ -72,11 +72,16 @@ Compiling MMseqs2 from source has the advantage that it will be optimized to the
                 
         
 ## Easy workflows 
-We provide `easy` workflows to search and cluster. The `easy-search` searches directly with a FASTA/FASTQ files against a either another FASTA/FASTQ file or an already existing MMseqs2 database.
+We provide `easy` workflows to search, taxonomy and cluster. The `easy-search` searches directly with a FASTA/FASTQ files against a either another FASTA/FASTQ file or an already existing MMseqs2 database.
         
+        mmseqs easy-search examples/QUERY.fasta DB.fasta alnRes tmp 
+ 
+It is also possible to precompute the index for the target database:
+
         mmseqs createdb examples/DB.fasta targetDB
+        mmseqs createindex targetDB tmp
         mmseqs easy-search examples/QUERY.fasta targetDB alnRes tmp 
-        
+
 For clustering, MMseqs2 `easy-cluster` and `easy-linclust` are available.
 
 `easy-cluster` by default clusters the entries of a FASTA/FASTQ file using a cascaded clustering algorithm.
