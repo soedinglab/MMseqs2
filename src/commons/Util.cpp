@@ -441,6 +441,10 @@ char Util::touchMemory(const char *memory, size_t size) {
         Debug(Debug::ERROR) << "posix_madvise returned an error (touchMemory)\n";
     }
 #endif
+    if(size > Util::getTotalSystemMemory()){
+        Debug(Debug::WARNING) << "Can not touch " << size << " into main memory\n";
+        return 0;
+    }
     size_t pageSize = getPageSize();
 //    Debug::Progress progress(size/pageSize);
     size_t fourTimesPageSize = 4*pageSize;
