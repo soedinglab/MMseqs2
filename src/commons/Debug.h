@@ -230,7 +230,7 @@ public:
                 }else{
                     float progress = (totalEntries==1) ? 1.0 : (static_cast<float>(id) / static_cast<float>(totalEntries-1));
                     float prevPrintedProgress = (totalEntries==1) ? 0.0 : (static_cast<float>(prevPrintedId) / static_cast<float>(totalEntries-1));
-                    if(progress-prevPrintedProgress > 0.001 || id == (totalEntries - 1)  || id == 0 ){
+                    if(progress-prevPrintedProgress > 0.01 || id == (totalEntries - 1)  || id == 0 ){
                         std::string line;
                         line.push_back('[');
                         int pos = BARWIDTH * progress;
