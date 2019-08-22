@@ -179,7 +179,10 @@ public:
     }
 
     Index* getIndex(size_t id) {
-        return index + local2id[id];
+        if (local2id != NULL) {
+            return index + local2id[id];
+        }
+        return index + id;
     }
 
 

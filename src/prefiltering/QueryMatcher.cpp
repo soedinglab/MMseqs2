@@ -29,6 +29,7 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
                            short kmerThr, int kmerSize, size_t dbSize,
                            unsigned int maxSeqLen, size_t maxHitsPerQuery, bool aaBiasCorrection,
                            bool diagonalScoring, unsigned int minDiagScoreThr, bool takeOnlyBestKmer)
+                            : idx(indexTable->getAlphabetSize(), kmerSize)
 {
     this->kmerSubMat = kmerSubMat;
     this->ungappedAlignmentSubMat = ungappedAlignmentSubMat;
@@ -182,7 +183,6 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     size_t seqListSize;
     unsigned short indexStart = 0;
     unsigned short indexTo = 0;
-    Indexer idx(indexTable->getAlphabetSize(), kmerSize);
     const int xIndex = kmerSubMat->aa2int[(int)'X'];
 
     while(seq->hasNextKmer()){

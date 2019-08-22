@@ -137,7 +137,6 @@ s_align SmithWaterman::ssw_align (
 		const int covMode, const float covThr,
 		const int32_t maskLen) {
 
-	alignment_end* bests = 0, *bests_reverse = 0;
 	int32_t word = 0, query_length = profile->query_length;
 	int32_t band_width = 0;
 	cigar* path;
@@ -150,15 +149,16 @@ s_align SmithWaterman::ssw_align (
 	//	fprintf(stderr, "When maskLen < 15, the function ssw_align doesn't return 2nd best alignment information.\n");
 	//}
 
-	// Find the alignment scores and ending positions
+    std::pair<alignment_end, alignment_end> bests;
+    std::pair<alignment_end, alignment_end> bests_reverse;
+    // Find the alignment scores and ending positions
 	if (profile->profile_byte) {
 		bests = sw_sse2_byte(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_byte, -1, profile->bias, maskLen);
 
-		if (profile->profile_word && bests[0].score == 255) {
-			free(bests);
+		if (profile->profile_word && bests.first.score == 255) {
 			bests = sw_sse2_word(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_word, -1, maskLen);
 			word = 1;
-		} else if (bests[0].score == 255) {
+		} else if (bests.first.score == 255) {
 			fprintf(stderr, "Please set 2 to the score_size parameter of the function ssw_init, otherwise the alignment results will be incorrect.\n");
 			EXIT(EXIT_FAILURE);
 		}
@@ -169,18 +169,17 @@ s_align SmithWaterman::ssw_align (
 		fprintf(stderr, "Please call the function ssw_init before ssw_align.\n");
 		EXIT(EXIT_FAILURE);
 	}
-	r.score1 = bests[0].score;
-	r.dbEndPos1 = bests[0].ref;
-	r.qEndPos1 = bests[0].read;
+	r.score1 = bests.first.score;
+	r.dbEndPos1 = bests.first.ref;
+	r.qEndPos1 = bests.first.read;
 
 	if (maskLen >= 15) {
-		r.score2 = bests[1].score;
-		r.ref_end2 = bests[1].ref;
+		r.score2 = bests.second.score;
+		r.ref_end2 = bests.second.ref;
 	} else {
 		r.score2 = 0;
 		r.ref_end2 = -1;
 	}
-    free(bests);
 
     // need to be defined before goto end
     int32_t queryOffset;
@@ -224,13 +223,13 @@ s_align SmithWaterman::ssw_align (
 		bests_reverse = sw_sse2_word(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_word,
 									 r.score1, maskLen);
 	}
-	if(bests_reverse->score != r.score1){
+	if(bests_reverse.first.score != r.score1){
 		fprintf(stderr, "Score of forward/backward SW differ. This should not happen.\n");
 		EXIT(EXIT_FAILURE);
 	}
 
-	r.dbStartPos1 = bests_reverse[0].ref;
-	r.qStartPos1 = r.qEndPos1 - bests_reverse[0].read;
+	r.dbStartPos1 = bests_reverse.first.ref;
+	r.qStartPos1 = r.qEndPos1 - bests_reverse.first.read;
 
     if (r.dbStartPos1 == -1) {
         fprintf(stderr, "Target start position is -1. This should not happen.\n");
@@ -240,7 +239,6 @@ s_align SmithWaterman::ssw_align (
 	r.qCov = computeCov(r.qStartPos1, r.qEndPos1, query_length);
 	r.tCov = computeCov(r.dbStartPos1, r.dbEndPos1, db_length);
 	hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
-	free(bests_reverse);
 	if (alignmentMode == 1 || hasLowerCoverage) // just start and end point are needed
 		goto end;
 
@@ -301,7 +299,7 @@ uint32_t SmithWaterman::cigar_int_to_len (uint32_t cigar_int)
 	return res;
 }
 
-SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequence,
+std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWaterman::sw_sse2_byte (const int* db_sequence,
 														   int8_t ref_dir,	// 0: forward ref; 1: reverse ref
 														   int32_t db_length,
 														   int32_t query_length,
@@ -497,38 +495,39 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 	}
 
 	/* Find the most possible 2nd best alignment. */
-	alignment_end* bests = (alignment_end*) calloc(2, sizeof(alignment_end));
-	bests[0].score = max + bias >= 255 ? 255 : max;
-	bests[0].ref = end_db;
-	bests[0].read = end_query;
+	alignment_end best0;
+    best0.score = max + bias >= 255 ? 255 : max;
+    best0.ref = end_db;
+    best0.read = end_query;
 
-	bests[1].score = 0;
-	bests[1].ref = 0;
-	bests[1].read = 0;
+    alignment_end best1;
+    best1.score = 0;
+    best1.ref = 0;
+    best1.read = 0;
 
 	edge = (end_db - maskLen) > 0 ? (end_db - maskLen) : 0;
 	for (i = 0; i < edge; i ++) {
 		//			fprintf (stderr, "maxColumn[%d]: %d\n", i, maxColumn[i]);
-		if (maxColumn[i] > bests[1].score) {
-			bests[1].score = maxColumn[i];
-			bests[1].ref = i;
+		if (maxColumn[i] > best1.score) {
+            best1.score = maxColumn[i];
+            best1.ref = i;
 		}
 	}
 	edge = (end_db + maskLen) > db_length ? db_length : (end_db + maskLen);
 	for (i = edge + 1; i < db_length; i ++) {
 		//			fprintf (stderr, "db_length: %d\tmaxColumn[%d]: %d\n", db_length, i, maxColumn[i]);
-		if (maxColumn[i] > bests[1].score) {
-			bests[1].score = maxColumn[i];
-			bests[1].ref = i;
+		if (maxColumn[i] > best1.score) {
+            best1.score = maxColumn[i];
+            best1.ref = i;
 		}
 	}
 
-	return bests;
+	return std::make_pair(best0, best1);
 #undef max16
 }
 
 
-SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequence,
+std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWaterman::sw_sse2_word (const int* db_sequence,
 														   int8_t ref_dir,	// 0: forward ref; 1: reverse ref
 														   int32_t db_length,
 														   int32_t query_lenght,
@@ -674,31 +673,32 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
 	}
 
 	/* Find the most possible 2nd best alignment. */
-	SmithWaterman::alignment_end* bests = (alignment_end*) calloc(2, sizeof(alignment_end));
-	bests[0].score = max;
-	bests[0].ref = end_ref;
-	bests[0].read = end_read;
+	alignment_end best0;
+    best0.score = max;
+    best0.ref = end_ref;
+    best0.read = end_read;
 
-	bests[1].score = 0;
-	bests[1].ref = 0;
-	bests[1].read = 0;
+    alignment_end best1;
+    best1.score = 0;
+    best1.ref = 0;
+    best1.read = 0;
 
 	edge = (end_ref - maskLen) > 0 ? (end_ref - maskLen) : 0;
 	for (i = 0; i < edge; i ++) {
-		if (maxColumn[i] > bests[1].score) {
-			bests[1].score = maxColumn[i];
-			bests[1].ref = i;
+		if (maxColumn[i] > best1.score) {
+            best1.score = maxColumn[i];
+            best1.ref = i;
 		}
 	}
 	edge = (end_ref + maskLen) > db_length ? db_length : (end_ref + maskLen);
 	for (i = edge; i < db_length; i ++) {
-		if (maxColumn[i] > bests[1].score) {
-			bests[1].score = maxColumn[i];
-			bests[1].ref = i;
+		if (maxColumn[i] > best1.score) {
+            best1.score = maxColumn[i];
+            best1.ref = i;
 		}
 	}
 
-	return bests;
+	return std::make_pair(best0, best1);
 #undef max8
 }
 

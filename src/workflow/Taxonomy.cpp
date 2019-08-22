@@ -5,7 +5,6 @@
 #include "CommandCaller.h"
 #include "taxonomy.sh.h"
 
-
 void setTaxonomyDefaults(Parameters *p) {
     p->spacedKmer = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
@@ -15,11 +14,21 @@ void setTaxonomyDefaults(Parameters *p) {
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
 }
+void setTaxonomyMustPassAlong(Parameters *p) {
+    p->PARAM_SPACED_KMER_MODE.wasSet = true;
+    p->PARAM_ALIGNMENT_MODE.wasSet = true;
+    p->PARAM_S.wasSet = true;
+    p->PARAM_E.wasSet = true;
+    p->PARAM_ORF_START_MODE.wasSet = true;
+    p->PARAM_ORF_MIN_LENGTH.wasSet = true;
+    p->PARAM_ORF_MAX_LENGTH.wasSet = true;
+}
 
 int taxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setTaxonomyDefaults(&par);
     par.parseParameters(argc, argv, command, true, 0, 0);
+    setTaxonomyMustPassAlong(&par);
 
     std::string tmpDir = par.db4;
     std::string hash = SSTR(par.hashParameter(par.filenames, par.taxonomy));

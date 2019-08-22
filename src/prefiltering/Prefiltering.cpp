@@ -162,13 +162,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         }
     } else {
         tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        tdbr->open(DBReader<unsigned int>::NOSORT);
-
-        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-            tdbr->readMmapedDataInMemory();
-            tdbr->mlock();
-        }
-
+        tdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
         templateDBIsIndex = false;
     }
 
@@ -859,14 +853,16 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                 notEmpty[id - queryFrom] = 1;
             }
 
-            kmersPerPos += matcher.getStatistics()->kmersPerPos;
-            dbMatches += matcher.getStatistics()->dbMatches;
-            doubleMatches += matcher.getStatistics()->doubleMatches;
-            querySeqLenSum += seq.L;
-            diagonalOverflow += matcher.getStatistics()->diagonalOverflow;
-            resSize += resultSize;
-            realResSize += std::min(resultSize, maxResListLen);
-            reslens[thread_idx]->emplace_back(resultSize);
+            if (Debug::debugLevel >= Debug::INFO) {
+                kmersPerPos += matcher.getStatistics()->kmersPerPos;
+                dbMatches += matcher.getStatistics()->dbMatches;
+                doubleMatches += matcher.getStatistics()->doubleMatches;
+                querySeqLenSum += seq.L;
+                diagonalOverflow += matcher.getStatistics()->diagonalOverflow;
+                resSize += resultSize;
+                realResSize += std::min(resultSize, maxResListLen);
+                reslens[thread_idx]->emplace_back(resultSize);
+            }
         } // step end
     }
 
@@ -1027,7 +1023,7 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
     size_t dbSizeSplit = (dbSize) / split;
     size_t residueSize = (resSize / split * 7);
     // 21^7 * pointer size is needed for the index
-    size_t indexTableSize = static_cast<size_t>(pow(alphabetSize, kmerSize)) * sizeof(size_t *);
+    size_t indexTableSize = static_cast<size_t>(pow(alphabetSize, kmerSize)) * sizeof(size_t);
     // memory needed for the threads
     // This memory is an approx. for Countint32Array and QueryTemplateLocalFast
     size_t threadSize = threads * (
