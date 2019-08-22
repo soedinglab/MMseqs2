@@ -25,9 +25,6 @@ int extractframes(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    headerReader.open(DBReader<unsigned int>::NOSORT);
-
     DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     sequenceWriter.open();
 
@@ -63,8 +60,6 @@ int extractframes(int argc, const char **argv, const Command& command) {
             const char* data = reader.getData(i, thread_idx);
             size_t dataLength = reader.getSeqLens(i);
 
-            const char* header = headerReader.getData(i, thread_idx);
-            std::string headerAccession = Util::parseFastaHeader(header);
             size_t bufferLen;
             switch (forwardFrames){
                 case Orf::FRAME_1:
@@ -124,7 +119,6 @@ int extractframes(int argc, const char **argv, const Command& command) {
     }
     headerWriter.close(true);
     sequenceWriter.close(true);
-    headerReader.close();
     reader.close();
 
     // make identifiers stable
