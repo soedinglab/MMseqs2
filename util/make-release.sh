@@ -22,7 +22,7 @@ wget -O "mmseqs-linux-sse41.tar.gz" "https://mmseqs.com/archive/${COMMIT}/mmseqs
 wget -O "mmseqs-linux-avx2.tar.gz" "https://mmseqs.com/archive/${COMMIT}/mmseqs-linux-avx2.tar.gz"
 wget -O "mmseqs-win64.zip" "https://mmseqs.com/archive/${COMMIT}/mmseqs-win64.zip"
 wget -O "mmseqs-osx-sse41.tar.gz" "https://mmseqs.com/archive/${COMMIT}/mmseqs-osx-sse41.tar.gz"
-wget -O "mmseqs-osx-avx2.tar.gz" "mmseqs-osx-avx2.tar.gz"
+wget -O "mmseqs-osx-avx2.tar.gz" "https://mmseqs.com/archive/${COMMIT}/mmseqs-osx-avx2.tar.gz"
 wget -O "userguide.pdf" "https://mmseqs.com/archive/${COMMIT}/userguide.pdf"
 
 # create release tag 
@@ -84,4 +84,5 @@ github-release upload \
     --tag "${RELEASE_ID}" \
     --name "MMseqs2-Userguide.pdf" \
     --file userguide.pdf
+
 
