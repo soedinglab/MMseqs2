@@ -296,8 +296,9 @@ int ffindexFilter::runFilter(){
                 } else if (mode == JOIN_DB){
                     size_t newId = joinDB->getId(static_cast<unsigned int>(strtoul(columnValue, NULL, 10)));
                     size_t originalLength = strlen(lineBuffer);
-                    // Replace the last \n
-                    lineBuffer[originalLength - 1] = '\t';
+                    // add tab
+                    lineBuffer[originalLength] = '\t';
+                    originalLength++;
                     char* fullLine = joinDB->getData(newId, thread_idx);
                     // either append the full line (default mode):
                     if (columnToTake == -1) {
