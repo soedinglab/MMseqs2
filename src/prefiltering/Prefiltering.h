@@ -95,7 +95,7 @@ private:
     const bool includeIdentical;
     int preloadMode;
     const unsigned int threads;
-    const int compressed;
+    int compressed;
 
     bool runSplit(const std::string &resultDB, const std::string &resultDBIndex, size_t split, bool merge);
 

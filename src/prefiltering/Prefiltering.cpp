@@ -579,8 +579,9 @@ void Prefiltering::runAllSplits(const std::string &resultDB, const std::string &
 #ifdef HAVE_MPI
 void Prefiltering::runMpiSplits(const std::string &resultDB, const std::string &resultDBIndex, const std::string &localTmpPath) {
     if(compressed == true && splitMode == Parameters::TARGET_DB_SPLIT){
-            Debug(Debug::ERROR) << "The output of the prefilter cannot be compressed during target split mode. Please remove --compress.\n";
-            EXIT(EXIT_FAILURE);
+            Debug(Debug::WARNING) << "The output of the prefilter cannot be compressed during target split mode. "
+                                     "Prefilter result will not be compressed.\n";
+            compressed = false;
     }
 
     // if split size is great than nodes than we have to
@@ -683,8 +684,9 @@ int Prefiltering::runSplits(const std::string &resultDB, const std::string &resu
     bool hasResult = false;
     if (splitProcessCount > 1) {
         if(compressed == true && splitMode == Parameters::TARGET_DB_SPLIT){
-            Debug(Debug::ERROR) << "The output of the prefilter cannot be compressed during target split mode. Please remove --compress.\n";
-            EXIT(EXIT_FAILURE);
+            Debug(Debug::WARNING) << "The output of the prefilter cannot be compressed during target split mode. "
+                                     "Prefilter result will not be compressed.\n";
+            compressed = false;
         }
         // splits template database into x sequence steps
         std::vector<std::pair<std::string, std::string> > splitFiles;
