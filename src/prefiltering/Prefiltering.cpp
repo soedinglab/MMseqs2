@@ -1033,8 +1033,9 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
             + (dbSizeSplit * sizeof(CounterResult)) // databaseHits in QueryMatcher
             + (maxResListLen * sizeof(hit_t))
             + (dbSizeSplit * 2 * sizeof(CounterResult) * 2) // BINS * binSize, (binSize = dbSize * 2 / BINS)
-            // 2 is a security factor the size can increase during run
+              // 2 is a security factor the size can increase during run
     );
+    size_t dbReaderSize = dbSize * (sizeof(DBReader<unsigned int>::Index) + sizeof(unsigned int)); // DB index size
 
     // extended matrix
     size_t extendedMatrix = 0;
@@ -1045,7 +1046,7 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
     // some memory needed to keep the index, ....
     size_t background = dbSize * 22;
     // return result in bytes
-    return residueSize + indexTableSize + threadSize + background + extendedMatrix;
+    return residueSize + indexTableSize + threadSize + background + extendedMatrix + dbReaderSize;
 }
 
 size_t Prefiltering::estimateHDDMemoryConsumption(size_t dbSize, size_t maxResListLen) {
@@ -1074,7 +1075,7 @@ std::pair<int, int> Prefiltering::optimizeSplit(size_t totalMemoryInByte, DBRead
                 aaUpperBoundForKmerSize = IndexTable::getUpperBoundAACountForKmerSize(optKmerSize);
             }
         }
-        for (int optSplit = 1; optSplit < 100; optSplit++) {
+        for (int optSplit = 1; optSplit < 1000; optSplit++) {
             if ((tdbr->getAminoAcidDBSize() / optSplit) < aaUpperBoundForKmerSize) {
                 size_t neededSize = estimateMemoryConsumption(optSplit, tdbr->getSize(),
                                                               tdbr->getAminoAcidDBSize(),
