@@ -806,7 +806,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
             // get query sequence
             char *seqData = qdbr->getData(id, thread_idx);
             unsigned int qKey = qdbr->getDbKey(id);
-            seq.mapSequence(id, qKey, seqData);
+            seq.mapSequence(id, qKey, seqData, qdbr->getSeqLen(id));
             size_t targetSeqId = UINT_MAX;
             if (sameQTDB || includeIdentical) {
                 targetSeqId = tdbr->getId(seq.getDbKey());
@@ -824,7 +824,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
             // calculate prefiltering results
             std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId);
             size_t resultSize = prefResults.second;
-            const float queryLength = static_cast<float>(qdbr->getSeqLens(id));
+            const float queryLength = static_cast<float>(qdbr->getSeqLen(id));
             for (size_t i = 0; i < resultSize; i++) {
                 hit_t *res = prefResults.first + i;
                 // correct the 0 indexed sequence id again to its real identifier
@@ -837,7 +837,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
 
                 // TODO: check if this should happen when diagonalScoring == false
                 if (covThr > 0.0 && (covMode == Parameters::COV_MODE_BIDIRECTIONAL || covMode == Parameters::COV_MODE_QUERY)) {
-                    const float targetLength = static_cast<float>(tdbr->getSeqLens(targetSeqId1));
+                    const float targetLength = static_cast<float>(tdbr->getSeqLen(targetSeqId1));
                     if (Util::canBeCovered(covThr, covMode, queryLength, targetLength) == false) {
                         continue;
                     }

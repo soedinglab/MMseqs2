@@ -105,7 +105,7 @@ void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
 #pragma omp for schedule(static)
         for (size_t id = 0; id < dbr.getSize(); id++) {
             char *data = dbr.getData(id, thread_idx);
-            size_t length = dbr.getSeqLens(id);
+            size_t length = dbr.getEntryLen(id);
             writeData(data, (length == 0 ? 0 : length - 1), dbr.getDbKey(id), thread_idx);
         }
     };

@@ -125,7 +125,7 @@ public:
         std::sort(genesPositions.begin(), genesPositions.end(), compareByStart());
 
         // TODO: Get size for whole genome (multiple contigs, proteines etc.)
-        double genomeSize = (targetSourceReader->getSeqLens(targetSourceReader->getId(targetSetKey)) - 2);
+        double genomeSize = (targetSourceReader->getSeqLen(targetSourceReader->getId(targetSetKey)));
         double rate = ((double) hitsUnderThreshold) / genomeSize;
 
         std::string buffer;

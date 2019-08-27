@@ -196,29 +196,29 @@ std::pair<const char *, unsigned int> Sequence::parseSpacedPattern(unsigned int 
     return std::make_pair<const char *, unsigned int>((const char *) pattern, spacedKmerPattern.size());
 }
 
-void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence) {
+void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence, unsigned int dataLen) {
     this->id = id;
     this->dbKey = dbKey;
     this->seqData = sequence;
     if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_AMINO_ACIDS) || Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        mapSequence(sequence);
+        mapSequence(sequence, dataLen);
     } else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_HMM_PROFILE)) {
-        mapProfile(sequence, true);
+        mapProfile(sequence, true, dataLen);
     } else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
-        mapProfileStateSequence(sequence);
+        mapProfileStateSequence(sequence, dataLen);
     }else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
         switch(subMat->alphabetSize) {
             case 8:
-                mapProfileState<8>(sequence);
+                mapProfileState<8>(sequence, dataLen);
                 break;
             case 32:
-                mapProfileState<32>(sequence);
+                mapProfileState<32>(sequence, dataLen);
                 break;
             case 219:
-                mapProfileState<219>(sequence);
+                mapProfileState<219>(sequence, dataLen);
                 break;
             case 255:
-                mapProfileState<255>(sequence);
+                mapProfileState<255>(sequence, dataLen);
                 break;
             default:
                 Debug(Debug::ERROR) << "Invalid alphabet size type!\n";
@@ -250,11 +250,11 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
     currItPos = -1;
 }
 
-void Sequence::mapProfileStateSequence(const char * sequence){
+void Sequence::mapProfileStateSequence(const char * sequence, unsigned int dataSize){
     size_t l = 0;
     size_t pos = 0;
     unsigned char curr = sequence[pos];
-    while (curr != '\0'){
+    while (curr != '\0' && l < dataSize){
 
         this->int_sequence[l]  = curr - 1;
 
@@ -271,15 +271,14 @@ void Sequence::mapProfileStateSequence(const char * sequence){
 
 
 
-void Sequence::mapProfile(const char * sequence, bool mapScores){
+void Sequence::mapProfile(const char * sequence, bool mapScores, unsigned int dataSize){
     char * data = (char *) sequence;
     size_t currPos = 0;
     float scoreBias = 0.0;
     // if no data exists
     {
         size_t l = 0;
-        while (data[currPos] != '\0'){
-
+        while (data[currPos] != '\0' && l < dataSize){
             int nullCnt = 0;
             for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
                 // shift bytes back (avoids NULL byte)
@@ -373,8 +372,8 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
 
 
 template <int T>
-void Sequence::mapProfileState(const char * sequence){
-    mapProfile(sequence, false);
+void Sequence::mapProfileState(const char * sequence, unsigned int dataSize){
+    mapProfile(sequence, false, dataSize);
 
     SubstitutionMatrixProfileStates * profileStateMat = (SubstitutionMatrixProfileStates *) subMat;
     // compute avg. amino acid probability
@@ -477,10 +476,10 @@ void Sequence::nextProfileKmer() {
     }
 }
 
-void Sequence::mapSequence(const char * sequence){
+void Sequence::mapSequence(const char * sequence, unsigned int dataLen){
     size_t l = 0;
     char curr = sequence[l];
-    while (curr != '\0' && curr != '\n' &&  l < maxLen){
+    while (curr != '\0' && curr != '\n' && l < dataLen &&  l < maxLen){
         int intaa = subMat->aa2int[(int)curr];
         this->int_sequence[l] = intaa;
         l++;

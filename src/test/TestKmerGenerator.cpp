@@ -40,7 +40,7 @@ int main (int, const char**) {
     const char* sequence = "PATWPCLVALG";
     std::cout << sequence << "\n\n";
     Sequence* s = new Sequence(10000, Parameters::DBTYPE_AMINO_ACIDS, &subMat, kmer_size, false, false);
-    s->mapSequence(0,0,sequence);
+    s->mapSequence(0,0,sequence, strlen(sequence));
 
     KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,161);
     kmerGen.setDivideStrategy(&extMatthree, &extMattwo);

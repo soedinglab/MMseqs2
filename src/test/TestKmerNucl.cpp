@@ -29,7 +29,7 @@ int main (int, const char**) {
     const char* sequence = "GATACAGATACAGATACAGATACA";
     std::cout << sequence << "\n";
     Sequence* s = new Sequence(10000, Parameters::DBTYPE_NUCLEOTIDES, &subMat, kmer_size, false, false);
-    s->mapSequence(0, 0, sequence);
+    s->mapSequence(0, 0, sequence, strlen(sequence));
 
     size_t i = 0;
     while (s->hasNextKmer()) {

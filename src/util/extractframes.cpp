@@ -58,7 +58,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
 
             unsigned int key = reader.getDbKey(i);
             const char* data = reader.getData(i, thread_idx);
-            size_t dataLength = reader.getSeqLens(i);
+            size_t dataLength = reader.getEntryLen(i);
 
             size_t bufferLen;
             switch (forwardFrames){
@@ -140,7 +140,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
                 for (size_t i = 0; i < frameHeaderReader.getSize(); i++) {
                     DBReader<unsigned int>::Index *idx = frameHeaderReader.getIndex(i);
                     char buffer[1024];
-                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, frameHeaderReader.getSeqLens(i));
+                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, frameHeaderReader.getEntryLen(i));
                     int written = fwrite(buffer, sizeof(char), len, hIndex);
                     if (written != (int) len) {
                         Debug(Debug::ERROR) << "Can not write to data file " << par.hdr2Index << "_tmp\n";
@@ -168,7 +168,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
                 for (size_t i = 0; i < frameSequenceReader.getSize(); i++) {
                     DBReader<unsigned int>::Index *idx = (frameSequenceReader.getIndex(i));
                     char buffer[1024];
-                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, frameSequenceReader.getSeqLens(i));
+                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, frameSequenceReader.getEntryLen(i));
                     int written = fwrite(buffer, sizeof(char), len, sIndex);
                     if (written != (int) len) {
                         Debug(Debug::ERROR) << "Can not write to data file " << par.db2Index << "_tmp\n";

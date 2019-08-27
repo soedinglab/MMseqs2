@@ -19,11 +19,11 @@ int main (int, const char**) {
 
     const char *ref = "GKILII";
     Sequence refSeq(1000,  0, &subMat, kmer_size, false, true);
-    refSeq.mapSequence(0, 0, ref);
+    refSeq.mapSequence(0, 0, ref, strlen(ref));
 
     const char *similar = "GKVLYL";
     Sequence similarSeq(1000, 0, &subMat, kmer_size, false, true);
-    similarSeq.mapSequence(0, 1, similar);
+    similarSeq.mapSequence(0, 1, similar, strlen(similar));
 
 
     short score = 0;

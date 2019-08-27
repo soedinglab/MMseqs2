@@ -69,7 +69,7 @@ int translateaa(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < reader.getSize(); ++i) {
             unsigned int key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
-            aaSequence.mapSequence(0, key, data);
+            aaSequence.mapSequence(0, key, data, reader.getSeqLen(i));
 
             // ignore null char at the end
             for (int pos = 0; pos < aaSequence.L; ++pos) {

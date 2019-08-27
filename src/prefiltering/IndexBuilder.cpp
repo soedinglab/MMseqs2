@@ -126,7 +126,8 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
             s.resetCurrPos();
             char *seqData = dbr->getData(id, thread_idx);
             unsigned int qKey = dbr->getDbKey(id);
-            s.mapSequence(id - dbFrom, qKey, seqData);
+
+            s.mapSequence(id - dbFrom, qKey, seqData, dbr->getSeqLen(id));
 
             // count similar or exact k-mers based on sequence type
             if (isProfile) {
@@ -247,7 +248,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 
             unsigned int qKey = dbr->getDbKey(id);
             if (isProfile) {
-                s.mapSequence(id - dbFrom, qKey, dbr->getData(id, thread_idx));
+                s.mapSequence(id - dbFrom, qKey, dbr->getData(id, thread_idx), dbr->getSeqLen(id));
                 indexTable->addSimilarSequence(&s, generator, &idxer);
             } else {
                 s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id - dbFrom));
@@ -264,7 +265,6 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     if(idScoreLookup!=NULL){
         delete[] idScoreLookup;
     }
-
-    indexTable->sortDBSeqLists();
     indexTable->revertPointer();
+    indexTable->sortDBSeqLists();
 }

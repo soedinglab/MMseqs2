@@ -55,7 +55,7 @@ std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithm
 #pragma omp for schedule(dynamic, 10)
             for (size_t i = 0; i < alnDbr->getSize(); i++) {
                 const char *data = alnDbr->getData(i, thread_idx);
-                const size_t dataSize = alnDbr->getSeqLens(i);
+                const size_t dataSize = alnDbr->getEntryLen(i);
                 elementCount += Util::countLines(data, dataSize);
             }
         }
@@ -410,7 +410,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
             const unsigned int clusterId = seqDbr->getDbKey(i);
             const size_t alnId = alnDbr->getId(clusterId);
             const char *data = alnDbr->getData(alnId, thread_idx);
-            const size_t dataSize = alnDbr->getSeqLens(alnId);
+            const size_t dataSize = alnDbr->getEntryLen(alnId);
             elementOffsets[i] = Util::countLines(data, dataSize);
         }
     }

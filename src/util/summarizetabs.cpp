@@ -146,7 +146,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
             unsigned int id = blastTabReader.getDbKey(i);
 
             char *tabData = blastTabReader.getData(i, thread_idx);
-            size_t tabLength = blastTabReader.getSeqLens(i) - 1;
+            size_t tabLength = blastTabReader.getEntryLen(i) - 1;
             const std::vector<Domain> entries = getEntries(id, tabData, tabLength, lengths);
             if (entries.size() == 0) {
                 Debug(Debug::WARNING) << "Can not map any entries for entry " << id << "!\n";

@@ -27,7 +27,7 @@ void renumberIdsInIndexByOffsetOrder(char * dataName, char * indexName) {
     for (unsigned int id = 0; id < reader.getSize(); id++) {
         DBReader<unsigned int>::Index *idx = reader.getIndex(id);
         idx->id = id;
-        DBWriter::writeIndexEntryToFile(indexFile, buffer, *idx, reader.getSeqLens(id));
+        DBWriter::writeIndexEntryToFile(indexFile, buffer, *idx, reader.getEntryLen(id));
     }
 
     fclose(indexFile);

@@ -96,7 +96,9 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
             progress.updateProgress();
             char *querySeqData = qdbr.getData(id, thread_idx);
             size_t queryKey = qdbr.getDbKey(id);
-            qSeq.mapSequence(id, queryKey, querySeqData);
+            unsigned int querySeqLen = qdbr.getSeqLen(id);
+
+            qSeq.mapSequence(id, queryKey, querySeqData, querySeqLen);
 //            qSeq.printProfileStatePSSM();
             if(Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE) ||
                Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
@@ -109,7 +111,8 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
                 unsigned int targetKey = tdbr->getDbKey(tId);
                 const bool isIdentity = (queryKey == targetKey && (par.includeIdentity || sameDB))? true : false;
                 char * targetSeq = tdbr->getData(tId, thread_idx);
-                tSeq.mapSequence(tId, targetKey, targetSeq);
+                unsigned int targetSeqLen = tdbr->getSeqLen(tId);
+                tSeq.mapSequence(tId, targetKey, targetSeq, targetSeqLen);
 //                tSeq.print();
                 float queryLength = qSeq.L;
                 float targetLength = tSeq.L;

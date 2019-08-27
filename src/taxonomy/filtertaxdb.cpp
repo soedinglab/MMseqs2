@@ -46,7 +46,7 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
 
             unsigned int key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
-            size_t length = reader.getSeqLens(i);
+            size_t length = reader.getEntryLen(i);
 
             if (length == 1) {
                 continue;

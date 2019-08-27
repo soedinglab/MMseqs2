@@ -159,7 +159,7 @@ void updateLengths(std::vector<Matcher::result_t> &results, unsigned int qSource
         }
         if (tSourceDbr != NULL) {
             size_t targetId = tSourceDbr->sequenceReader->getId(res.dbKey);
-            res.dbLen = std::max(tSourceDbr->sequenceReader->getSeqLens(targetId), static_cast<size_t>(2)) - 2;
+            res.dbLen = tSourceDbr->sequenceReader->getSeqLen(targetId);
         }
     }
 }
@@ -364,7 +364,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 }
                 if (qSourceDbr != NULL) {
                     size_t queryId = qSourceDbr->sequenceReader->getId(queryKey);
-                    qLen = std::max(qSourceDbr->sequenceReader->getSeqLens(queryId), static_cast<size_t>(2)) - 2;
+                    qLen = qSourceDbr->sequenceReader->getSeqLen(queryId);
                 }
                 unsigned int *orfKeys = &contigLookup[contigOffsets[i]];
                 size_t orfCount = contigOffsets[i + 1] - contigOffsets[i];
@@ -402,7 +402,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 queryKey = alnDbr.getDbKey(i);
                 if (qSourceDbr != NULL) {
                     size_t queryId = qSourceDbr->sequenceReader->getId(queryKey);
-                    qLen = std::max(qSourceDbr->sequenceReader->getSeqLens(queryId), static_cast<size_t>(2)) - 2;
+                    qLen = qSourceDbr->sequenceReader->getSeqLen(queryId);
                 }
                 char *data = alnDbr.getData(i, thread_idx);
                 updateOffset(data, results, NULL, *tOrfDbr, true, isNuclNuclSearch, thread_idx);

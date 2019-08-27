@@ -57,7 +57,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
             progress.updateProgress();
             unsigned int queryKey = seqDbr.getDbKey(id);
             char * data = seqDbr.getData(id, thread_idx);
-            seq.mapSequence(id, queryKey, data);
+            seq.mapSequence(id, queryKey, data, seqDbr.getSeqLen(id));
             size_t seqHash = Util::hash(seq.int_sequence, seq.L);
             hashSeqPair[id] = std::make_pair(seqHash, id);
         }
@@ -109,7 +109,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
                 pos++;
             }
             for(size_t i = 0; i < setIds.size(); i++) {
-                unsigned int queryLength = std::max(seqDbr.getSeqLens(setIds[i]), 3ul) - 2;
+                unsigned int queryLength = seqDbr.getSeqLen(setIds[i]);
                 const char * querySeq =  seqDbr.getData(setIds[i], thread_idx);
                 std::stringstream swResultsSs;
                 swResultsSs << seqDbr.getDbKey(setIds[i]) << "\t";
@@ -129,7 +129,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
                 for (size_t j = 0; j < setIds.size(); j++) {
                     if(found[j] == true)
                         continue;
-                    unsigned int targetLength = std::max(seqDbr.getSeqLens(setIds[j]), 3ul) - 2;
+                    unsigned int targetLength = seqDbr.getSeqLen(setIds[j]);
                     if(i != j && queryLength == targetLength){
                         const char * targetSeq = seqDbr.getData(setIds[j], thread_idx);
                         unsigned int distance = DistanceCalculator::computeInverseHammingDistance(querySeq, targetSeq,

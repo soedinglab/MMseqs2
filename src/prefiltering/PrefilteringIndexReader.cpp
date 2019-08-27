@@ -468,7 +468,7 @@ std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<unsigned
         return "";
     }
     const char *data = dbr->getData(key, 0);
-    size_t len = dbr->getSeqLens(key) - 1;
+    size_t len = dbr->getEntryLen(key) - 1;
     std::string matrixName;
     bool found = false;
     for (size_t pos = 0; pos < std::max(len, (size_t)4) - 4 && found == false; pos++) {

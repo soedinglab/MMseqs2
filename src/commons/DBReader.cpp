@@ -689,14 +689,6 @@ template <typename T> unsigned int* DBReader<T>::getSeqLens(){
     return seqLens;
 }
 
-template <typename T> size_t DBReader<T>::getSeqLens(size_t id){
-    if (id >= size){
-        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
-        Debug(Debug::ERROR) << "getSeqLens: local id (" << id << ") >= db size (" << size << ")\n";
-        EXIT(EXIT_FAILURE);
-    }
-    return seqLens[id];
-}
 
 template <typename T> size_t DBReader<T>::maxCount(char c) {
     checkClosed();

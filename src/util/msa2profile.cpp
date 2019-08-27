@@ -173,7 +173,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             bool fastaError = false;
 
             char *entryData = qDbr.getData(id, thread_idx);
-            size_t entryLength = qDbr.getSeqLens(id);
+            size_t entryLength = qDbr.getEntryLen(id);
 
             std::string msa;
             if (par.msaType == 0) {
@@ -244,7 +244,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                     headerWriter.writeData(header.c_str(), header.size(), queryKey, thread_idx);
                 }
 
-                sequence.mapSequence(0, 0, seq->seq.s);
+                sequence.mapSequence(0, 0, seq->seq.s, seq->seq.l);
                 msaSequences[setSize] = msaContent + msaPos;
 
                 size_t seqPos = 0;

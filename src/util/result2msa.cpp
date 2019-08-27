@@ -132,7 +132,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                 continue;
             }
 
-            centerSequence.mapSequence(0, queryKey, seqData);
+            centerSequence.mapSequence(0, queryKey, seqData, resultReader.getSeqLen(id));
             if (centerSequence.L)
             {
                 if(centerSequence.int_sequence[centerSequence.L-1] == 20) // remove last in it is a *
@@ -162,7 +162,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                 }
 
                 const size_t edgeId = tDbr->getId(key);
-                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), tDbr->getDbtype(), &subMat, 0, false, false);
+                Sequence *edgeSequence = new Sequence(tDbr->getSeqLen(edgeId), tDbr->getDbtype(), &subMat, 0, false, false);
 
 
                 char *dbSeqData = tDbr->getData(edgeId, thread_idx);
@@ -175,7 +175,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                         EXIT(EXIT_FAILURE);
                     }
                 }
-                edgeSequence->mapSequence(0, key, dbSeqData);
+                edgeSequence->mapSequence(0, key, dbSeqData, tDbr->getSeqLen(edgeId));
                 seqSet.push_back(edgeSequence);
 
                 results = Util::skipLine(results);

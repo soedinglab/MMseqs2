@@ -150,8 +150,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
             size_t queryId = qDbr->getId(queryKey);
 
-            char *dbSeqData = qDbr->getData(queryId, thread_idx);
-            if (dbSeqData == NULL) {
+            char *qSeqData = qDbr->getData(queryId, thread_idx);
+            if (qSeqData == NULL) {
 #pragma omp critical
                 {
                     Debug(Debug::ERROR) << "Sequence " << queryKey << " is required in the database,"
@@ -160,7 +160,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                     EXIT(EXIT_FAILURE);
                 }
             }
-            centerSequence.mapSequence(0, queryKey, dbSeqData);
+            centerSequence.mapSequence(0, queryKey, qSeqData, qDbr->getSeqLen(queryId));
 
             char *results = resultReader.getData(id, thread_idx);
             std::vector<Matcher::result_t> alnResults;
@@ -187,7 +187,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 }
                 if(hasInclusionEval){
                     const size_t edgeId = tDbr->getId(key);
-                    Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId),
+                    Sequence *edgeSequence = new Sequence(tDbr->getSeqLen(edgeId),
                                                           targetSeqType, &subMat, 0, false, false);
 
                     char *dbSeqData = tDbr->getData(edgeId, thread_idx);
@@ -200,7 +200,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                             EXIT(EXIT_FAILURE);
                         }
                     }
-                    edgeSequence->mapSequence(0, key, dbSeqData);
+                    edgeSequence->mapSequence(0, key, dbSeqData, tDbr->getSeqLen(edgeId));
 
                     seqSet.push_back(edgeSequence);
                 }

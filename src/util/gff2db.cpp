@@ -86,7 +86,7 @@ int gff2db(int argc, const char **argv, const Command& command) {
         }
 
         char* header = headerReader.getData(headerId, 0);
-        size_t headerLength = headerReader.getSeqLens(headerId);
+        size_t headerLength = headerReader.getEntryLen(headerId);
 
         char* body = reader.getDataByDBKey(name, 0);
 

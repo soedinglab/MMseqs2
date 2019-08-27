@@ -13,6 +13,7 @@
 #include "Sequence.h"
 #include "Parameters.h"
 #include "FileUtil.h"
+#include "Debug.h"
 
 #define ZSTD_STATIC_LINKING_ONLY // ZSTD_findDecompressedSize
 #include <zstd.h>
@@ -89,7 +90,33 @@ public:
 
     unsigned int * getSeqLens();
 
-    size_t getSeqLens(size_t id);
+    size_t getSeqLen(size_t id){
+        if (id >= size){
+            Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
+            Debug(Debug::ERROR) << "getSeqLen: local id (" << id << ") >= db size (" << size << ")\n";
+            EXIT(EXIT_FAILURE);
+        }
+        unsigned int remove = 0;
+        if(Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE ) ||
+           Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_PROFILE_STATE_PROFILE ) ){
+            remove = 1;
+        }else if(Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES ) ||
+                 Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_AMINO_ACIDS ) ||
+                 Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_PROFILE_STATE_SEQ ) ||
+                 Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_GENERIC_DB )  ) {
+            remove = 2;
+        }
+        return std::max(seqLens[id], remove) - remove;
+    }
+
+    size_t getEntryLen(size_t id){
+        if (id >= size){
+            Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
+            Debug(Debug::ERROR) << "getSeqLen: local id (" << id << ") >= db size (" << size << ")\n";
+            EXIT(EXIT_FAILURE);
+        }
+        return seqLens[id];
+    }
 
     size_t maxCount(char c);
 

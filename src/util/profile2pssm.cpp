@@ -49,7 +49,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
             result.clear();
 
             unsigned int key = profileReader.getDbKey(i);
-            seq.mapSequence(i, key, profileReader.getData(i, thread_idx));
+            seq.mapSequence(i, key, profileReader.getData(i, thread_idx), profileReader.getSeqLen(i));
 
             if (isDbOutput == false) {
                 result.append("Query profile of sequence ");

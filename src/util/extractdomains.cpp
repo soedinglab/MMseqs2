@@ -60,11 +60,11 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
     unsigned int qPos = qStart;
 
     Sequence qSeq(query.length() + 1, Parameters::DBTYPE_AMINO_ACIDS, &matrix, 0, false, false);
-    qSeq.mapSequence(0, 0, query.c_str());
+    qSeq.mapSequence(0, 0, query.c_str(), query.size());
 
     Sequence tSeq(target.length() + 1, Parameters::DBTYPE_AMINO_ACIDS, &matrix, 0, false, false);
 
-    tSeq.mapSequence(0, 0, target.c_str());
+    tSeq.mapSequence(0, 0, target.c_str(), target.size());
 
     for (unsigned int i = 0; i < (qEnd - qStart); ++i) {
         if (tPos >= tEnd) {
@@ -259,7 +259,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
 
 
             char *tabData = blastTabReader.getData(i, thread_idx);
-            size_t tabLength = blastTabReader.getSeqLens(i) - 1;
+            size_t tabLength = blastTabReader.getEntryLen(i) - 1;
             const std::vector<Domain> result = getEntries(std::string(tabData, tabLength));
             if (result.size() == 0) {
                 Debug(Debug::WARNING) << "Can not map any entries for entry " << id << "!\n";
@@ -267,7 +267,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
             }
 
             char *data = msaReader.getData(entry, thread_idx);
-            size_t entryLength = msaReader.getSeqLens(entry) - 1;
+            size_t entryLength = msaReader.getEntryLen(entry) - 1;
 
             std::string msa;
             switch (par.msaType) {

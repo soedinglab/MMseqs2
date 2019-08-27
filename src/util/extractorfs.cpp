@@ -70,9 +70,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
 
             unsigned int key = reader.getDbKey(i);
             const char* data = reader.getData(i, thread_idx);
-            size_t dataLength = reader.getSeqLens(i);
-            size_t sequenceLength = dataLength - 2;
-            if(!orf.setSequence(data, dataLength - 2)) {
+            if(!orf.setSequence(data, reader.getSeqLen(i))) {
                 Debug(Debug::WARNING) << "Invalid sequence with index " << i << "!\n";
                 continue;
             }
@@ -154,7 +152,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                 for (size_t i = 0; i < orfHeaderReader.getSize(); i++) {
                     DBReader<unsigned int>::Index *idx = orfHeaderReader.getIndex(i);
                     char buffer[1024];
-                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, orfHeaderReader.getSeqLens(i));
+                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, orfHeaderReader.getEntryLen(i));
                     int written = fwrite(buffer, sizeof(char), len, hIndex);
                     if (written != (int) len) {
                         Debug(Debug::ERROR) << "Could not write to data file " << par.hdr2Index << "_tmp\n";
@@ -181,7 +179,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                 for (size_t i = 0; i < orfSequenceReader.getSize(); i++) {
                     DBReader<unsigned int>::Index *idx = (orfSequenceReader.getIndex(i));
                     char buffer[1024];
-                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, orfSequenceReader.getSeqLens(i));
+                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, orfSequenceReader.getEntryLen(i));
                     int written = fwrite(buffer, sizeof(char), len, sIndex);
                     if (written != (int) len) {
                         Debug(Debug::ERROR) << "Could not write to data file " << par.db2Index << "_tmp\n";
