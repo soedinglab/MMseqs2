@@ -667,3 +667,52 @@ void DBWriter::writeThreadBuffer(unsigned int idx, size_t dataSize) {
         EXIT(EXIT_FAILURE);
     }
 }
+
+void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& lookupFile, int sortMode) {
+    DBReader<unsigned int>* lookupReader = NULL;
+    FILE *sLookup = NULL;
+    if (lookupFile.empty() == false) {
+        lookupReader = new DBReader<unsigned int>(lookupFile.c_str(), lookupFile.c_str(), 1, DBReader<unsigned int>::USE_LOOKUP);
+        lookupReader->open(DBReader<unsigned int>::NOSORT);
+        sLookup = FileUtil::openAndDelete((dataFile + ".lookup").c_str(), "w");
+    }
+
+    DBReader<unsigned int> reader(dataFile.c_str(), indexFile.c_str(), 1, DBReader<unsigned int>::USE_INDEX);
+    reader.open(sortMode);
+    std::string indexTmp = indexFile + "_tmp";
+    FILE *sIndex = FileUtil::openAndDelete(indexTmp.c_str(), "w");
+
+    char buffer[1024];
+    DBReader<unsigned int>::LookupEntry* lookup = NULL;
+    if (lookupReader != NULL) {
+        lookup = lookupReader->getLookup();
+    }
+    for (size_t i = 0; i < reader.getSize(); i++) {
+        DBReader<unsigned int>::Index *idx = (reader.getIndex(i));
+        size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, reader.getSeqLens(i));
+        int written = fwrite(buffer, sizeof(char), len, sIndex);
+        if (written != (int) len) {
+            Debug(Debug::ERROR) << "Can not write to data file " << indexFile << "_tmp\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (lookupReader != NULL) {
+            size_t lookupId = lookupReader->getLookupIdByKey(idx->id);
+            DBReader<unsigned int>::LookupEntry copy = lookup[lookupId];
+            copy.id = i;
+            len = lookupReader->lookupEntryToBuffer(buffer, copy);
+            written = fwrite(buffer, sizeof(char), len, sLookup);
+            if (written != (int) len) {
+                Debug(Debug::ERROR) << "Could not write to lookup file " << indexFile << "_tmp\n";
+                EXIT(EXIT_FAILURE);
+            }
+        }
+    }
+    fclose(sIndex);
+    reader.close();
+    std::rename(indexTmp.c_str(), indexFile.c_str());
+
+    if (lookupReader != NULL) {
+        fclose(sLookup);
+        lookupReader->close();
+    }
+}

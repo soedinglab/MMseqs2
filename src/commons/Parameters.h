@@ -375,6 +375,7 @@ public:
     std::string reverseFrames;
     bool useAllTableStarts;
     int translate;
+    int createLookup;
 
     // convertprofiledb
     int profileMode;
@@ -735,6 +736,7 @@ public:
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
     PARAMETER(PARAM_USE_ALL_TABLE_STARTS)
     PARAMETER(PARAM_TRANSLATE)
+    PARAMETER(PARAM_CREATE_LOOKUP)
 
     // indexdb
     PARAMETER(PARAM_CHECK_COMPATIBLE)

@@ -128,64 +128,13 @@ int extractframes(int argc, const char **argv, const Command& command) {
         {
 #pragma omp task
             {
-                DBReader<unsigned int> frameHeaderReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX);
-                frameHeaderReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
-                FILE *hIndex = fopen((par.hdr2Index + "_tmp").c_str(), "w");
-                if (hIndex == NULL) {
-                    Debug(Debug::ERROR) << "Can not open " << par.hdr2Index << "_tmp for writing!\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                for (size_t i = 0; i < frameHeaderReader.getSize(); i++) {
-                    DBReader<unsigned int>::Index *idx = frameHeaderReader.getIndex(i);
-                    char buffer[1024];
-                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, frameHeaderReader.getSeqLens(i));
-                    int written = fwrite(buffer, sizeof(char), len, hIndex);
-                    if (written != (int) len) {
-                        Debug(Debug::ERROR) << "Can not write to data file " << par.hdr2Index << "_tmp\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                }
-                fclose(hIndex);
-                frameHeaderReader.close();
-                std::rename((par.hdr2Index + "_tmp").c_str(), par.hdr2Index.c_str());
+                DBWriter::createRenumberedDB(par.hdr2, par.hdr2Index, "");
             }
 
 #pragma omp task
             {
-                DBReader<unsigned int> lookupReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_LOOKUP);
-                lookupReader.open(DBReader<unsigned int>::NOSORT);
-
-                DBReader<unsigned int> frameSequenceReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX);
-                frameSequenceReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
-
-                FILE *sIndex = FileUtil::openAndDelete((par.db2Index + "_tmp").c_str(), "w");
-                FILE *sLookup = FileUtil::openAndDelete((par.db2 + ".lookup").c_str(), "w");
-
-                char buffer[1024];
-                DBReader<unsigned int>::LookupEntry* lookup = lookupReader.getLookup();
-                for (size_t i = 0; i < frameSequenceReader.getSize(); i++) {
-                    DBReader<unsigned int>::Index *idx = (frameSequenceReader.getIndex(i));
-                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, frameSequenceReader.getSeqLens(i));
-                    int written = fwrite(buffer, sizeof(char), len, sIndex);
-                    if (written != (int) len) {
-                        Debug(Debug::ERROR) << "Can not write to data file " << par.db2Index << "_tmp\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    size_t lookupId = lookupReader.getLookupIdByKey(idx->id);
-                    DBReader<unsigned int>::LookupEntry copy = lookup[lookupId];
-                    copy.id = i;
-                    len = lookupReader.lookupEntryToBuffer(buffer, copy);
-                    written = fwrite(buffer, sizeof(char), len, sLookup);
-                    if (written != (int) len) {
-                        Debug(Debug::ERROR) << "Could not write to lookup file " << par.db2Index << "_tmp\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                }
-                fclose(sLookup);
-                fclose(sIndex);
-                frameSequenceReader.close();
-                std::rename((par.db2Index + "_tmp").c_str(), par.db2Index.c_str());
-                lookupReader.close();
+                std::string lookup = par.db1 + ".lookup";
+                DBWriter::createRenumberedDB(par.db2, par.db2Index, par.createLookup ? lookup : "");
             }
         }
     }
