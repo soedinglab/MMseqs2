@@ -16,8 +16,6 @@ KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 #include <omp.h>
 #endif
 
-#include <libgen.h>
-
 void setMsa2ProfileDefaults(Parameters *p) {
     p->msaType = 2;
     p->pca = 0.0;
@@ -114,23 +112,10 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(par.db2.c_str(), par.db2Index.c_str(), threads, par.compressed, Parameters::DBTYPE_HMM_PROFILE);
     resultWriter.open();
 
-    DBWriter sequenceWriter(std::string(par.db2 + "_seq").c_str(),
-                            std::string(par.db2 + "_seq.index").c_str(),
-                            threads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
-    sequenceWriter.open();
-
-    DBWriter headerWriter(std::string(par.db2 + "_seq_h").c_str(),
-                          std::string(par.db2 + "_seq_h.index").c_str(),
-                          threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
+    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
-    DBWriter consensusWriter(std::string(par.db2 + "_consensus").c_str(),
-                             std::string(par.db2 + "_consensus.index").c_str(),
-                             threads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
-    consensusWriter.open();
     Debug::Progress progress(qDbr.getSize());
-
-    Debug(Debug::INFO) << "Compute profiles from MSAs.\n";
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -139,14 +124,13 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 #endif
 
         SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
-        PSSMCalculator calculator(&subMat, maxSeqLength, maxSetSize, par.pca, par.pcb);
+        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pca, par.pcb);
         Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
-        char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * maxSeqLength * maxSetSize);
+        char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * (maxSeqLength + 1) * maxSetSize);
 
         float *seqWeight = new float[maxSetSize];
-        char *seqBuffer = new char[maxSeqLength + 1];
-        bool *maskedColumns = new bool[maxSeqLength];
+        bool *maskedColumns = new bool[maxSeqLength + 1];
         std::string result;
         result.reserve((par.maxSeqLen + 1) * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
@@ -157,7 +141,8 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
         const bool maskByFirst = par.matchMode == 0;
         const float matchRatio = par.matchRatio;
-        MsaFilter filter(maxSeqLength, maxSetSize, &subMat, par.gapOpen, par.gapExtend);
+        MsaFilter filter(maxSeqLength + 1, maxSetSize, &subMat, par.gapOpen, par.gapExtend);
+
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < qDbr.getSize(); ++id) {
             progress.updateProgress();
@@ -247,7 +232,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 sequence.mapSequence(0, 0, seq->seq.s, seq->seq.l);
                 msaSequences[setSize] = msaContent + msaPos;
 
-                size_t seqPos = 0;
                 for (size_t i = 0; i < centerLengthWithGaps; ++i) {
                     if (maskByFirst == true && maskedColumns[i] == true) {
                         continue;
@@ -263,10 +247,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                     } else {
                         int aa = sequence.int_sequence[i];
                         msaContent[msaPos++] = aa;
-
-                        if (setSize == 0) {
-                            seqBuffer[seqPos++] = subMat.int2aa[aa];
-                        }
                     }
                 }
 
@@ -275,11 +255,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 rowSize = (rowSize+1) * (VECSIZE_INT*4);
                 while(msaPos < rowSize) {
                     msaContent[msaPos++] = MultipleAlignment::GAP;
-                }
-
-                if (setSize == 0) {
-                    seqBuffer[seqPos++] = '\n';
-                    sequenceWriter.writeData(seqBuffer, seqPos, queryKey, thread_idx);
                 }
 
                 setSize++;
@@ -366,29 +341,18 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             resultWriter.writeData(result.c_str(), result.length(), queryKey, thread_idx);
             result.clear();
-            std::string consensusStr = pssmRes.consensus;
-            consensusStr.push_back('\n');
-            consensusWriter.writeData(consensusStr.c_str(), consensusStr.length(), queryKey, thread_idx);
         }
         kseq_destroy(seq);
         free(msaSequences);
         free(msaContent);
 
-        delete[] seqBuffer;
         delete[] maskedColumns;
         delete[] seqWeight;
     }
-
-    consensusWriter.close(true);
     headerWriter.close(true);
-    sequenceWriter.close(true);
     resultWriter.close(true);
-
-    std::string base = FileUtil::baseName(par.hdr2);
-    FileUtil::symlinkAlias(par.db2 + "_seq_h", base);
-    FileUtil::symlinkAlias(par.db2 + "_seq_h.index", base + ".index");
-
     qDbr.close();
+
     if (sequenceReader != NULL) {
         sequenceReader->close();
         delete sequenceReader;

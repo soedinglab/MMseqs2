@@ -12,7 +12,7 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    std::string& file = par.db1Index;
+    std::string file = par.db1Index;
     if (FileUtil::fileExists(file.c_str()) == false) {
         file = par.db1;
         if (FileUtil::fileExists(file.c_str()) == false) {
@@ -60,11 +60,18 @@ int createsubdb(int argc, const char **argv, const Command& command) {
             writer.writeIndexEntry(key, writer.getStart(0), originalLength, 0);
         }
     }
-    writer.close();
+    // merge any kind of sequence database
+    const bool shouldMerge = Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_HMM_PROFILE)
+                             || Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_AMINO_ACIDS)
+                             || Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)
+                             || Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)
+                             || Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_PROFILE_STATE_SEQ);
+    writer.close(shouldMerge);
     if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
-        DBReader<unsigned int>::softLink(reader, par.db3);
+        DBReader<unsigned int>::softlinkDb(par.db2, par.db3, DBFiles::DATA);
     }
     DBWriter::writeDbtypeFile(par.db3.c_str(), reader.getDbtype(), isCompressed);
+    DBReader<unsigned int>::softlinkDb(par.db2, par.db3, DBFiles::SEQUENCE_ANCILLARY);
 
     reader.close();
     order.close();

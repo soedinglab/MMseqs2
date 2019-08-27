@@ -13,11 +13,10 @@
 
 #ifdef OPENMP
 #include <omp.h>
-
 #endif
 
 int masksequence(int argc, const char **argv, const Command& command) {
-    Parameters& par = Parameters::getInstance();
+    Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads,
@@ -32,7 +31,8 @@ int masksequence(int argc, const char **argv, const Command& command) {
         subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
     }
     size_t maxSeqLen = 0;
-    for(size_t i = 0; i < reader.getSize(); i++){
+
+    for (size_t i = 0; i < reader.getSize(); i++) {
         maxSeqLen = std::max(reader.getSeqLen(i), maxSeqLen);
     }
     // need to prune low scoring k-mers through masking
@@ -47,18 +47,16 @@ int masksequence(int argc, const char **argv, const Command& command) {
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-        char *charSequence = new char[maxSeqLen];
+        char *charSequence = new char[maxSeqLen + 1];
 
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < reader.getSize(); ++id) {
             char *seqData = reader.getData(id, thread_idx);
-            unsigned int qKey = reader.getDbKey(id);
             unsigned int seqLen = 0;
             while (seqData[seqLen] != '\0') {
-                charSequence[seqLen] = (char) subMat->aa2int[(int)seqData[seqLen]];
+                charSequence[seqLen] = (char) subMat->aa2int[(int) seqData[seqLen]];
                 seqLen++;
             }
-            // s.print();
             tantan::maskSequences(charSequence,
                                   charSequence + seqLen,
                                   50 /*options.maxCycleLength*/,
@@ -74,19 +72,14 @@ int masksequence(int argc, const char **argv, const Command& command) {
                 char aa = seqData[pos];
                 charSequence[pos] = (charSequence[pos] == probMatrix.hardMaskTable[0]) ? tolower(aa) : toupper(aa);
             }
-            writer.writeData(charSequence, seqLen, qKey, thread_idx);
+            writer.writeData(charSequence, seqLen, reader.getDbKey(id), thread_idx);
         }
-        delete [] charSequence;
+        delete[] charSequence;
     }
     writer.close(true);
+    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
     reader.close();
 
-    FileUtil::symlinkAbs(par.hdr1, par.hdr2);
-    FileUtil::symlinkAbs(par.hdr1Index, par.hdr2Index);
-    DBWriter::writeDbtypeFile(par.hdr2.c_str(), Parameters::DBTYPE_GENERIC_DB, par.compressed);
-
     delete subMat;
-
-
     return EXIT_SUCCESS;
 }

@@ -56,7 +56,9 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     {
         bool needSequenceDB = false;
         bool needFullHeaders = false;
-        Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
+        bool needLookup = false;
+        bool needSource = false;
+        Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders, needLookup, needSource);
     }
     if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM || par.greedyBestHits) {
         needBacktrace = true;

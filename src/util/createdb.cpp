@@ -12,33 +12,6 @@
 #include "KSeqWrapper.h"
 #include "itoa.h"
 
-void renumberIdsInIndexByOffsetOrder(char * dataName, char * indexName) {
-    DBReader<unsigned int> reader(dataName, indexName, 1, DBReader<unsigned int>::USE_INDEX);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
-    std::string newSequenceIndex = std::string(indexName) + ".0";
-    FILE *indexFile = fopen(newSequenceIndex.c_str(), "w");
-    if (indexFile == NULL) {
-        perror(newSequenceIndex.c_str());
-        EXIT(EXIT_FAILURE);
-    }
-
-    char buffer[1024];
-    for (unsigned int id = 0; id < reader.getSize(); id++) {
-        DBReader<unsigned int>::Index *idx = reader.getIndex(id);
-        idx->id = id;
-        DBWriter::writeIndexEntryToFile(indexFile, buffer, *idx, reader.getEntryLen(id));
-    }
-
-    fclose(indexFile);
-    reader.close();
-
-    int result = rename(newSequenceIndex.c_str(), indexName);
-    if (result != 0) {
-        perror("Error renaming file");
-    }
-}
-
 int createdb(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
@@ -46,7 +19,6 @@ int createdb(int argc, const char **argv, const Command& command) {
     if (par.maxSeqLen == Parameters::MAX_SEQ_LEN) {
         par.maxSeqLen = Parameters::MAX_SEQ_LEN - 1;
     }
-
 
     std::vector<std::string> filenames(par.filenames);
     std::string dataFile = filenames.back();
@@ -131,6 +103,13 @@ int createdb(int argc, const char **argv, const Command& command) {
     }
     Debug(Debug::INFO) << "Converting sequences\n";
 
+    std::string sourceFile = dataFile + ".source";
+    FILE *source = fopen(sourceFile.c_str(), "w");
+    if (source == NULL) {
+        Debug(Debug::ERROR) << "Can not open " << sourceFile << " for writing!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
         unsigned int numEntriesInCurrFile = 0;
         std::string splitHeader;
@@ -139,6 +118,15 @@ int createdb(int argc, const char **argv, const Command& command) {
         header.reserve(1024);
         std::string splitId;
         splitId.reserve(1024);
+
+        char buffer[4096];
+        size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\n", fileIdx, FileUtil::baseName(filenames[fileIdx]).c_str());
+        int written = fwrite(buffer, sizeof(char), len, source);
+        if (written != (int) len) {
+            Debug(Debug::ERROR) << "Cannot write to source file " << sourceFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+
         kseq = KSeqFactory(filenames[fileIdx].c_str());
         while (kseq->ReadEntry()) {
             progress.updateProgress();
@@ -261,6 +249,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         delete kseq;
     }
     Debug(Debug::INFO) << "\n";
+    fclose(source);
     hdrWriter.close(true);
     seqWriter.close(true);
 
@@ -275,11 +264,12 @@ int createdb(int argc, const char **argv, const Command& command) {
 
         EXIT(EXIT_FAILURE);
     }
-    // fix ids
-    renumberIdsInIndexByOffsetOrder(seqWriter.getDataFileName(), seqWriter.getIndexFileName());
-    renumberIdsInIndexByOffsetOrder(hdrWriter.getDataFileName(), hdrWriter.getIndexFileName());
 
-    DBReader<unsigned int> readerHeader(hdrWriter.getDataFileName(), hdrWriter.getIndexFileName(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
+    // fix ids
+    DBWriter::createRenumberedDB(dataFile, indexFile, "", DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBWriter::createRenumberedDB(hdrDataFile, hdrIndexFile, "", DBReader<unsigned int>::LINEAR_ACCCESS);
+
+    DBReader<unsigned int> readerHeader(hdrDataFile.c_str(), hdrIndexFile.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
     readerHeader.open(DBReader<unsigned int>::NOSORT);
 
     // create lookup file
@@ -289,38 +279,30 @@ int createdb(int argc, const char **argv, const Command& command) {
     lookupFile.open();
 
     char lookupBuffer[32768];
-    const char tab = '\t';
     unsigned int splitIdx = 0;
     unsigned int splitCounter = 0;
+    DBReader<unsigned int>::LookupEntry entry;
     for (unsigned int id = 0; id < readerHeader.getSize(); id++) {
         size_t splitSize = sourceLookup[splitIdx].size();
         if (splitSize == 0 || splitCounter > sourceLookup[splitIdx].size() - 1) {
             splitIdx++;
             splitCounter = 0;
         }
-
         char *header = readerHeader.getData(id, 0);
-        std::string headerId = Util::parseFastaHeader(header);
-        if (headerId.empty()) {
+        entry.id = id;
+        entry.entryName = Util::parseFastaHeader(header);
+        entry.fileNumber = sourceLookup[splitIdx][splitCounter];
+        if (entry.entryName.empty()) {
             // An identifier is necessary for these two cases, so we should just give up
             Debug(Debug::WARNING) << "Can not extract identifier from entry " << entries_num << ".\n";
         }
-        lookupFile.writeStart(0);
-        char *tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
-        *(tmpBuff - 1) = '\t';
-        lookupFile.writeAdd(lookupBuffer, tmpBuff - lookupBuffer, 0);
-        lookupFile.writeAdd(headerId.c_str(), headerId.length(), 0);
-        lookupFile.writeAdd(&tab, 1, 0);
-        tmpBuff = Itoa::u32toa_sse2(sourceLookup[splitIdx][splitCounter], lookupBuffer);
-        *(tmpBuff - 1) = '\n';
-        lookupFile.writeAdd(lookupBuffer, tmpBuff - lookupBuffer, 0);
-        lookupFile.writeEnd(id, 0, false);
-
+        size_t len = readerHeader.lookupEntryToBuffer(lookupBuffer, entry);
+        lookupFile.writeData(lookupBuffer, len, 0, 0, false, false);
         splitCounter++;
     }
     lookupFile.close(true);
-    readerHeader.close();
     FileUtil::remove(lookupIndexFile.c_str());
+    readerHeader.close();
     delete[] sourceLookup;
 
     return EXIT_SUCCESS;

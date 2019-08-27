@@ -131,7 +131,12 @@ public:
     static const int OUTFMT_QCOV = 25;
     static const int OUTFMT_TCOV = 26;
     static const int OUTFMT_EMPTY = 27;
-    static std::vector<int> getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders);
+    static const int OUTFMT_QSET = 28;
+    static const int OUTFMT_QSETID = 29;
+    static const int OUTFMT_TSET = 30;
+    static const int OUTFMT_TSETID = 31;
+
+    static std::vector<int> getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders, bool &needLookup, bool &needSource);
 
     // convertprofiledb
     static const int PROFILE_MODE_HMM = 0;
@@ -370,6 +375,7 @@ public:
     std::string reverseFrames;
     bool useAllTableStarts;
     int translate;
+    int createLookup;
 
     // convertprofiledb
     int profileMode;
@@ -730,6 +736,7 @@ public:
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
     PARAMETER(PARAM_USE_ALL_TABLE_STARTS)
     PARAMETER(PARAM_TRANSLATE)
+    PARAMETER(PARAM_CREATE_LOOKUP)
 
     // indexdb
     PARAMETER(PARAM_CHECK_COMPATIBLE)
@@ -926,6 +933,7 @@ public:
     std::vector<MMseqsParameter*> createsubdb;
     std::vector<MMseqsParameter*> createtaxdb;
     std::vector<MMseqsParameter*> profile2pssm;
+    std::vector<MMseqsParameter*> profile2seq;
     std::vector<MMseqsParameter*> profile2cs;
     std::vector<MMseqsParameter*> besthitbyset;
     std::vector<MMseqsParameter*> combinepvalbyset;

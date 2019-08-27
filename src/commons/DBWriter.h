@@ -67,6 +67,8 @@ public:
     template <typename T>
     static void writeIndexEntryToFile(FILE *outFile, char *buff1, T &index,  unsigned int seqLen);
 
+    static void createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& lookupFile, int sortMode = DBReader<unsigned int>::SORT_BY_ID_OFFSET);
+
 private:
     size_t addToThreadBuffer(const void *data, size_t itmesize, size_t nitems, int threadIdx);
     void writeThreadBuffer(unsigned int idx, size_t dataSize);

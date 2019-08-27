@@ -87,8 +87,8 @@ Parameters::Parameters():
         // create profile (HMM)
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "0: HMM (HHsuite) 1: PSSM or 2: HMMER3",typeid(int),(void *) &profileMode,  "^[0-2]{1}$"),
         // convertalignments
-        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment format", "output format 0: BLAST-TAB, 1: SAM, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
-        PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID,"--format-output", "Format alignment output", "format output 'query,target,evalue,gapopen,pident,nident,qstart,qend,qlen,tstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov'", typeid(std::string), (void*) &outfmt, ""),
+        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment format", "Output format 0: BLAST-TAB, 1: SAM, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
+        PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID,"--format-output", "Format alignment output", "Choose output columns 'query,target,evalue,gapopen,pident,nident,qstart,qend,qlen,tstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov,qset,qsetid,tset,tsetid'", typeid(std::string), (void*) &outfmt, ""),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database output", "Output a result db instead of a text file", typeid(bool), (void*) &dbOut, "", MMseqsParameter::COMMAND_EXPERT),
         // --include-only-extendablediagonal
         PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "Rescore diagonal with: 0: Hamming distance, 1: local alignment (score only), 2: local alignment, 3: global alignment or 4: longest alignment fullfilling window quality criterion", typeid(int), (void *) &rescoreMode, "^[0-4]{1}$"),
@@ -150,7 +150,7 @@ Parameters::Parameters():
         PARAM_STRAND(PARAM_STRAND_ID, "--strand", "Strand selection", "Strand selection only works for DNA/DNA search 0: reverse, 1: forward, 2: both", typeid(int), (void *) &strand, "^[0-2]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // easysearch
         PARAM_GREEDY_BEST_HITS(PARAM_GREEDY_BEST_HITS_ID, "--greedy-best-hits", "Greedy best hits", "Choose the best hits greedily to cover the query.", typeid(bool), (void*)&greedyBestHits, ""),
-        // Orfs
+        // extractorfs
         PARAM_ORF_MIN_LENGTH(PARAM_ORF_MIN_LENGTH_ID, "--min-length", "Min codons in orf", "minimum codon number in open reading frames",typeid(int),(void *) &orfMinLength, "^[1-9]{1}[0-9]*$"),
         PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max codons in length", "maximum codon number in open reading frames",typeid(int),(void *) &orfMaxLength, "^[1-9]{1}[0-9]*$"),
         PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "maximum number of codons with gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^(0|[1-9]{1}[0-9]*)$"),
@@ -161,6 +161,7 @@ Parameters::Parameters():
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
         PARAM_USE_ALL_TABLE_STARTS(PARAM_USE_ALL_TABLE_STARTS_ID,"--use-all-table-starts", "Use all table starts", "use all alteratives for a start codon in the genetic table, if false - only ATG (AUG)",typeid(bool),(void *) &useAllTableStarts, ""),
         PARAM_TRANSLATE(PARAM_TRANSLATE_ID,"--translate", "Translate orf", "translate ORF to amino acid",typeid(int),(void *) &translate, "^[0-1]{1}"),
+        PARAM_CREATE_LOOKUP(PARAM_CREATE_LOOKUP_ID, "--create-lookup", "Create lookup", "Create database lookup file (can be very large)", typeid(int), (void *) &createLookup, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
         // indexdb
         PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check compatible", "0: Always recreate index, 1: Check if recreating index is needed, 2: Fail if index is incompatible", typeid(int), (void*) &checkCompatible, "^[0-2]{1}$", MMseqsParameter::COMMAND_MISC),
         PARAM_SEARCH_TYPE(PARAM_SEARCH_TYPE_ID, "--search-type", "Search type", "search type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &searchType, "^[0-3]{1}"),
@@ -541,6 +542,13 @@ Parameters::Parameters():
     profile2pssm.push_back(&PARAM_COMPRESSED);
     profile2pssm.push_back(&PARAM_V);
 
+    // profile2seq (profile2consensus + profile2repseq)
+    profile2seq.push_back(&PARAM_SUB_MAT);
+    profile2seq.push_back(&PARAM_MAX_SEQ_LEN);
+    profile2seq.push_back(&PARAM_THREADS);
+    profile2seq.push_back(&PARAM_COMPRESSED);
+    profile2seq.push_back(&PARAM_V);
+
     // profile2cs
     profile2cs.push_back(&PARAM_SUB_MAT);
 //    profile2cs.push_back(&PARAM_ALPH_SIZE);
@@ -563,6 +571,7 @@ Parameters::Parameters():
     extractorfs.push_back(&PARAM_TRANSLATE);
     extractorfs.push_back(&PARAM_USE_ALL_TABLE_STARTS);
     extractorfs.push_back(&PARAM_ID_OFFSET);
+    extractorfs.push_back(&PARAM_CREATE_LOOKUP);
     extractorfs.push_back(&PARAM_THREADS);
     extractorfs.push_back(&PARAM_COMPRESSED);
     extractorfs.push_back(&PARAM_V);
@@ -570,6 +579,7 @@ Parameters::Parameters():
     // extract frames
     extractframes.push_back(&PARAM_ORF_FORWARD_FRAMES);
     extractframes.push_back(&PARAM_ORF_REVERSE_FRAMES);
+    extractframes.push_back(&PARAM_CREATE_LOOKUP);
     extractframes.push_back(&PARAM_THREADS);
     extractframes.push_back(&PARAM_COMPRESSED);
     extractframes.push_back(&PARAM_V);
@@ -587,6 +597,7 @@ Parameters::Parameters():
     // splitsequence
     splitsequence.push_back(&PARAM_MAX_SEQ_LEN);
     splitsequence.push_back(&PARAM_SEQUENCE_OVERLAP);
+    splitsequence.push_back(&PARAM_CREATE_LOOKUP);
     splitsequence.push_back(&PARAM_THREADS);
     splitsequence.push_back(&PARAM_COMPRESSED);
     splitsequence.push_back(&PARAM_V);
@@ -1864,6 +1875,8 @@ void Parameters::setDefaults() {
     reverseFrames = "1,2,3";
     useAllTableStarts = false;
     translate = 0;
+    createLookup = 0;
+
     // createdb
     identifierOffset = 0;
     dbType = 0;
@@ -2109,7 +2122,7 @@ void Parameters::overrideParameterDescription(Command &command, const int uid,
 
 }
 
-std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders) {
+std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders, bool &needLookup, bool &needSource) {
     std::vector<std::string> outformatSplit = Util::split(outformat, ",");
     std::vector<int> formatCodes;
     int code = 0;
@@ -2141,6 +2154,10 @@ std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool 
         else if (outformatSplit[i].compare("mismatch") == 0){ code = Parameters::OUTFMT_MISMATCH;}
         else if (outformatSplit[i].compare("qcov") == 0){ code = Parameters::OUTFMT_QCOV;}
         else if (outformatSplit[i].compare("tcov") == 0){ code = Parameters::OUTFMT_TCOV;}
+        else if (outformatSplit[i].compare("qset") == 0){ needLookup = true; code = Parameters::OUTFMT_QSET;}
+        else if (outformatSplit[i].compare("qsetid") == 0){ needLookup = true; needSource = true; code = Parameters::OUTFMT_QSETID;}
+        else if (outformatSplit[i].compare("tset") == 0){ needLookup = true; code = Parameters::OUTFMT_TSET;}
+        else if (outformatSplit[i].compare("tsetid") == 0){ needLookup = true; needSource = true; code = Parameters::OUTFMT_TSETID;}
         else if (outformatSplit[i].compare("empty") == 0){ code = Parameters::OUTFMT_EMPTY;}
         else {
             Debug(Debug::ERROR) << "Format code " << outformatSplit[i] << " does not exist.";
