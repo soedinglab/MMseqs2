@@ -718,7 +718,7 @@ template <typename T> size_t DBReader<T>::maxCount(char c) {
             for (size_t id = 0; id < entries; id++) {
                 char *data = getData(id, thread_idx);
                 size_t count = 0;
-                for (size_t i = 0; i < index[id].length; ++i) {
+                for (size_t i = 0; i < getEntryLen(id); ++i) {
                     if (data[i] == c) {
                         count++;
                     }
