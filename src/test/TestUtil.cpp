@@ -19,7 +19,7 @@ int main (int, const char**) {
     assert(SSTR((double)0.00314) == "3.140E-03");
     assert(SSTR("TEST") == "TEST");
 
-    unsigned int sizes[5] = {1882, 150, 630, 929, 167};
+//    unsigned int sizes[5] = {1882, 150, 630, 929, 167};
 
 //    for (size_t i = 0; i < 5; ++i) {
 //        size_t start = 0;
