@@ -80,7 +80,7 @@ jobs:
           SIMD: 'AVX2'
           STATIC: 0
           MPI: 0
-          BUILD_TYPE: ASan
+          BUILD_TYPE: ASanOpt
 
     steps:
       - checkout: self
