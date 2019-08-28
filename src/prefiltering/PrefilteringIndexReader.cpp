@@ -191,7 +191,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     for (int s = 0; s < splits; s++) {
         size_t dbFrom = 0;
         size_t dbSize = 0;
-        Util::decomposeDomainByAminoAcid(dbr1->getDataSize(), dbr1->getSeqLens(), dbr1->getSize(), s, splits, &dbFrom, &dbSize);
+        dbr1->decomposeDomainByAminoAcid(s, splits, &dbFrom, &dbSize);
         if (dbSize == 0) {
             continue;
         }

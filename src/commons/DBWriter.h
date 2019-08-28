@@ -62,10 +62,10 @@ public:
     }
 
     template <typename T>
-    static void writeIndex(FILE *outFile, size_t indexSize, T *index, unsigned int *seqLen);
+    static void writeIndex(FILE *outFile, size_t indexSize, T *index);
 
     template <typename T>
-    static void writeIndexEntryToFile(FILE *outFile, char *buff1, T &index,  unsigned int seqLen);
+    static void writeIndexEntryToFile(FILE *outFile, char *buff1, T &index);
 
     static void createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& lookupFile, int sortMode = DBReader<unsigned int>::SORT_BY_ID_OFFSET);
 

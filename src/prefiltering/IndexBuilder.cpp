@@ -21,21 +21,14 @@ char* getScoreLookup(BaseMatrix &matrix) {
 
 class DbInfo {
 public:
-    DbInfo(size_t dbFrom, size_t dbTo, unsigned int effectiveKmerSize, bool profile, unsigned int* seqLengths) {
+    DbInfo(size_t dbFrom, size_t dbTo, unsigned int effectiveKmerSize, DBReader<unsigned int> & reader) {
         tableSize = 0;
         aaDbSize = 0;
         size_t dbSize = dbTo - dbFrom;
         sequenceOffsets = new size_t[dbSize];
         sequenceOffsets[0] = 0;
         for (size_t id = dbFrom; id < dbTo; id++) {
-            int seqLen;
-            if (profile) {
-                // remove /0 and convert to profile length
-                seqLen = std::max(static_cast<int>(seqLengths[id]) - 1, 0) / static_cast<int>(Sequence::PROFILE_AA_SIZE);
-            } else {
-                // remove /n and /0
-                seqLen = std::max(static_cast<int>(seqLengths[id]) - 2, 0);
-            }
+            const int seqLen = reader.getSeqLen(id);
             aaDbSize += seqLen;
             size_t idFromNull = (id - dbFrom);
             if (id < dbTo - 1) {
@@ -67,7 +60,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 
     dbTo = std::min(dbTo, dbr->getSize());
     size_t dbSize = dbTo - dbFrom;
-    DbInfo* info = new DbInfo(dbFrom, dbTo, seq->getEffectiveKmerSize(), isProfile, dbr->getSeqLens());
+    DbInfo* info = new DbInfo(dbFrom, dbTo, seq->getEffectiveKmerSize(), *dbr);
 
     SequenceLookup *sequenceLookup;
     if (unmaskedLookup != NULL && maskedLookup == NULL) {
@@ -173,7 +166,6 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                 if(maskedLookup != NULL){
                     (*maskedLookup)->addSequence(s.int_sequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
                 }
-
 
                 totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
             }

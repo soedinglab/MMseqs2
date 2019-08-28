@@ -291,8 +291,7 @@ int computeProfileProfile(Parameters &par,const unsigned int mpiRank, const unsi
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(qDbr->getDataSize(), qDbr->getSeqLens(), qDbr->getSize(),
-                                     mpiRank, mpiNumProc, &dbFrom, &dbSize);
+    qDbr->decomposeDomainByAminoAcid(mpiRank, mpiNumProc, &dbFrom, &dbSize);
     qDbr->close();
     delete qDbr;
 

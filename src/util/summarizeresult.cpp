@@ -20,7 +20,7 @@ int summarizeresult(int argc, const char **argv, const Command &command) {
 #ifdef HAVE_MPI
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(reader.getDataSize(), reader.getSeqLens(), reader.getSize(), MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
+    reader.decomposeDomainByAminoAcid(MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db2, par.db2Index, MMseqsMPI::rank);
     const char* outData = tmpOutput.first.c_str();
     const char* outIndex = tmpOutput.second.c_str();

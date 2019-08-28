@@ -174,8 +174,7 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
     size_t dbFrom = 0;
     size_t dbSize = 0;
 
-    Util::decomposeDomainByAminoAcid(qdbr.getDataSize(), qdbr.getSeqLens(), qdbr.getSize(),
-                                     MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
+    qdbr.decomposeDomainByAminoAcid(MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db3, par.db3Index, MMseqsMPI::rank);
     DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), par.threads,  par.compressed, Parameters::DBTYPE_PREFILTER_RES);
     resultWriter.open();

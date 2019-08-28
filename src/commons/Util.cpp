@@ -79,62 +79,6 @@ void Util::decomposeDomain(size_t domain_size, size_t world_rank,
     }
 }
 
-template <typename T>
-void Util::decomposeDomainByAminoAcid(size_t dbSize, T entrySizes, size_t dbEntries,
-                                      size_t worldRank, size_t worldSize, size_t *startEntry, size_t *numEntries){
-    if (worldSize > dbSize) {
-        // Assume the domain numEntries is greater than the world numEntries.
-        Debug(Debug::ERROR) << "World Size: " << worldSize << " dbSize: " << dbSize << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-
-    if (worldSize == 1) {
-        *startEntry = 0;
-        *numEntries = dbEntries;
-        return;
-    }
-
-    if (dbEntries <= worldSize) {
-        *startEntry = worldRank < dbEntries ? worldRank : 0;
-        *numEntries = worldRank < dbEntries ? 1 : 0;
-        return;
-    }
-
-    size_t chunkSize = ceil(static_cast<double>(dbSize) / static_cast<double>(worldSize));
-
-    size_t *entriesPerWorker = (size_t*)calloc(worldSize, sizeof(size_t));
-
-    size_t currentRank = 0;
-    size_t sumCharsAssignedToCurrRank = 0;
-    for (size_t i = 0; i < dbEntries; ++i) {
-        if (sumCharsAssignedToCurrRank >= chunkSize) {
-            sumCharsAssignedToCurrRank = 0;
-            currentRank++;
-        }
-        sumCharsAssignedToCurrRank += entrySizes[i];
-        entriesPerWorker[currentRank] += 1;
-    }
-
-    *startEntry = 0;
-    *numEntries = entriesPerWorker[worldRank];
-    for (size_t j = 0; j < worldRank; ++j) {
-        *startEntry += entriesPerWorker[j];
-    }
-
-    free(entriesPerWorker);
-}
-
-template
-void Util::decomposeDomainByAminoAcid<unsigned int*>(size_t aaSize, unsigned int *seqSizes,
-                                                     size_t count, size_t worldRank, size_t worldSize,
-                                                     size_t *start, size_t *size);
-
-template
-void Util::decomposeDomainByAminoAcid<size_t*>(size_t aaSize, size_t *seqSizes,
-                                               size_t count, size_t worldRank, size_t worldSize,
-                                               size_t *start, size_t *size);
-
-
 
 // http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=8&algorithm=batcher&output=svg
 // sorting networks

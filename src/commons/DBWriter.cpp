@@ -493,13 +493,13 @@ void DBWriter::mergeResults(const std::string &outFileName, const std::string &o
 }
 
 template <>
-void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<unsigned int>::Index &index, unsigned int seqLen){
+void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<unsigned int>::Index &index){
     char * tmpBuff = Itoa::u32toa_sse2((uint32_t)index.id,buff1);
     *(tmpBuff-1) = '\t';
     size_t currOffset = index.offset;
     tmpBuff = Itoa::u64toa_sse2(currOffset, tmpBuff);
     *(tmpBuff-1) = '\t';
-    uint32_t sLen = seqLen;
+    uint32_t sLen = index.length;
     tmpBuff = Itoa::u32toa_sse2(sLen,tmpBuff);
     *(tmpBuff-1) = '\n';
     *(tmpBuff) = '\0';
@@ -507,7 +507,7 @@ void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<unsign
 }
 
 template <>
-void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<std::string>::Index &index, unsigned int seqLen)
+void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<std::string>::Index &index)
 {
     size_t keyLen = index.id.length();
     char * tmpBuff = (char*)memcpy((void*)buff1, (void*)index.id.c_str(), keyLen);
@@ -517,7 +517,7 @@ void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<std::s
     size_t currOffset = index.offset;
     tmpBuff = Itoa::u64toa_sse2(currOffset, tmpBuff);
     *(tmpBuff-1) = '\t';
-    uint32_t sLen = seqLen;
+    uint32_t sLen = index.length;
     tmpBuff = Itoa::u32toa_sse2(sLen,tmpBuff);
     *(tmpBuff-1) = '\n';
     *(tmpBuff) = '\0';
@@ -525,18 +525,18 @@ void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<std::s
 }
 
 template <>
-void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<unsigned int>::Index *index, unsigned int *seqLen) {
+void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<unsigned int>::Index *index) {
     char buff1[1024];
     for (size_t id = 0; id < indexSize; id++) {
-        writeIndexEntryToFile(outFile, buff1, index[id], seqLen[id]);
+        writeIndexEntryToFile(outFile, buff1, index[id]);
     }
 }
 
 template <>
-void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<std::string>::Index *index,  unsigned int *seqLen){
+void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<std::string>::Index *index){
     char buff1[1024];
     for (size_t id = 0; id < indexSize; id++) {
-        writeIndexEntryToFile(outFile, buff1, index[id], seqLen[id]);
+        writeIndexEntryToFile(outFile, buff1, index[id]);
     }
 }
 
@@ -628,7 +628,7 @@ void DBWriter::mergeIndex(const char** indexFilenames, unsigned int fileCount, c
                 size_t currOffset = index[i].offset;
                 index[i].offset = globalOffset + currOffset;
             }
-            writeIndex(index_file, reader.getSize(), index, reader.getSeqLens());
+            writeIndex(index_file, reader.getSize(), index);
         }
         reader.close();
         FileUtil::remove(indexFilenames[fileIdx]);
@@ -645,7 +645,7 @@ void DBWriter::sortIndex(const char *inFileNameIndex, const char *outFileNameInd
         indexReader.open(DBReader<unsigned int>::NOSORT);
         DBReader<unsigned int>::Index *index = indexReader.getIndex();
         FILE *index_file  = FileUtil::openAndDelete(outFileNameIndex, "w");
-        writeIndex(index_file, indexReader.getSize(), index, indexReader.getSeqLens());
+        writeIndex(index_file, indexReader.getSize(), index);
         fclose(index_file);
         indexReader.close();
 
@@ -654,7 +654,7 @@ void DBWriter::sortIndex(const char *inFileNameIndex, const char *outFileNameInd
         indexReader.open(DBReader<std::string>::SORT_BY_ID);
         DBReader<std::string>::Index *index = indexReader.getIndex();
         FILE *index_file  = FileUtil::openAndDelete(outFileNameIndex, "w");
-        writeIndex(index_file, indexReader.getSize(), index, indexReader.getSeqLens());
+        writeIndex(index_file, indexReader.getSize(), index);
         fclose(index_file);
         indexReader.close();
     }
@@ -689,7 +689,7 @@ void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string
     }
     for (size_t i = 0; i < reader.getSize(); i++) {
         DBReader<unsigned int>::Index *idx = (reader.getIndex(i));
-        size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, reader.getEntryLen(i));
+        size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, idx->length);
         int written = fwrite(buffer, sizeof(char), len, sIndex);
         if (written != (int) len) {
             Debug(Debug::ERROR) << "Can not write to data file " << indexFile << "_tmp\n";

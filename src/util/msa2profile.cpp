@@ -51,7 +51,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Finding maximum sequence length and set size.\n";
     unsigned int maxSeqLength = 0;
     unsigned int maxSetSize = 0;
-    unsigned int *msaSizes = qDbr.getSeqLens();
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -66,7 +65,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             unsigned int seqLength = 0;
 
             char *entryData = qDbr.getData(id, thread_idx);
-            for (size_t i = 0; i < msaSizes[id]; ++i) {
+            for (size_t i = 0; i < qDbr.getEntryLen(id); ++i) {
                 // state machine to get the max sequence length and set size from MSA
                 switch (entryData[i]) {
                     case '>':

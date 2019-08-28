@@ -84,9 +84,7 @@ public:
     static void rankedDescSort8(short *val, unsigned int *index);
     static void rankedDescSort32(short *val, unsigned int *index);
     static void rankedDescSort20(short *val, unsigned int *index);
-    template <typename T>
-    static void decomposeDomainByAminoAcid(size_t aaSize, T seqSizes, size_t count,
-                                           size_t worldRank, size_t worldSize, size_t *start, size_t *end);
+
     static size_t getTotalSystemMemory();
     static size_t getPageSize();
     static size_t getTotalMemoryPages();

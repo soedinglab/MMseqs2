@@ -38,28 +38,25 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
     DBReader<unsigned int> *tDbr = &qDbr;
     DBReader<unsigned int> *tempateHeaderReader = &queryHeaderReader;
 
-    unsigned int maxSequenceLength = 0;
+    size_t maxSequenceLength = 0;
     const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
     if (!sameDatabase) {
         tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tDbr->open(DBReader<unsigned int>::NOSORT);
 
-        unsigned int *lengths = qDbr.getSeqLens();
         for (size_t i = 0; i < qDbr.getSize(); i++) {
-            maxSequenceLength = std::max(lengths[i], maxSequenceLength);
+            maxSequenceLength = std::max(qDbr.getEntryLen(i), maxSequenceLength);
         }
 
-        lengths = tDbr->getSeqLens();
         for (size_t i = 0; i < tDbr->getSize(); i++) {
-            maxSequenceLength = std::max(lengths[i], maxSequenceLength);
+            maxSequenceLength = std::max(tDbr->getEntryLen(i), maxSequenceLength);
         }
 
         tempateHeaderReader = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         tempateHeaderReader->open(DBReader<unsigned int>::NOSORT);
     } else {
-        unsigned int *lengths = qDbr.getSeqLens();
         for (size_t i = 0; i < qDbr.getSize(); i++) {
-            maxSequenceLength = std::max(lengths[i], maxSequenceLength);
+        maxSequenceLength = std::max(qDbr.getEntryLen(i), maxSequenceLength);
         }
     }
 
@@ -377,8 +374,7 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(qDbr->getDataSize(), qDbr->getSeqLens(), qDbr->getSize(),
-                                     mpiRank, mpiNumProc, &dbFrom, &dbSize);
+    qDbr->decomposeDomainByAminoAcid(mpiRank, mpiNumProc, &dbFrom, &dbSize);
     qDbr->close();
     delete qDbr;
 

@@ -400,19 +400,18 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
     Debug(Debug::INFO) << "Merging " << fileNames.size() << " target splits into " << outDB << "\n";
     DBReader<unsigned int> reader1(fileNames[0].first.c_str(), fileNames[0].second.c_str(), 1, DBReader<unsigned int>::USE_INDEX);
     reader1.open(DBReader<unsigned int>::NOSORT);
-    unsigned int *seqLen1 = reader1.getSeqLens();
     DBReader<unsigned int>::Index *index1 = reader1.getIndex();
 
     for (size_t i = 1; i < fileNames.size(); i++) {
         DBReader<unsigned int> reader2(fileNames[i].first.c_str(), fileNames[i].second.c_str(), 1, DBReader<unsigned int>::USE_INDEX);
         reader2.open(DBReader<unsigned int>::NOSORT);
-        unsigned int *seqLen2 = reader2.getSeqLens();
+        DBReader<unsigned int>::Index *index2 = reader2.getIndex();
         size_t currOffset = 0;
 
         for (size_t id = 0; id < reader1.getSize(); id++) {
             // add length for file1 and file2 and subtract -1 for one null byte
-            size_t seqLen = seqLen1[id] + seqLen2[id] - 1;
-            seqLen1[id] = seqLen;
+            size_t seqLen = index1[id].length + index2[id].length - 1;
+            index1[id].length = seqLen;
             index1[id].offset = currOffset;
             currOffset += seqLen;
 
@@ -425,7 +424,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
     }
 
     FILE *outDBIndexFILE = FileUtil::openAndDelete(outDBIndex.c_str(), "w");
-    DBWriter::writeIndex(outDBIndexFILE, reader1.getSize(), index1, seqLen1);
+    DBWriter::writeIndex(outDBIndexFILE, reader1.getSize(), index1);
     fclose(outDBIndexFILE);
     reader1.close();
     
@@ -720,7 +719,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
 
     // create index table based on split parameter
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
-        Util::decomposeDomainByAminoAcid(tdbr->getDataSize(), tdbr->getSeqLens(), tdbr->getSize(), split, splits, &dbFrom, &dbSize);
+        tdbr->decomposeDomainByAminoAcid(split, splits, &dbFrom, &dbSize);
         if (dbSize == 0) {
             return false;
         }
@@ -737,7 +736,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
 
         getIndexTable(split, dbFrom, dbSize);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
-        Util::decomposeDomainByAminoAcid(qdbr->getDataSize(), qdbr->getSeqLens(), qdbr->getSize(), split, splits, &queryFrom, &querySize);
+        qdbr->decomposeDomainByAminoAcid(split, splits, &queryFrom, &querySize);
         if (querySize == 0) {
             return false;
         }
@@ -836,7 +835,9 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                 }
 
                 // TODO: check if this should happen when diagonalScoring == false
-                if (covThr > 0.0 && (covMode == Parameters::COV_MODE_BIDIRECTIONAL || covMode == Parameters::COV_MODE_QUERY)) {
+                if (covThr > 0.0 && (covMode == Parameters::COV_MODE_BIDIRECTIONAL
+                                               || covMode == Parameters::COV_MODE_QUERY
+                                               || covMode == Parameters::COV_MODE_LENGTH_SHORTER )) {
                     const float targetLength = static_cast<float>(tdbr->getSeqLen(targetSeqId1));
                     if (Util::canBeCovered(covThr, covMode, queryLength, targetLength) == false) {
                         continue;

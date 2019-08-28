@@ -184,8 +184,7 @@ int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int m
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(reader.getDataSize(), reader.getSeqLens(), reader.getSize(),
-                                     mpiRank, mpiNumProc, &dbFrom, &dbSize);
+    reader.decomposeDomainByAminoAcid(mpiRank, mpiNumProc, &dbFrom, &dbSize);
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db3, par.db3Index, mpiRank);
 
     int status = doAnnotate(par, reader, tmpOutput, dbFrom, dbSize, true);
