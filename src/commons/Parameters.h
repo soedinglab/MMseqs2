@@ -213,6 +213,9 @@ public:
     static const int SEQ_ID_SHORT = 1;
     static const int SEQ_ID_LONG = 2;
 
+    // seq. split mode
+    static const int SEQUENCE_SPLIT_MODE_SOFT = 0;
+    static const int SEQUENCE_SPLIT_MODE_HARD = 1;
 
     // rescorediagonal
     static const int RESCORE_MODE_HAMMING = 0;
@@ -454,7 +457,7 @@ public:
 
     // splitsequence
     int sequenceOverlap;
-
+    int sequenceSplitMode;
     // convert2fasta
     bool useHeaderFile;
 
@@ -754,6 +757,7 @@ public:
 
     // split sequence
     PARAMETER(PARAM_SEQUENCE_OVERLAP)
+    PARAMETER(PARAM_SEQUENCE_SPLIT_MODE)
 
     // gff2db
     PARAMETER(PARAM_GFF_TYPE)

@@ -21,8 +21,11 @@ int splitsequence(int argc, const char **argv, const Command& command) {
     par.maxSeqLen = 10000;
     par.sequenceOverlap = 300;
     par.parseParameters(argc, argv, command, true, 0, 0);
-
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+    int mode = DBReader<unsigned int>::USE_INDEX;
+    if(par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_HARD){
+        mode |= DBReader<unsigned int>::USE_DATA;
+    }
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, mode);
     reader.open(DBReader<unsigned int>::NOSORT);
     bool sizeLarger = false;
     for(size_t i = 0; i < reader.getSize(); i++){
@@ -65,7 +68,10 @@ int splitsequence(int argc, const char **argv, const Command& command) {
             progress.updateProgress();
 
             unsigned int key = reader.getDbKey(i);
-            const char* data = reader.getData(i, thread_idx);
+            const char* data=NULL;
+            if(par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_HARD){
+                data = reader.getData(i, thread_idx);
+            }
             size_t seqLen = reader.getSeqLen(i);
             char* header = headerReader.getData(i, thread_idx);
             Orf::SequenceLocation loc = Orf::parseOrfHeader(header);
@@ -75,16 +81,20 @@ int splitsequence(int argc, const char **argv, const Command& command) {
             }
             unsigned int dbKey = (loc.id != UINT_MAX) ? loc.id : key;
             size_t splitCnt = (size_t) ceilf(static_cast<float>(seqLen) / static_cast<float>(par.maxSeqLen - sequenceOverlap));
-            std::string headerAccession = Util::parseFastaHeader(header);
 
             for (size_t split = 0; split < splitCnt; split++) {
                 size_t len = std::min(par.maxSeqLen, seqLen - (split * par.maxSeqLen - split*sequenceOverlap));
-                sequenceWriter.writeStart(thread_idx);
                 size_t startPos = split * par.maxSeqLen - split*sequenceOverlap;
-                sequenceWriter.writeAdd(data + startPos, len, thread_idx);
-                char newLine = '\n';
-                sequenceWriter.writeAdd(&newLine, 1, thread_idx);
-                sequenceWriter.writeEnd(key, thread_idx, true);
+                if(par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT){
+                    // +2 to emulate the \n\0
+                    sequenceWriter.writeIndexEntry(key, reader.getOffset(i) + startPos, len+2, thread_idx);
+                }else{
+                    sequenceWriter.writeStart(thread_idx);
+                    sequenceWriter.writeAdd(data + startPos, len, thread_idx);
+                    char newLine = '\n';
+                    sequenceWriter.writeAdd(&newLine, 1, thread_idx);
+                    sequenceWriter.writeEnd(key, thread_idx, true);
+                }
                 size_t fromPos = from + startPos;
                 size_t toPos = (from + startPos) + (len - 1);
                 if(loc.id != UINT_MAX && loc.strand == Orf::STRAND_MINUS){
@@ -101,7 +111,9 @@ int splitsequence(int argc, const char **argv, const Command& command) {
     sequenceWriter.close(true);
     headerReader.close();
     reader.close();
-
+    if(par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT){
+        DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::DATA);
+    }
     // make identifiers stable
 #pragma omp parallel
     {
