@@ -60,10 +60,12 @@ FIRST_INDEX_LINE=1
 NUM_PROFS_IN_STEP=1
 NUM_PREF_RESULTS_IN_ALL_PREV_STEPS=0
 
+STEP=0
+
 while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
-    if [ -f "${TMP_PATH}/aln.checkpoint" ]; then
+    if [ -f "${TMP_PATH}/aln_${STEP}.checkpoint" ]; then
         # restore values from previous run, in case it was aborted
-        read -r FIRST_INDEX_LINE NUM_PREF_RESULTS_IN_ALL_PREV_STEPS < "${TMP_PATH}/aln.checkpoint"
+        read -r FIRST_INDEX_LINE NUM_PREF_RESULTS_IN_ALL_PREV_STEPS < "${TMP_PATH}/aln_${STEP}.checkpoint"
     fi
 
     # predict NUM_SEQS_THAT_SATURATE as the average number of prefilter results per profile in previous steps
@@ -159,9 +161,11 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
             || fail "mvdb died"
     fi
 
+    STEP="$((STEP+1))"
     # update for the next step
     rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done" "${TMP_PATH}/aln_swap.done"
-    printf "%d\\t%s\\n" "${FIRST_INDEX_LINE}" "${NUM_PREF_RESULTS_IN_ALL_PREV_STEPS}" > "${TMP_PATH}/aln.checkpoint"
+    printf "%d\\t%s\\n" "${FIRST_INDEX_LINE}" "${NUM_PREF_RESULTS_IN_ALL_PREV_STEPS}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
+
 done
 
 # keep only the top max-seqs hits according to the default alignment sorting criteria
@@ -176,6 +180,13 @@ if [ -n "$REMOVE_TMP" ]; then
     "$MMSEQS" rmdb "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR}
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${PROFILEDB}" ${VERBOSITY_PAR}
-    rm -f "${TMP_PATH}/aln.checkpoint" "${PROFILEDB}.meta"
+    CURR_STEP=0
+    while [ "${CURR_STEP}" -le "${STEP}" ]; do
+        if [ -f "${TMP_PATH}/aln_${CURR_STEP}.checkpoint" ]; then
+            rm -f "${TMP_PATH}/aln_${CURR_STEP}.checkpoint"
+        fi
+        CURR_STEP="$((CURR_STEP+1))"
+    done
+    rm -f "${PROFILEDB}.meta"
     rm -f "$TMP_PATH/searchslicedtargetprofile.sh"
 fi
