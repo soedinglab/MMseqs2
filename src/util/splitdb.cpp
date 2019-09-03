@@ -16,10 +16,8 @@ int splitdb(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     dbr.open(DBReader<unsigned int>::NOSORT);
 
-    unsigned int *sizes = dbr.getSeqLens();
-    size_t size = dbr.getSize();
 
-    if ((size_t) par.split > size) {
+    if ((size_t) par.split > dbr.getSize()) {
         Debug(Debug::ERROR) << "Cannot split databases into more chunks than database contains.";
         EXIT(EXIT_FAILURE);
     }
@@ -32,15 +30,15 @@ int splitdb(int argc, const char **argv, const Command& command) {
         size_t startIndex = 0;
         size_t domainSize = 0;
         if (par.splitAA) {
-            Util::decomposeDomainByAminoAcid(dbr.getDataSize(), sizes, size, split, par.split, &startIndex, &domainSize);
+            dbr.decomposeDomainByAminoAcid(split, par.split, &startIndex, &domainSize);
         } else {
-            Util::decomposeDomain(size, split, par.split, &startIndex, &domainSize);
+            Util::decomposeDomain(dbr.getSize(), split, par.split, &startIndex, &domainSize);
         }
 
         for (size_t i = startIndex; i < (startIndex + domainSize); i++) {
             unsigned int outerKey = dbr.getDbKey(i);
             char *data = dbr.getData(i, 0);
-            writer.writeData(data, sizes[i], outerKey);
+            writer.writeData(data, dbr.getEntryLen(i), outerKey);
         }
         writer.close();
     }

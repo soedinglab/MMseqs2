@@ -82,15 +82,11 @@ int maskbygff(int argc, const char **argv, const Command& command) {
     }
     gffFile.close();
 
-    unsigned int* seqLengths = reader.getSeqLens();
-
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, par.compressed, reader.getDbtype());
     writer.open();
 
     DBReader<std::string> headerReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     headerReader.open(DBReader<std::string>::NOSORT);
-
-    unsigned int* headerLengths = headerReader.getSeqLens();
 
     DBWriter headerWriter(par.hdr3.c_str(), par.hdr3Index.c_str(), 1, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
@@ -99,8 +95,8 @@ int maskbygff(int argc, const char **argv, const Command& command) {
         unsigned int id = par.identifierOffset + i;
 
         // ignore nulls
-        writer.writeData(reader.getData(i, 0), seqLengths[i] - 1, id);
-        headerWriter.writeData(headerReader.getData(i, 0), headerLengths[i] - 1, id);
+        writer.writeData(reader.getData(i, 0), reader.getEntryLen(i) - 1, id);
+        headerWriter.writeData(headerReader.getData(i, 0), headerReader.getEntryLen(i) - 1, id);
     }
     headerWriter.close();
     writer.close();

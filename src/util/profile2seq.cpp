@@ -36,7 +36,7 @@ int profile2seq(int argc, const char **argv, const Command &command, bool consen
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < entries; ++i) {
             progress.updateProgress();
-            seq.mapProfile(reader.getData(i, thread_idx), false);
+            seq.mapProfile(reader.getData(i, thread_idx), false, reader.getSeqLen(i));
             int* sequence = consensus ? seq.int_consensus_sequence : seq.int_sequence;
             for (int aa = 0; aa < seq.L; aa++) {
                 result.append(1, subMat.int2aa[sequence[aa]]);

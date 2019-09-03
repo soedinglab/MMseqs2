@@ -196,7 +196,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                 char *data = dbr_res.getData(id, thread_idx);
                 unsigned int queryId = qdbr->getId(dbr_res.getDbKey(id));
                 char *querySeq = qdbr->getData(queryId, thread_idx);
-                query.mapSequence(id, queryId, querySeq);
+                query.mapSequence(id, queryId, querySeq, qdbr->getSeqLen(id));
 
                 while (query.hasNextKmer()) {
                     const int *kmer = query.nextKmer();
@@ -221,7 +221,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                     unsigned int targetId = tdbr->getId(dbKey);
                     char *targetSeq = tdbr->getData(targetId, thread_idx);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB)) ? true : false;
-                    target.mapSequence(targetId, dbKey, targetSeq);
+                    target.mapSequence(targetId, dbKey, targetSeq, tdbr->getSeqLen(targetId));
                     size_t kmerPosSize = 0;
                     while (target.hasNextKmer()) {
                         const int *kmer = target.nextKmer();

@@ -30,13 +30,13 @@ int createtsv(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> * targetDB = NULL;
     bool sameDB = (par.db2.compare(par.db1) == 0);
     const bool hasTargetDB = par.filenames.size() > 3;
-    unsigned int* qHeaderLength = qDbrHeader.sequenceReader->getSeqLens();
-    unsigned int* tHeaderLength = NULL;
+    DBReader<unsigned int>::Index * qHeaderIndex = qDbrHeader.sequenceReader->getIndex();
+    DBReader<unsigned int>::Index * tHeaderIndex = NULL;
 
     if (hasTargetDB) {
         if (sameDB) {
             tDbrHeader = &qDbrHeader;
-            tHeaderLength = qHeaderLength;
+            tHeaderIndex = qHeaderIndex;
             targetDB = queryDB;
         } else {
 
@@ -44,7 +44,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
             targetHeaderType = (par.idxSeqSrc == 0) ? targetHeaderType :  (par.idxSeqSrc == 1) ?  IndexReader::HEADERS : IndexReader::SRC_HEADERS;
 
             tDbrHeader = new IndexReader(par.db2, par.threads, targetHeaderType, touch);
-            tHeaderLength = tDbrHeader->sequenceReader->getSeqLens();
+            tHeaderIndex = tDbrHeader->sequenceReader->getIndex();
             targetDB = tDbrHeader->sequenceReader;
         }
     }
@@ -94,7 +94,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
             std::string queryHeader;
             if (par.fullHeader) {
                 queryHeader = "\"";
-                queryHeader.append(headerData, qHeaderLength[queryIndex] - 2);
+                queryHeader.append(headerData, qHeaderIndex[queryIndex].length - 2);
                 queryHeader.append("\"");
             } else {
                 queryHeader = Util::parseFastaHeader(headerData);
@@ -125,7 +125,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
                     }
                     if (par.fullHeader) {
                         targetAccession = "\"";
-                        targetAccession.append(targetData, tHeaderLength[targetIndex] - 2);
+                        targetAccession.append(targetData, tHeaderIndex[targetIndex].length - 2);
                         targetAccession.append("\"");
                     } else {
                         targetAccession = Util::parseFastaHeader(targetData);

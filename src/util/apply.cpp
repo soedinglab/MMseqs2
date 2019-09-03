@@ -284,7 +284,7 @@ int apply(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::SORT_BY_LENGTH);
 
-    const unsigned int *sizes = reader.getSeqLens();
+    const DBReader<unsigned int>::Index *readerIndex = reader.getIndex();
     Debug::Progress progress(reader.getSize());
 
 #ifdef HAVE_MPI
@@ -341,7 +341,7 @@ int apply(int argc, const char **argv, const Command& command) {
                     }
 
                     size_t index = i;
-                    size_t size = sizes[i] - 1;
+                    size_t size = readerIndex[i].length - 1;
 
                     char *data = reader.getData(index, thread);
                     if (data == NULL) {

@@ -57,7 +57,7 @@ int main (int, const char**) {
 
     const char *ref = "MDDVKIERLKRLNEDVLEDLIEVYMRGYEGLEEYGGEGRDYARDYIKWCWKKAPDGFFVAKVGDRIVGFIVCDRDWYSRYEGKIVGAIHEFVVDKGWQGKGIGKKLLTKCLEFLGKYNDTIELWVGEKNFGAMRLYEKFGFKKVGKSGIWIRMVRRQLS";
     Sequence refSeq(10000, 0, &subMat, kmer_size, false, true);
-    refSeq.mapSequence(0, 0, ref);
+    refSeq.mapSequence(0, 0, ref, strlen(ref));
 
 
     calcLocalAaBiasCorrection(&refSeq, &subMat);

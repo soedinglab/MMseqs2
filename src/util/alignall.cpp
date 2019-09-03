@@ -83,7 +83,7 @@ int alignall(int argc, const char **argv, const Command &command) {
                     const unsigned int queryId = tdbr.getId(results[entryIdx1]);
                     const unsigned int queryKey = tdbr.getDbKey(queryId);
                     char *querySeq = tdbr.getData(queryId, thread_idx);
-                    query.mapSequence(id, queryKey, querySeq);
+                    query.mapSequence(queryId, queryKey, querySeq, tdbr.getSeqLen(queryId));
                     matcher.initQuery(&query);
 
                     char * tmpBuff = Itoa::u32toa_sse2((uint32_t) queryKey, buffer);
@@ -94,7 +94,7 @@ int alignall(int argc, const char **argv, const Command &command) {
                         const unsigned int targetId = tdbr.getId(results[entryIdx]);
                         const unsigned int targetKey = tdbr.getDbKey(targetId);
                         char *targetSeq = tdbr.getData(targetId, thread_idx);
-                        target.mapSequence(id, targetKey, targetSeq);
+                        target.mapSequence(id, targetKey, targetSeq, tdbr.getSeqLen(targetId));
 
                         if (Util::canBeCovered(par.covThr, par.covMode, query.L, target.L) == false) {
                             continue;

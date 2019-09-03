@@ -55,8 +55,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
 #endif
         size_t querySize = 0;
         size_t queryFrom = 0;
-        Util::decomposeDomainByAminoAcid(reader.getDataSize(), reader.getSeqLens(), reader.getSize(),
-                                         thread_idx, par.threads, &queryFrom, &querySize);
+        reader.decomposeDomainByAminoAcid(thread_idx, par.threads, &queryFrom, &querySize);
         if (querySize == 0) {
             queryFrom = 0;
         }
@@ -69,9 +68,8 @@ int extractorfs(int argc, const char **argv, const Command& command) {
 
             unsigned int key = reader.getDbKey(i);
             const char* data = reader.getData(i, thread_idx);
-            size_t dataLength = reader.getSeqLens(i);
-            size_t sequenceLength = dataLength - 2;
-            if(!orf.setSequence(data, dataLength - 2)) {
+            size_t sequenceLength = reader.getSeqLen(i);
+            if(!orf.setSequence(data, sequenceLength)) {
                 Debug(Debug::WARNING) << "Invalid sequence with index " << i << "!\n";
                 continue;
             }
@@ -134,7 +132,6 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     sequenceWriter.close(true);
     headerReader.close();
     reader.close();
-
     // make identifiers stable
 #pragma omp parallel
     {

@@ -34,10 +34,9 @@ int reverseseq(int argn, const char **argv, const Command& command) {
             progress.updateProgress();
             unsigned int seqKey = seqReader.getDbKey(id);
             char *seq = seqReader.getData(id, thread_idx);
-            size_t lenSeq = seqReader.getSeqLens(id); // includes \n\0
-            int actualSeqLen = std::max(lenSeq, (size_t) 2) - 2;
-            for (int i = 0; i < actualSeqLen; ++i) {
-                revStr.push_back(seq[actualSeqLen - i - 1]);
+            size_t lenSeq = seqReader.getSeqLen(id);
+            for (size_t i = 0; i < lenSeq; ++i) {
+                revStr.push_back(seq[lenSeq - i - 1]);
             }
             revStr.push_back('\n');
             revSeqWriter.writeData(revStr.c_str(), revStr.size(), seqKey, thread_idx, true);

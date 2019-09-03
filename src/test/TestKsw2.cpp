@@ -339,13 +339,13 @@ int main (int, const char**) {
 //    SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(subMat);
     const size_t kmer_size=6;
     Sequence* queryObj = new Sequence(10000, 0, &subMat, kmer_size, true, false);
-    queryObj->mapSequence(0, 0, query.c_str() );
+    queryObj->mapSequence(0, 0, query.c_str(), query.size());
     aligner.initQuery(queryObj);
 
     Sequence* targetObj = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     for(i = 0; i < p.cnt; i++) {
         std::string target = generate_mutated_sequence((char*)query.c_str(), (int) query.size(), p.x, p.d, 8);
-        targetObj->mapSequence(1, 1, target.c_str() );
+        targetObj->mapSequence(1, 1, target.c_str(), target.size());
         int aaIds = 0;
         std::string backtrace;
         s_align alignment = aligner.align(targetObj,diagonal, false, backtrace, aaIds, &evalueComputation);

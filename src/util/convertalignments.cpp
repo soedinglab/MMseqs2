@@ -260,7 +260,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 if (headerWritten[dbKey] == false) {
                     headerWritten[dbKey] = true;
                     unsigned int tId = tDbr->sequenceReader->getId(dbKey);
-                    unsigned int seqLen = tDbr->sequenceReader->getSeqLens(tId) - 2;
+                    unsigned int seqLen = tDbr->sequenceReader->getSeqLen(tId);
                     unsigned int tHeaderId = tDbrHeader->sequenceReader->getId(dbKey);
                     const char *tHeader = tDbrHeader->sequenceReader->getData(tHeaderId, 0);
                     std::string targetId = Util::parseFastaHeader(tHeader);
@@ -319,7 +319,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 size_t qId = qDbr.sequenceReader->getId(queryKey);
                 querySeqData = qDbr.sequenceReader->getData(qId, thread_idx);
                 if(sameDB && qDbr.sequenceReader->isCompressed()){
-                    size_t querySeqDataLen = std::max(qDbr.sequenceReader->getSeqLens(qId), static_cast<size_t>(2)) - 2;
+                    size_t querySeqDataLen = qDbr.sequenceReader->getSeqLen(qId);
                     queryBuffer.assign(querySeqData, querySeqDataLen);
                     querySeqData = (char*) queryBuffer.c_str();
                 }
@@ -330,10 +330,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
             size_t qHeaderId = qDbrHeader.sequenceReader->getId(queryKey);
             const char *qHeader = qDbrHeader.sequenceReader->getData(qHeaderId, thread_idx);
-            size_t qHeaderLen = qDbrHeader.sequenceReader->getSeqLens(qHeaderId);
+            size_t qHeaderLen = qDbrHeader.sequenceReader->getSeqLen(qHeaderId);
             std::string queryId = Util::parseFastaHeader(qHeader);
             if (sameDB && needFullHeaders) {
-                queryHeaderBuffer.assign(qHeader, std::max(qHeaderLen, static_cast<size_t>(2)) - 2);
+                queryHeaderBuffer.assign(qHeader, qHeaderLen);
                 qHeader = (char*) queryHeaderBuffer.c_str();
             }
 
@@ -350,7 +350,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
                 size_t tHeaderId = tDbrHeader->sequenceReader->getId(res.dbKey);
                 const char *tHeader = tDbrHeader->sequenceReader->getData(tHeaderId, thread_idx);
-                size_t tHeaderLen = tDbrHeader->sequenceReader->getSeqLens(tHeaderId);
+                size_t tHeaderLen = tDbrHeader->sequenceReader->getSeqLen(tHeaderId);
                 std::string targetId = Util::parseFastaHeader(tHeader);
 
                 unsigned int gapOpenCount = 0;
@@ -486,10 +486,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         }
                                         break;
                                     case Parameters::OUTFMT_QHEADER:
-                                        result.append(qHeader, qHeaderLen-2);
+                                        result.append(qHeader, qHeaderLen);
                                         break;
                                     case Parameters::OUTFMT_THEADER:
-                                        result.append(tHeader, tHeaderLen-2);
+                                        result.append(tHeader, tHeaderLen);
                                         break;
                                     case Parameters::OUTFMT_QALN:
                                         if (queryProfile) {

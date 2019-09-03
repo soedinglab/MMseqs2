@@ -43,10 +43,10 @@ int createsubdb(int argc, const char **argv, const Command& command) {
             continue;
         }
         if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
-            writer.writeIndexEntry(key, reader.getOffset(id), reader.getSeqLens(id), 0);
+            writer.writeIndexEntry(key, reader.getOffset(id), reader.getEntryLen(id), 0);
         } else {
             char* data = reader.getDataUncompressed(id);
-            size_t originalLength = reader.getSeqLens(id);
+            size_t originalLength = reader.getEntryLen(id);
             size_t entryLength = std::max(originalLength, static_cast<size_t>(1)) - 1;
 
             if (isCompressed) {

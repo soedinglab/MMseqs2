@@ -56,7 +56,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
                 result.clear();
 
                 unsigned int key = profileReader.getDbKey(i);
-                seq.mapSequence(i, key, profileReader.getData(i, thread_idx));
+                seq.mapSequence(i, key, profileReader.getData(i, thread_idx), profileReader.getSeqLen(i));
                 if(alphSize == 219){
                     ps.discretizeCs219(seq.getProfile(), seq.L, result);
                 }else {

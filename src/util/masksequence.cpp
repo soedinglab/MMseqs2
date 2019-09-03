@@ -31,8 +31,9 @@ int masksequence(int argc, const char **argv, const Command& command) {
         subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
     }
     size_t maxSeqLen = 0;
+
     for (size_t i = 0; i < reader.getSize(); i++) {
-        maxSeqLen = std::max(reader.getSeqLens(i), maxSeqLen);
+        maxSeqLen = std::max(reader.getSeqLen(i), maxSeqLen);
     }
     // need to prune low scoring k-mers through masking
     ProbabilityMatrix probMatrix(*subMat);

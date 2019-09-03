@@ -167,7 +167,8 @@ int expandaln(int argc, const char **argv, const Command& command) {
             unsigned int queryKey = resultReader->getDbKey(i);
 
             size_t querySeqId = queryReader.getId(queryKey);
-            qSeq.mapSequence(querySeqId, queryKey, queryReader.getData(querySeqId, thread_idx));
+            qSeq.mapSequence(querySeqId, queryKey, queryReader.getData(querySeqId, thread_idx),
+                             queryReader.getSeqLen(querySeqId));
 
             if(par.compBiasCorrection == true && Parameters::isEqualDbtype(queryDbType,Parameters::DBTYPE_AMINO_ACIDS)){
                 SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, qSeq.int_sequence, qSeq.L, compositionBias);
@@ -186,14 +187,14 @@ int expandaln(int argc, const char **argv, const Command& command) {
 
                 unsigned int targetKey = resultAB.dbKey;
                 size_t targetId = expansionReader.getId(targetKey);
-
                 size_t targetSeqId = targetReader.getId(targetKey);
-                tSeq.mapSequence(targetSeqId, targetKey, targetReader.getData(targetSeqId, thread_idx));
+                tSeq.mapSequence(targetSeqId, targetKey, targetReader.getData(targetSeqId, thread_idx),
+                                 targetReader.getSeqLen(targetSeqId));
 
                 if (ca3mSequenceReader != NULL) {
                     unsigned int key;
                     CompressedA3M::extractMatcherResults(key, expanded, expansionReader.getData(targetId, thread_idx),
-                                                         expansionReader.getSeqLens(targetId), *ca3mSequenceReader, false);
+                                                         expansionReader.getEntryLen(targetId), *ca3mSequenceReader, false);
                 } else {
                     Matcher::readAlignmentResults(expanded, expansionReader.getData(targetId, thread_idx), false);
                 }

@@ -6,7 +6,7 @@
 #include "IndexBuilder.h"
 #include "Parameters.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION = "15";
+const char*  PrefilteringIndexReader::CURRENT_VERSION = "16";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
@@ -191,7 +191,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     for (int s = 0; s < splits; s++) {
         size_t dbFrom = 0;
         size_t dbSize = 0;
-        Util::decomposeDomainByAminoAcid(dbr1->getDataSize(), dbr1->getSeqLens(), dbr1->getSize(), s, splits, &dbFrom, &dbSize);
+        dbr1->decomposeDomainByAminoAcid(s, splits, &dbFrom, &dbSize);
         if (dbSize == 0) {
             continue;
         }
@@ -468,7 +468,7 @@ std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<unsigned
         return "";
     }
     const char *data = dbr->getData(key, 0);
-    size_t len = dbr->getSeqLens(key) - 1;
+    size_t len = dbr->getEntryLen(key) - 1;
     std::string matrixName;
     bool found = false;
     for (size_t pos = 0; pos < std::max(len, (size_t)4) - 4 && found == false; pos++) {

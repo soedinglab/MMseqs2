@@ -201,11 +201,11 @@ void CompressedA3M::extractMatcherResults(unsigned int &key, std::vector<Matcher
         match.dbKey = sequenceReader.getDbKey(entryIndex);
         if (isFirst) {
             key = match.dbKey;
-            qLen = sequenceReader.getSeqLens(entryIndex) - 2;
+            qLen = sequenceReader.getSeqLen(entryIndex);
             match.qLen = match.dbLen = qLen;
         } else {
             match.qLen = qLen;
-            match.dbLen = sequenceReader.getSeqLens(entryIndex) - 2;
+            match.dbLen = sequenceReader.getSeqLen(entryIndex);
         }
 
         unsigned short int startPos;

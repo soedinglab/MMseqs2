@@ -43,8 +43,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
 #endif
         size_t querySize = 0;
         size_t queryFrom = 0;
-        Util::decomposeDomainByAminoAcid(reader.getDataSize(), reader.getSeqLens(), reader.getSize(),
-                                         thread_idx, par.threads, &queryFrom, &querySize);
+        reader.decomposeDomainByAminoAcid(thread_idx, par.threads, &queryFrom, &querySize);
         if (querySize == 0) {
             queryFrom = 0;
         }
@@ -58,7 +57,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
 
             unsigned int key = reader.getDbKey(i);
             const char* data = reader.getData(i, thread_idx);
-            size_t dataLength = reader.getSeqLens(i);
+            size_t dataLength = reader.getEntryLen(i);
 
             size_t bufferLen;
             switch (forwardFrames){

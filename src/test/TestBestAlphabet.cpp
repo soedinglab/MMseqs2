@@ -88,7 +88,7 @@ int main (int, const char**) {
     for (size_t id = 0; id < seqDb.getSize(); id++) {
         char *seqData = seqDb.getData(id,0);
         unsigned int dbKey = seqDb.getDbKey(id);
-        rseqKmer.mapSequence(id, dbKey, seqData);
+        rseqKmer.mapSequence(id, dbKey, seqData, seqDb.getSeqLen(id));
         while (rseqKmer.hasNextKmer() && sumKmerCnts < 20000*numKmers) {
             const int* kmer = rseqKmer.nextKmer();
 

@@ -58,14 +58,13 @@ int main (int, const char**) {
 
     std::cout << "Sequence (id 0):\n";
     //const char* sequence = read_seq;
-    const char* sequence = tim1.c_str();
-    std::cout << sequence << "\n\n";
+    std::cout << tim1 << "\n\n";
 
     Sequence* s = new Sequence(10000, 0, &subMat, kmer_size, true, false);
-    s->mapSequence(0,0,sequence);
+    s->mapSequence(0,0,tim1.c_str(), tim1.size());
     Sequence* dbSeq = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
-    dbSeq->mapSequence(1,1,tim2.c_str());
+    dbSeq->mapSequence(1,1,tim2.c_str(), tim2.size());
     SmithWaterman aligner(15000, subMat.alphabetSize, true);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     for (int i = 0; i < subMat.alphabetSize; i++) {

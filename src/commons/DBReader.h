@@ -13,6 +13,7 @@
 #include "Sequence.h"
 #include "Parameters.h"
 #include "FileUtil.h"
+#include "Debug.h"
 
 #define ZSTD_STATIC_LINKING_ONLY // ZSTD_findDecompressedSize
 #include <zstd.h>
@@ -55,6 +56,7 @@ public:
     struct Index {
         T id;
         size_t offset;
+        unsigned int length;
         static bool compareById(const Index& x, const Index& y){
             return (x.id <= y.id);
         }
@@ -80,7 +82,7 @@ public:
     // = USE_DATA|USE_INDEX
     DBReader(const char* dataFileName, const char* indexFileName, int threads, int mode);
 
-    DBReader(Index* index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey,
+    DBReader(Index* index, size_t size, size_t aaDbSize, T lastKey,
              int dbType, unsigned int maxSeqLen, int threads);
 
     void setDataFile(const char* dataFileName);
@@ -115,9 +117,42 @@ public:
 
     T getDbKey(size_t id);
 
-    unsigned int * getSeqLens();
 
-    size_t getSeqLens(size_t id);
+    size_t getSeqLen(size_t id){
+        if (id >= size){
+            Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
+            Debug(Debug::ERROR) << "getSeqLen: local id (" << id << ") >= db size (" << size << ")\n";
+            EXIT(EXIT_FAILURE);
+        }
+        unsigned int length;
+        if (local2id != NULL) {
+            length=index[local2id[id]].length;
+        }else{
+            length=index[id].length;
+        }
+
+        if(Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE ) ||
+           Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_PROFILE_STATE_PROFILE ) ){
+            // -1 null byte
+            return (std::max(length, 1u) - 1u) / Sequence::PROFILE_READIN_SIZE;
+        }else{
+            // -2 newline and null byte
+            return (std::max(length, 2u) - 2u);
+        }
+    }
+
+    size_t getEntryLen(size_t id){
+        if (id >= size){
+            Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
+            Debug(Debug::ERROR) << "getSeqLen: local id (" << id << ") >= db size (" << size << ")\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (local2id != NULL) {
+            return index[local2id[id]].length;
+        }else{
+            return index[id].length;
+        }
+    }
 
     size_t maxCount(char c);
 
@@ -192,7 +227,7 @@ public:
 
     char *mmapData(FILE *file, size_t *dataSize);
 
-    bool readIndex(char *data, size_t indexDataSize, Index *index, unsigned int *entryLength, size_t & dataSize);
+    bool readIndex(char *data, size_t indexDataSize, Index *index, size_t & dataSize);
 
     void readLookup(char *data, size_t dataSize, LookupEntry *lookup);
 
@@ -247,12 +282,6 @@ public:
             return (_ind[i].id < _ind[j].id); 
         }
         const Index * _ind;
-    };
-
-    struct compareIndexLengthPairById {
-        bool operator() (const std::pair<Index, unsigned  int>& lhs, const std::pair<Index, unsigned  int>& rhs) const{
-            return (lhs.first.id < rhs.first.id);
-        }
     };
 
     struct compareIndexLengthPairByIdKeepTrack {
@@ -312,10 +341,11 @@ public:
 
     void setSequentialAdvice();
 
+    void decomposeDomainByAminoAcid(size_t worldRank, size_t worldSize, size_t *startEntry, size_t *numEntries);
+
 private:
 
     void checkClosed();
-
 
     int threads;
 
@@ -355,7 +385,6 @@ private:
     LookupEntry * lookup;
     bool sortedByOffset;
 
-    unsigned int * seqLens;
     unsigned int * id2local;
     unsigned int * local2id;
 

@@ -24,7 +24,6 @@ int convertca3m(int argc, const char **argv, const Command &command) {
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_CA3M_DB);
     writer.open();
 
-    unsigned int* sizes = reader.getSeqLens();
     Debug::Progress progress(reader.getSize());
 
 #pragma omp parallel
@@ -45,7 +44,7 @@ int convertca3m(int argc, const char **argv, const Command &command) {
             results.clear();
 
             unsigned int key;
-            CompressedA3M::extractMatcherResults(key, results, reader.getData(i, thread_idx), sizes[i], sequences, true);
+            CompressedA3M::extractMatcherResults(key, results, reader.getData(i, thread_idx), reader.getEntryLen(i), sequences, true);
 
             writer.writeStart(thread_idx);
             for (size_t j = 0; j < results.size(); j++) {

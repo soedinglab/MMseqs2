@@ -225,7 +225,7 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
     char ** msaSequence = new char *[edgeSeqs.size() + 1];
     for(size_t i = 0; i <= edgeSeqs.size(); i++){
         // FIXME: in deletion case, the msa could become even larger than maxSeqLen
-        msaSequence[i] = initX(noDeletionMSA ? centerSeq->L : maxSeqLen);
+        msaSequence[i] = initX(noDeletionMSA ? centerSeq->L + 1: maxSeqLen + 1);
     }
 
     if(edgeSeqs.size() != alignmentResults.size()){

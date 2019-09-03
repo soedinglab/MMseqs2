@@ -52,22 +52,16 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
             qDbr->readMmapedDataInMemory();
         }
 
-        unsigned int *lengths = qDbr->getSeqLens();
         for (size_t i = 0; i < qDbr->getSize(); i++) {
-            maxSequenceLength = std::max(lengths[i], maxSequenceLength);
+            maxSequenceLength = std::max(static_cast<unsigned int>(qDbr->getSeqLen(i)), maxSequenceLength);
         }
 
-        lengths = tDbr->getSeqLens();
-        for (size_t i = 0; i < tDbr->getSize(); i++) {
-            maxSequenceLength = std::max(lengths[i], maxSequenceLength);
-        }
     } else {
         qDbr = tDbr;
+    }
 
-        unsigned int *lengths = tDbr->getSeqLens();
-        for (size_t i = 0; i < tDbr->getSize(); i++) {
-            maxSequenceLength = std::max(lengths[i], maxSequenceLength);
-        }
+    for (size_t i = 0; i < tDbr->getSize(); i++) {
+        maxSequenceLength = std::max(static_cast<unsigned int>(tDbr->getSeqLen(i)), maxSequenceLength);
     }
 
     // qDbr->readMmapedDataInMemory();
@@ -138,7 +132,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 Debug(Debug::ERROR) << "Sequence " << queryKey << " is not contained in the query sequence database\n";
                 EXIT(EXIT_FAILURE);
             }
-            centerSequence.mapSequence(0, queryKey, qDbr->getData(queryId, thread_idx));
+            centerSequence.mapSequence(0, queryKey, qDbr->getData(queryId, thread_idx), qDbr->getSeqLen(queryId));
 
             char *data = resultReader.getData(id, thread_idx);
             while (*data != '\0') {
@@ -166,8 +160,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                         Debug(Debug::ERROR) << "Sequence " << queryKey << " is not contained in the target sequence database\n";
                         EXIT(EXIT_FAILURE);
                     }
-                    Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), targetSeqType, &subMat, 0, false, false);
-                    edgeSequence->mapSequence(0, key, tDbr->getData(edgeId, thread_idx));
+                    Sequence *edgeSequence = new Sequence(tDbr->getSeqLen(edgeId), targetSeqType, &subMat, 0, false, false);
+                    edgeSequence->mapSequence(0, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId));
                     seqSet.push_back(edgeSequence);
                 }
                 data = Util::skipLine(data);
@@ -304,8 +298,7 @@ int result2profile(int argc, const char **argv, const Command &command) {
 #ifdef HAVE_MPI
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(resultReader.getDataSize(), resultReader.getSeqLens(), resultReader.getSize(),
-                                     MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
+    resultReader.decomposeDomainByAminoAcid(MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
 
     int status = result2profile(resultReader, par, dbFrom, dbSize);
 #else

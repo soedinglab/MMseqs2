@@ -80,20 +80,20 @@ public:
     ~Sequence();
 
     // Map char -> int
-    void mapSequence(size_t id, unsigned int dbKey, const char *seq);
+    void mapSequence(size_t id, unsigned int dbKey, const char *seq, unsigned int seqLen);
 
     // map sequence from SequenceLookup
     void mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *, const unsigned int> data);
 
     // map profile HMM, *data points to start position of Profile
-    void mapProfile(const char *sequence, bool mapScores);
+    void mapProfile(const char *sequence, bool mapScores,  unsigned int seqLen);
 
     // mixture of library and profile prob
     template <int T>
-    void mapProfileState(const char *sequence);
+    void mapProfileState(const char *sequence, unsigned int seqLen);
 
     // map the profile state sequence
-    void mapProfileStateSequence(const char *sequence);
+    void mapProfileStateSequence(const char *sequence, unsigned int seqLen);
 
     // checks if there is still a k-mer left
     bool hasNextKmer() {
@@ -479,7 +479,7 @@ public:
     }
 
 private:
-    void mapSequence(const char *seq);
+    void mapSequence(const char *seq, unsigned int dataLen);
     size_t id;
     unsigned int dbKey;
     const char *seqData;

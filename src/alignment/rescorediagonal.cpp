@@ -142,7 +142,7 @@ int doRescorediagonal(Parameters &par,
                 if(*data !=  '\0'){
                     queryId = qdbr->getId(queryKey);
                     querySeq = qdbr->getData(queryId, thread_idx);
-                    queryLen = std::max(0, static_cast<int>(qdbr->getSeqLens(queryId)) - 2);
+                    queryLen = static_cast<int>(qdbr->getSeqLen(queryId));
                     if(queryLen > queryRevSeqLen){
                         delete [] queryRevSeq;
                         queryRevSeq = new char[queryLen];
@@ -183,7 +183,7 @@ int doRescorediagonal(Parameters &par,
                     unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameQTDB)) ? true : false;
                     char *targetSeq = tdbr->getData(targetId, thread_idx);
-                    int dbLen = std::max(0, static_cast<int>(tdbr->getSeqLens(targetId)) - 2);
+                    int dbLen = static_cast<int>(tdbr->getSeqLen(targetId));
 
                     float queryLength = static_cast<float>(queryLen);
                     float targetLength = static_cast<float>(dbLen);
@@ -360,8 +360,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     size_t dbFrom = 0;
     size_t dbSize = 0;
 
-    Util::decomposeDomainByAminoAcid(resultReader.getDataSize(), resultReader.getSeqLens(), resultReader.getSize(),
-                                     MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
+    resultReader.decomposeDomainByAminoAcid(MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
     std::string outfile = par.db4;
     std::string outfileIndex = par.db4Index;
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outfile, outfileIndex, MMseqsMPI::rank);

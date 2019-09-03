@@ -82,7 +82,7 @@ int gff2db(int argc, const char **argv, const Command &command) {
         unsigned int id = par.identifierOffset + entries_num;
 
         headerWriter.writeStart(0);
-        headerWriter.writeAdd(headerReader.getData(headerId, 0), std::max(headerReader.getSeqLens(headerId), (size_t)2) - 2, 0);
+        headerWriter.writeAdd(headerReader.getData(headerId, 0), std::max(headerReader.getSeqLen(headerId), (size_t)2) - 2, 0);
         int len = snprintf(buffer, 1024, " %zu-%zu\n", start, end);
         headerWriter.writeAdd(buffer, len, 0);
         headerWriter.writeEnd(id, 0);

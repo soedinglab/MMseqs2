@@ -148,10 +148,9 @@ int convertprofiledb(int argc, const char **argv, const Command &command) {
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
 
-    unsigned int *lengths = reader.getSeqLens();
-    unsigned int maxElementSize = 0;
+    size_t maxElementSize = 0;
     for (size_t i = 0; i < reader.getSize(); i++) {
-        maxElementSize = std::max(lengths[i], maxElementSize);
+        maxElementSize = std::max(reader.getEntryLen(i), maxElementSize);
     }
 
 #pragma omp parallel

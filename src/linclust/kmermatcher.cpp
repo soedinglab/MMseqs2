@@ -171,7 +171,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition * hashSeqPair, DBRe
 #pragma omp for schedule(dynamic, 100)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
-                seq.mapSequence(id, seqDbr.getDbKey(id), seqDbr.getData(id, thread_idx));
+                seq.mapSequence(id, seqDbr.getDbKey(id), seqDbr.getData(id, thread_idx), seqDbr.getSeqLen(id));
                 size_t seqHash =  SIZE_T_MAX;
                 if(includeIdenticalKmer){
                     seqHash = highestPossibleIndex + static_cast<unsigned int>(Util::hash(seq.int_sequence, seq.L));
@@ -612,7 +612,7 @@ void setLinearFilterDefault(Parameters *p) {
 size_t computeKmerCount(DBReader<unsigned int> &reader, size_t KMER_SIZE, size_t chooseTopKmer, float chooseTopKmerScale) {
     size_t totalKmers = 0;
     for(size_t id = 0; id < reader.getSize(); id++ ){
-        int seqLen = static_cast<int>(reader.getSeqLens(id) - 2 );
+        int seqLen = static_cast<int>(reader.getSeqLen(id));
         // we need one for the sequence hash
         int kmerAdjustedSeqLen = std::max(1, seqLen  - static_cast<int>(KMER_SIZE ) + 1) ;
         totalKmers += std::min(kmerAdjustedSeqLen, static_cast<int>( chooseTopKmer + (chooseTopKmerScale * seqLen)));

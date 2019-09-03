@@ -77,11 +77,8 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader->getDbKey(id);
             char *queryData = qDbr->getDataByDBKey(queryKey, thread_idx);
-            queryProfile.mapSequence(id, queryKey, queryData);
-            
-
+            queryProfile.mapSequence(id, queryKey, queryData, resultReader->getSeqLen(queryKey));
             const float * qProfile =  queryProfile.getProfile();
-
 	    /*
             const size_t profile_row_size = queryProfile.profile_row_size;
             // init outProfile with query Probs
@@ -120,7 +117,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                     Matcher::result_t res = Matcher::parseAlignmentRecord(results);
                     const size_t edgeId = tDbr->getId(key);
                     char *dbSeqData = tDbr->getData(edgeId, thread_idx);
-                    targetProfile.mapSequence(0, key, dbSeqData);
+                    targetProfile.mapSequence(0, key, dbSeqData, tDbr->getSeqLen(edgeId));
                     const float * tProfile = targetProfile.getProfile();
                     size_t qPos = res.qStartPos;
                     size_t tPos = res.dbStartPos;
@@ -294,8 +291,7 @@ int computeProfileProfile(Parameters &par,const unsigned int mpiRank, const unsi
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(qDbr->getDataSize(), qDbr->getSeqLens(), qDbr->getSize(),
-                                     mpiRank, mpiNumProc, &dbFrom, &dbSize);
+    qDbr->decomposeDomainByAminoAcid(mpiRank, mpiNumProc, &dbFrom, &dbSize);
     qDbr->close();
     delete qDbr;
 
