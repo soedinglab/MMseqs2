@@ -47,7 +47,7 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
             buffer.clear();
         }
     }
-    dbw.close(true);
+    dbw.close();
     resultReader.close();
     setReader.close();
 

@@ -229,7 +229,6 @@ public:
     static const int AGGREGATION_MODE_MIN_PVAL = 1;
     static const int AGGREGATION_MODE_PRODUCT = 2;
     static const int AGGREGATION_MODE_TRUNCATED_PRODUCT = 3;
-    static const int AGGREGATION_MODE_RANK_TRUNCATED_PRODUCT = 4;
 
     // header type
     static const int HEADER_TYPE_UNICLUST = 1;

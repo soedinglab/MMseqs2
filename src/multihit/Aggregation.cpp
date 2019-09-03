@@ -84,8 +84,7 @@ int Aggregation::run() {
             buffer.clear();
         }
     };
-    //TODO what dbtype?
-    writer.close(true);
+    writer.close();
     reader.close();
 
     return EXIT_SUCCESS;
