@@ -143,4 +143,3 @@ To search with multiple servers, call the `search` or `cluster` workflow with th
 
         RUNNER="mpirun -pernode -np 42" mmseqs search queryDB targetDB resultDB tmp
 
-

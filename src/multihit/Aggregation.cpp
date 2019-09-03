@@ -50,7 +50,7 @@ int Aggregation::run() {
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     std::string outputDBIndex = outputDbName + ".index";
-    DBWriter writer(outputDbName.c_str(), outputDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_GENERIC_DB);
+    DBWriter writer(outputDbName.c_str(), outputDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
     Debug::Progress progress(reader.getSize());
 
@@ -84,7 +84,6 @@ int Aggregation::run() {
             buffer.clear();
         }
     };
-    //TODO what dbtype?
     writer.close();
     reader.close();
 

@@ -631,7 +631,6 @@ void Prefiltering::runMpiSplits(const std::string &resultDB, const std::string &
         DBReader<unsigned int>::moveDb(result.first, resultShared.first);
     }
 
-
     int *results = NULL;
     if (MMseqsMPI::isMaster()) {
         results = new int[MMseqsMPI::numProc]();
@@ -909,7 +908,6 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
         DBReader<unsigned int> resultReader(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         resultReader.open(DBReader<unsigned int>::NOSORT);
         resultReader.readMmapedDataInMemory();
-
         const std::pair<std::string, std::string> tempDb = Util::databaseNames((resultDB + "_tmp"));
         DBWriter resultWriter(tempDb.first.c_str(), tempDb.second.c_str(), localThreads, compressed, Parameters::DBTYPE_PREFILTER_RES);
         resultWriter.open();

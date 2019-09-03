@@ -22,20 +22,20 @@ TARGET="$2"
 OUTPUT="$3"
 TMP_PATH="$4"
 
-if notExists "${TMP_PATH}/result"; then
+if notExists "${TMP_PATH}/result.index"; then
     # shellcheck disable=SC2086
     "${MMSEQS}" search "${QUERY}" "${TARGET}" "${TMP_PATH}/result" "${TMP_PATH}/search" ${SEARCH_PAR} \
         || fail "search failed"
 fi
 
-if notExists "${TMP_PATH}/aggregate"; then
+if notExists "${TMP_PATH}/aggregate.index"; then
     # aggregation: take for each target set the best hit
     # shellcheck disable=SC2086
     "${MMSEQS}" besthitperset "${QUERY}" "${TARGET}" "${TMP_PATH}/result" "${TMP_PATH}/aggregate" ${BESTHITBYSET_PAR} \
         || fail "aggregate best hit failed"
 fi
 
-if notExists "${OUTPUT}"; then
+if notExists "${OUTPUT}.index"; then
     # shellcheck disable=SC2086
     "${MMSEQS}" mergeresultsbyset "${QUERY}_set_to_member" "${TMP_PATH}/aggregate" "${OUTPUT}" ${THREADS_PAR} \
         || fail "mergesetresults failed"

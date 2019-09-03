@@ -87,7 +87,7 @@ private:
     const float sensitivity;
     size_t maxSeqLen;
     int querySeqType;
-    const bool diagonalScoring;
+    const unsigned int diagonalScoring;
     const unsigned int minDiagScoreThr;
     bool aaBiasCorrection;
     const float covThr;
