@@ -2,7 +2,7 @@
 // Created by Martin Steinegger on 2019-01-04.
 //
 
-#include <QueryMatcher.h>
+#include "QueryMatcher.h"
 #include "PrefilteringIndexReader.h"
 #include "NucleotideMatrix.h"
 #include "SubstitutionMatrix.h"
@@ -12,17 +12,31 @@
 #include "Debug.h"
 #include "LinsearchIndexReader.h"
 #include "Timer.h"
-#include "omptl/omptl_algorithm"
 #include "KmerIndex.h"
 #include "FileUtil.h"
+
+#include "omptl/omptl_algorithm"
 
 #ifndef SIZE_T_MAX
 #define SIZE_T_MAX ((size_t) -1)
 #endif
 
-KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t splitKmerCount, size_t split, size_t splits, DBReader<unsigned int> & seqDbr,
+KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t totalKmers, size_t split, size_t splits, DBReader<unsigned int> & seqDbr,
                                                                  Parameters & par, BaseMatrix  * subMat, size_t KMER_SIZE, size_t chooseTopKmer, size_t pickNBest, bool adjustLength) {
     Debug(Debug::INFO) << "Generate k-mers list " << split <<"\n";
+
+    size_t splitKmerCount = totalKmers;
+    if(splits > 1){
+        size_t memoryLimit;
+        if (par.splitMemoryLimit > 0) {
+            memoryLimit = static_cast<size_t>(par.splitMemoryLimit);
+        } else {
+            memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
+        }
+        // we do not really know how much memory is needed. So this is our best choice
+        splitKmerCount = (memoryLimit / sizeof(KmerPosition));
+    }
+
     KmerPosition * hashSeqPair = initKmerPositionMemory(splitKmerCount*pickNBest);
     Timer timer;
     size_t elementsToSort;
@@ -140,73 +154,57 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     setLinearFilterDefault(&par);
     par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
     int targetSeqType;
-    DBReader<unsigned int> * tidxdbr;
-    int targetDbtype = FileUtil::parseDbType(par.db2.c_str());
     int adjustedKmerSize = 0;
     bool isAdjustedKmerLen = false;
-    if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)==true) {
-        tidxdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        tidxdbr->open(DBReader<unsigned int>::NOSORT);
-        PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
-        if(par.PARAM_K.wasSet){
-            if(par.kmerSize != 0 && data.kmerSize != par.kmerSize){
-                Debug(Debug::ERROR) << "Index was created with -k " << data.kmerSize << " but the prefilter was called with -k " << par.kmerSize << "!\n";
-                Debug(Debug::ERROR) << "createindex -k " << par.kmerSize << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-        }
-        if(par.PARAM_ALPH_SIZE.wasSet){
-            if(data.alphabetSize != par.alphabetSize){
-                Debug(Debug::ERROR) << "Index was created with --alph-size  " << data.alphabetSize << " but the prefilter was called with --alph-size " << par.alphabetSize << "!\n";
-                Debug(Debug::ERROR) << "createindex --alph-size " << par.alphabetSize << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-        }
-        if(par.PARAM_SPACED_KMER_MODE.wasSet){
-            if(data.spacedKmer != par.spacedKmer){
-                Debug(Debug::ERROR) << "Index was created with --spaced-kmer-mode " << data.spacedKmer << " but the prefilter was called with --spaced-kmer-mode " << par.spacedKmer << "!\n";
-                Debug(Debug::ERROR) << "createindex --spaced-kmer-mode " << par.spacedKmer << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-        }
-
-        par.kmerSize = data.kmerSize;
-        par.alphabetSize = data.alphabetSize;
-        targetSeqType = data.seqType;
-        par.spacedKmer   = (data.spacedKmer == 1) ? true : false;
-        par.maxSeqLen = data.maxSeqLength;
-        // Reuse the compBiasCorr field to store the adjustedKmerSize, It is not needed in the linsearch
-        adjustedKmerSize = data.compBiasCorr;
-        isAdjustedKmerLen = data.kmerSize != adjustedKmerSize;
-    }else{
-        Debug(Debug::ERROR) << "Please create index before calling kmersearch!\n";
-        Debug(Debug::ERROR) << "mmseqs createindex \n";
+    if (Parameters::isEqualDbtype(FileUtil::parseDbType(par.db2.c_str()), Parameters::DBTYPE_INDEX_DB) == false) {
+        Debug(Debug::ERROR) << "Create index before calling kmersearch with mmseqs createlinindex.\n";
         EXIT(EXIT_FAILURE);
     }
+
+    DBReader<unsigned int> tidxdbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    tidxdbr.open(DBReader<unsigned int>::NOSORT);
+    PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&tidxdbr);
+    if(par.PARAM_K.wasSet){
+        if(par.kmerSize != 0 && data.kmerSize != par.kmerSize){
+            Debug(Debug::ERROR) << "Index was created with -k " << data.kmerSize << " but the prefilter was called with -k " << par.kmerSize << "!\n";
+            Debug(Debug::ERROR) << "createindex -k " << par.kmerSize << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    if(par.PARAM_ALPH_SIZE.wasSet){
+        if(data.alphabetSize != par.alphabetSize){
+            Debug(Debug::ERROR) << "Index was created with --alph-size  " << data.alphabetSize << " but the prefilter was called with --alph-size " << par.alphabetSize << "!\n";
+            Debug(Debug::ERROR) << "createindex --alph-size " << par.alphabetSize << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    if(par.PARAM_SPACED_KMER_MODE.wasSet){
+        if(data.spacedKmer != par.spacedKmer){
+            Debug(Debug::ERROR) << "Index was created with --spaced-kmer-mode " << data.spacedKmer << " but the prefilter was called with --spaced-kmer-mode " << par.spacedKmer << "!\n";
+            Debug(Debug::ERROR) << "createindex --spaced-kmer-mode " << par.spacedKmer << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    par.kmerSize = data.kmerSize;
+    par.alphabetSize = data.alphabetSize;
+    targetSeqType = data.seqType;
+    par.spacedKmer = (data.spacedKmer == 1) ? true : false;
+    par.maxSeqLen = data.maxSeqLength;
+    // Reuse the compBiasCorr field to store the adjustedKmerSize, It is not needed in the linsearch
+    adjustedKmerSize = data.compBiasCorr;
+    isAdjustedKmerLen = data.kmerSize != adjustedKmerSize;
 
     DBReader<unsigned int> queryDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     queryDbr.open(DBReader<unsigned int>::NOSORT);
     int querySeqType = queryDbr.getDbtype();
-    if(Parameters::isEqualDbtype(querySeqType, targetSeqType) == false){
+    if (Parameters::isEqualDbtype(querySeqType, targetSeqType) == false) {
         Debug(Debug::ERROR) << "Dbtype of query and target database do not match !\n";
         EXIT(EXIT_FAILURE);
     }
+
     setKmerLengthAndAlphabet(par, queryDbr.getAminoAcidDBSize(), querySeqType);
-    std::vector<MMseqsParameter*>* params = command.params;
-    par.printParameters(command.cmd, argc, argv, *params);
 
-
-    BaseMatrix *subMat;
-    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.seedScoringMatrixFile.nucleotides, 1.0, 0.0);
-    }else {
-        if (par.alphabetSize == 21) {
-            subMat = new SubstitutionMatrix(par.seedScoringMatrixFile.aminoacids, 8.0, -0.2);
-        } else {
-            SubstitutionMatrix sMat(par.seedScoringMatrixFile.aminoacids, 8.0, -0.2);
-            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, par.alphabetSize, 8.0);
-        }
-    }
+    par.printParameters(command.cmd, argc, argv, *command.params);
 
     //queryDbr.readMmapedDataInMemory();
     const size_t KMER_SIZE = par.kmerSize;
@@ -219,10 +217,22 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
-    Debug(Debug::INFO) << "\n";
+
     size_t totalKmers = computeKmerCount(queryDbr, KMER_SIZE, chooseTopKmer);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
     Debug(Debug::INFO) << "Estimated memory consumption " << totalSizeNeeded/1024/1024 << " MB\n";
+
+    BaseMatrix *subMat;
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
+        subMat = new NucleotideMatrix(par.seedScoringMatrixFile.nucleotides, 1.0, 0.0);
+    } else {
+        if (par.alphabetSize == 21) {
+            subMat = new SubstitutionMatrix(par.seedScoringMatrixFile.aminoacids, 8.0, -0.2);
+        } else {
+            SubstitutionMatrix sMat(par.seedScoringMatrixFile.aminoacids, 8.0, -0.2);
+            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, par.alphabetSize, 8.0);
+        }
+    }
 
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
@@ -234,56 +244,64 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     int outDbType = (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) ? Parameters::DBTYPE_PREFILTER_REV_RES : Parameters::DBTYPE_PREFILTER_RES;
     Debug(Debug::INFO) << "Process file into " << splits << " parts\n";
 
-    std::vector< std::string > splitFiles;
-    for(size_t split = 0; split < splits; split++) {
-        tidxdbr->remapData();
-        char *entriesData = tidxdbr->getDataUncompressed(tidxdbr->getId(PrefilteringIndexReader::ENTRIES));
-        char *entriesOffsetsData = tidxdbr->getDataUncompressed(tidxdbr->getId(PrefilteringIndexReader::ENTRIESOFFSETS));
-        int64_t entriesNum = *((int64_t *)tidxdbr->getDataUncompressed(tidxdbr->getId(PrefilteringIndexReader::ENTRIESNUM)));
-        int64_t entriesGridSize = *((int64_t *)tidxdbr->getDataUncompressed(tidxdbr->getId(PrefilteringIndexReader::ENTRIESGRIDSIZE)));
+    std::vector<std::string> splitFiles;
+    for (size_t split = 0; split < splits; split++) {
+        tidxdbr.remapData();
+        char *entriesData = tidxdbr.getDataUncompressed(tidxdbr.getId(PrefilteringIndexReader::ENTRIES));
+        char *entriesOffsetsData = tidxdbr.getDataUncompressed(tidxdbr.getId(PrefilteringIndexReader::ENTRIESOFFSETS));
+        int64_t entriesNum = *((int64_t *) tidxdbr.getDataUncompressed(tidxdbr.getId(PrefilteringIndexReader::ENTRIESNUM)));
+        int64_t entriesGridSize = *((int64_t *) tidxdbr.getDataUncompressed(tidxdbr.getId(PrefilteringIndexReader::ENTRIESGRIDSIZE)));
         KmerIndex kmerIndex(par.alphabetSize, adjustedKmerSize, entriesData, entriesOffsetsData, entriesNum, entriesGridSize);
 //        kmerIndex.printIndex<Parameters::DBTYPE_NUCLEOTIDES>(subMat);
         std::pair<std::string, std::string> tmpFiles;
-        if(splits > 1){
+        if (splits > 1) {
             tmpFiles = Util::createTmpFileNames(par.db3.c_str(), par.db3Index.c_str(), split);
-        }else{
+        } else {
             tmpFiles = std::make_pair(par.db3, par.db3Index);
         }
         splitFiles.push_back(tmpFiles.first);
-
-        size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers / splits) * 1.2) : totalKmers;
-        KmerSearch::ExtractKmerAndSortResult sortedKmers = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, queryDbr, par, subMat,
-                                                                                       KMER_SIZE, chooseTopKmer, par.pickNbest, isAdjustedKmerLen);
-        std::pair<KmerPosition*, size_t> result;
-        if(Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-            result = KmerSearch::searchInIndex<Parameters::DBTYPE_NUCLEOTIDES>(sortedKmers.kmers, sortedKmers.kmerCount, kmerIndex);
-        }else{
-            result = KmerSearch::searchInIndex<Parameters::DBTYPE_AMINO_ACIDS>(sortedKmers.kmers, sortedKmers.kmerCount, kmerIndex);
-        }
-
-        KmerPosition * kmers = result.first;
-        size_t kmerCount = result.second;
-        if(splits==1){
-            DBWriter dbw(tmpFiles.first.c_str(), tmpFiles.second.c_str(), 1, par.compressed, outDbType);
-            dbw.open();
-            if(Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-                KmerSearch::writeResult<Parameters::DBTYPE_NUCLEOTIDES>(dbw, kmers, kmerCount);
-            }else{
-                KmerSearch::writeResult<Parameters::DBTYPE_AMINO_ACIDS>(dbw, kmers, kmerCount);
+        
+        std::string splitFileNameDone = tmpFiles.first + ".done";
+        if(FileUtil::fileExists(splitFileNameDone.c_str()) == false) {
+            KmerSearch::ExtractKmerAndSortResult sortedKmers = KmerSearch::extractKmerAndSort(totalKmers, split,
+                                                                                              splits, queryDbr, par,
+                                                                                              subMat,
+                                                                                              KMER_SIZE, chooseTopKmer,
+                                                                                              par.pickNbest,
+                                                                                              isAdjustedKmerLen);
+            std::pair<KmerPosition *, size_t> result;
+            if (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
+                result = KmerSearch::searchInIndex<Parameters::DBTYPE_NUCLEOTIDES>(sortedKmers.kmers,
+                                                                                   sortedKmers.kmerCount, kmerIndex);
+            } else {
+                result = KmerSearch::searchInIndex<Parameters::DBTYPE_AMINO_ACIDS>(sortedKmers.kmers,
+                                                                                   sortedKmers.kmerCount, kmerIndex);
             }
 
-            dbw.close();
-        }else {
-            if(Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-                writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(tmpFiles.first, kmers, kmerCount + 1);
-            }else{
-                writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(tmpFiles.first, kmers, kmerCount + 1);
+            KmerPosition *kmers = result.first;
+            size_t kmerCount = result.second;
+            if (splits == 1) {
+                DBWriter dbw(tmpFiles.first.c_str(), tmpFiles.second.c_str(), 1, par.compressed, outDbType);
+                dbw.open();
+                if (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
+                    KmerSearch::writeResult<Parameters::DBTYPE_NUCLEOTIDES>(dbw, kmers, kmerCount);
+                } else {
+                    KmerSearch::writeResult<Parameters::DBTYPE_AMINO_ACIDS>(dbw, kmers, kmerCount);
+                }
+                dbw.close();
+            } else {
+                if (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
+                    writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(tmpFiles.first, kmers,
+                                                                                   kmerCount );
+                } else {
+                    writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(tmpFiles.first, kmers, kmerCount );
+                }
             }
-            delete [] kmers;
+            delete[] kmers;
         }
     }
-    tidxdbr->close();
-    delete tidxdbr;
+    delete subMat;
+    tidxdbr.close();
     queryDbr.close();
     if(splitFiles.size()>1){
         DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, par.compressed, outDbType);
@@ -293,6 +311,11 @@ int kmersearch(int argc, const char **argv, const Command &command) {
             mergeKmerFilesAndOutput<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev>(writer, splitFiles, empty);
         }else{
             mergeKmerFilesAndOutput<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry>(writer, splitFiles, empty);
+        }
+        for(size_t i = 0; i < splitFiles.size(); i++){
+            FileUtil::remove(splitFiles[i].c_str());
+            std::string splitFilesDone = splitFiles[i] + ".done";
+            FileUtil::remove(splitFilesDone.c_str());
         }
         writer.close();
     }

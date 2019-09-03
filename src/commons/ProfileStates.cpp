@@ -308,7 +308,7 @@ float ProfileStates::getScoreNormalization() {
 void ProfileStates::discretize(const float* sequence, size_t length, std::string &result)
 {
     
-    char closestState;
+    char closestState = 0;
     float curDiffScore;
     float* profileCol;
     float* repScore = (float*)mem_align(ALIGN_FLOAT, 256*sizeof(float));

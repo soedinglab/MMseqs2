@@ -46,10 +46,7 @@ int reverseseq(int argn, const char **argv, const Command& command) {
     }
     revSeqWriter.close(true);
     seqReader.close();
-
-    FileUtil::symlinkAbs(par.hdr1, par.hdr2);
-    FileUtil::symlinkAbs(par.hdr1Index, par.hdr2Index);
-    FileUtil::symlinkAbs((par.hdr1 + ".dbtype"), (par.hdr2 + ".dbtype"));
+    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
 
     return EXIT_SUCCESS;
 }

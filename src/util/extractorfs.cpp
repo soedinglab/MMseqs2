@@ -5,7 +5,7 @@
 #include "Matcher.h"
 #include "Util.h"
 #include "itoa.h"
-
+#include "TranslateNucl.h"
 #include "Orf.h"
 
 #include <unistd.h>
@@ -16,7 +16,6 @@
 #include <omp.h>
 #endif
 
-
 int extractorfs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
@@ -25,12 +24,15 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     reader.open(DBReader<unsigned int>::NOSORT);
 
     DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    int outputDbtype = Parameters::DBTYPE_NUCLEOTIDES;
     headerReader.open(DBReader<unsigned int>::NOSORT);
-
-    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_NUCLEOTIDES);
+    if(par.translate) {
+        outputDbtype = Parameters::DBTYPE_AMINO_ACIDS;
+    }
+    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, outputDbtype);
     sequenceWriter.open();
 
-    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, false, Parameters::DBTYPE_OFFSETDB);
+    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, false, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
     if ((par.orfStartMode == 1) && (par.contigStartMode < 2)) {
@@ -42,6 +44,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     unsigned int reverseFrames = Orf::getFrames(par.reverseFrames);
     const char newline = '\n';
     Debug::Progress progress(reader.getSize());
+    TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
 
 #pragma omp parallel
     {
@@ -57,6 +60,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         if (querySize == 0) {
             queryFrom = 0;
         }
+        char* aa = new char[par.maxSeqLen + 3 + 1];
 
         std::vector<Orf::SequenceLocation> res;
         res.reserve(1000);
@@ -99,16 +103,32 @@ int extractorfs(int argc, const char **argv, const Command& command) {
 //                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d]\n", (unsigned int)(headerAccession.size()), headerAccession.c_str(),
 //                          toPos, loc.hasIncompleteStart, loc.hasIncompleteEnd);
                 sequenceWriter.writeStart(thread_idx);
-                sequenceWriter.writeAdd(sequence.first, sequence.second, thread_idx);
+                if(par.translate){
+                    if ((data[sequence.second] != '\n' && sequence.second % 3 != 0) && (data[sequence.second - 1] == '\n' && (sequence.second - 1) % 3 != 0)) {
+                        sequence.second = sequence.second - (sequence.second % 3);
+                    }
+
+                    if (sequence.second < 3) {
+                        continue;
+                    }
+
+                    if (sequence.second > (3 * par.maxSeqLen)) {
+                        sequence.second = (3 * par.maxSeqLen);
+                    }
+                    translateNucl.translate(aa, sequence.first, sequence.second);
+                    sequenceWriter.writeAdd(aa, (sequence.second / 3), thread_idx);
+
+                }else{
+                    sequenceWriter.writeAdd(sequence.first, sequence.second, thread_idx);
+                }
                 sequenceWriter.writeAdd(&newline, 1, thread_idx);
                 sequenceWriter.writeEnd(key, thread_idx);
 
                 headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
-
-
             }
             res.clear();
         }
+        delete[] aa;
     }
     headerWriter.close(true);
     sequenceWriter.close(true);
@@ -122,57 +142,18 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         {
 #pragma omp task
             {
-                DBReader<unsigned int> orfHeaderReader(par.hdr2.c_str(), par.hdr2Index.c_str(),
-                                                       par.threads, DBReader<unsigned int>::USE_INDEX);
-                orfHeaderReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
-                FILE *hIndex = fopen((par.hdr2Index + "_tmp").c_str(), "w");
-                if (hIndex == NULL) {
-                    Debug(Debug::ERROR) << "Could not open " << par.hdr2Index << "_tmp for writing!\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                for (size_t i = 0; i < orfHeaderReader.getSize(); i++) {
-                    DBReader<unsigned int>::Index *idx = orfHeaderReader.getIndex(i);
-                    char buffer[1024];
-                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, orfHeaderReader.getSeqLens(i));
-                    int written = fwrite(buffer, sizeof(char), len, hIndex);
-                    if (written != (int) len) {
-                        Debug(Debug::ERROR) << "Could not write to data file " << par.hdr2Index << "_tmp\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                }
-                fclose(hIndex);
-                orfHeaderReader.close();
-                std::rename((par.hdr2Index + "_tmp").c_str(), par.hdr2Index.c_str());
+                DBWriter::createRenumberedDB(par.hdr2, par.hdr2Index, "");
             }
 
 #pragma omp task
             {
-                DBReader<unsigned int> orfSequenceReader(par.db2.c_str(), par.db2Index.c_str(),
-                                                         par.threads, DBReader<unsigned int>::USE_INDEX);
-                orfSequenceReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
-
-                FILE *sIndex = fopen((par.db2Index + "_tmp").c_str(), "w");
-                if (sIndex == NULL) {
-                    Debug(Debug::ERROR) << "Could not open " << par.db2Index << "_tmp for writing!\n";
-                    EXIT(EXIT_FAILURE);
-                }
-
-                for (size_t i = 0; i < orfSequenceReader.getSize(); i++) {
-                    DBReader<unsigned int>::Index *idx = (orfSequenceReader.getIndex(i));
-                    char buffer[1024];
-                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, orfSequenceReader.getSeqLens(i));
-                    int written = fwrite(buffer, sizeof(char), len, sIndex);
-                    if (written != (int) len) {
-                        Debug(Debug::ERROR) << "Could not write to data file " << par.db2Index << "_tmp\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                }
-                fclose(sIndex);
-                orfSequenceReader.close();
-                std::rename((par.db2Index + "_tmp").c_str(), par.db2Index.c_str());
+                std::string lookup = par.db1 + ".lookup";
+                DBWriter::createRenumberedDB(par.db2, par.db2Index, par.createLookup ? lookup : "");
             }
         }
     }
+    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SOURCE);
+
     return EXIT_SUCCESS;
 }
 

@@ -9,7 +9,13 @@
 #include <omp.h>
 #endif
 
-int doExtractAlignedRegion(Parameters &par) {
+int extractalignedregion(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, true, 0, 0);
+
+    // never allow deletions
+    par.allowDeletion = false;
+
     DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     qdbr.open(DBReader<unsigned int>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
@@ -80,16 +86,13 @@ int doExtractAlignedRegion(Parameters &par) {
             results.clear();
         }
     }
-
+    dbw.close();
 
     if (par.extractMode == Parameters::EXTRACT_QUERY) {
-        dbw.close();
+        DBReader<unsigned int>::softlinkDb(par.db1, par.db4, DBFiles::SEQUENCE_ANCILLARY);
     } else {
-        dbw.close();
+        DBReader<unsigned int>::softlinkDb(par.db2, par.db4, DBFiles::SEQUENCE_ANCILLARY);
     }
-
-    FileUtil::symlinkAbs(par.hdr1, par.hdr4);
-    FileUtil::symlinkAbs(par.hdr1Index, par.hdr4Index);
 
     alndbr.close();
     qdbr.close();
@@ -100,16 +103,3 @@ int doExtractAlignedRegion(Parameters &par) {
 
     return EXIT_SUCCESS;
 }
-
-int extractalignedregion(int argc, const char **argv, const Command& command) {
-    Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, true, 0, 0);
-
-    // never allow deletions
-    par.allowDeletion = false;
-
-    int retCode = doExtractAlignedRegion(par);
-
-    return retCode;
-}
-

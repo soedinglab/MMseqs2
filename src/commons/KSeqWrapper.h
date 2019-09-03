@@ -1,8 +1,9 @@
 #ifndef MMSEQS_KSEQWRAPPER_H
 #define MMSEQS_KSEQWRAPPER_H
 
+#include "kseq.h"
+
 #include <string>
-#include <kseq/kseq.h>
 
 class KSeqWrapper {
 public:

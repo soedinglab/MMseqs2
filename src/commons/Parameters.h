@@ -131,7 +131,12 @@ public:
     static const int OUTFMT_QCOV = 25;
     static const int OUTFMT_TCOV = 26;
     static const int OUTFMT_EMPTY = 27;
-    static std::vector<int> getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders);
+    static const int OUTFMT_QSET = 28;
+    static const int OUTFMT_QSETID = 29;
+    static const int OUTFMT_TSET = 30;
+    static const int OUTFMT_TSETID = 31;
+
+    static std::vector<int> getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders, bool &needLookup, bool &needSource);
 
     // convertprofiledb
     static const int PROFILE_MODE_HMM = 0;
@@ -170,10 +175,6 @@ public:
     static const int PRELOAD_MODE_FREAD = 1;
     static const int PRELOAD_MODE_MMAP = 2;
     static const int PRELOAD_MODE_MMAP_TOUCH = 3;
-
-    static const int DIAG_SCORE_OFF = 0;
-    static const int DIAG_SCORE_ON = 1;
-    static const int DIAG_SCORE_NO_RESCALE = 2;
 
     static std::string getSplitModeName(int splitMode) {
         switch (splitMode) {
@@ -217,6 +218,8 @@ public:
     static const int RESCORE_MODE_HAMMING = 0;
     static const int RESCORE_MODE_SUBSTITUTION = 1;
     static const int RESCORE_MODE_ALIGNMENT = 2;
+    static const int RESCORE_MODE_GLOBAL_ALIGNMENT = 3;
+    static const int RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT = 4;
 
     // combinepvalperset
     static const int AGGREGATION_MODE_MULTIHIT = 0;
@@ -228,6 +231,10 @@ public:
     // header type
     static const int HEADER_TYPE_UNICLUST = 1;
     static const int HEADER_TYPE_METACLUST = 2;
+
+    // create subdb type
+    static const int SUBDB_MODE_HARD = 0;
+    static const int SUBDB_MODE_SOFT = 1;
 
     // path to databases
     std::string db1;
@@ -293,7 +300,6 @@ public:
     ScoreMatrixFile seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
-    std::string prevMaxResListLengths;   // all max-seqs in previous iterations
     int    verbosity;                    // log level
     int    threads;                      // Amounts of threads
     int    compressed;                   // compressed writer
@@ -306,10 +312,10 @@ public:
     int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
     int    compBiasCorrection;           // Aminoacid composiont correction
-    int    diagonalScoring;              // switch diagonal scoring
+    bool   diagonalScoring;              // switch diagonal scoring
     int    exactKmerMatching;            // only exact k-mer matching
     int    maskMode;                     // mask low complex areas
-    int    maskLowerCaseMode;            // maske lowercase letters in prefilter and kmermatchers
+    int    maskLowerCaseMode;            // mask lowercase letters in prefilter and kmermatchers
 
     int    minDiagScoreThr;              // min diagonal score
     int    spacedKmer;                   // Spaced Kmers
@@ -375,6 +381,8 @@ public:
     std::string forwardFrames;
     std::string reverseFrames;
     bool useAllTableStarts;
+    int translate;
+    int createLookup;
 
     // convertprofiledb
     int profileMode;
@@ -535,7 +543,6 @@ public:
 
     // filtertaxdb
     std::string taxonList;
-    bool invertSelection;
 
     // view
     std::string idList;
@@ -557,6 +564,9 @@ public:
     // taxonomy
     int taxonomySearchMode;
     int taxonomyOutpuMode;
+
+    // createsubdb
+    int subDbMode;
 
     static Parameters& getInstance()
     {
@@ -595,7 +605,6 @@ public:
     PARAMETER(PARAM_MIN_DIAG_SCORE)
     PARAMETER(PARAM_K_SCORE)
     PARAMETER(PARAM_MAX_SEQS)
-    PARAMETER(PARAM_PREV_MAX_SEQS)
     PARAMETER(PARAM_SPLIT)
     PARAMETER(PARAM_SPLIT_MODE)
     PARAMETER(PARAM_SPLIT_MEMORY_LIMIT)
@@ -656,7 +665,6 @@ public:
     // rescoremode
     PARAMETER(PARAM_RESCORE_MODE)
     PARAMETER(PARAM_FILTER_HITS)
-    PARAMETER(PARAM_GLOBAL_ALIGNMENT)
     PARAMETER(PARAM_SORT_RESULTS)
 
     // result2msa
@@ -735,6 +743,8 @@ public:
     PARAMETER(PARAM_ORF_FORWARD_FRAMES)
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
     PARAMETER(PARAM_USE_ALL_TABLE_STARTS)
+    PARAMETER(PARAM_TRANSLATE)
+    PARAMETER(PARAM_CREATE_LOOKUP)
 
     // indexdb
     PARAMETER(PARAM_CHECK_COMPATIBLE)
@@ -831,7 +841,6 @@ public:
 
     // filtertaxdb
     PARAMETER(PARAM_TAXON_LIST)
-    PARAMETER(PARAM_INVERT_SELECTION)
 
     // view
     PARAMETER(PARAM_ID_LIST)
@@ -851,6 +860,10 @@ public:
     // taxonomy
     PARAMETER(PARAM_LCA_MODE)
     PARAMETER(PARAM_TAX_OUTPUT_MODE)
+
+    // createsubdb
+    PARAMETER(PARAM_SUBDB_MODE)
+
 
     std::vector<MMseqsParameter*> empty;
     std::vector<MMseqsParameter*> onlyverbosity;
@@ -926,8 +939,10 @@ public:
     std::vector<MMseqsParameter*> filtertaxdb;
     std::vector<MMseqsParameter*> taxonomy;
     std::vector<MMseqsParameter*> easytaxonomy;
+    std::vector<MMseqsParameter*> createsubdb;
     std::vector<MMseqsParameter*> createtaxdb;
     std::vector<MMseqsParameter*> profile2pssm;
+    std::vector<MMseqsParameter*> profile2seq;
     std::vector<MMseqsParameter*> profile2cs;
     std::vector<MMseqsParameter*> besthitbyset;
     std::vector<MMseqsParameter*> combinepvalbyset;

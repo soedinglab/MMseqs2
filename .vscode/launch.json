@@ -1,0 +1,50 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/src/mmseqs",
+            //"program": "${workspaceFolder}/build/src/test/test_kmergenerator",    
+            //"args": ["besthitperset", "../qspacer/qspacersdb", "../tprokvirus/tprokvirusdb","../tmp/10023483096582782768/result_emp_eval", "../tmp/10023483096582782768/aggregate_debug", "--simple-best-hit", "1", "--threads", "1"],
+            //"args": ["empiricaleval", "../tmp/16681300636609366448/result_offset_rev","../tmp/16681300636609366448/result_offset", "../tmp/16681300636609366448/result_empeval_debug", "--threads", "1"],
+            //"args": ["offsetalignment", "../qspacer_rev_test3/qspacerdb_rev_test4_nucl", "../qspacer_rev_test3/qspacerdb_rev_test4", "../tprokvirus/tprokvirusdb_nucl", "../tprokvirus/tprokvirusdb", "../tmp/13106688369605147061/result_rev", "../tmp/13106688369605147061/result_offset_rev_debug", "--threads" , "1", "--search-type", "1"],
+            "args": ["convertalis", "../qspacer/qspacersdb", "../tprokvirus/tprokvirusdb", "result_vtml40_gp162_nocorr", "pval_vtml40_gp162_debug", "--aggregation-mode","4", "--threads", "1"],
+            //"args": ["align", "qsetsdb_rev", "tsetsdb", "tmp/7121412653260743939/search/11393100554207444486/pref_0", "tmp/7121412653260743939/result", 
+            //    "--sub-mat", "blosum62.out", "-a", "1", "--alignment-mode", "2", "-e", "100", "--min-seq-id", "0", "--seq-id-mode", "0", "--alt-ali", "0", "-c", "0",
+            //    "--cov-mode", "0", "--max-seq-len", "65535", "--max-seqs", "300", "--comp-bias-corr", "1", "--realign", "1", "--max-rejected", "2147483647",
+            //    "--max-accept", "2147483647", "--add-self-matches", "0", "--db-load-mode", "0", "--pca", "1", "--pcb", "1.5","--score-bias", "0", "--realign-score-bias", "0.3",
+            //    "--gap-open", "11", "--gap-extend", "1", "--threads", "1", "--compressed", "0", "-v", "3" ],
+            //"args": ["combinepvalperset", "qsetsdb", "tsetsdb", "result_rev_ungapped", "pval_debug", "--threads", "1", "--aggregation-mode", "4"],
+            //"args": ["prefilter", "spacers_avlk_single", "whole_avlk", "result_whole_single", "tmp", "-k", "5", "--spaced-kmer-pattern", "1101010001"],
+            //"args": ["prefilter", "spacers_avlk_single", "whole_avlk", "result_whole_single", "tmp", "-k", "5"],
+            "stopAtEntry": false,
+            //"cwd": "/home/eli/postdoc/six_orfs_test/",
+            // "cwd": "/mnt/data/Foram/local_test2/",
+            //"cwd" : "/home/rosy/work/multihit/data_clovisjr",
+            "cwd" : "/media/rosy/BA923CC1923C8443/benchmark/april2019_phage/result",
+            //"cwd" : "/home/rosy/work/",
+            "environment": [],
+            // "internalConsoleOptions": "openOnSessionStart",
+            "externalConsole": false,
+            // "filterStdout": false,
+            // "filterStderr": false,
+            // "showOutput": "always",
+            // "echoCommand": true,
+            //"MIMode": "lldb",
+            //"miDebuggerPath": "lldb-mi-4.0"
+            "MIMode": "gdb",
+            "setupCommands": [
+                 {
+                     "description": "Enable pretty-printing for gdb",
+                     "text": "-enable-pretty-printing",
+                     "ignoreFailures": true
+                 }
+             ]
+        } 
+    ]
+}

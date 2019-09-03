@@ -253,7 +253,7 @@ int main(int argc, const char **argv) {
         }
 
         if (index != SIZE_MAX) {
-            Debug(Debug::WARNING) << "Did you mean \"" << argv[0] << " " << commands[index].cmd << "\"?\n";
+            Debug(Debug::WARNING) << "Did you mean \"" << argv[0] << " " << baseCommands[index].cmd << "\"?\n";
         }
 
         return EXIT_FAILURE;

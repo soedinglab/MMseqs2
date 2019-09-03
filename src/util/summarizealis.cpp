@@ -15,14 +15,13 @@ int summarizealis(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-
-    DBReader<unsigned int> resultReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     writer.open();
-    Debug::Progress progress(resultReader.getSize());
 
+    Debug::Progress progress(reader.getSize());
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -34,33 +33,33 @@ int summarizealis(int argc, const char **argv, const Command &command) {
         alnResults.reserve(300);
 
         std::string annotation;
-        annotation.reserve(1024*1024);
+        annotation.reserve(1024 * 1024);
 
 #pragma omp for schedule(dynamic, 100)
-        for (size_t i = 0; i < resultReader.getSize(); ++i) {
+        for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
 
-            unsigned int dbKey = resultReader.getDbKey(i);
-            char *tabData = resultReader.getData(i,  thread_idx);
-            Matcher::readAlignmentResults(alnResults, tabData);
-            std::stable_sort(alnResults.begin(), alnResults.end(), Matcher::compareHitByPos);
-
+            char *data = reader.getData(i, thread_idx);
+            Matcher::readAlignmentResults(alnResults, data);
             if (alnResults.size() == 0) {
+                writer.writeData("", 0, reader.getDbKey(i), thread_idx);
                 continue;
             }
+
+            std::stable_sort(alnResults.begin(), alnResults.end(), Matcher::compareHitByPos);
             float resCov = 0;
             float avgSeqId = 0.0f;
             unsigned int seqLen = 1;
             float uniqCov = 0;
-            std::vector<bool> covered(alnResults[0].qLen, false);
+            //std::vector<bool> covered(alnResults[0].qLen, false);
             int prevQEndPos = -1;
 
             for (size_t i = 0; i < alnResults.size(); i++) {
                 Matcher::result_t res = alnResults[i];
                 seqLen = res.qLen;
-                int qStartPos  = std::min( res.qStartPos, res.qEndPos);
-                int qEndPos = std::max( res.qStartPos, res.qEndPos);
-                uniqCov += std::max(prevQEndPos, res.qEndPos) - std::max(prevQEndPos, res.qStartPos);
+                int qStartPos = std::min(res.qStartPos, res.qEndPos);
+                int qEndPos = std::max(res.qStartPos, res.qEndPos);
+                uniqCov += std::max(prevQEndPos, qEndPos) - std::max(prevQEndPos, qStartPos);
                 resCov += static_cast<float>(qEndPos - qStartPos);
                 avgSeqId += res.seqId;
                 prevQEndPos = std::max(prevQEndPos, res.qEndPos);
@@ -76,12 +75,13 @@ int summarizealis(int argc, const char **argv, const Command &command) {
             annotation.append("\t");
             annotation.append(SSTR(avgSeqId));
             annotation.append("\n");
-            writer.writeData(annotation.c_str(), annotation.length(), dbKey, thread_idx);
+            writer.writeData(annotation.c_str(), annotation.length(), reader.getDbKey(i), thread_idx);
             alnResults.clear();
             annotation.clear();
         }
     }
     writer.close();
+    reader.close();
 
     return EXIT_SUCCESS;
 }

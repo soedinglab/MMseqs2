@@ -5,7 +5,6 @@
 #include "CommandCaller.h"
 #include "easytaxonomy.sh.h"
 
-
 void setEasyTaxonomyDefaults(Parameters *p) {
     p->spacedKmer = true;
     p->removeTmpFiles = true;
@@ -16,38 +15,30 @@ void setEasyTaxonomyDefaults(Parameters *p) {
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
 }
+void setEasyTaxonomyMustPassAlong(Parameters *p) {
+    p->PARAM_SPACED_KMER_MODE.wasSet = true;
+    p->PARAM_REMOVE_TMP_FILES.wasSet = true;
+    p->PARAM_ALIGNMENT_MODE.wasSet = true;
+    p->PARAM_S.wasSet = true;
+    p->PARAM_E.wasSet = true;
+    p->PARAM_ORF_START_MODE.wasSet = true;
+    p->PARAM_ORF_MIN_LENGTH.wasSet = true;
+    p->PARAM_ORF_MAX_LENGTH.wasSet = true;
+}
 
 int easytaxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setEasyTaxonomyDefaults(&par);
-
-//    par.overrideParameterDescription((Command &) command, par.PARAM_TAX_OUTPUT_MODE.uniqid, "", "",
-//                                     par.PARAM_TAX_OUTPUT_MODE.category | MMseqsParameter::COMMAND_EXPERT);
     par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
+    setEasyTaxonomyMustPassAlong(&par);
 
     std::string tmpDir = par.filenames.back();
-    par.filenames.pop_back();
-    if(FileUtil::directoryExists(tmpDir.c_str())==false){
-        Debug(Debug::INFO) << "Tmp " << tmpDir << " folder does not exist or is not a directory.\n";
-        if(FileUtil::makeDir(tmpDir.c_str()) == false){
-            Debug(Debug::ERROR) << "Can not create tmp folder " << tmpDir << ".\n";
-            EXIT(EXIT_FAILURE);
-        }else{
-            Debug(Debug::INFO) << "Created dir " << tmpDir << "\n";
-        }
-    }
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.taxonomy));
-    if(par.reuseLatest){
+    std::string hash = SSTR(par.hashParameter(par.filenames, *command.params));
+    if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
-    tmpDir = tmpDir + "/" +hash;
-    if(FileUtil::directoryExists(tmpDir.c_str())==false) {
-        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
-    FileUtil::symlinkAlias(tmpDir, "latest");
+    tmpDir = FileUtil::createTemporaryDirectory(tmpDir, hash);
+    par.filenames.pop_back();
 
     CommandCaller cmd;
     cmd.addVariable("RESULTS", par.filenames.back().c_str());

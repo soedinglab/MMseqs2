@@ -10,7 +10,8 @@
 class ExtendedSubstitutionMatrix
 {
 public:
-    static ScoreMatrix* calcScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize);
+    static ScoreMatrix calcScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize);
+    static void freeScoreMatrix(ScoreMatrix& matrix);
 
     static short calcScore(int * i_seq,int * j_seq,size_t seq_size,short **subMatrix);
 

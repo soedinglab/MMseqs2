@@ -83,8 +83,8 @@ int convertkb(int argc, const char **argv, const Command &command) {
         writers[*it]->open();
     }
 
-    std::map<std::string, unsigned int> mapping = Util::readLookupReverse(par.mappingFile, true);
-    const bool doMapping = mapping.size() > 0;
+    DBReader<unsigned int> reader(par.mappingFile.c_str(), par.mappingFile.c_str(), 1, DBReader<unsigned int>::USE_LOOKUP_REV);
+    const bool doMapping = reader.getLookupSize() > 0;
 
     std::ofstream *lookupStream = NULL;
     if (!doMapping) {
@@ -137,12 +137,12 @@ int convertkb(int argc, const char **argv, const Command &command) {
 
                     unsigned int key = i;
                     if (doMapping) {
-                        std::map<std::string, unsigned int>::iterator it = mapping.find(accession);
-                        if (it == mapping.end()) {
-                            Debug(Debug::WARNING) << "Could not find accession " << accession << " in mapping!\n";
+                        size_t lookupId = reader.getLookupIdByAccession(accession);
+                        if (lookupId == SIZE_MAX) {
+                            Debug(Debug::WARNING) << "Could not find accession " << accession << " in lookup\n";
                             continue;
                         }
-                        key = (*it).second;
+                        key = reader.getLookupKey(lookupId);
                     }
 
                     writers[*it]->writeData(column.c_str(), column.length(), key);
@@ -162,13 +162,14 @@ int convertkb(int argc, const char **argv, const Command &command) {
         lookupStream->close();
         delete lookupStream;
     }
-    Debug(Debug::INFO) << "\n";
 
     for (std::vector<unsigned int>::const_iterator it = enabledColumns.begin(); it != enabledColumns.end(); ++it) {
         writers[*it]->close();
         delete writers[*it];
     }
     delete[] writers;
+
+    reader.close();
 
     return EXIT_SUCCESS;
 }

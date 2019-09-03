@@ -18,6 +18,7 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
 
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("DIFF_PAR", par.createParameterString(par.diff).c_str());
+    cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
 
     int maxAccept = par.maxAccept;
     par.maxAccept = 1;
@@ -25,22 +26,19 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     par.maxAccept = maxAccept;
 
     cmd.addVariable("CLUST_PAR", par.createParameterString(par.clusterworkflow).c_str());
-
-    std::string scriptPath(par.db6);
-    if(FileUtil::directoryExists(par.db6.c_str())==false){
-        Debug(Debug::INFO) << "Tmp " << par.db6 << " folder does not exist or is not a directory.\n";
-        if(FileUtil::makeDir(par.db6.c_str()) == false){
-            Debug(Debug::ERROR) << "Can not create tmp folder " << par.db6 << ".\n";
-            EXIT(EXIT_FAILURE);
-        }else{
-            Debug(Debug::INFO) << "Created dir " << par.db6 << "\n";
-        }
+    
+    std::string tmpDir = par.db6;
+    std::string hash = SSTR(par.hashParameter(par.filenames, par.clusterUpdate));
+    if (par.reuseLatest) {
+        hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
+    tmpDir = FileUtil::createTemporaryDirectory(tmpDir, hash);
+    par.filenames.pop_back();
+    par.filenames.push_back(tmpDir);
 
-    scriptPath.append("/update_clustering.sh");
-    FileUtil::writeFile(scriptPath, update_clustering_sh, update_clustering_sh_len);
-
-	cmd.execProgram(scriptPath.c_str(), par.filenames);
+    std::string program = tmpDir + "/update_clustering.sh";
+    FileUtil::writeFile(program, update_clustering_sh, update_clustering_sh_len);
+	cmd.execProgram(program.c_str(), par.filenames);
 
     // Should never get here
     assert(false);

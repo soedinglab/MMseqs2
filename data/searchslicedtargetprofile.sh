@@ -43,7 +43,7 @@ RESULT="$3"
 TMP_PATH="$4"
 
 PROFILEDB="${TMP_PATH}/profileDB"
-if notExists "${PROFILEDB}.index"; then
+if notExists "${PROFILEDB}.dbtype"; then
     # symlink the profile DB that can be reduced at every iteration the search
     ln -s "${TARGET}" "${PROFILEDB}"
     ln -s "${TARGET}.dbtype" "${PROFILEDB}.dbtype"
@@ -54,63 +54,73 @@ else
     read -r AVAIL_DISK < "${PROFILEDB}.meta"
 fi
 
-NUM_PROFILES=$(wc -l < "${PROFILEDB}.index")
+TOTAL_NUM_PROFILES=$(wc -l < "${PROFILEDB}.index")
+NUM_SEQS_THAT_SATURATE="$(wc -l < "${INPUT}.index")"
+FIRST_INDEX_LINE=1
+NUM_PROFS_IN_STEP=1
+NUM_PREF_RESULTS_IN_ALL_PREV_STEPS=0
 
-PREV_MAX_SEQS=""
-STEP=0
-# MAX_STEPS is set by the workflow
-# shellcheck disable=SC2153
-while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
-    if [ -f "${TMP_PATH}/aln_${STEP}.checkpoint" ]; then
+while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
+    if [ -f "${TMP_PATH}/aln.checkpoint" ]; then
         # restore values from previous run, in case it was aborted
-        read -r NUM_PROFILES PREV_MAX_SEQS < "${TMP_PATH}/aln_${STEP}.checkpoint"
-        continue
+        read -r FIRST_INDEX_LINE NUM_PREF_RESULTS_IN_ALL_PREV_STEPS < "${TMP_PATH}/aln.checkpoint"
     fi
 
-    # Disk usage allowance not set by the user (i.e. AVAIL_DISK = 0),
-    # Compute it for optimal usage
+    # predict NUM_SEQS_THAT_SATURATE as the average number of prefilter results per profile in previous steps
+    # this allows to increase NUM_PROFS_IN_STEP
+    if [ "${NUM_PREF_RESULTS_IN_ALL_PREV_STEPS}" -gt 0 ]; then
+        # BE MORE CAUTIOUS?
+        NUM_PROFS_PROCESSED="$((FIRST_INDEX_LINE-1))"
+        NUM_SEQS_THAT_SATURATE="$((NUM_PREF_RESULTS_IN_ALL_PREV_STEPS/NUM_PROFS_PROCESSED))"
+        # this also assures no division by 0 later on
+        if [ "${NUM_SEQS_THAT_SATURATE}" -lt 1 ]; then
+            NUM_SEQS_THAT_SATURATE=1
+        fi
+    fi
+
+    # disk usage allowance not set by the user (i.e. AVAIL_DISK = 0), compute it for optimal usage
     if [ "${AVAIL_DISK}" -eq 0 ]; then
         CURRENT_AVAIL_DISK_SPACE=$(($("$MMSEQS" diskspaceavail "${TMP_PATH}")/2))
-        # Compute the max number of sequence according to the number of profiles
-        # 90 bytes/query-result line max.
-        MAX_SEQS="$((CURRENT_AVAIL_DISK_SPACE/NUM_PROFILES/90))"
+        # Compute the max number of profiles that can be processed
+        # based on the number of hits that saturate
+        NUM_PROFS_IN_STEP="$((CURRENT_AVAIL_DISK_SPACE/NUM_SEQS_THAT_SATURATE/25))"
     else
-        MAX_SEQS="$((AVAIL_DISK/NUM_PROFILES/90))"
+        NUM_PROFS_IN_STEP="$((AVAIL_DISK/NUM_SEQS_THAT_SATURATE/25))"
     fi
 
+    # no matter what, process at least one profile...
+    if [ "${NUM_PROFS_IN_STEP}" -lt 1 ]; then
+        NUM_PROFS_IN_STEP=1
+    fi
+
+    # take a chunk of profiles from FIRST_INDEX_LINE to (FIRST_INDEX_LINE + NUM_PROFS_IN_STEP -1)
+    LAST_INDEX_LINE_TO_PROCESS="$((FIRST_INDEX_LINE+NUM_PROFS_IN_STEP-1))"
+    awk -v first="${FIRST_INDEX_LINE}" -v last="${LAST_INDEX_LINE_TO_PROCESS}" \
+        "NR >= first && NR <= last { print; }" "${TARGET}.index" > "${PROFILEDB}.index"
+
+    # prefilter current chunk
     if notExists "${TMP_PATH}/pref.done"; then
         # shellcheck disable=SC2086
-        ${RUNNER} "$MMSEQS" prefilter "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" \
-            --max-seqs "${MAX_SEQS}" --prev-max-seqs "${PREV_MAX_SEQS}" ${PREFILTER_PAR} \
+        ${RUNNER} "$MMSEQS" prefilter "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" ${PREFILTER_PAR} \
             || fail "prefilter died"
-        if [ "${PREV_MAX_SEQS}" = "" ]; then
-            PREV_MAX_SEQS="${MAX_SEQS}"
-        else
-            PREV_MAX_SEQS="${PREV_MAX_SEQS},${MAX_SEQS}"
-        fi
         touch "${TMP_PATH}/pref.done"
     fi
 
-    if notExists "${TMP_PATH}/pref_count.index" || notExists "${TMP_PATH}/pref_keep.list"; then
+    # count the number of hits for all profiles in current step chunk
+    if notExists "${TMP_PATH}/pref_count.tsv"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" result2stats "$PROFILEDB" "$INPUT" "${TMP_PATH}/pref" "${TMP_PATH}/pref_count" \
-            --stat linecount ${THREADS_COMP_PAR} \
+        "$MMSEQS" result2stats "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" "${TMP_PATH}/pref_count.tsv" \
+            --stat linecount --tsv ${THREADS_COMP_PAR} \
             || fail "result2stats died"
     fi
+    # update the starting point for the next step and the total number of pref results
+    NUM_PREF_RESULTS_IN_STEP=$(awk '{sum+=$1;} END{print sum;}' "${TMP_PATH}/pref_count.tsv")
+    rm -f "${TMP_PATH}/pref_count.tsv"
 
-    if notExists "${TMP_PATH}/pref_keep.list"; then
-        # remove profiles that do not provide more hits
-        # shellcheck disable=SC2086
-        "$MMSEQS" filterdb "${TMP_PATH}/pref_count" "${TMP_PATH}/pref_keep" \
-            --filter-column 1 --comparison-operator ge --comparison-value "${MAX_SEQS}" ${THREADS_COMP_PAR} \
-            || fail "filterdb died"
-        # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/pref_count" ${VERBOSITY_PAR}
-        awk '$3 > 1 { print $1 }' "${TMP_PATH}/pref_keep.index" > "${TMP_PATH}/pref_keep.list"
-        # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/pref_keep"
-    fi
+    NUM_PREF_RESULTS_IN_ALL_PREV_STEPS="$((NUM_PREF_RESULTS_IN_ALL_PREV_STEPS+NUM_PREF_RESULTS_IN_STEP))"
+    FIRST_INDEX_LINE="$((FIRST_INDEX_LINE+NUM_PROFS_IN_STEP))"
 
+    # align current step chunk
     if notExists "${TMP_PATH}/aln.done"; then
         # shellcheck disable=SC2086
         ${RUNNER} "$MMSEQS" align "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
@@ -120,6 +130,7 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         touch "${TMP_PATH}/aln.done"
     fi
 
+    # swap alignment of current step chunk
     if notExists "${TMP_PATH}/aln_swap.done"; then
         # note: the evalue has been corrected for inverted search by the workflow caller
         # shellcheck disable=SC2086
@@ -130,61 +141,41 @@ while [ "${STEP}" -lt "${MAX_STEPS}" ] && [ "${NUM_PROFILES}" -gt 0 ]; do
         touch "${TMP_PATH}/aln_swap.done"
     fi
 
-    MERGED="${TMP_PATH}/aln_swap"
-    if [ -f "${TMP_PATH}/aln_merged.index" ]; then
+    # merge swapped alignment of current chunk to previous steps
+    if [ -f "${TMP_PATH}/aln_merged.dbtype" ]; then
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${INPUT}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} \
             || fail "mergedbs died"
-        # shellcheck disable=SC2086
         # rmdb of aln_merged to avoid conflict with unmerged dbs: aln_merged.0, .1...
+        # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR} || fail "rmdb aln_merged died"
         # shellcheck disable=SC2086
         "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR} || fail "mv aln_merged_new aln_merged died"
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} || fail "rmdb aln_swap died"
-        MERGED="${TMP_PATH}/aln_merged"
-    fi
-
-    # keep only the top max-seqs hits according to the default alignment sorting criteria
-    # shellcheck disable=SC2086
-    "$MMSEQS" sortresult "${MERGED}" "${TMP_PATH}/aln_merged_trunc" ${SORTRESULT_PAR} \
-        || fail "sortresult died"
-
-    # shellcheck disable=SC2086
-    "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_trunc" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR}
-    
-    awk 'NR == FNR { f[$1] = 0; next; } $1 in f { print; }' "${TMP_PATH}/pref_keep.list" "${PROFILEDB}.index" > "${PROFILEDB}.index.tmp"
-    mv -f "${PROFILEDB}.index.tmp" "${PROFILEDB}.index"
-
-    # shellcheck disable=SC2046
-    NUM_PROFILES=$(wc -l < "${PROFILEDB}.index")
-    rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done" "${TMP_PATH}/pref_keep.list"
-    if [ -f "${TMP_PATH}/aln_swap.dbtype" ]; then
+    else
         # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR}
+        "$MMSEQS" mvdb "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR} \
+            || fail "mvdb died"
     fi
-    rm -f "${TMP_PATH}/aln_swap.done"
-    printf "%d\\t%s\\n" "${NUM_PROFILES}" "${PREV_MAX_SEQS}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
 
-    STEP="$((STEP+1))"
+    # update for the next step
+    rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done" "${TMP_PATH}/aln_swap.done"
+    printf "%d\\t%s\\n" "${FIRST_INDEX_LINE}" "${NUM_PREF_RESULTS_IN_ALL_PREV_STEPS}" > "${TMP_PATH}/aln.checkpoint"
 done
 
+# keep only the top max-seqs hits according to the default alignment sorting criteria
 # shellcheck disable=SC2086
-"$MMSEQS" mvdb "${TMP_PATH}/aln_merged" "${RESULT}" ${VERBOSITY_PAR}
+"$MMSEQS" sortresult "${TMP_PATH}/aln_merged" "${RESULT}" ${SORTRESULT_PAR} \
+    || fail "sortresult died"
+
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
-    STEP=0
-    while [ "${STEP}" -lt "${MAX_STEPS}" ]; do
-        if [ -f "${TMP_PATH}/aln_${STEP}.checkpoint" ]; then
-            rm -f "${TMP_PATH}/aln_${STEP}.checkpoint"
-        fi
-        STEP="$((STEP+1))"
-    done
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR}
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${PROFILEDB}" ${VERBOSITY_PAR}
-    rm -f "${PROFILEDB}.meta"
+    rm -f "${TMP_PATH}/aln.checkpoint" "${PROFILEDB}.meta"
     rm -f "$TMP_PATH/searchslicedtargetprofile.sh"
 fi
-
-

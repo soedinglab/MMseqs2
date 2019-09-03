@@ -8,36 +8,31 @@
 #include "Parameters.h"
 #include "easysearch.sh.h"
 
-void setEasyLinsearchDefaults(Parameters *p) {
-    p->shuffleDatabase = false;
-    p->removeTmpFiles = true;
-    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
-}
-
-void setEasySearchDefaults(Parameters *p) {
+void setEasySearchDefaults(Parameters *p, bool linsearch) {
+    if (linsearch) {
+        p->shuffleDatabase = false;
+    }
     p->sensitivity = 5.7;
     p->removeTmpFiles = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
 }
+void setEasySearchMustPassAlong(Parameters *p, bool linsearch) {
+    if (linsearch) {
+        p->PARAM_DONT_SHUFFLE.wasSet = true;
+    }
+    p->PARAM_S.wasSet = true;
+    p->PARAM_REMOVE_TMP_FILES.wasSet = true;
+    p->PARAM_ALIGNMENT_MODE.wasSet = true;
+}
 
 int doeasysearch(int argc, const char **argv, const Command &command, bool linsearch) {
     Parameters &par = Parameters::getInstance();
-    if(linsearch){
-        setEasyLinsearchDefaults(&par);
-    }else{
-        setEasySearchDefaults(&par);
-    }
     par.overrideParameterDescription((Command &) command, par.PARAM_ADD_BACKTRACE.uniqid, NULL, NULL, par.PARAM_ADD_BACKTRACE.category | MMseqsParameter::COMMAND_EXPERT);
-    par.overrideParameterDescription((Command &) command, par.PARAM_MAX_REJECTED.uniqid, NULL, NULL,
-                                     par.PARAM_MAX_REJECTED.category | MMseqsParameter::COMMAND_EXPERT);
-    par.overrideParameterDescription((Command &) command, par.PARAM_DB_OUTPUT.uniqid, NULL, NULL,
-                                     par.PARAM_DB_OUTPUT.category | MMseqsParameter::COMMAND_EXPERT);
-    par.overrideParameterDescription((Command &) command, par.PARAM_OVERLAP.uniqid, NULL, NULL,
-                                     par.PARAM_OVERLAP.category | MMseqsParameter::COMMAND_EXPERT);
-    par.overrideParameterDescription((Command &) command, par.PARAM_DB_OUTPUT.uniqid, NULL, NULL,
-                                     par.PARAM_DB_OUTPUT.category | MMseqsParameter::COMMAND_EXPERT);
-    par.overrideParameterDescription((Command &) command, par.PARAM_RESCORE_MODE.uniqid, NULL, NULL,
-                                     par.PARAM_RESCORE_MODE.category | MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_MAX_REJECTED.uniqid, NULL, NULL, par.PARAM_MAX_REJECTED.category | MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_DB_OUTPUT.uniqid, NULL, NULL, par.PARAM_DB_OUTPUT.category | MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_OVERLAP.uniqid, NULL, NULL, par.PARAM_OVERLAP.category | MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_DB_OUTPUT.uniqid, NULL, NULL, par.PARAM_DB_OUTPUT.category | MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_RESCORE_MODE.uniqid, NULL, NULL, par.PARAM_RESCORE_MODE.category | MMseqsParameter::COMMAND_EXPERT);
     for (size_t i = 0; i < par.createdb.size(); i++){
         par.overrideParameterDescription((Command &)command, par.createdb[i]->uniqid, NULL, NULL, par.createdb[i]->category | MMseqsParameter::COMMAND_EXPERT);
     }
@@ -50,17 +45,20 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     for (size_t i = 0; i < par.result2profile.size(); i++){
         par.overrideParameterDescription((Command &)command, par.result2profile[i]->uniqid, NULL, NULL, par.result2profile[i]->category | MMseqsParameter::COMMAND_EXPERT);
     }
-    par.overrideParameterDescription((Command &) command, par.PARAM_THREADS.uniqid, NULL, NULL,
-                                     par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
-    par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
-                                     par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_THREADS.uniqid, NULL, NULL, par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL, par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
+
+    setEasySearchDefaults(&par, linsearch);
     par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
+    setEasySearchMustPassAlong(&par, linsearch);
 
     bool needBacktrace = false;
     {
         bool needSequenceDB = false;
         bool needFullHeaders = false;
-        Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders);
+        bool needLookup = false;
+        bool needSource = false;
+        Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders, needLookup, needSource);
     }
     if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM || par.greedyBestHits) {
         needBacktrace = true;
@@ -72,31 +70,15 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     }
 
     std::string tmpDir = par.filenames.back();
-    par.filenames.pop_back();
-    if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
-        Debug(Debug::INFO) << "Tmp " << tmpDir << " folder does not exist or is not a directory.\n";
-        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create tmp folder " << tmpDir << ".\n";
-            return EXIT_FAILURE;
-        } else {
-            Debug(Debug::INFO) << "Created dir " << tmpDir << "\n";
-        }
-    }
-
     std::string hash = SSTR(par.hashParameter(par.filenames, *command.params));
-    if(par.reuseLatest){
-        hash = FileUtil::getHashFromSymLink(tmpDir+"/latest");
+    if (par.reuseLatest) {
+        hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
-    tmpDir += "/" + hash;
-    if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
-        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
-            return EXIT_FAILURE;
-        }
-    }
+    tmpDir = FileUtil::createTemporaryDirectory(tmpDir, hash);
+    par.filenames.pop_back();
+
     CommandCaller cmd;
     cmd.addVariable("TMP_PATH", tmpDir.c_str());
-    FileUtil::symlinkAlias(tmpDir, "latest");
     cmd.addVariable("RESULTS", par.filenames.back().c_str());
     par.filenames.pop_back();
     std::string target = par.filenames.back().c_str();
@@ -135,7 +117,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
 
     // Should never get here
     assert(false);
-    return 0;
+    return EXIT_FAILURE;
 }
 
 int easysearch(int argc, const char **argv, const Command &command) {

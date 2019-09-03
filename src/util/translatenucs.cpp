@@ -40,7 +40,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         thread_idx = omp_get_thread_num();
 #endif
 
-        char* aa = new char[par.maxSeqLen + 3 + 1];
+        char* aa = new char[(par.maxSeqLen + 1) + 3 + 1];
 #pragma omp for schedule(dynamic, 5)
         for (size_t i = 0; i < entries; ++i) {
             progress.updateProgress();
@@ -101,10 +101,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         delete[] aa;
     }
     writer.close(true);
-
-    FileUtil::symlinkAbs(par.hdr1, par.hdr2);
-    FileUtil::symlinkAbs(par.hdr1Index, par.hdr2Index);
-    FileUtil::symlinkAbs(par.hdr1 + ".dbtype", par.hdr2 + ".dbtype");
+    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
 
     if (addOrfStop == true) {
         header->close();

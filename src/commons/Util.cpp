@@ -1,6 +1,5 @@
 #include "Util.h"
 #include "Debug.h"
-#include "kseq.h"
 #include "FileUtil.h"
 #include "BaseMatrix.h"
 #include "SubstitutionMatrix.h"
@@ -18,15 +17,12 @@
 #include "simd.h"
 #include "MemoryMapped.h"
 
-#include <fstream>
 #include <algorithm>
 #include <sys/mman.h>
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
-
-KSEQ_INIT(int, read)
 
 int Util::readMapping(std::string mappingFilename, std::vector<std::pair<unsigned int, unsigned int>> & mapping){
     MemoryMapped indexData(mappingFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
@@ -82,28 +78,6 @@ void Util::decomposeDomain(size_t domain_size, size_t world_rank,
         *subdomain_size += domain_size % world_size;
     }
 }
-
-std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
-    std::map<std::string, size_t> map;
-    FILE *fasta_file = FileUtil::openFileOrDie(fastaFile, "r", true);
-    kseq_t *seq = kseq_init(fileno(fasta_file));
-    size_t i = 0;
-    while (kseq_read(seq) >= 0) {
-        std::string key = Util::parseFastaHeader(seq->name.s);
-        if (map.find(key) == map.end()) {
-            map[key] = i;
-            i++;
-        } else {
-            Debug(Debug::ERROR) << "Duplicated key " << key << " in function readMapping.\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
-    kseq_destroy(seq);
-    fclose(fasta_file);
-    return map;
-}
-
-
 
 template <typename T>
 void Util::decomposeDomainByAminoAcid(size_t dbSize, T entrySizes, size_t dbEntries,
@@ -436,56 +410,37 @@ uint64_t Util::getL2CacheSize() {
 }
 
 char Util::touchMemory(const char *memory, size_t size) {
-    int threadCnt = 1;
-
-#ifdef OPENMP
-    const int totalThreadCnt = omp_get_max_threads();
-    if (totalThreadCnt > 2) {
-        threadCnt = 2;
-    }
-#endif
-
-
 #ifdef HAVE_POSIX_MADVISE
-    if (posix_madvise ((void*)memory, size, POSIX_MADV_SEQUENTIAL|POSIX_MADV_WILLNEED) != 0){
+    if (posix_madvise ((void*)memory, size, POSIX_MADV_WILLNEED) != 0){
         Debug(Debug::ERROR) << "posix_madvise returned an error (touchMemory)\n";
     }
 #endif
-
+    if(size > Util::getTotalSystemMemory()){
+        Debug(Debug::WARNING) << "Can not touch " << size << " into main memory\n";
+        return 0;
+    }
     size_t pageSize = getPageSize();
 //    Debug::Progress progress(size/pageSize);
+    size_t fourTimesPageSize = 4*pageSize;
+    char buffer1 = 0;
+    char buffer2 = 0;
+    char buffer3 = 0;
+    char buffer4 = 0;
 
-    char **buffer = new char *[threadCnt];
-    for (int i = 0; i < threadCnt; i++) {
-        buffer[i] = new char[pageSize];
+    // touch first page
+    if(size > 0){
+       buffer1 += *(memory);
     }
 
-#pragma omp parallel num_threads(threadCnt)
-    {
-        int threadIdx = 0;
-#ifdef OPENMP
-        threadIdx = omp_get_thread_num();
-#endif
-
-#pragma omp for schedule(dynamic,10)
-        for (size_t pos = 0; pos < size; pos += pageSize) {
-            size_t currentPageSize = size - pos;
-            if (currentPageSize > pageSize) {
-                currentPageSize = pageSize;
-            }
-            // just load a single byte, whole page is
-            memcpy(buffer[threadIdx], memory + pos, 1);
-//            progress.updateProgress();
-        }
+    // load always four pages to reduce data dependency
+    for (size_t pos = 0; (pos + fourTimesPageSize) < size; pos += 4*pageSize) {
+        buffer1 += *(memory + pos);
+        buffer2 += *(memory + pos + 2*pageSize);
+        buffer3 += *(memory + pos + 3*pageSize);
+        buffer4 += *(memory + pos + 4*pageSize);
     }
 
-    char retVal = 0;
-    for (int i = 0; i < threadCnt; ++i) {
-        retVal += buffer[i][0];
-        delete[] buffer[i];
-    }
-    delete[] buffer;
-    return retVal;
+    return buffer1+buffer2+buffer3+buffer4;
 }
 
 size_t Util::ompCountLines(const char* data, size_t dataSize, unsigned int MAYBE_UNUSED(threads)) {
@@ -555,62 +510,6 @@ size_t Util::ompCountLines(const char* data, size_t dataSize, unsigned int MAYBE
 //                4.02,3.05,2.87,2.71,1.88,2.63,3.46,3.45,1.79,3.19,
 //                3.77,3.64,1.71,2.62,3.00,3.63,2.83,1.32,2.18,2.92
 //        };
-
-
-std::map<unsigned int, std::string> Util::readLookup(const std::string& file, const bool removeSplit) {
-    std::map<unsigned int, std::string> mapping;
-    if (file.length() > 0) {
-        std::ifstream mappingStream(file);
-        if (mappingStream.fail()) {
-            Debug(Debug::ERROR) << "File " << file << " not found!\n";
-            EXIT(EXIT_FAILURE);
-        }
-
-        std::string line;
-        while (std::getline(mappingStream, line)) {
-            std::vector<std::string> split = Util::split(line, "\t");
-            unsigned int id = strtoul(split[0].c_str(), NULL, 10);
-
-            std::string& name = split[1];
-
-            size_t pos;
-            if (removeSplit && (pos = name.find_last_of('_')) != std::string::npos) {
-                name = name.substr(0, pos);
-            }
-
-            mapping.emplace(id, name);
-        }
-    }
-
-    return mapping;
-}
-
-std::map<std::string, unsigned int> Util::readLookupReverse(const std::string& file, const bool removeSplit) {
-    std::map<std::string, unsigned int> mapping;
-    if (file.length() > 0) {
-        std::ifstream mappingStream(file);
-        if (mappingStream.fail()) {
-            Debug(Debug::ERROR) << "File " << file << " not found!\n";
-            EXIT(EXIT_FAILURE);
-        }
-
-        std::string line;
-        while (std::getline(mappingStream, line)) {
-            std::vector<std::string> split = Util::split(line, "\t");
-            unsigned int id = strtoul(split[0].c_str(), NULL, 10);
-            std::string& name = split[1];
-
-            size_t pos;
-            if (removeSplit && (pos = name.find_last_of('_')) != std::string::npos) {
-                name = name.substr(0, pos);
-            }
-
-            mapping.emplace(name, id);
-        }
-    }
-
-    return mapping;
-}
 
 int Util::omp_thread_count() {
     int n = 0;

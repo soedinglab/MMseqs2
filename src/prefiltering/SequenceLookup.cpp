@@ -8,8 +8,8 @@
 #include "Util.h"
 #include "SequenceLookup.h"
 
-SequenceLookup::SequenceLookup(size_t dbSize, size_t entrySize)
-        : sequenceCount(dbSize), dataSize(entrySize), currentIndex(0), currentOffset(0), externalData(false) {
+SequenceLookup::SequenceLookup(size_t sequenceCount, size_t dataSize)
+        : sequenceCount(sequenceCount), dataSize(dataSize), currentIndex(0), currentOffset(0), externalData(false) {
     data = new(std::nothrow) char[dataSize + 1];
     Util::checkAllocation(data, "Can not allocate data memory in SequenceLookup");
 
@@ -18,8 +18,8 @@ SequenceLookup::SequenceLookup(size_t dbSize, size_t entrySize)
     offsets[sequenceCount] = dataSize;
 }
 
-SequenceLookup::SequenceLookup(size_t dbSize)
-        : sequenceCount(dbSize), data(NULL), dataSize(0), offsets(NULL), currentIndex(0), currentOffset(0), externalData(true) {
+SequenceLookup::SequenceLookup(size_t sequenceCount)
+        : sequenceCount(sequenceCount), data(NULL), dataSize(0), offsets(NULL), currentIndex(0), currentOffset(0), externalData(true) {
 }
 
 SequenceLookup::~SequenceLookup() {
@@ -66,8 +66,20 @@ size_t SequenceLookup::getSequenceCount() {
 }
 
 void SequenceLookup::initLookupByExternalData(char *seqData, size_t seqDataSize, size_t *seqOffsets) {
-    // copy data to data element
-    data = seqData;
     dataSize = seqDataSize;
+
+    data = seqData;
     offsets = seqOffsets;
+}
+
+void SequenceLookup::initLookupByExternalDataCopy(char *seqData, size_t seqDataSize, size_t *seqOffsets) {
+    dataSize = seqDataSize;
+
+    data = new(std::nothrow) char[dataSize + 1];
+    Util::checkAllocation(data, "Can not allocate data memory in SequenceLookup");
+    memcpy(data, seqData, (dataSize + 1) * sizeof(char));
+
+    offsets = new(std::nothrow) size_t[sequenceCount + 1];
+    Util::checkAllocation(offsets, "Can not allocate offsets memory in SequenceLookup");
+    memcpy(offsets, seqOffsets, (sequenceCount + 1) * sizeof(size_t));
 }

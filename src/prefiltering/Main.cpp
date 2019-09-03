@@ -21,13 +21,10 @@ int prefilter(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_PREFILTER);
 
     Timer timer;
-
     int queryDbType = FileUtil::parseDbType(par.db1.c_str());
-
-    std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
     int targetDbType = FileUtil::parseDbType(par.db2.c_str());
-    if(Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB) == true){
-        DBReader<unsigned int> dbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    if(Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB) == true) {
+        DBReader<unsigned int> dbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         dbr.open(DBReader<unsigned int>::NOSORT);
         PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&dbr);
         targetDbType = data.seqType;

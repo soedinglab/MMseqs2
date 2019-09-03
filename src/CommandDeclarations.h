@@ -69,6 +69,8 @@ extern int prefilter(int argc, const char **argv, const Command& command);
 extern int prefixid(int argc, const char **argv, const Command& command);
 extern int profile2cs(int argc, const char **argv, const Command& command);
 extern int profile2pssm(int argc, const char **argv, const Command& command);
+extern int profile2consensus(int argc, const char **argv, const Command& command);
+extern int profile2repseq(int argc, const char **argv, const Command& command);
 extern int proteinaln2nucl(int argc, const char **argv, const Command& command);
 extern int rescorediagonal(int argc, const char **argv, const Command& command);
 extern int ungappedprefilter(int argc, const char **argv, const Command& command);

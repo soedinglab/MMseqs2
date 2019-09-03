@@ -14,10 +14,10 @@
 
 Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC, const std::string& spacedKmerPattern)
  : spacedKmerPattern(spacedKmerPattern) {
-    this->int_sequence = new int[maxLen];
-    this->int_consensus_sequence = new int[maxLen];
-    this->aaBiasCorrection = aaBiasCorrection;
     this->maxLen = maxLen;
+    this->int_sequence = new int[maxLen + 1];
+    this->int_consensus_sequence = new int[maxLen + 1];
+    this->aaBiasCorrection = aaBiasCorrection;
     this->subMat = (BaseMatrix*)subMat;
     this->spaced = spaced;
     this->seqType = seqType;
@@ -59,20 +59,22 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
         for (size_t i = 0; i < kmerSize; i++) {
             profile_matrix[i] = new ScoreMatrix(NULL, NULL, PROFILE_AA_SIZE, profile_row_size);
         }
-        this->pNullBuffer           = new float[maxLen];
-        this->neffM                 = new float[maxLen];
-        this->profile_score         = (short *)        mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(short));
-        this->profile_index         = (unsigned int *) mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(int));
-        this->profile               = (float *)        mem_align(ALIGN_INT, maxLen * PROFILE_AA_SIZE * sizeof(float));
-        this->pseudocountsWeight    = (float *)        mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(float));
-        this->profile_for_alignment = (int8_t *)       mem_align(ALIGN_INT, maxLen * subMat->alphabetSize * sizeof(int8_t));
+        this->pNullBuffer           = new float[maxLen + 1];
+        this->neffM                 = new float[maxLen + 1];
+        this->profile_score         = (short *)        mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(short));
+        this->profile_index         = (unsigned int *) mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(int));
+        this->profile               = (float *)        mem_align(ALIGN_INT, (maxLen + 1) * PROFILE_AA_SIZE * sizeof(float));
+        this->pseudocountsWeight    = (float *)        mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(float));
+        this->profile_for_alignment = (int8_t *)       mem_align(ALIGN_INT, (maxLen + 1) * subMat->alphabetSize * sizeof(int8_t));
         // init profile
-        memset(this->profile_for_alignment, 0, maxLen * subMat->alphabetSize * sizeof(int8_t));
-        memset(this->profile, 0, maxLen * PROFILE_AA_SIZE * sizeof(float));
-        for (size_t i = 0; i < maxLen * profile_row_size; ++i){
+        memset(this->profile_for_alignment, 0, (maxLen + 1) * subMat->alphabetSize * sizeof(int8_t));
+        memset(this->profile, 0, (maxLen + 1) * PROFILE_AA_SIZE * sizeof(float));
+        for (size_t i = 0; i < (maxLen + 1) * profile_row_size; ++i){
             profile_score[i] = -SHRT_MAX;
             profile_index[i] = -1;
         }
+    } else {
+        profile_matrix = NULL;
     }
     currItPos = -1;
 }
@@ -103,103 +105,48 @@ Sequence::~Sequence() {
 }
 
 std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, unsigned int kmerSize){
+#define CASE(x) {case x: \
+                      if(spaced){ \
+                        pair =  std::make_pair<const char *, unsigned int>((const char *) &spaced_seed_##x, ARRAY_SIZE(spaced_seed_##x)); \
+                      }else{ \
+                        pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_##x, ARRAY_SIZE(seed_##x)); \
+                      } \
+                      break; \
+                 }
     std::pair<const char *, unsigned int> pair;
     switch (kmerSize) {
         case 0: // if no kmer iterator support
             pair = std::make_pair<const char *, unsigned int>(NULL, 0);
             break;
-        case 4:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_4_spaced, ARRAY_SIZE(seed_4_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_4, ARRAY_SIZE(seed_4));
-            }
-            break;
-        case 5:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_5_spaced, ARRAY_SIZE(seed_5_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_5, ARRAY_SIZE(seed_5));
-            }
-            break;
-        case 6:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_6_spaced, ARRAY_SIZE(seed_6_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_6, ARRAY_SIZE(seed_6));
-            }
-            break;
-        case 7:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_7_spaced, ARRAY_SIZE(seed_7_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_7, ARRAY_SIZE(seed_7));
-            }
-            break;
-        case 9:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_9_spaced, ARRAY_SIZE(seed_9_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_9, ARRAY_SIZE(seed_9));
-            }
-            break;
-        case 10:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_10_spaced, ARRAY_SIZE(seed_10_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_10, ARRAY_SIZE(seed_10));
-            }
-            break;
-        case 11:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_11_spaced, ARRAY_SIZE(seed_11_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_11, ARRAY_SIZE(seed_11));
-            }
-            break;
-        case 12:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_12_spaced, ARRAY_SIZE(seed_12_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_12, ARRAY_SIZE(seed_12));
-            }
-            break;
-        case 13:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_13_spaced, ARRAY_SIZE(seed_13_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_13, ARRAY_SIZE(seed_13));
-            }
-            break;
-        case 14:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_14_spaced, ARRAY_SIZE(seed_14_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_14, ARRAY_SIZE(seed_14));
-            }
-            break;
-        case 15:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_15_spaced, ARRAY_SIZE(seed_15_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_15, ARRAY_SIZE(seed_15));
-            }
-            break;
-        case 16:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_16_spaced, ARRAY_SIZE(seed_16_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_16, ARRAY_SIZE(seed_16));
-            }
-            break;
-        case 17:
-            if(spaced){
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_17_spaced, ARRAY_SIZE(seed_17_spaced));
-            }else{
-                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_17, ARRAY_SIZE(seed_17));
-            }
-            break;
+        CASE(4)
+        CASE(5)
+        CASE(6)
+        CASE(7)
+        CASE(8)
+        CASE(9)
+        CASE(10)
+        CASE(11)
+        CASE(12)
+        CASE(13)
+        CASE(14)
+        CASE(15)
+        CASE(16)
+        CASE(17)
+        CASE(18)
+        CASE(19)
+        CASE(20)
+        CASE(21)
+        CASE(22)
+        CASE(23)
+        CASE(24)
+        CASE(25)
+        CASE(26)
+        CASE(27)
+        CASE(28)
+        CASE(29)
+        CASE(30)
         default:
+
             char * pattern = new char[kmerSize];
             for(size_t i = 0; i < kmerSize; i++){
                 pattern[i]=1;
@@ -212,8 +159,11 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
             break;
     }
     char * pattern = new char[pair.second];
-    memcpy(pattern, pair.first, pair.second * sizeof(char));
+    if (pair.second > 0) {
+        memcpy(pattern, pair.first, pair.second * sizeof(char));
+    }
     return std::make_pair<const char *, unsigned int>(pattern, static_cast<unsigned int>(pair.second));
+#undef CASE
 }
 
 std::pair<const char *, unsigned int> Sequence::parseSpacedPattern(unsigned int kmerSize, bool spaced, const std::string& spacedKmerPattern) {
@@ -309,7 +259,7 @@ void Sequence::mapProfileStateSequence(const char * sequence){
         this->int_sequence[l]  = curr - 1;
 
         l++;
-        if (l >= maxLen){
+        if (l > maxLen){
             Debug(Debug::ERROR) << "Sequence too long! Max length allowed would be " << maxLen << "\n";
             EXIT(EXIT_FAILURE);
         }
@@ -360,7 +310,7 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
             unsigned short neff = data[currPos + PROFILE_AA_SIZE+2];
             neffM[l] = MathUtil::convertNeffToFloat(neff);
             l++;
-            if (l >= this->maxLen ){
+            if (l > maxLen ){
                 Debug(Debug::ERROR) << "Sequence with id: " << this->dbKey << " is longer than maxRes.\n";
                 break;
             }
@@ -537,7 +487,7 @@ void Sequence::mapSequence(const char * sequence){
         curr  = sequence[l];
     }
 
-    if(l == maxLen && curr != '\0' && curr != '\n' ){
+    if(l > maxLen && curr != '\0' && curr != '\n' ){
         Debug(Debug::INFO) << "Entry " << dbKey << " is longer than max seq. len " << maxLen << "\n";
     }
     this->L = l;

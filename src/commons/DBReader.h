@@ -17,9 +17,40 @@
 #define ZSTD_STATIC_LINKING_ONLY // ZSTD_findDecompressedSize
 #include <zstd.h>
 
+struct DBFiles {
+    enum Files {
+        DATA              = (1ull << 0),
+        DATA_INDEX        = (1ull << 1),
+        DATA_DBTYPE       = (1ull << 2),
+        HEADER            = (1ull << 3),
+        HEADER_INDEX      = (1ull << 4),
+        HEADER_DBTYPE     = (1ull << 5),
+        LOOKUP            = (1ull << 6),
+        SOURCE            = (1ull << 7),
+        TAX_MAPPING       = (1ull << 8),
+        TAX_NAMES         = (1ull << 9),
+        TAX_NODES         = (1ull << 10),
+        TAX_MERGED        = (1ull << 11),
+        CA3M_DATA         = (1ull << 12),
+        CA3M_INDEX        = (1ull << 13),
+        CA3M_SEQ          = (1ull << 14),
+        CA3M_SEQ_IDX      = (1ull << 15),
+        CA3M_HDR          = (1ull << 16),
+        CA3M_HDR_IDX      = (1ull << 17),
+
+
+        GENERIC           = DATA | DATA_INDEX | DATA_DBTYPE,
+        HEADERS           = HEADER | HEADER_INDEX | HEADER_DBTYPE,
+        TAXONOMY          = TAX_MAPPING | TAX_NAMES | TAX_NODES | TAX_MERGED,
+        SEQUENCE_DB       = GENERIC | HEADERS | TAXONOMY | LOOKUP | SOURCE,
+        SEQUENCE_ANCILLARY= SEQUENCE_DB & (~GENERIC),
+
+        ALL               = (size_t) -1,
+    };
+};
+
 template <typename T>
 class DBReader {
-
 public:
     struct Index {
         T id;
@@ -37,12 +68,12 @@ public:
         T id;
         std::string entryName;
         unsigned int fileNumber;
-        LookupEntry(){}
-        LookupEntry(T id) {
-            this->id = id;
-        }
+
         static bool compareById(const LookupEntry& x, const LookupEntry& y){
             return (x.id <= y.id);
+        }
+        static bool compareByAccession(const LookupEntry& x, const LookupEntry& y){
+            return x.entryName.compare(y.entryName);
         }
     };
 
@@ -82,9 +113,6 @@ public:
 
     size_t getSize();
 
-    size_t getLookupSize();
-
-
     T getDbKey(size_t id);
 
     unsigned int * getSeqLens();
@@ -102,9 +130,14 @@ public:
     size_t getId (T dbKey);
 
     // does a binary search in the lookup and returns index of the entry
-    size_t getLookupId(T dbKey);
+    size_t getLookupSize();
+    size_t getLookupIdByKey(T dbKey);
+    size_t getLookupIdByAccession(const std::string& accession);
+    T getLookupKey(size_t id);
     std::string getLookupEntryName(size_t id);
     unsigned int getLookupFileNumber(size_t id);
+    size_t lookupEntryToBuffer(char* buffer, const LookupEntry& entry);
+    LookupEntry* getLookup() { return lookup; };
 
     static const int NOSORT = 0;
     static const int SORT_BY_LENGTH = 1;
@@ -117,11 +150,12 @@ public:
     static const int SORT_BY_OFFSET = 8; // only offset sorting saves memory and does not support random access
 
 
-    static const unsigned int USE_INDEX    = 0;
-    static const unsigned int USE_DATA     = 1;
-    static const unsigned int USE_WRITABLE = 2;
-    static const unsigned int USE_FREAD    = 4;
-    static const unsigned int USE_LOOKUP   = 8;
+    static const unsigned int USE_INDEX      = 0;
+    static const unsigned int USE_DATA       = 1;
+    static const unsigned int USE_WRITABLE   = 2;
+    static const unsigned int USE_FREAD      = 4;
+    static const unsigned int USE_LOOKUP     = 8;
+    static const unsigned int USE_LOOKUP_REV = 16;
 
 
     // compressed
@@ -140,6 +174,9 @@ public:
         return dataSizeOffset[fileIdx+1]-dataSizeOffset[fileIdx];
     }
 
+    std::vector<std::string> getDataFileNames(){
+        return dataFileNames;
+    }
 
     size_t getTotalDataSize(){
         return totalDataSize;
@@ -150,6 +187,8 @@ public:
     static void moveDb(const std::string &srcDbName, const std::string &dstDbName);
 
     static void removeDb(const std::string &databaseName);
+
+    static void softlinkDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags = DBFiles::ALL);
 
     char *mmapData(FILE *file, size_t *dataSize);
 
@@ -176,7 +215,10 @@ public:
     }
 
     Index* getIndex(size_t id) {
-        return index + local2id[id];
+        if (local2id != NULL) {
+            return index + local2id[id];
+        }
+        return index + id;
     }
 
 

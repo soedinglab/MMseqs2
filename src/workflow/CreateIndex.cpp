@@ -1,13 +1,15 @@
 #include "Parameters.h"
-#include <string>
-#include <cassert>
-#include <climits>
 #include "Util.h"
 #include "DBReader.h"
-#include "createindex.sh.h"
 #include "CommandCaller.h"
 #include "Debug.h"
 #include "FileUtil.h"
+
+#include "createindex.sh.h"
+
+#include <string>
+#include <cassert>
+#include <climits>
 
 int createindex(Parameters &par, std::string indexerModule, std::string flag) {
     bool sensitivity = false;
@@ -21,45 +23,28 @@ int createindex(Parameters &par, std::string indexerModule, std::string flag) {
     }
 
     int dbType = FileUtil::parseDbType(par.db1.c_str());
-    if (dbType == -1) {
-        Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
-        return EXIT_FAILURE;
-    }
-
     if (Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_HMM_PROFILE) && sensitivity == false) {
         Debug(Debug::ERROR) << "Please adjust the sensitivity of your target profile index with -s.\n"
                                "Be aware that this searches can take huge amount of memory. \n";
         return EXIT_FAILURE;
     }
 
-    if (FileUtil::directoryExists(par.db2.c_str())==false) {
-        Debug(Debug::INFO) << "Tmp " << par.db2 << " folder does not exist or is not a directory.\n";
-        if (FileUtil::makeDir(par.db2.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create tmp folder " << par.db2 << ".\n";
-            return EXIT_FAILURE;
-        } else {
-            Debug(Debug::INFO) << "Created dir " << par.db2 << "\n";
-        }
+    std::string tmpDir = par.db2;
+    std::string hash = SSTR(par.hashParameter(par.filenames, par.createindex));
+    if (par.reuseLatest) {
+        hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
-    size_t hash = par.hashParameter(par.filenames, par.createindex);
-    std::string tmpDir = par.db2 + "/" + SSTR(hash);
-    if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
-        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::ERROR) << "Can not create sub tmp folder " << tmpDir << ".\n";
-            return EXIT_FAILURE;
-        }
-    }
+    tmpDir = FileUtil::createTemporaryDirectory(tmpDir, hash);
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
-    FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
     cmd.addVariable("INDEXER", indexerModule.c_str());
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
+    par.translate = 1;
     cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
     cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
     cmd.addVariable("SPLIT_SEQ_PAR", par.createParameterString(par.splitsequence).c_str());
-    cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
     if(indexerModule == "kmerindexdb"){
         cmd.addVariable("INDEX_PAR", par.createParameterString(par.kmerindexdb).c_str());
     }else{
@@ -69,8 +54,8 @@ int createindex(Parameters &par, std::string indexerModule, std::string flag) {
         cmd.addVariable(flag.c_str(), "1");
     }
 
-    FileUtil::writeFile(tmpDir + "/createindex.sh", createindex_sh, createindex_sh_len);
     std::string program(tmpDir + "/createindex.sh");
+    FileUtil::writeFile(program, createindex_sh, createindex_sh_len);
     cmd.execProgram(program.c_str(), par.filenames);
     return 0;
 }
@@ -93,8 +78,7 @@ int createlinindex(int argc, const char **argv, const Command& command) {
             par.maxSeqLen = 10000;
         }
     }
-    std::vector<MMseqsParameter*>* params = command.params;
-    par.printParameters(command.cmd, argc, argv, *params);
+    par.printParameters(command.cmd, argc, argv, *command.params);
 
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_AUTO){
         Debug(Debug::WARNING) << "Database " << par.db1 << " is a nucleotide database. \n"
@@ -146,8 +130,7 @@ int createindex(int argc, const char **argv, const Command& command) {
                 break;
         }
     }
-    std::vector<MMseqsParameter*>* params = command.params;
-    par.printParameters(command.cmd, argc, argv, *params);
+    par.printParameters(command.cmd, argc, argv, *command.params);
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_AUTO){
         Debug(Debug::WARNING) << "Database " << par.db1 << " is a nucleotide database. \n"
                             << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";

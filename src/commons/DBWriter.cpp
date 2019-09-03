@@ -440,24 +440,19 @@ size_t DBWriter::indexToBuffer(char *buff1, unsigned int key, size_t offsetStart
     return tmpBuff - basePos;
 }
 
-void DBWriter::alignToPageSize() {
-    if (threads > 1) {
-        Debug(Debug::ERROR) << "Data file can only be aligned in single threaded mode.\n";
-        EXIT(EXIT_FAILURE);
-    }
-
-    size_t currentOffset = offsets[0];
+void DBWriter::alignToPageSize(int thrIdx) {
+    size_t currentOffset = offsets[thrIdx];
     size_t pageSize = Util::getPageSize();
     size_t newOffset = ((pageSize - 1) & currentOffset) ? ((currentOffset + pageSize) & ~(pageSize - 1)) : currentOffset;
     char nullByte = '\0';
     for (size_t i = currentOffset; i < newOffset; ++i) {
-        size_t written = fwrite(&nullByte, sizeof(char), 1, dataFiles[0]);
+        size_t written = fwrite(&nullByte, sizeof(char), 1, dataFiles[thrIdx]);
         if (written != 1) {
-            Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[0] << "\n";
+            Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[thrIdx] << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
-    offsets[0] = newOffset;
+    offsets[thrIdx] = newOffset;
 }
 
 
@@ -498,7 +493,7 @@ void DBWriter::mergeResults(const std::string &outFileName, const std::string &o
 }
 
 template <>
-void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<unsigned int>::Index &index,  unsigned int seqLen){
+void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<unsigned int>::Index &index, unsigned int seqLen){
     char * tmpBuff = Itoa::u32toa_sse2((uint32_t)index.id,buff1);
     *(tmpBuff-1) = '\t';
     size_t currOffset = index.offset;
@@ -530,7 +525,7 @@ void DBWriter::writeIndexEntryToFile(FILE *outFile, char *buff1, DBReader<std::s
 }
 
 template <>
-void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<unsigned int>::Index *index,  unsigned int *seqLen) {
+void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<unsigned int>::Index *index, unsigned int *seqLen) {
     char buff1[1024];
     for (size_t id = 0; id < indexSize; id++) {
         writeIndexEntryToFile(outFile, buff1, index[id], seqLen[id]);
@@ -614,7 +609,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
 
     DBWriter::sortIndex(indexFileNames[0], outFileNameIndex, lexicographicOrder);
     FileUtil::remove(indexFileNames[0]);
-    Debug(Debug::INFO) << "Time for merging files: " << timer.lap() << "\n";
+    Debug(Debug::INFO) << "Time for merging into " << outFileName << " by mergeResults: " << timer.lap() << "\n";
 }
 
 void DBWriter::mergeIndex(const char** indexFilenames, unsigned int fileCount, const std::vector<size_t> &dataSizes) {
@@ -665,99 +660,59 @@ void DBWriter::sortIndex(const char *inFileNameIndex, const char *outFileNameInd
     }
 }
 
-
-void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::string>> &fileNames) {
-    FILE ** files = new FILE*[fileNames.size()];
-    for (size_t i = 0; i < fileNames.size();i++) {
-        files[i] = FileUtil::openFileOrDie(fileNames[i].first.c_str(), "r", true);
-#if HAVE_POSIX_FADVISE
-        int status;
-        if ((status = posix_fadvise (fileno(files[i]), 0, 0, POSIX_FADV_SEQUENTIAL)) != 0){
-           Debug(Debug::ERROR) << "posix_fadvise returned an error: " << strerror(status) << "\n";
-        }
-#endif
-    }
-
-    int c1 = EOF;
-    char * buffer = dataFilesBuffer[0];
-    size_t writePos = 0;
-    int dataFilefd = fileno(dataFiles[0]);
-    do {
-        for (size_t i = 0; i < fileNames.size(); ++i) {
-            while ((c1 = getc_unlocked(files[i])) != EOF) {
-                if (c1 == '\0') {
-                    break;
-                }
-                buffer[writePos] = (char) c1;
-                writePos++;
-                if (writePos == bufferSize) {
-                    size_t written = write(dataFilefd, buffer, bufferSize);
-                    if (written != bufferSize) {
-                        Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[0] << "\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    writePos = 0;
-                }
-            }
-        }
-        buffer[writePos] = '\0';
-        writePos++;
-        if (writePos == bufferSize) {
-            size_t written = write(dataFilefd, buffer, bufferSize);
-            if (written != bufferSize) {
-                Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[0] << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-            writePos = 0;
-        }
-    } while (c1!=EOF);
-
-    if (writePos != 0) {
-        // if there is data in the buffer that is not yet written
-        size_t written = write(dataFilefd, (const void *) dataFilesBuffer[0], writePos);
-        if (written != writePos) {
-            Debug(Debug::ERROR) << "Can not write to data file " << dataFileNames[0] << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
-
-    for (size_t i = 0; i < fileNames.size(); ++i) {
-        fclose(files[i]);
-    }
-    delete[] files;
-
-    Debug(Debug::INFO) << "Merge file " << fileNames[0].first << " and " << fileNames[0].second << "\n";
-    DBReader<unsigned int> reader1(fileNames[0].first.c_str(), fileNames[0].second.c_str(), 1,
-                                   DBReader<unsigned int>::USE_INDEX);
-    reader1.open(DBReader<unsigned int>::NOSORT);
-    unsigned int *seqLen1 = reader1.getSeqLens();
-    DBReader<unsigned int>::Index *index1 = reader1.getIndex();
-
-    for (size_t i = 1; i < fileNames.size(); i++) {
-        DBReader<unsigned int> reader2(fileNames[i].first.c_str(), fileNames[i].second.c_str(), 1,
-                                       DBReader<unsigned int>::USE_INDEX);
-        reader2.open(DBReader<unsigned int>::NOSORT);
-        unsigned int *seqLen2 = reader2.getSeqLens();
-        size_t currOffset = 0;
-
-        for (size_t id = 0; id < reader1.getSize(); id++) {
-            // add length for file1 and file2 and subtract -1 for one null byte
-            size_t seqLen = seqLen1[id] + seqLen2[id] - 1;
-            seqLen1[id] = seqLen;
-            index1[id].offset = currOffset;
-            currOffset += seqLen;
-        }
-        reader2.close();
-    }
-
-    writeIndex(indexFiles[0], reader1.getSize(), index1, seqLen1);
-    reader1.close();
-}
-
 void DBWriter::writeThreadBuffer(unsigned int idx, size_t dataSize) {
     size_t written = fwrite(threadBuffer[idx], 1, dataSize, dataFiles[idx]);
     if (written != dataSize) {
         Debug(Debug::ERROR) << "writeThreadBuffer: Could not write to data file " << dataFileNames[idx] << "\n";
         EXIT(EXIT_FAILURE);
+    }
+}
+
+void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& lookupFile, int sortMode) {
+    DBReader<unsigned int>* lookupReader = NULL;
+    FILE *sLookup = NULL;
+    if (lookupFile.empty() == false) {
+        lookupReader = new DBReader<unsigned int>(lookupFile.c_str(), lookupFile.c_str(), 1, DBReader<unsigned int>::USE_LOOKUP);
+        lookupReader->open(DBReader<unsigned int>::NOSORT);
+        sLookup = FileUtil::openAndDelete((dataFile + ".lookup").c_str(), "w");
+    }
+
+    DBReader<unsigned int> reader(dataFile.c_str(), indexFile.c_str(), 1, DBReader<unsigned int>::USE_INDEX);
+    reader.open(sortMode);
+    std::string indexTmp = indexFile + "_tmp";
+    FILE *sIndex = FileUtil::openAndDelete(indexTmp.c_str(), "w");
+
+    char buffer[1024];
+    DBReader<unsigned int>::LookupEntry* lookup = NULL;
+    if (lookupReader != NULL) {
+        lookup = lookupReader->getLookup();
+    }
+    for (size_t i = 0; i < reader.getSize(); i++) {
+        DBReader<unsigned int>::Index *idx = (reader.getIndex(i));
+        size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, reader.getSeqLens(i));
+        int written = fwrite(buffer, sizeof(char), len, sIndex);
+        if (written != (int) len) {
+            Debug(Debug::ERROR) << "Can not write to data file " << indexFile << "_tmp\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (lookupReader != NULL) {
+            size_t lookupId = lookupReader->getLookupIdByKey(idx->id);
+            DBReader<unsigned int>::LookupEntry copy = lookup[lookupId];
+            copy.id = i;
+            len = lookupReader->lookupEntryToBuffer(buffer, copy);
+            written = fwrite(buffer, sizeof(char), len, sLookup);
+            if (written != (int) len) {
+                Debug(Debug::ERROR) << "Could not write to lookup file " << indexFile << "_tmp\n";
+                EXIT(EXIT_FAILURE);
+            }
+        }
+    }
+    fclose(sIndex);
+    reader.close();
+    std::rename(indexTmp.c_str(), indexFile.c_str());
+
+    if (lookupReader != NULL) {
+        fclose(sLookup);
+        lookupReader->close();
     }
 }

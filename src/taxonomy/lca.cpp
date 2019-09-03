@@ -17,24 +17,8 @@ static bool compareToFirstInt(const std::pair<unsigned int, unsigned int>& lhs, 
 int lca(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
+    NcbiTaxonomy * t = NcbiTaxonomy::openTaxonomy(par.db1);
 
-    std::string nodesFile = par.db1 + "_nodes.dmp";
-    std::string namesFile = par.db1 + "_names.dmp";
-    std::string mergedFile = par.db1 + "_merged.dmp";
-    if (FileUtil::fileExists(nodesFile.c_str())
-        && FileUtil::fileExists(namesFile.c_str())
-        && FileUtil::fileExists(mergedFile.c_str())) {
-    } else if (FileUtil::fileExists("nodes.dmp")
-               && FileUtil::fileExists("names.dmp")
-               && FileUtil::fileExists("merged.dmp")
-               && FileUtil::fileExists("delnodes.dmp")) {
-        nodesFile = "nodes.dmp";
-        namesFile = "names.dmp";
-        mergedFile = "merged.dmp";
-    } else {
-        Debug(Debug::ERROR) << "names.dmp, nodes.dmp, merged.dmp or delnodes.dmp from NCBI taxdump could not be found!\n";
-        EXIT(EXIT_FAILURE);
-    }
     std::vector<std::pair<unsigned int, unsigned int>> mapping;
     if(FileUtil::fileExists(std::string(par.db1 + "_mapping").c_str()) == false){
         Debug(Debug::ERROR) << par.db1 + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
@@ -62,8 +46,6 @@ int lca(int argc, const char **argv, const Command& command) {
         taxaBlacklist[i] = Util::fast_atoi<int>(blacklist[i].c_str());
     }
     Debug::Progress progress(reader.getSize());
-    Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
-    NcbiTaxonomy t(namesFile, nodesFile, mergedFile);
     size_t taxonNotFound = 0;
     size_t found = 0;
 
@@ -117,7 +99,7 @@ int lca(int argc, const char **argv, const Command& command) {
                 for (size_t j = 0; j < taxaBlacklistSize; ++j) {
                     if(taxaBlacklist[j] == 0)
                         continue;
-                    if (t.IsAncestor(taxaBlacklist[j], taxon)) {
+                    if (t->IsAncestor(taxaBlacklist[j], taxon)) {
                         goto next;
                     }
                 }
@@ -134,7 +116,7 @@ int lca(int argc, const char **argv, const Command& command) {
                 continue;
             }
 
-            TaxonNode const * node = t.LCA(taxa);
+            TaxonNode const * node = t->LCA(taxa);
             if (node == NULL) {
                 snprintf(buffer, 1024, "0\tno rank\tunclassified\n");
                 writer.writeData(buffer, strlen(buffer), key, thread_idx);
@@ -144,11 +126,11 @@ int lca(int argc, const char **argv, const Command& command) {
 
             resultData = SSTR(node->taxId) + '\t' + node->rank + '\t' + node->name;
             if (!ranks.empty()) {
-                std::string lcaRanks = Util::implode(t.AtRanks(node, ranks), ':');
+                std::string lcaRanks = Util::implode(t->AtRanks(node, ranks), ':');
                 resultData += '\t' + lcaRanks;
             }
             if (par.showTaxLineage) {
-                resultData += '\t' + t.taxLineage(node);
+                resultData += '\t' + t->taxLineage(node);
             }
             resultData += '\n';
             writer.writeData(resultData.c_str(), resultData.size(), key, thread_idx);
@@ -157,10 +139,9 @@ int lca(int argc, const char **argv, const Command& command) {
     };
     Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " entries not found out of " << taxonNotFound+found << "\n";
-
     writer.close();
     reader.close();
-
+    delete t;
     delete[] taxaBlacklist;
 
     return EXIT_SUCCESS;

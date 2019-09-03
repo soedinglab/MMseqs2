@@ -36,7 +36,7 @@ public:
     int runSplits(const std::string &resultDB, const std::string &resultDBIndex, size_t fromSplit, size_t splitProcessCount, bool merge);
 
     // merge file
-    void mergeFiles(const std::string &outDb, const std::string &outDBIndex,
+    void mergePrefilterSplits(const std::string &outDb, const std::string &outDBIndex,
                     const std::vector<std::pair<std::string, std::string>> &splitFiles);
 
     // get substitution matrix
@@ -49,8 +49,6 @@ public:
     static int getKmerThreshold(const float sensitivity, const bool isProfile, const int kmerScore, const int kmerSize);
 
 private:
-    static const size_t BUFFER_SIZE = 1000000;
-
     const std::string queryDB;
     const std::string queryDBIndex;
     const std::string targetDB;
@@ -62,8 +60,8 @@ private:
 
     BaseMatrix *kmerSubMat;
     BaseMatrix *ungappedSubMat;
-    ScoreMatrix *_2merSubMatrix;
-    ScoreMatrix *_3merSubMatrix;
+    ScoreMatrix _2merSubMatrix;
+    ScoreMatrix _3merSubMatrix;
     IndexTable *indexTable;
     SequenceLookup *sequenceLookup;
 
@@ -85,7 +83,6 @@ private:
     bool takeOnlyBestKmer;
     size_t maxResListLen;
 
-    const std::string prevMaxResListLengths;
     const int kmerScore;
     const float sensitivity;
     size_t maxSeqLen;
@@ -98,7 +95,7 @@ private:
     const bool includeIdentical;
     int preloadMode;
     const unsigned int threads;
-    const int compressed;
+    int compressed;
 
     bool runSplit(const std::string &resultDB, const std::string &resultDBIndex, size_t split, bool merge);
 
@@ -114,20 +111,16 @@ private:
 
     static size_t estimateHDDMemoryConsumption(size_t dbSize, size_t maxResListLen);
 
-    ScoreMatrix *getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize);
+    ScoreMatrix getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize);
 
 
     // needed for index lookup
     void getIndexTable(int split, size_t dbFrom, size_t dbSize);
 
-    void writePrefilterOutput(DBWriter *dbWriter, unsigned int thread_idx, size_t id,
-                              const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset);
-
     void printStatistics(const statistics_t &stats, std::list<int> **reslens,
                          unsigned int resLensSize, size_t empty, size_t maxResults);
 
-    void mergeOutput(const std::string &outDb, const std::string &outDBIndex,
-                     const std::vector<std::pair<std::string, std::string>> &filenames);
+    void mergeTargetSplits(const std::string &outDB, const std::string &outDBIndex, const std::vector<std::pair<std::string, std::string>> &fileNames);
 
     bool isSameQTDB();
 

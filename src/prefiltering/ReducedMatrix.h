@@ -59,7 +59,6 @@ class ReducedMatrix : public BaseMatrix {
     private:
 
         /*contains the original matrix before the alphabet reduction*/
-        short ** origSubMatrix;
         int*   orig_aa2int;
         char*  orig_int2aa;
         /* size of the original alphabet*/
@@ -70,7 +69,7 @@ class ReducedMatrix : public BaseMatrix {
         // int2aa: mapping int code (orig. alphabet) -> the representative amino acid char
 
         // reducedAlphabet contains only the "representative" amino acids
-        std::vector<char>* reducedAlphabet;
+        std::vector<char> reducedAlphabet;
 
         /* The function adds two rows of a given m x n input matrix and produces a
          * m-1 x n matrix. row1 and row2 (where row1 < row2) are the rows that are

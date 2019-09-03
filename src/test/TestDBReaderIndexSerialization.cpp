@@ -16,9 +16,8 @@ int main (int, const char**) {
 
     Debug(Debug::INFO) << newdbr->getSize() << " " << newdbr->getAminoAcidDBSize() << "\n";
     Debug(Debug::INFO) << newdbr->getIndex()[0].id  << " " << newdbr->getIndex()[0].offset  << " " << newdbr->getSeqLens()[0] << "\n";
+    free(data);
 
-
-    delete data;
     newdbr->close();
     delete newdbr;
     reader.close();
