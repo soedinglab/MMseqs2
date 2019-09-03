@@ -7,7 +7,7 @@
 #include "multihitsearch.sh.h"
 
 void setMultiHitSearchWorkflowDefaults(Parameters *p) {
-    //p->sensitivity = 7;
+    p->sensitivity = 5.7;
     // TODO: Check query cov maybe?
     // p->covThr = 0.7;
     p->evalThr = 100;
