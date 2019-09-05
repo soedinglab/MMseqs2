@@ -137,50 +137,35 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
                 Debug(Debug::ERROR) << "BufferPos (" << bufferPos << ") is >= maxMsaSeqLen (" << maxMsaSeqLen << ")" << "\n";
                 EXIT(EXIT_FAILURE);
             }
+            while (bt.at(alnPos) == 'D' &&  alnPos < bt.size()) {
+                if (noDeletionMSA == false) {
+                    edgeSeqMSA[bufferPos] = subMat->int2aa[edgeSeq->int_sequence[targetPos]];
+                    bufferPos++;
+                }
+                targetPos++;
+                alnPos++;
+            }
+            if (alnPos >= bt.size()) {
+                break;
+            }
             if (bt.at(alnPos)  == 'I') {
                 edgeSeqMSA[bufferPos] = '-';
                 bufferPos++;
                 queryPos++;
-            } else {
-                // D state in target Sequence
-                if (bt.at(alnPos) == 'D') {
-                    while (bt.at(alnPos) == 'D' &&  alnPos < bt.size()) {
-                        if (noDeletionMSA == false) {
-                            edgeSeqMSA[bufferPos] = subMat->int2aa[edgeSeq->int_sequence[targetPos]];
-                            bufferPos++;
-                        }
-                        targetPos++;
-                        alnPos++;
-                    }
-                    if (alnPos >= bt.size()) {
-                        break;
-                    } else if (bt.at(alnPos)  == 'I') {
+            } else if (bt.at(alnPos) == 'M') {
+                // add query deletion gaps
+                for (size_t gapIdx = 0; gapIdx < queryGaps[queryPos]; gapIdx++) {
+                    if (noDeletionMSA == false) {
                         edgeSeqMSA[bufferPos] = '-';
                         bufferPos++;
-                        queryPos++;
-                    } else if (bt.at(alnPos) == 'M') {
-                        edgeSeqMSA[bufferPos] = subMat->int2aa[edgeSeq->int_sequence[targetPos]];
-                        bufferPos++;
-                        queryPos++;
-                        targetPos++;
                     }
-                    continue;
-                } else if (bt.at(alnPos) == 'M') {
-
-                    // add query deletion gaps
-                    for (size_t gapIdx = 0; gapIdx < queryGaps[queryPos]; gapIdx++) {
-                        if (noDeletionMSA == false) {
-                            edgeSeqMSA[bufferPos] = '-';
-                            bufferPos++;
-                        }
-                    }
-                    // M state
-                    edgeSeqMSA[bufferPos] = subMat->int2aa[edgeSeq->int_sequence[targetPos]];
-
-                    bufferPos++;
-                    queryPos++;
-                    targetPos++;
                 }
+                // M state
+                edgeSeqMSA[bufferPos] = subMat->int2aa[edgeSeq->int_sequence[targetPos]];
+
+                bufferPos++;
+                queryPos++;
+                targetPos++;
             }
         }
         // fill up rest with gaps
