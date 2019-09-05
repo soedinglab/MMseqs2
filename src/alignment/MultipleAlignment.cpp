@@ -247,7 +247,7 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
     //alignmentResults.clear();
     // map to int
     for (size_t k = 0; k < edgeSeqs.size() + 1; ++k) {
-        for (unsigned int pos = 0; pos < centerSeqSize; ++pos) {
+        for (size_t pos = 0; pos < centerSeqSize; ++pos) {
             msaSequence[k][pos] = (msaSequence[k][pos] == '-') ?
                                   GAP : subMat->aa2int[(int) msaSequence[k][pos]];
         }
