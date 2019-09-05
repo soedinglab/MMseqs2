@@ -5,6 +5,7 @@
 
 #include <fstream>
 #include <algorithm>
+#include <map>
 
 #ifdef HAVE_ZLIB
 #include "gzstream.h"

@@ -233,15 +233,33 @@ int StatsComputer::sumValue() {
     return 0;
 }
 
+float averageValueOnAminoAcids(const std::unordered_map<char, float> &values, const char *seq) {
+    const char *seqPointer = seq;
+    float ret = values.at('0') + values.at('1'); // C ter and N ter values
+    std::unordered_map<char, float>::const_iterator k;
+
+    while (*seqPointer != '\0' && *seqPointer != '\n') {
+        if ((k = values.find(tolower(*seqPointer))) != values.end()) {
+            ret += k->second;
+        }
+
+        seqPointer++;
+    }
+
+    size_t seqLen = seqPointer - seq;
+    return ret / std::max(static_cast<size_t>(1), seqLen);
+}
+
+
 float doolittle(const char *seq) {
     static Doolittle doolitle;
-    return Util::averageValueOnAminoAcids(doolitle.values, seq);
+    return averageValueOnAminoAcids(doolitle.values, seq);
 }
 
 
 float charges(const char *seq) {
     static Charges charges;
-    return Util::averageValueOnAminoAcids(charges.values, seq);
+    return averageValueOnAminoAcids(charges.values, seq);
 }
 
 std::string firstline(const char *seq) {

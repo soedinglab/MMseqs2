@@ -9,6 +9,7 @@
 
 #include <fstream>
 #include <iomanip>
+#include <map>
 
 #ifdef OPENMP
 #include <omp.h>

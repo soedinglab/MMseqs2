@@ -589,26 +589,6 @@ uint64_t Util::revComplement(const uint64_t kmer, const int k) {
 
 }
 
-
-
-float Util::averageValueOnAminoAcids(const std::unordered_map<char, float> &values, const char *seq) {
-    const char *seqPointer = seq;
-    float ret = values.at('0') + values.at('1'); // C ter and N ter values
-    std::unordered_map<char, float>::const_iterator k;
-
-    while (*seqPointer != '\0' && *seqPointer != '\n') {
-        if ((k = values.find(tolower(*seqPointer))) != values.end()) {
-            ret += k->second;
-        }
-
-        seqPointer++;
-    }
-
-    size_t seqLen = seqPointer - seq;
-    return ret / std::max(static_cast<size_t>(1), seqLen);
-}
-
-
 template<> std::string SSTR(char x) { return std::string(1, x); }
 template<> std::string SSTR(const std::string &x) { return x; }
 template<> std::string SSTR(const char* x) { return x; }

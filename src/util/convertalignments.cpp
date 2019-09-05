@@ -11,6 +11,8 @@
 #include "Orf.h"
 #include "MemoryMapped.h"
 
+#include <map>
+
 #ifdef OPENMP
 #include <omp.h>
 #endif

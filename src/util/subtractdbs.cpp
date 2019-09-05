@@ -12,6 +12,8 @@
 #include "Util.h"
 #include "Parameters.h"
 
+#include <map>
+
 #ifdef OPENMP
 #include <omp.h>
 #endif
