@@ -7,7 +7,6 @@
 
 #include "DBReader.h"
 #include "DBWriter.h"
-#include "SetElement.h"
 
 class Clustering {
 public:

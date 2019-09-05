@@ -1,12 +1,9 @@
 #include <iostream>
 #include <list>
 #include <algorithm>
-#include <math.h>
-
+#include <cmath>
 
 #include "Clustering.h"
-#include "SetElement.h"
-
 #include "DBReader.h"
 #include "DBWriter.h"
 

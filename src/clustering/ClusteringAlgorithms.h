@@ -11,7 +11,6 @@
 #include <unordered_map>
 
 #include "DBReader.h"
-#include "SetElement.h"
 
 class ClusteringAlgorithms {
 public:

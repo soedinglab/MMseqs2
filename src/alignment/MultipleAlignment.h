@@ -10,10 +10,6 @@
 
 #include "Matcher.h"
 
-class SubstitutionMatrix;
-class Sequence;
-
-
 class MultipleAlignment {
 public:
     enum alignment_element {

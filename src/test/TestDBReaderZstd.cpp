@@ -7,8 +7,6 @@
 #include <string.h>
 
 #include "Clustering.h"
-#include "SetElement.h"
-
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Parameters.h"

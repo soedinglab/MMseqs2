@@ -3,7 +3,6 @@ set(clustering_header_files
         clustering/Clustering.h
         clustering/ClusteringAlgorithms.h
         clustering/Main.cpp
-        clustering/SetElement.h
         PARENT_SCOPE
         )
 

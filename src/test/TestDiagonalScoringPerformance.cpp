@@ -15,11 +15,8 @@
 KSEQ_INIT(int, read)
 
 #include "Clustering.h"
-#include "SetElement.h"
-
 #include "DBReader.h"
 #include "DBWriter.h"
-
 #include "Parameters.h"
 
 const char* binary_name = "test_diagonalscoringperformance";

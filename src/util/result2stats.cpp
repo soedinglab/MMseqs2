@@ -1,6 +1,5 @@
 #include "result2stats.h"
 
-#include "Alignment.h"
 #include "AminoAcidLookupTables.h"
 
 #include "Debug.h"
@@ -8,8 +7,6 @@
 #include "FileUtil.h"
 #include "itoa.h"
 #include "Parameters.h"
-
-#include <cstdlib>
 
 #ifdef OPENMP
 #include <omp.h>
