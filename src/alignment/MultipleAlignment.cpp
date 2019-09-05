@@ -70,7 +70,6 @@ void MultipleAlignment::computeQueryGaps(unsigned int *queryGaps, Sequence *cent
         std::string bt = alignment.backtrace;
         size_t queryPos = 0;
         size_t targetPos = 0;
-        size_t currentQueryGapSize = 0;
         queryPos = alignment.qStartPos;
         targetPos = alignment.dbStartPos;
         // compute query gaps (deletions)
@@ -79,17 +78,11 @@ void MultipleAlignment::computeQueryGaps(unsigned int *queryGaps, Sequence *cent
             if (bt_letter == 'M') { // match state
                 ++queryPos;
                 ++targetPos;
-                currentQueryGapSize = 0;
-            } else {
-                if (bt_letter == 'I') { // insertion
-                    ++queryPos;
-                    currentQueryGapSize = 0;
-                } else { // deletion
-                    ++targetPos;
-                    currentQueryGapSize += 1;
-                    size_t gapCount = queryGaps[queryPos];
-                    queryGaps[queryPos] = std::max(gapCount, currentQueryGapSize);
-                }
+            } else if (bt_letter == 'I') { // insertion
+                ++queryPos;
+            } else { // deletion
+                ++targetPos;
+                ++queryGaps[queryPos];
             }
         }
     }
