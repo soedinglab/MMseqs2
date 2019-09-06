@@ -25,6 +25,7 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
     Debug::Progress progress(entries);
 
     DBReader<unsigned int> lookupReader(mappingFile.c_str(), mappingFile.c_str(), 1, DBReader<unsigned int>::USE_LOOKUP);
+    lookupReader.open(DBReader<unsigned int>::NOSORT);
     const bool doMapping = lookupReader.getLookupSize() > 0;
 #pragma omp parallel
     {
