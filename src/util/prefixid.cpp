@@ -24,7 +24,7 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
     size_t entries = reader.getSize();
     Debug::Progress progress(entries);
     bool doMapping = false;
-    DBReader<unsigned int> * lookupReader;
+    DBReader<unsigned int> * lookupReader=NULL;
     if(mappingFile.size() > 0){
         lookupReader = new DBReader<unsigned int>(mappingFile.c_str(), mappingFile.c_str(), 1, DBReader<unsigned int>::USE_LOOKUP);
         doMapping = true;
