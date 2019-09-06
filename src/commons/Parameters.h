@@ -224,6 +224,12 @@ public:
     static const int RESCORE_MODE_GLOBAL_ALIGNMENT = 3;
     static const int RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT = 4;
 
+    // combinepvalperset
+    static const int AGGREGATION_MODE_MULTIHIT = 0;
+    static const int AGGREGATION_MODE_MIN_PVAL = 1;
+    static const int AGGREGATION_MODE_PRODUCT = 2;
+    static const int AGGREGATION_MODE_TRUNCATED_PRODUCT = 3;
+
     // header type
     static const int HEADER_TYPE_UNICLUST = 1;
     static const int HEADER_TYPE_METACLUST = 2;
@@ -498,6 +504,7 @@ public:
     bool simpleBestHit;
     float alpha;
     bool shortOutput;
+    int aggregationMode;
 
     // mergedbs
     std::string mergePrefixes;
@@ -793,6 +800,7 @@ public:
     PARAMETER(PARAM_SIMPLE_BEST_HIT)
     PARAMETER(PARAM_ALPHA)
     PARAMETER(PARAM_SHORT_OUTPUT)
+    PARAMETER(PARAM_AGGREGATION_MODE)
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)
@@ -941,7 +949,6 @@ public:
     std::vector<MMseqsParameter*> profile2cs;
     std::vector<MMseqsParameter*> besthitbyset;
     std::vector<MMseqsParameter*> combinepvalbyset;
-    std::vector<MMseqsParameter*> summerizeresultsbyset;
     std::vector<MMseqsParameter*> multihitdb;
     std::vector<MMseqsParameter*> multihitsearch;
     std::vector<MMseqsParameter*> expandaln;

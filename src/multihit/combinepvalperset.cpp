@@ -29,8 +29,8 @@ void precomputeLogB(const unsigned int orfCount, const double pvalThreshold, dou
 class PvalueAggregator : public Aggregation {
 public:
     PvalueAggregator(std::string queryDbName, std::string targetDbName, const std::string &resultDbName,
-                     const std::string &outputDbName, float alpha, unsigned int threads, unsigned int compressed) :
-            Aggregation(targetDbName, resultDbName, outputDbName, threads, compressed), alpha(alpha) {
+                     const std::string &outputDbName, float alpha, unsigned int threads, unsigned int compressed, int aggregationMode) :
+            Aggregation(targetDbName, resultDbName, outputDbName, threads, compressed), alpha(alpha), aggregationMode(aggregationMode) {
 
         std::string sizeDBName = queryDbName + "_set_size";
         std::string sizeDBIndex = queryDbName + "_set_size.index";
@@ -84,9 +84,9 @@ public:
     //Get all result of a single Query Set VS a Single Target Set and return the multiple-match p-value for it
     std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey,
                                unsigned int targetSetKey, unsigned int thread_idx) {
-        unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
-        double pvalThreshold = alpha / (orfCount + 1);
-        const size_t numTargetSets = targetSizeReader->getSize();
+        
+        const size_t numTargetSets = targetSizeReader->getSize();  
+        double updatedPval;
 
         std::string buffer;
         char keyBuffer[255];
@@ -94,49 +94,98 @@ public:
         buffer.append(keyBuffer, tmpBuff - keyBuffer - 1);
         buffer.append("\t");
 
-        //edge case p0 = 0
-        if (pvalThreshold == 0.0) {
-            buffer.append(SSTR(numTargetSets));
-            return buffer;
-        }
+        //0) multihit P-values
+        if(aggregationMode == Parameters::AGGREGATION_MODE_MULTIHIT){
+            unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx)); 
+            double pvalThreshold = alpha / (orfCount + 1);
 
-        size_t k = 0;
-        double r = 0;
-        const double logPvalThr = log(pvalThreshold);
-        for (size_t i = 0; i < dataToAggregate.size(); ++i) {
-            double pvalue = std::strtod(dataToAggregate[i][1].c_str(), NULL);
-            if (pvalue < pvalThreshold) {
-                k++;
-                r -= log(pvalue) - logPvalThr;
+            //multihit edge case p0 = 0
+            if (pvalThreshold == 0.0) {
+                buffer.append(SSTR(numTargetSets));
+                return buffer;
             }
+
+            size_t k = 0;
+            double r = 0;
+            const double logPvalThr = log(pvalThreshold);
+            for (size_t i = 0; i < dataToAggregate.size(); ++i) {
+                double logPvalue = std::strtod(dataToAggregate[i][1].c_str(), NULL);
+                if (logPvalue < logPvalThr) {
+                    k++;
+                    r -= logPvalue - logPvalThr;
+                }
+            }
+            //multihit edge case r = 0
+            if (r == 0) {
+                buffer.append(SSTR(numTargetSets));
+                return buffer;
+            }
+
+            if (std::isinf(r)) {
+                buffer.append("0");
+                return buffer;
+            }        
+
+            const double expMinusR = exp(-r);
+            
+            //multihit edge case p0 = 1
+            if (pvalThreshold == 1.0) {
+                buffer.append(SSTR(expMinusR * numTargetSets));
+                return buffer;
+            }
+
+
+            double truncatedFisherPval = 0;
+            const double logR = log(r);
+            for (size_t i = 0; i < orfCount; ++i) { 
+                truncatedFisherPval += exp(i*logR - lGammaLookup[i+1] + logBiLookup[thread_idx][i]);
+            }            
+            updatedPval = expMinusR * truncatedFisherPval;       
+        } 
+
+        //1) the minimum of all P-values(as a baseline)
+        else if(aggregationMode == Parameters::AGGREGATION_MODE_MIN_PVAL){
+            unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
+            double minLogPval = 0;
+            for (size_t i = 0; i < dataToAggregate.size(); ++i) { 
+                double currentLogPval = std::strtod(dataToAggregate[i][1].c_str(), NULL);
+                if (currentLogPval < minLogPval) {
+                    minLogPval = currentLogPval;
+                };
+            }
+            updatedPval = 1 -  exp( - exp(minLogPval) * orfCount);;    
+        }      
+
+        //2) the P-value for the product-of-P-values
+        else if (aggregationMode == Parameters::AGGREGATION_MODE_PRODUCT)    {
+            double  sumLogPval= 0;
+            for (size_t i = 0; i < dataToAggregate.size(); ++i) {
+                double logPvalue = std::strtod(dataToAggregate[i][1].c_str(), NULL);
+                sumLogPval += logPvalue;
+            }
+            updatedPval = exp(sumLogPval);   
         }
 
-        if (r == 0) {
-            buffer.append(SSTR(numTargetSets));
-            return buffer;
+        //3) the P-values of the truncated product method 
+        else if(aggregationMode == Parameters::AGGREGATION_MODE_TRUNCATED_PRODUCT){
+            unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
+            double logPvalThreshold = log(alpha / (orfCount + 1));
+            double sumLogPval = 0;
+            for (size_t i = 0; i < dataToAggregate.size(); ++i) {
+                double logPvalue = std::strtod(dataToAggregate[i][1].c_str(), NULL);
+                if (logPvalue < logPvalThreshold) {
+                    sumLogPval += logPvalue;
+                }
+            }
+            updatedPval = exp(sumLogPval); 
         }
 
-        if (std::isinf(r)) {
-            buffer.append("0");
-            return buffer;
-        }        
 
-        const double expMinusR = exp(-r);
         
-        //edge case p0 = 1
-        if (pvalThreshold == 1.0) {
-            buffer.append(SSTR(expMinusR * numTargetSets));
-            return buffer;
+        else {
+            Debug(Debug::ERROR) << "Invalid aggregation function!\n";
+            EXIT(EXIT_FAILURE);
         }
-
-
-        double truncatedFisherPval = 0;
-        const double logR = log(r);
-        for (size_t i = 0; i < orfCount; ++i) { 
-            truncatedFisherPval += exp(i*logR - lGammaLookup[i+1] + logBiLookup[thread_idx][i]);
-        }
-        
-        double updatedPval = expMinusR * truncatedFisherPval;
         double updatedEval = updatedPval * numTargetSets;
         buffer.append(SSTR(updatedEval));
         return buffer;
@@ -144,6 +193,7 @@ public:
 
 private:
     double alpha;
+    int aggregationMode;
     DBReader<unsigned int> *querySizeReader;
     DBReader<unsigned int> *targetSizeReader;
     double* lGammaLookup;
@@ -154,6 +204,6 @@ int combinepvalperset(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    PvalueAggregator aggregation(par.db1, par.db2, par.db3, par.db4, par.alpha, (unsigned int) par.threads, par.compressed);
+    PvalueAggregator aggregation(par.db1, par.db2, par.db3, par.db4, par.alpha, (unsigned int) par.threads, par.compressed, par.aggregationMode);
     return aggregation.run();
 }

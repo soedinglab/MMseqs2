@@ -43,7 +43,7 @@ int reverseseq(int argn, const char **argv, const Command& command) {
             revStr.clear();
         }
     }
-    revSeqWriter.close();
+    revSeqWriter.close(true);
     seqReader.close();
     DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
 
