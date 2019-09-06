@@ -100,6 +100,7 @@ public:
     size_t getAminoAcidDBSize();
 
     size_t getDataSize() { return dataSize; }
+    void setDataSize(size_t newSize) { dataSize = newSize; }
 
     char* getData(size_t id, int thrIdx);
 

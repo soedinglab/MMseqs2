@@ -48,6 +48,9 @@ public:
 
     static int getKmerThreshold(const float sensitivity, const bool isProfile, const int kmerScore, const int kmerSize);
 
+    static void mergeTargetSplits(const std::string &outDB, const std::string &outDBIndex,
+                                  const std::vector<std::pair<std::string, std::string>> &fileNames, unsigned int threads);
+
 private:
     const std::string queryDB;
     const std::string queryDBIndex;
@@ -119,8 +122,6 @@ private:
 
     void printStatistics(const statistics_t &stats, std::list<int> **reslens,
                          unsigned int resLensSize, size_t empty, size_t maxResults);
-
-    void mergeTargetSplits(const std::string &outDB, const std::string &outDBIndex, const std::vector<std::pair<std::string, std::string>> &fileNames);
 
     bool isSameQTDB();
 

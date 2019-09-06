@@ -9,8 +9,7 @@
 #include "Timer.h"
 #include "ByteParser.h"
 #include "Parameters.h"
-#include <fcntl.h>
-
+#include "MemoryMapped.h"
 
 namespace prefilter {
 #include "ExpOpt3_8_polished.cs32.lib.h"
@@ -386,118 +385,139 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSi
     }
 }
 
-void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string &outDBIndex, const std::vector<std::pair<std::string, std::string>> &fileNames) {
-    if (fileNames.size() < 2) {
+void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string &outDBIndex, const std::vector<std::pair<std::string, std::string>> &fileNames, unsigned int threads) {
+    // we assume that the hits are in the same order
+    const size_t splits = fileNames.size();
+
+    if (splits < 2) {
         DBReader<unsigned int>::moveDb(fileNames[0].first, outDB);
         Debug(Debug::INFO) << "No merging needed.\n";
         return;
     }
 
-    // we assume that the hits are in the same order
     Timer timer;
-    // merge the index files and find the largest entry
-    size_t largestEntrySize = 0;
-    Debug(Debug::INFO) << "Merging " << fileNames.size() << " target splits into " << outDB << "\n";
+
+    Debug(Debug::INFO) << "Merging " << splits << " target splits into " << outDB << "\n";
     DBReader<unsigned int> reader1(fileNames[0].first.c_str(), fileNames[0].second.c_str(), 1, DBReader<unsigned int>::USE_INDEX);
     reader1.open(DBReader<unsigned int>::NOSORT);
     DBReader<unsigned int>::Index *index1 = reader1.getIndex();
 
-    for (size_t i = 1; i < fileNames.size(); i++) {
+    size_t totalSize = 0;
+    for (size_t id = 0; id < reader1.getSize(); id++) {
+        totalSize += index1[id].length;
+    }
+    for (size_t i = 1; i < splits; ++i) {
         DBReader<unsigned int> reader2(fileNames[i].first.c_str(), fileNames[i].second.c_str(), 1, DBReader<unsigned int>::USE_INDEX);
         reader2.open(DBReader<unsigned int>::NOSORT);
         DBReader<unsigned int>::Index *index2 = reader2.getIndex();
         size_t currOffset = 0;
-
         for (size_t id = 0; id < reader1.getSize(); id++) {
             // add length for file1 and file2 and subtract -1 for one null byte
             size_t seqLen = index1[id].length + index2[id].length - 1;
+            totalSize += index2[id].length - 1;
             index1[id].length = seqLen;
             index1[id].offset = currOffset;
             currOffset += seqLen;
+        }
+        reader2.close();
+    }
+    reader1.setDataSize(totalSize);
 
-            // keep track of longest
-            if (largestEntrySize < seqLen) {
-                largestEntrySize = seqLen;
-            }
+    size_t *starts = new size_t[threads];
+    size_t *lengths = new size_t[threads];
+    size_t **offsetStart = new size_t*[threads];
+    for (size_t i = 0; i < threads; ++i) {
+        reader1.decomposeDomainByAminoAcid(i, threads, &starts[i], &lengths[i]);
+        offsetStart[i] = new size_t[splits];
+    }
+
+    for (size_t s = 0; s < splits; ++s) {
+        DBReader<unsigned int> reader2(fileNames[s].first.c_str(), fileNames[s].second.c_str(), 1, DBReader<unsigned int>::USE_INDEX);
+        reader2.open(DBReader<unsigned int>::NOSORT);
+        DBReader<unsigned int>::Index *index2 = reader2.getIndex();
+        for (size_t t = 0; t < threads; t++) {
+            offsetStart[t][s] = index2[starts[t]].offset;
         }
         reader2.close();
     }
 
-    FILE *outDBIndexFILE = FileUtil::openAndDelete(outDBIndex.c_str(), "w");
-    DBWriter::writeIndex(outDBIndexFILE, reader1.getSize(), index1);
-    fclose(outDBIndexFILE);
-    reader1.close();
-    
-    // merge target splits data files and sort the hits at the same time
-    FILE ** files = new FILE*[fileNames.size()];
-    for (size_t i = 0; i < fileNames.size();i++) {
-        files[i] = FileUtil::openFileOrDie(fileNames[i].first.c_str(), "r", true);
-#if HAVE_POSIX_FADVISE
-        int status;
-        if ((status = posix_fadvise (fileno(files[i]), 0, 0, POSIX_FADV_SEQUENTIAL)) != 0){
-           Debug(Debug::ERROR) << "posix_fadvise returned an error: " << strerror(status) << "\n";
-        }
-#endif
-    }
-    
-    int c1 = EOF;
-    char * hitsBuffer = new char[largestEntrySize + 1];
-    size_t writePos = 0;
+    Debug(Debug::INFO) << "Preparing offsets for merging: " << timer.lap() << "\n";
 
-    std::string result;
-    result.reserve(largestEntrySize + 1);
-
-    FILE * outDBFILE = FileUtil::openAndDelete(outDB.c_str(), "w");
-    do {
-        // go over all files
-        for (size_t i = 0; i < fileNames.size(); ++i) {
-            // collect everything until the next entry
-            while ((c1 = getc_unlocked(files[i])) != EOF) {
-                if (c1 == '\0') {
-                    break;
-                }
-                hitsBuffer[writePos] = (char) c1;
-                writePos++;
-            }
-        }
-        // collected all hits, separated by \n. add null byte to assure correct parsing of hitsBuffer
-        hitsBuffer[writePos] = '\0';
-        writePos++;
-        // parse hitsBuffer as hits and sort them by score
-
-        std::vector<hit_t> hits = QueryMatcher::parsePrefilterHits(hitsBuffer);
-        if (hits.size() > 1) {
-            std::sort(hits.begin(), hits.end(), hit_t::compareHitsByScoreAndId);
-        }
-        for (size_t hit_id = 0; hit_id < hits.size(); hit_id++) {
-            int len = QueryMatcher::prefilterHitToBuffer(hitsBuffer, hits[hit_id]);
-            result.append(hitsBuffer, len);
-        }
-        result.append(1, '\0');
-
-        // write sorted hits
-        size_t written = fwrite(result.c_str(), sizeof(char), result.size(), outDBFILE);
-        result.clear();
-        if (written != writePos) {
-            Debug(Debug::ERROR) << "Cannot write to data file " << outDB << "\n";
+    MemoryMapped **files = new MemoryMapped*[splits];
+    for (size_t i = 0; i < splits; ++i) {
+        files[i] = new MemoryMapped(fileNames[i].first.c_str(), MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+        if (files[i]->isValid() == false) {
+            Debug(Debug::ERROR) << "Could not open data file " << fileNames[i].first.c_str() << "\n";
             EXIT(EXIT_FAILURE);
         }
-        // reset the buffer position
-        writePos = 0;
-    } while (c1 != EOF);
-    fclose(outDBFILE);
-    delete[] hitsBuffer;
+    }
 
-    // write output dbtype
-    DBWriter::writeDbtypeFile(outDB.c_str(), Parameters::DBTYPE_PREFILTER_RES, compressed);
+    // merge target splits data files and sort the hits at the same time
+    // TODO: compressed?
+    DBWriter writer(outDB.c_str(), outDBIndex.c_str(), threads, 0, Parameters::DBTYPE_PREFILTER_RES);
+    writer.open();
+#pragma omp parallel num_threads(threads)
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
 
-    for (size_t i = 0; i < fileNames.size(); ++i) {
-        fclose(files[i]);
+        std::string result;
+        result.reserve(1024);
+
+        std::vector<hit_t> hits;
+        hits.reserve(300);
+
+        char buffer[1024];
+
+        size_t id = starts[thread_idx];
+        size_t lastId = id + lengths[thread_idx];
+
+        char** currentOffset = new char*[splits];
+        for (size_t i = 0; i < splits; ++i) {
+            currentOffset[i] = (char*)(files[i]->getData() + offsetStart[thread_idx][i]);
+        }
+
+        while (id < lastId) {
+            for (size_t i = 0; i < splits; ++i) {
+                while (*currentOffset[i] != '\0') {
+                    hits.emplace_back(QueryMatcher::parsePrefilterHit(currentOffset[i]));
+                    currentOffset[i] = Util::skipLine(currentOffset[i]);
+                }
+                currentOffset[i]++;
+            }
+
+            if (hits.size() > 1) {
+                std::sort(hits.begin(), hits.end(), hit_t::compareHitsByScoreAndId);
+            }
+            for (size_t i = 0; i < hits.size(); ++i) {
+                int len = QueryMatcher::prefilterHitToBuffer(buffer, hits[i]);
+                result.append(buffer, len);
+            }
+            writer.writeData(result.c_str(), result.size(), reader1.getDbKey(id), thread_idx);
+            hits.clear();
+            result.clear();
+            id++;
+        }
+
+        delete[] currentOffset;
+        delete[] offsetStart[thread_idx];
+    }
+    writer.close();
+    reader1.close();
+
+    for (size_t i = 0; i < splits; ++i) {
+        files[i]->close();
+        delete files[i];
         DBReader<unsigned int>::removeDb(fileNames[i].first);
     }
     delete[] files;
+    delete[] offsetStart;
+    delete[] lengths;
+    delete[] starts;
 
-    Debug(Debug::INFO) << "\nTime for merging target splits: " << timer.lap() << "\n";
+    Debug(Debug::INFO) << "Time for merging target splits: " << timer.lap() << "\n";
 }
 
 
@@ -697,6 +717,19 @@ int Prefiltering::runSplits(const std::string &resultDB, const std::string &resu
         }
         if (splitFiles.size() > 0) {
             mergePrefilterSplits(resultDB, resultDBIndex, splitFiles);
+            if (splitFiles.size() > 1) {
+                DBReader<unsigned int> resultReader(resultDB.c_str(), resultDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+                resultReader.open(DBReader<unsigned int>::NOSORT);
+                resultReader.readMmapedDataInMemory();
+                const std::pair<std::string, std::string> tempDb = Util::databaseNames(resultDB + "_tmp");
+                DBWriter resultWriter(tempDb.first.c_str(), tempDb.second.c_str(), threads, compressed, Parameters::DBTYPE_PREFILTER_RES);
+                resultWriter.open();
+                resultWriter.sortDatafileByIdOrder(resultReader);
+                resultWriter.close(true);
+                resultReader.close();
+                DBReader<unsigned int>::removeDb(resultDB);
+                DBReader<unsigned int>::moveDb(tempDb.first, resultDB);
+            }
             hasResult = true;
         }
     } else if (splitProcessCount == 1) {
@@ -974,7 +1007,7 @@ BaseMatrix *Prefiltering::getSubstitutionMatrix(const ScoreMatrixFile &scoringMa
 void Prefiltering::mergePrefilterSplits(const std::string &outDB, const std::string &outDBIndex,
                               const std::vector<std::pair<std::string, std::string>> &splitFiles) {
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
-        mergeTargetSplits(outDB, outDBIndex, splitFiles);
+        mergeTargetSplits(outDB, outDBIndex, splitFiles, threads);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
         DBWriter::mergeResults(outDB, outDBIndex, splitFiles);
     }
