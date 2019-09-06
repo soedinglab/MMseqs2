@@ -51,12 +51,12 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
                 if (userStrToAdd != "") {
                     strToAdd = userStrToAdd;
                 } else if (doMapping) {
-                    size_t lookupId = lookupReader.getLookupIdByKey(key);
+                    size_t lookupId = lookupReader->getLookupIdByKey(key);
                     if (lookupId == SIZE_MAX) {
                         Debug(Debug::ERROR) << "Could not find key " << key << " in lookup\n";
                         EXIT(EXIT_FAILURE);
                     }
-                    strToAdd = lookupReader.getLookupEntryName(lookupId);
+                    strToAdd = lookupReader->getLookupEntryName(lookupId);
                 } else {
                     strToAdd = SSTR(key);
                 }
