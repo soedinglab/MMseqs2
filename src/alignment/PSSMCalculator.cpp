@@ -218,9 +218,7 @@ void PSSMCalculator::computeSequenceWeights(float *seqWeight, size_t queryLength
         // "Position-based Sequence Weights", Henikoff (1994)
         for (size_t k = 0; k < setSize; ++k) {
             if (msaSeqs[k][pos] != MultipleAlignment::GAP) {
-                if(distinct_aa_count == 0){
-                    seqWeight[k] += 0.0;
-                } else {
+                if (distinct_aa_count != 0) {
                     const unsigned int aa_pos = msaSeqs[k][pos];
 //                    std::cout << "k="<< k << "\t";
                     if(aa_pos < Sequence::PROFILE_AA_SIZE){ // Treat score of X with other amino acid as 0.0
