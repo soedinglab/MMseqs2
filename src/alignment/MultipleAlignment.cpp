@@ -203,7 +203,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
 
 MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, const std::vector<Sequence *>& edgeSeqs, bool noDeletionMSA) {
     // just center sequence is included
-    if(edgeSeqs.size() == 0 ){
+    if (edgeSeqs.empty()) {
         return singleSequenceMSA(centerSeq);
     }
 
@@ -218,7 +218,7 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
 
 MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, const std::vector<Sequence *>& edgeSeqs,
                                                            const std::vector<Matcher::result_t>& alignmentResults, bool noDeletionMSA) {
-    if(edgeSeqs.size() == 0 ){
+    if (edgeSeqs.empty()) {
         return singleSequenceMSA(centerSeq);
     }
 

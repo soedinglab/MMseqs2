@@ -51,7 +51,7 @@ int linsearch(int argc, const char **argv, const Command &command) {
 
     const int queryDbType = FileUtil::parseDbType(par.db1.c_str());
     std::string indexStr = LinsearchIndexReader::searchForIndex(par.db2);
-    if (indexStr.size() == 0) {
+    if (indexStr.empty()) {
         Debug(Debug::ERROR) << par.db2 << " needs to be index.\n";
         Debug(Debug::ERROR) << "createlinindex " << par.db2 << ".\n";
         EXIT(EXIT_FAILURE);

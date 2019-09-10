@@ -200,7 +200,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
                 }
                 for (size_t k = 0; k < expanded.size(); ++k) {
                     Matcher::result_t &resultBC = expanded[k];
-                    if (resultBC.backtrace.size() == 0) {
+                    if (resultBC.backtrace.empty()) {
                         Debug(Debug::ERROR) << "Alignment must contain a backtrace.\n";
                         EXIT(EXIT_FAILURE);
                     }
@@ -208,7 +208,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
 //                    Debug(Debug::INFO) << buffer;
 
                     translator.translateResult(resultAB, resultBC, resultAC);
-                    if (resultAC.backtrace.size() == 0) {
+                    if (resultAC.backtrace.empty()) {
                         continue;
                     }
 

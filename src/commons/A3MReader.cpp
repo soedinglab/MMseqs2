@@ -135,7 +135,7 @@ bool A3mReader::columnHasInsertion(size_t col) {
 }
 
 void A3mReader::addSequence(const std::string& sequence) {
-    if (sequence.size() == 0) {
+    if (sequence.empty()) {
         return;
     }
 
@@ -148,7 +148,7 @@ void A3mReader::addSequence(const std::string& sequence) {
     }
 
     // The first sequence is easy.
-    if (entries.size() == 0) {
+    if (entries.empty()) {
         entries.push_back(copy);
         length = sequence.size();
         return;

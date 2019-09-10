@@ -27,7 +27,7 @@ static inline float getOverlap(const std::vector<bool>& covered, unsigned int qS
 std::vector<Domain> mapDomains(const std::vector<Domain> &input, float overlap, float minCoverage,
                                double eValThreshold) {
     std::vector<Domain> result;
-    if(input.size() == 0) {
+    if (input.empty()) {
         return result;
     }
 
@@ -149,13 +149,13 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
             char *tabData = blastTabReader.getData(i, thread_idx);
             size_t tabLength = blastTabReader.getEntryLen(i) - 1;
             const std::vector<Domain> entries = getEntries(id, tabData, tabLength, lengths);
-            if (entries.size() == 0) {
+            if (entries.empty()) {
                 Debug(Debug::WARNING) << "Can not map any entries for entry " << id << "!\n";
                 continue;
             }
 
             std::vector<Domain> result = mapDomains(entries, par.overlap, par.covThr, par.evalThr);
-            if (result.size() == 0) {
+            if (result.empty()) {
                 Debug(Debug::WARNING) << "Can not map any domains for entry " << id << "!\n";
                 continue;
             }

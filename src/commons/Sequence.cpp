@@ -22,7 +22,7 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
     this->spaced = spaced;
     this->seqType = seqType;
     std::pair<const char *, unsigned int> spacedKmerInformation;
-    if (spacedKmerPattern.size() == 0){
+    if (spacedKmerPattern.empty()) {
         spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
     } else {
         spacedKmerInformation = parseSpacedPattern(kmerSize, spaced, spacedKmerPattern);

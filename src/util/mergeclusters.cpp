@@ -128,7 +128,7 @@ int mergeclusters(int argc, const char **argv, const Command &command) {
             progress.updateProgress();
 
             // no cluster for this representative
-            if (mergedClustering[i].size() == 0)
+            if (mergedClustering[i].empty())
                 continue;
 
             // representative
