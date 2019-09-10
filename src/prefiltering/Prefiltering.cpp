@@ -396,8 +396,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
     }
 
     Timer timer;
-
-    Debug(Debug::INFO) << "Merging " << splits << " target splits into " << outDB << "\n";
+    Debug(Debug::INFO) << "Merging " << splits << " target splits to " << FileUtil::baseName(outDB) << "\n";
     DBReader<unsigned int> reader1(fileNames[0].first.c_str(), fileNames[0].second.c_str(), 1, DBReader<unsigned int>::USE_INDEX);
     reader1.open(DBReader<unsigned int>::NOSORT);
     DBReader<unsigned int>::Index *index1 = reader1.getIndex();

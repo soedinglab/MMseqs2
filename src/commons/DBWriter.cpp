@@ -93,8 +93,6 @@ DBWriter::~DBWriter() {
 }
 
 void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
-    Debug(Debug::INFO) << "Sorting the results...  " << dataFileName << " .. ";
-
 #pragma omp parallel
     {
         int thread_idx = 0;
@@ -609,7 +607,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
 
     DBWriter::sortIndex(indexFileNames[0], outFileNameIndex, lexicographicOrder);
     FileUtil::remove(indexFileNames[0]);
-    Debug(Debug::INFO) << "Time for merging into " << outFileName << " by mergeResults: " << timer.lap() << "\n";
+    Debug(Debug::INFO) << "Time for merging to " << FileUtil::baseName(outFileName) << ": " << timer.lap() << "\n";
 }
 
 void DBWriter::mergeIndex(const char** indexFilenames, unsigned int fileCount, const std::vector<size_t> &dataSizes) {
