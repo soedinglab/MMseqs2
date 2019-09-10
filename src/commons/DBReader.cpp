@@ -134,7 +134,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
     if (dataMode & USE_LOOKUP || dataMode & USE_LOOKUP_REV) {
         std::string lookupFilename = (std::string(dataFileName) + ".lookup");
         if(FileUtil::fileExists(lookupFilename.c_str()) == false){
-            Debug(Debug::ERROR) << "Can not open index file " << lookupFilename << "!\n";
+            Debug(Debug::ERROR) << "Can not open lookup file " << lookupFilename << "!\n";
             EXIT(EXIT_FAILURE);
         }
         MemoryMapped indexData(lookupFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
@@ -158,7 +158,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
         MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
         if (!indexData.isValid()){
-            Debug(Debug::ERROR) << "Can not open index file " << indexFileName << "\n";
+            Debug(Debug::ERROR) << "Can map open index file " << indexFileName << "\n";
             EXIT(EXIT_FAILURE);
         }
         char* indexDataChar = (char *) indexData.getData();
@@ -908,7 +908,7 @@ template<typename T>
 size_t DBReader<T>::getOffset(size_t id) {
     if (id >= size){
         Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
-        Debug(Debug::ERROR) << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
+        Debug(Debug::ERROR) << "getOffset: local id (" << id << ") >= db size (" << size << ")\n";
         EXIT(EXIT_FAILURE);
     }
     if (local2id != NULL) {

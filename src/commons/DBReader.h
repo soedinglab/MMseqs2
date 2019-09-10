@@ -145,7 +145,7 @@ public:
     size_t getEntryLen(size_t id){
         if (id >= size){
             Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
-            Debug(Debug::ERROR) << "getSeqLen: local id (" << id << ") >= db size (" << size << ")\n";
+            Debug(Debug::ERROR) << "getEntryLen: local id (" << id << ") >= db size (" << size << ")\n";
             EXIT(EXIT_FAILURE);
         }
         if (local2id != NULL) {
