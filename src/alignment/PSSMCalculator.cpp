@@ -70,7 +70,6 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
     if(pca > 0.0){
         // add pseudocounts (compute the scalar product between matchWeight and substitution matrix with pseudo counts)
         preparePseudoCounts(matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, queryLength, (const float **) subMat->subMatrixPseudoCounts);
-        //    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->int2aa, 20 );
         computePseudoCounts(profile, matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, Neff_M, queryLength, pca, pcb);
     }else{
         for (size_t pos = 0; pos < queryLength; pos++) {
@@ -81,9 +80,7 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
     }
     // create final Matrix
     computeLogPSSM(pssm, profile, 2.0, queryLength, 0.0);
-//    PSSMCalculator::printProfile(queryLength);
 
-//    PSSMCalculator::printPSSM(queryLength);
     return Profile(pssm, profile, Neff_M, consensusSequence);
 }
 
@@ -171,7 +168,6 @@ void PSSMCalculator::computeNeff_M(float *frequency, float *seqWeight, float *Ne
             }
         }
         Neff_M[pos] = (w_M < 0) ? 1.0 : Nlim - (Nlim - 1.0) * MathUtil::fpow2(scale * w_M);
-//        fprintf(stderr,"M  i=%3i  ncol=---  Neff_M=%5.2f  Nlim=%5.2f  w_M=%5.3f  Neff_M=%5.2f\n",pos,Neff_HMM,Nlim,w_M,Neff_M[pos]);
     }
 }
 
@@ -220,10 +216,8 @@ void PSSMCalculator::computeSequenceWeights(float *seqWeight, size_t queryLength
             if (msaSeqs[k][pos] != MultipleAlignment::GAP) {
                 if (distinct_aa_count != 0) {
                     const unsigned int aa_pos = msaSeqs[k][pos];
-//                    std::cout << "k="<< k << "\t";
                     if(aa_pos < Sequence::PROFILE_AA_SIZE){ // Treat score of X with other amino acid as 0.0
                         seqWeight[k] += 1.0f / (float(nl[aa_pos]) * float(distinct_aa_count) * (float(number_res[k]) + 30.0f));
-//                        std::cout << number_res[k] << "\t" << distinct_aa_count << "\t" <<  nl[aa_pos] << "\t";
                     }
                 }
                 // ensure that each residue of a short sequence contributes as much as a residue of a long sequence:
@@ -231,11 +225,6 @@ void PSSMCalculator::computeSequenceWeights(float *seqWeight, size_t queryLength
             }
         }
     }
-//    std::cout << setSize << std::endl;
-//    std::cout << " Seq. Weight: " << std::endl;
-//    for (size_t k = 0; k < setSize; ++k) {
-//        std::cout << " k="<< k << "\t" << seqWeight[k] << std::endl;
-//    }
     delete [] number_res;
 }
 
@@ -247,15 +236,11 @@ void PSSMCalculator::computePseudoCounts(float *profile, float *frequency,
         float tau = fmin(1.0, pca / (1.0 + Neff_M[pos] / pcb));
         //float tau = fmin(1.0, pca * (1.0 + pcb)/ (Neff_M[pos] + pcb));
 
-        //std::cout<< "Tau: "<< tau << ", Neff: " << Neff_M[pos] <<std::endl;
-//        printf("%.6f\n", tau);
-
         for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
             // compute proportion of pseudo counts and signal
             float pseudoCounts    = tau * frequency_with_pseudocounts[pos * entrySize + aa];
             float frequencySignal = (1.0 - tau) * frequency[pos * entrySize + aa];
             profile[pos * entrySize + aa] = frequencySignal + pseudoCounts;
-//            printf("%f %f %f %f\n", tau, frequencySignal, pseudoCounts,  profile[pos * Sequence::PROFILE_AA_SIZE + aa]);
         }
     }
 }
@@ -310,7 +295,6 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
         // Check all sequences k and update n[j][a] and ri[j] if necessary
         for (size_t k = 0; k < setSize; ++k) {
             // Update amino acid and GAP / ENDGAP counts for sequences with AA in i-1 and GAP/ENDGAP in i or vice versa
-//            printf("%d %d %d\n", k, i, (int) X[k][i - 1]);
             if ((i == 0  && X[k][i] < MultipleAlignment::ANY) ||
                 (i != 0  && X[k][i - 1] >= MultipleAlignment::ANY && X[k][i] < MultipleAlignment::ANY)) {  // ... if sequence k was NOT included in i-1 and has to be included for column i
                 change = 1;
@@ -328,7 +312,6 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
         }  //end for (k)
         nseqs[i] = nseqi;
 
-//        printf("%d\n", nseqi);
         // Only if subalignment changed we need to update weights wi[k] and Neff[i]
         if (change) {
 
@@ -353,7 +336,6 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
                  --jmax) {
             };
             ncol = jmax - jmin + 1;
-//            printf("%d %d %d\n", ncol, jmax, jmin);
 
             // Check whether number of columns in subalignment is sufficient
             if (ncol < NCOLMIN) {
@@ -423,9 +405,6 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
                 Neff_M[i] = MathUtil::fpow2(Neff_M[i] / ncol);
             else
                 Neff_M[i] = 1.0;
-
-//            printf("%f\n", Neff_M[i]);
-//
         }
         else  //no update was necessary; copy values for i-1
         {
@@ -474,4 +453,3 @@ std::string PSSMCalculator::computeConsensusSequence(float *frequency, size_t qu
     }
     return consens;
 }
-
