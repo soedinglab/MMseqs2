@@ -551,7 +551,7 @@ void Sequence::reverse() {
         short        tmpScore[PROFILE_AA_SIZE*4];
         unsigned int tmpIndex[PROFILE_AA_SIZE*4];
 
-        int i_curr = 0 * profile_row_size;
+        int i_curr = 0;
         int j_curr = (this->L - 1)  * profile_row_size;
 
         for (int i = 0; i < this->L/2; i++) {
