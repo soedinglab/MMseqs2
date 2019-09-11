@@ -441,7 +441,8 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
     }
 
     Debug(Debug::INFO) << "Preparing offsets for merging: " << timer.lap() << "\n";
-
+//#define TARGET_MERGE_MMAP
+#ifdef TARGET_MERGE_MMAP
     MemoryMapped **files = new MemoryMapped*[splits];
     for (size_t i = 0; i < splits; ++i) {
         files[i] = new MemoryMapped(fileNames[i].first.c_str(), MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
@@ -450,11 +451,13 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
             EXIT(EXIT_FAILURE);
         }
     }
-
+#endif
     // merge target splits data files and sort the hits at the same time
     // TODO: compressed?
     DBWriter writer(outDB.c_str(), outDBIndex.c_str(), threads, 0, Parameters::DBTYPE_PREFILTER_RES);
     writer.open();
+
+    Debug::Progress pregress(reader1.getSize());
 #pragma omp parallel num_threads(threads)
     {
         unsigned int thread_idx = 0;
@@ -472,19 +475,43 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
 
         size_t id = starts[thread_idx];
         size_t lastId = id + lengths[thread_idx];
-
+#ifdef TARGET_MERGE_MMAP
         char** currentOffset = new char*[splits];
+#else
+        FILE** files = new FILE*[splits];
+#endif
         for (size_t i = 0; i < splits; ++i) {
+#ifdef TARGET_MERGE_MMAP
             currentOffset[i] = (char*)(files[i]->getData() + offsetStart[thread_idx][i]);
+#else
+            files[i] = fopen(fileNames[i].first.c_str(), "rb");
+            fseek(files[i], offsetStart[thread_idx][i], SEEK_SET);
+#endif
         }
 
         while (id < lastId) {
+            pregress.updateProgress();
             for (size_t i = 0; i < splits; ++i) {
+#ifdef TARGET_MERGE_MMAP
                 while (*currentOffset[i] != '\0') {
                     hits.emplace_back(QueryMatcher::parsePrefilterHit(currentOffset[i]));
                     currentOffset[i] = Util::skipLine(currentOffset[i]);
                 }
                 currentOffset[i]++;
+#else
+                int c1 = EOF;
+                size_t pos = 0;
+                while ((c1 = getc_unlocked(files[i])) != EOF) {
+                    buffer[pos++] = (char)c1;
+                    if (c1 == '\n') {
+//                        Debug(Debug::INFO) << std::string(buffer, pos) << "\n";
+                        hits.emplace_back(QueryMatcher::parsePrefilterHit(buffer));
+                        pos = 0;
+                    } else if (c1 == '\0') {
+                        break;
+                    }
+                }
+#endif
             }
 
             if (hits.size() > 1) {
@@ -500,18 +527,29 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
             id++;
         }
 
+#ifdef TARGET_MERGE_MMAP
         delete[] currentOffset;
+#else
+        for (size_t i = 0; i < splits; ++i) {
+            fclose(files[i]);
+        }
+        delete[] files;
+#endif
         delete[] offsetStart[thread_idx];
     }
     writer.close();
     reader1.close();
 
     for (size_t i = 0; i < splits; ++i) {
+#ifdef TARGET_MERGE_MMAP
         files[i]->close();
         delete files[i];
+#endif
         DBReader<unsigned int>::removeDb(fileNames[i].first);
     }
+#ifdef TARGET_MERGE_MMAP
     delete[] files;
+#endif
     delete[] offsetStart;
     delete[] lengths;
     delete[] starts;
