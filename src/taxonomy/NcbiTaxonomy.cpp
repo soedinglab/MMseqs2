@@ -300,8 +300,7 @@ TaxID NcbiTaxonomy::LCA(TaxID taxonA, TaxID taxonB) const {
     } else if (!nodeExists(taxonB)) {
         return taxonA;
     }
-
-    return taxonNodes[lcaHelper(D[nodeId(taxonA)], D[nodeId(taxonB)])].taxId;
+    return taxonNodes[lcaHelper(nodeId(taxonA), nodeId(taxonB))].taxId;
 }
 
 
