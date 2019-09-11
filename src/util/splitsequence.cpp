@@ -42,6 +42,11 @@ int splitsequence(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     headerReader.open(DBReader<unsigned int>::NOSORT);
 
+    if(par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.compressed == true) {
+        Debug(Debug::WARNING) << "Sequence split mode (--sequence-split-mode 0) and compressed (--compressed 1) can not be combined.\nTurn compressed to 0";
+        par.compressed = 0;
+    }
+
     DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     sequenceWriter.open();
 
