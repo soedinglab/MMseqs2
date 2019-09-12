@@ -43,9 +43,9 @@ void Matcher::initQuery(Sequence* query) {
     if (Parameters::isEqualDbtype(query->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)) {
         nuclaligner->initQuery(query);
     } else if (Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
-        aligner->ssw_init(query, query->getAlignmentProfile(), this->m, this->m->alphabetSize, 2);
+        aligner->ssw_init(query, query->getAlignmentProfile(), this->m, 2);
     } else {
-        aligner->ssw_init(query, this->tinySubMat, this->m, this->m->alphabetSize, 2);
+        aligner->ssw_init(query, this->tinySubMat, this->m, 2);
     }
 }
 
