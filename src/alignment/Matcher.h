@@ -66,9 +66,9 @@ public:
         dbStartPos(res.dbStartPos), dbEndPos(res.dbEndPos), dbLen(res.dbLen),
         backtrace(res.backtrace) {} ;
 
-        result_t(){};
+        result_t() {};
 
-        static void swapResult(result_t & res, EvalueComputation &evaluer, bool hasBacktrace){
+        static void swapResult(result_t & res, EvalueComputation &evaluer, bool hasBacktrace) {
             double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
             res.eval = evaluer.computeEvalue(rawScore, res.dbLen);
 
@@ -182,7 +182,7 @@ public:
     // map new query into memory (create queryProfile, ...)
     void initQuery(Sequence* query);
 
-    static result_t parseAlignmentRecord(const char *data, bool readCompressed=false);
+    static result_t parseAlignmentRecord(const char *data, bool readCompressed = false);
 
     static void readAlignmentResults(std::vector<result_t> &result, char *data, bool readCompressed = false);
 
@@ -192,8 +192,7 @@ public:
 
     static std::string uncompressAlignment(const std::string &cbt);
 
-
-    static size_t resultToBuffer(char * buffer, const result_t &result, bool addBacktrace, bool compress  = true);
+    static size_t resultToBuffer(char *buffer, const result_t &result, bool addBacktrace, bool compress = true);
 
     static int computeAlnLength(int anEnd, int start, int dbEnd, int dbStart);
 
