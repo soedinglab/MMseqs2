@@ -86,7 +86,7 @@ int main (int, const char**) {
     std::vector<std::string> sequences = readData("/Users/mad/Documents/databases/rfam/Rfam.fasta");
     for(size_t seq_i = 0; seq_i < sequences.size(); seq_i++){
         query->mapSequence(1,1,sequences[seq_i].c_str(), sequences[seq_i].size());
-        aligner.ssw_init(query, tinySubMat, &subMat, subMat.alphabetSize, 2);
+        aligner.ssw_init(query, tinySubMat, &subMat, 2);
 
         for(size_t seq_j = 0; seq_j < sequences.size(); seq_j++) {
             dbSeq->mapSequence(2, 2, sequences[seq_j].c_str(),  sequences[seq_j].size());

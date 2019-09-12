@@ -703,14 +703,14 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 #undef max8
 }
 
-void SmithWaterman::ssw_init (const Sequence* q,
-							  const int8_t* mat,
-							  const BaseMatrix *m,
-							  const int32_t alphabetSize,
-							  const int8_t score_size) {
+void SmithWaterman::ssw_init(const Sequence* q,
+							 const int8_t* mat,
+							 const BaseMatrix *m,
+							 const int8_t score_size) {
 
 	profile->bias = 0;
 	profile->sequence_type = q->getSequenceType();
+    const int32_t alphabetSize = m->alphabetSize;
 	int32_t compositionBias = 0;
 	bool isProfile = Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE);
 	if(isProfile == false && aaBiasCorrection == true) {

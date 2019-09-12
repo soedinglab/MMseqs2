@@ -170,8 +170,7 @@ public:
    -2 -2 -2  2 //T
    mat is the pointer to the array {2, -2, -2, -2, -2, 2, -2, -2, -2, -2, 2, -2, -2, -2, -2, 2}
    */
-    void ssw_init(const Sequence *q, const int8_t *mat, const BaseMatrix *m, const int32_t alphabetSize,
-                  const int8_t score_size);
+    void ssw_init(const Sequence *q, const int8_t *mat, const BaseMatrix *m, const int8_t score_size);
 
 
     static char cigar_int_to_op (uint32_t cigar_int);
