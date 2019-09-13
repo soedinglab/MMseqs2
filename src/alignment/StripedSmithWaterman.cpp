@@ -717,11 +717,9 @@ void SmithWaterman::ssw_init(const Sequence* q,
 		SubstitutionMatrix::calcLocalAaBiasCorrection(m, q->numSequence, q->L, tmp_composition_bias);
 		for (int i =0; i < q->L; i++) {
 			profile->composition_bias[i] = (int8_t) (tmp_composition_bias[i] < 0.0)? tmp_composition_bias[i] - 0.5: tmp_composition_bias[i] + 0.5;
-			compositionBias = (static_cast<int8_t>(compositionBias) < profile->composition_bias[i])
-							  ? compositionBias  :  profile->composition_bias[i];
+			compositionBias = (compositionBias < profile->composition_bias[i]) ? compositionBias : profile->composition_bias[i];
 		}
-		compositionBias = std::min(compositionBias, static_cast<int32_t>(0));
-//		std::cout << compositionBias << std::endl;
+		compositionBias = std::min(compositionBias, 0);
 	} else {
 		memset(profile->composition_bias, 0, q->L* sizeof(int8_t));
 	}
