@@ -87,16 +87,16 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
     return Profile(pssm, profile, Neff_M, consensusSequence);
 }
 
-void PSSMCalculator::printProfile(size_t queryLength){
-    printf("Pos ");
-    for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-        printf("%2c    ", subMat->num2aa[aa]);
+void PSSMCalculator::printProfile(size_t queryLength) {
+    printf("Pos");
+    for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+        printf(" %6c", subMat->num2aa[aa]);
     }
     printf("\n");
-    for(size_t i = 0; i < queryLength; i++){
-        printf("%3zu ", i);
-        for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-            printf("%03.4f ", profile[i * Sequence::PROFILE_AA_SIZE + aa] );
+    for (size_t i = 0; i < queryLength; i++) {
+        printf("%3zu", i);
+        for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+            printf(" %.4f", profile[i * Sequence::PROFILE_AA_SIZE + aa]);
         }
         printf("\n");
     }
