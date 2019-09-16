@@ -8,13 +8,12 @@
 #include "MathUtil.h"
 #include "BaseMatrix.h"
 #include "Parameters.h"
+#include "ScoreMatrix.h"
 
 #include <cstdint>
 #include <cstddef>
 #include <utility>
 #include <simd/simd.h>
-
-struct ScoreMatrix;
 
 const int8_t seed_4[]        = {1, 1, 1, 1};
 const int8_t spaced_seed_4[] = {1, 1, 1, 0, 1};

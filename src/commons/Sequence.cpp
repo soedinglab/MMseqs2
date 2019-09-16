@@ -2,7 +2,6 @@
 #include "Debug.h"
 #include "Util.h"
 #include "simd.h"
-#include "ScoreMatrix.h"
 #include "SubstitutionMatrix.h"
 #include "Parameters.h"
 #include "MathUtil.h"
