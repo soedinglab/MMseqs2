@@ -306,20 +306,20 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
     // Main loop through alignment columns
     for (size_t i = 0; i < queryLength; i++)  // Calculate wi[k] at position i as well as Neff[i]
     {
-        bool change = 0;
+        bool change = false;
         // Check all sequences k and update n[j][a] and ri[j] if necessary
         for (size_t k = 0; k < setSize; ++k) {
             // Update amino acid and GAP / ENDGAP counts for sequences with AA in i-1 and GAP/ENDGAP in i or vice versa
 //            printf("%d %d %d\n", k, i, (int) X[k][i - 1]);
             if ((i == 0  && X[k][i] < MultipleAlignment::ANY) ||
                 (i != 0  && X[k][i - 1] >= MultipleAlignment::ANY && X[k][i] < MultipleAlignment::ANY)) {  // ... if sequence k was NOT included in i-1 and has to be included for column i
-                change = 1;
+                change = true;
                 nseqi++;
                 for (size_t j = 0; j < queryLength; ++j){
                     n[j][(int) X[k][j]]++;
                 }
             } else if ( i != 0 && X[k][i - 1] < MultipleAlignment::ANY && X[k][i] >= MultipleAlignment::ANY) {  // ... if sequence k WAS included in i-1 and has to be thrown out for column i
-                change = 1;
+                change = true;
                 nseqi--;
                 for (size_t j = 0; j < queryLength; ++j)
                     n[j][(int) X[k][j]]--;
