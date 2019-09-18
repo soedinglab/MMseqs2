@@ -44,9 +44,8 @@ MsaFilter::~MsaFilter() {
     delete [] display;
 }
 
-void MsaFilter::filter(const int N_in, const int L, const int coverage, const int qid,
-                       const float qsc, const int max_seqid, int Ndiff,
-                       const char ** X, size_t *N_out) {
+size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const int qid,
+                       const float qsc, const int max_seqid, int Ndiff, const char **X) {
     int seqid1 = 20;
     // X[k][i] contains column i of sequence k in alignment (first seq=0, first char=1) (0-3: ARND ..., 20:X, 21:GAP)
 //    char** X = (char **) &msaSequence;
@@ -258,8 +257,7 @@ void MsaFilter::filter(const int N_in, const int L, const int coverage, const in
 
     // If min required seqid larger than max required seqid, return here without doing pairwise seqid filtering
     if (seqid1 > max_seqid) {
-        *N_out = nn;
-        return;
+        return nn;
     }
 
     // Successively increment idmax[i] at positons where N[i]<Ndiff
@@ -450,7 +448,7 @@ void MsaFilter::filter(const int N_in, const int L, const int coverage, const in
         keep[k] = in[k];
     }
 
-    *N_out = n;
+    return n;
 }
 
 void MsaFilter::shuffleSequences(const char ** X, size_t setSize) {
