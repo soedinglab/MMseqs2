@@ -70,8 +70,7 @@ int main (int, const char**) {
         }
         printf("\n");
     }
-    size_t filterSetSize = msaFilter.filter(res.setSize, res.centerLength, 0, 0, -20.0f, 90, 100, (const char**)res.msaSequence);
-    msaFilter.shuffleSequences((const char**)res.msaSequence, res.setSize);
+    size_t filterSetSize = msaFilter.filter(res, 0, 0, -20.0f, 90, 100);
     std::cout << "Filtered:" << filterSetSize << std::endl;
 //    for(size_t k = 0; k < res.setSize; k++){
 //        std::cout << "k=" << k << "\t" << (int)filterResult.keep[k] << std::endl;

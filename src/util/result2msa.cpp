@@ -188,10 +188,9 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
             alnResults = res.alignmentResults;
             size_t filteredSetSize = res.setSize;
             if (isFiltering) {
-                filteredSetSize = filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100),
+                filteredSetSize = filter.filter(res, static_cast<int>(par.covMSAThr * 100),
                               static_cast<int>(par.qid * 100), par.qsc,
-                              static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
-                              (const char **) res.msaSequence);
+                              static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
                 filter.getKept(kept, res.setSize);
             }
 
@@ -260,10 +259,6 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
 
                 std::ostringstream msa;
                 if (par.omitConsensus == false) {
-                    if (isFiltering) {
-                        filter.shuffleSequences((const char **) res.msaSequence, res.setSize);
-                    }
-
                     for (size_t pos = 0; pos < res.centerLength; pos++) {
                         if (res.msaSequence[0][pos] == MultipleAlignment::GAP) {
                             Debug(Debug::ERROR) <<  "Error in computePSSMFromMSA. First sequence of MSA is not allowed to contain gaps.\n";
