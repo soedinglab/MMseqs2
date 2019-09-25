@@ -138,8 +138,9 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
     int tStartRev = (targetSeqObj->L - dbUngappedEndPos) - 1;
 
     ksw_extz_t ez;
+    memset(&ez, 0, sizeof(ksw_extz_t));
     int flag = 0;
-    flag |= KSW_EZ_SCORE_ONLY;
+    //flag |= KSW_EZ_SCORE_ONLY;
     flag |= KSW_EZ_EXTZ_ONLY;
     ksw_extz2_sse(0, querySeqObj->L - qStartRev, querySeqRevAlign + qStartRev, targetSeqObj->L - tStartRev, targetSeqRev + tStartRev, 5, mat, gapo, gape, 64, 40, flag, &ez);
 
@@ -157,10 +158,25 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
                   mat, gapo, gape, 64, 40, alignFlag, &ezAlign);
 
     std::string letterCode = "MID";
-    uint32_t * retCigar = new uint32_t[ezAlign.n_cigar];
-    for(int i = 0; i < ezAlign.n_cigar; i++){
-        retCigar[i]=ezAlign.cigar[i];
+    uint32_t * retCigar;
+
+    if (ez.max_q > ezAlign.max_q && ez.max_t > ezAlign.max_t){
+
+        free(ezAlign.cigar);
+        ezAlign = ez;
+        retCigar = new uint32_t[ezAlign.n_cigar];
+        
+        for(int i = 0; i < ezAlign.n_cigar; i++){
+            retCigar[i]=ezAlign.cigar[ezAlign.n_cigar-1-i];
+        }
     }
+    else {
+        retCigar = new uint32_t[ezAlign.n_cigar];
+        for(int i = 0; i < ezAlign.n_cigar; i++){
+            retCigar[i]=ezAlign.cigar[i];
+        }
+    }
+
     s_align result;
     result.cigar = retCigar;
     result.cigarLen = ezAlign.n_cigar;
