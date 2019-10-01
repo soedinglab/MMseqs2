@@ -359,7 +359,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     // Prefilter result (need to make this better)
                     if(elements == 3){
                         hit_t hit = QueryMatcher::parsePrefilterHit(data);
-                        isReverse = (reversePrefilterResult) ?  (hit.prefScore < 0) ? true : false : false;
+                        isReverse = reversePrefilterResult && (hit.prefScore < 0);
                         diagonal = static_cast<short>(hit.diagonal);
                     }
                     size_t dbId = tdbr->getId(dbKey);
