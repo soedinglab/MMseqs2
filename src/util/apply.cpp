@@ -284,7 +284,6 @@ int apply(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::SORT_BY_LENGTH);
 
-    const DBReader<unsigned int>::Index *readerIndex = reader.getIndex();
     Debug::Progress progress(reader.getSize());
 
 #ifdef HAVE_MPI
@@ -340,22 +339,21 @@ int apply(int argc, const char **argv, const Command& command) {
                         continue;
                     }
 
-                    size_t index = i;
-                    size_t size = readerIndex[i].length - 1;
-
-                    char *data = reader.getData(index, thread);
-                    if (data == NULL) {
+                    unsigned int key = reader.getDbKey(i);
+                    char *data = reader.getData(i, thread);
+                    if (*data == '\0') {
+                        writer.writeData(NULL, 0, key, thread);
                         continue;
                     }
 
-                    unsigned int key = reader.getDbKey(index);
+                    size_t size = reader.getEntryLen(i) - 1;
                     int status = apply_by_entry(data, size, key, writer, par.restArgv[0], const_cast<char**>(par.restArgv), local_environ, 0);
                     if (status == -1) {
-                        Debug(Debug::WARNING) << "Entry " << index << " system error " << errno << "!\n";
+                        Debug(Debug::WARNING) << "Entry " << key << " system error number " << errno << "!\n";
                         continue;
                     }
                     if (status > 0) {
-                        Debug(Debug::WARNING) << "Entry " << index << " exited with error code " << status << "!\n";
+                        Debug(Debug::WARNING) << "Entry " << key << " exited with error code " << status << "!\n";
                         continue;
                     }
                 }
