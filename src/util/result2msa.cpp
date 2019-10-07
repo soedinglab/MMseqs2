@@ -123,13 +123,14 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
 
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader.getDbKey(id);
-            char *seqData = qDbr.getDataByDBKey(queryKey, thread_idx);
-            if (seqData == NULL) {
-                Debug(Debug::WARNING) << "Empty sequence " << id << ". Skipping.\n";
+            size_t queryId = qDbr.getId(queryKey);
+            if (queryId == UINT_MAX) {
+                Debug(Debug::WARNING) << "Invalid query sequence " << queryKey << ".\n";
                 continue;
             }
+            centerSequence.mapSequence(id, queryKey, qDbr.getData(queryId, thread_idx), qDbr.getSeqLen(queryId));
 
-            centerSequence.mapSequence(0, queryKey, seqData, resultReader.getSeqLen(id));
+            // TODO: Do we still need this?
             if (centerSequence.L)
             {
                 if(centerSequence.int_sequence[centerSequence.L-1] == 20) // remove last in it is a *
