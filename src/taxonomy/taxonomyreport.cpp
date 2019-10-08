@@ -69,6 +69,34 @@ void taxReport(FILE* FP, const NcbiTaxonomy& taxDB, const std::unordered_map<Tax
     }
 }
 
+std::string escapeAttribute(const std::string& data) {
+    std::string buffer;
+    buffer.reserve(data.size() * 1.1);
+    for (size_t i = 0; i < data.size(); ++i) {
+        switch (data[i]) {
+            case '&':
+                buffer.append("&amp;");
+                break;
+            case '\"':
+                buffer.append("&quot;");
+                break;
+            case '\'':
+                buffer.append("&apos;");
+                break;
+            case '<':
+                buffer.append("&lt;");
+                break;
+            case '>':
+                buffer.append("&gt;");
+                break;
+            default:
+                buffer.append(1, data[i]);
+                break;
+        }
+    }
+    return buffer;
+}
+
 void kronaReport(FILE* FP, const NcbiTaxonomy& taxDB, const std::unordered_map<TaxID, TaxonCounts> & cladeCounts,unsigned long totalReads,TaxID taxID = 0, int depth = 0) {
     std::unordered_map<TaxID, TaxonCounts>::const_iterator it = cladeCounts.find(taxID);
     unsigned int cladeCount = it == cladeCounts.end()? 0 : it->second.cladeCount;
@@ -86,7 +114,8 @@ void kronaReport(FILE* FP, const NcbiTaxonomy& taxDB, const std::unordered_map<T
             return;
         }
         const TaxonNode* taxon = taxDB.taxonNode(taxID);
-        fprintf(FP, "<node name=\"%s\"><magnitude><val>%d</val></magnitude>", taxon->name.c_str(), cladeCount);
+        std::string escapedName = escapeAttribute(taxon->name);
+        fprintf(FP, "<node name=\"%s\"><magnitude><val>%d</val></magnitude>", escapedName.c_str(), cladeCount);
         std::vector<TaxID> children = it->second.children;
         std::sort(children.begin(), children.end(), [&](int a, int b) { return cladeCountVal(cladeCounts, a) > cladeCountVal(cladeCounts,b); });
         for (TaxID childTaxId : children) {
