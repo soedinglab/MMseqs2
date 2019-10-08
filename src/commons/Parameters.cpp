@@ -922,6 +922,7 @@ Parameters::Parameters():
 
     // taxonomyreport
     taxonomyreport.push_back(&PARAM_REPORT_MODE);
+    taxonomyreport.push_back(&PARAM_THREADS);
     taxonomyreport.push_back(&PARAM_V);
 
     // view
