@@ -4,6 +4,8 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "Util.h"
+#include "krona_prelude.html.h"
+
 #include <algorithm>
 #include <unordered_map>
 
@@ -35,12 +37,7 @@ unsigned int cladeCountVal(const std::unordered_map<TaxID, TaxonCounts>& map, Ta
 }
 
 
-void taxReport(FILE* FP,
-        const NcbiTaxonomy& taxDB,
-        const std::unordered_map<TaxID, TaxonCounts> & cladeCounts,
-        unsigned long totalReads,
-        TaxID taxID = 0, int depth = 0) {
-
+void taxReport(FILE* FP, const NcbiTaxonomy& taxDB, const std::unordered_map<TaxID, TaxonCounts> & cladeCounts,unsigned long totalReads,TaxID taxID = 0, int depth = 0) {
     std::unordered_map<TaxID, TaxonCounts>::const_iterator it = cladeCounts.find(taxID);
     unsigned int cladeCount = it == cladeCounts.end()? 0 : it->second.cladeCount;
     unsigned int taxCount = it == cladeCounts.end()? 0 : it->second.taxCount;
@@ -72,6 +69,37 @@ void taxReport(FILE* FP,
     }
 }
 
+void kronaReport(FILE* FP, const NcbiTaxonomy& taxDB, const std::unordered_map<TaxID, TaxonCounts> & cladeCounts,unsigned long totalReads,TaxID taxID = 0, int depth = 0) {
+    std::unordered_map<TaxID, TaxonCounts>::const_iterator it = cladeCounts.find(taxID);
+    unsigned int cladeCount = it == cladeCounts.end()? 0 : it->second.cladeCount;
+//    unsigned int taxCount = it == cladeCounts.end()? 0 : it->second.taxCount;
+    if (cladeCount == 0) {
+        return;
+    }
+    if (taxID == 0) {
+        if (cladeCount > 0) {
+            fprintf(FP, "<node name=\"unclassified\"><magnitude><val>%d</val></magnitude></node>", cladeCount);
+        }
+        kronaReport(FP, taxDB, cladeCounts, totalReads, 1);
+    } else {
+        if (cladeCount == 0) {
+            return;
+        }
+        const TaxonNode* taxon = taxDB.taxonNode(taxID);
+        fprintf(FP, "<node name=\"%s\"><magnitude><val>%d</val></magnitude>", taxon->name.c_str(), cladeCount);
+        std::vector<TaxID> children = it->second.children;
+        std::sort(children.begin(), children.end(), [&](int a, int b) { return cladeCountVal(cladeCounts, a) > cladeCountVal(cladeCounts,b); });
+        for (TaxID childTaxId : children) {
+            if (cladeCounts.count(childTaxId)) {
+                kronaReport(FP, taxDB, cladeCounts, totalReads, childTaxId, depth + 1);
+            } else {
+                break;
+            }
+        }
+        fprintf(FP, "</node>");
+    }
+}
+
 int taxonomyreport(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
@@ -89,7 +117,7 @@ int taxonomyreport(int argc, const char **argv, const Command& command) {
         std::stable_sort(mapping.begin(), mapping.end(), compareToFirstInt);
     }
 
-    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
+    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), 1, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     // TODO: Better way to get file specified by param3?
@@ -134,8 +162,16 @@ int taxonomyreport(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << taxCounts.at(0) << " reads are unclassified.\n";
 
     std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB->getCladeCounts(taxCounts);
-    taxReport(resultFP, *taxDB, cladeCounts, reader.getSize());
+    if (par.reportMode == 0) {
+        taxReport(resultFP, *taxDB, cladeCounts, reader.getSize());
+    } else {
+        fwrite(krona_prelude_html, krona_prelude_html_len, sizeof(char), resultFP);
+        fprintf(resultFP, "<node name=\"all\"><magnitude><val>%zu</val></magnitude>", reader.getSize());
+        kronaReport(resultFP, *taxDB, cladeCounts, reader.getSize());
+        fprintf(resultFP, "</node></krona></div></body></html>");
+    }
     delete taxDB;
     reader.close();
     return EXIT_SUCCESS;
 }
+

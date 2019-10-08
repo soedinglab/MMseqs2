@@ -556,6 +556,9 @@ public:
     bool showTaxLineage;
     std::string blacklist;
 
+    // taxonomyreport
+    int reportMode;
+
     // createtaxdb
     std::string ncbiTaxDump;
     std::string taxMappingFile;
@@ -854,6 +857,10 @@ public:
     PARAMETER(PARAM_LCA_RANKS)
     PARAMETER(PARAM_BLACKLIST)
     PARAMETER(PARAM_TAXON_ADD_LINEAGE)
+
+    // taxonomyreport
+    PARAMETER(PARAM_REPORT_MODE)
+
     // createtaxdb
     PARAMETER(PARAM_NCBI_TAX_DUMP)
     PARAMETER(PARAM_TAX_MAPPING_FILE)
@@ -939,6 +946,7 @@ public:
     std::vector<MMseqsParameter*> tsv2db;
     std::vector<MMseqsParameter*> lca;
     std::vector<MMseqsParameter*> addtaxonomy;
+    std::vector<MMseqsParameter*> taxonomyreport;
     std::vector<MMseqsParameter*> filtertaxdb;
     std::vector<MMseqsParameter*> taxonomy;
     std::vector<MMseqsParameter*> easytaxonomy;
