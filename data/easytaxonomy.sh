@@ -40,7 +40,7 @@ fi
 
 if notExists "${TMP_PATH}/result_tophit1.dbtype"; then
     # shellcheck disable=SC2086
-     "$MMSEQS" filterdb "${TMP_PATH}/result" "${TMP_PATH}/result_top1" --extract-lines 1 ${THREADS_PAR} \
+     "$MMSEQS" filterdb "${TMP_PATH}/result" "${TMP_PATH}/result_top1" --extract-lines 1 ${THREADS_COMP_PAR} \
         || fail "filterdb died"
 fi
 
@@ -52,13 +52,13 @@ fi
 
 if notExists "${TMP_PATH}/result_top1_swapped_sum.dbtype"; then
     # shellcheck disable=SC2086
-     "$MMSEQS" summarizealis "${TMP_PATH}/result_top1_swapped" "${TMP_PATH}/result_top1_swapped_sum" ${THREADS_PAR}  \
+     "$MMSEQS" summarizealis "${TMP_PATH}/result_top1_swapped" "${TMP_PATH}/result_top1_swapped_sum" ${THREADS_COMP_PAR}  \
         || fail "filterdb died"
 fi
 
 if notExists "${TMP_PATH}/result_top1_swapped_sum_tax.dbtype"; then
     # shellcheck disable=SC2086
-     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum" "${TMP_PATH}/result_top1_swapped_sum_tax"  ${THREADS_PAR} --pick-id-from 1 --tax-lineage  \
+     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum" "${TMP_PATH}/result_top1_swapped_sum_tax"  ${THREADS_COMP_PAR} --pick-id-from 1 --tax-lineage  \
         || fail "filterdb died"
 fi
 

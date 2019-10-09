@@ -35,6 +35,7 @@ set(COMPILED_RESOURCES
         searchslicedtargetprofile.sh
         cs219.lib
         linsearch.sh
+        krona_prelude.html
         )
 
 set(GENERATED_OUTPUT_HEADERS "")
