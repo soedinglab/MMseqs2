@@ -1149,7 +1149,7 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition<seqLenType> *hashSeqPair
                 reverse += isReverse == true;
             }
             kmerPos++;
-        }while(targetId == hashSeqPair[kmerPos].id && hashSeqPair[kmerPos].id == diagonal && kmerPos < totalKmers && hashSeqPair[kmerPos].kmer != SIZE_T_MAX);
+        }while(targetId == hashSeqPair[kmerPos].id && hashSeqPair[kmerPos].pos == diagonal && kmerPos < totalKmers && hashSeqPair[kmerPos].kmer != SIZE_T_MAX);
         kmerPos--;
 
         elemenetCnt++;
