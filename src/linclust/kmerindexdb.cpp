@@ -78,7 +78,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     }
     Debug(Debug::INFO) << "\n";
     size_t totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
-    size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
+    size_t totalSizeNeeded = computeMemoryNeededLinearfilter<short>(totalKmers);
     Debug(Debug::INFO) << "Estimated memory consumption " << totalSizeNeeded/1024/1024 << " MB\n";
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
@@ -90,7 +90,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
 
     Debug(Debug::INFO) << "Process file into " << splits << " parts\n";
     std::vector<std::string> splitFiles;
-    KmerPosition *hashSeqPair = NULL;
+    KmerPosition<short> *hashSeqPair = NULL;
 
     size_t writePos = 0;
     size_t mpiRank = 0;

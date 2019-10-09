@@ -7,13 +7,14 @@
 #include "Parameters.h"
 #include "BaseMatrix.h"
 
-struct KmerPosition {
+template <typename T>
+struct __attribute__((__packed__))KmerPosition {
     size_t kmer;
     unsigned int id;
-    unsigned short seqLen;
-    short pos;
+    T seqLen;
+    T pos;
 
-    static bool compareRepSequenceAndIdAndPos(const KmerPosition &first, const KmerPosition &second){
+    static bool compareRepSequenceAndIdAndPos(const KmerPosition<T> &first, const KmerPosition<T> &second){
         if(first.kmer < second.kmer )
             return true;
         if(second.kmer < first.kmer )
@@ -33,7 +34,7 @@ struct KmerPosition {
         return false;
     }
 
-    static bool compareRepSequenceAndIdAndPosReverse(const KmerPosition &first, const KmerPosition &second){
+    static bool compareRepSequenceAndIdAndPosReverse(const KmerPosition<T> &first, const KmerPosition<T> &second){
         size_t firstKmer  = BIT_SET(first.kmer, 63);
         size_t secondKmer = BIT_SET(second.kmer, 63);
         if(firstKmer < secondKmer )
@@ -55,7 +56,7 @@ struct KmerPosition {
         return false;
     }
 
-    static bool compareRepSequenceAndIdAndDiagReverse(const KmerPosition &first, const KmerPosition &second){
+    static bool compareRepSequenceAndIdAndDiagReverse(const KmerPosition<T> &first, const KmerPosition<T> &second){
         size_t firstKmer  = BIT_SET(first.kmer, 63);
         size_t secondKmer = BIT_SET(second.kmer, 63);
         if(firstKmer < secondKmer)
@@ -73,7 +74,7 @@ struct KmerPosition {
         return false;
     }
 
-    static bool compareRepSequenceAndIdAndDiag(const KmerPosition &first, const KmerPosition &second){
+    static bool compareRepSequenceAndIdAndDiag(const KmerPosition<T> &first, const KmerPosition<T> &second){
         if(first.kmer < second.kmer)
             return true;
         if(second.kmer < first.kmer)
@@ -152,8 +153,8 @@ public:
 };
 
 
-template  <int TYPE>
-size_t assignGroup(KmerPosition *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr);
+template  <int TYPE, typename T>
+size_t assignGroup(KmerPosition<T> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr);
 
 template <int TYPE, typename T>
 void mergeKmerFilesAndOutput(DBWriter & dbw, std::vector<std::string> tmpFiles, std::vector<char> &repSequence);
@@ -165,27 +166,28 @@ size_t queueNextEntry(KmerPositionQueue &queue, int file, size_t offsetPos, T *e
 
 void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqType);
 
-template <int TYPE, typename T>
-void writeKmersToDisk(std::string tmpFile, KmerPosition *kmers, size_t totalKmers);
+template <int TYPE, typename T, typename seqLenType>
+void writeKmersToDisk(std::string tmpFile, KmerPosition<seqLenType> *kmers, size_t totalKmers);
 
-template <int TYPE>
-void writeKmerMatcherResult(DBWriter & dbw, KmerPosition *hashSeqPair, size_t totalKmers,
+template <int TYPE, typename T>
+void writeKmerMatcherResult(DBWriter & dbw, KmerPosition<T> *hashSeqPair, size_t totalKmers,
                             std::vector<char> &repSequence, size_t threads);
 
-KmerPosition * doComputation(size_t totalKmers, size_t split, size_t splits, std::string splitFile,
+template <typename T>
+KmerPosition<T> * doComputation(size_t totalKmers, size_t split, size_t splits, std::string splitFile,
                              DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat,
                              size_t KMER_SIZE, size_t chooseTopKmer, float chooseTopKmerScale = 0.0);
+template <typename T>
+KmerPosition<T> *initKmerPositionMemory(size_t size);
 
-KmerPosition *initKmerPositionMemory(size_t size);
-
-template <int TYPE>
-std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> &seqDbr,
+template <int TYPE, typename T>
+std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition<T> * hashSeqPair, DBReader<unsigned int> &seqDbr,
                              Parameters & par, BaseMatrix * subMat,
                              const size_t KMER_SIZE, size_t chooseTopKmer,
                              bool includeIdenticalKmer, size_t splits, size_t split, size_t pickNBest,
                              bool adjustLength, float chooseTopKmerScale = 0.0);
 
-
+template <typename T>
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);
 
 size_t computeKmerCount(DBReader<unsigned int> &reader, size_t KMER_SIZE, size_t chooseTopKmer,

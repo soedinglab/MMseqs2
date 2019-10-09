@@ -46,7 +46,6 @@
 
 #include "Sequence.h"
 #include "EvalueComputation.h"
-
 typedef struct {
     short qStartPos;
     short dbStartPos;
@@ -56,8 +55,8 @@ typedef struct {
 
 
 typedef struct {
-    uint16_t score1;
-    uint16_t score2;
+    uint32_t score1;
+    uint32_t score2;
     int32_t dbStartPos1;
     int32_t dbEndPos1;
     int32_t	qStartPos1;

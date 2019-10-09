@@ -12,17 +12,17 @@ class KmerSearch{
 
 public:
     template  <int TYPE>
-    static std::pair<KmerPosition *,size_t > searchInIndex( KmerPosition *kmers, size_t kmersSize, KmerIndex &kmerIndex);
+    static std::pair<KmerPosition<short> *,size_t > searchInIndex( KmerPosition<short> *kmers, size_t kmersSize, KmerIndex &kmerIndex);
 
     template  <int TYPE>
-    static void writeResult(DBWriter & dbw, KmerPosition *kmers, size_t kmerCount);
+    static void writeResult(DBWriter & dbw, KmerPosition<short> *kmers, size_t kmerCount);
 
 
     struct ExtractKmerAndSortResult{
-        ExtractKmerAndSortResult(size_t kmerCount, KmerPosition * kmers, size_t adjustedKmer)
+        ExtractKmerAndSortResult(size_t kmerCount, KmerPosition<short> * kmers, size_t adjustedKmer)
         : kmerCount(kmerCount), kmers(kmers), adjustedKmer(adjustedKmer)  {}
         size_t kmerCount;
-        KmerPosition * kmers;
+        KmerPosition<short> * kmers;
         size_t adjustedKmer;
     };
     static ExtractKmerAndSortResult extractKmerAndSort(size_t splitKmerCount, size_t split, size_t splits,

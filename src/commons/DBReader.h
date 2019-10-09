@@ -116,6 +116,8 @@ public:
 
     size_t getSize();
 
+    unsigned int getMaxSeqLen(){return maxSeqLen;}
+
     T getDbKey(size_t id);
 
 
