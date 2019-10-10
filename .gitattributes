@@ -1,2 +1,3 @@
+data/krona_prelude.html linguist-vendored
 lib/* linguist-vendored
 lib/simd linguist-vendored=false
