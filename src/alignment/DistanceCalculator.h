@@ -55,6 +55,42 @@ public:
     };
 
     template<typename T>
+    static LocalAlignment computeUngappedWrappedAlignment(const T *querySeq, unsigned int querySeqLen,
+                                                   const T *dbSeq, unsigned int dbSeqLen,
+                                                   const unsigned short diagonal, const char **subMat, int alnMode){
+        /* expect: querySeq = originQuerySeq+originQuerySeq
+                   queryLen = len(querySeq) */
+
+        LocalAlignment max;
+        for(unsigned int devisions = 1; (-devisions * 65536  + diagonal) > -dbSeqLen; devisions++) {
+
+            int realDiagonal = (-devisions * 65536  + diagonal) + querySeqLen/2;
+            LocalAlignment tmp = ungappedAlignmentByDiagonal(querySeq + realDiagonal, querySeqLen/2, dbSeq, dbSeqLen, 0, subMat, alnMode);
+            tmp.diagonal += realDiagonal;
+            tmp.distToDiagonal = abs(realDiagonal);
+
+             if(tmp.score > max.score){
+                max = tmp;
+            }
+        }
+        for(unsigned int devisions = 0; (devisions * 65536 + diagonal) < querySeqLen/2; devisions++) {
+            int realDiagonal = (devisions * 65536 + diagonal);
+            LocalAlignment tmp = ungappedAlignmentByDiagonal(querySeq + realDiagonal, querySeqLen/2, dbSeq, dbSeqLen, 0, subMat, alnMode);
+
+            tmp.diagonal += realDiagonal;
+            tmp.distToDiagonal = abs(realDiagonal);
+
+            if(tmp.score > max.score){
+                max = tmp;
+            }
+        }
+        unsigned int minSeqLen = std::min(dbSeqLen, querySeqLen/2);
+        max.diagonalLen = minSeqLen;
+
+        return  max;
+    }
+
+    template<typename T>
     static LocalAlignment computeUngappedAlignment(const T *querySeq, unsigned int querySeqLen,
                                                    const T *dbSeq, unsigned int dbSeqLen,
                                                    const unsigned short diagonal, const char **subMat, int alnMode){
@@ -254,6 +290,7 @@ public:
         }
         return diff;
     }
+
 
 
     /*

@@ -137,12 +137,22 @@ int doRescorediagonal(Parameters &par,
                 size_t queryKey = resultReader.getDbKey(id);
 
                 char *querySeq = NULL;
+                std::string queryToWrap; // needed only for wrapped end-start scoring
                 unsigned int queryId = UINT_MAX;
-                int queryLen = -1;
+                int queryLen = -1, origQueryLen = -1;
                 if(*data !=  '\0'){
                     queryId = qdbr->getId(queryKey);
                     querySeq = qdbr->getData(queryId, thread_idx);
                     queryLen = static_cast<int>(qdbr->getSeqLen(queryId));
+                    origQueryLen = queryLen;
+
+                    if (par.wrappedScoring){
+                        queryToWrap = std::string(querySeq,queryLen);
+                        queryToWrap = queryToWrap + queryToWrap;
+                        querySeq = (char*)(queryToWrap).c_str();
+                        queryLen = origQueryLen*2;
+                    }
+
                     if(queryLen > queryRevSeqLen){
                         delete [] queryRevSeq;
                         queryRevSeq = new char[queryLen];
@@ -161,7 +171,6 @@ int doRescorediagonal(Parameters &par,
                         querySeq = (char *) queryBuffer.c_str();
                     }
                 }
-
 //                if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
 //                    query.mapSequence(id, queryId, querySeq);
 //                    queryLen = query.L;
@@ -185,14 +194,28 @@ int doRescorediagonal(Parameters &par,
                     char *targetSeq = tdbr->getData(targetId, thread_idx);
                     int dbLen = static_cast<int>(tdbr->getSeqLen(targetId));
 
-                    float queryLength = static_cast<float>(queryLen);
+                    float queryLength = static_cast<float>(origQueryLen);
                     float targetLength = static_cast<float>(dbLen);
                     if (Util::canBeCovered(par.covThr, par.covMode, queryLength, targetLength) == false) {
                         continue;
                     }
-                    DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeUngappedAlignment(
-                                                                                      querySeqToAlign, queryLen, targetSeq, targetLength,
-                                                                                      results[entryIdx].diagonal, fastMatrix.matrix, par.rescoreMode);
+                    DistanceCalculator::LocalAlignment alignment;
+                    if (par.wrappedScoring) {
+                        if (dbLen > origQueryLen) {
+                            Debug(Debug::WARNING) << "WARNING: target sequence " << targetId
+                                                  << " is skipped, no valid wrapped scoring possible\n";
+                            continue;
+                        }
+
+                        alignment = DistanceCalculator::computeUngappedWrappedAlignment(
+                                querySeqToAlign, queryLen, targetSeq, targetLength,
+                                results[entryIdx].diagonal, fastMatrix.matrix, par.rescoreMode);
+                    }
+                    else {
+                        alignment = DistanceCalculator::computeUngappedAlignment(
+                                querySeqToAlign, queryLen, targetSeq, targetLength,
+                                results[entryIdx].diagonal, fastMatrix.matrix, par.rescoreMode);
+                    }
                     unsigned int distanceToDiagonal = alignment.distToDiagonal;
                     int diagonalLen = alignment.diagonalLen;
                     int distance = alignment.score;
@@ -202,18 +225,18 @@ int doRescorediagonal(Parameters &par,
                     int bitScore = 0;
                     int alnLen = 0;
                     float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(dbLen);
-                    float queryCov = static_cast<float>(diagonalLen) / static_cast<float>(queryLen);
+                    float queryCov = static_cast<float>(diagonalLen) / static_cast<float>(origQueryLen);
 
                     Matcher::result_t result;
                     if (par.rescoreMode == Parameters::RESCORE_MODE_HAMMING) {
                         int idCnt = (static_cast<float>(distance));
-                        seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, diagonalLen);
+                        seqId = Util::computeSeqId(par.seqIdMode, idCnt, origQueryLen, dbLen, diagonalLen);
                         alnLen = diagonalLen;
                     } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION ||
                                par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
                                par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
                                par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
-                        evalue = evaluer.computeEvalue(distance, queryLen);
+                        evalue = evaluer.computeEvalue(distance, origQueryLen);
                         bitScore = static_cast<int>(evaluer.computeBitScore(distance) + 0.5);
 
                         if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT||
@@ -245,7 +268,7 @@ int doRescorediagonal(Parameters &par,
                                     char tLetter = targetSeq[dbStartPos + (i - qStartPos)] & static_cast<unsigned char>(~0x20);
                                     idCnt += (qLetter == tLetter) ? 1 : 0;
                                 }
-                                seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLen);
+                                seqId = Util::computeSeqId(par.seqIdMode, idCnt, origQueryLen, dbLen, alnLen);
                             }
                             char *end = Itoa::i32toa_sse2(alnLen, buffer);
                             size_t len = end - buffer;
@@ -254,13 +277,14 @@ int doRescorediagonal(Parameters &par,
                                 backtrace=std::string(buffer, len - 1);
                                 backtrace.push_back('M');
                             }
-                            queryCov = SmithWaterman::computeCov(qStartPos, qEndPos, queryLen);
+                            queryCov = SmithWaterman::computeCov(qStartPos, qEndPos, origQueryLen);
                             targetCov = SmithWaterman::computeCov(dbStartPos, dbEndPos, dbLen);
                             if (isReverse) {
                                 qStartPos = queryLen - qStartPos - 1;
                                 qEndPos = queryLen - qEndPos - 1;
                             }
-                            result = Matcher::result_t(results[entryIdx].seqId, bitScore, queryCov, targetCov, seqId, evalue, alnLen, qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, dbLen, backtrace);
+                            result = Matcher::result_t(results[entryIdx].seqId, bitScore, queryCov, targetCov, seqId, evalue, alnLen,
+                                                       qStartPos, qEndPos, origQueryLen, dbStartPos, dbEndPos, dbLen, backtrace);
                         }
                     }
 
@@ -346,6 +370,11 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     MMseqsMPI::init(argc, argv);
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
+
+    if (par.wrappedScoring && par.rescoreMode != Parameters::RESCORE_MODE_HAMMING) {
+        Debug(Debug::ERROR) << "ERROR: wrapped scoring is only allowed with RESCORE_MODE_HAMMING\n";
+        return EXIT_FAILURE;
+    }
 
 
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);

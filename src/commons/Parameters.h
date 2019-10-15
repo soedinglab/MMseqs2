@@ -396,6 +396,7 @@ public:
 
     // rescorediagonal
     int rescoreMode;
+    bool wrappedScoring;
     bool filterHits;
     bool globalAlignment;
     int sortResults;
@@ -669,6 +670,7 @@ public:
 
     // rescoremode
     PARAMETER(PARAM_RESCORE_MODE)
+    PARAMETER(PARAM_WRAPPED_SCORING)
     PARAMETER(PARAM_FILTER_HITS)
     PARAMETER(PARAM_SORT_RESULTS)
 

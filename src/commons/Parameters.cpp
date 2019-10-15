@@ -91,6 +91,7 @@ Parameters::Parameters():
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database output", "Output a result db instead of a text file", typeid(bool), (void*) &dbOut, "", MMseqsParameter::COMMAND_EXPERT),
         // --include-only-extendablediagonal
         PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "Rescore diagonal with: 0: Hamming distance, 1: local alignment (score only), 2: local alignment, 3: global alignment or 4: longest alignment fullfilling window quality criterion", typeid(int), (void *) &rescoreMode, "^[0-4]{1}$"),
+        PARAM_WRAPPED_SCORING(PARAM_WRAPPED_SCORING_ID,"--wrapped-scoring", "Allow wrapped scoring","Double the (nucleotide) query sequence during the scoring process to allow wrapped diagonal scoring around end and start", typeid(bool), (void *) &wrappedScoring, "", MMseqsParameter::COMMAND_MISC),
         PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID,"--filter-hits", "Remove hits by seq. id. and coverage", "filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by evalue (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // result2msa
@@ -357,6 +358,7 @@ Parameters::Parameters():
     // rescorediagonal
     rescorediagonal.push_back(&PARAM_SUB_MAT);
     rescorediagonal.push_back(&PARAM_RESCORE_MODE);
+    rescorediagonal.push_back(&PARAM_WRAPPED_SCORING);
     rescorediagonal.push_back(&PARAM_FILTER_HITS);
     rescorediagonal.push_back(&PARAM_E);
     rescorediagonal.push_back(&PARAM_C);
@@ -1907,6 +1909,7 @@ void Parameters::setDefaults() {
 
     // rescorediagonal
     rescoreMode = Parameters::RESCORE_MODE_HAMMING;
+    wrappedScoring = false;
     filterHits = false;
     sortResults = false;
 
