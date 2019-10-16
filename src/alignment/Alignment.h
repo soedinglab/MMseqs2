@@ -24,16 +24,16 @@ public:
     ~Alignment();
 
     //None MPI
-    void run(const unsigned int maxAlnNum, const unsigned int maxRejected);
+    void run(const unsigned int maxAlnNum, const unsigned int maxRejected, bool wrappedScoring=false);
 
     //MPI function
     void run(const unsigned int mpiRank, const unsigned int mpiNumProc,
-             const unsigned int maxAlnNum, const unsigned int maxRejected);
+             const unsigned int maxAlnNum, const unsigned int maxRejected, bool wrappedScoring=false);
 
     //Run parallel
     void run(const std::string &outDB, const std::string &outDBIndex,
              const size_t dbFrom, const size_t dbSize,
-             const unsigned int maxAlnNum, const unsigned int maxRejected, bool merge);
+             const unsigned int maxAlnNum, const unsigned int maxRejected, bool merge, bool wrappedScoring=false);
 
     static bool checkCriteria(Matcher::result_t &res, bool isIdentity, double evalThr, double seqIdThr, int alnLenThr, int covMode, float covThr);
 

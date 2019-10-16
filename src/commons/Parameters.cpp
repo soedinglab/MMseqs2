@@ -282,6 +282,7 @@ Parameters::Parameters():
     align.push_back(&PARAM_SUB_MAT);
     align.push_back(&PARAM_ADD_BACKTRACE);
     align.push_back(&PARAM_ALIGNMENT_MODE);
+    align.push_back(&PARAM_WRAPPED_SCORING);
     align.push_back(&PARAM_E);
     align.push_back(&PARAM_MIN_SEQ_ID);
     align.push_back(&PARAM_MIN_ALN_LEN);

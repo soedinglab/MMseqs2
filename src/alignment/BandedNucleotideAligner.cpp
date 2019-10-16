@@ -71,7 +71,7 @@ void BandedNucleotideAligner::initQuery(Sequence * query){
 s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
                                        int diagonal, bool reverse,
                                        std::string & backtrace, int & aaIds,
-                                       EvalueComputation * evaluer)
+                                       EvalueComputation * evaluer, bool wrappedScoring)
 {
     char * queryCharSeqAlign = (char*) querySeqObj->getSeqData();
     uint8_t * querySeqRevAlign = querySeqRev;
@@ -89,9 +89,22 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
 
     int qUngappedStartPos, qUngappedEndPos, dbUngappedStartPos, dbUngappedEndPos;
 
-    DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeUngappedAlignment(
-            queryCharSeqAlign, querySeqObj->L, targetSeqObj->getSeqData(), targetSeqObj->L,
-            diagonal, fastMatrix.matrix, Parameters::RESCORE_MODE_ALIGNMENT);
+    DistanceCalculator::LocalAlignment alignment;
+    unsigned int queryLen = querySeqObj->L;
+    unsigned int origQueryLen = queryLen;
+    if (wrappedScoring) {
+        alignment = DistanceCalculator::computeUngappedWrappedAlignment(
+                queryCharSeqAlign, querySeqObj->L, targetSeqObj->getSeqData(), targetSeqObj->L,
+                diagonal, fastMatrix.matrix, Parameters::RESCORE_MODE_ALIGNMENT);
+        origQueryLen = queryLen/2;
+    }
+    else {
+        alignment = DistanceCalculator::computeUngappedAlignment(
+                queryCharSeqAlign, querySeqObj->L, targetSeqObj->getSeqData(), targetSeqObj->L,
+                diagonal, fastMatrix.matrix, Parameters::RESCORE_MODE_ALIGNMENT);
+    }
+
+
     unsigned int distanceToDiagonal = alignment.distToDiagonal;
     diagonal = alignment.diagonal;
 
@@ -106,13 +119,12 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
         dbUngappedStartPos = alignment.startPos + distanceToDiagonal;
         dbUngappedEndPos = alignment.endPos + distanceToDiagonal;
     }
-
-    if(qUngappedStartPos == 0 && qUngappedEndPos == querySeqObj->L -1
+    if(qUngappedEndPos-qUngappedStartPos == origQueryLen - 1
        && dbUngappedStartPos == 0 && dbUngappedEndPos == targetSeqObj->L - 1){
         s_align result;
         uint32_t * retCigar = new uint32_t[1];
         retCigar[0] = 0;
-        retCigar[0] = querySeqObj->L << 4;
+        retCigar[0] = origQueryLen << 4;
         result.cigar = retCigar;
         result.cigarLen = 1;
         result.score1 = alignment.score;
@@ -121,12 +133,14 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
         result.dbEndPos1 = dbUngappedEndPos;
         result.dbStartPos1 = dbUngappedStartPos;
         result.qCov = SmithWaterman::computeCov(result.qStartPos1, result.qEndPos1, querySeqObj->L);
+        if(wrappedScoring)
+            result.qCov = std::min(1.0f, result.qCov*2);
         result.tCov = SmithWaterman::computeCov(result.dbStartPos1, result.dbEndPos1, targetSeqObj->L);
-        result.evalue = evaluer->computeEvalue(result.score1, querySeqObj->L);
+        result.evalue = evaluer->computeEvalue(result.score1, origQueryLen);
         for (int i = qUngappedStartPos; i <= qUngappedEndPos; i++) {
             aaIds += (querySeqAlign[i] == targetSeq[dbUngappedStartPos + (i - dbUngappedStartPos)]) ? 1 : 0;
         }
-        for(int pos = 0; pos <  querySeqObj->L; pos++){
+        for(int pos = 0; pos <  origQueryLen; pos++){
             backtrace.append("M");
         }
         return result;
@@ -141,7 +155,12 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
     int flag = 0;
     flag |= KSW_EZ_SCORE_ONLY;
     flag |= KSW_EZ_EXTZ_ONLY;
-    ksw_extz2_sse(0, querySeqObj->L - qStartRev, querySeqRevAlign + qStartRev, targetSeqObj->L - tStartRev, targetSeqRev + tStartRev, 5, mat, gapo, gape, 64, 40, flag, &ez);
+
+    int queryRevLenToAlign = querySeqObj->L - qStartRev;
+    if (wrappedScoring && queryRevLenToAlign > origQueryLen)
+        queryRevLenToAlign = origQueryLen;
+
+    ksw_extz2_sse(0, queryRevLenToAlign, querySeqRevAlign + qStartRev, targetSeqObj->L - tStartRev, targetSeqRev + tStartRev, 5, mat, gapo, gape, 64, 40, flag, &ez);
 
     int qStartPos = querySeqObj->L  - ( qStartRev + ez.max_q ) -1 ;
     int tStartPos = targetSeqObj->L - ( tStartRev + ez.max_t ) -1;
@@ -153,7 +172,11 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
 //    ezAlign.cigar = cigar;
 //    printf("%d %d\n", qStartPos, tStartPos);
     memset(&ezAlign, 0, sizeof(ksw_extz_t));
-    ksw_extz2_sse(0, querySeqObj->L-qStartPos, querySeqAlign+qStartPos, targetSeqObj->L-tStartPos, targetSeq+tStartPos, 5,
+
+    int queryLenToAlign = querySeqObj->L-qStartPos;
+    if (wrappedScoring && queryLenToAlign > origQueryLen)
+        queryLenToAlign = origQueryLen;
+    ksw_extz2_sse(0, queryLenToAlign, querySeqAlign+qStartPos, targetSeqObj->L-tStartPos, targetSeq+tStartPos, 5,
                   mat, gapo, gape, 64, 40, alignFlag, &ezAlign);
 
     std::string letterCode = "MID";
@@ -161,7 +184,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
 
     if (ez.max_q > ezAlign.max_q && ez.max_t > ezAlign.max_t){
 
-        ksw_extz2_sse(0, querySeqObj->L - qStartRev, querySeqRevAlign + qStartRev, targetSeqObj->L - tStartRev,
+        ksw_extz2_sse(0, queryRevLenToAlign, querySeqRevAlign + qStartRev, targetSeqObj->L - tStartRev,
                       targetSeqRev + tStartRev, 5, mat, gapo, gape, 64, 40, alignFlag, &ezAlign);
 
         retCigar = new uint32_t[ezAlign.n_cigar];
@@ -185,8 +208,10 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
     result.dbEndPos1 = tStartPos+ezAlign.max_t;
     result.dbStartPos1 = tStartPos;
     result.qCov = SmithWaterman::computeCov(result.qStartPos1, result.qEndPos1, querySeqObj->L);
+    if(wrappedScoring)
+        result.qCov = std::min(1.0f, result.qCov*2);
     result.tCov = SmithWaterman::computeCov(result.dbStartPos1, result.dbEndPos1, targetSeqObj->L);
-    result.evalue = evaluer->computeEvalue(result.score1, querySeqObj->L);
+    result.evalue = evaluer->computeEvalue(result.score1, origQueryLen);
     if(result.cigar){
         int32_t targetPos = result.dbStartPos1, queryPos = result.qStartPos1;
         for (int32_t c = 0; c < result.cigarLen; ++c) {

@@ -81,6 +81,21 @@ Alignment::Alignment(const std::string &querySeqDB,
     }
     initSWMode(alignmentMode);
 
+    if (par.wrappedScoring)
+    {
+        maxSeqLen = maxSeqLen * 2;
+        if(!Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)){
+            Debug(Debug::ERROR) << "Wrapped scoring is only supported for nucleotides.\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        if (realign == true) {
+            Debug(Debug::ERROR) << "Alternative alignments do not supported wrapped scoring.\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+
+
     //qdbr->readMmapedDataInMemory();
     // make sure to touch target after query, so if there is not enough memory for the query, at least the targets
     // might have had enough space left to be residung in the page cache
@@ -212,7 +227,7 @@ Alignment::~Alignment() {
 }
 
 void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
-                    const unsigned int maxAlnNum, const unsigned int maxRejected) {
+                    const unsigned int maxAlnNum, const unsigned int maxRejected, bool wrappedScoring) {
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
@@ -220,7 +235,7 @@ void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
 
     Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << (dbFrom + dbSize) << "\n";
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outDB, outDBIndex, mpiRank);
-    run(tmpOutput.first, tmpOutput.second, dbFrom, dbSize, maxAlnNum, maxRejected, true);
+    run(tmpOutput.first, tmpOutput.second, dbFrom, dbSize, maxAlnNum, maxRejected, true, wrappedScoring);
 
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
@@ -237,13 +252,13 @@ void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
     }
 }
 
-void Alignment::run(const unsigned int maxAlnNum, const unsigned int maxRejected) {
-    run(outDB, outDBIndex, 0, prefdbr->getSize(), maxAlnNum, maxRejected, false);
+void Alignment::run(const unsigned int maxAlnNum, const unsigned int maxRejected, bool wrappedScoring) {
+    run(outDB, outDBIndex, 0, prefdbr->getSize(), maxAlnNum, maxRejected, false, wrappedScoring);
 }
 
 void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     const size_t dbFrom, const size_t dbSize,
-                    const unsigned int maxAlnNum, const unsigned int maxRejected, bool merge) {
+                    const unsigned int maxAlnNum, const unsigned int maxRejected, bool merge, bool wrappedScoring) {
     size_t alignmentsNum = 0;
     size_t totalPassedNum = 0;
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_ALIGNMENT_RES);
@@ -281,7 +296,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
             Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
             Matcher *realigner = NULL;
-            if (realign ==  true) {
+            if (realign ==  true && wrappedScoring == false) {
                 realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
             }
 
@@ -289,6 +304,8 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             swResults.reserve(300);
             std::vector<Matcher::result_t> swRealignResults;
             swRealignResults.reserve(300);
+            std::vector<hit_t> shortResults;
+            shortResults.reserve(300);
 
 #pragma omp for schedule(dynamic, 5) reduction(+: alignmentsNum, totalPassedNum)
             for (size_t id = start; id < (start + bucketSize); id++) {
@@ -297,6 +314,8 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 // get the prefiltering list
                 char *data = prefdbr->getData(id, thread_idx);
                 unsigned int queryDbKey = prefdbr->getDbKey(id);
+                size_t queryLen = -1, origQueryLen = -1;
+                std::string queryToWrap;
                 // only load query data if data != \0
                 if(*data != '\0'){
                     size_t qId = qdbr->getId(queryDbKey);
@@ -306,7 +325,16 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                                             << " is required in the prefiltering, but is not contained in the query sequence database.\nPlease check your database.\n";
                         EXIT(EXIT_FAILURE);
                     }
-                    qSeq.mapSequence(qId, queryDbKey, querySeqData, qdbr->getSeqLen(qId));
+                    queryLen = qdbr->getSeqLen(qId);
+                    origQueryLen = queryLen;
+                    if (wrappedScoring) {
+                        queryToWrap = std::string(querySeqData,queryLen);
+                        queryToWrap = queryToWrap + queryToWrap;
+                        querySeqData = (char*)(queryToWrap).c_str();
+                        queryLen = origQueryLen*2;
+                    }
+
+                    qSeq.mapSequence(qId, queryDbKey, querySeqData, queryLen);
                     matcher.initQuery(&qSeq);
                 }
 
@@ -338,7 +366,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     }
                     dbSeq.mapSequence(dbId, dbKey, dbSeqData, tdbr->getSeqLen(dbId));
                     // check if the sequences could pass the coverage threshold
-                    if(Util::canBeCovered(canCovThr, covMode, static_cast<float>(qSeq.L), static_cast<float>(dbSeq.L)) == false) {
+                    if(Util::canBeCovered(canCovThr, covMode, static_cast<float>(origQueryLen), static_cast<float>(dbSeq.L)) == false) {
                         rejected++;
                         data = Util::skipLine(data);
                         continue;
@@ -346,7 +374,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     const bool isIdentity = (queryDbKey == dbKey && (includeIdentity || sameQTDB)) ? true : false;
 
                     // calculate Smith-Waterman alignment
-                    Matcher::result_t res = matcher.getSWResult(&dbSeq, static_cast<int>(diagonal), isReverse, covMode, covThr, evalThr, swMode, seqIdMode, isIdentity);
+                    Matcher::result_t res = matcher.getSWResult(&dbSeq, static_cast<int>(diagonal), isReverse, covMode, covThr, evalThr, swMode, seqIdMode, isIdentity, wrappedScoring);
                     alignmentsNum++;
 
                     //set coverage and seqid if identity
@@ -356,7 +384,15 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         res.seqId = 1.0f;
                     }
                     if(checkCriteria(res, isIdentity, evalThr, seqIdThr, alnLenThr, covMode, covThr)){
-                        swResults.emplace_back(res);
+                        if(wrappedScoring){
+                            hit_t hit;
+                            hit.seqId = res.dbKey;
+                            hit.prefScore = (isReverse?-100:100) * res.seqId;
+                            hit.diagonal = isReverse?res.qStartPos-res.dbEndPos:res.qStartPos-res.dbStartPos;
+                            shortResults.emplace_back(hit);
+                        }
+                        else
+                          swResults.emplace_back(res);
                         passedNum++;
                         totalPassedNum++;
                         rejected = 0;
@@ -366,12 +402,16 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                     data = Util::skipLine(data);
                 }
-                if(altAlignment > 0 && realign == false ){
+                if(altAlignment > 0 && realign == false && wrappedScoring == false){
                     computeAlternativeAlignment(queryDbKey, dbSeq, swResults, matcher, evalThr, swMode, thread_idx);
                 }
 
+                if(wrappedScoring && shortResults.size() > 1)
+                    std::sort(shortResults.begin(), shortResults.end(), hit_t::compareHitsByScoreAndId);
+
                 // write the results
-                std::sort(swResults.begin(), swResults.end(), Matcher::compareHits);
+                if(swResults.size() > 1)
+                    std::sort(swResults.begin(), swResults.end(), Matcher::compareHits);
                 if (realign == true) {
                     realigner->initQuery(&qSeq);
                     for (size_t result = 0; result < swResults.size(); result++) {
@@ -401,7 +441,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         }
                     }
                     swResults = swRealignResults;
-                    if(altAlignment> 0 ){
+                    if(altAlignment > 0){
                         computeAlternativeAlignment(queryDbKey, dbSeq, swResults, matcher, FLT_MAX, Matcher::SCORE_COV_SEQID, thread_idx);
                     }
                 }
@@ -411,10 +451,18 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     size_t len = Matcher::resultToBuffer(buffer, swResults[result], addBacktrace);
                     alnResultsOutString.append(buffer, len);
                 }
+
+                for (size_t result = 0; result < shortResults.size(); result++) {
+                    size_t len = snprintf(buffer, 100, "%u\t%d\t%d\n", shortResults[result].seqId, shortResults[result].prefScore,
+                                          shortResults[result].diagonal);
+                    alnResultsOutString.append(buffer, len);
+                }
+
                 dbw.writeData(alnResultsOutString.c_str(), alnResultsOutString.length(), queryDbKey, thread_idx);
                 alnResultsOutString.clear();
                 swResults.clear();
                 swRealignResults.clear();
+                shortResults.clear();
             }
             if (realign == true) {
                 delete realigner;

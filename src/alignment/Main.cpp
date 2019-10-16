@@ -22,9 +22,9 @@ int align(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << "Calculation of alignments\n";
 
 #ifdef HAVE_MPI
-    aln.run(MMseqsMPI::rank, MMseqsMPI::numProc, par.maxAccept, par.maxRejected);
+    aln.run(MMseqsMPI::rank, MMseqsMPI::numProc, par.maxAccept, par.maxRejected, par.wrappedScoring);
 #else
-    aln.run(par.maxAccept, par.maxRejected);
+    aln.run(par.maxAccept, par.maxRejected, par.wrappedScoring);
 #endif
 
     return EXIT_SUCCESS;

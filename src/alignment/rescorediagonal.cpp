@@ -66,6 +66,14 @@ int doRescorediagonal(Parameters &par,
         qdbr = qDbrIdx->sequenceReader;
         querySeqType = qdbr->getDbtype();
     }
+    if (par.wrappedScoring)
+    {
+        if(!Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)){
+            Debug(Debug::ERROR) << "Wrapped scoring is only supported for nucleotides.\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+
 
     if(resultReader.isSortedByOffset() && qdbr->isSortedByOffset()){
         qdbr->setSequentialAdvice();
