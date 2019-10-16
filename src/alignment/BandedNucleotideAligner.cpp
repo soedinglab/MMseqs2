@@ -90,8 +90,8 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
     int qUngappedStartPos, qUngappedEndPos, dbUngappedStartPos, dbUngappedEndPos;
 
     DistanceCalculator::LocalAlignment alignment;
-    unsigned int queryLen = querySeqObj->L;
-    unsigned int origQueryLen = queryLen;
+    int queryLen = querySeqObj->L;
+    int origQueryLen = queryLen;
     if (wrappedScoring) {
         alignment = DistanceCalculator::computeUngappedWrappedAlignment(
                 queryCharSeqAlign, querySeqObj->L, targetSeqObj->getSeqData(), targetSeqObj->L,
