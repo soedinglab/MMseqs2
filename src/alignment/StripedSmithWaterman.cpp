@@ -182,25 +182,21 @@ s_align SmithWaterman::ssw_align (
 		r.ref_end2 = -1;
 	}
 
-    // need to be defined before goto end
-    int32_t queryOffset;
-    bool hasLowerEvalue;
-    bool hasLowerCoverage;
     const bool isProfile = Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_HMM_PROFILE)
                          || Parameters::isEqualDbtype(profile->sequence_type, Parameters::DBTYPE_PROFILE_STATE_PROFILE);
     // no residue could be aligned
     if (r.dbEndPos1 == -1) {
-        goto end;
+        return r;
     }
-	queryOffset = query_length - r.qEndPos1;
+    int32_t queryOffset = query_length - r.qEndPos1;
 	r.evalue = evaluer->computeEvalue(r.score1, query_length);
-	hasLowerEvalue = r.evalue > evalueThr;
+    bool hasLowerEvalue = r.evalue > evalueThr;
 	r.qCov = computeCov(0, r.qEndPos1, query_length);
 	r.tCov = computeCov(0, r.dbEndPos1, db_length);
-    hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
+    bool hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
 
 	if (alignmentMode == 0 || ((alignmentMode == 2 || alignmentMode == 1) && (hasLowerEvalue || hasLowerCoverage))) {
-		goto end;
+        return r;
 	}
 
 	// Find the beginning position of the best alignment.
@@ -242,8 +238,10 @@ s_align SmithWaterman::ssw_align (
 	r.qCov = computeCov(r.qStartPos1, r.qEndPos1, query_length);
 	r.tCov = computeCov(r.dbStartPos1, r.dbEndPos1, db_length);
 	hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
-	if (alignmentMode == 1 || hasLowerCoverage) // just start and end point are needed
-		goto end;
+    // only start and end point are needed
+    if (alignmentMode == 1 || hasLowerCoverage) {
+        return r;
+    }
 
 	// Generate cigar.
 	db_length = r.dbEndPos1 - r.dbStartPos1 + 1;
@@ -268,8 +266,6 @@ s_align SmithWaterman::ssw_align (
 		r.cigarLen = path->length;
 	}	delete path;
 
-
-	end:
 	return r;
 }
 
