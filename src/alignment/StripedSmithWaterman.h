@@ -207,7 +207,7 @@ private:
         int8_t* composition_bias_rev;
         int8_t* mat;
         // Memory layout of if mat + queryProfile is qL * AA
-        //    Query lenght
+        //    Query length
         // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
         // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
         // ...
@@ -267,7 +267,7 @@ private:
     std::pair<alignment_end, alignment_end> sw_sse2_word (const unsigned char* db_sequence,
                                  int8_t ref_dir,	// 0: forward ref; 1: reverse ref
                                  int32_t db_length,
-                                 int32_t query_lenght,
+                                 int32_t query_length,
                                  const uint8_t gap_open, /* will be used as - */
                                  const uint8_t gap_extend, /* will be used as - */
                                  const simd_int*query_profile_byte,

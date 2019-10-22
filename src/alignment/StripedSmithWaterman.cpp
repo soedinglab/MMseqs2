@@ -533,7 +533,7 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWaterman::sw_sse2_word (const unsigned char* db_sequence,
 														   int8_t ref_dir,	// 0: forward ref; 1: reverse ref
 														   int32_t db_length,
-														   int32_t query_lenght,
+														   int32_t query_length,
 														   const uint8_t gap_open, /* will be used as - */
 														   const uint8_t gap_extend, /* will be used as - */
 														   const simd_int*query_profile_word,
@@ -543,10 +543,10 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 #define max8(m, vm) ((m) = simdi16_hmax((vm)));
 
 	uint16_t max = 0;		                     /* the max alignment score */
-	int32_t end_read = query_lenght - 1;
+	int32_t end_read = query_length - 1;
 	int32_t end_ref = 0; /* 1_based best alignment ending point; Initialized as isn't aligned - 0. */
 	const unsigned int SIMD_SIZE = VECSIZE_INT * 2;
-	int32_t segLen = (query_lenght + SIMD_SIZE-1) / SIMD_SIZE; /* number of segment */
+	int32_t segLen = (query_length + SIMD_SIZE-1) / SIMD_SIZE; /* number of segment */
 	/* array to record the alignment read ending position of the largest score of each reference position */
 	memset(this->maxColumn, 0, db_length * sizeof(uint16_t));
 	uint16_t * maxColumn = (uint16_t *) this->maxColumn;
