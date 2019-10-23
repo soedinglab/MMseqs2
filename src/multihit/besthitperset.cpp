@@ -27,9 +27,6 @@ public :
     void prepareInput(unsigned int, unsigned int) {}
 
     std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int, unsigned int targetSetKey, unsigned int thread_idx)  {
-        std::string buffer;
-        buffer.reserve(1024);
-
         double bestScore = -DBL_MAX;
         double secondBestScore = -DBL_MAX;
         double bestEval = DBL_MAX;
@@ -94,9 +91,12 @@ public :
         }
 
         if (bestEntry == NULL) {
-            return buffer;
+            return "";
         }
-        
+
+        std::string buffer;
+        buffer.reserve(1024);
+
         // Aggregate the full line into string
         for (size_t i = 0; i < bestEntry->size(); ++i) {
             if (i == 1) {
@@ -106,7 +106,9 @@ public :
             } else {
                 buffer.append(bestEntry->at(i));
             }
-            buffer.append("\t");
+            if (i != (bestEntry->size() - 1)) {
+                buffer.append(1, '\t');
+            }
         }
 
         return buffer;
