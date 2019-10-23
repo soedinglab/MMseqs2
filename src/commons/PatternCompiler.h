@@ -23,6 +23,11 @@ public:
         return regexec(&regex, target, 0, NULL, 0) == 0;
     }
 
+    bool isMatch(const char *target, size_t nmatch, regmatch_t *pmatch) {
+        return regexec(&regex, target, nmatch, pmatch, 0) == 0;
+    }
+
+
 private:
     regex_t regex;
 };
