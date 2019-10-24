@@ -183,17 +183,19 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     std::map<unsigned int, unsigned int> qKeyToSet;
     std::map<unsigned int, unsigned int> tKeyToSet;
     if (needLookup) {
-        std::string file = par.db1 + ".lookup";
-        qKeyToSet = readKeyToSet(file);
-        tKeyToSet = readKeyToSet(file);
+        std::string file1 = par.db1 + ".lookup";
+        std::string file2 = par.db2 + ".lookup";
+        qKeyToSet = readKeyToSet(file1);
+        tKeyToSet = readKeyToSet(file2);
     }
 
     std::map<unsigned int, std::string> qSetToSource;
     std::map<unsigned int, std::string> tSetToSource;
     if (needSource) {
-        std::string file = par.db1 + ".source";
-        qSetToSource = readSetToSource(file);
-        tSetToSource = readSetToSource(file);
+        std::string file1 = par.db1 + ".source";
+        std::string file2 = par.db2 + ".source";
+        qSetToSource = readSetToSource(file1);
+        tSetToSource = readSetToSource(file2);
     }
 
     IndexReader qDbr(par.db1, par.threads,  IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0, dbaccessMode);
