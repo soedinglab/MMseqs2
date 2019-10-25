@@ -33,7 +33,7 @@ public:
     size_t *getOffsets();
 
     void initLookupByExternalData(char *seqData, size_t dataSize, size_t *seqOffsets);
-    void initLookupByExternalDataCopy(char *seqData, size_t dataSize, size_t *seqOffsets);
+    void initLookupByExternalDataCopy(char *seqData, size_t *seqOffsets);
 
 private:
     size_t sequenceCount;

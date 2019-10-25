@@ -343,7 +343,7 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(unsigned int split, D
 
     if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
         SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount, seqDataSize);
-        sequenceLookup->initLookupByExternalDataCopy(seqData, seqDataSize, (size_t *) seqOffsetsData);
+        sequenceLookup->initLookupByExternalDataCopy(seqData, (size_t *) seqOffsetsData);
         return sequenceLookup;
     }
 
@@ -384,7 +384,7 @@ IndexTable *PrefilteringIndexReader::getIndexTable(unsigned int split, DBReader<
     }
 
     if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
-        IndexTable* table = new IndexTable(adjustAlphabetSize, data.kmerSize, true);
+        IndexTable* table = new IndexTable(adjustAlphabetSize, data.kmerSize, false);
         table->initTableByExternalDataCopy(sequenceCount, entriesNum, (IndexEntryLocal*) entriesData, (size_t *)entriesOffsetsData);
         return table;
     }
