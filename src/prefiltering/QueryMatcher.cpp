@@ -153,6 +153,7 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
         }
     }else{
         unsigned int thr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
+        thr = std::max(minDiagScoreThr, thr);
         if(resultSize < counterResultSize/2) {
             int elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, thr, foundDiagonals, resultSize);
             queryResult = getResult<KMER_SCORE>(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, identityId, thr, ungappedAlignment, false);
