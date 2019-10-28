@@ -226,7 +226,9 @@ if (OPENMP_FOUND)
     # For GCC we dont want to do this since it breaks macOS static builds
     # It will link libgomp.a internally (through -fopenmp I guess)
     # and also link libgomp.dylib thus breaking static builds
-    # target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
+    if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
+    endif()
     append_target_property(mmseqs-framework COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
     append_target_property(mmseqs-framework LINK_FLAGS ${OpenMP_CXX_FLAGS})
 elseif (REQUIRE_OPENMP)
