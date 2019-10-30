@@ -91,18 +91,6 @@ matrix:
         - libopenmpi-dev
         - shellcheck
     env: MPI=1 CC=gcc-8 CXX=g++-8
-  - os: osx
-    osx_image: xcode10.1
-    addons:
-      homebrew:
-        packages:
-        - cmake
-        - ninja
-        - gcc@8
-        - zlib
-        - bzip2
-        - shellcheck
-    env: CC=gcc-8 CXX=g++-8
   allow_failures:
   - env: QEMU_ARM=1
   fast_finish: true
@@ -111,7 +99,6 @@ services:
   - docker
 
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew link gcc@8 --force; fi
   - export CC
   - export CXX
 
@@ -124,8 +111,6 @@ script:
       mkdir build; cd build; \
       cmake -G Ninja -DENABLE_WERROR=1 -DHAVE_MPI="$MPI" -DHAVE_SSE4_1=1 -DHAVE_TESTS=1 -DREQUIRE_OPENMP=0 .. \
         || exit 1; ninja || exit 1; \
-    elif [[ "$TRAVIS_OS_NAME" == "osx" ]]; then \
-      ./util/build_osx.sh . build || exit 1; \
     else \
       exit 1; \
     fi
