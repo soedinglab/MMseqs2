@@ -552,10 +552,16 @@ ForwardIterator upper_bound(ForwardIterator first, ForwardIterator last,
 
 } // namespace omptl
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#endif
 #ifdef _OPENMP
   #include <omptl/omptl_algorithm_par.h>
 #else
   #include <omptl/omptl_algorithm_ser.h>
 #endif
-
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 #endif /* OMPTL_ALGORITHM */
