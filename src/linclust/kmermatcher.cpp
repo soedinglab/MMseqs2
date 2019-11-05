@@ -875,9 +875,13 @@ void writeKmerMatcherResult(DBWriter & dbw,
             size_t topScore =0;
             int bestReverMask = reverMask;
             // compute best diagonal and score for every group of target sequences
+
             while(lastTargetId != targetId
-                   && kmerPos+kmerOffset < threadOffsets[thread+1]
-                   && hashSeqPair[kmerPos+kmerOffset].id == targetId){
+                  && kmerPos+kmerOffset < threadOffsets[thread+1]
+                  && hashSeqPair[kmerPos+kmerOffset].id == targetId
+                  && ((TYPE ==Parameters::DBTYPE_NUCLEOTIDES)? BIT_CLEAR(hashSeqPair[kmerPos+kmerOffset].kmer, 63):
+                      hashSeqPair[kmerPos+kmerOffset].kmer) == repSeqId){
+
                  if(prevDiagonal == hashSeqPair[kmerPos+kmerOffset].pos){
                      diagonalCnt++;
                  }else{
