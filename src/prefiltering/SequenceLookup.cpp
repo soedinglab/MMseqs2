@@ -72,14 +72,7 @@ void SequenceLookup::initLookupByExternalData(char *seqData, size_t seqDataSize,
     offsets = seqOffsets;
 }
 
-void SequenceLookup::initLookupByExternalDataCopy(char *seqData, size_t seqDataSize, size_t *seqOffsets) {
-    dataSize = seqDataSize;
-
-    data = new(std::nothrow) char[dataSize + 1];
-    Util::checkAllocation(data, "Can not allocate data memory in SequenceLookup");
+void SequenceLookup::initLookupByExternalDataCopy(char *seqData, size_t *seqOffsets) {
     memcpy(data, seqData, (dataSize + 1) * sizeof(char));
-
-    offsets = new(std::nothrow) size_t[sequenceCount + 1];
-    Util::checkAllocation(offsets, "Can not allocate offsets memory in SequenceLookup");
     memcpy(offsets, seqOffsets, (sequenceCount + 1) * sizeof(size_t));
 }

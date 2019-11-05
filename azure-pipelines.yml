@@ -35,11 +35,11 @@ jobs:
       - checkout: self
         submodules: true
       - script: |
-          brew install cmake gcc@9 zlib bzip2 coreutils
+          brew install cmake zlib bzip2 libomp
         displayName: Install Dependencies
       - script: |
           cd ${BUILD_SOURCESDIRECTORY}
-          CC=gcc-9 CXX=g++-9 ./util/build_osx.sh . build
+          ./util/build_osx.sh . build
         displayName: Build MMseqs2
       - script: |
           ${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/build_sse41/src/mmseqs ${BUILD_SOURCESDIRECTORY}/regression

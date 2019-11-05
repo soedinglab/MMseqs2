@@ -244,10 +244,12 @@ Prefiltering::~Prefiltering() {
     tdbr->close();
     delete tdbr;
 
-    if (templateDBIsIndex == true && preloadMode != Parameters::PRELOAD_MODE_FREAD) {
+    if (templateDBIsIndex == true) {
         tidxdbr->close();
         delete tidxdbr;
-    } else {
+    }
+
+    if (templateDBIsIndex == false || preloadMode == Parameters::PRELOAD_MODE_FREAD) {
         ExtendedSubstitutionMatrix::freeScoreMatrix(_3merSubMatrix);
         ExtendedSubstitutionMatrix::freeScoreMatrix(_2merSubMatrix);
     }
