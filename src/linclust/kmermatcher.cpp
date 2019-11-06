@@ -307,25 +307,6 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * hashSeqPair, D
                         std::sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScore);
                     }
                 }
-                size_t kmerConsidered = std::min(static_cast<int>(chooseTopKmer - 1 + (chooseTopKmerScale * seq.L)), seqKmerCount);
-                if(par.skipNRepeatKmer > 0 ){
-                    size_t prevKmer = SIZE_T_MAX;
-                    kmers[seqKmerCount].kmer=SIZE_T_MAX;
-                    int repeatKmerCnt = 0;
-                    for (int topKmer = 0; topKmer < seqKmerCount; topKmer++) {
-                        size_t kmerCurr = (kmers + topKmer)->kmer;
-                        size_t kmerNext = (kmers + topKmer + 1)->kmer;
-                        if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                            kmerCurr = BIT_SET(kmerCurr, 63);
-                            kmerNext = BIT_SET(kmerNext, 63);
-                        }
-                        repeatKmerCnt += (kmerCurr == kmerNext || kmerCurr == prevKmer);
-                        prevKmer = kmerCurr;
-                    }
-                    if(repeatKmerCnt >= par.skipNRepeatKmer){
-                        kmerConsidered = 0;
-                    }
-                }
 
                 // add k-mer to represent the identity
                 //TODO, how to handle this in reverse?
@@ -341,12 +322,33 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * hashSeqPair, D
                         bufferPos = 0;
                     }
                 }
-                for (size_t topKmer = 0; topKmer < kmerConsidered; topKmer++) {
-                    size_t kmer = (kmers + topKmer)->kmer;
-                    if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                        kmer = BIT_SET(kmer, 63);
+
+                size_t kmersToConsider = std::min(static_cast<int>(chooseTopKmer - 1 + (chooseTopKmerScale * seq.L)), seqKmerCount);
+                size_t kmersConsidered = 0;
+
+                size_t prevKmer = SIZE_T_MAX;
+                kmers[seqKmerCount].kmer = SIZE_T_MAX;
+                for (size_t topKmer = 0; topKmer < static_cast<size_t>(seqKmerCount) &&
+                                         kmersConsidered < kmersToConsider; topKmer++) {
+
+                    size_t kmerCurr = (kmers + topKmer)->kmer;
+                    size_t kmerNext = (kmers + topKmer + 1)->kmer;
+
+                    if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
+                        kmerCurr = BIT_SET(kmerCurr, 63);
+                        kmerNext = BIT_SET(kmerNext, 63);
                     }
-                    size_t splitIdx = kmer % splits;
+
+                    bool repeatedKmer = (kmerCurr == kmerNext || kmerCurr == prevKmer);
+                    prevKmer = kmerCurr;
+
+                    /* skip repeated kmer */
+                    if (par.ignoreMultiKmer > 0 && repeatedKmer) {
+                        continue;
+                    }
+
+                    kmersConsidered++;
+                    size_t splitIdx = kmerCurr % splits;
                     if (splitIdx != split) {
                         continue;
                     }

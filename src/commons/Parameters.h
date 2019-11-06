@@ -447,7 +447,7 @@ public:
     int kmersPerSequence;
     float kmersPerSequenceScale;
     bool includeOnlyExtendable;
-    int skipNRepeatKmer;
+    bool ignoreMultiKmer;
     int hashShift;
     int pickNbest;
     int adjustKmerLength;
@@ -720,7 +720,7 @@ public:
     PARAMETER(PARAM_KMER_PER_SEQ)
     PARAMETER(PARAM_KMER_PER_SEQ_SCALE)
     PARAMETER(PARAM_INCLUDE_ONLY_EXTENDABLE)
-    PARAMETER(PARAM_SKIP_N_REPEAT_KMER)
+    PARAMETER(PARAM_IGNORE_MULTI_KMER)
     PARAMETER(PARAM_HASH_SHIFT)
     PARAMETER(PARAM_PICK_N_SIMILAR)
     PARAMETER(PARAM_ADJUST_KMER_LEN)
