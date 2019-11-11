@@ -214,8 +214,8 @@ public:
     static const int SEQ_ID_LONG = 2;
 
     // seq. split mode
-    static const int SEQUENCE_SPLIT_MODE_SOFT = 0;
-    static const int SEQUENCE_SPLIT_MODE_HARD = 1;
+    static const int SEQUENCE_SPLIT_MODE_HARD = 0;
+    static const int SEQUENCE_SPLIT_MODE_SOFT = 1;
 
     // rescorediagonal
     static const int RESCORE_MODE_HAMMING = 0;
@@ -459,12 +459,13 @@ public:
     // createdb
     int identifierOffset;
     int dbType;
-    bool splitSeqByLen;
+    int createdbMode;
     bool shuffleDatabase;
 
     // splitsequence
     int sequenceOverlap;
     int sequenceSplitMode;
+
     // convert2fasta
     bool useHeaderFile;
 
@@ -761,8 +762,8 @@ public:
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
     PARAMETER(PARAM_ID_OFFSET)  // same
     PARAMETER(PARAM_DB_TYPE)
-    PARAMETER(PARAM_DONT_SPLIT_SEQ_BY_LEN)
-    PARAMETER(PARAM_DONT_SHUFFLE)
+    PARAMETER(PARAM_CREATEDB_MODE)
+    PARAMETER(PARAM_SHUFFLE)
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)

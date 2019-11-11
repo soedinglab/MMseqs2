@@ -494,7 +494,6 @@ void Sequence::mapSequence(const char * sequence, unsigned int dataLen){
     this->L = l;
 }
 
-
 void Sequence::printPSSM(){
     printf("Query profile of sequence %d\n", dbKey);
     printf("Pos ");

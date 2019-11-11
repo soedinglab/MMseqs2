@@ -12,6 +12,8 @@ public:
         kstring_t sequence;
         kstring_t comment;
         kstring_t qual;
+        size_t offset;
+        bool multiline;
     } entry;
 
     virtual bool ReadEntry() = 0;

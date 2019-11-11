@@ -162,7 +162,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
 
     ksw_extz2_sse(0, queryRevLenToAlign, querySeqRevAlign + qStartRev, targetSeqObj->L - tStartRev, targetSeqRev + tStartRev, 5, mat, gapo, gape, 64, 40, flag, &ez);
 
-    int qStartPos = querySeqObj->L  - ( qStartRev + ez.max_q ) -1 ;
+    int qStartPos = querySeqObj->L  - ( qStartRev + ez.max_q ) -1;
     int tStartPos = targetSeqObj->L - ( tStartRev + ez.max_t ) -1;
 
     int alignFlag = 0;

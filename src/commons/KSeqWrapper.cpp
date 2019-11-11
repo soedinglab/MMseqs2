@@ -19,7 +19,8 @@ bool KSeqFile::ReadEntry() {
     int result = KSEQFILE::kseq_read(s);
     if (result < 0)
         return false;
-
+    entry.offset = s->offset;
+    entry.multiline = s->multiline;
     entry.name = s->name;
     entry.comment = s->comment;
     entry.sequence = s->seq;
@@ -63,6 +64,8 @@ bool KSeqGzip::ReadEntry() {
     entry.comment = s->comment;
     entry.sequence = s->seq;
     entry.qual = s->qual;
+    entry.offset = -1;
+    entry.multiline = s->multiline;
 
     return true;
 }
@@ -105,6 +108,8 @@ bool KSeqBzip::ReadEntry() {
     entry.comment = s->comment;
     entry.sequence = s->seq;
     entry.qual = s->qual;
+    entry.offset = -1;
+    entry.multiline = s->multiline;
 
     return true;
 }

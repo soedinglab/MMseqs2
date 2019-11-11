@@ -6,7 +6,7 @@
 #include <cstring>
 #include <vector>
 #include <limits>
-
+#include <map>
 #include "MMseqsMPI.h"
 
 #ifndef EXIT
@@ -240,8 +240,8 @@ public:
     }
 
 
-    static std::pair<ssize_t,ssize_t> getFastaHeaderPosition(const std::string& header);
-    static std::string parseFastaHeader(const std::string& header);
+    static std::pair<ssize_t,ssize_t> getFastaHeaderPosition(const std::string & header);
+    static std::string parseFastaHeader(const char * header);
 
     static inline char toUpper(char character){
         character += ('a' <= character && character <= 'z') ? ('A' - 'a') : 0;
@@ -309,6 +309,9 @@ public:
     static int omp_thread_count();
 
     static std::string removeWhiteSpace(std::string in);
+
+    static std::map<unsigned int, std::string> readLookup(const std::string& lookupFile,
+                                                          const bool removeSplit = false);
 
     static bool canBeCovered(const float covThr, const int covMode, float queryLength, float targetLength);
 

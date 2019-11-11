@@ -10,7 +10,7 @@ notExists() {
 
 if notExists "${TMP_PATH}/query.dbtype"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" createdb "$@" "${TMP_PATH}/query" ${CREATEDB_PAR} \
+    "$MMSEQS" createdb "$@" "${TMP_PATH}/query" ${CREATEDB_QUERY_PAR} \
         || fail "query createdb died"
 fi
 

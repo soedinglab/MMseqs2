@@ -36,7 +36,9 @@ int result2flat(int argc, const char **argv, const Command &command) {
 
         std::string headerStr;
         if (par.useHeader == true){
-            headerStr = header_data;
+            size_t lineLen = Util::skipLine(header_data) - header_data;
+            headerStr.assign(header_data, lineLen);
+
             if (headerStr.length() > 0) {
                 if (headerStr[headerStr.length() - 1] == '\n') {
                     headerStr[headerStr.length() - 1] = ' ';

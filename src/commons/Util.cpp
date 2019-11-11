@@ -16,9 +16,9 @@
 
 #include "simd.h"
 #include "MemoryMapped.h"
-
 #include <algorithm>
 #include <sys/mman.h>
+#include <fstream>      // std::ifstream
 
 #ifdef OPENMP
 #include <omp.h>
@@ -244,7 +244,9 @@ std::pair<ssize_t,ssize_t> Util::getFastaHeaderPosition(const std::string& heade
 }
 
 
-std::string Util::parseFastaHeader(const std::string& header) {
+std::string Util::parseFastaHeader(const char * headerPtr) {
+    size_t len = Util::skipNoneWhitespace(headerPtr);
+    std::string header(headerPtr, len);
     std::pair<ssize_t, ssize_t> pos = Util::getFastaHeaderPosition(header);
     if(pos.first == -1 && pos.second == -1)
         return "";
@@ -461,6 +463,35 @@ int Util::omp_thread_count() {
     n += 1;
     return n;
 }
+
+std::map<unsigned int, std::string> Util::readLookup(const std::string& file, const bool removeSplit) {
+    std::map<unsigned int, std::string> mapping;
+    if (file.length() > 0) {
+        std::ifstream mappingStream(file);
+        if (mappingStream.fail()) {
+            Debug(Debug::ERROR) << "File " << file << " not found!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        std::string line;
+        while (std::getline(mappingStream, line)) {
+            std::vector<std::string> split = Util::split(line, "\t");
+            unsigned int id = strtoul(split[0].c_str(), NULL, 10);
+
+            std::string& name = split[1];
+
+            size_t pos;
+            if (removeSplit && (pos = name.find_last_of('_')) != std::string::npos) {
+                name = name.substr(0, pos);
+            }
+
+            mapping.emplace(id, name);
+        }
+    }
+
+    return mapping;
+}
+
 
 std::string Util::removeWhiteSpace(std::string in) {
     in.erase(std::remove_if(in.begin(), in.end(), isspace), in.end());

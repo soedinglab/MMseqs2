@@ -44,6 +44,8 @@ int indexdb(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, true, 0, 0);
 
     const bool sameDB = (par.db1 == par.db2);
+
+    std::string path = FileUtil::getRealPathFromSymLink(par.db2dbtype);
     DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr.open(DBReader<unsigned int>::NOSORT);
 

@@ -168,7 +168,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * hashSeqPair, D
             size_t start = (i * flushSize);
             size_t bucketSize = std::min(seqDbr.getSize() - (i * flushSize), flushSize);
 
-#pragma omp for schedule(dynamic, 100)
+#pragma omp for schedule(dynamic, 10)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
                 seq.mapSequence(id, seqDbr.getDbKey(id), seqDbr.getData(id, thread_idx), seqDbr.getSeqLen(id));

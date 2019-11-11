@@ -91,13 +91,11 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
             if (par.useSequenceId) {
                 keysNew[id] = std::make_pair(
                         Util::parseFastaHeader(newReader.getData(id,thread_idx)),
-                        newReader.getDbKey(id)
-                );
+                        newReader.getDbKey(id));
             } else {
                 keysNew[id] = std::make_pair(
                         Util::removeWhiteSpace(newReader.getData(id, thread_idx)),
-                        newReader.getDbKey(id)
-                );
+                        newReader.getDbKey(id));
             }
         }
     }

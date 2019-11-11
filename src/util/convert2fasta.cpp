@@ -12,7 +12,7 @@
 #include "Util.h"
 #include "FileUtil.h"
 
-const char header_start[] = {'>'};
+const char headerStart[] = {'>'};
 const char newline[] = {'\n'};
 
 int convert2fasta(int argc, const char **argv, const Command& command) {
@@ -40,15 +40,18 @@ int convert2fasta(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << "Start writing file to " << par.db2 << "\n";
     for(size_t i = 0; i < from->getSize(); i++){
         unsigned int key = from->getDbKey(i);
+        unsigned int headerKey = db_header.getId(key);
+        const char* headerData = db_header.getData(headerKey, 0);
+        const size_t headerLen = db_header.getEntryLen(headerKey);
 
-        const char* header_data = db_header.getDataByDBKey(key, 0);
-
-        fwrite(header_start, sizeof(char), 1, fastaFP);
-        fwrite(header_data, sizeof(char), strlen(header_data) - 1, fastaFP);
+        fwrite(headerStart, sizeof(char), 1, fastaFP);
+        fwrite(headerData, sizeof(char), headerLen - 3, fastaFP);
         fwrite(newline, sizeof(char), 1, fastaFP);
 
-        const char* body_data = db.getDataByDBKey(key, 0);
-        fwrite(body_data, sizeof(char), strlen(body_data) - 1, fastaFP);
+        unsigned int bodyKey = db.getId(key);
+        const char* bodyData = db.getData(bodyKey, 0);
+        const size_t bodyLen = db.getEntryLen(bodyKey);
+        fwrite(bodyData, sizeof(char), bodyLen - 2, fastaFP);
         fwrite(newline, sizeof(char), 1, fastaFP);
     }
 

@@ -77,7 +77,6 @@ int multihitsearch(int argc, const char **argv, const Command &command) {
     if (par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
-    par.splitSeqByLen = false;
     cmd.addVariable("SEARCH_PAR", par.createParameterString(par.searchworkflow).c_str());
     cmd.addVariable("BESTHITBYSET_PAR", par.createParameterString(par.besthitbyset).c_str());
     cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());

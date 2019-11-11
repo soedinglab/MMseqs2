@@ -134,7 +134,7 @@ std::vector<Domain> mapMsa(const std::string &msa, const std::vector<Domain> &do
             continue;
         }
 
-        std::string name = Util::parseFastaHeader(fullName);
+        std::string name = Util::parseFastaHeader(fullName.c_str());
         if (seq->comment.l > 0) {
             std::string comment(seq->comment.s);
             size_t start = comment.find("Split=");

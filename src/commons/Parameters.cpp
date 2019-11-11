@@ -91,7 +91,7 @@ Parameters::Parameters():
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database output", "Output a result db instead of a text file", typeid(bool), (void*) &dbOut, "", MMseqsParameter::COMMAND_EXPERT),
         // --include-only-extendablediagonal
         PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "Rescore diagonal with: 0: Hamming distance, 1: local alignment (score only), 2: local alignment, 3: global alignment or 4: longest alignment fullfilling window quality criterion", typeid(int), (void *) &rescoreMode, "^[0-4]{1}$"),
-        PARAM_WRAPPED_SCORING(PARAM_WRAPPED_SCORING_ID,"--wrapped-scoring", "Allow wrapped scoring","Double the (nucleotide) query sequence during the scoring process to allow wrapped diagonal scoring around end and start", typeid(bool), (void *) &wrappedScoring, "", MMseqsParameter::COMMAND_MISC),
+        PARAM_WRAPPED_SCORING(PARAM_WRAPPED_SCORING_ID,"--wrapped-scoring", "Allow wrapped scoring","Double the (nucleotide) query sequence during the scoring process to allow wrapped diagonal scoring around end and start", typeid(bool), (void *) &wrappedScoring, "", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID,"--filter-hits", "Remove hits by seq. id. and coverage", "filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by evalue (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // result2msa
@@ -169,12 +169,12 @@ Parameters::Parameters():
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_DB_TYPE(PARAM_DB_TYPE_ID,"--dbtype", "Database type", "Database type 0: auto, 1: amino acid 2: nucleotides",typeid(int),(void *) &dbType, "[0-2]{1}"),
-        PARAM_DONT_SPLIT_SEQ_BY_LEN(PARAM_DONT_SPLIT_SEQ_BY_LEN_ID,"--dont-split-seq-by-len", "Split seq. by length", "Dont split sequences by --max-seq-len",typeid(bool),(void *) &splitSeqByLen, ""),
-        PARAM_DONT_SHUFFLE(PARAM_DONT_SHUFFLE_ID,"--dont-shuffle", "Do not shuffle input database", "Do not shuffle input database",typeid(bool),(void *) &shuffleDatabase, ""),
+        PARAM_CREATEDB_MODE(PARAM_CREATEDB_MODE_ID, "--createdb-mode", "Createdb mode", "createdb mode 0: copy data, 1: soft link data and write new index (works only with single line fasta/q)",typeid(int),(void *) &createdbMode, "^[0-1]{1}$"),
+        PARAM_SHUFFLE(PARAM_SHUFFLE_ID,"--shuffle", "Shuffle input database", "Shuffle input database",typeid(bool),(void *) &shuffleDatabase, ""),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "use the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
         // splitsequence
         PARAM_SEQUENCE_OVERLAP(PARAM_SEQUENCE_OVERLAP_ID, "--sequence-overlap", "Overlap between sequences", "overlap between sequences",typeid(int),(void *) &sequenceOverlap, "^(0|[1-9]{1}[0-9]*)$"),
-        PARAM_SEQUENCE_SPLIT_MODE(PARAM_SEQUENCE_SPLIT_MODE_ID, "--sequence-split-mode", "Sequence split mode", "sequence split mode 0: soft link data write new index, 1: copy data",typeid(int),(void *) &sequenceSplitMode, "^[0-1]{1}$"),
+        PARAM_SEQUENCE_SPLIT_MODE(PARAM_SEQUENCE_SPLIT_MODE_ID, "--sequence-split-mode", "Sequence split mode", "sequence split mode 0: copy data, 1: soft link data and write new index,",typeid(int),(void *) &sequenceSplitMode, "^[0-1]{1}$"),
         // gff2db
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF type", "type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
         // translatenucs
@@ -254,7 +254,7 @@ Parameters::Parameters():
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA mode", "LCA Mode 1: Single Search LCA , 2: 2bLCA, 3: approx. 2bLCA, 4: top hit", typeid(int), (void*) &taxonomySearchMode, "^[1-4]{1}$"),
         PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void*) &taxonomyOutpuMode, "^[0-1]{1}$"),
         // createsubdb
-        PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "LCA Mode 0: copy data  1: soft link data", typeid(int), (void*) &subDbMode, "^[0-1]{1}$")
+        PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "Subdb mode 0: copy data  1: soft link data and write index", typeid(int), (void*) &subDbMode, "^[0-1]{1}$")
 {
     if (instance) {
         Debug(Debug::ERROR) << "Parameter instance already exists!\n";
@@ -658,9 +658,9 @@ Parameters::Parameters():
 
     // create db
     createdb.push_back(&PARAM_MAX_SEQ_LEN);
-    createdb.push_back(&PARAM_DONT_SPLIT_SEQ_BY_LEN);
     createdb.push_back(&PARAM_DB_TYPE);
-    createdb.push_back(&PARAM_DONT_SHUFFLE);
+    createdb.push_back(&PARAM_SHUFFLE);
+    createdb.push_back(&PARAM_CREATEDB_MODE);
     createdb.push_back(&PARAM_ID_OFFSET);
     createdb.push_back(&PARAM_COMPRESSED);
     createdb.push_back(&PARAM_V);
@@ -1042,6 +1042,7 @@ Parameters::Parameters():
     easytaxonomy = combineList(taxonomy, addtaxonomy);
     easytaxonomy = combineList(easytaxonomy, convertalignments);
     easytaxonomy = combineList(easytaxonomy, createtsv);
+    easytaxonomy = combineList(easytaxonomy, createdb);
 
     // multi hit db
     multihitdb = combineList(createdb, extractorfs);
@@ -1827,7 +1828,7 @@ void Parameters::setDefaults() {
     searchType = SEARCH_TYPE_AUTO;
 
     // createdb
-    splitSeqByLen = true;
+    createdbMode = SEQUENCE_SPLIT_MODE_HARD;
     shuffleDatabase = true;
 
     // format alignment

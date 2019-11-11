@@ -37,7 +37,7 @@ int createseqfiledb(int argc, const char **argv, const Command& command) {
 #endif
 #pragma omp for schedule(dynamic, 100)
         for (size_t i = 0; i < numClusters; ++i){
-            std::ostringstream fastaStream;
+            std::string resultStr;
             char* data = clusters.getData(i, thread_idx);
 
             size_t entries = Util::countLines(data, clusters.getEntryLen(i) - 1);
@@ -50,6 +50,7 @@ int createseqfiledb(int argc, const char **argv, const Command& command) {
             size_t entries_num = 0;
             char dbKey[255 + 1];
             while (std::getline(clusterEntries, entry)) {
+                resultStr.clear();
                 entries_num++;
                 Util::parseKey((char*)entry.c_str(), dbKey);
                 const unsigned int entryId = (unsigned int) strtoul(dbKey, NULL, 10);
@@ -65,20 +66,31 @@ int createseqfiledb(int argc, const char **argv, const Command& command) {
                     Debug(Debug::WARNING) << "Entry " << entry << " does not contain a sequence!" << "\n";
                     continue;
                 }
+                size_t lineLen = Util::skipLine(header) - header;
+                std::string headerStr(header, lineLen);
+                lineLen = Util::skipLine(body) - body;
+                std::string bodyStr(body, lineLen);
 
                 if (entries_num == 1 && par.hhFormat) {
-                    std::string consensusHeader(header);
-                    fastaStream << "#" << header
-                                << ">" << Util::removeAfterFirstSpace(consensusHeader) << "_consensus\n" << body
-                                << ">" << header << body;
+                    std::string consensusHeader(headerStr);
+                    resultStr.push_back('#');
+                    resultStr.append(headerStr);
+                    resultStr.push_back('>');
+                    resultStr.append(Util::removeAfterFirstSpace(consensusHeader));
+                    resultStr.append("_consensus\n");
+                    resultStr.append(bodyStr);
+                    resultStr.push_back('>');
+                    resultStr.append(headerStr);
+                    resultStr.append(bodyStr);
                 } else {
-                    fastaStream << ">" << header << body;
+                    resultStr.push_back('>');
+                    resultStr.append(headerStr);
+                    resultStr.append(bodyStr);
                 }
             }
 
-            std::string fasta = fastaStream.str();
             unsigned int key = clusters.getDbKey(i);
-            msaOut.writeData(fasta.c_str(), fasta.length(), key, thread_idx);
+            msaOut.writeData(resultStr.c_str(), resultStr.length(), key, thread_idx);
         }
     };
 

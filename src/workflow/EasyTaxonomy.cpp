@@ -9,6 +9,7 @@ void setEasyTaxonomyDefaults(Parameters *p) {
     p->spacedKmer = true;
     p->removeTmpFiles = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
+    p->createdbMode = Parameters::SEQUENCE_SPLIT_MODE_SOFT;
     p->sensitivity = 5.7;
     p->evalThr = 1;
     p->orfStartMode = 1;
@@ -59,6 +60,8 @@ int easytaxonomy(int argc, const char **argv, const Command& command) {
     par.PARAM_TAX_OUTPUT_MODE.wasSet = true;
     cmd.addVariable("TAXONOMY_PAR", par.createParameterString(par.taxonomy, true).c_str());
     par.alignmentMode = alignmentMode;
+
+    cmd.addVariable("CREATEDB_QUERY_PAR", par.createParameterString(par.createdb).c_str());
     cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
     cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());
     cmd.addVariable("THREADS_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());

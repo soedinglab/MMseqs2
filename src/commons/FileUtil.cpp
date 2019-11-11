@@ -139,6 +139,19 @@ size_t FileUtil::getFreeSpace(const char *path) {
     return stat.f_bfree * stat.f_frsize;
 }
 
+
+std::string FileUtil::getRealPathFromSymLink(const std::string path){
+    char *p = realpath(path.c_str(), NULL);
+    if (p == NULL) {
+        Debug(Debug::ERROR) << "Could not get path of " << path << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    std::string name(p);
+    free(p);
+    return name;
+}
+
 std::string FileUtil::getHashFromSymLink(const std::string path){
     char *p = realpath(path.c_str(), NULL);
     if (p == NULL) {

@@ -16,10 +16,6 @@ int createdb(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
 
-    if (par.maxSeqLen == Parameters::MAX_SEQ_LEN) {
-        par.maxSeqLen = Parameters::MAX_SEQ_LEN - 1;
-    }
-
     std::vector<std::string> filenames(par.filenames);
     std::string dataFile = filenames.back();
     filenames.pop_back();
@@ -61,10 +57,6 @@ int createdb(int argc, const char **argv, const Command& command) {
             }
         }
         if (isNuclCnt) {
-            if (isNuclDb == false) {
-                Debug(Debug::WARNING) << "Assuming DNA database, forcing parameter --dont-split-seq-by-len true\n";
-                par.splitSeqByLen = false;
-            }
             isNuclDb = true;
         }
     }
@@ -77,14 +69,15 @@ int createdb(int argc, const char **argv, const Command& command) {
     }
 
     std::string indexFile = dataFile + ".index";
+    if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.shuffleDatabase){
+        Debug(Debug::WARNING) << "Shuffle database can not be combined with --createdb-mode 0.\n";
+        Debug(Debug::WARNING) << "We recompute with --dont-shuffle 1.\n";
+        par.shuffleDatabase = false;
+    }
     const unsigned int shuffleSplits = par.shuffleDatabase ? 32 : 1;
-    DBWriter seqWriter(dataFile.c_str(), indexFile.c_str(), shuffleSplits, par.compressed, dbType);
-    seqWriter.open();
 
     std::string hdrDataFile = dataFile + "_h";
     std::string hdrIndexFile = dataFile + "_h.index";
-    DBWriter hdrWriter(hdrDataFile.c_str(), hdrIndexFile.c_str(), shuffleSplits, par.compressed, Parameters::DBTYPE_GENERIC_DB);
-    hdrWriter.open();
 
     unsigned int entries_num = 0;
     size_t count = 0;
@@ -104,20 +97,21 @@ int createdb(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << "Converting sequences\n";
 
     std::string sourceFile = dataFile + ".source";
+
+    redoComputation:
     FILE *source = fopen(sourceFile.c_str(), "w");
     if (source == NULL) {
         Debug(Debug::ERROR) << "Can not open " << sourceFile << " for writing!\n";
         EXIT(EXIT_FAILURE);
     }
-
+    DBWriter hdrWriter(hdrDataFile.c_str(), hdrIndexFile.c_str(), shuffleSplits, par.compressed, Parameters::DBTYPE_GENERIC_DB);
+    hdrWriter.open();
+    DBWriter seqWriter(dataFile.c_str(), indexFile.c_str(), shuffleSplits, par.compressed, dbType);
+    seqWriter.open();
     for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
         unsigned int numEntriesInCurrFile = 0;
-        std::string splitHeader;
-        splitHeader.reserve(1024);
         std::string header;
         header.reserve(1024);
-        std::string splitId;
-        splitId.reserve(1024);
 
         char buffer[4096];
         size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\n", fileIdx, FileUtil::baseName(filenames[fileIdx]).c_str());
@@ -136,11 +130,6 @@ int createdb(int argc, const char **argv, const Command& command) {
                 EXIT(EXIT_FAILURE);
             }
 
-            size_t splitCnt = 1;
-            if (par.splitSeqByLen == true) {
-                splitCnt = (size_t) ceilf(static_cast<float>(e.sequence.l) / static_cast<float>(par.maxSeqLen));
-            }
-
             // header
             header.append(e.name.s, e.name.l);
             if (e.comment.l > 0) {
@@ -148,102 +137,82 @@ int createdb(int argc, const char **argv, const Command& command) {
                 header.append(e.comment.s, e.comment.l);
             }
 
-            std::string headerId = Util::parseFastaHeader(header);
+            std::string headerId = Util::parseFastaHeader(header.c_str());
             if (headerId.empty()) {
                 // An identifier is necessary for these two cases, so we should just give up
                 Debug(Debug::WARNING) << "Can not extract identifier from entry " << entries_num << ".\n";
-
             }
-            for (size_t split = 0; split < splitCnt; split++) {
-                unsigned int id = par.identifierOffset + entries_num;
-                if (par.dbType == 0) {
-                    // check for the first 10 sequences if they are nucleotide sequences
-                    if (count < 10 || (count % 100) == 0) {
-                        if (sampleCount < testForNucSequence) {
-                            size_t cnt = 0;
-                            for (size_t i = 0; i < e.sequence.l; i++) {
-                                switch (toupper(e.sequence.s[i])) {
-                                    case 'T':
-                                    case 'A':
-                                    case 'G':
-                                    case 'C':
-                                    case 'U':
-                                    case 'N':
-                                        cnt++;
-                                        break;
-                                }
-                            }
-                            const float nuclDNAFraction = static_cast<float>(cnt) / static_cast<float>(e.sequence.l);
-                            if (nuclDNAFraction > 0.9) {
-                                isNuclCnt += true;
+            unsigned int id = par.identifierOffset + entries_num;
+            if (par.dbType == 0) {
+                // check for the first 10 sequences if they are nucleotide sequences
+                if (count < 10 || (count % 100) == 0) {
+                    if (sampleCount < testForNucSequence) {
+                        size_t cnt = 0;
+                        for (size_t i = 0; i < e.sequence.l; i++) {
+                            switch (toupper(e.sequence.s[i])) {
+                                case 'T':
+                                case 'A':
+                                case 'G':
+                                case 'C':
+                                case 'U':
+                                case 'N':
+                                    cnt++;
+                                    break;
                             }
                         }
-                        sampleCount++;
-                    }
-                    if (isNuclCnt == sampleCount || isNuclCnt == testForNucSequence) {
-                        if (isNuclDb == false) {
-                            Debug(Debug::WARNING) << "Assume it is a DNA database.\n";
-                            Debug(Debug::WARNING) << "Set parameter --dont-split-seq-by-len\n";
-                            par.splitSeqByLen = false;
-                            splitCnt = 1;
-                        }
-                        isNuclDb = true;
-                    } else if (isNuclDb == true && isNuclCnt != sampleCount) {
-                        Debug(Debug::ERROR) << "Database does not look like a DNA database anymore. Sorry our prediction went wrong.\n";
-                        Debug(Debug::ERROR) << "Please recompute with --dbtype 1 flag.\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                }
-
-                splitId.append(headerId);
-                if (splitCnt > 1) {
-                    splitId.append("_");
-                    splitId.append(SSTR(split));
-                }
-                // For split entries replace the found identifier by identifier_splitNumber
-                // Also add another hint that it was split to the end of the header
-                splitHeader.append(header);
-                if (par.splitSeqByLen == true && splitCnt > 1) {
-                    if (headerId.empty() == false) {
-                        size_t pos = splitHeader.find(headerId);
-                        if (pos != std::string::npos) {
-                            splitHeader.erase(pos, headerId.length());
-                            splitHeader.insert(pos, splitId);
+                        const float nuclDNAFraction = static_cast<float>(cnt) / static_cast<float>(e.sequence.l);
+                        if (nuclDNAFraction > 0.9) {
+                            isNuclCnt += true;
                         }
                     }
-                    splitHeader.append(" Split=");
-                    splitHeader.append(SSTR(split));
+                    sampleCount++;
                 }
-
-                // space is needed for later parsing
-                splitHeader.append(" ", 1);
-                splitHeader.append("\n");
-
-                // Finally write down the entry
-                unsigned int splitIdx = id % shuffleSplits;
-                sourceLookup[splitIdx].emplace_back(fileIdx);
-
-                hdrWriter.writeData(splitHeader.c_str(), splitHeader.length(), id, splitIdx);
-
-                if (par.splitSeqByLen) {
-                    size_t len = std::min(par.maxSeqLen, e.sequence.l - split * par.maxSeqLen);
-                    seqWriter.writeStart(splitIdx);
-                    seqWriter.writeAdd(e.sequence.s + split * par.maxSeqLen, len, splitIdx);
-                    seqWriter.writeAdd(&newline, 1, splitIdx);
-                    seqWriter.writeEnd(id, splitIdx, true);
-                } else {
-                    seqWriter.writeStart(splitIdx);
-                    seqWriter.writeAdd(e.sequence.s, e.sequence.l, splitIdx);
-                    seqWriter.writeAdd(&newline, 1, splitIdx);
-                    seqWriter.writeEnd(id, splitIdx, true);
+                bool redoComp = false;
+                if (isNuclCnt == sampleCount || isNuclCnt == testForNucSequence) {
+                    isNuclDb = true;
+                } else if (isNuclDb == true && isNuclCnt != sampleCount) {
+                    Debug(Debug::WARNING) << "Database does not look like a DNA database anymore.\n";
+                    Debug(Debug::WARNING) << "We recompute as protein database.\n";
+                    dbType = Parameters::DBTYPE_AMINO_ACIDS;
+                    redoComp = true;
                 }
-                splitHeader.clear();
-                splitId.clear();
-
-                entries_num++;
-                numEntriesInCurrFile++;
-                count++;
+                if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && e.multiline == true){
+                    Debug(Debug::WARNING) << "Multiline fasta can not be combined with --createdb-mode 0.\n";
+                    Debug(Debug::WARNING) << "We recompute with --createdb-mode 1.\n";
+                    par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
+                    redoComp = true;
+                }
+                if(redoComp){
+                    hdrWriter.close();
+                    seqWriter.close();
+                    delete kseq;
+                    fclose(source);
+                    for (size_t i = 0; i < shuffleSplits; ++i) {
+                        sourceLookup[i].clear();
+                    }
+                    goto redoComputation;
+                }
             }
+
+            // Finally write down the entry
+            unsigned int splitIdx = id % shuffleSplits;
+            sourceLookup[splitIdx].emplace_back(fileIdx);
+            header.push_back('\n');
+            if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT){
+                // +2 to emulate the \n\0
+                hdrWriter.writeIndexEntry(id, e.offset, header.size()+2, 0);
+                seqWriter.writeIndexEntry(id, e.offset + header.size(), e.sequence.l+2, 0);
+            }else{
+                hdrWriter.writeData(header.c_str(), header.length(), id, splitIdx);
+                seqWriter.writeStart(splitIdx);
+                seqWriter.writeAdd(e.sequence.s, e.sequence.l, splitIdx);
+                seqWriter.writeAdd(&newline, 1, splitIdx);
+                seqWriter.writeEnd(id, splitIdx, true);
+            }
+
+            entries_num++;
+            numEntriesInCurrFile++;
+            count++;
             header.clear();
         }
         delete kseq;
@@ -268,7 +237,14 @@ int createdb(int argc, const char **argv, const Command& command) {
     // fix ids
     DBWriter::createRenumberedDB(dataFile, indexFile, "", DBReader<unsigned int>::LINEAR_ACCCESS);
     DBWriter::createRenumberedDB(hdrDataFile, hdrIndexFile, "", DBReader<unsigned int>::LINEAR_ACCCESS);
-
+    if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
+        for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
+            if(par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT){
+                FileUtil::symlinkAbs(filenames[0], dataFile+"."+SSTR(fileIdx));
+                FileUtil::symlinkAbs(filenames[0], hdrDataFile+"."+SSTR(fileIdx));
+            }
+        }
+    }
     DBReader<unsigned int> readerHeader(hdrDataFile.c_str(), hdrIndexFile.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
     readerHeader.open(DBReader<unsigned int>::NOSORT);
 

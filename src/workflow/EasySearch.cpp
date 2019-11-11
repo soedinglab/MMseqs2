@@ -18,7 +18,7 @@ void setEasySearchDefaults(Parameters *p, bool linsearch) {
 }
 void setEasySearchMustPassAlong(Parameters *p, bool linsearch) {
     if (linsearch) {
-        p->PARAM_DONT_SHUFFLE.wasSet = true;
+        p->PARAM_SHUFFLE.wasSet = true;
     }
     p->PARAM_S.wasSet = true;
     p->PARAM_REMOVE_TMP_FILES.wasSet = true;
@@ -107,6 +107,8 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
 
     cmd.addVariable("RUNNER", par.runner.c_str());
 
+    cmd.addVariable("CREATEDB_QUERY_PAR", par.createParameterString(par.createdb).c_str());
+    par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
     cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb).c_str());
     cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());
     cmd.addVariable("SUMMARIZE_PAR", par.createParameterString(par.summarizeresult).c_str());
