@@ -7,7 +7,7 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 
 [Steinegger M and Soeding J. Clustering huge protein sequence sets in linear time. Nature Communications, doi: 10.1038/s41467-018-04964-5 (2018)](https://www.nature.com/articles/s41467-018-04964-5).
 
-[Mirdita M, Steinegger M and Soeding J. MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, doi: 10.1093/bioinformatics/bty1057 (2019)](https://academic.oup.com/bioinformatics/article/35/16/2856/5280135)
+[Mirdita M, Steinegger M and Soeding J. MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, doi: 10.1093/bioinformatics/bty1057 (2019)](https://academic.oup.com/bioinformatics/article/35/16/2856/5280135).
 
 [![BioConda Install](https://img.shields.io/conda/dn/bioconda/mmseqs2.svg?style=flag&label=BioConda%20install)](https://anaconda.org/bioconda/mmseqs2)
 [![Github All Releases](https://img.shields.io/github/downloads/soedinglab/mmseqs2/total.svg)](https://github.com/soedinglab/mmseqs2/releases/latest)
@@ -20,7 +20,7 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 
 
 ## Documentation
-The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). We provide a tutorial of MMseqs2 [here](https://github.com/soedinglab/metaG-ECCB18-partII).
+The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). The wiki also contains [tutorials](https://github.com/soedinglab/MMseqs2/wiki/Tutorials) to learn how to use MMseqs2 with real data.
 
 Keep posted about MMseqs2/Linclust updates by following Martin on [Twitter](https://twitter.com/thesteinegger).
 
@@ -61,10 +61,7 @@ Compiling MMseqs2 from source has the advantage that it will be optimized to the
         make install
         export PATH=$(pwd)/bin/:$PATH
 
-:exclamation: To compile MMseqs2 on MacOS, first install the `gcc` compiler from Homebrew. The default MacOS `clang` compiler does not support OpenMP and MMseqs2 will only be able to use a single thread. Then use the following `cmake` call:
-
-        CC="$(brew --prefix)/bin/gcc-9" CXX="$(brew --prefix)/bin/g++-9" cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=. ..
-                
+:exclamation: Compiling MMseqs2 correctly on macOS requires [more effort](https://github.com/soedinglab/MMseqs2/wiki#compile-from-source-under-macos).
 
 ## Getting started
 We provide `easy` workflows to cluster, search and assign taxonomy. These `easy` workflows are a shorthand to deal directly with FASTA/FASTQ files as input and output. MMseqs2 provides many modules to transform, filter, execute external programs and search. However, these modules use the MMseqs2 database formats, instead of the FASTA/FASTQ format. For maximum flexibility, we recommend using MMseqs2 workflows and modules directly. Please read more about this in the [documentation](https://github.com/soedinglab/mmseqs2/wiki).
@@ -81,7 +78,7 @@ For clustering, MMseqs2 `easy-cluster` and `easy-linclust` are available.
                 
         mmseqs easy-linclust examples/DB.fasta clusterRes tmp     
                 
-Sequence identity is in default [estimated](https://github.com/soedinglab/MMseqs2/wiki#how-does-mmseqs2-compute-the-sequence-identity) to output real sequence identity use `--alignment-mode 3`.
+Sequence identity is by default [estimated](https://github.com/soedinglab/MMseqs2/wiki#how-does-mmseqs2-compute-the-sequence-identity) to output real sequence identity use `--alignment-mode 3`.
 Read more about the [clustering format](https://github.com/soedinglab/mmseqs2/wiki#clustering-format) in our user guide.
                 
 Please adjust the [clustering criteria](https://github.com/soedinglab/MMseqs2/wiki#clustering-criteria) and check if temporary directory provides enough free space. For disk space requirements, see the user guide.
