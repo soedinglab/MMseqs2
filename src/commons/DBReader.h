@@ -58,13 +58,12 @@ public:
         size_t offset;
         unsigned int length;
         static bool compareById(const Index& x, const Index& y){
-            return (x.id <= y.id);
+            return (x.id < y.id);
         }
         static bool compareByOffset(const Index& x, const Index& y){
-            return (x.offset <= y.offset);
+            return (x.offset < y.offset);
         }
     };
-
 
     struct LookupEntry {
         T id;
@@ -72,7 +71,7 @@ public:
         unsigned int fileNumber;
 
         static bool compareById(const LookupEntry& x, const LookupEntry& y){
-            return (x.id <= y.id);
+            return (x.id < y.id);
         }
         static bool compareByAccession(const LookupEntry& x, const LookupEntry& y){
             return x.entryName.compare(y.entryName);
