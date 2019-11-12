@@ -478,7 +478,7 @@ template <typename T> size_t DBReader<T>::bsearch(const Index * index, size_t N,
 {
     Index val;
     val.id = value;
-    return std::upper_bound(index, index + N, val, Index::compareById) - index;
+    return std::upper_bound(index, index + N, val, Index::compareByIdOnly) - index;
 }
 
 template <typename T> char* DBReader<T>::getDataCompressed(size_t id, int thrIdx) {
@@ -614,7 +614,7 @@ template <typename T> size_t DBReader<T>::getLookupIdByKey(T dbKey) {
     }
     LookupEntry val;
     val.id = dbKey;
-    size_t id = std::upper_bound(lookup, lookup + lookupSize, val, LookupEntry::compareById) - lookup;
+    size_t id = std::upper_bound(lookup, lookup + lookupSize, val, LookupEntry::compareByIdOnly) - lookup;
 
     return (id < lookupSize && lookup[id].id == dbKey) ? id : SIZE_MAX;
 }
