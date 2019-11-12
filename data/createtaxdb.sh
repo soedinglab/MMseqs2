@@ -59,7 +59,7 @@ if [ -n "$REMOVE_TMP" ]; then
    rm -f "${TMP_PATH}/names.dmp" "${TMP_PATH}/nodes.dmp" "${TMP_PATH}/merged.dmp" "${TMP_PATH}/delnodes.dmp"
    rm -f "${TMP_PATH}/taxidmapping"
    if [ "$DOWNLOAD_DATA" -eq "1" ]; then
-      rm -f "${TMP_PATH}/ncbi_download.complete" "${TMP_PATH}/targetDB_mapping.complete"
+      rm -f "${TMP_PATH}/ncbi_download.complete" "${TMP_PATH}/mapping_download.complete"
    fi
    rm -f "${TMP_PATH}/targetDB_mapping.complete"
    rm -f "${TMP_PATH}/targetDB_mapping"
