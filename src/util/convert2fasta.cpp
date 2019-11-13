@@ -45,7 +45,7 @@ int convert2fasta(int argc, const char **argv, const Command& command) {
         const size_t headerLen = db_header.getEntryLen(headerKey);
 
         fwrite(headerStart, sizeof(char), 1, fastaFP);
-        fwrite(headerData, sizeof(char), headerLen - 3, fastaFP);
+        fwrite(headerData, sizeof(char), headerLen - 2, fastaFP);
         fwrite(newline, sizeof(char), 1, fastaFP);
 
         unsigned int bodyKey = db.getId(key);
