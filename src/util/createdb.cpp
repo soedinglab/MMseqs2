@@ -185,7 +185,8 @@ int createdb(int argc, const char **argv, const Command& command) {
                     par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
                     redoComp = true;
                 }
-                if(redoComp){
+                if (redoComp) {
+                    progress.reset(SIZE_MAX);
                     hdrWriter.close();
                     seqWriter.close();
                     delete kseq;
