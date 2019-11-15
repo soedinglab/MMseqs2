@@ -69,12 +69,17 @@ int createdb(int argc, const char **argv, const Command& command) {
     }
 
     std::string indexFile = dataFile + ".index";
-    if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.shuffleDatabase){
+    if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.shuffleDatabase) {
         Debug(Debug::WARNING) << "Shuffle database can not be combined with --createdb-mode 0.\n";
-        Debug(Debug::WARNING) << "We recompute with --dont-shuffle 1.\n";
+        Debug(Debug::WARNING) << "We recompute with --shuffle 0.\n";
         par.shuffleDatabase = false;
     }
     const unsigned int shuffleSplits = par.shuffleDatabase ? 32 : 1;
+    if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.compressed) {
+        Debug(Debug::WARNING) << "Compressed database can not be combined with --createdb-mode 0.\n";
+        Debug(Debug::WARNING) << "We recompute with --compressed 0.\n";
+        par.compressed = 0;
+    }
 
     std::string hdrDataFile = dataFile + "_h";
     std::string hdrIndexFile = dataFile + "_h.index";
