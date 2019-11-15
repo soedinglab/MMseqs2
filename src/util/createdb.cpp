@@ -92,8 +92,6 @@ int createdb(int argc, const char **argv, const Command& command) {
 
     const size_t testForNucSequence = 100;
     size_t isNuclCnt = 0;
-    std::string dataStr;
-    dataStr.reserve(1000000);
     Debug::Progress progress;
     std::vector<unsigned short>* sourceLookup = new std::vector<unsigned short>[shuffleSplits]();
     for (size_t i = 0; i < shuffleSplits; ++i) {
