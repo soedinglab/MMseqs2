@@ -100,12 +100,12 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf
 
             Orf::SequenceLocation tloc = Orf::parseOrfHeader(header);
             res.dbKey   = (tloc.id != UINT_MAX) ? tloc.id : res.dbKey;
-            size_t from = (tloc.id != UINT_MAX) ? tloc.from : (tloc.strand == Orf::STRAND_MINUS) ? 0 : res.dbLen - 1;
+            size_t from = (tloc.id != UINT_MAX) ? tloc.from : (tloc.strand == Orf::STRAND_MINUS) ? res.dbLen - 1 : 0;
 
             int dbStartPos = isNucleotideSearch ? res.dbStartPos : res.dbStartPos * 3;
             int dbEndPos   = isNucleotideSearch ? res.dbEndPos : res.dbEndPos * 3;
 
-            if (tloc.strand == Orf::STRAND_MINUS && tloc.id != UINT_MAX) {
+            if (tloc.strand == Orf::STRAND_MINUS) {
                 res.dbStartPos = from - dbStartPos;
                 res.dbEndPos   = from - dbEndPos;
                 // account for last orf
