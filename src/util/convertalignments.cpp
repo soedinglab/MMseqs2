@@ -10,6 +10,7 @@
 #include "Sequence.h"
 #include "Orf.h"
 #include "MemoryMapped.h"
+#include "NcbiTaxonomy.h"
 
 #include <map>
 
@@ -133,6 +134,9 @@ std::map<unsigned int, std::string> readSetToSource(const std::string& file) {
     return mapping;
 }
 
+static bool compareToFirstInt(const std::pair<unsigned int, unsigned int>& lhs, const std::pair<unsigned int, unsigned int>&  rhs){
+    return (lhs.first <= rhs.first);
+}
 
 int convertalignments(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
@@ -147,11 +151,31 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     bool needFullHeaders = false;
     bool needLookup = false;
     bool needSource = false;
-    const std::vector<int> outcodes = Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders, needLookup, needSource);
+    bool needTaxonomy = false;
+    bool needTaxonomyMapping = false;
+    const std::vector<int> outcodes = Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders,
+                                                                  needLookup, needSource, needTaxonomyMapping, needTaxonomy);
     if(format == Parameters::FORMAT_ALIGNMENT_SAM){
         needSequenceDB = true;
         needBacktrace = true;
     }
+
+    NcbiTaxonomy * t = NULL;
+    std::vector<std::pair<unsigned int, unsigned int>> mapping;
+    if(needTaxonomy){
+        t = NcbiTaxonomy::openTaxonomy(par.db2);
+    }
+    if(needTaxonomy || needTaxonomyMapping){
+        if(FileUtil::fileExists(std::string(par.db2 + "_mapping").c_str()) == false){
+            Debug(Debug::ERROR) << par.db2 + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        bool isSorted = Util::readMapping( par.db2 + "_mapping", mapping);
+        if(isSorted == false){
+            std::stable_sort(mapping.begin(), mapping.end(), compareToFirstInt);
+        }
+    }
+
     bool isTranslatedSearch = false;
 
     int dbaccessMode = needSequenceDB ? (DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA) : (DBReader<unsigned int>::USE_INDEX);
@@ -309,6 +333,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         std::string newBacktrace;
         newBacktrace.reserve(1024);
 
+        const TaxonNode * taxonNode;
 
 #pragma omp  for schedule(dynamic, 10)
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
@@ -411,6 +436,24 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         } else {
                             char *targetSeqData = NULL;
                             targetProfData.clear();
+                            unsigned int taxon = 0;
+
+                            if(needTaxonomy || needTaxonomyMapping) {
+                                std::pair<unsigned int, unsigned int> val;
+                                val.first = res.dbKey;
+                                std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
+                                mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
+                                if (mappingIt == mapping.end() || mappingIt->first != val.first) {
+                                    taxon = 0;
+                                }else{
+                                    taxon = mappingIt->second;
+                                    if(needTaxonomy){
+                                        taxonNode = t->taxonNode(taxon, false);
+                                    }
+                                }
+
+                            }
+
                             if (needSequenceDB) {
                                 size_t tId = tDbr->sequenceReader->getId(res.dbKey);
                                 targetSeqData = tDbr->sequenceReader->getData(tId, thread_idx);
@@ -539,6 +582,15 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                     case Parameters::OUTFMT_TSETID:
                                         result.append(SSTR(tKeyToSet[res.dbKey]));
                                         break;
+                                    case Parameters::OUTFMT_TAXID:
+                                        result.append(SSTR(taxon));
+                                        break;
+                                    case Parameters::OUTFMT_TAXNAME:
+                                        result.append((taxonNode != NULL) ? taxonNode->name : "unclassified");
+                                        break;
+                                    case Parameters::OUTFMT_TAXLIN:
+                                        result.append((taxonNode != NULL) ? t->taxLineage(taxonNode) : "unclassified");
+                                        break;
                                     case Parameters::OUTFMT_EMPTY:
                                         result.push_back('-');
                                         break;
@@ -644,7 +696,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     if (isDb == false) {
         FileUtil::remove(par.db4Index.c_str());
     }
-
+    if(needTaxonomy){
+        delete t;
+    }
     alnDbr.close();
     if (sameDB == false) {
         delete tDbr;

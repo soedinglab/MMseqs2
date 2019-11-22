@@ -87,7 +87,7 @@ Parameters::Parameters():
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "0: HMM (HHsuite) 1: PSSM or 2: HMMER3",typeid(int),(void *) &profileMode,  "^[0-2]{1}$"),
         // convertalignments
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment format", "Output format 0: BLAST-TAB, 1: SAM, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
-        PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID,"--format-output", "Format alignment output", "Choose output columns 'query,target,evalue,gapopen,pident,nident,qstart,qend,qlen,tstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov,qset,qsetid,tset,tsetid'", typeid(std::string), (void*) &outfmt, ""),
+        PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID,"--format-output", "Format alignment output", "Choose output columns 'query,target,evalue,gapopen,pident,nident,qstart,qend,qlen,tstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov,qset,qsetid,tset,tsetid,taxid,taxname,taxlineage'", typeid(std::string), (void*) &outfmt, ""),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database output", "Output a result db instead of a text file", typeid(bool), (void*) &dbOut, "", MMseqsParameter::COMMAND_EXPERT),
         // --include-only-extendablediagonal
         PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "Rescore diagonal with: 0: Hamming distance, 1: local alignment (score only), 2: local alignment, 3: global alignment or 4: longest alignment fullfilling window quality criterion", typeid(int), (void *) &rescoreMode, "^[0-4]{1}$"),
@@ -1557,6 +1557,29 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
     }
 }
 
+void Parameters::checkIfTaxDbIsComplete(std::string & filename){
+        if (FileUtil::fileExists((filename + "_mapping").c_str()) == false) {
+            Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
+                                << "The " << filename << "_mapping is missing.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (FileUtil::fileExists((filename + "_nodes.dmp").c_str()) == false) {
+            Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
+                                << "The " << filename << "_nodes.dmp is missing.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (FileUtil::fileExists((filename + "_names.dmp").c_str()) == false) {
+            Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
+                                << "The " << filename << "_names.dmp is missing.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (FileUtil::fileExists((filename + "_merged.dmp").c_str()) == false) {
+            Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
+                                << "The " << filename << "_merged.dmp is missing.\n";
+            EXIT(EXIT_FAILURE);
+        }
+}
+
 void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar, bool isEndVar) {
     size_t fileIdx = 0;
     for (size_t dbIdx = 0; dbIdx < command.databases.size(); dbIdx++) {
@@ -1593,26 +1616,7 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
                     }
                 }
                 if (db.specialType & DbType::NEED_TAXONOMY) {
-                    if (FileUtil::fileExists((filenames[fileIdx] + "_mapping").c_str()) == false) {
-                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " need taxonomical information.\n"
-                                            << "The " << filenames[fileIdx] << "_mapping is missing.\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    if (FileUtil::fileExists((filenames[fileIdx] + "_nodes.dmp").c_str()) == false) {
-                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " need taxonomical information.\n"
-                                            << "The " << filenames[fileIdx] << "_nodes.dmp is missing.\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    if (FileUtil::fileExists((filenames[fileIdx] + "_names.dmp").c_str()) == false) {
-                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " need taxonomical information.\n"
-                                            << "The " << filenames[fileIdx] << "_names.dmp is missing.\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    if (FileUtil::fileExists((filenames[fileIdx] + "_merged.dmp").c_str()) == false) {
-                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " need taxonomical information.\n"
-                                            << "The " << filenames[fileIdx] << "_merged.dmp is missing.\n";
-                        EXIT(EXIT_FAILURE);
-                    }
+                    checkIfTaxDbIsComplete(filenames[fileIdx]);
                 }
                 if (db.specialType & DbType::NEED_LOOKUP) {
                     if (FileUtil::fileExists((filenames[fileIdx] + ".lookup").c_str()) == false) {
@@ -2137,7 +2141,8 @@ void Parameters::overrideParameterDescription(Command &command, const int uid,
 
 }
 
-std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders, bool &needLookup, bool &needSource) {
+std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
+                                             bool &needLookup, bool &needSource, bool &needTaxonomyMapping, bool &needTaxonomy) {
     std::vector<std::string> outformatSplit = Util::split(outformat, ",");
     std::vector<int> formatCodes;
     int code = 0;
@@ -2173,6 +2178,9 @@ std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool 
         else if (outformatSplit[i].compare("qsetid") == 0){ needLookup = true; needSource = true; code = Parameters::OUTFMT_QSETID;}
         else if (outformatSplit[i].compare("tset") == 0){ needLookup = true; code = Parameters::OUTFMT_TSET;}
         else if (outformatSplit[i].compare("tsetid") == 0){ needLookup = true; needSource = true; code = Parameters::OUTFMT_TSETID;}
+        else if (outformatSplit[i].compare("taxid") == 0){ needTaxonomyMapping = true; code = Parameters::OUTFMT_TAXID;}
+        else if (outformatSplit[i].compare("taxname") == 0){ needTaxonomyMapping = true; needTaxonomy = true; code = Parameters::OUTFMT_TAXNAME;}
+        else if (outformatSplit[i].compare("taxlineage") == 0){ needTaxonomyMapping = true; needTaxonomy = true; code = Parameters::OUTFMT_TAXLIN;}
         else if (outformatSplit[i].compare("empty") == 0){ code = Parameters::OUTFMT_EMPTY;}
         else {
             Debug(Debug::ERROR) << "Format code " << outformatSplit[i] << " does not exist.";

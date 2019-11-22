@@ -53,13 +53,18 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     setEasySearchMustPassAlong(&par, linsearch);
 
     bool needBacktrace = false;
+    bool needTaxonomy = false;
+    bool needTaxonomyMapping = false;
+
     {
         bool needSequenceDB = false;
         bool needFullHeaders = false;
         bool needLookup = false;
         bool needSource = false;
-        Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders, needLookup, needSource);
+        Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders,
+                needLookup, needSource, needTaxonomyMapping, needTaxonomy);
     }
+
     if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM || par.greedyBestHits) {
         needBacktrace = true;
     }
@@ -84,6 +89,10 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     std::string target = par.filenames.back().c_str();
     cmd.addVariable("TARGET", target.c_str());
     par.filenames.pop_back();
+
+    if(needTaxonomy || needTaxonomyMapping){
+        Parameters::checkIfTaxDbIsComplete(target);
+    }
 
     if (linsearch) {
         const bool isIndex = LinsearchIndexReader::searchForIndex(target).empty() == false;

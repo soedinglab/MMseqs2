@@ -135,8 +135,13 @@ public:
     static const int OUTFMT_QSETID = 29;
     static const int OUTFMT_TSET = 30;
     static const int OUTFMT_TSETID = 31;
+    static const int OUTFMT_TAXID = 32;
+    static const int OUTFMT_TAXNAME = 33;
+    static const int OUTFMT_TAXLIN = 34;
 
-    static std::vector<int> getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders, bool &needLookup, bool &needSource);
+
+    static std::vector<int> getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
+                                            bool &needLookup, bool &needSource, bool &needTaxonomyMapping, bool &needTaxonomy);
 
     // convertprofiledb
     static const int PROFILE_MODE_HMM = 0;
@@ -974,6 +979,8 @@ public:
     std::string createParameterString(const std::vector<MMseqsParameter*> &vector, bool wasSet = false);
 
     void overrideParameterDescription(Command& command, int uid, const char* description, const char* regex = NULL, int category = 0);
+
+    static void checkIfTaxDbIsComplete(std::string & filename);
 
     static bool isEqualDbtype(const int type1, const int type2) {
         return ((type1 & 0x3FFFFFFF) == (type2 & 0x3FFFFFFF));
