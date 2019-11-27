@@ -22,6 +22,7 @@ set(COMPILED_RESOURCES
         enrich.sh
         blastn.sh
         VTML80.out
+        VTML40.out
         nucleotide.out
         blosum62.out
         PAM30.out
