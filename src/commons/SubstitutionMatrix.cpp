@@ -6,6 +6,7 @@
 #include "blosum62.out.h"
 #include "PAM30.out.h"
 #include "VTML80.out.h"
+#include "VTML40.out.h"
 
 #include "nucleotide.out.h"
 
@@ -26,6 +27,9 @@ SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, fl
     } else if (strcmp(parsedMatrix.first.c_str(), "VTML80.out") == 0) {
         matrixData = std::string((const char *)VTML80_out, VTML80_out_len);
         matrixName = "VTML80.out";
+    } else if (strcmp(parsedMatrix.first.c_str(), "VTML40.out") == 0) {
+        matrixData = std::string((const char *)VTML40_out, VTML40_out_len);
+        matrixName = "VTML40.out";
     } else if (strcmp(parsedMatrix.first.c_str(), "PAM30.out") == 0) {
         matrixData = std::string((const char *)PAM30_out, PAM30_out_len);
         matrixName = "PAM30.out";
