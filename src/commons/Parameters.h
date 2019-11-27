@@ -6,6 +6,7 @@
 #define MMSEQS_PARAMETERS
 #include <string>
 #include <vector>
+#include <map>
 #include <typeinfo>
 #include <cstddef>
 #include <utility>
@@ -579,6 +580,9 @@ public:
 
     // createsubdb
     int subDbMode;
+
+    // tool citations
+    std::map<unsigned int, const char*> citations;
 
     static Parameters& getInstance()
     {

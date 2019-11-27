@@ -3,12 +3,16 @@
 
 #include <vector>
 
-const int CITATION_MMSEQS2  = 1 << 0;
-const int CITATION_MMSEQS1  = 1 << 1;
-const int CITATION_UNICLUST = 1 << 2;
-const int CITATION_LINCLUST = 1 << 3;
-const int CITATION_PLASS    = 1 << 4;
-const int CITATION_SERVER   = 1 << 5;
+const unsigned int CITATION_MMSEQS2  = 1 << 0;
+const unsigned int CITATION_MMSEQS1  = 1 << 1;
+const unsigned int CITATION_UNICLUST = 1 << 2;
+const unsigned int CITATION_LINCLUST = 1 << 3;
+const unsigned int CITATION_PLASS    = 1 << 4;
+const unsigned int CITATION_SERVER   = 1 << 5;
+
+// Make sure this is always the last bit
+// citations from inheriting tools will start from here
+const unsigned int CITATION_END      = CITATION_SERVER << 1;
 
 struct MMseqsParameter;
 
@@ -77,7 +81,7 @@ struct Command {
     const char *longDescription;
     const char *author;
     const char *usage;
-    int citations;
+    unsigned int citations;
     std::vector<DbType> databases;
 };
 
