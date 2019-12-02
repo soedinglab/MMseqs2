@@ -23,7 +23,7 @@ if [ "$DOWNLOAD_NCBITAXDUMP" -eq "1" ]; then
     # Download NCBI taxon information
     if notExists "$4/ncbi_download.complete"; then
         echo "Download taxdump.tar.gz"
-            wget -nv -O - "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz" \
+            wget -nv -O - "https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz" \
            | tar -C "${TMP_PATH}" -xzf - names.dmp nodes.dmp merged.dmp delnodes.dmp
         touch "${TMP_PATH}/ncbi_download.complete"
     fi
@@ -33,7 +33,7 @@ if [ "$DOWNLOAD_MAPPING" -eq "1" ]; then
     # Download the latest UniProt ID mapping to extract taxon identifiers
     if notExists "${TMP_PATH}/mapping_download.complete"; then
         echo "Download idmapping.dat.gz"
-        URL="ftp://ftp.expasy.org/databases/uniprot/current_release/knowledgebase/idmapping/idmapping.dat.gz"
+        URL="https://ftp.expasy.org/databases/uniprot/current_release/knowledgebase/idmapping/idmapping.dat.gz"
         wget -nv -O - "$URL" | zcat | awk '$2 == "NCBI_TaxID" {print $1"\t"$3 }' > "${TMP_PATH}/taxidmapping"
         touch "${TMP_PATH}/mapping_download.complete"
     fi
