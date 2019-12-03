@@ -23,8 +23,6 @@
 #define SORT_ENTRIES          5
 #define BEATS_FIRST           6
 #define JOIN_DB               7
-#define COMPUTE_POSITIONS     8
-#define TRANSITIVE_REPLACE    9
 #define EXPRESSION_FILTERING 10
 
 #define GREATER_OR_EQUAL   "ge"
@@ -88,7 +86,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
     // FILE_MAPPING
     std::vector<std::pair<std::string, std::string>> mapping;
 
-    // JOIN_DB/COMPUTE_POSITIONS/TRANSITIVE_REPLACE
+    // JOIN_DB
     DBReader<unsigned int>* helper = NULL;
 
     // EXPRESSION_FILTERING
@@ -160,20 +158,8 @@ int filterdb(int argc, const char **argv, const Command &command) {
         std::string joinIndex = par.joinDB + ".index";
         helper = new DBReader<unsigned int>(par.joinDB.c_str(), joinIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         helper->open(DBReader<unsigned int>::NOSORT);
-        Debug(Debug::INFO) << "Joining targets to query database\n";
-    } else if (!par.compPos.empty()) {
-        mode = COMPUTE_POSITIONS;
-        std::string swapIndex = par.compPos + ".index";
-        helper = new DBReader<unsigned int>(par.compPos.c_str(), swapIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        helper->open(DBReader<unsigned int>::NOSORT);
-        Debug(Debug::INFO) << "Swapping fields\n";
-    } else if (!par.clusterFile.empty()) {
-        mode = TRANSITIVE_REPLACE;
-        std::string clusterIndex = par.clusterFile + ".index";
-        helper = new DBReader<unsigned int>(par.clusterFile.c_str(), clusterIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        helper->open(DBReader<unsigned int>::NOSORT);
-        Debug(Debug::INFO)<< "Replacing target Field by clusters Genes\n";
-    } else if (par.beatsFirst) {
+        Debug(Debug::INFO) << "Joining databases by column value\n";
+    } else if (par.beatsFirst == true) {
         mode = BEATS_FIRST;
         Debug(Debug::INFO) << "Filtering by numerical comparison to first row\n";
     } else if (par.compOperator.empty() == false) {
@@ -327,87 +313,6 @@ int filterdb(int argc, const char **argv, const Command &command) {
                         // Appending join database entry to query database entry
                         memcpy(lineBuffer + originalLength, newValue, valueLength);
                     }
-                } else if (mode == TRANSITIVE_REPLACE) {
-                    std::string singleGene;
-
-                    char *newLineBuffer = new char[LINE_BUFFER_SIZE];
-                    size_t newLineBufferIndex = 0;
-                    char *endLine = lineBuffer + dataLength;
-                    *newLineBuffer = '\0';
-
-                    for (size_t i = 0; i < dataLength; i++) {
-                        if (lineBuffer[i] == '\n' || lineBuffer[i] == '\0') {
-                            endLine = lineBuffer + i;
-                            break;
-                        }
-                    }
-                    size_t fieldLength = Util::skipNoneWhitespace(columnPointer[column - 1]);
-
-                    char *clusterGenes = helper->getDataByDBKey(Util::fast_atoi<unsigned int>(columnValue), thread_idx);
-                    std::stringstream stringstreamClusterGenes(clusterGenes);
-                    while (std::getline(stringstreamClusterGenes, singleGene)) {
-                        if (!singleGene.empty()) {
-                            // copy the previous columns
-                            memcpy(newLineBuffer + newLineBufferIndex, lineBuffer,
-                                   columnPointer[column - 1] - columnPointer[0]);
-                            newLineBufferIndex += columnPointer[column - 1] - columnPointer[0];
-
-                            // map the current column value
-                            memcpy(newLineBuffer + newLineBufferIndex, singleGene.c_str(), singleGene.length());
-                            newLineBufferIndex += singleGene.length();
-
-                            // copy the next columns
-                            if (foundElements > column) {
-                                memcpy(newLineBuffer + newLineBufferIndex, columnPointer[column - 1] + fieldLength,
-                                       endLine - (columnPointer[column - 1] + fieldLength));
-                                newLineBufferIndex += endLine - (columnPointer[column - 1] + fieldLength);
-                            } else {
-                                newLineBuffer[newLineBufferIndex++] = '\n';
-                            }
-
-                            if (newLineBuffer[newLineBufferIndex - 1] != '\n') {
-                                newLineBuffer[newLineBufferIndex++] = '\n';
-                            }
-
-                            newLineBuffer[newLineBufferIndex] = '\0';
-                        }
-                    }
-
-                    if (!nomatch) {
-                        memcpy(lineBuffer, newLineBuffer, newLineBufferIndex + 1);
-                    }
-                    delete[] newLineBuffer;
-                } else if (mode == COMPUTE_POSITIONS) {
-                    // Optimise it
-                    std::vector<std::string> splittedOriginalLine = Util::split(lineBuffer, "\t");
-                    char *lineWithNewFields = helper->getDataByDBKey(static_cast<unsigned int>(strtoul(columnValue, NULL, 10)), thread_idx);
-                    std::vector<std::string> splittedLineWithNewFields = Util::split(lineWithNewFields, "\t");
-
-                    unsigned long posStart = std::stoul(splittedOriginalLine[7].c_str()) * 3;
-                    unsigned long posStop = std::stoul(splittedOriginalLine[8].c_str()) * 3;
-
-                    if (posStart < posStop) {
-                        unsigned long startPosHitOnGenome =
-                                std::stoul(splittedLineWithNewFields[7].c_str(), NULL) + posStart;
-                        unsigned long endPosHitOnGenome =
-                                std::stoul(splittedLineWithNewFields[7].c_str(), NULL) + posStop;
-                        splittedOriginalLine.insert(splittedOriginalLine.begin() + 8, std::to_string(startPosHitOnGenome) + "\t");
-                        splittedOriginalLine.insert(splittedOriginalLine.begin() + 10, std::to_string(endPosHitOnGenome) + "\t");
-                    } else {
-                        unsigned long startPosHitOnGenome =
-                                std::stoul(splittedLineWithNewFields[7].c_str(), NULL) - posStart;
-                        unsigned long endPosHitOnGenome =
-                                std::stoul(splittedLineWithNewFields[7].c_str(), NULL) - posStop;
-                        splittedOriginalLine.insert(splittedOriginalLine.begin() + 8, std::to_string(startPosHitOnGenome) + "\t");
-                        splittedOriginalLine.insert(splittedOriginalLine.begin() + 10, std::to_string(endPosHitOnGenome) + "\t");
-                    }
-                    std::string tempBuffer = "";
-                    for (std::vector<std::string>::const_iterator i = splittedOriginalLine.begin(); i != splittedOriginalLine.end(); ++i) {
-                        tempBuffer.append(*i);
-                        tempBuffer.append("\t");
-                    }
-                    tempBuffer.append("\n");
-                    strcpy(lineBuffer, tempBuffer.c_str());
                 } else if (mode == BEATS_FIRST) {
                     if (counter == 1) {
                         referenceValue = strtod(columnValue, NULL);

@@ -200,8 +200,6 @@ Parameters::Parameters():
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0: no sorting, 1: increasing, 2: decreasing, 3: random shuffle.", typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
         PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry.", typeid(bool), (void*) &beatsFirst, ""),
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db","join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void*) &joinDB, ""),
-        PARAM_COMPUTE_POSITIONS(PARAM_COMPUTE_POSITIONS_ID, "--compute-positions", "Compute positions", "Add the positions of he hit on the target genome", typeid(std::string), (void*) &compPos, ""),
-        PARAM_TRANSITIVE_REPLACE(PARAM_TRANSITIVE_REPLACE_ID, "--transitive-replace", "Replace transitively", "Replace cluster name in a search file by all genes in this cluster", typeid(std::string), (void*) &clusterFile, ""),
         // besthitperset
         PARAM_SIMPLE_BEST_HIT(PARAM_SIMPLE_BEST_HIT_ID, "--simple-best-hit", "Use simple best hit", "Update the p-value by a single best hit, or by best and second best hits", typeid(bool), (void*) &simpleBestHit, ""),
         PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining p-values during aggregation", typeid(float), (void*) &alpha, ""),
@@ -703,8 +701,6 @@ Parameters::Parameters():
     filterDb.push_back(&PARAM_FILTER_FILE);
     filterDb.push_back(&PARAM_BEATS_FIRST);
     filterDb.push_back(&PARAM_MAPPING_FILE);
-    filterDb.push_back(&PARAM_THREADS);
-    filterDb.push_back(&PARAM_V);
     filterDb.push_back(&PARAM_TRIM_TO_ONE_COL);
     filterDb.push_back(&PARAM_EXTRACT_LINES);
     filterDb.push_back(&PARAM_COMP_OPERATOR);
@@ -712,9 +708,9 @@ Parameters::Parameters():
     filterDb.push_back(&PARAM_SORT_ENTRIES);
     filterDb.push_back(&PARAM_INCLUDE_IDENTITY);
     filterDb.push_back(&PARAM_JOIN_DB);
-    filterDb.push_back(&PARAM_COMPUTE_POSITIONS);
+    filterDb.push_back(&PARAM_THREADS);
     filterDb.push_back(&PARAM_COMPRESSED);
-    filterDb.push_back(&PARAM_TRANSITIVE_REPLACE);
+    filterDb.push_back(&PARAM_V);
 
     // besthitperset
     besthitbyset.push_back(&PARAM_SIMPLE_BEST_HIT);

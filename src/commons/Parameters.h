@@ -507,8 +507,6 @@ public:
     int sortEntries;
     bool beatsFirst;
     std::string joinDB;
-    std::string compPos ;
-    std::string clusterFile ;
 
     // besthitperset
     bool simpleBestHit;
@@ -810,8 +808,6 @@ public:
     PARAMETER(PARAM_SORT_ENTRIES)
     PARAMETER(PARAM_BEATS_FIRST)
     PARAMETER(PARAM_JOIN_DB)
-    PARAMETER(PARAM_COMPUTE_POSITIONS)
-    PARAMETER(PARAM_TRANSITIVE_REPLACE)
 
     //besthitperset
     PARAMETER(PARAM_SIMPLE_BEST_HIT)
