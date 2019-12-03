@@ -1590,7 +1590,7 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
                 std::string dbTypeFile = std::string(filenames[fileIdx]) + ".dbtype";
                 // check if file exists
                 // if file is not a
-                if (FileUtil::fileExists((filenames[fileIdx]).c_str()) == false && FileUtil::fileExists(dbTypeFile.c_str()) == false ) {
+                if (FileUtil::fileExists((filenames[fileIdx]).c_str()) == false && FileUtil::fileExists(dbTypeFile.c_str()) == false && filenames[fileIdx] != "stdin" ) {
                     Debug(Debug::ERROR) << "Input " << filenames[fileIdx] << " does not exist.\n";
                     EXIT(EXIT_FAILURE);
                 }
@@ -1615,7 +1615,9 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
                 bool dbtypeFound = false;
                 for (size_t i = 0; i < db.validator->size() && dbtypeFound == false; i++) {
                     int validatorDbtype = db.validator->at(i);
-                    if (validatorDbtype == Parameters::DBTYPE_FLATFILE) {
+                    if (validatorDbtype == Parameters::DBTYPE_STDIN) {
+                        dbtypeFound = (filenames[fileIdx] == "stdin");
+                    } else if (validatorDbtype == Parameters::DBTYPE_FLATFILE) {
                         dbtypeFound = (FileUtil::fileExists(filenames[fileIdx].c_str()) == true &&
                                        FileUtil::directoryExists(filenames[fileIdx].c_str()) == false);
                     } else if (validatorDbtype == Parameters::DBTYPE_DIRECTORY) {

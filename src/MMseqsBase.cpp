@@ -10,7 +10,7 @@ std::vector<Command> baseCommands = {
                 "converts a protein sequence flat/gzipped FASTA or FASTQ file to the MMseqs sequence DB format. This format is needed as input to mmseqs search, cluster and many other tools.",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:fastaFile1[.gz]> ... <i:fastaFileN[.gz]> <o:sequenceDB>",
-                CITATION_MMSEQS2, {{"fast[a|q]File[.gz|bz]",  DbType::ACCESS_MODE_INPUT,  DbType::NEED_DATA | DbType::VARIADIC,  &DbValidator::flatfile },
+                CITATION_MMSEQS2, {{"fast[a|q]File[.gz|bz]",  DbType::ACCESS_MODE_INPUT,  DbType::NEED_DATA | DbType::VARIADIC,  &DbValidator::flatfileAndStdin },
                                    {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
         {"easy-search",          easysearch,           &par.easysearchworkflow,   COMMAND_EASY,
                 "Search with a query fasta against target fasta (or database) and return a BLAST-compatible result in a single step",

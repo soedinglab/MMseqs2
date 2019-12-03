@@ -68,6 +68,8 @@ public:
     static const int DBTYPE_DIRECTORY = 16; // needed for verification
     static const int DBTYPE_FLATFILE = 17; // needed for verification
     static const int DBTYPE_SEQTAXDB = 18; // needed for verification
+    static const int DBTYPE_STDIN = 19; // needed for verification
+
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
