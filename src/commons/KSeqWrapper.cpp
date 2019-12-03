@@ -58,7 +58,7 @@ bool KSeqStream::ReadEntry() {
 }
 
 KSeqStream::~KSeqStream() {
-;
+    kseq_destroy((KSEQSTREAM::kseq_t*)seq);
 }
 
 #ifdef HAVE_ZLIB
