@@ -191,7 +191,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         } else {
             dbType = Parameters::DBTYPE_AMINO_ACIDS;
         }
-        seqWriter.writeDbtypeFile((std::string(seqWriter.getDataFileName())+".dbtype").c_str(), dbType ,par.compressed);
+        seqWriter.writeDbtypeFile(seqWriter.getDataFileName(), dbType ,par.compressed);
     }
     Debug(Debug::INFO) << "Database type: " << Parameters::getDbTypeName(dbType) << "\n";
 
