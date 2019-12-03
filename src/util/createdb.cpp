@@ -81,7 +81,7 @@ int createdb(int argc, const char **argv, const Command& command) {
     }
     DBWriter hdrWriter(hdrDataFile.c_str(), hdrIndexFile.c_str(), shuffleSplits, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     hdrWriter.open();
-    DBWriter seqWriter(dataFile.c_str(), indexFile.c_str(), shuffleSplits, par.compressed, 0);
+    DBWriter seqWriter(dataFile.c_str(), indexFile.c_str(), shuffleSplits, par.compressed, (dbType == -1) ? Parameters::DBTYPE_OMIT_FILE : dbType );
     seqWriter.open();
     for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
         unsigned int numEntriesInCurrFile = 0;
