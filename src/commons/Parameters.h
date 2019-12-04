@@ -502,7 +502,7 @@ public:
     bool positiveFilter;
     bool trimToOneColumn;
     int extractLines;
-    float compValue;
+    double compValue;
     std::string compOperator;
     int sortEntries;
     bool beatsFirst;

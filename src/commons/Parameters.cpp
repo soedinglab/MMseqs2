@@ -196,7 +196,7 @@ Parameters::Parameters():
         PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "Trim to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
         PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract N lines", "extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
         PARAM_COMP_OPERATOR(PARAM_COMP_OPERATOR_ID, "--comparison-operator", "Numerical comparison operator", "Filter by comparing each entry row numerically by using the le) less-than-equal, ge) greater-than-equal or e) equal operator.", typeid(std::string), (void *) &compOperator, ""),
-        PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID, "--comparison-value", "Numerical comparison value", "Filter by comparing each entry to this value.", typeid(float), (void *) &compValue, "^.*$"),
+        PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID, "--comparison-value", "Numerical comparison value", "Filter by comparing each entry to this value.", typeid(double), (void *) &compValue, "^.*$"),
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0: no sorting, 1: increasing, 2: decreasing, 3: random shuffle.", typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
         PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry.", typeid(bool), (void*) &beatsFirst, ""),
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db","join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void*) &joinDB, ""),
@@ -1165,6 +1165,9 @@ void Parameters::printUsageMessage(const Command& command,
                     } else if (par->type == typeid(float)) {
                         paramString.append(" FLOAT");
                         valueString = SSTR(*(float *) par->value);
+                    } else if (par->type == typeid(double)) {
+                        paramString.append(" DOUBLE");
+                        valueString = SSTR(*(double *) par->value);
                     } else if (par->type == typeid(ByteParser)) {
                         paramString.append(" BYTE");
                         valueString = ByteParser::format(*((size_t *) par->value));
@@ -1324,6 +1327,20 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                         }else{
                             double input = strtod(pargv[argIdx+1], NULL);
                             *((float *) par[parIdx]->value) = static_cast<float>(input);
+                            par[parIdx]->wasSet = true;
+                        }
+                        argIdx++;
+                    } else if (typeid(double) == par[parIdx]->type) {
+                        regex_t regex;
+                        compileRegex(&regex, par[parIdx]->regex);
+                        int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
+                        regfree(&regex);
+                        if (nomatch){
+                            printUsageMessage(command, outputFlags);
+                            Debug(Debug::ERROR) << "Error in argument " << par[parIdx]->name << "\n";
+                            EXIT(EXIT_FAILURE);
+                        }else{
+                            *((double *) par[parIdx]->value) = strtod(pargv[argIdx+1], NULL);
                             par[parIdx]->wasSet = true;
                         }
                         argIdx++;
@@ -1708,6 +1725,8 @@ void Parameters::printParameters(const std::string &module, int argc, const char
             ss << ScoreMatrixFile::format(*((ScoreMatrixFile *)par[i]->value));
         } else if(typeid(float) == par[i]->type) {
             ss << *((float *)par[i]->value);
+        } else if(typeid(double) == par[i]->type) {
+            ss << *((double *)par[i]->value);
         } else if(typeid(std::string) == par[i]->type) {
             ss << *((std::string *) par[i]->value);
         } else if (typeid(bool) == par[i]->type) {
@@ -2084,6 +2103,9 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
         } else if (typeid(float) == par[i]->type){
             ss << par[i]->name << " ";
             ss << *((float *)par[i]->value) << " ";
+        } else if (typeid(double) == par[i]->type){
+            ss << par[i]->name << " ";
+            ss << *((double *)par[i]->value) << " ";
         } else if (typeid(std::string) == par[i]->type){
             if (*((std::string *) par[i]->value) != "") {
                 ss << par[i]->name << " ";
