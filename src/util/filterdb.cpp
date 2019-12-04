@@ -252,7 +252,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
 
                 counter++;
                 size_t foundElements = 1;
-                if (mode != GET_FIRST_LINES) {
+                if (mode != GET_FIRST_LINES || trimToOneColumn) {
                     foundElements = Util::getWordsOfLine(lineBuffer, columnPointer, column + 1);
                     if (foundElements < column) {
                         Debug(Debug::ERROR) << "Column=" << column << " does not exist in line " << lineBuffer << "\n";
