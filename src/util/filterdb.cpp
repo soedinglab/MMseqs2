@@ -25,13 +25,31 @@
 #define JOIN_DB               7
 #define EXPRESSION_FILTERING 10
 
-#define GREATER_OR_EQUAL   "ge"
-#define LOWER_OR_EQUAL     "le"
-#define EQUAL               "e"
 
-#define INCREASING  1
-#define DECREASING  2
-#define SHUFFLE     3
+enum ComparisonOperator {
+    OP_GEQ,
+    OP_LEQ,
+    OP_EQ,
+    OP_IN_P,
+    OP_OUT_P,
+    OP_EQ_P,
+
+    OP_INVALID
+};
+
+ComparisonOperator mapOperator(const std::string& op) {
+    if (op == "ge") return OP_GEQ;
+    if (op == "le") return OP_LEQ;
+    if (op == "e")  return OP_EQ;
+    if (op == "ip") return OP_IN_P;
+    if (op == "op") return OP_OUT_P;
+    if (op == "ep") return OP_EQ_P;
+    return OP_INVALID;
+}
+
+#define INCREASING 1
+#define DECREASING 2
+#define SHUFFLE    3
 
 struct compareString {
     bool operator() (const std::string& lhs, const std::string& rhs) const{
@@ -73,6 +91,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
     // positiveFilter = true => outDB = inDB \intersect filter ; othw : outDB = inDB - filter
     const bool positiveFiltering = par.positiveFilter;
     const bool shouldAddSelfMatch = par.includeIdentity;
+    const ComparisonOperator compOperator = mapOperator(par.compOperator);
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -268,11 +287,11 @@ int filterdb(int argc, const char **argv, const Command &command) {
                     }
                 } else if (mode == NUMERIC_COMPARISON) {
                     double toCompare = strtod(columnValue, NULL);
-                    if (par.compOperator == GREATER_OR_EQUAL) {
+                    if (compOperator == OP_GEQ) {
                         nomatch = !(toCompare >= par.compValue);
-                    } else if (par.compOperator == LOWER_OR_EQUAL) {
+                    } else if (compOperator == OP_LEQ) {
                         nomatch = !(toCompare <= par.compValue);
-                    } else if (par.compOperator == EQUAL) {
+                    } else if (compOperator == OP_EQ) {
                         nomatch = !(toCompare == par.compValue);
                     } else {
                         nomatch = 0;
@@ -318,12 +337,18 @@ int filterdb(int argc, const char **argv, const Command &command) {
                         referenceValue = strtod(columnValue, NULL);
                     } else {
                         double toCompare = strtod(columnValue, NULL);
-                        if (par.compOperator == GREATER_OR_EQUAL) {
+                        if (compOperator == OP_GEQ) {
                             nomatch = !(toCompare >= referenceValue);
-                        } else if (par.compOperator == LOWER_OR_EQUAL) {
+                        } else if (compOperator == OP_LEQ) {
                             nomatch = !(toCompare <= referenceValue);
-                        } else if (par.compOperator == EQUAL) {
+                        } else if (compOperator == OP_EQ) {
                             nomatch = !(toCompare == referenceValue);
+                        } else if (compOperator == OP_IN_P) {
+                            nomatch = !(toCompare >= (referenceValue * par.compValue));
+                        } else if (compOperator == OP_OUT_P) {
+                            nomatch = !(toCompare <= (referenceValue * par.compValue));
+                        } else if (compOperator == OP_EQ_P) {
+                            nomatch = !(toCompare == referenceValue * par.compValue);
                         } else {
                             nomatch = 0;
                         }
