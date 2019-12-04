@@ -315,22 +315,27 @@ int filterdb(int argc, const char **argv, const Command &command) {
                     nomatch = regexec(&regex, columnValue, 0, NULL, 0);
                 } else if (mode == JOIN_DB) {
                     size_t newId = helper->getId(static_cast<unsigned int>(strtoul(columnValue, NULL, 10)));
-                    size_t originalLength = strlen(lineBuffer);
-                    // Replace the last \n
-                    lineBuffer[originalLength - 1] = '\t';
-                    char *fullLine = helper->getData(newId, thread_idx);
-                    if (columnToTake == -1) {
-                        // either append the full line (default mode)
-                        size_t fullLineLength = helper->getEntryLen(newId);
-                        // Appending join database entry to query database entry
-                        memcpy(lineBuffer + originalLength, fullLine, fullLineLength);
-                    } else if (*fullLine != '\0') {
-                        // or a specified column
-                        std::vector<std::string> splittedLine = Util::split(fullLine, "\t");
-                        char *newValue = const_cast<char *>(splittedLine[columnToTake].c_str());
-                        size_t valueLength = helper->getEntryLen(newId);
-                        // Appending join database entry to query database entry
-                        memcpy(lineBuffer + originalLength, newValue, valueLength);
+                    if (newId != UINT_MAX) {
+                        size_t originalLength = strlen(lineBuffer);
+                        // Replace the last \n
+                        lineBuffer[originalLength - 1] = '\t';
+                        char *fullLine = helper->getData(newId, thread_idx);
+                        if (columnToTake == -1) {
+                            // either append the full line (default mode)
+                            size_t fullLineLength = helper->getEntryLen(newId);
+                            // Appending join database entry to query database entry
+                            memcpy(lineBuffer + originalLength, fullLine, fullLineLength);
+                        } else if (*fullLine != '\0') {
+                            // or a specified column
+                            std::vector<std::string> splittedLine = Util::split(fullLine, "\t");
+                            char *newValue = const_cast<char *>(splittedLine[columnToTake].c_str());
+                            size_t valueLength = helper->getEntryLen(newId);
+                            // Appending join database entry to query database entry
+                            memcpy(lineBuffer + originalLength, newValue, valueLength);
+                        }
+                        nomatch = 0;
+                    } else {
+                        nomatch = 1;
                     }
                 } else if (mode == BEATS_FIRST) {
                     if (counter == 1) {
