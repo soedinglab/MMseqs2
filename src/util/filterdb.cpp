@@ -132,9 +132,9 @@ int filterdb(int argc, const char **argv, const Command &command) {
             Debug(Debug::ERROR) << "File " << par.filteringFile << " does not exist\n";
             EXIT(EXIT_FAILURE);
         }
-        char *line = new char[65536];
+        char *line = NULL;
         size_t len = 0;
-        char *key = new char[65536];
+        char key[65536];
         for (size_t i = 0; i < filenames.size(); i++) {
             FILE * orderFile = fopen(filenames[i].c_str(), "r");
             while (getline(&line, &len, orderFile) != -1) {
@@ -151,8 +151,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
             }
             fclose(orderFile);
         }
-        delete[] key;
-        delete[] line;
+        free(line);
         omptl::sort(filter.begin(), filter.end());
         std::vector<std::string>::iterator last = std::unique(filter.begin(), filter.end());
         filter.erase(last, filter.end());
