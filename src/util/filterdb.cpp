@@ -217,7 +217,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
 
         char *newLineBuffer = new char[LINE_BUFFER_SIZE];
 
-        double referenceValue;
+        double referenceValue = 0;
 
         std::string buffer = "";
         buffer.reserve(LINE_BUFFER_SIZE);
