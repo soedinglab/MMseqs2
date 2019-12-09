@@ -15,16 +15,16 @@ int convertmsa(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    std::istream *in;
+    std::unique_ptr<std::istream> in;
     if (Util::endsWith(".gz", par.db1)) {
 #ifdef HAVE_ZLIB
-        in = new igzstream(par.db1.c_str());
+        in = Util::make_unique<igzstream>(par.db1.c_str());
 #else
         Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Can not read compressed input!\n";
         return EXIT_FAILURE;
 #endif
     } else {
-        in = new std::ifstream(par.db1);
+        in = Util::make_unique<std::ifstream>(par.db1);
     }
 
 
@@ -130,6 +130,5 @@ int convertmsa(int argc, const char **argv, const Command &command) {
     }
     writer.close();
 
-    delete in;
     return EXIT_SUCCESS;
 }

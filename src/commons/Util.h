@@ -1,6 +1,8 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <memory>
+#include <utility>
 #include <string>
 #include <cstddef>
 #include <cstring>
@@ -205,7 +207,7 @@ public:
         // TODO check naming of old database paths
         std::string suffix = std::string("_tmp_") + SSTR(count);
         std::string data = db + suffix;
-        
+
         std::string index = "";
         if (dbindex.compare(db + ".index") == 0) {
             index.append(db + suffix + ".index");
@@ -325,6 +327,12 @@ public:
 
     static bool hasAlignmentLength(int alnLenThr, int alnLen) {
         return alnLen >= alnLenThr;
+    }
+
+    template <class T, class... Args>
+    static auto make_unique(Args&&... args) -> std::unique_ptr<T>
+    {
+        return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
     }
 };
 #endif
