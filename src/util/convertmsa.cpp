@@ -60,9 +60,7 @@ int convertmsa(int argc, const char **argv, const Command &command) {
             inEntry = false;
             result.clear();
             size_t j = 0;
-            for (std::vector<std::string>::const_iterator it = seqOrder.begin(); it != seqOrder.end(); ++it) {
-                const std::string &accession = *it;
-                const std::string &sequence = sequences[*it];
+            for (const auto &accession : seqOrder) {
                 result.append(">");
                 if (j == 0 && identifier.length() > 0) {
                     result.append(identifier);
@@ -70,7 +68,7 @@ int convertmsa(int argc, const char **argv, const Command &command) {
                 }
                 result.append(accession);
                 result.append("\n");
-                result.append(sequence);
+                result.append(sequences[accession]);
                 result.append("\n");
                 j++;
             }
