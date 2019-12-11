@@ -69,30 +69,17 @@ int summarizeresult(int argc, const char **argv, const Command &command) {
                     Debug(Debug::WARNING) << "Query alignment start or end is greater than query length! Skipping line.\n";
                     continue;
                 }
-                if (domain.qStartPos > domain.qEndPos) {
-                    Debug(Debug::WARNING) << "Query alignment end is greater than start! Skipping line.\n";
-                    continue;
-                }
-                if (domain.dbStartPos > domain.dbEndPos) {
-                    Debug(Debug::WARNING) << "Target alignment end is greater than start! Skipping line.\n";
-                    continue;
-                }
-                if (domain.dbStartPos > static_cast<int>(domain.dbLen) || domain.dbEndPos > static_cast<int>(domain.dbLen)) {
-                    Debug(Debug::WARNING) << "Target alignment start or end is greater than target length! Skipping line.\n";
-                    continue;
-                }
-
                 if (domain.dbcov <= par.covThr) {
                     continue;
                 }
 
                 size_t counter = 0;
-                for (int j = domain.qStartPos; j < domain.qEndPos; ++j) {
+                for (int j = std::min(domain.qStartPos, domain.qEndPos); j < std::max(domain.qStartPos, domain.qEndPos); ++j) {
                     counter += covered[j] ? 1 : 0;
                 }
-                const float percentageOverlap = static_cast<float>(counter) / static_cast<float>(domain.qEndPos - domain.qStartPos + 1);
+                const float percentageOverlap = static_cast<float>(counter) / static_cast<float>(std::max(domain.qStartPos, domain.qEndPos) - std::min(domain.qStartPos, domain.qEndPos) + 1);
                 if (percentageOverlap <= par.overlap) {
-                    for (int j = domain.qStartPos; j < domain.qEndPos; ++j) {
+                    for (int j = std::min(domain.qStartPos, domain.qEndPos); j < std::max(domain.qStartPos, domain.qEndPos); ++j) {
                         covered[j] = true;
                     }
                     size_t len = Matcher::resultToBuffer(buffer, domain, par.addBacktrace, false);
@@ -117,3 +104,4 @@ int summarizeresult(int argc, const char **argv, const Command &command) {
 
     return EXIT_SUCCESS;
 }
+
