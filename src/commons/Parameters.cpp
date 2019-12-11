@@ -892,6 +892,8 @@ Parameters::Parameters():
     // filtertaxdb
     filtertaxdb.push_back(&PARAM_COMPRESSED);
     filtertaxdb.push_back(&PARAM_TAXON_LIST);
+    filtertaxdb.push_back(&PARAM_THREADS);
+    filtertaxdb.push_back(&PARAM_V);
 
     // lca
     lca.push_back(&PARAM_COMPRESSED);
