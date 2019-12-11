@@ -232,7 +232,7 @@ Parameters::Parameters():
         PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB columns", "list of indices of UniprotKB columns to be extracted", typeid(std::string), (void *) &kbColumns, ""),
         PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover deleted", "Indicates if sequences are allowed to be be removed during updating", typeid(bool), (void*) &recoverDeleted, ""),
         // filtertaxdb
-        PARAM_TAXON_LIST(PARAM_TAXON_LIST_ID, "--taxon-list", "Selected taxons", "taxonomy ID, possibly multiple separated by ','", typeid(std::string), (void*) &taxonList, ""),
+        PARAM_TAXON_LIST(PARAM_TAXON_LIST_ID, "--taxon-list", "Selected taxa", "taxonomy ID, possibly multiple values separated by ','", typeid(std::string), (void*) &taxonList, ""),
         // view
         PARAM_ID_LIST(PARAM_ID_LIST_ID, "--id-list", "Selected entries with key", "entries to be printed seperated by ','", typeid(std::string), (void*) &idList, ""),
         PARAM_IDX_ENTRY_TYPE(PARAM_IDX_ENTRY_TYPE_ID, "--idx-entry-type", "Index entry type", "sequence; 0, src sequence 1: header: 2, src header :3 (default 0)", typeid(int), (void*) &idxEntryType, "^[0-3]{1}$"),
@@ -251,8 +251,8 @@ Parameters::Parameters():
         // taxonomy
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA mode", "LCA Mode 1: Single Search LCA , 2: 2bLCA, 3: approx. 2bLCA, 4: top hit", typeid(int), (void*) &taxonomySearchMode, "^[1-4]{1}$"),
         PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void*) &taxonomyOutpuMode, "^[0-1]{1}$"),
-        // createsubdb
-        PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "Subdb mode 0: copy data  1: soft link data and write index", typeid(int), (void*) &subDbMode, "^[0-1]{1}$")
+        // createsubdb, filtertaxseqdb
+        PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "Subdb mode 0: copy data 1: soft link data and write index", typeid(int), (void*) &subDbMode, "^[0-1]{1}$")
 {
     if (instance) {
         Debug(Debug::ERROR) << "Parameter instance already exists!\n";
@@ -894,6 +894,13 @@ Parameters::Parameters():
     filtertaxdb.push_back(&PARAM_TAXON_LIST);
     filtertaxdb.push_back(&PARAM_THREADS);
     filtertaxdb.push_back(&PARAM_V);
+
+    // filtertaxseqdb
+    filtertaxseqdb.push_back(&PARAM_COMPRESSED);
+    filtertaxseqdb.push_back(&PARAM_TAXON_LIST);
+    filtertaxseqdb.push_back(&PARAM_SUBDB_MODE);
+    filtertaxseqdb.push_back(&PARAM_THREADS);
+    filtertaxseqdb.push_back(&PARAM_V);
 
     // lca
     lca.push_back(&PARAM_COMPRESSED);
@@ -2001,7 +2008,7 @@ void Parameters::setDefaults() {
     taxMappingFile = "";
     ncbiTaxDump = "";
 
-    // filtertaxdb
+    // filtertaxdb, filtertaxseqdb
     taxonList = "";
 
     // view

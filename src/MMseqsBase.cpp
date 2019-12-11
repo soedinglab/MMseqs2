@@ -225,6 +225,13 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2, {{"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
                                          {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::taxResult },
                                          {"taxDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxResult }}},
+        {"filtertaxseqdb",          filtertaxseqdb,          &par.filtertaxseqdb,          COMMAND_TAXONOMY,
+                "Filter taxonomy sequence database.",
+                "Use --taxon-list to determine the entries in the filtered database. E.g. --taxon-list 2759 retains only Eukaryotic entries",
+                "Eli Levy Karin <eli.levy.karin@gmail.com> and Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+                "<i:taxSeqDB> <o:taxSeqDB>",
+                CITATION_MMSEQS2, {{"taxSeqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
+                                         {"taxSeqDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxSequenceDb }}},
 // multi hit search
         {"multihitdb",           multihitdb,           &par.multihitdb,           COMMAND_MULTIHIT,
                 "Create sequence database and associated metadata for multi hit searches",
