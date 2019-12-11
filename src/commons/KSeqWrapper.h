@@ -32,6 +32,14 @@ private:
     FILE* file;
 };
 
+
+class KSeqStream : public KSeqWrapper {
+public:
+    KSeqStream();
+    bool ReadEntry();
+    ~KSeqStream();
+};
+
 #ifdef HAVE_ZLIB
 #include <zlib.h>
 

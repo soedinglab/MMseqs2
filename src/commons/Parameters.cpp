@@ -196,12 +196,10 @@ Parameters::Parameters():
         PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "Trim to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
         PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract N lines", "extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
         PARAM_COMP_OPERATOR(PARAM_COMP_OPERATOR_ID, "--comparison-operator", "Numerical comparison operator", "Filter by comparing each entry row numerically by using the le) less-than-equal, ge) greater-than-equal or e) equal operator.", typeid(std::string), (void *) &compOperator, ""),
-        PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID, "--comparison-value", "Numerical comparison value", "Filter by comparing each entry to this value.", typeid(float), (void *) &compValue, "^.*$"),
+        PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID, "--comparison-value", "Numerical comparison value", "Filter by comparing each entry to this value.", typeid(double), (void *) &compValue, "^.*$"),
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0: no sorting, 1: increasing, 2: decreasing, 3: random shuffle.", typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
         PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry.", typeid(bool), (void*) &beatsFirst, ""),
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db","join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void*) &joinDB, ""),
-        PARAM_COMPUTE_POSITIONS(PARAM_COMPUTE_POSITIONS_ID, "--compute-positions", "Compute positions", "Add the positions of he hit on the target genome", typeid(std::string), (void*) &compPos, ""),
-        PARAM_TRANSITIVE_REPLACE(PARAM_TRANSITIVE_REPLACE_ID, "--transitive-replace", "Replace transitively", "Replace cluster name in a search file by all genes in this cluster", typeid(std::string), (void*) &clusterFile, ""),
         // besthitperset
         PARAM_SIMPLE_BEST_HIT(PARAM_SIMPLE_BEST_HIT_ID, "--simple-best-hit", "Use simple best hit", "Update the p-value by a single best hit, or by best and second best hits", typeid(bool), (void*) &simpleBestHit, ""),
         PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining p-values during aggregation", typeid(float), (void*) &alpha, ""),
@@ -703,8 +701,6 @@ Parameters::Parameters():
     filterDb.push_back(&PARAM_FILTER_FILE);
     filterDb.push_back(&PARAM_BEATS_FIRST);
     filterDb.push_back(&PARAM_MAPPING_FILE);
-    filterDb.push_back(&PARAM_THREADS);
-    filterDb.push_back(&PARAM_V);
     filterDb.push_back(&PARAM_TRIM_TO_ONE_COL);
     filterDb.push_back(&PARAM_EXTRACT_LINES);
     filterDb.push_back(&PARAM_COMP_OPERATOR);
@@ -712,9 +708,9 @@ Parameters::Parameters():
     filterDb.push_back(&PARAM_SORT_ENTRIES);
     filterDb.push_back(&PARAM_INCLUDE_IDENTITY);
     filterDb.push_back(&PARAM_JOIN_DB);
-    filterDb.push_back(&PARAM_COMPUTE_POSITIONS);
+    filterDb.push_back(&PARAM_THREADS);
     filterDb.push_back(&PARAM_COMPRESSED);
-    filterDb.push_back(&PARAM_TRANSITIVE_REPLACE);
+    filterDb.push_back(&PARAM_V);
 
     // besthitperset
     besthitbyset.push_back(&PARAM_SIMPLE_BEST_HIT);
@@ -1169,6 +1165,9 @@ void Parameters::printUsageMessage(const Command& command,
                     } else if (par->type == typeid(float)) {
                         paramString.append(" FLOAT");
                         valueString = SSTR(*(float *) par->value);
+                    } else if (par->type == typeid(double)) {
+                        paramString.append(" DOUBLE");
+                        valueString = SSTR(*(double *) par->value);
                     } else if (par->type == typeid(ByteParser)) {
                         paramString.append(" BYTE");
                         valueString = ByteParser::format(*((size_t *) par->value));
@@ -1328,6 +1327,20 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                         }else{
                             double input = strtod(pargv[argIdx+1], NULL);
                             *((float *) par[parIdx]->value) = static_cast<float>(input);
+                            par[parIdx]->wasSet = true;
+                        }
+                        argIdx++;
+                    } else if (typeid(double) == par[parIdx]->type) {
+                        regex_t regex;
+                        compileRegex(&regex, par[parIdx]->regex);
+                        int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
+                        regfree(&regex);
+                        if (nomatch){
+                            printUsageMessage(command, outputFlags);
+                            Debug(Debug::ERROR) << "Error in argument " << par[parIdx]->name << "\n";
+                            EXIT(EXIT_FAILURE);
+                        }else{
+                            *((double *) par[parIdx]->value) = strtod(pargv[argIdx+1], NULL);
                             par[parIdx]->wasSet = true;
                         }
                         argIdx++;
@@ -1590,7 +1603,7 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
                 std::string dbTypeFile = std::string(filenames[fileIdx]) + ".dbtype";
                 // check if file exists
                 // if file is not a
-                if (FileUtil::fileExists((filenames[fileIdx]).c_str()) == false && FileUtil::fileExists(dbTypeFile.c_str()) == false ) {
+                if (FileUtil::fileExists((filenames[fileIdx]).c_str()) == false && FileUtil::fileExists(dbTypeFile.c_str()) == false && filenames[fileIdx] != "stdin" ) {
                     Debug(Debug::ERROR) << "Input " << filenames[fileIdx] << " does not exist.\n";
                     EXIT(EXIT_FAILURE);
                 }
@@ -1615,7 +1628,9 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
                 bool dbtypeFound = false;
                 for (size_t i = 0; i < db.validator->size() && dbtypeFound == false; i++) {
                     int validatorDbtype = db.validator->at(i);
-                    if (validatorDbtype == Parameters::DBTYPE_FLATFILE) {
+                    if (validatorDbtype == Parameters::DBTYPE_STDIN) {
+                        dbtypeFound = (filenames[fileIdx] == "stdin");
+                    } else if (validatorDbtype == Parameters::DBTYPE_FLATFILE) {
                         dbtypeFound = (FileUtil::fileExists(filenames[fileIdx].c_str()) == true &&
                                        FileUtil::directoryExists(filenames[fileIdx].c_str()) == false);
                     } else if (validatorDbtype == Parameters::DBTYPE_DIRECTORY) {
@@ -1710,6 +1725,8 @@ void Parameters::printParameters(const std::string &module, int argc, const char
             ss << ScoreMatrixFile::format(*((ScoreMatrixFile *)par[i]->value));
         } else if(typeid(float) == par[i]->type) {
             ss << *((float *)par[i]->value);
+        } else if(typeid(double) == par[i]->type) {
+            ss << *((double *)par[i]->value);
         } else if(typeid(std::string) == par[i]->type) {
             ss << *((std::string *) par[i]->value);
         } else if (typeid(bool) == par[i]->type) {
@@ -2086,6 +2103,9 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
         } else if (typeid(float) == par[i]->type){
             ss << par[i]->name << " ";
             ss << *((float *)par[i]->value) << " ";
+        } else if (typeid(double) == par[i]->type){
+            ss << par[i]->name << " ";
+            ss << *((double *)par[i]->value) << " ";
         } else if (typeid(std::string) == par[i]->type){
             if (*((std::string *) par[i]->value) != "") {
                 ss << par[i]->name << " ";

@@ -68,6 +68,8 @@ public:
     static const int DBTYPE_DIRECTORY = 16; // needed for verification
     static const int DBTYPE_FLATFILE = 17; // needed for verification
     static const int DBTYPE_SEQTAXDB = 18; // needed for verification
+    static const int DBTYPE_STDIN = 19; // needed for verification
+
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
@@ -500,13 +502,11 @@ public:
     bool positiveFilter;
     bool trimToOneColumn;
     int extractLines;
-    float compValue;
+    double compValue;
     std::string compOperator;
     int sortEntries;
     bool beatsFirst;
     std::string joinDB;
-    std::string compPos ;
-    std::string clusterFile ;
 
     // besthitperset
     bool simpleBestHit;
@@ -808,8 +808,6 @@ public:
     PARAMETER(PARAM_SORT_ENTRIES)
     PARAMETER(PARAM_BEATS_FIRST)
     PARAMETER(PARAM_JOIN_DB)
-    PARAMETER(PARAM_COMPUTE_POSITIONS)
-    PARAMETER(PARAM_TRANSITIVE_REPLACE)
 
     //besthitperset
     PARAMETER(PARAM_SIMPLE_BEST_HIT)
