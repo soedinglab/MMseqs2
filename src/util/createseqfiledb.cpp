@@ -49,8 +49,8 @@ int createseqfiledb(int argc, const char **argv, const Command& command) {
             std::istringstream clusterEntries(data);
             size_t entries_num = 0;
             char dbKey[255 + 1];
+            resultStr.clear();
             while (std::getline(clusterEntries, entry)) {
-                resultStr.clear();
                 entries_num++;
                 Util::parseKey((char*)entry.c_str(), dbKey);
                 const unsigned int entryId = (unsigned int) strtoul(dbKey, NULL, 10);
