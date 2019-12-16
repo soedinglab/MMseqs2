@@ -45,6 +45,7 @@ struct DBFiles {
         TAXONOMY          = TAX_MAPPING | TAX_NAMES | TAX_NODES | TAX_MERGED,
         SEQUENCE_DB       = GENERIC | HEADERS | TAXONOMY | LOOKUP | SOURCE,
         SEQUENCE_ANCILLARY= SEQUENCE_DB & (~GENERIC),
+        SEQUENCE_NO_DATA_INDEX = SEQUENCE_DB & (~DATA_INDEX),
 
         ALL               = (size_t) -1,
     };

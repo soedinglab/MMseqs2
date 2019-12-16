@@ -22,8 +22,6 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
 
-    std::vector<std::string> ranks = Util::split(par.lcaRanks, ":");
-
     // a few NCBI taxa are blacklisted by default, they contain unclassified sequences (e.g. metagenomes) or other sequences (e.g. plasmids)
     // if we do not remove those, a lot of sequences would be classified as Root, even though they have a sensible LCA
     TaxonomyExpression taxonomyExpression(par.taxonList);

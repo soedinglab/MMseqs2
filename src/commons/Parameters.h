@@ -242,7 +242,7 @@ public:
     static const int HEADER_TYPE_UNICLUST = 1;
     static const int HEADER_TYPE_METACLUST = 2;
 
-    // create subdb type
+    // createsubdb, filtertaxseqdb type
     static const int SUBDB_MODE_HARD = 0;
     static const int SUBDB_MODE_SOFT = 1;
 
@@ -551,7 +551,7 @@ public:
     // summarize headers
     int headerType;
 
-    // filtertaxdb
+    // filtertaxdb, filtertaxseqdb
     std::string taxonList;
 
     // view
@@ -855,7 +855,7 @@ public:
     // clusterupdate
     PARAMETER(PARAM_RECOVER_DELETED)
 
-    // filtertaxdb
+    // filtertaxdb, filtertaxseqdb
     PARAMETER(PARAM_TAXON_LIST)
 
     // view
@@ -958,6 +958,7 @@ public:
     std::vector<MMseqsParameter*> addtaxonomy;
     std::vector<MMseqsParameter*> taxonomyreport;
     std::vector<MMseqsParameter*> filtertaxdb;
+    std::vector<MMseqsParameter*> filtertaxseqdb;
     std::vector<MMseqsParameter*> taxonomy;
     std::vector<MMseqsParameter*> easytaxonomy;
     std::vector<MMseqsParameter*> createsubdb;
