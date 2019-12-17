@@ -57,7 +57,6 @@ int createdb(int argc, const char **argv, const Command& command) {
     std::string hdrIndexFile = dataFile + "_h.index";
 
     unsigned int entries_num = 0;
-    size_t count = 0;
     size_t sampleCount = 0;
 
     const char newline = '\n';
@@ -120,7 +119,7 @@ int createdb(int argc, const char **argv, const Command& command) {
             unsigned int id = par.identifierOffset + entries_num;
             if (dbType == -1) {
                 // check for the first 10 sequences if they are nucleotide sequences
-                if (count < 10 || (count % 100) == 0) {
+                if (sampleCount < 10 || (sampleCount % 100) == 0) {
                     if (sampleCount < testForNucSequence) {
                         size_t cnt = 0;
                         for (size_t i = 0; i < e.sequence.l; i++) {
@@ -176,7 +175,6 @@ int createdb(int argc, const char **argv, const Command& command) {
 
             entries_num++;
             numEntriesInCurrFile++;
-            count++;
             header.clear();
         }
         delete kseq;
