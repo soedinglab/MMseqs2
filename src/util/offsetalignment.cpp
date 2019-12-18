@@ -214,7 +214,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     bool isSameSrcDB = (par.db3.compare(par.db1) == 0);
     bool isNuclNuclSearch = false;
     bool isTransNucTransNucSearch = false;
-    bool isTransNulAln = false;
+    bool isTransNuclAln = false;
     if (targetNucl) {
         bool seqtargetNuc = true;
         if(isSameSrcDB){
@@ -238,7 +238,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 seqtargetNuc = true;
                 isTransNucTransNucSearch = false;
             } else if(par.searchType == Parameters::SEARCH_TYPE_TRANS_NUCL_ALN){
-                isTransNulAln = true;
+                isTransNuclAln = true;
                 seqtargetNuc = false;
                 isTransNucTransNucSearch = true;
             }
@@ -397,7 +397,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                         for(size_t i = 0; i < results.size(); i++) {
                             Matcher::result_t &res = results[i];
                             bool hasBacktrace = (res.backtrace.size() > 0);
-                            if (isTransNulAln == true && isNuclNuclSearch == false && isTransNucTransNucSearch == true && hasBacktrace) {
+                            if (isTransNuclAln == true && isNuclNuclSearch == false && isTransNucTransNucSearch == true && hasBacktrace) {
                                 newBacktrace.reserve(res.backtrace.length() * 3);
                                 Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
                                 res.backtrace = newBacktrace;
@@ -428,7 +428,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     for(size_t i = 0; i < results.size(); i++){
                         Matcher::result_t &res = results[i];
                         bool hasBacktrace = (res.backtrace.size() > 0);
-                        if (isTransNulAln == true && isNuclNuclSearch == false && isTransNucTransNucSearch == true && hasBacktrace) {
+                        if (isTransNuclAln == true && isNuclNuclSearch == false && isTransNucTransNucSearch == true && hasBacktrace) {
                             newBacktrace.reserve(res.backtrace.length() * 3);
                             Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
                             res.backtrace = newBacktrace;
@@ -443,7 +443,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     for(size_t i = 0; i < tmp.size(); i++){
                         Matcher::result_t &res = tmp[i];
                         bool hasBacktrace = (res.backtrace.size() > 0);
-                        if (isTransNulAln == true && isNuclNuclSearch == false && isTransNucTransNucSearch == true && hasBacktrace) {
+                        if (isTransNuclAln == true && isNuclNuclSearch == false && isTransNucTransNucSearch == true && hasBacktrace) {
                             newBacktrace.reserve(res.backtrace.length() * 3);
                             Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
                             res.backtrace = newBacktrace;
