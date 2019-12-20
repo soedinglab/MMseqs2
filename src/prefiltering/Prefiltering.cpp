@@ -1098,7 +1098,7 @@ std::pair<int, int> Prefiltering::optimizeSplit(size_t totalMemoryInByte, DBRead
         endKmerSize   = (externalKmerSize == 0) ? 15 : externalKmerSize;
     }
 
-    for (int optKmerSize = startKmerSize; optKmerSize <= endKmerSize ; optKmerSize++) {
+    for (int optKmerSize = endKmerSize; optKmerSize >= startKmerSize ; optKmerSize--) {
         size_t aaUpperBoundForKmerSize = (SIZE_MAX - 1);
         if(externalKmerSize == 0){
             if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
