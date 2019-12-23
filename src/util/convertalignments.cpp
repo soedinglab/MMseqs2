@@ -212,8 +212,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         tDbrHeader = new IndexReader(par.db2, par.threads, IndexReader::SRC_HEADERS, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     }
 
-    const bool queryNucs = Parameters::isEqualDbtype(qDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
-    const bool targetNucs = Parameters::isEqualDbtype(tDbr->sequenceReader->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+    bool queryNucs = Parameters::isEqualDbtype(qDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+    bool targetNucs = Parameters::isEqualDbtype(tDbr->sequenceReader->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
     if (needSequenceDB) {
         // try to figure out if search was translated. This is can not be solved perfectly.
         bool seqtargetAA = false;
@@ -511,6 +511,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         result.append(SSTR(res.score));
                                         break;
                                     case Parameters::OUTFMT_CIGAR:
+                                        if(isTranslatedSearch == true && targetNucs == true && queryNucs == true ){
+                                            Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
+                                            res.backtrace = newBacktrace;
+                                        }
                                         result.append(SSTR(res.backtrace));
                                         newBacktrace.clear();
                                         break;
@@ -631,7 +635,14 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             continue;
                         }
                         result.append(buffer, count);
-                        result.append(res.backtrace);
+                        if (isTranslatedSearch == true && targetNucs == true && queryNucs == true) {
+                            Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
+                            result.append(newBacktrace);
+                            newBacktrace.clear();
+
+                        } else {
+                            result.append(res.backtrace);
+                        }
                         result.append("\t*\t0\t0\t");
                         int start = std::min(res.qStartPos, res.qEndPos);
                         int end   = std::max(res.qStartPos, res.qEndPos);

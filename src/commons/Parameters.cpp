@@ -164,7 +164,7 @@ Parameters::Parameters():
         PARAM_CREATE_LOOKUP(PARAM_CREATE_LOOKUP_ID, "--create-lookup", "Create lookup", "Create database lookup file (can be very large)", typeid(int), (void *) &createLookup, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
         // indexdb
         PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check compatible", "0: Always recreate index, 1: Check if recreating index is needed, 2: Fail if index is incompatible", typeid(int), (void*) &checkCompatible, "^[0-2]{1}$", MMseqsParameter::COMMAND_MISC),
-        PARAM_SEARCH_TYPE(PARAM_SEARCH_TYPE_ID, "--search-type", "Search type", "search type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &searchType, "^[0-3]{1}"),
+        PARAM_SEARCH_TYPE(PARAM_SEARCH_TYPE_ID, "--search-type", "Search type", "search type 0: auto 1: amino acid, 2: translated, 3: nucleotide, 4: translated nucleotide alignment", typeid(int),(void *) &searchType, "^[0-4]{1}"),
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),

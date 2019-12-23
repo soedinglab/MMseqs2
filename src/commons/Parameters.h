@@ -77,6 +77,7 @@ public:
     static const int SEARCH_TYPE_PROTEIN = 1;
     static const int SEARCH_TYPE_TRANSLATED = 2;
     static const int SEARCH_TYPE_NUCLEOTIDES = 3;
+    static const int SEARCH_TYPE_TRANS_NUCL_ALN = 4;
     // flag
     static const int SEARCH_MODE_FLAG_QUERY_AMINOACID = 1;
     static const int SEARCH_MODE_FLAG_TARGET_AMINOACID = 2;
