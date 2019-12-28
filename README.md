@@ -139,3 +139,9 @@ To search with multiple servers, call the `search` or `cluster` workflow with th
 
         RUNNER="mpirun -pernode -np 42" mmseqs search queryDB targetDB resultDB tmp
 
+## Contributors
+
+MMseqs2 exists thanks to all the people who contribute. 
+<a href="https://github.com/soedinglab/mmseqs2/graphs/contributors">
+  <img src="https://contributors-img.firebaseapp.com/image?repo=soedinglab/mmseqs2" />
+</a>
