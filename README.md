@@ -14,6 +14,7 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 [![Docker Pulls](https://img.shields.io/docker/pulls/soedinglab/mmseqs2.svg)](https://hub.docker.com/r/soedinglab/mmseqs2)
 [![Build Status](https://dev.azure.com/themartinsteinegger/mmseqs2/_apis/build/status/soedinglab.MMseqs2?branchName=master)](https://dev.azure.com/themartinsteinegger/mmseqs2/_build/latest?definitionId=2&branchName=master)
 [![Travis CI](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)](https://travis-ci.org/soedinglab/MMseqs2)
+<a href="https://chat.mmseqs.com/"><img src="https://chat.mmseqs.com/api/v1/shield.svg?type=online" /></a>
 [![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.840208.svg)](https://zenodo.org/record/1718312)
 
 <p align="center"><img src="https://raw.githubusercontent.com/soedinglab/mmseqs2/master/.github/mmseqs2_logo.png" height="256" /></p>
