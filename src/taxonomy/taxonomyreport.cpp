@@ -188,7 +188,8 @@ int taxonomyreport(int argc, const char **argv, const Command& command) {
     };
     Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Found " << taxCounts.size() << " different taxa for " << reader.getSize() << " different reads.\n";
-    Debug(Debug::INFO) << taxCounts.at(0) << " reads are unclassified.\n";
+    unsigned int unknownCnt = (taxCounts.find(0) != taxCounts.end()) ? taxCounts.at(0) : 0;
+    Debug(Debug::INFO) << unknownCnt << " reads are unclassified.\n";
 
     std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB->getCladeCounts(taxCounts);
     if (par.reportMode == 0) {
