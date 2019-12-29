@@ -77,6 +77,7 @@ public:
     static const int SEARCH_TYPE_PROTEIN = 1;
     static const int SEARCH_TYPE_TRANSLATED = 2;
     static const int SEARCH_TYPE_NUCLEOTIDES = 3;
+    static const int SEARCH_TYPE_TRANS_NUCL_ALN = 4;
     // flag
     static const int SEARCH_MODE_FLAG_QUERY_AMINOACID = 1;
     static const int SEARCH_MODE_FLAG_TARGET_AMINOACID = 2;
@@ -564,6 +565,9 @@ public:
     bool showTaxLineage;
     std::string blacklist;
 
+    // aggregatetax
+    float majorityThr;
+
     // taxonomyreport
     int reportMode;
 
@@ -862,11 +866,14 @@ public:
     PARAMETER(PARAM_ID_LIST)
     PARAMETER(PARAM_IDX_ENTRY_TYPE)
 
-    // lca and addtaxonomy
+    // lca, addtaxonomy and aggregatetax
     PARAMETER(PARAM_PICK_ID_FROM)
     PARAMETER(PARAM_LCA_RANKS)
     PARAMETER(PARAM_BLACKLIST)
     PARAMETER(PARAM_TAXON_ADD_LINEAGE)
+
+    // aggregatetax
+    PARAMETER(PARAM_MAJORITY)
 
     // taxonomyreport
     PARAMETER(PARAM_REPORT_MODE)
@@ -959,6 +966,7 @@ public:
     std::vector<MMseqsParameter*> taxonomyreport;
     std::vector<MMseqsParameter*> filtertaxdb;
     std::vector<MMseqsParameter*> filtertaxseqdb;
+    std::vector<MMseqsParameter*> aggregatetax;
     std::vector<MMseqsParameter*> taxonomy;
     std::vector<MMseqsParameter*> easytaxonomy;
     std::vector<MMseqsParameter*> createsubdb;

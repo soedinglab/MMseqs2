@@ -49,11 +49,21 @@ int lca(int argc, const char **argv, const Command& command) {
     size_t taxonNotFound = 0;
     size_t found = 0;
 
+    // will be used when no hits
+    std::string noTaxResult = "0\tno rank\tunclassified";
+    if (!ranks.empty()) {
+        noTaxResult += '\t';
+    }
+    if (par.showTaxLineage) {
+        noTaxResult += '\t';
+    }
+    noTaxResult += '\n';
+
+
     Debug(Debug::INFO) << "Computing LCA\n";
     #pragma omp parallel
     {
         const char *entry[255];
-        char buffer[1024];
         std::string resultData;
         resultData.reserve(4096);
         unsigned int thread_idx = 0;
@@ -110,19 +120,16 @@ int lca(int argc, const char **argv, const Command& command) {
                 data = Util::skipLine(data);
             }
 
-            if(length == 1){
-                snprintf(buffer, 1024, "0\tno rank\tunclassified\n");
-                writer.writeData(buffer, strlen(buffer), key, thread_idx);
+            if (length == 1) {
+                writer.writeData(noTaxResult.c_str(), noTaxResult.size(), key, thread_idx);
                 continue;
             }
 
             TaxonNode const * node = t->LCA(taxa);
             if (node == NULL) {
-                snprintf(buffer, 1024, "0\tno rank\tunclassified\n");
-                writer.writeData(buffer, strlen(buffer), key, thread_idx);
+                writer.writeData(noTaxResult.c_str(), noTaxResult.size(), key, thread_idx);
                 continue;
             }
-
 
             resultData = SSTR(node->taxId) + '\t' + node->rank + '\t' + node->name;
             if (!ranks.empty()) {

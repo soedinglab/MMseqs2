@@ -10,6 +10,7 @@ set(taxonomy_source_files
         taxonomy/NcbiTaxonomy.cpp
         taxonomy/filtertaxdb.cpp
         taxonomy/filtertaxseqdb.cpp
+        taxonomy/aggregatetax.cpp
         taxonomy/createtaxdb.cpp
         taxonomy/taxonomyreport.cpp
         taxonomy/TaxonomyExpression.h

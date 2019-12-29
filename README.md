@@ -14,14 +14,13 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 [![Docker Pulls](https://img.shields.io/docker/pulls/soedinglab/mmseqs2.svg)](https://hub.docker.com/r/soedinglab/mmseqs2)
 [![Build Status](https://dev.azure.com/themartinsteinegger/mmseqs2/_apis/build/status/soedinglab.MMseqs2?branchName=master)](https://dev.azure.com/themartinsteinegger/mmseqs2/_build/latest?definitionId=2&branchName=master)
 [![Travis CI](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)](https://travis-ci.org/soedinglab/MMseqs2)
-[![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.840208.svg)](https://zenodo.org/record/1718312)
+<a href="https://chat.mmseqs.com/"><img src="https://chat.mmseqs.com/api/v1/shield.svg?type=online&name=chat&icon=false" /></a>
 
 <p align="center"><img src="https://raw.githubusercontent.com/soedinglab/mmseqs2/master/.github/mmseqs2_logo.png" height="256" /></p>
 
 
 ## Documentation
-The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). The wiki also contains [tutorials](https://github.com/soedinglab/MMseqs2/wiki/Tutorials) to learn how to use MMseqs2 with real data.
-
+The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). The wiki also contains [tutorials](https://github.com/soedinglab/MMseqs2/wiki/Tutorials) to learn how to use MMseqs2 with real data. For questions please open an issue on [GitHub](https://github.com/soedinglab/MMseqs2/issues) or ask in our [chat](https://chat.mmseqs.com). 
 Keep posted about MMseqs2/Linclust updates by following Martin on [Twitter](https://twitter.com/thesteinegger).
 
 ## Installation
@@ -140,3 +139,9 @@ To search with multiple servers, call the `search` or `cluster` workflow with th
 
         RUNNER="mpirun -pernode -np 42" mmseqs search queryDB targetDB resultDB tmp
 
+## Contributors
+
+MMseqs2 exists thanks to all the people who contribute. 
+<a href="https://github.com/soedinglab/mmseqs2/graphs/contributors">
+  <img src="https://contributors-img.firebaseapp.com/image?repo=soedinglab/mmseqs2" />
+</a>

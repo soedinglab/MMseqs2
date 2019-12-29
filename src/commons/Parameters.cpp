@@ -164,7 +164,7 @@ Parameters::Parameters():
         PARAM_CREATE_LOOKUP(PARAM_CREATE_LOOKUP_ID, "--create-lookup", "Create lookup", "Create database lookup file (can be very large)", typeid(int), (void *) &createLookup, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
         // indexdb
         PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check compatible", "0: Always recreate index, 1: Check if recreating index is needed, 2: Fail if index is incompatible", typeid(int), (void*) &checkCompatible, "^[0-2]{1}$", MMseqsParameter::COMMAND_MISC),
-        PARAM_SEARCH_TYPE(PARAM_SEARCH_TYPE_ID, "--search-type", "Search type", "search type 0: auto 1: amino acid, 2: translated, 3: nucleotide", typeid(int),(void *) &searchType, "^[0-3]{1}"),
+        PARAM_SEARCH_TYPE(PARAM_SEARCH_TYPE_ID, "--search-type", "Search type", "search type 0: auto 1: amino acid, 2: translated, 3: nucleotide, 4: translated nucleotide alignment", typeid(int),(void *) &searchType, "^[0-4]{1}"),
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
@@ -241,11 +241,13 @@ Parameters::Parameters():
         PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA ranks", "Add column with specified ranks (':' separated)", typeid(std::string), (void*) &lcaRanks, ""),
         PARAM_BLACKLIST(PARAM_BLACKLIST_ID, "--blacklist", "Blacklisted taxa", "Comma separated list of ignored taxa in LCA computation", typeid(std::string), (void*)&blacklist, "([0-9]+,)?[0-9]+"),
         PARAM_TAXON_ADD_LINEAGE(PARAM_TAXON_ADD_LINEAGE_ID, "--tax-lineage", "Show taxon lineage", "Add column with full taxonomy lineage", typeid(bool), (void*)&showTaxLineage, ""),
+        // aggregatetax
+        PARAM_MAJORITY(PARAM_MAJORITY_ID,"--majority", "Majority threshold", "minimal fraction of agreement among taxonomically assigned sequences of a set", typeid(float), (void *) &majorityThr, "^0(\\.[0-9]+)?|^1(\\.0+)?$"),
         // taxonomyreport
         PARAM_REPORT_MODE(PARAM_REPORT_MODE_ID,"--report-mode", "Report mode", "Taxonomy report mode 0: Kraken 1: Krona", typeid(int), (void *) &reportMode, "^[0-1]{1}$"),
-        // createtaxcb
+        // createtaxdb
         PARAM_NCBI_TAX_DUMP(PARAM_NCBI_TAX_DUMP_ID, "--ncbi-tax-dump", "NCBI tax dump directory", "NCBI tax dump directory. The tax dump can be downloaded here \"ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz\"", typeid(std::string), (void*) &ncbiTaxDump, ""),
-            PARAM_TAX_MAPPING_FILE(PARAM_TAX_MAPPING_FILE_ID, "--tax-mapping-file", "Taxonomical mapping file", "File to map sequence identifer to taxonomical identifier", typeid(std::string), (void*) &taxMappingFile, ""),
+        PARAM_TAX_MAPPING_FILE(PARAM_TAX_MAPPING_FILE_ID, "--tax-mapping-file", "Taxonomical mapping file", "File to map sequence identifer to taxonomical identifier", typeid(std::string), (void*) &taxMappingFile, ""),
         // expandaln
         PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion mode", "Which hits (still meeting the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void*) &expansionMode, "^[0-2]{1}$"),
         // taxonomy
@@ -901,6 +903,16 @@ Parameters::Parameters():
     filtertaxseqdb.push_back(&PARAM_SUBDB_MODE);
     filtertaxseqdb.push_back(&PARAM_THREADS);
     filtertaxseqdb.push_back(&PARAM_V);
+
+    // aggregatetax
+    aggregatetax.push_back(&PARAM_COMPRESSED);
+    aggregatetax.push_back(&PARAM_MAJORITY);
+    aggregatetax.push_back(&PARAM_LCA_RANKS);
+    // TODO should we add this in the future?
+    //aggregatetax.push_back(&PARAM_BLACKLIST);
+    aggregatetax.push_back(&PARAM_TAXON_ADD_LINEAGE);
+    aggregatetax.push_back(&PARAM_THREADS);
+    aggregatetax.push_back(&PARAM_V);
 
     // lca
     lca.push_back(&PARAM_COMPRESSED);
@@ -2028,6 +2040,9 @@ void Parameters::setDefaults() {
     // other sequences (plasmids, etc)
     // https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=28384
     blacklist = "12908,28384";
+
+    // aggregatetax
+    majorityThr = 0;
 
     // taxonomyreport
     reportMode = 0;

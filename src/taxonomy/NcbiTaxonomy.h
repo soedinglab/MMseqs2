@@ -41,6 +41,7 @@ public:
     std::vector<std::string> AtRanks(TaxonNode const * node, const std::vector<std::string> &levels) const;
     std::map<std::string, std::string> AllRanks(TaxonNode const *node) const;
     std::string taxLineage(TaxonNode const *node);
+    int getRankIndex(TaxonNode const *node) const;
 
     bool IsAncestor(TaxID ancestor, TaxID child);
     TaxonNode const* taxonNode(TaxID taxonId, bool fail = true) const;

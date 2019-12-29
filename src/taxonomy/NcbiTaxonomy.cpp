@@ -365,6 +365,15 @@ char NcbiTaxonomy::getShortRank(const std::string& rank) const {
     }
 }
 
+int NcbiTaxonomy::getRankIndex(TaxonNode const *node) const {
+    int rankIndex = -1;
+    if (sortedLevels.find(node->rank) != sortedLevels.end()) {
+        // found rank in map:
+        rankIndex = sortedLevels.at(node->rank);
+    }
+    return (rankIndex);
+}
+
 std::string NcbiTaxonomy::taxLineage(TaxonNode const *node) {
     std::vector<TaxonNode const *> taxLineageVec;
     std::string taxLineage;
