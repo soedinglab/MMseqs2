@@ -164,14 +164,16 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     NcbiTaxonomy * t = NULL;
     std::vector<std::pair<unsigned int, unsigned int>> mapping;
     if(needTaxonomy){
-        t = NcbiTaxonomy::openTaxonomy(par.db2);
+        std::string db2NoIndexName = PrefilteringIndexReader::dbPathWithoutIndex(par.db2);
+        t = NcbiTaxonomy::openTaxonomy(db2NoIndexName);
     }
     if(needTaxonomy || needTaxonomyMapping){
-        if(FileUtil::fileExists(std::string(par.db2 + "_mapping").c_str()) == false){
-            Debug(Debug::ERROR) << par.db2 + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
+        std::string db2NoIndexName = PrefilteringIndexReader::dbPathWithoutIndex(par.db2);
+        if(FileUtil::fileExists(std::string(db2NoIndexName + "_mapping").c_str()) == false){
+            Debug(Debug::ERROR) << db2NoIndexName + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
             EXIT(EXIT_FAILURE);
         }
-        bool isSorted = Util::readMapping( par.db2 + "_mapping", mapping);
+        bool isSorted = Util::readMapping( db2NoIndexName + "_mapping", mapping);
         if(isSorted == false){
             std::stable_sort(mapping.begin(), mapping.end(), compareToFirstInt);
         }

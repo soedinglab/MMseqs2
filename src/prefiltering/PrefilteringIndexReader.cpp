@@ -547,4 +547,19 @@ std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB)
     return "";
 }
 
+std::string PrefilteringIndexReader::dbPathWithoutIndex(std::string & dbname) {
+    std::string rawname = dbname;
+    // check for .idx
+    size_t idxlastpos = dbname.rfind(".idx");
+    if(idxlastpos != std::string::npos && dbname.size() - idxlastpos == 4){
+        rawname  = dbname.substr(0, idxlastpos);
+    }
+    // check for .linidx
+    size_t linidxlastpos = dbname.rfind(".linidx");
+    if(linidxlastpos != std::string::npos && dbname.size() - linidxlastpos == 7){
+        rawname  = dbname.substr(0, linidxlastpos);
+    }
+    return rawname;
+}
+
 
