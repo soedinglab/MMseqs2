@@ -449,6 +449,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                 mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
                                 if (mappingIt == mapping.end() || mappingIt->first != val.first) {
                                     taxon = 0;
+                                    taxonNode = NULL;
                                 }else{
                                     taxon = mappingIt->second;
                                     if(needTaxonomy){
