@@ -783,6 +783,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
     size_t resSize = 0;
     size_t realResSize = 0;
     size_t diagonalOverflow = 0;
+    size_t trancatedCounter = 0;
     size_t totalQueryDBSize = querySize;
 
     unsigned int localThreads = 1;
@@ -831,7 +832,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
         std::string result;
         result.reserve(1000000);
 
-#pragma omp for schedule(dynamic, 2) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
+#pragma omp for schedule(dynamic, 2) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow, trancatedCounter)
         for (size_t id = queryFrom; id < queryFrom + querySize; id++) {
             progress.updateProgress();
             // get query sequence
@@ -894,6 +895,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                 doubleMatches += matcher.getStatistics()->doubleMatches;
                 querySeqLenSum += seq.L;
                 diagonalOverflow += matcher.getStatistics()->diagonalOverflow;
+                trancatedCounter += matcher.getStatistics()->truncated;
                 resSize += resultSize;
                 realResSize += std::min(resultSize, maxResListLen);
                 reslens[thread_idx]->emplace_back(resultSize);
@@ -906,7 +908,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                            dbMatches / totalQueryDBSize,
                            doubleMatches / totalQueryDBSize,
                            querySeqLenSum, diagonalOverflow,
-                           resSize / totalQueryDBSize);
+                           resSize / totalQueryDBSize, trancatedCounter);
 
         size_t empty = 0;
         for (size_t id = 0; id < querySize; id++) {
@@ -972,6 +974,7 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
     Debug(Debug::INFO) << "\n" << stats.kmersPerPos << " k-mers per position\n";
     Debug(Debug::INFO) << stats.dbMatches << " DB matches per sequence\n";
     Debug(Debug::INFO) << stats.diagonalOverflow << " overflows\n";
+    Debug(Debug::INFO) << stats.truncated << " queries produce too much hits (truncated result)\n";
     Debug(Debug::INFO) << stats.resultsPassedPrefPerSeq << " sequences passed prefiltering per query sequence";
     if (stats.resultsPassedPrefPerSeq > maxResults)
         Debug(Debug::WARNING) << " (ATTENTION: max. " << maxResults
@@ -1038,7 +1041,7 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile
                 float base = 163.2;
                 kmerThrBest = base - (sensitivity * 8.917);
             } else if (kmerSize == 7) {
-                float base = 186.15;
+                float base = 196.15;
                 kmerThrBest = base - (sensitivity * 11.22);
             } else {
                 Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";

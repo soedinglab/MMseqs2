@@ -32,6 +32,7 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
                             : idx(indexTable->getAlphabetSize(), kmerSize)
 {
     this->kmerSubMat = kmerSubMat;
+    this->truncatedCounter = 0;
     this->ungappedAlignmentSubMat = ungappedAlignmentSubMat;
     this->indexTable = indexTable;
     this->kmerSize = kmerSize;
@@ -147,9 +148,11 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
             }else{
                 queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, identityId, diagonalThr, ungappedAlignment, false);
             }
+            stats->truncated = 0;
         }else{
-            Debug(Debug::WARNING) << "Sequence " << querySeq->getDbKey() << " produces too many hits. Results might be truncated\n";
+            //Debug(Debug::WARNING) << "Sequence " << querySeq->getDbKey() << " produces too many hits. Results might be truncated\n";
             queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(foundDiagonals, resultSize, identityId, diagonalThr, ungappedAlignment, false);
+            stats->truncated = 1;
         }
     }else{
         unsigned int thr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
@@ -157,9 +160,11 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
         if(resultSize < counterResultSize/2) {
             int elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, thr, foundDiagonals, resultSize);
             queryResult = getResult<KMER_SCORE>(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, identityId, thr, ungappedAlignment, false);
+            stats->truncated = 0;
         }else{
-            Debug(Debug::WARNING) << "Sequence " << querySeq->getDbKey() << " produces too many hits. Results might be truncated\n";
+//            Debug(Debug::WARNING) << "Sequence " << querySeq->getDbKey() << " produces too many hits. Results might be truncated\n";
             queryResult = getResult<KMER_SCORE>(foundDiagonals, resultSize, identityId, thr, ungappedAlignment, false);
+            stats->truncated = 1;
         }
     }
     if(queryResult.second > 1){
@@ -296,6 +301,7 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     stats->kmersPerPos   = ((double)kmerListLen/(double)seq->L);
     stats->querySeqLen   = seq->L;
     stats->dbMatches     = overflowNumMatches + numMatches;
+
     return hitCount;
 }
 
