@@ -58,14 +58,7 @@ public:
                                           qStartPos(qStartPos), qEndPos(qEndPos), qLen(qLen),
                                           dbStartPos(dbStartPos), dbEndPos(dbEndPos), dbLen(dbLen),
                                           backtrace(backtrace) {};
-
-
-        result_t(const result_t &res) :  dbKey(res.dbKey), score(res.score), qcov(res.qcov),
-        dbcov(res.dbcov), seqId(res.seqId), eval(res.eval), alnLength(res.alnLength),
-        qStartPos(res.qStartPos), qEndPos(res.qEndPos), qLen(res.qLen),
-        dbStartPos(res.dbStartPos), dbEndPos(res.dbEndPos), dbLen(res.dbLen),
-        backtrace(res.backtrace) {} ;
-
+        
         result_t(){};
 
         static void swapResult(result_t & res, EvalueComputation &evaluer, bool hasBacktrace){
