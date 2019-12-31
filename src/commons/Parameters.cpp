@@ -1294,7 +1294,7 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                         regfree(&regex);
                         // if no match found or two matches found (we want exactly one match)
                         if (nomatch){
-                            printUsageMessage(command, outputFlags);
+                            printUsageMessage(command, 0xFFFFFFFF);
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx]->name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
@@ -1310,13 +1310,13 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
 
                         // if no match found or two matches found (we want exactly one match)
                         if (nomatch){
-                            printUsageMessage(command, outputFlags);
+                            printUsageMessage(command, 0xFFFFFFFF);
                             Debug(Debug::ERROR) << "Error in argument regex " << par[parIdx]->name << "\n";
                             EXIT(EXIT_FAILURE);
                         } else {
                             size_t value = ByteParser::parse(pargv[argIdx+1]);
                             if (value == ByteParser::INVALID_SIZE) {
-                                printUsageMessage(command, outputFlags);
+                                printUsageMessage(command, 0xFFFFFFFF);
                                 Debug(Debug::ERROR) << "Error in value parsing " << par[parIdx]->name << "\n";
                                 EXIT(EXIT_FAILURE);
                             } else {
@@ -1328,7 +1328,7 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                     } else if (typeid(ScoreMatrixFile) == par[parIdx]->type) {
                         ScoreMatrixFile value = ScoreMatrixFile(pargv[argIdx+1]);
                         if (value == ScoreMatrixFile("INVALID", "INVALID")) {
-                            printUsageMessage(command, outputFlags);
+                            printUsageMessage(command, 0xFFFFFFFF);
                             Debug(Debug::ERROR) << "Error in value parsing " << par[parIdx]->name << "\n";
                             EXIT(EXIT_FAILURE);
                         } else {
@@ -1342,7 +1342,7 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                         int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
                         regfree(&regex);
                         if (nomatch){
-                            printUsageMessage(command, outputFlags);
+                            printUsageMessage(command, 0xFFFFFFFF);
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx]->name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
@@ -1357,7 +1357,7 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                         int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
                         regfree(&regex);
                         if (nomatch){
-                            printUsageMessage(command, outputFlags);
+                            printUsageMessage(command, 0xFFFFFFFF);
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx]->name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
