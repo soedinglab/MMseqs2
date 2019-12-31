@@ -32,7 +32,6 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
                             : idx(indexTable->getAlphabetSize(), kmerSize)
 {
     this->kmerSubMat = kmerSubMat;
-    this->truncatedCounter = 0;
     this->ungappedAlignmentSubMat = ungappedAlignmentSubMat;
     this->indexTable = indexTable;
     this->kmerSize = kmerSize;
