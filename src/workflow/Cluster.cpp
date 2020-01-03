@@ -205,8 +205,11 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         // same as above, clusthash needs a smaller alphabetsize
         size_t alphabetSize = par.alphabetSize;
         par.alphabetSize = Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE;
+        float seqIdThr = par.seqIdThr;
+        par.seqIdThr = (float)Parameters::CLUST_HASH_DEFAULT_MIN_SEQ_ID/100.0f;
         cmd.addVariable("DETECTREDUNDANCY_PAR", par.createParameterString(par.clusthash).c_str());
         par.alphabetSize = alphabetSize;
+        par.seqIdThr = seqIdThr;
 
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         if (isUngappedMode) {
