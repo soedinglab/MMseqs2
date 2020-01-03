@@ -109,6 +109,8 @@ public:
         return sign * val;
     }
 
+    static char* fastSeqIdToBuffer(float seqId, char* buffer);
+
     static bool isNumber(const std::string& s)
     {
         std::string::const_iterator it = s.begin();
