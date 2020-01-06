@@ -52,7 +52,7 @@ unsigned circ_hash(const int * x, unsigned length, const unsigned rol){
 // Rolling hash for CRC variant: compute hash value for next key x[0:length-1] from previous hash value hash( x[-1:length-2] ) and x_first = x[-1]
 unsigned circ_hash_next(const int * x, unsigned length, int x_first, short unsigned h, const unsigned rol){
     short unsigned RAND[21] = {0x4567, 0x23c6, 0x9869, 0x4873, 0xdc51, 0x5cff, 0x944a, 0x58ec, 0x1f29, 0x7ccd, 0x58ba, 0xd7ab, 0x41f2, 0x1efb, 0xa9e3, 0xe146, 0x007c, 0x62c2, 0x0854, 0x27f8, 0x231b};
-    h ^= RoL(RAND[x_first], (5*(length-1)) % 16); // undo INITIAL_VALUE and first letter x[0] of old key
+    h ^= RoL(RAND[x_first], (rol*(length-1)) % 16); // undo INITIAL_VALUE and first letter x[0] of old key
     h =  RoL(h, rol); // circularly permute all letters x[1:length-1] to 5 positions to left
     h ^= RAND[x[length-1]]; // add new, last letter of new key x[1:length]
     return h;
