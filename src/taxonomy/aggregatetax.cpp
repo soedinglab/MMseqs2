@@ -60,7 +60,7 @@ TaxID selectTaxForSet (const std::vector<TaxID> &setTaxa, NcbiTaxonomy const *ta
         if (currPercent >= majorityCutoff) {
             TaxID currTaxId = it->first;
             TaxonNode const * node = taxonomy->taxonNode(currTaxId, false);
-            int currRankInd = taxonomy->getRankIndex(node);
+            int currRankInd = NcbiTaxonomy::findRankIndex(node->rank);
             if (currRankInd > 0) {
                 if ((currRankInd < minRank) || ((currRankInd == minRank) && (currPercent > selectedPercent))) {
                     selctedTaxon = currTaxId;
@@ -92,7 +92,7 @@ int aggregatetax(int argc, const char **argv, const Command& command) {
     DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_TAXONOMICAL_RESULT);
     writer.open();
 
-    std::vector<std::string> ranks = Util::split(par.lcaRanks, ";");
+    std::vector<std::string> ranks = NcbiTaxonomy::parseRanks(par.lcaRanks);
 
     Debug::Progress progress(taxSeqReader.getSize());
 
