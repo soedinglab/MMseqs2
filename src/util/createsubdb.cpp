@@ -29,8 +29,8 @@ int createsubdb(int argc, const char **argv, const Command& command) {
 
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, 0, Parameters::DBTYPE_OMIT_FILE);
     writer.open();
-
-    char *line = (char*)malloc(1024);
+    // getline reallocs automatic
+    char *line = NULL;
     size_t len = 0;
     char dbKey[256];
     while (getline(&line, &len, orderFile) != -1) {
