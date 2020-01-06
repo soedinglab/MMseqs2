@@ -26,7 +26,6 @@ int result2flat(int argc, const char **argv, const Command &command) {
     char header_start[] = {'>'};
     char newline[] = {'\n'};
 
-    char *dbKeyBuffer = new char[par.maxSeqLen * 20];
     for (size_t i = 0; i < dbr_data.getSize(); i++) {
 
         // Write the header, taken from the original queryDB
@@ -52,21 +51,31 @@ int result2flat(int argc, const char **argv, const Command &command) {
 
         // write data
         char *data = dbr_data.getData(i, 0);
+        std::string dbKeyBuffer;
+        const char * words[2];
         while (*data != '\0') {
             // dbKeyBuffer can contain sequence
-            Util::parseKey(data, dbKeyBuffer);
-            const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
-            char *header_data = targetdb_header.getDataByDBKey(dbKey, 0);
+            Util::getWordsOfLine(data, words, 2);
+            //Util::parseKey(data, dbKeyBuffer);
+            char *target_header_data = NULL;
+            size_t keyLen = 0;
+            for(size_t  i = 0; i < DbValidator::resultDb.size(); i++){
+                if(Parameters::isEqualDbtype(dbr_data.getDbtype(), DbValidator::resultDb[i])  ) {
+                    keyLen = (words[1] - words[0]);
+                    dbKeyBuffer.size();
+                    dbKeyBuffer.append(words[0], keyLen);
+                    const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer.c_str(), NULL, 10);
+                    target_header_data = targetdb_header.getDataByDBKey(dbKey, 0);
+                }
+            }
             std::string dataStr;
-            if (par.useHeader == true && header_data != NULL && dbr_data.getDbtype() == -1)
+            if (par.useHeader == true && target_header_data != NULL)
             {
-                dataStr = Util::parseFastaHeader(header_data);
+                dataStr = Util::parseFastaHeader(target_header_data);
                 char *endLenData = Util::skipLine(data);
-                size_t keyLen = strlen(dbKeyBuffer);
                 char *dataWithoutKey = data + keyLen;
                 size_t dataToCopySize = endLenData - dataWithoutKey;
-                std::string data(dataWithoutKey, dataToCopySize);
-                dataStr.append(data);
+                dataStr.append(dataWithoutKey, dataToCopySize);
             } else {
                 char *startLine = data;
                 char *endLine = Util::skipLine(data);
@@ -87,7 +96,6 @@ int result2flat(int argc, const char **argv, const Command &command) {
             data = Util::skipLine(data);
         }
     }
-    delete[] dbKeyBuffer;
 
 
     fclose(fastaFP);
