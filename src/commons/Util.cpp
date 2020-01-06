@@ -274,6 +274,37 @@ void Util::parseKey(const char *data, char *key) {
     key[keySize] = '\0';
 }
 
+char* Util::fastSeqIdToBuffer(float seqId, char* buffer) {
+    if (seqId == 1.0) {
+        *(buffer) = '1';
+        buffer++;
+        *(buffer) = '.';
+        buffer++;
+        *(buffer) = '0';
+        buffer++;
+        *(buffer) = '0';
+        buffer++;
+        *(buffer) = '0';
+        buffer++;
+        *(buffer) = '\0';
+    } else {
+        *(buffer) = '0';
+        buffer++;
+        *(buffer) = '.';
+        buffer++;
+        if (seqId < 0.10) {
+            *(buffer) = '0';
+            buffer++;
+        }
+        if (seqId < 0.01) {
+            *(buffer) = '0';
+            buffer++;
+        }
+        buffer = Itoa::i32toa_sse2((int)(seqId * 1000), buffer);
+    }
+    return buffer;
+}
+
 std::vector<std::string> Util::split(const std::string &str, const std::string &sep) {
     std::vector<std::string> arr;
 

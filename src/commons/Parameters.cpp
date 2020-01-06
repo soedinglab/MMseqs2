@@ -774,6 +774,7 @@ Parameters::Parameters():
     clusthash.push_back(&PARAM_ALPH_SIZE);
     clusthash.push_back(&PARAM_MIN_SEQ_ID);
     clusthash.push_back(&PARAM_MAX_SEQ_LEN);
+    clusthash.push_back(&PARAM_PRELOAD_MODE);
     clusthash.push_back(&PARAM_THREADS);
     clusthash.push_back(&PARAM_COMPRESSED);
     clusthash.push_back(&PARAM_V);

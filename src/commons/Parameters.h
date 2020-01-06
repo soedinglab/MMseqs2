@@ -204,10 +204,10 @@ public:
     static const int EXTRACT_TARGET = 2;
 
     static const int CLUST_HASH_DEFAULT_ALPH_SIZE = 3;
+    static const int CLUST_HASH_DEFAULT_MIN_SEQ_ID = 99;
     static const int CLUST_LINEAR_DEFAULT_ALPH_SIZE = 13;
     static const int CLUST_LINEAR_DEFAULT_K = 0;
     static const int CLUST_LINEAR_KMER_PER_SEQ = 0;
-
 
     // cov mode
     static const int COV_MODE_BIDIRECTIONAL  = 0;

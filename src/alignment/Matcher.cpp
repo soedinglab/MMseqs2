@@ -302,41 +302,8 @@ size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBac
     *(tmpBuff-1) = '\t';
     tmpBuff = Itoa::i32toa_sse2(result.score, tmpBuff);
     *(tmpBuff-1) = '\t';
-    float seqIdFlt = result.seqId;
-    //TODO seqid, evalue
-
-
-    if(seqIdFlt==1.0){
-        *(tmpBuff) = '1';
-        tmpBuff++;
-        *(tmpBuff) = '.';
-        tmpBuff++;
-        *(tmpBuff) = '0';
-        tmpBuff++;
-        *(tmpBuff) = '0';
-        tmpBuff++;
-        *(tmpBuff) = '0';
-        tmpBuff++;
-        *(tmpBuff) = '\t';
-        tmpBuff++;
-    }else{
-        *(tmpBuff) = '0';
-        tmpBuff++;
-        *(tmpBuff) = '.';
-        tmpBuff++;
-        if(seqIdFlt<0.10){
-            *(tmpBuff) = '0';
-            tmpBuff++;
-        }
-        if(seqIdFlt<0.01){
-            *(tmpBuff) = '0';
-            tmpBuff++;
-        }
-        int seqId = seqIdFlt*1000;
-        tmpBuff = Itoa::i32toa_sse2(seqId, tmpBuff);
-        *(tmpBuff-1) = '\t';
-    }
-
+    tmpBuff = Util::fastSeqIdToBuffer(result.seqId, tmpBuff);
+    *(tmpBuff-1) = '\t';
     tmpBuff += sprintf(tmpBuff,"%.3E",result.eval);
     tmpBuff++;
     *(tmpBuff-1) = '\t';
