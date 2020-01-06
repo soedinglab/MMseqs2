@@ -34,8 +34,6 @@ void deleteMatrix(int** M, size_t maxNodes) {
 
 NcbiTaxonomy::NcbiTaxonomy(const std::string &namesFile,  const std::string &nodesFile,
                            const std::string &mergedFile) {
-    InitLevels();
-
     loadNodes(nodesFile);
     loadMerged(mergedFile);
     loadNames(namesFile);
@@ -66,46 +64,6 @@ NcbiTaxonomy::NcbiTaxonomy(const std::string &namesFile,  const std::string &nod
 NcbiTaxonomy::~NcbiTaxonomy() {
     delete[] H;
     deleteMatrix(M, maxNodes);
-}
-
-void NcbiTaxonomy::InitLevels() {
-    sortedLevels["forma"] = 1;
-    sortedLevels["varietas"] = 2;
-    sortedLevels["subspecies"] = 3;
-    sortedLevels["species"] = 4;
-    sortedLevels["species subgroup"] = 5;
-    sortedLevels["species group"] = 6;
-    sortedLevels["subgenus"] = 7;
-    sortedLevels["genus"] = 8;
-    sortedLevels["subtribe"] = 9;
-    sortedLevels["tribe"] = 10;
-    sortedLevels["subfamily"] = 11;
-    sortedLevels["family"] = 12;
-    sortedLevels["superfamily"] = 13;
-    sortedLevels["parvorder"] = 14;
-    sortedLevels["infraorder"] = 15;
-    sortedLevels["suborder"] = 16;
-    sortedLevels["order"] = 17;
-    sortedLevels["superorder"] = 18;
-    sortedLevels["infraclass"] = 19;
-    sortedLevels["subclass"] = 20;
-    sortedLevels["class"] = 21;
-    sortedLevels["superclass"] = 22;
-    sortedLevels["subphylum"] = 23;
-    sortedLevels["phylum"] = 24;
-    sortedLevels["superphylum"] = 25;
-    sortedLevels["subkingdom"] = 26;
-    sortedLevels["kingdom"] = 27;
-    sortedLevels["superkingdom"] = 28;
-
-    shortRank["species"] = 's';
-    shortRank["genus"] = 'g';
-    shortRank["family"] = 'f';
-    shortRank["order"] = 'o';
-    shortRank["class"] = 'c';
-    shortRank["phylum"] = 'p';
-    shortRank["kingdom"] = 'k';
-    shortRank["superkingdom"] = 'd';
 }
 
 std::vector<std::string> splitByDelimiter(const std::string &s, const std::string &delimiter, int maxCol) {
@@ -331,11 +289,7 @@ std::vector<std::string> NcbiTaxonomy::AtRanks(TaxonNode const *node, const std:
     std::vector<std::string> result;
     std::map<std::string, std::string> allRanks = AllRanks(node);
     // map does not include "no rank" nor "no_rank"
-    int baseRankIndex = -1;
-    if (sortedLevels.find(node->rank) != sortedLevels.end()) {
-        // found rank in map:
-        baseRankIndex = sortedLevels.at(node->rank);
-    }
+    int baseRankIndex = findRankIndex(node->rank);
     std::string baseRank = "uc_" + node->name;
     for (std::vector<std::string>::const_iterator it = levels.begin(); it != levels.end(); ++it) {
         std::map<std::string, std::string>::iterator jt = allRanks.find(*it);
@@ -345,7 +299,7 @@ std::vector<std::string> NcbiTaxonomy::AtRanks(TaxonNode const *node, const std:
         }
 
         // If not ... 2 possible causes: i) too low level ("uc_")
-        if (sortedLevels.at(*it) < baseRankIndex) {
+        if (NcbiRanks.at(*it) < baseRankIndex) {
             result.emplace_back(baseRank);
             continue;
         }
@@ -356,22 +310,31 @@ std::vector<std::string> NcbiTaxonomy::AtRanks(TaxonNode const *node, const std:
     return result;
 }
 
-char NcbiTaxonomy::getShortRank(const std::string& rank) const {
-    std::map<std::string, char>::const_iterator it = shortRank.find(rank);
-    if (it == shortRank.end()) {
-        return '-';
-    } else {
-        return it->second;
+std::vector<std::string> NcbiTaxonomy::parseRanks(const std::string& ranks) {
+    std::vector<std::string> temp = Util::split(ranks, ",");
+    for (size_t i = 0; i < temp.size(); ++i) {
+        if (findRankIndex(temp[i]) == -1) {
+            Debug(Debug::ERROR) << "Invalid taxonomic rank " << temp[i] << "given\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
+    return temp;
 }
 
-int NcbiTaxonomy::getRankIndex(TaxonNode const *node) const {
-    int rankIndex = -1;
-    if (sortedLevels.find(node->rank) != sortedLevels.end()) {
-        // found rank in map:
-        rankIndex = sortedLevels.at(node->rank);
+int NcbiTaxonomy::findRankIndex(const std::string& rank) {
+    std::map<std::string, int>::const_iterator it;
+    if ((it = NcbiRanks.find(rank)) != NcbiRanks.end()) {
+        return it->second;
     }
-    return (rankIndex);
+    return -1;
+}
+
+char NcbiTaxonomy::findShortRank(const std::string& rank) {
+    std::map<std::string, char>::const_iterator it;
+    if ((it = NcbiShortRanks.find(rank)) != NcbiShortRanks.end()) {
+        return it->second;
+    }
+    return '-';
 }
 
 std::string NcbiTaxonomy::taxLineage(TaxonNode const *node) {
@@ -384,7 +347,7 @@ std::string NcbiTaxonomy::taxLineage(TaxonNode const *node) {
     } while (node->parentTaxId != node->taxId);
 
     for (int i = taxLineageVec.size() - 1; i >= 0; --i) {
-        taxLineage += getShortRank(taxLineageVec[i]->rank);
+        taxLineage += findShortRank(taxLineageVec[i]->rank);
         taxLineage += '_';
         taxLineage += taxLineageVec[i]->name;
         if (i > 0) {

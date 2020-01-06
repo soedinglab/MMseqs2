@@ -33,7 +33,7 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
         EXIT(EXIT_FAILURE);
     }
     NcbiTaxonomy *t = NcbiTaxonomy::openTaxonomy(par.db1);
-    std::vector<std::string> ranks = Util::split(par.lcaRanks, ":");
+    std::vector<std::string> ranks = NcbiTaxonomy::parseRanks(par.lcaRanks);
 
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -105,7 +105,7 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
                 result.append(data, dataSize - 1);
                 result += '\t' + SSTR(node->taxId) + '\t' + node->rank + '\t' + node->name;
                 if (!ranks.empty()) {
-                    std::string lcaRanks = Util::implode(t->AtRanks(node, ranks), ':');
+                    std::string lcaRanks = Util::implode(t->AtRanks(node, ranks), ';');
                     result += '\t' + lcaRanks;
                 }
                 if (par.showTaxLineage) {
