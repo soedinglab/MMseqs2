@@ -4,7 +4,6 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
-#include "MemoryMapped.h"
 
 #include <climits>
 
@@ -12,17 +11,17 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    std::string file = par.db1Index;
-    if (FileUtil::fileExists(file.c_str()) == false) {
-        file = par.db1;
-        if (FileUtil::fileExists(file.c_str()) == false) {
-            Debug(Debug::ERROR) << "File " << file << " does not exist.\n";
+    FILE *orderFile = NULL;
+    if (FileUtil::fileExists(par.db1Index.c_str())) {
+        orderFile = fopen(par.db1Index.c_str(), "r");
+    } else {
+        if(FileUtil::fileExists(par.db1.c_str())){
+            orderFile = fopen(par.db1.c_str(), "r");
+        }else{
+            Debug(Debug::ERROR) << "File " << par.db1 << " does not exist.\n";
             EXIT(EXIT_FAILURE);
         }
     }
-
-    MemoryMapped order(file, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
-    char* data = (char *) order.getData();
 
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::NOSORT);
@@ -31,11 +30,11 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, 0, Parameters::DBTYPE_OMIT_FILE);
     writer.open();
 
+    char *line = (char*)malloc(1024);
+    size_t len = 0;
     char dbKey[256];
-    while (*data != '\0') {
-        Util::parseKey(data, dbKey);
-        data = Util::skipLine(data);
-
+    while (getline(&line, &len, orderFile) != -1) {
+        Util::parseKey(line, dbKey);
         const unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
         const size_t id = reader.getId(key);
         if (id >= UINT_MAX) {
@@ -73,8 +72,9 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     DBWriter::writeDbtypeFile(par.db3.c_str(), reader.getDbtype(), isCompressed);
     DBReader<unsigned int>::softlinkDb(par.db2, par.db3, DBFiles::SEQUENCE_ANCILLARY);
 
+    free(line);
     reader.close();
-    order.close();
+    fclose(orderFile);
 
     return EXIT_SUCCESS;
 }
