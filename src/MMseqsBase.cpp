@@ -627,7 +627,7 @@ std::vector<Command> baseCommands = {
                 "<i:queryDB> <i:targetDB> <i:resultDB> <o:statsDB>",
                 CITATION_MMSEQS2, {{"queryDB",  DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                          {"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
-                                         {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::prefAlnResDb },
+                                         {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
                                          {"statsDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::genericDb }}},
         {"offsetalignment",      offsetalignment,      &par.offsetalignment,      COMMAND_HIDDEN,
                 "Offset alignment by orf start position.",
