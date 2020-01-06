@@ -1023,6 +1023,10 @@ void DBReader<T>::removeDb(const std::string &databaseName){
     if (FileUtil::fileExists(dbTypeFile.c_str())) {
         FileUtil::remove(dbTypeFile.c_str());
     }
+    std::string sourceFile = databaseName + ".source";
+    if (FileUtil::fileExists(sourceFile.c_str())) {
+        FileUtil::remove(sourceFile.c_str());
+    }
     std::string lookupFile = databaseName + ".lookup";
     if (FileUtil::fileExists(lookupFile.c_str())) {
         FileUtil::remove(lookupFile.c_str());
