@@ -29,11 +29,11 @@ fi
 
 if notExists "${TMP_PATH}/rep_seq.fasta"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" createsubdb "${TMP_PATH}/clu" "${TMP_PATH}/input"  "${TMP_PATH}/clu_rep" ${VERBOSITY_PAR} \
-            || fail "createsubdb  died"
+    "$MMSEQS" result2repseq "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/clu_rep" ${THREADS_PAR} \
+            || fail "Result2repseq  died"
 
     # shellcheck disable=SC2086
-    "$MMSEQS" convert2fasta "${TMP_PATH}/clu_rep" "${TMP_PATH}/rep_seq.fasta" ${VERBOSITY_PAR} \
+    "$MMSEQS" result2flat "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/clu_rep" "${TMP_PATH}/rep_seq.fasta" --use-fasta-header ${VERBOSITY_PAR} \
             || fail "result2flat died"
 fi
 
