@@ -342,7 +342,7 @@ int apply(int argc, const char **argv, const Command& command) {
                     unsigned int key = reader.getDbKey(i);
                     char *data = reader.getData(i, thread);
                     if (*data == '\0') {
-                        writer.writeData(NULL, 0, key, thread);
+                        writer.writeData(NULL, 0, key, 0);
                         continue;
                     }
 
