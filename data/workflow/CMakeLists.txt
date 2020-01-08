@@ -1,0 +1,26 @@
+set(GENERATED_WORKFLOWS
+        workflow/easysearch.sh
+        workflow/easycluster.sh
+        workflow/easytaxonomy.sh
+        workflow/blastp.sh
+        workflow/blastpgp.sh
+        workflow/map.sh
+        workflow/rbh.sh
+        workflow/linclust.sh
+        workflow/clustering.sh
+        workflow/cascaded_clustering.sh
+        workflow/update_clustering.sh
+        workflow/searchtargetprofile.sh
+        workflow/createindex.sh
+        workflow/createtaxdb.sh
+        workflow/translated_search.sh
+        workflow/taxonomy.sh
+        workflow/multihitdb.sh
+        workflow/multihitsearch.sh
+        workflow/enrich.sh
+        workflow/blastn.sh
+        workflow/searchslicedtargetprofile.sh
+        workflow/linsearch.sh
+
+        PARENT_SCOPE
+        )
