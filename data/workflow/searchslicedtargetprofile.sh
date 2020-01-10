@@ -89,9 +89,9 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
         CURRENT_AVAIL_DISK_SPACE=$(($("$MMSEQS" diskspaceavail "${TMP_PATH}")/2))
         # Compute the max number of profiles that can be processed
         # based on the number of hits that saturate
-        NUM_PROFS_IN_STEP="$((CURRENT_AVAIL_DISK_SPACE/NUM_SEQS_THAT_SATURATE/$RESSIZE))"
+        NUM_PROFS_IN_STEP="$((CURRENT_AVAIL_DISK_SPACE/NUM_SEQS_THAT_SATURATE/RESSIZE))"
     else
-        NUM_PROFS_IN_STEP="$((AVAIL_DISK/NUM_SEQS_THAT_SATURATE/$RESSIZE))"
+        NUM_PROFS_IN_STEP="$((AVAIL_DISK/NUM_SEQS_THAT_SATURATE/RESSIZE))"
     fi
 
     # no matter what, process at least one profile...
