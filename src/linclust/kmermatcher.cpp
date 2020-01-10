@@ -318,8 +318,16 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                     threadKmerBuffer[kmerBufferPos].seqLen = seq.L;
                     kmerBufferPos++;
                     if (kmerBufferPos >= BUFFER_SIZE) {
-                        size_t writeOffset = __sync_fetch_and_add(&kmerArrayOffset, kmerBufferPos);
-                        memcpy(kmerArray + writeOffset, threadKmerBuffer, sizeof(KmerPosition<T>) * kmerBufferPos);
+                        size_t currKmerArrayOffset = __sync_fetch_and_add(&kmerArrayOffset, kmerBufferPos);
+                        if(currKmerArrayOffset + kmerBufferPos < kmerArraySize) {
+                            memcpy(kmerArray + currKmerArrayOffset, threadKmerBuffer,
+                                   sizeof(KmerPosition<T>) * kmerBufferPos);
+                        } else {
+                            Debug(Debug::ERROR) << "Kmer array overflow. currKmerArrayOffset="<< currKmerArrayOffset
+                                                << ", kmerBufferPos=" << kmerBufferPos
+                                                << ", kmerArraySize=" << kmerArraySize <<".\n";
+                            EXIT(EXIT_FAILURE);
+                        }
                         kmerBufferPos = 0;
                     }
                 }
@@ -365,8 +373,9 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                             memcpy(kmerArray + currKmerArrayOffset, threadKmerBuffer, sizeof(KmerPosition<T>) * kmerBufferPos);
                             kmerBufferPos = 0;
                         } else{
-                            Debug(Debug::ERROR) << "Kmer array overflow. Try to write until "<< currKmerArrayOffset + kmerBufferPos
-                                                << " out of " << kmerArraySize <<".\n";
+                            Debug(Debug::ERROR) << "Kmer array overflow. currKmerArrayOffset="<< currKmerArrayOffset
+                                                << ", kmerBufferPos=" << kmerBufferPos
+                                                << ", kmerArraySize=" << kmerArraySize <<".\n";
                             EXIT(EXIT_FAILURE);
                         }
                     }
