@@ -62,7 +62,7 @@ unsigned circ_hash_next(const int * x, unsigned length, int x_first, short unsig
 
 template <typename T>
 KmerPosition<T> *initKmerPositionMemory(size_t size) {
-    KmerPosition<T> * hashSeqPair = new(std::nothrow) KmerPosition<T>[size + 1];
+    KmerPosition<T> * hashSeqPair = new(std::nothrow) KmerPosition<T>[size];
     Util::checkAllocation(hashSeqPair, "Can not allocate memory");
     size_t pageSize = Util::getPageSize()/sizeof(KmerPosition<T>);
 
@@ -388,8 +388,9 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
             if(currKmerArrayOffset + kmerBufferPos < kmerArraySize){
                 memcpy(kmerArray+currKmerArrayOffset, threadKmerBuffer, sizeof(KmerPosition<T>) * kmerBufferPos);
             } else {
-                Debug(Debug::ERROR) << "Kmer array overflow. Try to write until "<< currKmerArrayOffset + kmerBufferPos
-                                    << " out of " << kmerArraySize <<".\n";
+                Debug(Debug::ERROR) << "Kmer array overflow. currKmerArrayOffset="<< currKmerArrayOffset
+                                    << ", kmerBufferPos=" << kmerBufferPos
+                                    << ", kmerArraySize=" << kmerArraySize <<".\n";
                 EXIT(EXIT_FAILURE);
             }
         }
@@ -431,15 +432,15 @@ KmerPosition<T> * doComputation(size_t totalKmers, size_t split, size_t splits, 
         splitKmerCount = (memoryLimit / sizeof(KmerPosition<T>));
     }
 
-    KmerPosition<T> * hashSeqPair = initKmerPositionMemory<T>(splitKmerCount);
+    KmerPosition<T> * hashSeqPair = initKmerPositionMemory<T>(splitKmerCount+1);
     size_t elementsToSort;
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES, T>(hashSeqPair, splitKmerCount, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, true, splits, split, 1, adjustLength, chooseTopKmerScale);
+        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES, T>(hashSeqPair, splitKmerCount+1, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, true, splits, split, 1, adjustLength, chooseTopKmerScale);
         elementsToSort = ret.first;
         KMER_SIZE = ret.second;
         Debug(Debug::INFO) << "\nAdjusted k-mer length " << KMER_SIZE << "\n";
     }else{
-        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, T>(hashSeqPair, splitKmerCount, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, true, splits, split, 1, false, chooseTopKmerScale);
+        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, T>(hashSeqPair, splitKmerCount+1, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, true, splits, split, 1, false, chooseTopKmerScale);
         elementsToSort = ret.first;
     }
     if(splits == 1){

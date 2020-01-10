@@ -36,8 +36,8 @@ KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t total
         // we do not really know how much memory is needed. So this is our best choice
         splitKmerCount = (memoryLimit / sizeof(KmerPosition<short>));
     }
-    size_t splitTotalKmer = splitKmerCount*pickNBest;
-    KmerPosition<short> * hashSeqPair = initKmerPositionMemory<short>(splitKmerCount*pickNBest);
+    size_t splitTotalKmer = splitKmerCount*pickNBest+1;
+    KmerPosition<short> * hashSeqPair = initKmerPositionMemory<short>(splitTotalKmer);
     Timer timer;
     size_t elementsToSort;
     if(pickNBest > 1){
