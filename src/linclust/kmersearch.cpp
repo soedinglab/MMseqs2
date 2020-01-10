@@ -36,22 +36,22 @@ KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t total
         // we do not really know how much memory is needed. So this is our best choice
         splitKmerCount = (memoryLimit / sizeof(KmerPosition<short>));
     }
-
+    size_t splitTotalKmer = splitKmerCount*pickNBest;
     KmerPosition<short> * hashSeqPair = initKmerPositionMemory<short>(splitKmerCount*pickNBest);
     Timer timer;
     size_t elementsToSort;
     if(pickNBest > 1){
-        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_HMM_PROFILE,short>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE,
+        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_HMM_PROFILE,short>(hashSeqPair, splitTotalKmer, seqDbr, par, subMat, KMER_SIZE,
                                                                                chooseTopKmer, false, splits, split, pickNBest, false);
         elementsToSort = ret.first;
     } else if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES,short>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE,
+        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES,short>(hashSeqPair, splitTotalKmer, seqDbr, par, subMat, KMER_SIZE,
                                                                                chooseTopKmer, false, splits, split, 1, adjustLength);
         elementsToSort = ret.first;
         KMER_SIZE = ret.second;
         Debug(Debug::INFO) << "\nAdjusted k-mer length " << KMER_SIZE << "\n";
     }else {
-        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, short>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE,
+        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, short>(hashSeqPair, splitTotalKmer, seqDbr, par, subMat, KMER_SIZE,
                                                                                chooseTopKmer, false, splits, split, 1, false);
         elementsToSort = ret.first;
 

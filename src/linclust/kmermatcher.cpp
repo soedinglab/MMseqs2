@@ -78,12 +78,13 @@ KmerPosition<T> *initKmerPositionMemory(size_t size) {
 }
 
 template <int TYPE, typename T>
-std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * hashSeqPair, DBReader<unsigned int> &seqDbr,
+std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, size_t kmerArraySize,
+                             DBReader<unsigned int> &seqDbr,
                              Parameters & par, BaseMatrix * subMat,
                              const size_t KMER_SIZE, size_t chooseTopKmer,
                              bool includeIdenticalKmer, size_t splits,
                              size_t split, size_t pickNBest, bool adjustLength, float chooseTopKmerScale){
-    size_t offset = 0;
+    size_t kmerArrayOffset = 0;
     int querySeqType  =  seqDbr.getDbtype();
     size_t longestKmer = KMER_SIZE;
     ProbabilityMatrix *probMatrix = NULL;
@@ -154,7 +155,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * hashSeqPair, D
         Indexer idxer(subMat->alphabetSize - 1, KMER_SIZE);
         char * charSequence = new char[par.maxSeqLen + 1];
         const unsigned int BUFFER_SIZE = 1024;
-        size_t bufferPos = 0;
+        size_t kmerBufferPos = 0;
         KmerPosition<T> * threadKmerBuffer = new KmerPosition<T>[BUFFER_SIZE];
         SequencePosition * kmers = new SequencePosition[(pickNBest * (par.maxSeqLen + 1)) + 1];
         int highestSeq[32];
@@ -311,15 +312,15 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * hashSeqPair, D
                 // add k-mer to represent the identity
                 //TODO, how to handle this in reverse?
                 if (seqHash%splits == split) {
-                    threadKmerBuffer[bufferPos].kmer = seqHash;
-                    threadKmerBuffer[bufferPos].id = seqId;
-                    threadKmerBuffer[bufferPos].pos = 0;
-                    threadKmerBuffer[bufferPos].seqLen = seq.L;
-                    bufferPos++;
-                    if (bufferPos >= BUFFER_SIZE) {
-                        size_t writeOffset = __sync_fetch_and_add(&offset, bufferPos);
-                        memcpy(hashSeqPair + writeOffset, threadKmerBuffer, sizeof(KmerPosition<T>) * bufferPos);
-                        bufferPos = 0;
+                    threadKmerBuffer[kmerBufferPos].kmer = seqHash;
+                    threadKmerBuffer[kmerBufferPos].id = seqId;
+                    threadKmerBuffer[kmerBufferPos].pos = 0;
+                    threadKmerBuffer[kmerBufferPos].seqLen = seq.L;
+                    kmerBufferPos++;
+                    if (kmerBufferPos >= BUFFER_SIZE) {
+                        size_t writeOffset = __sync_fetch_and_add(&kmerArrayOffset, kmerBufferPos);
+                        memcpy(kmerArray + writeOffset, threadKmerBuffer, sizeof(KmerPosition<T>) * kmerBufferPos);
+                        kmerBufferPos = 0;
                     }
                 }
 
@@ -353,15 +354,21 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * hashSeqPair, D
                         continue;
                     }
 
-                    threadKmerBuffer[bufferPos].kmer = (kmers + topKmer)->kmer;
-                    threadKmerBuffer[bufferPos].id = seqId;
-                    threadKmerBuffer[bufferPos].pos = (kmers + topKmer)->pos;
-                    threadKmerBuffer[bufferPos].seqLen = seq.L;
-                    bufferPos++;
-                    if (bufferPos >= BUFFER_SIZE) {
-                        size_t writeOffset = __sync_fetch_and_add(&offset, bufferPos);
-                        memcpy(hashSeqPair + writeOffset, threadKmerBuffer, sizeof(KmerPosition<T>) * bufferPos);
-                        bufferPos = 0;
+                    threadKmerBuffer[kmerBufferPos].kmer = (kmers + topKmer)->kmer;
+                    threadKmerBuffer[kmerBufferPos].id = seqId;
+                    threadKmerBuffer[kmerBufferPos].pos = (kmers + topKmer)->pos;
+                    threadKmerBuffer[kmerBufferPos].seqLen = seq.L;
+                    kmerBufferPos++;
+                    if (kmerBufferPos >= BUFFER_SIZE) {
+                        size_t currKmerArrayOffset = __sync_fetch_and_add(&kmerArrayOffset, kmerBufferPos);
+                        if(currKmerArrayOffset + kmerBufferPos < kmerArraySize){
+                            memcpy(kmerArray + currKmerArrayOffset, threadKmerBuffer, sizeof(KmerPosition<T>) * kmerBufferPos);
+                            kmerBufferPos = 0;
+                        } else{
+                            Debug(Debug::ERROR) << "Kmer array overflow. Try to write until "<< currKmerArrayOffset + kmerBufferPos
+                                                << " out of " << kmerArraySize <<".\n";
+                            EXIT(EXIT_FAILURE);
+                        }
                     }
                 }
             }
@@ -376,9 +383,15 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * hashSeqPair, D
 #pragma omp barrier
         }
 
-        if(bufferPos > 0){
-            size_t writeOffset = __sync_fetch_and_add(&offset, bufferPos);
-            memcpy(hashSeqPair+writeOffset, threadKmerBuffer, sizeof(KmerPosition<T>) * bufferPos);
+        if(kmerBufferPos > 0){
+            size_t currKmerArrayOffset = __sync_fetch_and_add(&kmerArrayOffset, kmerBufferPos);
+            if(currKmerArrayOffset + kmerBufferPos < kmerArraySize){
+                memcpy(kmerArray+currKmerArrayOffset, threadKmerBuffer, sizeof(KmerPosition<T>) * kmerBufferPos);
+            } else {
+                Debug(Debug::ERROR) << "Kmer array overflow. Try to write until "<< currKmerArrayOffset + kmerBufferPos
+                                    << " out of " << kmerArraySize <<".\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
         delete[] kmers;
         delete[] charSequence;
@@ -396,7 +409,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * hashSeqPair, D
     if (probMatrix != NULL) {
         delete probMatrix;
     }
-    return std::make_pair(offset, longestKmer);
+    return std::make_pair(kmerArrayOffset, longestKmer);
 }
 
 template <typename T>
@@ -421,12 +434,12 @@ KmerPosition<T> * doComputation(size_t totalKmers, size_t split, size_t splits, 
     KmerPosition<T> * hashSeqPair = initKmerPositionMemory<T>(splitKmerCount);
     size_t elementsToSort;
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES, T>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, true, splits, split, 1, adjustLength, chooseTopKmerScale);
+        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES, T>(hashSeqPair, splitKmerCount, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, true, splits, split, 1, adjustLength, chooseTopKmerScale);
         elementsToSort = ret.first;
         KMER_SIZE = ret.second;
         Debug(Debug::INFO) << "\nAdjusted k-mer length " << KMER_SIZE << "\n";
     }else{
-        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, T>(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, true, splits, split, 1, false, chooseTopKmerScale);
+        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, T>(hashSeqPair, splitKmerCount, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, true, splits, split, 1, false, chooseTopKmerScale);
         elementsToSort = ret.first;
     }
     if(splits == 1){
@@ -1214,7 +1227,8 @@ void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTy
     }
 }
 
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, short>(KmerPosition<short> * hashSeqPair,
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, short>(KmerPosition<short> * kmerArray,
+                                                             size_t kmerArraySize,
                                                              DBReader<unsigned int> &seqDbr,
                                                              Parameters & par, BaseMatrix * subMat,
                                                              size_t KMER_SIZE, size_t chooseTopKmer,
@@ -1222,7 +1236,8 @@ template std::pair<size_t, size_t>  fillKmerPositionArray<0, short>(KmerPosition
                                                              size_t pickNBest,
                                                              bool adjustKmerLength,
                                                              float chooseTopKmerScale);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, short>(KmerPosition<short> * hashSeqPair,
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, short>(KmerPosition<short> * kmerArray,
+                                                             size_t kmerArraySize,
                                                              DBReader<unsigned int> &seqDbr,
                                                              Parameters & par, BaseMatrix * subMat,
                                                              size_t KMER_SIZE, size_t chooseTopKmer,
@@ -1230,7 +1245,8 @@ template std::pair<size_t, size_t>  fillKmerPositionArray<1, short>(KmerPosition
                                                              size_t pickNBest,
                                                              bool adjustKmerLength,
                                                              float chooseTopKmerScale);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, short>(KmerPosition<short> * hashSeqPair,
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, short>(KmerPosition<short> * kmerArray,
+                                                             size_t kmerArraySize,
                                                              DBReader<unsigned int> &seqDbr,
                                                              Parameters & par, BaseMatrix * subMat,
                                                              size_t KMER_SIZE, size_t chooseTopKmer,
@@ -1238,7 +1254,8 @@ template std::pair<size_t, size_t>  fillKmerPositionArray<2, short>(KmerPosition
                                                              size_t pickNBest,
                                                              bool adjustKmerLength,
                                                              float chooseTopKmerScale);
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, int>(KmerPosition<int> * hashSeqPair,
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, int>(KmerPosition<int> * kmerArray,
+                                                             size_t kmerArraySize,
                                                              DBReader<unsigned int> &seqDbr,
                                                              Parameters & par, BaseMatrix * subMat,
                                                              size_t KMER_SIZE, size_t chooseTopKmer,
@@ -1246,7 +1263,8 @@ template std::pair<size_t, size_t>  fillKmerPositionArray<0, int>(KmerPosition<i
                                                              size_t pickNBest,
                                                              bool adjustKmerLength,
                                                              float chooseTopKmerScale);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, int>(KmerPosition <int>* hashSeqPair,
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, int>(KmerPosition <int>* kmerArray,
+                                                             size_t kmerArraySize,
                                                              DBReader<unsigned int> &seqDbr,
                                                              Parameters & par, BaseMatrix * subMat,
                                                              size_t KMER_SIZE, size_t chooseTopKmer,
@@ -1254,7 +1272,8 @@ template std::pair<size_t, size_t>  fillKmerPositionArray<1, int>(KmerPosition <
                                                              size_t pickNBest,
                                                              bool adjustKmerLength,
                                                              float chooseTopKmerScale);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, int>(KmerPosition< int> * hashSeqPair,
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, int>(KmerPosition< int> * kmerArray,
+                                                             size_t kmerArraySize,
                                                              DBReader<unsigned int> &seqDbr,
                                                              Parameters & par, BaseMatrix * subMat,
                                                              size_t KMER_SIZE, size_t chooseTopKmer,

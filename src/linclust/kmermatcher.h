@@ -181,7 +181,8 @@ template <typename T>
 KmerPosition<T> *initKmerPositionMemory(size_t size);
 
 template <int TYPE, typename T>
-std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition<T> * hashSeqPair, DBReader<unsigned int> &seqDbr,
+std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition<T> * hashSeqPair, size_t splitKmerCount,
+                             DBReader<unsigned int> &seqDbr,
                              Parameters & par, BaseMatrix * subMat,
                              const size_t KMER_SIZE, size_t chooseTopKmer,
                              bool includeIdenticalKmer, size_t splits, size_t split, size_t pickNBest,
