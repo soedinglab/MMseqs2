@@ -69,8 +69,8 @@ KmerPosition<T> *initKmerPositionMemory(size_t size) {
 #pragma omp parallel
     {
 #pragma omp for schedule(dynamic, 1)
-        for (size_t page = 0; page < size+1; page += pageSize) {
-            size_t readUntil = std::min(size+1, page + pageSize) - page;
+        for (size_t page = 0; page < size; page += pageSize) {
+            size_t readUntil = std::min(size, page + pageSize) - page;
             memset(hashSeqPair+page, 0xFF, sizeof(KmerPosition<T>)* readUntil);
         }
     }
