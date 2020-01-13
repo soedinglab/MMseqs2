@@ -235,7 +235,7 @@ Parameters::Parameters():
         PARAM_TAXON_LIST(PARAM_TAXON_LIST_ID, "--taxon-list", "Selected taxa", "taxonomy ID, possibly multiple values separated by ','", typeid(std::string), (void*) &taxonList, ""),
         // view
         PARAM_ID_LIST(PARAM_ID_LIST_ID, "--id-list", "Selected entries with key", "entries to be printed seperated by ','", typeid(std::string), (void*) &idList, ""),
-        PARAM_IDX_ENTRY_TYPE(PARAM_IDX_ENTRY_TYPE_ID, "--idx-entry-type", "Index entry type", "sequence; 0, src sequence 1: header: 2, src header :3 (default 0)", typeid(int), (void*) &idxEntryType, "^[0-3]{1}$"),
+        PARAM_IDX_ENTRY_TYPE(PARAM_IDX_ENTRY_TYPE_ID, "--idx-entry-type", "Index entry type", "sequence: 0, src sequence: 1, header: 2, src header: 3 (default 0)", typeid(int), (void*) &idxEntryType, "^[0-3]{1}$"),
         // lca and addtaxonomy
         PARAM_PICK_ID_FROM(PARAM_PICK_ID_FROM_ID,"--pick-id-from", "Extract mode", "Query 1, Target 2", typeid(int), (void *) &pickIdFrom, "^[1-2]{1}$"),
         PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA ranks", "Add column with specified ranks (',' separated)", typeid(std::string), (void*) &lcaRanks, ""),
