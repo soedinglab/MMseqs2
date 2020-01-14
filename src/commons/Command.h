@@ -54,7 +54,7 @@ struct DbValidator {
     static std::vector<int> directory;
     static std::vector<int> flatfile;
     static std::vector<int> flatfileAndStdin;
-
+    static std::vector<int> empty;
 };
 
 
@@ -66,6 +66,7 @@ struct DbType{
     static const int NEED_LOOKUP = 2;
     static const int NEED_TAXONOMY = 4;
     static const int VARIADIC = 8;
+    static const int ZERO_OR_ALL = 16;
 
     const char *usageText;
     int accessMode;

@@ -1109,10 +1109,13 @@ void Parameters::printUsageMessage(const Command& command,
     ss << "Usage: " << binary_name << " " << command.cmd << " " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n\n";
 //    ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
     const char * longDesc = ( command.longDescription != NULL) ?  command.longDescription : command.shortDescription;
-    const char * printDesc = (printWholeHelpText) ? longDesc : command.shortDescription;
-    ss << printDesc << "\n";
+    std::string printDesc = (printWholeHelpText) ? longDesc : command.shortDescription;
+    ss << printDesc;
+    if (printDesc.back() != '\n') {
+        ss << '\n';
+    }
     if(printWholeHelpText) {
-        ss <<" By " << command.author << "\n";
+        ss << " By " << command.author << "\n";
     }
     ss << "\nOptions: ";
 
@@ -1462,14 +1465,14 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
 #endif
 
 
+    bool ignorePathCountChecks = command.databases.empty() == false && command.databases[0].specialType & DbType::ZERO_OR_ALL && filenames.size() == 0;
     const size_t MAX_DB_PARAMETER = 6;
-
-    if (command.databases.size() > MAX_DB_PARAMETER) {
+    if (ignorePathCountChecks == false && command.databases.size() > MAX_DB_PARAMETER) {
         Debug(Debug::ERROR) << "Use argv if you need more than " << MAX_DB_PARAMETER << " db parameters" << "\n";
         EXIT(EXIT_FAILURE);
     }
 
-    if (filenames.size() < command.databases.size()){
+    if (ignorePathCountChecks == false && filenames.size() < command.databases.size()){
         printUsageMessage(command, outputFlags);
         Debug(Debug::ERROR) << "Not enough input paths provied. Require " << command.databases.size() << " paths" << "\n";
         EXIT(EXIT_FAILURE);
@@ -1478,20 +1481,18 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
     bool isVar = false;
     bool isStartVar = false;
     bool isEndVar = false;
-    if(command.databases[0].validator != NULL){
-    	if(command.databases.size() >= 2){
-        	isStartVar |= (command.databases[0].specialType & DbType::VARIADIC);
-        	isEndVar |= (command.databases[command.databases.size()-1].specialType & DbType::VARIADIC);
-        	isVar = isStartVar | isEndVar;
-    	}
-    	if(isVar == false){
-        	if (filenames.size() > command.databases.size()){
-            		printUsageMessage(command, outputFlags);
-            		Debug(Debug::ERROR) <<"Too many input paths provided. Only " << SSTR(command.databases.size()) << " are allowed\n";
-           		EXIT(EXIT_FAILURE);
-        	}
-   	}
-   }
+    if(command.databases.empty() == false && command.databases[0].validator != NULL) {
+        if (command.databases.size() >= 2) {
+            isStartVar |= (command.databases[0].specialType & DbType::VARIADIC);
+            isEndVar |= (command.databases[command.databases.size() - 1].specialType & DbType::VARIADIC);
+            isVar = isStartVar | isEndVar;
+        }
+        if (ignorePathCountChecks == false && isVar == false && filenames.size() > command.databases.size()) {
+            printUsageMessage(command, outputFlags);
+            Debug(Debug::ERROR) << "Too many input paths provided. Only " << SSTR(command.databases.size()) << " are allowed\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
     switch (std::min(filenames.size(), MAX_DB_PARAMETER)) {
         case 6:
             db6 = filenames[5];
@@ -1577,12 +1578,16 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                 break;
             // FALLTHROUGH
         case 0:
+            if (parseFlags & PARSE_ALLOW_EMPTY)
+                break;
             printUsageMessage(command, outputFlags);
             Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";
             printParameters(command.cmd, argc, pargv, par);
             EXIT(EXIT_FAILURE);
     }
-    checkIfDatabaseIsValid(command, isStartVar, isEndVar);
+    if (ignorePathCountChecks == false) {
+        checkIfDatabaseIsValid(command, isStartVar, isEndVar);
+    }
 
     if(printPar == true) {
         printParameters(command.cmd, argc, pargv, par);

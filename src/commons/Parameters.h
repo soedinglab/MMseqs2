@@ -179,6 +179,7 @@ public:
 
     static const int PARSE_VARIADIC = 1;
     static const int PARSE_REST = 2;
+    static const int PARSE_ALLOW_EMPTY = 4;
 
     // preload mode
     static const int PRELOAD_MODE_AUTO = 0;
