@@ -1720,6 +1720,8 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
 //                fclose(fp);
 //                FileUtil::remove(filenames[dbIdx].c_str());
             }
+        } else {
+            fileIdx++;
         }
     }
 }
