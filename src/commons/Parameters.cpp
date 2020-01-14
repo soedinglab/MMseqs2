@@ -254,7 +254,10 @@ Parameters::Parameters():
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA mode", "LCA Mode 1: Single Search LCA , 2: 2bLCA, 3: approx. 2bLCA, 4: top hit", typeid(int), (void*) &taxonomySearchMode, "^[1-4]{1}$"),
         PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void*) &taxonomyOutpuMode, "^[0-1]{1}$"),
         // createsubdb, filtertaxseqdb
-        PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "Subdb mode 0: copy data 1: soft link data and write index", typeid(int), (void*) &subDbMode, "^[0-1]{1}$")
+        PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "Subdb mode 0: copy data 1: soft link data and write index", typeid(int), (void*) &subDbMode, "^[0-1]{1}$"),
+        // for modules that should handle -h themselves
+        PARAM_HELP(PARAM_HELP_ID, "-h", "Help", "Help", typeid(bool), (void*) &help, "", MMseqsParameter::COMMAND_HIDDEN),
+        PARAM_HELP_LONG(PARAM_HELP_LONG_ID, "--help", "Help", "Help", typeid(bool), (void*) &help, "", MMseqsParameter::COMMAND_HIDDEN)
 {
     if (instance) {
         Debug(Debug::ERROR) << "Parameter instance already exists!\n";
@@ -1256,8 +1259,16 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                                  int outputFlags) {
     filenames.clear();
     std::vector<MMseqsParameter*> & par = *command.params;
+
+    bool canHandleHelp = false;
+    for (size_t parIdx = 0; parIdx < par.size(); parIdx++) {
+        if (par[parIdx]->uniqid == PARAM_HELP_ID || par[parIdx]->uniqid == PARAM_HELP_LONG_ID) {
+            canHandleHelp = true;
+        }
+    }
+
     size_t parametersFound = 0;
-    for(int argIdx = 0; argIdx < argc; argIdx++ ){
+    for (int argIdx = 0; argIdx < argc; argIdx++) {
         // it is a parameter if it starts with - or --
         const bool longParameter = (pargv[argIdx][0] == '-' && pargv[argIdx][1] == '-');
         if (longParameter || (pargv[argIdx][0] == '-')) {
@@ -1267,14 +1278,13 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                 break;
             }
             std::string parameter(pargv[argIdx]);
-            if (parameter.compare("-h") == 0 || parameter.compare("--help") == 0) {
+            if (canHandleHelp == false && (parameter.compare("-h") == 0 || parameter.compare("--help") == 0)) {
                 printUsageMessage(command, 0xFFFFFFFF);
                 EXIT(EXIT_SUCCESS);
             }
 
             bool hasUnrecognizedParameter = true;
-            for(size_t parIdx = 0; parIdx < par.size(); parIdx++){
-
+            for (size_t parIdx = 0; parIdx < par.size(); parIdx++) {
                 if(parameter.compare(par[parIdx]->name) == 0) {
                     if (typeid(bool) != par[parIdx]->type && argIdx + 1 == argc) {
                         printUsageMessage(command, outputFlags);

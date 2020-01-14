@@ -36,6 +36,7 @@ struct MMseqsParameter {
     static const unsigned int COMMAND_MISC = 32;
     static const unsigned int COMMAND_CLUSTLINEAR = 64;
     static const unsigned int COMMAND_EXPERT = 128;
+    static const unsigned int COMMAND_HIDDEN = 256;
 
 
     MMseqsParameter(int uid, const char * n, const char *display,
@@ -585,6 +586,9 @@ public:
     // createsubdb
     int subDbMode;
 
+    // for modules that should handle -h themselves
+    bool help;
+
     // tool citations
     std::map<unsigned int, const char*> citations;
 
@@ -890,6 +894,10 @@ public:
 
     // createsubdb
     PARAMETER(PARAM_SUBDB_MODE)
+
+    // for modules that should handle -h themselves
+    PARAMETER(PARAM_HELP)
+    PARAMETER(PARAM_HELP_LONG)
 
 
     std::vector<MMseqsParameter*> empty;
