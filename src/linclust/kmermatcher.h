@@ -7,6 +7,46 @@
 #include "Parameters.h"
 #include "BaseMatrix.h"
 
+
+struct SequencePosition{
+    unsigned short score;
+    size_t kmer;
+    unsigned int pos;
+    static bool compareByScore(const SequencePosition &first, const SequencePosition &second){
+        if(first.score < second.score)
+            return true;
+        if(second.score < first.score)
+            return false;
+        if(first.kmer < second.kmer)
+            return true;
+        if(second.kmer < first.kmer)
+            return false;
+        if(first.pos < second.pos)
+            return true;
+        if(second.pos < first.pos)
+            return false;
+        return false;
+    }
+    static bool compareByScoreReverse(const SequencePosition &first, const SequencePosition &second){
+        if(first.score < second.score)
+            return true;
+        if(second.score < first.score)
+            return false;
+
+        size_t firstKmer  = BIT_SET(first.kmer, 63);
+        size_t secondKmer = BIT_SET(second.kmer, 63);
+        if(firstKmer < secondKmer)
+            return true;
+        if(secondKmer < firstKmer)
+            return false;
+        if(first.pos < second.pos)
+            return true;
+        if(second.pos < first.pos)
+            return false;
+        return false;
+    }
+};
+
 template <typename T>
 struct __attribute__((__packed__))KmerPosition {
     size_t kmer;
@@ -175,18 +215,19 @@ void writeKmerMatcherResult(DBWriter & dbw, KmerPosition<T> *hashSeqPair, size_t
 
 template <typename T>
 KmerPosition<T> * doComputation(size_t totalKmers, size_t split, size_t splits, std::string splitFile,
-                             DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat,
-                             size_t KMER_SIZE, size_t chooseTopKmer, float chooseTopKmerScale = 0.0);
+                                DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat,
+                                size_t KMER_SIZE, size_t chooseTopKmer, float chooseTopKmerScale = 0.0);
 template <typename T>
 KmerPosition<T> *initKmerPositionMemory(size_t size);
 
 template <int TYPE, typename T>
-std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition<T> * hashSeqPair, size_t splitKmerCount,
-                             DBReader<unsigned int> &seqDbr,
-                             Parameters & par, BaseMatrix * subMat,
-                             const size_t KMER_SIZE, size_t chooseTopKmer,
-                             bool includeIdenticalKmer, size_t splits, size_t split, size_t pickNBest,
-                             bool adjustLength, float chooseTopKmerScale = 0.0);
+std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition<T> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+                                                 Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t splits, size_t split);
+
+
+void maskSequence(int maskMode, int maskLowerCase,
+                  Sequence &seq, char * charSequence,
+                  int maskLetter, ProbabilityMatrix * probMatrix);
 
 template <typename T>
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);

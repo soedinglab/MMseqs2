@@ -10,7 +10,7 @@
 #include <cassert>
 
 void setLinclustWorkflowDefaults(Parameters *p) {
-    p->spacedKmer = true;
+    p->spacedKmer = false;
     p->covThr = 0.8;
     p->maskMode = 0;
     p->evalThr = 0.001;

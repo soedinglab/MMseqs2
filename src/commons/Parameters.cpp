@@ -784,6 +784,7 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_ALPH_SIZE);
     kmermatcher.push_back(&PARAM_MIN_SEQ_ID);
     kmermatcher.push_back(&PARAM_KMER_PER_SEQ);
+    kmermatcher.push_back(&PARAM_SPACED_KMER_MODE);
     kmermatcher.push_back(&PARAM_KMER_PER_SEQ_SCALE);
     kmermatcher.push_back(&PARAM_ADJUST_KMER_LEN);
     kmermatcher.push_back(&PARAM_MASK_RESIDUES);
@@ -2005,7 +2006,7 @@ void Parameters::setDefaults() {
     kmersPerSequenceScale = 0.0;
     includeOnlyExtendable = false;
     ignoreMultiKmer = false;
-    hashShift = 5;
+    hashShift = 67;
     pickNbest = 1;
     adjustKmerLength = false;
     // result2stats

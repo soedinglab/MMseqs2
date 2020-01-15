@@ -88,14 +88,11 @@ public:
     static const int SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE = 64;
     static const int SEARCH_MODE_FLAG_TARGET_NUCLEOTIDE = 128;
 
-
-
     static const unsigned int ALIGNMENT_MODE_FAST_AUTO = 0;
     static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 1;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV = 2;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
     static const unsigned int ALIGNMENT_MODE_UNGAPPED = 4;
-
 
     static const unsigned int WRITER_ASCII_MODE = 0;
     static const unsigned int WRITER_COMPRESSED_MODE = 1;

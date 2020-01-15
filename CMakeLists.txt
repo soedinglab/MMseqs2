@@ -89,6 +89,8 @@ include_directories(lib/gzstream)
 include_directories(lib/alp)
 include_directories(lib/cacode)
 include_directories(lib/ksw2)
+include_directories(lib/xxhash)
+
 add_subdirectory(lib/cacode)
 add_subdirectory(lib/alp)
 add_subdirectory(lib/ksw2)

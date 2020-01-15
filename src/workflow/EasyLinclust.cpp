@@ -11,7 +11,7 @@ namespace linclust {
 }
 
 void setEasyLinclustDefaults(Parameters *p) {
-    p->spacedKmer = true;
+    p->spacedKmer = false;
     p->removeTmpFiles = true;
     p->covThr = 0.8;
     p->evalThr = 0.001;

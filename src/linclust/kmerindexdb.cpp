@@ -139,7 +139,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     for(size_t split = 0; split < splits; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
         size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;
-        KmerSearch::ExtractKmerAndSortResult kmerRet = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, 1, par.adjustKmerLength);
+        KmerSearch::ExtractKmerAndSortResult kmerRet = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, seqDbr, par, subMat);
         hashSeqPair = kmerRet.kmers;
         adjustedKmerSize = std::max(adjustedKmerSize, kmerRet.adjustedKmer);
         // assign rep. sequence to same kmer members

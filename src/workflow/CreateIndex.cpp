@@ -68,6 +68,7 @@ int createlinindex(int argc, const char **argv, const Command& command) {
     par.orfMaxLength = 32734;
     par.kmerScore = 0; // extract all k-mers
     par.maskMode = 0;
+    par.spacedKmer = false;
     // VTML has a slightly lower sensitivity in the regression test
     par.seedScoringMatrixFile = ScoreMatrixFile("blosum62.out", "nucleotide.out");
     par.parseParameters(argc, argv, command, true, 0, 0);
