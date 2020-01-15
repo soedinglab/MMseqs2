@@ -87,7 +87,7 @@ int aggregatetax(int argc, const char **argv, const Command& command) {
 
     // open tax assignments per sequence
     DBReader<unsigned int> taxSeqReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    taxSeqReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    taxSeqReader.open(DBReader<unsigned int>::NOSORT);
 
     DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_TAXONOMICAL_RESULT);
     writer.open();
