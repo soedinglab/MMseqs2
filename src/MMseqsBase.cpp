@@ -5,6 +5,14 @@
 Parameters& par = Parameters::getInstance();
 std::vector<Command> baseCommands = {
 // Main tools (for non-experts)
+        {"databases",            databases,            &par.databases,          COMMAND_MAIN,
+                "Show downloadable databases or download selected database and set it up for immediate use.",
+                "",
+                "Milot Mirdita <milot@mirdita.de>",
+                "<selection> <o:sequenceDB> <tmpDir>",
+                CITATION_MMSEQS2, {{"selection",  0,  DbType::ZERO_OR_ALL, &DbValidator::empty },
+                                   {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                   {"tmpDir",     DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"createdb",             createdb,             &par.createdb,             COMMAND_MAIN,
                 "Convert protein sequence set in a FASTA file to MMseqs sequence DB format",
                 "Converts a protein sequence flat/gzipped FASTA or FASTQ file to the MMseqs sequence DB format. This format is needed as input to mmseqs search, cluster and many other tools.",

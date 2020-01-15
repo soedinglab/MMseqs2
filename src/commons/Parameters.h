@@ -990,6 +990,7 @@ public:
     std::vector<MMseqsParameter*> expandaln;
     std::vector<MMseqsParameter*> sortresult;
     std::vector<MMseqsParameter*> enrichworkflow;
+    std::vector<MMseqsParameter*> databases;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);

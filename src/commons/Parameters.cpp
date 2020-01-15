@@ -1096,6 +1096,14 @@ Parameters::Parameters():
     enrichworkflow = combineList(enrichworkflow, expandaln);
     enrichworkflow = combineList(enrichworkflow, result2profile);
 
+    databases.push_back(&PARAM_HELP);
+    databases.push_back(&PARAM_HELP_LONG);
+    databases.push_back(&PARAM_COMPRESSED);
+    databases.push_back(&PARAM_THREADS);
+    databases.push_back(&PARAM_V);
+    databases.push_back(&PARAM_REUSELATEST);
+    databases.push_back(&PARAM_REMOVE_TMP_FILES);
+
     //checkSaneEnvironment();
     setDefaults();
 }

@@ -21,6 +21,7 @@ set(GENERATED_WORKFLOWS
         workflow/blastn.sh
         workflow/searchslicedtargetprofile.sh
         workflow/linsearch.sh
+        workflow/databases.sh
 
         PARENT_SCOPE
         )
