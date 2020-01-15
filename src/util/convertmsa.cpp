@@ -45,6 +45,8 @@ int convertmsa(int argc, const char **argv, const Command &command) {
     std::string identifier;
     std::string result;
     result.reserve(10 * 1024 * 1024);
+
+    Debug::Progress progress;
     while (std::getline(*in, line)) {
         size_t lineLength = line.length();
         if (lineLength < 1) {
@@ -52,6 +54,7 @@ int convertmsa(int argc, const char **argv, const Command &command) {
         }
 
         if (inEntry == false && line == "# STOCKHOLM 1.0") {
+            progress.updateProgress();
             inEntry = true;
             continue;
         }
