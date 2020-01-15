@@ -23,31 +23,28 @@ if [ "$DOWNLOAD_NCBITAXDUMP" -eq "1" ]; then
     # Download NCBI taxon information
     if notExists "$4/ncbi_download.complete"; then
         echo "Download taxdump.tar.gz"
-            wget -nv -O - "https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz" \
+        wget -nv -O - "https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz" \
            | tar -C "${TMP_PATH}" -xzf - names.dmp nodes.dmp merged.dmp delnodes.dmp
         touch "${TMP_PATH}/ncbi_download.complete"
     fi
     NCBITAXINFO="${TMP_PATH}"
 fi
-if [ "$DOWNLOAD_MAPPING" -eq "1" ]; then
-    # Download the latest UniProt ID mapping to extract taxon identifiers
-    if notExists "${TMP_PATH}/mapping_download.complete"; then
-        echo "Download idmapping.dat.gz"
-        URL="https://ftp.expasy.org/databases/uniprot/current_release/knowledgebase/idmapping/idmapping.dat.gz"
-        wget -nv -O - "$URL" | zcat | awk '$2 == "NCBI_TaxID" {print $1"\t"$3 }' > "${TMP_PATH}/taxidmapping"
-        touch "${TMP_PATH}/mapping_download.complete"
+if notExists "${TAXDBNAME}_mapping"; then
+    if [ "$DOWNLOAD_MAPPING" -eq "1" ]; then
+        # Download the latest UniProt ID mapping to extract taxon identifiers
+        if notExists "${TMP_PATH}/mapping_download.complete"; then
+            echo "Download idmapping.dat.gz"
+            URL="https://ftp.expasy.org/databases/uniprot/current_release/knowledgebase/idmapping/idmapping.dat.gz"
+            wget -nv -O - "$URL" | zcat | awk '$2 == "NCBI_TaxID" {print $1"\t"$3 }' > "${TMP_PATH}/taxidmapping"
+            touch "${TMP_PATH}/mapping_download.complete"
+        fi
+        MAPPINGFILE="${TMP_PATH}/taxidmapping"
     fi
-    MAPPINGFILE="${TMP_PATH}/taxidmapping"
-fi
-# create mapping
-if notExists "${TMP_PATH}/targetDB_mapping.complete"; then
     awk 'NR == FNR { f[$1] = $2; next } $2 in f { print $1"\t"f[$2] }' \
-        "$MAPPINGFILE" "${TAXDBNAME}.lookup" > "${TMP_PATH}/targetDB_mapping"
-    touch "${TMP_PATH}/targetDB_mapping.complete"
+        "$MAPPINGFILE" "${TAXDBNAME}.lookup" > "${TAXDBNAME}_mapping"
 fi
 
 # finalize database
-cp -f "${TMP_PATH}/targetDB_mapping" "${TAXDBNAME}_mapping"
 cp -f "${NCBITAXINFO}/names.dmp"     "${TAXDBNAME}_names.dmp"
 cp -f "${NCBITAXINFO}/nodes.dmp"     "${TAXDBNAME}_nodes.dmp"
 cp -f "${NCBITAXINFO}/merged.dmp"    "${TAXDBNAME}_merged.dmp"
@@ -61,7 +58,5 @@ if [ -n "$REMOVE_TMP" ]; then
    if [ "$DOWNLOAD_DATA" -eq "1" ]; then
       rm -f "${TMP_PATH}/ncbi_download.complete" "${TMP_PATH}/mapping_download.complete"
    fi
-   rm -f "${TMP_PATH}/targetDB_mapping.complete"
-   rm -f "${TMP_PATH}/targetDB_mapping"
    rm -f createtaxdb.sh
 fi

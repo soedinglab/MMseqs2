@@ -36,6 +36,7 @@ struct MMseqsParameter {
     static const unsigned int COMMAND_MISC = 32;
     static const unsigned int COMMAND_CLUSTLINEAR = 64;
     static const unsigned int COMMAND_EXPERT = 128;
+    static const unsigned int COMMAND_HIDDEN = 256;
 
 
     MMseqsParameter(int uid, const char * n, const char *display,
@@ -175,6 +176,7 @@ public:
 
     static const int PARSE_VARIADIC = 1;
     static const int PARSE_REST = 2;
+    static const int PARSE_ALLOW_EMPTY = 4;
 
     // preload mode
     static const int PRELOAD_MODE_AUTO = 0;
@@ -582,6 +584,9 @@ public:
     // createsubdb
     int subDbMode;
 
+    // for modules that should handle -h themselves
+    bool help;
+
     // tool citations
     std::map<unsigned int, const char*> citations;
 
@@ -888,6 +893,10 @@ public:
     // createsubdb
     PARAMETER(PARAM_SUBDB_MODE)
 
+    // for modules that should handle -h themselves
+    PARAMETER(PARAM_HELP)
+    PARAMETER(PARAM_HELP_LONG)
+
 
     std::vector<MMseqsParameter*> empty;
     std::vector<MMseqsParameter*> onlyverbosity;
@@ -978,6 +987,7 @@ public:
     std::vector<MMseqsParameter*> expandaln;
     std::vector<MMseqsParameter*> sortresult;
     std::vector<MMseqsParameter*> enrichworkflow;
+    std::vector<MMseqsParameter*> databases;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);

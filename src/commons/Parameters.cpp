@@ -235,7 +235,7 @@ Parameters::Parameters():
         PARAM_TAXON_LIST(PARAM_TAXON_LIST_ID, "--taxon-list", "Selected taxa", "taxonomy ID, possibly multiple values separated by ','", typeid(std::string), (void*) &taxonList, ""),
         // view
         PARAM_ID_LIST(PARAM_ID_LIST_ID, "--id-list", "Selected entries with key", "entries to be printed seperated by ','", typeid(std::string), (void*) &idList, ""),
-        PARAM_IDX_ENTRY_TYPE(PARAM_IDX_ENTRY_TYPE_ID, "--idx-entry-type", "Index entry type", "sequence; 0, src sequence 1: header: 2, src header :3 (default 0)", typeid(int), (void*) &idxEntryType, "^[0-3]{1}$"),
+        PARAM_IDX_ENTRY_TYPE(PARAM_IDX_ENTRY_TYPE_ID, "--idx-entry-type", "Index entry type", "sequence: 0, src sequence: 1, header: 2, src header: 3 (default 0)", typeid(int), (void*) &idxEntryType, "^[0-3]{1}$"),
         // lca and addtaxonomy
         PARAM_PICK_ID_FROM(PARAM_PICK_ID_FROM_ID,"--pick-id-from", "Extract mode", "Query 1, Target 2", typeid(int), (void *) &pickIdFrom, "^[1-2]{1}$"),
         PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA ranks", "Add column with specified ranks (',' separated)", typeid(std::string), (void*) &lcaRanks, ""),
@@ -254,7 +254,10 @@ Parameters::Parameters():
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA mode", "LCA Mode 1: Single Search LCA , 2: 2bLCA, 3: approx. 2bLCA, 4: top hit", typeid(int), (void*) &taxonomySearchMode, "^[1-4]{1}$"),
         PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void*) &taxonomyOutpuMode, "^[0-1]{1}$"),
         // createsubdb, filtertaxseqdb
-        PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "Subdb mode 0: copy data 1: soft link data and write index", typeid(int), (void*) &subDbMode, "^[0-1]{1}$")
+        PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "Subdb mode 0: copy data 1: soft link data and write index", typeid(int), (void*) &subDbMode, "^[0-1]{1}$"),
+        // for modules that should handle -h themselves
+        PARAM_HELP(PARAM_HELP_ID, "-h", "Help", "Help", typeid(bool), (void*) &help, "", MMseqsParameter::COMMAND_HIDDEN),
+        PARAM_HELP_LONG(PARAM_HELP_LONG_ID, "--help", "Help", "Help", typeid(bool), (void*) &help, "", MMseqsParameter::COMMAND_HIDDEN)
 {
     if (instance) {
         Debug(Debug::ERROR) << "Parameter instance already exists!\n";
@@ -1094,6 +1097,14 @@ Parameters::Parameters():
     enrichworkflow = combineList(enrichworkflow, expandaln);
     enrichworkflow = combineList(enrichworkflow, result2profile);
 
+    databases.push_back(&PARAM_HELP);
+    databases.push_back(&PARAM_HELP_LONG);
+    databases.push_back(&PARAM_COMPRESSED);
+    databases.push_back(&PARAM_THREADS);
+    databases.push_back(&PARAM_V);
+    databases.push_back(&PARAM_REUSELATEST);
+    databases.push_back(&PARAM_REMOVE_TMP_FILES);
+
     //checkSaneEnvironment();
     setDefaults();
 }
@@ -1107,10 +1118,13 @@ void Parameters::printUsageMessage(const Command& command,
     ss << "Usage: " << binary_name << " " << command.cmd << " " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n\n";
 //    ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
     const char * longDesc = ( command.longDescription != NULL) ?  command.longDescription : command.shortDescription;
-    const char * printDesc = (printWholeHelpText) ? longDesc : command.shortDescription;
-    ss << printDesc << "\n";
+    std::string printDesc = (printWholeHelpText) ? longDesc : command.shortDescription;
+    ss << printDesc;
+    if (printDesc.back() != '\n') {
+        ss << '\n';
+    }
     if(printWholeHelpText) {
-        ss <<" By " << command.author << "\n";
+        ss << " By " << command.author << "\n";
     }
     ss << "\nOptions: ";
 
@@ -1257,8 +1271,16 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                                  int outputFlags) {
     filenames.clear();
     std::vector<MMseqsParameter*> & par = *command.params;
+
+    bool canHandleHelp = false;
+    for (size_t parIdx = 0; parIdx < par.size(); parIdx++) {
+        if (par[parIdx]->uniqid == PARAM_HELP_ID || par[parIdx]->uniqid == PARAM_HELP_LONG_ID) {
+            canHandleHelp = true;
+        }
+    }
+
     size_t parametersFound = 0;
-    for(int argIdx = 0; argIdx < argc; argIdx++ ){
+    for (int argIdx = 0; argIdx < argc; argIdx++) {
         // it is a parameter if it starts with - or --
         const bool longParameter = (pargv[argIdx][0] == '-' && pargv[argIdx][1] == '-');
         if (longParameter || (pargv[argIdx][0] == '-')) {
@@ -1268,14 +1290,13 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                 break;
             }
             std::string parameter(pargv[argIdx]);
-            if (parameter.compare("-h") == 0 || parameter.compare("--help") == 0) {
+            if (canHandleHelp == false && (parameter.compare("-h") == 0 || parameter.compare("--help") == 0)) {
                 printUsageMessage(command, 0xFFFFFFFF);
                 EXIT(EXIT_SUCCESS);
             }
 
             bool hasUnrecognizedParameter = true;
-            for(size_t parIdx = 0; parIdx < par.size(); parIdx++){
-
+            for (size_t parIdx = 0; parIdx < par.size(); parIdx++) {
                 if(parameter.compare(par[parIdx]->name) == 0) {
                     if (typeid(bool) != par[parIdx]->type && argIdx + 1 == argc) {
                         printUsageMessage(command, outputFlags);
@@ -1453,14 +1474,14 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
 #endif
 
 
+    bool ignorePathCountChecks = command.databases.empty() == false && command.databases[0].specialType & DbType::ZERO_OR_ALL && filenames.size() == 0;
     const size_t MAX_DB_PARAMETER = 6;
-
-    if (command.databases.size() > MAX_DB_PARAMETER) {
+    if (ignorePathCountChecks == false && command.databases.size() > MAX_DB_PARAMETER) {
         Debug(Debug::ERROR) << "Use argv if you need more than " << MAX_DB_PARAMETER << " db parameters" << "\n";
         EXIT(EXIT_FAILURE);
     }
 
-    if (filenames.size() < command.databases.size()){
+    if (ignorePathCountChecks == false && filenames.size() < command.databases.size()){
         printUsageMessage(command, outputFlags);
         Debug(Debug::ERROR) << "Not enough input paths provied. Require " << command.databases.size() << " paths" << "\n";
         EXIT(EXIT_FAILURE);
@@ -1469,20 +1490,18 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
     bool isVar = false;
     bool isStartVar = false;
     bool isEndVar = false;
-    if(command.databases[0].validator != NULL){
-    	if(command.databases.size() >= 2){
-        	isStartVar |= (command.databases[0].specialType & DbType::VARIADIC);
-        	isEndVar |= (command.databases[command.databases.size()-1].specialType & DbType::VARIADIC);
-        	isVar = isStartVar | isEndVar;
-    	}
-    	if(isVar == false){
-        	if (filenames.size() > command.databases.size()){
-            		printUsageMessage(command, outputFlags);
-            		Debug(Debug::ERROR) <<"Too many input paths provided. Only " << SSTR(command.databases.size()) << " are allowed\n";
-           		EXIT(EXIT_FAILURE);
-        	}
-   	}
-   }
+    if(command.databases.empty() == false && command.databases[0].validator != NULL) {
+        if (command.databases.size() >= 2) {
+            isStartVar |= (command.databases[0].specialType & DbType::VARIADIC);
+            isEndVar |= (command.databases[command.databases.size() - 1].specialType & DbType::VARIADIC);
+            isVar = isStartVar | isEndVar;
+        }
+        if (ignorePathCountChecks == false && isVar == false && filenames.size() > command.databases.size()) {
+            printUsageMessage(command, outputFlags);
+            Debug(Debug::ERROR) << "Too many input paths provided. Only " << SSTR(command.databases.size()) << " are allowed\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
     switch (std::min(filenames.size(), MAX_DB_PARAMETER)) {
         case 6:
             db6 = filenames[5];
@@ -1568,12 +1587,16 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                 break;
             // FALLTHROUGH
         case 0:
+            if (parseFlags & PARSE_ALLOW_EMPTY)
+                break;
             printUsageMessage(command, outputFlags);
             Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";
             printParameters(command.cmd, argc, pargv, par);
             EXIT(EXIT_FAILURE);
     }
-    checkIfDatabaseIsValid(command, isStartVar, isEndVar);
+    if (ignorePathCountChecks == false) {
+        checkIfDatabaseIsValid(command, isStartVar, isEndVar);
+    }
 
     if(printPar == true) {
         printParameters(command.cmd, argc, pargv, par);
@@ -1706,6 +1729,8 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
 //                fclose(fp);
 //                FileUtil::remove(filenames[dbIdx].c_str());
             }
+        } else {
+            fileIdx++;
         }
     }
 }

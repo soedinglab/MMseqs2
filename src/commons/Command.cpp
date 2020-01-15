@@ -44,3 +44,4 @@ std::vector<int> DbValidator::directory = {Parameters::DBTYPE_DIRECTORY};
 std::vector<int> DbValidator::flatfile = {Parameters::DBTYPE_FLATFILE};
 std::vector<int> DbValidator::flatfileAndStdin = {Parameters::DBTYPE_FLATFILE, Parameters::DBTYPE_STDIN};
 std::vector<int> DbValidator::resultDb =  {Parameters::DBTYPE_ALIGNMENT_RES, Parameters::DBTYPE_PREFILTER_RES, Parameters::DBTYPE_PREFILTER_REV_RES, Parameters::DBTYPE_CLUSTER_RES};
+std::vector<int> DbValidator::empty = {};
