@@ -8,7 +8,6 @@
 #include "ReducedMatrix.h"
 #include "KmerIndex.h"
 #include "kmersearch.h"
-
 extern const char* version;
 
 int kmerindexdb(int argc, const char **argv, const Command &command) {
@@ -116,7 +115,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     for(size_t split = fromSplit; split < fromSplit+splitCount; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
         size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;
-        KmerSearch::ExtractKmerAndSortResult kmerRet  = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, 1, par.adjustKmerLength);
+        KmerSearch::ExtractKmerAndSortResult kmerRet = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, seqDbr, par, subMat);
         hashSeqPair = kmerRet.kmers;
         // assign rep. sequence to same kmer members
         // The longest sequence is the first since we sorted by kmer, seq.Len and id
