@@ -9,7 +9,7 @@ void setEasyTaxonomyDefaults(Parameters *p) {
     p->spacedKmer = true;
     p->removeTmpFiles = true;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
-    p->createdbMode = Parameters::SEQUENCE_SPLIT_MODE_SOFT;
+    p->createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
     p->sensitivity = 5.7;
     p->evalThr = 1;
     p->orfStartMode = 1;

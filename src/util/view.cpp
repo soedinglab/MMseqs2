@@ -1,24 +1,14 @@
-//
-// Created by Martin Steinegger on 2019-01-17.
-//
-
 #include "Parameters.h"
-#include "FileUtil.h"
-#include "DBReader.h"
-#include "DBWriter.h"
+#include "IndexReader.h"
 #include "Debug.h"
 #include "Util.h"
 
-#include <climits>
-#include <IndexReader.h>
-
 int view(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.verbosity = 1;
-    par.parseParameters(argc, argv, command, true, 0, 0);
+    par.parseParameters(argc, argv, command, false, 0, 0);
     std::vector<std::string> ids = Util::split(par.idList, ",");
     int indexSrcType = IndexReader::SEQUENCES;
-    switch(par.idxEntryType){
+    switch (par.idxEntryType) {
         case 0:
             indexSrcType = IndexReader::SEQUENCES;
             break;
@@ -33,19 +23,16 @@ int view(int argc, const char **argv, const Command& command) {
             break;
     }
     IndexReader reader(par.db1, par.threads, indexSrcType, 0);
-    char dbKey[256];
-    for (size_t i = 0; i< ids.size(); i++) {
-        strncpy(dbKey, ids[i].c_str(), ids[i].size());
-        dbKey[ids[i].size()]='\0';
-        const unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
+    for (size_t i = 0; i < ids.size(); ++i) {
+        const unsigned int key = Util::fast_atoi<unsigned int>(ids[i].c_str());
         const size_t id = reader.sequenceReader->getId(key);
         if (id >= UINT_MAX) {
-            Debug(Debug::WARNING) << "Key " << ids[i] << " not found in database\n";
+            Debug(Debug::ERROR) << "Key " << ids[i] << " not found in database\n";
             continue;
         }
         char* data = reader.sequenceReader->getData(id, 0);
-        std::cout << data;
+        size_t size = reader.sequenceReader->getEntryLen(id) - 1;
+        fwrite(data, sizeof(char), size, stdout);
     }
     EXIT(EXIT_SUCCESS);
-    return EXIT_SUCCESS;
 }
