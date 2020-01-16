@@ -79,13 +79,12 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     size_t totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
     totalKmers *= par.pickNbest;
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter<short>(totalKmers);
-    Debug(Debug::INFO) << "Estimated memory consumption " << totalSizeNeeded/1024/1024 << " MB\n";
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
     size_t totalKmersPerSplit = static_cast<size_t>(std::min(totalSizeNeeded,memoryLimit)/sizeof(KmerPosition<short>));
     std::vector<std::pair<size_t, size_t>> hashRanges = setupKmerSplits<short>(par, subMat, seqDbr, totalKmersPerSplit, splits);
 
-    Debug(Debug::INFO) << "Process file into " << splits << " parts\n";
+    Debug(Debug::INFO) << "Process file into " << hashRanges.size() << " parts\n";
     std::vector<std::string> splitFiles;
     KmerPosition<short> *hashSeqPair = NULL;
 
@@ -103,7 +102,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     memset(splitCntPerProc, 0, sizeof(unsigned int) * MMseqsMPI::numProc);
     for(size_t i = 0; i < splits; i++){
         splitCntPerProc[i % MMseqsMPI::numProc] += 1;
-    }
+    }Estimated memory consumption
     for(int i = 0; i < MMseqsMPI::rank; i++){
         fromSplit += splitCntPerProc[i];
     }

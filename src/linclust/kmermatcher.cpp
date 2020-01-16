@@ -27,6 +27,8 @@
 #include <algorithm>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+
 
 #ifdef OPENMP
 #include <omp.h>
@@ -236,13 +238,13 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                 int tooMuchElemInLastBin = (kmerInBins - kmerConsidered);
 
                 // add k-mer to represent the identity
-                if (hashStartRange <= static_cast<unsigned short>(seqHash) && static_cast<unsigned short>(seqHash) <= hashEndRange) {
+                if (static_cast<unsigned short>(seqHash) >= hashStartRange && static_cast<unsigned short>(seqHash) <= hashEndRange) {
                     threadKmerBuffer[bufferPos].kmer = seqHash;
                     threadKmerBuffer[bufferPos].id = seqId;
                     threadKmerBuffer[bufferPos].pos = 0;
                     threadKmerBuffer[bufferPos].seqLen = seq.L;
                     if(hashDistribution != NULL){
-                        hashDistribution[static_cast<unsigned short>(seqHash)]++;
+                        __sync_fetch_and_add(&hashDistribution[static_cast<unsigned short>(seqHash)], 1);
                     }
                     bufferPos++;
                     if (bufferPos >= BUFFER_SIZE) {
@@ -297,7 +299,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
 //                        std::cout << seqId << "\t" << (kmers + kmerIdx)->score << "\t" << (kmers + kmerIdx)->pos << std::endl;
 
                         selectedKmer++;
-                        if (hashStartRange <= (kmers + kmerIdx)->score && (kmers + kmerIdx)->score < hashEndRange)
+                        if ((kmers + kmerIdx)->score >= hashStartRange && (kmers + kmerIdx)->score <= hashEndRange)
                         {
 //                            std::cout << seqId << "\t" << (kmers + kmerIdx)->score << "\t" << (kmers + kmerIdx)->pos << std::endl;
                             threadKmerBuffer[bufferPos].kmer = (kmers + kmerIdx)->kmer;
@@ -306,7 +308,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                             threadKmerBuffer[bufferPos].seqLen = seq.L;
                             bufferPos++;
                             if(hashDistribution != NULL){
-                                hashDistribution[(kmers + kmerIdx)->score]++;
+                                __sync_fetch_and_add(&hashDistribution[(kmers + kmerIdx)->score], 1);
                             }
 
                             if (bufferPos >= BUFFER_SIZE) {
@@ -384,7 +386,7 @@ KmerPosition<T> * doComputation(size_t totalKmers, size_t hashStartRange, size_t
         std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, T>(hashSeqPair, totalKmers, seqDbr, par, subMat, true, hashStartRange, hashEndRange, NULL);
         elementsToSort = ret.first;
     }
-    if(hashEndRange == 1){
+    if(hashEndRange == SIZE_T_MAX){
         seqDbr.unmapData();
     }
 
@@ -596,21 +598,20 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
     // memoryLimit in bytes
     size_t memoryLimit;
     if (par.splitMemoryLimit > 0) {
-        memoryLimit = static_cast<size_t>(par.splitMemoryLimit);
+        memoryLimit = par.splitMemoryLimit;
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
     Debug(Debug::INFO) << "\n";
     size_t totalKmers = computeKmerCount(seqDbr, par.kmerSize, par.kmersPerSequence, par.kmersPerSequenceScale);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter<T>(totalKmers);
-    Debug(Debug::INFO) << "Estimated memory consumption " << totalSizeNeeded/1024/1024 << " MB\n";
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
     size_t totalKmersPerSplit = static_cast<size_t>(std::min(totalSizeNeeded,memoryLimit)/sizeof(KmerPosition<short>));
 
     std::vector<std::pair<size_t, size_t>> hashRanges = setupKmerSplits<T>(par, subMat, seqDbr, totalKmersPerSplit, splits);
     if(splits > 1){
-        Debug(Debug::INFO) << "Process file into " << splits << " parts\n";
+        Debug(Debug::INFO) << "Process file into " << hashRanges.size() << " parts\n";
     }
     std::vector<std::string> splitFiles;
     KmerPosition<T> *hashSeqPair = NULL;
@@ -744,7 +745,7 @@ std::vector<std::pair<size_t, size_t>> setupKmerSplits(Parameters &par, BaseMatr
             }
         }
         if(maxBucketSize > totalKmers){
-            Debug(Debug::INFO) << "Not enough memory run kmermatcher. Minimum is at least " << maxBucketSize* sizeof(KmerPosition<T>) << " bytes\n";
+            Debug(Debug::INFO) << "Not enough memory to run the kmermatcher. Minimum is at least " << maxBucketSize* sizeof(KmerPosition<T>) << " bytes\n";
             EXIT(EXIT_FAILURE);
         }
         // define splits
@@ -948,12 +949,19 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
     for(size_t file = 0; file < tmpFiles.size(); file++){
         files[file] = FileUtil::openFileOrDie(tmpFiles[file].c_str(),"r",true);
         size_t dataSize;
-        entries[file]    = (T*)FileUtil::mmapFile(files[file], &dataSize);
+        struct stat sb;
+        fstat(fileno(files[file]) , &sb);
+        if(sb.st_size > 0){
+            entries[file]    = (T*)FileUtil::mmapFile(files[file], &dataSize);
 #if HAVE_POSIX_MADVISE
-        if (posix_madvise (entries[file], dataSize, POSIX_MADV_SEQUENTIAL) != 0){
-            Debug(Debug::ERROR) << "posix_madvise returned an error for file " << tmpFiles[file] << "\n";
-        }
+            if (posix_madvise (entries[file], dataSize, POSIX_MADV_SEQUENTIAL) != 0){
+                Debug(Debug::ERROR) << "posix_madvise returned an error for file " << tmpFiles[file] << "\n";
+            }
 #endif
+        }else{
+            dataSize = 0;
+        }
+
         dataSizes[file]  = dataSize;
         entrySizes[file] = dataSize/sizeof(T);
     }
@@ -1068,7 +1076,7 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
     }
     for(size_t file = 0; file < tmpFiles.size(); file++) {
         fclose(files[file]);
-        if(munmap((void*)entries[file], dataSizes[file]) < 0){
+        if(dataSizes[file] > 0 && munmap((void*)entries[file], dataSizes[file]) < 0){
             Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSizes[file] <<"\n";
             EXIT(EXIT_FAILURE);
         }

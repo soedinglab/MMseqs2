@@ -202,7 +202,6 @@ int kmersearch(int argc, const char **argv, const Command &command) {
 
     size_t totalKmers = computeKmerCount(queryDbr, KMER_SIZE, chooseTopKmer);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter<short>(totalKmers);
-    Debug(Debug::INFO) << "Estimated memory consumption " << totalSizeNeeded/1024/1024 << " MB\n";
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
@@ -222,7 +221,7 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     std::vector<std::pair<size_t, size_t>> hashRanges = setupKmerSplits<short>(par, subMat, queryDbr, totalKmersPerSplit, splits);
 
     int outDbType = (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) ? Parameters::DBTYPE_PREFILTER_REV_RES : Parameters::DBTYPE_PREFILTER_RES;
-    Debug(Debug::INFO) << "Process file into " << splits << " parts\n";
+    Debug(Debug::INFO) << "Process file into " << hashRanges.size() << " parts\n";
 
     std::vector<std::string> splitFiles;
     for (size_t split = 0; split < hashRanges.size(); split++) {
