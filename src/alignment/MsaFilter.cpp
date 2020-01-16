@@ -395,7 +395,7 @@ void MsaFilter::filter(const int N_in, const int L, const int coverage, const in
 //            // DEBUG
 //            printf("%20.20s with %20.20s:  diff=%i  diff_min_frac*cov_kj=%f  diff_suff=%i  nres=%i  cov_kj=%i\n",sname[k],sname[j],diff,diff_min_frac*cov_kj,diff_suff,nres[k],cov_kj);
 //            printf("%s\n%s\n\n",seq[k],seq[j]);
-                if (diff < diff_suff && float(diff) <= diff_min_frac * cov_kj)
+                if (diff < diff_suff && float(diff) <= diff_min_frac * cov_kj && cov_kj > 0)
                     break;  //dissimilarity < acceptace threshold? Reject!
 
             }
