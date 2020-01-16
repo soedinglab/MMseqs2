@@ -189,15 +189,16 @@ typedef struct __kstring_t {
 		ks->newline = 0; \
         if (seq->last_char == 0) { /* then jump to the next header line */ \
 			while ((c = ks_getc(ks)) >= 0 && c != '>' && c != '@'); \
-            seq->offset = ks->cur_buf_pos + ks->begin; \
+            seq->headerOffset = ks->cur_buf_pos + ks->begin; \
 			if (c < 0) return c; /* end of file or error*/ \
 			seq->last_char = c; \
 		} else{  /* else: the first header char has been read in the previous call */ \
-            seq->offset = ks->cur_buf_pos + ks->begin; \
+            seq->headerOffset = ks->cur_buf_pos + ks->begin; \
 		} \
 		seq->comment.l = seq->seq.l = seq->qual.l = 0; /* reset all members */ \
 		if ((r=ks_getuntil(ks, 0, &seq->name, &c)) < 0) return r;  /* normal exit: EOF or error */ \
 		if (c != '\n') ks_getuntil(ks, KS_SEP_LINE, &seq->comment, 0); /* read FASTA/Q comment */ \
+		seq->sequenceOffset = ks->cur_buf_pos + ks->begin; \
 		if (seq->seq.s == 0) { /* we can do this in the loop below, but that is slower */ \
 			seq->seq.m = 256; \
 			seq->seq.s = (char*)malloc(seq->seq.m); \
@@ -235,7 +236,8 @@ typedef struct __kstring_t {
 	typedef struct {							\
 		kstring_t name, comment, seq, qual;		\
 		int last_char;							\
-		size_t offset;                          \
+		size_t headerOffset;                    \
+		size_t sequenceOffset;                  \
 		bool multiline;                         \
 		kstream_t *f;							\
 	} kseq_t;

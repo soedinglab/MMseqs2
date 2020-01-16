@@ -105,16 +105,19 @@ int createdb(int argc, const char **argv, const Command& command) {
             }
 
             // header
-            header.append(e.name.s, e.name.l);
-            if (e.comment.l > 0) {
-                header.append(" ", 1);
-                header.append(e.comment.s, e.comment.l);
-            }
+            if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_HARD){
+                header.append(e.name.s, e.name.l);
+                if (e.comment.l > 0) {
+                    header.append(" ", 1);
+                    header.append(e.comment.s, e.comment.l);
+                }
 
-            std::string headerId = Util::parseFastaHeader(header.c_str());
-            if (headerId.empty()) {
-                // An identifier is necessary for these two cases, so we should just give up
-                Debug(Debug::WARNING) << "Can not extract identifier from entry " << entries_num << ".\n";
+                std::string headerId = Util::parseFastaHeader(header.c_str());
+                if (headerId.empty()) {
+                    // An identifier is necessary for these two cases, so we should just give up
+                    Debug(Debug::WARNING) << "Can not extract identifier from entry " << entries_num << ".\n";
+                }
+                header.push_back('\n');
             }
             unsigned int id = par.identifierOffset + entries_num;
             if (dbType == -1) {
@@ -160,11 +163,10 @@ int createdb(int argc, const char **argv, const Command& command) {
             // Finally write down the entry
             unsigned int splitIdx = id % shuffleSplits;
             sourceLookup[splitIdx].emplace_back(fileIdx);
-            header.push_back('\n');
             if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT){
                 // +2 to emulate the \n\0
-                hdrWriter.writeIndexEntry(id, e.offset, header.size()+2, 0);
-                seqWriter.writeIndexEntry(id, e.offset + header.size(), e.sequence.l+2, 0);
+                hdrWriter.writeIndexEntry(id, e.headerOffset, (e.sequenceOffset-e.headerOffset)+1, 0);
+                seqWriter.writeIndexEntry(id, e.sequenceOffset, e.sequence.l+2, 0);
             }else{
                 hdrWriter.writeData(header.c_str(), header.length(), id, splitIdx);
                 seqWriter.writeStart(splitIdx);
@@ -210,10 +212,13 @@ int createdb(int argc, const char **argv, const Command& command) {
     DBWriter::createRenumberedDB(dataFile, indexFile, "", DBReader<unsigned int>::LINEAR_ACCCESS);
     DBWriter::createRenumberedDB(hdrDataFile, hdrIndexFile, "", DBReader<unsigned int>::LINEAR_ACCCESS);
     if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
-        for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
-            if(par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT){
-                FileUtil::symlinkAbs(filenames[0], dataFile+"."+SSTR(fileIdx));
-                FileUtil::symlinkAbs(filenames[0], hdrDataFile+"."+SSTR(fileIdx));
+        if(filenames.size() == 1){
+            FileUtil::symlinkAbs(filenames[0], dataFile);
+            FileUtil::symlinkAbs(filenames[0], hdrDataFile);
+        }else{
+            for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
+                FileUtil::symlinkAbs(filenames[fileIdx], dataFile+"."+SSTR(fileIdx));
+                FileUtil::symlinkAbs(filenames[fileIdx], hdrDataFile+"."+SSTR(fileIdx));
             }
         }
     }
