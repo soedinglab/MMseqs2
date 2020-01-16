@@ -21,40 +21,27 @@
 #define SIZE_T_MAX ((size_t) -1)
 #endif
 
-KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t totalKmers, size_t split, size_t splits, DBReader<unsigned int> & seqDbr,
+KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t totalKmers, size_t hashStartRange, size_t hashEndRange, DBReader<unsigned int> & seqDbr,
                                                                  Parameters & par, BaseMatrix  * subMat) {
-    Debug(Debug::INFO) << "Generate k-mers list " << split <<"\n";
 
-    size_t splitKmerCount = totalKmers;
-    if(splits > 1){
-        size_t memoryLimit;
-        if (par.splitMemoryLimit > 0) {
-            memoryLimit = static_cast<size_t>(par.splitMemoryLimit);
-        } else {
-            memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
-        }
-        // we do not really know how much memory is needed. So this is our best choice
-        splitKmerCount = (memoryLimit / sizeof(KmerPosition<short>));
-    }
-    size_t splitTotalKmer = splitKmerCount*par.pickNbest+1;
-    KmerPosition<short> * hashSeqPair = initKmerPositionMemory<short>(splitTotalKmer);
+    KmerPosition<short> * hashSeqPair = initKmerPositionMemory<short>(totalKmers);
     Timer timer;
     size_t elementsToSort;
     if(par.pickNbest > 1){
-        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_HMM_PROFILE,short>(hashSeqPair, splitTotalKmer, seqDbr, par, subMat, false, splits, split);
+        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_HMM_PROFILE,short>(hashSeqPair, totalKmers, seqDbr, par, subMat, false, hashStartRange, hashEndRange, NULL);
         elementsToSort = ret.first;
     } else if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES,short>(hashSeqPair, splitTotalKmer, seqDbr, par, subMat, false, splits, split);
+        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES,short>(hashSeqPair, totalKmers, seqDbr, par, subMat, false, hashStartRange, hashEndRange, NULL);
         elementsToSort = ret.first;
         par.kmerSize = ret.second;
         Debug(Debug::INFO) << "\nAdjusted k-mer length " << par.kmerSize << "\n";
     }else {
-        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, short>(hashSeqPair, splitTotalKmer, seqDbr, par, subMat, false, splits, split);
+        std::pair<size_t, size_t> ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, short>(hashSeqPair, totalKmers, seqDbr, par, subMat, false, hashStartRange, hashEndRange, NULL);
         elementsToSort = ret.first;
 
     }
     Debug(Debug::INFO) << "\nTime for fill: " << timer.lap() << "\n";
-    if(splits == 1){
+    if(hashEndRange == SIZE_T_MAX){
         seqDbr.unmapData();
     }
 
@@ -231,16 +218,14 @@ int kmersearch(int argc, const char **argv, const Command &command) {
 
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
-//    size_t splits = 2;
-    if (splits > 1) {
-//         security buffer
-        splits += 1;
-    }
+    size_t totalKmersPerSplit = static_cast<size_t>(std::min(totalSizeNeeded,memoryLimit)/sizeof(KmerPosition<short>));
+    std::vector<std::pair<size_t, size_t>> hashRanges = setupKmerSplits<short>(par, subMat, queryDbr, totalKmersPerSplit, splits);
+
     int outDbType = (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) ? Parameters::DBTYPE_PREFILTER_REV_RES : Parameters::DBTYPE_PREFILTER_RES;
     Debug(Debug::INFO) << "Process file into " << splits << " parts\n";
 
     std::vector<std::string> splitFiles;
-    for (size_t split = 0; split < splits; split++) {
+    for (size_t split = 0; split < hashRanges.size(); split++) {
         tidxdbr.remapData();
         char *entriesData = tidxdbr.getDataUncompressed(tidxdbr.getId(PrefilteringIndexReader::ENTRIES));
         char *entriesOffsetsData = tidxdbr.getDataUncompressed(tidxdbr.getId(PrefilteringIndexReader::ENTRIESOFFSETS));
@@ -258,8 +243,8 @@ int kmersearch(int argc, const char **argv, const Command &command) {
         
         std::string splitFileNameDone = tmpFiles.first + ".done";
         if(FileUtil::fileExists(splitFileNameDone.c_str()) == false) {
-            KmerSearch::ExtractKmerAndSortResult sortedKmers = KmerSearch::extractKmerAndSort(totalKmers, split,
-                                                                                              splits, queryDbr, par,
+            KmerSearch::ExtractKmerAndSortResult sortedKmers = KmerSearch::extractKmerAndSort(totalKmersPerSplit, hashRanges[split].first,
+                                                                                              hashRanges[split].second, queryDbr, par,
                                                                                               subMat);
             std::pair<KmerPosition<short> *, size_t> result;
             if (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {

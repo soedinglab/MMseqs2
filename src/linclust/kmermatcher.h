@@ -213,6 +213,7 @@ template <int TYPE, typename T>
 void writeKmerMatcherResult(DBWriter & dbw, KmerPosition<T> *hashSeqPair, size_t totalKmers,
                             std::vector<char> &repSequence, size_t threads);
 
+
 template <typename T>
 KmerPosition<T> * doComputation(size_t totalKmers, size_t split, size_t splits, std::string splitFile,
                                 DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat,
@@ -222,7 +223,8 @@ KmerPosition<T> *initKmerPositionMemory(size_t size);
 
 template <int TYPE, typename T>
 std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition<T> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                 Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t splits, size_t split);
+                                                 Parameters & par, BaseMatrix * subMat, bool hashWholeSequence,
+                                                 size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
 
 
 void maskSequence(int maskMode, int maskLowerCase,
@@ -232,17 +234,15 @@ void maskSequence(int maskMode, int maskLowerCase,
 template <typename T>
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);
 
+template <typename T>
+std::vector<std::pair<size_t, size_t>> setupKmerSplits(Parameters &par, BaseMatrix * subMat, DBReader<unsigned int> &seqDbr, size_t totalKmers, size_t splits);
+
 size_t computeKmerCount(DBReader<unsigned int> &reader, size_t KMER_SIZE, size_t chooseTopKmer,
                         float chooseTopKmerScale = 0.0);
 
 void setLinearFilterDefault(Parameters *p);
 
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);
-
-unsigned circ_hash(const int * x, unsigned length, const unsigned rol);
-
-unsigned circ_hash_next(const int * x, unsigned length, int x_first, short unsigned h, const unsigned rol);
-
 
 
 #undef SIZE_T_MAX

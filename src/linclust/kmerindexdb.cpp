@@ -77,15 +77,13 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     }
     Debug(Debug::INFO) << "\n";
     size_t totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
+    totalKmers *= par.pickNbest;
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter<short>(totalKmers);
     Debug(Debug::INFO) << "Estimated memory consumption " << totalSizeNeeded/1024/1024 << " MB\n";
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
-//    size_t splits = 2;
-    if (splits > 1) {
-        // security buffer
-        splits += 1;
-    }
+    size_t totalKmersPerSplit = static_cast<size_t>(std::min(totalSizeNeeded,memoryLimit)/sizeof(KmerPosition<short>));
+    std::vector<std::pair<size_t, size_t>> hashRanges = setupKmerSplits<short>(par, subMat, seqDbr, totalKmersPerSplit, splits);
 
     Debug(Debug::INFO) << "Process file into " << splits << " parts\n";
     std::vector<std::string> splitFiles;
@@ -115,7 +113,8 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     for(size_t split = fromSplit; split < fromSplit+splitCount; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
         size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;
-        KmerSearch::ExtractKmerAndSortResult kmerRet = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, seqDbr, par, subMat);
+        int range=MathUtil::ceilIntDivision(USHRT_MAX+1, static_cast<int>(splits));
+        KmerSearch::ExtractKmerAndSortResult kmerRet = KmerSearch::extractKmerAndSort(splitKmerCount, split*range, splits*range+range, seqDbr, par, subMat);
         hashSeqPair = kmerRet.kmers;
         // assign rep. sequence to same kmer members
         // The longest sequence is the first since we sorted by kmer, seq.Len and id
@@ -135,18 +134,20 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         }
     }
 #else
-    for(size_t split = 0; split < splits; split++) {
+    for(size_t split = 0; split < hashRanges.size(); split++) {
+        Debug(Debug::INFO) << "Generate k-mers list " << split <<"\n";
+
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
-        size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;
-        KmerSearch::ExtractKmerAndSortResult kmerRet = KmerSearch::extractKmerAndSort(splitKmerCount, split, splits, seqDbr, par, subMat);
+
+        KmerSearch::ExtractKmerAndSortResult kmerRet = KmerSearch::extractKmerAndSort(totalKmersPerSplit, hashRanges[split].first, hashRanges[split].second, seqDbr, par, subMat);
         hashSeqPair = kmerRet.kmers;
         adjustedKmerSize = std::max(adjustedKmerSize, kmerRet.adjustedKmer);
         // assign rep. sequence to same kmer members
         // The longest sequence is the first since we sorted by kmer, seq.Len and id
         if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-            writePos = LinsearchIndexReader::pickCenterKmer<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair, splitKmerCount);
+            writePos = LinsearchIndexReader::pickCenterKmer<Parameters::DBTYPE_NUCLEOTIDES>(hashSeqPair, totalKmersPerSplit);
         }else{
-            writePos = LinsearchIndexReader::pickCenterKmer<Parameters::DBTYPE_AMINO_ACIDS>(hashSeqPair, splitKmerCount);
+            writePos = LinsearchIndexReader::pickCenterKmer<Parameters::DBTYPE_AMINO_ACIDS>(hashSeqPair, totalKmersPerSplit);
         }
 
         if(splits > 1){
