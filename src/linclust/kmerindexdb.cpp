@@ -102,7 +102,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     memset(splitCntPerProc, 0, sizeof(unsigned int) * MMseqsMPI::numProc);
     for(size_t i = 0; i < splits; i++){
         splitCntPerProc[i % MMseqsMPI::numProc] += 1;
-    }Estimated memory consumption
+    }
     for(int i = 0; i < MMseqsMPI::rank; i++){
         fromSplit += splitCntPerProc[i];
     }
