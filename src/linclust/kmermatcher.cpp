@@ -638,7 +638,9 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
     for(size_t split = fromSplit; split < fromSplit+splitCount; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
         int range=MathUtil::ceilIntDivision(USHRT_MAX+1, static_cast<int>(splits));
-        hashSeqPair = doComputation<T>(totalKmers, split*range, splits*range+range, splitFileName, seqDbr, par, subMat);
+        size_t rangeFrom = split*range;
+        size_t rangeTo = (splits == 1) ? SIZE_T_MAX : splits*range+range;
+        hashSeqPair = doComputation<T>(totalKmers, rangeFrom, rangeTo, splitFileName, seqDbr, par, subMat);
     }
     MPI_Barrier(MPI_COMM_WORLD);
     if(mpiRank == 0){
