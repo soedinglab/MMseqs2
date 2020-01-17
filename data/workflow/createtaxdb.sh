@@ -58,5 +58,5 @@ if [ -n "$REMOVE_TMP" ]; then
    if [ "$DOWNLOAD_DATA" -eq "1" ]; then
       rm -f "${TMP_PATH}/ncbi_download.complete" "${TMP_PATH}/mapping_download.complete"
    fi
-   rm -f createtaxdb.sh
+   rm -f "${TMP_PATH}/createtaxdb.sh"
 fi
