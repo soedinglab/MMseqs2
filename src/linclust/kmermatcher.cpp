@@ -746,7 +746,7 @@ std::vector<std::pair<size_t, size_t>> setupKmerSplits(Parameters &par, BaseMatr
         size_t currBucketSize = 0;
         size_t currBucketStart = 0;
         for(size_t i = 0; i < (USHRT_MAX+1); i++){
-            if(currBucketSize+hashDist[i] > totalKmers){
+            if(currBucketSize+hashDist[i] >= totalKmers){
                 hashRanges.emplace_back(currBucketStart, i - 1);
                 currBucketSize = 0;
                 currBucketStart = i;
