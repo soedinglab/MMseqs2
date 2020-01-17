@@ -38,7 +38,7 @@ MMseqs2 can be used by compiling from source, downloading a statically compiled 
      wget https://mmseqs.com/latest/mmseqs-linux-avx2.tar.gz; tar xvfz mmseqs-linux-avx2.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
 
 The AVX2 version is faster than SSE4.1, check if AVX2 is supported by executing `cat /proc/cpuinfo | grep avx2` on Linux and `sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2` on MacOS).
-We also provide static binaries for MacOS and Windows at [mmseqs.com/latest](https://mmseqs.com/latest).
+We also provide static binaries for all supported platforms at [mmseqs.com/latest](https://mmseqs.com/latest).
 
 MMseqs2 comes with a bash command and parameter auto completion, which can be activated by adding the following lines to your $HOME/.bash_profile:
 
@@ -99,14 +99,14 @@ The speed and sensitivity of the `search` can be adjusted with `-s` parameter an
 The output can be customized with the `--format-output` option e.g. `--format-output "query,target,qaln,taln"` returns the query and target accession and the pairwise alignments in tab separated format. You can choose many different [output columns](https://github.com/soedinglab/mmseqs2/wiki#custom-alignment-format-with-convertalis).
 
 ### Taxonomy
-The `easy-taxonomy` workflow can be used assign sequences taxonomical labels. It performs a search against a target sequence databases and computes the lowest common ancestor of all equal scoring top hits (default). Other assignment options are available through `--lca-mode`.
+The `easy-taxonomy` workflow can be used to assign sequences taxonomical labels. It performs a search against a sequence database with taxonomy information (seqTaxDb), chooses the most representative sets of aligned target sequences according to different strategies (according to `--lca-mode`) and computes the lowest common ancestor among those.
 
         mmseqs createdb examples/DB.fasta targetDB
         mmseqs createtaxdb targetDB tmp
         mmseqs createindex targetDB tmp
         mmseqs easy-taxonomy examples/QUERY.fasta targetDB alnRes tmp
 
-In default `createtaxdb` assigns every sequence with a Uniprot accession to a taxonomical identifier and downloads the NCBI taxonomy. We also support [BLAST](https://github.com/soedinglab/MMseqs2/wiki#create-a-sequence-database-with-taxonomic-information-from-an-existing-blast-database), [SILVA](https://github.com/soedinglab/MMseqs2/wiki#create-a-sequence-database-with-taxonomic-information-for-silva) or [custom taxonomical](https://github.com/soedinglab/MMseqs2/wiki#manually-annotate-a-sequence-database-with-taxonomic-information) databases.
+By default, `createtaxdb` assigns a Uniprot accession to a taxonomical identifier to every sequence and downloads the NCBI taxonomy. We also support [BLAST](https://github.com/soedinglab/MMseqs2/wiki#create-a-sequence-database-with-taxonomic-information-from-an-existing-blast-database), [SILVA](https://github.com/soedinglab/MMseqs2/wiki#create-a-sequence-database-with-taxonomic-information-for-silva) or [custom taxonomical](https://github.com/soedinglab/MMseqs2/wiki#manually-annotate-a-sequence-database-with-taxonomic-information) databases.
 
 Read more about the [taxonomy format](https://github.com/soedinglab/MMseqs2/wiki#taxonomy-format) and the [classification](https://github.com/soedinglab/MMseqs2/wiki#taxonomy-assignment-using-mmseqs-taxonomy) in our user guide.
 
