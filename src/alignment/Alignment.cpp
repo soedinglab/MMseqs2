@@ -519,7 +519,7 @@ bool Alignment::checkCriteria(Matcher::result_t &res, bool isIdentity, double ev
 void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &dbSeq,
                                             std::vector<Matcher::result_t> &swResults,
                                             Matcher &matcher, float evalThr, int swMode, int thread_idx) {
-    int xIndex = m->aa2int[static_cast<int>('X')];
+    unsigned char xIndex = m->aa2num[static_cast<int>('X')];
     size_t firstItResSize = swResults.size();
     for(size_t i = 0; i < firstItResSize; i++) {
         const bool isIdentity = (queryDbKey == swResults[i].dbKey && (includeIdentity || sameQTDB))
@@ -536,7 +536,7 @@ void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &d
 
         dbSeq.mapSequence(dbId, swResults[i].dbKey, dbSeqData, tdbr->getSeqLen(dbId));
         for (int pos = swResults[i].dbStartPos; pos < swResults[i].dbEndPos; ++pos) {
-            dbSeq.int_sequence[pos] = xIndex;
+            dbSeq.numSequence[pos] = xIndex;
         }
         bool nextAlignment = true;
         for (int altAli = 0; altAli < altAlignment && nextAlignment; altAli++) {
@@ -546,7 +546,7 @@ void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &d
             if (nextAlignment == true) {
                 swResults.emplace_back(res);
                 for (int pos = res.dbStartPos; pos < res.dbEndPos; pos++) {
-                    dbSeq.int_sequence[pos] = xIndex;
+                    dbSeq.numSequence[pos] = xIndex;
                 }
             }
         }

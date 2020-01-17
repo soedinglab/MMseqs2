@@ -356,7 +356,7 @@ short UngappedAlignment::createProfile(Sequence *seq,
         }
     }else{
         for (int pos = 0; pos < seq->L; pos++) {
-            unsigned int aaIdx = seq->int_sequence[pos];
+            unsigned int aaIdx = seq->numSequence[pos];
             for (int i = 0; i < subMatrix->alphabetSize; i++) {
                 queryProfile[pos * PROFILESIZE + i] = (subMat[aaIdx][i] + aaCorrectionScore[pos] + bias);
             }

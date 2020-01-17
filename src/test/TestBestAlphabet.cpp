@@ -66,7 +66,7 @@ int main (int, const char**) {
     for(size_t a = 0; a < numAAs; a++)
         seqid += subMat.probMatrix[a][a];
     printf("Substitution matrix with average sequence identity %4.1f%%:\n",100*seqid);
-    SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
+    SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
 
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -90,7 +90,7 @@ int main (int, const char**) {
         unsigned int dbKey = seqDb.getDbKey(id);
         rseqKmer.mapSequence(id, dbKey, seqData, seqDb.getSeqLen(id));
         while (rseqKmer.hasNextKmer() && sumKmerCnts < 20000*numKmers) {
-            const int* kmer = rseqKmer.nextKmer();
+            const unsigned char* kmer = rseqKmer.nextKmer();
 
             // Ignore k-mers containing an X (which is encoded by numAAs)
             unsigned pos = 0;

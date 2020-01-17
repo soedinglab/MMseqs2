@@ -360,27 +360,27 @@ int main (int, const char**) {
 //                uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
 //                for (uint32_t i = 0; i < length; ++i){
 //                    if (letter == 'M') {
-//                        queryAln.push_back(subMat.int2aa[queryObj->int_sequence[queryPos]]);
-//                        if (targetObj->int_sequence[targetPos] == queryObj->int_sequence[queryPos]){
+//                        queryAln.push_back(subMat.num2aa[queryObj->sequence[queryPos]]);
+//                        if (targetObj->sequence[targetPos] == queryObj->sequence[queryPos]){
 //                            middleAln.push_back('|');
 //                            aaIds++;
 //                        }
 //                        else {
 //                            middleAln.push_back('*');
 //                        }
-//                        targetAln.push_back(subMat.int2aa[targetObj->int_sequence[targetPos]]);
+//                        targetAln.push_back(subMat.num2aa[targetObj->sequence[targetPos]]);
 //                        ++queryPos;
 //                        ++targetPos;
 //                    } else {
 //                        if (letter == 'I'){
-//                            queryAln.push_back(subMat.int2aa[queryObj->int_sequence[queryPos]]);
+//                            queryAln.push_back(subMat.num2aa[queryObj->sequence[queryPos]]);
 //                            middleAln.push_back(' ');
 //                            targetAln.push_back('-');
 //                            ++queryPos;
 //                        }else{
 //                            queryAln.push_back('-');
 //                            middleAln.push_back(' ');
-//                            targetAln.push_back(subMat.int2aa[targetObj->int_sequence[targetPos]]);
+//                            targetAln.push_back(subMat.num2aa[targetObj->sequence[targetPos]]);
 //                            ++targetPos;
 //                        };
 //                    }

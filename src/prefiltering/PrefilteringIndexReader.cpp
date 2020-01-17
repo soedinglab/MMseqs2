@@ -202,7 +202,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
                                    (maskMode == 1 || maskLowerCase == 1) ? &sequenceLookup : NULL,
                                    (maskMode == 0 ) ? &sequenceLookup : NULL,
                                    *subMat, &seq, dbr1, dbFrom, dbFrom + dbSize, kmerThr, maskMode, maskLowerCase);
-        indexTable.printStatistics(subMat->int2aa);
+        indexTable.printStatistics(subMat->num2aa);
 
         if (sequenceLookup == NULL) {
             Debug(Debug::ERROR) << "Invalid mask mode. No sequence lookup created!\n";

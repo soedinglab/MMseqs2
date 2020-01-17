@@ -218,9 +218,9 @@ public:
             if(TYPE==Parameters::DBTYPE_NUCLEOTIDES){
                 kmerIdx = BIT_CLEAR(kmerIdx, 15);
                 Indexer::printKmer(kmerIdx, kmerSize);
-//                indexer.printKmer(kmer.kmer, kmerSize, mat->int2aa);
+//                indexer.printKmer(kmer.kmer, kmerSize, mat->num2aa);
             }else{
-                indexer.printKmer(kmerIdx, kmerSize, mat->int2aa);
+                indexer.printKmer(kmerIdx, kmerSize, mat->num2aa);
             }
             Debug(Debug::INFO) << "\t";
             Debug(Debug::INFO) << kmerIdx << "\t";

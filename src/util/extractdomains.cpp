@@ -96,8 +96,8 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
 //            std::cout << "tGap\t"  << query[qPos] << "\t" << target[tPos] << "\t" << rawScore << "\t" << rawScore << "\t" << maxScore << std::endl;
         } else {
 
-            int queryRes = qSeq.int_sequence[qPos];
-            int targetRes = tSeq.int_sequence[tPos];
+            int queryRes = qSeq.numSequence[qPos];
+            int targetRes = tSeq.numSequence[tPos];
             int matchScore = matrix.subMatrix[queryRes][targetRes];
             rawScore = std::max(0, rawScore + matchScore);
 //            std::cout << "Matc\t"  << queryAA << "\t" << targetAA << "\t" << matchScore << "\t" << rawScore << "\t" << maxScore << std::endl;

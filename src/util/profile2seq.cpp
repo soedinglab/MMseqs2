@@ -37,9 +37,9 @@ int profile2seq(int argc, const char **argv, const Command &command, bool consen
         for (size_t i = 0; i < entries; ++i) {
             progress.updateProgress();
             seq.mapProfile(reader.getData(i, thread_idx), false, reader.getSeqLen(i));
-            int* sequence = consensus ? seq.int_consensus_sequence : seq.int_sequence;
+            unsigned char * sequence = consensus ? seq.numConsensusSequence : seq.numSequence;
             for (int aa = 0; aa < seq.L; aa++) {
-                result.append(1, subMat.int2aa[sequence[aa]]);
+                result.append(1, subMat.num2aa[sequence[aa]]);
             }
             result.append(1, '\n');
             writer.writeData(result.c_str(), result.length(), reader.getDbKey(i), thread_idx);

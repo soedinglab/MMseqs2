@@ -20,9 +20,9 @@ void calcLocalAaBiasCorrection(Sequence* seq, SubstitutionMatrix * m){
         const int _2d = maxPos - minPos;
         // negative score for the amino acids in the neighborhood of i
         int sumSubScores = 0;
-        short * subMat = m->subMatrix[seq->int_sequence[i]];
+        short * subMat = m->subMatrix[seq->numSequence[i]];
         for (int j = minPos; j < maxPos; j++){
-            sumSubScores += (j != i) ? subMat[seq->int_sequence[j]] : 0;
+            sumSubScores += (j != i) ? subMat[seq->numSequence[j]] : 0;
         }
         float deltaS_i = (float) sumSubScores;
         deltaS_i /= -1.0 * _2d;
@@ -53,7 +53,7 @@ int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 8.0, 0);
     std::cout << "Substitution matrix:";
-    SubstitutionMatrix::print(subMat.subMatrix, subMat.int2aa, subMat.alphabetSize);
+    SubstitutionMatrix::print(subMat.subMatrix, subMat.num2aa, subMat.alphabetSize);
 
     const char *ref = "MDDVKIERLKRLNEDVLEDLIEVYMRGYEGLEEYGGEGRDYARDYIKWCWKKAPDGFFVAKVGDRIVGFIVCDRDWYSRYEGKIVGAIHEFVVDKGWQGKGIGKKLLTKCLEFLGKYNDTIELWVGEKNFGAMRLYEKFGFKKVGKSGIWIRMVRRQLS";
     Sequence refSeq(10000, 0, &subMat, kmer_size, false, true);

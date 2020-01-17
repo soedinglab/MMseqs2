@@ -15,43 +15,43 @@ class SubstitutionMatrixProfileStates : public BaseMatrix {
                                     float **rMatrix, float bitFactor, float scoreBias,
                                     int libAlphabetSize) {
 //        alphabetSize = 32;
-        int2aa[0] = 'A';
-        int2aa[1] = 'C';
-        int2aa[2] = 'D';
-        int2aa[3] = 'E';
-        int2aa[4] = 'F';
-        int2aa[5] = 'G';
-        int2aa[6] = 'H';
-        int2aa[7] = 'I';
-        int2aa[8] = 'K';
-        int2aa[9] = 'L';
-        int2aa[10] = 'M';
-        int2aa[11] = 'N';
-        int2aa[12] = 'P';
-        int2aa[13] = 'Q';
-        int2aa[14] = 'R';
-        int2aa[15] = 'S';
-        int2aa[16] = 'T';
-        int2aa[17] = 'V';
-        int2aa[18] = 'W';
-        int2aa[19] = 'Y';
-        int2aa[20] = 'X';
-        int2aa[21] = 'Z';
-        int2aa[22] = '[';
-        int2aa[23] = '\\';
-        int2aa[24] = ']';
-        int2aa[25] = '^';
-        int2aa[26] = '_';
-        int2aa[27] = '`';
-        int2aa[28] = 'a';
-        int2aa[29] = 'b';
-        int2aa[30] = 'c';
-        int2aa[31] = 'd';
+        num2aa[0] = 'A';
+        num2aa[1] = 'C';
+        num2aa[2] = 'D';
+        num2aa[3] = 'E';
+        num2aa[4] = 'F';
+        num2aa[5] = 'G';
+        num2aa[6] = 'H';
+        num2aa[7] = 'I';
+        num2aa[8] = 'K';
+        num2aa[9] = 'L';
+        num2aa[10] = 'M';
+        num2aa[11] = 'N';
+        num2aa[12] = 'P';
+        num2aa[13] = 'Q';
+        num2aa[14] = 'R';
+        num2aa[15] = 'S';
+        num2aa[16] = 'T';
+        num2aa[17] = 'V';
+        num2aa[18] = 'W';
+        num2aa[19] = 'Y';
+        num2aa[20] = 'X';
+        num2aa[21] = 'Z';
+        num2aa[22] = '[';
+        num2aa[23] = '\\';
+        num2aa[24] = ']';
+        num2aa[25] = '^';
+        num2aa[26] = '_';
+        num2aa[27] = '`';
+        num2aa[28] = 'a';
+        num2aa[29] = 'b';
+        num2aa[30] = 'c';
+        num2aa[31] = 'd';
         alphabetSize = 21;
         initMatrixMemory(alphabetSize);
 
         for (int i = 0; i < alphabetSize; ++i){
-            aa2int[(int)int2aa[i]] = i;
+            aa2num[static_cast<int>(num2aa[i])] = static_cast<unsigned char>(i);
         }
 
         this->matrixName = matrixName;
@@ -76,7 +76,7 @@ class SubstitutionMatrixProfileStates : public BaseMatrix {
         ps = new ProfileStates(libAlphabetSize,this->pBack);
         this->scoreNormalization = ps->getScoreNormalization();
         this->bitFactor = bitFactor * scoreNormalization;
-        //this->int2aa[toIndex] = this->int2aa[fromIndex];
+        //this->num2aa[toIndex] = this->num2aa[fromIndex];
 
         this->subMatrix = new short*[alphabetSize];
         for (int i = 0; i<alphabetSize; i++) {

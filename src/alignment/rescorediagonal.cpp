@@ -169,8 +169,8 @@ int doRescorediagonal(Parameters &par,
                     if (reversePrefilterResult == true) {
                         NucleotideMatrix *nuclMatrix = (NucleotideMatrix *) subMat;
                         for (int pos = queryLen - 1; pos > -1; pos--) {
-                            int res = subMat->aa2int[static_cast<int>(querySeq[pos])];
-                            queryRevSeq[(queryLen - 1) - pos] = subMat->int2aa[nuclMatrix->reverseResidue(res)];
+                            unsigned char res = subMat->aa2num[static_cast<int>(querySeq[pos])];
+                            queryRevSeq[(queryLen - 1) - pos] = subMat->num2aa[nuclMatrix->reverseResidue(res)];
                         }
                     }
                     if (sameQTDB && qdbr->isCompressed()) {

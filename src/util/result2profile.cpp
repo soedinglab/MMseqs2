@@ -96,7 +96,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     Debug(Debug::INFO) << "Target database size: " << tDbr->getSize() << " type: " << Parameters::getDbTypeName(targetSeqType) << "\n";
 
     const bool isFiltering = par.filterMsa != 0;
-    int xAmioAcid = subMat.aa2int[(int) 'X'];
+    int xAmioAcid = subMat.aa2num[static_cast<int>('X')];
     Debug::Progress progress(dbSize);
 #pragma omp parallel num_threads(localThreads)
     {
@@ -194,7 +194,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
             PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, par.wg);
             if (par.maskProfile == true) {
                 for (int i = 0; i < centerSequence.L; ++i) {
-                    charSequence[i] = (char) centerSequence.int_sequence[i];
+                    charSequence[i] = (unsigned char ) centerSequence.numSequence[i];
                 }
 
                 tantan::maskSequences(charSequence, charSequence + centerSequence.L,
@@ -222,8 +222,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                     result.push_back(Sequence::scoreMask(pssmRes.prob[pos * Sequence::PROFILE_AA_SIZE + aa]));
                 }
                 // write query, consensus sequence and neffM
-                result.push_back(static_cast<unsigned char>(centerSequence.int_sequence[pos]));
-                result.push_back(static_cast<unsigned char>(subMat.aa2int[static_cast<int>(pssmRes.consensus[pos])]));
+                result.push_back(static_cast<unsigned char>(centerSequence.numSequence[pos]));
+                result.push_back(static_cast<unsigned char>(subMat.aa2num[static_cast<int>(pssmRes.consensus[pos])]));
                 unsigned char neff = MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
                 result.push_back(neff);
             }

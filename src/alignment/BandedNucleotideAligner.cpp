@@ -18,8 +18,6 @@
 BandedNucleotideAligner::BandedNucleotideAligner(BaseMatrix * subMat, size_t maxSequenceLength, int gapo, int gape) :
 fastMatrix(SubstitutionMatrix::createAsciiSubMat(*subMat))
 {
-
-    targetSeq =  new uint8_t[maxSequenceLength + 1];
     targetSeqRev =  new uint8_t[maxSequenceLength + 1];
     querySeq =  new uint8_t[maxSequenceLength + 1];
     querySeqRev =  new uint8_t[maxSequenceLength + 1];
@@ -39,7 +37,6 @@ fastMatrix(SubstitutionMatrix::createAsciiSubMat(*subMat))
 
 BandedNucleotideAligner::~BandedNucleotideAligner(){
     delete [] querySeq;
-    delete [] targetSeq;
     delete [] targetSeqRev;
     delete [] querySeqRev;
     delete [] queryRevCompSeq;
@@ -52,15 +49,14 @@ BandedNucleotideAligner::~BandedNucleotideAligner(){
 
 void BandedNucleotideAligner::initQuery(Sequence * query){
     querySeqObj = query;
-    for (int i = 0; i < query->L; ++i) {
-        querySeq[i] = query->int_sequence[i];
-    }
+    memcpy(querySeq, query->numSequence, query->L);
+
     SmithWaterman::seq_reverse((int8_t *)querySeqRev, (int8_t *)querySeq, query->L);
     // needed for rev. complement
     for (int pos = query->L - 1; pos > -1; pos--) {
-        int res = query->int_sequence[pos];
+        int res = query->numSequence[pos];
         queryRevCompSeq[(query->L - 1) - pos] = subMat->reverseResidue(res);
-        queryRevCompCharSeq[(query->L - 1) - pos] = subMat->int2aa[subMat->reverseResidue(res)];
+        queryRevCompCharSeq[(query->L - 1) - pos] = subMat->num2aa[subMat->reverseResidue(res)];
 
     }
     SmithWaterman::seq_reverse((int8_t *)queryRevCompSeqRev, (int8_t *)queryRevCompSeq, query->L);
@@ -82,9 +78,9 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
         querySeqAlign     = queryRevCompSeq;
     }
 
-    for (int i = 0; i < targetSeqObj->L; ++i) {
-        targetSeq[i] = targetSeqObj->int_sequence[i];
-    }
+
+    const unsigned char * targetSeq = targetSeqObj->numSequence;
+
     SmithWaterman::seq_reverse((int8_t *)targetSeqRev, (int8_t *)targetSeq, targetSeqObj->L);
 
     int qUngappedStartPos, qUngappedEndPos, dbUngappedStartPos, dbUngappedEndPos;

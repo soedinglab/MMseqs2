@@ -66,11 +66,11 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
         computeNeff_M(matchWeight, seqWeight, Neff_M, queryLength, setSize, msaSeqs);
     }
     // compute consensus sequence
-    std::string consensusSequence = computeConsensusSequence(matchWeight, queryLength, subMat->pBack, subMat->int2aa);
+    std::string consensusSequence = computeConsensusSequence(matchWeight, queryLength, subMat->pBack, subMat->num2aa);
     if(pca > 0.0){
         // add pseudocounts (compute the scalar product between matchWeight and substitution matrix with pseudo counts)
         preparePseudoCounts(matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, queryLength, (const float **) subMat->subMatrixPseudoCounts);
-        //    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->int2aa, 20 );
+        //    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->num2aa, 20 );
         computePseudoCounts(profile, matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, Neff_M, queryLength, pca, pcb);
     }else{
         for (size_t pos = 0; pos < queryLength; pos++) {
@@ -90,7 +90,7 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
 void PSSMCalculator::printProfile(size_t queryLength){
     printf("Pos ");
     for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-        printf("%2c    ", subMat->int2aa[aa]);
+        printf("%2c    ", subMat->num2aa[aa]);
     }
     printf("\n");
     for(size_t i = 0; i < queryLength; i++){
@@ -105,7 +105,7 @@ void PSSMCalculator::printProfile(size_t queryLength){
 void PSSMCalculator::printPSSM(size_t queryLength){
     printf("Pos ");
     for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-        printf("%3c ", subMat->int2aa[aa]);
+        printf("%3c ", subMat->num2aa[aa]);
     }
     printf("\n");
     for(size_t i = 0; i <  queryLength; i++) {
@@ -460,7 +460,7 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
     free(f);
 }
 
-std::string PSSMCalculator::computeConsensusSequence(float *frequency, size_t queryLength, double *pBack, char *int2aa) {
+std::string PSSMCalculator::computeConsensusSequence(float *frequency, size_t queryLength, double *pBack, char *num2aa) {
     std::string consens;
     for (size_t pos = 0; pos < queryLength; pos++) {
         float maxw = 1E-8;
@@ -472,7 +472,7 @@ std::string PSSMCalculator::computeConsensusSequence(float *frequency, size_t qu
                 maxa = aa;
             }
         }
-        consens.push_back(int2aa[maxa]);
+        consens.push_back(num2aa[maxa]);
     }
     return consens;
 }

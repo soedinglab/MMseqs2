@@ -240,7 +240,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                 //std::cout<<std::endl;
                 
                 // write query, consensus sequence and neffM
-                result.push_back(static_cast<unsigned char>(queryProfile.int_sequence[l]));
+                result.push_back(queryProfile.numSequence[l]);
                 result.push_back(consensus[l]);
                 unsigned char neff = MathUtil::convertNeffToChar(neffM[l]);
                 result.push_back(neff);

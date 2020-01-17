@@ -48,7 +48,7 @@ int main (int, const char**) {
     if (s1res.second != S1.length())
         std::cout << "Diff length" << std::endl;
     for (size_t i = 0; i < s1res.second; i++) {
-        if (subMat.int2aa[s1res.first[i]] != S1char[i]) {
+        if (subMat.num2aa[s1res.first[i]] != S1char[i]) {
             std::cout << "Wrong data" << std::endl;
         }
     }
@@ -56,7 +56,7 @@ int main (int, const char**) {
     if (s2res.second != S2.length())
         std::cout << "Diff length" << std::endl;
     for (size_t i = 0; i < s2res.second; i++) {
-        if (subMat.int2aa[s2res.first[i]] != S2char[i]) {
+        if (subMat.num2aa[s2res.first[i]] != S2char[i]) {
             std::cout << "Wrong data" << std::endl;
         }
     }
@@ -66,14 +66,14 @@ int main (int, const char**) {
         std::cout << "Diff length" << std::endl;
 
     for (size_t i = 0; i < s3res.second; i++) {
-        if (subMat.int2aa[s3res.first[i]] != S3char[i]) {
+        if (subMat.num2aa[s3res.first[i]] != S3char[i]) {
             std::cout << "Wrong data" << std::endl;
         }
     }
 
     std::pair<const unsigned char *, const unsigned int> s4res = lookup.getSequence(3);
     for (size_t i = 0; i < s4res.second; i++) {
-        if (subMat.int2aa[s4res.first[i]] != S4char[i]) {
+        if (subMat.num2aa[s4res.first[i]] != S4char[i]) {
             std::cout << "Wrong data" << std::endl;
         }
     }

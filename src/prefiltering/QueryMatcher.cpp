@@ -109,7 +109,7 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
     // bias correction
     if(aaBiasCorrection == true){
         if(Parameters::isEqualDbtype(querySeq->getSeqType(), Parameters::DBTYPE_AMINO_ACIDS)) {
-            SubstitutionMatrix::calcLocalAaBiasCorrection(kmerSubMat, querySeq->int_sequence, querySeq->L, compositionBias);
+            SubstitutionMatrix::calcLocalAaBiasCorrection(kmerSubMat, querySeq->numSequence, querySeq->L, compositionBias);
         }else{
             memset(compositionBias, 0, sizeof(float) * querySeq->L);
         }
@@ -188,10 +188,10 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     size_t seqListSize;
     unsigned short indexStart = 0;
     unsigned short indexTo = 0;
-    const int xIndex = kmerSubMat->aa2int[(int)'X'];
+    const unsigned char xIndex = kmerSubMat->aa2num[static_cast<int>('X')];
 
     while(seq->hasNextKmer()){
-        const int * kmer = seq->nextKmer();
+        const unsigned char * kmer = seq->nextKmer();
         const unsigned char * pos = seq->getAAPosInSpacedPattern();
         const unsigned short current_i = seq->getCurrentPosition();
 
@@ -229,20 +229,20 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
         indexPointer[current_i] = sequenceHits;
         // match the index table
 
-        //idx.printKmer(kmerList.index[0], kmerSize, m->int2aa);
+        //idx.printKmer(kmerList.index[0], kmerSize, m->num2aa);
         //std::cout  << "\t" << kmerMatchScore << std::endl;
         kmerListLen += kmerElementSize;
 
         for (unsigned int kmerPos = 0; kmerPos < kmerElementSize; kmerPos++) {
             // generate k-mer list
-//                        idx.printKmer(index[kmerPos], kmerSize, m->int2aa);
+//                        idx.printKmer(index[kmerPos], kmerSize, m->num2aa);
 //                        std::cout << std::endl;
 
             const IndexEntryLocal *entries = indexTable->getDBSeqList(index[kmerPos], &seqListSize);
 
             /////DEBUG
            /* 
-            idx.printKmer(index[kmerPos], kmerSize, m->int2aa);
+            idx.printKmer(index[kmerPos], kmerSize, m->num2aa);
             std::cout << "\t" << current_i << "\t"<< index[kmerPos] << std::endl;
             for(size_t i = 0; i < seqListSize; i++){
                 char diag = entries[i].position_j - current_i;
@@ -475,12 +475,8 @@ size_t QueryMatcher::radixSortByScoreSize(const unsigned int * scoreSizes,
 std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, unsigned int * scoreSizes, CounterResult *results,
         size_t resultSize, UngappedAlignment *align, int lowerBoundScore) {
     size_t elements = 0;
-    unsigned char * query = new unsigned char[querySeq->L];
-    for(int pos = 0; pos < querySeq->L; pos++ ){
-        query[pos] = static_cast<unsigned char>(querySeq->int_sequence[pos]);
-    }
-    int maxSelfScore = align->scoreSingleSequence(std::make_pair(static_cast<const unsigned char*>(query),querySeq->L), 0,0);
-    delete [] query;
+    const unsigned char * query = querySeq->numSequence;
+    int maxSelfScore = align->scoreSingleSequence(std::make_pair(query, querySeq->L), 0,0);
 
     maxSelfScore = std::min(maxSelfScore, USHRT_MAX);
     maxSelfScore = (maxSelfScore-lowerBoundScore);

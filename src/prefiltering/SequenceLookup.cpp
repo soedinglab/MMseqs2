@@ -29,16 +29,13 @@ SequenceLookup::~SequenceLookup() {
     }
 }
 
-void SequenceLookup::addSequence(int *seq, int L, size_t index, size_t offset){
+void SequenceLookup::addSequence(unsigned char *seq, int L, size_t index, size_t offset){
     offsets[index] = offset;
-    for(int pos = 0; pos < L; pos++){
-        unsigned char aa = seq[pos];
-        data[offset + pos] = aa;
-    }
+    memcpy(&data[offset], seq, L);
 }
 
 void SequenceLookup::addSequence(Sequence *seq) {
-    addSequence(seq->int_sequence, seq->L, currentIndex, currentOffset);
+    addSequence(seq->numSequence, seq->L, currentIndex, currentOffset);
     currentIndex = currentIndex + 1;
     currentOffset = currentOffset + seq->L;
 }

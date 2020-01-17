@@ -48,9 +48,9 @@ int countkmer(int argc, const char **argv, const Command& command) {
         for (size_t i = 0; i < reader.sequenceReader->getSize(); i++) {
             char *data = reader.sequenceReader->getData(i, 0);
             s.mapSequence(i, 0, data, reader.sequenceReader->getSeqLen(i));
-            const int xIndex = s.subMat->aa2int[(int) 'X'];
+            const unsigned char xIndex = s.subMat->aa2num[static_cast<int>('X')];
             while (s.hasNextKmer()) {
-                const int *kmer = s.nextKmer();
+                const unsigned char *kmer = s.nextKmer();
                 int xCount = 0;
                 for (int pos = 0; pos < par.kmerSize; pos++) {
                     xCount += (kmer[pos] == xIndex);
@@ -72,7 +72,7 @@ int countkmer(int argc, const char **argv, const Command& command) {
         }else{
             idx.index2int(idx.workspace, i, par.kmerSize);
             for(int k = 0; k < par.kmerSize; k++){
-                std::cout << subMat->int2aa[idx.workspace[k]];
+                std::cout << subMat->num2aa[idx.workspace[k]];
             }
         }
         std::cout << "\t" << kmerCountTable[i] << std::endl;

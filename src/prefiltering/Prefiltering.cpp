@@ -570,7 +570,7 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
             sequenceLookup = NULL;
         }
 
-        indexTable->printStatistics(kmerSubMat->int2aa);
+        indexTable->printStatistics(kmerSubMat->num2aa);
         tdbr->remapData();
         Debug(Debug::INFO) << "Time for index table init: " << timer.lap() << "\n";
     }
@@ -996,7 +996,7 @@ BaseMatrix *Prefiltering::getSubstitutionMatrix(const ScoreMatrixFile &scoringMa
         subMat = new NucleotideMatrix(scoringMatrixFile.nucleotides, bitFactor, 0.0);
     } else if (alphabetSize < 21) {
         SubstitutionMatrix sMat(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
-        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, alphabetSize, bitFactor);
+        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, alphabetSize, bitFactor);
     }else if(profileState == true){
         SubstitutionMatrix sMat(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
         subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,

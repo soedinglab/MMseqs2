@@ -228,8 +228,7 @@ std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition<T> * kmerArray, si
 
 
 void maskSequence(int maskMode, int maskLowerCase,
-                  Sequence &seq, char * charSequence,
-                  int maskLetter, ProbabilityMatrix * probMatrix);
+                  Sequence &seq, int maskLetter, ProbabilityMatrix * probMatrix);
 
 template <typename T>
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);

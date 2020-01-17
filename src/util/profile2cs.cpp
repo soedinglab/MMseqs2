@@ -68,12 +68,12 @@ int profile2cs(int argc, const char **argv, const Command &command) {
                 // DEBUG: in case of pure state library, check when the wrong pure state has been chosen
                 /*for (size_t k = 0; k<result.size();k++)
                 {
-                    if (subMat.subMatrix[ProfileStates::hh2mmseqsAAorder((int)result[k])][seq.int_consensus_sequence[k]]<0)
+                    if (subMat.subMatrix[ProfileStates::hh2mmseqsAAorder((int)result[k])][seq.consensus_sequence[k]]<0)
                     {
-                        std::cout<<"Pos: "<<k<<", "<<subMat.int2aa[ProfileStates::hh2mmseqsAAorder((int)result[k])]<<"-"<<subMat.int2aa[seq.int_consensus_sequence[k]]<<"("<<subMat.subMatrix[ProfileStates::hh2mmseqsAAorder((int)result[k])][seq.int_consensus_sequence[k]]<<") \n";
+                        std::cout<<"Pos: "<<k<<", "<<subMat.num2aa[ProfileStates::hh2mmseqsAAorder((int)result[k])]<<"-"<<subMat.num2aa[seq.consensus_sequence[k]]<<"("<<subMat.subMatrix[ProfileStates::hh2mmseqsAAorder((int)result[k])][seq.consensus_sequence[k]]<<") \n";
                         for (size_t aa = 0; aa<20;aa++)
                         {
-                            std::cout<<subMat.int2aa[aa]<<"\t";
+                            std::cout<<subMat.num2aa[aa]<<"\t";
                         }
                         std::cout<<"\n";
                         for (size_t aa = 0; aa<20;aa++)

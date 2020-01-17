@@ -55,13 +55,10 @@ KmerPosition<T> *initKmerPositionMemory(size_t size) {
     return hashSeqPair;
 }
 
-void maskSequence(int maskMode, int maskLowerCase, Sequence &seq, char * charSequence, int maskLetter, ProbabilityMatrix * probMatrix){
+void maskSequence(int maskMode, int maskLowerCase, Sequence &seq, int maskLetter, ProbabilityMatrix * probMatrix){
     if (maskMode == 1) {
-        for (int i = 0; i < seq.L; i++) {
-            charSequence[i] = (char) seq.int_sequence[i];
-        }
-        tantan::maskSequences(charSequence,
-                              charSequence + seq.L,
+        tantan::maskSequences((char*)seq.numSequence,
+                              (char*)(seq.numSequence + seq.L),
                               50 /*options.maxCycleLength*/,
                               probMatrix->probMatrixPointers,
                               0.005 /*options.repeatProb*/,
@@ -69,15 +66,12 @@ void maskSequence(int maskMode, int maskLowerCase, Sequence &seq, char * charSeq
                               0.5 /*options.repeatOffsetProbDecay*/,
                               0, 0,
                               0.9 /*options.minMaskProb*/, probMatrix->hardMaskTable);
-        for (int i = 0; i < seq.L; i++) {
-            seq.int_sequence[i] = charSequence[i];
-        }
     }
     if(maskLowerCase == 1 && (Parameters::isEqualDbtype(seq.getSequenceType(), Parameters::DBTYPE_AMINO_ACIDS) ||
                                       Parameters::isEqualDbtype(seq.getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES))) {
         const char * charSeq = seq.getSeqData();
         for (int i = 0; i < seq.L; i++) {
-            seq.int_sequence[i] = (islower(charSeq[i])) ? maskLetter : seq.int_sequence[i];
+            seq.numSequence[i] = (islower(charSeq[i])) ? maskLetter : seq.numSequence[i];
         }
     }
 }
@@ -119,7 +113,6 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
             generator->setDivideStrategy(&three, &two);
         }
         Indexer idxer(subMat->alphabetSize - 1,  par.kmerSize);
-        char * charSequence = new char[par.maxSeqLen + 1];
         const unsigned int BUFFER_SIZE = 1024;
         size_t bufferPos = 0;
         KmerPosition<T> * threadKmerBuffer = new KmerPosition<T>[BUFFER_SIZE];
@@ -141,17 +134,17 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                 size_t seqHash =  SIZE_T_MAX;
                 //TODO, how to handle this in reverse?
                 if(hashWholeSequence){
-                    seqHash = Util::hash(seq.int_sequence, seq.L);
+                    seqHash = Util::hash(seq.numSequence, seq.L);
                     seqHash = XXH64(&seqHash, sizeof(size_t), par.hashShift);
                 }
 
-                maskSequence(par.maskMode, par.maskLowerCaseMode, seq, charSequence, subMat->aa2int[(int)'X'], probMatrix);
+                maskSequence(par.maskMode, par.maskLowerCaseMode, seq, subMat->aa2num[static_cast<int>('X')], probMatrix);
 
                 int seqKmerCount = 0;
                 unsigned int seqId = seq.getDbKey();
-                const int xIndex = subMat->aa2int[(int) 'X'];
+                const unsigned char xIndex = subMat->aa2num[static_cast<int>('X')];
                 while (seq.hasNextKmer()) {
-                    int *kmer = (int*) seq.nextKmer();
+                    unsigned char *kmer = (unsigned char*) seq.nextKmer();
                     int kpos;
                     for (kpos = 0; kpos < par.kmerSize && (kmer[kpos] != xIndex); kpos++) {}
                     if (kpos !=  par.kmerSize) {
@@ -159,10 +152,10 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                     }
 
                     if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
-                        int revKmer[32];
+                        unsigned char revKmer[32];
                         NucleotideMatrix * nuclMatrix = (NucleotideMatrix*)subMat;
                         size_t kmerLen =  par.kmerSize;
-                        int * kmerToHash = kmer;
+                        unsigned char * kmerToHash = kmer;
                         size_t kmerIdx = Indexer::computeKmerIdx(kmer, kmerLen);
                         size_t revkmerIdx = Util::revComplement(kmerIdx, kmerLen);
                         bool pickReverseKmer = (revkmerIdx<kmerIdx);
@@ -351,7 +344,6 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
             }
         }
         delete[] kmers;
-        delete[] charSequence;
         delete[] threadKmerBuffer;
         delete[] hierarchicalScoreDist;
         delete[] scoreDist;
@@ -589,7 +581,7 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
             subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
         } else {
             SubstitutionMatrix sMat(par.scoringMatrixFile.aminoacids, 8.0, -0.2f);
-            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, par.alphabetSize, 2.0);
+            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize, 2.0);
         }
     }
 

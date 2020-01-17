@@ -110,8 +110,6 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         }
 
         unsigned int *buffer = new unsigned int[seq->getMaxLen()];
-        char *charSequence = new char[seq->getMaxLen()];
-
         #pragma omp for schedule(dynamic, 100) reduction(+:totalKmerCount, maskedResidues)
         for (size_t id = dbFrom; id < dbTo; id++) {
             progress.updateProgress();
@@ -126,19 +124,16 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
             if (isProfile) {
                 // Find out if we should also mask profiles
                 totalKmerCount += indexTable->addSimilarKmerCount(&s, generator);
-                (*unmaskedLookup)->addSequence(s.int_consensus_sequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
+                (*unmaskedLookup)->addSequence(s.numConsensusSequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
             } else {
                 // Do not mask if column state sequences are used
                 if (unmaskedLookup != NULL) {
-                    (*unmaskedLookup)->addSequence(s.int_sequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
+                    (*unmaskedLookup)->addSequence(s.numSequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
                 }
                 if (mask == true) {
-                    for (int i = 0; i < s.L; ++i) {
-                        charSequence[i] = (char) s.int_sequence[i];
-                    }
                     // s.print();
-                    maskedResidues += tantan::maskSequences(charSequence,
-                                                            charSequence + s.L,
+                    maskedResidues += tantan::maskSequences((char*)s.numSequence,
+                                                            (char*)(s.numSequence + s.L),
                                                             50 /*options.maxCycleLength*/,
                                                             probMatrix->probMatrixPointers,
                                                             0.005 /*options.repeatProb*/,
@@ -147,31 +142,26 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                                                             0, 0,
                                                             0.9 /*options.minMaskProb*/,
                                                             probMatrix->hardMaskTable);
-
-                    for (int i = 0; i < s.L; i++) {
-                        s.int_sequence[i] = charSequence[i];
-                    }
                 }
 
                 if(maskLowerCaseMode == true && (Parameters::isEqualDbtype(s.getSequenceType(), Parameters::DBTYPE_AMINO_ACIDS) ||
                                                   Parameters::isEqualDbtype(s.getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES))) {
                     const char * charSeq = s.getSeqData();
-                    int maskLetter = subMat.aa2int[(int)'X'];
+                    unsigned char maskLetter = subMat.aa2num[static_cast<int>('X')];
                     for (int i = 0; i < s.L; i++) {
                         bool isLowerCase = (islower(charSeq[i]));
                         maskedResidues += isLowerCase;
-                        s.int_sequence[i] = isLowerCase ? maskLetter : s.int_sequence[i];
+                        s.numSequence[i] = isLowerCase ? maskLetter : s.numSequence[i];
                     }
                 }
                 if(maskedLookup != NULL){
-                    (*maskedLookup)->addSequence(s.int_sequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
+                    (*maskedLookup)->addSequence(s.numSequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
                 }
 
                 totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
             }
         }
 
-        delete[] charSequence;
         delete[] buffer;
 
         if (generator != NULL) {

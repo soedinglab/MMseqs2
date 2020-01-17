@@ -41,7 +41,7 @@ void MultipleAlignment::print(MSAResult msaResult, SubstitutionMatrix * subMat){
     for(size_t i = 0; i < msaResult.setSize; i++) {
         for(size_t pos = 0; pos < msaResult.msaSequenceLength; pos++){
             char aa = msaResult.msaSequence[i][pos];
-            printf("%c", (aa < NAA) ? subMat->int2aa[(int)aa] : '-' );
+            printf("%c", (aa < NAA) ? subMat->num2aa[(int)aa] : '-' );
         }
         printf("\n");
     }
@@ -110,7 +110,7 @@ size_t MultipleAlignment::updateGapsInCenterSequence(char **msaSequence, Sequenc
                 centerSeqPos++;
             }
         }
-        msaSequence[0][centerSeqPos] = subMat->int2aa[centerSeq->int_sequence[queryPos]];
+        msaSequence[0][centerSeqPos] = subMat->num2aa[centerSeq->numSequence[queryPos]];
         centerSeqPos++;
     }
     return centerSeqPos;
@@ -155,7 +155,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
                 if(bt.at(alnPos) == 'D'){
                     while(bt.at(alnPos) == 'D' &&  alnPos < bt.size() ){
                         if(noDeletionMSA == false) {
-                            edgeSeqMSA[bufferPos] = subMat->int2aa[edgeSeq->int_sequence[targetPos]];
+                            edgeSeqMSA[bufferPos] = subMat->num2aa[edgeSeq->numSequence[targetPos]];
                             bufferPos++;
                         }
                         targetPos++;
@@ -168,7 +168,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
                         bufferPos++;
                         queryPos++;
                     } else if(bt.at(alnPos) == 'M'){
-                        edgeSeqMSA[bufferPos] = subMat->int2aa[edgeSeq->int_sequence[targetPos]];
+                        edgeSeqMSA[bufferPos] = subMat->num2aa[edgeSeq->numSequence[targetPos]];
                         bufferPos++;
                         queryPos++;
                         targetPos++;
@@ -184,7 +184,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
                         }
                     }
                     // M state
-                    edgeSeqMSA[bufferPos] = subMat->int2aa[edgeSeq->int_sequence[targetPos]];
+                    edgeSeqMSA[bufferPos] = subMat->num2aa[edgeSeq->numSequence[targetPos]];
 
                     bufferPos++;
                     queryPos++;
@@ -249,7 +249,7 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
     for (size_t k = 0; k < edgeSeqs.size() + 1; ++k) {
         for (unsigned int pos = 0; pos < centerSeqSize; ++pos) {
             msaSequence[k][pos] = (msaSequence[k][pos] == '-') ?
-                                  GAP : subMat->aa2int[(int) msaSequence[k][pos]];
+                                  GAP : static_cast<int>(subMat->aa2num[static_cast<int>(msaSequence[k][pos])]);
         }
         int len = std::min(maxMsaSeqLen, (centerSeqSize + VECSIZE_INT*4));
         int startPos = std::min(centerSeqSize, maxMsaSeqLen - 1);
@@ -272,7 +272,7 @@ MultipleAlignment::MSAResult MultipleAlignment::singleSequenceMSA(Sequence *cent
             Debug(Debug::ERROR) << "queryMSASize (" << queryMSASize << ") is >= maxMsaSeqLen (" << maxMsaSeqLen << ")" << "\n";
             EXIT(EXIT_FAILURE);
         }
-        msaSequence[0][queryMSASize] = (char) centerSeq->int_sequence[queryPos];
+        msaSequence[0][queryMSASize] = (char) centerSeq->numSequence[queryPos];
         queryMSASize++;
     }
     return MSAResult(queryMSASize, centerSeq->L, 1, msaSequence);

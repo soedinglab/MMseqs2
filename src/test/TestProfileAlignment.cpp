@@ -26,7 +26,7 @@ int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0);
     std::cout << "Subustitution matrix:";
-    SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
+    SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "";
 
@@ -764,7 +764,7 @@ int main (int, const char**) {
         msaSequence[k] = new char[centerSeqSize];
         for (unsigned int pos = 0; pos < centerSeqSize; ++pos) {
             msaSequence[k][pos] = (msaSeq[k][pos] == '-') ?
-                                  21 : subMat.aa2int[(int) msaSeq[k][pos]];
+                                  21 : subMat.aa2num[(int) msaSeq[k][pos]];
         }
     }
     PSSMCalculator::Profile pssmRet = pssmCalculator.computePSSMFromMSA(setSize,centerSeqSize, (const char **) msaSequence, false);
@@ -795,7 +795,7 @@ int main (int, const char**) {
     int gap_open = 10;
     int gap_extend = 1;
     EvalueComputation evalueComputation(100000, &subMat, gap_open, gap_extend);
-    s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 0, 10000, &evalueComputation, 0, 0.0, maskLen);
+    s_align alignment = aligner.ssw_align(dbSeq->numSequence, dbSeq->L, gap_open, gap_extend, 0, 10000, &evalueComputation, 0, 0.0, maskLen);
     if(alignment.cigar){
         std::cout << "Cigar" << std::endl;
 
@@ -805,20 +805,20 @@ int main (int, const char**) {
             uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
             for (uint32_t i = 0; i < length; ++i){
                 if (letter == 'M') {
-                    fprintf(stdout,"%c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
-                    if (dbSeq->int_sequence[targetPos] == s->int_sequence[queryPos]){
+                    fprintf(stdout,"%c",subMat.num2aa[dbSeq->numSequence[targetPos]]);
+                    if (dbSeq->numSequence[targetPos] == s->numSequence[queryPos]){
                         fprintf(stdout, "|");
                     }
                     else fprintf(stdout, "*");
-                    fprintf(stdout,"%c",subMat.int2aa[s->int_sequence[queryPos]]);
+                    fprintf(stdout,"%c",subMat.num2aa[s->numSequence[queryPos]]);
                     ++queryPos;
                     ++targetPos;
                 } else {
                     if (letter == 'I'){
-                        fprintf(stdout,"%c |",subMat.int2aa[s->int_sequence[queryPos]]);
+                        fprintf(stdout,"%c |",subMat.num2aa[s->numSequence[queryPos]]);
                         ++queryPos;
                     } else{
-                        fprintf(stdout,"| %c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
+                        fprintf(stdout,"| %c",subMat.num2aa[dbSeq->numSequence[targetPos]]);
                         ++targetPos;
                     }
                 }

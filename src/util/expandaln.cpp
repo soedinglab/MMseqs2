@@ -26,24 +26,24 @@ void rescoreResultByBacktrace(Matcher::result_t &result, Sequence &qSeq, Sequenc
     const bool isQueryProf = Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE);
     const bool isTargetProf = Parameters::isEqualDbtype(tSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE);
 //    for(int i = result.qStartPos; i < result.qEndPos; i++){
-//        printf("%c",subMat.int2aa[qSeq.int_sequence[i]]);
+//        printf("%c",subMat.num2aa[qSeq.sequence[i]]);
 //    }
 //    Debug(Debug::INFO) << "\n";
 //    for(int i = result.dbStartPos; i < result.dbEndPos; i++){
-//        printf("%c",subMat.int2aa[tSeq.int_sequence[i]]);
+//        printf("%c",subMat.num2aa[tSeq.sequence[i]]);
 //    }
 //    Debug(Debug::INFO) << "\n";
     for (size_t i = 0; i < result.backtrace.size(); ++i) {
         char state = result.backtrace[i];
         if (state == 'M') {
             if (isTargetProf) {
-                score += tSeq.profile_for_alignment[qSeq.int_sequence[qPos] * tSeq.L + tPos]  + static_cast<short>((compositionBias[i] < 0.0)? compositionBias[i] - 0.5: compositionBias[i] + 0.5);;
+                score += tSeq.profile_for_alignment[qSeq.numSequence[qPos] * tSeq.L + tPos]  + static_cast<short>((compositionBias[i] < 0.0)? compositionBias[i] - 0.5: compositionBias[i] + 0.5);;
             } else if (isQueryProf) {
-                score += qSeq.profile_for_alignment[tSeq.int_sequence[tPos] * qSeq.L + qPos];
+                score += qSeq.profile_for_alignment[tSeq.numSequence[tPos] * qSeq.L + qPos];
             } else {
-                score += subMat.subMatrix[qSeq.int_sequence[qPos]][tSeq.int_sequence[tPos]] + static_cast<short>((compositionBias[i] < 0.0)? compositionBias[i] - 0.5: compositionBias[i] + 0.5);
+                score += subMat.subMatrix[qSeq.numSequence[qPos]][tSeq.numSequence[tPos]] + static_cast<short>((compositionBias[i] < 0.0)? compositionBias[i] - 0.5: compositionBias[i] + 0.5);
             }
-            identities += qSeq.int_sequence[qPos] == tSeq.int_sequence[tPos] ? 1 : 0;
+            identities += qSeq.numSequence[qPos] == tSeq.numSequence[tPos] ? 1 : 0;
             qPos++;
             tPos++;
         } else if (state == 'I') {
@@ -171,7 +171,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
                              queryReader.getSeqLen(querySeqId));
 
             if(par.compBiasCorrection == true && Parameters::isEqualDbtype(queryDbType,Parameters::DBTYPE_AMINO_ACIDS)){
-                SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, qSeq.int_sequence, qSeq.L, compositionBias);
+                SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, qSeq.numSequence, qSeq.L, compositionBias);
             }
 
             char *data = resultReader->getData(i, thread_idx);

@@ -24,7 +24,7 @@ int main (int argc, const char * argv[])
     SubstitutionMatrix subMat("/Users/aluucard/Documents/workspace/kClust2/data/blosum30.out",8.0);
     
     for(int i = 0; i<subMat.alphabetSize;i++)
-        printf("%c\t",subMat.int2aa[i]);
+        printf("%c\t",subMat.num2aa[i]);
     printf("\n");
 //    ReducedMatrix redMat(subMat.probMatrix, subMat.alphabetSize-2);
     
@@ -39,21 +39,21 @@ int main (int argc, const char * argv[])
     char* sequence = "AAMICPAEAGRPSLADS";
     std::cout << sequence << "\n\n";
     
-    Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, false);
+    Sequence* s = new Sequence (10000, subMat.aa2num, subMat.num2aa, 0, kmer_size, false);
     s->mapSequence(0,"LALA",sequence);
     
     printf("Normal : ");
     for(int i = 0; i<subMat.alphabetSize;i++)
-        printf("%c\t",subMat.int2aa[i]);
+        printf("%c\t",subMat.num2aa[i]);
     printf("\nReduced: ");
     for(int i = 0; i<subMat.alphabetSize;i++)
-        printf("%c\t",subMat.int2aa[i]);
+        printf("%c\t",subMat.num2aa[i]);
     printf("\nNormal : ");
     for(int i = 65; i<'Z';i++)
-        printf("%d\t",subMat.aa2int[i]); 
+        printf("%d\t",subMat.aa2num[i]);
     printf("\nReduced: ");
     for(int i = 65; i<'Z';i++)
-        printf("%d\t",subMat.aa2int[i]); 
+        printf("%d\t",subMat.aa2num[i]);
     
     std::cout << "\nInt reduced sequence:\n";
     for (int i = 0; i < s->L; i++)

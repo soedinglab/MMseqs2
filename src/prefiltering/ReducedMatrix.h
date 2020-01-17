@@ -10,7 +10,7 @@
 class ReducedMatrix : public BaseMatrix {
     public:
         ReducedMatrix(double **probMatrix, float ** rMatrix,
-                      int* aa2int, char* int2aa, size_t orgAlphabetSize,
+                      unsigned char* aa2num, char* num2aa, size_t orgAlphabetSize,
                       size_t reducedAlphabetSize, float bitFactor);
         virtual ~ReducedMatrix();
 
@@ -39,19 +39,19 @@ class ReducedMatrix : public BaseMatrix {
                                 case 'W':
                                 case 'Y':
                                 case 'X':
-                                        this->aa2int[static_cast<int>(letter)] = this->aa2int[static_cast<int>(upperLetter)];
+                                        this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>(upperLetter)];
                                 break;
                                 case 'J':
-                                        this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'L'];
+                                        this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('L')];
                                 break;
                                 case 'U':
                                 case 'O':
-                                        this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'X'];
+                                        this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('X')];
                                 break;
-                                case 'Z': this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'E']; break;
-                                case 'B': this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'D']; break;
+                                case 'Z': this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('E')]; break;
+                                case 'B': this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('D')]; break;
                                 default:
-                                        this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'X'];
+                                        this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('X')];
                                 break;
                         }
                 }
@@ -59,14 +59,14 @@ class ReducedMatrix : public BaseMatrix {
     private:
 
         /*contains the original matrix before the alphabet reduction*/
-        int*   orig_aa2int;
-        char*  orig_int2aa;
+        unsigned char* orig_aa2num;
+        char*  orig_num2aa;
         /* size of the original alphabet*/
         size_t origAlphabetSize;
 
-        // base class aa2int and int2aa mappings contain now:
-        // aa2int: mapping aa (orig. alphabet) -> int code of the representative amino acid
-        // int2aa: mapping int code (orig. alphabet) -> the representative amino acid char
+        // base class aa2num and num2aa mappings contain now:
+        // aa2num: mapping aa (orig. alphabet) -> int code of the representative amino acid
+        // num2aa: mapping int code (orig. alphabet) -> the representative amino acid char
 
         // reducedAlphabet contains only the "representative" amino acids
         std::vector<char> reducedAlphabet;

@@ -23,7 +23,7 @@ class SubstitutionMatrix: public BaseMatrix {
     
         virtual double getBackgroundProb(size_t aa_index) { return pBack[aa_index]; }
 
-        static void calcLocalAaBiasCorrection(const BaseMatrix *m ,const int *int_sequence, const int N, float *compositionBias);
+        static void calcLocalAaBiasCorrection(const BaseMatrix *m ,const unsigned char *int_sequence, const int N, float *compositionBias);
         static void calcProfileProfileLocalAaBiasCorrection(short *profileScores,
                                                 const size_t profileAASize,
                                                 const int N,
@@ -61,9 +61,9 @@ class SubstitutionMatrix: public BaseMatrix {
             char * matrixData = new char[range*range];
             for(size_t i = 0; i < range; i++) {
                 matrix[i] = matrixData+(i*range);
-                int curr_i = submat.aa2int[asciiStart+i];
+                int curr_i = static_cast<int>(submat.aa2num[asciiStart+i]);
                 for (size_t j = 0; j < range; j++) {
-                    int curr_j = submat.aa2int[asciiStart+j];
+                    int curr_j = static_cast<int>(submat.aa2num[asciiStart+j]);
                     matrix[i][j] = static_cast<char>(submat.subMatrix[curr_i][curr_j]);
                 }
             }
@@ -73,7 +73,7 @@ class SubstitutionMatrix: public BaseMatrix {
         }
 
 private:
-    int parseAlphabet(char * word, char * int2aa, int * aa2int);
+    int parseAlphabet(char * word, char * num2aa, int * aa2num);
 
     void readProbMatrix(const std::string &matrixData, bool containsX);
 

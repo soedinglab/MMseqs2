@@ -15,7 +15,7 @@ int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 8.0, 0);
     std::cout << "Subustitution matrix:\n";
-    SubstitutionMatrix::print(subMat.subMatrix, subMat.int2aa, subMat.alphabetSize);
+    SubstitutionMatrix::print(subMat.subMatrix, subMat.num2aa, subMat.alphabetSize);
 
     const char *ref = "GKILII";
     Sequence refSeq(1000,  0, &subMat, kmer_size, false, true);
@@ -28,7 +28,7 @@ int main (int, const char**) {
 
     short score = 0;
         for(size_t i = 0; i < kmer_size; i++){
-            score += subMat.subMatrix[refSeq.int_sequence[i]][similarSeq.int_sequence[i]];
+            score += subMat.subMatrix[refSeq.numSequence[i]][similarSeq.numSequence[i]];
         }
     std::cout << score << std::endl;
 

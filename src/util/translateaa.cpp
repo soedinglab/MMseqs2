@@ -37,7 +37,7 @@ int translateaa(int argc, const char **argv, const Command &command) {
                     data[1] = nucLookup[nuc2];
                     data[2] = nucLookup[nuc3];
                     translateNucl.translate(writeAA, data, 3);
-                    if (writeAA[0] == subMat.int2aa[i]) {
+                    if (writeAA[0] == subMat.num2aa[i]) {
                         lookupAA[i][0] = data[0];
                         lookupAA[i][1] = data[1];
                         lookupAA[i][2] = data[2];
@@ -73,7 +73,7 @@ int translateaa(int argc, const char **argv, const Command &command) {
 
             // ignore null char at the end
             for (int pos = 0; pos < aaSequence.L; ++pos) {
-                nucSeq.append(lookupAA[aaSequence.int_sequence[pos]], 3);
+                nucSeq.append(lookupAA[aaSequence.numSequence[pos]], 3);
             }
 
             nucSeq.append(1, '\n');

@@ -84,7 +84,7 @@ void parseHMM(char *data, std::string *sequence, std::string *header, char *prof
 //                truncPssmVal       =  std::max(-128.0f, truncPssmVal);
                 // rounding
 //                profileBuffer[curr_pos]  = static_cast<char>((truncPssmVal < 0.0) ? truncPssmVal - 0.5 : truncPssmVal + 0.5);
-//                Debug(Debug::INFO) << aa_num << " " << subMat->int2aa[aa_num] << " " << profile_score[pos_in_profile] << " " << score << " " << entry << " " << p << " " << backProb << " " << bitFactor << std::endl;
+//                Debug(Debug::INFO) << aa_num << " " << subMat->num2aa[aa_num] << " " << profile_score[pos_in_profile] << " " << score << " " << entry << " " << p << " " << backProb << " " << bitFactor << std::endl;
             }
             // shifted score by -128 to avoid \0
             profileBuffer[curr_pos] = Sequence::scoreMask(probs[aa_num]);
@@ -108,7 +108,7 @@ void parseHMM(char *data, std::string *sequence, std::string *header, char *prof
             }
         }
         // write query, consensus and neff
-        profileBuffer[curr_pos] = static_cast<char>(subMat->aa2int[(int) sequence->at(seq_pos)]);
+        profileBuffer[curr_pos] = subMat->aa2num[static_cast<int>(sequence->at(seq_pos))];
         curr_pos++;
         profileBuffer[curr_pos] = maxa;
         curr_pos++;

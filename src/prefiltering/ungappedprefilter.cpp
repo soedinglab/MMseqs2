@@ -120,7 +120,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
                     continue;
                 }
 
-                int score = aligner.ungapped_alignment(tSeq.int_sequence, tSeq.L);
+                int score = aligner.ungapped_alignment(tSeq.numSequence, tSeq.L);
                 bool hasDiagScore = (score > par.minDiagScoreThr);
                 double evalue = evaluer->computeEvalue(score, qSeq.L);
                 bool hasEvalue = (evalue <= par.evalThr);

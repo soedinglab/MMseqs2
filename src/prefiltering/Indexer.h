@@ -17,7 +17,7 @@ public:
     ~Indexer();
     
     // get the index of the k-mer, beginning at "begin" in the int_seq and ending at "end"
-    size_t int2index( const int *int_seq,const int begin,const int end){
+    size_t int2index( const unsigned char *int_seq,const int begin,const int end){
         this->lastKmerIndex = 0;
         size_t res1, res2, res3, res4;
 
@@ -83,7 +83,7 @@ public:
     }
 
     // get the index of the k-mer of length maxKmerSize, beginning at position 0
-    size_t int2index( const int *int_seq){
+    size_t int2index( const unsigned char *int_seq){
         int2index(int_seq, 0, this->maxKmerSize);
         return this->lastKmerIndex;
     }
@@ -97,7 +97,7 @@ public:
     }
     
     // k-mer iterator, remembers the last k-mer
-    size_t getNextKmerIndex (const int* kmer, int kmerSize){
+    size_t getNextKmerIndex (const unsigned char* kmer, int kmerSize){
         if (this->lastKmerIndex == this->maxKmerIndex)
             return int2index(kmer, 0, kmerSize);
         else{
@@ -112,16 +112,16 @@ public:
     
     // print k amino acids of the k-mer with index kmerIdx
     // int k-mer is written into workspace
-    void printKmer(size_t kmerIdx, int kmerSize, char* int2aa);
+    void printKmer(size_t kmerIdx, int kmerSize, char* num2aa);
     
     // print k amino acids of int k-mer kmer
-    void printKmer(const int* kmer, int kmerSize, char* int2aa);
+    void printKmer(const unsigned char* kmer, int kmerSize, char* num2aa);
     
     size_t * powers;
     size_t * workspace;
 
 
-    static size_t computeKmerIdx(const int *kmer, size_t kmerSize) {
+    static size_t computeKmerIdx(const unsigned char *kmer, size_t kmerSize) {
         uint64_t kmerIdx = 0;
         for(size_t kmerPos = 0; kmerPos < kmerSize; kmerPos++){
             kmerIdx = kmerIdx << 2;

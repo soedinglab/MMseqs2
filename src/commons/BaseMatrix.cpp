@@ -12,18 +12,18 @@ const double BaseMatrix::ANY_BACK = 1E-5;
 BaseMatrix::BaseMatrix(){
     // init [amino acid <-> int] mappings
 
-    int2aa = new char[255];
-    aa2int = new int[UCHAR_MAX];
+    num2aa = new char[255];
+    aa2num = new unsigned char[UCHAR_MAX];
     for (int i = 0; i < UCHAR_MAX; ++i) {
-        aa2int[i]=-1;
+        aa2num[i]=-1;
     }
 
 
 }
 
 BaseMatrix::~BaseMatrix(){
-    delete[] int2aa;
-    delete[] aa2int;
+    delete[] num2aa;
+    delete[] aa2num;
     delete[] pBack;
     for (int i = 0; i < allocatedAlphabetSize; i++){
         delete[] probMatrix[i];
@@ -59,15 +59,15 @@ void BaseMatrix::initMatrixMemory(int alphabetSize) {
 }
 
 
-void BaseMatrix::print(short** matrix, char* int2aa, int size){
+void BaseMatrix::print(short** matrix, char* num2aa, int size){
     std::cout << "\n";
     short avg = 0;
     printf("     ");
     for (int i = 0; i < size; i++)
-        printf("%4c ", int2aa[i]);
+        printf("%4c ", num2aa[i]);
     std::cout << "\n";
     for (int i = 0; i < size; i++){
-        printf("%4c ", int2aa[i]);
+        printf("%4c ", num2aa[i]);
         for (int j = 0; j < size; j++){
             printf("%4d ", matrix[i][j]);
             avg += matrix[i][j];
@@ -77,15 +77,15 @@ void BaseMatrix::print(short** matrix, char* int2aa, int size){
     std::cout << ((double)avg/(double)(size*size)) << "\n";
 }
 
-void BaseMatrix::print(double** matrix, char* int2aa, int size){
+void BaseMatrix::print(double** matrix, char* num2aa, int size){
     std::cout << "\n";
     double avg = 0.0;
     printf("%7c ", ' ');
     for (int i = 0; i < size; i++)
-        printf("%7c ", int2aa[i]);
+        printf("%7c ", num2aa[i]);
     std::cout << "\n";
     for (int i = 0; i < size; i++){
-        printf("%7c ", int2aa[i]);
+        printf("%7c ", num2aa[i]);
         for (int j = 0; j < size; j++){
             printf("%7.4f ", matrix[i][j]);
             avg += matrix[i][j];

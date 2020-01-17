@@ -29,7 +29,7 @@ scores workspace[10000*2 + 2];
 unsigned char bt[10000*10000];
 
 void sw(
-        const int *db_sequence, const int *query_sequence,
+        const unsigned char *db_sequence, const unsigned char *query_sequence,
         const short ** profile_word,
         int32_t query_start, int32_t query_end,
         int32_t target_start, int32_t target_end,
@@ -97,13 +97,13 @@ void sw(
         switch (state) {
             case M: // current state is MM, previous state is bMM[i][j]
                 matched_cols++;
-                fprintf(stdout,"%c", subMat.int2aa[db_sequence[target_start+i]]);
+                fprintf(stdout,"%c", subMat.num2aa[db_sequence[target_start+i]]);
                 if(query_sequence[query_start + j] == db_sequence[target_start + i]){
                     fprintf(stdout, "|");
                 }else{
                     fprintf(stdout, "*");
                 }
-                fprintf(stdout,"%c", subMat.int2aa[query_sequence[query_start+j]]);
+                fprintf(stdout,"%c", subMat.num2aa[query_sequence[query_start+j]]);
                 i--; j--;
                 state = (i < 0 || j < 0) ? -1 : get_val(bt, i, j);
                 break;
@@ -140,7 +140,7 @@ int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
     std::cout << "Subustitution matrix:\n";
-    SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
+    SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
 
 
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
@@ -182,11 +182,11 @@ int main (int, const char**) {
     for(int i = 0; i< subMat.alphabetSize; i++) {
         profile[i] = &profile_data[i*s->L];
         for (int j = 0; j < s->L; j++) {
-            profile[i][j] = tinySubMat[i*subMat.alphabetSize + s->int_sequence[j]];
+            profile[i][j] = tinySubMat[i*subMat.alphabetSize + s->numSequence[j]];
         }
     }
 
-    sw(dbSeq->int_sequence, s->int_sequence, (const short ** ) profile, 92, 157, 80, 146, 11, 1, subMat);
+    sw(dbSeq->numSequence, s->numSequence, (const short ** ) profile, 92, 157, 80, 146, 11, 1, subMat);
     // calcuate stop score
 
     delete [] tinySubMat;

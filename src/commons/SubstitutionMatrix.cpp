@@ -67,7 +67,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, fl
 
     setupLetterMapping();
 
-    //print(probMatrix, int2aa, alphabetSize);
+    //print(probMatrix, num2aa, alphabetSize);
     generateSubMatrix(probMatrix, subMatrixPseudoCounts, subMatrix, alphabetSize, true, bitFactor, scoreBias);
 }
 
@@ -104,7 +104,7 @@ bool SubstitutionMatrix::estimateLambdaAndBackground(const double **scoreMatrix,
 
 
 void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m,
-                                                   const int *int_sequence,
+                                                   const unsigned char *int_sequence,
                                                    const int N,
                                                    float *compositionBias) {
     const int windowSize = 40;
@@ -301,45 +301,45 @@ void SubstitutionMatrix::setupLetterMapping(){
             case 'W':
             case 'Y':
             case 'X':
-                this->aa2int[static_cast<int>(letter)] = this->aa2int[static_cast<int>(upperLetter)];
+                this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>(upperLetter)];
                 break;
             case 'J':
-                this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'L'];
+                this->aa2num[static_cast<int>(letter)] = this->aa2num[(int)'L'];
                 break;
             case 'U':
             case 'O':
-                this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'X'];
+                this->aa2num[static_cast<int>(letter)] = this->aa2num[(int)'X'];
                 break;
-            case 'Z': this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'E']; break;
-            case 'B': this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'D']; break;
+            case 'Z': this->aa2num[static_cast<int>(letter)] = this->aa2num[(int)'E']; break;
+            case 'B': this->aa2num[static_cast<int>(letter)] = this->aa2num[(int)'D']; break;
             default:
-                this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'X'];
+                this->aa2num[static_cast<int>(letter)] = this->aa2num[(int)'X'];
                 break;
         }
     }
 }
 
-int SubstitutionMatrix::parseAlphabet(char *word, char *int2aa, int *aa2int) {
+int SubstitutionMatrix::parseAlphabet(char *word, char *num2aa, int *aa2num) {
     char *charReader = word;
     int minAAInt = INT_MAX;
     // find amino acid with minimal int value
     while (isalpha(*charReader)) {
         const char aa = *charReader;
-        const int intAA = aa2int[static_cast<int>(aa)];
+        const int intAA = aa2num[static_cast<int>(aa)];
         minAAInt = std::max(minAAInt, intAA);
         charReader++;
     }
     if(minAAInt==-1){
 
     }
-    char minAAChar = int2aa[minAAInt];
+    char minAAChar = num2aa[minAAInt];
     // do alphabet reduction
     charReader = word;
     while (isalpha(*charReader)) {
         const char aa = *charReader;
-        const int intAA = aa2int[static_cast<int>(aa)];
-        aa2int[static_cast<int>(aa)] = minAAInt;
-        int2aa[intAA] = minAAChar;
+        const int intAA = aa2num[static_cast<int>(aa)];
+        aa2num[static_cast<int>(aa)] = minAAInt;
+        num2aa[intAA] = minAAChar;
         charReader++;
     }
     return minAAInt;
@@ -381,7 +381,7 @@ void SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const boo
                 Debug(Debug::ERROR) << "First element in probability line must be an alphabet letter.\n";
                 EXIT(EXIT_FAILURE);
             }
-            int aa = aa2int[toupper(words[0][0])];
+            int aa = static_cast<int>(aa2num[toupper(words[0][0])]);
             for (int i = 0; i < alphabetSize; i++) {
                 double f = strtod(words[i + 1], NULL);
                 probMatrix[aa][i] = f; // divided by 2 because we scale bit/2 ot bit
@@ -391,7 +391,7 @@ void SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const boo
     bool xIsPositive = false;
     if( containsX == true ){
         for (int j = 0; j < alphabetSize; j++) {
-            int xIndex = aa2int[(int)'X'];
+            int xIndex = static_cast<int>(aa2num[static_cast<int>('X')]);
             if ((probMatrix[xIndex][j] > 0) || (probMatrix[j][xIndex] > 0)) {
                 xIsPositive = true;
                 break;
@@ -411,11 +411,11 @@ void SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const boo
             Debug(Debug::ERROR) << "Computing inverse of substitution matrix failed\n";
             EXIT(EXIT_FAILURE);
         }
-        pBack[aa2int[(int)'X']]=ANY_BACK;
+        pBack[static_cast<int>(aa2num[static_cast<int>('X')])]=ANY_BACK;
     }
     if(xIsPositive == false){
         for (int i = 0; i < alphabetSize - 1; i++) {
-            pBack[i] = pBack[i] * (1.0 - pBack[aa2int[(int)'X']]);
+            pBack[i] = pBack[i] * (1.0 - pBack[static_cast<int>(aa2num[static_cast<int>('X')])]);
         }
     }
     // Reconstruct Probability Sab=(Pab/Pa*Pb) -> Pab = exp(Sab) * Pa * Pb
@@ -447,12 +447,12 @@ std::pair<int, bool> SubstitutionMatrix::setAaMappingDetectAlphSize(std::string 
                     EXIT(EXIT_FAILURE);
                 }
                 int aa = toupper(words[i][0]);
-                aa2int[aa] = i;
-                int2aa[i] = aa;
+                aa2num[aa] = static_cast<unsigned char>(i);
+                num2aa[i] = aa;
                 if (aa == 'X') {
                     containsX = true;
                 }
-//                column_aa[i] = parseAlphabet(words[i], int2aa, aa2int);
+//                column_aa[i] = parseAlphabet(words[i], num2aa, aa2num);
             }
             alphabetSize = wordCnt;
             return std::make_pair(alphabetSize, containsX);

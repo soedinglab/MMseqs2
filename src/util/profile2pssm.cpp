@@ -59,7 +59,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
             result.append("Pos\tCns");
             for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
                 result.push_back('\t');
-                result.push_back(subMat.int2aa[aa]);
+                result.push_back(subMat.num2aa[aa]);
             }
             result.push_back('\n');
 
@@ -67,7 +67,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
                 Itoa::i32toa_sse2(j, buffer);
                 result.append(buffer);
                 result.push_back('\t');
-                result.push_back(subMat.int2aa[seq.int_consensus_sequence[j]]);
+                result.push_back(subMat.num2aa[seq.numConsensusSequence[j]]);
                 for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
                     result.push_back('\t');
                     Itoa::i32toa_sse2(seq.profile_for_alignment[aa * seq.L + j], buffer);

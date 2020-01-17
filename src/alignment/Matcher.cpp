@@ -88,9 +88,9 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
         alignment = nuclaligner->align(dbSeq, diagonal, isReverse, backtrace, aaIds, evaluer, wrappedScoring);
         alignmentMode = Matcher::SCORE_COV_SEQID;
     }else{ if(isIdentity==false){
-            alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode, covThr, maskLen);
+            alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode, covThr, maskLen);
         }else{
-            alignment = aligner->scoreIdentical(dbSeq->int_sequence, dbSeq->L, evaluer, alignmentMode);
+            alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode);
         }
         if(alignmentMode == Matcher::SCORE_COV_SEQID){
             if(isIdentity==false){
@@ -103,7 +103,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
 
                         for (uint32_t i = 0; i < length; ++i){
                             if (letter == 'M') {
-                                if (dbSeq->int_sequence[targetPos] == currentQuery->int_sequence[queryPos]){
+                                if (dbSeq->numSequence[targetPos] == currentQuery->numSequence[queryPos]){
                                     aaIds++;
                                 }
                                 ++queryPos;

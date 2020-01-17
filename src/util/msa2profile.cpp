@@ -244,7 +244,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                     if (seq->seq.s[i] == '-'){
                         msaContent[msaPos++] = MultipleAlignment::GAP;
                     } else {
-                        int aa = sequence.int_sequence[i];
+                        int aa = sequence.numSequence[i];
                         msaContent[msaPos++] = aa;
                     }
                 }
@@ -334,7 +334,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 }
                 // write query, consensus sequence and neffM
                 result.push_back(static_cast<unsigned char>(msaSequences[0][pos]));
-                result.push_back(static_cast<unsigned char>(subMat.aa2int[static_cast<int>(pssmRes.consensus[pos])]));
+                result.push_back(subMat.aa2num[static_cast<int>(pssmRes.consensus[pos])]);
                 result += MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
             }
 

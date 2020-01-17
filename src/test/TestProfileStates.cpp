@@ -25,7 +25,7 @@ int main (int, const char**) {
 
 
     std::cout << "Subustitution matrix:";
-    SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
+    SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     const char *seqs[1001];
     int counter = 0;
@@ -580,8 +580,8 @@ int main (int, const char**) {
     for (int k = 0; k < counter; ++k) {
         seqsCpy[k] = MultipleAlignment::initX(122);
         for (int pos = 0; pos < 122; ++pos) {
-//            seqs[k][pos] = (seqs[k][pos] == '-') ? MultipleAlignment::GAP : subMat.aa2int[(int) seqs[k][pos]];
-            seqsCpy[k][pos] = (seqs[k][pos] == '-') ? MultipleAlignment::GAP : subMat.aa2int[(int) seqs[k][pos]];
+//            seqs[k][pos] = (seqs[k][pos] == '-') ? MultipleAlignment::GAP : subMat.aa2num[(int) seqs[k][pos]];
+            seqsCpy[k][pos] = (seqs[k][pos] == '-') ? MultipleAlignment::GAP : static_cast<int>(subMat.aa2num[(int) seqs[k][pos]]);
         }
     }
 
@@ -605,7 +605,7 @@ int main (int, const char**) {
         printf("k=%.3zu ", k);
         for(size_t pos = 0; pos < res.centerLength; pos++){
             char aa = filterResult.filteredMsaSequence[k][pos];
-            printf("%c", (aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-' );
+            printf("%c", (aa < MultipleAlignment::NAA) ? subMat.num2aa[(int)aa] : '-' );
         }
         printf("\n");
     }

@@ -26,7 +26,7 @@ ScoreMatrix ExtendedSubstitutionMatrix::calcScoreMatrix(const BaseMatrix& matrix
     size_t row_size = size / MAX_ALIGN_INT;
     row_size = (row_size + 1) * MAX_ALIGN_INT; // for SIMD memory alignment
     // create permutation
-    std::vector<std::vector<int> > input(buildInput(kmerSize,alphabetSize));
+    std::vector<std::vector<unsigned char> > input(buildInput(kmerSize,alphabetSize));
     
     // score matrix is O(size^2). 64 is added for SSE
     short * score = (short *) mem_align(MAX_ALIGN_INT, (size * (row_size)) * sizeof(short));
@@ -34,8 +34,8 @@ ScoreMatrix ExtendedSubstitutionMatrix::calcScoreMatrix(const BaseMatrix& matrix
     unsigned int * index = (unsigned int *)mem_align(MAX_ALIGN_INT, (size * (row_size)) * sizeof(unsigned int));
 
 
-    std::vector<std::vector<int> > permutation;
-    std::vector<int> outputTemp;
+    std::vector<std::vector<unsigned char> > permutation;
+    std::vector<unsigned char> outputTemp;
     createCartesianProduct(permutation, outputTemp, input.begin(), input.end());
 #pragma omp parallel
 {
@@ -75,7 +75,7 @@ void ExtendedSubstitutionMatrix::freeScoreMatrix(ScoreMatrix& matrix) {
     free(matrix.index);
 }
 
-short ExtendedSubstitutionMatrix::calcScore(int * i_seq,int * j_seq,size_t seq_size, short **subMatrix){
+short ExtendedSubstitutionMatrix::calcScore(unsigned char * i_seq, unsigned char * j_seq,size_t seq_size, short **subMatrix){
     short score = 0;
     for(size_t i = 0; i < seq_size; i++){
         score += subMatrix[i_seq[i]][j_seq[i]];
@@ -84,11 +84,11 @@ short ExtendedSubstitutionMatrix::calcScore(int * i_seq,int * j_seq,size_t seq_s
 }
 
 // Creates the input
-std::vector<std::vector<int> > ExtendedSubstitutionMatrix::buildInput(size_t dimension,size_t range) {
-    std::vector<std::vector<int> >  dimension_vector;
+std::vector<std::vector<unsigned char> > ExtendedSubstitutionMatrix::buildInput(size_t dimension,size_t range) {
+    std::vector<std::vector<unsigned char> >  dimension_vector;
     
     for(size_t i = 0; i < dimension; i++) {
-        std::vector<int> range_vector;
+        std::vector<unsigned char> range_vector;
         for(size_t j = 0; j < range; j++) {
             range_vector.push_back(j);
         }
@@ -105,10 +105,10 @@ std::vector<std::vector<int> > ExtendedSubstitutionMatrix::buildInput(size_t dim
 //      recurse on next "me"
 //
 void ExtendedSubstitutionMatrix::createCartesianProduct(
-                                                        std::vector<std::vector<int> > & output,  // final result
-                                                        std::vector<int>&  current_result,   // current result
-                                                        std::vector<std::vector<int> >::const_iterator current_input, // current input
-                                                        std::vector<std::vector<int> >::const_iterator end) // final input
+                                                        std::vector<std::vector<unsigned char> > & output,  // final result
+                                                        std::vector<unsigned char>&  current_result,   // current result
+                                                        std::vector<std::vector<unsigned char> >::const_iterator current_input, // current input
+                                                        std::vector<std::vector<unsigned char> >::const_iterator end) // final input
 {
     if(current_input == end) {
         // terminal condition of the recursion. We no longer have
@@ -119,8 +119,8 @@ void ExtendedSubstitutionMatrix::createCartesianProduct(
     }
     
     // need an easy name for my vector-of-ints
-    const std::vector<int>& mevi = *current_input;
-    for(std::vector<int>::const_iterator it = mevi.begin();it != mevi.end();it++) {
+    const std::vector<unsigned char>& mevi = *current_input;
+    for(std::vector<unsigned char>::const_iterator it = mevi.begin();it != mevi.end();it++) {
         current_result.push_back(*it);  // add ME
         createCartesianProduct(output, current_result, current_input+1, end);
         current_result.pop_back(); // clean current result off for next round

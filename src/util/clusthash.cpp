@@ -29,7 +29,7 @@ int clusthash(int argc, const char **argv, const Command &command) {
     BaseMatrix *subMat = NULL;
     if (isNuclInput == false) {
         SubstitutionMatrix sMat(par.scoringMatrixFile.aminoacids, 2.0, -0.2);
-        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2int, sMat.int2aa, sMat.alphabetSize, par.alphabetSize, 2.0);
+        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize, 2.0);
     }
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
@@ -70,7 +70,7 @@ int clusthash(int argc, const char **argv, const Command &command) {
                 size_t length = reader.getSeqLen(id);
                 size_t seqHash;
                 seq.mapSequence(id, 0, data, length);
-                seqHash = Util::hash(seq.int_sequence, seq.L);
+                seqHash = Util::hash(seq.numSequence, seq.L);
                 hashSeqPair[id] = std::make_pair(seqHash, id);
             }
         }

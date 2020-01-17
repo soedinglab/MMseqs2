@@ -133,7 +133,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
             // TODO: Do we still need this?
             if (centerSequence.L)
             {
-                if(centerSequence.int_sequence[centerSequence.L-1] == 20) // remove last in it is a *
+                if(centerSequence.numSequence[centerSequence.L-1] == 20) // remove last in it is a *
                 {
                     centerSequence.L--;
                 }
@@ -240,7 +240,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                     // need to allow insertion in the centerSequence
                     for (size_t pos = 0; pos < res.centerLength; pos++) {
                         char aa = res.msaSequence[i][pos];
-                        msa << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int) aa] : '-');
+                        msa << ((aa < MultipleAlignment::NAA) ? subMat.num2aa[(int) aa] : '-');
                     }
 
                     msa << "\n";
@@ -279,7 +279,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                     std::ostringstream centerSeqStr;
                     // Retrieve the master sequence
                     for (int pos = 0; pos < centerSequence.L; pos++) {
-                        centerSeqStr << subMat.int2aa[centerSequence.int_sequence[pos]];
+                        centerSeqStr << subMat.num2aa[centerSequence.numSequence[pos]];
                     }
                     msa << ">" << queryHeaderReader.getDataByDBKey(queryKey,  thread_idx) << centerSeqStr.str() << "\n;";
                 }

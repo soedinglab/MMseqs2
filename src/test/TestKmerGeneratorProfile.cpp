@@ -54,7 +54,7 @@ int main (int argc, const char * argv[])
     
     const char* sequence = (const char *) string;
 
-    Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa, Sequence::HMM_PROFILE, &subMat);
+    Sequence* s = new Sequence (10000, subMat.aa2num, subMat.num2aa, Sequence::HMM_PROFILE, &subMat);
     s->mapSequence(0,"lala",sequence);
 
     KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,90);
@@ -83,7 +83,7 @@ int main (int argc, const char * argv[])
                 std::cout << testKmer[i] << " ";
             std::cout << "\t";
             for (size_t i = 0; i < kmer_size; i++)
-                std::cout << subMat.int2aa[testKmer[i]];
+                std::cout << subMat.num2aa[testKmer[i]];
             std::cout << "\n";
         }
     }

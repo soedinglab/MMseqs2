@@ -19,7 +19,7 @@ int main (int, const char**) {
     size_t kmer_size = 6;
     Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 8.0, -0.2);
-    SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
+    SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
 
     std::string S1 = "PQITLWQG";
     const char* S1char = S1.c_str();
@@ -93,7 +93,7 @@ int main (int, const char**) {
     CounterResult hits[32];
     UngappedAlignment matcher(10000, &subMat, &lookup);
 
-    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s5.int_sequence, s5.L, compositionBias);
+    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s5.numSequence, s5.L, compositionBias);
     memset(compositionBias, 0.0, sizeof(float)*s5.L);
 //    std::cout << compositionBias[74] << std::endl;
 //    std::cout << compositionBias[79] << std::endl;
@@ -115,80 +115,80 @@ int main (int, const char**) {
 
 
 
-    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.int_sequence, s1.L, compositionBias);
+    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.numSequence, s1.L, compositionBias);
 
     hits[0].id = s1.getId();
     hits[0].diagonal = 0;
     matcher.processQuery(&s1, compositionBias, hits, 1);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
     for(int i = 0; i < 16; i++){
         hits[i].id = s1.getId();
         hits[i].diagonal = 0;
     }
     matcher.processQuery(&s1, compositionBias, hits, 16);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
 
     hits[0].id = s1.getId();
     hits[0].diagonal = 9;
     matcher.processQuery(&s2, compositionBias, hits, 1);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
     for(int i = 0; i < 16; i++){
         hits[i].id = s1.getId();
         hits[i].diagonal = 9;
     }
     matcher.processQuery(&s2, compositionBias, hits, 16);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
     for(int i = 0; i < 16; i++){
         hits[i].id = s2.getId();
         hits[i].diagonal = -9;
     }
     matcher.processQuery(&s1, compositionBias, hits, 16);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
     matcher.processQuery(&s1, compositionBias, hits, 1);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
     for(int i = 0; i < 16; i++){
         hits[i].id = s2.getId();
         hits[i].diagonal = -9;
     }
     matcher.processQuery(&s3, compositionBias, hits, 16);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
     matcher.processQuery(&s3, compositionBias, hits, 1);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
 
     hits[0].id = s4.getId();
     hits[0].diagonal = -256;
     matcher.processQuery(&s1, compositionBias, hits, 1);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
 
     hits[0].id = s1.getId();
     hits[0].diagonal = 256;
     matcher.processQuery(&s4,compositionBias, hits, 1);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
     hits[0].id = s7.getId();
     hits[0].diagonal = -512;
     matcher.processQuery(&s1,compositionBias, hits, 16);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
     hits[0].id = s1.getId();
     hits[0].diagonal = 512;
     matcher.processQuery(&s7,compositionBias, hits, 16);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
 
     hits[0].id = s7.getId();
     hits[0].diagonal = 0;
     matcher.processQuery(&s7, compositionBias, hits, 16);
-    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
+    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.numSequence, s1.numSequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].count <<  std::endl;
 
     delete [] compositionBias;
 }

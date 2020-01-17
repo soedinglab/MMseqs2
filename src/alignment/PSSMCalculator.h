@@ -89,7 +89,7 @@ private:
     float pca;
     float pcb;
 
-    std::string computeConsensusSequence(float *pDouble, size_t queryLength, double *back, char *int2aa);
+    std::string computeConsensusSequence(float *pDouble, size_t queryLength, double *back, char *num2aa);
 };
 
 

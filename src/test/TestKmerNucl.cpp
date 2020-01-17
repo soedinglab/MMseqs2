@@ -33,12 +33,12 @@ int main (int, const char**) {
 
     size_t i = 0;
     while (s->hasNextKmer()) {
-        const int* curr_pos = s->nextKmer();
+        const unsigned char* curr_pos = s->nextKmer();
         printf("Pos1: %zu\n", i++);
 
         size_t idx_val = idx.int2index(curr_pos);
         std::cout << "Index: " << idx_val << " ";
-        idx.printKmer(idx_val, kmer_size, subMat.int2aa);
+        idx.printKmer(idx_val, kmer_size, subMat.num2aa);
         std::cout << std::endl;
 
         std::string kmerStr1;
@@ -46,7 +46,7 @@ int main (int, const char**) {
         for(size_t kmerPos = 0; kmerPos < kmer_size; kmerPos++){
             kmerIdx = kmerIdx << 2;
             kmerIdx = kmerIdx | curr_pos[kmerPos];
-            kmerStr1.append(1, subMat.int2aa[curr_pos[kmerPos]]);
+            kmerStr1.append(1, subMat.num2aa[curr_pos[kmerPos]]);
         }
 
         std::string revStr1;

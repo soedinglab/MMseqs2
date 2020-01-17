@@ -39,15 +39,15 @@ int main (int argc, const char * argv[])
     char* sequence = (char *) argv[1];
     std::cout << sequence << "\n\n";
  
-    Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa,0);
+    Sequence* s = new Sequence (10000, subMat.aa2num, subMat.num2aa,0);
     s->mapSequence(0,"lala",sequence);
     
     printf("Normal alphabet : ");
     for(int i = 0; i<subMat.alphabetSize;i++)
-        printf("%c\t",subMat.int2aa[i]);
+        printf("%c\t",subMat.num2aa[i]);
     printf("\nNormal int code: ");
     for(int i = 'A'; i<'Z';i++)
-        printf("%d\t",subMat.aa2int[i]); 
+        printf("%d\t",subMat.aa2num[i]);
     
     
     std::cout << "\nInt reduced sequence:\n";

@@ -57,7 +57,7 @@ int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0);
     std::cout << "Subustitution matrix:\n";
-    SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
+    SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
     std::cout << "\n";
 
     std::cout << "subMatrix:\n";
@@ -92,7 +92,7 @@ int main (int, const char**) {
             dbSeq->mapSequence(2, 2, sequences[seq_j].c_str(),  sequences[seq_j].size());
             int32_t maskLen = query->L / 2;
             EvalueComputation evalueComputation(100000, &subMat, gap_open, gap_extend);
-            s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 0, 10000, &evalueComputation, 0, 0.0, maskLen);
+            s_align alignment = aligner.ssw_align(dbSeq->numSequence, dbSeq->L, gap_open, gap_extend, 0, 10000, &evalueComputation, 0, 0.0, maskLen);
             if(mode == 0 ){
                 cells += query->L * dbSeq->L;
                 std::cout << alignment.qEndPos1 << " " << alignment.dbEndPos1 << "\n";

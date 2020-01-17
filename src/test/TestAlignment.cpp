@@ -33,8 +33,8 @@ int main (int, const char**) {
 
     SubstitutionMatrix subMat("blosum62.out", 2.0, -0.0f);
     std::cout << "Subustitution matrix:\n";
-    SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
-    SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
+    SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
+    SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
 //    for(int i = 0; i < 255; i++){
 //        std::cout << i << "\t" << MathUtil::convertCharToFloat(i) << std::endl;
 //    }
@@ -53,8 +53,8 @@ int main (int, const char**) {
 //			          "GWLKTHVSDAVAVQSRIIYGGSVTGGNCKELASQHDVDGFLVGGASLKPEFVDIINAKH";
 //    std::string tim1 = "LAEVGDARSLLEDDLVDLPDARFFKAMGREFVKLMLQGEASEAIKAPRAAAAVLPKQYTRDEDGDGVNLVLLVERVLEVPDECRLYIIGVAARVAGATVVYATGSRKKDAALPIANDETHLTAVLAKGESLPPPPENPMSADRVRWEHIQRIYEMCDRNVSETARRLNMHRRTLQRILAKRSPR";
 //    std::string tim2 = "EMDLAFVELGADRSLLLVDDDEPFLKRLAKAMEKRGFVLETAQSVAEGKAIAQARPPAYAVVDLRLEDGNGLDVVEVLRERRPDCRIVVLTGYGAIATAVAAVKIGATDYLSKPADANEVTHALLAKGESLPPPPENPMSADRVRWEHIQRIYEMCDRNVSETARRLNMHRRTLQRILAKRSPR";
-    std::string tim1 = "'GLTVDCVVFGLDEQIDLKVLLIQRQIPPFQHQWALPGGFVQMDESLEDAARRELREETGVQGIFLEQLYTFGDLGRDPRDRIISVAYYALINLIEYPLQASTDAEDAAWYSIENLPSLAFDHAQILKQAI";
-    std::string tim2 = "'GLTADVVILYNGGIVLIKRKHEPFKDHYALPGGFVEYGETVEEAALREAKEETGLDVRLIRLVGVYSDPNRDPRGHTVTTAFLAIGTGKLKAGDDAEEVHVVPVEEALKLPLAFDHAKILRDAL";
+    std::string tim1 = "'AAAGGTGACCGGGCACGGTGGCCCATGCCTATAATCCCAGCACTTTGGGAGGCCCAGGCAGGTGGATCACTTGAGGTCAGGAGTTCGAGACCAGCCTGGC";
+    std::string tim2 = "'GATTGAAAAACTCCCAGGCTGGACACGGTGGCCCATGCCTGTAATCCCAGCACTCTGGGAGGCTGAGGTGGGCTGATCCCTTGAGGTCAGGAGTTCGAGACCATCCTGGAAAATGTGGCA";
 
     std::cout << "Sequence (id 0):\n";
     //const char* sequence = read_seq;
@@ -87,7 +87,7 @@ int main (int, const char**) {
     float seqId = 1.0;
     int aaIds = 0;
     EvalueComputation evalueComputation(100000, &subMat, gap_open, gap_extend);
-    s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 10000, &evalueComputation, 0, 0.0, maskLen);
+    s_align alignment = aligner.ssw_align(dbSeq->numSequence, dbSeq->L, gap_open, gap_extend, 2, 10000, &evalueComputation, 0, 0.0, maskLen);
     if(alignment.cigar){
         std::cout << "Cigar" << std::endl;
 
@@ -97,27 +97,27 @@ int main (int, const char**) {
             uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
             for (uint32_t i = 0; i < length; ++i){
                 if (letter == 'M') {
-                    fprintf(stdout,"%c",subMat.int2aa[s->int_sequence[queryPos]]);
+                    fprintf(stdout,"%c",subMat.num2aa[s->numSequence[queryPos]]);
 
-                    if (dbSeq->int_sequence[targetPos] == s->int_sequence[queryPos]){
+                    if (dbSeq->numSequence[targetPos] == s->numSequence[queryPos]){
                         fprintf(stdout, "|");
                         aaIds++;
                     }
                     else fprintf(stdout, "*");
-                    fprintf(stdout,"%c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
+                    fprintf(stdout,"%c",subMat.num2aa[dbSeq->numSequence[targetPos]]);
 
                     ++queryPos;
                     ++targetPos;
                 } else {
                     if (letter == 'I'){
-                        fprintf(stdout,"%c",subMat.int2aa[s->int_sequence[queryPos]]);
+                        fprintf(stdout,"%c",subMat.num2aa[s->numSequence[queryPos]]);
                         fprintf(stdout, " ");
                         fprintf(stdout, "|");
                         ++queryPos;
                     }else{
                         fprintf(stdout, "|");
                         fprintf(stdout, " ");
-                        fprintf(stdout,"%c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
+                        fprintf(stdout,"%c",subMat.num2aa[dbSeq->numSequence[targetPos]]);
                         ++targetPos;
                     };
                 }

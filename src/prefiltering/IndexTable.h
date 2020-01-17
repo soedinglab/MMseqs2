@@ -99,7 +99,7 @@ public:
 
         //idxer->reset();
         while(s->hasNextKmer()){
-            const int * kmer = s->nextKmer();
+            const unsigned char * kmer = s->nextKmer();
             const std::pair<size_t *, size_t> kmerList = kmerGenerator->generateKmerList(kmer);
 
             //unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
@@ -132,9 +132,9 @@ public:
         size_t countKmer = 0;
         bool removeX = (Parameters::isEqualDbtype(s->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES) ||
                         Parameters::isEqualDbtype(s->getSequenceType(), Parameters::DBTYPE_AMINO_ACIDS));
-        const int xIndex = s->subMat->aa2int[(int)'X'];
+        const unsigned char xIndex = s->subMat->aa2num[static_cast<int>('X')];
         while(s->hasNextKmer()){
-            const int * kmer = s->nextKmer();
+            const unsigned char * kmer = s->nextKmer();
             if(removeX){
                 int xCount = 0;
                 for(int pos = 0; pos < kmerSize; pos++){
@@ -258,7 +258,7 @@ public:
         offsets[0] = 0;
     }
 
-    void printStatistics(char *int2aa) {
+    void printStatistics(char *num2aa) {
         const size_t top_N = 10;
         std::pair<size_t, size_t> topElements[top_N];
         for (size_t j = 0; j < top_N; j++) {
@@ -294,7 +294,7 @@ public:
         Debug(Debug::INFO) << "Top " << top_N << " k-mers\n";
         for (size_t j = 0; j < top_N; j++) {
             Debug(Debug::INFO) << "    ";
-            indexer->printKmer(topElements[j].second, kmerSize, int2aa);
+            indexer->printKmer(topElements[j].second, kmerSize, num2aa);
             Debug(Debug::INFO) << "\t" << topElements[j].first << "\n";
         }
     }
@@ -308,7 +308,7 @@ public:
         idxer->reset();
         size_t kmerPos = 0;
         while(s->hasNextKmer()){
-            const int * kmer = s->nextKmer();
+            const unsigned char * kmer = s->nextKmer();
             std::pair<size_t *, size_t> scoreMatrix = kmerGenerator->generateKmerList(kmer);
             for(size_t i = 0; i < scoreMatrix.second; i++) {
                 unsigned int kmerIdx = scoreMatrix.first[i];
@@ -347,9 +347,9 @@ public:
         size_t kmerPos = 0;
         bool removeX = (Parameters::isEqualDbtype(s->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES) ||
                         Parameters::isEqualDbtype(s->getSequenceType(), Parameters::DBTYPE_AMINO_ACIDS));
-        const int xIndex = s->subMat->aa2int[(int)'X'];
+        const unsigned char xIndex = s->subMat->aa2num[static_cast<int>('X')];
         while (s->hasNextKmer()){
-            const int * kmer = s->nextKmer();
+            const unsigned char * kmer = s->nextKmer();
             if(removeX){
                 int xCount = 0;
                 for(int pos = 0; pos < kmerSize; pos++){
@@ -397,11 +397,11 @@ public:
     }
 
     // prints the IndexTable
-    void print(char *int2aa) {
+    void print(char *num2aa) {
         for (size_t i = 0; i < tableSize; i++) {
             ptrdiff_t entrySize = offsets[i + 1] - offsets[i];
             if (entrySize > 0) {
-                indexer->printKmer(i, kmerSize, int2aa);
+                indexer->printKmer(i, kmerSize, num2aa);
 
                 Debug(Debug::INFO) << "\n";
                 IndexEntryLocal *e = &entries[offsets[i]];

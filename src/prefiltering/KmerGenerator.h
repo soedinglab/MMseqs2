@@ -13,7 +13,7 @@ class KmerGenerator
         KmerGenerator(size_t kmerSize,size_t alphabetSize, short threshold);
         ~KmerGenerator();
         /*calculates the kmer list */
-        std::pair<size_t *, size_t> generateKmerList(const int * intSeq, bool addIdentity = false);
+        std::pair<size_t *, size_t> generateKmerList(const unsigned char * intSeq, bool addIdentity = false);
 
         /* kmer splitting stragety (3,2)
          fill up the divide step and calls init_result_list */

@@ -25,7 +25,7 @@ int main (int, const char**) {
     size_t kmer_size = 6;
     Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 8.0, 0.0);
-    SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
+    SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
 
     std::string S1 = "AYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKRQTLGQHDFSAGEGLYTHMKALRPDEDRLSPLHSVYVDQWDWERVMGDGERQFSTLKSTVEAIWAGIKATEAAVSEEFGLAPFLPDQIHFVHSQELLSRYPDLDAKGRERAIAKDLGAVFLVGIGGKLSDGHRHDVRAPDYDDWSTPSELGHAGLNGDILVWNPVLEDAFELSSMGIRVDADTLKHQLALTGDEDRLELEWHQALLRGEMPQTIGGGIGQSRLTMLLLQLPHIGQVQAGVWPAAVRESVPSLL";
     const char* S1char = S1.c_str();
@@ -88,7 +88,7 @@ int main (int, const char**) {
     }
 
     float * compositionBias = new float[s1.L];
-    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.int_sequence, s1.L, compositionBias);
+    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.numSequence, s1.L, compositionBias);
 
 
 
@@ -115,7 +115,7 @@ int main (int, const char**) {
         //   std::reverse(hits, hits+1000);
         matcher.processQuery(&s1, compositionBias, hits, 16000);
     }
-//    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].diagonalScore <<  std::endl;
+//    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.sequence, s1.sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].diagonalScore <<  std::endl;
 //    std::cout << (int)hits[0].diagonalScore <<  std::endl;
     for(int i = 0; i < 1000; i++){
         std::cout << hits[i].id << "\t" << (int) hits[i].diagonal  << "\t" << (int)hits[i].count <<  std::endl;

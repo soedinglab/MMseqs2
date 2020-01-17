@@ -86,14 +86,14 @@ public:
     void mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *, const unsigned int> data);
 
     // map profile HMM, *data points to start position of Profile
-    void mapProfile(const char *sequence, bool mapScores,  unsigned int seqLen);
+    void mapProfile(const char *profileData, bool mapScores,  unsigned int seqLen);
 
     // mixture of library and profile prob
     template <int T>
-    void mapProfileState(const char *sequence, unsigned int seqLen);
+    void mapProfileState(const char *profileState, unsigned int seqLen);
 
     // map the profile state sequence
-    void mapProfileStateSequence(const char *sequence, unsigned int seqLen);
+    void mapProfileStateSequence(const char *profileStateSeq, unsigned int seqLen);
 
     // checks if there is still a k-mer left
     bool hasNextKmer() {
@@ -101,14 +101,14 @@ public:
     }
 
     // returns next k-mer
-    inline const int * nextKmer() {
+    inline const unsigned char * nextKmer() {
         if (hasNextKmer() == false) {
             return 0;
         }
 
         currItPos++;
-        const int *posToRead = int_sequence + currItPos;
-        int *currWindowPos = kmerWindow;
+        const unsigned char *posToRead = numSequence + currItPos;
+        unsigned char *currWindowPos = kmerWindow;
         switch (this->kmerSize){
             case 6:
                 kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
@@ -367,7 +367,7 @@ public:
             return kmerWindow;
         }
 
-        return (const int *)kmerWindow;
+        return (const unsigned char *)kmerWindow;
     }
 
     // resets the sequence position pointer to the start of the sequence
@@ -402,10 +402,10 @@ public:
     int L;
 
     // each amino acid coded as integer
-    int *int_sequence;
+    unsigned char *numSequence;
 
     // each consensus amino acid as integer (PROFILE ONLY)
-    int *int_consensus_sequence;
+    unsigned char *numConsensusSequence;
 
     // Contains profile information
     short           *profile_score;
@@ -506,7 +506,7 @@ private:
     unsigned int kmerSize;
 
     // sequence window will be filled by newxtKmer (needed for spaced patterns)
-    int *kmerWindow;
+    unsigned char *kmerWindow;
 
     // stores position of residues in sequence
     unsigned char *aaPosInSpacedPattern;

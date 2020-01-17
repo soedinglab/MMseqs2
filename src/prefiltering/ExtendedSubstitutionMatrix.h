@@ -13,15 +13,16 @@ public:
     static ScoreMatrix calcScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize);
     static void freeScoreMatrix(ScoreMatrix& matrix);
 
-    static short calcScore(int * i_seq,int * j_seq,size_t seq_size,short **subMatrix);
+    static short calcScore(unsigned char * i_seq, unsigned char * j_seq,size_t seq_size,short **subMatrix);
 
 private:
-    static std::vector<std::vector<int> > buildInput(size_t dimension,size_t range);
+    static std::vector<std::vector<unsigned char> > buildInput(size_t dimension,size_t range);
+
     static void createCartesianProduct(
-                                std::vector<std::vector<int> > & output,  // final result
-                                std::vector<int>&  current_result,   // current result
-                                std::vector<std::vector<int> >::const_iterator current_input, // current input
-                                std::vector<std::vector<int> >::const_iterator end); // final input
+                                std::vector<std::vector<unsigned char> > & output,  // final result
+                                std::vector<unsigned char>&  current_result,   // current result
+                                std::vector<std::vector<unsigned char> >::const_iterator current_input, // current input
+                                std::vector<std::vector<unsigned char> >::const_iterator end); // final input
 
 };
 #endif

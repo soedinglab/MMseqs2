@@ -71,7 +71,7 @@ public:
 
 
 
-    static float scoreKmer(const int * kmer, int kmerSize){
+    static float scoreKmer(const unsigned char * kmer, unsigned char kmerSize){
         float totalSocore = 0.0;
         for(int pos = 0; pos < kmerSize - MarkovScores::MARKOV_ORDER; pos++){
             size_t lookupIdx = Indexer::computeKmerIdx(&kmer[pos], MarkovScores::MARKOV_ORDER+1);
@@ -80,7 +80,7 @@ public:
         return totalSocore;
     }
 
-    static int adjustedLength(const int * kmer, int kmerSize, float minScoreThr){
+    static int adjustedLength(const unsigned char * kmer, unsigned char kmerSize, float minScoreThr){
         float totalSocore = 0.0;
         int pos = 0;
         while(totalSocore < minScoreThr && pos < kmerSize - MarkovScores::MARKOV_ORDER){

@@ -10,10 +10,10 @@ public:
     virtual ~BaseMatrix();
 
     /*contains amino acid to int mapping*/
-    int*  aa2int;
+    unsigned char* aa2num;
 
     /*contains int to amino acid mapping*/
-    char* int2aa;
+    char* num2aa;
 
     /* size of alphabet*/
     int alphabetSize;
@@ -42,9 +42,9 @@ public:
     static const double ANY_BACK;
 
     // print the substitution matrix
-    static void print(short** matrix, char* int2aa, int size);
+    static void print(short** matrix, char* num2aa, int size);
 
-    static void print(double** matrix, char* int2aa, int size);
+    static void print(double** matrix, char* num2aa, int size);
 
     void initMatrixMemory(int alphSize);
 
@@ -81,7 +81,7 @@ public:
     ProbabilityMatrix(BaseMatrix &matrix) : alphabetSize(matrix.alphabetSize) {
         probMatrix = new double*[matrix.alphabetSize];
         probMatrixPointers = new const double*[matrix.alphabetSize];
-        std::fill_n(hardMaskTable, 256, matrix.aa2int[(int) 'X']);
+        std::fill_n(hardMaskTable, 256, matrix.aa2num[static_cast<int>('X')]);
         for (int i = 0; i < matrix.alphabetSize; ++i) {
             probMatrix[i] = new double[matrix.alphabetSize];
             probMatrixPointers[i] = probMatrix[i];

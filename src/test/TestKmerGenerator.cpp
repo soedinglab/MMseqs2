@@ -48,12 +48,12 @@ int main (int, const char**) {
     size_t * testKmer = new size_t[kmer_size];
     int i = 0; 
     while(s->hasNextKmer()){
-        const int * curr_pos = s->nextKmer();
+        const unsigned char * curr_pos = s->nextKmer();
         printf("Pos1: %d\n", i++);
 
         unsigned int idx_val=idx.int2index(curr_pos);
         std::cout << "Index:    " <<idx_val << "  ";
-        idx.printKmer(idx_val, kmer_size, subMat.int2aa);
+        idx.printKmer(idx_val, kmer_size, subMat.num2aa);
         std::cout << std::endl;
 //        std::cout << "MaxScore: " << extMattwo.scoreMatrix[idx_val]->back().first<< "\n";
         std::pair<size_t *, size_t > kmer_list= kmerGen.generateKmerList(curr_pos);
@@ -71,7 +71,7 @@ int main (int, const char**) {
                 std::cout << testKmer[i] << " ";
             std::cout << "\t";
             for (size_t i = 0; i < kmer_size; i++)
-                std::cout << subMat.int2aa[testKmer[i]];
+                std::cout << subMat.num2aa[testKmer[i]];
             std::cout << "\n";
         }
     }

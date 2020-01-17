@@ -6,11 +6,11 @@ NucleotideMatrix::NucleotideMatrix(const char* scoringMatrixFileName, float bitF
     setupLetterMapping();
     reverseLookup = new int[alphabetSize];
     // TODO think about making the matrix dynamic
-    reverseLookup[aa2int[static_cast<int>('A')]] = aa2int[static_cast<int>('T')];
-    reverseLookup[aa2int[static_cast<int>('G')]] = aa2int[static_cast<int>('C')];
-    reverseLookup[aa2int[static_cast<int>('C')]] = aa2int[static_cast<int>('G')];
-    reverseLookup[aa2int[static_cast<int>('T')]] = aa2int[static_cast<int>('A')];
-    reverseLookup[aa2int[static_cast<int>('X')]] = aa2int[static_cast<int>('X')];
+    reverseLookup[aa2num[static_cast<int>('A')]] = aa2num[static_cast<int>('T')];
+    reverseLookup[aa2num[static_cast<int>('G')]] = aa2num[static_cast<int>('C')];
+    reverseLookup[aa2num[static_cast<int>('C')]] = aa2num[static_cast<int>('G')];
+    reverseLookup[aa2num[static_cast<int>('T')]] = aa2num[static_cast<int>('A')];
+    reverseLookup[aa2num[static_cast<int>('X')]] = aa2num[static_cast<int>('X')];
 }
 
 
@@ -34,11 +34,11 @@ void NucleotideMatrix::setupLetterMapping(){
             case 'T':
             case 'G':
             case 'C':
-                this->aa2int[static_cast<int>(letter)] = this->aa2int[static_cast<int>(upperLetter)];
+                this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>(upperLetter)];
                 break;
             case 'U':
             case 'W':
-                this->aa2int[static_cast<int>(letter)] = this->aa2int[static_cast<int>('T')];
+                this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('T')];
                 break;
             case 'K':
             case 'B':
@@ -46,15 +46,15 @@ void NucleotideMatrix::setupLetterMapping(){
             case 'V':
             case 'R':
             case 'S':
-                this->aa2int[static_cast<int>(letter)] = this->aa2int[static_cast<int>('G')];
+                this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('G')];
                 break;
             case 'M':
             case 'Y':
             case 'H':
-                this->aa2int[static_cast<int>(letter)] = this->aa2int[static_cast<int>('C')];
+                this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('C')];
                 break;
             default:
-                this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'X'];
+                this->aa2num[static_cast<int>(letter)] = this->aa2num[static_cast<int>('X')];
                 break;
         }
     }

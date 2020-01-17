@@ -18,7 +18,7 @@ int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0);
     std::cout << "Substitution matrix:";
-    SubstitutionMatrix::print(subMat.subMatrix, subMat.int2aa, subMat.alphabetSize);
+    SubstitutionMatrix::print(subMat.subMatrix, subMat.num2aa, subMat.alphabetSize);
 
     const char *ref = "MTLHSNSTTSSLFPNISSSWIHSPSDAGLPPGTVTHFGSYNVSRAAGNFSSPDGTTDDPLGGHTVWQVVFIAFLTGILALVTIIGNILVIVSFKVNKQLKTVNNYFLLSLACADLIIGVISMNLFTTYIIMNRWALGNLACDLWLAIDYVASNASVMNLLVISFDRYFSITRPLTYRAKRTTKRAGVMIGLAWVISFVLWAPAILFWQYFVGKRTVPPGECFIQFLSEPTITFGTAIAAFYMPVTIMTILYWRIYKETEKRTKELAGLQASGTEAETENFVHPTGSSRSCSSYELQQQSMKRSNRRKYGRCHFWFTTKSWKPSSEQMDQDHSSSDSWNNNDAAASLENSASSDEEDIGSETRAIYSIVLKLPGHSTILNSTKLPSSDNLQVPEEELGMVDLERKADKLQAQKSVDDGGSFPKSFSKLPIQLESAVDTAKTSDVNSSVGKSTATLPLSFKEATLAKRFALKTRSQITKRKRMSLVKEKKAAQTLSAILLAFIITWTPYNIMVLVNTFCDSCIPKTFWNLGYWLCYINSTVNPVCYALCNKTFRTTFKMLLLCQCDKKKRRKQQYQRQSVIFHKRAPEQAL";
     const size_t len = strlen(ref);
@@ -26,7 +26,7 @@ int main (int, const char**) {
     refSeq.mapSequence(0, 0, ref, strlen(ref));
 
     char hardMaskTable[256];
-    std::fill_n(hardMaskTable, 256, subMat.aa2int[(int) 'X']);
+    std::fill_n(hardMaskTable, 256, subMat.aa2num[(int) 'X']);
     double probMatrix[21][21];
 
     const double *probMatrixPointers[64];
@@ -44,7 +44,7 @@ int main (int, const char**) {
 
     for(size_t i = 0; i < 100000; i++){
         for(int i = 0; i < refSeq.L; i++){
-            refInt[i] = (char) refSeq.int_sequence[i];
+            refInt[i] = (char) refSeq.numSequence[i];
         }
         tantan::maskSequences(refInt, refInt+len, 50 /*options.maxCycleLength*/,
                               probMatrixPointers,
@@ -54,8 +54,8 @@ int main (int, const char**) {
                               0.5 /*options.minMaskProb*/, hardMaskTable);
     }
     for(int i = 0; i < refSeq.L; i++){
-//        refInt[i] = (char) refSeq.int_sequence[i];
-        std::cout << subMat.int2aa[(int)refInt[i]];
+//        refInt[i] = (char) refSeq.sequence[i];
+        std::cout << subMat.num2aa[(int)refInt[i]];
 
     }
     std::cout << std::endl;
