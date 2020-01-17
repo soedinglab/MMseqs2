@@ -1,5 +1,3 @@
-#include <sstream>
-
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
@@ -10,94 +8,98 @@
 #include <omp.h>
 #endif
 
-int createseqfiledb(int argc, const char **argv, const Command& command) {
-    Parameters& par = Parameters::getInstance();
+int createseqfiledb(int argc, const char **argv, const Command &command) {
+    Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> clusters(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    clusters.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<unsigned int> headerDb(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+    headerDb.open(DBReader<unsigned int>::NOSORT);
+    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+        headerDb.readMmapedDataInMemory();
+    }
 
-    DBReader<unsigned int> bodies(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    bodies.open(DBReader<unsigned int>::NOSORT);
-    bodies.readMmapedDataInMemory();
+    DBReader<unsigned int> seqDb(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+    seqDb.open(DBReader<unsigned int>::NOSORT);
+    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+        seqDb.readMmapedDataInMemory();
+    }
 
-    DBReader<unsigned int> headers(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    headers.open(DBReader<unsigned int>::NOSORT);
-    headers.readMmapedDataInMemory();
+    DBReader<unsigned int> resultDb(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+    resultDb.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter msaOut(par.db3.c_str(), par.db3Index.c_str(), static_cast<unsigned int>(par.threads), par.compressed, Parameters::DBTYPE_GENERIC_DB);
-    msaOut.open();
+    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), static_cast<unsigned int>(par.threads), par.compressed, Parameters::DBTYPE_GENERIC_DB);
+    writer.open();
 
-    const size_t numClusters = clusters.getSize();
+    Debug::Progress progress(resultDb.getSize());
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-#pragma omp for schedule(dynamic, 100)
-        for (size_t i = 0; i < numClusters; ++i){
-            std::string resultStr;
-            char* data = clusters.getData(i, thread_idx);
+        std::string result;
+        result.reserve(1024);
 
-            size_t entries = Util::countLines(data, clusters.getEntryLen(i) - 1);
+        char dbKey[255];
+#pragma omp for schedule(dynamic, 100)
+        for (size_t i = 0; i < resultDb.getSize(); ++i) {
+            progress.updateProgress();
+
+            unsigned int key = resultDb.getDbKey(i);
+            char *data = resultDb.getData(i, thread_idx);
+
+            size_t entries = Util::countLines(data, resultDb.getEntryLen(i) - 1);
             if (entries < (unsigned int) par.minSequences || entries > (unsigned int) par.maxSequences) {
                 continue;
             }
 
-            std::string entry;
-            std::istringstream clusterEntries(data);
             size_t entries_num = 0;
-            char dbKey[255 + 1];
-            resultStr.clear();
-            while (std::getline(clusterEntries, entry)) {
+            while (*data != '\0') {
                 entries_num++;
-                Util::parseKey((char*)entry.c_str(), dbKey);
-                const unsigned int entryId = (unsigned int) strtoul(dbKey, NULL, 10);
+                Util::parseKey(data, dbKey);
+                data = Util::skipLine(data);
 
-                char* header = headers.getDataByDBKey(entryId, thread_idx);
-                if (header == NULL) {
-                    Debug(Debug::WARNING) << "Entry " << entry << " does not contain a header!" << "\n";
-                    continue;
+                const unsigned int memberKey = (unsigned int) strtoul(dbKey, NULL, 10);
+                size_t headerId = headerDb.getId(memberKey);
+                if (headerId == UINT_MAX) {
+                    Debug(Debug::ERROR) << "Entry " << key << " does not contain a sequence!" << "\n";
+                    EXIT(EXIT_FAILURE);
                 }
-
-                char* body = bodies.getDataByDBKey(entryId, thread_idx);
-                if (body == NULL) {
-                    Debug(Debug::WARNING) << "Entry " << entry << " does not contain a sequence!" << "\n";
-                    continue;
+                size_t seqId = seqDb.getId(memberKey);
+                if (seqId == UINT_MAX) {
+                    Debug(Debug::ERROR) << "Entry " << key << " does not contain a sequence!" << "\n";
+                    EXIT(EXIT_FAILURE);
                 }
-                size_t lineLen = Util::skipLine(header) - header;
-                std::string headerStr(header, lineLen);
-                lineLen = Util::skipLine(body) - body;
-                std::string bodyStr(body, lineLen);
-
                 if (entries_num == 1 && par.hhFormat) {
-                    std::string consensusHeader(headerStr);
-                    resultStr.push_back('#');
-                    resultStr.append(headerStr);
-                    resultStr.push_back('>');
-                    resultStr.append(Util::removeAfterFirstSpace(consensusHeader));
-                    resultStr.append("_consensus\n");
-                    resultStr.append(bodyStr);
-                    resultStr.push_back('>');
-                    resultStr.append(headerStr);
-                    resultStr.append(bodyStr);
+                    char *header = headerDb.getData(headerId, thread_idx);
+                    size_t headerLen = headerDb.getEntryLen(headerId) - 1;
+                    size_t accessionLen = Util::skipNoneWhitespace(header);
+                    char *sequence = seqDb.getData(headerId, thread_idx);
+                    size_t sequenceLen = seqDb.getEntryLen(headerId) - 1;
+                    result.append(1, '#');
+                    result.append(header, headerLen);
+                    result.append(1, '>');
+                    result.append(header, accessionLen);
+                    result.append("_consensus\n");
+                    result.append(sequence, seqDb.getEntryLen(headerId) - 1);
+                    result.append(1, '>');
+                    result.append(header, headerLen);
+                    result.append(sequence, sequenceLen);
                 } else {
-                    resultStr.push_back('>');
-                    resultStr.append(headerStr);
-                    resultStr.append(bodyStr);
+                    result.append(1, '>');
+                    result.append(headerDb.getData(headerId, thread_idx), headerDb.getEntryLen(headerId) - 1);
+                    result.append(seqDb.getData(headerId, thread_idx), seqDb.getEntryLen(headerId) - 1);
                 }
             }
-
-            unsigned int key = clusters.getDbKey(i);
-            msaOut.writeData(resultStr.c_str(), resultStr.length(), key, thread_idx);
+            writer.writeData(result.c_str(), result.length(), key, thread_idx);
+            result.clear();
         }
-    };
+    }
 
-    msaOut.close();
-    headers.close();
-    bodies.close();
-    clusters.close();
+    writer.close();
+    resultDb.close();
+    seqDb.close();
+    headerDb.close();
 
     return EXIT_SUCCESS;
 }

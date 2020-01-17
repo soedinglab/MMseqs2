@@ -693,6 +693,7 @@ Parameters::Parameters():
     createseqfiledb.push_back(&PARAM_MIN_SEQUENCES);
     createseqfiledb.push_back(&PARAM_MAX_SEQUENCES);
     createseqfiledb.push_back(&PARAM_HH_FORMAT);
+    createseqfiledb.push_back(&PARAM_PRELOAD_MODE);
     createseqfiledb.push_back(&PARAM_THREADS);
     createseqfiledb.push_back(&PARAM_COMPRESSED);
     createseqfiledb.push_back(&PARAM_V);
