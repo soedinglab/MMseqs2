@@ -14,7 +14,7 @@
 
 int createdb(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, Parameters::PARSE_VARIADIC, 0);
+    par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
 
     std::vector<std::string> filenames(par.filenames);
     std::string dataFile = filenames.back();
