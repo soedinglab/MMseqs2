@@ -135,7 +135,7 @@ int doRescorediagonal(Parameters &par,
             char *queryRevSeq = NULL;
             int queryRevSeqLen = par.maxSeqLen + 1;
             if (reversePrefilterResult == true) {
-                queryRevSeq = new char[queryRevSeqLen];
+                queryRevSeq = static_cast<char*>(malloc(queryRevSeqLen));
             }
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
@@ -162,8 +162,7 @@ int doRescorediagonal(Parameters &par,
                     }
 
                     if(queryLen > queryRevSeqLen){
-                        delete [] queryRevSeq;
-                        queryRevSeq = new char[queryLen];
+                        queryRevSeq = static_cast<char*>(realloc(queryRevSeq, queryLen));
                         queryRevSeqLen = queryLen;
                     }
                     if (reversePrefilterResult == true) {
@@ -351,7 +350,7 @@ int doRescorediagonal(Parameters &par,
                 alnResults.clear();
             }
             if (reversePrefilterResult == true) {
-                delete [] queryRevSeq;
+                free(queryRevSeq);
             }
         }
         resultReader.remapData();

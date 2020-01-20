@@ -103,7 +103,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
         unsigned short * scoreDist= new unsigned short[65536];
-        unsigned short * hierarchicalScoreDist= new unsigned short[128];
+        unsigned int * hierarchicalScoreDist= new unsigned int[128];
 
         const int adjustedKmerSize = (par.adjustKmerLength) ? std::min( par.kmerSize+5, 23) :   par.kmerSize;
         Sequence seq(par.maxSeqLen, querySeqType, subMat, adjustedKmerSize, par.spacedKmer, false);
@@ -116,7 +116,8 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
         const unsigned int BUFFER_SIZE = 1024;
         size_t bufferPos = 0;
         KmerPosition<T> * threadKmerBuffer = new KmerPosition<T>[BUFFER_SIZE];
-        SequencePosition * kmers = new SequencePosition[(par.pickNbest * (par.maxSeqLen + 1)) + 1];
+        SequencePosition * kmers = (SequencePosition *) malloc((par.pickNbest * (par.maxSeqLen + 1) + 1) * sizeof(SequencePosition));
+        size_t kmersArraySize = par.maxSeqLen;
         const size_t flushSize = 100000000;
         size_t iterations = static_cast<size_t>(ceil(static_cast<double>(seqDbr.getSize()) / static_cast<double>(flushSize)));
         for (size_t i = 0; i < iterations; i++) {
@@ -127,7 +128,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
                 memset(scoreDist, 0, sizeof(unsigned short) * 65536);
-                memset(hierarchicalScoreDist, 0, sizeof(unsigned short) * 128);
+                memset(hierarchicalScoreDist, 0, sizeof(unsigned int) * 128);
 
                 seq.mapSequence(id, seqDbr.getDbKey(id), seqDbr.getData(id, thread_idx), seqDbr.getSeqLen(id));
 
@@ -140,7 +141,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
 
                 maskSequence(par.maskMode, par.maskLowerCaseMode, seq, subMat->aa2num[static_cast<int>('X')], probMatrix);
 
-                int seqKmerCount = 0;
+                size_t seqKmerCount = 0;
                 unsigned int seqId = seq.getDbKey();
                 const unsigned char xIndex = subMat->aa2num[static_cast<int>('X')];
                 while (seq.hasNextKmer()) {
@@ -211,9 +212,13 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
 
                         seqKmerCount++;
                     }
+                    if(seqKmerCount >= kmersArraySize){
+                        kmersArraySize = seq.getMaxLen();
+                        kmers = (SequencePosition *) realloc(kmers, (par.pickNbest * (kmersArraySize + 1) + 1) * sizeof(SequencePosition));
+                    }
 
                 }
-                size_t kmerConsidered = std::min(static_cast<int>(par.kmersPerSequence - 1 + (par.kmersPerSequenceScale * seq.L)), seqKmerCount);
+                size_t kmerConsidered = std::min(static_cast<size_t >(par.kmersPerSequence - 1 + (par.kmersPerSequenceScale * seq.L)), seqKmerCount);
 
                 unsigned int threshold = 0;
                 size_t kmerInBins = 0;
@@ -264,7 +269,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                     }
                 }
                 size_t selectedKmer = 0;
-                for (int kmerIdx = 0; kmerIdx < seqKmerCount && selectedKmer < kmerConsidered; kmerIdx++) {
+                for (size_t kmerIdx = 0; kmerIdx < seqKmerCount && selectedKmer < kmerConsidered; kmerIdx++) {
                     size_t kmer = (kmers + kmerIdx)->kmer;
                     if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
                         kmer = BIT_SET(kmer, 63);
@@ -343,7 +348,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                 memcpy(kmerArray+writeOffset, threadKmerBuffer, sizeof(KmerPosition<T>) * bufferPos);
             }
         }
-        delete[] kmers;
+        free(kmers);
         delete[] threadKmerBuffer;
         delete[] hierarchicalScoreDist;
         delete[] scoreDist;

@@ -15,7 +15,7 @@
 Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC, const std::string& spacedKmerPattern)
  : spacedKmerPattern(spacedKmerPattern) {
     this->maxLen = maxLen;
-    this->numSequence = new unsigned char[maxLen + 1];
+    this->numSequence = static_cast<unsigned char*>(malloc(maxLen + 1));
     this->numConsensusSequence = new unsigned char[maxLen + 1];
     this->aaBiasCorrection = aaBiasCorrection;
     this->subMat = (BaseMatrix*)subMat;
@@ -84,7 +84,7 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
 
 Sequence::~Sequence() {
     delete[] spacedPattern;
-    delete[] numSequence;
+    free(numSequence);
     delete[] numConsensusSequence;
     if (kmerWindow) {
         free(kmerWindow);
@@ -482,15 +482,14 @@ void Sequence::nextProfileKmer() {
 void Sequence::mapSequence(const char * sequence, unsigned int dataLen){
     size_t l = 0;
     char curr = sequence[l];
+    if(dataLen >= maxLen){
+        numSequence = static_cast<unsigned char*>(realloc(numSequence, dataLen));
+        maxLen = dataLen;
+    }
     while (curr != '\0' && curr != '\n' && l < dataLen &&  l < maxLen){
-        int intaa = subMat->aa2num[static_cast<int>(curr)];
-        this->numSequence[l] = static_cast<unsigned char>(intaa);
+        this->numSequence[l] = subMat->aa2num[static_cast<int>(curr)];
         l++;
         curr  = sequence[l];
-    }
-
-    if(l > maxLen && curr != '\0' && curr != '\n' ){
-        Debug(Debug::INFO) << "Entry " << dbKey << " is longer than max seq. len " << maxLen << "\n";
     }
     this->L = l;
 }

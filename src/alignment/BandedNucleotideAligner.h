@@ -29,8 +29,10 @@ public:
 private:
     SubstitutionMatrix::FastMatrix fastMatrix;
     uint8_t * targetSeqRev;
+    int targetSeqRevDataLen;
     uint8_t * querySeq;
     uint8_t * querySeqRev;
+    int querySeqRevDataLen;
     uint8_t * queryRevCompSeq;
     char * queryRevCompCharSeq;
     uint8_t * queryRevCompSeqRev;
