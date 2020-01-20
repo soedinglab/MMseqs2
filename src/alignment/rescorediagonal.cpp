@@ -162,8 +162,8 @@ int doRescorediagonal(Parameters &par,
                     }
 
                     if(queryLen > queryRevSeqLen){
-                        queryRevSeq = static_cast<char*>(realloc(queryRevSeq, queryLen));
-                        queryRevSeqLen = queryLen;
+                        queryRevSeq = static_cast<char*>(realloc(queryRevSeq, queryLen+1));
+                        queryRevSeqLen = queryLen+1;
                     }
                     if (reversePrefilterResult == true) {
                         NucleotideMatrix *nuclMatrix = (NucleotideMatrix *) subMat;

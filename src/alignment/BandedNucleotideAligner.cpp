@@ -51,10 +51,10 @@ void BandedNucleotideAligner::initQuery(Sequence * query){
     querySeqObj = query;
     querySeq = query->numSequence;
     if(query->L >= querySeqRevDataLen){
-        querySeqRev = static_cast<uint8_t *>(realloc(querySeqRev, query->L));
-        queryRevCompSeq = static_cast<uint8_t *>(realloc(queryRevCompSeq, query->L));
-        queryRevCompCharSeq = static_cast<char *>(realloc(queryRevCompCharSeq, query->L));
-        querySeqRevDataLen=query->L;
+        querySeqRev = static_cast<uint8_t *>(realloc(querySeqRev, query->L+1));
+        queryRevCompSeq = static_cast<uint8_t *>(realloc(queryRevCompSeq, query->L+1));
+        queryRevCompCharSeq = static_cast<char *>(realloc(queryRevCompCharSeq, query->L+1));
+        querySeqRevDataLen=query->L+1;
     }
     SmithWaterman::seq_reverse((int8_t *)querySeqRev, (int8_t *)querySeq, query->L);
     // needed for rev. complement
@@ -85,8 +85,8 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
 
     const unsigned char * targetSeq = targetSeqObj->numSequence;
     if(targetSeqObj->L >= targetSeqRevDataLen){
-        targetSeqRev = static_cast<uint8_t *>(realloc(targetSeqRev, targetSeqObj->L));
-        targetSeqRevDataLen=targetSeqObj->L;
+        targetSeqRev = static_cast<uint8_t *>(realloc(targetSeqRev, targetSeqObj->L+1));
+        targetSeqRevDataLen=targetSeqObj->L+1;
     }
     SmithWaterman::seq_reverse((int8_t *)targetSeqRev, (int8_t *)targetSeq, targetSeqObj->L);
 
