@@ -483,7 +483,7 @@ void Sequence::mapSequence(const char * sequence, unsigned int dataLen){
     size_t l = 0;
     char curr = sequence[l];
     if(dataLen >= maxLen){
-        numSequence = static_cast<unsigned char*>(realloc(numSequence, dataLen));
+        numSequence = static_cast<unsigned char*>(realloc(numSequence, dataLen+1));
         maxLen = dataLen;
     }
     while (curr != '\0' && curr != '\n' && l < dataLen &&  l < maxLen){
