@@ -108,10 +108,6 @@ int filterdb(int argc, const char **argv, const Command &command) {
     // JOIN_DB
     DBReader<unsigned int>* helper = NULL;
 
-    // EXPRESSION_FILTERING
-    ExpressionParser* parser = NULL;
-    std::vector<int> bindableParserColumns;
-
     // REGEX_FILTERING
     regex_t regex;
 
@@ -185,12 +181,6 @@ int filterdb(int argc, const char **argv, const Command &command) {
         Debug(Debug::INFO) << "Filtering by numerical comparison\n";
     } else if (par.filterExpression.empty() == false) {
         mode = EXPRESSION_FILTERING;
-        parser = new ExpressionParser(par.filterExpression.c_str());
-        if (parser->isOk() == false) {
-            Debug(Debug::INFO) << "Error in expression " << par.filterExpression << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        bindableParserColumns = parser->findBindableIndices();
     } else {
         mode = REGEX_FILTERING;
         Debug(Debug::INFO) << "Filtering using regular expression\n";
@@ -224,6 +214,19 @@ int filterdb(int argc, const char **argv, const Command &command) {
         std::vector<std::pair<double, std::string>> toSort;
 
         char dbKeyBuffer[255 + 1];
+
+        // EXPRESSION_FILTERING
+        ExpressionParser* parser = NULL;
+        std::vector<int> bindableParserColumns;
+
+        if (mode == EXPRESSION_FILTERING) {
+            parser = new ExpressionParser(par.filterExpression.c_str());
+            if (parser->isOk() == false) {
+                Debug(Debug::INFO) << "Error in expression " << par.filterExpression << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            bindableParserColumns = parser->findBindableIndices();
+        }
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = 0; id < reader.getSize(); ++id) {
@@ -470,6 +473,11 @@ int filterdb(int argc, const char **argv, const Command &command) {
             writer.writeData(buffer.c_str(), buffer.length(), queryKey, thread_idx);
             buffer.clear();
         }
+
+        if (parser != NULL) {
+            delete parser;
+        }
+
         delete[] lineBuffer;
         delete[] columnValue;
         delete[] columnPointer;
@@ -481,10 +489,6 @@ int filterdb(int argc, const char **argv, const Command &command) {
     if (helper != NULL) {
         helper->close();
         delete helper;
-    }
-
-    if (parser != NULL) {
-        delete parser;
     }
 
     if (mode == REGEX_FILTERING) {

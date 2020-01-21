@@ -1,4 +1,5 @@
 #include "ExpressionParser.h"
+#include <set>
 #include <cstddef>
 
 ExpressionParser::ExpressionParser(const char* expression) {
@@ -29,6 +30,8 @@ std::vector<int> ExpressionParser::findBindableIndices() {
     for (size_t i = 0; i < pointers.size(); ++i) {
         indices.emplace_back(pointers[i] - base);
     }
+    std::set<int> s(indices.begin(), indices.end());
+    indices.assign(s.begin(), s.end());
     return indices;
 }
 
