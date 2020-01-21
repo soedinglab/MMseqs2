@@ -18,13 +18,13 @@
 BandedNucleotideAligner::BandedNucleotideAligner(BaseMatrix * subMat, size_t maxSequenceLength, int gapo, int gape) :
 fastMatrix(SubstitutionMatrix::createAsciiSubMat(*subMat))
 {
-    targetSeqRevDataLen = maxSequenceLength + 1;
-    targetSeqRev = static_cast<uint8_t*>(malloc(targetSeqRevDataLen));
-    querySeqRevDataLen = maxSequenceLength + 1;
-    querySeqRev = static_cast<uint8_t*>(malloc(querySeqRevDataLen));
-    queryRevCompSeq =  static_cast<uint8_t*>(malloc(querySeqRevDataLen));
-    queryRevCompSeqRev =  static_cast<uint8_t*>(malloc(querySeqRevDataLen));
-    queryRevCompCharSeq  =  static_cast<char*>(malloc(querySeqRevDataLen));
+    targetSeqRevDataLen = maxSequenceLength;
+    targetSeqRev = static_cast<uint8_t*>(malloc(targetSeqRevDataLen + 1));
+    querySeqRevDataLen = maxSequenceLength;
+    querySeqRev = static_cast<uint8_t*>(malloc(querySeqRevDataLen + 1));
+    queryRevCompSeq =  static_cast<uint8_t*>(malloc(querySeqRevDataLen + 1));
+    queryRevCompSeqRev =  static_cast<uint8_t*>(malloc(querySeqRevDataLen  + 1));
+    queryRevCompCharSeq  =  static_cast<char*>(malloc(querySeqRevDataLen + 1));
     mat = new int8_t[subMat->alphabetSize*subMat->alphabetSize];
     this->subMat = (NucleotideMatrix*) subMat;
     for (int i = 0; i < subMat->alphabetSize; i++) {
@@ -54,6 +54,7 @@ void BandedNucleotideAligner::initQuery(Sequence * query){
         querySeqRev = static_cast<uint8_t *>(realloc(querySeqRev, query->L+1));
         queryRevCompSeq = static_cast<uint8_t *>(realloc(queryRevCompSeq, query->L+1));
         queryRevCompCharSeq = static_cast<char *>(realloc(queryRevCompCharSeq, query->L+1));
+        queryRevCompSeqRev = static_cast<uint8_t *>(realloc(queryRevCompSeqRev, query->L+1));
         querySeqRevDataLen=query->L;
     }
     SmithWaterman::seq_reverse((int8_t *)querySeqRev, (int8_t *)querySeq, query->L);
