@@ -7,6 +7,7 @@
 class ExpressionParser {
 public:
     ExpressionParser(const char* expression);
+    ExpressionParser(const char* expression, const std::vector<te_variable>& lookup);
 
     ~ExpressionParser() {
         if (expr) {
