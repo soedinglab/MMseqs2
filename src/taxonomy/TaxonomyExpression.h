@@ -55,7 +55,12 @@ public:
         tc.t = &taxonomy;
         te_variable var;
         var.name = "a";
+        // GCC 4.8 does not like casting functions to void*
+        // GCC > 4.8 are fine with this
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
         var.address = (const void *) &acst;
+#pragma GCC diagnostic pop
         var.type = TE_CLOSURE1;
         var.context = (void *) &tc;
         vars.push_back(var);
