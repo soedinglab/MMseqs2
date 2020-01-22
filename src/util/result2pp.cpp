@@ -7,7 +7,6 @@
 #include "PSSMCalculator.h"
 #include "DBWriter.h"
 #include "DBReader.h"
-#include "DBConcat.h"
 #include "HeaderSummarizer.h"
 #include "CompressedA3M.h"
 #include "Debug.h"
