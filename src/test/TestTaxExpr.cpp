@@ -94,6 +94,27 @@ int main (int, const char**) {
     } else{
         assert(false);
     }
+
+    TaxonomyExpression expression7("(2&&!1117)",*taxonomy);
+
+    if(expression7.isAncestor(57723)){
+        std::cout << "Found Acidobacteria" << std::endl;
+    } else{
+        assert(false);
+    }
+
+    if(expression7.isAncestor(1117) == false){
+        std::cout << "Cyanobacteria not in" << std::endl;
+    } else{
+        assert(false);
+    }
+
+    if(expression7.isAncestor(9606) == false){
+        std::cout << "Human not in" << std::endl;
+    } else{
+        assert(false);
+    }
+
     delete taxonomy;
 }
 

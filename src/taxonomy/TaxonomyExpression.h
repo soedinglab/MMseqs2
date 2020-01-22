@@ -7,6 +7,7 @@
 #include "NcbiTaxonomy.h"
 #include "Debug.h"
 #include <vector>
+#include <ctype.h>
 #include "ExpressionParser.h"
 
 // class need one instance per thread
@@ -34,9 +35,9 @@ public:
         bool inNumber = false;
         // make brackets around numbers for tinyexpr
         for(size_t i = 0; i< expression.size(); i++){
-            if(isnumber(expression[i]) && inNumber == true){
+            if(isdigit(expression[i]) && inNumber == true){
                 bracketExpression.push_back(expression[i]);
-            }else if(isnumber(expression[i]) && inNumber == false){
+            }else if(isdigit(expression[i]) && inNumber == false){
                 bracketExpression.append("a(");
                 bracketExpression.push_back(expression[i]);
                 inNumber=true;
