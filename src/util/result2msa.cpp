@@ -337,7 +337,6 @@ int result2msa(Parameters &par) {
         // Use only 1 thread for concat to ensure the same order as the later header concat
         referenceDBr = new DBConcat(par.db1, par.db1Index, par.db2, par.db2Index,
                                     referenceSeqName, referenceSeqIndexName, 1);
-        referenceDBr->concat();
         // When exporting in ca3m,
         // we need to have an access in SORT_BY_LINE
         // mode in order to keep track of the original
@@ -353,7 +352,6 @@ int result2msa(Parameters &par) {
         // Use only 1 thread for concat to ensure the same order as the former sequence concat
         DBConcat referenceHeadersDBr(par.hdr1, par.hdr1Index, par.hdr2, par.hdr2Index,
                                      referenceHeadersName, referenceHeadersIndexName, 1);
-        referenceHeadersDBr.concat();
 
         outDb.append("_ca3m.ffdata");
         outIndex = par.db4;
@@ -393,8 +391,7 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
 
         // Use only 1 thread for concat to ensure the same order as the later header concat
         referenceDBr = new DBConcat(par.db1, par.db1Index, par.db2, par.db2Index,
-                                    referenceSeqName, referenceSeqIndexName, 1);
-        referenceDBr->concat(MMseqsMPI::isMaster());
+                                    referenceSeqName, referenceSeqIndexName, 1, MMseqsMPI::isMaster());
 
 #ifdef HAVE_MPI
         MPI_Barrier(MPI_COMM_WORLD);
@@ -415,7 +412,6 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
             // Use only 1 thread for concat to ensure the same order as the former sequence concat
             DBConcat referenceHeadersDBr(par.hdr1, par.hdr1Index, par.hdr2, par.hdr2Index,
                                          referenceHeadersName, referenceHeadersIndexName, 1);
-            referenceHeadersDBr.concat();
         }
 
         outDb.append("_ca3m.ffdata");

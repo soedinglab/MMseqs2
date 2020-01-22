@@ -9,35 +9,24 @@ public:
     DBConcat(const std::string &dataFileNameA, const std::string &indexFileNameA,
              const std::string &dataFileNameB, const std::string &indexFileNameB,
              const std::string &dataFileNameC, const std::string &indexFileNameC,
-             unsigned int threads, int dataMode = USE_DATA | USE_INDEX,
+             unsigned int threads, int dataMode = USE_DATA | USE_INDEX | USE_LOOKUP, bool write = true,
              bool preserveKeysA = false, bool preserveKeysB = false, bool takeLargerEntry = false);
 
     ~DBConcat();
-
-    void concat(bool write = true);
 
     unsigned int dbAKeyMap(unsigned int);
     unsigned int dbBKeyMap(unsigned int);
 
 private:
-    std::string dataFileNameA;
-    std::string indexFileNameA;
-    std::string dataFileNameB;
-    std::string indexFileNameB;
-    std::string dataFileNameC;
-    std::string indexFileNameC;
-
     size_t indexSizeA;
     size_t indexSizeB;
 
     std::pair<unsigned int, unsigned int> *keysA, *keysB;
 
-    unsigned int threads;
-
     bool sameDatabase;
 
     bool preserveKeysA; // do not change the keys of DBA
-    bool preserveKeysB; // do not change the keys of DBA
+    bool preserveKeysB; // do not change the keys of DBB
     bool takeLargerEntry; // do not write empty entries
 
     struct compareFirstEntry {
