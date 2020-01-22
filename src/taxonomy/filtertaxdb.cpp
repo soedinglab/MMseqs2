@@ -24,7 +24,6 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
 
     // a few NCBI taxa are blacklisted by default, they contain unclassified sequences (e.g. metagenomes) or other sequences (e.g. plasmids)
     // if we do not remove those, a lot of sequences would be classified as Root, even though they have a sensible LCA
-    TaxonomyExpression taxonomyExpression(par.taxonList);
 
     Debug::Progress progress(reader.getSize());
 
@@ -35,8 +34,8 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-
         const char *entry[255];
+        TaxonomyExpression taxonomyExpression(par.taxonList, *t);
 
         #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < reader.getSize(); ++i) {
@@ -53,7 +52,6 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
             std::vector<int> taxa;
             while (*data != '\0') {
                 unsigned int taxon;
-                bool isAncestor;
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
                 if (columns == 0) {
                     Debug(Debug::WARNING) << "Empty entry: " << i << "!";
@@ -63,8 +61,7 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
                 taxon = Util::fast_atoi<unsigned int>(entry[0]);
                 writer.writeStart(thread_idx);
 
-                isAncestor = (taxonomyExpression.isAncestorOf(*t, taxon) != -1);
-                if (isAncestor) {
+                if (taxonomyExpression.isAncestor(taxon)) {
                     char * nextData = Util::skipLine(data);
                     size_t dataSize = nextData - data;
                     writer.writeAdd(data, dataSize, thread_idx);

@@ -1,5 +1,7 @@
 #include <iostream>
 #include <cassert>
+#include <tinyexpr.h>
+#include <ExpressionParser.h>
 #include "Util.h"
 #include "TaxonomyExpression.h"
 
@@ -8,113 +10,90 @@ const char* binary_name = "test_taxexpr";
 
 
 int main (int, const char**) {
-//    TaxonomyExpression expression("(2,2157),4751,33208,33090,(2759,!4751,!33208,!33090)");
-    TaxonomyExpression expression1("2");
     std::string path = "/Users/mad/Documents/databases//swissprot/sprot_new";
-    NcbiTaxonomy * taxonomy = NcbiTaxonomy::openTaxonomy(path);
-
-    if(expression1.isAncestorOf(*taxonomy, 1117) != -1){
-        std::cout << "Found bacteria" << std::endl;
+    NcbiTaxonomy *taxonomy = NcbiTaxonomy::openTaxonomy(path);
+    TaxonomyExpression parser("!2", *taxonomy);
+    if(parser.isAncestor(9606) == true){
+        std::cout << "Found human" << std::endl;
     } else{
         assert(false);
     }
 
-    if(expression1.isAncestorOf(*taxonomy, 33630) == -1){
+    if(parser.isAncestor(1117) == false){
         std::cout << "Alveolata not ancestor" << std::endl;
     } else{
         assert(false);
     }
 
-    TaxonomyExpression expression2("(2759&!9606)");
+    TaxonomyExpression expression2("(2759&&!9606)",*taxonomy);
 
-    if(expression2.isAncestorOf(*taxonomy, 33630) != -1){
+    if(expression2.isAncestor(33630)){
         std::cout << "Found Alveolata" << std::endl;
     } else{
         assert(false);
     }
 
-    if(expression2.isAncestorOf(*taxonomy, 9606) == -1){
+    if(expression2.isAncestor( 9606) == false){
         std::cout << "Homo sapiens not ancestor" << std::endl;
     } else{
         assert(false);
     }
 
-    TaxonomyExpression expression3("(2759&!61964),10239");
+    TaxonomyExpression expression3("2759||10239",*taxonomy);
 
-    if(expression3.isAncestorOf(*taxonomy, 114777) == 1){
+    if(expression3.isAncestor(114777)){
         std::cout << "Found Natrialba phage PhiCh1" << std::endl;
     } else{
         assert(false);
     }
 
-    if(expression3.isAncestorOf(*taxonomy, 2759) == 0){
+    if(expression3.isAncestor(2759)){
         std::cout << "Found Eukaryota" << std::endl;
     } else{
         assert(false);
     }
 
-    if(expression3.isAncestorOf(*taxonomy, 61964) == -1){
-        std::cout << "Enviromental sample in not in" << std::endl;
-    } else{
-        assert(false);
-    }
-
-    TaxonomyExpression expression4("2759,10239");
-
-    if(expression4.isAncestorOf(*taxonomy, 114777) == 1){
-        std::cout << "Found Natrialba phage PhiCh1" << std::endl;
-    } else{
-        assert(false);
-    }
-
-    if(expression4.isAncestorOf(*taxonomy, 2759) == 0){
-        std::cout << "Found Eukaryota" << std::endl;
-    } else{
-        assert(false);
-    }
-
-    if(expression4.isAncestorOf(*taxonomy, 61964) == 0){
+    if(expression3.isAncestor(61964)){
         std::cout << "Found Enviromental sample" << std::endl;
     } else{
         assert(false);
     }
 
 
-    TaxonomyExpression expression5("!2759");
+    TaxonomyExpression expression5("!2759",*taxonomy);
 
-    if(expression5.isAncestorOf(*taxonomy, 2) == 0){
+    if(expression5.isAncestor(2)){
         std::cout << "Found Bacteria" << std::endl;
     } else{
         assert(false);
     }
 
-    if(expression5.isAncestorOf(*taxonomy, 2759) == -1){
+    if(expression5.isAncestor(2759) == false){
         std::cout << "Eukaryota not in" << std::endl;
     } else{
         assert(false);
     }
 
 
-    TaxonomyExpression expression6("(2|2759)");
+    TaxonomyExpression expression6("(2||2759)",*taxonomy);
 
-    if(expression6.isAncestorOf(*taxonomy, 2) == 0){
+    if(expression6.isAncestor(2)){
         std::cout << "Found Bacteria" << std::endl;
     } else{
         assert(false);
     }
 
-    if(expression6.isAncestorOf(*taxonomy, 2759) == 0){
+    if(expression6.isAncestor(2759)){
         std::cout << "Found Eukaryota" << std::endl;
     } else{
         assert(false);
     }
 
-    if(expression6.isAncestorOf(*taxonomy, 10239) == -1){
+    if(expression6.isAncestor( 10239) == false){
         std::cout << "Virus sample not in" << std::endl;
     } else{
         assert(false);
     }
-
     delete taxonomy;
 }
 

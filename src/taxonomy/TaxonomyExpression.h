@@ -7,133 +7,68 @@
 #include "NcbiTaxonomy.h"
 #include "Debug.h"
 #include <vector>
+#include "ExpressionParser.h"
 
+// class need one instance per thread
 class TaxonomyExpression{
-    struct TaxonomyTerm{
-        unsigned int taxId;
-        bool shouldBeAncestor;
-        bool orTerm;
-        TaxonomyTerm( unsigned int taxId, bool negaitve, bool orTerm)
-                :taxId(taxId), shouldBeAncestor(negaitve), orTerm(orTerm){}
+
+private:
+    struct TaxContext {
+        NcbiTaxonomy* t;
+        TaxID taxId;
     };
-    std::vector<std::vector<TaxonomyTerm>> taxTerms;
+    TaxContext tc;
+    ExpressionParser * parser;
+    std::vector<te_variable> vars;
 
 public:
-    TaxonomyExpression(std::string expression){
-        bool inBracket = false;
-        bool shouldBeAncestor = true;
-        bool isOr = false;
-        bool isAnd = false;
-        unsigned int taxId;
-        std::vector<TaxonomyTerm> term;
-        for(size_t pos = 0; pos < expression.size(); pos++){
-            switch(expression[pos]) {
-                case '(':
-                    if(inBracket == true){
-                        Debug(Debug::ERROR) << "Error in expression " << expression << ". It is not allowed to open another bracket within a bracket terms\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    inBracket = true;
-                    break;
-                case ')':
-                    if(inBracket == false){
-                        Debug(Debug::ERROR) << "Error in expression " << expression << " closes a bracket without opening it\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    inBracket = false;
-                    break;
-                case '!':
-                    shouldBeAncestor = false;
-                    break;
-                case '&':
-                    if(inBracket == false){
-                        Debug(Debug::ERROR) << "It is not supported to use & without a bracket\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    if(isOr == true){
-                        Debug(Debug::ERROR) << "It is not supported to mix & and | \n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    shouldBeAncestor = true;
-                    isAnd = true;
-                    break;
-                case '|':
-                    if(inBracket == false){
-                        Debug(Debug::ERROR) << "It is not supported to use | without a bracket\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    if(isAnd == true){
-                        Debug(Debug::ERROR) << "It is not supported to mix & and | \n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    isOr = true;
-                    break;
-                case ',':
-                    shouldBeAncestor = true;
-                    isOr = false;
-                    isAnd = false;
-                    if(inBracket == false){
-                        taxTerms.push_back(term);
-                        term.clear();
-                    }else{
-                        Debug(Debug::ERROR) << "Error in expression " << expression << ". It is not allowed to use , within bracket terms only use &\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    break;
-                case '0':
-                case '1':
-                case '2':
-                case '3':
-                case '4':
-                case '5':
-                case '6':
-                case '7':
-                case '8':
-                case '9':
-                    taxId = Util::fast_atoi<unsigned int>(&expression[pos]);
-                    while(pos < expression.size() && expression[pos] >= '0' && expression[pos] <= '9'){
-                        pos++;
-                    }
-                    pos--;
-                    term.emplace_back(taxId, shouldBeAncestor, isOr);
-                    shouldBeAncestor = true;
-                    break;
-                default:
-                    Debug(Debug::ERROR) << "Wrong character in expression: " << expression[pos] << "\n";
-                    EXIT(EXIT_FAILURE);
-                    break;
+
+    static double acst(void* context, double a) {
+        TaxContext* o = (TaxContext*)context;
+        bool retVal = o->t->IsAncestor((TaxID)a, o->taxId);
+        return (retVal) ? 1.0 : 0.0;
+    }
+
+    TaxonomyExpression(std::string expression, NcbiTaxonomy &taxonomy){
+        std::string bracketExpression;
+        bool inNumber = false;
+        // make brackets around numbers for tinyexpr
+        for(size_t i = 0; i< expression.size(); i++){
+            if(isnumber(expression[i]) && inNumber == true){
+                bracketExpression.push_back(expression[i]);
+            }else if(isnumber(expression[i]) && inNumber == false){
+                bracketExpression.append("a(");
+                bracketExpression.push_back(expression[i]);
+                inNumber=true;
+            } else if(inNumber == true) {
+                bracketExpression.append(")");
+                bracketExpression.push_back(expression[i]);
+                inNumber=false;
+            }else{
+                bracketExpression.push_back(expression[i]);
             }
         }
-        taxTerms.push_back(term);
-    }
-
-    bool isAncestor(NcbiTaxonomy &taxonomy, std::vector<TaxonomyTerm> &termToCheck, unsigned int taxId){
-        size_t ancestorCnt = 0;
-        for (size_t j = 0; j < termToCheck.size(); ++j) {
-                ancestorCnt += (taxonomy.IsAncestor(termToCheck[j].taxId, taxId) == termToCheck[j].shouldBeAncestor);
+        if(inNumber == true){
+            bracketExpression.append(")");
         }
-        if(termToCheck.back().orTerm){
-            return (ancestorCnt >= 1);
-        }else{
-            return (ancestorCnt == termToCheck.size());
-        }
-    }
-    // this function returns the index of the term that fulfils the criteria
-    // -1 means no term fulfils the criteria
-    int isAncestorOf(NcbiTaxonomy &taxonomy, unsigned int taxId){
-        int index = -1;
-        bool ancestor = false;
-        for (size_t j = 0; j < taxTerms.size() && !ancestor; ++j) {
-            ancestor |= isAncestor(taxonomy, taxTerms[j], taxId);
-            index = (ancestor) ? j : index;
-        }
-        return index;
+        tc.t = &taxonomy;
+        te_variable var;
+        var.name = "a";
+        var.address = (const void *) &acst;
+        var.type = TE_CLOSURE1;
+        var.context = (void *) &tc;
+        vars.push_back(var);
+        parser=new ExpressionParser(bracketExpression.c_str(), vars);
     }
 
-
-    std::vector<std::vector<TaxonomyTerm>> getTaxTerms(){
-        return taxTerms;
+    ~TaxonomyExpression(){
+        delete parser;
     }
 
+    bool isAncestor(TaxID taxId){
+        tc.taxId = taxId;
+        const double result = parser->evaluate();
+        return (result != 0);
+    }
 };
 #endif //MMSEQS_TAXONOMYEXPRESSION_H
