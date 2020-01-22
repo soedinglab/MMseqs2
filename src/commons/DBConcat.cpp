@@ -16,11 +16,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
                    const std::string &dataFileNameB, const std::string &indexFileNameB,
                    const std::string &dataFileNameC, const std::string &indexFileNameC,
                    unsigned int threads, int dataMode, bool write, bool preserveKeysA, bool preserveKeysB, bool takeLargerEntry)
-        : DBReader((dataFileNameA == dataFileNameB ? dataFileNameA : dataFileNameC).c_str(), (indexFileNameA == indexFileNameB ? indexFileNameA : indexFileNameC).c_str(), threads, dataMode),
-        preserveKeysA(preserveKeysA),
-        preserveKeysB(preserveKeysB),
-        takeLargerEntry(takeLargerEntry) {
-    
+        : DBReader((dataFileNameA == dataFileNameB ? dataFileNameA : dataFileNameC).c_str(), (indexFileNameA == indexFileNameB ? indexFileNameA : indexFileNameC).c_str(), threads, dataMode) {
     sameDatabase = dataFileNameA == dataFileNameB;
     if (sameDatabase) {
         return;

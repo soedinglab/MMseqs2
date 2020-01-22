@@ -25,10 +25,6 @@ private:
 
     bool sameDatabase;
 
-    bool preserveKeysA; // do not change the keys of DBA
-    bool preserveKeysB; // do not change the keys of DBB
-    bool takeLargerEntry; // do not write empty entries
-
     struct compareFirstEntry {
         bool operator()(const std::pair<unsigned int, unsigned int> &lhs,
                         const std::pair<unsigned int, unsigned int> &rhs) const {
