@@ -1,12 +1,7 @@
 #ifndef DBWRITER_H
 #define DBWRITER_H
-
-// Written by Martin Steinegger & Maria Hauser mhauser@genzentrum.lmu.de
-//
-// Manages ffindex DB write access.
-// For parallel write access, one ffindex DB per thread is generated.
-// After the parallel calculation is done, all ffindexes are merged into one.
-//
+// For parallel write access, one each thread creates its own DB
+// After the parallel calculation are done, all DBs are merged into single DB
 
 #include <string>
 #include <vector>
@@ -67,7 +62,7 @@ public:
     template <typename T>
     static void writeIndexEntryToFile(FILE *outFile, char *buff1, T &index);
 
-    static void createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& lookupFile, int sortMode = DBReader<unsigned int>::SORT_BY_ID_OFFSET);
+    static void createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& origData, const std::string& origIndex, int sortMode = DBReader<unsigned int>::SORT_BY_ID_OFFSET);
 
     bool isClosed(){
         return closed;

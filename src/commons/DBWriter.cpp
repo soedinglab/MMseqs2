@@ -666,11 +666,11 @@ void DBWriter::writeThreadBuffer(unsigned int idx, size_t dataSize) {
     }
 }
 
-void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& lookupFile, int sortMode) {
+void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& origData, const std::string& origIndex, int sortMode) {
     DBReader<unsigned int>* lookupReader = NULL;
     FILE *sLookup = NULL;
-    if (lookupFile.empty() == false) {
-        lookupReader = new DBReader<unsigned int>(lookupFile.c_str(), lookupFile.c_str(), 1, DBReader<unsigned int>::USE_LOOKUP);
+    if (origData.empty() == false && origIndex.empty() == false) {
+        lookupReader = new DBReader<unsigned int>(origData.c_str(), origIndex.c_str(), 1, DBReader<unsigned int>::USE_LOOKUP);
         lookupReader->open(DBReader<unsigned int>::NOSORT);
         sLookup = FileUtil::openAndDelete((dataFile + ".lookup").c_str(), "w");
     }
@@ -697,6 +697,7 @@ void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string
             size_t lookupId = lookupReader->getLookupIdByKey(idx->id);
             DBReader<unsigned int>::LookupEntry copy = lookup[lookupId];
             copy.id = i;
+            copy.entryName = SSTR(idx->id);
             len = lookupReader->lookupEntryToBuffer(buffer, copy);
             written = fwrite(buffer, sizeof(char), len, sLookup);
             if (written != (int) len) {

@@ -139,12 +139,12 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         {
 #pragma omp task
             {
-                DBWriter::createRenumberedDB(par.hdr2, par.hdr2Index, "");
+                DBWriter::createRenumberedDB(par.hdr2, par.hdr2Index, "", "");
             }
 
 #pragma omp task
             {
-                DBWriter::createRenumberedDB(par.db2, par.db2Index, par.createLookup ? par.db1 : "");
+                DBWriter::createRenumberedDB(par.db2, par.db2Index, par.createLookup ? par.db1 : "", par.createLookup ? par.db1Index : "");
             }
         }
     }

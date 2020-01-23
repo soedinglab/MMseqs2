@@ -209,8 +209,8 @@ int createdb(int argc, const char **argv, const Command& command) {
     }
 
     // fix ids
-    DBWriter::createRenumberedDB(dataFile, indexFile, "", DBReader<unsigned int>::LINEAR_ACCCESS);
-    DBWriter::createRenumberedDB(hdrDataFile, hdrIndexFile, "", DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBWriter::createRenumberedDB(dataFile, indexFile, "", "", DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBWriter::createRenumberedDB(hdrDataFile, hdrIndexFile, "", "", DBReader<unsigned int>::LINEAR_ACCCESS);
     if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
         if(filenames.size() == 1){
             FileUtil::symlinkAbs(filenames[0], dataFile);
