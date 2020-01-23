@@ -1656,9 +1656,9 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
                 }
                 int dbtype = FileUtil::parseDbType(filenames[fileIdx].c_str());
                 if (db.specialType & DbType::NEED_HEADER) {
-                    if (FileUtil::fileExists((filenames[fileIdx] + "_h").c_str()) == false && Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_INDEX_DB)==false) {
-                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " need header information.\n"
-                                            << "The " << filenames[fileIdx] << "_h is missing.\n";
+                    if (FileUtil::fileExists((filenames[fileIdx] + "_h.dbtype").c_str()) == false && Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_INDEX_DB)==false) {
+                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " needs header information.\n"
+                                            << filenames[fileIdx] << "_h is missing.\n";
                         EXIT(EXIT_FAILURE);
                     }
                 }
@@ -1667,8 +1667,8 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
                 }
                 if (db.specialType & DbType::NEED_LOOKUP) {
                     if (FileUtil::fileExists((filenames[fileIdx] + ".lookup").c_str()) == false) {
-                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " need a lookup file.\n"
-                                            << "The " << filenames[fileIdx] << ".lookup is missing.\n";
+                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " needs a lookup file.\n"
+                                            << filenames[fileIdx] << ".lookup is missing.\n";
                         EXIT(EXIT_FAILURE);
                     }
                 }
