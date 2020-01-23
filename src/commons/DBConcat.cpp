@@ -215,12 +215,12 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
             unsigned int newKeyA = dbAKeyMap(prevKeyA);
 
             char *tmpBuff = Itoa::u32toa_sse2(static_cast<uint32_t>(newKeyA), buffer);
-            line.append(buffer, tmpBuff - buffer);
+            line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\t');
             line.append(accA);
             line.append(1, '\t');
             tmpBuff = Itoa::u32toa_sse2(static_cast<uint64_t>(setIdA), buffer);
-            line.append(buffer, tmpBuff - buffer);
+            line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\n');
             
             int written = fwrite(line.c_str(), sizeof(char), line.size(), lookupFilePtr);
@@ -247,12 +247,12 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
             unsigned int newSetIdB = maxSetIdA + 1 + setIdB;
 
             char *tmpBuff = Itoa::u32toa_sse2(static_cast<uint32_t>(newKeyB), buffer);
-            line.append(buffer, tmpBuff - buffer);
+            line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\t');
             line.append(accB);
             line.append(1, '\t');
             tmpBuff = Itoa::u32toa_sse2(static_cast<uint64_t>(newSetIdB), buffer);
-            line.append(buffer, tmpBuff - buffer);
+            line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\n');
             
             int written = fwrite(line.c_str(), sizeof(char), line.size(), lookupFilePtr);
@@ -286,7 +286,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
             }
 
             char *tmpBuff = Itoa::u32toa_sse2(static_cast<uint64_t>(setIdA), buffer);
-            line.append(buffer, tmpBuff - buffer);
+            line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\t');
             line.append(fileNameA);
             line.append(1, '\n');
@@ -315,7 +315,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
             unsigned int newSetIdB = sourceMaxSetIdA + 1 + setIdB;
 
             char *tmpBuff = Itoa::u32toa_sse2(static_cast<uint64_t>(newSetIdB), buffer);
-            line.append(buffer, tmpBuff - buffer);
+            line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\t');
             line.append(fileNameB);
             line.append(1, '\n');
