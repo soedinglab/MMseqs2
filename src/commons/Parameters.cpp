@@ -212,7 +212,7 @@ Parameters::Parameters():
         PARAM_CHAIN_ALIGNMENT(PARAM_CHAIN_ALIGNMENT_ID,"--chain-alignments", "Chain overlapping alignments", "Chain overlapping alignments",typeid(int),(void *) &chainAlignment, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
         PARAM_MERGE_QUERY(PARAM_MERGE_QUERY_ID,"--merge-query", "Merge query", "combine ORFs/split sequences to a single entry",typeid(int),(void *) &mergeQuery, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
         // tsv2db
-        PARAM_OUTPUT_DBTYPE(PARAM_OUTPUT_DBTYPE_ID,"--output-dbtype", "Output database type", "Set database type for resulting database: Amino acid sequences 0, Nucl. seq. 1, Profiles 2, Alignment result 5, Clustering result 6, Prefiltering result 7, Taxonomy result 8, Indexed database 9, cA3M MSAs 10, FASTA or A3M MSAs 11, Generic database 12, Omic dbtype file 13, Bi-directional prefiltering result 14, Offsetted headers 15",typeid(int),(void *) &outputDbType, "^(0|[1-9]{1}[0-9]*)$"),
+        PARAM_OUTPUT_DBTYPE(PARAM_OUTPUT_DBTYPE_ID,"--output-dbtype", "Output database type", "Set database type for resulting database: Amino acid sequences 0, Nucl. seq. 1, Profiles 2, Alignment result 5, Clustering result 6, Prefiltering result 7, Taxonomy result 8, Indexed database 9, cA3M MSAs 10, FASTA or A3M MSAs 11, Generic database 12, Omit dbtype file 13, Bi-directional prefiltering result 14, Offsetted headers 15",typeid(int),(void *) &outputDbType, "^(0|[1-9]{1}[0-9]*)$"),
         //diff
         PARAM_USESEQID(PARAM_USESEQID_ID,"--use-seq-id", "Match sequences by their id.", "Sequence ID (Uniprot, GenBank, ...) is used for identifying matches between the old and the new DB.",typeid(bool), (void *) &useSequenceId, ""),
         // prefixid
@@ -677,9 +677,9 @@ Parameters::Parameters():
     result2flat.push_back(&PARAM_V);
 
     // gff2db
-    gff2ffindex.push_back(&PARAM_GFF_TYPE);
-    gff2ffindex.push_back(&PARAM_ID_OFFSET);
-    gff2ffindex.push_back(&PARAM_V);
+    gff2db.push_back(&PARAM_GFF_TYPE);
+    gff2db.push_back(&PARAM_ID_OFFSET);
+    gff2db.push_back(&PARAM_V);
 
 
     // translate nucleotide
@@ -1114,17 +1114,9 @@ Parameters::Parameters():
 void Parameters::printUsageMessage(const Command& command,
                                    const unsigned int outputFlag){
     const std::vector<MMseqsParameter*>& parameters = *command.params;
-    bool printWholeHelpText = (outputFlag == 0xFFFFFFFF);
     std::ostringstream ss;
-    ss << "Usage: " << binary_name << " " << command.cmd << " " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n\n";
-//    ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
-    const char * longDesc = ( command.longDescription != NULL) ?  command.longDescription : command.shortDescription;
-    std::string printDesc = (printWholeHelpText) ? longDesc : command.shortDescription;
-    ss << printDesc;
-    if (printDesc.back() != '\n') {
-        ss << '\n';
-    }
-    if(printWholeHelpText) {
+    ss << "Usage: " << binary_name << " " << command.cmd << " " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n";
+    if (outputFlag == 0xFFFFFFFF) {
         ss << " By " << command.author << "\n";
     }
     ss << "\nOptions: ";
@@ -1162,6 +1154,7 @@ void Parameters::printUsageMessage(const Command& command,
     bool printHeader = true;
     std::string paramString;
     paramString.reserve(100);
+    bool hasExpert = false;
     for (size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
         bool categoryFound = false;
         for (size_t j = 0; j < parameters.size(); j++) {
@@ -1193,6 +1186,7 @@ void Parameters::printUsageMessage(const Command& command,
                 paramString.clear();
                 const MMseqsParameter * par = parameters[j];
                 bool isExpert = (par->category & MMseqsParameter::COMMAND_EXPERT);
+                hasExpert |= isExpert;
                 bool alreadyPrint = alreadyPrintMap[par->uniqid];
                 if (par->category & categories[i].category && (printExpert || isExpert == false) && alreadyPrint == false ) {
                     paramString.append(par->name);
@@ -1233,17 +1227,31 @@ void Parameters::printUsageMessage(const Command& command,
             }
         }
     }
-    if (printExpert == false) {
-        ss << "\n" << "An extended list of options can be obtained by calling '" << binary_name << " " << command.cmd << " -h'.\n";
-        if(command.citations > 0) {
-            ss << "\nReferences:\n";
-            for (unsigned int pos = 0 ; pos != sizeof(command.citations) * CHAR_BIT; ++pos) {
-                unsigned int citation = 1 << pos;
-                if (command.citations & citation && citations.find(citation) != citations.end()) {
-                    ss << " - " << citations.at(citation) << "\n";
-                }
+    if (command.citations > 0) {
+        ss << "\nReferences:\n";
+        for (unsigned int pos = 0; pos != sizeof(command.citations) * CHAR_BIT; ++pos) {
+            unsigned int citation = 1 << pos;
+            if (command.citations & citation && citations.find(citation) != citations.end()) {
+                ss << " - " << citations.at(citation) << "\n";
             }
         }
+    }
+    if (command.examples) {
+        ss << "\nExamples:\n ";
+        const char *data = command.examples;
+        while (*data != '\0') {
+            ss.put(*data);
+            if (*data == '\n') {
+                ss.put(' ');
+            }
+            data++;
+        }
+        if (*(data - 1) != '\n') {
+            ss.put('\n');
+        }
+    }
+    if (printExpert == false && hasExpert) {
+        ss << "\n" << "Show an extended list of options by calling '" << binary_name << " " << command.cmd << " -h'.\n";
     }
     Debug(Debug::INFO) << ss.str();
 }
@@ -1484,7 +1492,12 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
 
     if (ignorePathCountChecks == false && filenames.size() < command.databases.size()){
         printUsageMessage(command, outputFlags);
-        Debug(Debug::ERROR) << "Not enough input paths provied. Require " << command.databases.size() << " paths" << "\n";
+        Debug(Debug::ERROR) << "Not enough input paths provided. ";
+        if (command.databases.size() == 1) {
+            Debug(Debug::ERROR) << "1 path is required.\n";
+        } else {
+            Debug(Debug::ERROR) << command.databases.size() << " paths are required.\n";
+        }
         EXIT(EXIT_FAILURE);
     }
 
@@ -1765,6 +1778,9 @@ void Parameters::printParameters(const std::string &module, int argc, const char
 
 
     for (size_t i = 0; i < par.size(); i++) {
+        if (par[i]->category & MMseqsParameter::COMMAND_HIDDEN) {
+            continue;
+        }
         ss << std::setw(maxWidth) << std::left << par[i]->display << "\t";
         if(typeid(int) == par[i]->type ){
             ss << *((int *)par[i]->value);

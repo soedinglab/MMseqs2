@@ -4,7 +4,6 @@
 #include "FileUtil.h"
 #include "CommandCaller.h"
 
-#include <iomanip>
 #include <cassert>
 
 #include "databases.sh.h"
@@ -120,6 +119,21 @@ std::vector<DatabaseDownload> downloads = {{
 },
 };
 
+const int PAD_LEFT = 0;
+const int PAD_RIGHT = 1;
+void appendPadded(std::string& dst, const std::string& value, size_t n, int direction = PAD_LEFT, char padding = ' ') {
+    if (n < value.size()) {
+        dst.append(value);
+        return;
+    }
+    if (direction == PAD_RIGHT) {
+        dst.append(n - value.size(), padding);
+    }
+    dst.append(value);
+    if (direction == PAD_LEFT) {
+        dst.append(n - value.size(), padding);
+    }
+}
 
 std::string listDatabases(const Command &command, bool detailed) {
     size_t nameWidth = 0, urlWidth = 0, dbTypeWidth = 0;
@@ -129,36 +143,48 @@ std::string listDatabases(const Command &command, bool detailed) {
         dbTypeWidth = std::max(dbTypeWidth, strlen(Parameters::getDbTypeName(downloads[i].dbType)));
     }
 
-    std::stringstream description;
-    if (detailed && strlen(command.longDescription) != 0) {
-        description << command.longDescription;
-    } else {
-        description << command.shortDescription;
-    }
+    std::string description;
+    description.reserve(1024);
     if (detailed) {
-        description << "\n By " << command.author;
+        description += "\n By ";
+        description += command.author;
     }
 
-    description << std::boolalpha << std::left;
-    description << "\n\n  " << std::setw(nameWidth) << "Database" << "\t" <<  std::setw(dbTypeWidth) << "Type" << "\t" << std::setw(8) << "Taxonomy" << "\t" << std::setw(urlWidth) << "Url" << "\n";
+    description += "\n\n  ";
+    appendPadded(description, "Database", nameWidth);
+    description.append(1, '\t');
+    appendPadded(description, "Type", dbTypeWidth);
+    description.append(1, '\t');
+    appendPadded(description, "Taxonomy", 8);
+    description.append(1, '\t');
+    appendPadded(description, "Url", urlWidth);
+    description.append(1, '\n');
 
     for (size_t i = 0; i < downloads.size(); ++i) {
-        description << "- "
-                    << std::setw(nameWidth) << downloads[i].name << "\t"
-                    << std::setw(dbTypeWidth) << Parameters::getDbTypeName(downloads[i].dbType) << "\t"
-                    << std::right << std::setw(8) << (downloads[i].hasTaxonomy ? "yes" : "-") << "\t"
-                    << std::left  << std::setw(urlWidth) << downloads[i].url << "\n";
+        description.append("- ");
+        appendPadded(description, downloads[i].name, nameWidth);
+        description.append(1, '\t');
+        appendPadded(description, Parameters::getDbTypeName(downloads[i].dbType), dbTypeWidth);
+        description.append(1, '\t');
+        appendPadded(description, (downloads[i].hasTaxonomy ? "yes" : "-"), 8, PAD_RIGHT);
+        description.append(1, '\t');
+        appendPadded(description, downloads[i].url, urlWidth);
+        description.append(1, '\n');
         if (detailed) {
             if (strlen(downloads[i].description) > 0) {
-                description << "  " << downloads[i].description << "\n";
+                description.append(2, ' ');
+                description.append(downloads[i].description);
+                description.append(1, '\n');
             }
             if (strlen(downloads[i].citation) > 0) {
-                description << "  Cite: " << downloads[i].citation << "\n";
+                description.append("  Cite: ");
+                description.append(downloads[i].citation);
+                description.append(1, '\n');
             }
         }
     }
 
-    return description.str();
+    return description;
 }
 
 int databases(int argc, const char **argv, const Command &command) {
@@ -167,9 +193,8 @@ int databases(int argc, const char **argv, const Command &command) {
 
     std::string description = listDatabases(command, par.help);
     Command copy = command;
-    copy.longDescription = description.c_str();
-    copy.shortDescription = description.c_str();
-    if (par.filenames.size() == 0) {
+    copy.description = description.c_str();
+    if (par.filenames.size() == 0 || par.help) {
         par.printUsageMessage(copy, par.help ? MMseqsParameter::COMMAND_EXPERT : 0);
         EXIT(EXIT_SUCCESS);
     }
@@ -186,7 +211,7 @@ int databases(int argc, const char **argv, const Command &command) {
         Debug(Debug::ERROR) << "Selected database " << par.db1 << " was not found\n";
         EXIT(EXIT_FAILURE);
     }
-
+    par.printParameters(command.cmd, argc, argv, par.databases);
     std::string tmpDir = par.db3;
     std::string hash = SSTR(par.hashParameter(par.filenames, par.databases));
     if (par.reuseLatest) {

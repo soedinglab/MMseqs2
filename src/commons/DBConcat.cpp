@@ -30,7 +30,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
     indexSizeA = dbA.getSize();
     indexSizeB = dbB.getSize();
 
-    // keys pairs are like : (key,i) where key is the ith key in the ffindex
+    // keys paris are like : (key,i) where key is the ith key in the database
     keysA = new std::pair<unsigned int, unsigned int>[indexSizeA];
     keysB = new std::pair<unsigned int, unsigned int>[indexSizeB];
 

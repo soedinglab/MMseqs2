@@ -440,7 +440,6 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
             splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.second));
 
         }
-        // merge output ffindex databases
         DBWriter::mergeResults(outDb, outIndex, splitFiles, par.compressMSA);
     }
 

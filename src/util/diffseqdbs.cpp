@@ -51,7 +51,7 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
 
     // Fill up the hash tables for the old and new DB
     size_t indexSizeOld = oldReader.getSize();
-    // keys pairs are like : (headerID,key) where key is the ffindex key corresponding to the header
+    // key pairs contain (headerID, key) where key is the DB key corresponding to the header
     std::pair<std::string, unsigned int> *keysOld
             = new std::pair<std::string, unsigned int>[indexSizeOld];
 #pragma omp parallel

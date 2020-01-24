@@ -2,15 +2,23 @@
 #include "Parameters.h"
 
 std::vector<Categories> categories = {
-        {"Easy workflows (for non-experts)",     COMMAND_EASY},
-        {"Main tools  (for non-experts)",        COMMAND_MAIN},
-        {"Utility tools for format conversions", COMMAND_FORMAT_CONVERSION},
-        {"Taxonomy tools",                       COMMAND_TAXONOMY},
-        {"Multi-hit search tools",               COMMAND_MULTIHIT},
-        {"Utility tools for clustering",         COMMAND_CLUSTER},
-        {"Core tools (for advanced users)",      COMMAND_EXPERT},
-        {"Utility tools to manipulate DBs",      COMMAND_DB},
-        {"Special-purpose utilities",            COMMAND_SPECIAL},
+        {"Easy workflows for plain text input/output",   COMMAND_EASY},
+        {"Main workflows for database input/output",     COMMAND_MAIN},
+        {"Input database creation",                      COMMAND_DATABASE_CREATION},
+        {"Handle databases on storage and memory",       COMMAND_STORAGE},
+        {"Unite and intersect databases",                COMMAND_SET},
+        {"Format conversion for downstream processing",  COMMAND_FORMAT_CONVERSION},
+        {"Sequence manipulation/transformation",         COMMAND_SEQUENCE},
+        {"Result manipulation",                          COMMAND_RESULT},
+        {"Taxonomy assignment",                          COMMAND_TAXONOMY},
+        {"Multi-hit search",                             COMMAND_MULTIHIT},
+        {"Prefiltering",                                 COMMAND_PREFILTER},
+        {"Alignment",                                    COMMAND_ALIGNMENT},
+        {"Clustering",                                   COMMAND_CLUSTER},
+        {"Profile databases",                            COMMAND_PROFILE},
+        {"Profile-profile databases",                    COMMAND_PROFILE_PROFILE},
+        {"Utility modules to manipulate DBs",            COMMAND_DB},
+        {"Special-purpose utilities",                    COMMAND_SPECIAL},
 };
 
 

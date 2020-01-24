@@ -219,7 +219,7 @@ echo "==================================================="
 if [ -f "${TMP_PATH}/newSeqsHits.swapped.dbtype" ]; then
     if notExists "${TMP_PATH}/updatedClust.dbtype"; then
         "$MMSEQS" mergedbs "$OLDCLUST" "${TMP_PATH}/updatedClust" "$OLDCLUST" "${TMP_PATH}/newSeqsHits.swapped" \
-            || fail "Mergeffindex died"
+            || fail "mergedbs died"
     fi
 else
     if notExists "${TMP_PATH}/updatedClust"; then

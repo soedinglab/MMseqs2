@@ -314,7 +314,6 @@ int computeProfileProfile(Parameters &par,const unsigned int mpiRank, const unsi
             splitFiles.push_back(std::make_pair(tmpFile.first ,  tmpFile.first + ".index"));
 
         }
-        // merge output ffindex databases
         DBWriter::mergeResults(outname , outname + ".index", splitFiles);
     }
 

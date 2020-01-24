@@ -69,7 +69,7 @@ int maskbygff(int argc, const char **argv, const Command& command) {
 
         size_t id = reader.getId(name);
         if(id == UINT_MAX) {
-            Debug(Debug::ERROR) << "GFF entry not found in fasta ffindex: " << name << "!\n";
+            Debug(Debug::ERROR) << "GFF entry not found in input database: " << name << "!\n";
             return EXIT_FAILURE;
         }
 

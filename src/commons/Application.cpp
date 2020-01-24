@@ -81,7 +81,7 @@ void printUsage(bool showExtended) {
     for (size_t i = 0; i < categories.size(); ++i) {
         for (size_t j = 0; j < commands.size(); j++) {
             Command &p = commands[j];
-            if (p.mode == categories[i].mode) {
+            if (p.mode & categories[i].mode) {
                 showCategoryHeader[i] = 1;
                 break;
             }
@@ -91,7 +91,7 @@ void printUsage(bool showExtended) {
         }
         for (size_t j = 0; j < baseCommands.size(); j++) {
             Command &p = baseCommands[j];
-            if (p.mode == categories[i].mode) {
+            if (p.mode & categories[i].mode) {
                 showCategoryHeader[i] = 1;
                 break;
             }
@@ -101,10 +101,11 @@ void printUsage(bool showExtended) {
 
     for (size_t i = 0; i < categories.size(); ++i) {
         if (showExtended == false
-            && categories[i].mode != COMMAND_MAIN && categories[i].mode != COMMAND_EASY
-            && categories[i].mode != COMMAND_FORMAT_CONVERSION && categories[i].mode != COMMAND_TAXONOMY) {
-            // TODO not ready for prime time yet
-            // && categories[i].mode != COMMAND_MULTIHIT) {
+            && (categories[i].mode & COMMAND_MAIN) == 0
+            && (categories[i].mode & COMMAND_EASY) == 0
+            && (categories[i].mode & COMMAND_DATABASE_CREATION) == 0
+            && (categories[i].mode & COMMAND_FORMAT_CONVERSION) == 0
+            ) {
             continue;
         }
 
@@ -115,8 +116,11 @@ void printUsage(bool showExtended) {
         usage << "\n" << std::setw(20) << categories[i].title << "\n";
         for (size_t j = 0; j < commands.size(); j++) {
             struct Command &p = commands[j];
-            if (p.mode == categories[i].mode) {
-                usage << std::left << std::setw(20) << "  " + std::string(p.cmd) << "\t" << p.shortDescription << "\n";
+            if (showExtended == false && (p.mode & COMMAND_EXPERT) != 0) {
+                continue;
+            }
+            if (p.mode & categories[i].mode) {
+                usage << std::left << std::setw(20) << "  " + std::string(p.cmd) << "\t" << p.description << "\n";
             }
         }
         if (hide_base_commands) {
@@ -124,19 +128,22 @@ void printUsage(bool showExtended) {
         }
         for (size_t j = 0; j < baseCommands.size(); j++) {
             struct Command &p = baseCommands[j];
-            if (p.mode == categories[i].mode) {
-                usage << std::left << std::setw(20) << "  " + std::string(p.cmd) << "\t" << p.shortDescription << "\n";
+            if (showExtended == false && (p.mode & COMMAND_EXPERT) != 0) {
+                continue;
+            }
+            if (p.mode & categories[i].mode) {
+                usage << std::left << std::setw(20) << "  " + std::string(p.cmd) << "\t" << p.description << "\n";
             }
         }
     }
 
     if (show_extended_help != NULL) {
         if (showExtended == false) {
-            usage << "\n\nAn extended list of all tools can be obtained by calling '" << binary_name << " -h'.\n";
+            usage << "\nAn extended list of all modules can be obtained by calling '" << binary_name << " -h'.\n";
         }
     }
     if (show_bash_info != NULL) {
-        usage  << "\nBash completion for tools and parameters can be installed by adding \"source MMSEQS_HOME/util/bash-completion.sh\" to your \"$HOME/.bash_profile\".\nInclude the location of the " << tool_name << " binary in your \"$PATH\" environment variable.";
+        usage  << "\nBash completion for modules and parameters can be installed by adding \"source MMSEQS_HOME/util/bash-completion.sh\" to your \"$HOME/.bash_profile\".\nInclude the location of the " << tool_name << " binary in your \"$PATH\" environment variable.";
     }
     Debug(Debug::INFO) << usage.str() << "\n";
 }
@@ -146,14 +153,14 @@ int shellcompletion(int argc, const char **argv) {
     if (argc == 0) {
         for (size_t i = 0; i < commands.size(); i++) {
             struct Command &p = commands[i];
-            if (p.mode == COMMAND_HIDDEN)
+            if (p.mode & COMMAND_HIDDEN)
                 continue;
             Debug(Debug::INFO) << p.cmd << " ";
         }
         if (hide_base_commands == false) {
             for (size_t i = 0; i < baseCommands.size(); i++) {
                 struct Command &p = baseCommands[i];
-                if (p.mode == COMMAND_HIDDEN)
+                if (p.mode & COMMAND_HIDDEN)
                     continue;
                 Debug(Debug::INFO) << p.cmd << " ";
             }
@@ -227,7 +234,7 @@ int main(int argc, const char **argv) {
         int maxDistance = 0;
         for (size_t i = 0; i < commands.size(); ++i) {
             struct Command &p = commands[i];
-            if (p.mode == COMMAND_HIDDEN) {
+            if (p.mode & COMMAND_HIDDEN) {
                 continue;
             }
 
@@ -241,7 +248,7 @@ int main(int argc, const char **argv) {
         if (hide_base_commands == false) {
             for (size_t i = 0; i < baseCommands.size(); ++i) {
                 struct Command &p = baseCommands[i];
-                if (p.mode == COMMAND_HIDDEN)
+                if (p.mode & COMMAND_HIDDEN)
                     continue;
 
                 int distance = DistanceCalculator::localLevenshteinDistance(argv[1], p.cmd);

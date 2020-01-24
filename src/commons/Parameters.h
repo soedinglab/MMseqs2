@@ -931,7 +931,7 @@ public:
     std::vector<MMseqsParameter*> createdb;
     std::vector<MMseqsParameter*> convert2fasta;
     std::vector<MMseqsParameter*> result2flat;
-    std::vector<MMseqsParameter*> gff2ffindex;
+    std::vector<MMseqsParameter*> gff2db;
     std::vector<MMseqsParameter*> clusthash;
     std::vector<MMseqsParameter*> kmermatcher;
     std::vector<MMseqsParameter*> kmersearch;

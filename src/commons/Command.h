@@ -11,23 +11,33 @@ const unsigned int CITATION_PLASS    = 1 << 4;
 const unsigned int CITATION_SERVER   = 1 << 5;
 
 // Make sure this is always the last bit
-// citations from inheriting tools will start from here
+// citations from inheriting modules will start from here
 const unsigned int CITATION_END      = CITATION_SERVER << 1;
 
 struct MMseqsParameter;
 
-enum CommandMode {
-    COMMAND_MAIN = 0,
-    COMMAND_FORMAT_CONVERSION,
-    COMMAND_CLUSTER,
-    COMMAND_TAXONOMY,
-    COMMAND_MULTIHIT,
-    COMMAND_DB,
-    COMMAND_EXPERT,
-    COMMAND_SPECIAL,
-    COMMAND_HIDDEN,
-    COMMAND_EASY
-};
+typedef const unsigned int CommandMode;
+
+CommandMode COMMAND_MAIN              = 1 << 1;
+CommandMode COMMAND_FORMAT_CONVERSION = 1 << 2;
+CommandMode COMMAND_TAXONOMY          = 1 << 3;
+CommandMode COMMAND_MULTIHIT          = 1 << 4;
+CommandMode COMMAND_DB                = 1 << 5;
+CommandMode COMMAND_SPECIAL           = 1 << 6;
+CommandMode COMMAND_HIDDEN            = 1 << 7;
+CommandMode COMMAND_EASY              = 1 << 8;
+CommandMode COMMAND_DATABASE_CREATION = 1 << 9;
+CommandMode COMMAND_STORAGE           = 1 << 10;
+CommandMode COMMAND_SET               = 1 << 11;
+CommandMode COMMAND_SEQUENCE          = 1 << 12;
+CommandMode COMMAND_RESULT            = 1 << 13;
+CommandMode COMMAND_PREFILTER         = 1 << 14;
+CommandMode COMMAND_ALIGNMENT         = 1 << 15;
+CommandMode COMMAND_CLUSTER           = 1 << 16;
+CommandMode COMMAND_PROFILE           = 1 << 17;
+CommandMode COMMAND_PROFILE_PROFILE   = 1 << 18;
+
+CommandMode COMMAND_EXPERT            = 1 << 31;
 
 
 
@@ -80,8 +90,8 @@ struct Command {
     int (*commandFunction)(int, const char **, const Command&);
     std::vector<MMseqsParameter*>* params;
     CommandMode mode;
-    const char *shortDescription;
-    const char *longDescription;
+    const char *description;
+    const char *examples;
     const char *author;
     const char *usage;
     unsigned int citations;
