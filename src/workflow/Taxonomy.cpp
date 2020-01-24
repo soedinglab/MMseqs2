@@ -44,7 +44,7 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
 
     int alignmentMode = par.alignmentMode;
-    if (par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA) {
+    if (par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA || par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA_APPROX) {
         // at least cov must be set for extractalignedregion
         int targetMode = (int)Parameters::ALIGNMENT_MODE_SCORE_COV;
         par.alignmentMode = std::max(par.alignmentMode, targetMode);
