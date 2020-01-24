@@ -1,4 +1,4 @@
-#!/bin/sh -ex
+#!/bin/sh -e
 fail() {
     echo "Error: $1"
     exit 1
@@ -138,6 +138,17 @@ case "${SELECTION}" in
           INPUT_TYPE="MSA"
         fi
     ;;
+    "Resfinder")
+        if notExists "${TMP_PATH}/download.done"; then
+          downloadFile "https://api.bitbucket.org/2.0/repositories/genomicepidemiology/resfinder_db/commit/master?fields=hash,date" "${OUTDB}.version"
+          downloadFile "https://bitbucket.org/genomicepidemiology/resfinder_db/get/master.tar.gz" "${TMP_PATH}/master.tar.gz"
+          tar -C "${TMP_PATH}" --strip-components=1 -xzvf "${TMP_PATH}/master.tar.gz" "*.fsa"
+          touch "${TMP_PATH}/download.done"
+          rm -f "${TMP_PATH}/master.tar.gz"
+          INPUT_TYPE="FSA"
+        fi
+    ;;
+
 esac
 
 if notExists "${OUTDB}.dbtype"; then
@@ -150,6 +161,11 @@ case "${INPUT_TYPE}" in
     "AA_2")
         # shellcheck disable=SC2086
         "${MMSEQS}" createdb "${TMP_PATH}/db1.fasta.gz" "${TMP_PATH}/db2.fasta.gz" "${OUTDB}" ${COMP_PAR} \
+            || fail "createdb died"
+    ;;
+    "FSA")
+        # shellcheck disable=SC2086
+        "${MMSEQS}" createdb "${TMP_PATH}/"*.fsa "${OUTDB}" ${COMP_PAR} \
             || fail "createdb died"
     ;;
     "A3M")

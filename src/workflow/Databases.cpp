@@ -110,7 +110,15 @@ std::vector<DatabaseDownload> downloads = {{
     "https://pfam.xfam.org",
     false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
     { }
-}};
+}, {
+    "Resfinder",
+    "ResFinder is a database that captures antimicrobial resistance genes from whole-genome data sets.",
+    "Zankari et al: Identification of acquired antimicrobial resistance genes. J Antimicrob Chemother 67(11), 2640-2644 (2012)",
+    "https://cge.cbs.dtu.dk/services/ResFinder",
+    false, Parameters::DBTYPE_NUCLEOTIDES, databases_sh, databases_sh_len,
+    { }
+},
+};
 
 
 std::string listDatabases(const Command &command, bool detailed) {
