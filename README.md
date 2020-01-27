@@ -84,15 +84,20 @@ Please adjust the [clustering criteria](https://github.com/soedinglab/MMseqs2/wi
 
 ### Search
          
-The `easy-search` searches directly with a FASTA/FASTQ files against either another FASTA/FASTQ file or an already existing MMseqs2 database.
+The `easy-search` workflow searches directly with a FASTA/FASTQ files against either another FASTA/FASTQ file or an already existing MMseqs2 database.
         
-        mmseqs easy-search examples/QUERY.fasta DB.fasta alnRes tmp
+        mmseqs easy-search examples/QUERY.fasta examples/DB.fasta alnRes.m8 tmp
  
-It is also possible to pre-compute the index for the target database:
+It is also possible to pre-compute the index for the target database. This reduces overhead when searching repeatedly against the same database.
 
         mmseqs createdb examples/DB.fasta targetDB
         mmseqs createindex targetDB tmp
-        mmseqs easy-search examples/QUERY.fasta targetDB alnRes tmp
+        mmseqs easy-search examples/QUERY.fasta targetDB alnRes.m8 tmp
+        
+The `databases` workflow provides download and setup procedures for many public reference databases, such as the Uniref, NR, NT, PFAM and many more (see [Downloading databases](https://github.com/soedinglab/mmseqs2/wiki#downloading-databases)). For example, to download and search against a database containing the Swiss-Prot reference proteins run: 
+
+        mmseqs databases UniProtKB/Swiss-Prot swissprot tmp
+        mmseqs easy-search examples/QUERY.fasta swissprot alnRes.m8 tmp
         
 The speed and sensitivity of the `search` can be adjusted with `-s` parameter and should be adapted based on your use case (see [setting sensitivity -s parameter](https://github.com/soedinglab/mmseqs2/wiki#set-sensitivity--s-parameter)). A very fast search would use a sensitivity of `-s 1.0`, while a very sensitive search would use a sensitivity of up to `-s 7.0`. A detailed guide how to speed up searches is [here](https://github.com/soedinglab/MMseqs2/wiki#how-to-control-the-speed-of-the-search).
 
@@ -106,7 +111,7 @@ The `easy-taxonomy` workflow can be used to assign sequences taxonomical labels.
         mmseqs createindex targetDB tmp
         mmseqs easy-taxonomy examples/QUERY.fasta targetDB alnRes tmp
 
-By default, `createtaxdb` assigns a Uniprot accession to a taxonomical identifier to every sequence and downloads the NCBI taxonomy. We also support [BLAST](https://github.com/soedinglab/MMseqs2/wiki#create-a-sequence-database-with-taxonomic-information-from-an-existing-blast-database), [SILVA](https://github.com/soedinglab/MMseqs2/wiki#create-a-sequence-database-with-taxonomic-information-for-silva) or [custom taxonomical](https://github.com/soedinglab/MMseqs2/wiki#manually-annotate-a-sequence-database-with-taxonomic-information) databases.
+By default, `createtaxdb` assigns a Uniprot accession to a taxonomical identifier to every sequence and downloads the NCBI taxonomy. We also support [BLAST](https://github.com/soedinglab/MMseqs2/wiki#create-a-sequence-database-with-taxonomic-information-from-an-existing-blast-database), [SILVA](https://github.com/soedinglab/MMseqs2/wiki#create-a-sequence-database-with-taxonomic-information-for-silva) or [custom taxonomical](https://github.com/soedinglab/MMseqs2/wiki#manually-annotate-a-sequence-database-with-taxonomic-information) databases. Many common taxonomic reference databases can be easily downloaded and set up by the [`databases` workflow](https://github.com/soedinglab/mmseqs2/wiki#downloading-databases).
 
 Read more about the [taxonomy format](https://github.com/soedinglab/MMseqs2/wiki#taxonomy-format) and the [classification](https://github.com/soedinglab/MMseqs2/wiki#taxonomy-assignment-using-mmseqs-taxonomy) in our user guide.
 
