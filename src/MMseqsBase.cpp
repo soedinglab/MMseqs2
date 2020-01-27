@@ -6,7 +6,10 @@ Parameters& par = Parameters::getInstance();
 std::vector<Command> baseCommands = {
         {"easy-search",          easysearch,           &par.easysearchworkflow,   COMMAND_EASY,
                 "Sensitive homology search",
-                NULL,
+                "# Search FASTA against FASTA\n"
+                "mmseqs easy-search examples/QUERY.fasta examples/DB.fasta result.m8 tmp\n"
+                "# Profile search with two iterations\n"
+                "mmseqs easy-search examples/QUERY.fasta examples/DB.fasta result.m8 tmp --num-iterations 2\n",
                 "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:queryFastaFile1[.gz|.bz2]> ... <i:queryFastaFileN[.gz|.bz2]>|<i:stdin> <i:targetFastaFile[.gz]>|<i:targetDB> <o:alignmentFile> <tmpDir>",
                 CITATION_SERVER | CITATION_MMSEQS2,{{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
@@ -486,7 +489,8 @@ std::vector<Command> baseCommands = {
                                           {"resultDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
         {"concatdbs",            concatdbs,            &par.concatdbs,            COMMAND_SET,
                 "Concatenate two DBs, giving new IDs to entries from 2nd DB",
-                "If exist, the auxillary files: _mapping, source and lookup are also concatenated after IDs update of the 2nd DB",
+//                "If exist, the auxillary files: _mapping, source and lookup are also concatenated after IDs update of the 2nd DB",
+                NULL,
                 "Clovis Galiez, Eli Levy Karin & Martin Steinegger (martin.steinegger@mpibpc.mpg.de)",
                 "<i:DB> <i:DB> <o:DB>",
                 CITATION_MMSEQS2, {{"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
@@ -613,7 +617,8 @@ std::vector<Command> baseCommands = {
                                           {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::sequenceDb }}},
         {"masksequence",        masksequence,          &par.threadsandcompression,COMMAND_SEQUENCE,
                 "Soft mask sequence DB using tantan",
-                "Low. complex regions are masked as lower case characters. The remaining regions are printed as upper case characters.",
+//                "Low. complex regions are masked as lower case characters. The remaining regions are printed as upper case characters.",
+                NULL,
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:sequenceDB> <o:sequenceDB>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
@@ -811,7 +816,8 @@ std::vector<Command> baseCommands = {
 
         {"diffseqdbs",           diffseqdbs,           &par.diff,                 COMMAND_SPECIAL,
                 "Compute diff of two sequence DBs",
-                "It creates 3 filtering files, that can be used in conjunction with \"createsubdb\" tool.\nThe first file contains the keys that has been removed from DBold to DBnew.\nThe second file maps the keys of the kept sequences from DBold to DBnew.\nThe third file contains the keys of the sequences that have been added in DBnew.",
+//                "It creates 3 filtering files, that can be used in conjunction with \"createsubdb\" tool.\nThe first file contains the keys that has been removed from DBold to DBnew.\nThe second file maps the keys of the kept sequences from DBold to DBnew.\nThe third file contains the keys of the sequences that have been added in DBnew.",
+                NULL,
                 "Clovis Galiez & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:oldSequenceDB> <i:newSequenceDB> <o:rmSeqKeysFile> <o:keptSeqKeysFile> <o:newSeqKeysFile>",
                 CITATION_MMSEQS2, {{"oldSequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
