@@ -145,11 +145,6 @@ public:
     static std::vector<int> getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
                                             bool &needLookup, bool &needSource, bool &needTaxonomyMapping, bool &needTaxonomy);
 
-    // convertprofiledb
-    static const int PROFILE_MODE_HMM = 0;
-    static const int PROFILE_MODE_PSSM = 1;
-    static const int PROFILE_MODE_HMM3 = 2;
-
     // clustering
     static const int SET_COVER = 0;
     static const int CONNECTED_COMPONENT = 1;
@@ -393,9 +388,6 @@ public:
     bool useAllTableStarts;
     int translate;
     int createLookup;
-
-    // convertprofiledb
-    int profileMode;
 
     // convertalis
     int formatAlignmentMode;            // BLAST_TAB, PAIRWISE or SAM
@@ -675,9 +667,6 @@ public:
     // logging
     PARAMETER(PARAM_V)
     std::vector<MMseqsParameter*> clust;
-
-    // create profile (HMM, PSSM)
-    PARAMETER(PARAM_PROFILE_TYPE)
 
     // format alignment
     PARAMETER(PARAM_FORMAT_MODE)
