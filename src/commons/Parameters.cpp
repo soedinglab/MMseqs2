@@ -1210,7 +1210,7 @@ void Parameters::printUsageMessage(const Command& command,
                         if (*(bool *)par->value == true) {
                             paramString.append(" 0");
                         }
-                        valueString = "1, set to 0 to disable";
+                        valueString = SSTR(*(bool *)par->value);
                     } else if (par->type == typeid(std::string)) {
                         paramString.append(" STR");
                         valueString = *((std::string *) par->value);
@@ -1218,9 +1218,7 @@ void Parameters::printUsageMessage(const Command& command,
                     ss << "   " << paramString << std::string(maxParamWidth < paramString.size()? 1 : maxParamWidth - paramString.size(), ' ');
 
                     ss << " " << par->description;
-                    if (!(par->type == typeid(bool) && !(*(bool *)par->value))) {
-                        ss << " [" << valueString << "]";
-                    }
+                    ss << " [" << valueString << "]";
                     ss << std::endl;
                     alreadyPrintMap[par->uniqid] = true;
                 }
