@@ -49,7 +49,7 @@ Parameters::Parameters():
         PARAM_SEED_SUB_MAT(PARAM_SEED_SUB_MAT_ID, "--seed-sub-mat", "Seed substitution matrix", "Substitution matrix file for k-mer generation", typeid(ScoreMatrixFile), (void *) &seedScoringMatrixFile, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID, "--comp-bias-corr", "Compositional bias", "Correct for locally biased amino acid composition (range 0-1)", typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID, "--spaced-kmer-mode", "Spaced k-mers", "0: use consecutive positions in k-mers; 1: use spaced k-mers", typeid(int), (void *) &spacedKmer, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove temporary files", "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "", MMseqsParameter::COMMAND_MISC | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove temporary files", "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID, "--add-self-matches", "Include identical seq. id.", "Artificially add entries of queries with themselves (for clustering)", typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_PRELOAD_MODE(PARAM_PRELOAD_MODE_ID, "--db-load-mode", "Preload mode", "Database preload mode 0: auto, 1: fread, 2: mmap, 3: mmap+touch", typeid(int), (void *) &preloadMode, "[0-3]{1}", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPACED_KMER_PATTERN(PARAM_SPACED_KMER_PATTERN_ID, "--spaced-kmer-pattern", "Spaced k-mer pattern", "User-specified spaced k-mer pattern", typeid(std::string), (void *) &spacedKmerPattern, "^1[01]*1$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
@@ -1093,22 +1093,24 @@ Parameters::Parameters():
 
     databases.push_back(&PARAM_HELP);
     databases.push_back(&PARAM_HELP_LONG);
+    databases.push_back(&PARAM_REUSELATEST);
+    databases.push_back(&PARAM_REMOVE_TMP_FILES);
     databases.push_back(&PARAM_COMPRESSED);
     databases.push_back(&PARAM_THREADS);
     databases.push_back(&PARAM_V);
-    databases.push_back(&PARAM_REUSELATEST);
-    databases.push_back(&PARAM_REMOVE_TMP_FILES);
 
     //checkSaneEnvironment();
     setDefaults();
 }
 
 
-void Parameters::printUsageMessage(const Command& command,
-                                   const unsigned int outputFlag){
+void Parameters::printUsageMessage(const Command& command, const unsigned int outputFlag, const char* extraText) {
     const std::vector<MMseqsParameter*>& parameters = *command.params;
     std::ostringstream ss;
     ss << "Usage: " << binary_name << " " << command.cmd << " " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n";
+    if (extraText != NULL) {
+        ss << extraText;
+    }
     if (outputFlag == 0xFFFFFFFF) {
         ss << " By " << command.author << "\n";
     }
@@ -1116,7 +1118,7 @@ void Parameters::printUsageMessage(const Command& command,
 
     struct {
         const char* title;
-        int category;
+        unsigned int category;
     } categories[] = {
             {"Prefilter",MMseqsParameter::COMMAND_PREFILTER},
             {"Align",    MMseqsParameter::COMMAND_ALIGN},
@@ -1128,7 +1130,7 @@ void Parameters::printUsageMessage(const Command& command,
             {"Expert",   MMseqsParameter::COMMAND_EXPERT}
     };
 
-    bool printExpert = (MMseqsParameter::COMMAND_EXPERT & outputFlag) ;
+    const bool printExpert = MMseqsParameter::COMMAND_EXPERT & outputFlag;
     size_t maxParamWidth = 0;
     for (size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
         for (size_t j = 0; j < parameters.size(); j++) {

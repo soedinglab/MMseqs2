@@ -136,7 +136,7 @@ void appendPadded(std::string& dst, const std::string& value, size_t n, int dire
 }
 
 std::string listDatabases(const Command &command, bool detailed) {
-    size_t nameWidth = 0, urlWidth = 0, dbTypeWidth = 0;
+    size_t nameWidth = 4, urlWidth = 3, dbTypeWidth = 4;
     for (size_t i = 0; i < downloads.size(); ++i) {
         nameWidth = std::max(nameWidth, strlen(downloads[i].name));
         urlWidth = std::max(urlWidth, strlen(downloads[i].url));
@@ -146,12 +146,13 @@ std::string listDatabases(const Command &command, bool detailed) {
     std::string description;
     description.reserve(1024);
     if (detailed) {
-        description += "\n By ";
+        description += " By ";
         description += command.author;
+        description += "\n";
     }
 
-    description += "\n\n  ";
-    appendPadded(description, "Database", nameWidth);
+    description += "\n  ";
+    appendPadded(description, "Name", nameWidth);
     description.append(1, '\t');
     appendPadded(description, "Type", dbTypeWidth);
     description.append(1, '\t');
@@ -192,10 +193,8 @@ int databases(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, false, Parameters::PARSE_ALLOW_EMPTY, 0);
 
     std::string description = listDatabases(command, par.help);
-    Command copy = command;
-    copy.description = description.c_str();
     if (par.filenames.size() == 0 || par.help) {
-        par.printUsageMessage(copy, par.help ? MMseqsParameter::COMMAND_EXPERT : 0);
+        par.printUsageMessage(command, par.help ? MMseqsParameter::COMMAND_EXPERT : 0, description.c_str());
         EXIT(EXIT_SUCCESS);
     }
 
@@ -207,7 +206,7 @@ int databases(int argc, const char **argv, const Command &command) {
         }
     }
     if (downloadIdx == -1) {
-        par.printUsageMessage(copy, par.help ? MMseqsParameter::COMMAND_EXPERT : 0);
+        par.printUsageMessage(command, par.help ? MMseqsParameter::COMMAND_EXPERT : 0, description.c_str());
         Debug(Debug::ERROR) << "Selected database " << par.db1 << " was not found\n";
         EXIT(EXIT_FAILURE);
     }

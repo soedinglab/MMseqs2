@@ -57,7 +57,7 @@ std::vector<Command> baseCommands = {
                 "List and download databases",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",
-                "<selection> <o:sequenceDB> <tmpDir>",
+                "<name> <o:sequenceDB> <tmpDir>",
                 CITATION_MMSEQS2, {{"selection", 0, DbType::ZERO_OR_ALL, &DbValidator::empty },
                                                            {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                                            {"tmpDir",     DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},

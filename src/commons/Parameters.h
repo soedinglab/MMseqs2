@@ -596,8 +596,7 @@ public:
     void setDefaults();
     void parseParameters(int argc, const char *pargv[], const Command &command, bool printPar, int parseFlags,
                          int outputFlags);
-    void printUsageMessage(const Command& command,
-                           unsigned int outputFlag);
+    void printUsageMessage(const Command& command, unsigned int outputFlag, const char* extraText = NULL);
     void printParameters(const std::string &module, int argc, const char* pargv[],
                          const std::vector<MMseqsParameter*> &par);
 
