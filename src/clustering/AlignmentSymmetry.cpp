@@ -20,6 +20,7 @@
 void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr,
                                    unsigned int **elementLookupTable, unsigned short **elementScoreTable,
                                    int scoretype, size_t *offsets) {
+    const int alnType = alnDbr->getDbtype();
     const size_t dbSize = seqDbr->getSize();
     const size_t flushSize = 1000000;
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbSize)/static_cast<double>(flushSize)));
@@ -62,15 +63,28 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                     const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
                     const size_t currElement = seqDbr->getId(key);
                     if (elementScoreTable != NULL) {
-                        if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
-                            //column 1 = alignment score
-                            Util::parseByColumnNumber(data, similarity, 1);
-                            elementScoreTable[i][writePos] = (unsigned short) (atof(similarity));
-                        } else {
-                            //column 2 = sequence identity
-                            Util::parseByColumnNumber(data, similarity, 2);
-                            elementScoreTable[i][writePos] = (unsigned short) (atof(similarity) * 1000.0f);
+                        if (alnType == Parameters::DBTYPE_ALIGNMENT_RES) {
+                            if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
+                                //column 1 = alignment score
+                                Util::parseByColumnNumber(data, similarity, 1);
+                                elementScoreTable[i][writePos] = (unsigned short) (atof(similarity));
+                            } else {
+                                //column 2 = sequence identity
+                                Util::parseByColumnNumber(data, similarity, 2);
+                                elementScoreTable[i][writePos] = (unsigned short) (atof(similarity) * 1000.0f);
+                            }
                         }
+                        else if (alnType == Parameters::DBTYPE_PREFILTER_RES) {
+                            //column 1 = alignment score or sequence identity
+                            Util::parseByColumnNumber(data, similarity, 1);
+                            short sim = atoi(similarity);
+                            elementScoreTable[i][writePos] = (unsigned short) (sim>0?sim:-sim);
+                        }
+                        else {
+                            Debug(Debug::ERROR) << "Alignment format is not supported!\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+
                     }
                     if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
                         Debug(Debug::ERROR) << "Element " << dbKey
