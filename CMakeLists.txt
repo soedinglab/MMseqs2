@@ -83,6 +83,11 @@ add_subdirectory(lib/zstd/build/cmake/lib EXCLUDE_FROM_ALL)
 include_directories(lib/tinyexpr)
 add_subdirectory(lib/tinyexpr EXCLUDE_FROM_ALL)
 
+# default cygwin allocator (dlmalloc) locks on every allocation and destroys MT performance
+if (CYGWIN)
+    add_subdirectory(lib/nedmalloc)
+endif()
+
 include_directories(lib)
 include_directories(lib/simd)
 include_directories(lib/gzstream)

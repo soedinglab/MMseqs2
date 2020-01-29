@@ -4,6 +4,12 @@
 #include "Util.h"
 #include "Debug.h"
 
+#ifdef __CYGWIN__
+int apply(int argc, const char **argv, const Command& command) {
+    Debug(Debug::ERROR) << "apply is not supported on Windows/Cygwin\n";
+    EXIT(EXIT_FAILURE);
+}
+#else
 #include <climits>
 #include <unistd.h>
 #include <fcntl.h>
@@ -410,4 +416,4 @@ int apply(int argc, const char **argv, const Command& command) {
 
     return EXIT_SUCCESS;
 }
-
+#endif

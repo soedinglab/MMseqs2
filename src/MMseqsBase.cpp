@@ -528,7 +528,12 @@ std::vector<Command> baseCommands = {
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:DB>",
                 CITATION_MMSEQS2, {{"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
-        {"apply",                apply,                &par.threadsandcompression,COMMAND_DB,
+        {"apply",                apply,                &par.threadsandcompression,
+#ifdef __CYGWIN__
+                COMMAND_HIDDEN,
+#else
+                COMMAND_DB,
+#endif
                 "Execute given program on each DB entry",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",
