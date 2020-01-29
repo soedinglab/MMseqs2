@@ -384,15 +384,8 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         res.seqId = 1.0f;
                     }
                     if(checkCriteria(res, isIdentity, evalThr, seqIdThr, alnLenThr, covMode, covThr)){
-                        if(wrappedScoring){
-                            hit_t hit;
-                            hit.seqId = res.dbKey;
-                            hit.prefScore = (isReverse?-100:100) * res.seqId;
-                            hit.diagonal = isReverse?res.qStartPos-res.dbEndPos:res.qStartPos-res.dbStartPos;
-                            shortResults.emplace_back(hit);
-                        }
-                        else
-                          swResults.emplace_back(res);
+
+                        swResults.emplace_back(res);
                         passedNum++;
                         totalPassedNum++;
                         rejected = 0;

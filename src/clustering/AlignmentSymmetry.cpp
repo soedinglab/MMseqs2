@@ -69,16 +69,16 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                                 Util::parseByColumnNumber(data, similarity, 1);
                                 elementScoreTable[i][writePos] = (unsigned short) (atof(similarity));
                             } else {
-                                //column 2 = sequence identity
+                                //column 2 = sequence identity [0-1]
                                 Util::parseByColumnNumber(data, similarity, 2);
                                 elementScoreTable[i][writePos] = (unsigned short) (atof(similarity) * 1000.0f);
                             }
                         }
                         else if (alnType == Parameters::DBTYPE_PREFILTER_RES) {
-                            //column 1 = alignment score or sequence identity
+                            //column 1 = alignment score or sequence identity [0-100]
                             Util::parseByColumnNumber(data, similarity, 1);
                             short sim = atoi(similarity);
-                            elementScoreTable[i][writePos] = (unsigned short) (sim>0?sim:-sim);
+                            elementScoreTable[i][writePos] = (unsigned short) (sim >0 ? sim : -sim);
                         }
                         else {
                             Debug(Debug::ERROR) << "Alignment format is not supported!\n";
