@@ -96,28 +96,28 @@ case "${SELECTION}" in
     ;;
     "NR")
         if notExists "${TMP_PATH}/db.fasta.gz"; then
-          date "+%s" >> "${OUTDB}.version"
+          date "+%s" > "${OUTDB}.version"
           downloadFile "https://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz" "${TMP_PATH}/db.fasta.gz"
           INPUT_TYPE="AA"
         fi
     ;;
     "NT")
         if notExists "${TMP_PATH}/db.fasta.gz"; then
-          date "+%s" >> "${OUTDB}.version"
+          date "+%s" > "${OUTDB}.version"
           downloadFile "https://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nt.gz" "${TMP_PATH}/db.fasta.gz"
           INPUT_TYPE="AA"
         fi
     ;;
     "PDB")
         if notExists "${TMP_PATH}/db.fasta.gz"; then
-          date "+%s" >> "${OUTDB}.version"
+          date "+%s" > "${OUTDB}.version"
           downloadFile "https://ftp.wwpdb.org/pub/pdb/derived_data/pdb_seqres.txt.gz" "${TMP_PATH}/db.fasta.gz"
           INPUT_TYPE="AA"
         fi
     ;;
     "PDB70")
         if notExists "${TMP_PATH}/msa.index"; then
-          date "+%s" >> "${OUTDB}.version"
+          date "+%s" > "${OUTDB}.version"
           downloadFile "http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/pdb70_from_mmcif_latest.tar.gz" "${TMP_PATH}/pdb70.tar.gz"
           tar -xOzf "${TMP_PATH}/pdb70.tar.gz" pdb70_a3m.ffdata | tr -d '\000' | awk -v outfile="${TMP_PATH}/msa" 'function writeEntry() { printf "%s\0", data >> outfile; size = length(data) + 1; data=""; print id"\t"offset"\t"size >> outindex; offset = offset + size; } BEGIN { data = ""; offset = 0; id = 1; if(length(outfile) == 0) { outfile="output"; } outindex = outfile".index"; printf("") > outfile; printf("") > outindex; } /^>ss_/ { inss = 1; entry = 0; next; } inss == 1 { inss = 0; next; } /^>/ && entry == 0 { if (id > 1) { writeEntry(); } id = id + 1; data = ">"substr($1, 2)"\n"; entry = entry + 1; next; } entry > 0 { data = data""$0"\n"; entry = entry + 1; next; } END { writeEntry(); close(outfile); close(outfile".index"); }'
           rm -f "${TMP_PATH}/pdb70.tar.gz"
@@ -140,7 +140,7 @@ case "${SELECTION}" in
     ;;
     "eggNOG")
         if notExists "${TMP_PATH}/download.done"; then
-          date "+%s" >> "${OUTDB}.version"
+          date "+%s" > "${OUTDB}.version"
           downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/2/2_raw_algs.tar" "${TMP_PATH}/bacteria"
           downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/2157/2157_raw_algs.tar" "${TMP_PATH}/archea"
           downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/2759/2759_raw_algs.tar" "${TMP_PATH}/eukaryota"
