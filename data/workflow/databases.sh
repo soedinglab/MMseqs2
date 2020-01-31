@@ -138,6 +138,17 @@ case "${SELECTION}" in
           INPUT_TYPE="MSA"
         fi
     ;;
+    "eggNOG")
+        if notExists "${TMP_PATH}/download.done"; then
+          date "+%s" >> "${OUTDB}.version"
+          downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/2/2_raw_algs.tar" "${TMP_PATH}/bacteria"
+          downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/2157/2157_raw_algs.tar" "${TMP_PATH}/archea"
+          downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/2759/2759_raw_algs.tar" "${TMP_PATH}/eukaryota"
+          downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/10239/10239_raw_algs.tar" "${TMP_PATH}/viruses"
+          touch "${TMP_PATH}/download.done"
+          INPUT_TYPE="eggNOG"
+        fi
+    ;;
     "Resfinder")
         if notExists "${TMP_PATH}/download.done"; then
           downloadFile "https://api.bitbucket.org/2.0/repositories/genomicepidemiology/resfinder_db/commit/master?fields=hash,date" "${OUTDB}.version"
@@ -177,6 +188,17 @@ case "${INPUT_TYPE}" in
         # shellcheck disable=SC2086
         "${MMSEQS}" convertmsa "${TMP_PATH}/db.msa.gz" "${TMP_PATH}/msa" ${VERB_PAR} \
             || fail "convertmsa died"
+        # shellcheck disable=SC2086
+        "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${THREADS_PAR} \
+            || fail "msa2profile died"
+    ;;
+    "eggNOG")
+        # shellcheck disable=SC2086
+        "${MMSEQS}" tar2db "${TMP_PATH}/bacteria" "${TMP_PATH}/archea" "${TMP_PATH}/eukaryota" "${TMP_PATH}/viruses" "${OUTDB}_msa" --output-dbtype 11 --tar-include '\.raw_alg\.faa\.gz$' ${COMP_PAR} \
+            || fail "msa2profile died"
+        sed 's|\.raw_alg\.faa\.gz||g' "${OUTDB}_msa.lookup" > "${OUTDB}_msa.lookup.tmp"
+        mv -f "${OUTDB}_msa.lookup.tmp" "${OUTDB}_msa.lookup"
+        rm -f "${TMP_PATH}/bacteria.tar" "${TMP_PATH}/archea.tar" "${TMP_PATH}/eukaryota.tar" "${TMP_PATH}/viruses.tar"
         # shellcheck disable=SC2086
         "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${THREADS_PAR} \
             || fail "msa2profile died"
