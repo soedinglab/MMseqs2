@@ -95,6 +95,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
     writer.open();
     Debug::Progress progress;
     char buffer[4096];
+    size_t key = 0;
     for (size_t i = 0; i < filenames.size(); i++) {
         size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\n", i, FileUtil::baseName(filenames[i]).c_str());
         int written = fwrite(buffer, sizeof(char), len, source);
@@ -145,7 +146,6 @@ int tar2db(int argc, const char **argv, const Command& command) {
         char* inflateBuffer = (char*) malloc(inflateSize);
 
         mtar_header_t header;
-        size_t key = 0;
         while ((mtar_read_header(&tar, &header)) != MTAR_ENULLRECORD ) {
             progress.updateProgress();
             if (include.isMatch(header.name) == false || exclude.isMatch(header.name) == true) {
