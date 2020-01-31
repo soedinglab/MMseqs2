@@ -20,6 +20,8 @@ int reverseseq(int argn, const char **argv, const Command& command) {
     revSeqWriter.open();
     Debug::Progress progress(seqReader.getSize());
 
+    bool isProfileInput = Parameters::isEqualDbtype(seqReader.getDbtype(), Parameters::DBTYPE_HMM_PROFILE);
+
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -35,10 +37,21 @@ int reverseseq(int argn, const char **argv, const Command& command) {
             unsigned int seqKey = seqReader.getDbKey(id);
             char *seq = seqReader.getData(id, thread_idx);
             size_t lenSeq = seqReader.getSeqLen(id);
+
             for (size_t i = 0; i < lenSeq; ++i) {
-                revStr.push_back(seq[lenSeq - i - 1]);
+                size_t revInd = lenSeq - i - 1;
+                if (isProfileInput) {
+                    revStr.append(seq + (Sequence::PROFILE_READIN_SIZE * revInd), Sequence::PROFILE_READIN_SIZE);
+                } else {
+                    revStr.push_back(seq[revInd]);
+                }
             }
-            revStr.push_back('\n');
+            
+            // for seqdb add \n
+            if (! isProfileInput) {
+                revStr.push_back('\n');
+            }
+
             revSeqWriter.writeData(revStr.c_str(), revStr.size(), seqKey, thread_idx, true);
             revStr.clear();
         }
