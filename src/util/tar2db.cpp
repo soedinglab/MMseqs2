@@ -125,7 +125,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
         char* dataBuffer = (char*) malloc(bufferSize);
 
 #ifdef HAVE_ZLIB
-        const unsigned int CHUNK = 0x4000;
+        const unsigned int CHUNK = 128 * 1024;
         unsigned char in[CHUNK];
         unsigned char out[CHUNK];
         z_stream strm;
@@ -147,6 +147,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
         mtar_header_t header;
         size_t key = 0;
         while ((mtar_read_header(&tar, &header)) != MTAR_ENULLRECORD ) {
+            progress.updateProgress();
             if (include.isMatch(header.name) == false || exclude.isMatch(header.name) == true) {
                 key++;
                 mtar_next(&tar);
@@ -184,7 +185,6 @@ int tar2db(int argc, const char **argv, const Command& command) {
                     have = CHUNK - strm.avail_out;
                     writer.writeAdd((const char*)out, have, 0);
                 } while (strm.avail_out == 0);
-                inflateEnd(&strm);
                 writer.writeEnd(key, 0);
 #else
                 Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Cannot read compressed input.\n";
@@ -220,11 +220,15 @@ int tar2db(int argc, const char **argv, const Command& command) {
             mtar_next(&tar);
         }
 
+#ifdef HAVE_ZLIB
+        inflateEnd(&strm);
+#endif
         free(inflateBuffer);
         free(dataBuffer);
 
         mtar_close(&tar);
     }
+    fclose(lookup);
     fclose(source);
     writer.close();
 
