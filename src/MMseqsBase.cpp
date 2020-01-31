@@ -107,9 +107,9 @@ std::vector<Command> baseCommands = {
                 "Convert content of tar archives to any DB",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",
-                "<i:tar[.gz|.bz2]> ... <i:tar[.gz|.bz2]>|<i:stdin> <o:resultDB>",
-                CITATION_MMSEQS2, {{"tarFile", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
-                                          {"resultDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::resultDb }}},
+                "<i:tar[.gz]> ... <i:tar[.gz]> <o:resultDB>",
+                CITATION_MMSEQS2, {{".tar[.gz]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfile },
+                                          {"DB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
 
 
         {"search",               search,               &par.searchworkflow,       COMMAND_MAIN,
