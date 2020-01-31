@@ -95,6 +95,25 @@ int tar2db(int argc, const char **argv, const Command& command) {
     writer.open();
     Debug::Progress progress;
     char buffer[4096];
+
+#ifdef HAVE_ZLIB
+    const unsigned int CHUNK = 128 * 1024;
+    unsigned char in[CHUNK];
+    unsigned char out[CHUNK];
+    z_stream strm;
+    memset(&strm, 0, sizeof(z_stream));
+    strm.zalloc = Z_NULL;
+    strm.zfree = Z_NULL;
+    strm.opaque = Z_NULL;
+    strm.next_in = in;
+    strm.avail_in = 0;
+    int status = inflateInit2(&strm, 15 | 32);
+    if (status < 0) {
+        Debug(Debug::ERROR) << "Cannot initialize zlib stream\n";
+        EXIT(EXIT_FAILURE);
+    }
+#endif
+
     size_t key = 0;
     for (size_t i = 0; i < filenames.size(); i++) {
         size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\n", i, FileUtil::baseName(filenames[i]).c_str());
@@ -125,28 +144,15 @@ int tar2db(int argc, const char **argv, const Command& command) {
         size_t bufferSize = 10 * 1024;
         char* dataBuffer = (char*) malloc(bufferSize);
 
-#ifdef HAVE_ZLIB
-        const unsigned int CHUNK = 128 * 1024;
-        unsigned char in[CHUNK];
-        unsigned char out[CHUNK];
-        z_stream strm;
-        memset(&strm, 0, sizeof(z_stream));
-        strm.zalloc = Z_NULL;
-        strm.zfree = Z_NULL;
-        strm.opaque = Z_NULL;
-        strm.next_in = in;
-        strm.avail_in = 0;
-        int status = inflateInit2(&strm, 15 | 32);
-        if (status < 0) {
-            Debug(Debug::ERROR) << "Cannot initialize zlib stream\n";
-            EXIT(EXIT_FAILURE);
-        }
-#endif
         size_t inflateSize = 10 * 1024;
         char* inflateBuffer = (char*) malloc(inflateSize);
 
         mtar_header_t header;
         while ((mtar_read_header(&tar, &header)) != MTAR_ENULLRECORD ) {
+            if (header.type != MTAR_TREG) {
+                mtar_next(&tar);
+                continue;
+            }
             progress.updateProgress();
             if (include.isMatch(header.name) == false || exclude.isMatch(header.name) == true) {
                 key++;
@@ -164,6 +170,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
 
             if (Util::endsWith(".gz", header.name)) {
 #ifdef HAVE_ZLIB
+                inflateReset(&strm);
                 writer.writeStart(0);
                 strm.avail_in = header.size;
                 strm.next_in = (unsigned char*)dataBuffer;
@@ -220,9 +227,6 @@ int tar2db(int argc, const char **argv, const Command& command) {
             mtar_next(&tar);
         }
 
-#ifdef HAVE_ZLIB
-        inflateEnd(&strm);
-#endif
         free(inflateBuffer);
         free(dataBuffer);
 
@@ -231,6 +235,10 @@ int tar2db(int argc, const char **argv, const Command& command) {
     fclose(lookup);
     fclose(source);
     writer.close();
+
+#ifdef HAVE_ZLIB
+    inflateEnd(&strm);
+#endif
 
     return EXIT_SUCCESS;
 }
