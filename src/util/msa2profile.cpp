@@ -45,7 +45,12 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         sequenceReader->open(DBReader<unsigned int>::SORT_BY_LINE);
     }
 
-    DBReader<unsigned int> qDbr(msaData.c_str(), msaIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    unsigned int mode = DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA;
+    std::string lookupFile = msaData + ".lookup";
+    if (FileUtil::fileExists(lookupFile.c_str())) {
+        mode |= DBReader<unsigned int>::USE_LOOKUP;
+    }
+    DBReader<unsigned int> qDbr(msaData.c_str(), msaIndex.c_str(), par.threads, mode);
     qDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     Debug(Debug::INFO) << "Finding maximum sequence length and set size.\n";
@@ -207,7 +212,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 // first sequence is always the query
                 if (setSize == 0) {
                     centerLengthWithGaps = static_cast<unsigned int>(strlen(seq->seq.s));
-
                     if (maskByFirst == true) {
                         for (size_t i = 0; i < centerLengthWithGaps; ++i) {
                             if (seq->seq.s[i] == '-') {
@@ -218,14 +222,15 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                             }
                         }
                     }
-
-                    std::string header(seq->name.s);
-                    if (seq->comment.l > 0) {
-                        header.append(" ");
-                        header.append(seq->comment.s);
+                    if ((mode & DBReader<unsigned int>::USE_LOOKUP) == 0) {
+                        std::string header(seq->name.s);
+                        if (seq->comment.l > 0) {
+                            header.append(" ");
+                            header.append(seq->comment.s);
+                        }
+                        header.append("\n");
+                        headerWriter.writeData(header.c_str(), header.size(), queryKey, thread_idx);
                     }
-                    header.append("\n");
-                    headerWriter.writeData(header.c_str(), header.size(), queryKey, thread_idx);
                 }
 
                 sequence.mapSequence(0, 0, seq->seq.s, seq->seq.l);
@@ -338,6 +343,12 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 result += MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
             }
 
+            if (mode & DBReader<unsigned int>::USE_LOOKUP) {
+                size_t lookupId = qDbr.getLookupIdByKey(queryKey);
+                std::string header = qDbr.getLookupEntryName(lookupId);
+                header.append(1, '\n');
+                headerWriter.writeData(header.c_str(), header.length(), queryKey, thread_idx);
+            }
             resultWriter.writeData(result.c_str(), result.length(), queryKey, thread_idx);
             result.clear();
         }
@@ -351,6 +362,8 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     headerWriter.close(true);
     resultWriter.close(true);
     qDbr.close();
+
+    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, (DBFiles::Files)(DBFiles::LOOKUP | DBFiles::SOURCE));
 
     if (sequenceReader != NULL) {
         sequenceReader->close();
