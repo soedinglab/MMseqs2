@@ -249,6 +249,8 @@ Parameters::Parameters():
         PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void *) &taxonomyOutpuMode, "^[0-1]{1}$"),
         // createsubdb, filtertaxseqdb
         PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "Subdb mode 0: copy data 1: soft link data and write index", typeid(int), (void *) &subDbMode, "^[0-1]{1}$"),
+        PARAM_TAR_INCLUDE(PARAM_TAR_INCLUDE_ID, "--tar-include", "Tar Inclusion Regex", "Include file names based on this regex", typeid(std::string), (void *) &tarInclude, "^.*$"),
+        PARAM_TAR_EXCLUDE(PARAM_TAR_EXCLUDE_ID, "--tar-exclude", "Tar Exclusion Regex", "Exclude file names based on this regex", typeid(std::string), (void *) &tarExclude, "^.*$"),
         // for modules that should handle -h themselves
         PARAM_HELP(PARAM_HELP_ID, "-h", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_HELP_LONG(PARAM_HELP_LONG_ID, "--help", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN)
@@ -1098,6 +1100,13 @@ Parameters::Parameters():
     databases.push_back(&PARAM_COMPRESSED);
     databases.push_back(&PARAM_THREADS);
     databases.push_back(&PARAM_V);
+
+    // tar2db
+    tar2db.push_back(&PARAM_OUTPUT_DBTYPE);
+    tar2db.push_back(&PARAM_TAR_INCLUDE);
+    tar2db.push_back(&PARAM_TAR_EXCLUDE);
+    tar2db.push_back(&PARAM_COMPRESSED);
+    tar2db.push_back(&PARAM_V);
 
     //checkSaneEnvironment();
     setDefaults();
@@ -2066,6 +2075,10 @@ void Parameters::setDefaults() {
 
     // createsubdb
     subDbMode = Parameters::SUBDB_MODE_HARD;
+
+    // tar2db
+    tarInclude = ".*";
+    tarExclude = "^$";
 
     lcaRanks = "";
     showTaxLineage = false;

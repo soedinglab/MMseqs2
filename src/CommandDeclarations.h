@@ -103,6 +103,7 @@ extern int createtaxdb(int argc, const char **argv, const Command& command);
 extern int translateaa(int argc, const char **argv, const Command& command);
 extern int translatenucs(int argc, const char **argv, const Command& command);
 extern int tsv2db(int argc, const char **argv, const Command& command);
+extern int tar2db(int argc, const char **argv, const Command& command);
 extern int versionstring(int argc, const char **argv, const Command& command);
 extern int addtaxonomy(int argc, const char **argv, const Command& command);
 extern int filtertaxdb(int argc, const char **argv, const Command& command);

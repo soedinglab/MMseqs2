@@ -576,6 +576,10 @@ public:
     // createsubdb
     int subDbMode;
 
+    // tar2db
+    std::string tarInclude;
+    std::string tarExclude;
+
     // for modules that should handle -h themselves
     bool help;
 
@@ -881,6 +885,10 @@ public:
     // createsubdb
     PARAMETER(PARAM_SUBDB_MODE)
 
+    // tar2db
+    PARAMETER(PARAM_TAR_INCLUDE)
+    PARAMETER(PARAM_TAR_EXCLUDE)
+
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
     PARAMETER(PARAM_HELP_LONG)
@@ -976,6 +984,7 @@ public:
     std::vector<MMseqsParameter*> sortresult;
     std::vector<MMseqsParameter*> enrichworkflow;
     std::vector<MMseqsParameter*> databases;
+    std::vector<MMseqsParameter*> tar2db;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);
