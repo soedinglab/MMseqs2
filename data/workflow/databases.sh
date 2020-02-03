@@ -167,16 +167,19 @@ case "${INPUT_TYPE}" in
         # shellcheck disable=SC2086
         "${MMSEQS}" createdb "${TMP_PATH}/db.fasta.gz" "${OUTDB}" ${COMP_PAR} \
             || fail "createdb died"
+        rm -f "${TMP_PATH}/db.fasta.gz"
     ;;
     "AA_2")
         # shellcheck disable=SC2086
         "${MMSEQS}" createdb "${TMP_PATH}/db1.fasta.gz" "${TMP_PATH}/db2.fasta.gz" "${OUTDB}" ${COMP_PAR} \
             || fail "createdb died"
+        rm -f "${TMP_PATH}/db1.fasta.gz" "${TMP_PATH}/db2.fasta.gz"
     ;;
     "FSA")
         # shellcheck disable=SC2086
         "${MMSEQS}" createdb "${TMP_PATH}/"*.fsa "${OUTDB}" ${COMP_PAR} \
             || fail "createdb died"
+        rm -f -- "${TMP_PATH}/"*.fsa
     ;;
     "A3M")
         # shellcheck disable=SC2086
@@ -187,9 +190,12 @@ case "${INPUT_TYPE}" in
         # shellcheck disable=SC2086
         "${MMSEQS}" convertmsa "${TMP_PATH}/db.msa.gz" "${TMP_PATH}/msa" ${VERB_PAR} \
             || fail "convertmsa died"
+        rm -f "${TMP_PATH}/db.msa.gz"
         # shellcheck disable=SC2086
         "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${THREADS_PAR} \
             || fail "msa2profile died"
+        "${MMSEQS}" rmdb "${TMP_PATH}/msa" \
+            || fail "rmdb died"
     ;;
     "eggNOG")
         # shellcheck disable=SC2086
@@ -201,25 +207,24 @@ case "${INPUT_TYPE}" in
         # shellcheck disable=SC2086
         "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${THREADS_PAR} \
             || fail "msa2profile died"
+        "${MMSEQS}" rmdb "${TMP_PATH}/msa" \
+            || fail "rmdb died"
     ;;
 esac
 fi
+
 if [ -n "${TAXONOMY}" ] && notExists "${OUTDB}_mapping"; then
     # shellcheck disable=SC2086
     "${MMSEQS}" prefixid "${OUTDB}_h" "${TMP_PATH}/header_pref.tsv" --tsv ${THREADS_PAR} \
         || fail "prefixid died"
     awk '{match($0, /(OX|TaxID)=[0-9]+ /); print $1"\t"substr($0, RSTART+3, RLENGTH-4); }' "${TMP_PATH}/header_pref.tsv" \
         | LC_ALL=C sort -n > "${OUTDB}_mapping"
+    rm -f "${TMP_PATH}/header_pref.tsv"
     # shellcheck disable=SC2086
     "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxonomy" ${THREADS_PAR} \
         || fail "createtaxdb died"
 fi
 
 if [ -n "${REMOVE_TMP}" ]; then
-    rm -f "${TMP_PATH}/db.fasta.gz"
-    rm -f "${TMP_PATH}/db1.fasta.gz" "${TMP_PATH}/db2.fasta.gz"
-    rm -f "${TMP_PATH}/db.msa.gz"
-    rm -f "${TMP_PATH}/msa" "${TMP_PATH}/msa.index"
-    rm -f "${TMP_PATH}/header_pref.tsv"
     rm -f "${TMP_PATH}/download.sh"
 fi
