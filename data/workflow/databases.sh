@@ -17,7 +17,7 @@ if hasCommand aria2c; then STRATEGY="$STRATEGY ARIA"; fi
 if hasCommand curl;   then STRATEGY="$STRATEGY CURL"; fi
 if hasCommand wget;   then STRATEGY="$STRATEGY WGET"; fi
 if [ "$STRATEGY" = "" ]; then
-    fail "No download tool found in PATH. Please install either aria2c, curl or wget."
+    fail "No download tool found in PATH. Please install aria2c, curl or wget."
 fi
 
 downloadFile() {
@@ -27,7 +27,7 @@ downloadFile() {
     for i in $STRATEGY; do
         case "$i" in
         ARIA)
-            aria2c --max-connection-per-server="$THREAD_NUM" --allow-overwrite=true -o "$OUTPUT" "$URL" && return 0
+            aria2c --max-connection-per-server="$ARIA_NUM_CONN" --allow-overwrite=true -o "$OUTPUT" "$URL" && return 0
             ;;
         CURL)
             curl -o "$OUTPUT" "$URL" && return 0
