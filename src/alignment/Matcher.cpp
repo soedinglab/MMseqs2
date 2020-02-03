@@ -7,13 +7,13 @@
 
 
 Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
-                 bool aaBiasCorrection, int gapOpen, int gapExtend)
+                 bool aaBiasCorrection, int gapOpen, int gapExtend, bool forceSW)
                  : gapOpen(gapOpen), gapExtend(gapExtend), m(m), evaluer(evaluer), tinySubMat(NULL) {
     if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) == false ) {
         setSubstitutionMatrix(m);
     }
 
-    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES) && forceSW == false) {
         nuclaligner = new BandedNucleotideAligner(m, maxSeqLen, gapOpen, gapExtend);
         aligner = NULL;
     } else {
@@ -48,7 +48,7 @@ Matcher::~Matcher(){
 
 void Matcher::initQuery(Sequence* query){
     currentQuery = query;
-    if(Parameters::isEqualDbtype(query->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
+    if(nuclaligner != NULL){
         nuclaligner->initQuery(query);
     }else if(Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
         aligner->ssw_init(query, query->getAlignmentProfile(), this->m, this->m->alphabetSize, 2);
@@ -78,7 +78,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
     std::string backtrace;
     int aaIds = 0;
 
-    if(Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
+    if(nuclaligner != NULL){
         if(diagonal==INT_MAX){
             Debug(Debug::ERROR) << "Query sequence " << currentQuery->getDbKey()
                                 << " has a result with no proper diagonal information , "
