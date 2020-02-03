@@ -277,8 +277,6 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
         flushSize = dbSize;
     }
 
-    const bool forceSwBcNoDiag = Parameters::isEqualDbtype(prefdbr->getDbtype(), Parameters::DBTYPE_PREFILTER_RES) == false;
-
     size_t iterations = static_cast<size_t>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
     for (size_t i = 0; i < iterations; i++) {
         size_t start = dbFrom + (i * flushSize);
@@ -296,10 +294,10 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             char buffer[1024+32768];
             Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
             Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
-            Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend, forceSwBcNoDiag);
+            Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
             Matcher *realigner = NULL;
             if (realign ==  true && wrappedScoring == false) {
-                realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend, forceSwBcNoDiag);
+                realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
             }
 
             std::vector<Matcher::result_t> swResults;
