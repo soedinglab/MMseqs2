@@ -1,9 +1,5 @@
 #ifndef SubstitutionMatrixProfileStates_H
 #define SubstitutionMatrixProfileStates_H
-#include <fstream>
-#include <string>
-#include <vector>
-
 #include "BaseMatrix.h"
 #include "Debug.h"
 #include "ProfileStates.h"

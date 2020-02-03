@@ -16,7 +16,6 @@
 #include "SubstitutionMatrix.h"
 #include <string>
 #include <vector>
-#include <sstream>
 
 #ifdef OPENMP
 #include <omp.h>

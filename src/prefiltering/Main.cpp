@@ -1,4 +1,3 @@
-
 #include "Prefiltering.h"
 #include "Util.h"
 #include "Parameters.h"
@@ -6,9 +5,6 @@
 #include "DBReader.h"
 #include "Timer.h"
 #include "FileUtil.h"
-
-#include <iostream>
-#include <string>
 
 #ifdef OPENMP
 #include <omp.h>

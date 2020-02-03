@@ -23,13 +23,14 @@
    Written by Michael Farrar, 2006 (alignment), Mengyao Zhao (SSW Library) and Martin Steinegger (change structure add aa composition, profile and AVX2 support).
    Please send bug reports and/or suggestions to martin.steinegger@mpibpc.mpg.de.
 */
-#include <Parameters.h>
+#include "Parameters.h"
 #include "StripedSmithWaterman.h"
 
 #include "Util.h"
 #include "SubstitutionMatrix.h"
 #include "Debug.h"
 
+#include <iostream>
 
 SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection) {
 	maxSequenceLength += 1;

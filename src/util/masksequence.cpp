@@ -1,6 +1,3 @@
-#include <string>
-#include <fstream>
-#include <climits>
 #include "NucleotideMatrix.h"
 #include "SubstitutionMatrix.h"
 #include "tantan.h"
@@ -9,7 +6,6 @@
 #include "Debug.h"
 #include "Util.h"
 #include "FileUtil.h"
-
 
 #ifdef OPENMP
 #include <omp.h>

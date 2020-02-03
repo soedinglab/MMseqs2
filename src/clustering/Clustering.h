@@ -1,8 +1,6 @@
 #ifndef CLUSTERING_H
 #define CLUSTERING_H
 
-#include <list>
-#include <string>
 #include <unordered_map>
 
 #include "DBReader.h"

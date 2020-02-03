@@ -35,7 +35,6 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <iostream>
 
 #if !defined(__APPLE__) && !defined(__llvm__)
 #include <malloc.h>

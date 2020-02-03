@@ -1,7 +1,5 @@
 #include "DBReader.h"
 
-#include <iostream>
-#include <fstream>
 #include <algorithm>
 #include <climits>
 #include <cstring>

@@ -5,7 +5,6 @@
 // storage for k-mers
 #include "MathUtil.h"
 #include <string>
-#include <iostream>
 #include <algorithm>
 #include <fcntl.h>
 #include <sys/mman.h>

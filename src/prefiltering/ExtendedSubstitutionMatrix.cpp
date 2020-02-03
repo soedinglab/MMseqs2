@@ -3,8 +3,6 @@
 #include "Util.h"
 #include "simd.h"
 
-
-#include <iostream>
 #include <iterator>
 #include <cmath>
 #include <cstdlib>

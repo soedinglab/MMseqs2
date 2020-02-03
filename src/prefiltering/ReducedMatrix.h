@@ -1,9 +1,5 @@
 #ifndef ReducedMatrix_H
 #define ReducedMatrix_H
-#include <fstream>
-#include <string>
-#include <vector>
-#include <climits> 
 #include "BaseMatrix.h"
 #include "Debug.h"
 
