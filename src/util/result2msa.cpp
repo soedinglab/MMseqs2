@@ -140,7 +140,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
             }
             char *centerSequenceHeader = queryHeaderReader.getDataByDBKey(queryKey, 0);
 
-            char *results = resultReader.getData(id, 0);
+            char *results = resultReader.getData(id, thread_idx);
             std::vector<Matcher::result_t> alnResults;
             std::vector<Sequence *> seqSet;
             while (*results != '\0') {
