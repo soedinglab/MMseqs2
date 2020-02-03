@@ -26,6 +26,31 @@ void setTaxonomyMustPassAlong(Parameters *p) {
 
 int taxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
+
+    par.PARAM_ADD_BACKTRACE.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_MAX_REJECTED.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_DB_OUTPUT.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_OVERLAP.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_DB_OUTPUT.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_RESCORE_MODE.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_NUM_ITERATIONS.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_PICK_ID_FROM.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    for (size_t i = 0; i < par.createdb.size(); i++){
+        par.createdb[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
+    }
+    for (size_t i = 0; i < par.extractorfs.size(); i++){
+        par.extractorfs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
+    }
+    for (size_t i = 0; i < par.translatenucs.size(); i++){
+        par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
+    }
+    for (size_t i = 0; i < par.result2profile.size(); i++){
+        par.result2profile[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
+    }
+    par.PARAM_COMPRESSED.removeCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_THREADS.removeCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_V.removeCategory(MMseqsParameter::COMMAND_EXPERT);
+
     setTaxonomyDefaults(&par);
     par.parseParameters(argc, argv, command, true, 0, 0);
     setTaxonomyMustPassAlong(&par);

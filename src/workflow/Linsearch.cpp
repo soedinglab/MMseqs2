@@ -34,27 +34,20 @@ void setLinsearchDefaults(Parameters *p) {
 int linsearch(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setLinsearchDefaults(&par);
-    par.overrideParameterDescription((Command &) command, par.PARAM_COV_MODE.uniqid, NULL, NULL,
-                                     par.PARAM_COV_MODE.category | MMseqsParameter::COMMAND_EXPERT);
-    par.overrideParameterDescription((Command &) command, par.PARAM_C.uniqid, NULL, NULL,
-                                     par.PARAM_C.category | MMseqsParameter::COMMAND_EXPERT);
-    par.overrideParameterDescription((Command &) command, par.PARAM_MIN_SEQ_ID.uniqid, NULL, NULL,
-                                     par.PARAM_MIN_SEQ_ID.category | MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_COV_MODE.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_C.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_MIN_SEQ_ID.addCategory(MMseqsParameter::COMMAND_EXPERT);
     for (size_t i = 0; i < par.extractorfs.size(); i++) {
-        par.overrideParameterDescription((Command &) command, par.extractorfs[i]->uniqid, NULL, NULL,
-                                         par.extractorfs[i]->category | MMseqsParameter::COMMAND_EXPERT);
+        par.extractorfs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
     for (size_t i = 0; i < par.translatenucs.size(); i++) {
-        par.overrideParameterDescription((Command &) command, par.translatenucs[i]->uniqid, NULL, NULL,
-                                         par.translatenucs[i]->category | MMseqsParameter::COMMAND_EXPERT);
+        par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
-    par.overrideParameterDescription((Command &) command, par.PARAM_THREADS.uniqid, NULL, NULL,
-                                     par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
-    par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
-                                     par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
-    par.parseParameters(argc, argv, command, true, 0,
-                        MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
+    par.PARAM_COMPRESSED.removeCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_THREADS.removeCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_V.removeCategory(MMseqsParameter::COMMAND_EXPERT);
 
+    par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
 
     const int queryDbType = FileUtil::parseDbType(par.db1.c_str());
     std::string indexStr = LinsearchIndexReader::searchForIndex(par.db2);

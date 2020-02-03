@@ -934,10 +934,10 @@ Parameters::Parameters():
     createtaxdb.push_back(&PARAM_V);
 
     // addtaxonomy
-    addtaxonomy.push_back(&PARAM_PICK_ID_FROM);
-    addtaxonomy.push_back(&PARAM_COMPRESSED);
     addtaxonomy.push_back(&PARAM_TAXON_ADD_LINEAGE);
     addtaxonomy.push_back(&PARAM_LCA_RANKS);
+    addtaxonomy.push_back(&PARAM_PICK_ID_FROM);
+    addtaxonomy.push_back(&PARAM_COMPRESSED);
     addtaxonomy.push_back(&PARAM_THREADS);
     addtaxonomy.push_back(&PARAM_V);
 
@@ -1054,7 +1054,6 @@ Parameters::Parameters():
     taxonomy = combineList(searchworkflow, lca);
     taxonomy.push_back(&PARAM_LCA_MODE);
     taxonomy.push_back(&PARAM_TAX_OUTPUT_MODE);
-    taxonomy.push_back(&PARAM_USESEQID);
 
     // easy taxonomy
     easytaxonomy = combineList(taxonomy, addtaxonomy);
@@ -2208,24 +2207,16 @@ std::vector<MMseqsParameter*> Parameters::removeParameter(const std::vector<MMse
     return newParamList;
 }
 
-void Parameters::overrideParameterDescription(Command &command, const int uid,
-                                              const char *description, const char *regex, const int category) {
-    for (size_t i = 0; i < command.params->size(); i++) {
-        MMseqsParameter *p = command.params->at(i);
-        if (p->uniqid == uid) {
-            if (description != NULL) {
-                p->description = description;
-            }
-            if (regex != NULL) {
-                p->regex = regex;
-            }
-            if (category != 0) {
-                p->category = category;
-            }
-            break;
-        }
+void Parameters::overrideParameterDescription(MMseqsParameter& par, const char *description, const char *regex, int category) {
+    if (description != NULL) {
+        par.description = description;
     }
-
+    if (regex != NULL) {
+        par.regex = regex;
+    }
+    if (category != 0) {
+        par.category = category;
+    }
 }
 
 std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,

@@ -102,11 +102,9 @@ int createindex(int argc, const char **argv, const Command& command) {
     int dbType = FileUtil::parseDbType(par.db1.c_str());
     bool isNucl = Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES);
 
-    if(par.PARAM_STRAND.wasSet == false){
+    if (par.PARAM_STRAND.wasSet == false) {
         par.strand = 1;
     }
-    par.overrideParameterDescription((Command &) command, par.PARAM_MASK_RESIDUES.uniqid, "0: w/o low complexity masking, 1: with low complexity masking, 2: add both masked and unmasked sequences to index", "^[0-2]{1}", par.PARAM_MASK_RESIDUES.category);
-
     if(isNucl && par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES ){
         if ( par.PARAM_K.wasSet == false) {
             par.kmerSize = 15;

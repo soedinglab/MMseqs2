@@ -44,6 +44,14 @@ struct MMseqsParameter {
                     void * value, const char * regex, unsigned int category = COMMAND_MISC):
             name(n), display(display), description(d), type(hash), value(value),
             regex(regex), uniqid(uid), category(category), wasSet(false){}
+
+    void addCategory(unsigned int cat) {
+        category |= cat;
+    }
+
+    void removeCategory(unsigned int cat) {
+        category &= ~cat;
+    }
 };
 
 
@@ -993,7 +1001,7 @@ public:
 
     std::string createParameterString(const std::vector<MMseqsParameter*> &vector, bool wasSet = false);
 
-    void overrideParameterDescription(Command& command, int uid, const char* description, const char* regex = NULL, int category = 0);
+    void overrideParameterDescription(MMseqsParameter& par, const char *description, const char *regex = NULL, int category = 0);
 
     static void checkIfTaxDbIsComplete(std::string & filename);
 
