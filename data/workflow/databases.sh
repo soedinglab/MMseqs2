@@ -199,11 +199,11 @@ case "${INPUT_TYPE}" in
     ;;
     "eggNOG")
         # shellcheck disable=SC2086
-        "${MMSEQS}" tar2db "${TMP_PATH}/bacteria" "${TMP_PATH}/archea" "${TMP_PATH}/eukaryota" "${TMP_PATH}/viruses" "${OUTDB}_msa" --output-dbtype 11 --tar-include '\.raw_alg\.faa\.gz$' ${COMP_PAR} \
+        "${MMSEQS}" tar2db "${TMP_PATH}/bacteria" "${TMP_PATH}/archea" "${TMP_PATH}/eukaryota" "${TMP_PATH}/viruses" "${TMP_PATH}/msa" --output-dbtype 11 --tar-include '\.raw_alg\.faa\.gz$' ${COMP_PAR} \
             || fail "msa2profile died"
-        sed 's|\.raw_alg\.faa\.gz||g' "${OUTDB}_msa.lookup" > "${OUTDB}_msa.lookup.tmp"
-        mv -f "${OUTDB}_msa.lookup.tmp" "${OUTDB}_msa.lookup"
         rm -f "${TMP_PATH}/bacteria.tar" "${TMP_PATH}/archea.tar" "${TMP_PATH}/eukaryota.tar" "${TMP_PATH}/viruses.tar"
+        sed 's|\.raw_alg\.faa\.gz||g' "${TMP_PATH}/msa.lookup" > "${TMP_PATH}/msa.lookup.tmp"
+        mv -f "${TMP_PATH}/msa.lookup.tmp" "${TMP_PATH}/msa.lookup"
         # shellcheck disable=SC2086
         "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${THREADS_PAR} \
             || fail "msa2profile died"
