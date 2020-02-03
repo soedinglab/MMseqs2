@@ -207,6 +207,8 @@ case "${INPUT_TYPE}" in
         # shellcheck disable=SC2086
         "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${THREADS_PAR} \
             || fail "msa2profile died"
+        mv -f "${TMP_PATH}/msa.lookup" "${OUTDB}.lookup"
+        mv -f "${TMP_PATH}/msa.source" "${OUTDB}.source"
         "${MMSEQS}" rmdb "${TMP_PATH}/msa" \
             || fail "rmdb died"
     ;;
