@@ -858,9 +858,9 @@ void writeKmerMatcherResult(DBWriter & dbw,
                 prefResultsOutString.append(buffer, len);
             }
             unsigned int targetId = hashSeqPair[kmerPos].id;
-            unsigned short diagonal = hashSeqPair[kmerPos].pos;
+            T diagonal = hashSeqPair[kmerPos].pos;
             size_t kmerOffset = 0;
-            short prevDiagonal = diagonal;
+            T prevDiagonal = diagonal;
             size_t maxDiagonal = 0;
             size_t diagonalCnt = 0;
             size_t topScore =0;

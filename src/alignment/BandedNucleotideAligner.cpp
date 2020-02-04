@@ -142,7 +142,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
         result.tCov = SmithWaterman::computeCov(result.dbStartPos1, result.dbEndPos1, targetSeqObj->L);
         result.evalue = evaluer->computeEvalue(result.score1, origQueryLen);
         for (int i = qUngappedStartPos; i <= qUngappedEndPos; i++) {
-            aaIds += (querySeqAlign[i] == targetSeq[dbUngappedStartPos + (i - dbUngappedStartPos)]) ? 1 : 0;
+            aaIds += (querySeqAlign[i] == targetSeq[dbUngappedStartPos + (i - qUngappedStartPos)]) ? 1 : 0;
         }
         for(int pos = 0; pos <  origQueryLen; pos++){
             backtrace.append("M");
