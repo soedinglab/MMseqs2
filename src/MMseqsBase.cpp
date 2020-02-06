@@ -38,7 +38,7 @@ std::vector<Command> baseCommands = {
                 "# Cluster output\n"
                 "#  - result_rep_seq.fasta: Representatives\n"
                 "#  - result_all_seq.fasta: FASTA-like per cluster\n"
-                "#  - result_cluster.tsv:   Adjecency list\n\n"
+                "#  - result_cluster.tsv:   Adjacency list\n\n"
                 "# Important parameter: --min-seq-id, --cov-mode and -c \n"
                 "#                  --cov-mode \n"
                 "#                  0    1    2\n"
@@ -76,7 +76,7 @@ std::vector<Command> baseCommands = {
                                                             {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"easy-taxonomy",        easytaxonomy,         &par.easytaxonomy,         COMMAND_EASY,
                 "Taxonomic classification",
-                "# Assign taxonomical labels to FASTA sequences\n"
+                "# Assign taxonomic labels to FASTA sequences\n"
                 "  - result_tophit_aln: top hits\n"
                 "  - result_tophit_report: coverage profiles per database entry\n"
                 "  - result_report: kraken style report\n"
@@ -305,7 +305,7 @@ std::vector<Command> baseCommands = {
                 " Create SAM output\n"
                 "mmseqs convertalis queryDB targetDB result.sam --format-mode 1\n\n"
                 "# Create a TSV containing which query file a result comes from\n"
-                "mmseqs createdb euk_queries.fasta bak_queries.fasta queryDB\n"
+                "mmseqs createdb euk_queries.fasta bac_queries.fasta queryDB\n"
                 "mmseqs convertalis queryDB targetDB result.tsv --format-output qset,query,target\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:queryDb> <i:targetDb> <i:alignmentDB> <o:alignmentFile>",
@@ -407,8 +407,16 @@ std::vector<Command> baseCommands = {
                                                            {"taxSeqDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxSequenceDb }}},
         {"aggregatetax",         aggregatetax,         &par.aggregatetax,         COMMAND_TAXONOMY,
                 "Aggregate multiple taxon labels to a single label",
-                //"Use per-sequence taxonomic assignments to assign taxonomy to the entire set.",
-                NULL,
+                "# Download a sequence database with taxonomy information\n"
+                "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n\n"
+                "# Create a nucleotide sequence database from FASTA\n"
+                "mmseqs createdb contigs.fasta contigsDb\n\n"
+                "# Extract all orfs from each contig and translate them\n"
+                "mmseqs extractorfs contigsDb orfsAaDb --translate\n\n"
+                "# Assign taxonomy to each orf\n"
+                "mmseqs taxonomy orfsAaDb swissprotDB taxPerOrf tmp\n\n"
+                "# Aggregate taxonomic assignments on each contig\n"
+                "mmseqs aggregatetax swissprotDB orfsAaDb_h taxPerOrf taxPerContig --majority 0.5\n\n",
                 "Eli Levy Karin <eli.levy.karin@gmail.com>",
                 "<i:taxSeqDB> <i:setToSeqMap> <i:taxResPerSeqDB> <o:taxResPerSetDB>",
                 CITATION_MMSEQS2, {{"taxSeqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
