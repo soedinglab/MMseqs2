@@ -180,6 +180,34 @@ case "${SELECTION}" in
         fi
         INPUT_TYPE="FSA"
     ;;
+    "Kalamari")
+        if notExists "${TMP_PATH}/kalamari.tsv"; then
+            printf "3.7 %s\n" "$(date "+%s")" > "${TMP_PATH}/version"
+            downloadFile "https://raw.githubusercontent.com/lskatz/Kalamari/master/src/Kalamari_v3.7.tsv" "${TMP_PATH}/kalamari.tsv"
+        fi
+        ACCESSIONS=""
+        # shellcheck disable=SC2034
+        while IFS="$(printf '\t')" read -r NAME ACCESSION TAXID; do
+            if [ "$NAME" = "scientificName" ]; then
+                continue
+            fi
+            case "${ACCESSION}" in XXX*)
+                continue
+            esac
+            if [ -z "$ARR" ]; then
+                ACCESSIONS="$ACCESSION"
+            else
+                ACCESSIONS="$ASD,$ACCESSION"
+            fi
+        done < "${TMP_PATH}/kalamari.tsv"
+        if notExists "${TMP_PATH}/kalamari.fasta"; then
+            downloadFile "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id=${ACCESSIONS}&rettype=fasta&retmode=txt" "${TMP_PATH}/kalamari.fasta.tmp"
+            awk -F '[\t>.]' 'NR == FNR { f[$2]=$NF; next; } /^>/{ print $0" TaxID="f[$2]" "; next; } { print; }' "${TMP_PATH}/kalamari.tsv" "${TMP_PATH}/kalamari.fasta.tmp" > "${TMP_PATH}/kalamari.fasta"
+            rm -f "${TMP_PATH}/kalamari.fasta.tmp"
+        fi
+        push_back "${TMP_PATH}/kalamari.fasta"
+        INPUT_TYPE="FASTA_LIST"
+    ;;
 esac
 
 if notExists "${OUTDB}.dbtype"; then
