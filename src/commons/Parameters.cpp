@@ -631,8 +631,8 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_SEARCH_TYPE);
     indexdb.push_back(&PARAM_SPLIT);
     indexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
-    indexdb.push_back(&PARAM_THREADS);
     indexdb.push_back(&PARAM_V);
+    indexdb.push_back(&PARAM_THREADS);
 
     // create kmer index
     kmerindexdb.push_back(&PARAM_SEED_SUB_MAT);
@@ -651,8 +651,8 @@ Parameters::Parameters():
     kmerindexdb.push_back(&PARAM_SEARCH_TYPE);
     kmerindexdb.push_back(&PARAM_SPACED_KMER_MODE);
     kmerindexdb.push_back(&PARAM_SPACED_KMER_PATTERN);
-    kmerindexdb.push_back(&PARAM_THREADS);
     kmerindexdb.push_back(&PARAM_V);
+    kmerindexdb.push_back(&PARAM_THREADS);
 
     // create db
     createdb.push_back(&PARAM_MAX_SEQ_LEN);
