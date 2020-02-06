@@ -6,17 +6,24 @@ Parameters& par = Parameters::getInstance();
 std::vector<Command> baseCommands = {
         {"easy-search",          easysearch,           &par.easysearchworkflow,   COMMAND_EASY,
                 "Sensitive homology search",
-                "# Search FASTA against FASTA\n"
-                "mmseqs easy-search examples/QUERY.fasta examples/DB.fasta result.m8 tmp\n"
-                "# Profile search with two iterations\n"
-                "mmseqs easy-search examples/QUERY.fasta examples/DB.fasta result.m8 tmp --num-iterations 2\n",
+                "# Search FASTA against FASTA (like BLASTN, BLASTP, TBLASTN, BLASTX)\n"
+                "mmseqs easy-search examples/QUERY.fasta examples/DB.fasta result.m8 tmp\n\n"
+                "# Iterative profile search (like PSI-BLAST)\n"
+                "mmseqs easy-search examples/QUERY.fasta examples/DB.fasta result.m8 tmp --num-iterations 2\n\n"
+                "# Profile search against small databases (e.g. PFAM, eggNOG)\n"
+                "mmseqs databases PFAM pfam_db tmp\n"
+                "mmseqs easy-search examples/QUERY.fasta pfam_db res.m8 tmp\n\n"
+                "# Exhaustive search against sequences or profiles (works for large DBs)\n"
+                "mmseqs easy-search examples/QUERY.fasta targetProfiles res.m8 tmp --slice-search\n\n"
+                "# Increasing sensitivity search (from 2 to 7 in 3 steps)\n"
+                "mmseqs easy-search examples/QUERY.fasta examples/DB.fasta result.m8 --start-sens 2 -s 7 --sens-steps 3\n",
                 "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:queryFastaFile1[.gz|.bz2]> ... <i:queryFastaFileN[.gz|.bz2]>|<i:stdin> <i:targetFastaFile[.gz]>|<i:targetDB> <o:alignmentFile> <tmpDir>",
                 CITATION_SERVER | CITATION_MMSEQS2,{{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
                                                            {"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                                            {"alignmentFile", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
-        {"easy-linsearch",       easylinsearch,        &par.easylinsearchworkflow,COMMAND_EASY,
+        {"easy-linsearch",       easylinsearch,        &par.easylinsearchworkflow,COMMAND_EASY | COMMAND_EXPERT,
                 "Fast, less sensitive homology search",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
@@ -27,7 +34,21 @@ std::vector<Command> baseCommands = {
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"easy-cluster",         easycluster,          &par.easyclusterworkflow, COMMAND_EASY,
                 "Slower, sensitive clustering",
-                NULL,
+                "# Cascaded clustering of FASTA file\n"
+                "#  - result_rep_seq.fasta: Representatives\n"
+                "#  - result_all_seq.fasta: FASTA-like per cluster\n"
+                "#  - result_cluster.tsv:   Adjecency list\n"
+                "mmseqs easy-cluster examples/DB.fasta result tmp\n\n"
+                "#                  --cov-mode \n"
+                "# Sequence         0    1    2\n"
+                "# Q: MAVGTACRPA  60%  IGN  60%\n"
+                "# T: -AVGTAC---  60% 100%  IGN\n"
+                "# Cutoff -c 0.7    -    +    -\n"
+                "#        -c 0.6    +    +    +\n\n"
+                "# Cascaded clustering with reassignment\n"
+                "# - Corrects criteria-violoations of cascaded merging\n"
+                "# - Produces more clusters and is a bit slower\n"
+                "mmseqs easy-cluster examples/DB.fasta result tmp --cluster-reassign\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]> <o:clusterPrefix> <tmpDir>",
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"queryFastaFile[.gz]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
@@ -35,7 +56,17 @@ std::vector<Command> baseCommands = {
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"easy-linclust",        easylinclust,         &par.easylinclustworkflow, COMMAND_EASY,
                 "Fast, less sensitive clustering",
-                NULL,
+                "# Linear-time clustering of FASTA file\n"
+                "#  - result_rep_seq.fasta: Representatives\n"
+                "#  - result_all_seq.fasta: FASTA-like per cluster\n"
+                "#  - result_cluster.tsv:   Adjecency list\n"
+                "mmseqs easy-linclust examples/DB.fasta result tmp\n\n"
+                "                   --cov-mode \n"
+                "# Sequence         0    1    2\n"
+                "# Q: MAVGTACRPA  60%  IGN  60%\n"
+                "# T: -AVGTAC---  60% 100%  IGN\n"
+                "# Cutoff -c 0.7    -    +    -\n"
+                "#        -c 0.6    +    +    +\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]> <o:clusterPrefix> <tmpDir>",
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
@@ -43,7 +74,16 @@ std::vector<Command> baseCommands = {
                                                             {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"easy-taxonomy",        easytaxonomy,         &par.easytaxonomy,         COMMAND_EASY,
                 "Taxonomic classification",
-                NULL,
+                "# Assign taxonomical labels to FASTA sequences\n"
+                "  - result_tophit_aln: top hits\n"
+                "  - result_tophit_report: coverage profiles per database entry\n"
+                "  - result_report: kraken style report\n"
+                "# Download a sequence database with taxonomy information\n"
+                "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n\n"
+                "# Assign taxonomy based on top hit\n"
+                "mmseqs easy-taxonomy examples/DB.fasta swissprotDB result tmp\n\n"
+                "# Assign taxonomy based on 2bLCA\n"
+                "mmseqs easy-taxonomy examples/DB.fasta swissprotDB result tmp --lca-mode 2\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]> <i:targetDB> <o:taxReports> <tmpDir>",
                 CITATION_MMSEQS2, {{"queryFastaFile[.gz]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
@@ -63,7 +103,12 @@ std::vector<Command> baseCommands = {
                                                            {"tmpDir",     DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"createdb",             createdb,             &par.createdb,             COMMAND_DATABASE_CREATION,
                 "Convert FASTA/Q file(s) to a sequence DB",
-                NULL,
+                "# Create a sequence database from multiple FASTA files\n"
+                "mmseqs createdb file1.fa file2.fa.gz file3.fa sequenceDB\n\n"
+                "# Create a seqDB from stdin\n"
+                "cat seq.fasta | mmseqs createdb stdin sequenceDB\n\n"
+                "# Create a seqDB by indexing existing FASTA/Q (for single line fasta entries only)\n"
+                "mmseqs createdb seq.fasta sequenceDB --createdb-mode 1\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]>|<i:stdin> <o:sequenceDB>",
                 CITATION_MMSEQS2, {{"fast[a|q]File[.gz|bz2]|stdin", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfileAndStdin },
@@ -76,13 +121,18 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_HEADER, &DbValidator::sequenceDb },
                                                            {"sequenceIndexDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb }}},
         {"createindex",          createindex,          &par.createindex,          COMMAND_DATABASE_CREATION,
-                "Reduce search overhead with precomputed index",
-                NULL,
+                "Store precomputed index on disk to reduce search overhead",
+                "# Create protein sequence index\n"
+                "mmseqs createindex sequenceDB tmp\n\n"
+                "# Create TBLASTX/N index from nucleotide sequences\n"
+                "mmseqs createindex sequenceDB tmp --search-type 2\n\n"
+                "# Create BLASTN index from nucleotide sequences\n"
+                "mmseqs createindex sequenceDB tmp --search-type 3\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:sequenceDB> <tmpDir>",
                 CITATION_SERVER | CITATION_MMSEQS2,{{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_HEADER, &DbValidator::sequenceDb },
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
-        {"createlinindex",       createlinindex,       &par.createlinindex,       COMMAND_DATABASE_CREATION,
+        {"createlinindex",       createlinindex,       &par.createlinindex,       COMMAND_DATABASE_CREATION | COMMAND_EXPERT,
                 "Create linsearch index",
                 NULL,
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
@@ -93,8 +143,8 @@ std::vector<Command> baseCommands = {
                 "Convert Stockholm/PFAM MSA file to a MSA DB",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",
-                "<i:msaFile[.gz]> <o:msaDB>",
-                CITATION_SERVER |CITATION_MMSEQS2, {{"msaFile[.gz]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                "<i:msaFile.sto[.gz]> <o:msaDB>",
+                CITATION_SERVER |CITATION_MMSEQS2, {{"msaFile.sto[.gz]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                                            {"msaDB",DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::msaDb }}},
         {"tsv2db",               tsv2db,               &par.tsv2db,               COMMAND_DATABASE_CREATION | COMMAND_EXPERT,
                 "Convert a TSV file to any DB",
@@ -105,7 +155,10 @@ std::vector<Command> baseCommands = {
                                           {"resultDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::resultDb }}},
         {"tar2db",               tar2db,               &par.tar2db,               COMMAND_DATABASE_CREATION | COMMAND_EXPERT,
                 "Convert content of tar archives to any DB",
-                NULL,
+                "# Assuming tar archive containing three aligned FASTA files:\n"
+                "#  * folder/msa1.fa.gz  * folder/msa2.fa  * folder/msa3.fa\n"
+                "# Create a msaDB with three DB entries each containing a separate MSA\n"
+                "mmseqs tar2db archive.tar.gz msaDB --output-dbtype 11\n",
                 "Milot Mirdita <milot@mirdita.de>",
                 "<i:tar[.gz]> ... <i:tar[.gz]> <o:resultDB>",
                 CITATION_MMSEQS2, {{".tar[.gz]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfile },
@@ -114,14 +167,25 @@ std::vector<Command> baseCommands = {
 
         {"search",               search,               &par.searchworkflow,       COMMAND_MAIN,
                 "Sensitive homology search",
-                NULL,
+                "# Search FASTA against FASTA (like BLASTN, BLASTP, TBLASTN, BLASTX)\n"
+                "mmseqs search queryDB targetDB resultDB tmp\n"
+                "mmseqs convertalis queryDB targetDB resultDB result.m8\n\n"
+                "# Iterative profile search (like PSI-BLAST)\n"
+                "mmseqs search queryDB targetDB resultDB tmp --num-iterations 2\n\n"
+                "# Profile search against small databases (e.g. PFAM, eggNOG)\n"
+                "mmseqs databases PFAM pfam_db tmp\n"
+                "mmseqs search queryDB pfam_db resultDB tmp\n\n"
+                "# Exhaustive search against sequences or profiles (works for large DBs)\n"
+                "mmseqs search queryDB targetDB resultDB tmp --slice-search\n\n"
+                "# Increasing sensitivity search (from 2 to 7 in 3 steps)\n"
+                "mmseqs search queryDB targetDB resultDB --start-sens 2 -s 7 --sens-steps 3\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:queryDB> <i:targetDB> <o:alignmentDB> <tmpDir>",
                 CITATION_MMSEQS2, {{"queryDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                                            {"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                                            {"alignmentDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb },
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
-        {"linsearch",            linsearch,            &par.linsearchworkflow,    COMMAND_MAIN,
+        {"linsearch",            linsearch,            &par.linsearchworkflow,    COMMAND_MAIN|COMMAND_EXPERT,
                 "Fast, less sensitive homology search",
                 NULL,
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
@@ -150,15 +214,33 @@ std::vector<Command> baseCommands = {
                                           {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"linclust",          linclust,          &par.linclustworkflow,           COMMAND_MAIN,
                 "Fast, less sensitive clustering",
-                NULL,
-                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> ",
+                "# Linear-time clustering of FASTA file\n"
+                "mmseqs linclust sequenceDB clusterDB tmp\n\n"
+                "                   --cov-mode \n"
+                "# Sequence         0    1    2\n"
+                "# Q: MAVGTACRPA  60%  IGN  60%\n"
+                "# T: -AVGTAC---  60% 100%  IGN\n"
+                "# Cutoff -c 0.7    -    +    -\n"
+                "#        -c 0.6    +    +    +\n",
+                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:sequenceDB> <o:clusterDB> <tmpDir>",
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                                            {"clusterDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::clusterDb },
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"cluster",              clusteringworkflow,   &par.clusterworkflow,      COMMAND_MAIN,
                 "Slower, sensitive clustering",
-                NULL,
+                "# Cascaded clustering of FASTA file\n"
+                "mmseqs cluster sequenceDB clusterDB tmp\n\n"
+                "#                  --cov-mode \n"
+                "# Sequence         0    1    2\n"
+                "# Q: MAVGTACRPA  60%  IGN  60%\n"
+                "# T: -AVGTAC---  60% 100%  IGN\n"
+                "# Cutoff -c 0.7    -    +    -\n"
+                "#        -c 0.6    +    +    +\n\n"
+                "# Cascaded clustering with reassignment\n"
+                "# - Corrects criteria-violoations of cascaded merging\n"
+                "# - Produces more clusters and is a bit slower\n"
+                "mmseqs cluster sequenceDB clusterDB tmp --cluster-reassign\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Lars von den Driesch",
                 "<i:sequenceDB> <o:clusterDB> <tmpDir>",
                 CITATION_LINCLUST|CITATION_MMSEQS1|CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
@@ -166,7 +248,19 @@ std::vector<Command> baseCommands = {
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"clusterupdate",        clusterupdate,        &par.clusterUpdate,        COMMAND_MAIN,
                 "Update previous clustering with new sequences",
-                NULL,
+                "# Update clustering workflow \n"
+                "# Perform initial clustering of 5000 sequences\n"
+                "mmseqs createdb <(head -n 10000 examples/DB.fasta) sequenceDB\n"
+                "mmseqs cluster sequenceDB clusterDB tmp\n\n"
+                "# Use-case 1: Update by only adding sequences\n"
+                "mmseqs createdb examples/QUERY.fasta addedSequenceDB\n"
+                "mmseqs concatdbs sequenceDB addedSequenceDB allSequenceDB\n"
+                "mmseqs concatdbs sequenceDB_h addedSequenceDB_h allSequenceDB_h\n"
+                "mmseqs clusterupdate sequenceDB allSequenceDB clusterDB newSequenceDB newClusterDB tmp\n\n"
+                "# Use-case 2: Update clustering with deletions)\n"
+                "# Create a FASTA file missing 500 of the original sequences and 2500 new ones\n"
+                "mmseqs createdb <(tail -n +1001 examples/DB.fasta | head -n 15000) updateSequenceDB\n"
+                "mmseqs clusterupdate sequenceDB updateSequenceDB clusterDB newSequenceDB newClusterDB tmp\n",
                 "Clovis Galiez & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:oldSequenceDB> <i:newSequenceDB> <i:oldClustResultDB> <o:newMappedSequenceDB> <o:newClustResultDB> <tmpDir>",
                 CITATION_MMSEQS2|CITATION_MMSEQS1,{{"oldSequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_HEADER|DbType::NEED_LOOKUP, &DbValidator::sequenceDb },
@@ -177,7 +271,14 @@ std::vector<Command> baseCommands = {
                                                           {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory}}},
         {"taxonomy",             taxonomy,             &par.taxonomy,             COMMAND_MAIN,
                 "Taxonomic classification",
-                NULL,
+                "# Download a sequence database with taxonomy information\n"
+                "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n\n"
+                "# Assign taxonomy based on top hit\n"
+                "mmseqs taxonomy queryDB swissprotDB result tmp\n\n"
+                "# Assign taxonomy based on 2bLCA\n"
+                "mmseqs taxonomy queryDB swissprotDB result tmp --lca-mode 2\n\n"
+                "# Create a Krona report\n"
+                "mmseqs taxonomyreport swissprotDB result report.html --report-mode 1\n",
                 "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:queryDB> <i:targetDB> <o:taxaDB> <tmpDir>",
                 CITATION_MMSEQS2, {{"queryDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
@@ -189,7 +290,21 @@ std::vector<Command> baseCommands = {
 
         {"convertalis",          convertalignments,    &par.convertalignments,    COMMAND_FORMAT_CONVERSION,
                 "Convert alignment DB to BLAST-tab, SAM or custom format",
-                NULL,
+                "# Create output in BLAST M8 format (12 columns):\n"
+                "#  (1,2) identifiers for query and target sequences/profiles,\n"
+                "#  (3) sequence identity, (4) alignment length, (5) number of mismatches,\n"
+                "#  (6) number of gap openings, (7-8, 9-10) alignment start and end-position in query and in target,\n"
+                "#  (11) E-value, and (12) bit score\n"
+                "mmseqs convertalis queryDB targetDB result.m8\n\n"
+                "# Create a TSV containing pairwise alignments\n"
+                "mmseqs convertalis queryDB targetDB result.tsv --format-output query,target,qaln,taln\n\n"
+                "# Annotate a alignment result with taxonomy information from targetDB\n"
+                "mmseqs convertalis queryDB targetDB result.tsv --format-output query,target,taxid,taxname,taxlineage\n\n"
+                " Create SAM output\n"
+                "mmseqs convertalis queryDB targetDB result.sam --format-mode 1\n\n"
+                "# Create a TSV containing which query file a result comes from\n"
+                "mmseqs createdb euk_queries.fasta bak_queries.fasta queryDB\n"
+                "mmseqs convertalis queryDB targetDB result.tsv --format-output qset,query,target\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:queryDb> <i:targetDb> <i:alignmentDB> <o:alignmentFile>",
                 CITATION_MMSEQS2, {{"queryDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_HEADER, &DbValidator::sequenceDb },
@@ -220,7 +335,10 @@ std::vector<Command> baseCommands = {
                     {"fastaDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile}}},
         {"createseqfiledb",      createseqfiledb,      &par.createseqfiledb,      COMMAND_FORMAT_CONVERSION | COMMAND_EXPERT,
                 "Create a DB of unaligned FASTA entries",
-                NULL,
+                "# Gather all sequences from a cluster DB\n"
+                "mmseqs createseqfiledb sequenceDB clusterDB unalignedDB --min-sequences 2\n"
+                "# Build MSAs with Clustal-Omega\n"
+                "mmseqs apply unalignedDB msaDB -- clustalo -i - -o stdout --threads=1\n",
                 "Milot Mirdita <milot@mirdita.de>",
                 "<i:sequenceDB> <i:resultDB> <o:fastaDB>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
@@ -236,7 +354,7 @@ std::vector<Command> baseCommands = {
                 "<i:sequenceDB> <tmpDir>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
-        {"addtaxonomy",          addtaxonomy,          &par.addtaxonomy,          COMMAND_TAXONOMY,
+        {"addtaxonomy",          addtaxonomy,          &par.addtaxonomy,          COMMAND_TAXONOMY | COMMAND_EXPERT,
                 "Add taxonomic labels to result DB",
                 NULL,
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
@@ -254,7 +372,17 @@ std::vector<Command> baseCommands = {
                                                            {"taxonomyReport",    DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
         {"filtertaxdb",          filtertaxdb,          &par.filtertaxdb,          COMMAND_TAXONOMY,
                 "Filter taxonomy result database",
-                NULL,
+                "# Download a sequence database with taxonomy information\n"
+                "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n"
+                "# Annotate a queryDB with taxonomy information\n"
+                "mmseqs taxonomy queryDB swissprotDB taxDB tmp\n\n"
+                "# Retain all unclassified hits\n"
+                "mmseqs filtertaxdb swissprotDB taxDB filteredTaxDB --taxon-list 0\n"
+                "mmseqs createsubdb <(awk '$3 == 1' filteredTaxDB.index) queryDB queryUnclassifiedDB\n\n"
+                "# Retain all eukaryotic hits except fungi\n"
+                "mmseqs filtertaxdb swissprotDB taxDB filteredTaxDB --taxon-list '2759&&!4751'\n\n"
+                "# Retain all human and chlamydia hits\n"
+                "mmseqs filtertaxdb swissprotDB taxDB filteredTaxDB --taxon-list '9606||810'\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:targetDB> <i:taxDB> <o:taxDB>",
                 CITATION_MMSEQS2, {{"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
@@ -263,14 +391,22 @@ std::vector<Command> baseCommands = {
         // TODO make consistent with seqTaxDB -> taxSeqDb in Wiki
         {"filtertaxseqdb",       filtertaxseqdb,       &par.filtertaxseqdb,       COMMAND_TAXONOMY,
                 "Filter taxonomy sequence database",
-                "Example: Use --taxon-list to determine the entries in the filtered database. E.g. --taxon-list 2759 retains only Eukaryotic entries",
+                "# Download a sequence database with taxonomy information\n"
+                "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n\n"
+                "# Retain all bacterial sequences\n"
+                "mmseqs filtertaxseqdb swissprotDB swissprotDB_only_bac --taxon-list 2\n\n"
+                "# Retain all eukaryotic sequences except fungi\n"
+                "mmseqs filtertaxseqdb swissprotDB swissprotDB_euk_wo_fungi --taxon-list '2759&&!4751'\n\n"
+                "# Retain all human and chlamydia sequences\n"
+                "mmseqs filtertaxseqdb swissprotDB swissprotDB_human_and_chlamydia --taxon-list '9606||810'\n\n",
                 "Eli Levy Karin <eli.levy.karin@gmail.com> & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:taxSeqDB> <o:taxSeqDB>",
                 CITATION_MMSEQS2, {{"taxSeqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
                                                            {"taxSeqDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxSequenceDb }}},
         {"aggregatetax",         aggregatetax,         &par.aggregatetax,         COMMAND_TAXONOMY,
                 "Aggregate multiple taxon labels to a single label",
-                "Use per-sequence taxonomic assignments to assign taxonomy to the entire set.",
+                //"Use per-sequence taxonomic assignments to assign taxonomy to the entire set.",
+                NULL,
                 "Eli Levy Karin <eli.levy.karin@gmail.com>",
                 "<i:taxSeqDB> <i:setToSeqMap> <i:taxResPerSeqDB> <o:taxResPerSetDB>",
                 CITATION_MMSEQS2, {{"taxSeqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
@@ -486,9 +622,13 @@ std::vector<Command> baseCommands = {
 
 
         {"createsubdb",          createsubdb,          &par.createsubdb,          COMMAND_SET,
-                "Create a subset of a DB with list of DB keys",
-                NULL,
-                "Milot Mirdita <milot@mirdita.de>",
+                "Create a subset of a DB from list of DB keys",
+                "# Create a new sequenceDB from sequenceDB entries with keys 1, 2 and 3\n"
+                "mmseqs createsubdb <(printf '1\n2\n3\n') sequenceDB oneTwoThreeDB\n\n"
+        "# Create a new sequence database with representatives of clusterDB\n"
+        "mmseqs cluster sequenceDB clusterDB tmp\n"
+        "mmseqs createsubdb clusterDB sequenceDB representativesDB\n",
+        "Milot Mirdita <milot@mirdita.de>",
                 "<i:subsetFile|DB> <i:resultDB> <o:resultDB>",
                 CITATION_MMSEQS2, {{"subsetFile", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDbAndFlat },
                                           {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
@@ -496,7 +636,12 @@ std::vector<Command> baseCommands = {
         {"concatdbs",            concatdbs,            &par.concatdbs,            COMMAND_SET,
                 "Concatenate two DBs, giving new IDs to entries from 2nd DB",
 //                "If exist, the auxillary files: _mapping, source and lookup are also concatenated after IDs update of the 2nd DB",
-                NULL,
+                "# Download two sequences databases and concat them\n"
+                "mmseqs databases PDB pdbDB tmp\n"
+                "mmseqs UniProtKB/Swiss-Prot swissprotDB tmp\n"
+                "# Works only single threaded since seq. and header DB need the same ordering\n"
+                "mmseqs concatdbs pdbDB swissprotDB pdbAndSwissprotDB --threads 1\n"
+                "mmseqs concatdbs pdbDB_h swissprotDB_h pdbAndSwissprotDB_h --threads 1\n",
                 "Clovis Galiez, Eli Levy Karin & Martin Steinegger (martin.steinegger@mpibpc.mpg.de)",
                 "<i:DB> <i:DB> <o:DB>",
                 CITATION_MMSEQS2, {{"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
@@ -513,10 +658,10 @@ std::vector<Command> baseCommands = {
                 "Merge entries from multiple DBs",
                 NULL,
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
-                "<i:sequenceDB> <o:resultDB> <i:resultDB1> ... <i:resultDBn>",
-                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
-                                          {"resultDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb },
-                                          {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::allDb }}},
+                "<i:DB> <o:DB> <i:DB1> ... <i:DBn>",
+                CITATION_MMSEQS2, {{"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
+                                          {"DB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb },
+                                          {"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::allDb }}},
         {"subtractdbs",          subtractdbs,          &par.subtractdbs,          COMMAND_SET,
                 "Remove all entries from first DB occuring in second DB by key",
                 NULL,
@@ -530,7 +675,8 @@ std::vector<Command> baseCommands = {
 
         {"view",                 view,                 &par.view,                 COMMAND_DB,
                 "Print DB entries given in --id-list to stdout",
-                NULL,
+                "# Print entries with keys 1, 2 and 3 from a sequence DB to stdout\n"
+                "mmseqs view sequenecDB --id-list 1,2,3\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:DB>",
                 CITATION_MMSEQS2, {{"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
@@ -541,14 +687,28 @@ std::vector<Command> baseCommands = {
                 COMMAND_DB,
 #endif
                 "Execute given program on each DB entry",
-                NULL,
+                "# Gather all sequences from a cluster DB\n"
+                "mmseqs createseqfiledb sequenceDB clusterDB unalignedDB --min-sequences 2\n"
+                "# Build MSAs with Clustal-Omega\n"
+                "mmseqs apply unalignedDB msaDB -- clustalo -i - -o stdout --threads=1\n\n"
+                "# Count lines in each DB entry inefficiently (result2stats is way faster)\n"
+                "mmseqs apply DB wcDB -- awk '{ counter++; } END { print counter; }'\n",
                 "Milot Mirdita <milot@mirdita.de>",
                 "<i:DB> <o:DB> -- program [args...]",
                 CITATION_MMSEQS2, {{"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
                                                            {"DB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
         {"filterdb",             filterdb,             &par.filterDb,             COMMAND_DB,
                 "DB filtering by given conditions",
-                NULL,
+                "# Retain top alignment for each query (alignment DBs are sorted by E-value)\n"
+                "mmseqs filterdb alignmentDB topHitAlignmentDB --extract-lines 1\n\n"
+                "# Extract alignments with Seq.id. greater than 90%\n"
+                "mmseqs filterdb alignmentDB scoreGreater35AlignmentDB --comparison-operator ge --comparison-value 0.9 --filter-column 2\n\n"
+                "# Retain all hits matching a regular expression\n"
+                "mmseqs filterdb alignmentDB regexFilteredDB --filter-regex '^[1-9].$' --filter-column 2\n\n"
+                "# Remove all hits to target keys contained in file db.index\n"
+                "mmseqs filterdb --filter-file db.index --positive-filter false\n\n"
+                "# Retain all hits matching any boolean expression\n"
+                "mmseqs filterdb --filter-expression '$1 * $2 >= 200'\n",
                 "Clovis Galiez & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:resultDB> <o:resultDB>",
                 CITATION_MMSEQS2, {{"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
@@ -745,7 +905,13 @@ std::vector<Command> baseCommands = {
                                                            {"profileDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::profileDb }}},
         {"msa2profile",          msa2profile,          &par.msa2profile,          COMMAND_PROFILE | COMMAND_DATABASE_CREATION,
                 "Convert a MSA DB to a profile DB",
-                "Build a profile database from a database containing MSAs. The first sequence in the MSA is chosen as the query sequence. Gap columns (insertions) are discarded.",
+                "# Convert globally aligned MSAs to profiles\n"
+                "# Defines columns as match columns if more than 50% of residues are not gaps\n"
+                "# Non-match columns are discarded\n"
+                "mmseqs msa2profile msaDB profileDB --match-mode 1 --match-ratio 0.5\n\n"
+                "# Assign match-columns through the first sequence\n"
+                "# Gaps in query sequence define non-match columns and are discarded\n"
+                "mmseqs msa2profile msaDB profileDB --match-mode 0\n",
                 "Milot Mirdita <milot@mirdita.de>",
                 "<i:msaDB> <o:profileDB>",
                 CITATION_SERVER |CITATION_MMSEQS2, {{"msaDB",DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::msaDb },
