@@ -15,7 +15,12 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     par.PARAM_RESCORE_MODE.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_MAX_REJECTED.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_MAX_ACCEPT.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_KMER_PER_SEQ_SCALE.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_KMER_PER_SEQ.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_START_SENS.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_SENS_STEPS.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_CLUSTER_REASSIGN.addCategory(MMseqsParameter::COMMAND_EXPERT);
+
     par.PARAM_INCLUDE_ONLY_EXTENDABLE.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_NUM_ITERATIONS.addCategory(MMseqsParameter::COMMAND_EXPERT);
     for (size_t i = 0; i < par.extractorfs.size(); i++) {
@@ -47,7 +52,7 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     par.maxAccept = maxAccept;
 
     cmd.addVariable("CLUST_PAR", par.createParameterString(par.clusterworkflow).c_str());
-    
+
     std::string tmpDir = par.db6;
     std::string hash = SSTR(par.hashParameter(par.filenames, par.clusterUpdate));
     if (par.reuseLatest) {

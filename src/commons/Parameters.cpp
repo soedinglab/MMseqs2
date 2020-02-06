@@ -73,8 +73,8 @@ Parameters::Parameters():
         // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID, "--cluster-mode", "Cluster mode", "0: Set-Cover\n1: Connected component\n2: Greedy clustering by sequence length\n3: Greedy clustering by sequence length (low mem)", typeid(int), (void *) &clusteringMode, "[0-3]{1}$", MMseqsParameter::COMMAND_CLUST),
         PARAM_CLUSTER_STEPS(PARAM_CLUSTER_STEPS_ID, "--cluster-steps", "Cascaded clustering steps", "Cascaded clustering steps from 1 to -s", typeid(int), (void *) &clusterSteps, "^[1-9]{1}$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_CASCADED(PARAM_CASCADED_ID, "--single-step-clustering", "Single step clustering", "Switch from cascaded to simple clustering workflow", typeid(bool), (void *) &cascaded, "", MMseqsParameter::COMMAND_CLUST),
-        PARAM_CLUSTER_REASSIGN(PARAM_CLUSTER_REASSIGN_ID, "--cluster-reassign", "Cluster reassign", "Cascaded clustering can cluster sequence that do not fulfill the clustering criteria. Cluster reassignment corrects these errors", typeid(int), (void *) &clusterReassignment, "[0-1]{1}$", MMseqsParameter::COMMAND_CLUST),
+        PARAM_CASCADED(PARAM_CASCADED_ID, "--single-step-clustering", "Single step clustering", "Switch from cascaded to simple clustering workflow", typeid(bool), (void *) &singleStepClustering, "", MMseqsParameter::COMMAND_CLUST),
+        PARAM_CLUSTER_REASSIGN(PARAM_CLUSTER_REASSIGN_ID, "--cluster-reassign", "Cluster reassign", "Cascaded clustering can cluster sequence that do not fulfill the clustering criteria.\nCluster reassignment corrects these errors", typeid(int), (void *) &clusterReassignment, "[0-1]{1}$", MMseqsParameter::COMMAND_CLUST),
         // affinity clustering
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID, "--max-iterations", "Max connected component depth", "Maximum depth of breadth first search in connected component clustering", typeid(int), (void *) &maxIteration, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID, "--similarity-type", "Similarity type", "Type of score used for clustering. 1: alignment score 2: sequence identity", typeid(int), (void *) &similarityScoreType, "^[1-2]{1}$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
@@ -82,7 +82,7 @@ Parameters::Parameters():
         PARAM_V(PARAM_V_ID, "-v", "Verbosity", "Verbosity level: 0: quiet, 1: +errors, 2: +warnings, 3: +info", typeid(int), (void *) &verbosity, "^[0-3]{1}$", MMseqsParameter::COMMAND_COMMON),
         // convertalignments
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID, "--format-mode", "Alignment format", "Output format: 0: BLAST-TAB, 1: SAM, 2: BLAST-TAB + query/db length", typeid(int), (void *) &formatAlignmentMode, "^[0-2]{1}$"),
-        PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID, "--format-output", "Format alignment output", "Choose comma separated list of output columns from: 'query,target,evalue,gapopen,pident,nident,qstart,qend,qlen,tstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov,qset,qsetid,tset,tsetid,taxid,taxname,taxlineage'", typeid(std::string), (void *) &outfmt, ""),
+        PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID, "--format-output", "Format alignment output", "Choose comma separated list of output columns from: query,target,evalue,gapopen,pident,nident,qstart,qend,qlen\ntstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov\nqset,qsetid,tset,tsetid,taxid,taxname,taxlineage", typeid(std::string), (void *) &outfmt, ""),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database output", "Return a result DB instead of a text file", typeid(bool), (void *) &dbOut, "", MMseqsParameter::COMMAND_EXPERT),
         // --include-only-extendablediagonal
         PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID, "--rescore-mode", "Rescore mode", "Rescore diagonals with: 0: Hamming distance, 1: local alignment (score only), 2: local alignment, 3: global alignment or 4: longest alignment fullfilling window quality criterion", typeid(int), (void *) &rescoreMode, "^[0-4]{1}$"),
@@ -127,12 +127,13 @@ Parameters::Parameters():
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "One of: linecount, mean, doolittle, charges, seqlen, firstline", typeid(std::string), (void *) &stat, ""),
         // linearcluster
         PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "k-mers per sequence", "k-mers per sequence", typeid(int), (void *) &kmersPerSequence, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
-        PARAM_KMER_PER_SEQ_SCALE(PARAM_KMER_PER_SEQ_SCALE_ID, "--kmer-per-seq-scale", "Scale k-mers per sequence", "Scale k-mer per sequence based on sequence length as kmer-per-seq val + scale x seqlen", typeid(float), (void *) &kmersPerSequenceScale, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_KMER_PER_SEQ_SCALE(PARAM_KMER_PER_SEQ_SCALE_ID, "--kmer-per-seq-scale", "Scale k-mers per sequence", "Scale k-mer per sequence based on sequence length as kmer-per-seq val + scale x seqlen", typeid(float), (void *) &kmersPerSequenceScale, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_INCLUDE_ONLY_EXTENDABLE(PARAM_INCLUDE_ONLY_EXTENDABLE_ID, "--include-only-extendable", "Include only extendable", "Include only extendable", typeid(bool), (void *) &includeOnlyExtendable, "", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_IGNORE_MULTI_KMER(PARAM_IGNORE_MULTI_KMER_ID, "--ignore-multi-kmer", "Skip repeating k-mers", "Skip k-mers occuring multiple times (>=2)", typeid(bool), (void *) &ignoreMultiKmer, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash initilization", typeid(int), (void *) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_PICK_N_SIMILAR(PARAM_PICK_N_SIMILAR_ID, "--pick-n-sim-kmer", "Add N similar to search", "Add N similar k-mers to search", typeid(int), (void *) &pickNbest, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_ADJUST_KMER_LEN(PARAM_ADJUST_KMER_LEN_ID, "--adjust-kmer-len", "Adjust k-mer length", "Adjust k-mer length based on specificity (only for nucleotides)", typeid(bool), (void *) &adjustKmerLength, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "MPI runner", "Use MPI on compute cluster with this MPI command (e.g. \"mpirun -np 42\")", typeid(std::string), (void *) &runner, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart with latest tmp", "Reuse tmp filse in tmp/latest folder ignoring parameters and version changes", typeid(bool), (void *) &reuseLatest, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
@@ -172,7 +173,7 @@ Parameters::Parameters():
         // gff2db
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID, "--gff-type", "GFF type", "Type in the GFF file to filter by", typeid(std::string), (void *) &gffType, ""),
         // translatenucs
-        PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID, "--translation-table", "Translation table", "1) CANONICAL, 2) VERT_MITOCHONDRIAL, 3) YEAST_MITOCHONDRIAL, 4) MOLD_MITOCHONDRIAL, 5) INVERT_MITOCHONDRIAL, 6) CILIATE, 9) FLATWORM_MITOCHONDRIAL, 10) EUPLOTID, 11) PROKARYOTE, 12) ALT_YEAST, 13) ASCIDIAN_MITOCHONDRIAL, 14) ALT_FLATWORM_MITOCHONDRIAL, 15) BLEPHARISMA, 16) CHLOROPHYCEAN_MITOCHONDRIAL, 21) TREMATODE_MITOCHONDRIAL, 22) SCENEDESMUS_MITOCHONDRIAL, 23) THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24) PTEROBRANCHIA_MITOCHONDRIAL, 25) GRACILIBACTERIA, 26) PACHYSOLEN, 27) KARYORELICT, 28) CONDYLOSTOMA, 29) MESODINIUM, 30) PERTRICH, 31) BLASTOCRITHIDIA", typeid(int), (void *) &translationTable, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_MISC | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID, "--translation-table", "Translation table", "1) CANONICAL, 2) VERT_MITOCHONDRIAL, 3) YEAST_MITOCHONDRIAL, 4) MOLD_MITOCHONDRIAL, 5) INVERT_MITOCHONDRIAL, 6) CILIATE\n9) FLATWORM_MITOCHONDRIAL, 10) EUPLOTID, 11) PROKARYOTE, 12) ALT_YEAST, 13) ASCIDIAN_MITOCHONDRIAL, 14) ALT_FLATWORM_MITOCHONDRIAL\n15) BLEPHARISMA, 16) CHLOROPHYCEAN_MITOCHONDRIAL, 21) TREMATODE_MITOCHONDRIAL, 22) SCENEDESMUS_MITOCHONDRIAL\n23) THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24) PTEROBRANCHIA_MITOCHONDRIAL, 25) GRACILIBACTERIA, 26) PACHYSOLEN, 27) KARYORELICT, 28) CONDYLOSTOMA, 29) MESODINIUM, 30) PERTRICH, 31) BLASTOCRITHIDIA", typeid(int), (void *) &translationTable, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_MISC | MMseqsParameter::COMMAND_EXPERT),
         // createseqfiledb
         PARAM_ADD_ORF_STOP(PARAM_ADD_ORF_STOP_ID, "--add-orf-stop", "Add orf stop", "Add stop codon '*' at complete start and end", typeid(bool), (void *) &addOrfStop, ""),
         // createseqfiledb
@@ -655,7 +656,6 @@ Parameters::Parameters():
     kmerindexdb.push_back(&PARAM_THREADS);
 
     // create db
-    createdb.push_back(&PARAM_MAX_SEQ_LEN);
     createdb.push_back(&PARAM_DB_TYPE);
     createdb.push_back(&PARAM_SHUFFLE);
     createdb.push_back(&PARAM_CREATEDB_MODE);
@@ -1115,27 +1115,27 @@ Parameters::Parameters():
 void Parameters::printUsageMessage(const Command& command, const unsigned int outputFlag, const char* extraText) {
     const std::vector<MMseqsParameter*>& parameters = *command.params;
     std::ostringstream ss;
-    ss << "Usage: " << binary_name << " " << command.cmd << " " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n";
+    ss << "usage: " << binary_name << " " << command.cmd << " " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n";
     if (extraText != NULL) {
         ss << extraText;
     }
     if (outputFlag == 0xFFFFFFFF) {
         ss << " By " << command.author << "\n";
     }
-    ss << "\nOptions: ";
+    ss << "options: ";
 
     struct {
         const char* title;
         unsigned int category;
     } categories[] = {
-            {"Prefilter",MMseqsParameter::COMMAND_PREFILTER},
-            {"Align",    MMseqsParameter::COMMAND_ALIGN},
-            {"Clust",    MMseqsParameter::COMMAND_CLUST},
-            {"Kmermatcher", MMseqsParameter::COMMAND_CLUSTLINEAR},
-            {"Profile",  MMseqsParameter::COMMAND_PROFILE},
-            {"Misc",     MMseqsParameter::COMMAND_MISC},
-            {"Common",   MMseqsParameter::COMMAND_COMMON},
-            {"Expert",   MMseqsParameter::COMMAND_EXPERT}
+            {"prefilter",MMseqsParameter::COMMAND_PREFILTER},
+            {"align",    MMseqsParameter::COMMAND_ALIGN},
+            {"clust",    MMseqsParameter::COMMAND_CLUST},
+            {"kmermatcher", MMseqsParameter::COMMAND_CLUSTLINEAR},
+            {"profile",  MMseqsParameter::COMMAND_PROFILE},
+            {"misc",     MMseqsParameter::COMMAND_MISC},
+            {"common",   MMseqsParameter::COMMAND_COMMON},
+            {"expert",   MMseqsParameter::COMMAND_EXPERT}
     };
 
     const bool printExpert = MMseqsParameter::COMMAND_EXPERT & outputFlag;
@@ -1174,7 +1174,9 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
         }
         if (categoryFound) {
             paramString.clear();
-            paramString.append("\n ").append(categories[i].title).append(":");
+            if (outputFlag == 0xFFFFFFFF) {
+                paramString.append(categories[i].title).append(":");
+            }
             ss << paramString << std::string(maxParamWidth < paramString.size()? 1 : maxParamWidth - paramString.size(), ' ');
 
             if(printHeader==true){
@@ -1234,17 +1236,9 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
             }
         }
     }
-    if (command.citations > 0) {
-        ss << "\nReferences:\n";
-        for (unsigned int pos = 0; pos != sizeof(command.citations) * CHAR_BIT; ++pos) {
-            unsigned int citation = 1 << pos;
-            if (command.citations & citation && citations.find(citation) != citations.end()) {
-                ss << " - " << citations.at(citation) << "\n";
-            }
-        }
-    }
+
     if (command.examples) {
-        ss << "\nExamples:\n ";
+        ss << "\nexamples:\n ";
         const char *data = command.examples;
         while (*data != '\0') {
             ss.put(*data);
@@ -1255,6 +1249,15 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
         }
         if (*(data - 1) != '\n') {
             ss.put('\n');
+        }
+    }
+    if (command.citations > 0) {
+        ss << "\nreferences:\n";
+        for (unsigned int pos = 0; pos != sizeof(command.citations) * CHAR_BIT; ++pos) {
+            unsigned int citation = 1 << pos;
+            if (command.citations & citation && citations.find(citation) != citations.end()) {
+                ss << " - " << citations.at(citation) << "\n";
+            }
         }
     }
     if (printExpert == false && hasExpert) {
@@ -1510,12 +1513,21 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
 
     bool isVar = false;
     bool isStartVar = false;
+    bool isMiddleVar = false;
     bool isEndVar = false;
     if(command.databases.empty() == false && command.databases[0].validator != NULL) {
         if (command.databases.size() >= 2) {
-            isStartVar |= (command.databases[0].specialType & DbType::VARIADIC);
-            isEndVar |= (command.databases[command.databases.size() - 1].specialType & DbType::VARIADIC);
-            isVar = isStartVar | isEndVar;
+            for(size_t i = 0; i < command.databases.size();i++){
+                if(i == 0){
+                    isStartVar |= (command.databases[i].specialType & DbType::VARIADIC);
+                } else if(i == command.databases.size() - 1){
+                    isEndVar |= (command.databases[i].specialType & DbType::VARIADIC);
+                } else {
+                    isMiddleVar |= (command.databases[i].specialType & DbType::VARIADIC);
+                }
+
+            }
+            isVar = isStartVar | isMiddleVar | isEndVar;
         }
         if (ignorePathCountChecks == false && isVar == false && filenames.size() > command.databases.size()) {
             printUsageMessage(command, outputFlags);
@@ -1616,7 +1628,7 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             EXIT(EXIT_FAILURE);
     }
     if (ignorePathCountChecks == false) {
-        checkIfDatabaseIsValid(command, isStartVar, isEndVar);
+        checkIfDatabaseIsValid(command, isStartVar, isMiddleVar, isEndVar);
     }
 
     if(printPar == true) {
@@ -1647,7 +1659,7 @@ void Parameters::checkIfTaxDbIsComplete(std::string & filename){
         }
 }
 
-void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar, bool isEndVar) {
+void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar, bool isMiddleVar, bool isEndVar) {
     size_t fileIdx = 0;
     for (size_t dbIdx = 0; dbIdx < command.databases.size(); dbIdx++) {
         const DbType &db = command.databases[dbIdx];
@@ -1657,10 +1669,13 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
             size_t argumentDist = 0;
             if(dbIdx == 0 && isStartVar){
                 argumentDist = (filenames.size() - command.databases.size());
-            }
-            if(dbIdx == command.databases.size() - 1 && isEndVar){
+            }else if(dbIdx == command.databases.size() - 1 && isEndVar){
+                argumentDist = (filenames.size() - command.databases.size());
+            }else if((command.databases[dbIdx].specialType & DbType::VARIADIC) && isMiddleVar){
                 argumentDist = (filenames.size() - command.databases.size());
             }
+
+
             size_t currFileIdx = fileIdx;
             for(; fileIdx <= currFileIdx+argumentDist; fileIdx++){
                 if (db.validator == NULL) {
@@ -1879,7 +1894,7 @@ void Parameters::setDefaults() {
     addBacktrace = false;
     realign = false;
     clusteringMode = SET_COVER;
-    cascaded = true;
+    singleStepClustering = false;
     clusterReassignment = 0;
     clusterSteps = 3;
     preloadMode = 0;

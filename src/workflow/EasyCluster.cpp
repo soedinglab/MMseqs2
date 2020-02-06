@@ -29,6 +29,7 @@ void setEasyClusterMustPassAlong(Parameters *p) {
 
 int easycluster(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
+    par.PARAM_MAX_SEQS.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_ADD_BACKTRACE.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_ALT_ALIGNMENT.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_RESCORE_MODE.addCategory(MMseqsParameter::COMMAND_EXPERT);

@@ -73,9 +73,11 @@ int runCommand(Command *p, int argc, const char **argv) {
 
 void printUsage(bool showExtended) {
     std::stringstream usage;
+
     usage << tool_introduction << "\n\n";
     usage << tool_name << " Version: " << version << "\n";
-    usage << "© " << main_author << "\n";
+    usage << "© " << main_author << "\n\n";
+    usage << "usage: " << binary_name << " <command> [<args>]" << "\n";
 
     std::vector<int> showCategoryHeader(categories.size(), 0);
     for (size_t i = 0; i < categories.size(); ++i) {

@@ -41,6 +41,7 @@ int setAutomaticIterations(float sens){
 int clusteringworkflow(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setWorkflowDefaults(&par);
+    par.PARAM_MAX_SEQS.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_RESCORE_MODE.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_MAX_REJECTED.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_MAX_ACCEPT.addCategory(MMseqsParameter::COMMAND_EXPERT);
@@ -114,7 +115,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
                               << " in combination with coverage mode " << par.covMode << " can produce wrong results.\n"
                               << "Please use --cov-mode 2\n";
     }
-    if (par.cascaded == true && par.clusteringMode == Parameters::CONNECTED_COMPONENT) {
+    if (par.singleStepClustering == false && par.clusteringMode == Parameters::CONNECTED_COMPONENT) {
         Debug(Debug::WARNING) << "Connected component clustering produces less clusters in a single step clustering.\n"
                               << "Please use --single-step-cluster";
     }
@@ -142,7 +143,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("MERGECLU_PAR", par.createParameterString(par.threadsandcompression).c_str());
 
-    if (par.cascaded) {
+    if (par.singleStepClustering == false) {
         // save some values to restore them later
         float targetSensitivity = par.sensitivity;
         int alphabetSize = par.alphabetSize;

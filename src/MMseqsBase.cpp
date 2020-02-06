@@ -6,17 +6,17 @@ Parameters& par = Parameters::getInstance();
 std::vector<Command> baseCommands = {
         {"easy-search",          easysearch,           &par.easysearchworkflow,   COMMAND_EASY,
                 "Sensitive homology search",
-                "# Search FASTA against FASTA (like BLASTN, BLASTP, TBLASTN, BLASTX)\n"
-                "mmseqs easy-search examples/QUERY.fasta examples/DB.fasta result.m8 tmp\n\n"
-                "# Iterative profile search (like PSI-BLAST)\n"
-                "mmseqs easy-search examples/QUERY.fasta examples/DB.fasta result.m8 tmp --num-iterations 2\n\n"
+                "# Search multiple FASTA against FASTA (like BLASTP, TBLASTN, BLASTX, BLASTN --search-type 3, TBLASTX --search-type 2)\n"
+                "mmseqs easy-search examples/QUERY.fasta examples/QUERY.fasta examples/DB.fasta result.m8 tmp\n\n"
+                "# Iterative profile search from stdin (like PSI-BLAST)\n"
+                "cat examples/QUERY.fasta | mmseqs easy-search stdin examples/DB.fasta result.m8 tmp --num-iterations 2\n\n"
                 "# Profile search against small databases (e.g. PFAM, eggNOG)\n"
                 "mmseqs databases PFAM pfam_db tmp\n"
                 "mmseqs easy-search examples/QUERY.fasta pfam_db res.m8 tmp\n\n"
                 "# Exhaustive search against sequences or profiles (works for large DBs)\n"
                 "mmseqs easy-search examples/QUERY.fasta targetProfiles res.m8 tmp --slice-search\n\n"
                 "# Increasing sensitivity search (from 2 to 7 in 3 steps)\n"
-                "mmseqs easy-search examples/QUERY.fasta examples/DB.fasta result.m8 --start-sens 2 -s 7 --sens-steps 3\n",
+                "mmseqs easy-search examples/QUERY.fasta examples/DB.fasta result.m8 tmp --start-sens 2 -s 7 --sens-steps 3\n",
                 "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:queryFastaFile1[.gz|.bz2]> ... <i:queryFastaFileN[.gz|.bz2]>|<i:stdin> <i:targetFastaFile[.gz]>|<i:targetDB> <o:alignmentFile> <tmpDir>",
                 CITATION_SERVER | CITATION_MMSEQS2,{{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
@@ -34,16 +34,17 @@ std::vector<Command> baseCommands = {
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"easy-cluster",         easycluster,          &par.easyclusterworkflow, COMMAND_EASY,
                 "Slower, sensitive clustering",
-                "# Cascaded clustering of FASTA file\n"
+                "mmseqs easy-cluster examples/DB.fasta result tmp\n"
+                "# Cluster output\n"
                 "#  - result_rep_seq.fasta: Representatives\n"
                 "#  - result_all_seq.fasta: FASTA-like per cluster\n"
-                "#  - result_cluster.tsv:   Adjecency list\n"
-                "mmseqs easy-cluster examples/DB.fasta result tmp\n\n"
+                "#  - result_cluster.tsv:   Adjecency list\n\n"
+                "# Important paramter: --min-seq-id, --cov-mode and -c \n"
                 "#                  --cov-mode \n"
-                "# Sequence         0    1    2\n"
+                "#                  0    1    2\n"
                 "# Q: MAVGTACRPA  60%  IGN  60%\n"
                 "# T: -AVGTAC---  60% 100%  IGN\n"
-                "# Cutoff -c 0.7    -    +    -\n"
+                "#        -c 0.7    -    +    -\n"
                 "#        -c 0.6    +    +    +\n\n"
                 "# Cascaded clustering with reassignment\n"
                 "# - Corrects criteria-violoations of cascaded merging\n"
@@ -55,17 +56,18 @@ std::vector<Command> baseCommands = {
                                                            {"clusterPrefix", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"easy-linclust",        easylinclust,         &par.easylinclustworkflow, COMMAND_EASY,
-                "Fast, less sensitive clustering",
-                "# Linear-time clustering of FASTA file\n"
+                "Fast linear time cluster, less sensitive clustering",
+                "mmseqs easy-linclust examples/DB.fasta result tmp\n\n"
+                "# Linclust output\n"
                 "#  - result_rep_seq.fasta: Representatives\n"
                 "#  - result_all_seq.fasta: FASTA-like per cluster\n"
-                "#  - result_cluster.tsv:   Adjecency list\n"
-                "mmseqs easy-linclust examples/DB.fasta result tmp\n\n"
-                "                   --cov-mode \n"
-                "# Sequence         0    1    2\n"
+                "#  - result_cluster.tsv:   Adjecency list\n\n"
+                "# Important paramter: --min-seq-id, --cov-mode and -c \n"
+                "#                  --cov-mode \n"
+                "#                  0    1    2\n"
                 "# Q: MAVGTACRPA  60%  IGN  60%\n"
                 "# T: -AVGTAC---  60% 100%  IGN\n"
-                "# Cutoff -c 0.7    -    +    -\n"
+                "#        -c 0.7    -    +    -\n"
                 "#        -c 0.6    +    +    +\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]> <o:clusterPrefix> <tmpDir>",
@@ -167,7 +169,7 @@ std::vector<Command> baseCommands = {
 
         {"search",               search,               &par.searchworkflow,       COMMAND_MAIN,
                 "Sensitive homology search",
-                "# Search FASTA against FASTA (like BLASTN, BLASTP, TBLASTN, BLASTX)\n"
+                "# Search multiple FASTA against FASTA (like BLASTP, TBLASTN, BLASTX, BLASTN --search-type 3, TBLASTX --search-type 2)\n"
                 "mmseqs search queryDB targetDB resultDB tmp\n"
                 "mmseqs convertalis queryDB targetDB resultDB result.m8\n\n"
                 "# Iterative profile search (like PSI-BLAST)\n"
@@ -368,7 +370,7 @@ std::vector<Command> baseCommands = {
                 "Milot Mirdita <milot@mirdita.de> & Florian Breitwieser <florian.bw@gmail.com>",
                 "<i:targetDB> <i:taxDB> <o:taxonomyReport>",
                 CITATION_MMSEQS2, {{"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
-                                                           {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::taxResult },
+                                                           {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC,  &DbValidator::taxResult },
                                                            {"taxonomyReport",    DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
         {"filtertaxdb",          filtertaxdb,          &par.filtertaxdb,          COMMAND_TAXONOMY,
                 "Filter taxonomy result database",
@@ -625,10 +627,10 @@ std::vector<Command> baseCommands = {
                 "Create a subset of a DB from list of DB keys",
                 "# Create a new sequenceDB from sequenceDB entries with keys 1, 2 and 3\n"
                 "mmseqs createsubdb <(printf '1\n2\n3\n') sequenceDB oneTwoThreeDB\n\n"
-        "# Create a new sequence database with representatives of clusterDB\n"
-        "mmseqs cluster sequenceDB clusterDB tmp\n"
-        "mmseqs createsubdb clusterDB sequenceDB representativesDB\n",
-        "Milot Mirdita <milot@mirdita.de>",
+                "# Create a new sequence database with representatives of clusterDB\n"
+                "mmseqs cluster sequenceDB clusterDB tmp\n"
+                "mmseqs createsubdb clusterDB sequenceDB representativesDB\n",
+                "Milot Mirdita <milot@mirdita.de>",
                 "<i:subsetFile|DB> <i:resultDB> <o:resultDB>",
                 CITATION_MMSEQS2, {{"subsetFile", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDbAndFlat },
                                           {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
