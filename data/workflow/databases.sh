@@ -201,6 +201,13 @@ case "${SELECTION}" in
             fi
         done < "${TMP_PATH}/kalamari.tsv"
         if notExists "${TMP_PATH}/kalamari.fasta"; then
+            # Reset download strategy to not use aria2c for NCBI
+            STRATEGY=""
+            if hasCommand curl; then STRATEGY="$STRATEGY CURL"; fi
+            if hasCommand wget; then STRATEGY="$STRATEGY WGET"; fi
+            if [ "$STRATEGY" = "" ]; then
+                fail "No download tool found in PATH. Please install aria2c, curl or wget."
+            fi
             downloadFile "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id=${ACCESSIONS}&rettype=fasta&retmode=txt" "${TMP_PATH}/kalamari.fasta.tmp"
             awk '/<!DOCTYPE/ { exit 1; } ' "${TMP_PATH}/kalamari.fasta.tmp" || fail "Could not download genomes from NCBI. Please try again later."
             awk -F '[\t>.]' 'NR == FNR { f[$2]=$NF; next; } /^>/{ print $0" TaxID="f[$2]" "; next; } { print; }' "${TMP_PATH}/kalamari.tsv" "${TMP_PATH}/kalamari.fasta.tmp" > "${TMP_PATH}/kalamari.fasta"
