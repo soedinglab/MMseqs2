@@ -95,6 +95,8 @@ private:
     int gapOpen;
     // costs to extend a gap
     int gapExtend;
+    // score difference to break alignment
+    int zdrop;
 
 
     // needed for realignment

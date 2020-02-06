@@ -15,7 +15,7 @@
 #include "StripedSmithWaterman.h"
 
 
-BandedNucleotideAligner::BandedNucleotideAligner(BaseMatrix * subMat, size_t maxSequenceLength, int gapo, int gape) :
+BandedNucleotideAligner::BandedNucleotideAligner(BaseMatrix * subMat, size_t maxSequenceLength, int gapo, int gape, int zdrop) :
 fastMatrix(SubstitutionMatrix::createAsciiSubMat(*subMat))
 {
     targetSeqRevDataLen = maxSequenceLength;
@@ -34,6 +34,7 @@ fastMatrix(SubstitutionMatrix::createAsciiSubMat(*subMat))
     }
     this->gape = gape;
     this->gapo = gapo;
+    this->zdrop = zdrop;
 }
 
 BandedNucleotideAligner::~BandedNucleotideAligner(){
@@ -165,7 +166,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
         queryRevLenToAlign = origQueryLen;
     }
 
-    ksw_extz2_sse(0, queryRevLenToAlign, querySeqRevAlign + qStartRev, targetSeqObj->L - tStartRev, targetSeqRev + tStartRev, 5, mat, gapo, gape, 128, 40, flag, &ez);
+    ksw_extz2_sse(0, queryRevLenToAlign, querySeqRevAlign + qStartRev, targetSeqObj->L - tStartRev, targetSeqRev + tStartRev, 5, mat, gapo, gape, 64, zdrop, flag, &ez);
 
     int qStartPos = querySeqObj->L  - ( qStartRev + ez.max_q ) -1;
     int tStartPos = targetSeqObj->L - ( tStartRev + ez.max_t ) -1;
@@ -182,7 +183,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
     if (wrappedScoring && queryLenToAlign > origQueryLen)
         queryLenToAlign = origQueryLen;
     ksw_extz2_sse(0, queryLenToAlign, querySeqAlign+qStartPos, targetSeqObj->L-tStartPos, targetSeq+tStartPos, 5,
-                  mat, gapo, gape, 64, 40, alignFlag, &ezAlign);
+                  mat, gapo, gape, 64, zdrop, alignFlag, &ezAlign);
 
     std::string letterCode = "MID";
     uint32_t * retCigar;
@@ -190,7 +191,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
     if (ez.max_q > ezAlign.max_q && ez.max_t > ezAlign.max_t){
 
         ksw_extz2_sse(0, queryRevLenToAlign, querySeqRevAlign + qStartRev, targetSeqObj->L - tStartRev,
-                      targetSeqRev + tStartRev, 5, mat, gapo, gape, 64, 40, alignFlag, &ezAlign);
+                      targetSeqRev + tStartRev, 5, mat, gapo, gape, 64, zdrop, alignFlag, &ezAlign);
 
         retCigar = new uint32_t[ezAlign.n_cigar];
         for(int i = 0; i < ezAlign.n_cigar; i++){
