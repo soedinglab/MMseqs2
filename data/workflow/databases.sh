@@ -194,10 +194,10 @@ case "${SELECTION}" in
             case "${ACCESSION}" in XXX*)
                 continue
             esac
-            if [ -z "$ARR" ]; then
+            if [ -z "$ACCESSIONS" ]; then
                 ACCESSIONS="$ACCESSION"
             else
-                ACCESSIONS="$ASD,$ACCESSION"
+                ACCESSIONS="$ACCESSIONS,$ACCESSION"
             fi
         done < "${TMP_PATH}/kalamari.tsv"
         if notExists "${TMP_PATH}/kalamari.fasta"; then
