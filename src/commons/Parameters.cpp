@@ -1218,14 +1218,14 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
                         paramString.append(" STR");
                         valueString = *((std::string *) par->value);
                     }
-                    ss << "   " << paramString << std::string(maxParamWidth < paramString.size()? 1 : maxParamWidth - paramString.size(), ' ');
+                    ss << " " << paramString << std::string(maxParamWidth < paramString.size()? 1 : maxParamWidth - paramString.size(), ' ');
 
                     ss << " ";
                     const char* description = par->description;
                     while (description != NULL && *description != '\0') {
                         ss.put(*description);
                         if (*description == '\n') {
-                            ss << std::string(maxParamWidth + 4, ' ');
+                            ss << std::string(maxParamWidth + 2, ' ');
                         }
                         description++;
                     }
