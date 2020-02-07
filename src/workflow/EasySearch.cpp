@@ -29,6 +29,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     Parameters &par = Parameters::getInstance();
     par.PARAM_ADD_BACKTRACE.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_MAX_REJECTED.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_ZDROP.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_DB_OUTPUT.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_OVERLAP.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_DB_OUTPUT.addCategory(MMseqsParameter::COMMAND_EXPERT);
