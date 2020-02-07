@@ -302,6 +302,10 @@ public:
         while(s->hasNextKmer()){
             const unsigned char * kmer = s->nextKmer();
             std::pair<size_t *, size_t> scoreMatrix = kmerGenerator->generateKmerList(kmer);
+            if(kmerPos+scoreMatrix.second >= bufferSize){
+                *buffer = static_cast<IndexEntryLocalTmp*>(realloc(*buffer, sizeof(IndexEntryLocalTmp) * bufferSize*2));
+                bufferSize = bufferSize*2;
+            }
             for(size_t i = 0; i < scoreMatrix.second; i++) {
                 unsigned int kmerIdx = scoreMatrix.first[i];
 
@@ -313,10 +317,7 @@ public:
                 (*buffer)[kmerPos].position_j = s->getCurrentPosition();
                 kmerPos++;
             }
-            if(kmerPos >= bufferSize){
-                *buffer = static_cast<IndexEntryLocalTmp*>(realloc(*buffer, sizeof(IndexEntryLocalTmp) * bufferSize*2));
-                bufferSize = bufferSize*2;
-            }
+
         }
 
         if(kmerPos>1){
