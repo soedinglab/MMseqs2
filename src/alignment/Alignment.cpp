@@ -295,10 +295,14 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             char buffer[1024+32768];
             Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
             Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
-            Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
+            Matcher matcher(querySeqType,
+                                (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ? maxSeqLen : qdbr->getMaxSeqLen(),
+                                 m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
             Matcher *realigner = NULL;
             if (realign ==  true && wrappedScoring == false) {
-                realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
+                realigner = new Matcher(querySeqType,
+                                       (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ? maxSeqLen : qdbr->getMaxSeqLen(),
+                                       realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
             }
 
             std::vector<Matcher::result_t> swResults;
