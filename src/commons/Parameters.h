@@ -359,6 +359,7 @@ public:
     bool   realign;                      // realign hit with more conservative score
     int    gapOpen;                      // gap open
     int    gapExtend;                    // gap extend
+    int    zdrop;                        // zdrop
 
     // workflow
     std::string runner;
@@ -663,6 +664,7 @@ public:
     PARAMETER(PARAM_ALT_ALIGNMENT)
     PARAMETER(PARAM_GAP_OPEN)
     PARAMETER(PARAM_GAP_EXTEND)
+    PARAMETER(PARAM_ZDROP)
     std::vector<MMseqsParameter*> align;
 
     // clustering

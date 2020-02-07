@@ -123,6 +123,13 @@ std::vector<DatabaseDownload> downloads = {{
     "https://cge.cbs.dtu.dk/services/ResFinder",
     false, Parameters::DBTYPE_NUCLEOTIDES, databases_sh, databases_sh_len,
     { }
+}, {
+    "Kalamari",
+    "Kalamari contains over 250 genomes chosen to be representative of agents tracked by genome-based foodborne disease surveillance, common contaminants, and diverse phyla and bacterial genera.",
+    "Katz et al: Kraken with Kalamari: Contamination Detection. ASM Poster, 270 (2018)",
+    "https://github.com/lskatz/Kalamari",
+    true, Parameters::DBTYPE_NUCLEOTIDES, databases_sh, databases_sh_len,
+    { }
 },
 };
 

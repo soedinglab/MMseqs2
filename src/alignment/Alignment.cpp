@@ -132,6 +132,7 @@ Alignment::Alignment(const std::string &querySeqDB,
         m = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, scoreBias);
         gapOpen = par.gapOpen;
         gapExtend = par.gapExtend;
+        zdrop = par.zdrop;
         if(par.PARAM_GAP_OPEN.wasSet==false){
             gapOpen = 5;
         }
@@ -294,10 +295,10 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             char buffer[1024+32768];
             Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
             Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
-            Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
+            Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
             Matcher *realigner = NULL;
             if (realign ==  true && wrappedScoring == false) {
-                realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
+                realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
             }
 
             std::vector<Matcher::result_t> swResults;

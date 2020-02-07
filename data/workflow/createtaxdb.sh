@@ -21,7 +21,7 @@ TMP_PATH="$2"
 
 if [ "$DOWNLOAD_NCBITAXDUMP" -eq "1" ]; then
     # Download NCBI taxon information
-    if notExists "$4/ncbi_download.complete"; then
+    if notExists "${TMP_PATH}/ncbi_download.complete"; then
         echo "Download taxdump.tar.gz"
         wget -nv -O - "https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz" \
            | tar -C "${TMP_PATH}" -xzf - names.dmp nodes.dmp merged.dmp delnodes.dmp

@@ -115,7 +115,7 @@ public:
 
     Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m,
             EvalueComputation * evaluer, bool aaBiasCorrection,
-            int gapOpen, int gapExtend);
+            int gapOpen, int gapExtend, int zdrop = 40);
 
     ~Matcher();
 

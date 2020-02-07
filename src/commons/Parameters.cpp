@@ -70,6 +70,7 @@ Parameters::Parameters():
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID, "--alt-ali", "Alternative alignments", "Show up to this many alternative alignments", typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID, "--gap-open", "Gap open cost", "Gap open cost", typeid(int), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID, "--gap-extend", "Gap extension cost", "Gap extension cost", typeid(int), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_ZDROP(PARAM_ZDROP_ID, "--zdrop", "zdrop", "maximal allowed difference between score values before alignment is truncated", typeid(int), (void*) &zdrop, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID, "--cluster-mode", "Cluster mode", "0: Set-Cover\n1: Connected component\n2: Greedy clustering by sequence length\n3: Greedy clustering by sequence length (low mem)", typeid(int), (void *) &clusteringMode, "[0-3]{1}$", MMseqsParameter::COMMAND_CLUST),
         PARAM_CLUSTER_STEPS(PARAM_CLUSTER_STEPS_ID, "--cluster-steps", "Cascaded clustering steps", "Cascaded clustering steps from 1 to -s", typeid(int), (void *) &clusterSteps, "^[1-9]{1}$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
@@ -302,6 +303,7 @@ Parameters::Parameters():
     align.push_back(&PARAM_SCORE_BIAS);
     align.push_back(&PARAM_GAP_OPEN);
     align.push_back(&PARAM_GAP_EXTEND);
+    align.push_back(&PARAM_ZDROP);
     align.push_back(&PARAM_THREADS);
     align.push_back(&PARAM_COMPRESSED);
     align.push_back(&PARAM_V);
@@ -1218,14 +1220,14 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
                         paramString.append(" STR");
                         valueString = *((std::string *) par->value);
                     }
-                    ss << "   " << paramString << std::string(maxParamWidth < paramString.size()? 1 : maxParamWidth - paramString.size(), ' ');
+                    ss << " " << paramString << std::string(maxParamWidth < paramString.size()? 1 : maxParamWidth - paramString.size(), ' ');
 
                     ss << " ";
                     const char* description = par->description;
                     while (description != NULL && *description != '\0') {
                         ss.put(*description);
                         if (*description == '\n') {
-                            ss << std::string(maxParamWidth + 4, ' ');
+                            ss << std::string(maxParamWidth + 2, ' ');
                         }
                         description++;
                     }
@@ -1891,6 +1893,7 @@ void Parameters::setDefaults() {
     altAlignment = 0;
     gapOpen = 11;
     gapExtend = 1;
+    zdrop = 40;
     addBacktrace = false;
     realign = false;
     clusteringMode = SET_COVER;

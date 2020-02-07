@@ -17,7 +17,7 @@ class BandedNucleotideAligner {
 public:
 
 
-    BandedNucleotideAligner(BaseMatrix *subMat, size_t maxSequenceLength, int gapo, int gape);
+    BandedNucleotideAligner(BaseMatrix *subMat, size_t maxSequenceLength, int gapo, int gape, int zdrop);
 
     ~BandedNucleotideAligner();
 
@@ -42,4 +42,5 @@ private:
 //    uint32_t * cigar;
     int gapo;
     int gape;
+    int zdrop;
 };
