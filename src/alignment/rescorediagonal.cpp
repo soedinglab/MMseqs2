@@ -161,7 +161,7 @@ int doRescorediagonal(Parameters &par,
                         queryLen = origQueryLen*2;
                     }
 
-                    if(queryLen > queryRevSeqLen){
+                    if(reversePrefilterResult == true && queryLen > queryRevSeqLen){
                         queryRevSeq = static_cast<char*>(realloc(queryRevSeq, queryLen+1));
                         queryRevSeqLen = queryLen+1;
                     }
