@@ -816,7 +816,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
 #endif
         Sequence seq(qdbr->getMaxSeqLen(), querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
-                             kmerThr, kmerSize, dbSize, qdbr->getMaxSeqLen(), maxResListLen, aaBiasCorrection,
+                             kmerThr, kmerSize, dbSize, std::max(tdbr->getMaxSeqLen(),qdbr->getMaxSeqLen()), maxResListLen, aaBiasCorrection,
                              diagonalScoring, minDiagScoreThr, takeOnlyBestKmer);
 
         if (seq.profile_matrix != NULL) {
