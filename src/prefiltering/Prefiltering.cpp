@@ -814,10 +814,9 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        Sequence seq(maxSeqLen, querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
-
+        Sequence seq(qdbr->getMaxSeqLen(), querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
-                             kmerThr, kmerSize, dbSize, maxSeqLen, maxResListLen, aaBiasCorrection,
+                             kmerThr, kmerSize, dbSize, qdbr->getMaxSeqLen(), maxResListLen, aaBiasCorrection,
                              diagonalScoring, minDiagScoreThr, takeOnlyBestKmer);
 
         if (seq.profile_matrix != NULL) {

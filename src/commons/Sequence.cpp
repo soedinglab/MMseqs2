@@ -243,6 +243,10 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
         || Parameters::isEqualDbtype( this->seqType,Parameters::DBTYPE_NUCLEOTIDES)
         || Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)){
         this->L = data.second;
+        if(this->L >= static_cast<int>(maxLen)){
+            numSequence = static_cast<unsigned char *>(realloc(numSequence, this->L+1));
+            maxLen = this->L;
+        }
         memcpy(this->numSequence, data.first, this->L);
     } else {
         Debug(Debug::ERROR) << "Invalid sequence type!\n";
