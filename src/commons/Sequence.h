@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <utility>
+#include <simd/simd.h>
 
 struct ScoreMatrix;
 
@@ -100,6 +101,11 @@ public:
         return (((currItPos + 1) + this->spacedPatternSize) <= this->L);
     }
 
+    // k-mer contains x, is only field aftter nextKmer
+    inline bool kmerContainsX(){
+        return kmerHasX != 0;
+    }
+
     // returns next k-mer
     inline const unsigned char * nextKmer() {
         if (hasNextKmer() == false) {
@@ -126,6 +132,45 @@ public:
                 kmerWindow[4] = posToRead[aaPosInSpacedPattern[4]];
                 kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
                 kmerWindow[6] = posToRead[aaPosInSpacedPattern[6]];
+                break;
+            case 10:
+                kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
+                kmerWindow[1] = posToRead[aaPosInSpacedPattern[1]];
+                kmerWindow[2] = posToRead[aaPosInSpacedPattern[2]];
+                kmerWindow[3] = posToRead[aaPosInSpacedPattern[3]];
+                kmerWindow[4] = posToRead[aaPosInSpacedPattern[4]];
+                kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
+                kmerWindow[6] = posToRead[aaPosInSpacedPattern[6]];
+                kmerWindow[7] = posToRead[aaPosInSpacedPattern[7]];
+                kmerWindow[8] = posToRead[aaPosInSpacedPattern[8]];
+                kmerWindow[9] = posToRead[aaPosInSpacedPattern[9]];
+                break;
+            case 11:
+                kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
+                kmerWindow[1] = posToRead[aaPosInSpacedPattern[1]];
+                kmerWindow[2] = posToRead[aaPosInSpacedPattern[2]];
+                kmerWindow[3] = posToRead[aaPosInSpacedPattern[3]];
+                kmerWindow[4] = posToRead[aaPosInSpacedPattern[4]];
+                kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
+                kmerWindow[6] = posToRead[aaPosInSpacedPattern[6]];
+                kmerWindow[7] = posToRead[aaPosInSpacedPattern[7]];
+                kmerWindow[8] = posToRead[aaPosInSpacedPattern[8]];
+                kmerWindow[9] = posToRead[aaPosInSpacedPattern[9]];
+                kmerWindow[10] = posToRead[aaPosInSpacedPattern[10]];
+                break;
+            case 12:
+                kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
+                kmerWindow[1] = posToRead[aaPosInSpacedPattern[1]];
+                kmerWindow[2] = posToRead[aaPosInSpacedPattern[2]];
+                kmerWindow[3] = posToRead[aaPosInSpacedPattern[3]];
+                kmerWindow[4] = posToRead[aaPosInSpacedPattern[4]];
+                kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
+                kmerWindow[6] = posToRead[aaPosInSpacedPattern[6]];
+                kmerWindow[7] = posToRead[aaPosInSpacedPattern[7]];
+                kmerWindow[8] = posToRead[aaPosInSpacedPattern[8]];
+                kmerWindow[9] = posToRead[aaPosInSpacedPattern[9]];
+                kmerWindow[10] = posToRead[aaPosInSpacedPattern[10]];
+                kmerWindow[11] = posToRead[aaPosInSpacedPattern[11]];
                 break;
             case 13:
                 kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
@@ -357,7 +402,13 @@ public:
                 }
                 break;
         }
+        kmerHasX = 0;
 
+        const simd_int xChar = simdi8_set(subMat->aa2num[static_cast<int>('X')]);
+        for(size_t i = 0; i < simdKmerRegisterCnt; i++){
+            simd_int kmer = simdi_load((((simd_int *) kmerWindow) + i));
+            kmerHasX |= static_cast<unsigned int>(simdi8_movemask(simdi8_eq(kmer, xChar)));
+        }
         if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) ||
             Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
             nextProfileKmer();
@@ -505,8 +556,14 @@ private:
     // kmer Size
     unsigned int kmerSize;
 
+    // simd kmer size
+    unsigned int simdKmerRegisterCnt;
+
     // sequence window will be filled by newxtKmer (needed for spaced patterns)
     unsigned char *kmerWindow;
+
+    // set if kmer contains X
+    unsigned int kmerHasX;
 
     // stores position of residues in sequence
     unsigned char *aaPosInSpacedPattern;

@@ -34,8 +34,8 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
     this->aaPosInSpacedPattern = NULL;
     this->shouldAddPC = shouldAddPC;
     if(spacedPatternSize){
-        size_t simdKmerLen = static_cast<size_t >(kmerSize) / (VECSIZE_INT*4);
-        simdKmerLen = (simdKmerLen+1) * (VECSIZE_INT*4); // for SIMD memory alignment
+        simdKmerRegisterCnt = (kmerSize / (VECSIZE_INT*4)) + 1;
+        unsigned int simdKmerLen =  simdKmerRegisterCnt *  (VECSIZE_INT*4); // for SIMD memory alignment
         this->kmerWindow = (unsigned char*) mem_align(ALIGN_INT, simdKmerLen * sizeof(unsigned char));
         memset(this->kmerWindow, 0, simdKmerLen * sizeof(unsigned char));
         this->aaPosInSpacedPattern = new unsigned char[kmerSize];

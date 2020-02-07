@@ -48,14 +48,9 @@ int countkmer(int argc, const char **argv, const Command& command) {
         for (size_t i = 0; i < reader.sequenceReader->getSize(); i++) {
             char *data = reader.sequenceReader->getData(i, 0);
             s.mapSequence(i, 0, data, reader.sequenceReader->getSeqLen(i));
-            const unsigned char xIndex = s.subMat->aa2num[static_cast<int>('X')];
             while (s.hasNextKmer()) {
                 const unsigned char *kmer = s.nextKmer();
-                int xCount = 0;
-                for (int pos = 0; pos < par.kmerSize; pos++) {
-                    xCount += (kmer[pos] == xIndex);
-                }
-                if (xCount > 0) {
+                if(s.kmerContainsX()){
                     continue;
                 }
 

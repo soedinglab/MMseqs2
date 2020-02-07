@@ -40,13 +40,11 @@
 template <typename T>
 KmerPosition<T> *initKmerPositionMemory(size_t size) {
     KmerPosition<T> * hashSeqPair = new(std::nothrow) KmerPosition<T>[size + 1];
-
     Util::checkAllocation(hashSeqPair, "Can not allocate memory");
     size_t pageSize = Util::getPageSize()/sizeof(KmerPosition<T>);
-
 #pragma omp parallel
     {
-#pragma omp for schedule(dynamic, 1)
+#pragma omp for schedule(static)
         for (size_t page = 0; page < size+1; page += pageSize) {
             size_t readUntil = std::min(size+1, page + pageSize) - page;
             memset(hashSeqPair+page, 0xFF, sizeof(KmerPosition<T>)* readUntil);
@@ -143,33 +141,30 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
 
                 size_t seqKmerCount = 0;
                 unsigned int seqId = seq.getDbKey();
-                const unsigned char xIndex = subMat->aa2num[static_cast<int>('X')];
                 while (seq.hasNextKmer()) {
                     unsigned char *kmer = (unsigned char*) seq.nextKmer();
-                    int kpos;
-                    for (kpos = 0; kpos < par.kmerSize && (kmer[kpos] != xIndex); kpos++) {}
-                    if (kpos !=  par.kmerSize) {
+                    if(seq.kmerContainsX()){
                         continue;
                     }
-
                     if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
-                        unsigned char revKmer[32];
                         NucleotideMatrix * nuclMatrix = (NucleotideMatrix*)subMat;
                         size_t kmerLen =  par.kmerSize;
-                        unsigned char * kmerToHash = kmer;
                         size_t kmerIdx = Indexer::computeKmerIdx(kmer, kmerLen);
                         size_t revkmerIdx = Util::revComplement(kmerIdx, kmerLen);
                         bool pickReverseKmer = (revkmerIdx<kmerIdx);
                         kmerIdx = (pickReverseKmer) ? revkmerIdx : kmerIdx;
-                        if(pickReverseKmer){
-                            for(int pos = static_cast<int>(adjustedKmerSize)-1; pos > -1; pos--){
-                                revKmer[(adjustedKmerSize - 1) - pos]=nuclMatrix->reverseResidue(kmer[pos]);
-                            }
-                            kmerToHash = revKmer;
-                        }
+
                         const unsigned short hash = static_cast<unsigned short>(XXH64(&kmerIdx, 8, par.hashShift));
 
                         if(par.adjustKmerLength) {
+                            unsigned char revKmer[32];
+                            unsigned char * kmerToHash = kmer;
+                            if(pickReverseKmer){
+                                for(int pos = static_cast<int>(adjustedKmerSize)-1; pos > -1; pos--){
+                                    revKmer[(adjustedKmerSize - 1) - pos]=nuclMatrix->reverseResidue(kmer[pos]);
+                                }
+                                kmerToHash = revKmer;
+                            }
                             kmerLen = MarkovKmerScore::adjustedLength(kmerToHash, adjustedKmerSize,
                                                                       (par.kmerSize - MarkovScores::MARKOV_ORDER) * MarkovScores::MEDIAN_SCORE);
                             longestKmer = std::max(kmerLen, longestKmer);
@@ -1180,7 +1175,7 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition<seqLenType> *hashSeqPair
 void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTyp) {
     if(Parameters::isEqualDbtype(seqTyp, Parameters::DBTYPE_NUCLEOTIDES)){
         if(parameters.kmerSize == 0) {
-            parameters.kmerSize = std::max(15, static_cast<int>(log(static_cast<float>(aaDbSize))/log(4)));
+            parameters.kmerSize = std::max(17, static_cast<int>(log(static_cast<float>(aaDbSize))/log(4)));
             parameters.alphabetSize = 5;
 
         }

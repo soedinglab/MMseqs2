@@ -188,20 +188,16 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     size_t seqListSize;
     unsigned short indexStart = 0;
     unsigned short indexTo = 0;
-    const unsigned char xIndex = kmerSubMat->aa2num[static_cast<int>('X')];
-
     while(seq->hasNextKmer()){
         const unsigned char * kmer = seq->nextKmer();
         const unsigned char * pos = seq->getAAPosInSpacedPattern();
         const unsigned short current_i = seq->getCurrentPosition();
 
         float biasCorrection = 0;
-        int xCount = 0;
         for (int i = 0; i < kmerSize; i++){
-            xCount += (kmer[i] == xIndex);
             biasCorrection += compositionBias[current_i + static_cast<short>(pos[i])];
         }
-        if(xCount > 0){
+        if(seq->kmerContainsX()){
             indexTo = current_i;
             indexPointer[current_i] = sequenceHits;
             continue;
