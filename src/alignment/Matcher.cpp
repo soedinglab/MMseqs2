@@ -371,4 +371,74 @@ size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBac
     return tmpBuff - basePos;
 }
 
+void Matcher::updateResultByRescoringBacktrace(const char *querySeq, const char *targetSeq, const char **subMat, EvalueComputation &evaluer,
+                                                int gapOpen, int gapExtend, result_t &result) {
+    int maxScore = 0;
+    int maxBtEndPos = 0;
+    int maxBtStartPos = 0;
+    int maxQueryEndPos = 0;
+    int maxQueryStartPos = 0;
+    int maxTargetStartPos = 0;
+    int maxTargetEndPos = 0;
+    int minPos = -1;
+    int minQueryPos = result.qStartPos-1;
+    int minTargetPos = result.dbStartPos-1;
+    int score = 0;
+    int identicalAAs = 0;
+    int maxIdAaCnt = 0;
+    int queryPos = result.qStartPos;
+    int targetPos = result.dbStartPos;
+    bool isGapOpen = false;
+
+    for(unsigned int pos = 0; pos < result.backtrace.size(); pos++){
+        char letter = result.backtrace[pos];
+        int curr;
+        if (letter == 'M') {
+            curr = subMat[static_cast<int>(querySeq[queryPos])][static_cast<int>(targetSeq[targetPos])];
+            identicalAAs += (querySeq[queryPos] == targetSeq[targetPos]);
+            isGapOpen = false;
+        } else {
+            curr = (isGapOpen) ? -gapExtend : -gapOpen;
+            isGapOpen = (isGapOpen == false) ? true : isGapOpen;
+        }
+        score = curr + score;
+        // minimum
+        const bool isMinScore = (score <= 0);
+        score = (isMinScore) ? 0 : score;
+        identicalAAs = (isMinScore) ? 0 : identicalAAs;
+        if(isMinScore){
+            minPos = pos;
+            minQueryPos = (letter == 'D') ? queryPos - 1 : queryPos;
+            minTargetPos = (letter == 'I') ? targetPos - 1 : targetPos;
+        }
+        // new max
+        const bool isNewMaxScore = (score > maxScore);
+        if(isNewMaxScore){
+            maxBtEndPos = pos;
+            maxQueryEndPos = queryPos;
+            maxTargetEndPos = targetPos;
+            maxBtStartPos = minPos + 1;
+            maxQueryStartPos = minQueryPos + 1;
+            maxTargetStartPos = minTargetPos + 1;
+            maxScore = score;
+            maxIdAaCnt = identicalAAs;
+        }
+        queryPos += (letter == 'M' || letter == 'I') ? 1 : 0;
+        targetPos += (letter == 'M' || letter == 'D') ? 1 : 0;
+    }
+
+    result.qStartPos = maxQueryStartPos;
+    result.qEndPos = maxQueryEndPos;
+    result.dbStartPos = maxTargetStartPos;
+    result.dbEndPos = maxTargetEndPos;
+    double bitScore = evaluer.computeBitScore(maxScore);
+    double evalue = evaluer.computeEvalue(maxScore, result.qLen);
+    result.score = bitScore;
+    result.eval = evalue;
+    result.alnLength = (maxBtEndPos - maxBtStartPos) + 1;
+    result.seqId = static_cast<float>(maxIdAaCnt) / static_cast<float>(result.alnLength);
+    result.backtrace = result.backtrace.substr(maxBtStartPos, result.alnLength);
+
+}
+
 

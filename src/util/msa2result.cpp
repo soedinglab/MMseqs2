@@ -358,11 +358,10 @@ int msa2result(int argc, const char **argv, const Command &command) {
             unsigned int centerLength = centerLengthWithGaps - maskedCount;
             size_t filteredSetSize = setSize;
             if (par.filterMsa == 1) {
-                filter.filter(setSize, centerLength, static_cast<int>(par.covMSAThr * 100),
+                filteredSetSize = filter.filter(setSize, centerLength, static_cast<int>(par.covMSAThr * 100),
                               static_cast<int>(par.qid * 100), par.qsc,
                               static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
-                              (const char **) msaSequences, &filteredSetSize);
-                filter.shuffleSequences((const char **) msaSequences, setSize);
+                              (const char **) msaSequences);
             }
             PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, centerLength, (const char **) msaSequences, par.wg);
 
@@ -370,9 +369,10 @@ int msa2result(int argc, const char **argv, const Command &command) {
                 const char* currSeq = msaSequences[i];
                 unsigned int currentCol = 0;
                 unsigned int currentMask = 0;
-//                std::string gapCons;
-//                std::string gapSeq;
                 std::string bt;
+                std::string currSeqNoGaps;
+                std::string consSeqNoGaps;
+                size_t numIdentical = 0;
                 for (size_t j = 0; j < centerLengthWithGaps; ++j) {
                     bool takeFromEnd = false;
                     if (maskedColumns[j] == 1) {
@@ -390,14 +390,19 @@ int msa2result(int argc, const char **argv, const Command &command) {
                         continue;
                     } else if (conRes != '-' && seqRes == '-') {
                         bt.append(1, 'I');
+                        consSeqNoGaps.append(1, conRes);
                     } else if (conRes == '-' && seqRes != '-') {
                         bt.append(1, 'D');
+                        currSeqNoGaps.append(1, seqRes);
                     } else if (conRes != '-' && seqRes != '-') {
                         bt.append(1, 'M');
+                        currSeqNoGaps.append(1, seqRes);
+                        consSeqNoGaps.append(1, conRes);
                     }
-//                    gapCons.append(1, conRes);
-//                    gapSeq.append(1, seqRes);
 
+                    if (conRes == seqRes) {
+                        numIdentical++;
+                    }
                 }
 //                std::cout << gapCons << '\n';
 //                std::cout << bt << '\n';
@@ -421,10 +426,10 @@ int msa2result(int argc, const char **argv, const Command &command) {
                  unsigned int dbLen,
                  std::string backtrace)
  */
+
+                float seqId = (float)numIdentical / bt.length();
+
                 unsigned int key = setSizes[id] + i;
-<<<<<<< HEAD
-                results.emplace_back(key, 0, 0, 0, 0, 0, bt.length(), 0, 0, 0, 0, 0, 0, bt);
-=======
                 // initialize res with some values
                 Matcher::result_t res(key, 0, 1.0, 1.0, seqId, 0, bt.length(), 0, consSeqNoGaps.size() - 1, consSeqNoGaps.size(), 0, currSeqNoGaps.size() - 1, currSeqNoGaps.size(), bt);
 
@@ -432,7 +437,6 @@ int msa2result(int argc, const char **argv, const Command &command) {
                 Matcher::updateResultByRescoringBacktrace(consSeqNoGaps.c_str(), currSeqNoGaps.c_str(), fastMatrix.matrix, evaluer, par.gapOpen.aminoacids, par.gapExtend.aminoacids, res);
                 
                 results.emplace_back(res);
->>>>>>> 87081d21... msa2p
             }
 
             resultWriter.writeStart(thread_idx);

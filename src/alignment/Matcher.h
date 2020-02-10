@@ -219,6 +219,8 @@ public:
 
     static int computeAlnLength(int anEnd, int start, int dbEnd, int dbStart);
 
+    static void updateResultByRescoringBacktrace(const char *querySeq, const char *targetSeq, const char **subMat, EvalueComputation &evaluer,
+                                                    int gapOpen, int gapExtend, result_t &result);
 
 private:
 
