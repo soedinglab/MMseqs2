@@ -40,6 +40,8 @@ public:
 
     static size_t getFreeSpace(const char *dir);
 
+    static std::string getCurrentWorkingDirectory();
+
     static void symlinkAlias(const std::string &file, const std::string &alias);
     static void symlinkAbs(const std::string &target, const std::string &link);
 

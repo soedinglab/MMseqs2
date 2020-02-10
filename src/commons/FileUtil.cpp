@@ -186,16 +186,46 @@ void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
     if (symlinkExists(pathToAlias) == true){
         FileUtil::remove(pathToAlias.c_str());
     }
-
-    if (symlinkat(base.c_str(), dirfd(dir), alias.c_str()) != 0) {
+    // symlinkat is not available in Conda macOS
+    // Conda uses the macOS 10.9 SDK, and symlinkat was introduced in 10.10
+    // We emulate symlinkat by manipulating the CWD instead
+    std::string oldWd = FileUtil::getCurrentWorkingDirectory();
+    if (chdir(path.c_str()) != 0) {
+        Debug(Debug::ERROR) << "Could not change working directory to " << path << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (symlink(base.c_str(), alias.c_str()) != 0) {
         Debug(Debug::ERROR) << "Could not create symlink of " << file << "!\n";
         EXIT(EXIT_FAILURE);
     }
-
+    if (chdir(oldWd.c_str()) != 0) {
+        Debug(Debug::ERROR) << "Could not change working directory to " << oldWd << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     if (closedir(dir) != 0) {
         Debug(Debug::ERROR) << "Error closing directory " << path << "!\n";
         EXIT(EXIT_FAILURE);
     }
+}
+
+std::string FileUtil::getCurrentWorkingDirectory() {
+    // CWD can be larger than PATH_MAX and allocating enough memory is somewhat tricky
+    char* wd = NULL;
+    size_t bufferSize = PATH_MAX;
+    do {
+        if (wd != NULL) {
+            free(wd);
+            bufferSize *= 2;
+        }
+        wd = getcwd(NULL, bufferSize);
+        if (wd == NULL && errno != ERANGE && errno != 0) {
+            Debug(Debug::ERROR) << "Could not get current working directory\n";
+            EXIT(EXIT_FAILURE);
+        }
+    } while (wd == NULL && errno == ERANGE);
+    std::string cwd(wd);
+    free(wd);
+    return cwd;
 }
 
 void FileUtil::symlinkAbs(const std::string &target, const std::string &link) {
