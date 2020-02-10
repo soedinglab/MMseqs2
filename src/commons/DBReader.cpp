@@ -17,6 +17,10 @@
 #include "FileUtil.h"
 #include "itoa.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 template <typename T>
 DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int threads, int dataMode) :
 threads(threads), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
