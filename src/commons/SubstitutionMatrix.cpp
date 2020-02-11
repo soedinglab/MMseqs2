@@ -43,7 +43,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, fl
         // read amino acid substitution matrix from file
         std::string fileName(parsedMatrix.first.c_str());
         matrixName = Util::base_name(fileName, "/\\");
-        if (fileName.substr(fileName.length() - 4, 4).compare(".out") != 0) {
+        if (fileName.length() < 4 || fileName.substr(fileName.length() - 4, 4).compare(".out") != 0) {
             Debug(Debug::ERROR) << "Invalid format of the substitution matrix input file! Only .out files are accepted.\n";
             EXIT(EXIT_FAILURE);
         }

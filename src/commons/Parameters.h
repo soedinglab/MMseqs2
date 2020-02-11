@@ -12,7 +12,6 @@
 #include <utility>
 
 #include "Command.h"
-#include "ScoreMatrixFile.h"
 #include "MultiParam.h"
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
@@ -310,8 +309,8 @@ public:
     const char** restArgv;
     int restArgc;
 
-    ScoreMatrixFile scoringMatrixFile;       // path to scoring matrix
-    ScoreMatrixFile seedScoringMatrixFile;   // seed sub. matrix
+    MultiParam<char*> scoringMatrixFile;       // path to scoring matrix
+    MultiParam<char*> seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
     int    verbosity;                    // log level

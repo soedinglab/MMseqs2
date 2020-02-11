@@ -46,8 +46,8 @@ Parameters::Parameters():
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split memory limit", "Set max memory per split. E.g. 800B, 5K, 10M, 1G. Default (0) to all available system memory", typeid(ByteParser), (void *) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set max disk space to use for reverse profile searches. E.g. 800B, 5K, 10M, 1G. Default (0) to all available disk space in the temp folder", typeid(ByteParser), (void *) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID, "--split-aa", "Split by amino acid", "Try to find the best split boundaries by entry lengths", typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_SUB_MAT(PARAM_SUB_MAT_ID, "--sub-mat", "Substitution matrix", "Substitution matrix file", typeid(ScoreMatrixFile), (void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_SEED_SUB_MAT(PARAM_SEED_SUB_MAT_ID, "--seed-sub-mat", "Seed substitution matrix", "Substitution matrix file for k-mer generation", typeid(ScoreMatrixFile), (void *) &seedScoringMatrixFile, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SUB_MAT(PARAM_SUB_MAT_ID, "--sub-mat", "Substitution matrix", "Substitution matrix file", typeid(MultiParam<char*>), (void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SEED_SUB_MAT(PARAM_SEED_SUB_MAT_ID, "--seed-sub-mat", "Seed substitution matrix", "Substitution matrix file for k-mer generation", typeid(MultiParam<char*>), (void *) &seedScoringMatrixFile, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID, "--comp-bias-corr", "Compositional bias", "Correct for locally biased amino acid composition (range 0-1)", typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID, "--spaced-kmer-mode", "Spaced k-mers", "0: use consecutive positions in k-mers; 1: use spaced k-mers", typeid(int), (void *) &spacedKmer, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove temporary files", "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
@@ -1211,16 +1211,23 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
                     } else if (par->type == typeid(ByteParser)) {
                         paramString.append(" BYTE");
                         valueString = ByteParser::format(*((size_t *) par->value));
-                    } else if (par->type == typeid(ScoreMatrixFile)) {
-                        paramString.append(" MAT");
-                        valueString = ScoreMatrixFile::format(*((ScoreMatrixFile *) par->value));
                     } else if (par->type == typeid(bool)) {
                         paramString.append(" BOOL");
                         valueString = SSTR(*(bool *)par->value);
                     } else if (par->type == typeid(std::string)) {
                         paramString.append(" STR");
                         valueString = *((std::string *) par->value);
+                    } else if (par->type == typeid(MultiParam<char*>)) {
+                        paramString.append(" nucl::VAL,aa:VAL");
+                        valueString = MultiParam<char*>::format(*((MultiParam<char*> *) par->value));
+                    } else if (par->type == typeid(MultiParam<int>)) {
+                        paramString.append(" nucl::VAL,aa:VAL");
+                        valueString = MultiParam<int>::format(*((MultiParam<int> *) par->value));
+                    } else if (par->type == typeid(MultiParam<float>)) {
+                        paramString.append(" nucl::VAL,aa:VAL");
+                        valueString = MultiParam<float>::format(*((MultiParam<float> *) par->value));
                     }
+
                     ss << " " << paramString << std::string(maxParamWidth < paramString.size()? 1 : maxParamWidth - paramString.size(), ' ');
 
                     ss << " ";
@@ -1370,14 +1377,14 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                             }
                         }
                         argIdx++;
-                    } else if (typeid(ScoreMatrixFile) == par[parIdx]->type) {
-                        ScoreMatrixFile value = ScoreMatrixFile(pargv[argIdx+1]);
-                        if (value == ScoreMatrixFile("INVALID", "INVALID")) {
+                    } else if (typeid(MultiParam<char*>) == par[parIdx]->type) {
+                        MultiParam<char*> value = MultiParam<char*>(pargv[argIdx+1]);
+                        if (value == MultiParam<char*>("INVALID", "INVALID")) {
                             printUsageMessage(command, 0xFFFFFFFF);
                             Debug(Debug::ERROR) << "Error in value parsing " << par[parIdx]->name << "\n";
                             EXIT(EXIT_FAILURE);
                         } else {
-                            *((ScoreMatrixFile *) par[parIdx]->value) = value;
+                            *((MultiParam<char*> *) par[parIdx]->value) = value;
                             par[parIdx]->wasSet = true;
                         }
                         argIdx++;
@@ -1833,8 +1840,8 @@ void Parameters::printParameters(const std::string &module, int argc, const char
             ss << *((int *)par[i]->value);
         } else if(typeid(ByteParser) == par[i]->type) {
             ss << ByteParser::format(*((size_t *)par[i]->value));
-        } else if(typeid(ScoreMatrixFile) == par[i]->type) {
-            ss << ScoreMatrixFile::format(*((ScoreMatrixFile *)par[i]->value));
+        } else if(typeid(MultiParam<char*>) == par[i]->type) {
+            ss << MultiParam<char*>::format(*((MultiParam<char*> *)par[i]->value));
         } else if(typeid(MultiParam<int>) == par[i]->type) {
             ss << MultiParam<int>::format(*((MultiParam<int> *)par[i]->value));
         } else if(typeid(MultiParam<float>) == par[i]->type) {
@@ -1860,8 +1867,8 @@ void Parameters::setDefaults() {
     restArgv = NULL;
     restArgc = 0;
 
-    scoringMatrixFile =  ScoreMatrixFile("blosum62.out", "nucleotide.out");
-    seedScoringMatrixFile = ScoreMatrixFile("VTML80.out", "nucleotide.out");
+    scoringMatrixFile =  MultiParam<char*>("blosum62.out", "nucleotide.out");
+    seedScoringMatrixFile = MultiParam<char*>("VTML80.out", "nucleotide.out");
 
     kmerSize =  0;
     kmerScore = INT_MAX;
@@ -2201,6 +2208,7 @@ size_t Parameters::hashParameter(const std::vector<std::string> &filenames, cons
     return Util::hash(hashString.c_str(), hashString.size());
 }
 
+
 std::string Parameters::createParameterString(const std::vector<MMseqsParameter*> &par, bool wasSet) {
     std::ostringstream ss;
     for (size_t i = 0; i < par.size(); ++i) {
@@ -2220,9 +2228,6 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
         } else if (typeid(ByteParser) == par[i]->type) {
             ss << par[i]->name << " ";
             ss << ByteParser::format(*((size_t *)par[i]->value)) << " ";
-        } else if (typeid(ScoreMatrixFile) == par[i]->type) {
-            ss << par[i]->name << " ";
-            ss << ScoreMatrixFile::format(*((ScoreMatrixFile *)par[i]->value)) << " ";
         } else if (typeid(float) == par[i]->type){
             ss << par[i]->name << " ";
             ss << *((float *)par[i]->value) << " ";
@@ -2241,6 +2246,15 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
             } else {
                 ss << par[i]->name << " 0 ";
             }
+        } else if (typeid(MultiParam<char*>) == par[i]->type) {
+            ss << par[i]->name << " ";
+            ss << MultiParam<char*>::format(*((MultiParam<char*> *) par[i]->value)) << " ";
+        } else if (typeid(MultiParam<int>) == par[i]->type) {
+            ss << par[i]->name << " ";
+            ss << MultiParam<int>::format(*((MultiParam<int> *) par[i]->value)) << " ";
+        } else if (typeid(MultiParam<float>) == par[i]->type) {
+            ss << par[i]->name << " ";
+            ss << MultiParam<float>::format(*((MultiParam<float> *) par[i]->value)) << " ";
         } else {
             Debug(Debug::ERROR) << "Wrong parameter type. Please inform the developers!\n";
             EXIT(EXIT_FAILURE);

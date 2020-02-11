@@ -4,27 +4,24 @@
 #include <stdlib.h>
 #include <cfloat>
 
+#include "Util.h"
+
+template class MultiParam<int>;
+template class MultiParam<float>;
+
 template <typename T>
-MultiParam<T>::MultiParam(T aminoacids, T nucleotides) {
+MultiParam<T>::MultiParam(const T aminoacids, const T nucleotides) {
     this->nucleotides = nucleotides;
     this->aminoacids = aminoacids;
 }
 
 template <typename T>
-std::string MultiParam<T>::format(const MultiParam<T> multiparam) {
+std::string MultiParam<T>::format(const MultiParam<T> &multiparam) {
     if (multiparam.nucleotides == multiparam.aminoacids) {
-        return std::to_string(multiparam.nucleotides);
+        return SSTR(multiparam.nucleotides);
     } else {
-        return std::string("nucl:") + std::to_string(multiparam.nucleotides) + ",aa:" + std::to_string(multiparam.aminoacids);
+        return std::string("nucl:") + SSTR(multiparam.nucleotides) + ",aa:" + SSTR(multiparam.aminoacids);
     }
-}
-
-
-template <typename T>
-MultiParam<T>& MultiParam<T>::operator=(T value) {
-    nucleotides = value;
-    aminoacids = value;
-    return *this;
 }
 
 template<>
@@ -65,5 +62,77 @@ MultiParam<float>::MultiParam(const char* parametercstring) {
     }
 }
 
-template class MultiParam<int>;
-template class MultiParam<float>;
+template <typename T>
+MultiParam<T>& MultiParam<T>::operator=(const MultiParam<T>& other) {
+    nucleotides = other.nucleotides;
+    aminoacids = other.aminoacids;
+    return *this;
+}
+
+template <typename T>
+MultiParam<T>& MultiParam<T>::operator=(T value) {
+    nucleotides = value;
+    aminoacids = value;
+    return *this;
+}
+
+/* explicit implementation for MultiParam<char*> */
+
+MultiParam<char*>::MultiParam(const char*  aminoacids, const char*  nucleotides) {
+    this->nucleotides = strdup(nucleotides);
+    this->aminoacids = strdup(aminoacids);
+}
+
+MultiParam<char*>::MultiParam(const char* filename) {
+    if (strchr(filename, ',') != NULL) {
+        size_t len = strlen(filename);
+        aminoacids = (char*) malloc(len * sizeof(char));
+        nucleotides = (char*) malloc(len * sizeof(char));
+        if (sscanf(filename, "aa:%[^,],nucl:%s", aminoacids, nucleotides) != 2 && sscanf(filename, "nucl:%[^,],aa:%s", nucleotides, aminoacids) != 2) {
+            free((char*)nucleotides);
+            free((char*)aminoacids);
+            nucleotides = strdup("INVALID");
+            aminoacids = strdup("INVALID");
+        }
+    } else {
+        nucleotides = strdup(filename);
+        aminoacids = strdup(filename);
+    }
+}
+
+MultiParam<char*>::~MultiParam() {
+    free(nucleotides);
+    free(aminoacids);
+}
+
+std::string MultiParam<char*>::format(const MultiParam<char*> &file) {
+    if (strncmp(file.nucleotides, file.aminoacids, strlen(file.aminoacids)) == 0) {
+        return file.nucleotides;
+    } else {
+        return std::string("nucl:") + file.nucleotides + ",aa:" + file.aminoacids;
+    }
+}
+
+MultiParam<char*>& MultiParam<char*>::operator=(const MultiParam<char*>& other) {
+    if (nucleotides != NULL) {
+        free(nucleotides);
+    }
+    if (aminoacids != NULL) {
+        free(aminoacids);
+    }
+    nucleotides = strdup(other.nucleotides);
+    aminoacids = strdup(other.aminoacids);
+    return *this;
+}
+
+bool MultiParam<char*>::operator==(const char* other) const {
+    return strncmp(other, nucleotides, strlen(nucleotides)) == 0 || strncmp(other, aminoacids, strlen(aminoacids)) == 0;
+}
+
+bool MultiParam<char*>::operator==(const std::string& other) const {
+    return strncmp(other.c_str(), nucleotides, strlen(nucleotides)) == 0 || strncmp(other.c_str(), aminoacids, strlen(aminoacids)) == 0;
+}
+
+bool MultiParam<char*>::operator==(const MultiParam<char*>& other) const {
+    return strncmp(other.nucleotides, nucleotides, strlen(nucleotides)) == 0 && strncmp(other.aminoacids, aminoacids, strlen(aminoacids)) == 0;
+}

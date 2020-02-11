@@ -154,7 +154,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
             }
             spacedKmer = data.spacedKmer != 0;
             spacedKmerPattern = PrefilteringIndexReader::getSpacedPattern(tidxdbr);
-            seedScoringMatrixFile = ScoreMatrixFile(PrefilteringIndexReader::getSubstitutionMatrix(tidxdbr));
+            seedScoringMatrixFile = MultiParam<char*>(PrefilteringIndexReader::getSubstitutionMatrix(tidxdbr));
         } else {
             Debug(Debug::ERROR) << "Outdated index version. Please recompute it with 'createindex'!\n";
             EXIT(EXIT_FAILURE);
@@ -988,7 +988,7 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
 }
 
 
-BaseMatrix *Prefiltering::getSubstitutionMatrix(const ScoreMatrixFile &scoringMatrixFile, MultiParam<int> alphabetSize, float bitFactor, bool profileState, bool isNucl) {
+BaseMatrix *Prefiltering::getSubstitutionMatrix(const MultiParam<char*> &scoringMatrixFile, MultiParam<int> alphabetSize, float bitFactor, bool profileState, bool isNucl) {
     BaseMatrix *subMat;
 
     if (isNucl){
