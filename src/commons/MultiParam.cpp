@@ -6,11 +6,8 @@
 
 #include "Util.h"
 
-template class MultiParam<int>;
-template class MultiParam<float>;
-
 template <typename T>
-MultiParam<T>::MultiParam(const T aminoacids, const T nucleotides) {
+MultiParam<T>::MultiParam(T aminoacids, T nucleotides) {
     this->nucleotides = nucleotides;
     this->aminoacids = aminoacids;
 }
@@ -75,6 +72,9 @@ MultiParam<T>& MultiParam<T>::operator=(T value) {
     aminoacids = value;
     return *this;
 }
+
+template class MultiParam<int>;
+template class MultiParam<float>;
 
 /* explicit implementation for MultiParam<char*> */
 
