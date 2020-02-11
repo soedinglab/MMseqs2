@@ -27,6 +27,8 @@ extern const char* version;
 Parameters::Parameters():
         scoringMatrixFile("INVALID", "INVALID"),
         seedScoringMatrixFile("INVALID", "INVALID"),
+        testParam(INT_MAX,INT_MAX),
+        PARAM_TEST_PARAM(PARAM_TEST_PARAM_ID, "--testparam", "testparam", "testparam", typeid(MultiParam<int>), (void*) &testParam,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_S(PARAM_S_ID, "-s", "Sensitivity", "Sensitivity: 1.0 faster; 4.0 fast; 7.5 sensitive", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_K(PARAM_K_ID, "-k", "k-mer length", "k-mer length (0: automatically set to optimum)", typeid(int), (void *) &kmerSize, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_THREADS(PARAM_THREADS_ID, "--threads", "Threads", "Number of CPU-cores used (all by default)", typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
@@ -70,7 +72,7 @@ Parameters::Parameters():
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID, "--alt-ali", "Alternative alignments", "Show up to this many alternative alignments", typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID, "--gap-open", "Gap open cost", "Gap open cost", typeid(int), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID, "--gap-extend", "Gap extension cost", "Gap extension cost", typeid(int), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_ZDROP(PARAM_ZDROP_ID, "--zdrop", "zdrop", "maximal allowed difference between score values before alignment is truncated (nucleotide alignment only)", typeid(int), (void*) &zdrop, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_ZDROP(PARAM_ZDROP_ID, "--zdrop", "zdrop", "maximal allowed difference between score values before alignment is truncated", typeid(int), (void*) &zdrop, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID, "--cluster-mode", "Cluster mode", "0: Set-Cover\n1: Connected component\n2: Greedy clustering by sequence length\n3: Greedy clustering by sequence length (low mem)", typeid(int), (void *) &clusteringMode, "[0-3]{1}$", MMseqsParameter::COMMAND_CLUST),
         PARAM_CLUSTER_STEPS(PARAM_CLUSTER_STEPS_ID, "--cluster-steps", "Cascaded clustering steps", "Cascaded clustering steps from 1 to -s", typeid(int), (void *) &clusterSteps, "^[1-9]{1}$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
@@ -791,6 +793,7 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_MASK_RESIDUES);
     kmermatcher.push_back(&PARAM_MASK_LOWER_CASE);
     kmermatcher.push_back(&PARAM_COV_MODE);
+    kmermatcher.push_back(&PARAM_TEST_PARAM);
     kmermatcher.push_back(&PARAM_K);
     kmermatcher.push_back(&PARAM_C);
     kmermatcher.push_back(&PARAM_MAX_SEQ_LEN);
@@ -1380,7 +1383,29 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                             par[parIdx]->wasSet = true;
                         }
                         argIdx++;
-                    } else if (typeid(float) == par[parIdx]->type) {
+                    }else if (typeid(MultiParam<int>) == par[parIdx]->type) {
+                        MultiParam<int> value = MultiParam<int>(pargv[argIdx+1]);
+                        if (value.aminoacids == INT_MAX || value.nucleotides == INT_MAX) {
+                            printUsageMessage(command, 0xFFFFFFFF);
+                            Debug(Debug::ERROR) << "Error in value parsing " << par[parIdx]->name << "\n";
+                            EXIT(EXIT_FAILURE);
+                        } else {
+                            *((MultiParam<int> *) par[parIdx]->value) = value;
+                            par[parIdx]->wasSet = true;
+                        }
+                        argIdx++;
+                    }else if (typeid(MultiParam<float>) == par[parIdx]->type) {
+                        MultiParam<float> value = MultiParam<float>(pargv[argIdx + 1]);
+                        if (value.aminoacids == FLT_MAX || value.nucleotides == FLT_MAX) {
+                            printUsageMessage(command, 0xFFFFFFFF);
+                            Debug(Debug::ERROR) << "Error in value parsing " << par[parIdx]->name << "\n";
+                            EXIT(EXIT_FAILURE);
+                        } else {
+                            *((MultiParam<float> *) par[parIdx]->value) = value;
+                            par[parIdx]->wasSet = true;
+                        }
+                        argIdx++;
+                    }else if (typeid(float) == par[parIdx]->type) {
                         regex_t regex;
                         compileRegex(&regex, par[parIdx]->regex);
                         int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
@@ -1802,9 +1827,6 @@ void Parameters::printParameters(const std::string &module, int argc, const char
 
 
     for (size_t i = 0; i < par.size(); i++) {
-        if(par[i]->wasSet == false){
-            continue;
-        }
         if (par[i]->category & MMseqsParameter::COMMAND_HIDDEN) {
             continue;
         }
@@ -1815,6 +1837,10 @@ void Parameters::printParameters(const std::string &module, int argc, const char
             ss << ByteParser::format(*((size_t *)par[i]->value));
         } else if(typeid(ScoreMatrixFile) == par[i]->type) {
             ss << ScoreMatrixFile::format(*((ScoreMatrixFile *)par[i]->value));
+        } else if(typeid(MultiParam<int>) == par[i]->type) {
+            ss << MultiParam<int>::format(*((MultiParam<int> *)par[i]->value));
+        } else if(typeid(MultiParam<float>) == par[i]->type) {
+            ss << MultiParam<float>::format(*((MultiParam<float> *)par[i]->value));
         } else if(typeid(float) == par[i]->type) {
             ss << *((float *)par[i]->value);
         } else if(typeid(double) == par[i]->type) {
@@ -1836,6 +1862,8 @@ void Parameters::setDefaults() {
 
     scoringMatrixFile =  ScoreMatrixFile("blosum62.out", "nucleotide.out");
     seedScoringMatrixFile = ScoreMatrixFile("VTML80.out", "nucleotide.out");
+
+    testParam=MultiParam<int>(13,22);
 
     kmerSize =  0;
     kmerScore = INT_MAX;

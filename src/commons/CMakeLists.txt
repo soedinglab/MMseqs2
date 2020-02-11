@@ -27,6 +27,7 @@ set(commons_header_files
         commons/ProfileStates.h
         commons/LibraryReader.h
         commons/Parameters.h
+        commons/MultiParam.h
         commons/PatternCompiler.h
         commons/ScoreMatrix.h
         commons/ScoreMatrixFile.h
@@ -60,6 +61,7 @@ set(commons_source_files
         commons/NucleotideMatrix.cpp
         commons/Orf.cpp
         commons/Parameters.cpp
+        commons/MultiParam.cpp
         commons/ProfileStates.cpp
         commons/LibraryReader.cpp
         commons/ScoreMatrixFile.cpp

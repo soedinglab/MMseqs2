@@ -13,6 +13,7 @@
 
 #include "Command.h"
 #include "ScoreMatrixFile.h"
+#include "MultiParam.h"
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
@@ -308,6 +309,8 @@ public:
 
     const char** restArgv;
     int restArgc;
+
+    MultiParam<int> testParam;
 
     ScoreMatrixFile scoringMatrixFile;       // path to scoring matrix
     ScoreMatrixFile seedScoringMatrixFile;   // seed sub. matrix
@@ -617,6 +620,7 @@ public:
 
     std::vector<MMseqsParameter*> removeParameter(const std::vector<MMseqsParameter*>& par, const MMseqsParameter& x);
 
+    PARAMETER(PARAM_TEST_PARAM)
     PARAMETER(PARAM_S)
     PARAMETER(PARAM_K)
     PARAMETER(PARAM_THREADS)
