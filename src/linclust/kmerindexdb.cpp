@@ -61,11 +61,11 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.seedScoringMatrixFile.nucleotides, 1.0, 0.0);
     }else {
-        if (par.alphabetSize == 21) {
+        if (par.alphabetSize.aminoacids == 21) {
             subMat = new SubstitutionMatrix(par.seedScoringMatrixFile.aminoacids, 2.0, 0.0);
         } else {
             SubstitutionMatrix sMat(par.seedScoringMatrixFile.aminoacids, 2.0, 0.0);
-            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize, 2.0);
+            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize.aminoacids, 2.0);
         }
     }
 

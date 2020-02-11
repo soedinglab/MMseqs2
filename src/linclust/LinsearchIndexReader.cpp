@@ -255,7 +255,7 @@ std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned in
         return "maxSeqLen";
     if (meta.seqType != dbtype)
         return "seqType";
-    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES) == false && meta.alphabetSize != par.alphabetSize)
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES) == false && meta.alphabetSize != par.alphabetSize.aminoacids)
         return "alphabetSize";
     if (meta.kmerSize != par.kmerSize)
         return "kmerSize";

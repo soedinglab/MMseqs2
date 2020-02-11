@@ -34,7 +34,6 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         spacedKmerPattern(par.spacedKmerPattern),
         localTmp(par.localTmp),
         spacedKmer(par.spacedKmer != 0),
-        alphabetSize(par.alphabetSize),
         maskMode(par.maskMode),
         maskLowerCaseMode(par.maskLowerCaseMode),
         splitMode(par.splitMode),
@@ -57,23 +56,24 @@ Prefiltering::Prefiltering(const std::string &queryDB,
     // init the substitution matrices
     switch (querySeqType & 0x7FFFFFFF) {
         case Parameters::DBTYPE_NUCLEOTIDES:
-            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 1.0, false, true);
+            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, par.alphabetSize, 1.0, false, true);
             ungappedSubMat = kmerSubMat;
             alphabetSize = kmerSubMat->alphabetSize;
             break;
         case Parameters::DBTYPE_AMINO_ACIDS:
-            kmerSubMat = getSubstitutionMatrix(seedScoringMatrixFile, alphabetSize, 8.0, false, false);
-            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false, false);
+            kmerSubMat = getSubstitutionMatrix(seedScoringMatrixFile, par.alphabetSize, 8.0, false, false);
+            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, par.alphabetSize, 2.0, false, false);
             alphabetSize = kmerSubMat->alphabetSize;
             break;
         case Parameters::DBTYPE_HMM_PROFILE:
             // needed for Background distributions
-            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false, false);
-            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false, false);
+            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, par.alphabetSize, 8.0, false, false);
+            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, par.alphabetSize, 2.0, false, false);
+            alphabetSize = kmerSubMat->alphabetSize;
             break;
         case Parameters::DBTYPE_PROFILE_STATE_PROFILE:
-            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, true, false);
-            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 2.0, false, false);
+            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, par.alphabetSize, 8.0, true, false);
+            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, par.alphabetSize, 2.0, false, false);
             alphabetSize = kmerSubMat->alphabetSize;
             break;
         default:
@@ -988,14 +988,14 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
 }
 
 
-BaseMatrix *Prefiltering::getSubstitutionMatrix(const ScoreMatrixFile &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState, bool isNucl) {
+BaseMatrix *Prefiltering::getSubstitutionMatrix(const ScoreMatrixFile &scoringMatrixFile, MultiParam<int> alphabetSize, float bitFactor, bool profileState, bool isNucl) {
     BaseMatrix *subMat;
 
     if (isNucl){
         subMat = new NucleotideMatrix(scoringMatrixFile.nucleotides, bitFactor, 0.0);
-    } else if (alphabetSize < 21) {
+    } else if (alphabetSize.aminoacids < 21) {
         SubstitutionMatrix sMat(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
-        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, alphabetSize, bitFactor);
+        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, alphabetSize.aminoacids, bitFactor);
     }else if(profileState == true){
         SubstitutionMatrix sMat(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
         subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,

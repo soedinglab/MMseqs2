@@ -75,12 +75,12 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     if (Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
     } else {
-        if (par.alphabetSize == 21) {
+        if (par.alphabetSize.aminoacids == 21) {
             subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
         } else {
             SubstitutionMatrix sMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
             subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa,
-                    sMat.alphabetSize, par.alphabetSize, 2.0);
+                    sMat.alphabetSize, par.alphabetSize.aminoacids, 2.0);
             SubstitutionMatrix::print(subMat->subMatrix, subMat->num2aa, subMat->alphabetSize );
         }
     }
@@ -170,7 +170,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
             Sequence target(par.maxSeqLen, targetSeqType, subMat, par.kmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
             KmerGenerator kmerGenerator(par.kmerSize, subMat->alphabetSize, 70.0);
             kmerGenerator.setDivideStrategy(NULL, &_2merSubMatrix);
-            size_t lookupSize = MathUtil::ipow<size_t>(par.alphabetSize, par.kmerSize);
+            size_t lookupSize = MathUtil::ipow<size_t>(subMat->alphabetSize, par.kmerSize);
             unsigned short * queryPosLookup = new unsigned short[lookupSize];
             memset(queryPosLookup, 255, lookupSize * sizeof(unsigned short) );
 

@@ -20,6 +20,7 @@ public:
     MultiParam(T aminoacids, T nucleotides);
     MultiParam(const char* parametercstring);
     static std::string format(const MultiParam<T> multiparam);
+    MultiParam& operator=(T value);
 };
 
 

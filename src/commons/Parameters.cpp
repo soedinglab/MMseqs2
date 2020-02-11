@@ -27,13 +27,12 @@ extern const char* version;
 Parameters::Parameters():
         scoringMatrixFile("INVALID", "INVALID"),
         seedScoringMatrixFile("INVALID", "INVALID"),
-        testParam(INT_MAX,INT_MAX),
-        PARAM_TEST_PARAM(PARAM_TEST_PARAM_ID, "--testparam", "testparam", "testparam", typeid(MultiParam<int>), (void*) &testParam,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_EXPERT),
+        alphabetSize(INT_MAX,INT_MAX),
         PARAM_S(PARAM_S_ID, "-s", "Sensitivity", "Sensitivity: 1.0 faster; 4.0 fast; 7.5 sensitive", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_K(PARAM_K_ID, "-k", "k-mer length", "k-mer length (0: automatically set to optimum)", typeid(int), (void *) &kmerSize, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_THREADS(PARAM_THREADS_ID, "--threads", "Threads", "Number of CPU-cores used (all by default)", typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
         PARAM_COMPRESSED(PARAM_COMPRESSED_ID, "--compressed", "Compressed", "Write compressed output", typeid(int), (void *) &compressed, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
-        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID, "--alph-size", "Alphabet size", "Alphabet size (range 2-21)", typeid(int), (void *) &alphabetSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID, "--alph-size", "Alphabet size", "Alphabet size (range 2-21)", typeid(MultiParam<int>), (void *) &alphabetSize, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID, "--max-seq-len", "Max sequence length", "Maximum sequence length", typeid(int), (void *) &maxSeqLen, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID, "--diag-score", "Diagonal scoring", "Use ungapped diagonal scoring during prefilter", typeid(bool), (void *) &diagonalScoring, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_EXACT_KMER_MATCHING(PARAM_EXACT_KMER_MATCHING_ID, "--exact-kmer-matching", "Exact k-mer matching", "Extract only exact k-mers for matching (range 0-1)", typeid(int), (void *) &exactKmerMatching, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
@@ -793,7 +792,6 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_MASK_RESIDUES);
     kmermatcher.push_back(&PARAM_MASK_LOWER_CASE);
     kmermatcher.push_back(&PARAM_COV_MODE);
-    kmermatcher.push_back(&PARAM_TEST_PARAM);
     kmermatcher.push_back(&PARAM_K);
     kmermatcher.push_back(&PARAM_C);
     kmermatcher.push_back(&PARAM_MAX_SEQ_LEN);
@@ -1856,6 +1854,8 @@ void Parameters::printParameters(const std::string &module, int argc, const char
     Debug(Debug::INFO) << ss.str() << "\n";
 }
 
+
+
 void Parameters::setDefaults() {
     restArgv = NULL;
     restArgc = 0;
@@ -1863,11 +1863,9 @@ void Parameters::setDefaults() {
     scoringMatrixFile =  ScoreMatrixFile("blosum62.out", "nucleotide.out");
     seedScoringMatrixFile = ScoreMatrixFile("VTML80.out", "nucleotide.out");
 
-    testParam=MultiParam<int>(13,22);
-
     kmerSize =  0;
     kmerScore = INT_MAX;
-    alphabetSize = 21;
+    alphabetSize = MultiParam<int>(21,5);
     maxSeqLen = MAX_SEQ_LEN; // 2^16
     maxResListLen = 300;
     sensitivity = 4;

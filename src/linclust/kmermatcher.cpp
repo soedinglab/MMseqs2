@@ -547,7 +547,7 @@ void setLinearFilterDefault(Parameters *p) {
     p->maskMode = 0;
     p->spacedKmer = 0;
     p->kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
-    p->alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
+    p->alphabetSize = MultiParam<int>(Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE, 5);
     p->kmersPerSequence = Parameters::CLUST_LINEAR_KMER_PER_SEQ;
 }
 
@@ -577,11 +577,11 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
     }else {
-        if (par.alphabetSize == 21) {
+        if (par.alphabetSize.aminoacids == 21) {
             subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
         } else {
             SubstitutionMatrix sMat(par.scoringMatrixFile.aminoacids, 8.0, -0.2f);
-            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize, 2.0);
+            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize.aminoacids, 2.0);
         }
     }
 
@@ -1176,7 +1176,7 @@ void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTy
     if(Parameters::isEqualDbtype(seqTyp, Parameters::DBTYPE_NUCLEOTIDES)){
         if(parameters.kmerSize == 0) {
             parameters.kmerSize = std::max(17, static_cast<int>(log(static_cast<float>(aaDbSize))/log(4)));
-            parameters.alphabetSize = 5;
+            parameters.alphabetSize.nucleotides = 5;
 
         }
         if(parameters.kmersPerSequence == 0){
@@ -1186,13 +1186,13 @@ void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTy
         if(parameters.kmerSize == 0){
             if((parameters.seqIdThr+0.001)>=0.99){
                 parameters.kmerSize = 14;
-                parameters.alphabetSize = 21;
+                parameters.alphabetSize.aminoacids = 21;
             }else if((parameters.seqIdThr+0.001)>=0.9){
                 parameters.kmerSize = 14;
-                parameters.alphabetSize = 13;
+                parameters.alphabetSize.aminoacids = 13;
             }else{
                 parameters.kmerSize = std::max(10, static_cast<int>(log(static_cast<float>(aaDbSize))/log(8.7)));
-                parameters.alphabetSize = 13;
+                parameters.alphabetSize.aminoacids = 13;
             }
         }
         if(parameters.kmersPerSequence == 0){

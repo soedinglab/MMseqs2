@@ -155,9 +155,9 @@ int kmersearch(int argc, const char **argv, const Command &command) {
         }
     }
     if(par.PARAM_ALPH_SIZE.wasSet){
-        if(data.alphabetSize != par.alphabetSize){
-            Debug(Debug::ERROR) << "Index was created with --alph-size  " << data.alphabetSize << " but the prefilter was called with --alph-size " << par.alphabetSize << "!\n";
-            Debug(Debug::ERROR) << "createindex --alph-size " << par.alphabetSize << "\n";
+        if(data.alphabetSize != (Parameters::isEqualDbtype(data.seqType, Parameters::DBTYPE_AMINO_ACIDS)? par.alphabetSize.aminoacids:par.alphabetSize.nucleotides)){
+            Debug(Debug::ERROR) << "Index was created with --alph-size  " << data.alphabetSize << " but the prefilter was called with --alph-size " << MultiParam<int>::format(par.alphabetSize) << "!\n";
+            Debug(Debug::ERROR) << "createindex --alph-size " << MultiParam<int>::format(par.alphabetSize) << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -207,11 +207,11 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.seedScoringMatrixFile.nucleotides, 1.0, 0.0);
     } else {
-        if (par.alphabetSize == 21) {
+        if (par.alphabetSize.aminoacids == 21) {
             subMat = new SubstitutionMatrix(par.seedScoringMatrixFile.aminoacids, 8.0, -0.2);
         } else {
             SubstitutionMatrix sMat(par.seedScoringMatrixFile.aminoacids, 8.0, -0.2);
-            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize, 8.0);
+            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize.aminoacids, 8.0);
         }
     }
 
@@ -230,7 +230,8 @@ int kmersearch(int argc, const char **argv, const Command &command) {
         char *entriesOffsetsData = tidxdbr.getDataUncompressed(tidxdbr.getId(PrefilteringIndexReader::ENTRIESOFFSETS));
         int64_t entriesNum = *((int64_t *) tidxdbr.getDataUncompressed(tidxdbr.getId(PrefilteringIndexReader::ENTRIESNUM)));
         int64_t entriesGridSize = *((int64_t *) tidxdbr.getDataUncompressed(tidxdbr.getId(PrefilteringIndexReader::ENTRIESGRIDSIZE)));
-        KmerIndex kmerIndex(par.alphabetSize, adjustedKmerSize, entriesData, entriesOffsetsData, entriesNum, entriesGridSize);
+        int alphabetSize = (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) ? par.alphabetSize.nucleotides:par.alphabetSize.aminoacids;
+        KmerIndex kmerIndex(alphabetSize, adjustedKmerSize, entriesData, entriesOffsetsData, entriesNum, entriesGridSize);
 //        kmerIndex.printIndex<Parameters::DBTYPE_NUCLEOTIDES>(subMat);
         std::pair<std::string, std::string> tmpFiles;
         if (splits > 1) {

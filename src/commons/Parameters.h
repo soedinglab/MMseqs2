@@ -310,8 +310,6 @@ public:
     const char** restArgv;
     int restArgc;
 
-    MultiParam<int> testParam;
-
     ScoreMatrixFile scoringMatrixFile;       // path to scoring matrix
     ScoreMatrixFile seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
@@ -326,7 +324,7 @@ public:
     float  sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
     int    kmerScore;                    // kmer score for the prefilter
-    int    alphabetSize;                 // alphabet size for the prefilter
+    MultiParam<int> alphabetSize;                 // alphabet size for the prefilter
     int    compBiasCorrection;           // Aminoacid composiont correction
     bool   diagonalScoring;              // switch diagonal scoring
     int    exactKmerMatching;            // only exact k-mer matching
@@ -620,7 +618,6 @@ public:
 
     std::vector<MMseqsParameter*> removeParameter(const std::vector<MMseqsParameter*>& par, const MMseqsParameter& x);
 
-    PARAMETER(PARAM_TEST_PARAM)
     PARAMETER(PARAM_S)
     PARAMETER(PARAM_K)
     PARAMETER(PARAM_THREADS)

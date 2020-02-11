@@ -19,6 +19,14 @@ std::string MultiParam<T>::format(const MultiParam<T> multiparam) {
     }
 }
 
+
+template <typename T>
+MultiParam<T>& MultiParam<T>::operator=(T value) {
+    nucleotides = value;
+    aminoacids = value;
+    return *this;
+}
+
 template<>
 MultiParam<int>::MultiParam(const char* parametercstring) {
     if (strchr(parametercstring, ',') != NULL) {
