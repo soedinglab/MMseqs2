@@ -63,7 +63,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                     const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
                     const size_t currElement = seqDbr->getId(key);
                     if (elementScoreTable != NULL) {
-                        if (alnType == Parameters::DBTYPE_ALIGNMENT_RES) {
+                        if (Parameters::isEqualDbtype(alnType,Parameters::DBTYPE_ALIGNMENT_RES)) {
                             if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
                                 //column 1 = alignment score
                                 Util::parseByColumnNumber(data, similarity, 1);
@@ -74,7 +74,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                                 elementScoreTable[i][writePos] = (unsigned short) (atof(similarity) * 1000.0f);
                             }
                         }
-                        else if (alnType == Parameters::DBTYPE_PREFILTER_RES) {
+                        else if (Parameters::isEqualDbtype(alnType,Parameters::DBTYPE_PREFILTER_RES)) {
                             //column 1 = alignment score or sequence identity [0-100]
                             Util::parseByColumnNumber(data, similarity, 1);
                             short sim = atoi(similarity);
