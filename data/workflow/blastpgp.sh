@@ -102,12 +102,14 @@ while [ $STEP -lt $NUM_IT ]; do
 done
 
 if [ -n "$REMOVE_TMP" ]; then
-    echo "Remove temporary files"
     STEP=0
     while [ "$STEP" -lt "$NUM_IT" ]; do
-        "$MMSEQS" rmdb "${TMP_PATH}/pref_$STEP"
-        "$MMSEQS" rmdb "${TMP_PATH}/aln_$STEP"
-        "$MMSEQS" rmdb "${TMP_PATH}/profile_$STEP"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/pref_$STEP" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_$STEP" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/profile_$STEP" ${VERBOSITY}
         STEP=$((STEP+1))
     done
     rm -f "$TMP_PATH/blastpgp.sh"

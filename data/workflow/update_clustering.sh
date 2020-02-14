@@ -281,18 +281,25 @@ fi
 
 debugWait
 if [ -n "$REMOVE_TMP" ]; then
-    echo "Remove temporary files 3/3"
     rm -f "${TMP_PATH}/newSeqs.mapped" "${TMP_PATH}/mappingSeqs.reverse" "${TMP_PATH}/newMappingSeqs"
 	rm -f  "${TMP_PATH}/noHitSeqList" "${TMP_PATH}/mappingSeqs" "${TMP_PATH}/newSeqs" "${TMP_PATH}/removedSeqs"
 
-	"$MMSEQS" rmdb "${TMP_PATH}/newSeqsHits.swapped"
-	"$MMSEQS" rmdb "${TMP_PATH}/newClusters"
-	"$MMSEQS" rmdb "${TMP_PATH}/newSeqsHits"
-	"$MMSEQS" rmdb "${TMP_PATH}/toBeClusteredSeparately"
-	"$MMSEQS" rmdb "${TMP_PATH}/NEWDB.newSeqs"
-    "$MMSEQS" rmdb "${TMP_PATH}/newSeqsHits.swapped.all"
-	"$MMSEQS" rmdb "${TMP_PATH}/OLDDB.repSeq"
-	"$MMSEQS" rmdb "${TMP_PATH}/updatedClust"
+    # shellcheck disable=SC2086
+	"$MMSEQS" rmdb "${TMP_PATH}/newSeqsHits.swapped" ${VERBOSITY}
+    # shellcheck disable=SC2086
+	"$MMSEQS" rmdb "${TMP_PATH}/newClusters" ${VERBOSITY}
+    # shellcheck disable=SC2086
+	"$MMSEQS" rmdb "${TMP_PATH}/newSeqsHits" ${VERBOSITY}
+    # shellcheck disable=SC2086
+	"$MMSEQS" rmdb "${TMP_PATH}/toBeClusteredSeparately" ${VERBOSITY}
+    # shellcheck disable=SC2086
+	"$MMSEQS" rmdb "${TMP_PATH}/NEWDB.newSeqs" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/newSeqsHits.swapped.all" ${VERBOSITY}
+    # shellcheck disable=SC2086
+	"$MMSEQS" rmdb "${TMP_PATH}/OLDDB.repSeq" ${VERBOSITY}
+    # shellcheck disable=SC2086
+	"$MMSEQS" rmdb "${TMP_PATH}/updatedClust" ${VERBOSITY}
 
 	rmdir "${TMP_PATH}/search" "${TMP_PATH}/cluster"
 

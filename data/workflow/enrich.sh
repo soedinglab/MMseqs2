@@ -118,7 +118,6 @@ mv -f "${TMP_PATH}/aln_0.index" "${RESULT}.index"
 mv -f "${TMP_PATH}/aln_0.dbtype" "${RESULT}.dbtype"
 
 if [ -n "$REMOVE_TMP" ]; then
-    echo "Remove temporary files"
     STEP=0
     while [ "${STEP}" -lt "${NUM_IT}" ]; do
         rm -f "${TMP_PATH}/pref_${STEP}" "${TMP_PATH}/pref_${STEP}.index" "${TMP_PATH}/pref_${STEP}.dbtype"

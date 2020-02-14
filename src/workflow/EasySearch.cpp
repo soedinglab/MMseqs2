@@ -117,6 +117,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     cmd.addVariable("LEAVE_INPUT", par.dbOut ? "TRUE" : NULL);
 
     cmd.addVariable("RUNNER", par.runner.c_str());
+    cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
 
     cmd.addVariable("CREATEDB_QUERY_PAR", par.createParameterString(par.createdb).c_str());
     par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;

@@ -57,18 +57,23 @@ fi
 
 
 if [ -n "${REMOVE_TMP}" ]; then
-    echo "Removing temporary files"
     if [ -n "${GREEDY_BEST_HITS}" ]; then
-        "$MMSEQS" rmdb "${TMP_PATH}/result_best"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/result_best" ${VERBOSITY}
     fi
-    "$MMSEQS" rmdb "${TMP_PATH}/result"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/result" ${VERBOSITY}
     if [ -z "${LEAVE_INPUT}" ]; then
         if [ -f "${TMP_PATH}/target" ]; then
-            "$MMSEQS" rmdb "${TMP_PATH}/target"
-            "$MMSEQS" rmdb "${TMP_PATH}/target_h"
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/target" ${VERBOSITY}
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/target_h" ${VERBOSITY}
         fi
-        "$MMSEQS" rmdb "${TMP_PATH}/query"
-        "$MMSEQS" rmdb "${TMP_PATH}/query_h"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/query" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/query_h" ${VERBOSITY}
     fi
     rm -rf "${TMP_PATH}/search_tmp"
     rm -f "${TMP_PATH}/easysearch.sh"

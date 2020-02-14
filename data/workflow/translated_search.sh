@@ -57,9 +57,10 @@ if notExists "$3.dbtype"; then
 fi
 
 if [ -n "$REMOVE_TMP" ]; then
-    echo "Remove temporary files"
-    "$MMSEQS" rmdb "$4/q_orfs_aa"
-    "$MMSEQS" rmdb "$4/t_orfs_aa"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "$4/q_orfs_aa" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "$4/t_orfs_aa" ${VERBOSITY}
 fi
 
 

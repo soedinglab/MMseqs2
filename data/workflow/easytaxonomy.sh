@@ -75,16 +75,22 @@ if notExists "${RESULTS}_tophit_aln"; then
 fi
 
 if [ -n "${REMOVE_TMP}" ]; then
-    echo "Removing temporary files"
+    # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/result"
     if [ -z "${LEAVE_INPUT}" ]; then
-        "$MMSEQS" rmdb "${TMP_PATH}/query"
-        "$MMSEQS" rmdb "${TMP_PATH}/query_h"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/query" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/query_h" ${VERBOSITY}
     fi
-    "$MMSEQS" rmdb "${TMP_PATH}/result_top1"
-    "$MMSEQS" rmdb "${TMP_PATH}/result_top1_swapped"
-    "$MMSEQS" rmdb "${TMP_PATH}/result_top1_swapped_sum"
-    "$MMSEQS" rmdb "${TMP_PATH}/result_top1_swapped_sum_tax"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/result_top1" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/result_top1_swapped" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/result_top1_swapped_sum" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/result_top1_swapped_sum_tax" ${VERBOSITY}
 
     rm -rf "${TMP_PATH}/taxonomy_tmp"
     rm -f "${TMP_PATH}/easytaxonomy.sh"

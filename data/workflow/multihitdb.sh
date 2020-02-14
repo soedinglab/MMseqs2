@@ -85,7 +85,6 @@ else
 fi
 
 if [ -n "${REMOVE_TMP}" ]; then
-    echo "Remove temporary files"
     rmdir "${TMP_PATH}/search"
     if [ -n "${NUCL}" ]; then
         rm -f "${TMP_PATH}/nucl_set.tsv"

@@ -48,9 +48,11 @@ fi
 
 
 if [ -n "${REMOVE_TMP}" ]; then
-    echo "Remove temporary files"
-    "$MMSEQS" rmdb "${TMP_PATH}/pref"
-    "$MMSEQS" rmdb "${TMP_PATH}/pref_swapped"
-    "$MMSEQS" rmdb "${TMP_PATH}/aln_swapped"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/pref" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/pref_swapped" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/aln_swapped" ${VERBOSITY}
     rm -f "${TMP_PATH}/searchtargetprofile.sh"
 fi

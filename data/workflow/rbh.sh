@@ -86,13 +86,17 @@ if [ ! -e "${RBH_RES}.dbtype" ]; then
 fi
 
 if [ -n "$REMOVE_TMP" ]; then
-    echo "Remove temporary files"
     rm -rf "${TMP_PATH}/tempAB"
     rm -rf "${TMP_PATH}/tempBA"
-    "$MMSEQS" rmdb "${TMP_PATH}/resAB"
-    "$MMSEQS" rmdb "${TMP_PATH}/resBA"
-    "$MMSEQS" rmdb "${TMP_PATH}/resA_best_B"
-    "$MMSEQS" rmdb "${TMP_PATH}/resB_best_A"
-    "$MMSEQS" rmdb "${TMP_PATH}/res_best"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/resAB" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/resBA" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/resA_best_B" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/resB_best_A" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/res_best" ${VERBOSITY}
     rm -f "${TMP_PATH}/rbh.sh"
 fi

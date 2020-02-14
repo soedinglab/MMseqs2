@@ -66,13 +66,18 @@ fi
         || fail "Merging of clusters has died"
 
 if [ -n "$REMOVE_TMP" ]; then
-    echo "Remove temporary files"
-    "$MMSEQS" rmdb "${TMP_PATH}/pref"
-    "$MMSEQS" rmdb "${TMP_PATH}/aln"
-    "$MMSEQS" rmdb "${TMP_PATH}/clu_step0"
-    "$MMSEQS" rmdb "${TMP_PATH}/clu_redundancy"
-    "$MMSEQS" rmdb "${TMP_PATH}/aln_redundancy"
-    "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/pref" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/clu_step0" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/clu_redundancy" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/aln_redundancy" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy" ${VERBOSITY}
     rm -f "${TMP_PATH}/order_redundancy"
     rm -f "${TMP_PATH}/clustering.sh"
 fi

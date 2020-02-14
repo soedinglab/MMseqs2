@@ -99,7 +99,6 @@ while [ "$STEP" -lt "$STEPS" ]; do
 done
 
 if [ -n "$REMOVE_TMP" ]; then
-    echo "Remove temporary files"
     STEP=0
     while [ "$STEP" -lt "$STEPS" ]; do
         # shellcheck disable=SC2086

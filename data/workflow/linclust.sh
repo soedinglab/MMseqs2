@@ -50,7 +50,8 @@ if notExists "${TMP_PATH}/pref_filter1"; then
 fi
 
 if notExists "${TMP_PATH}/pref_filter2"; then
-    "$MMSEQS" filterdb "${TMP_PATH}/pref_filter1" "${TMP_PATH}/pref_filter2" --filter-file "${TMP_PATH}/order_redundancy" \
+    # shellcheck disable=SC2086
+    "$MMSEQS" filterdb "${TMP_PATH}/pref_filter1" "${TMP_PATH}/pref_filter2" --filter-file "${TMP_PATH}/order_redundancy" ${VERBOSITYANDCOMPRESS} \
         || fail "Filterdb step died"
 fi
 
@@ -88,23 +89,30 @@ if notExists "${TMP_PATH}/clu"; then
 fi
 
 if [ -n "$REMOVE_TMP" ]; then
-    echo "Remove temporary files"
-    "$MMSEQS" rmdb "${TMP_PATH}/pref"
-    "$MMSEQS" rmdb "${TMP_PATH}/pref_rescore1"
-    "$MMSEQS" rmdb "${TMP_PATH}/pre_clust"
-    "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/pref" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/pref_rescore1" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/pre_clust" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy" ${VERBOSITY}
     rm -f "${TMP_PATH}/order_redundancy"
 
-    "$MMSEQS" rmdb "${TMP_PATH}/pref_filter1"
-    "$MMSEQS" rmdb "${TMP_PATH}/pref_filter2"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/pref_filter1" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/pref_filter2" ${VERBOSITY}
 
     if [ -n "${ALIGN_GAPPED}" ]; then
         if [ -n "$FILTER" ]; then
-            "$MMSEQS" rmdb "${TMP_PATH}/pref_rescore2"
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/pref_rescore2" ${VERBOSITY}
         fi
-        "$MMSEQS" rmdb "${TMP_PATH}/aln"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY}
     fi
-    "$MMSEQS" rmdb "${TMP_PATH}/clust"
-
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/clust" ${VERBOSITY}
     rm -f "${TMP_PATH}/linclust.sh"
 fi

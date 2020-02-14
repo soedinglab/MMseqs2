@@ -95,8 +95,9 @@ fi
 
 
 if [ -n "$REMOVE_TMP" ]; then
-    echo "Remove temporary files"
-    "$MMSEQS" rmdb "${TMP_PATH}/pref"
-    "$MMSEQS" rmdb "${TMP_PATH}/reverse_aln"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/pref" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/reverse_aln" ${VERBOSITY}
     rm -f "${TMP_PATH}/linsearch.sh"
 fi

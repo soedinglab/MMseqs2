@@ -132,7 +132,7 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
         ${RUNNER} "$MMSEQS" align "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
             || fail "align died"
         # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/pref" ${VERBOSITY_PAR}
+        "$MMSEQS" rmdb "${TMP_PATH}/pref" ${VERBOSITY}
         touch "${TMP_PATH}/aln.done"
     fi
 
@@ -143,25 +143,25 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
         "$MMSEQS" swapresults "${TARGET}" "${INPUT}" "${TMP_PATH}/aln" "${TMP_PATH}/aln_swap" ${SWAP_PAR} \
             || fail "swapresults died"
         # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY_PAR}
+        "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY}
         touch "${TMP_PATH}/aln_swap.done"
     fi
 
     # merge swapped alignment of current chunk to previous steps
     if [ -f "${TMP_PATH}/aln_merged.dbtype" ]; then
         # shellcheck disable=SC2086
-        "$MMSEQS" mergedbs "${INPUT}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} \
+        "$MMSEQS" mergedbs "${INPUT}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln_swap" ${VERBOSITY} \
             || fail "mergedbs died"
         # rmdb of aln_merged to avoid conflict with unmerged dbs: aln_merged.0, .1...
         # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR} || fail "rmdb aln_merged died"
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_merged" ${VERBOSITY} || fail "rmdb aln_merged died"
         # shellcheck disable=SC2086
-        "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR} || fail "mv aln_merged_new aln_merged died"
+        "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" ${VERBOSITY} || fail "mv aln_merged_new aln_merged died"
         # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY_PAR} || fail "rmdb aln_swap died"
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY} || fail "rmdb aln_swap died"
     else
         # shellcheck disable=SC2086
-        "$MMSEQS" mvdb "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR} \
+        "$MMSEQS" mvdb "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_merged" ${VERBOSITY} \
             || fail "mvdb died"
     fi
 
@@ -179,11 +179,10 @@ done
 
 
 if [ -n "$REMOVE_TMP" ]; then
-    echo "Remove temporary files"
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/aln_merged" ${VERBOSITY_PAR}
+    "$MMSEQS" rmdb "${TMP_PATH}/aln_merged" ${VERBOSITY}
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${PROFILEDB}" ${VERBOSITY_PAR}
+    "$MMSEQS" rmdb "${PROFILEDB}" ${VERBOSITY}
     CURR_STEP=0
     while [ "${CURR_STEP}" -le "${STEP}" ]; do
         if [ -f "${TMP_PATH}/aln_${CURR_STEP}.checkpoint" ]; then

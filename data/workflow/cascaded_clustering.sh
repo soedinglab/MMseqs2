@@ -203,43 +203,61 @@ if [ -n "$REASSIGN" ]; then
             || fail "Clustering step $STEP died"
 
     if [ -n "$REMOVE_TMP" ]; then
-        echo "Remove temporary files"
-        "$MMSEQS" rmdb "${TMP_PATH}/aln"
-        "$MMSEQS" rmdb "${TMP_PATH}/clu_not_accepted"
-        "$MMSEQS" rmdb "${TMP_PATH}/clu_accepted"
-        "$MMSEQS" rmdb "${TMP_PATH}/clu_not_accepted_swap"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_seeds"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_seeds.merged"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln"
-        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_ocol"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/clu_not_accepted" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/clu_accepted" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/clu_not_accepted_swap" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/seq_seeds" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/seq_seeds.merged" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_ocol" ${VERBOSITY}
         rm -f "${TMP_PATH}/missing.single.seqs"
         rm -f "${TMP_PATH}/clu_accepted_plus_wrong.tsv"
-        "$MMSEQS" rmdb "${TMP_PATH}/missing.single.seqs.db"
-        "$MMSEQS" rmdb "${TMP_PATH}/clu_accepted_plus_wrong"
-        "$MMSEQS" rmdb "${TMP_PATH}/clu_accepted_plus_wrong_plus_single"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/missing.single.seqs.db" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/clu_accepted_plus_wrong" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/clu_accepted_plus_wrong_plus_single" ${VERBOSITY}
 
     fi
 fi
 
 
 if [ -n "$REMOVE_TMP" ]; then
-    echo "Remove temporary files"
-    "$MMSEQS" rmdb "${TMP_PATH}/clu_redundancy"
-    "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/clu_redundancy" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy" ${VERBOSITY}
     STEP=0
     while [ "$STEP" -lt "$STEPS" ]; do
-        "$MMSEQS" rmdb "${TMP_PATH}/pref_step$STEP"
-        "$MMSEQS" rmdb "${TMP_PATH}/aln_step$STEP"
-        "$MMSEQS" rmdb "${TMP_PATH}/clu_step$STEP"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/pref_step$STEP" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/aln_step$STEP" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/clu_step$STEP" ${VERBOSITY}
         STEP=$((STEP+1))
     done
 
     STEP=1
     while [ "$STEP" -lt "$STEPS" ]; do
-        "$MMSEQS" rmdb "${TMP_PATH}/input_step$STEP"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/input_step$STEP" ${VERBOSITY}
         STEP=$((STEP+1))
     done
 

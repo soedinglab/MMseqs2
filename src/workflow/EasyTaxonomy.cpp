@@ -80,6 +80,7 @@ int easytaxonomy(int argc, const char **argv, const Command& command) {
     cmd.addVariable("TMP_PATH", tmpDir.c_str());
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("RUNNER", par.runner.c_str());
+    cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
 
     int alignmentMode = par.alignmentMode;
     if (par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA) {

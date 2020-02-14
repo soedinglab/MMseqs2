@@ -52,7 +52,6 @@ cp -f "${NCBITAXINFO}/delnodes.dmp"  "${TAXDBNAME}_delnodes.dmp"
 echo "Database created"
 
 if [ -n "$REMOVE_TMP" ]; then
-   echo "Remove temporary files"
    rm -f "${TMP_PATH}/names.dmp" "${TMP_PATH}/nodes.dmp" "${TMP_PATH}/merged.dmp" "${TMP_PATH}/delnodes.dmp"
    rm -f "${TMP_PATH}/taxidmapping"
    if [ "$DOWNLOAD_DATA" -eq "1" ]; then

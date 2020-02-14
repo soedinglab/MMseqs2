@@ -19,39 +19,39 @@ if [ -n "$TRANSLATED" ]; then
     # 1. extract orf
     if notExists "$2/orfs_aa.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" extractorfs "$INPUT" "$2/orfs_aa" $ORF_PAR \
+        "$MMSEQS" extractorfs "$INPUT" "$2/orfs_aa" ${ORF_PAR} \
             || fail "extractorfs died"
     fi
 
     # shellcheck disable=SC2086
-    "$MMSEQS" $INDEXER "$2/orfs_aa" "$INPUT" $INDEX_PAR \
+    "$MMSEQS" $INDEXER "$2/orfs_aa" "$INPUT" ${INDEX_PAR} \
         || fail "indexdb died"
 
     if [ -n "$REMOVE_TMP" ]; then
-        echo "Remove temporary files"
-        "$MMSEQS" rmdb "$2/orfs_aa"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "$2/orfs_aa" ${VERBOSITY}
         rm -f "$2/createindex.sh"
     fi
 elif [ -n "$LIN_NUCL" ] || [ -n "$NUCL" ]; then
       # 1. extract orf
     if notExists "$2/nucl_split_seq.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" splitsequence "$INPUT" "$2/nucl_split_seq" $SPLIT_SEQ_PAR \
+        "$MMSEQS" splitsequence "$INPUT" "$2/nucl_split_seq" ${SPLIT_SEQ_PAR} \
             || fail "splitsequence died"
     fi
 
     # shellcheck disable=SC2086
-    "$MMSEQS" $INDEXER "$2/nucl_split_seq" "$INPUT" $INDEX_PAR \
+    "$MMSEQS" $INDEXER "$2/nucl_split_seq" "$INPUT" ${INDEX_PAR} \
         || fail "indexdb died"
 
     if [ -n "$REMOVE_TMP" ]; then
-        echo "Remove temporary files"
-        "$MMSEQS" rmdb "$2/nucl_split_seq"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "$2/nucl_split_seq" ${VERBOSITY}
         rm -f "$2/createindex.sh"
     fi
 else
     # shellcheck disable=SC2086
-    "$MMSEQS" $INDEXER "$INPUT" "$INPUT" $INDEX_PAR \
+    "$MMSEQS" $INDEXER "$INPUT" "$INPUT" ${INDEX_PAR} \
         || fail "indexdb died"
 fi
 

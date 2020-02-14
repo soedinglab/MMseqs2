@@ -100,27 +100,36 @@ fi
 
 
 if [ -n "${REMOVE_TMP}" ]; then
-    echo "Remove temporary files"
     rm -rf "${TMP_PATH}/tmp_hsp1"
     rm -rf "${TMP_PATH}/tmp_hsp2"
 
-    "$MMSEQS" rmdb "${TMP_PATH}/first"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/first" ${VERBOSITY}
 
     if [ -n "${SEARCH2_PAR}" ]; then
-        "$MMSEQS" rmdb "${TMP_PATH}/top1"
-        "$MMSEQS" rmdb "${TMP_PATH}/aligned"
-        "$MMSEQS" rmdb "${TMP_PATH}/round2"
-        "$MMSEQS" rmdb "${TMP_PATH}/merged"
-        "$MMSEQS" rmdb "${TMP_PATH}/2b_ali"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/top1" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/aligned" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/round2" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/merged" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/2b_ali" ${VERBOSITY}
         if [ -n "${APPROX_2BLCA}" ]; then
-            "$MMSEQS" rmdb "${TMP_PATH}/first_sub"
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/first_sub" ${VERBOSITY}
         fi
     fi
     if [ -n "${LCA_PAR}" ]; then
-        "$MMSEQS" rmdb "${TMP_PATH}/mapping"
-        "$MMSEQS" rmdb "${TMP_PATH}/taxa"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/mapping" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/taxa" ${VERBOSITY}
     else
-        "$MMSEQS" rmdb "${TMP_PATH}/mapping"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/mapping" ${VERBOSITY}
     fi
 
     rm -f "${TMP_PATH}/taxonomy.sh"

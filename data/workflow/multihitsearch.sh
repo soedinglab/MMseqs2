@@ -42,10 +42,11 @@ if notExists "${OUTPUT}.index"; then
 fi
 
 if [ -n "${REMOVE_TMP}" ]; then
-    echo "Remove temporary files"
     rmdir "${TMP_PATH}/search"
-    "$MMSEQS" rmdb "${TMP_PATH}/result"
-    "$MMSEQS" rmdb "${TMP_PATH}/aggregate"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/result" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/aggregate" ${VERBOSITY}
     rm -f "${TMP_PATH}/multihitsearch.sh"
 fi
 

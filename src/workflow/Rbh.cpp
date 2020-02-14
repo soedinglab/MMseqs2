@@ -55,7 +55,7 @@ int rbh(int argc, const char **argv, const Command &command) {
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("VERB_COMP_PAR", par.createParameterString(par.verbandcompression).c_str());
     cmd.addVariable("THREADS_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
-
+    cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
     std::string program = tmpDir + "/rbh.sh";
     FileUtil::writeFile(program, rbh_sh, rbh_sh_len);
     cmd.execProgram(program.c_str(), par.filenames);
