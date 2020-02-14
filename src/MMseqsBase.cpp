@@ -68,7 +68,9 @@ std::vector<Command> baseCommands = {
                 "# Q: MAVGTACRPA  60%  IGN  60%\n"
                 "# T: -AVGTAC---  60% 100%  IGN\n"
                 "#        -c 0.7    -    +    -\n"
-                "#        -c 0.6    +    +    +\n",
+                "#        -c 0.6    +    +    +\n\n"
+                "# Cluster nucleotide sequences \n"
+                "mmseqs easy-linclust examples/DB.fasta result tmp --kmer-per-seq-scale 0.3\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]> <o:clusterPrefix> <tmpDir>",
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
@@ -223,7 +225,9 @@ std::vector<Command> baseCommands = {
                 "# Q: MAVGTACRPA  60%  IGN  60%\n"
                 "# T: -AVGTAC---  60% 100%  IGN\n"
                 "# Cutoff -c 0.7    -    +    -\n"
-                "#        -c 0.6    +    +    +\n",
+                "#        -c 0.6    +    +    +\n\n"
+                "# Cluster nucleotide sequences \n"
+                "mmseqs easy-linclust nucl.fasta result tmp --kmer-per-seq-scale 0.3\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:sequenceDB> <o:clusterDB> <tmpDir>",
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },

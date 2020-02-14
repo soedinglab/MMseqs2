@@ -23,6 +23,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     setLinclustWorkflowDefaults(&par);
     par.PARAM_ADD_BACKTRACE.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_ALT_ALIGNMENT.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_ZDROP.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_RESCORE_MODE.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_MAX_REJECTED.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_MAX_ACCEPT.addCategory(MMseqsParameter::COMMAND_EXPERT);

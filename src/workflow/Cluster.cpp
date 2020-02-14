@@ -45,6 +45,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     par.PARAM_RESCORE_MODE.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_MAX_REJECTED.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_MAX_ACCEPT.addCategory(MMseqsParameter::COMMAND_EXPERT);
+    par.PARAM_ZDROP.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_KMER_PER_SEQ.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_S.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_INCLUDE_ONLY_EXTENDABLE.addCategory(MMseqsParameter::COMMAND_EXPERT);
