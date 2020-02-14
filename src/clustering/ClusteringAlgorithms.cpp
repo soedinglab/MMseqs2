@@ -42,7 +42,7 @@ std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithm
     std::fill_n(assignedcluster, dbSize, UINT_MAX);
 
     //time
-    if (mode==4) {
+    if (mode==4 || mode==2) {
         greedyIncrementalLowMem(assignedcluster);
     }else {
         size_t elementCount = 0;
@@ -74,51 +74,45 @@ std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithm
         std::fill_n(bestscore, dbSize, SHRT_MIN);
 
         readInClusterData(elementLookupTable, elements, scoreLookupTable, score, elementOffsets, elementCount);
-
-
-        if (mode==2){
-            greedyIncremental(elementLookupTable, elementOffsets,
-                              dbSize, assignedcluster);
-        }else {
-            ClusteringAlgorithms::initClustersizes();
-            if (mode == 1) {
-                setCover(elementLookupTable, scoreLookupTable, assignedcluster, bestscore, elementOffsets);
-            } else if (mode == 3) {
-                Debug(Debug::INFO) << "connected component mode" << "\n";
-                for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
-                    unsigned int representative = sorted_clustersizes[cl_size];
-                    if (assignedcluster[representative] == UINT_MAX) {
-                        assignedcluster[representative] = representative;
-                        std::queue<int> myqueue;
-                        myqueue.push(representative);
-                        std::queue<int> iterationcutoffs;
-                        iterationcutoffs.push(0);
-                        //delete clusters of members;
-                        while (!myqueue.empty()) {
-                            int currentid = myqueue.front();
-                            int iterationcutoff = iterationcutoffs.front();
-                            assignedcluster[currentid] = representative;
-                            myqueue.pop();
-                            iterationcutoffs.pop();
-                            size_t elementSize = (elementOffsets[currentid + 1] - elementOffsets[currentid]);
-                            for (size_t elementId = 0; elementId < elementSize; elementId++) {
-                                unsigned int elementtodelete = elementLookupTable[currentid][elementId];
-                                if (assignedcluster[elementtodelete] == UINT_MAX && iterationcutoff < maxiterations) {
-                                    myqueue.push(elementtodelete);
-                                    iterationcutoffs.push((iterationcutoff + 1));
-                                }
-                                assignedcluster[elementtodelete] = representative;
+        ClusteringAlgorithms::initClustersizes();
+        if (mode == 1) {
+            setCover(elementLookupTable, scoreLookupTable, assignedcluster, bestscore, elementOffsets);
+        } else if (mode == 3) {
+            Debug(Debug::INFO) << "connected component mode" << "\n";
+            for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
+                unsigned int representative = sorted_clustersizes[cl_size];
+                if (assignedcluster[representative] == UINT_MAX) {
+                    assignedcluster[representative] = representative;
+                    std::queue<int> myqueue;
+                    myqueue.push(representative);
+                    std::queue<int> iterationcutoffs;
+                    iterationcutoffs.push(0);
+                    //delete clusters of members;
+                    while (!myqueue.empty()) {
+                        int currentid = myqueue.front();
+                        int iterationcutoff = iterationcutoffs.front();
+                        assignedcluster[currentid] = representative;
+                        myqueue.pop();
+                        iterationcutoffs.pop();
+                        size_t elementSize = (elementOffsets[currentid + 1] - elementOffsets[currentid]);
+                        for (size_t elementId = 0; elementId < elementSize; elementId++) {
+                            unsigned int elementtodelete = elementLookupTable[currentid][elementId];
+                            if (assignedcluster[elementtodelete] == UINT_MAX && iterationcutoff < maxiterations) {
+                                myqueue.push(elementtodelete);
+                                iterationcutoffs.push((iterationcutoff + 1));
                             }
+                            assignedcluster[elementtodelete] = representative;
                         }
-
                     }
+
                 }
             }
-            //delete unnecessary datastructures
-            delete [] sorted_clustersizes;
-            delete [] clusterid_to_arrayposition;
-            delete [] borders_of_set;
         }
+        //delete unnecessary datastructures
+        delete [] sorted_clustersizes;
+        delete [] clusterid_to_arrayposition;
+        delete [] borders_of_set;
+
 
         delete [] elementLookupTable;
         delete [] elements;
@@ -368,29 +362,6 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
         unsigned int assignedClusterId = assignedcluster[id];
         if (assignedcluster[assignedClusterId] != assignedClusterId){
             assignedcluster[assignedClusterId] = assignedClusterId;
-        }
-    }
-}
-
-void ClusteringAlgorithms::greedyIncremental(unsigned int **elementLookupTable, size_t *elementOffsets,
-                                             size_t n, unsigned int *assignedcluster) {
-    Debug::Progress progress(n);
-    for(size_t i = 0; i < n; i++) {
-        // seqDbr is descending sorted by length
-        // the assumption is that clustering is B -> B (not A -> B)
-        progress.updateProgress();
-        if(assignedcluster[i] == UINT_MAX){
-            size_t elementSize = (elementOffsets[i + 1] - elementOffsets[i]);
-            for (size_t elementId = 0; elementId < elementSize; elementId++) {
-                const unsigned int currElm = elementLookupTable[i][elementId];
-                if(assignedcluster[currElm] == currElm){
-                    assignedcluster[i] = currElm;
-                    break;
-                }
-            }
-            if(assignedcluster[i] == UINT_MAX) {
-                assignedcluster[i] = i;
-            }
         }
     }
 }
