@@ -79,11 +79,8 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
             NUM_SEQS_THAT_SATURATE=1
         fi
     fi
-
-    RESSIZE=1
-    if [ "$("$MMSEQS" dbtype "${PROFILEDB}")" = "Profile" ]; then
-       RESSIZE=25
-    fi
+    # prefilter res size (10 + 1 + 6 + 1 + 3 + 1) + 3 byte buffer
+    RESSIZE=25
     # disk usage allowance not set by the user (i.e. AVAIL_DISK = 0), compute it for optimal usage
     if [ "${AVAIL_DISK}" -eq 0 ]; then
         CURRENT_AVAIL_DISK_SPACE=$(($("$MMSEQS" diskspaceavail "${TMP_PATH}")/2))
