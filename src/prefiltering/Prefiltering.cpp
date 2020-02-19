@@ -10,6 +10,8 @@
 #include "ByteParser.h"
 #include "Parameters.h"
 #include "MemoryMapped.h"
+#include <sys/mman.h>
+
 
 namespace prefilter {
 #include "ExpOpt3_8_polished.cs32.lib.h"
@@ -424,24 +426,20 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
     }
     reader1.setDataSize(totalSize);
 
-    size_t *starts = new size_t[threads];
-    size_t *lengths = new size_t[threads];
-    size_t **offsetStart = new size_t*[threads];
-    for (size_t i = 0; i < threads; ++i) {
-        reader1.decomposeDomainByAminoAcid(i, threads, &starts[i], &lengths[i]);
-        offsetStart[i] = new size_t[splits];
-    }
-
-    for (size_t s = 0; s < splits; ++s) {
-        DBReader<unsigned int> reader2(fileNames[s].first.c_str(), fileNames[s].second.c_str(), 1, DBReader<unsigned int>::USE_INDEX);
-        reader2.open(DBReader<unsigned int>::NOSORT);
-        DBReader<unsigned int>::Index *index2 = reader2.getIndex();
-        for (size_t t = 0; t < threads; t++) {
-            offsetStart[t][s] = index2[starts[t]].offset;
+    FILE ** files = new FILE*[fileNames.size()];
+    char ** dataFile = new char*[fileNames.size()];
+    size_t * dataFileSize = new size_t[fileNames.size()];
+    size_t globalIdOffset = 0;
+    for (size_t i = 0; i < splits; ++i) {
+        files[i] = FileUtil::openFileOrDie(fileNames[i].first.c_str(), "r", true);
+        dataFile[i] = static_cast<char*>(FileUtil::mmapFile(files[i], &dataFileSize[i]));
+#ifdef HAVE_POSIX_MADVISE
+        if (posix_madvise (dataFile[i], dataFileSize[i], POSIX_MADV_SEQUENTIAL) != 0){
+            Debug(Debug::ERROR) << "posix_madvise returned an error " << fileNames[i].first << "\n";
         }
-        reader2.close();
-    }
+#endif
 
+    }
     Debug(Debug::INFO) << "Preparing offsets for merging: " << timer.lap() << "\n";
     // merge target splits data files and sort the hits at the same time
     // TODO: compressed?
@@ -455,39 +453,27 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-
         std::string result;
         result.reserve(1024);
-
         std::vector<hit_t> hits;
         hits.reserve(300);
-
         char buffer[1024];
-
-        size_t id = starts[thread_idx];
-        size_t lastId = id + lengths[thread_idx];
-        FILE** files = new FILE*[splits];
-        for (size_t i = 0; i < splits; ++i) {
-            files[i] = fopen(fileNames[i].first.c_str(), "rb");
-            fseek(files[i], offsetStart[thread_idx][i], SEEK_SET);
-        }
-
-        while (id < lastId) {
+        size_t * currentDataFileOffset = new size_t[splits];
+        memset(currentDataFileOffset, 0, sizeof(size_t)*splits);
+        size_t currentId = __sync_fetch_and_add(&(globalIdOffset), 1);
+        size_t prevId = 0;
+        while(currentId < reader1.getSize()){
             pregress.updateProgress();
-            for (size_t i = 0; i < splits; ++i) {
-                int c1 = EOF;
-                size_t pos = 0;
-                while ((c1 = getc_unlocked(files[i])) != EOF) {
-                    buffer[pos++] = (char)c1;
-                    if (c1 == '\n') {
-                        hits.emplace_back(QueryMatcher::parsePrefilterHit(buffer));
-                        pos = 0;
-                    } else if (c1 == '\0') {
-                        break;
-                    }
+            for(size_t file = 0; file < splits; file++){
+                size_t tmpId = prevId;
+                size_t pos;
+                for(pos = currentDataFileOffset[file]; pos < dataFileSize[file] && tmpId != currentId; pos++){
+                    tmpId += (dataFile[file][pos] == '\0');
+                    currentDataFileOffset[file] = pos;
                 }
+                currentDataFileOffset[file] = pos;
+                QueryMatcher::parsePrefilterHits(&dataFile[file][pos], hits);
             }
-
             if (hits.size() > 1) {
                 std::sort(hits.begin(), hits.end(), hit_t::compareHitsByScoreAndId);
             }
@@ -495,27 +481,26 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, hits[i]);
                 result.append(buffer, len);
             }
-            writer.writeData(result.c_str(), result.size(), reader1.getDbKey(id), thread_idx);
+            writer.writeData(result.c_str(), result.size(), reader1.getDbKey(currentId), thread_idx);
             hits.clear();
             result.clear();
-            id++;
+            prevId = currentId;
+            currentId = __sync_fetch_and_add(&(globalIdOffset), 1);
         }
 
-        for (size_t i = 0; i < splits; ++i) {
-            fclose(files[i]);
-        }
-        delete[] files;
-        delete[] offsetStart[thread_idx];
+            delete[] currentDataFileOffset;
     }
     writer.close();
     reader1.close();
 
     for (size_t i = 0; i < splits; ++i) {
         DBReader<unsigned int>::removeDb(fileNames[i].first);
+        FileUtil::munmapData(dataFile[i], dataFileSize[i]);
+        fclose(files[i]);
     }
-    delete[] offsetStart;
-    delete[] lengths;
-    delete[] starts;
+    delete [] dataFile;
+    delete [] dataFileSize;
+    delete [] files;
 
     Debug(Debug::INFO) << "Time for merging target splits: " << timer.lap() << "\n";
 }

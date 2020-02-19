@@ -122,6 +122,14 @@ public:
         return ret;
     }
 
+    static void parsePrefilterHits(char *data, std::vector<hit_t> & entries) {
+        while (*data != '\0') {
+            hit_t result = parsePrefilterHit(data);
+            entries.push_back(result);
+            data = Util::skipLine(data);
+        }
+    }
+
     static size_t prefilterHitToBuffer(char *buff1, hit_t &h)
     {
         char * basePos = buff1;
