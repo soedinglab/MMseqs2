@@ -71,7 +71,7 @@ Parameters::Parameters():
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID, "--alt-ali", "Alternative alignments", "Show up to this many alternative alignments", typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID, "--gap-open", "Gap open cost", "Gap open cost", typeid(int), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID, "--gap-extend", "Gap extension cost", "Gap extension cost", typeid(int), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_ZDROP(PARAM_ZDROP_ID, "--zdrop", "zdrop", "maximal allowed difference between score values before alignment is truncated", typeid(int), (void*) &zdrop, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_ZDROP(PARAM_ZDROP_ID, "--zdrop", "Zdrop", "Maximal allowed difference between score values before alignment is truncated  (nucleotide alignment only)", typeid(int), (void*) &zdrop, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID, "--cluster-mode", "Cluster mode", "0: Set-Cover (greedy)\n1: Connected component (BLASTclust)\n2,3: Greedy clustering by sequence length (CDHIT)", typeid(int), (void *) &clusteringMode, "[0-3]{1}$", MMseqsParameter::COMMAND_CLUST),
         PARAM_CLUSTER_STEPS(PARAM_CLUSTER_STEPS_ID, "--cluster-steps", "Cascaded clustering steps", "Cascaded clustering steps from 1 to -s", typeid(int), (void *) &clusterSteps, "^[1-9]{1}$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
@@ -87,8 +87,8 @@ Parameters::Parameters():
         PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID, "--format-output", "Format alignment output", "Choose comma separated list of output columns from: query,target,evalue,gapopen,pident,nident,qstart,qend,qlen\ntstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov\nqset,qsetid,tset,tsetid,taxid,taxname,taxlineage", typeid(std::string), (void *) &outfmt, ""),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database output", "Return a result DB instead of a text file", typeid(bool), (void *) &dbOut, "", MMseqsParameter::COMMAND_EXPERT),
         // --include-only-extendablediagonal
-        PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID, "--rescore-mode", "Rescore mode", "Rescore diagonals with: 0: Hamming distance, 1: local alignment (score only), 2: local alignment, 3: global alignment or 4: longest alignment fullfilling window quality criterion", typeid(int), (void *) &rescoreMode, "^[0-4]{1}$"),
-        PARAM_WRAPPED_SCORING(PARAM_WRAPPED_SCORING_ID, "--wrapped-scoring", "Allow wrapped scoring", "Double the (nucleotide) query sequence during the scoring process to allow wrapped diagonal scoring around end and start", typeid(bool), (void *) &wrappedScoring, "", MMseqsParameter::COMMAND_MISC | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID, "--rescore-mode", "Rescore mode", "Rescore diagonals with:\n0: Hamming distance\n1: local alignment (score only)\n2: local alignment\n3: global alignment\n4: longest alignment fullfilling window quality criterion", typeid(int), (void *) &rescoreMode, "^[0-4]{1}$"),
+        PARAM_WRAPPED_SCORING(PARAM_WRAPPED_SCORING_ID, "--wrapped-scoring", "Allow wrapped scoring", "Double the (nucleotide) query sequence during the scoring process to allow wrapped diagonal scoring around end and start", typeid(bool), (void *) &wrappedScoring, "", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID, "--filter-hits", "Remove hits by seq. id. and coverage", "Filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by E-value (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // result2msa
@@ -175,7 +175,7 @@ Parameters::Parameters():
         // gff2db
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID, "--gff-type", "GFF type", "Type in the GFF file to filter by", typeid(std::string), (void *) &gffType, ""),
         // translatenucs
-        PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID, "--translation-table", "Translation table", "1) CANONICAL, 2) VERT_MITOCHONDRIAL, 3) YEAST_MITOCHONDRIAL, 4) MOLD_MITOCHONDRIAL, 5) INVERT_MITOCHONDRIAL, 6) CILIATE\n9) FLATWORM_MITOCHONDRIAL, 10) EUPLOTID, 11) PROKARYOTE, 12) ALT_YEAST, 13) ASCIDIAN_MITOCHONDRIAL, 14) ALT_FLATWORM_MITOCHONDRIAL\n15) BLEPHARISMA, 16) CHLOROPHYCEAN_MITOCHONDRIAL, 21) TREMATODE_MITOCHONDRIAL, 22) SCENEDESMUS_MITOCHONDRIAL\n23) THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24) PTEROBRANCHIA_MITOCHONDRIAL, 25) GRACILIBACTERIA, 26) PACHYSOLEN, 27) KARYORELICT, 28) CONDYLOSTOMA, 29) MESODINIUM, 30) PERTRICH, 31) BLASTOCRITHIDIA", typeid(int), (void *) &translationTable, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_MISC | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID, "--translation-table", "Translation table", "1) CANONICAL, 2) VERT_MITOCHONDRIAL, 3) YEAST_MITOCHONDRIAL, 4) MOLD_MITOCHONDRIAL, 5) INVERT_MITOCHONDRIAL, 6) CILIATE\n9) FLATWORM_MITOCHONDRIAL, 10) EUPLOTID, 11) PROKARYOTE, 12) ALT_YEAST, 13) ASCIDIAN_MITOCHONDRIAL, 14) ALT_FLATWORM_MITOCHONDRIAL\n15) BLEPHARISMA, 16) CHLOROPHYCEAN_MITOCHONDRIAL, 21) TREMATODE_MITOCHONDRIAL, 22) SCENEDESMUS_MITOCHONDRIAL\n23) THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24) PTEROBRANCHIA_MITOCHONDRIAL, 25) GRACILIBACTERIA, 26) PACHYSOLEN, 27) KARYORELICT, 28) CONDYLOSTOMA\n 29) MESODINIUM, 30) PERTRICH, 31) BLASTOCRITHIDIA", typeid(int), (void *) &translationTable, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_MISC | MMseqsParameter::COMMAND_EXPERT),
         // createseqfiledb
         PARAM_ADD_ORF_STOP(PARAM_ADD_ORF_STOP_ID, "--add-orf-stop", "Add orf stop", "Add stop codon '*' at complete start and end", typeid(bool), (void *) &addOrfStop, ""),
         // createseqfiledb
@@ -1218,13 +1218,13 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
                         paramString.append(" STR");
                         valueString = *((std::string *) par->value);
                     } else if (par->type == typeid(MultiParam<char*>)) {
-                        paramString.append(" nucl::VAL,aa:VAL");
+                        paramString.append(" TWIN"); //nucl:VAL,aa:VAL"
                         valueString = MultiParam<char*>::format(*((MultiParam<char*> *) par->value));
                     } else if (par->type == typeid(MultiParam<int>)) {
-                        paramString.append(" nucl::VAL,aa:VAL");
+                        paramString.append(" TWIN"); //nucl:VAL,aa:VAL"
                         valueString = MultiParam<int>::format(*((MultiParam<int> *) par->value));
                     } else if (par->type == typeid(MultiParam<float>)) {
-                        paramString.append(" nucl::VAL,aa:VAL");
+                        paramString.append(" TWIN"); //nucl:VAL,aa:VAL"
                         valueString = MultiParam<float>::format(*((MultiParam<float> *) par->value));
                     }
 

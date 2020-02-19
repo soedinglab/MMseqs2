@@ -93,11 +93,11 @@ MultiParam<char*>::~MultiParam() {
 }
 
 std::string MultiParam<char*>::format(const MultiParam<char*> &file) {
-    if (strncmp(file.nucleotides, file.aminoacids, strlen(file.aminoacids)) == 0) {
+    /*if (strncmp(file.nucleotides, file.aminoacids, strlen(file.aminoacids)) == 0) {
         return file.nucleotides;
-    } else {
+    } else {*/
         return std::string("nucl:") + file.nucleotides + ",aa:" + file.aminoacids;
-    }
+    //}
 }
 
 

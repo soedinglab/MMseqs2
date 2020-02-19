@@ -52,6 +52,10 @@ struct MMseqsParameter {
     void removeCategory(unsigned int cat) {
         category &= ~cat;
     }
+
+    void replaceCategory(unsigned int cat) {
+        category = cat;
+    }
 };
 
 
