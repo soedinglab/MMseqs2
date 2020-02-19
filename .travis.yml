@@ -91,6 +91,39 @@ matrix:
         - libopenmpi-dev
         - shellcheck
     env: MPI=1 CC=gcc-8 CXX=g++-8
+  - os: linux
+    dist: trusty
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - cmake
+        - ninja-build
+        - gcc-9
+        - g++-9
+        - zlib1g-dev
+        - libbz2-dev
+        - vim-common
+        - shellcheck
+    env: CC=gcc-9 CXX=g++-9
+  - os: linux
+    dist: trusty
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - cmake
+        - ninja-build
+        - gcc-9
+        - g++-9
+        - zlib1g-dev
+        - libbz2-dev
+        - vim-common
+        - libopenmpi-dev
+        - shellcheck
+    env: MPI=1 CC=gcc-9 CXX=g++-9
   allow_failures:
   - env: QEMU_ARM=1
   fast_finish: true
