@@ -1,4 +1,3 @@
-
 #include "MultiParam.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,19 +58,8 @@ MultiParam<float>::MultiParam(const char* parametercstring) {
     }
 }
 
-template <typename T>
-MultiParam<T>& MultiParam<T>::operator=(const MultiParam<T>& other) {
-    nucleotides = other.nucleotides;
-    aminoacids = other.aminoacids;
-    return *this;
-}
 
-template <typename T>
-MultiParam<T>& MultiParam<T>::operator=(T value) {
-    nucleotides = value;
-    aminoacids = value;
-    return *this;
-}
+
 
 template class MultiParam<int>;
 template class MultiParam<float>;
@@ -113,17 +101,6 @@ std::string MultiParam<char*>::format(const MultiParam<char*> &file) {
     }
 }
 
-MultiParam<char*>& MultiParam<char*>::operator=(const MultiParam<char*>& other) {
-    if (nucleotides != NULL) {
-        free(nucleotides);
-    }
-    if (aminoacids != NULL) {
-        free(aminoacids);
-    }
-    nucleotides = strdup(other.nucleotides);
-    aminoacids = strdup(other.aminoacids);
-    return *this;
-}
 
 bool MultiParam<char*>::operator==(const char* other) const {
     return strncmp(other, nucleotides, strlen(nucleotides)) == 0 || strncmp(other, aminoacids, strlen(aminoacids)) == 0;

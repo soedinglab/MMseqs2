@@ -22,9 +22,12 @@ public:
     ~MultiParam(){};
 
     static std::string format(const MultiParam<T> &multiparam);
-    MultiParam& operator=(T value);
-    MultiParam& operator=(const MultiParam<T>& other);
 
+    MultiParam<T>& operator=(T value) {
+        nucleotides = value;
+        aminoacids = value;
+        return *this;
+    }
 };
 
 template <>
@@ -36,6 +39,11 @@ public:
 
     MultiParam(const char* aminoacids, const char* nucleotides);
     MultiParam(const char* parametercstring);
+    MultiParam(const MultiParam<char*> & par) {
+        nucleotides = strdup(par.nucleotides);
+        aminoacids = strdup(par.aminoacids);
+    };
+
     explicit MultiParam<char*>(const std::string& parameterstring) : MultiParam<char*>(parameterstring.c_str()) {}
     ~MultiParam();
 
@@ -45,7 +53,18 @@ public:
 
 
     //ScoreMatrixFile(const ScoreMatrixFile& copy) : ScoreMatrixFile(copy.aminoacids, copy.nucleotides) {}
-    MultiParam<char*>& operator=(const MultiParam<char*>& other);
+
+    MultiParam<char*>& operator=(const MultiParam<char*>& other) {
+        if (nucleotides != NULL) {
+            free(nucleotides);
+        }
+        if (aminoacids != NULL) {
+            free(aminoacids);
+        }
+        nucleotides = strdup(other.nucleotides);
+        aminoacids = strdup(other.aminoacids);
+        return *this;
+    }
 
 
     bool operator==(const char* other) const;
