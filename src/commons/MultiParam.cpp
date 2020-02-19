@@ -1,6 +1,5 @@
 #include "MultiParam.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <cfloat>
 
 #include "Util.h"

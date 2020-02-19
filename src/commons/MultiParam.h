@@ -9,6 +9,7 @@
 #include <string>
 #include <cstring>
 #include <limits.h>
+#include <stdlib.h>
 
 template <class T>
 class MultiParam {
