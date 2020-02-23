@@ -67,7 +67,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
         if (querySize == 0) {
             queryFrom = 0;
         }
-        char buffer[LINE_MAX];
+        char buffer[1024];
 
         for (unsigned int i = queryFrom; i < (queryFrom + querySize); ++i){
             progress.updateProgress();

@@ -45,9 +45,8 @@ int extractframes(int argc, const char **argv, const Command& command) {
         if (querySize == 0) {
             queryFrom = 0;
         }
-        char buffer[LINE_MAX];
 
-
+        char buffer[1024];
         std::string reverseComplementStr;
         reverseComplementStr.reserve(32000);
         for (unsigned int i = queryFrom; i < (queryFrom + querySize); ++i){
