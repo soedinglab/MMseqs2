@@ -102,5 +102,9 @@ script:
         -DHAVE_TESTS=1 ..; \
     make -j $(nproc --all); \
     if [[ "${SIMD}" = "NEON" ]]; then \
+        mkdir path; \
+        printf '#!/bin/sh\ntail\n' > path/tee; \
+        chmod +x path/tee; \
+        export PATH="$(readlink -f path):$PATH"; \
         ../util/regression/run_regression.sh ./src/mmseqs SCRATCH; \
     fi
