@@ -39,10 +39,7 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
 endif ()
 
 # set flags
-set(MMSEQS_CXX_FLAGS "-std=c++0x")
-if (NOT ${HAVE_NEON})
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -m64")
-endif ()
+set(MMSEQS_CXX_FLAGS "-std=c++0x -m64")
 
 # Compiler-specific features
 if (CMAKE_COMPILER_IS_CLANG)

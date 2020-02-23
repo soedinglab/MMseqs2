@@ -35,7 +35,7 @@ RUN if [ X"$NAMESPACE" = X"" ]; then \
 
 WORKDIR /opt/mmseqs/build_neon
 RUN if [ X"$NAMESPACE" = X"arm64v8/" ]; then \
-      cmake  -DHAVE_NEON=1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
+      cmake -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
       make -j $(nproc --all) && make install; \
       touch /opt/mmseqs/build_sse/bin/mmseqs; \
       touch /opt/mmseqs/build_avx/bin/mmseqs; \
