@@ -1,135 +1,87 @@
-language: minimal
-
+language: shell
+os: linux
+dist: xenial
+addons:
+  apt:
+    packages: &default_packages
+    - cmake
+    - ninja-build
+    - zlib1g-dev
+    - libbz2-dev
+    - vim-common
+    - shellcheck
 env:
 
 matrix:
   include:
-  - os: linux
-    dist: xenial
-    addons:
+  - addons:
       apt:
         packages:
-          - qemu-user-static
-          - binfmt-support
-    env: QEMU_ARM=1
-  - os: linux
-    dist: trusty
-    addons:
+        - *default_packages
+        - build-essential
+    env: SIMD=NEON
+    arch: arm64
+  - addons:
       apt:
         packages:
-        - cmake
-        - ninja-build
-        - clang-3.6
+        - *default_packages
+        - clang-3.8
         - libc++-dev
-        - zlib1g-dev
-        - libbz2-dev
-        - vim-common
-        - shellcheck
-    env: CC=clang-3.6 CXX=clang++-3.6
-  - os: linux
-    dist: trusty
-    addons:
+    env: CC=clang-3.8 CXX=clang++-3.8 SIMD=SSE4_1
+  - addons:
       apt:
         sources:
         - ubuntu-toolchain-r-test
-        - llvm-toolchain-trusty-7
+        - llvm-toolchain-trusty-10
         packages:
-        - cmake
-        - ninja-build
-        - clang-7
-        - libc++-7-dev
-        - libc++abi-7-dev
-        - zlib1g-dev
-        - libbz2-dev
-        - vim-common
-        - shellcheck
-    env: CC=clang-7 CXX=clang++-7
-  - os: linux
-    dist: trusty
-    addons:
+        - *default_packages
+        - clang-10
+        - libc++-10-dev
+        - libc++abi-10-dev
+    env: CC=clang-10 CXX=clang++-10 SIMD=SSE4_1
+  - addons:
+    apt:
+      sources:
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-trusty-10
+      packages:
+      - *default_packages
+      - clang-10
+      - libc++-10-dev
+      - libc++abi-10-dev
+      - mpi-default-dev
+  env: MPI=1 CC=clang-10 CXX=clang++-10 SIMD=SSE4_1
+  - addons:
       apt:
+        sources:
+        - ubuntu-toolchain-r-test
         packages:
-        - cmake
-        - ninja-build
+        - *default_packages
         - gcc-4.8
         - g++-4.8
-        - zlib1g-dev
-        - libbz2-dev
-        - vim-common
-        - shellcheck
-    env: CC=gcc-4.8 CXX=g++-4.8
-  - os: linux
-    dist: trusty
-    addons:
+    env: CC=gcc-4.8 CXX=g++-4.8 SIMD=SSE4_1
+  - addons:
       apt:
         sources:
         - ubuntu-toolchain-r-test
         packages:
-        - cmake
-        - ninja-build
-        - gcc-8
-        - g++-8
-        - zlib1g-dev
-        - libbz2-dev
-        - vim-common
-        - shellcheck
-    env: CC=gcc-8 CXX=g++-8
-  - os: linux
-    dist: trusty
-    addons:
-      apt:
-        sources:
-        - ubuntu-toolchain-r-test
-        packages:
-        - cmake
-        - ninja-build
-        - gcc-8
-        - g++-8
-        - zlib1g-dev
-        - libbz2-dev
-        - vim-common
-        - libopenmpi-dev
-        - shellcheck
-    env: MPI=1 CC=gcc-8 CXX=g++-8
-  - os: linux
-    dist: trusty
-    addons:
-      apt:
-        sources:
-        - ubuntu-toolchain-r-test
-        packages:
-        - cmake
-        - ninja-build
+        - *default_packages
         - gcc-9
         - g++-9
-        - zlib1g-dev
-        - libbz2-dev
-        - vim-common
-        - shellcheck
-    env: CC=gcc-9 CXX=g++-9
-  - os: linux
-    dist: trusty
-    addons:
+    env: CC=gcc-9 CXX=g++-9 SIMD=SSE4_1
+  - addons:
       apt:
         sources:
         - ubuntu-toolchain-r-test
         packages:
-        - cmake
-        - ninja-build
+        - *default_packages
         - gcc-9
         - g++-9
-        - zlib1g-dev
-        - libbz2-dev
-        - vim-common
-        - libopenmpi-dev
-        - shellcheck
-    env: MPI=1 CC=gcc-9 CXX=g++-9
+        - mpi-default-dev
+    env: MPI=1 CC=gcc-9 CXX=g++-9 SIMD=SSE4_1
   allow_failures:
-  - env: QEMU_ARM=1
+  - env: SIMD=NEON
   fast_finish: true
-
-services:
-  - docker
 
 before_install:
   - export CC
@@ -137,14 +89,13 @@ before_install:
 
 script:
   - |
-    if [[ -n "$QEMU_ARM" ]]; then \
-      docker build --build-arg NAMESPACE=arm64v8/ -t mmseqs . || exit 1; \
-    elif [[ "$TRAVIS_OS_NAME" == "linux" ]]; then \
-      if [[ -n "$MPI" ]]; then MPI=1; else MPI=0; fi; \
-      mkdir build; cd build; \
-      cmake -G Ninja -DENABLE_WERROR=1 -DHAVE_MPI="$MPI" -DHAVE_SSE4_1=1 -DHAVE_TESTS=1 -DREQUIRE_OPENMP=0 .. \
-        || exit 1; ninja || exit 1; \
-    else \
-      exit 1; \
-    fi
+    mkdir build; cd build; \
+    cmake -G Ninja \
+        -DHAVE_MPI="$([[ -z "$MPI" ]]; echo $?)" \
+        -DHAVE_${SIMD}=1 \
+        -DENABLE_WERROR=1 \
+        -DHAVE_TESTS=1 \
+        -DREQUIRE_OPENMP=0 .. \
+      || exit 1; \
+    ninja || exit 1;
 
