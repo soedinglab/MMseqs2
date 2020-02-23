@@ -12,7 +12,7 @@ addons:
     - shellcheck
 env:
 
-matrix:
+jobs:
   include:
   - addons:
       apt:
@@ -32,7 +32,7 @@ matrix:
       apt:
         sources:
         - ubuntu-toolchain-r-test
-        - llvm-toolchain-trusty-10
+        - llvm-toolchain-xenial-10
         packages:
         - *default_packages
         - clang-10
@@ -40,17 +40,17 @@ matrix:
         - libc++abi-10-dev
     env: CC=clang-10 CXX=clang++-10 SIMD=SSE4_1
   - addons:
-    apt:
-      sources:
-      - ubuntu-toolchain-r-test
-      - llvm-toolchain-trusty-10
-      packages:
-      - *default_packages
-      - clang-10
-      - libc++-10-dev
-      - libc++abi-10-dev
-      - mpi-default-dev
-  env: MPI=1 CC=clang-10 CXX=clang++-10 SIMD=SSE4_1
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        - llvm-toolchain-xenial-10
+        packages:
+        - *default_packages
+        - clang-10
+        - libc++-10-dev
+        - libc++abi-10-dev
+        - mpi-default-dev
+    env: MPI=1 CC=clang-10 CXX=clang++-10 SIMD=SSE4_1
   - addons:
       apt:
         sources:
