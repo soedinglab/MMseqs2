@@ -5,7 +5,7 @@ addons:
   apt:
     packages: &default_packages
     - cmake
-    - ninja-build
+    - make
     - zlib1g-dev
     - libbz2-dev
     - vim-common
@@ -27,6 +27,7 @@ jobs:
         - *default_packages
         - clang-3.8
         - libc++-dev
+        - libomp-dev
     env: CC=clang-3.8 CXX=clang++-3.8 SIMD=SSE4_1
   - addons:
       apt:
@@ -39,17 +40,20 @@ jobs:
         - clang-10
         - libc++-10-dev
         - libc++abi-10-dev
+        - libomp-10-dev
     env: CC=clang-10 CXX=clang++-10 SIMD=SSE4_1
   - addons:
       apt:
         sources:
         - ubuntu-toolchain-r-test
-        - llvm-toolchain-xenial-10
+        - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-10 main'
+          key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
         packages:
         - *default_packages
         - clang-10
         - libc++-10-dev
         - libc++abi-10-dev
+        - libomp-10-dev
         - mpi-default-dev
     env: MPI=1 CC=clang-10 CXX=clang++-10 SIMD=SSE4_1
   - addons:
@@ -91,12 +95,10 @@ before_install:
 script:
   - |
     mkdir build; cd build; \
-    cmake -G Ninja \
+    cmake \
         -DHAVE_MPI="$([[ -z "$MPI" ]]; echo $?)" \
         -DHAVE_${SIMD}=1 \
         -DENABLE_WERROR=1 \
-        -DHAVE_TESTS=1 \
-        -DREQUIRE_OPENMP=0 .. \
-      || exit 1; \
-    ninja || exit 1;
+        -DHAVE_TESTS=1 ..; \
+    make -j $(nproc --all);
 

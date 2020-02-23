@@ -154,7 +154,7 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
             for(size_t i = 0; i < kmerSize; i++){
                 pattern[i]=1;
             }
-            return std::make_pair<const char *, unsigned int>((const char *) pattern, static_cast<unsigned int>(kmerSize));
+            return std::make_pair<const char *, unsigned int>(const_cast<const char*>(pattern), static_cast<unsigned int>(kmerSize));
 
 //            Debug(Debug::ERROR) << "Did not find spaced pattern for kmerSize: " << kmerSize << ". \n";
 //            Debug(Debug::ERROR) << "Please report this bug to the developer\n";
@@ -165,7 +165,7 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
     if (pair.second > 0) {
         memcpy(pattern, pair.first, pair.second * sizeof(char));
     }
-    return std::make_pair<const char *, unsigned int>(pattern, static_cast<unsigned int>(pair.second));
+    return std::make_pair<const char *, unsigned int>(const_cast<const char*>(pattern), static_cast<unsigned int>(pair.second));
 #undef CASE
 }
 

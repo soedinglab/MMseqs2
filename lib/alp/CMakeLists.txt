@@ -40,4 +40,4 @@ add_library(alp OBJECT
         sls_alp.hpp
         sls_normal_distr_array.hpp
         )
-set_target_properties(alp PROPERTIES COMPILE_FLAGS ${MMSEQS_CXX_FLAGS} -w LINK_FLAGS ${MMSEQS_CXX_FLAGS} -w)
+set_target_properties(alp PROPERTIES COMPILE_FLAGS "${MMSEQS_CXX_FLAGS} -w" LINK_FLAGS "${MMSEQS_CXX_FLAGS} -w")
