@@ -53,6 +53,7 @@ jobs:
         - libc++abi-10-dev
         - libomp-10-dev
         - mpi-default-dev
+        - mpi-default-bin
     env: MPI=1 CC=clang-10 CXX=clang++-10
   - addons:
       apt:
@@ -81,6 +82,7 @@ jobs:
         - gcc-9
         - g++-9
         - mpi-default-dev
+        - mpi-default-bin
     env: MPI=1 CC=gcc-9 CXX=g++-9
   fast_finish: true
 
