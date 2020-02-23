@@ -10,7 +10,6 @@ addons:
     - libbz2-dev
     - vim-common
     - shellcheck
-env:
 
 jobs:
   include:
@@ -19,7 +18,6 @@ jobs:
         packages:
         - *default_packages
         - build-essential
-    env: SIMD=NEON
     arch: arm64
   - addons:
       apt:
@@ -28,7 +26,7 @@ jobs:
         - clang-3.8
         - libc++-dev
         - libomp-dev
-    env: CC=clang-3.8 CXX=clang++-3.8 SIMD=SSE4_1
+    env: CC=clang-3.8 CXX=clang++-3.8
   - addons:
       apt:
         sources:
@@ -41,7 +39,7 @@ jobs:
         - libc++-10-dev
         - libc++abi-10-dev
         - libomp-10-dev
-    env: CC=clang-10 CXX=clang++-10 SIMD=SSE4_1
+    env: CC=clang-10 CXX=clang++-10
   - addons:
       apt:
         sources:
@@ -55,7 +53,7 @@ jobs:
         - libc++abi-10-dev
         - libomp-10-dev
         - mpi-default-dev
-    env: MPI=1 CC=clang-10 CXX=clang++-10 SIMD=SSE4_1
+    env: MPI=1 CC=clang-10 CXX=clang++-10
   - addons:
       apt:
         sources:
@@ -64,7 +62,7 @@ jobs:
         - *default_packages
         - gcc-4.8
         - g++-4.8
-    env: CC=gcc-4.8 CXX=g++-4.8 SIMD=SSE4_1
+    env: CC=gcc-4.8 CXX=g++-4.8
   - addons:
       apt:
         sources:
@@ -73,7 +71,7 @@ jobs:
         - *default_packages
         - gcc-9
         - g++-9
-    env: CC=gcc-9 CXX=g++-9 SIMD=SSE4_1
+    env: CC=gcc-9 CXX=g++-9
   - addons:
       apt:
         sources:
@@ -83,9 +81,7 @@ jobs:
         - gcc-9
         - g++-9
         - mpi-default-dev
-    env: MPI=1 CC=gcc-9 CXX=g++-9 SIMD=SSE4_1
-  allow_failures:
-  - env: SIMD=NEON
+    env: MPI=1 CC=gcc-9 CXX=g++-9
   fast_finish: true
 
 before_install:
@@ -95,16 +91,11 @@ before_install:
 script:
   - |
     mkdir build; cd build; \
-    cmake \
-        -DHAVE_MPI="$([[ -z "$MPI" ]]; echo $?)" \
-        -DHAVE_${SIMD}=1 \
-        -DENABLE_WERROR=1 \
-        -DHAVE_TESTS=1 ..; \
+    [[ "${TRAVIS_CPU_ARCH}" = "arm64" ]] && SIMD="" || SIMD="-DHAVE_SSE4_1=1"; \
+    cmake -DHAVE_MPI="$([[ -z "$MPI" ]]; echo $?)" "$SIMD" -DENABLE_WERROR=1 -DHAVE_TESTS=1 ..; \
     make -j $(nproc --all); \
-    if [[ "${SIMD}" = "NEON" ]]; then \
-        mkdir path; \
-        printf '#!/bin/sh\n/usr/bin/tee "$@" | tail\n' > path/tee; \
-        chmod +x path/tee; \
-        export PATH="$(readlink -f path):$PATH"; \
-        ../util/regression/run_regression.sh ./src/mmseqs SCRATCH; \
-    fi
+    mkdir path; \
+    printf '#!/bin/sh\n/usr/bin/tee "$@" | tail\n' > path/tee; \
+    chmod +x path/tee; \
+    export PATH="$(readlink -f path):$PATH"; \
+    ../util/regression/run_regression.sh ./src/mmseqs SCRATCH;
