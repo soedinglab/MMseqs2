@@ -64,6 +64,10 @@ ALIGN_PRE static const uint16_t kShiftPowersVector[8] ALIGN_SUF = {
 ALIGN_PRE static const uint16_t k10Vector[8] ALIGN_SUF = { 10, 10, 10, 10, 10, 10, 10, 10 };
 ALIGN_PRE static const char kAsciiZero[16] ALIGN_SUF = { '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0' };
 
+// FIXME: NEON throws many warnings due to the reinterpret casts
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+
 class Itoa{
 public:
     static inline __m128i Convert8DigitsSSE2(uint32_t value) {
@@ -302,6 +306,9 @@ public:
     }
 
 };
+
+#pragma GCC diagnostic pop
+
 #undef ALIGN_PRE
 #undef ALIGN_SUF
 

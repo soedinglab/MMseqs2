@@ -100,5 +100,7 @@ script:
         -DHAVE_${SIMD}=1 \
         -DENABLE_WERROR=1 \
         -DHAVE_TESTS=1 ..; \
-    make -j $(nproc --all);
-
+    make -j $(nproc --all); \
+    if [[ "${SIMD}" = "NEON" ]]; then \
+        ../util/regression/run_regression.sh ./src/mmseqs SCRATCH; \
+    fi
