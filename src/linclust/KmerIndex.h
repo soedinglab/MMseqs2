@@ -148,7 +148,7 @@ public:
         }
         entries[writingPosition].id = id;
         entries[writingPosition].kmerOffset = kmer - kmerStartRange;
-        entries[writingPosition].kmerOffset = (isReverse) ? BIT_SET(15, entries[writingPosition].kmerOffset) :  entries[writingPosition].kmerOffset;
+        entries[writingPosition].kmerOffset = (isReverse) ? BIT_SET(entries[writingPosition].kmerOffset, 15) :  entries[writingPosition].kmerOffset;
         entries[writingPosition].pos = pos;
         entries[writingPosition].seqLen = seqLen;
         writingPosition++;
