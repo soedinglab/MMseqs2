@@ -620,30 +620,14 @@ uint64_t Util::revComplement(const uint64_t kmer, const int k) {
 #undef c
 
     // use _mm_shuffle_epi8 to look up reverse complement
-#ifdef NEON
-    kmer1 = vreinterpretq_m128i_u8(vqtbl1q_u8(vreinterpretq_u8_m128i(lookup1),vreinterpretq_u8_m128i(kmer1)));
-#else
-    kmer1 =_mm_shuffle_epi8(lookup1, kmer1);
-#endif
-
-
-#ifdef NEON
-    kmer2 = vreinterpretq_m128i_u8(vqtbl1q_u8(vreinterpretq_u8_m128i(lookup2),vreinterpretq_u8_m128i(kmer2)));
-#else
+    kmer1 = _mm_shuffle_epi8(lookup1, kmer1);
     kmer2 = _mm_shuffle_epi8(lookup2, kmer2);
-#endif
-
 
     // _mm_or_si128: bitwise OR
     x = _mm_or_si128(kmer1, kmer2);
 
     // set upper 8 bytes to 0 and revert order of lower 8 bytes
-
-#ifdef NEON
-    x = vreinterpretq_m128i_u8(vqtbl1q_u8(vreinterpretq_u8_m128i(x),vreinterpretq_u8_m128i(upper)));
-#else
     x = _mm_shuffle_epi8(x, upper);
-#endif
 
     // shift out the unused nucleotide positions (1 <= k <=32 )
     // broadcast 128 bit to 64 bit
