@@ -103,7 +103,7 @@ script:
     make -j $(nproc --all); \
     if [[ "${SIMD}" = "NEON" ]]; then \
         mkdir path; \
-        printf '#!/bin/sh\ntail\n' > path/tee; \
+        printf '#!/bin/sh\n/usr/bin/tee "$@" | tail\n' > path/tee; \
         chmod +x path/tee; \
         export PATH="$(readlink -f path):$PATH"; \
         ../util/regression/run_regression.sh ./src/mmseqs SCRATCH; \
