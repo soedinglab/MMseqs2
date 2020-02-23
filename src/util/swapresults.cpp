@@ -300,7 +300,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
                     }
 
                     resultWriter.writeData(ss.c_str(), ss.size(), i, thread_idx);
-                    ss = "";
+                    ss.clear();
 
                     curRes.clear();
                 } else if (evalBreak == true || targetElementExists[i] == 1) {
