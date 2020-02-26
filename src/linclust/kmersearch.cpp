@@ -218,7 +218,7 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
     size_t totalKmersPerSplit = std::max(static_cast<size_t>(1024+1),
-                                         static_cast<size_t>(std::min(totalSizeNeeded, memoryLimit)/sizeof(KmerPosition<short>)));
+                                         static_cast<size_t>(std::min(totalSizeNeeded, memoryLimit)/sizeof(KmerPosition<short>))+1);
 
     std::vector<std::pair<size_t, size_t>> hashRanges = setupKmerSplits<short>(par, subMat, queryDbr, totalKmersPerSplit, splits);
 
