@@ -22,14 +22,31 @@ THE SOFTWARE.
  */
 // SSE2 implementation according to http://0x80.pl/articles/sse-itoa.html
 // Modifications: (1) fix incorrect digits (2) accept all ranges (3) write to user provided buffer.
+#include <stdint.h>
+
+#ifdef WASM
+class Itoa{
+public:
+    static char* u32toa_sse2(uint32_t value, char* buffer) {
+        return buffer + sprintf(buffer, "%d", value) + 1;
+    }
+    static char* i32toa_sse2(int32_t value, char* buffer) {
+        return buffer + sprintf(buffer, "%d", value) + 1;
+    }
+    static char* u64toa_sse2(uint64_t value, char* buffer) {
+        return buffer + sprintf(buffer, "%zu", value) + 1;
+    }
+    static char* i64toa_sse2(uint64_t value, char* buffer) {
+        return buffer + sprintf(buffer, "%zu", value) + 1;
+    }
+};
+#else
 #ifdef NEON
 #include "sse2neon.h"
 #else
 #include <emmintrin.h>
 #endif
 
-#include <stdint.h>
-#include "itoa.h"
 
 #define ALIGN_PRE
 #define ALIGN_SUF  __attribute__ ((aligned(16)))
@@ -312,5 +329,5 @@ public:
 #undef ALIGN_PRE
 #undef ALIGN_SUF
 
-
+#endif
 #endif

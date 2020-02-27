@@ -4,7 +4,7 @@
 #include "Util.h"
 #include "Debug.h"
 
-#ifdef __CYGWIN__
+#if defined(__CYGWIN__) || defined(WASM)
 int apply(int argc, const char **argv, const Command& command) {
     Debug(Debug::ERROR) << "apply is not supported on Windows/Cygwin\n";
     EXIT(EXIT_FAILURE);

@@ -4,8 +4,10 @@
 #include "DistanceCalculator.h"
 #include "Timer.h"
 
-#ifndef NEON
+#if !defined(NEON) && !defined(WASM)
 #include <CpuInfo.h>
+#else
+#define NO_CPUINFO
 #endif
 
 #include <iomanip>
@@ -24,7 +26,7 @@ extern std::vector<Command> baseCommands;
 extern std::vector<Categories> categories;
 
 void checkCpu() {
-#ifndef NEON
+#ifndef NO_CPUINFO
     CpuInfo info;
     if (info.HW_x64 == false) {
         Debug(Debug::ERROR) << "64-bit system is required to run MMseqs2.\n";

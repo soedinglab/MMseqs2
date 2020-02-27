@@ -1,4 +1,5 @@
 add_library(version Version.cpp)
+set_target_properties(version PROPERTIES COMPILE_FLAGS "${MMSEQS_CXX_FLAGS}" LINK_FLAGS "${MMSEQS_CXX_FLAGS}")
 
 if (VERSION_OVERRIDE)
     target_compile_definitions(version PRIVATE -DGIT_SHA1=${VERSION_OVERRIDE})

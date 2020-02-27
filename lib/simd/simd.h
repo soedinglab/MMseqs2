@@ -53,7 +53,11 @@
 #ifdef NEON
 #include "sse2neon.h"
 #else
+#ifdef WASM
+#include "sse2wasm.h"
+#else
 #include <xmmintrin.h>
+#endif
 #endif
 
 #ifdef AVX512
@@ -287,7 +291,7 @@ typedef __m256 simd_float;
 #ifdef SSE
 uint16_t simd_hmax16(const __m128i buffer);
 uint8_t simd_hmax8(const __m128i buffer);
-#ifndef NEON
+#if !defined(NEON) && !defined(WASM)
 #include <smmintrin.h>  //SSE4.1
 // double support
 #ifndef SIMD_DOUBLE
@@ -397,6 +401,28 @@ typedef __m128i simd_int;
 #endif //SIMD_INT
 #endif //SSE
 
+#if WASM
+template <typename F>
+inline F simd_hmax(const F * in, unsigned int n);
+
+inline uint16_t simd_hmax16(const __m128i buffer) {
+    union {
+        uint16_t as_u16[8];
+        __m128i  as_vec;
+    } t;
+    t.as_vec = buffer;
+    return simd_hmax<uint16_t>((uint16_t*)(t.as_u16), 8);
+}
+
+inline uint8_t simd_hmax8(const __m128i buffer) {
+    union {
+        uint8_t  as_u8[16];
+        __m128i  as_vec;
+    } t;
+    t.as_vec = buffer;
+    return simd_hmax<uint8_t>((uint8_t*)(t.as_u8), 16);
+}
+#else
 #ifdef NEON
 inline uint16_t simd_hmax16(const __m128i buffer) {
     uint16x4_t tmp;
@@ -414,20 +440,6 @@ inline uint8_t simd_hmax8(const __m128i buffer) {
     tmp = vpmax_u8(tmp, tmp);
     return vget_lane_u8(tmp, 0);
 }
-#if 0
-template <typename F>
-inline F simd_hmax(const F * in, unsigned int n);
-
-inline uint16_t simd_hmax16(const __m128i buffer) {
-    SIMDVec* tmp = (SIMDVec*)&buffer;
-    return simd_hmax<uint16_t>((uint16_t*)tmp->m128_u16, 8);
-}
-
-inline uint8_t simd_hmax8(const __m128i buffer) {
-    SIMDVec* tmp = (SIMDVec*)&buffer;
-    return simd_hmax<uint8_t>((uint8_t*)tmp->m128_u8, 16);
-}
-#endif
 #else
 inline uint16_t simd_hmax16(const __m128i buffer)
 {
@@ -443,6 +455,7 @@ inline uint8_t simd_hmax8(const __m128i buffer)
     __m128i tmp3 = _mm_minpos_epu16(tmp2);
     return (int8_t)(255 -(int8_t) _mm_cvtsi128_si32(tmp3));
 }
+#endif
 #endif
 
 #ifdef AVX2
@@ -608,7 +621,7 @@ inline float ScalarProd20(const float* qi, const float* tj) {
 //
 //
 //TODO fix this
-#ifdef SSE
+#if defined(SSE) && !defined(WASM)
     float __attribute__((aligned(16))) res;
     __m128 P; // query 128bit SSE2 register holding 4 floats
     __m128 R;// result

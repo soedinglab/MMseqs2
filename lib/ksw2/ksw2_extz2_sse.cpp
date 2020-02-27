@@ -37,8 +37,14 @@ See: https://github.com/lh3/minimap2
 #define KSW_SSE2_ONLY
 #endif
 
+#ifdef WASM
+#include "sse2wasm.h"
+#define __SSE2__
+#define KSW_SSE2_ONLY
+#endif
+
 #ifdef __SSE2__
-#ifndef NEON
+#if !defined(NEON) && !defined(WASM)
 #include <emmintrin.h>
 #endif
 

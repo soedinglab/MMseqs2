@@ -40,22 +40,20 @@ endif ()
 
 # set flags
 set(MMSEQS_CXX_FLAGS "-std=c++0x")
-if (NOT ${HAVE_NEON})
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -m64")
-endif ()
-
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
     set(ARM 1)
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DNEON=1 -DSSE=1 -fsigned-char -mfpu=neon")
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*)")
     set(ARM 1)
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DNEON=1 -DSSE=1 -fsigned-char")
-else()
+elseif (EMSCRIPTEN)
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DSSE=1 -DWASM=1 -msimd128 -s WASM=1 -s ASSERTIONS=1")
+else ()
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -m64")
 endif ()
 
 # Compiler-specific features
-if (CMAKE_COMPILER_IS_CLANG)
+if (CMAKE_COMPILER_IS_CLANG AND (NOT EMSCRIPTEN))
     set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++11")
     set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -stdlib=libc++")

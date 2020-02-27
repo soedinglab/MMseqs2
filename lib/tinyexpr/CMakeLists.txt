@@ -12,6 +12,9 @@ option(build_tinyexpr_example2 "Build TinyExpr example 2." OFF)
 option(build_tinyexpr_example3 "Build TinyExpr example 3." OFF)
 
 find_library(MATH_LIB m)
+if(NOT MATH_LIB)
+    set(MATH_LIB "")
+endif()
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ansi -Wall -Wshadow -fPIC -O3")
 
