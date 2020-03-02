@@ -29,7 +29,7 @@ MMseqs2 can be used by compiling from source, downloading a statically compiled 
      # install by brew
      brew install mmseqs2
      # install via conda
-     conda install -c bioconda mmseqs2
+     conda install -c conda-forge -c bioconda mmseqs2
      # install docker
      docker pull soedinglab/mmseqs2
      # static build with SSE4.1
