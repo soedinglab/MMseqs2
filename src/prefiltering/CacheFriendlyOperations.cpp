@@ -89,7 +89,7 @@ template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::mergeDia
         while ( n != static_cast<size_t>(-1) )
         {
             const unsigned int element = binStartPos[n].id >> (MASK_0_5_BIT);
-            duplicateBitArray[element] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal) + 1;
+            duplicateBitArray[element] = static_cast<unsigned char>(binStartPos[n].diagonal) + 1;
             --n;
         }
         // combine diagonals
@@ -101,7 +101,7 @@ template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::mergeDia
             output[doubleElementCount].diagonal = element.diagonal;
 //            std::cout << output[doubleElementCount].id << " " << (int)output[doubleElementCount].count << " " << (int)static_cast<unsigned char>(output[doubleElementCount].diagonal) << std::endl;
             // memory overflow can not happen since input array = output array
-            doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(tmpElementBuffer[n].diagonal)) ? 1 : 0;
+            doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(binStartPos[n].diagonal)) ? 1 : 0;
 
             duplicateBitArray[hashBinElement] = static_cast<unsigned char>(element.diagonal);
         }
@@ -136,7 +136,7 @@ template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::mergeDup
             output[doubleElementCount].diagonal = element.diagonal;
             // memory overflow can not happen since input array = output array
             doubleElementCount += (UNLIKELY(duplicateBitArray[hashBinElement] != 0  ) ) ? 1 : 0;
-            duplicateBitArray[hashBinElement] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
+            duplicateBitArray[hashBinElement] = static_cast<unsigned char>(binStartPos[n].diagonal);
         }
     }
     return doubleElementCount;
@@ -147,6 +147,7 @@ template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::findDupl
                                                                                CounterResult * output,
                                                                                size_t outputSize,
                                                                                bool computeTotalScore) {
+    memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
     size_t doubleElementCount = 0;
     const CounterResult * bin_ref_pointer = binDataFrame;
     for (size_t bin = 0; bin < binCount; bin++) {
