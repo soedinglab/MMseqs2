@@ -209,7 +209,7 @@ size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(CounterResult *output, s
                 const unsigned int element = tmpElementBuffer[n].id;
                 const unsigned int hashBinElement = element >> (MASK_0_5_BIT);
                 output[doubleElementCount].id    = element;
-                output[doubleElementCount].count = tmpElementBuffer[n].score;
+                output[doubleElementCount].count = 0;
                 output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
     //            const unsigned char diagonal = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
                 // memory overflow can not happen since input array = output array
