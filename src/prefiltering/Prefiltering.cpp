@@ -901,6 +901,10 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
             delete indexTable;
             indexTable = NULL;
         }
+        if (sequenceLookup != NULL) {
+            delete sequenceLookup;
+            sequenceLookup = NULL;
+        }
         DBReader<unsigned int> resultReader(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         resultReader.open(DBReader<unsigned int>::NOSORT);
         resultReader.readMmapedDataInMemory();
