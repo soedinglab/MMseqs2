@@ -3,7 +3,6 @@
 #include "ReducedMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "SubstitutionMatrixProfileStates.h"
-#include "QueryMatcher.h"
 #include "DBWriter.h"
 
 #include "PatternCompiler.h"

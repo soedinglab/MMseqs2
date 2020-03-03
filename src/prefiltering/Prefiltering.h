@@ -7,6 +7,7 @@
 #include "BaseMatrix.h"
 #include "ScoreMatrix.h"
 #include "PrefilteringIndexReader.h"
+#include "QueryMatcher.h"
 
 #include <string>
 #include <list>
