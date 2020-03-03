@@ -435,6 +435,10 @@ template <typename T> void DBReader<T>::remapData(){
         unmapData();
         for(size_t fileIdx = 0; fileIdx < dataFileNames.size(); fileIdx++){
             FILE* dataFile = fopen(dataFileNames[fileIdx].c_str(), "r");
+            if (dataFile == NULL) {
+                Debug(Debug::ERROR) << "Can not open data file " << dataFileNames[fileIdx] << "!\n";
+                EXIT(EXIT_FAILURE);
+            }
             size_t dataSize = 0;
             dataFiles[fileIdx] = mmapData(dataFile, &dataSize);
             fclose(dataFile);
