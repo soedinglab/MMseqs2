@@ -3,17 +3,14 @@
 
 #include "Parameters.h"
 #include "DBReader.h"
-#include "DBWriter.h"
 #include "IndexTable.h"
 #include "BaseMatrix.h"
 #include "ScoreMatrix.h"
 #include "PrefilteringIndexReader.h"
-#include "QueryMatcher.h"
 
 #include <string>
 #include <list>
 #include <utility>
-
 
 class Prefiltering {
 public:
@@ -124,8 +121,6 @@ private:
                          unsigned int resLensSize, size_t empty, size_t maxResults);
 
     bool isSameQTDB();
-
-    void reopenTargetDb();
 };
 
 #endif

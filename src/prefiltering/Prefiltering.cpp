@@ -3,6 +3,9 @@
 #include "ReducedMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "SubstitutionMatrixProfileStates.h"
+#include "QueryMatcher.h"
+#include "DBWriter.h"
+
 #include "PatternCompiler.h"
 #include "FileUtil.h"
 #include "IndexBuilder.h"
@@ -11,11 +14,6 @@
 #include "Parameters.h"
 #include "MemoryMapped.h"
 #include <sys/mman.h>
-
-
-namespace prefilter {
-#include "ExpOpt3_8_polished.cs32.lib.h"
-}
 
 #ifdef OPENMP
 #include <omp.h>
@@ -262,27 +260,6 @@ Prefiltering::~Prefiltering() {
     delete kmerSubMat;
 }
 
-void Prefiltering::reopenTargetDb() {
-    if (templateDBIsIndex == true) {
-        tidxdbr->close();
-        delete tidxdbr;
-        tidxdbr = NULL;
-    }
-
-    tdbr->close();
-    delete tdbr;
-
-    Debug(Debug::INFO) << "Index table not compatible with chosen settings. Compute index.\n";
-    tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    tdbr->open(DBReader<unsigned int>::NOSORT);
-    if (preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-        tdbr->readMmapedDataInMemory();
-        tdbr->mlock();
-    }
-
-    templateDBIsIndex = false;
-}
-
 void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSize, const unsigned int querySeqTyp, const int threads,
                               const bool templateDBIsIndex, const size_t memoryLimit, const size_t qDbSize,
                               size_t &maxResListLen, int &kmerSize, int &split, int &splitMode) {
@@ -446,7 +423,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
     DBWriter writer(outDB.c_str(), outDBIndex.c_str(), threads, 0, Parameters::DBTYPE_PREFILTER_RES);
     writer.open();
 
-    Debug::Progress pregress(reader1.getSize());
+    Debug::Progress progress(reader1.getSize());
 #pragma omp parallel num_threads(threads)
     {
         unsigned int thread_idx = 0;
@@ -463,7 +440,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
         size_t currentId = __sync_fetch_and_add(&(globalIdOffset), 1);
         size_t prevId = 0;
         while(currentId < reader1.getSize()){
-            pregress.updateProgress();
+            progress.updateProgress();
             for(size_t file = 0; file < splits; file++){
                 size_t tmpId = prevId;
                 size_t pos;
@@ -919,7 +896,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
     // needed to speed up merge later on
     // sorts this datafile according to the index file
     if (splitMode == Parameters::TARGET_DB_SPLIT && splits > 1) {
-        // delete indexTable to free memory:
+        // free memory early since the merge might need quite a bit of memory
         if (indexTable != NULL) {
             delete indexTable;
             indexTable = NULL;

@@ -37,14 +37,14 @@ struct hit_t {
     int prefScore;
     unsigned short diagonal;
 
-    static bool compareHitsByScoreAndId(hit_t first, hit_t second){
-        if(first.prefScore > second.prefScore )
+    static bool compareHitsByScoreAndId(const hit_t &first, const hit_t &second){
+        if (first.prefScore > second.prefScore)
             return true;
-        if(second.prefScore > first.prefScore )
+        if (second.prefScore > first.prefScore)
             return false;
-        if(first.seqId < second.seqId )
+        if (first.seqId < second.seqId)
             return true;
-        if(second.seqId < first.seqId )
+        if (second.seqId < first.seqId)
             return false;
         return false;
     }
@@ -61,40 +61,21 @@ public:
 
     // returns result for the sequence
     // identityId is the id of the identitical sequence in the target database if there is any, UINT_MAX otherwise
-    std::pair<hit_t *, size_t>  matchQuery(Sequence * querySeq, unsigned int identityId);
-
-    // find duplicates in the diagonal bins
-    size_t evaluateBins(IndexEntryLocal **hitsByIndex, CounterResult *output,
-                        size_t outputSize, unsigned short indexFrom, unsigned short indexTo, bool computeTotalScore);
-
-    void updateScoreBins(CounterResult *result, size_t elementCount);
+    std::pair<hit_t*, size_t> matchQuery(Sequence *querySeq, unsigned int identityId);
 
     // set substituion matrix for KmerGenerator
     void setProfileMatrix(ScoreMatrix **matrix){
-        this->kmerGenerator->setDivideStrategy(matrix );
+        kmerGenerator->setDivideStrategy(matrix);
     }
 
     // set substitution matrix
-    void setSubstitutionMatrix(ScoreMatrix * three, ScoreMatrix * two) {
-        this->kmerGenerator->setDivideStrategy(three, two );
+    void setSubstitutionMatrix(ScoreMatrix *three, ScoreMatrix *two) {
+        kmerGenerator->setDivideStrategy(three, two);
     }
 
     // get statistics
-    const statistics_t * getStatistics(){
+    const statistics_t *getStatistics() {
         return stats;
-    }
-
-    const static size_t SCORE_RANGE = 256;
-
-    static unsigned int computeScoreThreshold(unsigned int * scoreSizes, size_t maxHitsPerQuery) {
-        size_t foundHits = 0;
-        size_t scoreThr = 0;
-        for(scoreThr = SCORE_RANGE - 1; scoreThr > 0 ; scoreThr--){
-            foundHits += scoreSizes[scoreThr];
-            if(foundHits >= maxHitsPerQuery)
-                break;
-        }
-        return scoreThr;
     }
 
     static hit_t parsePrefilterHit(char* data) {
@@ -122,7 +103,7 @@ public:
         return ret;
     }
 
-    static void parsePrefilterHits(char *data, std::vector<hit_t> & entries) {
+    static void parsePrefilterHits(char *data, std::vector<hit_t> &entries) {
         while (*data != '\0') {
             hit_t result = parsePrefilterHit(data);
             entries.push_back(result);
@@ -130,8 +111,7 @@ public:
         }
     }
 
-    static size_t prefilterHitToBuffer(char *buff1, hit_t &h)
-    {
+    static size_t prefilterHitToBuffer(char *buff1, hit_t &h) {
         char * basePos = buff1;
         char * tmpBuff = Itoa::u32toa_sse2((uint32_t) h.seqId, buff1);
         *(tmpBuff-1) = '\t';
@@ -150,15 +130,15 @@ protected:
     const static int UNGAPPED_DIAGONAL_SCORE = 1;
 
     // keeps stats for run
-    statistics_t * stats;
+    statistics_t *stats;
     // scoring matrix for local amino acid bias correction
-    BaseMatrix * kmerSubMat;
+    BaseMatrix *kmerSubMat;
     // scoring matrix for ungapped alignment
-    BaseMatrix * ungappedAlignmentSubMat;
+    BaseMatrix *ungappedAlignmentSubMat;
     /* generates kmer lists */
-    KmerGenerator * kmerGenerator;
+    KmerGenerator *kmerGenerator;
     /* contains the sequences for a kmer */
-    IndexTable * indexTable;
+    IndexTable *indexTable;
     // k of the k-mer
     int kmerSize;
     // local amino acid bias correction
@@ -174,19 +154,6 @@ protected:
     // result hit buffer
     //CacheFriendlyOperations * diagonalMatcher;
     unsigned int activeCounter;
-#define CacheFriendlyOperations(x)  CacheFriendlyOperations<x> * cachedOperation##x
-    CacheFriendlyOperations(2);
-    CacheFriendlyOperations(4);
-    CacheFriendlyOperations(8);
-    CacheFriendlyOperations(16);
-    CacheFriendlyOperations(32);
-    CacheFriendlyOperations(64);
-    CacheFriendlyOperations(128);
-    CacheFriendlyOperations(256);
-    CacheFriendlyOperations(512);
-    CacheFriendlyOperations(1024);
-    CacheFriendlyOperations(2048);
-#undef CacheFriendlyOperations
 
     // matcher for diagonal
     UngappedAlignment *ungappedAlignment;
@@ -201,19 +168,46 @@ protected:
     IndexEntryLocal **indexPointer;
 
     // keeps data in inner loop
-    IndexEntryLocal * __restrict databaseHits;
+    IndexEntryLocal *__restrict databaseHits;
 
     // evaluated bins
-    CounterResult * foundDiagonals;
+    CounterResult *foundDiagonals;
+
+    // size of max diagonalMatcher result objects
+    size_t foundDiagonalsSize;
 
     // last data pointer (for overflow check)
-    IndexEntryLocal * lastSequenceHit;
+    IndexEntryLocal *lastSequenceHit;
 
     // max seq. per query
     size_t maxHitsPerQuery;
 
+    float *compositionBias;
+
+    // diagonal scoring active
+    bool diagonalScoring;
+    unsigned int minDiagScoreThr;
+
+    Indexer idx;
+
+    const static size_t SCORE_RANGE = 256;
+
+    void updateScoreBins(CounterResult *result, size_t elementCount);
+
+    static unsigned int computeScoreThreshold(unsigned int * scoreSizes, size_t maxHitsPerQuery) {
+        size_t foundHits = 0;
+        size_t scoreThr = 0;
+        for (scoreThr = SCORE_RANGE - 1; scoreThr > 0 ; scoreThr--) {
+            foundHits += scoreSizes[scoreThr];
+            if (foundHits >= maxHitsPerQuery) {
+                break;
+            }
+        }
+        return scoreThr;
+    }
+
     // match sequence against the IndexTable
-    size_t match(Sequence *seq, float *pDouble);
+    size_t match(Sequence *seq, float *compositionBias);
 
     // extract result from databaseHits
     template <int TYPE>
@@ -226,30 +220,39 @@ protected:
     // compute double hits
     size_t getDoubleDiagonalMatches();
 
-    float *compositionBias;
+    size_t radixSortByScoreSize(const unsigned int *scoreSizes,
+                                CounterResult *writePos, const unsigned int scoreThreshold,
+                                const CounterResult *results, const size_t resultSize);
 
-    // diagonal scoring active
-    bool diagonalScoring;
-    unsigned int minDiagScoreThr;
-    // size of max diagonalMatcher result objects
-    size_t counterResultSize;
+    std::pair<size_t, unsigned int> rescoreHits(Sequence * querySeq, unsigned int *scoreSizes, CounterResult *results,
+                                                size_t resultSize, UngappedAlignment *align, int lowerBoundScore);
 
-    Indexer idx;
+#define CacheFriendlyOperations(x)  CacheFriendlyOperations<x> * cachedOperation##x
+    CacheFriendlyOperations(2);
+    CacheFriendlyOperations(4);
+    CacheFriendlyOperations(8);
+    CacheFriendlyOperations(16);
+    CacheFriendlyOperations(32);
+    CacheFriendlyOperations(64);
+    CacheFriendlyOperations(128);
+    CacheFriendlyOperations(256);
+    CacheFriendlyOperations(512);
+    CacheFriendlyOperations(1024);
+    CacheFriendlyOperations(2048);
+#undef CacheFriendlyOperations
 
     void initDiagonalMatcher(size_t dbsize, unsigned int maxDbMatches);
 
     void deleteDiagonalMatcher(unsigned int activeCounter);
 
+    // find duplicates in the diagonal bins
+    size_t findDuplicates(IndexEntryLocal **hitsByIndex, CounterResult *output,
+                          size_t outputSize, unsigned short indexFrom, unsigned short indexTo, bool computeTotalScore);
+
+
     size_t mergeElements(CounterResult *foundDiagonals, size_t hitCounter);
 
     size_t keepMaxScoreElementOnly(CounterResult *foundDiagonals, size_t resultSize);
-
-    size_t radixSortByScoreSize(const unsigned int *scoreSizes,
-                              CounterResult *writePos, const unsigned int scoreThreshold,
-                              const CounterResult *results, const size_t resultSize);
-
-    std::pair<size_t, unsigned int> rescoreHits(Sequence * querySeq, unsigned int *scoreSizes, CounterResult *results,
-                                                size_t resultSize, UngappedAlignment *align, int lowerBoundScore);
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
