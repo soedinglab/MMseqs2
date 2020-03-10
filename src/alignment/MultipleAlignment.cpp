@@ -203,7 +203,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
 
 MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, const std::vector<Sequence *>& edgeSeqs, bool noDeletionMSA) {
     // just center sequence is included
-    if(edgeSeqs.size() == 0 ){
+    if (edgeSeqs.empty()) {
         return singleSequenceMSA(centerSeq);
     }
 
@@ -218,8 +218,13 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
 
 MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, const std::vector<Sequence *>& edgeSeqs,
                                                            const std::vector<Matcher::result_t>& alignmentResults, bool noDeletionMSA) {
-    if(edgeSeqs.size() == 0 ){
+    if (edgeSeqs.empty()) {
         return singleSequenceMSA(centerSeq);
+    }
+
+    if (edgeSeqs.size() != alignmentResults.size()) {
+        Debug(Debug::ERROR) << "edgeSeqs.size (" << edgeSeqs.size() << ") is != alignmentResults.size (" << alignmentResults.size() << ")" << "\n";
+        EXIT(EXIT_FAILURE);
     }
 
     char ** msaSequence = new char *[edgeSeqs.size() + 1];
@@ -228,12 +233,6 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
         msaSequence[i] = initX(noDeletionMSA ? centerSeq->L + 1: maxSeqLen + 1);
     }
 
-    if(edgeSeqs.size() != alignmentResults.size()){
-        Debug(Debug::ERROR) << "edgeSeqs.size (" << edgeSeqs.size() << ") is != alignmentResults.size (" << alignmentResults.size() << ")" << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-	
-	
     computeQueryGaps(queryGaps, centerSeq, edgeSeqs, alignmentResults);
     // process gaps in Query (update sequences)
     // and write query Alignment at position 0
@@ -247,7 +246,7 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
     //alignmentResults.clear();
     // map to int
     for (size_t k = 0; k < edgeSeqs.size() + 1; ++k) {
-        for (unsigned int pos = 0; pos < centerSeqSize; ++pos) {
+        for (size_t pos = 0; pos < centerSeqSize; ++pos) {
             msaSequence[k][pos] = (msaSequence[k][pos] == '-') ?
                                   GAP : static_cast<int>(subMat->aa2num[static_cast<int>(msaSequence[k][pos])]);
         }

@@ -261,7 +261,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
             char *tabData = blastTabReader.getData(i, thread_idx);
             size_t tabLength = blastTabReader.getEntryLen(i) - 1;
             const std::vector<Domain> result = getEntries(std::string(tabData, tabLength));
-            if (result.size() == 0) {
+            if (result.empty()) {
                 Debug(Debug::WARNING) << "Can not map any entries for entry " << id << "!\n";
                 continue;
             }

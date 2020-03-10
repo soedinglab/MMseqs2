@@ -107,7 +107,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
 
     if (dataMode & USE_DATA) {
         dataFileNames = FileUtil::findDatafiles(dataFileName);
-        if(dataFileNames.size() == 0){
+        if (dataFileNames.empty()) {
             Debug(Debug::ERROR) << "No datafile could be found for " << dataFileName << "!\n";
             EXIT(EXIT_FAILURE);
         }

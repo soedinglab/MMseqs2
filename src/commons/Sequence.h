@@ -8,13 +8,12 @@
 #include "MathUtil.h"
 #include "BaseMatrix.h"
 #include "Parameters.h"
+#include "ScoreMatrix.h"
 
 #include <cstdint>
 #include <cstddef>
 #include <utility>
 #include <simd/simd.h>
-
-struct ScoreMatrix;
 
 const int8_t seed_4[]        = {1, 1, 1, 1};
 const int8_t spaced_seed_4[] = {1, 1, 1, 0, 1};
@@ -472,7 +471,7 @@ public:
     static const size_t PROFILE_READIN_SIZE = 23;
     ScoreMatrix **profile_matrix;
     // Memory layout of this profile is qL * AA
-    //   Query lenght
+    //   Query length
     // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
     // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
     // ...

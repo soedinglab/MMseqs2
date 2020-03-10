@@ -34,12 +34,9 @@ public:
     // Example: two sequences x and y are 100% identical in their overlapping region but one overlaps by 10% of its
     // length on the left and the other by 20% on the right. Then x has 10% seq.id with y and y has 20% seq.id. with x.
     /////////////////////////////////////////////////////////////////////////////////////
-    void filter(int N_in, int L, int coverage, int qid,
-                float qsc, int max_seqid, int Ndiff,
-                const char ** X, size_t *N_out);
-
-    // shuffles the filtered sequences to the back of the array, the unfiltered ones remain in the front
-    void shuffleSequences(const char ** X, size_t setSize);
+    size_t filter(MultipleAlignment::MSAResult& msa, int coverage, int qid, float qsc, int max_seqid, int Ndiff);
+    size_t filter(const int N_in, const int L, const int coverage, const int qid,
+                  const float qsc, const int max_seqid, int Ndiff, const char **X);
 
     void getKept(bool *offsets, size_t setSize);
 
@@ -50,6 +47,9 @@ public:
 	
 	
 private:
+    // shuffles the filtered sequences to the back of the array, the unfiltered ones remain in the front
+    void shuffleSequences(const char ** X, size_t setSize);
+
     // prune sequence based on score
     int prune(int start, int end, float b, char * query, char *target);
 

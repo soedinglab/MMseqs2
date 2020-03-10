@@ -176,11 +176,9 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
             size_t filteredSetSize = res.setSize;
             if (isFiltering) {
-                filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100),
+                filteredSetSize = filter.filter(res, static_cast<int>(par.covMSAThr * 100),
                               static_cast<int>(par.qid * 100), par.qsc,
-                              static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
-                              (const char **) res.msaSequence, &filteredSetSize);
-                filter.shuffleSequences((const char **) res.msaSequence, res.setSize);
+                              static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
             }
             //MultipleAlignment::print(res, &subMat);
 

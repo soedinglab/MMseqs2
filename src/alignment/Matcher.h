@@ -124,71 +124,52 @@ public:
                          unsigned int alignmentMode, unsigned int seqIdMode, bool isIdentical, bool wrappedScoring=false);
 
     // need for sorting the results
-    static bool compareHits (const result_t &first, const result_t &second){
-        //return (first.eval < second.eval);
-        if(first.eval < second.eval )
-            return true;
-        if(second.eval < first.eval )
-            return false;
-        if(first.score > second.score )
-            return true;
-        if(second.score > first.score )
-            return false;
-        if(first.dbLen < second.dbLen )
-            return true;
-        if(second.dbLen < first.dbLen )
-            return false;
-        if(first.dbKey < second.dbKey )
-            return true;
-        if(second.dbKey < first.dbKey )
-            return false;
-        return false;
+    static bool compareHits(const result_t &first, const result_t &second) {
+        if (first.eval != second.eval) {
+            return first.eval < second.eval;
+        }
+        if (first.score != second.score) {
+            return first.score > second.score;
+        }
+        if (first.dbLen != second.dbLen) {
+            return first.dbLen < second.dbLen;
+        }
+        return first.dbKey < second.dbKey;
     }
-    static bool compareHitByPos(const result_t &first, const result_t &second){
 
-        int firstQStartPos  = std::min( first.qStartPos, first.qEndPos);
-        int secondQStartPos = std::min( second.qStartPos, second.qEndPos);
-        if(secondQStartPos < firstQStartPos )
-            return false;
-        if(firstQStartPos < secondQStartPos)
-            return true;
-        return false;
-
+    static bool compareHitByPos(const result_t &first, const result_t &second) {
+        int firstQStartPos  = std::min(first.qStartPos, first.qEndPos);
+        int secondQStartPos = std::min(second.qStartPos, second.qEndPos);
+        return firstQStartPos < secondQStartPos;
     }
+
     // need for sorting the results
-    static bool compareHitsByPosAndStrand (const result_t &first, const result_t &second){
-        //return (first.eval < second.eval);
-        if(second.dbKey < first.dbKey)
-            return false;
-        if(first.dbKey < second.dbKey)
-            return true;
+    static bool compareHitsByPosAndStrand(const result_t &first, const result_t &second) {
+        if (first.dbKey != second.dbKey) {
+            return first.dbKey < second.dbKey;
+        }
         bool qFirstRev = (first.qStartPos > first.qEndPos);
         bool qSecondRev = (second.qStartPos > second.qEndPos);
-        if(qSecondRev < qFirstRev)
+        if (qSecondRev < qFirstRev)
             return false;
-        if(qFirstRev < qSecondRev)
+        if (qFirstRev < qSecondRev)
             return true;
         bool dbFirstRev = (first.dbStartPos > first.dbEndPos);
         bool dbSecondRev = (second.dbStartPos > second.dbEndPos);
-        if(dbSecondRev < dbFirstRev)
+        if (dbSecondRev < dbFirstRev)
             return false;
-        if(dbFirstRev < dbSecondRev)
+        if (dbFirstRev < dbSecondRev)
             return true;
-        int firstQStartPos  = std::min( first.qStartPos, first.qEndPos);
-        int secondQStartPos = std::min( second.qStartPos, second.qEndPos);
-        int firstDbStart    = std::min( first.dbStartPos, first.dbEndPos);
-        int secondDbStart   = std::min( second.dbStartPos, second.dbEndPos);
+        int firstQStartPos  = std::min(first.qStartPos, first.qEndPos);
+        int secondQStartPos = std::min(second.qStartPos, second.qEndPos);
+        int firstDbStart    = std::min(first.dbStartPos, first.dbEndPos);
+        int secondDbStart   = std::min(second.dbStartPos, second.dbEndPos);
         int firstDiagonal  = firstQStartPos - firstDbStart;
         int secondDiagonal = secondQStartPos - secondDbStart;
-        if(secondDiagonal < firstDiagonal)
-            return false;
-        if(firstDiagonal < secondDiagonal)
-            return true;
-        if(secondDbStart < firstDbStart )
-            return false;
-        if(firstDbStart < secondDbStart)
-            return true;
-        return false;
+        if (firstDiagonal != secondDiagonal) {
+            return firstDiagonal < secondDiagonal;
+        }
+        return firstDbStart < secondDbStart;
     }
 
     // map new query into memory (create queryProfile, ...)

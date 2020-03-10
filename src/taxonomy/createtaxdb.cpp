@@ -25,14 +25,14 @@ int createtaxdb(int argc, const char **argv, const Command& command) {
     CommandCaller cmd;
 
     cmd.addVariable("TMP_PATH", tmp.c_str());
-    if(par.taxMappingFile.size() == 0){
+    if (par.taxMappingFile.empty()) {
         cmd.addVariable("DOWNLOAD_MAPPING", "1");
     }else{
         cmd.addVariable("DOWNLOAD_MAPPING", "0");
         cmd.addVariable("MAPPINGFILE", par.taxMappingFile.c_str());
 
     }
-    if(par.ncbiTaxDump.size() == 0){
+    if (par.ncbiTaxDump.empty()) {
         cmd.addVariable("DOWNLOAD_NCBITAXDUMP", "1");
     }else{
         cmd.addVariable("DOWNLOAD_NCBITAXDUMP", "0");

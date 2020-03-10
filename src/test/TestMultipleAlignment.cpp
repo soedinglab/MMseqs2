@@ -67,10 +67,7 @@ int main (int, const char**) {
     MultipleAlignment msaAligner(1000, 10, &subMat, aligner);
     MultipleAlignment::MSAResult res = msaAligner.computeMSA(&s1, seqSet, true);
     MsaFilter filter(1000, 10000, &subMat, par.gapOpen, par.gapExtend);
-    size_t filterSetSize = res.setSize;
-    filter.filter(res.setSize, res.centerLength, 0, 0, -20.0, 50, 100,
-                     (const char**)res.msaSequence, &filterSetSize);
-    filter.shuffleSequences((const char**)res.msaSequence, res.setSize);
+    size_t filterSetSize = filter.filter(res, 0, 0, -20.0, 50, 100);
     std::cout << "Filtered:" << filterSetSize << std::endl;
     MultipleAlignment::print(res, &subMat);
     PSSMCalculator pssm(&subMat, 1000, 5, 1.0, 1.5);

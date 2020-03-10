@@ -80,7 +80,7 @@ int main (int, const char**) {
         sum += subMat.subMatrix[i][i];
     }
     std::cout << "Test: " << sum/ subMat.alphabetSize << std::endl;
-    aligner.ssw_init(s, tinySubMat, &subMat, subMat.alphabetSize, 2);
+    aligner.ssw_init(s, tinySubMat, &subMat, 2);
     int32_t maskLen = s->L / 2;
     int gap_open = 11;
     int gap_extend = 1;

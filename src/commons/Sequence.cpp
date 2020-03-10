@@ -2,7 +2,6 @@
 #include "Debug.h"
 #include "Util.h"
 #include "simd.h"
-#include "ScoreMatrix.h"
 #include "SubstitutionMatrix.h"
 #include "Parameters.h"
 #include "MathUtil.h"
@@ -22,7 +21,7 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
     this->spaced = spaced;
     this->seqType = seqType;
     std::pair<const char *, unsigned int> spacedKmerInformation;
-    if (spacedKmerPattern.size() == 0){
+    if (spacedKmerPattern.empty()) {
         spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
     } else {
         spacedKmerInformation = parseSpacedPattern(kmerSize, spaced, spacedKmerPattern);
@@ -284,13 +283,11 @@ void Sequence::mapProfile(const char * profileData, bool mapScores, unsigned int
     {
         size_t l = 0;
         while (data[currPos] != '\0' && l < maxLen  && l < seqLen){
-            int nullCnt = 0;
             for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
                 // shift bytes back (avoids NULL byte)
 //            short value = static_cast<short>( ^ mask);
                 profile[l * PROFILE_AA_SIZE + aa_idx] = scoreUnmask(data[currPos + aa_idx]);
                 //value * 4;
-                nullCnt += (profile[l * PROFILE_AA_SIZE + aa_idx]==0.0);
             }
 
             float sumProb = 0.0;
@@ -299,11 +296,6 @@ void Sequence::mapProfile(const char * profileData, bool mapScores, unsigned int
             }
             if(sumProb > 0.9){
                 MathUtil::NormalizeTo1(&profile[l * PROFILE_AA_SIZE], PROFILE_AA_SIZE);
-            }
-            if(nullCnt==PROFILE_AA_SIZE) {
-                for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
-                    profile[l * PROFILE_AA_SIZE + aa_idx] = 0.0;
-                }
             }
 
             unsigned char queryLetter = data[currPos + PROFILE_AA_SIZE];
@@ -554,7 +546,7 @@ void Sequence::reverse() {
         short        tmpScore[PROFILE_AA_SIZE*4];
         unsigned int tmpIndex[PROFILE_AA_SIZE*4];
 
-        int i_curr = 0 * profile_row_size;
+        int i_curr = 0;
         int j_curr = (this->L - 1)  * profile_row_size;
 
         for (int i = 0; i < this->L/2; i++) {

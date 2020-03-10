@@ -44,9 +44,25 @@ MsaFilter::~MsaFilter() {
     delete [] display;
 }
 
-void MsaFilter::filter(const int N_in, const int L, const int coverage, const int qid,
-                       const float qsc, const int max_seqid, int Ndiff,
-                       const char ** X, size_t *N_out) {
+size_t MsaFilter::filter(MultipleAlignment::MSAResult &msa, int coverage, int qid, float qsc, int max_seqid, int Ndiff) {
+    size_t filteredSize = filter(msa.setSize, msa.centerLength, coverage, qid, qsc, max_seqid, Ndiff, (const char **) msa.msaSequence);
+    if (!msa.alignmentResults.empty()) {
+        // alignmentResults does not include the query
+        for (size_t i = 0, j = 0; j < msa.setSize - 1; j++) {
+            if (keep[j] != 0) {
+                if (i < j) {
+                    std::swap(msa.alignmentResults[i], msa.alignmentResults[j]);
+                }
+                i++;
+            }
+        }
+        msa.alignmentResults.resize(filteredSize - 1);
+    }
+    return filteredSize;
+}
+
+size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const int qid,
+                       const float qsc, const int max_seqid, int Ndiff, const char **X) {
     int seqid1 = 20;
     // X[k][i] contains column i of sequence k in alignment (first seq=0, first char=1) (0-3: ARND ..., 20:X, 21:GAP)
 //    char** X = (char **) &msaSequence;
@@ -258,8 +274,8 @@ void MsaFilter::filter(const int N_in, const int L, const int coverage, const in
 
     // If min required seqid larger than max required seqid, return here without doing pairwise seqid filtering
     if (seqid1 > max_seqid) {
-        *N_out = nn;
-        return;
+        shuffleSequences(X, N_in);
+        return nn;
     }
 
     // Successively increment idmax[i] at positons where N[i]<Ndiff
@@ -450,7 +466,8 @@ void MsaFilter::filter(const int N_in, const int L, const int coverage, const in
         keep[k] = in[k];
     }
 
-    *N_out = n;
+    shuffleSequences(X, N_in);
+    return n;
 }
 
 void MsaFilter::shuffleSequences(const char ** X, size_t setSize) {

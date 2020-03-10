@@ -41,7 +41,7 @@ int summarizealis(int argc, const char **argv, const Command &command) {
 
             char *data = reader.getData(i, thread_idx);
             Matcher::readAlignmentResults(alnResults, data);
-            if (alnResults.size() == 0) {
+            if (alnResults.empty()) {
                 writer.writeData("", 0, reader.getDbKey(i), thread_idx);
                 continue;
             }

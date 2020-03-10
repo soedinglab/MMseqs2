@@ -589,11 +589,7 @@ int main (int, const char**) {
     MultipleAlignment::print(res, &subMat);
 
     MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen, par.gapExtend);
-    size_t filteredSetSize = res.setSize;
-
-    msaFilter.filter(res.setSize, res.centerLength, 0, 0,-20.0, 90, 100, (const char **)res.msaSequence, &filteredSetSize);
-
-    msaFilter.shuffleSequences((const char **) res.msaSequence, res.setSize);
+    size_t filteredSetSize = msaFilter.filter(res, 0, 0,-20.0, 90, 100);
 
 /*    std::cout << "Filtered:" << filterResult.setSize << std::endl;
 //    for(size_t k = 0; k < res.setSize; k++){

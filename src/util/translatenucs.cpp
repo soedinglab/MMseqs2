@@ -65,7 +65,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
             // needs to be int in order to be able to check
             size_t length = reader.getEntryLen(i) - 1;
             if ((data[length] != '\n' && length % 3 != 0) && (data[length - 1] == '\n' && (length - 1) % 3 != 0)) {
-                Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is not divisible by three. Adjust length to (lenght=" <<  length - (length % 3) << ").\n";
+                Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is not divisible by three. Adjust length to (length=" <<  length - (length % 3) << ").\n";
                 length = length - (length % 3);
             }
 

@@ -326,7 +326,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         queryProfData.reserve(1024);
 
         std::string queryBuffer;
-        queryProfData.reserve(1024);
+        queryBuffer.reserve(1024);
 
         std::string queryHeaderBuffer;
         queryHeaderBuffer.reserve(1024);
