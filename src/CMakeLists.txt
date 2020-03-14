@@ -121,7 +121,7 @@ if (HAVE_POSIX_MADVISE)
 endif ()
 
 # SIMD instruction sets support
-if (ARM OR EMSCRIPTEN)
+if (ARM OR PPC64 OR EMSCRIPTEN)
 elseif (HAVE_AVX2)
     target_compile_definitions(mmseqs-framework PUBLIC -DAVX2=1)
     if (CMAKE_COMPILER_IS_CLANG)

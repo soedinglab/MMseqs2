@@ -22,6 +22,12 @@ jobs:
   - addons:
       apt:
         packages:
+          - *default_packages
+          - build-essential
+    arch: ppc64le
+  - addons:
+      apt:
+        packages:
         - *default_packages
         - clang-3.8
         - libc++-dev
@@ -85,6 +91,8 @@ jobs:
         - mpi-default-bin
     env: MPI=1 CC=gcc-9 CXX=g++-9
   fast_finish: true
+  allow_failures:
+  - arch: ppc64le
 
 before_install:
   - export CC
@@ -93,8 +101,7 @@ before_install:
 script:
   - |
     mkdir build; cd build; \
-    [[ "${TRAVIS_CPU_ARCH}" = "arm64" ]] && SIMD="" || SIMD="-DHAVE_SSE4_1=1"; \
-    cmake -DHAVE_MPI="$([[ -z "$MPI" ]]; echo $?)" "$SIMD" -DENABLE_WERROR=1 -DHAVE_TESTS=1 ..; \
+    cmake -DHAVE_MPI="$([[ -z "$MPI" ]]; echo $?)" -DENABLE_WERROR=1 -DHAVE_TESTS=1 ..; \
     make -j $(nproc --all); \
     mkdir path; \
     printf '#!/bin/sh\n/usr/bin/tee "$@" | tail\n' > path/tee; \

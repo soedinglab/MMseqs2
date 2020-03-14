@@ -22,9 +22,10 @@ THE SOFTWARE.
  */
 // SSE2 implementation according to http://0x80.pl/articles/sse-itoa.html
 // Modifications: (1) fix incorrect digits (2) accept all ranges (3) write to user provided buffer.
-#include <stdint.h>
+#include <cstdint>
 
-#ifdef WASM
+#if defined(WASM) || defined(__ALTIVEC__)
+#include <cstdio>
 class Itoa{
 public:
     static char* u32toa_sse2(uint32_t value, char* buffer) {
@@ -44,7 +45,11 @@ public:
 #ifdef NEON
 #include "sse2neon.h"
 #else
+#ifdef __ALTIVEC__
+#include "sse2altivec.h"
+#else
 #include <emmintrin.h>
+#endif
 #endif
 
 

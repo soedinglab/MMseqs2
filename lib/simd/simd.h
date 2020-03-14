@@ -56,7 +56,11 @@
 #ifdef WASM
 #include "sse2wasm.h"
 #else
+#ifdef __ALTIVEC__
+#include "sse2altivec.h"
+#else
 #include <xmmintrin.h>
+#endif
 #endif
 #endif
 
@@ -291,7 +295,7 @@ typedef __m256 simd_float;
 #ifdef SSE
 uint16_t simd_hmax16(const __m128i buffer);
 uint8_t simd_hmax8(const __m128i buffer);
-#if !defined(NEON) && !defined(WASM)
+#if !defined(NEON) && !defined(WASM) && !defined(__ALTIVEC__)
 #include <smmintrin.h>  //SSE4.1
 // double support
 #ifndef SIMD_DOUBLE
@@ -401,7 +405,7 @@ typedef __m128i simd_int;
 #endif //SIMD_INT
 #endif //SSE
 
-#if WASM
+#if defined(WASM) || defined(__ALTIVEC__)
 template <typename F>
 inline F simd_hmax(const F * in, unsigned int n);
 
@@ -621,7 +625,7 @@ inline float ScalarProd20(const float* qi, const float* tj) {
 //
 //
 //TODO fix this
-#if defined(SSE) && !defined(WASM)
+#if defined(SSE) && !defined(WASM) && !defined(__ALTIVEC__)
     float __attribute__((aligned(16))) res;
     __m128 P; // query 128bit SSE2 register holding 4 floats
     __m128 R;// result

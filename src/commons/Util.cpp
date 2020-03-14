@@ -604,7 +604,7 @@ uint64_t Util::revComplement(const uint64_t kmer, const int k) {
     // create lookup (set 16 bytes in 128 bit)
     // a lookup entry at the index of two nucleotides (4 bit) describes the reverse
     // complement of these two nucleotide in the higher 4 bits (lookup1) or in the lower 4 bits (lookup2)
-#define c (char)
+#define c (signed char)
     __m128i lookup1 = _mm_set_epi8(c(0x50),c(0x10),c(0xD0),c(0x90),c(0x40),c(0x00),c(0xC0),c(0x80),
                                    c(0x70),c(0x30),c(0xF0),c(0xB0),c(0x60),c(0x20),c(0xE0),c(0xA0));
     __m128i lookup2 = _mm_set_epi8(c(0x05),c(0x01),c(0x0D),c(0x09),c(0x04),c(0x00),c(0x0C),c(0x08),

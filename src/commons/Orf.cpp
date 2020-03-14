@@ -211,7 +211,7 @@ inline bool isInCodons(const char* sequence, simd_int codons, simd_int) {
     // c: ATG0 ATG0 ATG0 ATG0
     c = simdi_and(mask, c);
     // t: FFFF 0000 0000 0000
-    simd_int test = simdi32_eq(shuf, codons);
+    simd_int test = simdi32_eq(c, codons);
 #ifndef AVX2
     if (N > 4) {
         simd_int test2 = simdi32_eq(c, codons2);

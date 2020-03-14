@@ -1,17 +1,22 @@
 ARG NAMESPACE=
 FROM debian:stable-slim as qemu-downloader
 ARG NAMESPACE
-RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
-RUN if [ X"$NAMESPACE" = X"arm64v8/" ]; then \
-      wget -nv -O "/usr/bin/qemu-aarch64-static" https://github.com/multiarch/qemu-user-static/releases/download/v3.1.0-2/qemu-aarch64-static; \
-    else \
-      echo -e '#!/bin/sh\n"$@"\n' > "/usr/bin/qemu-aarch64-static"; \
+RUN if [ X"$NAMESPACE" != X"" ]; then \
+        apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*; \
     fi; \
-    chmod +x /usr/bin/qemu-aarch64-static;
+    if [ X"$NAMESPACE" = X"ppc64le/" ]; then \
+        wget -nv -O /usr/bin/qemu-ppc64le-static https://github.com/multiarch/qemu-user-static/releases/download/v4.2.0-4/qemu-ppc64le-static; \
+        chmod +x /usr/bin/qemu-ppc64le-static; \
+    fi; \
+    if [ X"$NAMESPACE" = X"aarch64/" ]; then \
+        wget -nv -O /usr/bin/qemu-aarch64-static https://github.com/multiarch/qemu-user-static/releases/download/v4.2.0-4/qemu-aarch64-static; \
+        chmod +x /usr/bin/qemu-aarch64-static; \
+    fi; \
+    touch /usr/bin/dummy_copy
 
-FROM ${NAMESPACE}debian:stable-slim as mmseqs-builder
+FROM ${NAMESPACE}debian:stable-slim as builder
 ARG NAMESPACE
-COPY --from=qemu-downloader /usr/bin/qemu-aarch64-static /usr/bin/qemu-aarch64-static
+COPY --from=qemu-downloader /usr/bin/dummy_copy /usr/bin/qemu-aarch64-static* /usr/bin/qemu-ppc64le-static* /usr/bin/
 
 RUN apt-get update && apt-get install -y \
     build-essential cmake xxd git zlib1g-dev libbz2-dev \
@@ -19,45 +24,37 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /opt/mmseqs
 ADD . .
-RUN mkdir -p build_sse/bin && mkdir -p build_avx/bin && mkdir -p build_neon/bin
 
-WORKDIR /opt/mmseqs/build_sse
-RUN if [ X"$NAMESPACE" = X"" ]; then \
-      cmake -DHAVE_SSE4_1=1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
-      make -j $(nproc --all) && make install; \
-    fi
-
-WORKDIR /opt/mmseqs/build_avx
-RUN if [ X"$NAMESPACE" = X"" ]; then \
-      cmake -DHAVE_AVX2=1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
-      make -j $(nproc --all) && make install; \
-    fi
-
-WORKDIR /opt/mmseqs/build_neon
-RUN if [ X"$NAMESPACE" = X"arm64v8/" ]; then \
-      cmake -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
-      make -j $(nproc --all) && make install; \
-      touch /opt/mmseqs/build_sse/bin/mmseqs; \
-      touch /opt/mmseqs/build_avx/bin/mmseqs; \
-    else \
-      touch /opt/mmseqs/build_neon/bin/mmseqs; \
-    fi
+RUN mkdir -p build_sse/src && mkdir -p build_avx/src && mkdir -p build/src; \
+    if [ X"$NAMESPACE" = X"" ]; then \
+       cd /opt/mmseqs/build_sse; \
+       cmake -DHAVE_SSE4_1=1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
+       make -j $(nproc --all); \
+       mv src/mmseqs /opt/mmseqs/mmseqs_sse42; \
+       cd /opt/mmseqs/build_avx; \
+       cmake -DHAVE_AVX2=1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
+       make -j $(nproc --all); \
+       mv src/mmseqs /opt/mmseqs/mmseqs_avx2; \
+     else \
+       cd /opt/mmseqs/build; \
+       cmake -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
+       make -j $(nproc --all); \
+       mv src/mmseqs /opt/mmseqs/mmseqs_arch; \
+       touch /opt/mmseqs/mmseqs_sse42 /opt/mmseqs/mmseqs_avx2; \
+     fi
 
 FROM ${NAMESPACE}debian:stable-slim
 ARG NAMESPACE
 MAINTAINER Milot Mirdita <milot@mirdita.de>
-COPY --from=qemu-downloader /usr/bin/qemu-aarch64-static /usr/bin/qemu-aarch64-static
+COPY --from=qemu-downloader /usr/bin/dummy_copy /usr/bin/qemu-aarch64-static* /usr/bin/qemu-ppc64le-static* /usr/bin/
 
 RUN apt-get update && apt-get install -y \
-      gawk bash grep libstdc++6 libgomp1 zlib1g libbz2-1.0 \
+      gawk bash grep libstdc++6 libgomp1 zlib1g libbz2-1.0 wget tar \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=mmseqs-builder /opt/mmseqs/build_sse/bin/mmseqs /usr/local/bin/mmseqs_sse42
-COPY --from=mmseqs-builder /opt/mmseqs/build_avx/bin/mmseqs /usr/local/bin/mmseqs_avx2
-COPY --from=mmseqs-builder /opt/mmseqs/build_neon/bin/mmseqs /usr/local/bin/mmseqs_neon
+COPY --from=builder /opt/mmseqs/mmseqs_arch /opt/mmseqs/mmseqs_sse42 /opt/mmseqs/mmseqs_avx2 /usr/local/bin/
 ADD util/mmseqs_wrapper.sh /usr/local/bin/mmseqs
-
-RUN if [ X"$NAMESPACE" = X"arm64v8/" ]; then mv -f /usr/local/bin/mmseqs_neon /usr/local/bin/mmseqs; fi
+RUN if [ X"$NAMESPACE" != X"" ]; then mv -f /usr/local/bin/mmseqs_arch /usr/local/bin/mmseqs; fi
 
 CMD ["/usr/local/bin/mmseqs"]
 

@@ -4,7 +4,7 @@
 #include "DistanceCalculator.h"
 #include "Timer.h"
 
-#if !defined(NEON) && !defined(WASM)
+#if !defined(NEON) && !defined(WASM) && !defined(__ALTIVEC__)
 #include <CpuInfo.h>
 #else
 #define NO_CPUINFO

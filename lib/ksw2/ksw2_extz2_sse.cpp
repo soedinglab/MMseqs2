@@ -43,8 +43,14 @@ See: https://github.com/lh3/minimap2
 #define KSW_SSE2_ONLY
 #endif
 
+#ifdef __ALTIVEC__
+#include "sse2altivec.h"
+#define __SSE2__
+#define KSW_SSE2_ONLY
+#endif
+
 #ifdef __SSE2__
-#if !defined(NEON) && !defined(WASM)
+#if !defined(NEON) && !defined(WASM) && !defined(__ALTIVEC__)
 #include <emmintrin.h>
 #endif
 
