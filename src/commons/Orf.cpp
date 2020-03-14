@@ -202,23 +202,19 @@ template <int N>
 #ifndef AVX2
 inline bool isInCodons(const char* sequence, simd_int codons, simd_int codons2) {
 #else
-    inline bool isInCodons(const char* sequence, simd_int codons, simd_int) {
+inline bool isInCodons(const char* sequence, simd_int codons, simd_int) {
 #endif
-    simd_int c = simdi_loadu((simd_int*)sequence);
-    // ATGA ATGA ATGA ATGA
-#ifdef AVX2
-    simd_int shuf = _mm256_permutevar8x32_epi32(c, _mm256_setzero_si256());
-#else
-    simd_int shuf = simdi32_shuffle(c, _MM_SHUFFLE(0, 0, 0, 0));
-#endif
-    // ATG0 ATG0 ATG0 ATG0
+    // s: ATGA GTGA TGAT GAGT
+    // c: ATGA ATGA ATGA ATGA
+    simd_int c = simdi32_set(*(unsigned int*)sequence);
     simd_int mask = simdi32_set(0x00FFFFFF);
-    shuf = simdi_and(mask, shuf);
-    // FFFF 0000 0000 0000
+    // c: ATG0 ATG0 ATG0 ATG0
+    c = simdi_and(mask, c);
+    // t: FFFF 0000 0000 0000
     simd_int test = simdi32_eq(shuf, codons);
 #ifndef AVX2
-    if(N > 4) {
-        simd_int test2 = simdi32_eq(shuf, codons2);
+    if (N > 4) {
+        simd_int test2 = simdi32_eq(c, codons2);
         return (simdi8_movemask(test) != 0) && (simdi8_movemask(test2) != 0);
     }
 #endif
