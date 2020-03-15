@@ -35,6 +35,7 @@ RUN mkdir -p build_sse/src && mkdir -p build_avx/src && mkdir -p build/src; \
        cmake -DHAVE_AVX2=1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
        make -j $(nproc --all); \
        mv src/mmseqs /opt/mmseqs/mmseqs_avx2; \
+       touch /opt/mmseqs/mmseqs_arch; \
      else \
        cd /opt/mmseqs/build; \
        cmake -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
