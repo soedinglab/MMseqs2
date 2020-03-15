@@ -38,7 +38,7 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
     set(CMAKE_COMPILER_IS_ICC 1)
 endif ()
 
-# set flags
+# see https://wiki.debian.org/ArchitectureSpecificsMemo for char signedness
 set(MMSEQS_CXX_FLAGS "-std=c++0x")
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
     set(ARM 1)
@@ -48,7 +48,7 @@ elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*)")
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DNEON=1 -DSSE=1 -fsigned-char")
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "PPC64*|ppc64*|powerpc64*")
     set(PPC64 1)
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DSSE=1 -std=gnu++0x -mcpu=power8 -mvsx")
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DSSE=1 -fsigned-char -std=gnu++0x -mcpu=power8 -mvsx")
 elseif (EMSCRIPTEN)
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DSSE=1 -DWASM=1 -msimd128 -s WASM=1 -s ASSERTIONS=1")
 else ()
