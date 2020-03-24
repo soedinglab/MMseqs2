@@ -112,7 +112,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
     regex_t regex;
 
     int mode;
-    if (par.sortEntries == true) {
+    if (par.sortEntries != 0) {
         mode = SORT_ENTRIES;
         Debug(Debug::INFO) << "Filtering by sorting entries\n";
     } else if (par.filteringFile.empty() == false) {
