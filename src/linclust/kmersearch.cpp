@@ -115,7 +115,6 @@ void KmerSearch::writeResult(DBWriter & dbw, KmerPosition<short> *kmers, size_t 
 
         hit_t h;
         h.seqId = prevHitId;
-        bestRevertMask = (repSeqId == prevHitId) ? 0 : bestRevertMask;
         h.prefScore =  (bestRevertMask) ? -topScore : topScore;
         h.diagonal =  bestDiagonal;
         int len = QueryMatcher::prefilterHitToBuffer(buffer, h);

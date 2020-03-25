@@ -151,6 +151,11 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                         size_t kmerLen =  par.kmerSize;
                         size_t kmerIdx = Indexer::computeKmerIdx(kmer, kmerLen);
                         size_t revkmerIdx = Util::revComplement(kmerIdx, kmerLen);
+                        // skip forward and rev. identical k-mers.
+                        // We can not know how to align these afterwards
+                        if(revkmerIdx == kmerIdx){
+                            continue;
+                        }
                         bool pickReverseKmer = (revkmerIdx<kmerIdx);
                         kmerIdx = (pickReverseKmer) ? revkmerIdx : kmerIdx;
 
@@ -294,7 +299,11 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                         selectedKmer++;
                         if ((kmers + kmerIdx)->score >= hashStartRange && (kmers + kmerIdx)->score <= hashEndRange)
                         {
-//                            std::cout << seqId << "\t" << (kmers + kmerIdx)->score << "\t" << (kmers + kmerIdx)->pos << std::endl;
+//                            {
+//                                size_t tmpKmerIdx= (kmers + kmerIdx)->kmer;
+//                                tmpKmerIdx=BIT_CLEAR(tmpKmerIdx, 63);
+//                                std::cout << seqId << "\t" << (kmers + kmerIdx)->score << "\t" << tmpKmerIdx << std::endl;
+//                            }
                             threadKmerBuffer[bufferPos].kmer = (kmers + kmerIdx)->kmer;
                             threadKmerBuffer[bufferPos].id = seqId;
                             threadKmerBuffer[bufferPos].pos = (kmers + kmerIdx)->pos;
