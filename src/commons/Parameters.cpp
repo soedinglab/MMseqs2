@@ -2111,7 +2111,7 @@ void Parameters::setDefaults() {
     hashShift = 67;
     pickNbest = 1;
     adjustKmerLength = false;
-    resultDirection = 0;
+    resultDirection = Parameters::PARAM_RESULT_DIRECTION_TARGET;
     // result2stats
     stat = "";
 
