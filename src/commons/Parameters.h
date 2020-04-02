@@ -253,6 +253,10 @@ public:
     static const int SUBDB_MODE_HARD = 0;
     static const int SUBDB_MODE_SOFT = 1;
 
+    // result direction
+    static const int PARAM_RESULT_DIRECTION_QUERY  = 0;
+    static const int PARAM_RESULT_DIRECTION_TARGET = 1;
+
     // path to databases
     std::string db1;
     std::string db1Index;
@@ -464,6 +468,7 @@ public:
     int hashShift;
     int pickNbest;
     int adjustKmerLength;
+    int resultDirection;
 
     // indexdb
     int checkCompatible;
@@ -746,7 +751,7 @@ public:
     PARAMETER(PARAM_HASH_SHIFT)
     PARAMETER(PARAM_PICK_N_SIMILAR)
     PARAMETER(PARAM_ADJUST_KMER_LEN)
-
+    PARAMETER(PARAM_RESULT_DIRECTION)
     // workflow
     PARAMETER(PARAM_RUNNER)
     PARAMETER(PARAM_REUSELATEST)

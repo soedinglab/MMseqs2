@@ -135,6 +135,7 @@ Parameters::Parameters():
         PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash initilization", typeid(int), (void *) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_PICK_N_SIMILAR(PARAM_PICK_N_SIMILAR_ID, "--pick-n-sim-kmer", "Add N similar to search", "Add N similar k-mers to search", typeid(int), (void *) &pickNbest, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_ADJUST_KMER_LEN(PARAM_ADJUST_KMER_LEN_ID, "--adjust-kmer-len", "Adjust k-mer length", "Adjust k-mer length based on specificity (only for nucleotides)", typeid(bool), (void *) &adjustKmerLength, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_RESULT_DIRECTION(PARAM_RESULT_DIRECTION_ID, "--result-direction", "Result direction", "result is 0: query, 1: target centric", typeid(int), (void *) &resultDirection, "^[0-1]{1}$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
 
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "MPI runner", "Use MPI on compute cluster with this MPI command (e.g. \"mpirun -np 42\")", typeid(std::string), (void *) &runner, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
@@ -812,6 +813,7 @@ Parameters::Parameters():
     kmersearch.push_back(&PARAM_C);
     kmersearch.push_back(&PARAM_MAX_SEQ_LEN);
     kmersearch.push_back(&PARAM_PICK_N_SIMILAR);
+    kmersearch.push_back(&PARAM_RESULT_DIRECTION);
     kmersearch.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
     kmersearch.push_back(&PARAM_THREADS);
     kmersearch.push_back(&PARAM_COMPRESSED);
@@ -2109,6 +2111,7 @@ void Parameters::setDefaults() {
     hashShift = 67;
     pickNbest = 1;
     adjustKmerLength = false;
+    resultDirection = 0;
     // result2stats
     stat = "";
 
