@@ -517,6 +517,13 @@ Parameters::Parameters():
     //result2msa.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
     result2msa.push_back(&PARAM_V);
 
+    // result2dnamsa
+    result2dnamsa.push_back(&PARAM_THREADS);
+    result2dnamsa.push_back(&PARAM_SKIP_QUERY);
+    result2dnamsa.push_back(&PARAM_COMPRESSED);
+    //result2msa.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
+    result2dnamsa.push_back(&PARAM_V);
+
     // convertmsa
     convertmsa.push_back(&PARAM_IDENTIFIER_FIELD);
     convertmsa.push_back(&PARAM_COMPRESSED);

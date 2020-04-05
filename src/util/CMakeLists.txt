@@ -39,6 +39,7 @@ set(util_source_files
         util/profile2cs.cpp
         util/profile2pssm.cpp
         util/profile2seq.cpp
+        util/result2dnamsa.cpp
         util/result2flat.cpp
         util/result2msa.cpp
         util/result2rbh.cpp
