@@ -114,11 +114,13 @@ int result2dnamsa(int argc, const char **argv, const Command &command) {
                             seqPos++;
                             break;
                         case 'I':
-//                                out.append(1, seqChar);
-                            seqPos++;
+                            out.push_back('-');
+
                             break;
                         case 'D':
-                            out.push_back('-');
+                            seqPos++;
+//                                out.append(1, seqChar);
+
                             break;
                     }
                 }
