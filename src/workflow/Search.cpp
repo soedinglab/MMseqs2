@@ -45,18 +45,18 @@ int computeSearchMode(int queryDbType, int targetDbType, int targetSrcDbType, in
             if(searchType == Parameters::SEARCH_TYPE_AUTO){
                 // WARNING because its not really an error, just a req. parameter
                 Debug(Debug::WARNING) << "It is unclear from the input if a translated or nucleotide search should be performed\n"
-                                         "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
+                                         "Please provide the parameter --search-type 2 (translated), 3 (nucleotide) or 4 (translated nucleotide backtrace)\n";
                 EXIT(EXIT_FAILURE);
             }
             // nucl/nucl
             // nucl/nucl translated
-            if(searchType == Parameters::SEARCH_TYPE_TRANSLATED){
+            if(searchType == Parameters::SEARCH_TYPE_TRANSLATED||searchType == Parameters::SEARCH_TYPE_TRANS_NUCL_ALN){
                 return Parameters::SEARCH_MODE_FLAG_QUERY_TRANSLATED| Parameters::SEARCH_MODE_FLAG_TARGET_TRANSLATED;
             }else if (searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES ){
                 return Parameters::SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE| Parameters::SEARCH_MODE_FLAG_TARGET_NUCLEOTIDE;
             } else {
                 Debug(Debug::ERROR) << "--search-type 1 (amino acid) can not used in combination with a nucleotide database\n "
-                                       "The only possible options --search-types 2 (translated) or 3 (nucleotide)\n";
+                                       "The only possible options --search-types 2 (translated), 3 (nucleotide) or 4 (translated nucleotide backtrace)\n";
                 EXIT(EXIT_FAILURE);
             }
         }
