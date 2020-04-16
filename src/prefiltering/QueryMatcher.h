@@ -38,9 +38,9 @@ struct hit_t {
     unsigned short diagonal;
 
     static bool compareHitsByScoreAndId(const hit_t &first, const hit_t &second){
-        if (first.prefScore > second.prefScore)
+        if (abs(first.prefScore) > abs(second.prefScore))
             return true;
-        if (second.prefScore > first.prefScore)
+        if (abs(second.prefScore) > abs(first.prefScore))
             return false;
         if (first.seqId < second.seqId)
             return true;

@@ -314,13 +314,14 @@ int doRescorediagonal(Parameters &par,
                         } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
                             hit_t hit;
                             hit.seqId = results[entryIdx].seqId;
-                            hit.prefScore = bitScore;
+                            hit.prefScore = (isReverse) ? -bitScore : bitScore;
                             hit.diagonal = diagonal;
                             shortResults.emplace_back(hit);
                         } else {
                             hit_t hit;
                             hit.seqId = results[entryIdx].seqId;
                             hit.prefScore = 100 * seqId;
+                            hit.prefScore = (isReverse) ? -hit.prefScore : hit.prefScore;
                             hit.diagonal = diagonal;
                             shortResults.emplace_back(hit);
                         }
@@ -339,8 +340,7 @@ int doRescorediagonal(Parameters &par,
                     std::sort(shortResults.begin(), shortResults.end(), hit_t::compareHitsByScoreAndId);
                 }
                 for (size_t i = 0; i < shortResults.size(); ++i) {
-                    size_t len = snprintf(buffer, 100, "%u\t%d\t%d\n", shortResults[i].seqId, shortResults[i].prefScore,
-                                          shortResults[i].diagonal);
+                    size_t len = QueryMatcher::prefilterHitToBuffer(buffer, shortResults[i]);
                     resultBuffer.append(buffer, len);
                 }
 
@@ -386,7 +386,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-    int dbtype = Parameters::DBTYPE_PREFILTER_RES;
+    int dbtype = resultReader.getDbtype(); // this is DBTYPE_PREFILTER_RES || DBTYPE_PREFILTER_REV_RES
     if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
        par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
        par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT){
