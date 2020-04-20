@@ -651,6 +651,7 @@ Parameters::Parameters():
     kmerindexdb.push_back(&PARAM_K);
     kmerindexdb.push_back(&PARAM_HASH_SHIFT);
     kmerindexdb.push_back(&PARAM_KMER_PER_SEQ);
+    kmerindexdb.push_back(&PARAM_KMER_PER_SEQ_SCALE);
     kmerindexdb.push_back(&PARAM_MIN_SEQ_ID);
     kmerindexdb.push_back(&PARAM_ADJUST_KMER_LEN);
     kmerindexdb.push_back(&PARAM_SPLIT_MEMORY_LIMIT);
@@ -814,6 +815,7 @@ Parameters::Parameters():
     // kmermatcher
     kmersearch.push_back(&PARAM_SEED_SUB_MAT);
     kmersearch.push_back(&PARAM_KMER_PER_SEQ);
+    kmersearch.push_back(&PARAM_KMER_PER_SEQ_SCALE);
     kmersearch.push_back(&PARAM_MASK_RESIDUES);
     kmersearch.push_back(&PARAM_MASK_LOWER_CASE);
     kmersearch.push_back(&PARAM_COV_MODE);

@@ -188,8 +188,6 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     par.printParameters(command.cmd, argc, argv, *command.params);
 
     //queryDbr.readMmapedDataInMemory();
-    const size_t KMER_SIZE = par.kmerSize;
-    size_t chooseTopKmer = par.kmersPerSequence;
 
     // memoryLimit in bytes
     size_t memoryLimit;
@@ -198,8 +196,9 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
-
-    size_t totalKmers = computeKmerCount(queryDbr, KMER_SIZE, chooseTopKmer);
+    float kmersPerSequenceScale = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ?
+                                  par.kmersPerSequenceScale.nucleotides : par.kmersPerSequenceScale.aminoacids;
+    size_t totalKmers = computeKmerCount(queryDbr, par.kmerSize, par.kmersPerSequence, kmersPerSequenceScale);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter<short>(totalKmers);
 
     BaseMatrix *subMat;

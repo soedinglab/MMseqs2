@@ -70,8 +70,6 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     }
 
     //seqDbr.readMmapedDataInMemory();
-    const size_t KMER_SIZE = par.kmerSize;
-    size_t chooseTopKmer = par.kmersPerSequence;
 
     // memoryLimit in bytes
     size_t memoryLimit;
@@ -81,7 +79,10 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
     Debug(Debug::INFO) << "\n";
-    size_t totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
+
+    float kmersPerSequenceScale = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ?
+                                  par.kmersPerSequenceScale.nucleotides : par.kmersPerSequenceScale.aminoacids;
+    size_t totalKmers = computeKmerCount(seqDbr, par.kmerSize, par.kmersPerSequence, kmersPerSequenceScale);
     totalKmers *= par.pickNbest;
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter<short>(totalKmers);
     // compute splits
@@ -96,7 +97,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
 
     size_t writePos = 0;
     size_t mpiRank = 0;
-    size_t adjustedKmerSize = KMER_SIZE;
+    size_t adjustedKmerSize = par.kmerSize;
 #ifdef HAVE_MPI
     splits = std::max(static_cast<size_t>(MMseqsMPI::numProc), splits);
     size_t fromSplit = 0;
@@ -184,7 +185,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         const int seqType = seqDbr.getDbtype();
         const int srcSeqType = FileUtil::parseDbType(par.db2.c_str());
         // Reuse the compBiasCorr field to store the adjustedKmerSize, It is not needed in the linsearch
-        int metadata[] = {static_cast<int>(par.maxSeqLen), static_cast<int>(KMER_SIZE), static_cast<int>(adjustedKmerSize), subMat->alphabetSize, mask, spacedKmer, 0, seqType, srcSeqType, headers1, headers2};
+        int metadata[] = {static_cast<int>(par.maxSeqLen), static_cast<int>(par.kmerSize), static_cast<int>(adjustedKmerSize), subMat->alphabetSize, mask, spacedKmer, 0, seqType, srcSeqType, headers1, headers2};
         char *metadataptr = (char *) &metadata;
         dbw.writeData(metadataptr, sizeof(metadata), PrefilteringIndexReader::META, 0);
         dbw.alignToPageSize();
