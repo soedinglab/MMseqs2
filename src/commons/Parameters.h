@@ -462,7 +462,7 @@ public:
 
     // linearcluster
     int kmersPerSequence;
-    float kmersPerSequenceScale;
+    MultiParam<float> kmersPerSequenceScale;
     bool includeOnlyExtendable;
     bool ignoreMultiKmer;
     int hashShift;

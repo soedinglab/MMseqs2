@@ -218,7 +218,9 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                     }
 
                 }
-                size_t kmerConsidered = std::min(static_cast<size_t >(par.kmersPerSequence - 1 + (par.kmersPerSequenceScale * seq.L)), seqKmerCount);
+                float kmersPerSequenceScale = (TYPE == Parameters::DBTYPE_NUCLEOTIDES) ? par.kmersPerSequenceScale.nucleotides
+                                                                                       : par.kmersPerSequenceScale.aminoacids;
+                size_t kmerConsidered = std::min(static_cast<size_t >(par.kmersPerSequence  - 1 + (kmersPerSequenceScale * seq.L)), seqKmerCount);
 
                 unsigned int threshold = 0;
                 size_t kmerInBins = 0;
@@ -604,7 +606,9 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
     Debug(Debug::INFO) << "\n";
-    size_t totalKmers = computeKmerCount(seqDbr, par.kmerSize, par.kmersPerSequence, par.kmersPerSequenceScale);
+    float kmersPerSequenceScale = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ?
+                                        par.kmersPerSequenceScale.nucleotides : par.kmersPerSequenceScale.aminoacids;
+    size_t totalKmers = computeKmerCount(seqDbr, par.kmerSize, par.kmersPerSequence, kmersPerSequenceScale);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter<T>(totalKmers);
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));

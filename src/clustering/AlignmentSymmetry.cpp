@@ -74,7 +74,8 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                                 elementScoreTable[i][writePos] = (unsigned short) (atof(similarity) * 1000.0f);
                             }
                         }
-                        else if (Parameters::isEqualDbtype(alnType,Parameters::DBTYPE_PREFILTER_RES)) {
+                        else if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_RES) ||
+                                 Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_REV_RES)) {
                             //column 1 = alignment score or sequence identity [0-100]
                             Util::parseByColumnNumber(data, similarity, 1);
                             short sim = atoi(similarity);

@@ -17,7 +17,7 @@ class MultiParam {
 public:
     T aminoacids;
     T nucleotides;
-
+    MultiParam(){};
     MultiParam(T aminoacids, T nucleotides);
     MultiParam(const char* parametercstring);
     ~MultiParam(){};

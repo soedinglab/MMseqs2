@@ -58,8 +58,6 @@ MultiParam<float>::MultiParam(const char* parametercstring) {
 }
 
 
-
-
 template class MultiParam<int>;
 template class MultiParam<float>;
 

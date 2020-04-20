@@ -100,6 +100,11 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         Debug(Debug::ERROR) << "Cannot use ungapped alignment mode with profile databases.\n";
         EXIT(EXIT_FAILURE);
     }
+    if( Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES)){
+        Debug(Debug::ERROR) << "Cluster does not support nucleotide sequences. Please use Linclust instead.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
 
     const bool nonSymetric = (par.covMode == Parameters::COV_MODE_TARGET ||par.covMode == Parameters::COV_MODE_QUERY);
     if (clusterModeSet == false) {
