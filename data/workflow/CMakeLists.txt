@@ -22,6 +22,6 @@ set(GENERATED_WORKFLOWS
         workflow/searchslicedtargetprofile.sh
         workflow/linsearch.sh
         workflow/databases.sh
-
+        workflow/nucleotide_clustering.sh
         PARENT_SCOPE
         )

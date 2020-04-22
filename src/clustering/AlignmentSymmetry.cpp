@@ -43,9 +43,22 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                 char *data = alnDbr->getDataByDBKey(clusterId, thread_idx);
 
                 if (*data == '\0') { // check if file contains entry
-                    Debug(Debug::ERROR) << "Sequence " << i
-                                        << " does not contain any sequence for key " << clusterId
-                                        << "!\n";
+                    elementLookupTable[i][0] = seqDbr->getId(clusterId);
+                    if (elementScoreTable != NULL) {
+                        if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_ALIGNMENT_RES)) {
+                            if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
+                                //column 1 = alignment score
+                                elementScoreTable[i][0] = (unsigned short) (USHRT_MAX);
+                            } else {
+                                //column 2 = sequence identity [0-1]
+                                elementScoreTable[i][0] = (unsigned short) (1.0 * 1000.0f);
+                            }
+                        } else if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_RES) ||
+                                   Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_REV_RES)) {
+                            //column 1 = alignment score or sequence identity [0-100]
+                            elementScoreTable[i][0] = (unsigned short) (USHRT_MAX);
+                        }
+                    }
                     continue;
                 }
                 size_t setSize = LEN(offsets, i);

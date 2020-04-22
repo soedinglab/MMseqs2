@@ -6,6 +6,7 @@
 #include "FileUtil.h"
 
 #include "cascaded_clustering.sh.h"
+#include "nucleotide_clustering.sh.h"
 #include "clustering.sh.h"
 
 #include <cassert>
@@ -38,6 +39,36 @@ int setAutomaticIterations(float sens){
     }
 }
 
+
+void setNuclClusterDefaults(Parameters *p) {
+    // leave ungapped alignment untouched
+    if(p->alignmentMode != Parameters::ALIGNMENT_MODE_UNGAPPED){
+        p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    }
+    //p->orfLongest = true;
+    p->exactKmerMatching = true;
+    if ( p->PARAM_DIAGONAL_SCORING.wasSet == false) {
+        p->diagonalScoring = 0;
+    }
+    if ( p->PARAM_STRAND.wasSet == false) {
+        p->strand = 2;
+    }
+    if ( p->PARAM_K.wasSet == false) {
+        p->kmerSize = 15;
+    }
+    if (  p->PARAM_MAX_SEQ_LEN.wasSet == false) {
+        p->maxSeqLen = 10000;
+    }
+    if( p->PARAM_GAP_OPEN.wasSet == false){
+        p->gapOpen = 5;
+    }
+    if( p->PARAM_GAP_EXTEND.wasSet  == false){
+        p->gapExtend = 2;
+    }
+}
+
+
+
 int clusteringworkflow(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setWorkflowDefaults(&par);
@@ -51,30 +82,16 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     par.PARAM_INCLUDE_ONLY_EXTENDABLE.addCategory(MMseqsParameter::COMMAND_EXPERT);
 
     par.parseParameters(argc, argv, command, true, 0, 0);
-
-    bool sensitivitySet = false;
-    bool compositionBiasSet = false;
-    bool clusterModeSet = false;
-    bool clusterStepsSet = false;
-    bool minDiagonalScoreSet = false;
-
-    for (size_t i = 0; i < par.clusterworkflow.size(); i++) {
-        if (par.clusterworkflow[i]->uniqid == par.PARAM_S.uniqid && par.clusterworkflow[i]->wasSet) {
-            sensitivitySet = true;
-        }
-        if (par.clusterworkflow[i]->uniqid == par.PARAM_CLUSTER_MODE.uniqid && par.clusterworkflow[i]->wasSet) {
-            clusterModeSet = true;
-        }
-        if (par.clusterworkflow[i]->uniqid == par.PARAM_CLUSTER_STEPS.uniqid && par.clusterworkflow[i]->wasSet) {
-            clusterStepsSet = true;
-        }
-        if (par.clusterworkflow[i]->uniqid == par.PARAM_NO_COMP_BIAS_CORR.uniqid && par.clusterworkflow[i]->wasSet) {
-            compositionBiasSet = true;
-        }
-        if (par.clusterworkflow[i]->uniqid == par.PARAM_MIN_DIAG_SCORE.uniqid && par.clusterworkflow[i]->wasSet) {
-            minDiagonalScoreSet = true;
-        }
+    const int dbType = FileUtil::parseDbType(par.db1.c_str());
+    bool isNucleotideDb = (Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES));
+    if(isNucleotideDb){
+        setNuclClusterDefaults(&par);
     }
+    bool sensitivitySet = par.PARAM_S.wasSet;
+    bool compositionBiasSet = par.PARAM_NO_COMP_BIAS_CORR.wasSet;
+    bool clusterModeSet = par.PARAM_CLUSTER_MODE.wasSet;
+    bool clusterStepsSet = par.PARAM_CLUSTER_STEPS.wasSet;
+    bool minDiagonalScoreSet = par.PARAM_MIN_DIAG_SCORE.wasSet;
 
     if (compositionBiasSet == false) {
         if(par.seqIdThr >= 0.7){
@@ -88,20 +105,15 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         }
     }
 
-    if (sensitivitySet == false) {
+    if (sensitivitySet == false && isNucleotideDb == false) {
         par.sensitivity = setAutomaticThreshold(par.seqIdThr);
         Debug(Debug::INFO) << "Set cluster sensitivity to -s " << par.sensitivity << "\n";
     }
 
-    const int dbType = FileUtil::parseDbType(par.db1.c_str());
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
     if (isUngappedMode && Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_HMM_PROFILE)) {
         par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
         Debug(Debug::ERROR) << "Cannot use ungapped alignment mode with profile databases.\n";
-        EXIT(EXIT_FAILURE);
-    }
-    if( Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_NUCLEOTIDES)){
-        Debug(Debug::ERROR) << "Cluster does not support nucleotide sequences. Please use Linclust instead.\n";
         EXIT(EXIT_FAILURE);
     }
 
@@ -148,8 +160,32 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     par.rescoreMode = originalRescoreMode;
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("MERGECLU_PAR", par.createParameterString(par.threadsandcompression).c_str());
+    cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
 
-    if (par.singleStepClustering == false) {
+    if(isNucleotideDb){
+        par.forwardFrames= "1";
+        par.reverseFrames= "1";
+        par.searchType = 3;
+        cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
+        cmd.addVariable("LINCLUST_PAR", par.createParameterString(par.linclustworkflow).c_str());
+        if (par.PARAM_MAX_SEQS.wasSet == false) {
+            par.maxResListLen = 300;
+        }
+
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
+        if (isUngappedMode) {
+            par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
+            par.rescoreMode = originalRescoreMode;
+        } else {
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        }
+        cmd.addVariable("CLUSTER_PAR",   par.createParameterString(par.clust).c_str());
+        cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());
+        std::string program = tmpDir + "/nucleotide_clustering.sh";
+        FileUtil::writeFile(program, nucleotide_clustering_sh, nucleotide_clustering_sh_len);
+        cmd.execProgram(program.c_str(), par.filenames);
+    } else if (par.singleStepClustering == false) {
         // save some values to restore them later
         float targetSensitivity = par.sensitivity;
         MultiParam<int> alphabetSize = par.alphabetSize;
@@ -201,8 +237,6 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         }
         cmd.addVariable("THREADSANDCOMPRESS", par.createParameterString(par.threadsandcompression).c_str());
         cmd.addVariable("VERBCOMPRESS", par.createParameterString(par.verbandcompression).c_str());
-        cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
-
         cmd.addVariable("ALIGNMENT_REASSIGN_PAR", par.createParameterString(par.align).c_str());
 
         std::string program = tmpDir + "/cascaded_clustering.sh";
@@ -217,7 +251,6 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         cmd.addVariable("DETECTREDUNDANCY_PAR", par.createParameterString(par.clusthash).c_str());
         par.alphabetSize = alphabetSize;
         par.seqIdThr = seqIdThr;
-
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         if (isUngappedMode) {
             cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
