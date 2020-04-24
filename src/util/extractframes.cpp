@@ -81,15 +81,13 @@ int extractframes(int argc, const char **argv, const Command& command) {
                 bool hasWrongChar = false;
                 for(size_t pos = 0; pos < sequenceLength; ++pos) {
                     char reverseComplement = Orf::complement(data[sequenceLength - pos - 1]);
-                    reverseComplementStr.push_back(Orf::complement(data[sequenceLength - pos - 1]));
-                    if(reverseComplement == '.') {
-                        Debug(Debug::WARNING) << "Can not compute reverse sequence of  sequence with index " << i << "!\n";
-                        hasWrongChar = true;
-                    }
+                    reverseComplement = (reverseComplement == '.') ? 'N' : reverseComplement;
+                    reverseComplementStr.push_back(reverseComplement);
+                    hasWrongChar |= (reverseComplement == '.');
                 }
-                if(hasWrongChar == true){
-                    continue;
-                }
+//                if(hasWrongChar == true){
+//                    continue;
+//                }
                 reverseComplementStr.push_back('\n');
             }
 
