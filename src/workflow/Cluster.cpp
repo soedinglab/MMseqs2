@@ -167,7 +167,10 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         par.reverseFrames= "1";
         par.searchType = 3;
         cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
+        int oldKmer = par.kmerSize;
+        par.kmerSize = 0;
         cmd.addVariable("LINCLUST_PAR", par.createParameterString(par.linclustworkflow).c_str());
+        par.kmerSize = oldKmer;
         if (par.PARAM_MAX_SEQS.wasSet == false) {
             par.maxResListLen = 300;
         }
