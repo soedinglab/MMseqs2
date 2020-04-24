@@ -38,31 +38,9 @@
 #define MAX_ALIGN_INT		AVX512_ALIGN_INT
 #define MAX_VECSIZE_INT		AVX512_VECSIZE_INT
 
-#ifdef AVX512
-#define AVX2
-#endif
-
-#ifdef AVX2
-#define AVX
-#endif
-
-#ifdef AVX
-#define SSE
-#endif
-
-#ifdef NEON
-#include "sse2neon.h"
-#else
-#ifdef WASM
-#include "sse2wasm.h"
-#else
-#ifdef __ALTIVEC__
-#include "sse2altivec.h"
-#else
-#include <xmmintrin.h>
-#endif
-#endif
-#endif
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include <simde/x86/avx2.h>
+#include <simde/x86/sse4.1.h>
 
 #ifdef AVX512
 #include <zmmintrin.h.h> // AVX512
@@ -168,11 +146,9 @@ typedef __m512i simd_int;
 #endif //SIMD_INT
 #endif //AVX512_SUPPORT
 
-#ifdef AVX2
 // integer support  (usable with AVX2)
 #ifndef SIMD_INT
 #define SIMD_INT
-#include <immintrin.h> // AVX
 #define ALIGN_INT           AVX2_ALIGN_INT
 #define VECSIZE_INT         AVX2_VECSIZE_INT
 //function header
@@ -236,10 +212,7 @@ typedef __m256i simd_int;
 #define simdi32_i2f(x) 	    _mm256_cvtepi32_ps(x)  // convert integer to s.p. float
 #define simdi_i2fcast(x)    _mm256_castsi256_ps(x)
 #endif //SIMD_INT
-#endif //AVX2
 
-#ifdef AVX
-#include <immintrin.h> // AVX
 // double support (usable with AVX1)
 #ifndef SIMD_DOUBLE
 #define SIMD_DOUBLE
@@ -289,162 +262,8 @@ typedef __m256 simd_float;
 #define simdf32_f2i(x) 	    _mm256_cvtps_epi32(x)  // convert s.p. float to integer
 #define simdf_f2icast(x)    _mm256_castps_si256(x) // compile time cast
 #endif //SIMD_FLOAT
-#endif //AVX_SUPPORT
 
 
-#ifdef SSE
-uint16_t simd_hmax16(const __m128i buffer);
-uint8_t simd_hmax8(const __m128i buffer);
-#if !defined(NEON) && !defined(WASM) && !defined(__ALTIVEC__)
-#include <smmintrin.h>  //SSE4.1
-// double support
-#ifndef SIMD_DOUBLE
-#define SIMD_DOUBLE
-#define ALIGN_DOUBLE        SSE_ALIGN_DOUBLE
-#define VECSIZE_DOUBLE      SSE_VECSIZE_DOUBLE
-typedef __m128d simd_double;
-#define simdf64_add(x,y)    _mm_add_pd(x,y)
-#define simdf64_sub(x,y)    _mm_sub_pd(x,y)
-#define simdf64_mul(x,y)    _mm_mul_pd(x,y)
-#define simdf64_div(x,y)    _mm_div_pd(x,y)
-#define simdf64_max(x,y)    _mm_max_pd(x,y)
-#define simdf64_load(x)     _mm_load_pd(x)
-#define simdf64_store(x,y)  _mm_store_pd(x,y)
-#define simdf64_set(x)      _mm_set1_pd(x)
-#define simdf64_setzero(x)  _mm_setzero_pd()
-#define simdf64_gt(x,y)     _mm_cmpgt_pd(x,y)
-#define simdf64_lt(x,y)     _mm_cmplt_pd(x,y)
-#define simdf64_or(x,y)     _mm_or_pd(x,y)
-#define simdf64_and(x,y)    _mm_and_pd(x,y)
-#define simdf64_andnot(x,y) _mm_andnot_pd(x,y)
-#define simdf64_xor(x,y)    _mm_xor_pd(x,y)
-#endif //SIMD_DOUBLE
-#endif
-
-// float support
-#ifndef SIMD_FLOAT
-#define SIMD_FLOAT
-#define ALIGN_FLOAT         SSE_ALIGN_FLOAT
-#define VECSIZE_FLOAT       SSE_VECSIZE_FLOAT
-typedef __m128  simd_float;
-#define simdf32_add(x,y)    _mm_add_ps(x,y)
-#define simdf32_sub(x,y)    _mm_sub_ps(x,y)
-#define simdf32_mul(x,y)    _mm_mul_ps(x,y)
-#define simdf32_div(x,y)    _mm_div_ps(x,y)
-#define simdf32_rcp(x)      _mm_rcp_ps(x)
-#define simdf32_max(x,y)    _mm_max_ps(x,y)
-#define simdf32_min(x,y)    _mm_min_ps(x,y)
-#define simdf32_load(x)     _mm_load_ps(x)
-#define simdf32_store(x,y)  _mm_store_ps(x,y)
-#define simdf32_set(x)      _mm_set1_ps(x)
-#define simdf32_setzero(x)  _mm_setzero_ps()
-#define simdf32_gt(x,y)     _mm_cmpgt_ps(x,y)
-#define simdf32_eq(x,y)     _mm_cmpeq_ps(x,y)
-#define simdf32_lt(x,y)     _mm_cmplt_ps(x,y)
-#define simdf32_or(x,y)     _mm_or_ps(x,y)
-#define simdf32_and(x,y)    _mm_and_ps(x,y)
-#define simdf32_andnot(x,y) _mm_andnot_ps(x,y)
-#define simdf32_xor(x,y)    _mm_xor_ps(x,y)
-#define simdf32_f2i(x) 	    _mm_cvtps_epi32(x)  // convert s.p. float to integer
-#define simdf_f2icast(x)    _mm_castps_si128(x) // compile time cast
-#endif //SIMD_FLOAT
-// integer support 
-#ifndef SIMD_INT
-#define SIMD_INT
-#define ALIGN_INT           SSE_ALIGN_INT
-#define VECSIZE_INT         SSE_VECSIZE_INT
-typedef __m128i simd_int;
-#define simdi32_add(x,y)    _mm_add_epi32(x,y)
-#define simdi16_add(x,y)    _mm_add_epi16(x,y)
-#define simdi16_adds(x,y)   _mm_adds_epi16(x,y)
-#define simdui8_adds(x,y)   _mm_adds_epu8(x,y)
-#define simdi32_sub(x,y)    _mm_sub_epi32(x,y)
-#define simdui16_subs(x,y)  _mm_subs_epu16(x,y)
-#define simdui8_subs(x,y)   _mm_subs_epu8(x,y)
-#define simdi32_mul(x,y)    _mm_mullo_epi32(x,y) // SSE4.1
-#define simdi32_max(x,y)    _mm_max_epi32(x,y) // SSE4.1
-#define simdi16_max(x,y)    _mm_max_epi16(x,y)
-#define simdi16_hmax(x)     simd_hmax16(x)
-#define simdui8_max(x,y)    _mm_max_epu8(x,y)
-#define simdi8_hmax(x)      simd_hmax8(x)
-#define simdi_load(x)       _mm_load_si128(x)
-#define simdi_loadu(x)      _mm_loadu_si128(x)
-#define simdi_streamload(x) _mm_stream_load_si128(x)
-#define simdi_storeu(x,y)   _mm_storeu_si128(x,y)
-#define simdi_store(x,y)    _mm_store_si128(x,y)
-#define simdi32_set(x)      _mm_set1_epi32(x)
-#define simdi16_set(x)      _mm_set1_epi16(x)
-#define simdi8_set(x)       _mm_set1_epi8(x)
-#define simdi32_shuffle(x,y) _mm_shuffle_epi32(x,y)
-#define simdi16_shuffle(x,y) _mm_shuffle_epi16(x,y)
-#define simdi8_shuffle(x,y)  _mm_shuffle_epi8(x,y)
-#define simdi_setzero()     _mm_setzero_si128()
-#define simdi32_gt(x,y)     _mm_cmpgt_epi32(x,y)
-#define simdi8_gt(x,y)      _mm_cmpgt_epi8(x,y)
-#define simdi32_eq(x,y)     _mm_cmpeq_epi32(x,y)
-#define simdi16_eq(x,y)     _mm_cmpeq_epi16(x,y)
-#define simdi8_eq(x,y)      _mm_cmpeq_epi8(x,y)
-#define simdi32_lt(x,y)     _mm_cmplt_epi32(x,y)
-#define simdi16_lt(x,y)     _mm_cmplt_epi16(x,y)
-#define simdi8_lt(x,y)      _mm_cmplt_epi8(x,y)
-#define simdi16_gt(x,y)     _mm_cmpgt_epi16(x,y)
-#define simdi_or(x,y)       _mm_or_si128(x,y)
-#define simdi_and(x,y)      _mm_and_si128(x,y)
-#define simdi_andnot(x,y)   _mm_andnot_si128(x,y)
-#define simdi_xor(x,y)      _mm_xor_si128(x,y)
-#define simdi8_shiftl(x,y)  _mm_slli_si128(x,y)
-#define simdi8_shiftr(x,y)  _mm_srli_si128(x,y)
-#define simdi8_movemask(x)  _mm_movemask_epi8(x)
-#define simdi16_extract(x,y) extract_epi16(x,y)
-#define simdi16_slli(x,y)	_mm_slli_epi16(x,y) // shift integers in a left by y
-#define simdi16_srli(x,y)	_mm_srli_epi16(x,y) // shift integers in a right by y
-#define simdi32_slli(x,y)	_mm_slli_epi32(x,y) // shift integers in a left by y
-#define simdi32_srli(x,y)	_mm_srli_epi32(x,y) // shift integers in a right by y
-#define simdi32_i2f(x) 	    _mm_cvtepi32_ps(x)  // convert integer to s.p. float
-#define simdi_i2fcast(x)    _mm_castsi128_ps(x)
-#endif //SIMD_INT
-#endif //SSE
-
-#if defined(WASM) || defined(__ALTIVEC__)
-template <typename F>
-inline F simd_hmax(const F * in, unsigned int n);
-
-inline uint16_t simd_hmax16(const __m128i buffer) {
-    union {
-        uint16_t as_u16[8];
-        __m128i  as_vec;
-    } t;
-    t.as_vec = buffer;
-    return simd_hmax<uint16_t>((uint16_t*)(t.as_u16), 8);
-}
-
-inline uint8_t simd_hmax8(const __m128i buffer) {
-    union {
-        uint8_t  as_u8[16];
-        __m128i  as_vec;
-    } t;
-    t.as_vec = buffer;
-    return simd_hmax<uint8_t>((uint8_t*)(t.as_u8), 16);
-}
-#else
-#ifdef NEON
-inline uint16_t simd_hmax16(const __m128i buffer) {
-    uint16x4_t tmp;
-    tmp = vmax_u16(vget_low_u16(vreinterpretq_u16_m128i(buffer)), vget_high_u16(vreinterpretq_u16_m128i(buffer)));
-    tmp = vpmax_u16(tmp, tmp);
-    tmp = vpmax_u16(tmp, tmp);
-    return vget_lane_u16(tmp, 0);
-}
-
-inline uint8_t simd_hmax8(const __m128i buffer) {
-    uint8x8_t tmp;
-    tmp = vmax_u8(vget_low_u8(vreinterpretq_u8_m128i(buffer)), vget_high_u8(vreinterpretq_u8_m128i(buffer)));
-    tmp = vpmax_u8(tmp, tmp);
-    tmp = vpmax_u8(tmp, tmp);
-    tmp = vpmax_u8(tmp, tmp);
-    return vget_lane_u8(tmp, 0);
-}
-#else
 inline uint16_t simd_hmax16(const __m128i buffer)
 {
     __m128i tmp1 = _mm_subs_epu16(_mm_set1_epi16((short)65535), buffer);
@@ -459,10 +278,7 @@ inline uint8_t simd_hmax8(const __m128i buffer)
     __m128i tmp3 = _mm_minpos_epu16(tmp2);
     return (int8_t)(255 -(int8_t) _mm_cvtsi128_si32(tmp3));
 }
-#endif
-#endif
 
-#ifdef AVX2
 inline uint16_t simd_hmax16_avx(const __m256i buffer){
     const __m128i abcd = _mm256_castsi256_si128(buffer);
     const uint16_t first = simd_hmax16(abcd);
@@ -478,11 +294,7 @@ inline uint8_t simd_hmax8_avx(const __m256i buffer){
     const uint8_t second = simd_hmax8(efgh);
     return std::max(first,second);
 }
-#endif
 
-
-
-#ifdef AVX2
 inline unsigned short extract_epi16(__m256i v, int pos) {
     switch(pos){
         case 0: return _mm256_extract_epi16(v, 0);
@@ -504,24 +316,6 @@ inline unsigned short extract_epi16(__m256i v, int pos) {
     }
     return 0;
 }
-#else
-#ifdef SSE
-inline unsigned short extract_epi16(__m128i v, int pos) {
-    switch(pos){
-        case 0: return _mm_extract_epi16(v, 0);
-        case 1: return _mm_extract_epi16(v, 1);
-        case 2: return _mm_extract_epi16(v, 2);
-        case 3: return _mm_extract_epi16(v, 3);
-        case 4: return _mm_extract_epi16(v, 4);
-        case 5: return _mm_extract_epi16(v, 5);
-        case 6: return _mm_extract_epi16(v, 6);
-        case 7: return _mm_extract_epi16(v, 7);
-    }
-    return 0;
-}
-#endif
-#endif
-
 
 /* horizontal max */
 template <typename F>
@@ -625,7 +419,6 @@ inline float ScalarProd20(const float* qi, const float* tj) {
 //
 //
 //TODO fix this
-#if defined(SSE) && !defined(WASM) && !defined(__ALTIVEC__)
     float __attribute__((aligned(16))) res;
     __m128 P; // query 128bit SSE2 register holding 4 floats
     __m128 R;// result
@@ -654,7 +447,6 @@ inline float ScalarProd20(const float* qi, const float* tj) {
     R = _mm_add_ps(R,P);
     _mm_store_ss(&res, R);
     return res;
-#endif
 //#endif
     return tj[0] * qi[0] + tj[1] * qi[1] + tj[2] * qi[2] + tj[3] * qi[3]
             + tj[4] * qi[4] + tj[5] * qi[5] + tj[6] * qi[6] + tj[7] * qi[7]

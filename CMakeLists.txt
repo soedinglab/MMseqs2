@@ -42,17 +42,15 @@ endif ()
 set(MMSEQS_CXX_FLAGS "-std=c++0x")
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
     set(ARM 1)
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DNEON=1 -DSSE=1 -fsigned-char -mfpu=neon")
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -fsigned-char")
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*)")
     set(ARM 1)
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DNEON=1 -DSSE=1 -fsigned-char")
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -fsigned-char")
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "PPC64*|ppc64*|powerpc64*")
     set(PPC64 1)
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DSSE=1 -fsigned-char -std=gnu++0x -mcpu=power8 -mvsx")
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -fsigned-char -std=gnu++0x")
 elseif (EMSCRIPTEN)
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DSSE=1 -DWASM=1 -msimd128 -s WASM=1 -s ASSERTIONS=1")
-else ()
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -m64")
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DWASM=1 -msimd128 -s WASM=1 -s ASSERTIONS=1")
 endif ()
 
 # Compiler-specific features
@@ -97,6 +95,9 @@ add_subdirectory(lib/tinyexpr EXCLUDE_FROM_ALL)
 # microtar
 include_directories(lib/microtar)
 add_subdirectory(lib/microtar)
+
+# simde
+include_directories(lib/simde)
 
 # default cygwin allocator (dlmalloc) locks on every allocation and destroys MT performance
 if (CYGWIN)

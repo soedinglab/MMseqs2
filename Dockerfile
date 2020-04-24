@@ -28,11 +28,11 @@ ADD . .
 RUN mkdir -p build_sse/src && mkdir -p build_avx/src && mkdir -p build/src; \
     if [ X"$NAMESPACE" = X"" ]; then \
        cd /opt/mmseqs/build_sse; \
-       cmake -DHAVE_SSE4_1=1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
+       cmake -DCMAKE_CXX_FLAGS=-msse4.1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
        make -j $(nproc --all); \
        mv src/mmseqs /opt/mmseqs/mmseqs_sse42; \
        cd /opt/mmseqs/build_avx; \
-       cmake -DHAVE_AVX2=1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
+       cmake -DCMAKE_CXX_FLAGS=-mavx2 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
        make -j $(nproc --all); \
        mv src/mmseqs /opt/mmseqs/mmseqs_avx2; \
        touch /opt/mmseqs/mmseqs_arch; \
