@@ -50,7 +50,6 @@ int UngappedAlignment::scalarDiagonalScoring(const char * profile,
     return max;
 }
 
-#ifdef AVX2
 inline __m256i UngappedAlignment::Shuffle(const __m256i & value, const __m256i & shuffle)
 {
     const __m256i K0 = _mm256_setr_epi8(
@@ -62,7 +61,6 @@ inline __m256i UngappedAlignment::Shuffle(const __m256i & value, const __m256i &
     return _mm256_or_si256(_mm256_shuffle_epi8(value, _mm256_add_epi8(shuffle, K0)),
                            _mm256_shuffle_epi8(_mm256_permute4x64_epi64(value, 0x4E), _mm256_add_epi8(shuffle, K1)));
 }
-#endif
 
 simd_int UngappedAlignment::vectorDiagonalScoring(const char *profile,
                                                 const char bias,
@@ -71,48 +69,13 @@ simd_int UngappedAlignment::vectorDiagonalScoring(const char *profile,
     simd_int vscore        = simdi_setzero();
     simd_int vMaxScore     = simdi_setzero();
     const simd_int vBias   = simdi8_set(bias);
-#ifndef AVX2
-    #ifdef SSE
-    const simd_int sixten  = simdi8_set(16);
-    const simd_int fiveten = simdi8_set(15);
-#endif
-#endif
     for(unsigned int pos = 0; pos < seqLen; pos++){
         simd_int template01 = simdi_load((simd_int *)&dbSeq[pos*VECSIZE_INT*4]);
-#ifdef AVX2
         __m256i score_matrix_vec01 = _mm256_load_si256((simd_int *)&profile[pos * PROFILESIZE]);
         __m256i score_vec_8bit = Shuffle(score_matrix_vec01, template01);
         //        __m256i score_vec_8bit = _mm256_shuffle_epi8(score_matrix_vec01, template01);
         //        __m256i lookup_mask01  = _mm256_cmpgt_epi8(sixten, template01); // 16 > t
         //        score_vec_8bit = _mm256_and_si256(score_vec_8bit, lookup_mask01);
-#elif defined(SSE)
-        // each position has 32 byte
-        // 20 scores and 12 zeros
-        // load score 0 - 15
-        __m128i score_matrix_vec01 = _mm_load_si128((__m128i *)&profile[pos * 32]);
-        // load score 16 - 32
-        __m128i score_matrix_vec16 = _mm_load_si128((__m128i *)&profile[pos * 32 + 16]);
-        // parallel score lookup
-        // _mm_shuffle_epi8
-        // for i ... 16
-        //   score01[i] = score_matrix_vec01[template01[i]%16]
-        __m128i score01 =_mm_shuffle_epi8(score_matrix_vec01,template01);
-        __m128i score16 =_mm_shuffle_epi8(score_matrix_vec16,template01);
-        // t[i] < 16 => 0 - 15
-        // example: template01: 02 15 12 18 < 16 16 16 16 => FF FF FF 00
-        __m128i lookup_mask01 = _mm_cmplt_epi8(template01, sixten);
-        // 15 < t[i] => 16 - xx
-        // example: template01: 16 16 16 16 < 02 15 12 18 => 00 00 00 FF
-        __m128i lookup_mask16 = _mm_cmplt_epi8(fiveten, template01);
-        // score01 & lookup_mask01 => Score   Score   Score   NoScore
-        score01 = _mm_and_si128(lookup_mask01,score01);
-        // score16 & lookup_mask16 => NoScore NoScore NoScore Score
-        score16 = _mm_and_si128(lookup_mask16,score16);
-        //     Score   Score   Score NoScore
-        // + NoScore NoScore NoScore   Score
-        // =   Score   Score   Score   Score
-        __m128i score_vec_8bit = _mm_add_epi8(score01,score16);
-#endif
 
         vscore    = simdui8_adds(vscore, score_vec_8bit);
         vscore    = simdui8_subs(vscore, vBias);
@@ -273,7 +236,6 @@ unsigned short UngappedAlignment::distanceFromDiagonal(const unsigned short diag
 }
 
 void UngappedAlignment::extractScores(unsigned int *score_arr, simd_int score) {
-#ifdef AVX2
 #define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi8(score, i)
     EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
     EXTRACT_AVX(4);  EXTRACT_AVX(5);  EXTRACT_AVX(6);  EXTRACT_AVX(7);
@@ -284,14 +246,6 @@ void UngappedAlignment::extractScores(unsigned int *score_arr, simd_int score) {
     EXTRACT_AVX(24);  EXTRACT_AVX(25);  EXTRACT_AVX(26);  EXTRACT_AVX(27);
     EXTRACT_AVX(28);  EXTRACT_AVX(29);  EXTRACT_AVX(30);  EXTRACT_AVX(31);
 #undef EXTRACT_AVX
-#elif defined(SSE)
-    #define EXTRACT_SSE(i) score_arr[i] = _mm_extract_epi8(score, i)
-    EXTRACT_SSE(0);  EXTRACT_SSE(1);   EXTRACT_SSE(2);  EXTRACT_SSE(3);
-    EXTRACT_SSE(4);  EXTRACT_SSE(5);   EXTRACT_SSE(6);  EXTRACT_SSE(7);
-    EXTRACT_SSE(8);  EXTRACT_SSE(9);   EXTRACT_SSE(10); EXTRACT_SSE(11);
-    EXTRACT_SSE(12); EXTRACT_SSE(13);  EXTRACT_SSE(14); EXTRACT_SSE(15);
-#undef EXTRACT_SSE
-#endif
 }
 
 

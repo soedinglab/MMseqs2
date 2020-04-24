@@ -276,15 +276,14 @@ int doswap(Parameters& par, bool isGeneralMode) {
                         Matcher::result_t::swapResult(res, *evaluer, hasBacktrace);
                         if (res.eval > par.evalThr) {
                             evalBreak = true;
-                            goto outer;
-                        }
-                        curRes.emplace_back(res);
+                        } else {
+                            curRes.emplace_back(res);
+			}
                     } else {
                         hit_t hit = QueryMatcher::parsePrefilterHit(data);
                         hit.diagonal = static_cast<unsigned short>(static_cast<short>(hit.diagonal) * -1);
                         curRes.emplace_back(hit.seqId, hit.prefScore, 0, 0, 0, -static_cast<float>(hit.prefScore), hit.diagonal, 0, 0, 0, 0, 0, 0, "");
                     }
-                    outer:
                     char *nextLine = Util::skipLine(data);
                     size_t lineLen = nextLine - data;
                     dataSize -= lineLen;
