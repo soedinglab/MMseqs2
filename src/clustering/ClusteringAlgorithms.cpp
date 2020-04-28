@@ -325,48 +325,11 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
     for (size_t id = 0; id < dbSize; ++id) {
         unsigned int assignedClusterId = assignedcluster[id];
         // check if the assigned clusterid is a rep. sequence
-        // if assignedClusterId == assignedcluster[assignedClusterId] = rep. seq
+        // if not, make it a rep. seq. again
         if (assignedcluster[assignedClusterId] != assignedClusterId){
-            assignedcluster[id] = UINT_MAX;
+            assignedcluster[assignedClusterId] = assignedClusterId;
         }
     }
-    for(size_t i = 0; i < dbSize; i++) {
-        unsigned int clusterKey = seqDbr->getDbKey(i);
-        unsigned int clusterId = seqDbr->getId(clusterKey);
-        // try to set your self as cluster centriod
-        // if some other cluster covered
-        unsigned int targetId;
-        if(assignedcluster[clusterId] == UINT_MAX){
-            __atomic_load(&assignedcluster[clusterId], &targetId ,__ATOMIC_RELAXED);
-            do {
-                if (targetId <= clusterId) break;
-            } while (!__atomic_compare_exchange(&assignedcluster[clusterId],  &targetId,  &clusterId , false,  __ATOMIC_RELAXED, __ATOMIC_RELAXED));
-        }
-        const size_t alnId = alnDbr->getId(clusterKey);
-        char *data = alnDbr->getData(alnId, 0);
-        // only if the current sequence is a cluster centriod
-        if(assignedcluster[clusterId] == clusterId){
-            while (*data != '\0') {
-                char dbKey[255 + 1];
-                Util::parseKey(data, dbKey);
-                const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-
-                unsigned int currElement = seqDbr->getId(key);
-                if(assignedcluster[currElement] ==  UINT_MAX){
-                    unsigned int targetId;
-
-                    __atomic_load(&assignedcluster[currElement], &targetId, __ATOMIC_RELAXED);
-                    do {
-                        if (targetId <= clusterId) break;
-                    } while (!__atomic_compare_exchange(&assignedcluster[currElement], &targetId, &clusterId, false,
-                                                        __ATOMIC_RELAXED, __ATOMIC_RELAXED));
-                }
-                data = Util::skipLine(data);
-
-            }
-        }
-    }
-
 
 }
 
