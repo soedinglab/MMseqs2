@@ -1793,7 +1793,7 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
                 fileIdx++;
             } else {
                 if (FileUtil::fileExists(filenames[fileIdx].c_str()) == true) {
-                    Debug(Debug::WARNING) << filenames[dbIdx] << " exists and will be overwritten.\n";
+                    Debug(Debug::WARNING) << filenames[fileIdx] << " exists and will be overwritten.\n";
                 }
                 fileIdx++;
 //                FILE *fp = fopen(filenames[dbIdx].c_str(), "a");
