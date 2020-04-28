@@ -181,6 +181,10 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
             cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
             par.rescoreMode = originalRescoreMode;
         } else {
+            cmd.addVariable("ALIGNMENT_MODE_NOT_SET","TRUE");
+            par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+            cmd.addVariable("RESCORE_ALN_PAR", par.createParameterString(par.rescorediagonal).c_str());
+            cmd.addVariable("THREADSANDCOMPRESS_PAR", par.createParameterString(par.threadsandcompression).c_str());
             cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         }
         cmd.addVariable("CLUSTER_PAR",   par.createParameterString(par.clust).c_str());

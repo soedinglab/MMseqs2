@@ -47,11 +47,43 @@ if notExists "${TMP_PATH}/pref.dbtype"; then
         || fail "Prefilter step died"
 fi
 
-if notExists "${TMP_PATH}/aln.dbtype"; then
-    # shellcheck disable=SC2086
-    $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$QUERY" "$INPUT" "${TMP_PATH}/pref" "${TMP_PATH}/aln" ${ALIGNMENT_PAR}  \
-         || fail "Alignment step died"
+
+if [ -n "$ALIGNMENT_MODE_NOT_SET" ]; then
+
+    if notExists "${TMP_PATH}/aln_rescore.dbtype"; then
+        # shellcheck disable=SC2086
+        $RUNNER "$MMSEQS" rescorediagonal "$QUERY" "$INPUT" "${TMP_PATH}/pref" "${TMP_PATH}/aln_ungapped" ${RESCORE_ALN_PAR}  \
+             || fail "Alignment step died"
+    fi
+
+    if notExists "${TMP_PATH}/pref_subtract.dbtype"; then
+        # shellcheck disable=SC2086
+        $RUNNER "$MMSEQS" subtractdbs "${TMP_PATH}/pref" "${TMP_PATH}/aln_ungapped" "${TMP_PATH}/pref_subtract" ${THREADSANDCOMPRESS_PAR}  \
+             || fail "Alignment step died"
+    fi
+
+    if notExists "${TMP_PATH}/aln_gapped.dbtype"; then
+        # shellcheck disable=SC2086
+        $RUNNER "$MMSEQS" align "$QUERY" "$INPUT" "${TMP_PATH}/pref_subtract" "${TMP_PATH}/aln_gapped" ${ALIGNMENT_PAR}  \
+             || fail "Alignment step died"
+    fi
+
+    if notExists "${TMP_PATH}/aln.dbtype"; then
+            # shellcheck disable=SC2086
+         "$MMSEQS" concatdbs "${TMP_PATH}/aln_ungapped" "${TMP_PATH}/aln_gapped" "${TMP_PATH}/aln" --preserve-keys --take-larger-entry ${THREADSANDCOMPRESS_PAR}\
+             || fail "Mergedbs died"
+    fi
+
+else
+    if notExists "${TMP_PATH}/aln.dbtype"; then
+        # shellcheck disable=SC2086
+        $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$QUERY" "$INPUT" "${TMP_PATH}/pref" "${TMP_PATH}/aln" ${ALIGNMENT_PAR}  \
+             || fail "Alignment step died"
+    fi
+
 fi
+
+
 
 if notExists "${TMP_PATH}/aln_off"; then
     # shellcheck disable=SC2086
