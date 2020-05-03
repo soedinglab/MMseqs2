@@ -15,9 +15,9 @@
 
 int alignall(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
+    par.overrideParameterDescription(par.PARAM_ALIGNMENT_MODE, "How to compute the alignment:\n0: automatic\n1: only score and end_pos\n2: also start_pos and cov\n3: also seq.id", NULL, 0);
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    par.overrideParameterDescription(par.PARAM_ALIGNMENT_MODE, "How to compute the alignment: 0: automatic; 1: only score and end_pos; 2: also start_pos and cov; 3: also seq.id", NULL, 0);
     if (par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED) {
         Debug(Debug::ERROR) << "Use rescorediagonal for ungapped alignment mode.\n";
         EXIT(EXIT_FAILURE);
