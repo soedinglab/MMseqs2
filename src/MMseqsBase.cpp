@@ -536,7 +536,7 @@ std::vector<Command> baseCommands = {
                                                            {"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                                            {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
                                                            {"alignmentDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb }}},
-        {"alignall",             alignall,             &par.align,                COMMAND_ALIGNMENT,
+        {"alignall",             alignall,             &par.alignall,             COMMAND_ALIGNMENT,
                 "Within-result all-vs-all gapped local alignment",
                 NULL,
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",

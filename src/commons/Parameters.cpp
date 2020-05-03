@@ -281,6 +281,35 @@ Parameters::Parameters():
     threadsandcompression.push_back(&PARAM_COMPRESSED);
     threadsandcompression.push_back(&PARAM_V);
 
+    // alignall
+    alignall.push_back(&PARAM_SUB_MAT);
+    alignall.push_back(&PARAM_ADD_BACKTRACE);
+    alignall.push_back(&PARAM_ALIGNMENT_MODE);
+//    alignall.push_back(&PARAM_WRAPPED_SCORING);
+    alignall.push_back(&PARAM_E);
+    alignall.push_back(&PARAM_MIN_SEQ_ID);
+    alignall.push_back(&PARAM_MIN_ALN_LEN);
+    alignall.push_back(&PARAM_SEQ_ID_MODE);
+//    alignall.push_back(&PARAM_ALT_ALIGNMENT);
+    alignall.push_back(&PARAM_C);
+    alignall.push_back(&PARAM_COV_MODE);
+    alignall.push_back(&PARAM_MAX_SEQ_LEN);
+    alignall.push_back(&PARAM_NO_COMP_BIAS_CORR);
+//    alignall.push_back(&PARAM_REALIGN);
+//    alignall.push_back(&PARAM_MAX_REJECTED);
+//    alignall.push_back(&PARAM_MAX_ACCEPT);
+    alignall.push_back(&PARAM_INCLUDE_IDENTITY);
+    alignall.push_back(&PARAM_PRELOAD_MODE);
+    alignall.push_back(&PARAM_PCA);
+    alignall.push_back(&PARAM_PCB);
+    alignall.push_back(&PARAM_SCORE_BIAS);
+    alignall.push_back(&PARAM_GAP_OPEN);
+    alignall.push_back(&PARAM_GAP_EXTEND);
+    alignall.push_back(&PARAM_ZDROP);
+    alignall.push_back(&PARAM_THREADS);
+    alignall.push_back(&PARAM_COMPRESSED);
+    alignall.push_back(&PARAM_V);
+
     // alignment
     align.push_back(&PARAM_SUB_MAT);
     align.push_back(&PARAM_ADD_BACKTRACE);
