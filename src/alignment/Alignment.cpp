@@ -79,7 +79,7 @@ Alignment::Alignment(const std::string &querySeqDB,
 //        }
         alignmentMode = (alignmentMode > Parameters::ALIGNMENT_MODE_SCORE_COV) ? alignmentMode : Parameters::ALIGNMENT_MODE_SCORE_COV;
     }
-    initSWMode(alignmentMode);
+    swMode = initSWMode(alignmentMode, par.covThr, par.seqIdThr);
 
     if (par.wrappedScoring)
     {
@@ -162,7 +162,8 @@ Alignment::Alignment(const std::string &querySeqDB,
     }
 }
 
-void Alignment::initSWMode(unsigned int alignmentMode) {
+unsigned int Alignment::initSWMode(unsigned int alignmentMode, float covThr, float seqIdThr) {
+    unsigned int swMode = Matcher::SCORE_ONLY;
     switch (alignmentMode) {
         case Parameters::ALIGNMENT_MODE_FAST_AUTO:
             if(covThr > 0.0 && seqIdThr == 0.0) {
@@ -199,6 +200,7 @@ void Alignment::initSWMode(unsigned int alignmentMode) {
             Debug(Debug::ERROR) << "Wrong swMode mode\n";
             EXIT(EXIT_FAILURE);
     }
+    return swMode;
 }
 
 Alignment::~Alignment() {

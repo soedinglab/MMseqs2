@@ -56,7 +56,7 @@ Parameters::Parameters():
         PARAM_SPACED_KMER_PATTERN(PARAM_SPACED_KMER_PATTERN_ID, "--spaced-kmer-pattern", "Spaced k-mer pattern", "User-specified spaced k-mer pattern", typeid(std::string), (void *) &spacedKmerPattern, "^1[01]*1$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_LOCAL_TMP(PARAM_LOCAL_TMP_ID, "--local-tmp", "Local temporary path", "Path where some of the temporary files will be created", typeid(std::string), (void *) &localTmp, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         // alignment
-        PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID, "--alignment-mode", "Alignment mode", "How to compute the alignment: 0: automatic; 1: only score and end_pos; 2: also start_pos and cov; 3: also seq.id; 4: only ungapped alignment", typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID, "--alignment-mode", "Alignment mode", "How to compute the alignment:\n0: automatic\n1: only score and end_pos\n2: also start_pos and cov\n3: also seq.id\n4: only ungapped alignment", typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_E(PARAM_E_ID, "-e", "E-value threshold", "List matches below this E-value (range 0.0-inf)", typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_C(PARAM_C_ID, "-c", "Coverage threshold", "List matches above this fraction of aligned (covered) residues (see --cov-mode)", typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|^1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_COV_MODE(PARAM_COV_MODE_ID, "--cov-mode", "Coverage mode", "0: coverage of query and target\n1: coverage of target\n2: coverage of query\n3: target seq. length has to be at least x% of query length\n4: query seq. length has to be at least x% of target length\n5: short seq. needs to be at least x% of the other seq. length", typeid(int), (void *) &covMode, "^[0-5]{1}$", MMseqsParameter::COMMAND_ALIGN),
@@ -280,6 +280,35 @@ Parameters::Parameters():
     threadsandcompression.push_back(&PARAM_THREADS);
     threadsandcompression.push_back(&PARAM_COMPRESSED);
     threadsandcompression.push_back(&PARAM_V);
+
+    // alignall
+    alignall.push_back(&PARAM_SUB_MAT);
+    alignall.push_back(&PARAM_ADD_BACKTRACE);
+    alignall.push_back(&PARAM_ALIGNMENT_MODE);
+//    alignall.push_back(&PARAM_WRAPPED_SCORING);
+    alignall.push_back(&PARAM_E);
+    alignall.push_back(&PARAM_MIN_SEQ_ID);
+    alignall.push_back(&PARAM_MIN_ALN_LEN);
+    alignall.push_back(&PARAM_SEQ_ID_MODE);
+//    alignall.push_back(&PARAM_ALT_ALIGNMENT);
+    alignall.push_back(&PARAM_C);
+    alignall.push_back(&PARAM_COV_MODE);
+    alignall.push_back(&PARAM_MAX_SEQ_LEN);
+    alignall.push_back(&PARAM_NO_COMP_BIAS_CORR);
+//    alignall.push_back(&PARAM_REALIGN);
+//    alignall.push_back(&PARAM_MAX_REJECTED);
+//    alignall.push_back(&PARAM_MAX_ACCEPT);
+    alignall.push_back(&PARAM_INCLUDE_IDENTITY);
+    alignall.push_back(&PARAM_PRELOAD_MODE);
+    alignall.push_back(&PARAM_PCA);
+    alignall.push_back(&PARAM_PCB);
+    alignall.push_back(&PARAM_SCORE_BIAS);
+    alignall.push_back(&PARAM_GAP_OPEN);
+    alignall.push_back(&PARAM_GAP_EXTEND);
+    alignall.push_back(&PARAM_ZDROP);
+    alignall.push_back(&PARAM_THREADS);
+    alignall.push_back(&PARAM_COMPRESSED);
+    alignall.push_back(&PARAM_V);
 
     // alignment
     align.push_back(&PARAM_SUB_MAT);

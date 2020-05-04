@@ -674,7 +674,6 @@ public:
     PARAMETER(PARAM_GAP_OPEN)
     PARAMETER(PARAM_GAP_EXTEND)
     PARAMETER(PARAM_ZDROP)
-    std::vector<MMseqsParameter*> align;
 
     // clustering
     PARAMETER(PARAM_CLUSTER_MODE)
@@ -920,6 +919,8 @@ public:
     std::vector<MMseqsParameter*> onlythreads;
     std::vector<MMseqsParameter*> threadsandcompression;
 
+    std::vector<MMseqsParameter*> alignall;
+    std::vector<MMseqsParameter*> align;
     std::vector<MMseqsParameter*> rescorediagonal;
     std::vector<MMseqsParameter*> alignbykmer;
     std::vector<MMseqsParameter*> createFasta;
