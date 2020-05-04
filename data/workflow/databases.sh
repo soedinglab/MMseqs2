@@ -38,7 +38,9 @@ downloadFile() {
     for i in $STRATEGY; do
         case "$i" in
         ARIA)
-            aria2c --max-connection-per-server="$ARIA_NUM_CONN" --allow-overwrite=true -o "$OUTPUT" "$URL" && return 0
+            FILENAME=$(basename "${OUTPUT}")
+            DIR=$(dirname "${OUTPUT}")
+            aria2c --max-connection-per-server="$ARIA_NUM_CONN" --allow-overwrite=true -o "$FILENAME" -d "$DIR" "$URL" && return 0
             ;;
         CURL)
             curl -o "$OUTPUT" "$URL" && return 0
