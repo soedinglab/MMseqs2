@@ -9,6 +9,7 @@
 
 void setRbhDefaults(Parameters *p) {
     p->compBiasCorrection = 0;
+    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     p->maskMode = 0;
     p->orfStartMode = 1;
     p->orfMinLength = 10;

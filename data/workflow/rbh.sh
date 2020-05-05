@@ -60,7 +60,7 @@ fi
 # swap the direction of resB_best_A:
 if [ ! -e "${TMP_PATH}/resB_best_A_swap.dbtype" ]; then
     # shellcheck disable=SC2086
-    "$MMSEQS" swapdb "${TMP_PATH}/resB_best_A" "${TMP_PATH}/resB_best_A_swap" ${THREADS_COMP_PAR} \
+    "$MMSEQS" swapresults "${B_DB}" "${A_DB}" "${TMP_PATH}/resB_best_A" "${TMP_PATH}/resB_best_A_swap" ${THREADS_COMP_PAR} -e 100000000 \
         || fail "swap B best A died"
 fi
 
