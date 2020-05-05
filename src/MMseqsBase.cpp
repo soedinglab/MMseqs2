@@ -94,9 +94,16 @@ std::vector<Command> baseCommands = {
                                                            {"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_HEADER|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
                                                            {"taxReports",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
-
-
-
+        {"easy-rbh",                  easyrbh,                  &par.easysearchworkflow,       COMMAND_EASY,
+                "Find reciprocal best hit",
+                "# Assign reciprocal best hit\n"
+                "mmseqs easy-rbh examples/QUERY.fasta examples/DB.fasta result tmp\n\n",
+                "Eli Levy Karin & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+                "<i:queryFastaFile1[.gz|.bz2]> <i:targetFastaFile[.gz|.bz2]>|<i:targetDB> <o:alignmentFile> <tmpDir>",
+                CITATION_MMSEQS2,{{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
+                                   {"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                   {"alignmentFile", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                   {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"databases",            databases,            &par.databases,            COMMAND_DATABASE_CREATION,
                 "List and download databases",
                 NULL,

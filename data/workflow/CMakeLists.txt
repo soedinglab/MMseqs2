@@ -2,6 +2,7 @@ set(GENERATED_WORKFLOWS
         workflow/easysearch.sh
         workflow/easycluster.sh
         workflow/easytaxonomy.sh
+        workflow/easyrbh.sh
         workflow/blastp.sh
         workflow/blastpgp.sh
         workflow/map.sh
