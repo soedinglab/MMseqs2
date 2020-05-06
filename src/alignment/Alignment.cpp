@@ -130,25 +130,19 @@ Alignment::Alignment(const std::string &querySeqDB,
 
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         m = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, scoreBias);
-        gapOpen = par.gapOpen;
-        gapExtend = par.gapExtend;
+        gapOpen = par.gapOpen.nucleotides;
+        gapExtend = par.gapExtend.nucleotides;
         zdrop = par.zdrop;
-        if(par.PARAM_GAP_OPEN.wasSet==false){
-            gapOpen = 5;
-        }
-        if(par.PARAM_GAP_EXTEND.wasSet==false){
-            gapExtend = 2;
-        }
     } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
         SubstitutionMatrix s(par.scoringMatrixFile.aminoacids, 2.0, scoreBias);
         this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 219);
-        gapOpen = par.gapOpen;
-        gapExtend = par.gapExtend;
+        gapOpen = par.gapOpen.aminoacids;
+        gapExtend = par.gapExtend.aminoacids;
     } else {
         // keep score bias at 0.0 (improved ROC)
         m = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, scoreBias);
-        gapOpen = par.gapOpen;
-        gapExtend = par.gapExtend;
+        gapOpen = par.gapOpen.aminoacids;
+        gapExtend = par.gapExtend.aminoacids;
     }
 
     if (realign == true) {

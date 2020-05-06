@@ -121,7 +121,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(tmpRes.c_str(), tmpResIndex.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
 
-    EvalueComputation evaluer(sequenceDbr.getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
+    EvalueComputation evaluer(sequenceDbr.getAminoAcidDBSize(), subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
     const size_t flushSize = 100000000;
     size_t iterations = static_cast<int>(ceil(static_cast<double>(alnReader.getSize()) / static_cast<double>(flushSize)));
     for (size_t i = 0; i < iterations; i++) {
@@ -135,7 +135,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-            Matcher matcher(querySeqType, par.maxSeqLen, subMat, &evaluer, par.compBiasCorrection, par.gapOpen, par.gapExtend, par.zdrop);
+            Matcher matcher(querySeqType, par.maxSeqLen, subMat, &evaluer, par.compBiasCorrection, par.gapOpen.aminoacids, par.gapExtend.aminoacids, par.zdrop);
 
 //            Sequence query(par.maxSeqLen, targetSeqType, subMat, par.kmerSize, par.spacedKmer, par.compBiasCorrection);
 //            Sequence target(par.maxSeqLen, targetSeqType, subMat, par.kmerSize, par.spacedKmer, par.compBiasCorrection);
@@ -208,7 +208,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 //                            result.backtrace.push_back('M');
                         }else{
                             btTranslate.translateResult(swappedResult, results[entryIdx_j], result);
-                            updateResultByRescoringBacktrace(querySeq, targetSeq, fastMatrix.matrix, evaluer, par.gapOpen, par.gapExtend, result);
+                            updateResultByRescoringBacktrace(querySeq, targetSeq, fastMatrix.matrix, evaluer, par.gapOpen.aminoacids, par.gapExtend.aminoacids, result);
                         }
                         // checkCriteria and Util::canBeCovered always work together
                         if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr)) {

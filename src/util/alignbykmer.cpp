@@ -41,6 +41,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         querySeqType = qdbr->getDbtype();
     }
 
+    int gapOpen, gapExtend;
     if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)){
         par.alphabetSize = 5;
         if(par.PARAM_SPACED_KMER_MODE.wasSet == false) {
@@ -49,18 +50,15 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         if(par.PARAM_K.wasSet == false) {
             par.kmerSize = 9;
         }
-        if(par.PARAM_GAP_OPEN.wasSet == false){
-            par.gapOpen = 5;
-        }
-        if(par.PARAM_GAP_EXTEND.wasSet == false) {
-            par.gapExtend = 2;
-        }
-
+        gapOpen = par.gapOpen.nucleotides;
+        gapExtend = par.gapExtend.nucleotides;
     } else {
         if(par.PARAM_K.wasSet == false) {
             par.kmerSize = 4;
         }
         par.alphabetSize = 21;
+        gapOpen = par.gapOpen.aminoacids;
+        gapExtend = par.gapExtend.aminoacids;
     }
     par.printParameters(command.cmd, argc, argv, *command.params);
 
@@ -86,7 +84,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     }
     ScoreMatrix _2merSubMatrix = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
 
-    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, gapOpen, gapExtend);
 
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
@@ -311,7 +309,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                             if (stretcheVec[currStretche].i_start > stretcheVec[prevPotentialStretche].i_end &&
                                     stretcheVec[currStretche].j_start > stretcheVec[prevPotentialStretche].i_end) {
                                 int bestScorePathPrevIsLast = dpMatrixRow[prevPotentialStretche].pathScore;
-                                int distance =  par.gapOpen + (stretcheVec[prevPotentialStretche].i_end - stretcheVec[currStretche].i_start)*par.gapExtend;
+                                int distance =  gapOpen + (stretcheVec[prevPotentialStretche].i_end - stretcheVec[currStretche].i_start) * gapExtend;
                                 int costOfPrevToCurrTransition = distance;
                                 int currScore = stretcheVec[currStretche].kmerCnt*par.kmerSize*2;
                                 int currScoreWithPrev = bestScorePathPrevIsLast + costOfPrevToCurrTransition + currScore;
@@ -435,20 +433,20 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                             score += subMat->subMatrix[query.numSequence[i]][target.numSequence[j]];
                         }
                         if (stretch > 0) {
-                            score -= par.gapOpen;
+                            score -= gapOpen;
                             if (strechtPath[stretch-1].i_start==strechtPath[stretch].i_end) {
                                 for (size_t pos = strechtPath[stretch].j_end; pos < strechtPath[stretch-1].j_start; pos++) {
 //                                    querystr.push_back('-');
 //                                    targetstr.push_back(subMat->num2aa[target.sequence[pos]]);
                                     bt.push_back('I');
-                                    score -= par.gapExtend;
+                                    score -= gapExtend;
                                 }
                             } else {
                                 for (size_t pos = strechtPath[stretch].i_end; pos < strechtPath[stretch-1].i_start; pos++) {
 //                                    querystr.push_back(subMat->num2aa[query.sequence[pos]]);
 //                                    targetstr.push_back('-');
                                     bt.push_back('D');
-                                    score -= par.gapExtend;
+                                    score -= gapExtend;
                                 }
                             }
                         }

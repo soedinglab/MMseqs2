@@ -365,8 +365,8 @@ public:
     int    alnLenThr;                    // min. alignment length
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
-    int    gapOpen;                      // gap open
-    int    gapExtend;                    // gap extend
+    MultiParam<int> gapOpen;             // gap open cost
+    MultiParam<int> gapExtend;           // gap extension cost
     int    zdrop;                        // zdrop
 
     // workflow
