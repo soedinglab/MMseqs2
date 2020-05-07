@@ -128,26 +128,46 @@ int filterdb(int argc, const char **argv, const Command &command) {
             Debug(Debug::ERROR) << "File " << par.filteringFile << " does not exist\n";
             EXIT(EXIT_FAILURE);
         }
-        char *line = NULL;
-        size_t len = 0;
         char key[65536];
         for (size_t i = 0; i < filenames.size(); i++) {
             FILE * orderFile = fopen(filenames[i].c_str(), "r");
-            while (getline(&line, &len, orderFile) != -1) {
-                size_t offset = 0;
-                // ignore \0 in data files to support datafiles as input
-                while (offset < len && line[offset] == '\0') {
-                    offset++;
+            int c;
+            size_t offset = 0;
+            bool inKey = true;
+            // parse first column in each line without tripping over additional null bytes
+            // as we allow database data files as input
+            while ((c = fgetc(orderFile)) != EOF) {
+                if (c == '\n') {
+                    if (offset > 0) {
+                        key[offset] = '\0';
+                        offset = 0;
+                        filter.emplace_back(key);
+                    }
+                    inKey = true;
+                    continue;
                 }
-                if (offset >= len) {
-                    break;
+                if (c == ' ' || c == '\t') {
+                    inKey = false;
+                    continue;
                 }
-                Util::parseKey(line + offset, key);
+                if (c == '\0' || inKey == false) {
+                    continue;
+                }
+
+                key[offset] = c;
+                offset++;
+
+                if (offset == 65536) {
+                    Debug(Debug::ERROR) << "Input in file " << filenames[i] << " too long\n";
+                    EXIT(EXIT_FAILURE);
+                }
+            }
+            if (inKey == true && offset > 0) {
+                key[offset] = '\0';
                 filter.emplace_back(key);
             }
             fclose(orderFile);
         }
-        free(line);
         omptl::sort(filter.begin(), filter.end());
         std::vector<std::string>::iterator last = std::unique(filter.begin(), filter.end());
         filter.erase(last, filter.end());
