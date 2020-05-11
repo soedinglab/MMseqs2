@@ -166,20 +166,40 @@ public:
             updatedPval = exp(sumLogPval);   
         }
 
-        //3) the P-values of the truncated product method 
+        //3) the P-values of the (modified) truncated product method 
         else if(aggregationMode == Parameters::AGGREGATION_MODE_TRUNCATED_PRODUCT){
+            //new theory: taking the best hit regardless of threshold and (from second hit on)sum of how much it surpassed threshold
             unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
             double logPvalThreshold = log(alpha / (orfCount + 1));
-            double sumLogPval = 0;
+            double minLogPval = 0;
+            double sumLogPval = 0; 
+            size_t k = 0;
             for (size_t i = 0; i < dataToAggregate.size(); ++i) {
                 double logPvalue = std::strtod(dataToAggregate[i][1].c_str(), NULL);
+                if (logPvalue < minLogPval) {
+                    if (logPvalue == 0) {
+                        //to avoid -0.0
+                        minLogPval = logPvalue;
+                    }
+                    else {minLogPval = -logPvalue;}
+                }
                 if (logPvalue < logPvalThreshold) {
-                    sumLogPval += logPvalue;
+                    //sum up the part exceeding logThreshold, add a minus to make score positive
+                    sumLogPval -= logPvalue - logPvalThreshold;
+                    k++;
                 }
             }
-            updatedPval = exp(sumLogPval); 
+            if(k == 0){
+                //if no hit passed thr, take the -log of best hit pval as score
+                buffer.append(SSTR(minLogPval));
+                return buffer;
+            }
+            else {
+                //if one or more hits passed thr
+                buffer.append(SSTR(sumLogPval - logPvalThreshold));
+                return buffer;
+            }
         }
-
 
         
         else {
