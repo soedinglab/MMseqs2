@@ -107,4 +107,5 @@ script:
     printf '#!/bin/sh\n/usr/bin/tee "$@" | tail\n' > path/tee; \
     chmod +x path/tee; \
     export PATH="$(readlink -f path):$PATH"; \
+    export TTY=0; \
     ../util/regression/run_regression.sh ./src/mmseqs SCRATCH;
