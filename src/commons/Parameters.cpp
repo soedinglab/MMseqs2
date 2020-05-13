@@ -200,7 +200,7 @@ Parameters::Parameters():
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db", "join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void *) &joinDB, ""),
         // besthitperset
         PARAM_SIMPLE_BEST_HIT(PARAM_SIMPLE_BEST_HIT_ID, "--simple-best-hit", "Use simple best hit", "Update the p-value by a single best hit, or by best and second best hits", typeid(bool), (void *) &simpleBestHit, ""),
-        PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining p-values during aggregation", typeid(float), (void *) &alpha, ""),
+        PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining p-values during aggregation", typeid(float), (void *) &alpha, "^0(\\.[0-9]+)?|^1(\\.0+)?$"),
         PARAM_SHORT_OUTPUT(PARAM_SHORT_OUTPUT_ID, "--short-output", "Short output", "The output database will contain only the spread p-value", typeid(bool), (void *) &shortOutput, ""),
         PARAM_AGGREGATION_MODE(PARAM_AGGREGATION_MODE_ID, "--aggregation-mode", "Aggregation mode", "Combined P-values computed from 0: multi-hit, 1: minimum of all P-values, 2: product-of-P-values, 3: truncated product", typeid(int), (void *) &aggregationMode, "^[0-4]{1}$"),
         // concatdb
