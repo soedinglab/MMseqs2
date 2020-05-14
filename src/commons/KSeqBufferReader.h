@@ -1,6 +1,8 @@
 #ifndef KSEQ_BUFFER_READER_H
 #define KSEQ_BUFFER_READER_H
 
+#include <sys/types.h>
+
 typedef struct kseq_buffer {
     char* buffer;
     size_t position, length;
