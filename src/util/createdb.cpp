@@ -82,6 +82,8 @@ int createdb(int argc, const char **argv, const Command& command) {
     hdrWriter.open();
     DBWriter seqWriter(dataFile.c_str(), indexFile.c_str(), shuffleSplits, par.compressed, (dbType == -1) ? Parameters::DBTYPE_OMIT_FILE : dbType );
     seqWriter.open();
+    size_t headerFileOffset = 0;
+    size_t seqFileOffset = 0;
     for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
         unsigned int numEntriesInCurrFile = 0;
         std::string header;
@@ -165,8 +167,8 @@ int createdb(int argc, const char **argv, const Command& command) {
             sourceLookup[splitIdx].emplace_back(fileIdx);
             if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT){
                 // +2 to emulate the \n\0
-                hdrWriter.writeIndexEntry(id, e.headerOffset, (e.sequenceOffset-e.headerOffset)+1, 0);
-                seqWriter.writeIndexEntry(id, e.sequenceOffset, e.sequence.l+2, 0);
+                hdrWriter.writeIndexEntry(id, headerFileOffset + e.headerOffset, (e.sequenceOffset-e.headerOffset)+1, 0);
+                seqWriter.writeIndexEntry(id, seqFileOffset + e.sequenceOffset, e.sequence.l+2, 0);
             }else{
                 hdrWriter.writeData(header.c_str(), header.length(), id, splitIdx);
                 seqWriter.writeStart(splitIdx);
@@ -180,6 +182,11 @@ int createdb(int argc, const char **argv, const Command& command) {
             header.clear();
         }
         delete kseq;
+        if(filenames.size() > 1 && par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT){
+            size_t fileSize = FileUtil::getFileSize(filenames[fileIdx].c_str());
+            headerFileOffset += fileSize;
+            seqFileOffset += fileSize;
+        }
     }
     Debug(Debug::INFO) << "\n";
     fclose(source);
@@ -209,8 +216,10 @@ int createdb(int argc, const char **argv, const Command& command) {
     }
 
     // fix ids
-    DBWriter::createRenumberedDB(dataFile, indexFile, "", "", DBReader<unsigned int>::LINEAR_ACCCESS);
-    DBWriter::createRenumberedDB(hdrDataFile, hdrIndexFile, "", "", DBReader<unsigned int>::LINEAR_ACCCESS);
+    if(par.shuffleDatabase == true){
+        DBWriter::createRenumberedDB(dataFile, indexFile, "", "", DBReader<unsigned int>::LINEAR_ACCCESS);
+        DBWriter::createRenumberedDB(hdrDataFile, hdrIndexFile, "", "", DBReader<unsigned int>::LINEAR_ACCCESS);
+    }
     if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
         if(filenames.size() == 1){
             FileUtil::symlinkAbs(filenames[0], dataFile);
