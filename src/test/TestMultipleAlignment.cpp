@@ -62,11 +62,11 @@ int main (int, const char**) {
     seqSet.push_back(&s3);
     seqSet.push_back(&s4);
     //seqSet.push_back(s5);
-    EvalueComputation evaluer(100000, &subMat, par.gapOpen, par.gapExtend);
-    Matcher * aligner = new Matcher(Parameters::DBTYPE_AMINO_ACIDS, 10000, &subMat, &evaluer, false, par.gapOpen, par.gapExtend);
+    EvalueComputation evaluer(100000, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    Matcher * aligner = new Matcher(Parameters::DBTYPE_AMINO_ACIDS, 10000, &subMat, &evaluer, false, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
     MultipleAlignment msaAligner(1000, 10, &subMat, aligner);
     MultipleAlignment::MSAResult res = msaAligner.computeMSA(&s1, seqSet, true);
-    MsaFilter filter(1000, 10000, &subMat, par.gapOpen, par.gapExtend);
+    MsaFilter filter(1000, 10000, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
     size_t filterSetSize = filter.filter(res, 0, 0, -20.0, 50, 100);
     std::cout << "Filtered:" << filterSetSize << std::endl;
     MultipleAlignment::print(res, &subMat);

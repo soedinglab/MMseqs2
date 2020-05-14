@@ -136,7 +136,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
 
     BacktraceTranslator translator;
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, par.scoreBias);
-    EvalueComputation evaluer(targetReader.getAminoAcidDBSize(), &subMat, par.gapOpen, par.gapExtend);
+    EvalueComputation evaluer(targetReader.getAminoAcidDBSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
     Debug::Progress progress(resultReader->getSize());
 
     Debug(Debug::INFO) << "Computing expanded alignment result...\n";
@@ -217,7 +217,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
                     }
 
                     rescoreResultByBacktrace(resultAC, qSeq, tSeq, subMat, compositionBias,
-                                             evaluer, par.gapOpen, par.gapExtend, par.seqIdMode);
+                                             evaluer, par.gapOpen.aminoacids, par.gapExtend.aminoacids, par.seqIdMode);
 
                     if (Alignment::checkCriteria(resultAC, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr)) {
                         results.emplace_back(resultAC);

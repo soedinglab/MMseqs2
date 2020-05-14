@@ -34,12 +34,17 @@ int alignall(int argc, const char **argv, const Command &command) {
     }
     const int targetSeqType = tdbr.getDbtype();
 
+    int gapOpen, gapExtend;
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, par.scoreBias);
+        gapOpen = par.gapOpen.nucleotides;
+        gapExtend = par.gapExtend.nucleotides;
     } else {
         // keep score bias at 0.0 (improved ROC)
         subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, par.scoreBias);
+        gapOpen = par.gapOpen.aminoacids;
+        gapExtend = par.gapExtend.aminoacids;
     }
 
     DBReader<unsigned int> dbr_res(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
@@ -48,7 +53,7 @@ int alignall(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     resultWriter.open();
 
-    EvalueComputation evaluer(tdbr.getAminoAcidDBSize(), subMat, par.gapOpen, par.gapExtend);
+    EvalueComputation evaluer(tdbr.getAminoAcidDBSize(), subMat, gapOpen, gapExtend);
     const size_t flushSize = 100000000;
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbr_res.getSize()) / static_cast<double>(flushSize)));
 
@@ -63,7 +68,7 @@ int alignall(int argc, const char **argv, const Command &command) {
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-            Matcher matcher(targetSeqType, par.maxSeqLen, subMat, &evaluer, par.compBiasCorrection, par.gapOpen, par.gapExtend, par.zdrop);
+            Matcher matcher(targetSeqType, par.maxSeqLen, subMat, &evaluer, par.compBiasCorrection, gapOpen, gapExtend, par.zdrop);
 
             Sequence query(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
             Sequence target(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);

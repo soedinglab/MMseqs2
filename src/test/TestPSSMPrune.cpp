@@ -58,7 +58,7 @@ int main (int, const char**) {
     MultipleAlignment::MSAResult res(strlen(seqs[0]), strlen(seqs[0]), counter, seqsCpy);
     MultipleAlignment::print(res, &subMat);
 
-    MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen, par.gapExtend);
+    MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
     msaFilter.pruneAlignment((char**)res.msaSequence, res.setSize, res.centerLength);
 
     std::cout <<"Pruned MSA" << std::endl;
