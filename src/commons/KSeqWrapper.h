@@ -2,6 +2,7 @@
 #define MMSEQS_KSEQWRAPPER_H
 
 #include "kseq.h"
+#include "KSeqBufferReader.h"
 
 #include <string>
 
@@ -67,6 +68,14 @@ private:
 };
 #endif
 
+class KSeqBuffer : public KSeqWrapper {
+public:
+    KSeqBuffer(const char* buffer, size_t length);
+    bool ReadEntry();
+    ~KSeqBuffer();
+private:
+    kseq_buffer_t d;
+};
 
 KSeqWrapper* KSeqFactory(const char* file);
 
