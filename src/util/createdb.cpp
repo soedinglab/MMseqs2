@@ -19,9 +19,10 @@ int createdb(int argc, const char **argv, const Command& command) {
     std::vector<std::string> filenames(par.filenames);
     std::string dataFile = filenames.back();
     filenames.pop_back();
+
     for (size_t i = 0; i < filenames.size(); i++) {
         if (FileUtil::directoryExists(filenames[i].c_str()) == true) {
-            Debug(Debug::ERROR) << "File " << filenames[i] << " is a directory.\n";
+            Debug(Debug::ERROR) << "File " << filenames[i] << " is a directory\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -29,27 +30,27 @@ int createdb(int argc, const char **argv, const Command& command) {
     int dbType = -1;
     if (par.dbType == 2) {
         dbType = Parameters::DBTYPE_NUCLEOTIDES;
-    } else if(par.dbType == 1){
+    } else if(par.dbType == 1) {
         dbType = Parameters::DBTYPE_AMINO_ACIDS;
     }
 
     std::string indexFile = dataFile + ".index";
     if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.shuffleDatabase) {
-        Debug(Debug::WARNING) << "Shuffle database can not be combined with --createdb-mode 0.\n";
-        Debug(Debug::WARNING) << "We recompute with --shuffle 0.\n";
+        Debug(Debug::WARNING) << "Shuffle database cannot be combined with --createdb-mode 0\n";
+        Debug(Debug::WARNING) << "We recompute with --shuffle 0\n";
         par.shuffleDatabase = false;
     }
 
     if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.filenames[0] == "stdin") {
-        Debug(Debug::WARNING) << "Createdb-mode 0 can not be combined with stdin input.\n";
-        Debug(Debug::WARNING) << "We recompute with --createdb-mode 1.\n";
+        Debug(Debug::WARNING) << "Stdin input cannot be combined with --createdb-mode 0\n";
+        Debug(Debug::WARNING) << "We recompute with --createdb-mode 1\n";
         par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
     }
 
     const unsigned int shuffleSplits = par.shuffleDatabase ? 32 : 1;
     if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.compressed) {
-        Debug(Debug::WARNING) << "Compressed database can not be combined with --createdb-mode 0.\n";
-        Debug(Debug::WARNING) << "We recompute with --compressed 0.\n";
+        Debug(Debug::WARNING) << "Compressed database cannot be combined with --createdb-mode 0\n";
+        Debug(Debug::WARNING) << "We recompute with --compressed 0\n";
         par.compressed = 0;
     }
 
@@ -75,7 +76,7 @@ int createdb(int argc, const char **argv, const Command& command) {
     redoComputation:
     FILE *source = fopen(sourceFile.c_str(), "w");
     if (source == NULL) {
-        Debug(Debug::ERROR) << "Can not open " << sourceFile << " for writing!\n";
+        Debug(Debug::ERROR) << "Cannot open " << sourceFile << " for writing\n";
         EXIT(EXIT_FAILURE);
     }
     DBWriter hdrWriter(hdrDataFile.c_str(), hdrIndexFile.c_str(), shuffleSplits, par.compressed, Parameters::DBTYPE_GENERIC_DB);
@@ -102,12 +103,12 @@ int createdb(int argc, const char **argv, const Command& command) {
             progress.updateProgress();
             const KSeqWrapper::KSeqEntry &e = kseq->entry;
             if (e.name.l == 0) {
-                Debug(Debug::ERROR) << "Fasta entry: " << entries_num << " is invalid.\n";
+                Debug(Debug::ERROR) << "Fasta entry " << entries_num << " is invalid\n";
                 EXIT(EXIT_FAILURE);
             }
 
             // header
-            if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_HARD){
+            if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_HARD) {
                 header.append(e.name.s, e.name.l);
                 if (e.comment.l > 0) {
                     header.append(" ", 1);
@@ -117,7 +118,7 @@ int createdb(int argc, const char **argv, const Command& command) {
                 std::string headerId = Util::parseFastaHeader(header.c_str());
                 if (headerId.empty()) {
                     // An identifier is necessary for these two cases, so we should just give up
-                    Debug(Debug::WARNING) << "Can not extract identifier from entry " << entries_num << ".\n";
+                    Debug(Debug::WARNING) << "Cannot extract identifier from entry " << entries_num << "\n";
                 }
                 header.push_back('\n');
             }
@@ -146,9 +147,9 @@ int createdb(int argc, const char **argv, const Command& command) {
                     }
                     sampleCount++;
                 }
-                if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && e.multiline == true){
-                    Debug(Debug::WARNING) << "Multiline fasta can not be combined with --createdb-mode 0.\n";
-                    Debug(Debug::WARNING) << "We recompute with --createdb-mode 1.\n";
+                if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && e.multiline == true) {
+                    Debug(Debug::WARNING) << "Multiline fasta can not be combined with --createdb-mode 0\n";
+                    Debug(Debug::WARNING) << "We recompute with --createdb-mode 1\n";
                     par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
                     progress.reset(SIZE_MAX);
                     hdrWriter.close();
@@ -165,11 +166,11 @@ int createdb(int argc, const char **argv, const Command& command) {
             // Finally write down the entry
             unsigned int splitIdx = id % shuffleSplits;
             sourceLookup[splitIdx].emplace_back(fileIdx);
-            if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT){
+            if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
                 // +2 to emulate the \n\0
                 hdrWriter.writeIndexEntry(id, headerFileOffset + e.headerOffset, (e.sequenceOffset-e.headerOffset)+1, 0);
                 seqWriter.writeIndexEntry(id, seqFileOffset + e.sequenceOffset, e.sequence.l+2, 0);
-            }else{
+            } else {
                 hdrWriter.writeData(header.c_str(), header.length(), id, splitIdx);
                 seqWriter.writeStart(splitIdx);
                 seqWriter.writeAdd(e.sequence.s, e.sequence.l, splitIdx);
@@ -182,7 +183,7 @@ int createdb(int argc, const char **argv, const Command& command) {
             header.clear();
         }
         delete kseq;
-        if(filenames.size() > 1 && par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT){
+        if (filenames.size() > 1 && par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
             size_t fileSize = FileUtil::getFileSize(filenames[fileIdx].c_str());
             headerFileOffset += fileSize;
             seqFileOffset += fileSize;
@@ -192,7 +193,7 @@ int createdb(int argc, const char **argv, const Command& command) {
     fclose(source);
     hdrWriter.close(true);
     seqWriter.close(true);
-    if(dbType == -1) {
+    if (dbType == -1) {
         if (isNuclCnt == sampleCount) {
             dbType = Parameters::DBTYPE_NUCLEOTIDES;
         } else {
@@ -202,32 +203,28 @@ int createdb(int argc, const char **argv, const Command& command) {
     }
     Debug(Debug::INFO) << "Database type: " << Parameters::getDbTypeName(dbType) << "\n";
 
-
-
-    if(entries_num == 0){
+    if (entries_num == 0) {
         Debug(Debug::ERROR) << "The input files have no entry: ";
         for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
             Debug(Debug::ERROR) << " - " << filenames[fileIdx] << "\n";
         }
-        Debug(Debug::ERROR) << "Please check your input files."
-                               "Only files in fasta/fastq[.gz|bz2] are supported \n";
-
+        Debug(Debug::ERROR) << "Please check your input files. Only files in fasta/fastq[.gz|bz2] are supported\n";
         EXIT(EXIT_FAILURE);
     }
 
     // fix ids
-    if(par.shuffleDatabase == true){
+    if (par.shuffleDatabase == true) {
         DBWriter::createRenumberedDB(dataFile, indexFile, "", "", DBReader<unsigned int>::LINEAR_ACCCESS);
         DBWriter::createRenumberedDB(hdrDataFile, hdrIndexFile, "", "", DBReader<unsigned int>::LINEAR_ACCCESS);
     }
-    if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
-        if(filenames.size() == 1){
+    if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
+        if (filenames.size() == 1) {
             FileUtil::symlinkAbs(filenames[0], dataFile);
             FileUtil::symlinkAbs(filenames[0], hdrDataFile);
-        }else{
+        } else {
             for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
-                FileUtil::symlinkAbs(filenames[fileIdx], dataFile+"."+SSTR(fileIdx));
-                FileUtil::symlinkAbs(filenames[fileIdx], hdrDataFile+"."+SSTR(fileIdx));
+                FileUtil::symlinkAbs(filenames[fileIdx], dataFile + "." + SSTR(fileIdx));
+                FileUtil::symlinkAbs(filenames[fileIdx], hdrDataFile + "." + SSTR(fileIdx));
             }
         }
     }
@@ -256,7 +253,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         entry.fileNumber = sourceLookup[splitIdx][splitCounter];
         if (entry.entryName.empty()) {
             // An identifier is necessary for these two cases, so we should just give up
-            Debug(Debug::WARNING) << "Can not extract identifier from entry " << entries_num << ".\n";
+            Debug(Debug::WARNING) << "Cannot extract identifier from entry " << entries_num << "\n";
         }
         size_t len = readerHeader.lookupEntryToBuffer(lookupBuffer, entry);
         lookupFile.writeData(lookupBuffer, len, 0, 0, false, false);
