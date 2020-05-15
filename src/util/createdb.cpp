@@ -27,6 +27,16 @@ int createdb(int argc, const char **argv, const Command& command) {
         }
     }
 
+    bool dbInput = false;
+    if (FileUtil::fileExists(par.db1dbtype.c_str()) == true) {
+        if (filenames.size() > 1) {
+            Debug(Debug::ERROR) << "Only one database can be used with database input\n";
+            EXIT(EXIT_FAILURE);
+        }
+        dbInput = true;
+        par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
+    }
+
     int dbType = -1;
     if (par.dbType == 2) {
         dbType = Parameters::DBTYPE_NUCLEOTIDES;
@@ -85,20 +95,40 @@ int createdb(int argc, const char **argv, const Command& command) {
     seqWriter.open();
     size_t headerFileOffset = 0;
     size_t seqFileOffset = 0;
-    for (size_t fileIdx = 0; fileIdx < filenames.size(); fileIdx++) {
+
+    size_t fileCount = filenames.size();
+    DBReader<unsigned int>* reader = NULL;
+    if (dbInput == true) {
+        reader = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_LOOKUP);
+        reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+        fileCount = reader->getSize();
+    }
+
+    for (size_t fileIdx = 0; fileIdx < fileCount; fileIdx++) {
         unsigned int numEntriesInCurrFile = 0;
         std::string header;
         header.reserve(1024);
 
+        std::string sourceName;
+        if (dbInput == true) {
+            sourceName = reader->getLookupEntryName(fileIdx);
+        } else {
+            sourceName = FileUtil::baseName(filenames[fileIdx]);
+        }
         char buffer[4096];
-        size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\n", fileIdx, FileUtil::baseName(filenames[fileIdx]).c_str());
+        size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\n", fileIdx, sourceName.c_str());
         int written = fwrite(buffer, sizeof(char), len, source);
         if (written != (int) len) {
             Debug(Debug::ERROR) << "Cannot write to source file " << sourceFile << "\n";
             EXIT(EXIT_FAILURE);
         }
 
-        KSeqWrapper* kseq = KSeqFactory(filenames[fileIdx].c_str());
+        KSeqWrapper* kseq = NULL;
+        if (dbInput == true) {
+            kseq = new KSeqBuffer(reader->getData(fileIdx, 0), reader->getEntryLen(fileIdx) - 1);
+        } else {
+            kseq = KSeqFactory(filenames[fileIdx].c_str());
+        }
         while (kseq->ReadEntry()) {
             progress.updateProgress();
             const KSeqWrapper::KSeqEntry &e = kseq->entry;
@@ -202,6 +232,10 @@ int createdb(int argc, const char **argv, const Command& command) {
         seqWriter.writeDbtypeFile(seqWriter.getDataFileName(), dbType ,par.compressed);
     }
     Debug(Debug::INFO) << "Database type: " << Parameters::getDbTypeName(dbType) << "\n";
+    if (dbInput == true) {
+        reader->close();
+        delete reader;
+    }
 
     if (entries_num == 0) {
         Debug(Debug::ERROR) << "The input files have no entry: ";
