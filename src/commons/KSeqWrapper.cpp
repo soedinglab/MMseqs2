@@ -189,3 +189,33 @@ KSeqWrapper* KSeqFactory(const char* file) {
     return kseq;
 }
 
+namespace KSEQBUFFER {
+    KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
+}
+
+KSeqBuffer::KSeqBuffer(const char* buffer, size_t length) {
+    d.buffer = (char*)buffer;
+    d.length = length;
+    d.position = 0;
+    seq = (void*) KSEQBUFFER::kseq_init(&d);
+}
+
+bool KSeqBuffer::ReadEntry() {
+    KSEQBUFFER::kseq_t* s = (KSEQBUFFER::kseq_t*) seq;
+    int result = KSEQBUFFER::kseq_read(s);
+    if (result < 0)
+        return false;
+    entry.headerOffset = s->headerOffset;
+    entry.sequenceOffset = s->sequenceOffset;
+    entry.multiline = s->multiline;
+    entry.name = s->name;
+    entry.comment = s->comment;
+    entry.sequence = s->seq;
+    entry.qual = s->qual;
+
+    return true;
+}
+
+KSeqBuffer::~KSeqBuffer() {
+    kseq_destroy((KSEQBUFFER::kseq_t*)seq);
+}
