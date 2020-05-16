@@ -486,6 +486,7 @@ public:
 
     // convert2fasta
     bool useHeaderFile;
+    int writeLookup;
 
     // result2flat
     bool useHeader;
@@ -789,6 +790,7 @@ public:
     PARAMETER(PARAM_DB_TYPE)
     PARAMETER(PARAM_CREATEDB_MODE)
     PARAMETER(PARAM_SHUFFLE)
+    PARAMETER(PARAM_WRITE_LOOKUP)
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)

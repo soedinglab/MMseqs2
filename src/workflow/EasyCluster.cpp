@@ -15,6 +15,7 @@ void setEasyClusterDefaults(Parameters *p) {
     p->covThr = 0.8;
     p->evalThr = 0.001;
     p->createdbMode = Parameters::SEQUENCE_SPLIT_MODE_SOFT;
+    p->writeLookup = false;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     p->maxResListLen = 20;
 }

@@ -36,6 +36,8 @@ int easyrbh(int argc, const char **argv, const Command &command) {
     par.sensitivity = 5.7;
     par.removeTmpFiles = true;
     par.alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    par.writeLookup = false;
+    par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_SOFT;
     par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
     par.PARAM_S.wasSet = true;
     par.PARAM_REMOVE_TMP_FILES.wasSet = true;

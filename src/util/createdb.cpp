@@ -231,40 +231,42 @@ int createdb(int argc, const char **argv, const Command& command) {
             }
         }
     }
-    DBReader<unsigned int> readerHeader(hdrDataFile.c_str(), hdrIndexFile.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-    readerHeader.open(DBReader<unsigned int>::NOSORT);
+    if(par.writeLookup == true){
+        DBReader<unsigned int> readerHeader(hdrDataFile.c_str(), hdrIndexFile.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
+        readerHeader.open(DBReader<unsigned int>::NOSORT);
 
-    // create lookup file
-    std::string lookupDataFile = dataFile + ".lookup";
-    std::string lookupIndexFile = lookupDataFile + ".index";
-    DBWriter lookupFile(lookupDataFile.c_str(), lookupIndexFile.c_str(), 1, Parameters::WRITER_ASCII_MODE, Parameters::DBTYPE_OMIT_FILE);
-    lookupFile.open();
+        // create lookup file
+        std::string lookupDataFile = dataFile + ".lookup";
+        std::string lookupIndexFile = lookupDataFile + ".index";
+        DBWriter lookupFile(lookupDataFile.c_str(), lookupIndexFile.c_str(), 1, Parameters::WRITER_ASCII_MODE, Parameters::DBTYPE_OMIT_FILE);
+        lookupFile.open();
 
-    char lookupBuffer[32768];
-    unsigned int splitIdx = 0;
-    unsigned int splitCounter = 0;
-    DBReader<unsigned int>::LookupEntry entry;
-    for (unsigned int id = 0; id < readerHeader.getSize(); id++) {
-        size_t splitSize = sourceLookup[splitIdx].size();
-        if (splitSize == 0 || splitCounter > sourceLookup[splitIdx].size() - 1) {
-            splitIdx++;
-            splitCounter = 0;
+        char lookupBuffer[32768];
+        unsigned int splitIdx = 0;
+        unsigned int splitCounter = 0;
+        DBReader<unsigned int>::LookupEntry entry;
+        for (unsigned int id = 0; id < readerHeader.getSize(); id++) {
+            size_t splitSize = sourceLookup[splitIdx].size();
+            if (splitSize == 0 || splitCounter > sourceLookup[splitIdx].size() - 1) {
+                splitIdx++;
+                splitCounter = 0;
+            }
+            char *header = readerHeader.getData(id, 0);
+            entry.id = id;
+            entry.entryName = Util::parseFastaHeader(header);
+            entry.fileNumber = sourceLookup[splitIdx][splitCounter];
+            if (entry.entryName.empty()) {
+                // An identifier is necessary for these two cases, so we should just give up
+                Debug(Debug::WARNING) << "Can not extract identifier from entry " << entries_num << ".\n";
+            }
+            size_t len = readerHeader.lookupEntryToBuffer(lookupBuffer, entry);
+            lookupFile.writeData(lookupBuffer, len, 0, 0, false, false);
+            splitCounter++;
         }
-        char *header = readerHeader.getData(id, 0);
-        entry.id = id;
-        entry.entryName = Util::parseFastaHeader(header);
-        entry.fileNumber = sourceLookup[splitIdx][splitCounter];
-        if (entry.entryName.empty()) {
-            // An identifier is necessary for these two cases, so we should just give up
-            Debug(Debug::WARNING) << "Can not extract identifier from entry " << entries_num << ".\n";
-        }
-        size_t len = readerHeader.lookupEntryToBuffer(lookupBuffer, entry);
-        lookupFile.writeData(lookupBuffer, len, 0, 0, false, false);
-        splitCounter++;
+        lookupFile.close(true);
+        FileUtil::remove(lookupIndexFile.c_str());
+        readerHeader.close();
     }
-    lookupFile.close(true);
-    FileUtil::remove(lookupIndexFile.c_str());
-    readerHeader.close();
     delete[] sourceLookup;
 
     return EXIT_SUCCESS;
