@@ -53,7 +53,13 @@ int prefilter(int argc, const char **argv, const Command& command) {
     Prefiltering pref(par.db1, par.db1Index, par.db2, par.db2Index, queryDbType, targetDbType, par);
 
 #ifdef HAVE_MPI
-    pref.runMpiSplits(par.db3, par.db3Index, par.localTmp);
+    int runRandomId = 0;
+    if (par.localTmp != "") {
+        std::srand(std::time(nullptr)); // use current time as seed for random generator
+        runRandomId = std::rand();
+        runRandomId = runRandomId / 2; // to avoid the unlikely case of overflowing later
+    }
+    pref.runMpiSplits(par.db3, par.db3Index, par.localTmp, runRandomId);
 #else
     pref.runAllSplits(par.db3, par.db3Index);
 #endif

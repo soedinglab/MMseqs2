@@ -557,7 +557,7 @@ void Prefiltering::runAllSplits(const std::string &resultDB, const std::string &
 }
 
 #ifdef HAVE_MPI
-void Prefiltering::runMpiSplits(const std::string &resultDB, const std::string &resultDBIndex, const std::string &localTmpPath) {
+void Prefiltering::runMpiSplits(const std::string &resultDB, const std::string &resultDBIndex, const std::string &localTmpPath, const int runRandomId) {
     if(compressed == true && splitMode == Parameters::TARGET_DB_SPLIT){
             Debug(Debug::WARNING) << "The output of the prefilter cannot be compressed during target split mode. "
                                      "Prefilter result will not be compressed.\n";
@@ -601,7 +601,7 @@ void Prefiltering::runMpiSplits(const std::string &resultDB, const std::string &
         }
     }
 
-    std::pair<std::string, std::string> result = Util::createTmpFileNames(procTmpResultDB, procTmpResultDBIndex, MMseqsMPI::rank);
+    std::pair<std::string, std::string> result = Util::createTmpFileNames(procTmpResultDB, procTmpResultDBIndex, MMseqsMPI::rank + runRandomId);
     bool merge = (splitMode == Parameters::QUERY_DB_SPLIT);
 
     int hasResult = runSplits(result.first, result.second, fromSplit, splitCount, merge) == true ? 1 : 0;
