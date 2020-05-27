@@ -59,7 +59,7 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
                     double evalue = 0.0;
                     const size_t columns = Util::getWordsOfLine(data, entry, 255);
                     // its an aln result (parse e-value)
-                    if (columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                    if (columns >= Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
                         evalue = strtod(entry[3], NULL);
                     }
                     if(evalue <= evalThreshold){
@@ -78,7 +78,7 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
                     unsigned int element = std::strtoul(key, NULL, 10);
                     double evalue = 0.0;
                     const size_t columns = Util::getWordsOfLine(data, entry, 255);
-                    if (columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                    if (columns >= Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
                         evalue = strtod(entry[3], NULL);
                     }
                     if(evalue <= evalThreshold) {

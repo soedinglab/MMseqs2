@@ -24,9 +24,10 @@ public:
     static const unsigned int SCORE_ONLY = 0;
     static const unsigned int SCORE_COV = 1;
     static const unsigned int SCORE_COV_SEQID = 2;
-    const static int ALN_RES_WITH_OUT_BT_COL_CNT = 10;
-
+    const static int ALN_RES_WITHOUT_BT_COL_CNT = 10;
     const static int ALN_RES_WITH_BT_COL_CNT = 11;
+    const static int ALN_RES_WITH_ORF_POS_WITHOUT_BT_COL_CNT = 14;
+    const static int ALN_RES_WITH_ORF_AND_BT_COL_CNT = 15;
 
     struct result_t {
         unsigned int dbKey;
@@ -42,7 +43,33 @@ public:
         int dbStartPos;
         int dbEndPos;
         unsigned int dbLen;
+        int queryOrfStartPos;
+        int queryOrfEndPos;
+        int dbOrfStartPos;
+        int dbOrfEndPos;
         std::string backtrace;
+        result_t(unsigned int dbkey,int score,
+                 float qcov, float dbcov,
+                 float seqId, double eval,
+                 unsigned int alnLength,
+                 int qStartPos,
+                 int qEndPos,
+                 unsigned int qLen,
+                 int dbStartPos,
+                 int dbEndPos,
+                 unsigned int dbLen,
+                 int queryOrfStartPos,
+                 int queryOrfEndPos,
+                 int dbOrfStartPos,
+                 int dbOrfEndPos,
+                 std::string backtrace) : dbKey(dbkey), score(score), qcov(qcov),
+                                          dbcov(dbcov), seqId(seqId), eval(eval), alnLength(alnLength),
+                                          qStartPos(qStartPos), qEndPos(qEndPos), qLen(qLen),
+                                          dbStartPos(dbStartPos), dbEndPos(dbEndPos), dbLen(dbLen),
+                                          queryOrfStartPos(queryOrfStartPos), queryOrfEndPos(queryOrfEndPos),
+                                          dbOrfStartPos(dbOrfStartPos), dbOrfEndPos(dbOrfEndPos),
+                                          backtrace(backtrace) {};
+
         result_t(unsigned int dbkey,int score,
                  float qcov, float dbcov,
                  float seqId, double eval,
@@ -58,7 +85,7 @@ public:
                                           qStartPos(qStartPos), qEndPos(qEndPos), qLen(qLen),
                                           dbStartPos(dbStartPos), dbEndPos(dbEndPos), dbLen(dbLen),
                                           backtrace(backtrace) {};
-        
+
         result_t(){};
 
         static void swapResult(result_t & res, EvalueComputation &evaluer, bool hasBacktrace){
@@ -186,7 +213,7 @@ public:
     static std::string uncompressAlignment(const std::string &cbt);
 
 
-    static size_t resultToBuffer(char * buffer, const result_t &result, bool addBacktrace, bool compress  = true);
+    static size_t resultToBuffer(char * buffer, const result_t &result, bool addBacktrace, bool compress  = true, bool addOrfPosition = false);
 
     static int computeAlnLength(int anEnd, int start, int dbEnd, int dbStart);
 

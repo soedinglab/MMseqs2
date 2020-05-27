@@ -46,7 +46,7 @@ int sortresult(int argc, const char **argv, const Command &command) {
             int format = -1;
             while (*data != '\0') {
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
-                if (columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                if (columns >= Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
                     alnResults.emplace_back(Matcher::parseAlignmentRecord(data, true));
                     format = columns >= Matcher::ALN_RES_WITH_BT_COL_CNT ? 1 : 0;
                 } else if (columns == 3) {

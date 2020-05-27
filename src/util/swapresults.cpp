@@ -226,7 +226,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
                 continue;
             }
             const size_t columns = Util::getWordsOfLine(data, entry, 255);
-            isAlignmentResult = columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT;
+            isAlignmentResult = columns >= Matcher::ALN_RES_WITHOUT_BT_COL_CNT;
             hasBacktrace = columns >= Matcher::ALN_RES_WITH_BT_COL_CNT;
             break;
         }
