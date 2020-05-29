@@ -339,8 +339,8 @@ int filterdb(int argc, const char **argv, const Command &command) {
                     size_t newId = helper->getId(static_cast<unsigned int>(strtoul(columnValue, NULL, 10)));
                     if (newId != UINT_MAX) {
                         size_t originalLength = strlen(lineBuffer);
-                        // Replace the last \n
-                        lineBuffer[originalLength - 1] = '\t';
+                        // Continue the string by replacing the null byte
+                        lineBuffer[originalLength] = '\t';
                         originalLength++;
                         char *fullLine = helper->getData(newId, thread_idx);
                         if (columnToTake == -1) {
