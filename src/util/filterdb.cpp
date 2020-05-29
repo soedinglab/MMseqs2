@@ -341,6 +341,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
                         size_t originalLength = strlen(lineBuffer);
                         // Replace the last \n
                         lineBuffer[originalLength - 1] = '\t';
+                        originalLength++;
                         char *fullLine = helper->getData(newId, thread_idx);
                         if (columnToTake == -1) {
                             // either append the full line (default mode)
