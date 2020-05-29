@@ -961,6 +961,10 @@ Parameters::Parameters():
     aggregatetax.push_back(&PARAM_THREADS);
     aggregatetax.push_back(&PARAM_V);
 
+    // appendtaxaln
+    appendtaxaln.push_back(&PARAM_THREADS);
+    appendtaxaln.push_back(&PARAM_V);
+
     // lca
     lca.push_back(&PARAM_COMPRESSED);
     lca.push_back(&PARAM_LCA_RANKS);
