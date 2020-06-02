@@ -577,6 +577,7 @@ public:
 
     // aggregatetax
     float majorityThr;
+    int voteMode;
 
     // taxonomyreport
     int reportMode;
@@ -888,6 +889,7 @@ public:
 
     // aggregatetax
     PARAMETER(PARAM_MAJORITY)
+    PARAMETER(PARAM_VOTE_MODE)
 
     // taxonomyreport
     PARAMETER(PARAM_REPORT_MODE)

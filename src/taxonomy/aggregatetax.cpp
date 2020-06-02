@@ -12,17 +12,32 @@
 #endif
 
 const double MAX_WEIGHT = 1000;
+const int UNIFORM = 0;
+const int MINUS_LOG_EVAL = 1;
 
 struct taxHit {
-    void setByEntry(const char ** taxHitData, const size_t numCols) {
+    void setByEntry(const char ** taxHitData, const size_t numCols, const int voteMode) {
         // plain format: 3+ tax columns: taxid, rank (can be more than one col), name (can be more than one col)
         // taxid + aln format has 11 columns: taxid, tkey, bitscore, seqid, evalue, qs, qe, ql, ts, te, tl
         taxon = Util::fast_atoi<int>(taxHitData[0]);
         evalue = 1.0;
-        weight = 1.0;
-        // if we have alignment info - update accordingly
+        weight = 0.0;
+
+        // if voteMode is evalue-based, all tax-assigned sequences shoulf have alignment info...
+        if ((taxon != 0) && (numCols != 11) && (voteMode == MINUS_LOG_EVAL)) {
+            Debug(Debug::ERROR) << "voteMode is evalue-based but taxonid: " << taxon << " does not have alignment info.\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        // extract from alignment info
         if (numCols == 11) {
             evalue = strtod(taxHitData[4],NULL);
+        }
+
+        // update weight according to mode
+        if (voteMode == UNIFORM) {
+            weight = 1.0;
+        } else if (voteMode == MINUS_LOG_EVAL) {
             if (evalue > 0) {
                 weight = -log(evalue);
             } else {
@@ -150,7 +165,7 @@ int aggregatetax(int argc, const char **argv, const Command& command) {
                 char *seqToTaxData = taxSeqReader.getDataByDBKey(seqKey, thread_idx);
                 size_t numCols = Util::getWordsOfLine(seqToTaxData, entry, 255);
                 taxHit currTaxHit;
-                currTaxHit.setByEntry(entry, numCols);
+                currTaxHit.setByEntry(entry, numCols, par.voteMode);
                 setTaxa.emplace_back(currTaxHit);
                 results = Util::skipLine(results);
             }

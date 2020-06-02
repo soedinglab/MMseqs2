@@ -242,6 +242,7 @@ Parameters::Parameters():
         PARAM_TAXON_ADD_LINEAGE(PARAM_TAXON_ADD_LINEAGE_ID, "--tax-lineage", "Show taxonomic lineage", "Add column with full taxonomy lineage", typeid(bool), (void *) &showTaxLineage, ""),
         // aggregatetax
         PARAM_MAJORITY(PARAM_MAJORITY_ID, "--majority", "Majority threshold", "minimal fraction of agreement among taxonomically assigned sequences of a set", typeid(float), (void *) &majorityThr, "^0(\\.[0-9]+)?|^1(\\.0+)?$"),
+        PARAM_VOTE_MODE(PARAM_VOTE_MODE_ID, "--vote-mode", "Vote mode", "Mode of assigning weights to compute majority. 0: uniform, 1: minus log e-value", typeid(int), (void *) &voteMode, "^[0-1]{1}$"),
         // taxonomyreport
         PARAM_REPORT_MODE(PARAM_REPORT_MODE_ID, "--report-mode", "Report mode", "Taxonomy report mode 0: Kraken 1: Krona", typeid(int), (void *) &reportMode, "^[0-1]{1}$"),
         // createtaxdb
@@ -954,12 +955,13 @@ Parameters::Parameters():
     // aggregatetax
     aggregatetax.push_back(&PARAM_COMPRESSED);
     aggregatetax.push_back(&PARAM_MAJORITY);
+    aggregatetax.push_back(&PARAM_VOTE_MODE);
     aggregatetax.push_back(&PARAM_LCA_RANKS);
-    // TODO should we add this in the future?
-    //aggregatetax.push_back(&PARAM_BLACKLIST);
     aggregatetax.push_back(&PARAM_TAXON_ADD_LINEAGE);
     aggregatetax.push_back(&PARAM_THREADS);
     aggregatetax.push_back(&PARAM_V);
+    // TODO should we add this in the future?
+    //aggregatetax.push_back(&PARAM_BLACKLIST);
 
     // appendtaxaln
     appendtaxaln.push_back(&PARAM_THREADS);
@@ -2198,6 +2200,7 @@ void Parameters::setDefaults() {
 
     // aggregatetax
     majorityThr = 0;
+    voteMode = 0;
 
     // taxonomyreport
     reportMode = 0;
