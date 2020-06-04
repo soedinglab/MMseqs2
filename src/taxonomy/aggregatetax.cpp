@@ -11,6 +11,8 @@
 #include <omp.h>
 #endif
 
+const double MAX_WEIGHT = 1000;
+
 struct taxHit {
     void setByEntry(const char ** taxHitData, const size_t numCols, const int voteMode) {
         // plain format: 3+ tax columns: taxid, rank (can be more than one col), name (can be more than one col)
@@ -37,7 +39,7 @@ struct taxHit {
             if (evalue > 0) {
                 weight = -log(evalue);
             } else {
-                weight = Parameters::AGG_TAX_MAX_WEIGHT;
+                weight = MAX_WEIGHT;
             }
         }
     }
