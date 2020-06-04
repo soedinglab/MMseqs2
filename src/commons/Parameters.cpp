@@ -1107,6 +1107,10 @@ Parameters::Parameters():
     taxonomy.push_back(&PARAM_LCA_MODE);
     taxonomy.push_back(&PARAM_TAX_OUTPUT_MODE);
 
+    // taxpercontig
+    taxpercontig = combineList(removeParameter(extractorfs, PARAM_TRANSLATE), removeParameter(taxonomy, PARAM_TAX_OUTPUT_MODE));
+    taxpercontig = combineList(taxpercontig, aggregatetax);
+
     // easy taxonomy
     easytaxonomy = combineList(taxonomy, addtaxonomy);
     easytaxonomy = combineList(easytaxonomy, convertalignments);

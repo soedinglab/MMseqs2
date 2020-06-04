@@ -100,6 +100,7 @@ extern int summarizetabs(int argc, const char **argv, const Command& command);
 extern int swapdb(int argc, const char **argv, const Command& command);
 extern int swapresults(int argc, const char **argv, const Command& command);
 extern int taxonomy(int argc, const char **argv, const Command& command);
+extern int taxpercontig(int argc, const char **argv, const Command& command);
 extern int easytaxonomy(int argc, const char **argv, const Command& command);
 extern int createtaxdb(int argc, const char **argv, const Command& command);
 extern int translateaa(int argc, const char **argv, const Command& command);

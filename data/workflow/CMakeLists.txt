@@ -16,6 +16,7 @@ set(GENERATED_WORKFLOWS
         workflow/createtaxdb.sh
         workflow/translated_search.sh
         workflow/taxonomy.sh
+        workflow/taxpercontig.sh
         workflow/multihitdb.sh
         workflow/multihitsearch.sh
         workflow/enrich.sh

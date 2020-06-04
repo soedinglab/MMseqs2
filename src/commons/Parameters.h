@@ -1001,6 +1001,7 @@ public:
     std::vector<MMseqsParameter*> aggregatetax;
     std::vector<MMseqsParameter*> appendtaxaln;
     std::vector<MMseqsParameter*> taxonomy;
+    std::vector<MMseqsParameter*> taxpercontig;
     std::vector<MMseqsParameter*> easytaxonomy;
     std::vector<MMseqsParameter*> createsubdb;
     std::vector<MMseqsParameter*> createtaxdb;
