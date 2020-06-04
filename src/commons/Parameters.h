@@ -176,6 +176,11 @@ public:
     static const int TAXONOMY_OUTPUT_ALIGNMENT = 1;
     static const int TAXONOMY_OUTPUT_BOTH = 2;
 
+    // aggregate taxonomy
+    static const double AGG_TAX_MAX_WEIGHT = 1000;
+    static const int AGG_TAX_UNIFORM = 0;
+    static const int AGG_TAX_MINUS_LOG_EVAL = 1;
+
     // taxonomy search strategy
     static const int TAXONOMY_SINGLE_SEARCH = 1;
     static const int TAXONOMY_2BLCA = 2;

@@ -11,10 +11,6 @@
 #include <omp.h>
 #endif
 
-const double MAX_WEIGHT = 1000;
-const int UNIFORM = 0;
-const int MINUS_LOG_EVAL = 1;
-
 struct taxHit {
     void setByEntry(const char ** taxHitData, const size_t numCols, const int voteMode) {
         // plain format: 3+ tax columns: taxid, rank (can be more than one col), name (can be more than one col)
@@ -24,7 +20,7 @@ struct taxHit {
         weight = 0.0;
 
         // if voteMode is evalue-based, all tax-assigned sequences shoulf have alignment info...
-        if ((taxon != 0) && (numCols != 11) && (voteMode == MINUS_LOG_EVAL)) {
+        if ((taxon != 0) && (numCols != 11) && (voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL)) {
             Debug(Debug::ERROR) << "voteMode is evalue-based but taxonid: " << taxon << " does not have alignment info.\n";
             EXIT(EXIT_FAILURE);
         }
@@ -35,13 +31,13 @@ struct taxHit {
         }
 
         // update weight according to mode
-        if (voteMode == UNIFORM) {
+        if (voteMode == Parameters::AGG_TAX_UNIFORM) {
             weight = 1.0;
-        } else if (voteMode == MINUS_LOG_EVAL) {
+        } else if (voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL) {
             if (evalue > 0) {
                 weight = -log(evalue);
             } else {
-                weight = MAX_WEIGHT;
+                weight = Parameters::AGG_TAX_MAX_WEIGHT;
             }
         }
     }
