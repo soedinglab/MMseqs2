@@ -938,7 +938,7 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
     Debug(Debug::INFO) << "\n" << stats.kmersPerPos << " k-mers per position\n";
     Debug(Debug::INFO) << stats.dbMatches << " DB matches per sequence\n";
     Debug(Debug::INFO) << stats.diagonalOverflow << " overflows\n";
-    Debug(Debug::INFO) << stats.truncated << " queries produce too much hits (truncated result)\n";
+    Debug(Debug::INFO) << stats.truncated << " queries produce too many hits (truncated result)\n";
     Debug(Debug::INFO) << stats.resultsPassedPrefPerSeq << " sequences passed prefiltering per query sequence";
     if (stats.resultsPassedPrefPerSeq > maxResults)
         Debug(Debug::WARNING) << " (ATTENTION: max. " << maxResults
