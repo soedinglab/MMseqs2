@@ -89,10 +89,16 @@ else
     fi
 fi
 
-if [ -n "${TAX_OUTPUT_LCA}" ]; then
+if [ "${TAX_OUTPUT}" -eq "0" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" lca "${TARGET}" "${LCA_SOURCE}" "${RESULTS}" ${LCA_PAR} \
         || fail "Lca died"
+elif [ "${TAX_OUTPUT}" -eq "2" ]; then
+    # shellcheck disable=SC2086
+    "$MMSEQS" lca "${TARGET}" "${LCA_SOURCE}" "${RESULTS}" ${LCA_PAR} \
+        || fail "Lca died"
+    "$MMSEQS" mvdb "${LCA_SOURCE}" "${RESULTS}_aln"  \
+        || fail "mvdb died"
 else # return alignment
     "$MMSEQS" mvdb "${LCA_SOURCE}" "${RESULTS}"  \
         || fail "mvdb died"

@@ -252,7 +252,7 @@ Parameters::Parameters():
         PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion mode", "Which hits (still meeting the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void *) &expansionMode, "^[0-2]{1}$"),
         // taxonomy
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA mode", "LCA Mode 1: Single Search LCA , 2: 2bLCA, 3: approx. 2bLCA, 4: top hit", typeid(int), (void *) &taxonomySearchMode, "^[1-4]{1}$"),
-        PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void *) &taxonomyOutpuMode, "^[0-1]{1}$"),
+        PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment 2: output both", typeid(int), (void *) &taxonomyOutpuMode, "^[0-2]{1}$"),
         // createsubdb, filtertaxseqdb
         PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "Subdb mode 0: copy data 1: soft link data and write index", typeid(int), (void *) &subDbMode, "^[0-1]{1}$"),
         PARAM_TAR_INCLUDE(PARAM_TAR_INCLUDE_ID, "--tar-include", "Tar Inclusion Regex", "Include file names based on this regex", typeid(std::string), (void *) &tarInclude, "^.*$"),

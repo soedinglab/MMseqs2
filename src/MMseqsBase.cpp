@@ -443,11 +443,9 @@ std::vector<Command> baseCommands = {
                 "# Extract all orfs from each contig and translate them\n"
                 "mmseqs extractorfs contigsDb orfsAaDb --translate\n\n"
                 "# Assign taxonomy to each orf\n"
-                "mmseqs taxonomy orfsAaDb swissprotDB taxPerOrf tmp\n\n"
-                "# Assign taxonomy to each orf, report the alignments\n"
-                "mmseqs taxonomy orfsAaDb swissprotDB OrfsAln tmp --tax-output-mode 1\n\n"
+                "mmseqs taxonomy orfsAaDb swissprotDB taxPerOrf tmp --tax-output-mode 2\n\n"
                 "# Append the alignemnt to the taxids\n"
-                "mmseqs appendtaxaln taxPerOrf OrfsAln taxPerOrfAln\n\n",
+                "mmseqs appendtaxaln taxPerOrf taxPerOrf_aln appendedRes\n\n",
                 "Eli Levy Karin <eli.levy.karin@gmail.com>",
                 "<<i:taxResPerSeqDB> <i:taxResAlnDB> <o:taxResPerSeqAlnDB>",
                 CITATION_MMSEQS2, {{"taxResPerSeqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_DATA, &DbValidator::allDb },

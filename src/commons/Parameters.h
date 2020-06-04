@@ -174,6 +174,7 @@ public:
     // taxonomy output
     static const int TAXONOMY_OUTPUT_LCA = 0;
     static const int TAXONOMY_OUTPUT_ALIGNMENT = 1;
+    static const int TAXONOMY_OUTPUT_BOTH = 2;
 
     // taxonomy search strategy
     static const int TAXONOMY_SINGLE_SEARCH = 1;
