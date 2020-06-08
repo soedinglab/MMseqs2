@@ -54,8 +54,8 @@ int summarizealis(int argc, const char **argv, const Command &command) {
             //std::vector<bool> covered(alnResults[0].qLen, false);
             int prevQEndPos = -1;
 
-            for (size_t i = 0; i < alnResults.size(); i++) {
-                Matcher::result_t res = alnResults[i];
+            for (size_t j = 0; j < alnResults.size(); j++) {
+                const Matcher::result_t& res = alnResults[j];
                 seqLen = res.qLen;
                 int qStartPos = std::min(res.qStartPos, res.qEndPos);
                 int qEndPos = std::max(res.qStartPos, res.qEndPos);

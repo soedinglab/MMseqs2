@@ -517,7 +517,7 @@ static te_expr *factor(state *s) {
     }
 
     while (s->type == TOK_INFIX && (s->function == pow)) {
-        te_fun2 t = s->function;
+        te_fun2 t = (te_fun2)s->function;
         next_token(s);
 
         if (insertion) {
@@ -546,7 +546,7 @@ static te_expr *factor(state *s) {
     te_expr *ret = power(s);
 
     while (s->type == TOK_INFIX && (s->function == pow)) {
-        te_fun2 t = s->function;
+        te_fun2 t = (te_fun2)s->function;
         next_token(s);
         ret = NEW_EXPR(TE_FUNCTION2 | TE_FLAG_PURE, ret, power(s));
         ret->function = t;
@@ -563,7 +563,7 @@ static te_expr *term(state *s) {
     te_expr *ret = factor(s);
 
     while (s->type == TOK_INFIX && (s->function == mul || s->function == divide || s->function == fmod)) {
-        te_fun2 t = s->function;
+        te_fun2 t = (te_fun2)s->function;
         next_token(s);
         ret = NEW_EXPR(TE_FUNCTION2 | TE_FLAG_PURE, ret, factor(s));
         ret->function = t;
@@ -578,7 +578,7 @@ static te_expr *sum_expr(state *s) {
     te_expr *ret = term(s);
 
     while (s->type == TOK_INFIX && (s->function == add || s->function == sub)) {
-        te_fun2 t = s->function;
+        te_fun2 t = (te_fun2)s->function;
         next_token(s);
         ret = NEW_EXPR(TE_FUNCTION2 | TE_FLAG_PURE, ret, term(s));
         ret->function = t;
@@ -594,7 +594,7 @@ static te_expr *test_expr(state *s) {
 
     while (s->type == TOK_INFIX && (s->function == greater || s->function == greater_eq ||
         s->function == lower || s->function == lower_eq || s->function == equal || s->function == not_equal)) {
-        te_fun2 t = s->function;
+        te_fun2 t = (te_fun2)s->function;
         next_token(s);
         ret = NEW_EXPR(TE_FUNCTION2 | TE_FLAG_PURE, ret, sum_expr(s));
         ret->function = t;
@@ -609,7 +609,7 @@ static te_expr *expr(state *s) {
     te_expr *ret = test_expr(s);
 
     while (s->type == TOK_INFIX && (s->function == logical_and || s->function == logical_or)) {
-        te_fun2 t = s->function;
+        te_fun2 t = (te_fun2)s->function;
         next_token(s);
         ret = NEW_EXPR(TE_FUNCTION2 | TE_FLAG_PURE, ret, test_expr(s));
         ret->function = t;

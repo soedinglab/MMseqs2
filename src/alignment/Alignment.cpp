@@ -315,7 +315,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 // get the prefiltering list
                 char *data = prefdbr->getData(id, thread_idx);
                 unsigned int queryDbKey = prefdbr->getDbKey(id);
-                size_t queryLen = -1, origQueryLen = -1;
+                size_t origQueryLen = 0;
                 std::string queryToWrap;
                 // only load query data if data != \0
                 if(*data != '\0'){
@@ -326,7 +326,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                                             << " is required in the prefiltering, but is not contained in the query sequence database.\nPlease check your database.\n";
                         EXIT(EXIT_FAILURE);
                     }
-                    queryLen = qdbr->getSeqLen(qId);
+                    size_t queryLen = qdbr->getSeqLen(qId);
                     origQueryLen = queryLen;
                     if (wrappedScoring) {
                         queryToWrap = std::string(querySeqData,queryLen);

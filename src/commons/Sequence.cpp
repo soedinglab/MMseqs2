@@ -73,7 +73,7 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
         memset(this->profile, 0, (maxLen + 1) * PROFILE_AA_SIZE * sizeof(float));
         for (size_t i = 0; i < (maxLen + 1) * profile_row_size; ++i){
             profile_score[i] = -SHRT_MAX;
-            profile_index[i] = -1;
+            profile_index[i] = UINT_MAX;
         }
     } else {
         profile_matrix = NULL;
