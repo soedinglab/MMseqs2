@@ -48,7 +48,7 @@ int appendtaxaln(int argc, const char **argv, const Command& command) {
             while (*results != '\0') {
                 Util::getWordsOfLine(results, entry, 255);
                 unsigned int taxid = Util::fast_atoi<unsigned int>(entry[0]);
-                lineToWrite += std::to_string(taxid);
+                lineToWrite += SSTR(taxid);
                 lineToWrite += "\t";
 
                 char *seqToTargetAlnData = alnReader.getDataByDBKey(seqKey, thread_idx);
