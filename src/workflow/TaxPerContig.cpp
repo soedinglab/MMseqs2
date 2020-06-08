@@ -10,13 +10,6 @@ void setTaxPerContigDefaults(Parameters *p) {
     p->translate = 1;
     p->taxonomyOutpuMode = 2;
     p->showTaxLineage = false;
-
-    p->spacedKmer = true;
-    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
-    p->sensitivity = 5.7;
-    p->evalThr = 1;
-    p->orfMinLength = 30;
-    p->orfMaxLength = 32734;
 }
 
 void setTaxPerContigMustPassAlong(Parameters *p) {
@@ -24,13 +17,6 @@ void setTaxPerContigMustPassAlong(Parameters *p) {
     p->PARAM_TRANSLATE.wasSet = true;
     p->PARAM_TAX_OUTPUT_MODE.wasSet = true;
     p->PARAM_TAXON_ADD_LINEAGE.wasSet = true;
-
-    p->PARAM_SPACED_KMER_MODE.wasSet = true;
-    p->PARAM_ALIGNMENT_MODE.wasSet = true;
-    p->PARAM_S.wasSet = true;
-    p->PARAM_E.wasSet = true;
-    p->PARAM_ORF_MIN_LENGTH.wasSet = true;
-    p->PARAM_ORF_MAX_LENGTH.wasSet = true;
 }
 
 int taxpercontig(int argc, const char **argv, const Command& command) {
@@ -55,7 +41,7 @@ int taxpercontig(int argc, const char **argv, const Command& command) {
     // never show lineage for the orfs
     par.showTaxLineage = false;
     par.translate = 0;
-    cmd.addVariable("TAXONOMY_PAR", par.createParameterString(par.taxonomy).c_str());
+    cmd.addVariable("TAXONOMY_PAR", par.createParameterString(par.taxonomy, true).c_str());
     par.showTaxLineage = showTaxLineageOrig;
     cmd.addVariable("AGGREGATETAX_PAR", par.createParameterString(par.aggregatetax).c_str());
     cmd.addVariable("VERBOSITY_COMP_PAR", par.createParameterString(par.verbandcompression).c_str());
