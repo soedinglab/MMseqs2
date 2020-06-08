@@ -36,11 +36,6 @@ if [ ! -e "${TMP_PATH}/orfsTax.dbtype" ]; then
         || fail "taxonomy died"
 fi
 
-if [ ! -e "${TMP_PATH}/orfsTaxPlus.dbtype" ]; then
-    # shellcheck disable=SC2086
-    "$MMSEQS" appendtaxaln "${TMP_PATH}/orfsTax" "${TMP_PATH}/orfsTax_aln" "${TMP_PATH}/orfsTaxPlus" \
-        || fail "appendtaxaln died"
-fi
 
 if [ ! -e "${TMP_PATH}/orfs_aa_h_swapped.dbtype" ]; then
     # shellcheck disable=SC2086
@@ -50,8 +45,8 @@ fi
 
 if [ ! -e "${RESULTS}.dbtype" ]; then
     # shellcheck disable=SC2086
-    "$MMSEQS" aggregatetax "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_aa_h_swapped" "${TMP_PATH}/orfsTaxPlus" "${RESULTS}" ${AGGREGATETAX_PAR} \
-        || fail "aggregatetax died"
+    "$MMSEQS" aggregatetaxweights "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_aa_h_swapped" "${TMP_PATH}/orfsTax" "${TMP_PATH}/orfsTax_aln" "${RESULTS}" ${AGGREGATETAX_PAR} \
+        || fail "aggregatetaxweights died"
 fi
 
 
@@ -61,8 +56,8 @@ if [ -n "${REMOVE_TMP}" ]; then
     "$MMSEQS" rmdb "${TMP_PATH}/orfs_aa"
      # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/orfsTax"
-     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/orfsTaxPlus"
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/orfsTa_aln"
      # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/orfs_aa_h_swapped"
 

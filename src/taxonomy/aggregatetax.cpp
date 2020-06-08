@@ -14,22 +14,22 @@
 const double MAX_WEIGHT = 1000;
 
 struct taxHit {
-    void setByEntry(const char ** taxHitData, const size_t numCols, const int voteMode) {
+    void setByEntry(const TaxID & taxonInput, const bool useAln, const char ** taxHitData, const size_t numCols, const int voteMode) {
         // plain format: 3+ tax columns: taxid, rank (can be more than one col), name (can be more than one col)
         // taxid + aln format has 11 columns: taxid, tkey, bitscore, seqid, evalue, qs, qe, ql, ts, te, tl
-        taxon = Util::fast_atoi<int>(taxHitData[0]);
+        taxon = taxonInput;
         evalue = 1.0;
         weight = 0.0;
 
-        // if voteMode is evalue-based, all tax-assigned sequences shoulf have alignment info...
-        if ((taxon != 0) && (numCols != 11) && (voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL)) {
+        // if voteMode is evalue-based, all tax-assigned sequences should have alignment info...
+        if ((taxon != 0) && (numCols < 10) && (useAln == true)) {
             Debug(Debug::ERROR) << "voteMode is evalue-based but taxonid: " << taxon << " does not have alignment info.\n";
             EXIT(EXIT_FAILURE);
         }
 
         // extract from alignment info
-        if (numCols == 11) {
-            evalue = strtod(taxHitData[4],NULL);
+        if (useAln == true) {
+            evalue = strtod(taxHitData[3],NULL);
         }
 
         // update weight according to mode
@@ -113,7 +113,7 @@ TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *t
     return (selctedTaxon);
 }
 
-int aggregatetax(int argc, const char **argv, const Command& command) {
+int aggregate(const bool useAln, int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
@@ -128,7 +128,28 @@ int aggregatetax(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> taxSeqReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     taxSeqReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_TAXONOMICAL_RESULT);
+    std::string alnDbStr = par.db3;
+    std::string alnDbIndexStr = par.db3Index;
+
+    std::string outDbStr = par.db4;
+    std::string outDbIndexStr = par.db4Index;
+
+    if (useAln == true) {
+        alnDbStr = par.db4;
+        alnDbIndexStr = par.db4Index;
+
+        outDbStr = par.db5;
+        outDbIndexStr = par.db5Index;
+    } else if (par.voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL) {
+        Debug(Debug::ERROR) << "voteMode is evalue-based but no alignment databse was provided. consider calling aggregatetaxweights\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    // open alignment per sequence - will be used only if useAln
+    DBReader<unsigned int> alnSeqReader(alnDbStr.c_str(), alnDbIndexStr.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
+    alnSeqReader.open(DBReader<unsigned int>::NOSORT);
+
+    DBWriter writer(outDbStr.c_str(), outDbIndexStr.c_str(), par.threads, par.compressed, Parameters::DBTYPE_TAXONOMICAL_RESULT);
     writer.open();
 
     std::vector<std::string> ranks = NcbiTaxonomy::parseRanks(par.lcaRanks);
@@ -161,9 +182,17 @@ int aggregatetax(int argc, const char **argv, const Command& command) {
                 unsigned int seqKey = Util::fast_atoi<unsigned int>(entry[0]);
 
                 char *seqToTaxData = taxSeqReader.getDataByDBKey(seqKey, thread_idx);
-                size_t numCols = Util::getWordsOfLine(seqToTaxData, entry, 255);
+                Util::getWordsOfLine(seqToTaxData, entry, 255);
+                TaxID taxon = Util::fast_atoi<int>(entry[0]);
+                size_t numCols = 0;
+
+                if (useAln == true) {
+                    char *seqToAlnData = alnSeqReader.getDataByDBKey(seqKey, thread_idx);
+                    numCols = Util::getWordsOfLine(seqToAlnData, entry, 255);
+                }
+
                 taxHit currTaxHit;
-                currTaxHit.setByEntry(entry, numCols, par.voteMode);
+                currTaxHit.setByEntry(taxon, useAln, entry, numCols, par.voteMode);
                 setTaxa.emplace_back(currTaxHit);
                 results = Util::skipLine(results);
             }
@@ -205,7 +234,17 @@ int aggregatetax(int argc, const char **argv, const Command& command) {
     writer.close();
     taxSeqReader.close();
     setToSeqReader.close();
+    alnSeqReader.close();
     delete t;
 
     return EXIT_SUCCESS;
+
+}
+
+int aggregatetaxweights(int argc, const char **argv, const Command& command) {
+    return (aggregate(true, argc, argv, command)); 
+}
+
+int aggregatetax(int argc, const char **argv, const Command& command) {
+    return (aggregate(false, argc, argv, command)); 
 }

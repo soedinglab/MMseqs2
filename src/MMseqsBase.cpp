@@ -448,6 +448,25 @@ std::vector<Command> baseCommands = {
                                                            {"setToSeqMap",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
                                                            {"taxResPerSeqDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::taxResult },
                                                            {"taxResPerSetDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxResult }}},
+        {"aggregatetaxweights",         aggregatetaxweights,         &par.aggregatetax,         COMMAND_TAXONOMY,
+                "Aggregate multiple taxon labels to a single label",
+                "# Download a sequence database with taxonomy information\n"
+                "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n\n"
+                "# Create a nucleotide sequence database from FASTA\n"
+                "mmseqs createdb contigs.fasta contigsDb\n\n"
+                "# Extract all orfs from each contig and translate them\n"
+                "mmseqs extractorfs contigsDb orfsAaDb --translate\n\n"
+                "# Assign taxonomy to each orf\n"
+                "mmseqs taxonomy orfsAaDb swissprotDB taxPerOrf tmp --tax-output-mode 2\n\n"
+                "# Aggregate taxonomic assignments on each contig\n"
+                "mmseqs aggregatetaxweights swissprotDB orfsAaDb_h taxPerOrf taxPerOrf_aln taxPerContig --majority 0.5\n\n",
+                "Eli Levy Karin <eli.levy.karin@gmail.com>",
+                "<i:taxSeqDB> <i:setToSeqMap> <i:taxResPerSeqDB> <i:taxAlnResPerSeqDB> <o:taxResPerSetDB>",
+                CITATION_MMSEQS2, {{"taxSeqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
+                                                           {"setToSeqMap",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
+                                                           {"taxResPerSeqDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::taxResult },
+                                                           {"taxAlnResPerSeqDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
+                                                           {"taxResPerSetDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxResult }}},
         {"appendtaxaln",         appendtaxaln,         &par.appendtaxaln,         COMMAND_TAXONOMY,
                 "append to the taxid the alignment info between the query and tax-target",
                 "# Download a sequence database with taxonomy information\n"
