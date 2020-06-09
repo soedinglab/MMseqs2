@@ -110,7 +110,7 @@ before_install:
 
 script:
   - |
-    if [ -e "/opt/intel/inteloneapi/setvars.sh" ]; source /opt/intel/inteloneapi/setvars.sh; fi; \
+    if [ -e "/opt/intel/inteloneapi/setvars.sh" ]; then source /opt/intel/inteloneapi/setvars.sh; fi; \
     mkdir build; cd build; \
     cmake -DHAVE_MPI="$([[ -z "$MPI" ]]; echo $?)" -DENABLE_WERROR=1 -DHAVE_TESTS=1 ..; \
     make -j $(nproc --all); \
