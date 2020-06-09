@@ -963,10 +963,6 @@ Parameters::Parameters():
     // TODO should we add this in the future?
     //aggregatetax.push_back(&PARAM_BLACKLIST);
 
-    // appendtaxaln
-    appendtaxaln.push_back(&PARAM_THREADS);
-    appendtaxaln.push_back(&PARAM_V);
-
     // lca
     lca.push_back(&PARAM_COMPRESSED);
     lca.push_back(&PARAM_LCA_RANKS);

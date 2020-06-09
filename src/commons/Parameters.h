@@ -999,7 +999,6 @@ public:
     std::vector<MMseqsParameter*> filtertaxdb;
     std::vector<MMseqsParameter*> filtertaxseqdb;
     std::vector<MMseqsParameter*> aggregatetax;
-    std::vector<MMseqsParameter*> appendtaxaln;
     std::vector<MMseqsParameter*> taxonomy;
     std::vector<MMseqsParameter*> taxpercontig;
     std::vector<MMseqsParameter*> easytaxonomy;

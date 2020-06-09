@@ -11,7 +11,6 @@ set(taxonomy_source_files
         taxonomy/filtertaxdb.cpp
         taxonomy/filtertaxseqdb.cpp
         taxonomy/aggregatetax.cpp
-        taxonomy/appendtaxaln.cpp
         taxonomy/createtaxdb.cpp
         taxonomy/taxonomyreport.cpp
         taxonomy/TaxonomyExpression.h

@@ -467,23 +467,6 @@ std::vector<Command> baseCommands = {
                                                            {"taxResPerSeqDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::taxResult },
                                                            {"taxAlnResPerSeqDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
                                                            {"taxResPerSetDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxResult }}},
-        {"appendtaxaln",         appendtaxaln,         &par.appendtaxaln,         COMMAND_TAXONOMY,
-                "append to the taxid the alignment info between the query and tax-target",
-                "# Download a sequence database with taxonomy information\n"
-                "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n\n"
-                "# Create a nucleotide sequence database from FASTA\n"
-                "mmseqs createdb contigs.fasta contigsDb\n\n"
-                "# Extract all orfs from each contig and translate them\n"
-                "mmseqs extractorfs contigsDb orfsAaDb --translate\n\n"
-                "# Assign taxonomy to each orf\n"
-                "mmseqs taxonomy orfsAaDb swissprotDB taxPerOrf tmp --tax-output-mode 2\n\n"
-                "# Append the alignemnt to the taxids\n"
-                "mmseqs appendtaxaln taxPerOrf taxPerOrf_aln appendedRes\n\n",
-                "Eli Levy Karin <eli.levy.karin@gmail.com>",
-                "<<i:taxResPerSeqDB> <i:taxResAlnDB> <o:taxResPerSeqAlnDB>",
-                CITATION_MMSEQS2, {{"taxResPerSeqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_DATA, &DbValidator::allDb },
-                                                           {"taxResAlnDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
-                                                           {"taxResPerSetDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxResult }}},
         {"lca",                  lca,                  &par.lca,                  COMMAND_TAXONOMY,
                 "Compute the lowest common ancestor",
                 NULL,
