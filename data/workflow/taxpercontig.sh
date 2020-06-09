@@ -57,7 +57,7 @@ if [ -n "${REMOVE_TMP}" ]; then
      # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/orfsTax"
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/orfsTa_aln"
+    "$MMSEQS" rmdb "${TMP_PATH}/orfsTax_aln"
      # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/orfs_aa_h_swapped"
 

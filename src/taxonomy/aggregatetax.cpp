@@ -4,6 +4,7 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "Util.h"
+#include "Matcher.h"
 #include <map>
 #include <algorithm>
 
@@ -22,7 +23,7 @@ struct taxHit {
         weight = 0.0;
 
         // if voteMode is evalue-based, all tax-assigned sequences should have alignment info...
-        if ((taxon != 0) && (numCols < 10) && (useAln == true)) {
+        if ((taxon != 0) && (numCols < Matcher::ALN_RES_WITHOUT_BT_COL_CNT) && (useAln == true)) {
             Debug(Debug::ERROR) << "voteMode is evalue-based but taxonid: " << taxon << " does not have alignment info.\n";
             EXIT(EXIT_FAILURE);
         }
@@ -128,26 +129,23 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
     DBReader<unsigned int> taxSeqReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     taxSeqReader.open(DBReader<unsigned int>::NOSORT);
 
-    std::string alnDbStr = par.db3;
-    std::string alnDbIndexStr = par.db3Index;
+    // open alignment per sequence - will be used only if useAln
+    DBReader<unsigned int>* alnSeqReader = NULL;
+    if (useAln == true) {
+        alnSeqReader = new DBReader<unsigned int>(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
+        alnSeqReader->open(DBReader<unsigned int>::NOSORT);
+    }
 
+    // output is either db4 or db5
     std::string outDbStr = par.db4;
     std::string outDbIndexStr = par.db4Index;
-
     if (useAln == true) {
-        alnDbStr = par.db4;
-        alnDbIndexStr = par.db4Index;
-
         outDbStr = par.db5;
         outDbIndexStr = par.db5Index;
     } else if (par.voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL) {
         Debug(Debug::ERROR) << "voteMode is evalue-based but no alignment databse was provided. consider calling aggregatetaxweights\n";
         EXIT(EXIT_FAILURE);
     }
-
-    // open alignment per sequence - will be used only if useAln
-    DBReader<unsigned int> alnSeqReader(alnDbStr.c_str(), alnDbIndexStr.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    alnSeqReader.open(DBReader<unsigned int>::NOSORT);
 
     DBWriter writer(outDbStr.c_str(), outDbIndexStr.c_str(), par.threads, par.compressed, Parameters::DBTYPE_TAXONOMICAL_RESULT);
     writer.open();
@@ -187,7 +185,7 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
                 size_t numCols = 0;
 
                 if (useAln == true) {
-                    char *seqToAlnData = alnSeqReader.getDataByDBKey(seqKey, thread_idx);
+                    char *seqToAlnData = alnSeqReader->getDataByDBKey(seqKey, thread_idx);
                     numCols = Util::getWordsOfLine(seqToAlnData, entry, 255);
                 }
 
@@ -234,7 +232,8 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
     writer.close();
     taxSeqReader.close();
     setToSeqReader.close();
-    alnSeqReader.close();
+    alnSeqReader->close();
+    delete alnSeqReader;
     delete t;
 
     return EXIT_SUCCESS;

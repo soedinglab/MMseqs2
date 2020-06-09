@@ -465,7 +465,7 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2, {{"taxSeqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
                                                            {"setToSeqMap",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
                                                            {"taxResPerSeqDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::taxResult },
-                                                           {"taxAlnResPerSeqDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
+                                                           {"taxAlnResPerSeqDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
                                                            {"taxResPerSetDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxResult }}},
         {"appendtaxaln",         appendtaxaln,         &par.appendtaxaln,         COMMAND_TAXONOMY,
                 "append to the taxid the alignment info between the query and tax-target",
