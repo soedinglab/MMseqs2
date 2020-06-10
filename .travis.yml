@@ -103,6 +103,7 @@ jobs:
   fast_finish: true
   allow_failures:
   - arch: ppc64le
+  - env: CC=icc CXX=icpc
 
 before_install:
   - export CC
