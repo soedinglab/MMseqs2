@@ -590,12 +590,12 @@ template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey, int thrIdx) {
     }
 }
 
-template <typename T> size_t DBReader<T>::getLookupSize(){
+template <typename T> size_t DBReader<T>::getLookupSize() const {
     checkClosed();
     return lookupSize;
 }
 
-template <typename T> size_t DBReader<T>::getSize (){
+template <typename T> size_t DBReader<T>::getSize() const {
     checkClosed();
     return size;
 }
@@ -640,7 +640,7 @@ template <typename T> size_t DBReader<T>::getLookupIdByAccession(const std::stri
 template <typename T> T DBReader<T>::getLookupKey(size_t id){
     if (id >= lookupSize){
         Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << dataFileName << ".lookup\n";
-        Debug(Debug::ERROR) << "getLookupFileNumber: local id (" << id << ") >= db size (" << lookupSize << ")\n";
+        Debug(Debug::ERROR) << "getLookupKey: local id (" << id << ") >= db size (" << lookupSize << ")\n";
         EXIT(EXIT_FAILURE);
     }
     return lookup[id].id;
@@ -665,36 +665,23 @@ template <typename T> unsigned int DBReader<T>::getLookupFileNumber(size_t id){
 }
 
 template<>
-size_t DBReader<unsigned int>::lookupEntryToBuffer(char* buffer, const LookupEntry& entry) {
-    char *basePos = buffer;
-    char *tmpBuff = Itoa::u32toa_sse2(entry.id, buffer);
-    *(tmpBuff - 1) = '\t';
-    memcpy(tmpBuff, entry.entryName.c_str(), entry.entryName.size());
-    tmpBuff += entry.entryName.size();
-    *tmpBuff = '\t';
-    tmpBuff++;
-    tmpBuff = Itoa::u32toa_sse2(entry.fileNumber, tmpBuff);
-    *(tmpBuff - 1) = '\n';
-    *tmpBuff = '\0';
-    return tmpBuff - basePos;
+void DBReader<unsigned int>::lookupEntryToBuffer(std::string& buffer, const LookupEntry& entry) {
+    buffer.append(SSTR(entry.id));
+    buffer.append(1, '\t');
+    buffer.append(entry.entryName);
+    buffer.append(1, '\t');
+    buffer.append(SSTR(entry.fileNumber));
+    buffer.append(1, '\n');
 }
 
 template<>
-size_t DBReader<std::string>::lookupEntryToBuffer(char* buffer, const LookupEntry& entry) {
-    char *basePos = buffer;
-    char *tmpBuff = basePos;
-    memcpy(tmpBuff, entry.id.c_str(), entry.id.size());
-    tmpBuff += entry.entryName.size();
-    *tmpBuff = '\t';
-    tmpBuff++;
-    memcpy(tmpBuff, entry.entryName.c_str(), entry.entryName.size());
-    tmpBuff += entry.entryName.size();
-    *tmpBuff = '\t';
-    tmpBuff++;
-    tmpBuff = Itoa::u32toa_sse2(entry.fileNumber, tmpBuff);
-    *(tmpBuff - 1) = '\n';
-    *tmpBuff = '\0';
-    return tmpBuff - basePos;
+void DBReader<std::string>::lookupEntryToBuffer(std::string& buffer, const LookupEntry& entry) {
+    buffer.append(entry.id);
+    buffer.append(1, '\t');
+    buffer.append(entry.entryName);
+    buffer.append(1, '\t');
+    buffer.append(SSTR(entry.fileNumber));
+    buffer.append(1, '\n');
 }
 
 template <typename T> size_t DBReader<T>::getId (T dbKey){
@@ -754,7 +741,7 @@ template <typename T> size_t DBReader<T>::maxCount(char c) {
     return max;
 }
 
-template <typename T> void DBReader<T>::checkClosed(){
+template <typename T> void DBReader<T>::checkClosed() const {
     if (closed == 1){
         Debug(Debug::ERROR) << "Trying to read a closed database.\n";
         EXIT(EXIT_FAILURE);

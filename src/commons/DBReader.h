@@ -165,7 +165,7 @@ public:
 
     char * getDataByOffset(size_t offset);
 
-    size_t getSize();
+    size_t getSize() const;
 
     unsigned int getMaxSeqLen(){return maxSeqLen;}
 
@@ -219,13 +219,13 @@ public:
     size_t getId (T dbKey);
 
     // does a binary search in the lookup and returns index of the entry
-    size_t getLookupSize();
+    size_t getLookupSize() const;
     size_t getLookupIdByKey(T dbKey);
     size_t getLookupIdByAccession(const std::string& accession);
     T getLookupKey(size_t id);
     std::string getLookupEntryName(size_t id);
     unsigned int getLookupFileNumber(size_t id);
-    size_t lookupEntryToBuffer(char* buffer, const LookupEntry& entry);
+    void lookupEntryToBuffer(std::string& buffer, const LookupEntry& entry);
     LookupEntry* getLookup() { return lookup; };
 
     static const int NOSORT = 0;
@@ -398,8 +398,7 @@ public:
     void decomposeDomainByAminoAcid(size_t worldRank, size_t worldSize, size_t *startEntry, size_t *numEntries);
 
 private:
-
-    void checkClosed();
+    void checkClosed() const;
 
     int threads;
 
