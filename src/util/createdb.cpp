@@ -289,11 +289,11 @@ int createdb(int argc, const char **argv, const Command& command) {
             entry.fileNumber = sourceLookup[splitIdx][splitCounter];
             readerHeader.lookupEntryToBuffer(buffer, entry);
             int written = fwrite(buffer.c_str(), sizeof(char), buffer.size(), file);
-            buffer.clear();
             if (written != (int)buffer.size()) {
                 Debug(Debug::ERROR) << "Cannot write to lookup file " << lookupFile << "\n";
                 EXIT(EXIT_FAILURE);
             }
+            buffer.clear();
             splitCounter++;
         }
         fclose(file);

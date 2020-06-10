@@ -702,11 +702,11 @@ void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string
             copy.entryName = SSTR(idx->id);
             lookupReader->lookupEntryToBuffer(strBuffer, copy);
             written = fwrite(strBuffer.c_str(), sizeof(char), strBuffer.size(), sLookup);
-            strBuffer.clear();
             if (written != (int) strBuffer.size()) {
                 Debug(Debug::ERROR) << "Could not write to lookup file " << indexFile << "_tmp\n";
                 EXIT(EXIT_FAILURE);
             }
+            strBuffer.clear();
         }
     }
     fclose(sIndex);
