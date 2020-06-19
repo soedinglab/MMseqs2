@@ -28,6 +28,10 @@ THE SOFTWARE.
 #define SIMDE_ENABLE_NATIVE_ALIASES
 #include <simde/x86/sse2.h>
 
+// FIXME: NEON throws many warnings due to the reinterpret casts
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+
 #define ALIGN_PRE
 #define ALIGN_SUF  __attribute__ ((aligned(16)))
 
@@ -302,5 +306,6 @@ public:
 #undef ALIGN_PRE
 #undef ALIGN_SUF
 
+#pragma GCC diagnostic pop
 
 #endif
