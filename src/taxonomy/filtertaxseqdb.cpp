@@ -74,7 +74,9 @@ int filtertaxseqdb(int argc, const char **argv, const Command& command) {
                 taxon = mappingIt->second;
             }
 
-            // if taxon is an ancestor of the requested taxid, it will be retained
+            // if taxon is a descendent of the requested taxid, it will be retained.
+            // e.g. if in taxonomyExpression taxid=2 (bacteria) and taxon=562 (E.coli) 
+            // then the check will return "true" cause taxon is descendent of taxid
             if (taxonomyExpression.isAncestor(taxon)) {
                 if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
                     writer.writeIndexEntry(key, offset, length, thread_idx);
