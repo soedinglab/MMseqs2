@@ -73,8 +73,6 @@ private:
                                     const short diagonal, CounterResult **hits, const unsigned int hitSize,
                                     const short bias);
 
-    __m256i Shuffle(const __m256i &value, const __m256i &shuffle);
-
     unsigned short distanceFromDiagonal(const unsigned short diagonal);
 
     void extractScores(unsigned int *score_arr, simd_int score);

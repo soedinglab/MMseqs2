@@ -81,6 +81,8 @@ if (CYGWIN OR ARM)
     target_compile_definitions(mmseqs-framework PUBLIC -D_GNU_SOURCE=1)
 endif ()
 
+target_compile_definitions(mmseqs-framework PUBLIC -DSSE=1)
+
 # needed for concat.h
 include(CheckCXXSourceRuns)
 check_cxx_source_runs("
