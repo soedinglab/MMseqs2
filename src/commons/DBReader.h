@@ -5,7 +5,7 @@
 //
 // Manages DB read access.
 //
-
+#include "MemoryTracker.h"
 #include <cstddef>
 #include <utility>
 #include <vector>
@@ -52,7 +52,7 @@ struct DBFiles {
 };
 
 template <typename T>
-class DBReader {
+class DBReader : public MemoryTracker {
 public:
     struct Index {
         T id;

@@ -16,6 +16,7 @@
 
 #include "simd.h"
 #include "MemoryMapped.h"
+#include "MemoryTracker.h"
 #include <algorithm>
 #include <sys/mman.h>
 #include <fstream>      // std::ifstream
@@ -632,6 +633,23 @@ uint64_t Util::revComplement(const uint64_t kmer, const int k) {
     // broadcast 128 bit to 64 bit
     return (((uint64_t)_mm_cvtsi128_si64(x)) >> (uint64_t)(64-2*k));
 
+}
+
+size_t Util::computeMemory(size_t limit) {
+    size_t memoryLimit;
+    if (limit > 0) {
+        memoryLimit = limit;
+    } else {
+        memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
+    }
+    if(MemoryTracker::getSize() > memoryLimit){
+        Debug(Debug::ERROR) << "Not enough memory to keep dbreader/write in memory!\n";
+        Debug(Debug::ERROR) << "Memory limit: " << memoryLimit << " dbreader/writer need: " << MemoryTracker::getSize() << "\n";
+        EXIT(EXIT_FAILURE);
+    }else{
+        memoryLimit -= MemoryTracker::getSize();
+    }
+    return memoryLimit;
 }
 
 template<> std::string SSTR(char x) { return std::string(1, x); }

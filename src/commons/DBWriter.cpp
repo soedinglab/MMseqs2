@@ -168,7 +168,7 @@ void DBWriter::open(size_t bufferSize) {
             // 8MB should be enough
             bufferSize = 8ull * 1024 * 1024;
         } else {
-            bufferSize = 64ull * 1024 * 1024;
+            bufferSize = 32ull * 1024 * 1024;
         }
     }
     for (unsigned int i = 0; i < threads; i++) {
@@ -184,6 +184,7 @@ void DBWriter::open(size_t bufferSize) {
         }
 
         dataFilesBuffer[i] = new(std::nothrow) char[bufferSize];
+        incrementMemory(bufferSize);
         Util::checkAllocation(dataFilesBuffer[i], "Cannot allocate buffer for DBWriter");
         this->bufferSize = bufferSize;
 
@@ -192,7 +193,7 @@ void DBWriter::open(size_t bufferSize) {
             Debug(Debug::WARNING) << "Write buffer could not be allocated (bufferSize=" << bufferSize << ")\n";
         }
 
-        indexFiles[i] =  FileUtil::openAndDelete(indexFileNames[i], "w");
+        indexFiles[i] = FileUtil::openAndDelete(indexFileNames[i], "w");
         fd = fileno(indexFiles[i]);
         if ((flags = fcntl(fd, F_GETFL, 0)) < 0 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
             Debug(Debug::ERROR) << "Can not set mode for " << indexFileNames[i] << "!\n";
@@ -218,7 +219,9 @@ void DBWriter::open(size_t bufferSize) {
             threadBufferSize[i] = 2097152;
             state[i] = false;
             compressedBuffers[i] = (char*) malloc(compressedBufferSizes[i]);
+            incrementMemory(compressedBufferSizes[i]);
             threadBuffer[i] = (char*) malloc(threadBufferSize[i]);
+            incrementMemory(threadBufferSize[i]);
             cstream[i] = ZSTD_createCStream();
         }
     }
@@ -253,7 +256,9 @@ void DBWriter::close(bool merge) {
     if(compressedBuffers){
         for (unsigned int i = 0; i < threads; i++) {
             free(compressedBuffers[i]);
+            decrementMemory(compressedBufferSizes[i]);
             free(threadBuffer[i]);
+            decrementMemory(threadBufferSize[i]);
             ZSTD_freeCStream(cstream[i]);
         }
     }
@@ -265,6 +270,7 @@ void DBWriter::close(bool merge) {
 
     for (unsigned int i = 0; i < threads; i++) {
         delete [] dataFilesBuffer[i];
+        decrementMemory(bufferSize);
         free(dataFileNames[i]);
         free(indexFileNames[i]);
     }

@@ -7,10 +7,11 @@
 #include <vector>
 
 #include "DBReader.h"
+#include "MemoryTracker.h"
 
 template <typename T> class DBReader;
 
-class DBWriter {
+class DBWriter : public MemoryTracker  {
 public:
     DBWriter(const char* dataFileName, const char* indexFileName, unsigned int threads, size_t mode, int dbtype);
 
@@ -103,7 +104,6 @@ private:
     static const int INIT_STATE=0;
     static const int NOTCOMPRESSED=1;
     static const int COMPRESSED=2;
-
     ZSTD_CStream** cstream;
 
     const unsigned int threads;

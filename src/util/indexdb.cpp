@@ -60,12 +60,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     BaseMatrix *seedSubMat = Prefiltering::getSubstitutionMatrix(par.seedScoringMatrixFile, par.alphabetSize, 8.0f, false, (db1IsNucl && db2IsNucl));
 
     // memoryLimit in bytes
-    size_t memoryLimit;
-    if (par.splitMemoryLimit > 0) {
-        memoryLimit = par.splitMemoryLimit;
-    } else {
-        memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
-    }
+    size_t memoryLimit=Util::computeMemory(par.splitMemoryLimit);
 
     int splitMode = Parameters::TARGET_DB_SPLIT;
     par.maxResListLen = std::min(dbr.getSize(), par.maxResListLen);

@@ -140,12 +140,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
     }
 
     // memoryLimit in bytes
-    size_t memoryLimit;
-    if (par.splitMemoryLimit > 0) {
-        memoryLimit = par.splitMemoryLimit;
-    } else {
-        memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
-    }
+    size_t memoryLimit=Util::computeMemory(par.splitMemoryLimit);
+
     size_t bytesForTargetElements = sizeof(size_t) * (maxTargetId + 2);
     memoryLimit = (memoryLimit > bytesForTargetElements) ? (memoryLimit - bytesForTargetElements) : 0;
 

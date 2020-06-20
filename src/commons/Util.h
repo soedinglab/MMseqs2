@@ -328,5 +328,7 @@ public:
     static bool hasAlignmentLength(int alnLenThr, int alnLen) {
         return alnLen >= alnLenThr;
     }
+
+    static size_t computeMemory(size_t limit);
 };
 #endif

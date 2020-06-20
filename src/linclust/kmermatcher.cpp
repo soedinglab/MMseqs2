@@ -7,6 +7,7 @@
 #include "Parameters.h"
 #include "Matcher.h"
 #include "Debug.h"
+#include "MemoryTracker.h"
 #include "DBReader.h"
 #include "omptl/omptl_algorithm"
 #include "MathUtil.h"
@@ -599,12 +600,8 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
     //seqDbr.readMmapedDataInMemory();
 
     // memoryLimit in bytes
-    size_t memoryLimit;
-    if (par.splitMemoryLimit > 0) {
-        memoryLimit = par.splitMemoryLimit;
-    } else {
-        memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
-    }
+    size_t memoryLimit=Util::computeMemory(par.splitMemoryLimit);
+
     Debug(Debug::INFO) << "\n";
     float kmersPerSequenceScale = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ?
                                         par.kmersPerSequenceScale.nucleotides : par.kmersPerSequenceScale.aminoacids;
