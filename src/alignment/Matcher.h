@@ -84,6 +84,8 @@ public:
                                           dbcov(dbcov), seqId(seqId), eval(eval), alnLength(alnLength),
                                           qStartPos(qStartPos), qEndPos(qEndPos), qLen(qLen),
                                           dbStartPos(dbStartPos), dbEndPos(dbEndPos), dbLen(dbLen),
+                                          queryOrfStartPos(-1), queryOrfEndPos(-1),
+                                          dbOrfStartPos(-1), dbOrfEndPos(-1),
                                           backtrace(backtrace) {};
 
         result_t(){};

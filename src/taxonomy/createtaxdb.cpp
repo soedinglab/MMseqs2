@@ -38,7 +38,7 @@ int createtaxdb(int argc, const char **argv, const Command& command) {
         cmd.addVariable("DOWNLOAD_NCBITAXDUMP", "0");
         cmd.addVariable("NCBITAXINFO", par.ncbiTaxDump.c_str());
     }
-
+    cmd.addVariable("ARIA_NUM_CONN", SSTR(std::min(16, par.threads)).c_str());
     FileUtil::writeFile(tmp + "/createindex.sh", createtaxdb_sh, createtaxdb_sh_len);
     std::string program(tmp + "/createindex.sh");
     cmd.execProgram(program.c_str(), par.filenames);

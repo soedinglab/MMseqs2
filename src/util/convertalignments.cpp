@@ -622,6 +622,18 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                     case Parameters::OUTFMT_EMPTY:
                                         result.push_back('-');
                                         break;
+                                    case Parameters::OUTFMT_QORFSTART:
+                                        result.append(SSTR(res.queryOrfStartPos));
+                                        break;
+                                    case Parameters::OUTFMT_QORFEND:
+                                        result.append(SSTR(res.queryOrfEndPos));
+                                        break;
+                                    case Parameters::OUTFMT_TORFSTART:
+                                        result.append(SSTR(res.dbOrfStartPos));
+                                        break;
+                                    case Parameters::OUTFMT_TORFEND:
+                                        result.append(SSTR(res.dbOrfEndPos));
+                                        break;
                                 }
                                 if (i < outcodes.size() - 1) {
                                     result.push_back('\t');

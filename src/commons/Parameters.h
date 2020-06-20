@@ -153,6 +153,12 @@ public:
     static const int OUTFMT_TAXID = 32;
     static const int OUTFMT_TAXNAME = 33;
     static const int OUTFMT_TAXLIN = 34;
+    static const int OUTFMT_QORFSTART = 35;
+    static const int OUTFMT_QORFEND = 36;
+    static const int OUTFMT_TORFSTART = 37;
+    static const int OUTFMT_TORFEND = 38;
+
+
 
 
     static std::vector<int> getOutputFormat(int formatMode, const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
