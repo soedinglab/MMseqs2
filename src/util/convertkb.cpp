@@ -83,38 +83,38 @@ int convertkb(int argc, const char **argv, const Command &command) {
         writers[*it]->open();
     }
 
-    DBReader<unsigned int> reader(par.mappingFile.c_str(), par.mappingFile.c_str(), 1, DBReader<unsigned int>::USE_LOOKUP_REV);
-    const bool doMapping = reader.getLookupSize() > 0;
-
+    DBReader<unsigned int>* reader = NULL;
     std::ofstream *lookupStream = NULL;
+
+    const bool doMapping = FileUtil::fileExists(par.mappingFile.c_str());
     if (!doMapping) {
-        std::string lookupFile = outputBase;
-        lookupFile.append(".lookup");
-
+        std::string lookupFile = outputBase + ".lookup";
         lookupStream = new std::ofstream(lookupFile);
-
         if (lookupStream->fail()) {
             Debug(Debug::ERROR) << "Could not open " << lookupFile << " for writing.";
             EXIT(EXIT_FAILURE);
         }
+    } else {
+        reader = new DBReader<unsigned int>(par.mappingFile.c_str(), par.mappingFile.c_str(), 1, DBReader<unsigned int>::USE_LOOKUP_REV);
+        reader->open(DBReader<unsigned int>::NOSORT);
     }
 
+    Debug::Progress progress;
     for (std::vector<std::string>::const_iterator it = par.filenames.begin(); it != par.filenames.end(); ++it) {
         std::istream *kbIn;
         if (Util::endsWith(".gz", *it)) {
 #ifdef HAVE_ZLIB
             kbIn = new igzstream((*it).c_str());
 #else
-            Debug(Debug::ERROR) << "MMseqs was not compiled with zlib support. Can not read compressed input!\n";
+            Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Can not read compressed input\n";
             EXIT(EXIT_FAILURE);
 #endif
         } else {
             kbIn = new std::ifstream(*it);
         }
 
-
         if (kbIn->fail()) {
-            Debug(Debug::ERROR) << "File " << (*it) << " not found!\n";
+            Debug(Debug::ERROR) << "File " << (*it) << " not found\n";
             EXIT(EXIT_FAILURE);
         }
 
@@ -123,12 +123,12 @@ int convertkb(int argc, const char **argv, const Command &command) {
         unsigned int i = 0;
         while (std::getline(*kbIn, line)) {
             if (line.length() < 2) {
-                Debug(Debug::WARNING) << "Invalid entry" << "\n";
+                Debug(Debug::WARNING) << "Invalid entry\n";
                 continue;
             }
 
             if (kb.readLine(line.c_str())) {
-//                progress.updateProgress();
+                progress.updateProgress();
                 std::string accession = getPrimaryAccession(kb.getColumn(UniprotKB::COL_KB_AC));
 
                 for (std::vector<unsigned int>::const_iterator it = enabledColumns.begin();
@@ -137,12 +137,12 @@ int convertkb(int argc, const char **argv, const Command &command) {
 
                     unsigned int key = i;
                     if (doMapping) {
-                        size_t lookupId = reader.getLookupIdByAccession(accession);
+                        size_t lookupId = reader->getLookupIdByAccession(accession);
                         if (lookupId == SIZE_MAX) {
                             Debug(Debug::WARNING) << "Could not find accession " << accession << " in lookup\n";
                             continue;
                         }
-                        key = reader.getLookupKey(lookupId);
+                        key = reader->getLookupKey(lookupId);
                     }
 
                     writers[*it]->writeData(column.c_str(), column.length(), key);
@@ -158,18 +158,19 @@ int convertkb(int argc, const char **argv, const Command &command) {
         delete kbIn;
     }
 
-    if (!doMapping) {
-        lookupStream->close();
-        delete lookupStream;
-    }
-
     for (std::vector<unsigned int>::const_iterator it = enabledColumns.begin(); it != enabledColumns.end(); ++it) {
         writers[*it]->close();
         delete writers[*it];
     }
     delete[] writers;
 
-    reader.close();
+    if (doMapping) {
+        reader->close();
+        delete reader;
+    } else {
+        lookupStream->close();
+        delete lookupStream;
+    }
 
     return EXIT_SUCCESS;
 }

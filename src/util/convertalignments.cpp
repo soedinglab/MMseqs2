@@ -12,6 +12,10 @@
 #include "MemoryMapped.h"
 #include "NcbiTaxonomy.h"
 
+#define ZSTD_STATIC_LINKING_ONLY
+#include <zstd.h>
+#include "result_viz_prelude.html.zst.h"
+
 #include <map>
 
 #ifdef OPENMP
@@ -154,12 +158,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     bool needSource = false;
     bool needTaxonomy = false;
     bool needTaxonomyMapping = false;
-    const std::vector<int> outcodes = Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders,
+    const std::vector<int> outcodes = Parameters::getOutputFormat(format, par.outfmt, needSequenceDB, needBacktrace, needFullHeaders,
                                                                   needLookup, needSource, needTaxonomyMapping, needTaxonomy);
-    if(format == Parameters::FORMAT_ALIGNMENT_SAM){
-        needSequenceDB = true;
-        needBacktrace = true;
-    }
 
     NcbiTaxonomy * t = NULL;
     std::vector<std::pair<unsigned int, unsigned int>> mapping;
@@ -306,10 +306,17 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             }
         }
         delete[] headerWritten;
+    } else if (format == Parameters::FORMAT_ALIGNMENT_HTML) {
+        size_t dstSize = ZSTD_findDecompressedSize(result_viz_prelude_html_zst, result_viz_prelude_html_zst_len);
+        char* dst = (char*)malloc(sizeof(char) * dstSize);
+        size_t realSize = ZSTD_decompress(dst, dstSize, result_viz_prelude_html_zst, result_viz_prelude_html_zst_len);
+        resultWriter.writeData(dst, realSize, 0, 0, false, false);
+        const char* scriptBlock = "<script>render([";
+        resultWriter.writeData(scriptBlock, strlen(scriptBlock), 0, 0, false, false);
+        free(dst);
     }
 
     Debug::Progress progress(alnDbr.getSize());
-
 #pragma omp parallel num_threads(localThreads)
     {
         unsigned int thread_idx = 0;
@@ -344,13 +351,14 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
             const unsigned int queryKey = alnDbr.getDbKey(i);
             char *querySeqData = NULL;
+            size_t querySeqLen = 0;
             queryProfData.clear();
             if (needSequenceDB) {
                 size_t qId = qDbr.sequenceReader->getId(queryKey);
                 querySeqData = qDbr.sequenceReader->getData(qId, thread_idx);
+                querySeqLen = qDbr.sequenceReader->getSeqLen(qId);
                 if(sameDB && qDbr.sequenceReader->isCompressed()){
-                    size_t querySeqDataLen = qDbr.sequenceReader->getSeqLen(qId);
-                    queryBuffer.assign(querySeqData, querySeqDataLen);
+                    queryBuffer.assign(querySeqData, querySeqLen);
                     querySeqData = (char*) queryBuffer.c_str();
                 }
                 if (queryProfile) {
@@ -365,6 +373,22 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             if (sameDB && needFullHeaders) {
                 queryHeaderBuffer.assign(qHeader, qHeaderLen);
                 qHeader = (char*) queryHeaderBuffer.c_str();
+            }
+
+            if (format == Parameters::FORMAT_ALIGNMENT_HTML) {
+                const char* jsStart = "{\"query\": {\"accession\": \"%s\",\"sequence\": \"";
+                int count = snprintf(buffer, sizeof(buffer), jsStart, queryId.c_str(), querySeqData);
+                if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
+                    Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
+                    continue;
+                }
+                result.append(buffer, count);
+                if (queryProfile) {
+                    result.append(queryProfData);
+                } else {
+                    result.append(querySeqData, querySeqLen);
+                }
+                result.append("\"}, \"alignments\": [\n");
             }
 
             char *data = alnDbr.getData(i, thread_idx);
@@ -661,6 +685,48 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         result.append(buffer, count);
                         break;
                     }
+                    case Parameters::FORMAT_ALIGNMENT_HTML: {
+                        const char* jsAln = "{\"target\": \"%s\", \"seqId\": %1.3f, \"alnLen\": %d, \"mismatch\": %d, \"gapopen\": %d, \"qStartPos\": %d, \"qEndPos\": %d, \"dbStartPos\": %d, \"dbEndPos\": %d, \"eval\": %.2E, \"score\": %d, \"qLen\": %d, \"dbLen\": %d, \"qAln\": \"";
+                        int count = snprintf(buffer, sizeof(buffer), jsAln,
+                                             targetId.c_str(), res.seqId, alnLen,
+                                             missMatchCount, gapOpenCount,
+                                             res.qStartPos + 1, res.qEndPos + 1,
+                                             res.dbStartPos + 1, res.dbEndPos + 1,
+                                             res.eval, res.score,
+                                             res.qLen, res.dbLen);
+
+                        if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
+                            Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
+                            continue;
+                        }
+                        result.append(buffer, count);
+                        if (queryProfile) {
+                            printSeqBasedOnAln(result, queryProfData.c_str(), res.qStartPos,
+                                               Matcher::uncompressAlignment(res.backtrace), false, (res.qStartPos > res.qEndPos),
+                                               (isTranslatedSearch == true && queryNucs == true), translateNucl);
+                        } else {
+                            printSeqBasedOnAln(result, querySeqData, res.qStartPos,
+                                               Matcher::uncompressAlignment(res.backtrace), false, (res.qStartPos > res.qEndPos),
+                                               (isTranslatedSearch == true && queryNucs == true), translateNucl);
+                        }
+                        result.append("\", \"dbAln\": \"");
+                        size_t tId = tDbr->sequenceReader->getId(res.dbKey);
+                        char* targetSeqData = tDbr->sequenceReader->getData(tId, thread_idx);
+                        if (targetProfile) {
+                            Sequence::extractProfileConsensus(targetSeqData, *subMat, targetProfData);
+                            printSeqBasedOnAln(result, targetProfData.c_str(), res.dbStartPos,
+                                               Matcher::uncompressAlignment(res.backtrace), true,
+                                               (res.dbStartPos > res.dbEndPos),
+                                               (isTranslatedSearch == true && targetNucs == true), translateNucl);
+                        } else {
+                            printSeqBasedOnAln(result, targetSeqData, res.dbStartPos,
+                                               Matcher::uncompressAlignment(res.backtrace), true,
+                                               (res.dbStartPos > res.dbEndPos),
+                                               (isTranslatedSearch == true && targetNucs == true), translateNucl);
+                        }
+                        result.append("\" },\n");
+                        break;
+                    }
 
 //                    case Parameters::FORMAT_ALIGNMENT_GFF:{
 //                        // for TBLASTX
@@ -691,9 +757,16 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 }
             }
 
+            if (format == Parameters::FORMAT_ALIGNMENT_HTML) {
+                result.append("]},\n");
+            }
             resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx, isDb);
             result.clear();
         }
+    }
+    if (format == Parameters::FORMAT_ALIGNMENT_HTML) {
+        const char* endBlock = "]);</script>";
+        resultWriter.writeData(endBlock, strlen(endBlock), 0, localThreads - 1, false, false);
     }
     // tsv output
     resultWriter.close(true);

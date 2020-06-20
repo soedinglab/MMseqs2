@@ -15,10 +15,8 @@ BaseMatrix::BaseMatrix(){
     num2aa = new char[255];
     aa2num = new unsigned char[UCHAR_MAX];
     for (int i = 0; i < UCHAR_MAX; ++i) {
-        aa2num[i]=-1;
+        aa2num[i] = UCHAR_MAX;
     }
-
-
 }
 
 BaseMatrix::~BaseMatrix(){

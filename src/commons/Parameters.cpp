@@ -83,7 +83,7 @@ Parameters::Parameters():
         // logging
         PARAM_V(PARAM_V_ID, "-v", "Verbosity", "Verbosity level: 0: quiet, 1: +errors, 2: +warnings, 3: +info", typeid(int), (void *) &verbosity, "^[0-3]{1}$", MMseqsParameter::COMMAND_COMMON),
         // convertalignments
-        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID, "--format-mode", "Alignment format", "Output format: 0: BLAST-TAB, 1: SAM, 2: BLAST-TAB + query/db length", typeid(int), (void *) &formatAlignmentMode, "^[0-2]{1}$"),
+        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID, "--format-mode", "Alignment format", "Output format: 0: BLAST-TAB, 1: SAM, 2: BLAST-TAB + query/db length, 3: Pretty HTML", typeid(int), (void *) &formatAlignmentMode, "^[0-3]{1}$"),
         PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID, "--format-output", "Format alignment output", "Choose comma separated list of output columns from: query,target,evalue,gapopen,pident,nident,qstart,qend,qlen\ntstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov\nqset,qsetid,tset,tsetid,taxid,taxname,taxlineage", typeid(std::string), (void *) &outfmt, ""),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database output", "Return a result DB instead of a text file", typeid(bool), (void *) &dbOut, "", MMseqsParameter::COMMAND_EXPERT),
         // --include-only-extendablediagonal
@@ -242,6 +242,7 @@ Parameters::Parameters():
         PARAM_TAXON_ADD_LINEAGE(PARAM_TAXON_ADD_LINEAGE_ID, "--tax-lineage", "Show taxonomic lineage", "Add column with full taxonomy lineage", typeid(bool), (void *) &showTaxLineage, ""),
         // aggregatetax
         PARAM_MAJORITY(PARAM_MAJORITY_ID, "--majority", "Majority threshold", "minimal fraction of agreement among taxonomically assigned sequences of a set", typeid(float), (void *) &majorityThr, "^0(\\.[0-9]+)?|^1(\\.0+)?$"),
+        PARAM_VOTE_MODE(PARAM_VOTE_MODE_ID, "--vote-mode", "Vote mode", "Mode of assigning weights to compute majority. 0: uniform, 1: minus log e-value", typeid(int), (void *) &voteMode, "^[0-1]{1}$"),
         // taxonomyreport
         PARAM_REPORT_MODE(PARAM_REPORT_MODE_ID, "--report-mode", "Report mode", "Taxonomy report mode 0: Kraken 1: Krona", typeid(int), (void *) &reportMode, "^[0-1]{1}$"),
         // createtaxdb
@@ -251,7 +252,7 @@ Parameters::Parameters():
         PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion mode", "Which hits (still meeting the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void *) &expansionMode, "^[0-2]{1}$"),
         // taxonomy
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA mode", "LCA Mode 1: Single Search LCA , 2: 2bLCA, 3: approx. 2bLCA, 4: top hit", typeid(int), (void *) &taxonomySearchMode, "^[1-4]{1}$"),
-        PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void *) &taxonomyOutpuMode, "^[0-1]{1}$"),
+        PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment 2: output both", typeid(int), (void *) &taxonomyOutpuMode, "^[0-2]{1}$"),
         // createsubdb, filtertaxseqdb
         PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "Subdb mode 0: copy data 1: soft link data and write index", typeid(int), (void *) &subDbMode, "^[0-1]{1}$"),
         PARAM_TAR_INCLUDE(PARAM_TAR_INCLUDE_ID, "--tar-include", "Tar Inclusion Regex", "Include file names based on this regex", typeid(std::string), (void *) &tarInclude, "^.*$"),
@@ -954,12 +955,13 @@ Parameters::Parameters():
     // aggregatetax
     aggregatetax.push_back(&PARAM_COMPRESSED);
     aggregatetax.push_back(&PARAM_MAJORITY);
+    aggregatetax.push_back(&PARAM_VOTE_MODE);
     aggregatetax.push_back(&PARAM_LCA_RANKS);
-    // TODO should we add this in the future?
-    //aggregatetax.push_back(&PARAM_BLACKLIST);
     aggregatetax.push_back(&PARAM_TAXON_ADD_LINEAGE);
     aggregatetax.push_back(&PARAM_THREADS);
     aggregatetax.push_back(&PARAM_V);
+    // TODO should we add this in the future?
+    //aggregatetax.push_back(&PARAM_BLACKLIST);
 
     // lca
     lca.push_back(&PARAM_COMPRESSED);
@@ -1100,6 +1102,10 @@ Parameters::Parameters():
     taxonomy = combineList(searchworkflow, lca);
     taxonomy.push_back(&PARAM_LCA_MODE);
     taxonomy.push_back(&PARAM_TAX_OUTPUT_MODE);
+
+    // taxpercontig
+    taxpercontig = combineList(removeParameter(extractorfs, PARAM_TRANSLATE), removeParameter(taxonomy, PARAM_TAX_OUTPUT_MODE));
+    taxpercontig = combineList(taxpercontig, aggregatetax);
 
     // easy taxonomy
     easytaxonomy = combineList(taxonomy, addtaxonomy);
@@ -2194,6 +2200,7 @@ void Parameters::setDefaults() {
 
     // aggregatetax
     majorityThr = 0;
+    voteMode = 0;
 
     // taxonomyreport
     reportMode = 0;
@@ -2331,10 +2338,15 @@ void Parameters::overrideParameterDescription(MMseqsParameter& par, const char *
     }
 }
 
-std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
+std::vector<int> Parameters::getOutputFormat(int formatMode, const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
                                              bool &needLookup, bool &needSource, bool &needTaxonomyMapping, bool &needTaxonomy) {
-    std::vector<std::string> outformatSplit = Util::split(outformat, ",");
     std::vector<int> formatCodes;
+    if (formatMode == Parameters::FORMAT_ALIGNMENT_SAM || formatMode == Parameters::FORMAT_ALIGNMENT_HTML) {
+        needSequences = true;
+        needBacktrace = true;
+        return formatCodes;
+    }
+    std::vector<std::string> outformatSplit = Util::split(outformat, ",");
     int code = 0;
     for (size_t i = 0; i < outformatSplit.size(); ++i) {
         if(outformatSplit[i].compare("query") == 0){ code = Parameters::OUTFMT_QUERY;}

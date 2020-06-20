@@ -4,6 +4,7 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "Util.h"
+#include "Matcher.h"
 #include <map>
 #include <algorithm>
 
@@ -11,13 +12,52 @@
 #include <omp.h>
 #endif
 
-TaxID selectTaxForSet (const std::vector<TaxID> &setTaxa, NcbiTaxonomy const *taxonomy, const float majorityCutoff) {
-    // count num occurences of each ancestor 
-    std::map<TaxID,unsigned int> ancTaxIdsCounts;
-    size_t totalAssignedSeqs = 0;
+const double MAX_WEIGHT = 1000;
+
+struct taxHit {
+    void setByEntry(const TaxID & taxonInput, const bool useAln, const char ** taxHitData, const size_t numCols, const int voteMode) {
+        // plain format: 3+ tax columns: taxid, rank (can be more than one col), name (can be more than one col)
+        // taxid + aln format has 11 columns: taxid, tkey, bitscore, seqid, evalue, qs, qe, ql, ts, te, tl
+        taxon = taxonInput;
+        evalue = 1.0;
+        weight = 0.0;
+
+        // if voteMode is evalue-based, all tax-assigned sequences should have alignment info...
+        if ((taxon != 0) && (numCols < Matcher::ALN_RES_WITHOUT_BT_COL_CNT) && (useAln == true)) {
+            Debug(Debug::ERROR) << "voteMode is evalue-based but taxonid: " << taxon << " does not have alignment info.\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        // extract from alignment info
+        if (useAln == true) {
+            evalue = strtod(taxHitData[3],NULL);
+        }
+
+        // update weight according to mode
+        if (voteMode == Parameters::AGG_TAX_UNIFORM) {
+            weight = 1.0;
+        } else if (voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL) {
+            if (evalue > 0) {
+                weight = -log(evalue);
+            } else {
+                weight = MAX_WEIGHT;
+            }
+        }
+    }
+
+    TaxID taxon;
+    double evalue;
+    double weight;
+};
+
+TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *taxonomy, const float majorityCutoff) {
+    // count num occurences of each ancestor, possibly weighted 
+    std::map<TaxID,double> ancTaxIdsCounts;
+    double totalAssignedSeqsWeights = 0.0;
 
     for (size_t i = 0; i < setTaxa.size(); ++i) {
-        TaxID currTaxId = setTaxa[i];
+        TaxID currTaxId = setTaxa[i].taxon;
+        double currWeight = setTaxa[i].weight;
         // ignore unassigned sequences
         if (currTaxId == 0) {
             continue;
@@ -27,13 +67,13 @@ TaxID selectTaxForSet (const std::vector<TaxID> &setTaxa, NcbiTaxonomy const *ta
             Debug(Debug::ERROR) << "taxonid: " << currTaxId << " does not match a legal taxonomy node.\n";
             EXIT(EXIT_FAILURE);
         }
-        totalAssignedSeqs++;
+        totalAssignedSeqsWeights += currWeight;
 
         // add count
         if (ancTaxIdsCounts.find(currTaxId) != ancTaxIdsCounts.end()) {
-            ancTaxIdsCounts[currTaxId]++;
+            ancTaxIdsCounts[currTaxId] += currWeight;
         } else {
-            ancTaxIdsCounts.insert(std::pair<TaxID,unsigned int>(currTaxId,1));
+            ancTaxIdsCounts.insert(std::pair<TaxID,unsigned int>(currTaxId,currWeight));
         }
 
         // iterate all ancestors up to the root
@@ -42,9 +82,9 @@ TaxID selectTaxForSet (const std::vector<TaxID> &setTaxa, NcbiTaxonomy const *ta
             TaxonNode const * node = taxonomy->taxonNode(currParentTaxId, false);
             currTaxId = currParentTaxId;
             if (ancTaxIdsCounts.find(currTaxId) != ancTaxIdsCounts.end()) {
-                ancTaxIdsCounts[currTaxId]++;
+                ancTaxIdsCounts[currTaxId] += currWeight;
             } else {
-                ancTaxIdsCounts.insert(std::pair<TaxID,unsigned int>(currTaxId,1));
+                ancTaxIdsCounts.insert(std::pair<TaxID,unsigned int>(currTaxId,currWeight));
             }
             currParentTaxId = node->parentTaxId;
         }
@@ -53,10 +93,10 @@ TaxID selectTaxForSet (const std::vector<TaxID> &setTaxa, NcbiTaxonomy const *ta
     // select the lowest ancestor that meets the cutoff
     int minRank = INT_MAX;
     TaxID selctedTaxon = 0;
-    float selectedPercent = 0;
+    double selectedPercent = 0;
 
-    for (std::map<TaxID,unsigned int>::iterator it = ancTaxIdsCounts.begin(); it != ancTaxIdsCounts.end(); it++) {
-        float currPercent = float(it->second) / totalAssignedSeqs;
+    for (std::map<TaxID,double>::iterator it = ancTaxIdsCounts.begin(); it != ancTaxIdsCounts.end(); it++) {
+        double currPercent = float(it->second) / totalAssignedSeqsWeights;
         if (currPercent >= majorityCutoff) {
             TaxID currTaxId = it->first;
             TaxonNode const * node = taxonomy->taxonNode(currTaxId, false);
@@ -74,7 +114,7 @@ TaxID selectTaxForSet (const std::vector<TaxID> &setTaxa, NcbiTaxonomy const *ta
     return (selctedTaxon);
 }
 
-int aggregatetax(int argc, const char **argv, const Command& command) {
+int aggregate(const bool useAln, int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
@@ -89,7 +129,25 @@ int aggregatetax(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> taxSeqReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     taxSeqReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_TAXONOMICAL_RESULT);
+    // open alignment per sequence - will be used only if useAln
+    DBReader<unsigned int>* alnSeqReader = NULL;
+    if (useAln == true) {
+        alnSeqReader = new DBReader<unsigned int>(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
+        alnSeqReader->open(DBReader<unsigned int>::NOSORT);
+    }
+
+    // output is either db4 or db5
+    std::string outDbStr = par.db4;
+    std::string outDbIndexStr = par.db4Index;
+    if (useAln == true) {
+        outDbStr = par.db5;
+        outDbIndexStr = par.db5Index;
+    } else if (par.voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL) {
+        Debug(Debug::ERROR) << "voteMode is evalue-based but no alignment databse was provided. consider calling aggregatetaxweights\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    DBWriter writer(outDbStr.c_str(), outDbIndexStr.c_str(), par.threads, par.compressed, Parameters::DBTYPE_TAXONOMICAL_RESULT);
     writer.open();
 
     std::vector<std::string> ranks = NcbiTaxonomy::parseRanks(par.lcaRanks);
@@ -104,7 +162,7 @@ int aggregatetax(int argc, const char **argv, const Command& command) {
 #endif
         // per thread variables
         const char *entry[2048];
-        std::vector<TaxID> setTaxa;
+        std::vector<taxHit> setTaxa;
         std::string setTaxStr;
         setTaxStr.reserve(4096);
 
@@ -124,8 +182,16 @@ int aggregatetax(int argc, const char **argv, const Command& command) {
                 char *seqToTaxData = taxSeqReader.getDataByDBKey(seqKey, thread_idx);
                 Util::getWordsOfLine(seqToTaxData, entry, 255);
                 TaxID taxon = Util::fast_atoi<int>(entry[0]);
+                size_t numCols = 0;
 
-                setTaxa.emplace_back(taxon);
+                if (useAln == true) {
+                    char *seqToAlnData = alnSeqReader->getDataByDBKey(seqKey, thread_idx);
+                    numCols = Util::getWordsOfLine(seqToAlnData, entry, 255);
+                }
+
+                taxHit currTaxHit;
+                currTaxHit.setByEntry(taxon, useAln, entry, numCols, par.voteMode);
+                setTaxa.emplace_back(currTaxHit);
                 results = Util::skipLine(results);
             }
 
@@ -166,7 +232,18 @@ int aggregatetax(int argc, const char **argv, const Command& command) {
     writer.close();
     taxSeqReader.close();
     setToSeqReader.close();
+    alnSeqReader->close();
+    delete alnSeqReader;
     delete t;
 
     return EXIT_SUCCESS;
+
+}
+
+int aggregatetaxweights(int argc, const char **argv, const Command& command) {
+    return (aggregate(true, argc, argv, command)); 
+}
+
+int aggregatetax(int argc, const char **argv, const Command& command) {
+    return (aggregate(false, argc, argv, command)); 
 }

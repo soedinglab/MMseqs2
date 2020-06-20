@@ -6,6 +6,7 @@ set(GENERATED_RESOURCES
         resources/libPolished_8.lib
         resources/cs219.lib
         resources/krona_prelude.html
+        resources/result_viz_prelude.html.zst
 
         PARENT_SCOPE
         )

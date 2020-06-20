@@ -51,7 +51,7 @@ int easyrbh(int argc, const char **argv, const Command &command) {
         bool needFullHeaders = false;
         bool needLookup = false;
         bool needSource = false;
-        Parameters::getOutputFormat(par.outfmt, needSequenceDB, needBacktrace, needFullHeaders,
+        Parameters::getOutputFormat(par.formatAlignmentMode, par.outfmt, needSequenceDB, needBacktrace, needFullHeaders,
                 needLookup, needSource, needTaxonomyMapping, needTaxonomy);
     }
 

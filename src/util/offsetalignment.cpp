@@ -37,7 +37,7 @@ void chainAlignmentHits(std::vector<Matcher::result_t> &results, std::vector<Mat
                 currRegion.dbEndPos = dbEndPos;
             }
             int currDiagonal = qStartPos - dbStartPos;
-            int nextDiagonal = UINT_MAX;
+            int nextDiagonal = INT_MAX;
             bool nextQueryStrand = true;
             bool nextTargetStrand = true;
             const bool isDifferentKey = (currRegion.dbKey != results[resIdx].dbKey);

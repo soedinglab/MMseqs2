@@ -416,6 +416,20 @@ std::vector<Command> baseCommands = {
                 "<i:taxSeqDB> <o:taxSeqDB>",
                 CITATION_MMSEQS2, {{"taxSeqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
                                                            {"taxSeqDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxSequenceDb }}},
+        {"taxpercontig",             taxpercontig,             &par.taxpercontig,             COMMAND_TAXONOMY,
+                "Taxonomic assignment to contigs",
+                "# Download a sequence database with taxonomy information\n"
+                "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n\n"
+                "# Create a nucleotide sequence database from FASTA\n"
+                "mmseqs createdb contigs.fasta contigsDb\n\n"
+                "# Assign taxonomy to each contig based on majority voting\n"
+                "mmseqs taxpercontig contigsDb swissprotDB result tmp --lca-mode 2 --tax-lineage 1 --majority 0.4 --vote-mode 1\n\n",
+                "Eli Levy Karin <eli.levy.karin@gmail.com>",
+                "<i:contigsDb> <i:taxSeqDB> <o:taxPerContigDb> <tmpDir>",
+                CITATION_MMSEQS2, {{"contigsDb", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::nuclDb },
+                                                          {"taxSeqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
+                                                          {"taxPerContigDb",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxResult },
+                                                          {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"aggregatetax",         aggregatetax,         &par.aggregatetax,         COMMAND_TAXONOMY,
                 "Aggregate multiple taxon labels to a single label",
                 "# Download a sequence database with taxonomy information\n"
@@ -433,6 +447,25 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2, {{"taxSeqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
                                                            {"setToSeqMap",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
                                                            {"taxResPerSeqDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::taxResult },
+                                                           {"taxResPerSetDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxResult }}},
+        {"aggregatetaxweights",         aggregatetaxweights,         &par.aggregatetax,         COMMAND_TAXONOMY,
+                "Aggregate multiple taxon labels to a single label",
+                "# Download a sequence database with taxonomy information\n"
+                "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n\n"
+                "# Create a nucleotide sequence database from FASTA\n"
+                "mmseqs createdb contigs.fasta contigsDb\n\n"
+                "# Extract all orfs from each contig and translate them\n"
+                "mmseqs extractorfs contigsDb orfsAaDb --translate\n\n"
+                "# Assign taxonomy to each orf\n"
+                "mmseqs taxonomy orfsAaDb swissprotDB taxPerOrf tmp --tax-output-mode 2\n\n"
+                "# Aggregate taxonomic assignments on each contig\n"
+                "mmseqs aggregatetaxweights swissprotDB orfsAaDb_h taxPerOrf taxPerOrf_aln taxPerContig --majority 0.5\n\n",
+                "Eli Levy Karin <eli.levy.karin@gmail.com>",
+                "<i:taxSeqDB> <i:setToSeqMap> <i:taxResPerSeqDB> <i:taxAlnResPerSeqDB> <o:taxResPerSetDB>",
+                CITATION_MMSEQS2, {{"taxSeqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
+                                                           {"setToSeqMap",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
+                                                           {"taxResPerSeqDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::taxResult },
+                                                           {"taxAlnResPerSeqDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
                                                            {"taxResPerSetDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxResult }}},
         {"lca",                  lca,                  &par.lca,                  COMMAND_TAXONOMY,
                 "Compute the lowest common ancestor",

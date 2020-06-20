@@ -92,8 +92,8 @@ bool KSeqGzip::ReadEntry() {
     entry.comment = s->comment;
     entry.sequence = s->seq;
     entry.qual = s->qual;
-    entry.headerOffset = -1;
-    entry.sequenceOffset = -1;
+    entry.headerOffset = 0;
+    entry.sequenceOffset = 0;
     entry.multiline = s->multiline;
 
     return true;
@@ -137,8 +137,8 @@ bool KSeqBzip::ReadEntry() {
     entry.comment = s->comment;
     entry.sequence = s->seq;
     entry.qual = s->qual;
-    entry.headerOffset = -1;
-    entry.sequenceOffset = -1;
+    entry.headerOffset = 0;
+    entry.sequenceOffset = 0;
     entry.multiline = s->multiline;
 
     return true;

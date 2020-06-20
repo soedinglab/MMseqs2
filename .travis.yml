@@ -90,9 +90,20 @@ jobs:
         - mpi-default-dev
         - mpi-default-bin
     env: MPI=1 CC=gcc-9 CXX=g++-9
+  - addons:
+      apt:
+        sources:
+        - sourceline: 'deb https://apt.repos.intel.com/oneapi all main'
+          key_url: 'https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB'
+        packages:
+        - *default_packages
+        - build-essential
+        - intel-oneapi-icc
+    env: CC=icc CXX=icpc
   fast_finish: true
   allow_failures:
   - arch: ppc64le
+  - env: CC=icc CXX=icpc
 
 before_install:
   - export CC
@@ -100,6 +111,7 @@ before_install:
 
 script:
   - |
+    if [ -e "/opt/intel/inteloneapi/setvars.sh" ]; then source /opt/intel/inteloneapi/setvars.sh; fi; \
     mkdir build; cd build; \
     cmake -DHAVE_MPI="$([[ -z "$MPI" ]]; echo $?)" -DENABLE_WERROR=1 -DHAVE_TESTS=1 ..; \
     make -j $(nproc --all); \

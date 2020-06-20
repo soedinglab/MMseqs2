@@ -262,16 +262,15 @@ int createdb(int argc, const char **argv, const Command& command) {
             }
         }
     }
-    if(par.writeLookup == true){
+
+    if (par.writeLookup == true) {
         DBReader<unsigned int> readerHeader(hdrDataFile.c_str(), hdrIndexFile.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
         readerHeader.open(DBReader<unsigned int>::NOSORT);
         // create lookup file
-        std::string lookupDataFile = dataFile + ".lookup";
-        std::string lookupIndexFile = lookupDataFile + ".index";
-        DBWriter lookupFile(lookupDataFile.c_str(), lookupIndexFile.c_str(), 1, Parameters::WRITER_ASCII_MODE, Parameters::DBTYPE_OMIT_FILE);
-        lookupFile.open();
-
-        char lookupBuffer[32768];
+        std::string lookupFile = dataFile + ".lookup";
+        FILE* file = FileUtil::openAndDelete(lookupFile.c_str(), "w");
+        std::string buffer;
+        buffer.reserve(2048);
         unsigned int splitIdx = 0;
         unsigned int splitCounter = 0;
         DBReader<unsigned int>::LookupEntry entry;
@@ -284,17 +283,20 @@ int createdb(int argc, const char **argv, const Command& command) {
             char *header = readerHeader.getData(id, 0);
             entry.id = id;
             entry.entryName = Util::parseFastaHeader(header);
-            entry.fileNumber = sourceLookup[splitIdx][splitCounter];
             if (entry.entryName.empty()) {
-                // An identifier is necessary for these two cases, so we should just give up
                 Debug(Debug::WARNING) << "Cannot extract identifier from entry " << entries_num << "\n";
             }
-            size_t len = readerHeader.lookupEntryToBuffer(lookupBuffer, entry);
-            lookupFile.writeData(lookupBuffer, len, 0, 0, false, false);
+            entry.fileNumber = sourceLookup[splitIdx][splitCounter];
+            readerHeader.lookupEntryToBuffer(buffer, entry);
+            int written = fwrite(buffer.c_str(), sizeof(char), buffer.size(), file);
+            if (written != (int)buffer.size()) {
+                Debug(Debug::ERROR) << "Cannot write to lookup file " << lookupFile << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            buffer.clear();
             splitCounter++;
         }
-        lookupFile.close(true);
-        FileUtil::remove(lookupIndexFile.c_str());
+        fclose(file);
         readerHeader.close();
     }
     delete[] sourceLookup;

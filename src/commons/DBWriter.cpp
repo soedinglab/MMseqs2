@@ -687,6 +687,8 @@ void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string
     FILE *sIndex = FileUtil::openAndDelete(indexTmp.c_str(), "w");
 
     char buffer[1024];
+    std::string strBuffer;
+    strBuffer.reserve(1024);
     DBReader<unsigned int>::LookupEntry* lookup = NULL;
     if (lookupReader != NULL) {
         lookup = lookupReader->getLookup();
@@ -704,12 +706,13 @@ void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string
             DBReader<unsigned int>::LookupEntry copy = lookup[lookupId];
             copy.id = i;
             copy.entryName = SSTR(idx->id);
-            len = lookupReader->lookupEntryToBuffer(buffer, copy);
-            written = fwrite(buffer, sizeof(char), len, sLookup);
-            if (written != (int) len) {
+            lookupReader->lookupEntryToBuffer(strBuffer, copy);
+            written = fwrite(strBuffer.c_str(), sizeof(char), strBuffer.size(), sLookup);
+            if (written != (int) strBuffer.size()) {
                 Debug(Debug::ERROR) << "Could not write to lookup file " << indexFile << "_tmp\n";
                 EXIT(EXIT_FAILURE);
             }
+            strBuffer.clear();
         }
     }
     fclose(sIndex);

@@ -115,6 +115,7 @@ public:
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
     static const int FORMAT_ALIGNMENT_SAM = 1;
     static const int FORMAT_ALIGNMENT_BLAST_WITH_LEN = 2;
+    static const int FORMAT_ALIGNMENT_HTML = 3;
 
     // outfmt
     static const int OUTFMT_QUERY = 0;
@@ -154,7 +155,7 @@ public:
     static const int OUTFMT_TAXLIN = 34;
 
 
-    static std::vector<int> getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
+    static std::vector<int> getOutputFormat(int formatMode, const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
                                             bool &needLookup, bool &needSource, bool &needTaxonomyMapping, bool &needTaxonomy);
 
     // clustering
@@ -174,6 +175,11 @@ public:
     // taxonomy output
     static const int TAXONOMY_OUTPUT_LCA = 0;
     static const int TAXONOMY_OUTPUT_ALIGNMENT = 1;
+    static const int TAXONOMY_OUTPUT_BOTH = 2;
+
+    // aggregate taxonomy
+    static const int AGG_TAX_UNIFORM = 0;
+    static const int AGG_TAX_MINUS_LOG_EVAL = 1;
 
     // taxonomy search strategy
     static const int TAXONOMY_SINGLE_SEARCH = 1;
@@ -577,6 +583,7 @@ public:
 
     // aggregatetax
     float majorityThr;
+    int voteMode;
 
     // taxonomyreport
     int reportMode;
@@ -888,6 +895,7 @@ public:
 
     // aggregatetax
     PARAMETER(PARAM_MAJORITY)
+    PARAMETER(PARAM_VOTE_MODE)
 
     // taxonomyreport
     PARAMETER(PARAM_REPORT_MODE)
@@ -993,6 +1001,7 @@ public:
     std::vector<MMseqsParameter*> filtertaxseqdb;
     std::vector<MMseqsParameter*> aggregatetax;
     std::vector<MMseqsParameter*> taxonomy;
+    std::vector<MMseqsParameter*> taxpercontig;
     std::vector<MMseqsParameter*> easytaxonomy;
     std::vector<MMseqsParameter*> createsubdb;
     std::vector<MMseqsParameter*> createtaxdb;
