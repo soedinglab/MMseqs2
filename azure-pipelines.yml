@@ -63,25 +63,21 @@ jobs:
       matrix:
         avx2:
           SIMD: 'AVX2'
-          CXXFLAGS: -mavx2
           STATIC: 1
           MPI: 0
           BUILD_TYPE: RelWithDebInfo
         sse:
           SIMD: 'SSE4_1'
-          CXXFLAGS: -msse4.1
           STATIC: 1
           MPI: 0
           BUILD_TYPE: RelWithDebInfo
         avx2_mpi:
           SIMD: 'AVX2'
-          CXXFLAGS: -mavx2
           STATIC: 0
           MPI: 1
           BUILD_TYPE: RelWithDebInfo
         asan:
           SIMD: 'AVX2'
-          CXXFLAGS: -mavx2
           STATIC: 0
           MPI: 0
           BUILD_TYPE: ASanOpt
@@ -107,13 +103,13 @@ jobs:
           fi
           if [ "${STATIC}" -eq "1" ]; then
               cmake -DHAVE_SANITIZER=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
-                -DBUILD_SHARED_LIBS=OFF -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+                -DBUILD_SHARED_LIBS=OFF \
                 -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc \
                 -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
-                -DCMAKE_CXX_FLAGS=${CXXFLAGS} -DHAVE_MPI=${MPI} ..
+                -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           else
               cmake -DHAVE_SANITIZER=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
-                -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DCMAKE_CXX_FLAGS=${CXXFLAGS} -DHAVE_MPI=${MPI} ..
+                -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           fi
 
           make -j $(nproc --all)

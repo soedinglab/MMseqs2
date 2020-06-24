@@ -21,7 +21,7 @@ jobs:
         - g++-8
         - gcc-8
     arch: arm64
-    env: CC=gcc-8 CXX=g++-8 CXXFLAGS=-march=native
+    env: CC=gcc-8 CXX=g++-8
     dist: bionic
   - addons:
       apt:
@@ -32,7 +32,7 @@ jobs:
           - gcc-8
     arch: ppc64le
     dist: bionic
-    env: CC=gcc-8 CXX=g++-8 CXXFLAGS=-mcpu=native MMSEQS_NUM_THREADS=8
+    env: CC=gcc-8 CXX=g++-8 MMSEQS_NUM_THREADS=8
   - addons:
       apt:
         packages:
@@ -40,7 +40,7 @@ jobs:
         - clang-3.8
         - libc++-dev
         - libomp-dev
-    env: CC=clang-3.8 CXX=clang++-3.8 CXXFLAGS=-mavx2
+    env: CC=clang-3.8 CXX=clang++-3.8
   - addons:
       apt:
         sources:
@@ -53,7 +53,7 @@ jobs:
         - libc++-10-dev
         - libc++abi-10-dev
         - libomp-10-dev
-    env: CC=clang-10 CXX=clang++-10 CXXFLAGS=-march=native
+    env: CC=clang-10 CXX=clang++-10
   - addons:
       apt:
         sources:
@@ -68,7 +68,7 @@ jobs:
         - libomp-10-dev
         - mpi-default-dev
         - mpi-default-bin
-    env: MPI=1 CC=clang-10 CXX=clang++-10 CXXFLAGS=-march=native
+    env: MPI=1 CC=clang-10 CXX=clang++-10
   - addons:
       apt:
         sources:
@@ -77,7 +77,7 @@ jobs:
         - *default_packages
         - gcc-4.8
         - g++-4.8
-    env: CC=gcc-4.8 CXX=g++-4.8 CXXFLAGS=-march=native
+    env: CC=gcc-4.8 CXX=g++-4.8
   - addons:
       apt:
         sources:
@@ -86,7 +86,7 @@ jobs:
         - *default_packages
         - gcc-9
         - g++-9
-    env: CC=gcc-9 CXX=g++-9 CXXFLAGS=-march=native
+    env: CC=gcc-9 CXX=g++-9
   - addons:
       apt:
         sources:
@@ -97,7 +97,7 @@ jobs:
         - g++-9
         - mpi-default-dev
         - mpi-default-bin
-    env: MPI=1 CC=gcc-9 CXX=g++-9 CXXFLAGS=-march=native
+    env: MPI=1 CC=gcc-9 CXX=g++-9
   - addons:
       apt:
         sources:
@@ -109,9 +109,6 @@ jobs:
         - intel-oneapi-icc
     env: CC=icc CXX=icpc
   fast_finish: true
-  allow_failures:
-  - arch: ppc64le
-  - env: CC=icc CXX=icpc
 
 before_install:
   - export CC
@@ -121,7 +118,7 @@ script:
   - |
     if [ -e "/opt/intel/inteloneapi/setvars.sh" ]; then source /opt/intel/inteloneapi/setvars.sh; fi; \
     mkdir build; cd build; \
-    cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DCMAKE_CXX_FLAGS=${CXXFLAGS} -DHAVE_MPI="$([[ -z "$MPI" ]]; echo $?)" -DHAVE_TESTS=1 ..; \
+    cmake -DHAVE_MPI="$([[ -z "$MPI" ]]; echo $?)" -DENABLE_WERROR=1 -DHAVE_TESTS=1 ..; \
     make -j $(nproc --all); \
     mkdir path; \
     printf '#!/bin/sh\n/usr/bin/tee "$@" | tail\n' > path/tee; \
