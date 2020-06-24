@@ -1,6 +1,3 @@
 [submodule "util/regression"]
 	path = util/regression
 	url = https://github.com/soedinglab/MMseqs2-Regression.git
-[submodule "lib/simde"]
-	path = lib/simde
-	url = https://github.com/nemequ/simde.git
