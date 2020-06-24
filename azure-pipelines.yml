@@ -7,10 +7,10 @@ variables:
     regression: 1
 
 jobs:
-  - job: build_ubuntu_1604_userguide
-    displayName: Ubuntu 1604 Userguide
+  - job: build_ubuntu_1804_userguide
+    displayName: Ubuntu 1804 Userguide
     pool:
-      vmImage: 'Ubuntu-16.04'
+      vmImage: 'Ubuntu-18.04'
     steps:
       - checkout: "none"
       - script: |
@@ -27,10 +27,10 @@ jobs:
           targetPath: $(System.DefaultWorkingDirectory)/userguide.pdf
           artifactName: userguide
 
-  - job: build_macos_1014
-    displayName: macOS 1014
+  - job: build_macos_1015
+    displayName: macOS 1015
     pool:
-      vmImage: 'macOS-10.14'
+      vmImage: 'macOS-10.15'
     steps:
       - checkout: self
         submodules: true
@@ -54,10 +54,10 @@ jobs:
           targetPath: $(Build.SourcesDirectory)/build/build_avx2/src/mmseqs
           artifactName: mmseqs-darwin-avx2
 
-  - job: build_ubuntu_1604
-    displayName: Ubuntu 1604 MMseqs2
+  - job: build_ubuntu_1804
+    displayName: Ubuntu 1804 MMseqs2
     pool:
-      vmImage: 'Ubuntu-16.04'
+      vmImage: 'Ubuntu-18.04'
     timeoutInMinutes: 120
     strategy:
       matrix:
@@ -86,12 +86,21 @@ jobs:
       - checkout: self
         submodules: true
       - script: |
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y g++-10
+        condition: eq(variables['BUILD_TYPE'], 'ASanOpt')
+        displayName: Install newer G++
+      - script: |
           sudo apt-get update
           sudo apt-get -y install mpi-default-dev mpi-default-bin
         displayName: Install Dependencies
         condition: eq(variables['MPI'], 1)
       - script: |
           mkdir build && cd build
+          if [ "${BUILD_TYPE}" = "ASanOpt" ]; then
+              export CC=gcc-10 ; export CXX=g++-10
+          fi
           if [ "${STATIC}" -eq "1" ]; then
               cmake -DHAVE_SANITIZER=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
                 -DBUILD_SHARED_LIBS=OFF \
@@ -179,11 +188,11 @@ jobs:
     displayName: Upload Artifacts
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     pool:
-      vmImage: 'Ubuntu-16.04'
+      vmImage: 'Ubuntu-18.04'
     dependsOn:
-      - build_ubuntu_1604_userguide
-      - build_macos_1014
-      - build_ubuntu_1604
+      - build_ubuntu_1804_userguide
+      - build_macos_1015
+      - build_ubuntu_1804
       - build_windows_2019
     steps:
       - script: |

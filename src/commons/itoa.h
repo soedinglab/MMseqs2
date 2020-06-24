@@ -22,36 +22,15 @@ THE SOFTWARE.
  */
 // SSE2 implementation according to http://0x80.pl/articles/sse-itoa.html
 // Modifications: (1) fix incorrect digits (2) accept all ranges (3) write to user provided buffer.
+
 #include <cstdint>
 
-#if defined(WASM) || defined(__ALTIVEC__)
-#include <cstdio>
-class Itoa{
-public:
-    static char* u32toa_sse2(uint32_t value, char* buffer) {
-        return buffer + sprintf(buffer, "%d", value) + 1;
-    }
-    static char* i32toa_sse2(int32_t value, char* buffer) {
-        return buffer + sprintf(buffer, "%d", value) + 1;
-    }
-    static char* u64toa_sse2(uint64_t value, char* buffer) {
-        return buffer + sprintf(buffer, "%zu", value) + 1;
-    }
-    static char* i64toa_sse2(uint64_t value, char* buffer) {
-        return buffer + sprintf(buffer, "%zu", value) + 1;
-    }
-};
-#else
-#ifdef NEON
-#include "sse2neon.h"
-#else
-#ifdef __ALTIVEC__
-#include "sse2altivec.h"
-#else
-#include <emmintrin.h>
-#endif
-#endif
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include <simde/x86/sse2.h>
 
+// FIXME: NEON throws many warnings due to the reinterpret casts
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
 
 #define ALIGN_PRE
 #define ALIGN_SUF  __attribute__ ((aligned(16)))
@@ -85,10 +64,6 @@ ALIGN_PRE static const uint16_t kShiftPowersVector[8] ALIGN_SUF = {
 };
 ALIGN_PRE static const uint16_t k10Vector[8] ALIGN_SUF = { 10, 10, 10, 10, 10, 10, 10, 10 };
 ALIGN_PRE static const char kAsciiZero[16] ALIGN_SUF = { '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0' };
-
-// FIXME: NEON throws many warnings due to the reinterpret casts
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
 
 class Itoa{
 public:
@@ -328,11 +303,9 @@ public:
     }
 
 };
-
-#pragma GCC diagnostic pop
-
 #undef ALIGN_PRE
 #undef ALIGN_SUF
 
-#endif
+#pragma GCC diagnostic pop
+
 #endif

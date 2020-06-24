@@ -31,36 +31,8 @@ See: https://github.com/lh3/minimap2
 #include <assert.h>
 #include "ksw2.h"
 
-#ifdef NEON
-#include "sse2neon.h"
-#define __SSE2__
-#define KSW_SSE2_ONLY
-#endif
-
-#ifdef WASM
-#include "sse2wasm.h"
-#define __SSE2__
-#define KSW_SSE2_ONLY
-#endif
-
-#ifdef __ALTIVEC__
-#include "sse2altivec.h"
-#define __SSE2__
-#define KSW_SSE2_ONLY
-#endif
-
-#ifdef __SSE2__
-#if !defined(NEON) && !defined(WASM) && !defined(__ALTIVEC__)
-#include <emmintrin.h>
-#endif
-
-#ifdef KSW_SSE2_ONLY
-#undef __SSE4_1__
-#endif
-
-#ifdef __SSE4_1__
-#include <smmintrin.h>
-#endif
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include <simde/x86/sse4.1.h>
 
 #ifdef KSW_CPU_DISPATCH
 #ifdef __SSE4_1__
@@ -177,11 +149,7 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 				st = _mm_loadu_si128((__m128i*)&qrr[t]);
 				mask = _mm_or_si128(_mm_cmpeq_epi8(sq, m1_), _mm_cmpeq_epi8(st, m1_));
 				tmp = _mm_cmpeq_epi8(sq, st);
-#ifdef __SSE4_1__
 				tmp = _mm_blendv_epi8(sc_mis_, sc_mch_, tmp);
-#else
-				tmp = _mm_or_si128(_mm_andnot_si128(tmp, sc_mis_), _mm_and_si128(tmp, sc_mch_));
-#endif
 				tmp = _mm_andnot_si128(mask, tmp);
 				_mm_storeu_si128((__m128i*)((uint8_t*)s + t), tmp);
 			}
@@ -198,22 +166,10 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 			for (t = st_; t <= en_; ++t) {
 				__m128i z, a, b, xt1, vt1, ut, tmp;
 				__dp_code_block1;
-#ifdef __SSE4_1__
 				z = _mm_max_epi8(z, a);                          // z = z > a? z : a (signed)
-#else // we need to emulate SSE4.1 intrinsics _mm_max_epi8()
-				z = _mm_and_si128(z, _mm_cmpgt_epi8(z, zero_));  // z = z > 0? z : 0;
-				z = _mm_max_epu8(z, a);                          // z = max(z, a); this works because both are non-negative
-#endif
 				__dp_code_block2;
-#ifdef __SSE4_1__
 				_mm_store_si128(&x[t], _mm_max_epi8(a, zero_));
 				_mm_store_si128(&y[t], _mm_max_epi8(b, zero_));
-#else
-				tmp = _mm_cmpgt_epi8(a, zero_);
-				_mm_store_si128(&x[t], _mm_and_si128(a, tmp));
-				tmp = _mm_cmpgt_epi8(b, zero_);
-				_mm_store_si128(&y[t], _mm_and_si128(b, tmp));
-#endif
 			}
 		} else if (!(flag&KSW_EZ_RIGHT)) { // gap left-alignment
 			__m128i *pr = p + r * n_col_ - st_;
@@ -222,16 +178,9 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 				__m128i d, z, a, b, xt1, vt1, ut, tmp;
 				__dp_code_block1;
 				d = _mm_and_si128(_mm_cmpgt_epi8(a, z), flag1_); // d = a > z? 1 : 0
-#ifdef __SSE4_1__
 				z = _mm_max_epi8(z, a);                          // z = z > a? z : a (signed)
 				tmp = _mm_cmpgt_epi8(b, z);
 				d = _mm_blendv_epi8(d, flag2_, tmp);             // d = b > z? 2 : d
-#else // we need to emulate SSE4.1 intrinsics _mm_max_epi8() and _mm_blendv_epi8()
-				z = _mm_and_si128(z, _mm_cmpgt_epi8(z, zero_));  // z = z > 0? z : 0;
-				z = _mm_max_epu8(z, a);                          // z = max(z, a); this works because both are non-negative
-				tmp = _mm_cmpgt_epi8(b, z);
-				d = _mm_or_si128(_mm_andnot_si128(tmp, d), _mm_and_si128(tmp, flag2_)); // d = b > z? 2 : d; emulating blendv
-#endif
 				__dp_code_block2;
 				tmp = _mm_cmpgt_epi8(a, zero_);
 				_mm_store_si128(&x[t], _mm_and_si128(tmp, a));
@@ -248,16 +197,9 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 				__m128i d, z, a, b, xt1, vt1, ut, tmp;
 				__dp_code_block1;
 				d = _mm_andnot_si128(_mm_cmpgt_epi8(z, a), flag1_); // d = z > a? 0 : 1
-#ifdef __SSE4_1__
 				z = _mm_max_epi8(z, a);                          // z = z > a? z : a (signed)
 				tmp = _mm_cmpgt_epi8(z, b);
 				d = _mm_blendv_epi8(flag2_, d, tmp);             // d = z > b? d : 2
-#else // we need to emulate SSE4.1 intrinsics _mm_max_epi8() and _mm_blendv_epi8()
-				z = _mm_and_si128(z, _mm_cmpgt_epi8(z, zero_));  // z = z > 0? z : 0;
-				z = _mm_max_epu8(z, a);                          // z = max(z, a); this works because both are non-negative
-				tmp = _mm_cmpgt_epi8(z, b);
-				d = _mm_or_si128(_mm_andnot_si128(tmp, flag2_), _mm_and_si128(tmp, d)); // d = z > b? d : 2; emulating blendv
-#endif
 				__dp_code_block2;
 				tmp = _mm_cmpgt_epi8(zero_, a);
 				_mm_store_si128(&x[t], _mm_andnot_si128(tmp, a));
@@ -288,13 +230,8 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 					_mm_storeu_si128((__m128i*)&H[t], H1);
 					t_ = _mm_set1_epi32(t);
 					tmp = _mm_cmpgt_epi32(H1, max_H_);
-#ifdef __SSE4_1__
 					max_H_ = _mm_blendv_epi8(max_H_, H1, tmp);
 					max_t_ = _mm_blendv_epi8(max_t_, t_, tmp);
-#else
-					max_H_ = _mm_or_si128(_mm_and_si128(tmp, H1), _mm_andnot_si128(tmp, max_H_));
-					max_t_ = _mm_or_si128(_mm_and_si128(tmp, t_), _mm_andnot_si128(tmp, max_t_));
-#endif
 				}
 				_mm_storeu_si128((__m128i*)HH, max_H_);
 				_mm_storeu_si128((__m128i*)tt, max_t_);
@@ -346,4 +283,3 @@ void ksw_extz2_sse(void *km, int qlen, const uint8_t *query, int tlen, const uin
 		kfree(km, mem2); kfree(km, off);
 	}
 }
-#endif // __SSE2__

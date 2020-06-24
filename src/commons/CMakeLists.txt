@@ -6,7 +6,6 @@ set(commons_header_files
         commons/Command.h
         commons/CommandCaller.h
         commons/Concat.h
-        commons/CpuInfo.h
         commons/DBConcat.h
         commons/DBReader.h
         commons/DBWriter.h

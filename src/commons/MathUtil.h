@@ -13,6 +13,18 @@
 #define M_PI (3.14159265358979323846264338327950288)
 #endif
 
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
+
+#ifndef MAY_ALIAS
+#if defined(__GNUC__) || __has_attribute(__may_alias__)
+#  define MAY_ALIAS(x) x __attribute__((__may_alias__))
+#else
+#  define MAY_ALIAS(x) x
+#endif
+#endif
+
 class MathUtil {
 public:
 
@@ -92,7 +104,7 @@ public:
     static inline float flog2(float x) {
         if (x <= 0)
             return -128;
-        int *px = (int *) (&x);        // store address of float as pointer to long int
+        MAY_ALIAS(int) *px = (int *) (&x);        // store address of float as pointer to long int
         float e = (float) (((*px & 0x7F800000) >> 23) -
                            0x7f); // shift right by 23 bits and subtract 127 = 0x7f => exponent
         *px = ((*px & 0x007FFFFF) | 0x3f800000);  // set exponent to 127 (i.e., 0)
@@ -103,17 +115,16 @@ public:
         return x + e;
     }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
     static inline double fpow2(float x) {
         if (x >= FLT_MAX_EXP) return FLT_MAX;
         if (x <= FLT_MIN_EXP) return 0.0f;
 
-        int *px = (int *) (&x);        // store address of float as pointer to long int
+        MAY_ALIAS(int) *px = (int *) (&x);        // store address of float as pointer to long int
         float tx = (x - 0.5f) + (3 << 22); // temporary value for truncation: x-0.5 is added to a large integer (3<<22),
         // 3<<22 = (1.1bin)*2^23 = (1.1bin)*2^(150-127),
         // which, in internal bits, is written 0x4b400000 (since 10010110bin = 150)
-        int lx = *((int *) &tx) - 0x4b400000;   // integer value of x
+        MAY_ALIAS(int) *ix = (int *) (&tx);   // integer value of x
+        int lx = *ix - 0x4b400000;
         float dx = x - (float) (lx);             // float remainder of x
 //   x = 1.0f + dx*(0.69606564f           // cubic apporoximation of 2^x for x in the range [0, 1]
 //            + dx*(0.22449433f           // Gives relative deviation < 1.5E-4
@@ -130,7 +141,6 @@ public:
         *px += (lx << 23);                      // add integer power of 2 to exponent
         return x;
     }
-#pragma GCC diagnostic pop
 
     static inline unsigned int concatenate(unsigned int x, unsigned int y) {
         unsigned int pow = 10;

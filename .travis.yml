@@ -18,13 +18,21 @@ jobs:
         packages:
         - *default_packages
         - build-essential
+        - g++-8
+        - gcc-8
     arch: arm64
+    env: CC=gcc-8 CXX=g++-8 MMSEQS_NUM_THREADS=8
+    dist: bionic
   - addons:
       apt:
         packages:
           - *default_packages
           - build-essential
+          - g++-8
+          - gcc-8
     arch: ppc64le
+    dist: bionic
+    env: CC=gcc-8 CXX=g++-8 MMSEQS_NUM_THREADS=8
   - addons:
       apt:
         packages:
@@ -101,9 +109,6 @@ jobs:
         - intel-oneapi-icc
     env: CC=icc CXX=icpc
   fast_finish: true
-  allow_failures:
-  - arch: ppc64le
-  - env: CC=icc CXX=icpc
 
 before_install:
   - export CC
