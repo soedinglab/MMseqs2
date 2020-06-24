@@ -626,7 +626,7 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 		end:
 		vMaxScore = simdi16_max(vMaxScore, vMaxColumn);
 		vTemp = simdi16_eq(vMaxMark, vMaxScore);
-		int32_t cmp = simdi8_movemask(vTemp);
+		uint32_t cmp = simdi8_movemask(vTemp);
 		if (cmp != SIMD_MOVEMASK_MAX) {
 			uint16_t temp;
 			vMaxMark = vMaxScore;
