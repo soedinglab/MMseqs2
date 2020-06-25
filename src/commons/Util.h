@@ -63,7 +63,7 @@ template<> std::string SSTR(float);
 #define __has_attribute(x) 0
 #endif
 
-#if defined(__GNUC__) || __has_attribute(unused)
+#if defined(__GNUC__) || __has_attribute(__unused__)
 #  define MAYBE_UNUSED(x) x __attribute__((__unused__))
 #else
 #  define MAYBE_UNUSED(x) x

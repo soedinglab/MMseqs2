@@ -51,7 +51,7 @@ int UngappedAlignment::scalarDiagonalScoring(const char * profile,
 }
 
 #ifdef AVX2
-inline __m256i UngappedAlignment::Shuffle(const __m256i & value, const __m256i & shuffle)
+inline __m256i Shuffle(const __m256i & value, const __m256i & shuffle)
 {
     const __m256i K0 = _mm256_setr_epi8(
             (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70,
@@ -72,12 +72,10 @@ simd_int UngappedAlignment::vectorDiagonalScoring(const char *profile,
     simd_int vMaxScore     = simdi_setzero();
     const simd_int vBias   = simdi8_set(bias);
 #ifndef AVX2
-    #ifdef SSE
     const simd_int sixten  = simdi8_set(16);
     const simd_int fiveten = simdi8_set(15);
 #endif
-#endif
-    for(unsigned int pos = 0; pos < seqLen; pos++){
+    for (unsigned int pos = 0; pos < seqLen; pos++) {
         simd_int template01 = simdi_load((simd_int *)&dbSeq[pos*VECSIZE_INT*4]);
 #ifdef AVX2
         __m256i score_matrix_vec01 = _mm256_load_si256((simd_int *)&profile[pos * PROFILESIZE]);
@@ -85,7 +83,7 @@ simd_int UngappedAlignment::vectorDiagonalScoring(const char *profile,
         //        __m256i score_vec_8bit = _mm256_shuffle_epi8(score_matrix_vec01, template01);
         //        __m256i lookup_mask01  = _mm256_cmpgt_epi8(sixten, template01); // 16 > t
         //        score_vec_8bit = _mm256_and_si256(score_vec_8bit, lookup_mask01);
-#elif defined(SSE)
+#else
         // each position has 32 byte
         // 20 scores and 12 zeros
         // load score 0 - 15
@@ -113,7 +111,6 @@ simd_int UngappedAlignment::vectorDiagonalScoring(const char *profile,
         // =   Score   Score   Score   Score
         __m128i score_vec_8bit = _mm_add_epi8(score01,score16);
 #endif
-
         vscore    = simdui8_adds(vscore, score_vec_8bit);
         vscore    = simdui8_subs(vscore, vBias);
 //        std::cout << (int)((char *)&template01)[0] << "\t" <<  SSTR(((char *)&score_vec_8bit)[0]) << "\t" << SSTR(((char *)&vMaxScore)[0]) << "\t" << SSTR(((char *)&vscore)[0]) << std::endl;
@@ -284,7 +281,7 @@ void UngappedAlignment::extractScores(unsigned int *score_arr, simd_int score) {
     EXTRACT_AVX(24);  EXTRACT_AVX(25);  EXTRACT_AVX(26);  EXTRACT_AVX(27);
     EXTRACT_AVX(28);  EXTRACT_AVX(29);  EXTRACT_AVX(30);  EXTRACT_AVX(31);
 #undef EXTRACT_AVX
-#elif defined(SSE)
+#else
     #define EXTRACT_SSE(i) score_arr[i] = _mm_extract_epi8(score, i)
     EXTRACT_SSE(0);  EXTRACT_SSE(1);   EXTRACT_SSE(2);  EXTRACT_SSE(3);
     EXTRACT_SSE(4);  EXTRACT_SSE(5);   EXTRACT_SSE(6);  EXTRACT_SSE(7);

@@ -428,12 +428,7 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 		vTemp = simdui8_subs (vF, vTemp);
 		vTemp = simdi8_eq (vTemp, vZero);
 		uint32_t cmp = simdi8_movemask (vTemp);
-#ifdef AVX2
-		while (cmp != 0xffffffff)
-#else
-		while (cmp != 0xffff)
-#endif
-		{
+		while (cmp != SIMD_MOVEMASK_MAX) {
 			vH = simdui8_max (vH, vF);
 			vMaxColumn = simdui8_max(vMaxColumn, vH);
 			simdi_store (pvHStore + j, vH);
@@ -455,12 +450,7 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 		vMaxScore = simdui8_max(vMaxScore, vMaxColumn);
 		vTemp = simdi8_eq(vMaxMark, vMaxScore);
 		cmp = simdi8_movemask(vTemp);
-#ifdef AVX2
-		if (cmp != 0xffffffff)
-#else
-		if (cmp != 0xffff)
-#endif
-		{
+		if (cmp != SIMD_MOVEMASK_MAX) {
 			uint8_t temp;
 			vMaxMark = vMaxScore;
 			max16(temp, vMaxScore);
@@ -636,13 +626,8 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 		end:
 		vMaxScore = simdi16_max(vMaxScore, vMaxColumn);
 		vTemp = simdi16_eq(vMaxMark, vMaxScore);
-		int32_t cmp = simdi8_movemask(vTemp);
-#ifdef AVX2
-		if (cmp != (int32_t)0xffffffff)
-#else
-		if (cmp != 0xffff)
-#endif
-		{
+		uint32_t cmp = simdi8_movemask(vTemp);
+		if (cmp != SIMD_MOVEMASK_MAX) {
 			uint16_t temp;
 			vMaxMark = vMaxScore;
 			max8(temp, vMaxScore);
@@ -1105,6 +1090,16 @@ s_align SmithWaterman::scoreIdentical(unsigned char *dbSeq, int L, EvalueComputa
 	r.evalue = evaluer->computeEvalue(r.score1, profile->query_length);
 
 	return r;
+}
+
+template <typename F>
+inline F simd_hmax(const F * in, unsigned int n) {
+    F current = std::numeric_limits<F>::min();
+    do {
+        current = std::max(current, *in++);
+    } while(--n);
+
+    return current;
 }
 
 int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t db_length) {
