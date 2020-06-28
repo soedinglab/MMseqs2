@@ -117,6 +117,13 @@ std::vector<DatabaseDownload> downloads = {{
     false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
     { }
 }, {
+    "dbCAN2",
+    "dbCAN2 is a database of carbohydrate-active enzymes.",
+    "Zhang et al: dbCAN2: a meta server for automated carbohydrate-active enzyme annotation. Nucleic Acids Res 46(W1), W95-W101 (2018)",
+    "http://bcb.unl.edu/dbCAN2",
+    false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
+    { }
+}, {
     "Resfinder",
     "ResFinder is a database that captures antimicrobial resistance genes from whole-genome data sets.",
     "Zankari et al: Identification of acquired antimicrobial resistance genes. J Antimicrob Chemother 67(11), 2640-2644 (2012)",
