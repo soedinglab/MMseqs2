@@ -161,6 +161,13 @@ case "${SELECTION}" in
         fi
         INPUT_TYPE="STOCKHOLM_MSA"
     ;;
+    "Pfam-B")
+        if notExists "${TMP_PATH}/msa.tar.gz"; then
+            downloadFile "ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam.version.gz" "${TMP_PATH}/version"
+            downloadFile "ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-B.tgz" "${TMP_PATH}/msa.tar.gz"
+        fi
+        INPUT_TYPE="FASTA_MSA"
+    ;;
     "eggNOG")
         if notExists "${TMP_PATH}/download.done"; then
             date "+%s" > "${TMP_PATH}/version"
