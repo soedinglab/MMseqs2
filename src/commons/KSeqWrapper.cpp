@@ -12,6 +12,7 @@ namespace KSEQFILE {
 KSeqFile::KSeqFile(const char* fileName) {
     file = FileUtil::openFileOrDie(fileName, "r", true);
     seq = (void*) KSEQFILE::kseq_init(fileno(file));
+    type = KSEQ_FILE;
 }
 
 bool KSeqFile::ReadEntry() {
@@ -42,6 +43,7 @@ namespace KSEQSTREAM {
 
 KSeqStream::KSeqStream() {
     seq = (void*) KSEQSTREAM::kseq_init(STDIN_FILENO);
+    type = KSEQ_STREAM;
 }
 
 bool KSeqStream::ReadEntry() {
@@ -80,6 +82,7 @@ KSeqGzip::KSeqGzip(const char* fileName) {
     }
 
     seq = (void*) KSEQGZIP::kseq_init(file);
+    type = KSEQ_GZIP;
 }
 
 bool KSeqGzip::ReadEntry() {
@@ -108,7 +111,6 @@ KSeqGzip::~KSeqGzip() {
 
 #ifdef HAVE_BZLIB
 namespace KSEQBZIP {
-
     KSEQ_INIT(BZFILE *, BZ2_bzread)
 }
 
@@ -125,6 +127,7 @@ KSeqBzip::KSeqBzip(const char* fileName) {
         perror(fileName); EXIT(EXIT_FAILURE);
     }
     seq = (void*) KSEQBZIP::kseq_init(file);
+    type = KSEQ_BZIP;
 }
 
 bool KSeqBzip::ReadEntry() {
@@ -198,6 +201,7 @@ KSeqBuffer::KSeqBuffer(const char* buffer, size_t length) {
     d.length = length;
     d.position = 0;
     seq = (void*) KSEQBUFFER::kseq_init(&d);
+    type = KSEQ_BUFFER;
 }
 
 bool KSeqBuffer::ReadEntry() {

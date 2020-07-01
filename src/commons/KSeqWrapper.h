@@ -18,6 +18,15 @@ public:
         bool multiline;
     } entry;
 
+    enum kseq_type {
+        KSEQ_FILE,
+        KSEQ_STREAM,
+        KSEQ_GZIP,
+        KSEQ_BZIP,
+        KSEQ_BUFFER
+    };
+    kseq_type type;
+
     virtual bool ReadEntry() = 0;
     virtual ~KSeqWrapper() {};
 

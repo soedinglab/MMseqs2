@@ -110,10 +110,24 @@ std::vector<DatabaseDownload> downloads = {{
     false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
     { }
 }, {
+    "Pfam-B",
+    "Pfam-B is a large automatically generated supplement to the Pfam database.",
+    "Sonnhammer et al: A new Pfam-B is released. Xfam Blog (2020)",
+    "https://xfam.wordpress.com/2020/06/30/a-new-pfam-b-is-released",
+    false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
+    { }
+}, {
     "eggNOG",
     "eggNOG is a hierarchical, functionally and phylogenetically annotated orthology resource",
     "Huerta-Cepas et al: eggNOG 5.0: a hierarchical, functionally and phylogenetically annotated orthology resource based on 5090 organisms and 2502 viruses. Nucleic Acids Res 47(D1), D309–D314 (2019)",
     "http://eggnog5.embl.de",
+    false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
+    { }
+}, {
+    "dbCAN2",
+    "dbCAN2 is a database of carbohydrate-active enzymes.",
+    "Zhang et al: dbCAN2: a meta server for automated carbohydrate-active enzyme annotation. Nucleic Acids Res 46(W1), W95-W101 (2018)",
+    "http://bcb.unl.edu/dbCAN2",
     false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
     { }
 }, {

@@ -159,7 +159,14 @@ case "${SELECTION}" in
             downloadFile "ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam.version.gz" "${TMP_PATH}/version"
             downloadFile "ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.seed.gz" "${TMP_PATH}/db.msa.gz"
         fi
-        INPUT_TYPE="MSA"
+        INPUT_TYPE="STOCKHOLM_MSA"
+    ;;
+    "Pfam-B")
+        if notExists "${TMP_PATH}/msa.tar.gz"; then
+            downloadFile "ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam.version.gz" "${TMP_PATH}/version"
+            downloadFile "ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-B.tgz" "${TMP_PATH}/msa.tar.gz"
+        fi
+        INPUT_TYPE="FASTA_MSA"
     ;;
     "eggNOG")
         if notExists "${TMP_PATH}/download.done"; then
@@ -181,6 +188,13 @@ case "${SELECTION}" in
             touch "${TMP_PATH}/download.done"
         fi
         INPUT_TYPE="FSA"
+    ;;
+    "dbCAN2")
+        if notExists "${TMP_PATH}/download.done"; then
+            downloadFile "http://bcb.unl.edu/dbCAN2/download/dbCAN-fam-aln-V8.tar.gz" "${TMP_PATH}/msa.tar.gz"
+            printf "8 %s\n" "$(date "+%s")" > "${TMP_PATH}/version"
+        fi
+        INPUT_TYPE="FASTA_MSA"
     ;;
     "Kalamari")
         if notExists "${TMP_PATH}/kalamari.tsv"; then
@@ -242,7 +256,7 @@ case "${INPUT_TYPE}" in
         "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 --msa-type 1 ${THREADS_PAR} \
             || fail "msa2profile died"
     ;;
-    "MSA")
+    "STOCKHOLM_MSA")
         # shellcheck disable=SC2086
         "${MMSEQS}" convertmsa "${TMP_PATH}/db.msa.gz" "${TMP_PATH}/msa" ${VERB_PAR} \
             || fail "convertmsa died"
@@ -250,8 +264,23 @@ case "${INPUT_TYPE}" in
         # shellcheck disable=SC2086
         "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${THREADS_PAR} \
             || fail "msa2profile died"
-        "${MMSEQS}" rmdb "${TMP_PATH}/msa" \
-            || fail "rmdb died"
+        if [ -n "${REMOVE_TMP}" ]; then
+          "${MMSEQS}" rmdb "${TMP_PATH}/msa" \
+              || fail "rmdb died"
+        fi
+    ;;
+    "FASTA_MSA")
+        # shellcheck disable=SC2086
+        "${MMSEQS}" tar2db "${TMP_PATH}/msa.tar.gz" "${TMP_PATH}/msa" ${VERB_PAR} --output-dbtype 11 \
+            || fail "tar2db died"
+        rm -f "${TMP_PATH}/msa.tar.gz"
+        # shellcheck disable=SC2086
+        "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${THREADS_PAR} \
+            || fail "msa2profile died"
+        if [ -n "${REMOVE_TMP}" ]; then
+            "${MMSEQS}" rmdb "${TMP_PATH}/msa" \
+                || fail "rmdb died"
+        fi
     ;;
     "eggNOG")
         # shellcheck disable=SC2086

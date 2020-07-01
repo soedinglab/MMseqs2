@@ -129,6 +129,20 @@ int createdb(int argc, const char **argv, const Command& command) {
         } else {
             kseq = KSeqFactory(filenames[fileIdx].c_str());
         }
+        if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && kseq->type != KSeqWrapper::KSEQ_FILE) {
+            Debug(Debug::WARNING) << "Only uncompressed fasta files can be used with --createdb-mode 0.\n";
+            Debug(Debug::WARNING) << "We recompute with --createdb-mode 1.\n";
+            par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
+            progress.reset(SIZE_MAX);
+            hdrWriter.close();
+            seqWriter.close();
+            delete kseq;
+            fclose(source);
+            for (size_t i = 0; i < shuffleSplits; ++i) {
+                sourceLookup[i].clear();
+            }
+            goto redoComputation;
+        }
         while (kseq->ReadEntry()) {
             progress.updateProgress();
             const KSeqWrapper::KSeqEntry &e = kseq->entry;
