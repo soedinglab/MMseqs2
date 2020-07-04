@@ -253,7 +253,7 @@ std::vector<Command> baseCommands = {
                 "# Cascaded clustering with reassignment\n"
                 "# - Corrects criteria-violoations of cascaded merging\n"
                 "# - Produces more clusters and is a bit slower\n"
-                "mmseqs cluster sequenceDB clusterDB tmp --cluster-reassign\n",
+                "mmseqs cluster sequenceDB clusterDB tmp --cluster-reassign 1\n",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Lars von den Driesch",
                 "<i:sequenceDB> <o:clusterDB> <tmpDir>",
                 CITATION_LINCLUST|CITATION_MMSEQS1|CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
