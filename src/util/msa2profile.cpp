@@ -119,6 +119,8 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
+
     Debug::Progress progress(qDbr.getSize());
 #pragma omp parallel
     {
@@ -127,7 +129,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
         PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pca, par.pcb);
         Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
@@ -166,12 +167,12 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             std::string msa;
             if (par.msaType == 0) {
-                msa = CompressedA3M::extractA3M(entryData, entryLength, *sequenceReader, *headerReader, thread_idx);
+                msa = CompressedA3M::extractA3M(entryData, entryLength - 2, *sequenceReader, *headerReader, thread_idx);
                 d.buffer = const_cast<char*>(msa.c_str());
                 d.length = msa.length();
             } else {
                 d.buffer = entryData;
-                d.length = entryLength;
+                d.length = entryLength - 1;
             }
             d.position = 0;
 
@@ -196,22 +197,20 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             while (kseq_read(seq) >= 0) {
                 if (seq->name.l == 0 || seq->seq.l == 0) {
-                    Debug(Debug::WARNING) << "Invalid fasta sequence "
-                                          << setSize << " in entry " << queryKey << "!\n";
+                    Debug(Debug::WARNING) << "Invalid fasta sequence " << setSize << " in entry " << queryKey << "\n";
                     fastaError = true;
                     break;
                 }
 
                 if (seq->seq.l > maxSeqLength) {
-                    Debug(Debug::WARNING) << "Member sequence "
-                                          << setSize << " in entry " << id << " too long!\n";
+                    Debug(Debug::WARNING) << "Member sequence " << setSize << " in entry " << queryKey << " too long\n";
                     fastaError = true;
                     break;
                 }
 
                 // first sequence is always the query
                 if (setSize == 0) {
-                    centerLengthWithGaps = static_cast<unsigned int>(strlen(seq->seq.s));
+                    centerLengthWithGaps = seq->seq.l;
                     if (maskByFirst == true) {
                         for (size_t i = 0; i < centerLengthWithGaps; ++i) {
                             if (seq->seq.s[i] == '-') {
@@ -246,12 +245,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                         continue;
                     }
 
-                    if (seq->seq.s[i] == '-'){
-                        msaContent[msaPos++] = MultipleAlignment::GAP;
-                    } else {
-                        int aa = sequence.numSequence[i];
-                        msaContent[msaPos++] = aa;
-                    }
+                    msaContent[msaPos++] = (seq->seq.s[i] == '-') ? (int)MultipleAlignment::GAP : sequence.numSequence[i];
                 }
 
                 // fill up the sequence buffer for the SIMD profile calculation
