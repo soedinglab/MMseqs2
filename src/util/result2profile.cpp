@@ -51,18 +51,11 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             qDbr->readMmapedDataInMemory();
         }
-
-        for (size_t i = 0; i < qDbr->getSize(); i++) {
-            maxSequenceLength = std::max(static_cast<unsigned int>(qDbr->getSeqLen(i)), maxSequenceLength);
-        }
-
+        maxSequenceLength = qDbr->getMaxSeqLen();
     } else {
         qDbr = tDbr;
     }
-
-    for (size_t i = 0; i < tDbr->getSize(); i++) {
-        maxSequenceLength = std::max(static_cast<unsigned int>(tDbr->getSeqLen(i)), maxSequenceLength);
-    }
+    maxSequenceLength = std::max(maxSequenceLength, qDbr->getMaxSeqLen());
 
     // qDbr->readMmapedDataInMemory();
     // make sure to touch target after query, so if there is not enough memory for the query, at least the targets
@@ -110,8 +103,10 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
         Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
+
         std::string result;
         result.reserve((maxSequenceLength + 1) * Sequence::PROFILE_READIN_SIZE);
+
         char *charSequence = new char[maxSequenceLength];
 
         std::vector<Matcher::result_t> alnResults;
@@ -139,7 +134,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 Util::parseKey(data, dbKey);
                 const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
                 // in the same database case, we have the query repeated
-                if ((key == queryKey && sameDatabase == true)) {
+                if (key == queryKey && sameDatabase == true) {
                     data = Util::skipLine(data);
                     continue;
                 }
@@ -149,19 +144,16 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 if (columns >= 4) {
                     evalue = strtod(entry[3], NULL);
                 }
-                bool hasInclusionEval = (evalue < par.evalProfile);
-                if (hasInclusionEval && columns > Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
-                    Matcher::result_t res = Matcher::parseAlignmentRecord(data);
-                    alnResults.push_back(res);
-                }
-                if (hasInclusionEval) {
+
+                if (evalue < par.evalProfile) {
                     const size_t edgeId = tDbr->getId(key);
                     if (edgeId == UINT_MAX) {
-                        Debug(Debug::ERROR) << "Sequence " << queryKey << " is not contained in the target sequence database\n";
+                        Debug(Debug::ERROR) << "Sequence " << key << " is not contained in the target sequence database\n";
                         EXIT(EXIT_FAILURE);
                     }
+                    alnResults.emplace_back(Matcher::parseAlignmentRecord(data));
                     Sequence *edgeSequence = new Sequence(tDbr->getSeqLen(edgeId), targetSeqType, &subMat, 0, false, false);
-                    edgeSequence->mapSequence(0, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId));
+                    edgeSequence->mapSequence(edgeId, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId));
                     seqSet.push_back(edgeSequence);
                 }
                 data = Util::skipLine(data);
@@ -192,7 +184,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
             PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, par.wg);
             if (par.maskProfile == true) {
                 for (int i = 0; i < centerSequence.L; ++i) {
-                    charSequence[i] = (unsigned char ) centerSequence.numSequence[i];
+                    charSequence[i] = (unsigned char) centerSequence.numSequence[i];
                 }
 
                 tantan::maskSequences(charSequence, charSequence + centerSequence.L,
@@ -252,33 +244,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     return EXIT_SUCCESS;
 }
 
-int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const size_t dbFrom, const size_t dbSize) {
-    Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << dbFrom + dbSize << "\n";
-
-    const std::string outname = par.db4;
-    const std::string outnameIndex = par.db4Index;
-
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, outnameIndex, MMseqsMPI::rank);
-    int status = result2profile(resultReader, par, tmpOutput.first, tmpOutput.second, dbFrom, dbSize);
-
-#ifdef HAVE_MPI
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
-
-    // master reduces results
-    if (MMseqsMPI::isMaster()) {
-        std::vector<std::pair<std::string, std::string>> splitFiles;
-        for (int procs = 0; procs < MMseqsMPI::numProc; procs++) {
-            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(outname, outnameIndex, procs);
-            splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.second));
-
-        }
-        DBWriter::mergeResults(outname, outnameIndex, splitFiles);
-    }
-
-    return status;
-}
-
 int result2profile(int argc, const char **argv, const Command &command) {
     MMseqsMPI::init(argc, argv);
 
@@ -293,24 +258,37 @@ int result2profile(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-#ifdef HAVE_MPI
     size_t dbFrom = 0;
     size_t dbSize = 0;
+#ifdef HAVE_MPI
     resultReader.decomposeDomainByAminoAcid(MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
-
-    int status = result2profile(resultReader, par, dbFrom, dbSize);
+    Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << dbFrom + dbSize << "\n";
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db4, par.db4Index, MMseqsMPI::rank);
 #else
-    int status = result2profile(resultReader, par, par.db4, par.db4Index, 0, resultReader.getSize());
+    dbSize = resultReader.getSize();
+    std::pair<std::string, std::string> tmpOutput = std::make_pair(par.db4, par.db4Index);
+#endif
+
+    int status = result2profile(resultReader, par, tmpOutput.first, tmpOutput.second, dbFrom, dbSize);
+    resultReader.close();
+
+#ifdef HAVE_MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+    // master reduces results
+    if (MMseqsMPI::isMaster()) {
+        std::vector<std::pair<std::string, std::string>> splitFiles;
+        for (int procs = 0; procs < MMseqsMPI::numProc; procs++) {
+            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(outname, outnameIndex, procs);
+            splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.second));
+
+        }
+        DBWriter::mergeResults(outname, outnameIndex, splitFiles);
+    }
 #endif
 
     if (MMseqsMPI::isMaster()) {
         DBReader<unsigned int>::softlinkDb(par.db1, par.db4, DBFiles::SEQUENCE_ANCILLARY);
     }
-
-#ifdef HAVE_MPI
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
-    resultReader.close();
 
     return status;
 }
