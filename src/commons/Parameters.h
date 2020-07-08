@@ -1,4 +1,4 @@
-// Written by Martin Steinegger martin.steinegger@mpibpc.mpg.de
+// Written by Martin Steinegger martin.steinegger@snu.ac.kr
 //
 // Represents parameters of MMseqs2
 //

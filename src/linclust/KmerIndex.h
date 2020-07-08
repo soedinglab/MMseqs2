@@ -1,7 +1,7 @@
 #ifndef MMSEQS_KMERINDEX_H
 #define MMSEQS_KMERINDEX_H
 
-// Written by Martin Steinegger martin.steinegger@mpibpc.mpg.de
+// Written by Martin Steinegger martin.steinegger@snu.ac.kr
 // storage for k-mers
 #include "MathUtil.h"
 #include <string>

@@ -21,7 +21,7 @@
 
 /*
    Written by Michael Farrar, 2006 (alignment), Mengyao Zhao (SSW Library) and Martin Steinegger (change structure add aa composition, profile and AVX2 support).
-   Please send bug reports and/or suggestions to martin.steinegger@mpibpc.mpg.de.
+   Please send bug reports and/or suggestions to martin.steinegger@snu.ac.kr.
 */
 #include "Parameters.h"
 #include "StripedSmithWaterman.h"

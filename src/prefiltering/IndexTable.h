@@ -2,7 +2,7 @@
 #define INDEX_TABLE_H
 
 //
-// Written by Martin Steinegger martin.steinegger@mpibpc.mpg.de and Maria Hauser mhauser@genzentrum.lmu.de
+// Written by Martin Steinegger martin.steinegger@snu.ac.kr and Maria Hauser mhauser@genzentrum.lmu.de
 //
 // Abstract: Index table stores the list of DB sequences containing a certain k-mer, for each k-mer.
 //

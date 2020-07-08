@@ -1,7 +1,7 @@
 #ifndef INDEXER_H
 #define INDEXER_H
 
-// Written by Maria Hauser mhauser@genzentrum.lmu.de, Martin Steinegger martin.steinegger@mpibpc.mpg.de
+// Written by Maria Hauser mhauser@genzentrum.lmu.de, Martin Steinegger martin.steinegger@snu.ac.kr
 //
 // Manages the conversion of the int coded k-mer into a int index and vice versa.
 //

@@ -1,6 +1,6 @@
 /*
  * createdb
- * written by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.
+ * written by Martin Steinegger <martin.steinegger@snu.ac.kr>.
  * modified by Maria Hauser <mhauser@genzentrum.lmu.de> (splitting into sequences/headers databases)
  * modified by Milot Mirdita <milot@mirdita.de>
  */
