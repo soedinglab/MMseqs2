@@ -32,6 +32,129 @@
 
 #include <iostream>
 
+SmithWaterman::alignment_end SmithWaterman::simpleGotoh(
+        const unsigned char *db_sequence,
+        // ** is a pointer to a pointer
+        short **profile_word,
+        int32_t query_start, int32_t query_end,
+        int32_t target_start, int32_t target_end,
+        const short gap_open, const short gap_extend)
+{
+    // defining constants for backtracing
+//    const int M = 2;
+//    const int F = 1;
+//    const int E = 0;
+    struct scores{
+        short H, E, F;
+    };
+    alignment_end result;
+    result.score = 0;
+    // creating the reference to the "result" cigar object
+//    SmithWaterman::cigar *result = new SmithWaterman::cigar;
+
+    // setting the query length and target length
+    int query_length = (query_end - query_start);
+//    int target_length = (target_end - target_start);
+    // define workspace && workspace is the upper two rows of the current cell
+    scores *workspace = new scores[query_length * 2 + 2];
+    // setting vectors, why not a 2-D array?
+    scores *curr_sM_G_D_vec = &workspace[0];
+    scores *prev_sM_G_D_vec = &workspace[query_length + 1];
+    // initialize the prev_vec; why is the sizeof(score) * query_end + 1?
+    memset(prev_sM_G_D_vec, 0, sizeof(scores) * (query_end + 1));
+    // Setting G_ext value
+    short goe = gap_open + gap_extend;
+    int pos = 0;
+//    memset(btMatrix , 0, target_length * (query_length/4 +3) * sizeof(unsigned char));
+    for (int i = target_start; LIKELY(i < target_end); i++) {
+        prev_sM_G_D_vec[query_start].H = 0;
+        prev_sM_G_D_vec[query_start].E = 0;
+        prev_sM_G_D_vec[query_start].F = 0;
+        curr_sM_G_D_vec[query_start].H = 0;
+        curr_sM_G_D_vec[query_start].E = 0;
+        curr_sM_G_D_vec[query_start].E = 0;
+        //db_seq = target sequence database
+        //profile_word = the location specific substitution score matrix
+        const short *profile = profile_word[db_sequence[i]];
+        //TODO problem if query_start == 0
+        for (int j = query_start + 1; LIKELY(j <= query_end); j++) {
+            curr_sM_G_D_vec[j].E = std::max(curr_sM_G_D_vec[j-1].H - goe, curr_sM_G_D_vec[j-1].E - gap_extend); // j-1
+            curr_sM_G_D_vec[j].F = std::max(prev_sM_G_D_vec[j].H   - goe, prev_sM_G_D_vec[j].F - gap_extend);   // i-1
+            const short tempH = prev_sM_G_D_vec[j-1].H - profile[j-1]; // i - 1, j - 1
+            curr_sM_G_D_vec[j].H = std::max(tempH, curr_sM_G_D_vec[j].E);
+            curr_sM_G_D_vec[j].H = std::max(curr_sM_G_D_vec[j].H, curr_sM_G_D_vec[j].F);
+            curr_sM_G_D_vec[j].H = std::max(curr_sM_G_D_vec[j].H, static_cast<short>(0));
+            result.score = static_cast<uint16_t>(std::max(static_cast<uint16_t>(curr_sM_G_D_vec[j].H), result.score));
+            result.ref = static_cast<int32_t> (j);
+            pos++;
+            result.read = static_cast<int32_t> (pos + 1);
+            std::cout << (int) result.score << " simple Gotoh ";
+//            const unsigned char mode1 = (curr_sM_G_D_vec[j].H == H) ? M : E;
+//            const unsigned char mode2 = (curr_sM_G_D_vec[j].H == curr_sM_G_D_vec[j].F) ? F : E;
+//            const unsigned char mode = std::max(mode1, mode2);
+//			std::cout << (int) mode << " ";
+//            btMatrix[pos/4] |= mode << (pos % 4) * 2;
+        }
+//		std::cout << std::endl;
+        // swap rows
+        scores *tmpPtr = prev_sM_G_D_vec;
+        prev_sM_G_D_vec = curr_sM_G_D_vec;
+        curr_sM_G_D_vec = tmpPtr;
+    }
+    delete [] workspace;
+//#define get_val(bt, i, j) ( bt[(i * query_length + j)/4] >> (((i * query_length + j) % 4) * 2)  & 0x03 )
+    // backtrace
+//    int i=target_length - 1;
+//    int j=query_length - 1;
+//    int step = 0;
+//    int state = get_val(btMatrix, i, j);
+//    const int maxLength = std::max(query_length, target_length);
+//    result->seq = new uint32_t[ maxLength * 2];
+//    while (state!=-1)     // while (state!=STOP)  because STOP=0
+//    {
+//        //std::cout << step<< " " << i << " " << j << " " << state << std::endl;
+//        switch (state) {
+//            case M: // current state is MM, previous state is bMM[i][j]
+//                //	matched_cols++;
+//                result->seq[step] = to_cigar_int(1, 'M');
+//                if(i <= 0 || j <= 0){
+//                    state = -1;
+//                }else{
+//                    i--;
+//                    j--;
+//                    state =  get_val(btMatrix, i, j);
+//                }
+//                break;
+//            case E: // current state is GD
+//                result->seq[step] = to_cigar_int(1, 'I');
+//                if (j <= 0){
+//                    state = -1;
+//                }else{
+//                    j--;
+//                    state =  get_val(btMatrix, i, j);
+//                }
+//                break;
+//            case F:
+//                result->seq[step] = to_cigar_int(1, 'D');
+//                if (i <= 0){
+//                    state = -1;
+//                }else{
+//                    i--;
+//                    state = get_val(btMatrix, i, j);
+//                }
+//                break;
+//            default:
+//                Debug(Debug::ERROR) << "Wrong BT state " << state << " at i=" << i << " j="<< j << "\n";
+//                EXIT(EXIT_FAILURE);
+//        }
+//        step++;
+//    }
+//    std::reverse(result->seq, result->seq + step);
+//    result->length = step;
+    return result;
+//#undef get_val
+}
+
 SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection) {
 	maxSequenceLength += 1;
 	this->aaBiasCorrection = aaBiasCorrection;
@@ -90,7 +213,7 @@ SmithWaterman::~SmithWaterman(){
 
 /* Generate query profile rearrange query sequence & calculate the weight of match/mismatch. */
 template <typename T, size_t Elements, const unsigned int type>
-void SmithWaterman::createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias, const int8_t *mat,
+void SmithWaterman::createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t *composition_bias, const int8_t *mat,
 									   const int32_t query_length, const int32_t aaSize, uint8_t bias,
 									   const int32_t offset, const int32_t entryLength) {
 
@@ -134,7 +257,7 @@ s_align SmithWaterman::ssw_align (
 		const uint8_t gap_extend,
 		const uint8_t alignmentMode,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
 		const double  evalueThr,
-		EvalueComputation * evaluer,
+		EvalueComputation *evaluer,
 		const int covMode, const float covThr,
 		const int32_t maskLen) {
 
@@ -153,9 +276,11 @@ s_align SmithWaterman::ssw_align (
     std::pair<alignment_end, alignment_end> bests;
     std::pair<alignment_end, alignment_end> bests_reverse;
     // Find the alignment scores and ending positions
-	if (profile->profile_byte) {
-		bests = sw_sse2_byte(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_byte, UCHAR_MAX, profile->bias, maskLen);
-
+    bests= std::make_pair(simpleGotoh(db_sequence, profile->profile_word_linear, 0, query_length, 0, db_length, gap_open, gap_extend), alignment_end());
+    if (true){
+       bests= std::make_pair(simpleGotoh(db_sequence, profile->profile_word_linear, 0, query_length, 0, db_length, gap_open, gap_extend), alignment_end());
+    } else if (profile->profile_byte) {
+        bests = sw_sse2_byte(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_byte, UCHAR_MAX, profile->bias, maskLen);
 		if (profile->profile_word && bests.first.score == 255) {
 			bests = sw_sse2_word(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_word, USHRT_MAX, maskLen);
 			word = 1;
@@ -163,7 +288,7 @@ s_align SmithWaterman::ssw_align (
 			fprintf(stderr, "Please set 2 to the score_size parameter of the function ssw_init, otherwise the alignment results will be incorrect.\n");
 			EXIT(EXIT_FAILURE);
 		}
-	}else if (profile->profile_word) {
+	} else if (profile->profile_word) {
 		bests = sw_sse2_word(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_word, USHRT_MAX, maskLen);
 		word = 1;
 	}else {
@@ -1161,4 +1286,5 @@ int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t 
 	return score;
 #undef SWAP
 }
+
 

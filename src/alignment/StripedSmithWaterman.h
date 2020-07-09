@@ -193,8 +193,8 @@ public:
         }
     }
 
-
-private:
+// modified to public for testing purposes
+public:
 
     struct s_profile{
         simd_int* profile_byte;	// 0: none
@@ -296,5 +296,8 @@ private:
     float *tmp_composition_bias;
     short * profile_word_linear_data;
     bool aaBiasCorrection;
+
+    static alignment_end simpleGotoh(const unsigned char *db_sequence, short **profile_word, int32_t query_start, int32_t query_end,
+                       int32_t target_start, int32_t target_end, const short gap_open, const short gap_extend);
 };
 #endif /* SMITH_WATERMAN_SSE2_H */

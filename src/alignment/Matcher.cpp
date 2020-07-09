@@ -48,9 +48,9 @@ Matcher::~Matcher(){
 
 void Matcher::initQuery(Sequence* query){
     currentQuery = query;
-    if(Parameters::isEqualDbtype(query->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
+    if(Parameters::isEqualDbtype(query->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)) {
         nuclaligner->initQuery(query);
-    }else if(Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
+    } else if(Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
         aligner->ssw_init(query, query->getAlignmentProfile(), this->m, 2);
     }else{
         aligner->ssw_init(query, this->tinySubMat, this->m, 2);
@@ -77,7 +77,6 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
     // compute sequence identity
     std::string backtrace;
     int aaIds = 0;
-
     if(Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
         if(diagonal==INT_MAX){
             Debug(Debug::ERROR) << "Query sequence " << currentQuery->getDbKey()
@@ -88,6 +87,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
         alignment = nuclaligner->align(dbSeq, diagonal, isReverse, backtrace, aaIds, evaluer, wrappedScoring);
         alignmentMode = Matcher::SCORE_COV_SEQID;
     }else{ if(isIdentity==false){
+        std::cout << "ahhhhhhhh";
             alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode, covThr, maskLen);
         }else{
             alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode);
