@@ -53,14 +53,14 @@ void rescoreResultByBacktrace(Matcher::result_t &result, Sequence &qSeq, Sequenc
             } else {
                 score -= gapOpen;
             }
-            tPos++;
+            qPos++;
         } else if (state == 'D') {
             if (lastState == 'D') {
                 score -= gapExtend;
             } else {
                 score -= gapOpen;
             }
-            qPos++;
+            tPos++;
         }
         lastState = state;
     }
