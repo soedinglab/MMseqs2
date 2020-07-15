@@ -362,6 +362,8 @@ void Sequence::mapProfile(const char * profileData, bool mapScores, unsigned int
                 profile_for_alignment[aa_idx * this-> L + i] = profile_score[i * profile_row_size + aa_num] / 4;
             }
         }
+
+
         //TODO what is with the X
     }
     //printPSSM();

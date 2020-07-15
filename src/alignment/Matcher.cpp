@@ -60,10 +60,10 @@ void Matcher::initQuery(Sequence* query){
 
 Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool isReverse, const int covMode, const float covThr,
                                        const double evalThr, unsigned int alignmentMode, unsigned int seqIdMode, bool isIdentity,
-                                       bool wrappedScoring){
+                                       bool wrappedScoring) {
     // calculation of the score and traceback of the alignment
     int32_t maskLen = currentQuery->L / 2;
-    int origQueryLen = wrappedScoring? currentQuery->L / 2 : currentQuery->L ;
+    int origQueryLen = wrappedScoring ? currentQuery->L / 2 : currentQuery->L;
 
     // calcuate stop score
 //    const double qL = static_cast<double>(currentQuery->L);
@@ -77,8 +77,8 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
     // compute sequence identity
     std::string backtrace;
     int aaIds = 0;
-    if(Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
-        if(diagonal==INT_MAX){
+    if (Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)) {
+        if (diagonal == INT_MAX) {
             Debug(Debug::ERROR) << "Query sequence " << currentQuery->getDbKey()
                                 << " has a result with no proper diagonal information , "
                                 << "Please check your database.\n";
@@ -86,12 +86,11 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
         }
         alignment = nuclaligner->align(dbSeq, diagonal, isReverse, backtrace, aaIds, evaluer, wrappedScoring);
         alignmentMode = Matcher::SCORE_COV_SEQID;
-    }else{ if(isIdentity==false){
-        std::cout << "ahhhhhhhh";
-            alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode, covThr, maskLen);
-        }else{
-            alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode);
-        }
+    } else if (Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE)) {
+        alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->profile, dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode, covThr, maskLen);
+
+    } else{
+            alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->profile, dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode, covThr, maskLen);
         if(alignmentMode == Matcher::SCORE_COV_SEQID){
             if(isIdentity==false){
                 if(alignment.cigar){

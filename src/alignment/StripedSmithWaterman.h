@@ -130,7 +130,8 @@ public:
      while bit 8 is not, the function will return cigar only when both criteria are fulfilled. All returned positions are
      0-based coordinate.
      */
-    s_align  ssw_align (const unsigned char*db_sequence,
+    s_align  ssw_align (const unsigned char *db_sequence,
+                        const float *target_sequence,
                         int32_t db_length,
                         const uint8_t gap_open,
                         const uint8_t gap_extend,
@@ -139,7 +140,6 @@ public:
                         EvalueComputation * filterd,
                         const int covMode, const float covThr,
                         const int32_t maskLen);
-
 
     /*!	@function computed ungapped alignment score
 
@@ -206,6 +206,7 @@ public:
         int8_t* composition_bias;
         int8_t* composition_bias_rev;
         int8_t* mat;
+        short *profile_from_sequence;
         // Memory layout of if mat + queryProfile is qL * AA
         //    Query length
         // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
@@ -224,6 +225,8 @@ public:
         int32_t alphabetSize;
         uint8_t bias;
         short ** profile_word_linear;
+        float *profile_from_profile;
+
     };
     simd_int* vHStore;
     simd_int* vHLoad;
@@ -297,7 +300,9 @@ public:
     short * profile_word_linear_data;
     bool aaBiasCorrection;
 
-    static alignment_end simpleGotoh(const unsigned char *db_sequence, short **profile_word, int32_t query_start, int32_t query_end,
-                       int32_t target_start, int32_t target_end, const short gap_open, const short gap_extend);
+
+    alignment_end simpleGotoh(const unsigned char *db_sequence, const float *query_sequence, const float *target_sequence,
+                const short *profile_from_sequence, int32_t query_start, int32_t query_end,
+                int32_t target_start, int32_t target_end, const short gap_open, const short gap_extend);
 };
 #endif /* SMITH_WATERMAN_SSE2_H */

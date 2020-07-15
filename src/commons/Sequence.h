@@ -581,5 +581,7 @@ private:
 
     //spaced kmer pattern
     const std::string spacedKmerPattern;
+    short *profile_for_sequence;
+
 };
 #endif

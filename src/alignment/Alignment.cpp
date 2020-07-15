@@ -111,10 +111,10 @@ Alignment::Alignment(const std::string &querySeqDB,
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)) {
-        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
-        EXIT(EXIT_FAILURE);
-    }
+//    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)) {
+//        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
+//        EXIT(EXIT_FAILURE);
+//    }
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) == false && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
         EXIT(EXIT_FAILURE);
