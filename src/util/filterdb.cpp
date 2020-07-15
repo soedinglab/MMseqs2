@@ -109,7 +109,8 @@ int filterdb(int argc, const char **argv, const Command &command) {
 
     // REGEX_FILTERING
     regex_t regex;
-
+    std::random_device rng;
+    std::mt19937 urng(rng());
     int mode;
     if (par.sortEntries != 0) {
         mode = SORT_ENTRIES;
@@ -478,8 +479,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
                 } else if (par.sortEntries == DECREASING) {
                     std::stable_sort(toSort.begin(), toSort.end(), compareFirstEntryDecreasing());
                 } else if (par.sortEntries == SHUFFLE) {
-                    srand(unsigned(time(0)));
-                    std::random_shuffle(toSort.begin(), toSort.end());
+                    std::shuffle(toSort.begin(), toSort.end(), urng);
                 }
 
                 for (size_t i = 0; i < toSort.size(); i++) {
