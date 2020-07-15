@@ -13,7 +13,7 @@
 #include "LinsearchIndexReader.h"
 #include "IndexReader.h"
 #include "Parameters.h"
-
+#include "FastSort.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -401,11 +401,11 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 }
 
                 if(wrappedScoring && shortResults.size() > 1)
-                    std::sort(shortResults.begin(), shortResults.end(), hit_t::compareHitsByScoreAndId);
+                    SORT_SERIAL(shortResults.begin(), shortResults.end(), hit_t::compareHitsByScoreAndId);
 
                 // write the results
                 if(swResults.size() > 1)
-                    std::sort(swResults.begin(), swResults.end(), Matcher::compareHits);
+                    SORT_SERIAL(swResults.begin(), swResults.end(), Matcher::compareHits);
                 if (realign == true) {
                     realigner->initQuery(&qSeq);
                     for (size_t result = 0; result < swResults.size(); result++) {

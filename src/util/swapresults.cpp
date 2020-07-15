@@ -9,6 +9,7 @@
 #include "AlignmentSymmetry.h"
 #include "PrefilteringIndexReader.h"
 #include "IndexReader.h"
+#include "FastSort.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -288,7 +289,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
 
                 if (curRes.empty() == false) {
                     if (curRes.size() > 1) {
-                        std::sort(curRes.begin(), curRes.end(), Matcher::compareHits);
+                        SORT_SERIAL(curRes.begin(), curRes.end(), Matcher::compareHits);
                     }
 
                     for (size_t j = 0; j < curRes.size(); j++) {

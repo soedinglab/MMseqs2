@@ -10,7 +10,7 @@
 #include "Sequence.h"
 #include "Alignment.h"
 #include "SubstitutionMatrix.h"
-
+#include "FastSort.h"
 #include <cassert>
 
 #ifdef OPENMP
@@ -231,7 +231,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
             std::vector<Matcher::result_t> *finalResults = &results;
             if (par.expansionMode == 1) {
                 // keep only the best hit to same target
-                std::sort(results.begin(), results.end(), compareHitsByKeyEvalScore);
+                SORT_SERIAL(results.begin(), results.end(), compareHitsByKeyEvalScore);
                 ssize_t lastKey = -1;
                 for (size_t j = 0; j < results.size(); ++j) {
                     const Matcher::result_t& res = results[j];
@@ -243,7 +243,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
                 finalResults = &expanded;
             }
 
-            std::sort(finalResults->begin(), finalResults->end(), Matcher::compareHits);
+            SORT_SERIAL(finalResults->begin(), finalResults->end(), Matcher::compareHits);
 
             writer.writeStart(thread_idx);
             for (size_t j = 0; j < finalResults->size(); ++j) {

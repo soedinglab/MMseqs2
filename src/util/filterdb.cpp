@@ -5,10 +5,9 @@
 #include "Debug.h"
 #include "FileUtil.h"
 #include "ExpressionParser.h"
-
+#include "FastSort.h"
 #include <fstream>
 
-#include <omptl/omptl_algorithm>
 #include <regex.h>
 
 #ifdef OPENMP
@@ -168,7 +167,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
             }
             fclose(orderFile);
         }
-        omptl::sort(filter.begin(), filter.end());
+        SORT_PARALLEL(filter.begin(), filter.end());
         std::vector<std::string>::iterator last = std::unique(filter.begin(), filter.end());
         filter.erase(last, filter.end());
     } else if (par.mappingFile.empty() == false) {

@@ -9,7 +9,6 @@
 #include "Debug.h"
 #include "MemoryTracker.h"
 #include "DBReader.h"
-#include "omptl/omptl_algorithm"
 #include "MathUtil.h"
 #include "FileUtil.h"
 #include "NucleotideMatrix.h"
@@ -29,7 +28,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-
+#include "FastSort.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -266,9 +265,9 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
 
                 if(par.ignoreMultiKmer){
                     if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                        std::sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScoreReverse);
+                        SORT_SERIAL(kmers, kmers + seqKmerCount, SequencePosition::compareByScoreReverse);
                     }else{
-                        std::sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScore);
+                        SORT_SERIAL(kmers, kmers + seqKmerCount, SequencePosition::compareByScore);
                     }
                 }
                 size_t selectedKmer = 0;
@@ -397,9 +396,9 @@ KmerPosition<T> * doComputation(size_t totalKmers, size_t hashStartRange, size_t
     Debug(Debug::INFO) << "Sort kmer ";
     Timer timer;
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-        omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<T>::compareRepSequenceAndIdAndPosReverse);
+        SORT_PARALLEL(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<T>::compareRepSequenceAndIdAndPosReverse);
     }else{
-        omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<T>::compareRepSequenceAndIdAndPos);
+        SORT_PARALLEL(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<T>::compareRepSequenceAndIdAndPos);
     }
     Debug(Debug::INFO) << timer.lap() << "\n";
 
@@ -416,9 +415,9 @@ KmerPosition<T> * doComputation(size_t totalKmers, size_t hashStartRange, size_t
     Debug(Debug::INFO) << "Sort by rep. sequence ";
     timer.reset();
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-        omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition<T>::compareRepSequenceAndIdAndDiagReverse);
+        SORT_PARALLEL(hashSeqPair, hashSeqPair + writePos, KmerPosition<T>::compareRepSequenceAndIdAndDiagReverse);
     }else{
-        omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition<T>::compareRepSequenceAndIdAndDiag);
+        SORT_PARALLEL(hashSeqPair, hashSeqPair + writePos, KmerPosition<T>::compareRepSequenceAndIdAndDiag);
     }
     //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, SequenceComparision());
 //    for(size_t i = 0; i < writePos; i++){

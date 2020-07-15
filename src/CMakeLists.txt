@@ -117,6 +117,25 @@ if (HAVE_POSIX_MADVISE)
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_POSIX_MADVISE=1)
 endif ()
 
+set(CMAKE_REQUIRED_FLAGS "-latomic")
+check_cxx_source_runs("
+       int main() {
+         volatile unsigned __int128 all_ = 4;
+         __atomic_fetch_add(&all_, 8, __ATOMIC_RELAXED);
+         return 0;
+       }
+    "
+    HAVE_LIBATOMIC)
+set(CMAKE_REQUIRED_FLAGS)
+if (HAVE_LIBATOMIC)
+    target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_LIBATOMIC=1)
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -latomic")
+endif ()
+
+
+
+
+
 target_link_libraries(mmseqs-framework tinyexpr libzstd_static microtar)
 if (CYGWIN)
     target_link_libraries(mmseqs-framework nedmalloc)

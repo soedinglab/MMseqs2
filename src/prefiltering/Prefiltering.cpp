@@ -12,6 +12,7 @@
 #include "ByteParser.h"
 #include "Parameters.h"
 #include "MemoryMapped.h"
+#include "FastSort.h"
 #include <sys/mman.h>
 
 #ifdef OPENMP
@@ -446,7 +447,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
                 QueryMatcher::parsePrefilterHits(&dataFile[file][pos], hits);
             }
             if (hits.size() > 1) {
-                std::sort(hits.begin(), hits.end(), hit_t::compareHitsByScoreAndId);
+                SORT_SERIAL(hits.begin(), hits.end(), hit_t::compareHitsByScoreAndId);
             }
             for (size_t i = 0; i < hits.size(); ++i) {
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, hits[i]);

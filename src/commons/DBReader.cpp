@@ -1,5 +1,5 @@
 #include "DBReader.h"
-
+#include "FastSort.h"
 #include <algorithm>
 #include <climits>
 #include <cstring>
@@ -8,7 +8,7 @@
 
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <omptl/omptl_algorithm>
+
 #include <fcntl.h>
 
 #include "MemoryMapped.h"
@@ -146,9 +146,9 @@ template <typename T> bool DBReader<T>::open(int accessType){
         incrementMemory(sizeof(LookupEntry) * this->lookupSize);
         readLookup(lookupDataChar, lookupDataSize, lookup);
         if (dataMode & USE_LOOKUP) {
-            omptl::sort(lookup, lookup + lookupSize, LookupEntry::compareById);
+            SORT_PARALLEL(lookup, lookup + lookupSize, LookupEntry::compareById);
         } else {
-            omptl::sort(lookup, lookup + lookupSize, LookupEntry::compareByAccession);
+            SORT_PARALLEL(lookup, lookup + lookupSize, LookupEntry::compareByAccession);
         }
         indexData.close();
     }
@@ -227,7 +227,7 @@ void DBReader<std::string>::sortIndex(bool isSortedById) {
         if (isSortedById) {
             return;
         }
-        omptl::sort(index, index + size, Index::compareById);
+        SORT_PARALLEL(index, index + size, Index::compareById);
     } else {
         if(accessType != NOSORT && accessType != HARDNOSORT){
             Debug(Debug::ERROR) << "DBReader<std::string> can not be opened in sort mode\n";
@@ -252,7 +252,7 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             sortedIndices[i] = i;
         }
         // sort sortedIndices based on index.id:
-        omptl::sort(sortedIndices, sortedIndices + size, sortIndecesById(index));
+        SORT_PARALLEL(sortedIndices, sortedIndices + size, sortIndecesById(index));
 
         // re-order will destroy sortedIndices so copy it, if needed:
         if (accessType == SORT_BY_LINE) {
@@ -309,7 +309,7 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             sortForMapping[i] = std::make_pair(i, index[i].length);
         }
         //this sort has to be stable to assure same clustering results
-        omptl::sort(sortForMapping, sortForMapping + size, comparePairBySeqLength());
+        SORT_PARALLEL(sortForMapping, sortForMapping + size, comparePairBySeqLength());
         for (size_t i = 0; i < size; i++) {
             id2local[sortForMapping[i].first] = i;
             local2id[i] = sortForMapping[i].first;
@@ -358,7 +358,7 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             local2id[i] = i;
             sortForMapping[i] = std::make_pair(i, index[i].offset);
         }
-        omptl::sort(sortForMapping, sortForMapping + size, comparePairByOffset());
+        SORT_PARALLEL(sortForMapping, sortForMapping + size, comparePairByOffset());
         for (size_t i = 0; i < size; i++) {
             id2local[sortForMapping[i].first] = i;
             local2id[i] = sortForMapping[i].first;
@@ -376,7 +376,7 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             local2id[i] = i;
             sortForMapping[i] = std::make_pair(i, index[i]);
         }
-        omptl::sort(sortForMapping, sortForMapping + size, comparePairByIdAndOffset());
+        SORT_PARALLEL(sortForMapping, sortForMapping + size, comparePairByIdAndOffset());
         for (size_t i = 0; i < size; i++) {
             id2local[sortForMapping[i].first] = i;
             local2id[i] = sortForMapping[i].first;
@@ -394,7 +394,7 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
         }
     } else if (accessType == SORT_BY_OFFSET) {
         // sort index based on index.offset (no id sorting):
-        omptl::sort(index, index + size, Index::compareByOffset);
+        SORT_PARALLEL(index, index + size, Index::compareByOffset);
     }
     if (mappingToOriginalIndex) {
         delete [] mappingToOriginalIndex;
