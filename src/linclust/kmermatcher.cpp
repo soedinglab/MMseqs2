@@ -620,7 +620,7 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
 
     size_t mpiRank = 0;
 #ifdef HAVE_MPI
-    splits = std::max(static_cast<size_t>(MMseqsMPI::numProc), splits);
+    splits = hashRanges.size();
     size_t fromSplit = 0;
     size_t splitCount = 1;
     mpiRank = MMseqsMPI::rank;
@@ -639,10 +639,7 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
 
     for(size_t split = fromSplit; split < fromSplit+splitCount; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
-        int range=MathUtil::ceilIntDivision(USHRT_MAX+1, static_cast<int>(splits));
-        size_t rangeFrom = split*range;
-        size_t rangeTo = (splits == 1) ? SIZE_T_MAX : splits*range+range;
-        hashSeqPair = doComputation<T>(totalKmers, rangeFrom, rangeTo, splitFileName, seqDbr, par, subMat);
+        hashSeqPair = doComputation<T>(totalKmers, hashRanges[split].first, hashRanges[split].second, splitFileName, seqDbr, par, subMat);
     }
     MPI_Barrier(MPI_COMM_WORLD);
     if(mpiRank == 0){
