@@ -126,7 +126,7 @@ check_cxx_source_runs("
     "
     HAVE_ATOMIC_CHECK)
 
-if (NOT HAVE_ATOMIC_CHECK)
+if ((NOT HAVE_ATOMIC_CHECK) AND (NOT CYGWIN))
     set(CMAKE_REQUIRED_FLAGS "-latomic")
     check_cxx_source_runs("
        int main() {
@@ -161,10 +161,6 @@ if (NOT HAVE_ATOMIC_CHECK)
     else()
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_LIBATOMIC=1)
 endif()
-
-
-
-
 
 target_link_libraries(mmseqs-framework tinyexpr libzstd_static microtar)
 if (CYGWIN)
