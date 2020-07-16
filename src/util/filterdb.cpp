@@ -7,6 +7,8 @@
 #include "ExpressionParser.h"
 #include "FastSort.h"
 #include <fstream>
+#include <random>
+#include <iostream>
 
 #include <regex.h>
 
