@@ -37,10 +37,10 @@ jobs:
       apt:
         packages:
         - *default_packages
-        - clang-3.8
+        - clang-5.0
         - libc++-dev
         - libomp-dev
-    env: CC=clang-3.8 CXX=clang++-3.8
+    env: CC=clang-5.0 CXX=clang++-5.0
   - addons:
       apt:
         sources:
