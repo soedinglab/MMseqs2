@@ -118,7 +118,7 @@ if (HAVE_POSIX_MADVISE)
 endif ()
 
 if (NOT DISABLE_IPS4O)
-    find_package(atomic)
+    find_package(Atomic)
     if (ATOMIC_FOUND)
         target_link_libraries(mmseqs-framework ${ATOMIC_LIBRARIES})
         target_compile_definitions(mmseqs-framework PUBLIC -DENABLE_IPS4O=1)
