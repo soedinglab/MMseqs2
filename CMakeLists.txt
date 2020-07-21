@@ -153,6 +153,11 @@ if ((CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSI
     set(DISABLE_IPS4O 1)
 endif ()
 
+if (PPC64)
+    # FIXME: investigate why on ppc the regression seems to fail randomly
+    set(DISABLE_IPS4O 1)
+endif ()
+
 # zstd
 # We use ZSTD_findDecompressedSize which is only available with ZSTD_STATIC_LINKING_ONLY
 # Thus we cannot use a system provided libzstd
