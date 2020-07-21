@@ -19,7 +19,7 @@ ARG NAMESPACE
 COPY --from=qemu-downloader /usr/bin/dummy_copy /usr/bin/qemu-aarch64-static* /usr/bin/qemu-ppc64le-static* /usr/bin/
 
 RUN apt-get update && apt-get install -y \
-    build-essential cmake xxd git zlib1g-dev libbz2-dev \
+    build-essential cmake xxd git zlib1g-dev libbz2-dev libatomic1 \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/mmseqs
@@ -50,7 +50,7 @@ MAINTAINER Milot Mirdita <milot@mirdita.de>
 COPY --from=qemu-downloader /usr/bin/dummy_copy /usr/bin/qemu-aarch64-static* /usr/bin/qemu-ppc64le-static* /usr/bin/
 
 RUN apt-get update && apt-get install -y \
-      gawk bash grep libstdc++6 libgomp1 zlib1g libbz2-1.0 wget tar \
+      gawk bash grep libstdc++6 libgomp1 libatomic1 zlib1g libbz2-1.0 wget tar \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/mmseqs/mmseqs_arch /opt/mmseqs/mmseqs_sse42 /opt/mmseqs/mmseqs_avx2 /usr/local/bin/
