@@ -79,7 +79,7 @@ public:
     TaxID LCA(TaxID taxonA, TaxID taxonB) const;
     std::vector<std::string> AtRanks(TaxonNode const * node, const std::vector<std::string> &levels) const;
     std::map<std::string, std::string> AllRanks(TaxonNode const *node) const;
-    std::string taxLineage(TaxonNode const *node);
+    std::string taxLineage(TaxonNode const *node, bool infoAsName = true);
 
     static std::vector<std::string> parseRanks(const std::string& ranks);
     static int findRankIndex(const std::string& rank);

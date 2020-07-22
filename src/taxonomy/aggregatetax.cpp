@@ -266,7 +266,7 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
                 if (!ranks.empty()) {
                     setTaxStr += '\t';
                 }
-                if (par.showTaxLineage) {
+                if (par.showTaxLineage > 0) {
                     setTaxStr += '\t';
                 }
             } else {
@@ -288,8 +288,11 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
                     std::string lcaRanks = Util::implode(t->AtRanks(node, ranks), ';');
                     setTaxStr += '\t' + lcaRanks;
                 }
-                if (par.showTaxLineage) {
-                    setTaxStr += '\t' + t->taxLineage(node);
+                if (par.showTaxLineage == 1) {
+                    setTaxStr += '\t' + t->taxLineage(node, true);
+                }
+                if (par.showTaxLineage == 2) {
+                    setTaxStr += '\t' + t->taxLineage(node, false);
                 }
             }
             setTaxStr += '\n';

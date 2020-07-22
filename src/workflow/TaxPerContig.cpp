@@ -9,7 +9,7 @@ void setTaxPerContigDefaults(Parameters *p) {
     p->orfStartMode = 1;
     p->translate = 1;
     p->taxonomyOutpuMode = 2;
-    p->showTaxLineage = false;
+    p->showTaxLineage = 0;
 }
 
 void setTaxPerContigMustPassAlong(Parameters *p) {
@@ -37,9 +37,9 @@ int taxpercontig(int argc, const char **argv, const Command& command) {
     CommandCaller cmd;
     par.translate = 1;
     cmd.addVariable("EXTRACT_ORFS_PAR", par.createParameterString(par.extractorfs).c_str());
-    bool showTaxLineageOrig = par.showTaxLineage;
+    int showTaxLineageOrig = par.showTaxLineage;
     // never show lineage for the orfs
-    par.showTaxLineage = false;
+    par.showTaxLineage = 0;
     par.translate = 0;
     cmd.addVariable("TAXONOMY_PAR", par.createParameterString(par.taxonomy, true).c_str());
     par.showTaxLineage = showTaxLineageOrig;

@@ -584,7 +584,7 @@ public:
     // lca
     int pickIdFrom;
     std::string lcaRanks;
-    bool showTaxLineage;
+    int showTaxLineage;
     std::string blacklist;
 
     // aggregatetax

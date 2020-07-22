@@ -54,7 +54,7 @@ int lca(int argc, const char **argv, const Command& command) {
     if (!ranks.empty()) {
         noTaxResult += '\t';
     }
-    if (par.showTaxLineage) {
+    if (par.showTaxLineage > 0) {
         noTaxResult += '\t';
     }
     noTaxResult += '\n';
@@ -137,8 +137,11 @@ int lca(int argc, const char **argv, const Command& command) {
                 std::string lcaRanks = Util::implode(t->AtRanks(node, ranks), ';');
                 resultData += '\t' + lcaRanks;
             }
-            if (par.showTaxLineage) {
-                resultData += '\t' + t->taxLineage(node);
+            if (par.showTaxLineage == 1) {
+                resultData += '\t' + t->taxLineage(node, true);
+            }
+            if (par.showTaxLineage == 2) {
+                resultData += '\t' + t->taxLineage(node, false);
             }
             resultData += '\n';
             writer.writeData(resultData.c_str(), resultData.size(), key, thread_idx);
