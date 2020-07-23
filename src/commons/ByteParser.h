@@ -55,15 +55,20 @@ public:
     };
     
     static std::string format(size_t numBytes, char unit='a') {
+        size_t unitT = TWO_POW_10 * TWO_POW_10 * TWO_POW_10 * TWO_POW_10;
+        size_t unitG = TWO_POW_10 * TWO_POW_10 * TWO_POW_10;
+        size_t unitM = TWO_POW_10 * TWO_POW_10;
+        size_t unitK = TWO_POW_10;
+        
         if (unit == 'a') {
             // auto-detect the unit to use:
-            if ((numBytes / (TWO_POW_10 * TWO_POW_10 * TWO_POW_10 * TWO_POW_10)) > 0) {
+            if ((numBytes / unitT > 0) && (numBytes % unitT == 0)) {
                 unit = 'T';
-            } else if ((numBytes / (TWO_POW_10 * TWO_POW_10 * TWO_POW_10)) > 0) {
+            } else if ((numBytes / unitG > 0) && (numBytes % unitG == 0)) {
                 unit = 'G';
-            } else if ((numBytes / (TWO_POW_10 * TWO_POW_10)) > 0) {
+            } else if ((numBytes / unitM > 0) && (numBytes % unitM == 0)) {
                 unit = 'M';
-            } else if ((numBytes / TWO_POW_10) > 0) {
+            } else if ((numBytes / unitK > 0) && ((numBytes % unitK) == 0)) {
                 unit = 'K';
             } else {
                 unit = 'B';
@@ -72,13 +77,13 @@ public:
 
         size_t unitFactor = 1;
         if ((unit == 't') || (unit == 'T')) {
-            unitFactor = TWO_POW_10 * TWO_POW_10 * TWO_POW_10 * TWO_POW_10;
+            unitFactor = unitT;
         } else if ((unit == 'g') || (unit == 'G')) {
-            unitFactor = TWO_POW_10 * TWO_POW_10 * TWO_POW_10;
+            unitFactor = unitG;
         } else if ((unit == 'm') || (unit == 'M')) {
-            unitFactor = TWO_POW_10 * TWO_POW_10;
+            unitFactor = unitM;
         } else if ((unit == 'k') || (unit == 'K')) {
-            unitFactor = TWO_POW_10;
+            unitFactor = unitK;
         } else if ((unit == 'b') || (unit == 'B')) {
             unitFactor = 1;
         } else {
