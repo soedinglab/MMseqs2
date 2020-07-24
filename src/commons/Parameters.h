@@ -397,6 +397,7 @@ public:
     int sensSteps;
     bool sliceSearch;
     int strand;
+    int orfFilter;
 
     // easysearch
     bool greedyBestHits;
@@ -775,7 +776,7 @@ public:
     PARAMETER(PARAM_SENS_STEPS)
     PARAMETER(PARAM_SLICE_SEARCH)
     PARAMETER(PARAM_STRAND)
-
+    PARAMETER(PARAM_ORF_FILTER)
 
     // easysearch
     PARAMETER(PARAM_GREEDY_BEST_HITS)
