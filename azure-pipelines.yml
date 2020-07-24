@@ -134,10 +134,10 @@ jobs:
           targetPath: $(Build.SourcesDirectory)/build/src/mmseqs
           artifactName: mmseqs-linux-$(SIMD)
 
-  - job: build_ubuntu_cross_1804
-    displayName: Ubuntu 1804 Cross-Compile
+  - job: build_ubuntu_cross_2004
+    displayName: Ubuntu 2004 Cross-Compile
     pool:
-      vmImage: 'Ubuntu-18.04'
+      vmImage: 'Ubuntu-20.04'
     timeoutInMinutes: 120
     strategy:
       matrix:
@@ -158,14 +158,14 @@ jobs:
       - script: |
           sudo dpkg --add-architecture $ARCH
           cat << HEREDOC | sudo tee /etc/apt/sources.list
-          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu/ bionic main restricted universe multiverse
-          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu/ bionic-updates main restricted universe multiverse
-          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu/ bionic-backports main restricted universe multiverse
-          deb [arch=amd64,i386] http://security.ubuntu.com/ubuntu/ bionic-security main restricted universe multiverse
-          deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ bionic main  universe multiverse
-          deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ bionic-updates main universe multiverse
-          deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ bionic-backports main universe multiverse
-          deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ bionic-security main universe multiverse
+          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu/ focal main universe multiverse
+          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu/ focal-updates main universe multiverse
+          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu/ focal-backports main universe multiverse
+          deb [arch=amd64,i386] http://security.ubuntu.com/ubuntu/ focal-security main universe multiverse
+          deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ focal main  universe multiverse
+          deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ focal-updates main universe multiverse
+          deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ focal-backports main universe multiverse
+          deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ focal-security main universe multiverse
           HEREDOC
           sudo apt-get update
           sudo apt-get -y install crossbuild-essential-$ARCH zlib1g-dev:$ARCH libbz2-dev:$ARCH
@@ -249,7 +249,7 @@ jobs:
       - build_ubuntu_1804_userguide
       - build_macos_1015
       - build_ubuntu_1804
-      - build_ubuntu_cross_1804
+      - build_ubuntu_cross_2004
       - build_windows_2019
     steps:
       - script: |
