@@ -352,7 +352,7 @@ jobs:
           archiveType: tar
       - task: DownloadPipelineArtifact@1
         inputs:
-          artifactName: mmseqs-linux-ARM64
+          artifactName: mmseqs-linux-ARM8
           targetPath: $(Build.SourcesDirectory)/mmseqs/bin
       - script:
           chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
