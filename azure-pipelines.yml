@@ -66,8 +66,13 @@ jobs:
           STATIC: 1
           MPI: 0
           BUILD_TYPE: RelWithDebInfo
-        sse:
+        sse41:
           SIMD: 'SSE4_1'
+          STATIC: 1
+          MPI: 0
+          BUILD_TYPE: RelWithDebInfo
+        sse2:
+          SIMD: 'SSE2'
           STATIC: 1
           MPI: 0
           BUILD_TYPE: RelWithDebInfo
@@ -125,6 +130,57 @@ jobs:
         condition: eq(variables['regression'], 1)
       - task: PublishPipelineArtifact@0
         condition: eq(variables['STATIC'], 1)
+        inputs:
+          targetPath: $(Build.SourcesDirectory)/build/src/mmseqs
+          artifactName: mmseqs-linux-$(SIMD)
+
+  - job: build_ubuntu_cross_1804
+    displayName: Ubuntu 1804 Cross-Compile
+    pool:
+      vmImage: 'Ubuntu-18.04'
+    timeoutInMinutes: 120
+    strategy:
+      matrix:
+        power8:
+          SIMD: POWER8
+          ARCH: ppc64el
+          CPREF: powerpc64le
+        power9:
+          SIMD: POWER9
+          ARCH: ppc64el
+          CPREF: powerpc64le
+        arm64:
+          SIMD: ARM8
+          ARCH: arm64
+          CPREF: aarch64
+
+    steps:
+      - script: |
+          sudo dpkg --add-architecture $ARCH
+          cat << HEREDOC | sudo tee /etc/apt/sources.list
+          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu/ bionic main restricted universe multiverse
+          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu/ bionic-updates main restricted universe multiverse
+          deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu/ bionic-backports main restricted universe multiverse
+          deb [arch=amd64,i386] http://security.ubuntu.com/ubuntu/ bionic-security main restricted universe multiverse
+          deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ bionic main  universe multiverse
+          deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ bionic-updates main universe multiverse
+          deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ bionic-backports main universe multiverse
+          deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ bionic-security main universe multiverse
+          HEREDOC
+          sudo apt-get update
+          sudo apt-get -y install crossbuild-essential-$ARCH zlib1g-dev:$ARCH libbz2-dev:$ARCH
+        displayName: Install Toolchain
+      - script: |
+          mkdir build && cd build
+          CC=${CPREF}-linux-gnu-gcc CXX=${CPREF}-linux-gnu-g++ \
+           cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc \
+            -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+            -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 ..
+          make -j $(nproc --all)
+        displayName: Build MMseqs2
+      - task: PublishPipelineArtifact@0
         inputs:
           targetPath: $(Build.SourcesDirectory)/build/src/mmseqs
           artifactName: mmseqs-linux-$(SIMD)
@@ -193,6 +249,7 @@ jobs:
       - build_ubuntu_1804_userguide
       - build_macos_1015
       - build_ubuntu_1804
+      - build_ubuntu_cross_1804
       - build_windows_2019
     steps:
       - script: |
@@ -257,6 +314,54 @@ jobs:
           archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-avx2.tar.gz
           includeRootFolder: true
           archiveType: tar
+      - task: DownloadPipelineArtifact@1
+        inputs:
+          artifactName: mmseqs-linux-SSE2
+          targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - script:
+          chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-sse2.tar.gz
+          includeRootFolder: true
+          archiveType: tar
+      - task: DownloadPipelineArtifact@1
+        inputs:
+          artifactName: mmseqs-linux-POWER9
+          targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - script:
+          chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-ppc64le-power9.tar.gz
+          includeRootFolder: true
+          archiveType: tar
+      - task: DownloadPipelineArtifact@1
+        inputs:
+          artifactName: mmseqs-linux-POWER8
+          targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - script:
+          chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-ppc64le-power8.tar.gz
+          includeRootFolder: true
+          archiveType: tar
+      - task: DownloadPipelineArtifact@1
+        inputs:
+          artifactName: mmseqs-linux-ARM64
+          targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - script:
+          chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-arm64.tar.gz
+          includeRootFolder: true
+          archiveType: tar
       - script:
           rm "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
       - task: DownloadPipelineArtifact@1
@@ -282,5 +387,5 @@ jobs:
           ssh-keyscan -t rsa uniclust.mmseqs.com >> ~/.ssh/known_hosts
           cd "${BUILD_SOURCESDIRECTORY}"
           ssh codeship@uniclust.mmseqs.com "mkdir -p \"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}\""
-          scp mmseqs/userguide.pdf mmseqs-osx-sse41.tar.gz mmseqs-osx-avx2.tar.gz mmseqs-linux-sse41.tar.gz mmseqs-linux-avx2.tar.gz mmseqs-win64.zip codeship@uniclust.mmseqs.com:"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}"
+          scp mmseqs/userguide.pdf mmseqs-osx-sse41.tar.gz mmseqs-osx-avx2.tar.gz mmseqs-linux-sse2.tar.gz mmseqs-linux-sse41.tar.gz mmseqs-linux-avx2.tar.gz mmseqs-linux-arm64.tar.gz mmseqs-linux-ppc64le-power8.tar.gz mmseqs-linux-ppc64le-power9.tar.gz mmseqs-win64.zip codeship@uniclust.mmseqs.com:"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}"
           ssh codeship@uniclust.mmseqs.com "update-latest-mmseqs.sh \"${BUILD_SOURCEVERSION}\""
