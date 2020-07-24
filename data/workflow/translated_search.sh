@@ -44,7 +44,7 @@ if [ -n "$NO_TARGET_INDEX" ]; then
 fi
 fi
 
-if [ -n "${ORF_FILTER}" ]; then
+if [ -n "$QUERY_NUCL" ] && [ -n "${ORF_FILTER}" ]; then
     if notExists "${TMP_PATH}/q_orfs_aa_pref.dbtype"; then
         # shellcheck disable=SC2086
         "$MMSEQS" prefilter "${QUERY}" "${TARGET}" "${TMP_PATH}/q_orfs_aa_pref" --min-ungapped-score 3 -s 3 -k 6 --diag-score 0 --spaced-kmer-mode 0 --max-seqs 1 ${THREAD_COMP_PAR} \
