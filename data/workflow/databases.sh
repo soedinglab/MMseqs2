@@ -152,7 +152,7 @@ case "${SELECTION}" in
             downloadFile "ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam.version.gz" "${TMP_PATH}/version"
             downloadFile "ftp://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.full.gz" "${TMP_PATH}/db.msa.gz"
         fi
-        INPUT_TYPE="MSA"
+        INPUT_TYPE="STOCKHOLM_MSA"
     ;;
     "Pfam-A.seed")
         if notExists "${TMP_PATH}/db.msa.gz"; then
