@@ -25,12 +25,16 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /opt/mmseqs
 ADD . .
 
-RUN mkdir -p build_sse/src && mkdir -p build_avx/src && mkdir -p build/src; \
+RUN mkdir -p build_sse2/src && mkdir -p build_sse41/src && mkdir -p build_avx/src && mkdir -p build/src; \
     if [ X"$NAMESPACE" = X"" ]; then \
-       cd /opt/mmseqs/build_sse; \
+       cd /opt/mmseqs/build_sse2; \
+       cmake -DHAVE_SSE2=1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
+       make -j $(nproc --all); \
+       mv src/mmseqs /opt/mmseqs/mmseqs_sse2; \
+       cd /opt/mmseqs/build_sse41; \
        cmake -DHAVE_SSE4_1=1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
        make -j $(nproc --all); \
-       mv src/mmseqs /opt/mmseqs/mmseqs_sse42; \
+       mv src/mmseqs /opt/mmseqs/mmseqs_sse41; \
        cd /opt/mmseqs/build_avx; \
        cmake -DHAVE_AVX2=1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
        make -j $(nproc --all); \
@@ -41,7 +45,7 @@ RUN mkdir -p build_sse/src && mkdir -p build_avx/src && mkdir -p build/src; \
        cmake -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..; \
        make -j $(nproc --all); \
        mv src/mmseqs /opt/mmseqs/mmseqs_arch; \
-       touch /opt/mmseqs/mmseqs_sse42 /opt/mmseqs/mmseqs_avx2; \
+       touch /opt/mmseqs/mmseqs_sse2 /opt/mmseqs/mmseqs_sse42 /opt/mmseqs/mmseqs_avx2; \
      fi
 
 FROM ${NAMESPACE}debian:stable-slim
@@ -53,7 +57,7 @@ RUN apt-get update && apt-get install -y \
       gawk bash grep libstdc++6 libgomp1 libatomic1 zlib1g libbz2-1.0 wget tar \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /opt/mmseqs/mmseqs_arch /opt/mmseqs/mmseqs_sse42 /opt/mmseqs/mmseqs_avx2 /usr/local/bin/
+COPY --from=builder /opt/mmseqs/mmseqs_arch /opt/mmseqs/mmseqs_sse2 /opt/mmseqs/mmseqs_sse41 /opt/mmseqs/mmseqs_avx2 /usr/local/bin/
 ADD util/mmseqs_wrapper.sh /usr/local/bin/mmseqs
 RUN if [ X"$NAMESPACE" != X"" ]; then mv -f /usr/local/bin/mmseqs_arch /usr/local/bin/mmseqs; fi
 
