@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <climits>
 #include <unordered_map>
+#include <FastSort.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -34,7 +35,7 @@ ClusteringAlgorithms::~ClusteringAlgorithms(){
     delete [] clustersizes;
 }
 
-std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithms::execute(int mode) {
+std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) {
     // init data
 
     unsigned int *assignedcluster = new(std::nothrow) unsigned int[dbSize];
@@ -123,27 +124,25 @@ std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithm
     }
 
 
+    std::pair<unsigned int, unsigned int> * assignment = new std::pair<unsigned int, unsigned int> [dbSize];
+#pragma omp parallel
+    {
 
-    std::unordered_map<unsigned int, std::vector<unsigned int>> retMap;
-    for(size_t i = 0; i < dbSize; i++) {
-        if(assignedcluster[i] == UINT_MAX){
-            Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(i) <<
-                                " is not assigned to a cluster\n";
-            continue;
-        }
+#pragma omp for schedule(static)
+        for (size_t i = 0; i < dbSize; i++) {
+            if (assignedcluster[i] == UINT_MAX) {
+                Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(i) <<
+                                    " is not assigned to a cluster\n";
+                continue;
+            }
 
-        // make sure the representative is always the first entry
-        if(retMap.find(assignedcluster[i]) == retMap.end()) {
-            retMap[assignedcluster[i]].push_back(assignedcluster[i]);
-        }
-
-        // and don't add it a second time
-        if(i != assignedcluster[i]) {
-            retMap[assignedcluster[i]].push_back(i);
+            assignment[i].first = seqDbr->getDbKey(assignedcluster[i]);
+            assignment[i].second = seqDbr->getDbKey(i);
         }
     }
+    SORT_PARALLEL(assignment,assignment+dbSize);
     delete [] assignedcluster;
-    return retMap;
+    return assignment;
 }
 
 void ClusteringAlgorithms::initClustersizes(){
