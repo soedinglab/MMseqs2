@@ -767,33 +767,57 @@ template <typename T> void DBReader<T>::checkClosed() const {
 
 template<typename T>
 bool DBReader<T>::readIndex(char *data, size_t indexDataSize, Index *index, size_t & dataSize) {
-    size_t i = 0;
-    size_t currPos = 0;
-    char* indexDataChar = (char *) data;
-    const char * cols[3];
-    T prevId=T(); // makes 0 or empty string
+
     size_t isSortedById = true;
-    maxSeqLen=0;
-    while (currPos < indexDataSize){
-        if (i >= this->size) {
-            Debug(Debug::ERROR) << "Corrupt memory, too many entries: " << i << " >= " << this->size << "\n";
-            EXIT(EXIT_FAILURE);
+    size_t globalIdOffset = 0;
+    unsigned int localMaxSeqLen = 0;
+    size_t localDataSize = 0;
+
+    unsigned int localLastKey = 0;
+    const unsigned int BATCH_SIZE = 2;
+#pragma omp parallel num_threads(threads) reduction(max: localMaxSeqLen, localLastKey) reduction(+: localDataSize) reduction(min:isSortedById)
+    {
+        size_t currPos = 0;
+        char* indexDataChar = (char *) data;
+        const char * cols[3];
+        size_t lineStartId = __sync_fetch_and_add(&(globalIdOffset), BATCH_SIZE);
+        T prevId=T(); // makes 0 or empty string
+        size_t currLine = 0;
+
+        while (currPos < indexDataSize){
+            if (currLine >= this->size) {
+                Debug(Debug::ERROR) << "Corrupt memory, too many entries: " << currLine << " >= " << this->size << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            if(currLine == lineStartId){
+                for(size_t startIndex = lineStartId; startIndex < lineStartId + BATCH_SIZE && currPos < indexDataSize; startIndex++){
+                    Util::getWordsOfLine(indexDataChar, cols, 3);
+                    readIndexId(&index[startIndex].id, indexDataChar, cols);
+                    isSortedById *= (index[startIndex].id >= prevId);
+                    size_t offset = Util::fast_atoi<size_t>(cols[1]);
+                    size_t length = Util::fast_atoi<size_t>(cols[2]);
+                    localDataSize += length;
+                    index[startIndex].offset = offset;
+                    index[startIndex].length = length;
+                    localMaxSeqLen = std::max(static_cast<unsigned int>(length), localMaxSeqLen);
+                    indexDataChar = Util::skipLine(indexDataChar);
+                    currPos = indexDataChar - (char *) data;
+                    localLastKey = std::max(localLastKey, indexIdToNum(&index[startIndex].id));
+                    prevId = index[startIndex].id;
+                    currLine++;
+                }
+                lineStartId = __sync_fetch_and_add(&(globalIdOffset), BATCH_SIZE);
+            }else{
+                indexDataChar = Util::skipLine(indexDataChar);
+                currPos = indexDataChar - (char *) data;
+                currLine++;
+            }
+
         }
-        Util::getWordsOfLine(indexDataChar, cols, 3);
-        readIndexId(&index[i].id, indexDataChar, cols);
-        isSortedById *= (index[i].id >= prevId);
-        size_t offset = Util::fast_atoi<size_t>(cols[1]);
-        size_t length = Util::fast_atoi<size_t>(cols[2]);
-        dataSize += length;
-        index[i].offset = offset;
-        index[i].length = length;
-        maxSeqLen = std::max(static_cast<unsigned int>(length), maxSeqLen);
-        indexDataChar = Util::skipLine(indexDataChar);
-        currPos = indexDataChar - (char *) data;
-        lastKey = std::max(index[i].id, lastKey);
-        prevId = index[i].id;
-        i++;
     }
+    dataSize = localDataSize;
+    maxSeqLen = localMaxSeqLen;
+    lastKey = localLastKey;
     return isSortedById;
 }
 
@@ -809,6 +833,15 @@ void DBReader<std::string>::readIndexId(std::string* id, char* line, const char*
 template<>
 void DBReader<unsigned int>::readIndexId(unsigned int* id, char*, const char** cols) {
     *id = Util::fast_atoi<unsigned int>(cols[0]);
+}
+
+template<>
+unsigned int DBReader<std::string>::indexIdToNum(std::string * id){
+    return id->size();
+}
+template<>
+unsigned int DBReader<unsigned int>::indexIdToNum(unsigned int * id) {
+    return *id;
 }
 
 template <typename T> void DBReader<T>::unmapData() {

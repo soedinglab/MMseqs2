@@ -287,6 +287,8 @@ public:
 
     void readIndexId(T* id, char * line, const char** cols);
 
+    unsigned int indexIdToNum(T* id);
+
     void readMmapedDataInMemory();
 
     void mlock();
