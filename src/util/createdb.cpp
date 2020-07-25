@@ -235,8 +235,8 @@ int createdb(int argc, const char **argv, const Command& command) {
     }
     Debug(Debug::INFO) << "\n";
     fclose(source);
-    hdrWriter.close(true);
-    seqWriter.close(true);
+    hdrWriter.close(true, false);
+    seqWriter.close(true, false);
     if (dbType == -1) {
         if (isNuclCnt == sampleCount) {
             dbType = Parameters::DBTYPE_NUCLEOTIDES;

@@ -75,9 +75,9 @@ void Clustering::run(int mode) {
     delete [] ret;
     delete algorithm;
 
+    dbw->close(false, false);
     seqDbr->close();
     alnDbr->close();
-    dbw->close();
     delete dbw;
 
 }

@@ -33,9 +33,13 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     char *line = NULL;
     size_t len = 0;
     char dbKey[256];
+    unsigned int prevKey = 0;
+    bool isOrdered = true;
     while (getline(&line, &len, orderFile) != -1) {
         Util::parseKey(line, dbKey);
         const unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
+        isOrdered &= (prevKey <= key);
+        prevKey = key;
         const size_t id = reader.getId(key);
         if (id >= UINT_MAX) {
             Debug(Debug::WARNING) << "Key " << dbKey << " not found in database\n";
@@ -65,7 +69,7 @@ int createsubdb(int argc, const char **argv, const Command& command) {
                              || Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)
                              || Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)
                              || Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_PROFILE_STATE_SEQ);
-    writer.close(shouldMerge);
+    writer.close(shouldMerge, !isOrdered);
     if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
         DBReader<unsigned int>::softlinkDb(par.db2, par.db3, DBFiles::DATA);
     }

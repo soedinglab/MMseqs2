@@ -246,7 +246,7 @@ void DBWriter::writeDbtypeFile(const char* path, int dbtype, bool isCompressed) 
 }
 
 
-void DBWriter::close(bool merge) {
+void DBWriter::close(bool merge, bool needsSort) {
     // close all datafiles
     for (unsigned int i = 0; i < threads; i++) {
         fclose(dataFiles[i]);
@@ -264,7 +264,7 @@ void DBWriter::close(bool merge) {
     }
 
     mergeResults(dataFileName, indexFileName, (const char **) dataFileNames, (const char **) indexFileNames,
-                 threads, merge, ((mode & Parameters::WRITER_LEXICOGRAPHIC_MODE) != 0));
+                 threads, merge, ((mode & Parameters::WRITER_LEXICOGRAPHIC_MODE) != 0), needsSort);
 
     writeDbtypeFile(dataFileName, dbtype, (mode & Parameters::WRITER_COMPRESSED_MODE) != 0);
 
@@ -547,7 +547,8 @@ void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<std::string>
 
 void DBWriter::mergeResults(const char *outFileName, const char *outFileNameIndex,
                             const char **dataFileNames, const char **indexFileNames,
-                            unsigned long fileCount, bool mergeDatafiles, bool lexicographicOrder) {
+                            unsigned long fileCount, bool mergeDatafiles,
+                            bool lexicographicOrder, bool indexNeedsToBeSorted) {
     Timer timer;
     std::vector<std::vector<std::string>> dataFilenames;
     for (unsigned int i = 0; i < fileCount; ++i) {
@@ -610,9 +611,11 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
             DBReader<unsigned int>::moveDatafiles(filenames, outFileName);
         }
     }
-
-    DBWriter::sortIndex(indexFileNames[0], outFileNameIndex, lexicographicOrder);
-    FileUtil::remove(indexFileNames[0]);
+    if(indexNeedsToBeSorted){
+        DBWriter::sortIndex(indexFileNames[0], outFileNameIndex, lexicographicOrder);
+    }else{
+        FileUtil::move(indexFileNames[0], outFileNameIndex);
+    }
     Debug(Debug::INFO) << "Time for merging to " << FileUtil::baseName(outFileName) << ": " << timer.lap() << "\n";
 }
 

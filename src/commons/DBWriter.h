@@ -19,7 +19,7 @@ public:
 
     void open(size_t bufferSize = SIZE_MAX);
 
-    void close(bool merge = false);
+    void close(bool merge = false, bool needsSort = true);
 
     char* getDataFileName() { return dataFileName; }
 
@@ -76,7 +76,8 @@ private:
 
     static void mergeResults(const char *outFileName, const char *outFileNameIndex,
                              const char **dataFileNames, const char **indexFileNames,
-                             unsigned long fileCount, bool mergeDatafiles, bool lexicographicOrder = false);
+                             unsigned long fileCount, bool mergeDatafiles,
+                             bool lexicographicOrder = false, bool indexNeedsToBeSorted = true);
 
     static void mergeIndex(const char** indexFilenames, unsigned int fileCount, const std::vector<size_t> &dataSizes);
 
