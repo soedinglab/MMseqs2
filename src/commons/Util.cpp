@@ -426,16 +426,15 @@ size_t Util::ompCountLines(const char* data, size_t dataSize, unsigned int MAYBE
 #ifdef OPENMP
     int threadCnt = 1;
     const int totalThreadCnt = threads;
-    if (totalThreadCnt > 4) {
+    if (totalThreadCnt >= 4) {
         threadCnt = 4;
     }
 #endif
 
+        size_t pageSize = getPageSize();
 #pragma omp parallel num_threads(threadCnt)
     {
-        size_t pageSize = getPageSize();
-
-#pragma omp for schedule(dynamic, 1) reduction (+: cnt)
+#pragma omp for schedule(static) reduction (+: cnt)
         for (size_t page = 0; page < dataSize; page += pageSize) {
             size_t readUntil = std::min(dataSize, page + pageSize);
             for(size_t pos = page; pos < readUntil; pos++ ){

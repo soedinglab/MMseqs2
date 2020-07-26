@@ -767,6 +767,14 @@ template <typename T> void DBReader<T>::checkClosed() const {
 
 template<typename T>
 bool DBReader<T>::readIndex(char *data, size_t indexDataSize, Index *index, size_t & dataSize) {
+#ifdef OPENMP
+    int threadCnt = 1;
+    const int totalThreadCnt = threads;
+    if (totalThreadCnt >= 4) { 
+	threadCnt = 4;
+    }
+#endif
+
 
     size_t isSortedById = true;
     size_t globalIdOffset = 0;
@@ -774,8 +782,8 @@ bool DBReader<T>::readIndex(char *data, size_t indexDataSize, Index *index, size
     size_t localDataSize = 0;
 
     unsigned int localLastKey = 0;
-    const unsigned int BATCH_SIZE = 2;
-#pragma omp parallel num_threads(threads) reduction(max: localMaxSeqLen, localLastKey) reduction(+: localDataSize) reduction(min:isSortedById)
+    const unsigned int BATCH_SIZE = 1048576;
+#pragma omp parallel num_threads(threadCnt) reduction(max: localMaxSeqLen, localLastKey) reduction(+: localDataSize) reduction(min:isSortedById)
     {
         size_t currPos = 0;
         char* indexDataChar = (char *) data;

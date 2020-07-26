@@ -111,7 +111,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
             generator->setDivideStrategy(&three, &two);
         }
         Indexer idxer(subMat->alphabetSize - 1,  par.kmerSize);
-        const unsigned int BUFFER_SIZE = 1024;
+        const unsigned int BUFFER_SIZE = 1048576;
         size_t bufferPos = 0;
         KmerPosition<T> * threadKmerBuffer = new KmerPosition<T>[BUFFER_SIZE];
         SequencePosition * kmers = (SequencePosition *) malloc((par.pickNbest * (par.maxSeqLen + 1) + 1) * sizeof(SequencePosition));
@@ -122,7 +122,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
             size_t start = (i * flushSize);
             size_t bucketSize = std::min(seqDbr.getSize() - (i * flushSize), flushSize);
 
-#pragma omp for schedule(dynamic, 10)
+#pragma omp for schedule(dynamic, 100)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
                 memset(scoreDist, 0, sizeof(unsigned short) * 65536);
