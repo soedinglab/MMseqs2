@@ -16,6 +16,7 @@ void setEasyTaxonomyDefaults(Parameters *p) {
     p->orfStartMode = 1;
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
+    p->orfFilter = 0;
 }
 void setEasyTaxonomyMustPassAlong(Parameters *p) {
     p->PARAM_SPACED_KMER_MODE.wasSet = true;
@@ -26,6 +27,7 @@ void setEasyTaxonomyMustPassAlong(Parameters *p) {
     p->PARAM_ORF_START_MODE.wasSet = true;
     p->PARAM_ORF_MIN_LENGTH.wasSet = true;
     p->PARAM_ORF_MAX_LENGTH.wasSet = true;
+    p->PARAM_ORF_FILTER.wasSet = true;
 }
 
 int easytaxonomy(int argc, const char **argv, const Command& command) {
