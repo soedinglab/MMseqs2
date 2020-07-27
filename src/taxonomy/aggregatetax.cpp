@@ -13,6 +13,10 @@
 #endif
 
 const double MAX_WEIGHT = 1000;
+const TaxID ROOT_TAXID = 1;
+const TaxID CELL_ORG_TAXID = 131567;
+const int ROOT_RANK = INT_MAX;
+const int CELL_ORG_RANK = INT_MAX - 1;
 
 struct taxHit {
     void setByEntry(const TaxID & taxonInput, const bool useAln, const char ** taxHitData, const size_t numCols, const int voteMode) {
@@ -110,6 +114,13 @@ TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *t
             TaxID currTaxId = it->first;
             TaxonNode const * node = taxonomy->taxonNode(currTaxId, false);
             int currRankInd = NcbiTaxonomy::findRankIndex(node->rank);
+            // don't lose root or cellular organisms, which don't have a rank:
+            if (currTaxId == ROOT_TAXID) {
+                currRankInd = ROOT_RANK;
+            }
+            if (currTaxId == CELL_ORG_TAXID) {
+                currRankInd = CELL_ORG_RANK;
+            }
             if (currRankInd > 0) {
                 if ((currRankInd < minRank) || ((currRankInd == minRank) && (currPercent > selectedPercent))) {
                     selctedTaxon = currTaxId;
@@ -121,7 +132,7 @@ TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *t
     }
 
     // count the number of seqs who have selectedTaxon in their ancestors (agree with selection):
-    if (selctedTaxon == 1) {
+    if (selctedTaxon == ROOT_TAXID) {
         // all agree with "root"
         numSeqsAgreeWithSelectedTaxon = numAssignedSeqs;
         return (selctedTaxon);
