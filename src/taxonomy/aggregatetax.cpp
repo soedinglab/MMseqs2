@@ -193,7 +193,7 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
 
     std::vector<std::string> ranks = NcbiTaxonomy::parseRanks(par.lcaRanks);
 
-    Debug::Progress progress(taxSeqReader.getSize());
+    Debug::Progress progress(setToSeqReader.getSize());
 
     #pragma omp parallel
     {
@@ -220,13 +220,23 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
                 Util::getWordsOfLine(results, entry, 255);
                 unsigned int seqKey = Util::fast_atoi<unsigned int>(entry[0]);
 
-                char *seqToTaxData = taxSeqReader.getDataByDBKey(seqKey, thread_idx);
+                size_t seqId = taxSeqReader.getId(seqKey);
+                if (seqId == UINT_MAX) {
+                    Debug(Debug::ERROR) << "Missing key " << seqKey << " in tax result\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                char *seqToTaxData = taxSeqReader.getData(seqId, thread_idx);
                 Util::getWordsOfLine(seqToTaxData, entry, 255);
                 TaxID taxon = Util::fast_atoi<int>(entry[0]);
                 size_t numCols = 0;
 
                 if (useAln == true) {
-                    char *seqToAlnData = alnSeqReader->getDataByDBKey(seqKey, thread_idx);
+                    size_t alnId = alnSeqReader->getId(seqKey);
+                    if (alnId == UINT_MAX) {
+                        Debug(Debug::ERROR) << "Missing key " << alnId << " in alignment result\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    char *seqToAlnData = alnSeqReader->getData(alnId, thread_idx);
                     numCols = Util::getWordsOfLine(seqToAlnData, entry, 255);
                 }
 
@@ -303,14 +313,15 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
             // ready to move to the next set
             setTaxa.clear();
         }
-    };
-    Debug(Debug::INFO) << "\n";
+    }
 
     writer.close();
     taxSeqReader.close();
     setToSeqReader.close();
-    alnSeqReader->close();
-    delete alnSeqReader;
+    if (alnSeqReader != NULL) {
+        alnSeqReader->close();
+        delete alnSeqReader;
+    }
     delete t;
 
     return EXIT_SUCCESS;
@@ -318,9 +329,9 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
 }
 
 int aggregatetaxweights(int argc, const char **argv, const Command& command) {
-    return (aggregate(true, argc, argv, command)); 
+    return aggregate(true, argc, argv, command);
 }
 
 int aggregatetax(int argc, const char **argv, const Command& command) {
-    return (aggregate(false, argc, argv, command)); 
+    return aggregate(false, argc, argv, command);
 }

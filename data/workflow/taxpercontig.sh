@@ -24,28 +24,56 @@ TAX_SEQ_DB="$2"
 RESULTS="$3"
 TMP_PATH="$4"
 
-if [ ! -e "${TMP_PATH}/orfs_aa.dbtype" ]; then
+ORFS_DB="${TMP_PATH}/orfs_aa"
+if [ ! -e "${ORFS_DB}.dbtype" ]; then
     # shellcheck disable=SC2086
-    "$MMSEQS" extractorfs "${CONTIGS_DB}" "${TMP_PATH}/orfs_aa" ${EXTRACT_ORFS_PAR} \
+    "$MMSEQS" extractorfs "${CONTIGS_DB}" "${ORFS_DB}" ${EXTRACT_ORFS_PAR} \
         || fail "extractorfs died"
 fi
 
-if [ ! -e "${TMP_PATH}/orfsTax.dbtype" ]; then
+if [ -n "${ORF_FILTER}" ]; then
+    if notExists "${TMP_PATH}/orfs_pref.dbtype"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" prefilter "${ORFS_DB}" "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_pref" --min-ungapped-score 3 -s 3 -k 6 --diag-score 0 --spaced-kmer-mode 0 --max-seqs 1 ${THREAD_COMP_PAR} \
+            || fail "Reference search died"
+    fi
+
+    if notExists "${TMP_PATH}/orfs_pref.list"; then
+        awk '$3 > 1 { print $1 }' "${TMP_PATH}/orfs_pref.index" > "${TMP_PATH}/orfs_pref.list"
+    fi
+
+    if notExists "${TMP_PATH}/orfs_filter.dbtype"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" createsubdb "${TMP_PATH}/orfs_pref.list" "${ORFS_DB}" "${TMP_PATH}/orfs_filter" ${CREATESUBDB_PAR} \
+            || fail "createsubdb died"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/orfs_filter_h" ${VERBOSITY}
+    fi
+
+    if notExists "${TMP_PATH}/orfs_filter_h.dbtype"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" createsubdb "${TMP_PATH}/orfs_pref.list" "${ORFS_DB}_h" "${TMP_PATH}/orfs_filter_h" ${CREATESUBDB_PAR} \
+            || fail "createsubdb died"
+    fi
+
+    ORFS_DB="${TMP_PATH}/orfs_filter"
+fi
+
+if [ ! -e "${TMP_PATH}/orfs_tax.dbtype" ]; then
     # shellcheck disable=SC2086
-    "$MMSEQS" taxonomy "${TMP_PATH}/orfs_aa" "${TAX_SEQ_DB}" "${TMP_PATH}/orfsTax" "${TMP_PATH}/tmpTaxonomy" ${TAXONOMY_PAR} \
+    "$MMSEQS" taxonomy "${ORFS_DB}" "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_tax" "${TMP_PATH}/tmp_taxonomy" ${TAXONOMY_PAR} \
         || fail "taxonomy died"
 fi
 
-
-if [ ! -e "${TMP_PATH}/orfs_aa_h_swapped.dbtype" ]; then
+if [ ! -e "${ORFS_DB}_h_swapped.dbtype" ]; then
     # shellcheck disable=SC2086
-    "$MMSEQS" swapdb "${TMP_PATH}/orfs_aa_h" "${TMP_PATH}/orfs_aa_h_swapped" \
+    "$MMSEQS" swapdb "${ORFS_DB}_h" "${TMP_PATH}/orfs_h_swapped" ${SWAPDB_PAR} \
         || fail "swapdb died"
 fi
 
 if [ ! -e "${RESULTS}.dbtype" ]; then
     # shellcheck disable=SC2086
-    "$MMSEQS" aggregatetaxweights "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_aa_h_swapped" "${TMP_PATH}/orfsTax" "${TMP_PATH}/orfsTax_aln" "${RESULTS}" ${AGGREGATETAX_PAR} \
+    "$MMSEQS" aggregatetaxweights "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_h_swapped" "${TMP_PATH}/orfs_tax" "${TMP_PATH}/orfs_tax_aln" "${RESULTS}" ${AGGREGATETAX_PAR} \
         || fail "aggregatetaxweights died"
 fi
 
@@ -53,15 +81,23 @@ fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/orfs_aa"
+    "$MMSEQS" rmdb "${TMP_PATH}/orfs_aa" ${VERBOSITY}
+    if [ -n "${ORF_FILTER}" ]; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/orfs_pref" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/orfs_filter" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/orfs_filter_h" ${VERBOSITY}
+        rm -f "${TMP_PATH}/orfs_pref.list"
+    fi
      # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/orfsTax"
+    "$MMSEQS" rmdb "${TMP_PATH}/orfs_tax" ${VERBOSITY}
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/orfsTax_aln"
+    "$MMSEQS" rmdb "${TMP_PATH}/orfs_tax_aln" ${VERBOSITY}
      # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/orfs_aa_h_swapped"
+    "$MMSEQS" rmdb "${TMP_PATH}/orfs_h_swapped" ${VERBOSITY}
 
-    rm -rf "${TMP_PATH}/tmpTaxonomy"
-
+    rm -rf "${TMP_PATH}/tmp_taxonomy"
     rm -f "${TMP_PATH}/taxpercontig.sh"
 fi

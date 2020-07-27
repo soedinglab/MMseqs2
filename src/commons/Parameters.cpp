@@ -1106,8 +1106,9 @@ Parameters::Parameters():
     taxonomy.push_back(&PARAM_TAX_OUTPUT_MODE);
 
     // taxpercontig
-    taxpercontig = combineList(removeParameter(extractorfs, PARAM_TRANSLATE), removeParameter(taxonomy, PARAM_TAX_OUTPUT_MODE));
-    taxpercontig = combineList(taxpercontig, aggregatetax);
+    taxpercontig = combineList(taxonomy, aggregatetax);
+    removeParameter(taxpercontig, PARAM_TRANSLATE);
+    removeParameter(taxpercontig, PARAM_TAX_OUTPUT_MODE);
 
     // easy taxonomy
     easytaxonomy = combineList(taxonomy, addtaxonomy);
@@ -2202,8 +2203,8 @@ void Parameters::setDefaults() {
     blacklist = "12908,28384";
 
     // aggregatetax
-    majorityThr = 0;
-    voteMode = 0;
+    majorityThr = 0.5;
+    voteMode = 1;
 
     // taxonomyreport
     reportMode = 0;
