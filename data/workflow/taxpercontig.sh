@@ -35,16 +35,22 @@ if [ -n "${ORF_FILTER}" ]; then
     if notExists "${TMP_PATH}/orfs_pref.dbtype"; then
         # shellcheck disable=SC2086
         "$MMSEQS" prefilter "${ORFS_DB}" "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_pref" --min-ungapped-score 3 -s 3 -k 6 --diag-score 0 --spaced-kmer-mode 0 --max-seqs 1 ${THREAD_COMP_PAR} \
-            || fail "Reference search died"
+            || fail "orf filter prefilter died"
     fi
 
-    if notExists "${TMP_PATH}/orfs_pref.list"; then
-        awk '$3 > 1 { print $1 }' "${TMP_PATH}/orfs_pref.index" > "${TMP_PATH}/orfs_pref.list"
+    if notExists "${TMP_PATH}/orfs_aln.dbtype"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" rescorediagonal "${ORFS_DB}" "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_pref" "${TMP_PATH}/orfs_aln" --rescore-mode 2 -e 100 ${THREAD_COMP_PAR} \
+            || fail "orf filter rescorediagonal died"
+    fi
+
+    if notExists "${TMP_PATH}/orfs_aln.list"; then
+        awk '$3 > 1 { print $1 }' "${TMP_PATH}/orfs_aln.index" > "${TMP_PATH}/orfs_aln.list"
     fi
 
     if notExists "${TMP_PATH}/orfs_filter.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" createsubdb "${TMP_PATH}/orfs_pref.list" "${ORFS_DB}" "${TMP_PATH}/orfs_filter" ${CREATESUBDB_PAR} \
+        "$MMSEQS" createsubdb "${TMP_PATH}/orfs_aln.list" "${ORFS_DB}" "${TMP_PATH}/orfs_filter" ${CREATESUBDB_PAR} \
             || fail "createsubdb died"
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/orfs_filter_h" ${VERBOSITY}
@@ -52,7 +58,7 @@ if [ -n "${ORF_FILTER}" ]; then
 
     if notExists "${TMP_PATH}/orfs_filter_h.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" createsubdb "${TMP_PATH}/orfs_pref.list" "${ORFS_DB}_h" "${TMP_PATH}/orfs_filter_h" ${CREATESUBDB_PAR} \
+        "$MMSEQS" createsubdb "${TMP_PATH}/orfs_aln.list" "${ORFS_DB}_h" "${TMP_PATH}/orfs_filter_h" ${CREATESUBDB_PAR} \
             || fail "createsubdb died"
     fi
 
@@ -86,10 +92,12 @@ if [ -n "${REMOVE_TMP}" ]; then
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/orfs_pref" ${VERBOSITY}
         # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/orfs_aln" ${VERBOSITY}
+        # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/orfs_filter" ${VERBOSITY}
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/orfs_filter_h" ${VERBOSITY}
-        rm -f "${TMP_PATH}/orfs_pref.list"
+        rm -f "${TMP_PATH}/orfs_aln.list"
     fi
      # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/orfs_tax" ${VERBOSITY}
