@@ -310,10 +310,6 @@ std::pair<hit_t*, size_t> QueryMatcher::getResult(CounterResult * results,
         result->prefScore = rawScore;
         result->diagonal = 0;
         //result->pScore = (((float)rawScore) - mu)/ sqrtMu;
-        if (TYPE == KMER_SCORE) {
-            float logProb = rawScore;
-            result->prefScore = static_cast<int>(logProb);
-        }
         currentHits++;
     }
 
