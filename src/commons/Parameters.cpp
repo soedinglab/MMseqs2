@@ -1492,12 +1492,9 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                         }
                         argIdx++;
                     } else if (typeid(std::string) == par[parIdx]->type) {
-                        std::string val(pargv[argIdx+1]);
-                        if(val.length() != 0){
-                            std::string * currVal = ((std::string *)par[parIdx]->value);
-                            currVal->assign( val );
-                            par[parIdx]->wasSet = true;
-                        }
+                        std::string* currVal = (std::string*)par[parIdx]->value;
+                        currVal->assign(pargv[argIdx+1]);
+                        par[parIdx]->wasSet = true;
                         argIdx++;
                     } else if (typeid(bool) == par[parIdx]->type) {
                         bool *value = (bool *) par[parIdx]->value;
