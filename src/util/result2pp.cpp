@@ -103,7 +103,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                 double evalue = 0.0;
                 const size_t columns = Util::getWordsOfLine(results, entry, 255);
                 // its an aln result
-                if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                if (columns > Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
                     evalue = strtod(entry[3], NULL);
                 }else{
                     Debug(Debug::ERROR) << "Alignment must contain the alignment information. Compute the alignment with option -a.\n";

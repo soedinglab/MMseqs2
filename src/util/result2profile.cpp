@@ -150,7 +150,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                     evalue = strtod(entry[3], NULL);
                 }
                 bool hasInclusionEval = (evalue < par.evalProfile);
-                if (hasInclusionEval && columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                if (hasInclusionEval && columns > Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
                     Matcher::result_t res = Matcher::parseAlignmentRecord(data);
                     alnResults.push_back(res);
                 }

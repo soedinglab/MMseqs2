@@ -85,7 +85,7 @@ fi
 
 
 
-if notExists "${TMP_PATH}/aln_off"; then
+if notExists "${TMP_PATH}/aln_off.dbtype"; then
     # shellcheck disable=SC2086
     "$MMSEQS" offsetalignment "${TMP_PATH}/input_step_redundancy" "${QUERY}" \
                               "${TMP_PATH}/input_step_redundancy" "${TMP_PATH}/input_step_redundancy" \

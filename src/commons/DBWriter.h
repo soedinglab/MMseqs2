@@ -7,10 +7,11 @@
 #include <vector>
 
 #include "DBReader.h"
+#include "MemoryTracker.h"
 
 template <typename T> class DBReader;
 
-class DBWriter {
+class DBWriter : public MemoryTracker  {
 public:
     DBWriter(const char* dataFileName, const char* indexFileName, unsigned int threads, size_t mode, int dbtype);
 
@@ -18,7 +19,7 @@ public:
 
     void open(size_t bufferSize = SIZE_MAX);
 
-    void close(bool merge = false);
+    void close(bool merge = false, bool needsSort = true);
 
     char* getDataFileName() { return dataFileName; }
 
@@ -75,7 +76,8 @@ private:
 
     static void mergeResults(const char *outFileName, const char *outFileNameIndex,
                              const char **dataFileNames, const char **indexFileNames,
-                             unsigned long fileCount, bool mergeDatafiles, bool lexicographicOrder = false);
+                             unsigned long fileCount, bool mergeDatafiles,
+                             bool lexicographicOrder = false, bool indexNeedsToBeSorted = true);
 
     static void mergeIndex(const char** indexFilenames, unsigned int fileCount, const std::vector<size_t> &dataSizes);
 
@@ -103,7 +105,6 @@ private:
     static const int INIT_STATE=0;
     static const int NOTCOMPRESSED=1;
     static const int COMPRESSED=2;
-
     ZSTD_CStream** cstream;
 
     const unsigned int threads;

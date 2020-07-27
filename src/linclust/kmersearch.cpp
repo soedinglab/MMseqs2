@@ -14,8 +14,7 @@
 #include "Timer.h"
 #include "KmerIndex.h"
 #include "FileUtil.h"
-
-#include "omptl/omptl_algorithm"
+#include "FastSort.h"
 
 #ifndef SIZE_T_MAX
 #define SIZE_T_MAX ((size_t) -1)
@@ -48,9 +47,9 @@ KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t total
     Debug(Debug::INFO) << "Sort kmer ... ";
     timer.reset();
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-        omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<short>::compareRepSequenceAndIdAndPosReverse);
+        SORT_PARALLEL(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<short>::compareRepSequenceAndIdAndPosReverse);
     }else{
-        omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<short>::compareRepSequenceAndIdAndPos);
+        SORT_PARALLEL(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<short>::compareRepSequenceAndIdAndPos);
     }
 
 
@@ -190,12 +189,8 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     //queryDbr.readMmapedDataInMemory();
 
     // memoryLimit in bytes
-    size_t memoryLimit;
-    if (par.splitMemoryLimit > 0) {
-        memoryLimit = par.splitMemoryLimit;
-    } else {
-        memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
-    }
+    size_t memoryLimit=Util::computeMemory(par.splitMemoryLimit);
+
     float kmersPerSequenceScale = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ?
                                   par.kmersPerSequenceScale.nucleotides : par.kmersPerSequenceScale.aminoacids;
     size_t totalKmers = computeKmerCount(queryDbr, par.kmerSize, par.kmersPerSequence, kmersPerSequenceScale);
@@ -425,9 +420,9 @@ std::pair<KmerPosition<short> *,size_t > KmerSearch::searchInIndex(KmerPosition<
     Debug(Debug::INFO) << "Time to find k-mers: " << timer.lap() << "\n";
     timer.reset();
     if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-        omptl::sort(kmers, kmers + writePos, KmerPosition<short>::compareRepSequenceAndIdAndDiagReverse);
+        SORT_PARALLEL(kmers, kmers + writePos, KmerPosition<short>::compareRepSequenceAndIdAndDiagReverse);
     }else{
-        omptl::sort(kmers, kmers + writePos, KmerPosition<short>::compareRepSequenceAndIdAndDiag);
+        SORT_PARALLEL(kmers, kmers + writePos, KmerPosition<short>::compareRepSequenceAndIdAndDiag);
     }
 
     Debug(Debug::INFO) << "Time to sort: " << timer.lap() << "\n";

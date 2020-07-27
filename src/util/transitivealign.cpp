@@ -11,6 +11,7 @@
 #include "BacktraceTranslator.h"
 #include "AlignmentSymmetry.h"
 #include "DistanceCalculator.h"
+#include "FastSort.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -215,7 +216,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
                             outputResults.push_back(result);
                         }
                     }
-                    std::sort(outputResults.begin(), outputResults.end(), Matcher::compareHits);
+                    SORT_SERIAL(outputResults.begin(), outputResults.end(), Matcher::compareHits);
                     for (size_t aliId = 0; aliId < outputResults.size(); aliId++) {
                         size_t len = Matcher::resultToBuffer(tmpBuff, outputResults[aliId], true, true);
                         resultWriter.writeAdd(buffer, queryIdLen + len, thread_idx);
@@ -281,12 +282,8 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     }
 
     // memoryLimit in bytes
-    size_t memoryLimit;
-    if (par.splitMemoryLimit > 0) {
-        memoryLimit = par.splitMemoryLimit;
-    } else {
-        memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
-    }
+    size_t memoryLimit=Util::computeMemory(par.splitMemoryLimit);
+
     // compute splits
     std::vector<std::pair<unsigned int, size_t > > splits;
     std::vector<std::pair<std::string , std::string > > splitFileNames;

@@ -23,7 +23,6 @@ enum {
   MTAR_EFAILURE     = -1,
   MTAR_EOPENFAIL    = -2,
   MTAR_EREADFAIL    = -3,
-  MTAR_EWRITEFAIL   = -4,
   MTAR_ESEEKFAIL    = -5,
   MTAR_EBADCHKSUM   = -6,
   MTAR_ENULLRECORD  = -7,
@@ -55,33 +54,20 @@ typedef struct mtar_t mtar_t;
 
 struct mtar_t {
   int (*read)(mtar_t *tar, void *data, size_t size);
-  int (*write)(mtar_t *tar, const void *data, size_t size);
-  int (*seek)(mtar_t *tar, long pos);
+  int (*seek)(mtar_t *tar, long pos, int whence);
   int (*close)(mtar_t *tar);
   void *stream;
-  size_t pos;
-  size_t remaining_data;
-  size_t last_header;
+  size_t curr_size;
 };
 
 
 const char* mtar_strerror(int err);
 
-int mtar_open(mtar_t *tar, const char *filename, const char *mode);
+int mtar_open(mtar_t *tar, const char *filename);
 int mtar_close(mtar_t *tar);
 
-int mtar_seek(mtar_t *tar, long pos);
-int mtar_rewind(mtar_t *tar);
-int mtar_next(mtar_t *tar);
-int mtar_find(mtar_t *tar, const char *name, mtar_header_t *h);
 int mtar_read_header(mtar_t *tar, mtar_header_t *h);
 int mtar_read_data(mtar_t *tar, void *ptr, size_t size);
-
-int mtar_write_header(mtar_t *tar, const mtar_header_t *h);
-int mtar_write_file_header(mtar_t *tar, const char *name, size_t size);
-int mtar_write_dir_header(mtar_t *tar, const char *name);
-int mtar_write_data(mtar_t *tar, const void *data, size_t size);
-int mtar_finalize(mtar_t *tar);
 
 #ifdef __cplusplus
 }

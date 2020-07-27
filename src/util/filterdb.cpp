@@ -5,10 +5,11 @@
 #include "Debug.h"
 #include "FileUtil.h"
 #include "ExpressionParser.h"
-
+#include "FastSort.h"
 #include <fstream>
+#include <random>
+#include <iostream>
 
-#include <omptl/omptl_algorithm>
 #include <regex.h>
 
 #ifdef OPENMP
@@ -110,7 +111,8 @@ int filterdb(int argc, const char **argv, const Command &command) {
 
     // REGEX_FILTERING
     regex_t regex;
-
+    std::random_device rng;
+    std::mt19937 urng(rng());
     int mode;
     if (par.sortEntries != 0) {
         mode = SORT_ENTRIES;
@@ -168,7 +170,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
             }
             fclose(orderFile);
         }
-        omptl::sort(filter.begin(), filter.end());
+        SORT_PARALLEL(filter.begin(), filter.end());
         std::vector<std::string>::iterator last = std::unique(filter.begin(), filter.end());
         filter.erase(last, filter.end());
     } else if (par.mappingFile.empty() == false) {
@@ -339,8 +341,9 @@ int filterdb(int argc, const char **argv, const Command &command) {
                     size_t newId = helper->getId(static_cast<unsigned int>(strtoul(columnValue, NULL, 10)));
                     if (newId != UINT_MAX) {
                         size_t originalLength = strlen(lineBuffer);
-                        // Replace the last \n
-                        lineBuffer[originalLength - 1] = '\t';
+                        // Continue the string by replacing the null byte
+                        lineBuffer[originalLength] = '\t';
+                        originalLength++;
                         char *fullLine = helper->getData(newId, thread_idx);
                         if (columnToTake == -1) {
                             // either append the full line (default mode)
@@ -478,8 +481,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
                 } else if (par.sortEntries == DECREASING) {
                     std::stable_sort(toSort.begin(), toSort.end(), compareFirstEntryDecreasing());
                 } else if (par.sortEntries == SHUFFLE) {
-                    srand(unsigned(time(0)));
-                    std::random_shuffle(toSort.begin(), toSort.end());
+                    std::shuffle(toSort.begin(), toSort.end(), urng);
                 }
 
                 for (size_t i = 0; i < toSort.size(); i++) {

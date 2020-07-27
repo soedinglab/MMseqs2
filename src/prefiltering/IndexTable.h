@@ -2,7 +2,7 @@
 #define INDEX_TABLE_H
 
 //
-// Written by Martin Steinegger martin.steinegger@mpibpc.mpg.de and Maria Hauser mhauser@genzentrum.lmu.de
+// Written by Martin Steinegger martin.steinegger@snu.ac.kr and Maria Hauser mhauser@genzentrum.lmu.de
 //
 // Abstract: Index table stores the list of DB sequences containing a certain k-mer, for each k-mer.
 //
@@ -16,6 +16,7 @@
 #include "MathUtil.h"
 #include "KmerGenerator.h"
 #include "Parameters.h"
+#include "FastSort.h"
 #include <stdlib.h>
 #include <algorithm>
 
@@ -108,7 +109,7 @@ public:
             }
         }
         if(seqKmerPosBuffer.size() > 1){
-            std::sort(seqKmerPosBuffer.begin(), seqKmerPosBuffer.end());
+            SORT_SERIAL(seqKmerPosBuffer.begin(), seqKmerPosBuffer.end());
         }
         size_t countUniqKmer = 0;
         unsigned int prevKmerIdx = UINT_MAX;
@@ -151,7 +152,7 @@ public:
             countKmer++;
         }
         if(countKmer > 1){
-            std::sort(seqKmerPosBuffer, seqKmerPosBuffer + countKmer);
+            SORT_SERIAL(seqKmerPosBuffer, seqKmerPosBuffer + countKmer);
         }
         size_t countUniqKmer = 0;
         unsigned int prevKmerIdx = UINT_MAX;
@@ -180,7 +181,7 @@ public:
         for (size_t i = 0; i < tableSize; i++) {
             size_t entrySize;
             IndexEntryLocal *entries = getDBSeqList(i, &entrySize);
-            std::sort(entries, entries + entrySize, IndexEntryLocal::comapreByIdAndPos);
+            SORT_SERIAL(entries, entries + entrySize, IndexEntryLocal::comapreByIdAndPos);
         }
     }
 
@@ -321,7 +322,7 @@ public:
         }
 
         if(kmerPos>1){
-            std::sort(*buffer, *buffer+kmerPos, IndexEntryLocalTmp::comapreByIdAndPos);
+            SORT_SERIAL(*buffer, *buffer+kmerPos, IndexEntryLocalTmp::comapreByIdAndPos);
         }
         unsigned int prevKmer = UINT_MAX;
         for(size_t pos = 0; pos < kmerPos; pos++){
@@ -376,7 +377,7 @@ public:
         }
 
         if(kmerPos>1){
-            std::sort(*buffer, *buffer+kmerPos, IndexEntryLocalTmp::comapreByIdAndPos);
+            SORT_SERIAL(*buffer, *buffer+kmerPos, IndexEntryLocalTmp::comapreByIdAndPos);
         }
 
         unsigned int prevKmer = UINT_MAX;

@@ -8,7 +8,7 @@
 #include "Parameters.h"
 #include "Util.h"
 #include "Debug.h"
-
+#include "FastSort.h"
 #include <cmath>
 
 #ifdef OPENMP
@@ -213,7 +213,7 @@ void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
 void AlignmentSymmetry::sortElements(unsigned int **elementLookupTable, size_t *elementOffsets, size_t dbSize) {
 #pragma omp parallel for schedule(dynamic, 1000)
     for (size_t i = 0; i < dbSize; i++) {
-        std::sort(elementLookupTable[i], elementLookupTable[i] + LEN(elementOffsets, i));
+        SORT_SERIAL(elementLookupTable[i], elementLookupTable[i] + LEN(elementOffsets, i));
     }
 }
 #undef LEN

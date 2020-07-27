@@ -87,8 +87,8 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix,
     // map big index to new small index
     Debug(Debug::INFO) << "Reduced amino acid alphabet: ";
     unsigned char* aa2num_new = new unsigned char[UCHAR_MAX+1];
-    for (int i = 0; i <= UCHAR_MAX; ++i){
-        aa2num_new[i] = -1;
+    for (int i = 0; i <= UCHAR_MAX; ++i) {
+        aa2num_new[i] = UCHAR_MAX;
     }
     char* num2aa_new = new char[origAlphabetSize];
     for(size_t i = 0; i<reducedAlphabet.size(); i++){

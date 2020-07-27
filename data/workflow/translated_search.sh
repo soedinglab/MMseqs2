@@ -17,50 +17,76 @@ notExists() {
 [   -f "$3.dbtype" ] && echo "$3 exists already!" && exit 1;
 [ ! -d "$4" ] && echo "tmp directory $4 not found!" && mkdir -p "$4";
 
+TMP_PATH="$4"
 QUERY="$1"
 QUERY_ORF="$1"
 if [ -n "$QUERY_NUCL" ]; then
-    if notExists "$4/q_orfs_aa.dbtype"; then
+    if notExists "${TMP_PATH}/q_orfs_aa.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" extractorfs "$1" "$4/q_orfs_aa" ${ORF_PAR} \
+        "$MMSEQS" extractorfs "$1" "${TMP_PATH}/q_orfs_aa" ${ORF_PAR} \
             || fail  "extract orfs step died"
     fi
-    QUERY="$4/q_orfs_aa"
-    QUERY_ORF="$4/q_orfs_aa"
+    QUERY="${TMP_PATH}/q_orfs_aa"
+    QUERY_ORF="${TMP_PATH}/q_orfs_aa"
 fi
 
 TARGET="$2"
 TARGET_ORF="$2"
 if [ -n "$TARGET_NUCL" ]; then
 if [ -n "$NO_TARGET_INDEX" ]; then
-    if notExists "$4/t_orfs_aa.dbtype"; then
+    if notExists "${TMP_PATH}/t_orfs_aa.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" extractorfs "$2" "$4/t_orfs_aa" ${ORF_PAR} \
+        "$MMSEQS" extractorfs "$2" "${TMP_PATH}/t_orfs_aa" ${ORF_PAR} \
             || fail  "extract target orfs step died"
     fi
-    TARGET="$4/t_orfs_aa"
-    TARGET_ORF="$4/t_orfs_aa"
+    TARGET="${TMP_PATH}/t_orfs_aa"
+    TARGET_ORF="${TMP_PATH}/t_orfs_aa"
 fi
 fi
 
-mkdir -p "$4/search"
-if notExists "$4/aln.dbtype"; then
+if [ -n "$QUERY_NUCL" ] && [ -n "${ORF_FILTER}" ]; then
+    if notExists "${TMP_PATH}/q_orfs_aa_pref.dbtype"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" prefilter "${QUERY}" "${TARGET}" "${TMP_PATH}/q_orfs_aa_pref" --min-ungapped-score 3 -s 3 -k 6 --diag-score 0 --spaced-kmer-mode 0 --max-seqs 1 ${THREAD_COMP_PAR} \
+            || fail "Reference search died"
+    fi
+
+    if notExists "${TMP_PATH}/q_orfs_aa_filter.dbtype"; then
+        awk '$3 > 1 { print $1 }' "${TMP_PATH}/q_orfs_aa_pref.index" > "${TMP_PATH}/q_orfs_aa_filter.list"
+        # shellcheck disable=SC2086
+        "$MMSEQS" createsubdb "${TMP_PATH}/q_orfs_aa_filter.list" "${QUERY}" "${TMP_PATH}/q_orfs_aa_filter" ${CREATESUBDB_PAR} \
+            || fail "createsubdb died"
+    fi
+    QUERY="${TMP_PATH}/q_orfs_aa_filter"
+    QUERY_ORF="${TMP_PATH}/q_orfs_aa_filter"
+fi
+
+mkdir -p "${TMP_PATH}/search"
+if notExists "${TMP_PATH}/aln.dbtype"; then
     # shellcheck disable=SC2086
-    "$SEARCH" "${QUERY}" "${TARGET}" "$4/aln" "$4/search" \
+    "$SEARCH" "${QUERY}" "${TARGET}" "${TMP_PATH}/aln" "${TMP_PATH}/search" \
         || fail "Search step died"
 fi
 
 if notExists "$3.dbtype"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" offsetalignment "$1" "$QUERY_ORF" "$2" "$TARGET_ORF" "$4/aln"  "$3" ${OFFSETALIGNMENT_PAR} \
+    "$MMSEQS" offsetalignment "$1" "$QUERY_ORF" "$2" "$TARGET_ORF" "${TMP_PATH}/aln"  "$3" ${OFFSETALIGNMENT_PAR} \
         || fail "Offset step died"
 fi
 
 if [ -n "$REMOVE_TMP" ]; then
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "$4/q_orfs_aa" ${VERBOSITY}
+    "$MMSEQS" rmdb "${TMP_PATH}/q_orfs_aa" ${VERBOSITY}
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "$4/t_orfs_aa" ${VERBOSITY}
+    "$MMSEQS" rmdb "${TMP_PATH}/t_orfs_aa" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY}
+    if [ -n "${REFERENCE_FILTER}" ]; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/q_orfs_aa_pref" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/q_orfs_aa_filter" ${VERBOSITY}
+        rm -f "${TMP_PATH}/q_orfs_aa_filter.list"
+    fi
+    rm -f "${TMP_PATH}/translated_search.sh"
 fi
-
-

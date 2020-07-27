@@ -1,4 +1,4 @@
-// Written by Martin Steinegger martin.steinegger@mpibpc.mpg.de
+// Written by Martin Steinegger martin.steinegger@snu.ac.kr
 //
 // Represents parameters of MMseqs2
 //
@@ -115,6 +115,7 @@ public:
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
     static const int FORMAT_ALIGNMENT_SAM = 1;
     static const int FORMAT_ALIGNMENT_BLAST_WITH_LEN = 2;
+    static const int FORMAT_ALIGNMENT_HTML = 3;
 
     // outfmt
     static const int OUTFMT_QUERY = 0;
@@ -152,9 +153,15 @@ public:
     static const int OUTFMT_TAXID = 32;
     static const int OUTFMT_TAXNAME = 33;
     static const int OUTFMT_TAXLIN = 34;
+    static const int OUTFMT_QORFSTART = 35;
+    static const int OUTFMT_QORFEND = 36;
+    static const int OUTFMT_TORFSTART = 37;
+    static const int OUTFMT_TORFEND = 38;
 
 
-    static std::vector<int> getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
+
+
+    static std::vector<int> getOutputFormat(int formatMode, const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
                                             bool &needLookup, bool &needSource, bool &needTaxonomyMapping, bool &needTaxonomy);
 
     // clustering
@@ -174,6 +181,11 @@ public:
     // taxonomy output
     static const int TAXONOMY_OUTPUT_LCA = 0;
     static const int TAXONOMY_OUTPUT_ALIGNMENT = 1;
+    static const int TAXONOMY_OUTPUT_BOTH = 2;
+
+    // aggregate taxonomy
+    static const int AGG_TAX_UNIFORM = 0;
+    static const int AGG_TAX_MINUS_LOG_EVAL = 1;
 
     // taxonomy search strategy
     static const int TAXONOMY_SINGLE_SEARCH = 1;
@@ -385,6 +397,7 @@ public:
     int sensSteps;
     bool sliceSearch;
     int strand;
+    int orfFilter;
 
     // easysearch
     bool greedyBestHits;
@@ -486,6 +499,7 @@ public:
 
     // convert2fasta
     bool useHeaderFile;
+    int writeLookup;
 
     // result2flat
     bool useHeader;
@@ -571,11 +585,12 @@ public:
     // lca
     int pickIdFrom;
     std::string lcaRanks;
-    bool showTaxLineage;
+    int showTaxLineage;
     std::string blacklist;
 
     // aggregatetax
     float majorityThr;
+    int voteMode;
 
     // taxonomyreport
     int reportMode;
@@ -761,7 +776,7 @@ public:
     PARAMETER(PARAM_SENS_STEPS)
     PARAMETER(PARAM_SLICE_SEARCH)
     PARAMETER(PARAM_STRAND)
-
+    PARAMETER(PARAM_ORF_FILTER)
 
     // easysearch
     PARAMETER(PARAM_GREEDY_BEST_HITS)
@@ -789,6 +804,7 @@ public:
     PARAMETER(PARAM_DB_TYPE)
     PARAMETER(PARAM_CREATEDB_MODE)
     PARAMETER(PARAM_SHUFFLE)
+    PARAMETER(PARAM_WRITE_LOOKUP)
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)
@@ -886,6 +902,7 @@ public:
 
     // aggregatetax
     PARAMETER(PARAM_MAJORITY)
+    PARAMETER(PARAM_VOTE_MODE)
 
     // taxonomyreport
     PARAMETER(PARAM_REPORT_MODE)
@@ -991,6 +1008,7 @@ public:
     std::vector<MMseqsParameter*> filtertaxseqdb;
     std::vector<MMseqsParameter*> aggregatetax;
     std::vector<MMseqsParameter*> taxonomy;
+    std::vector<MMseqsParameter*> taxpercontig;
     std::vector<MMseqsParameter*> easytaxonomy;
     std::vector<MMseqsParameter*> createsubdb;
     std::vector<MMseqsParameter*> createtaxdb;

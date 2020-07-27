@@ -76,15 +76,15 @@ Parameters::Parameters():
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID, "--cluster-mode", "Cluster mode", "0: Set-Cover (greedy)\n1: Connected component (BLASTclust)\n2,3: Greedy clustering by sequence length (CDHIT)", typeid(int), (void *) &clusteringMode, "[0-3]{1}$", MMseqsParameter::COMMAND_CLUST),
         PARAM_CLUSTER_STEPS(PARAM_CLUSTER_STEPS_ID, "--cluster-steps", "Cascaded clustering steps", "Cascaded clustering steps from 1 to -s", typeid(int), (void *) &clusterSteps, "^[1-9]{1}$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
         PARAM_CASCADED(PARAM_CASCADED_ID, "--single-step-clustering", "Single step clustering", "Switch from cascaded to simple clustering workflow", typeid(bool), (void *) &singleStepClustering, "", MMseqsParameter::COMMAND_CLUST),
-        PARAM_CLUSTER_REASSIGN(PARAM_CLUSTER_REASSIGN_ID, "--cluster-reassign", "Cluster reassign", "Cascaded clustering can cluster sequence that do not fulfill the clustering criteria.\nCluster reassignment corrects these errors", typeid(int), (void *) &clusterReassignment, "[0-1]{1}$", MMseqsParameter::COMMAND_CLUST),
+        PARAM_CLUSTER_REASSIGN(PARAM_CLUSTER_REASSIGN_ID, "--cluster-reassign", "Cluster reassign", "Cascaded clustering can cluster sequence that do not fulfill the clustering criteria.\nCluster reassignment corrects these errors", typeid(bool), (void *) &clusterReassignment, "", MMseqsParameter::COMMAND_CLUST),
         // affinity clustering
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID, "--max-iterations", "Max connected component depth", "Maximum depth of breadth first search in connected component clustering", typeid(int), (void *) &maxIteration, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID, "--similarity-type", "Similarity type", "Type of score used for clustering. 1: alignment score 2: sequence identity", typeid(int), (void *) &similarityScoreType, "^[1-2]{1}$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
         // logging
         PARAM_V(PARAM_V_ID, "-v", "Verbosity", "Verbosity level: 0: quiet, 1: +errors, 2: +warnings, 3: +info", typeid(int), (void *) &verbosity, "^[0-3]{1}$", MMseqsParameter::COMMAND_COMMON),
         // convertalignments
-        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID, "--format-mode", "Alignment format", "Output format: 0: BLAST-TAB, 1: SAM, 2: BLAST-TAB + query/db length", typeid(int), (void *) &formatAlignmentMode, "^[0-2]{1}$"),
-        PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID, "--format-output", "Format alignment output", "Choose comma separated list of output columns from: query,target,evalue,gapopen,pident,nident,qstart,qend,qlen\ntstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov\nqset,qsetid,tset,tsetid,taxid,taxname,taxlineage", typeid(std::string), (void *) &outfmt, ""),
+        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID, "--format-mode", "Alignment format", "Output format: 0: BLAST-TAB, 1: SAM, 2: BLAST-TAB + query/db length, 3: Pretty HTML", typeid(int), (void *) &formatAlignmentMode, "^[0-3]{1}$"),
+        PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID, "--format-output", "Format alignment output", "Choose comma separated list of output columns from: query,target,evalue,gapopen,pident,nident,qstart,qend,qlen\ntstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov\nqset,qsetid,tset,tsetid,taxid,taxname,taxlineage,qorfstart,qorfend,torfstart,torfend", typeid(std::string), (void *) &outfmt, ""),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database output", "Return a result DB instead of a text file", typeid(bool), (void *) &dbOut, "", MMseqsParameter::COMMAND_EXPERT),
         // --include-only-extendablediagonal
         PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID, "--rescore-mode", "Rescore mode", "Rescore diagonals with:\n0: Hamming distance\n1: local alignment (score only)\n2: local alignment\n3: global alignment\n4: longest alignment fullfilling window quality criterion", typeid(int), (void *) &rescoreMode, "^[0-4]{1}$"),
@@ -146,6 +146,7 @@ Parameters::Parameters():
         PARAM_SENS_STEPS(PARAM_SENS_STEPS_ID, "--sens-steps", "Search steps", "Number of search steps performed from --start-sens to -s", typeid(int), (void *) &sensSteps, "^[1-9]{1}$"),
         PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Slice search mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results", typeid(bool), (void *) &sliceSearch, "", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_STRAND(PARAM_STRAND_ID, "--strand", "Strand selection", "Strand selection only works for DNA/DNA search 0: reverse, 1: forward, 2: both", typeid(int), (void *) &strand, "^[0-2]{1}$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_ORF_FILTER(PARAM_ORF_FILTER_ID, "--orf-filter", "ORF filter", "Prefilter query ORFs with non-selective before search", typeid(int), (void *) &orfFilter, "^[0-1]{1}$", MMseqsParameter::COMMAND_HIDDEN),
         // easysearch
         PARAM_GREEDY_BEST_HITS(PARAM_GREEDY_BEST_HITS_ID, "--greedy-best-hits", "Greedy best hits", "Choose the best hits greedily to cover the query", typeid(bool), (void *) &greedyBestHits, ""),
         // extractorfs
@@ -169,6 +170,7 @@ Parameters::Parameters():
         PARAM_DB_TYPE(PARAM_DB_TYPE_ID, "--dbtype", "Database type", "Database type 0: auto, 1: amino acid 2: nucleotides", typeid(int), (void *) &dbType, "[0-2]{1}"),
         PARAM_CREATEDB_MODE(PARAM_CREATEDB_MODE_ID, "--createdb-mode", "Createdb mode", "Createdb mode 0: copy data, 1: soft link data and write new index (works only with single line fasta/q)", typeid(int), (void *) &createdbMode, "^[0-1]{1}$"),
         PARAM_SHUFFLE(PARAM_SHUFFLE_ID, "--shuffle", "Shuffle input database", "Shuffle input database", typeid(bool), (void *) &shuffleDatabase, ""),
+        PARAM_WRITE_LOOKUP(PARAM_WRITE_LOOKUP_ID, "--write-lookup", "Write lookup file", "write .lookup file containing mapping from internal id, fasta id and file number", typeid(int), (void *) &writeLookup, "^[0-1]{1}", MMseqsParameter::COMMAND_EXPERT),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use header DB", "use the sequence header DB instead of the body to map the entry keys", typeid(bool), (void *) &useHeaderFile, ""),
         // splitsequence
         PARAM_SEQUENCE_OVERLAP(PARAM_SEQUENCE_OVERLAP_ID, "--sequence-overlap", "Overlap between sequences", "Overlap between sequences", typeid(int), (void *) &sequenceOverlap, "^(0|[1-9]{1}[0-9]*)$"),
@@ -200,7 +202,7 @@ Parameters::Parameters():
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db", "join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void *) &joinDB, ""),
         // besthitperset
         PARAM_SIMPLE_BEST_HIT(PARAM_SIMPLE_BEST_HIT_ID, "--simple-best-hit", "Use simple best hit", "Update the p-value by a single best hit, or by best and second best hits", typeid(bool), (void *) &simpleBestHit, ""),
-        PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining p-values during aggregation", typeid(float), (void *) &alpha, ""),
+        PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining p-values during aggregation", typeid(float), (void *) &alpha, "^0(\\.[0-9]+)?|^1(\\.0+)?$"),
         PARAM_SHORT_OUTPUT(PARAM_SHORT_OUTPUT_ID, "--short-output", "Short output", "The output database will contain only the spread p-value", typeid(bool), (void *) &shortOutput, ""),
         PARAM_AGGREGATION_MODE(PARAM_AGGREGATION_MODE_ID, "--aggregation-mode", "Aggregation mode", "Combined P-values computed from 0: multi-hit, 1: minimum of all P-values, 2: product-of-P-values, 3: truncated product", typeid(int), (void *) &aggregationMode, "^[0-4]{1}$"),
         // concatdb
@@ -238,9 +240,10 @@ Parameters::Parameters():
         PARAM_PICK_ID_FROM(PARAM_PICK_ID_FROM_ID, "--pick-id-from", "Extract mode", "Query 1, Target 2", typeid(int), (void *) &pickIdFrom, "^[1-2]{1}$"),
         PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA ranks", "Add column with specified ranks (',' separated)", typeid(std::string), (void *) &lcaRanks, ""),
         PARAM_BLACKLIST(PARAM_BLACKLIST_ID, "--blacklist", "Taxon blacklist", "Comma separated list of ignored taxa in LCA computation", typeid(std::string), (void *) &blacklist, "([0-9]+,)?[0-9]+"),
-        PARAM_TAXON_ADD_LINEAGE(PARAM_TAXON_ADD_LINEAGE_ID, "--tax-lineage", "Show taxonomic lineage", "Add column with full taxonomy lineage", typeid(bool), (void *) &showTaxLineage, ""),
+        PARAM_TAXON_ADD_LINEAGE(PARAM_TAXON_ADD_LINEAGE_ID, "--tax-lineage", "Column with taxonomic lineage", "0: don't show, 1: add all lineage names, 2: add all lineage taxids", typeid(int), (void *) &showTaxLineage, "^[0-2]{1}$"),
         // aggregatetax
         PARAM_MAJORITY(PARAM_MAJORITY_ID, "--majority", "Majority threshold", "minimal fraction of agreement among taxonomically assigned sequences of a set", typeid(float), (void *) &majorityThr, "^0(\\.[0-9]+)?|^1(\\.0+)?$"),
+        PARAM_VOTE_MODE(PARAM_VOTE_MODE_ID, "--vote-mode", "Vote mode", "Mode of assigning weights to compute majority. 0: uniform, 1: minus log e-value", typeid(int), (void *) &voteMode, "^[0-1]{1}$"),
         // taxonomyreport
         PARAM_REPORT_MODE(PARAM_REPORT_MODE_ID, "--report-mode", "Report mode", "Taxonomy report mode 0: Kraken 1: Krona", typeid(int), (void *) &reportMode, "^[0-1]{1}$"),
         // createtaxdb
@@ -250,7 +253,7 @@ Parameters::Parameters():
         PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion mode", "Which hits (still meeting the alignment criteria) to use when expanding the alignment results: 0 Use all hits, 1 Use only the best hit of each target", typeid(int), (void *) &expansionMode, "^[0-2]{1}$"),
         // taxonomy
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA mode", "LCA Mode 1: Single Search LCA , 2: 2bLCA, 3: approx. 2bLCA, 4: top hit", typeid(int), (void *) &taxonomySearchMode, "^[1-4]{1}$"),
-        PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment", typeid(int), (void *) &taxonomyOutpuMode, "^[0-1]{1}$"),
+        PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment 2: output both", typeid(int), (void *) &taxonomyOutpuMode, "^[0-2]{1}$"),
         // createsubdb, filtertaxseqdb
         PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "Subdb mode 0: copy data 1: soft link data and write index", typeid(int), (void *) &subDbMode, "^[0-1]{1}$"),
         PARAM_TAR_INCLUDE(PARAM_TAR_INCLUDE_ID, "--tar-include", "Tar Inclusion Regex", "Include file names based on this regex", typeid(std::string), (void *) &tarInclude, "^.*$"),
@@ -700,6 +703,7 @@ Parameters::Parameters():
     createdb.push_back(&PARAM_DB_TYPE);
     createdb.push_back(&PARAM_SHUFFLE);
     createdb.push_back(&PARAM_CREATEDB_MODE);
+    createdb.push_back(&PARAM_WRITE_LOOKUP);
     createdb.push_back(&PARAM_ID_OFFSET);
     createdb.push_back(&PARAM_COMPRESSED);
     createdb.push_back(&PARAM_V);
@@ -952,12 +956,13 @@ Parameters::Parameters():
     // aggregatetax
     aggregatetax.push_back(&PARAM_COMPRESSED);
     aggregatetax.push_back(&PARAM_MAJORITY);
+    aggregatetax.push_back(&PARAM_VOTE_MODE);
     aggregatetax.push_back(&PARAM_LCA_RANKS);
-    // TODO should we add this in the future?
-    //aggregatetax.push_back(&PARAM_BLACKLIST);
     aggregatetax.push_back(&PARAM_TAXON_ADD_LINEAGE);
     aggregatetax.push_back(&PARAM_THREADS);
     aggregatetax.push_back(&PARAM_V);
+    // TODO should we add this in the future?
+    //aggregatetax.push_back(&PARAM_BLACKLIST);
 
     // lca
     lca.push_back(&PARAM_COMPRESSED);
@@ -1032,6 +1037,7 @@ Parameters::Parameters():
     searchworkflow.push_back(&PARAM_SENS_STEPS);
     searchworkflow.push_back(&PARAM_SLICE_SEARCH);
     searchworkflow.push_back(&PARAM_STRAND);
+    searchworkflow.push_back(&PARAM_ORF_FILTER);
     searchworkflow.push_back(&PARAM_DISK_SPACE_LIMIT);
     searchworkflow.push_back(&PARAM_RUNNER);
     searchworkflow.push_back(&PARAM_REUSELATEST);
@@ -1098,6 +1104,10 @@ Parameters::Parameters():
     taxonomy = combineList(searchworkflow, lca);
     taxonomy.push_back(&PARAM_LCA_MODE);
     taxonomy.push_back(&PARAM_TAX_OUTPUT_MODE);
+
+    // taxpercontig
+    taxpercontig = combineList(removeParameter(extractorfs, PARAM_TRANSLATE), removeParameter(taxonomy, PARAM_TAX_OUTPUT_MODE));
+    taxpercontig = combineList(taxpercontig, aggregatetax);
 
     // easy taxonomy
     easytaxonomy = combineList(taxonomy, addtaxonomy);
@@ -1931,6 +1941,7 @@ void Parameters::setDefaults() {
     sensSteps = 1;
     sliceSearch = false;
     strand = 1;
+    orfFilter = 0;
 
     greedyBestHits = false;
 
@@ -2002,6 +2013,7 @@ void Parameters::setDefaults() {
     // createdb
     createdbMode = SEQUENCE_SPLIT_MODE_HARD;
     shuffleDatabase = true;
+    writeLookup = true;
 
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
@@ -2182,7 +2194,7 @@ void Parameters::setDefaults() {
     tarExclude = "^$";
 
     lcaRanks = "";
-    showTaxLineage = false;
+    showTaxLineage = 0;
     // bin for all unclassified sequences
     // https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=12908
     // other sequences (plasmids, etc)
@@ -2191,6 +2203,7 @@ void Parameters::setDefaults() {
 
     // aggregatetax
     majorityThr = 0;
+    voteMode = 0;
 
     // taxonomyreport
     reportMode = 0;
@@ -2328,10 +2341,15 @@ void Parameters::overrideParameterDescription(MMseqsParameter& par, const char *
     }
 }
 
-std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
+std::vector<int> Parameters::getOutputFormat(int formatMode, const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
                                              bool &needLookup, bool &needSource, bool &needTaxonomyMapping, bool &needTaxonomy) {
-    std::vector<std::string> outformatSplit = Util::split(outformat, ",");
     std::vector<int> formatCodes;
+    if (formatMode == Parameters::FORMAT_ALIGNMENT_SAM || formatMode == Parameters::FORMAT_ALIGNMENT_HTML) {
+        needSequences = true;
+        needBacktrace = true;
+        return formatCodes;
+    }
+    std::vector<std::string> outformatSplit = Util::split(outformat, ",");
     int code = 0;
     for (size_t i = 0; i < outformatSplit.size(); ++i) {
         if(outformatSplit[i].compare("query") == 0){ code = Parameters::OUTFMT_QUERY;}
@@ -2361,13 +2379,17 @@ std::vector<int> Parameters::getOutputFormat(const std::string &outformat, bool 
         else if (outformatSplit[i].compare("mismatch") == 0){ code = Parameters::OUTFMT_MISMATCH;}
         else if (outformatSplit[i].compare("qcov") == 0){ code = Parameters::OUTFMT_QCOV;}
         else if (outformatSplit[i].compare("tcov") == 0){ code = Parameters::OUTFMT_TCOV;}
-        else if (outformatSplit[i].compare("qset") == 0){ needLookup = true; code = Parameters::OUTFMT_QSET;}
+        else if (outformatSplit[i].compare("qset") == 0){ needLookup = true; needSource = true; code = Parameters::OUTFMT_QSET;}
         else if (outformatSplit[i].compare("qsetid") == 0){ needLookup = true; needSource = true; code = Parameters::OUTFMT_QSETID;}
         else if (outformatSplit[i].compare("tset") == 0){ needLookup = true; code = Parameters::OUTFMT_TSET;}
         else if (outformatSplit[i].compare("tsetid") == 0){ needLookup = true; needSource = true; code = Parameters::OUTFMT_TSETID;}
         else if (outformatSplit[i].compare("taxid") == 0){ needTaxonomyMapping = true; code = Parameters::OUTFMT_TAXID;}
         else if (outformatSplit[i].compare("taxname") == 0){ needTaxonomyMapping = true; needTaxonomy = true; code = Parameters::OUTFMT_TAXNAME;}
         else if (outformatSplit[i].compare("taxlineage") == 0){ needTaxonomyMapping = true; needTaxonomy = true; code = Parameters::OUTFMT_TAXLIN;}
+        else if (outformatSplit[i].compare("qorfstart") == 0){ code = Parameters::OUTFMT_QORFSTART;}
+        else if (outformatSplit[i].compare("qorfend") == 0){ code = Parameters::OUTFMT_QORFEND;}
+        else if (outformatSplit[i].compare("torfstart") == 0){ code = Parameters::OUTFMT_TORFSTART;}
+        else if (outformatSplit[i].compare("torfend") == 0){ code = Parameters::OUTFMT_TORFEND;}
         else if (outformatSplit[i].compare("empty") == 0){ code = Parameters::OUTFMT_EMPTY;}
         else {
             Debug(Debug::ERROR) << "Format code " << outformatSplit[i] << " does not exist.";

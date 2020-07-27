@@ -21,7 +21,7 @@
 
 /*
    Written by Michael Farrar, 2006 (alignment), Mengyao Zhao (SSW Library) and Martin Steinegger (change structure add aa composition, profile and AVX2 support).
-   Please send bug reports and/or suggestions to martin.steinegger@mpibpc.mpg.de.
+   Please send bug reports and/or suggestions to martin.steinegger@snu.ac.kr.
 */
 #include "Parameters.h"
 #include "StripedSmithWaterman.h"
@@ -154,17 +154,17 @@ s_align SmithWaterman::ssw_align (
     std::pair<alignment_end, alignment_end> bests_reverse;
     // Find the alignment scores and ending positions
 	if (profile->profile_byte) {
-		bests = sw_sse2_byte(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_byte, -1, profile->bias, maskLen);
+		bests = sw_sse2_byte(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_byte, UCHAR_MAX, profile->bias, maskLen);
 
 		if (profile->profile_word && bests.first.score == 255) {
-			bests = sw_sse2_word(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_word, -1, maskLen);
+			bests = sw_sse2_word(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_word, USHRT_MAX, maskLen);
 			word = 1;
 		} else if (bests.first.score == 255) {
 			fprintf(stderr, "Please set 2 to the score_size parameter of the function ssw_init, otherwise the alignment results will be incorrect.\n");
 			EXIT(EXIT_FAILURE);
 		}
 	}else if (profile->profile_word) {
-		bests = sw_sse2_word(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_word, -1, maskLen);
+		bests = sw_sse2_word(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_word, USHRT_MAX, maskLen);
 		word = 1;
 	}else {
 		fprintf(stderr, "Please call the function ssw_init before ssw_align.\n");
@@ -428,12 +428,7 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 		vTemp = simdui8_subs (vF, vTemp);
 		vTemp = simdi8_eq (vTemp, vZero);
 		uint32_t cmp = simdi8_movemask (vTemp);
-#ifdef AVX2
-		while (cmp != 0xffffffff)
-#else
-		while (cmp != 0xffff)
-#endif
-		{
+		while (cmp != SIMD_MOVEMASK_MAX) {
 			vH = simdui8_max (vH, vF);
 			vMaxColumn = simdui8_max(vMaxColumn, vH);
 			simdi_store (pvHStore + j, vH);
@@ -455,12 +450,7 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 		vMaxScore = simdui8_max(vMaxScore, vMaxColumn);
 		vTemp = simdi8_eq(vMaxMark, vMaxScore);
 		cmp = simdi8_movemask(vTemp);
-#ifdef AVX2
-		if (cmp != 0xffffffff)
-#else
-		if (cmp != 0xffff)
-#endif
-		{
+		if (cmp != SIMD_MOVEMASK_MAX) {
 			uint8_t temp;
 			vMaxMark = vMaxScore;
 			max16(temp, vMaxScore);
@@ -636,13 +626,8 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 		end:
 		vMaxScore = simdi16_max(vMaxScore, vMaxColumn);
 		vTemp = simdi16_eq(vMaxMark, vMaxScore);
-		int32_t cmp = simdi8_movemask(vTemp);
-#ifdef AVX2
-		if (cmp != (int32_t)0xffffffff)
-#else
-		if (cmp != 0xffff)
-#endif
-		{
+		uint32_t cmp = simdi8_movemask(vTemp);
+		if (cmp != SIMD_MOVEMASK_MAX) {
 			uint16_t temp;
 			vMaxMark = vMaxScore;
 			max8(temp, vMaxScore);
@@ -1105,6 +1090,16 @@ s_align SmithWaterman::scoreIdentical(unsigned char *dbSeq, int L, EvalueComputa
 	r.evalue = evaluer->computeEvalue(r.score1, profile->query_length);
 
 	return r;
+}
+
+template <typename F>
+inline F simd_hmax(const F * in, unsigned int n) {
+    F current = std::numeric_limits<F>::min();
+    do {
+        current = std::max(current, *in++);
+    } while(--n);
+
+    return current;
 }
 
 int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t db_length) {

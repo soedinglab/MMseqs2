@@ -54,7 +54,7 @@ int lca(int argc, const char **argv, const Command& command) {
     if (!ranks.empty()) {
         noTaxResult += '\t';
     }
-    if (par.showTaxLineage) {
+    if (par.showTaxLineage > 0) {
         noTaxResult += '\t';
     }
     noTaxResult += '\n';
@@ -87,9 +87,10 @@ int lca(int argc, const char **argv, const Command& command) {
                 std::pair<unsigned int, unsigned int> val;
                 std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
+                data = Util::skipLine(data);
                 if (columns == 0) {
                     Debug(Debug::WARNING) << "Empty entry: " << i << "!";
-                    goto next;
+                    continue;
                 }
 
                 id = Util::fast_atoi<unsigned int>(entry[0]);
@@ -99,25 +100,25 @@ int lca(int argc, const char **argv, const Command& command) {
                 if (mappingIt == mapping.end() || mappingIt->first != val.first) {
                     // TODO: Check which taxa were not found
                     taxonNotFound += 1;
-                    data = Util::skipLine(data);
                     continue;
                 }
                 found++;
                 taxon = mappingIt->second;
 
                 // remove blacklisted taxa
+                bool isBlacklisted = false;
                 for (size_t j = 0; j < taxaBlacklistSize; ++j) {
                     if(taxaBlacklist[j] == 0)
                         continue;
                     if (t->IsAncestor(taxaBlacklist[j], taxon)) {
-                        goto next;
+                        isBlacklisted = true;
+                        break;
                     }
                 }
 
-                taxa.emplace_back(taxon);
-
-                next:
-                data = Util::skipLine(data);
+                if (isBlacklisted == false) {
+                    taxa.emplace_back(taxon);
+                }
             }
 
             if (length == 1) {
@@ -136,8 +137,11 @@ int lca(int argc, const char **argv, const Command& command) {
                 std::string lcaRanks = Util::implode(t->AtRanks(node, ranks), ';');
                 resultData += '\t' + lcaRanks;
             }
-            if (par.showTaxLineage) {
-                resultData += '\t' + t->taxLineage(node);
+            if (par.showTaxLineage == 1) {
+                resultData += '\t' + t->taxLineage(node, true);
+            }
+            if (par.showTaxLineage == 2) {
+                resultData += '\t' + t->taxLineage(node, false);
             }
             resultData += '\n';
             writer.writeData(resultData.c_str(), resultData.size(), key, thread_idx);

@@ -7,8 +7,8 @@
 #include "Parameters.h"
 #include "Matcher.h"
 #include "Debug.h"
+#include "MemoryTracker.h"
 #include "DBReader.h"
-#include "omptl/omptl_algorithm"
 #include "MathUtil.h"
 #include "FileUtil.h"
 #include "NucleotideMatrix.h"
@@ -28,7 +28,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-
+#include "FastSort.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -111,7 +111,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
             generator->setDivideStrategy(&three, &two);
         }
         Indexer idxer(subMat->alphabetSize - 1,  par.kmerSize);
-        const unsigned int BUFFER_SIZE = 1024;
+        const unsigned int BUFFER_SIZE = 1048576;
         size_t bufferPos = 0;
         KmerPosition<T> * threadKmerBuffer = new KmerPosition<T>[BUFFER_SIZE];
         SequencePosition * kmers = (SequencePosition *) malloc((par.pickNbest * (par.maxSeqLen + 1) + 1) * sizeof(SequencePosition));
@@ -122,7 +122,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
             size_t start = (i * flushSize);
             size_t bucketSize = std::min(seqDbr.getSize() - (i * flushSize), flushSize);
 
-#pragma omp for schedule(dynamic, 10)
+#pragma omp for schedule(dynamic, 100)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
                 memset(scoreDist, 0, sizeof(unsigned short) * 65536);
@@ -265,9 +265,9 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
 
                 if(par.ignoreMultiKmer){
                     if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                        std::sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScoreReverse);
+                        SORT_SERIAL(kmers, kmers + seqKmerCount, SequencePosition::compareByScoreReverse);
                     }else{
-                        std::sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScore);
+                        SORT_SERIAL(kmers, kmers + seqKmerCount, SequencePosition::compareByScore);
                     }
                 }
                 size_t selectedKmer = 0;
@@ -396,9 +396,9 @@ KmerPosition<T> * doComputation(size_t totalKmers, size_t hashStartRange, size_t
     Debug(Debug::INFO) << "Sort kmer ";
     Timer timer;
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-        omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<T>::compareRepSequenceAndIdAndPosReverse);
+        SORT_PARALLEL(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<T>::compareRepSequenceAndIdAndPosReverse);
     }else{
-        omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<T>::compareRepSequenceAndIdAndPos);
+        SORT_PARALLEL(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<T>::compareRepSequenceAndIdAndPos);
     }
     Debug(Debug::INFO) << timer.lap() << "\n";
 
@@ -415,9 +415,9 @@ KmerPosition<T> * doComputation(size_t totalKmers, size_t hashStartRange, size_t
     Debug(Debug::INFO) << "Sort by rep. sequence ";
     timer.reset();
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-        omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition<T>::compareRepSequenceAndIdAndDiagReverse);
+        SORT_PARALLEL(hashSeqPair, hashSeqPair + writePos, KmerPosition<T>::compareRepSequenceAndIdAndDiagReverse);
     }else{
-        omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition<T>::compareRepSequenceAndIdAndDiag);
+        SORT_PARALLEL(hashSeqPair, hashSeqPair + writePos, KmerPosition<T>::compareRepSequenceAndIdAndDiag);
     }
     //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, SequenceComparision());
 //    for(size_t i = 0; i < writePos; i++){
@@ -599,12 +599,8 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
     //seqDbr.readMmapedDataInMemory();
 
     // memoryLimit in bytes
-    size_t memoryLimit;
-    if (par.splitMemoryLimit > 0) {
-        memoryLimit = par.splitMemoryLimit;
-    } else {
-        memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
-    }
+    size_t memoryLimit=Util::computeMemory(par.splitMemoryLimit);
+
     Debug(Debug::INFO) << "\n";
     float kmersPerSequenceScale = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ?
                                         par.kmersPerSequenceScale.nucleotides : par.kmersPerSequenceScale.aminoacids;
@@ -624,7 +620,7 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
 
     size_t mpiRank = 0;
 #ifdef HAVE_MPI
-    splits = std::max(static_cast<size_t>(MMseqsMPI::numProc), splits);
+    splits = hashRanges.size();
     size_t fromSplit = 0;
     size_t splitCount = 1;
     mpiRank = MMseqsMPI::rank;
@@ -643,10 +639,7 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
 
     for(size_t split = fromSplit; split < fromSplit+splitCount; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
-        int range=MathUtil::ceilIntDivision(USHRT_MAX+1, static_cast<int>(splits));
-        size_t rangeFrom = split*range;
-        size_t rangeTo = (splits == 1) ? SIZE_T_MAX : splits*range+range;
-        hashSeqPair = doComputation<T>(totalKmers, rangeFrom, rangeTo, splitFileName, seqDbr, par, subMat);
+        hashSeqPair = doComputation<T>(totalKmers, hashRanges[split].first, hashRanges[split].second, splitFileName, seqDbr, par, subMat);
     }
     MPI_Barrier(MPI_COMM_WORLD);
     if(mpiRank == 0){
@@ -719,8 +712,7 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
                 }
             }
         }
-        dbw.close();
-
+        dbw.close(false, false);
     }
     // free memory
     delete subMat;

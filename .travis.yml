@@ -18,21 +18,29 @@ jobs:
         packages:
         - *default_packages
         - build-essential
+        - g++-8
+        - gcc-8
     arch: arm64
+    env: CC=gcc-8 CXX=g++-8 MMSEQS_NUM_THREADS=8
+    dist: bionic
   - addons:
       apt:
         packages:
           - *default_packages
           - build-essential
+          - g++-8
+          - gcc-8
     arch: ppc64le
+    dist: bionic
+    env: CC=gcc-8 CXX=g++-8 MMSEQS_NUM_THREADS=8
   - addons:
       apt:
         packages:
         - *default_packages
-        - clang-3.8
+        - clang-5.0
         - libc++-dev
         - libomp-dev
-    env: CC=clang-3.8 CXX=clang++-3.8
+    env: CC=clang-5.0 CXX=clang++-5.0
   - addons:
       apt:
         sources:
@@ -67,9 +75,9 @@ jobs:
         - ubuntu-toolchain-r-test
         packages:
         - *default_packages
-        - gcc-4.8
-        - g++-4.8
-    env: CC=gcc-4.8 CXX=g++-4.8
+        - gcc-4.9
+        - g++-4.9
+    env: CC=gcc-4.9 CXX=g++-4.9
   - addons:
       apt:
         sources:
@@ -90,9 +98,17 @@ jobs:
         - mpi-default-dev
         - mpi-default-bin
     env: MPI=1 CC=gcc-9 CXX=g++-9
+  - addons:
+      apt:
+        sources:
+        - sourceline: 'deb https://apt.repos.intel.com/oneapi all main'
+          key_url: 'https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB'
+        packages:
+        - *default_packages
+        - build-essential
+        - intel-oneapi-icc
+    env: CC=icc CXX=icpc
   fast_finish: true
-  allow_failures:
-  - arch: ppc64le
 
 before_install:
   - export CC
@@ -100,6 +116,7 @@ before_install:
 
 script:
   - |
+    if [ -e "/opt/intel/inteloneapi/setvars.sh" ]; then source /opt/intel/inteloneapi/setvars.sh; fi; \
     mkdir build; cd build; \
     cmake -DHAVE_MPI="$([[ -z "$MPI" ]]; echo $?)" -DENABLE_WERROR=1 -DHAVE_TESTS=1 ..; \
     make -j $(nproc --all); \

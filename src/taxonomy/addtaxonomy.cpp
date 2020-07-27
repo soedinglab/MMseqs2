@@ -108,8 +108,11 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
                     std::string lcaRanks = Util::implode(t->AtRanks(node, ranks), ';');
                     result += '\t' + lcaRanks;
                 }
-                if (par.showTaxLineage) {
-                    result += '\t' + t->taxLineage(node);
+                if (par.showTaxLineage == 1) {
+                    result += '\t' + t->taxLineage(node, true);
+                }
+                if (par.showTaxLineage == 2) {
+                    result += '\t' + t->taxLineage(node, false);
                 }
                 result += '\n';
                 data = Util::skipLine(data);

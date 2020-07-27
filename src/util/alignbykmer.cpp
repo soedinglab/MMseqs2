@@ -10,6 +10,7 @@
 #include "ReducedMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "IndexReader.h"
+#include "FastSort.h"
 #include <string>
 #include <vector>
 
@@ -236,7 +237,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                     }
 
 
-                    std::sort(kmerPosVec, kmerPosVec + kmerPosSize, KmerPos::compareKmerPos);
+                    SORT_SERIAL(kmerPosVec, kmerPosVec + kmerPosSize, KmerPos::compareKmerPos);
                     unsigned short region_min_i = USHRT_MAX;
                     unsigned short region_max_i = 0;
                     unsigned short region_min_j = USHRT_MAX;
@@ -296,7 +297,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                         }
                     }
                     // Do dynamic programming
-                    std::sort(stretcheVec, stretcheVec + stretcheSize, Stretche::compareStretche);
+                    SORT_SERIAL(stretcheVec, stretcheVec + stretcheSize, Stretche::compareStretche);
                     for (size_t id = 0; id < stretcheSize; ++id) {
                         dpMatrixRow[id].prevPotentialId = id;
                         dpMatrixRow[id].pathScore = stretcheVec[id].kmerCnt;

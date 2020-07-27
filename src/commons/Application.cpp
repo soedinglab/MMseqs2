@@ -4,12 +4,6 @@
 #include "DistanceCalculator.h"
 #include "Timer.h"
 
-#if !defined(NEON) && !defined(WASM) && !defined(__ALTIVEC__)
-#include <CpuInfo.h>
-#else
-#define NO_CPUINFO
-#endif
-
 #include <iomanip>
 
 extern const char *binary_name;
@@ -24,33 +18,6 @@ extern bool hide_base_commands;
 extern std::vector<Command> commands;
 extern std::vector<Command> baseCommands;
 extern std::vector<Categories> categories;
-
-void checkCpu() {
-#ifndef NO_CPUINFO
-    CpuInfo info;
-    if (info.HW_x64 == false) {
-        Debug(Debug::ERROR) << "64-bit system is required to run MMseqs2.\n";
-        EXIT(EXIT_FAILURE);
-    }
-#ifdef SEE
-    if(info.HW_SSE41 == false) {
-        Debug(Debug::ERROR) << "SSE4.1 is required to run MMseqs2.\n";
-        EXIT(EXIT_FAILURE);
-    }
-#endif
-#ifdef AVX2
-    if (info.HW_AVX2 == false) {
-        Debug(Debug::ERROR) << "Your machine does not support AVX2.\n";
-        if (info.HW_SSE41 == true) {
-            Debug(Debug::ERROR) << "Please recompile with SSE4.1: cmake -DHAVE_SSE4_1=1 \n";
-        } else {
-            Debug(Debug::ERROR) << "SSE4.1 is the minimum requirement to run MMseqs2.\n";
-        }
-        EXIT(EXIT_FAILURE);
-    }
-#endif
-#endif
-}
 
 Command *getCommandByName(const char *s) {
     for (size_t i = 0; i < commands.size(); i++) {
@@ -211,14 +178,12 @@ int shellcompletion(int argc, const char **argv) {
 }
 
 int main(int argc, const char **argv) {
-    checkCpu();
-
     if (argc < 2) {
         printUsage(false);
         return EXIT_SUCCESS;
     }
 
-    if (argv[1][0] == '-' && argv[1][1] == 'h') {
+    if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0){
         printUsage(true);
         return EXIT_SUCCESS;
     }

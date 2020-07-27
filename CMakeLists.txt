@@ -4,13 +4,20 @@ message("-- Source Directory: ${CMAKE_CURRENT_SOURCE_DIR}")
 message("-- Project Directory: ${PROJECT_SOURCE_DIR}")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-set(FRAMEWORK_ONLY 0 CACHE BOOL "Framework Mode")
-set(HAVE_SANITIZER 0 CACHE BOOL "Have Sanitizers")
-set(INSTALL_UTIL 1 CACHE BOOL "Install util scripts")
+set(FRAMEWORK_ONLY 0 CACHE BOOL "Framework mode (don't create mmseqs executable)")
+set(HAVE_SANITIZER 0 CACHE BOOL "Have sanitizers")
+set(INSTALL_UTIL 1 CACHE BOOL "Install utility scripts")
 set(VERSION_OVERRIDE "" CACHE STRING "Override version string in help and usage messages")
+set(DISABLE_IPS4O 0 CACHE BOOL "Disabling IPS4O sorting library requiring 128-bit compare exchange operations")
+set(HAVE_AVX2 0 CACHE BOOL "Have CPU with AVX2")
+set(HAVE_SSE4_1 0 CACHE BOOL "Have CPU with SSE4.1")
+set(HAVE_SSE2 0 CACHE BOOL "Have CPU with SSE2")
+set(HAVE_POWER9 0 CACHE BOOL "Have POWER9 CPU")
+set(HAVE_POWER8 0 CACHE BOOL "Have POWER8 CPU")
+set(HAVE_ARM8 0 CACHE BOOL "Have ARMv8 CPU")
+set(NATIVE_ARCH 1 CACHE BOOL "Assume native architecture for SIMD. Use one of the HAVE_* options or set CMAKE_CXX_FLAGS to the appropriate flags if you disable this.")
 
-#Sanitizers
-if (${HAVE_SANITIZER})
+if (HAVE_SANITIZER)
     include(FindUBSan)
     include(FindASan)
     include(FindMSan)
@@ -19,40 +26,94 @@ endif ()
 
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
-endif (NOT CMAKE_BUILD_TYPE)
+endif ()
 
 # find compiler
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-    # using Clang
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     message("-- Compiler is clang(++)")
     set(CMAKE_COMPILER_IS_CLANG 1)
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    # using GCC
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message("-- Compiler is GNU ")
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8.0")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9.0")
         message(FATAL_ERROR "Insufficient gcc version")
     endif ()
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-    # using Intel C++
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Intel")
     message("-- Compiler is icc(++)")
     set(CMAKE_COMPILER_IS_ICC 1)
 endif ()
 
 # see https://wiki.debian.org/ArchitectureSpecificsMemo for char signedness
-set(MMSEQS_CXX_FLAGS "-std=c++0x")
-if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
+
+set(MMSEQS_CXX_FLAGS "-std=c++1y -fsigned-char")
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*|aarch64.*|AARCH64.*)")
     set(ARM 1)
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DNEON=1 -DSSE=1 -fsigned-char -mfpu=neon")
-elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*)")
-    set(ARM 1)
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DNEON=1 -DSSE=1 -fsigned-char")
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "PPC64*|ppc64*|powerpc64*")
     set(PPC64 1)
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DSSE=1 -fsigned-char -std=gnu++0x -mcpu=power8 -mvsx")
-elseif (EMSCRIPTEN)
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -DSSE=1 -DWASM=1 -msimd128 -s WASM=1 -s ASSERTIONS=1")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "amd64|AMD64")
+    set(X64 1)
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "x86|X86")
+    set(X86 1)
 else ()
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -m64")
+    message(WARNING "CPU without native SIMD instructions. Performance will be bad.")
+endif ()
+
+# SIMD instruction sets support
+set(MMSEQS_ARCH "")
+if (HAVE_AVX2)
+    if (CMAKE_COMPILER_IS_CLANG)
+        set(MMSEQS_ARCH "${MMSEQS_ARCH} -mavx2 -mcx16")
+    else ()
+        set(MMSEQS_ARCH "${MMSEQS_ARCH} -mavx2 -mcx16 -Wa,-q")
+    endif ()
+elseif (HAVE_SSE4_1)
+    set(MMSEQS_ARCH "${MMSEQS_ARCH} -msse4.1 -mcx16")
+elseif (HAVE_SSE2)
+    set(MMSEQS_ARCH "${MMSEQS_ARCH} -msse2")
+    set(DISABLE_IPS4O 1)
+elseif (HAVE_POWER9)
+    set(MMSEQS_ARCH "${MMSEQS_ARCH} -mcpu=power9 -mvsx")
+elseif (HAVE_POWER8)
+    set(MMSEQS_ARCH "${MMSEQS_ARCH} -mcpu=power8 -mvsx")
+elseif (HAVE_ARM8)
+    set(MMSEQS_ARCH "${MMSEQS_ARCH} -march=armv8-a+simd")
+endif ()
+
+if (NATIVE_ARCH AND (MMSEQS_ARCH STREQUAL ""))
+    if (EMSCRIPTEN)
+        set(MMSEQS_ARCH "-msimd128 -s WASM=1 -s ASSERTIONS=1")
+    elseif (X86 OR X64)
+        include(CheckSSEFeatures)
+        if (NOT HAVE_SSE4_1_EXTENSIONS)
+            if (NOT HAVE_SSE2_EXTENSIONS)
+                message(FATAL_ERROR "At least SSE2 is needed to compile")
+            endif ()
+            message(WARNING "At least SSE4.1 is needed for best performance")
+        endif ()
+        if (PPC64)
+            set(MMSEQS_ARCH "-mcpu=native")
+        else ()
+            # clang has a problem with march=native on travis
+            if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.0.0")
+                set(MMSEQS_ARCH "${SSE_FLAGS}")
+            else()
+                set(MMSEQS_ARCH "-march=native")
+            endif()
+        endif ()
+    else ()
+        if (PPC64)
+            set(MMSEQS_ARCH "-mcpu=native")
+        else ()
+            set(MMSEQS_ARCH "-march=native")
+        endif ()
+    endif ()
+endif ()
+
+if (NOT (MMSEQS_ARCH STREQUAL ""))
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} ${MMSEQS_ARCH}")
+endif ()
+
+if (CYGWIN OR ARM OR PPC64)
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -D_GNU_SOURCE=1")
 endif ()
 
 # Compiler-specific features
@@ -60,6 +121,11 @@ if (CMAKE_COMPILER_IS_CLANG AND (NOT EMSCRIPTEN))
     set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++11")
     set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -stdlib=libc++")
+endif ()
+
+if (CMAKE_COMPILER_IS_ICC)
+    # default -fp-model results in inconsistent results in profile search
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -fp-model precise")
 endif ()
 
 # Apple specific features
@@ -70,9 +136,27 @@ if (APPLE)
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -D__APPLE_API_STRICT_CONFORMANCE")
 endif ()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -D_WITH_GETLINE")
+endif ()
+
+if (CYGWIN)
+    # default cygwin allocator (dlmalloc) locks on every allocation and destroys MT performance
+    add_subdirectory(lib/nedmalloc)
+    # IPS4O seems to deadlock on cygwin
+    set(DISABLE_IPS4O 1)
 endif()
+
+if ((CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5.0.0")
+        OR (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.1.0"))
+    # clang before v5 throws compile errors on ips4o
+    set(DISABLE_IPS4O 1)
+endif ()
+
+if (PPC64)
+    # FIXME: investigate why on ppc the regression seems to fail randomly
+    set(DISABLE_IPS4O 1)
+endif ()
 
 # zstd
 # We use ZSTD_findDecompressedSize which is only available with ZSTD_STATIC_LINKING_ONLY
@@ -98,10 +182,8 @@ add_subdirectory(lib/tinyexpr EXCLUDE_FROM_ALL)
 include_directories(lib/microtar)
 add_subdirectory(lib/microtar)
 
-# default cygwin allocator (dlmalloc) locks on every allocation and destroys MT performance
-if (CYGWIN)
-    add_subdirectory(lib/nedmalloc)
-endif()
+# simde
+include_directories(lib/simde)
 
 include_directories(lib)
 include_directories(lib/simd)
@@ -110,6 +192,9 @@ include_directories(lib/alp)
 include_directories(lib/cacode)
 include_directories(lib/ksw2)
 include_directories(lib/xxhash)
+if (NOT DISABLE_IPS4O)
+    include_directories(lib/ips4o)
+endif ()
 
 add_subdirectory(lib/cacode)
 add_subdirectory(lib/alp)

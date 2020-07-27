@@ -12,6 +12,7 @@
 #include "QueryMatcher.h"
 #include "QueryMatcher.h"
 #include "NucleotideMatrix.h"
+#include "FastSort.h"
 #include "SubstitutionMatrixProfileStates.h"
 
 #ifdef OPENMP
@@ -134,7 +135,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
                 }
             }
 
-            std::sort(shortResults.begin(), shortResults.end(), hit_t::compareHitsByScoreAndId);
+            SORT_SERIAL(shortResults.begin(), shortResults.end(), hit_t::compareHitsByScoreAndId);
 
             for (size_t i = 0; i < shortResults.size(); ++i) {
                 size_t len = QueryMatcher::prefilterHitToBuffer(buffer, shortResults[i]);

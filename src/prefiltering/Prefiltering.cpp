@@ -12,6 +12,7 @@
 #include "ByteParser.h"
 #include "Parameters.h"
 #include "MemoryMapped.h"
+#include "FastSort.h"
 #include <sys/mman.h>
 
 #ifdef OPENMP
@@ -178,12 +179,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
                        (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES) && Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_NUCLEOTIDES));
 
     // memoryLimit in bytes
-    size_t memoryLimit;
-    if (par.splitMemoryLimit > 0) {
-        memoryLimit = par.splitMemoryLimit;
-    } else {
-        memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
-    }
+    size_t memoryLimit=Util::computeMemory(par.splitMemoryLimit);
 
     if (templateDBIsIndex == false && sameQTDB == true) {
         qdbr = tdbr;
@@ -451,7 +447,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
                 QueryMatcher::parsePrefilterHits(&dataFile[file][pos], hits);
             }
             if (hits.size() > 1) {
-                std::sort(hits.begin(), hits.end(), hit_t::compareHitsByScoreAndId);
+                SORT_SERIAL(hits.begin(), hits.end(), hit_t::compareHitsByScoreAndId);
             }
             for (size_t i = 0; i < hits.size(); ++i) {
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, hits[i]);
@@ -557,7 +553,7 @@ void Prefiltering::runAllSplits(const std::string &resultDB, const std::string &
 }
 
 #ifdef HAVE_MPI
-void Prefiltering::runMpiSplits(const std::string &resultDB, const std::string &resultDBIndex, const std::string &localTmpPath) {
+void Prefiltering::runMpiSplits(const std::string &resultDB, const std::string &resultDBIndex, const std::string &localTmpPath, const int runRandomId) {
     if(compressed == true && splitMode == Parameters::TARGET_DB_SPLIT){
             Debug(Debug::WARNING) << "The output of the prefilter cannot be compressed during target split mode. "
                                      "Prefilter result will not be compressed.\n";
@@ -601,7 +597,7 @@ void Prefiltering::runMpiSplits(const std::string &resultDB, const std::string &
         }
     }
 
-    std::pair<std::string, std::string> result = Util::createTmpFileNames(procTmpResultDB, procTmpResultDBIndex, MMseqsMPI::rank);
+    std::pair<std::string, std::string> result = Util::createTmpFileNames(procTmpResultDB, procTmpResultDBIndex, MMseqsMPI::rank + runRandomId);
     bool merge = (splitMode == Parameters::QUERY_DB_SPLIT);
 
     int hasResult = runSplits(result.first, result.second, fromSplit, splitCount, merge) == true ? 1 : 0;
@@ -938,7 +934,7 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
     Debug(Debug::INFO) << "\n" << stats.kmersPerPos << " k-mers per position\n";
     Debug(Debug::INFO) << stats.dbMatches << " DB matches per sequence\n";
     Debug(Debug::INFO) << stats.diagonalOverflow << " overflows\n";
-    Debug(Debug::INFO) << stats.truncated << " queries produce too much hits (truncated result)\n";
+    Debug(Debug::INFO) << stats.truncated << " queries produce too many hits (truncated result)\n";
     Debug(Debug::INFO) << stats.resultsPassedPrefPerSeq << " sequences passed prefiltering per query sequence";
     if (stats.resultsPassedPrefPerSeq > maxResults)
         Debug(Debug::WARNING) << " (ATTENTION: max. " << maxResults

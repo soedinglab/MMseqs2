@@ -1,5 +1,6 @@
 #include "SubstitutionMatrix.h"
 #include "QueryMatcher.h"
+#include "FastSort.h"
 #include "Util.h"
 
 #define FE_1(WHAT, X) WHAT(X)
@@ -145,9 +146,9 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, unsigned 
     }
     if(queryResult.second > 1){
         if (identityId != UINT_MAX){
-            std::sort(resList + 1, resList + queryResult.second, hit_t::compareHitsByScoreAndId);
+            SORT_SERIAL(resList + 1, resList + queryResult.second, hit_t::compareHitsByScoreAndId);
         } else{
-            std::sort(resList, resList + queryResult.second, hit_t::compareHitsByScoreAndId);
+            SORT_SERIAL(resList, resList + queryResult.second, hit_t::compareHitsByScoreAndId);
         }
     }
     return queryResult;

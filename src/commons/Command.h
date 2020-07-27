@@ -3,12 +3,12 @@
 
 #include <vector>
 
-const unsigned int CITATION_MMSEQS2  = 1 << 0;
-const unsigned int CITATION_MMSEQS1  = 1 << 1;
-const unsigned int CITATION_UNICLUST = 1 << 2;
-const unsigned int CITATION_LINCLUST = 1 << 3;
-const unsigned int CITATION_PLASS    = 1 << 4;
-const unsigned int CITATION_SERVER   = 1 << 5;
+const unsigned int CITATION_MMSEQS2  = 1U << 0;
+const unsigned int CITATION_MMSEQS1  = 1U << 1;
+const unsigned int CITATION_UNICLUST = 1U << 2;
+const unsigned int CITATION_LINCLUST = 1U << 3;
+const unsigned int CITATION_PLASS    = 1U << 4;
+const unsigned int CITATION_SERVER   = 1U << 5;
 
 // Make sure this is always the last bit
 // citations from inheriting modules will start from here
@@ -18,26 +18,26 @@ struct MMseqsParameter;
 
 typedef const unsigned int CommandMode;
 
-CommandMode COMMAND_MAIN              = 1 << 1;
-CommandMode COMMAND_FORMAT_CONVERSION = 1 << 2;
-CommandMode COMMAND_TAXONOMY          = 1 << 3;
-CommandMode COMMAND_MULTIHIT          = 1 << 4;
-CommandMode COMMAND_DB                = 1 << 5;
-CommandMode COMMAND_SPECIAL           = 1 << 6;
-CommandMode COMMAND_HIDDEN            = 1 << 7;
-CommandMode COMMAND_EASY              = 1 << 8;
-CommandMode COMMAND_DATABASE_CREATION = 1 << 9;
-CommandMode COMMAND_STORAGE           = 1 << 10;
-CommandMode COMMAND_SET               = 1 << 11;
-CommandMode COMMAND_SEQUENCE          = 1 << 12;
-CommandMode COMMAND_RESULT            = 1 << 13;
-CommandMode COMMAND_PREFILTER         = 1 << 14;
-CommandMode COMMAND_ALIGNMENT         = 1 << 15;
-CommandMode COMMAND_CLUSTER           = 1 << 16;
-CommandMode COMMAND_PROFILE           = 1 << 17;
-CommandMode COMMAND_PROFILE_PROFILE   = 1 << 18;
+CommandMode COMMAND_MAIN              = 1U << 1;
+CommandMode COMMAND_FORMAT_CONVERSION = 1U << 2;
+CommandMode COMMAND_TAXONOMY          = 1U << 3;
+CommandMode COMMAND_MULTIHIT          = 1U << 4;
+CommandMode COMMAND_DB                = 1U << 5;
+CommandMode COMMAND_SPECIAL           = 1U << 6;
+CommandMode COMMAND_HIDDEN            = 1U << 7;
+CommandMode COMMAND_EASY              = 1U << 8;
+CommandMode COMMAND_DATABASE_CREATION = 1U << 9;
+CommandMode COMMAND_STORAGE           = 1U << 10;
+CommandMode COMMAND_SET               = 1U << 11;
+CommandMode COMMAND_SEQUENCE          = 1U << 12;
+CommandMode COMMAND_RESULT            = 1U << 13;
+CommandMode COMMAND_PREFILTER         = 1U << 14;
+CommandMode COMMAND_ALIGNMENT         = 1U << 15;
+CommandMode COMMAND_CLUSTER           = 1U << 16;
+CommandMode COMMAND_PROFILE           = 1U << 17;
+CommandMode COMMAND_PROFILE_PROFILE   = 1U << 18;
 
-CommandMode COMMAND_EXPERT            = 1 << 31;
+CommandMode COMMAND_EXPERT            = 1U << 31;
 
 
 

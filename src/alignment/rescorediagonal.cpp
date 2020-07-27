@@ -11,6 +11,7 @@
 #include "QueryMatcher.h"
 #include "NucleotideMatrix.h"
 #include "IndexReader.h"
+#include "FastSort.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -51,7 +52,7 @@ int doRescorediagonal(Parameters &par,
     DBReader<unsigned int> * qdbr = NULL;
     DBReader<unsigned int> * tdbr = NULL;
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-    IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
+    IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES,   (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     int querySeqType = 0;
     tdbr = tDbrIdx->sequenceReader;
     int targetSeqType = tDbrIdx->getDbtype();
@@ -329,7 +330,7 @@ int doRescorediagonal(Parameters &par,
                 }
 
                 if (par.sortResults > 0 && alnResults.size() > 1) {
-                    std::sort(alnResults.begin(), alnResults.end(), Matcher::compareHits);
+                    SORT_SERIAL(alnResults.begin(), alnResults.end(), Matcher::compareHits);
                 }
                 for (size_t i = 0; i < alnResults.size(); ++i) {
                     size_t len = Matcher::resultToBuffer(buffer, alnResults[i], par.addBacktrace, false);
@@ -337,7 +338,7 @@ int doRescorediagonal(Parameters &par,
                 }
 
                 if (par.sortResults > 0 && shortResults.size() > 1) {
-                    std::sort(shortResults.begin(), shortResults.end(), hit_t::compareHitsByScoreAndId);
+                    SORT_SERIAL(shortResults.begin(), shortResults.end(), hit_t::compareHitsByScoreAndId);
                 }
                 for (size_t i = 0; i < shortResults.size(); ++i) {
                     size_t len = QueryMatcher::prefilterHitToBuffer(buffer, shortResults[i]);
@@ -382,7 +383,6 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         Debug(Debug::ERROR) << "ERROR: wrapped scoring is only allowed with RESCORE_MODE_HAMMING\n";
         return EXIT_FAILURE;
     }
-
 
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);

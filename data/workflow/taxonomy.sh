@@ -24,7 +24,7 @@ TARGET="$2"
 RESULTS="$3"
 TMP_PATH="$4"
 
-if [ ! -e "${TMP_PATH}/first" ]; then
+if [ ! -e "${TMP_PATH}/first.dbtype" ]; then
     mkdir -p "${TMP_PATH}/tmp_hsp1"
     # shellcheck disable=SC2086
     "$MMSEQS" search "${INPUT}" "${TARGET}" "${TMP_PATH}/first" "${TMP_PATH}/tmp_hsp1" ${SEARCH1_PAR} \
@@ -35,8 +35,7 @@ LCA_SOURCE="${TMP_PATH}/first"
 
 # top hip mode
 if [ -n "${TOP_HIT}" ]; then
-
-    if [ ! -e "${TMP_PATH}/top1" ]; then
+    if [ ! -e "${TMP_PATH}/top1.dbtype" ]; then
         "$MMSEQS" filterdb "${TMP_PATH}/first" "${TMP_PATH}/top1" --beats-first --filter-column 4 --comparison-operator le \
             || fail "First filterdb died"
     fi
@@ -80,7 +79,7 @@ else
                 || fail "Mergedbs died"
         fi
 
-        if [ ! -e "${TMP_PATH}/2b_ali" ]; then
+        if [ ! -e "${TMP_PATH}/2b_ali.dbtype" ]; then
             "$MMSEQS" filterdb "${TMP_PATH}/merged" "${TMP_PATH}/2b_ali" --beats-first --filter-column 4 --comparison-operator le \
                 || fail "First filterdb died"
         fi
@@ -89,10 +88,16 @@ else
     fi
 fi
 
-if [ -n "${TAX_OUTPUT_LCA}" ]; then
+if [ "${TAX_OUTPUT}" -eq "0" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" lca "${TARGET}" "${LCA_SOURCE}" "${RESULTS}" ${LCA_PAR} \
         || fail "Lca died"
+elif [ "${TAX_OUTPUT}" -eq "2" ]; then
+    # shellcheck disable=SC2086
+    "$MMSEQS" lca "${TARGET}" "${LCA_SOURCE}" "${RESULTS}" ${LCA_PAR} \
+        || fail "Lca died"
+    "$MMSEQS" mvdb "${LCA_SOURCE}" "${RESULTS}_aln"  \
+        || fail "mvdb died"
 else # return alignment
     "$MMSEQS" mvdb "${LCA_SOURCE}" "${RESULTS}"  \
         || fail "mvdb died"

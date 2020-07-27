@@ -37,7 +37,7 @@ void chainAlignmentHits(std::vector<Matcher::result_t> &results, std::vector<Mat
                 currRegion.dbEndPos = dbEndPos;
             }
             int currDiagonal = qStartPos - dbStartPos;
-            int nextDiagonal = UINT_MAX;
+            int nextDiagonal = INT_MAX;
             bool nextQueryStrand = true;
             bool nextTargetStrand = true;
             const bool isDifferentKey = (currRegion.dbKey != results[resIdx].dbKey);
@@ -94,6 +94,10 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf
     size_t endPos = results.size();
     for (size_t i = startPos; i < endPos; i++) {
         Matcher::result_t &res = results[i];
+        res.queryOrfStartPos = -1;
+        res.queryOrfEndPos = -1;
+        res.dbOrfStartPos = -1;
+        res.dbOrfEndPos = -1;
         if (targetNeedsUpdate == true || qloc == NULL) {
             size_t targetId = tOrfDBr.sequenceReader->getId(res.dbKey);
             char *header = tOrfDBr.sequenceReader->getData(targetId, thread_idx);
@@ -104,7 +108,8 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf
 
             int dbStartPos = isNucleotideSearch ? res.dbStartPos : res.dbStartPos * 3;
             int dbEndPos   = isNucleotideSearch ? res.dbEndPos : res.dbEndPos * 3;
-
+            res.dbOrfStartPos = from;
+            res.dbOrfEndPos = tloc.to;
             if (tloc.strand == Orf::STRAND_MINUS) {
                 res.dbStartPos = from - dbStartPos;
                 res.dbEndPos   = from - dbEndPos;
@@ -133,6 +138,8 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf
             int qEndPos   = isNucleotideSearch ? res.qEndPos : res.qEndPos * 3;
 
             size_t from = (qloc->id != UINT_MAX) ? qloc->from : (qloc->strand == Orf::STRAND_MINUS) ? 0 : res.qLen - 1;
+            res.queryOrfStartPos = from;
+            res.queryOrfEndPos =  qloc->to;
 
             if (qloc->strand == Orf::STRAND_MINUS && qloc->id != UINT_MAX) {
                 res.qStartPos  = from - qStartPos;
@@ -227,6 +234,9 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             IndexReader tseqDbr(par.db3, par.threads, IndexReader::SEQUENCES, 0, IndexReader::PRELOAD_INDEX);
             seqtargetNuc = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
             isTransNucTransNucSearch = Parameters::isEqualDbtype(tseqDbr.sequenceReader->getDbtype(), Parameters::DBTYPE_AMINO_ACIDS);
+            if(par.searchType == Parameters::SEARCH_TYPE_TRANS_NUCL_ALN){
+                isTransNuclAln = true;
+            }
         }else{
             if(par.searchType == Parameters::SEARCH_TYPE_AUTO && (targetNucl == true && queryNucl == true )){
                 Debug(Debug::WARNING) << "Assume that nucleotide search was performed\n";
@@ -403,7 +413,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                                 res.backtrace = newBacktrace;
                                 newBacktrace.clear();
                             }
-                            size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
+                            size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false, true);
                             ss.append(buffer, len);
                         }
                         resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);
@@ -434,7 +444,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                             res.backtrace = newBacktrace;
                             newBacktrace.clear();
                         }
-                        size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
+                        size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false, true);
                         ss.append(buffer, len);
                     }
                     resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);
@@ -449,7 +459,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                             res.backtrace = newBacktrace;
                             newBacktrace.clear();
                         }
-                        size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
+                        size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false, true);
                         ss.append(buffer, len);
                     }
                     resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);

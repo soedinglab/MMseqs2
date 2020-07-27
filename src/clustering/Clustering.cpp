@@ -34,7 +34,7 @@ void Clustering::run(int mode) {
     DBWriter *dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1, compressed, Parameters::DBTYPE_CLUSTER_RES);
     dbw->open();
 
-    std::unordered_map<unsigned int, std::vector<unsigned int>> ret;
+    std::pair<unsigned int, unsigned int> * ret;
     ClusteringAlgorithms *algorithm = new ClusteringAlgorithms(seqDbr, alnDbr,
                                                                threads, similarityScoreType,
                                                                maxIteration);
@@ -60,44 +60,55 @@ void Clustering::run(int mode) {
 
     size_t dbSize = alnDbr->getSize();
     size_t seqDbSize = seqDbr->getSize();
-    size_t cluNum = ret.size();
-
+    size_t cluNum = (dbSize > 0) ? 1 : 0;
+    for(size_t i = 1; i < dbSize; i++){
+        cluNum += (ret[i].first != ret[i-1].first);
+    }
     Debug(Debug::INFO) << "Total time: " << timer.lap() << "\n";
     Debug(Debug::INFO) << "\nSize of the sequence database: " << seqDbSize << "\n";
     Debug(Debug::INFO) << "Size of the alignment database: " << dbSize << "\n";
     Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n\n";
 
     Debug(Debug::INFO) << "Writing results ";
-    writeData(dbw, ret);
+    writeData(dbw, ret, dbSize);
     Debug(Debug::INFO) << timerWrite.lap() << "\n";
-
+    delete [] ret;
     delete algorithm;
 
-
-
+    dbw->close(false, false);
     seqDbr->close();
     alnDbr->close();
-    dbw->close();
     delete dbw;
 
 }
 
-void Clustering::writeData(DBWriter *dbw, const std::unordered_map<unsigned int, std::vector<unsigned int>> &ret) {
-    std::unordered_map<unsigned int, std::vector<unsigned int> >::const_iterator iterator;
+void Clustering::writeData(DBWriter *dbw, const std::pair<unsigned int, unsigned int> * ret, size_t dbSize) {
     std::string resultStr;
     resultStr.reserve(1024*1024*1024);
     char buffer[32];
-    for (iterator = ret.begin(); iterator != ret.end(); ++iterator) {
-        std::vector<unsigned int> elements = (*iterator).second;
-        // first entry is the representative sequence
-        for (size_t i = 0; i < elements.size(); i++) {
-            unsigned int nextDbKey = seqDbr->getDbKey(elements[i]);
-            char * outpos = Itoa::u32toa_sse2(nextDbKey, buffer);
+    unsigned int prevRepresentativeKey = UINT_MAX;
+    for(size_t i = 0; i < dbSize; i++){
+        unsigned int currRepresentativeKey = ret[i].first;
+        // write query key first
+        if(prevRepresentativeKey != currRepresentativeKey) {
+            if(prevRepresentativeKey != UINT_MAX){ // skip first
+                dbw->writeData(resultStr.c_str(), resultStr.length(), prevRepresentativeKey);
+            }
+            resultStr.clear();
+            char *outpos = Itoa::u32toa_sse2(currRepresentativeKey, buffer);
+            resultStr.append(buffer, (outpos - buffer - 1));
+            resultStr.push_back('\n');
+        }
+        unsigned int memberKey = ret[i].second;
+        if(memberKey != currRepresentativeKey){
+            char * outpos = Itoa::u32toa_sse2(memberKey, buffer);
             resultStr.append(buffer, (outpos - buffer - 1) );
             resultStr.push_back('\n');
         }
-        unsigned int dbKey = seqDbr->getDbKey((*iterator).first);
-        dbw->writeData(resultStr.c_str(), resultStr.length(), dbKey);
-        resultStr.clear();
+
+        prevRepresentativeKey = currRepresentativeKey;
+    }
+    if(prevRepresentativeKey != UINT_MAX){
+        dbw->writeData(resultStr.c_str(), resultStr.length(), prevRepresentativeKey);
     }
 }

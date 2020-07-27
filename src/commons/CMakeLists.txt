@@ -6,7 +6,6 @@ set(commons_header_files
         commons/Command.h
         commons/CommandCaller.h
         commons/Concat.h
-        commons/CpuInfo.h
         commons/DBConcat.h
         commons/DBReader.h
         commons/DBWriter.h
@@ -21,6 +20,7 @@ set(commons_header_files
         commons/KSeqWrapper.h
         commons/MathUtil.h
         commons/MemoryMapped.h
+        commons/MemoryTracker.h
         commons/MMseqsMPI.h
         commons/MultiParam.h
         commons/NucleotideMatrix.h
@@ -56,6 +56,7 @@ set(commons_source_files
         commons/HeaderSummarizer.cpp
         commons/KSeqWrapper.cpp
         commons/MemoryMapped.cpp
+        commons/MemoryTracker.cpp
         commons/MMseqsMPI.cpp
         commons/MultiParam.cpp
         commons/NucleotideMatrix.cpp

@@ -154,7 +154,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                 }
 
                 const size_t columns = Util::getWordsOfLine(results, entry, 255);
-                if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                if (columns > Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
                     Matcher::result_t res = Matcher::parseAlignmentRecord(results);
                     alnResults.push_back(res);
                 }

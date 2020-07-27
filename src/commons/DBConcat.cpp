@@ -52,84 +52,86 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
             shouldConcatSource = true;
         }
     }
-
-    Debug::Progress progress(indexSizeA);
-    // where the new key numbering of B should start
     unsigned int maxKeyA = 0;
-#pragma omp parallel num_threads(threads)
     {
-        unsigned int thread_idx = 0;
+        Debug::Progress progress(indexSizeA);
+        // where the new key numbering of B should start
+#pragma omp parallel num_threads(threads)
+        {
+            unsigned int thread_idx = 0;
 #ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
 #pragma omp for schedule(dynamic, 10) reduction(max:maxKeyA)
-        for (size_t id = 0; id < indexSizeA; id++) {
-            progress.updateProgress();
+            for (size_t id = 0; id < indexSizeA; id++) {
+                progress.updateProgress();
 
-            unsigned int newKey;
-            if (preserveKeysA) {
-                newKey = dbA.getDbKey(id);
-            } else {
-                newKey = static_cast<unsigned int>(id);
-            }
+                unsigned int newKey;
+                if (preserveKeysA) {
+                    newKey = dbA.getDbKey(id);
+                } else {
+                    newKey = static_cast<unsigned int>(id);
+                }
 
-            if (write) {
-                char *data = dbA.getData(id, thread_idx);
-                size_t dataSizeA = dbA.getEntryLen(id) - 1;
-                if(takeLargerEntry == true) {
-                    size_t idB = dbB.getId(newKey);
-                    size_t dataSizeB = dbB.getEntryLen(idB)-1;
-                    if(dataSizeA >= dataSizeB){
+                if (write) {
+                    char *data = dbA.getData(id, thread_idx);
+                    size_t dataSizeA = dbA.getEntryLen(id) - 1;
+                    if(takeLargerEntry == true) {
+                        size_t idB = dbB.getId(newKey);
+                        size_t dataSizeB = dbB.getEntryLen(idB)-1;
+                        if(dataSizeA >= dataSizeB){
+                            concatWriter->writeData(data, dataSizeA, newKey, thread_idx);
+                        }
+                    } else if (takeLargerEntry == false) {
                         concatWriter->writeData(data, dataSizeA, newKey, thread_idx);
                     }
-                } else if (takeLargerEntry == false) {
-                    concatWriter->writeData(data, dataSizeA, newKey, thread_idx);
                 }
+
+                // need to store the index, because it'll be sorted out by keys later
+                keysA[id] = std::make_pair(dbA.getDbKey(id), newKey);
+                maxKeyA = std::max(maxKeyA, newKey);
             }
-
-            // need to store the index, because it'll be sorted out by keys later
-            keysA[id] = std::make_pair(dbA.getDbKey(id), newKey);
-            maxKeyA = std::max(maxKeyA, newKey);
         }
+        maxKeyA++;
     }
-    maxKeyA++;
-
-#pragma omp parallel num_threads(threads)
     {
-        unsigned int thread_idx = 0;
+        Debug::Progress progress2(indexSizeB);
+#pragma omp parallel num_threads(threads)
+        {
+            unsigned int thread_idx = 0;
 #ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
 #pragma omp for schedule(dynamic, 10)
-        for (size_t id = 0; id < indexSizeB; id++) {
-            progress.updateProgress();
+            for (size_t id = 0; id < indexSizeB; id++) {
+                progress2.updateProgress();
 
-            unsigned int newKey;
-            if (preserveKeysB) {
-                newKey = dbB.getDbKey(id);
-            } else {
-                newKey = static_cast<unsigned int>(id) + maxKeyA;
-            }
+                unsigned int newKey;
+                if (preserveKeysB) {
+                    newKey = dbB.getDbKey(id);
+                } else {
+                    newKey = static_cast<unsigned int>(id) + maxKeyA;
+                }
 
-            if (write) {
-                char *data = dbB.getData(id, thread_idx);
-                size_t dataSizeB = dbB.getEntryLen(id) - 1;
-                if(takeLargerEntry){
-                    size_t idB = dbA.getId(newKey);
-                    size_t dataSizeA = dbA.getEntryLen(idB)-1;
-                    if(dataSizeB > dataSizeA) {
+                if (write) {
+                    char *data = dbB.getData(id, thread_idx);
+                    size_t dataSizeB = dbB.getEntryLen(id) - 1;
+                    if(takeLargerEntry){
+                        size_t idB = dbA.getId(newKey);
+                        size_t dataSizeA = dbA.getEntryLen(idB)-1;
+                        if(dataSizeB > dataSizeA) {
+                            concatWriter->writeData(data, dataSizeB, newKey, thread_idx);
+                        }
+                    } else if (takeLargerEntry == false){
                         concatWriter->writeData(data, dataSizeB, newKey, thread_idx);
                     }
-                } else if (takeLargerEntry == false){
-                    concatWriter->writeData(data, dataSizeB, newKey, thread_idx);
                 }
-            }
 
-            // need to store the index, because it'll be sorted out by keys later
-            keysB[id] = std::make_pair(dbB.getDbKey(id), id + maxKeyA);
+                // need to store the index, because it'll be sorted out by keys later
+                keysB[id] = std::make_pair(dbB.getDbKey(id), id + maxKeyA);
+            }
         }
     }
-
     //sort by key
     std::stable_sort(keysA, keysA + indexSizeA, compareFirstEntry());
     std::stable_sort(keysB, keysB + indexSizeB, compareFirstEntry());
@@ -222,7 +224,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
             tmpBuff = Itoa::u32toa_sse2(static_cast<uint64_t>(setIdA), buffer);
             line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\n');
-            
+
             int written = fwrite(line.c_str(), sizeof(char), line.size(), lookupFilePtr);
             if (written != (int) line.size()) {
                 Debug(Debug::ERROR) << "Cannot write to data file " << dataFileNameC << ".lookup\n";
@@ -242,7 +244,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
             unsigned int prevKeyB = lookupB[i].id;
             std::string accB = lookupB[i].entryName;
             unsigned int setIdB = lookupB[i].fileNumber;
-            
+
             unsigned int newKeyB = dbBKeyMap(prevKeyB);
             unsigned int newSetIdB = maxSetIdA + 1 + setIdB;
 
@@ -254,7 +256,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
             tmpBuff = Itoa::u32toa_sse2(static_cast<uint64_t>(newSetIdB), buffer);
             line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\n');
-            
+
             int written = fwrite(line.c_str(), sizeof(char), line.size(), lookupFilePtr);
             if (written != (int) line.size()) {
                 Debug(Debug::ERROR) << "Cannot write to data file " << dataFileNameC << ".lookup\n";
@@ -272,7 +274,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
         unsigned int sourceMaxSetIdA = 0;
         std::map<unsigned int, std::string> sourceMapA = Util::readLookup((dataFileNameA + ".source"), false);
         std::map<unsigned int, std::string>::iterator itA;
-        
+
         char buffer[1024];
         std::string line;
 
@@ -298,7 +300,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
             }
             line.clear();
         }
-        
+
         // if lookup was concatenated - make sure maxSetId there is consistent with sourceMaxSetIdA
         if (shouldConcatLookup && (sourceMaxSetIdA != maxSetIdA)) {
             Debug(Debug::ERROR) << "The maxSetId in " << dataFileNameA << ".lookup is " << maxSetIdA << " and in " << dataFileNameA << ".source is " << sourceMaxSetIdA << "\n";

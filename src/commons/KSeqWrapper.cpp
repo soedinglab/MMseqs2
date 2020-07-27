@@ -12,6 +12,7 @@ namespace KSEQFILE {
 KSeqFile::KSeqFile(const char* fileName) {
     file = FileUtil::openFileOrDie(fileName, "r", true);
     seq = (void*) KSEQFILE::kseq_init(fileno(file));
+    type = KSEQ_FILE;
 }
 
 bool KSeqFile::ReadEntry() {
@@ -42,6 +43,7 @@ namespace KSEQSTREAM {
 
 KSeqStream::KSeqStream() {
     seq = (void*) KSEQSTREAM::kseq_init(STDIN_FILENO);
+    type = KSEQ_STREAM;
 }
 
 bool KSeqStream::ReadEntry() {
@@ -80,6 +82,7 @@ KSeqGzip::KSeqGzip(const char* fileName) {
     }
 
     seq = (void*) KSEQGZIP::kseq_init(file);
+    type = KSEQ_GZIP;
 }
 
 bool KSeqGzip::ReadEntry() {
@@ -92,8 +95,8 @@ bool KSeqGzip::ReadEntry() {
     entry.comment = s->comment;
     entry.sequence = s->seq;
     entry.qual = s->qual;
-    entry.headerOffset = -1;
-    entry.sequenceOffset = -1;
+    entry.headerOffset = 0;
+    entry.sequenceOffset = 0;
     entry.multiline = s->multiline;
 
     return true;
@@ -108,7 +111,6 @@ KSeqGzip::~KSeqGzip() {
 
 #ifdef HAVE_BZLIB
 namespace KSEQBZIP {
-
     KSEQ_INIT(BZFILE *, BZ2_bzread)
 }
 
@@ -125,6 +127,7 @@ KSeqBzip::KSeqBzip(const char* fileName) {
         perror(fileName); EXIT(EXIT_FAILURE);
     }
     seq = (void*) KSEQBZIP::kseq_init(file);
+    type = KSEQ_BZIP;
 }
 
 bool KSeqBzip::ReadEntry() {
@@ -137,8 +140,8 @@ bool KSeqBzip::ReadEntry() {
     entry.comment = s->comment;
     entry.sequence = s->seq;
     entry.qual = s->qual;
-    entry.headerOffset = -1;
-    entry.sequenceOffset = -1;
+    entry.headerOffset = 0;
+    entry.sequenceOffset = 0;
     entry.multiline = s->multiline;
 
     return true;
@@ -189,3 +192,34 @@ KSeqWrapper* KSeqFactory(const char* file) {
     return kseq;
 }
 
+namespace KSEQBUFFER {
+    KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
+}
+
+KSeqBuffer::KSeqBuffer(const char* buffer, size_t length) {
+    d.buffer = (char*)buffer;
+    d.length = length;
+    d.position = 0;
+    seq = (void*) KSEQBUFFER::kseq_init(&d);
+    type = KSEQ_BUFFER;
+}
+
+bool KSeqBuffer::ReadEntry() {
+    KSEQBUFFER::kseq_t* s = (KSEQBUFFER::kseq_t*) seq;
+    int result = KSEQBUFFER::kseq_read(s);
+    if (result < 0)
+        return false;
+    entry.headerOffset = s->headerOffset;
+    entry.sequenceOffset = s->sequenceOffset;
+    entry.multiline = s->multiline;
+    entry.name = s->name;
+    entry.comment = s->comment;
+    entry.sequence = s->seq;
+    entry.qual = s->qual;
+
+    return true;
+}
+
+KSeqBuffer::~KSeqBuffer() {
+    kseq_destroy((KSEQBUFFER::kseq_t*)seq);
+}

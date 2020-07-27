@@ -10,7 +10,7 @@
 #include "Sequence.h"
 #include "Alignment.h"
 #include "SubstitutionMatrix.h"
-
+#include "FastSort.h"
 #include <cassert>
 
 #ifdef OPENMP
@@ -187,9 +187,6 @@ int expandaln(int argc, const char **argv, const Command& command) {
 
                 unsigned int targetKey = resultAB.dbKey;
                 size_t targetId = expansionReader.getId(targetKey);
-                size_t targetSeqId = targetReader.getId(targetKey);
-                tSeq.mapSequence(targetSeqId, targetKey, targetReader.getData(targetSeqId, thread_idx),
-                                 targetReader.getSeqLen(targetSeqId));
 
                 if (ca3mSequenceReader != NULL) {
                     unsigned int key;
@@ -200,6 +197,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
                 }
                 for (size_t k = 0; k < expanded.size(); ++k) {
                     Matcher::result_t &resultBC = expanded[k];
+
                     if (resultBC.backtrace.empty()) {
                         Debug(Debug::ERROR) << "Alignment must contain a backtrace.\n";
                         EXIT(EXIT_FAILURE);
@@ -215,6 +213,9 @@ int expandaln(int argc, const char **argv, const Command& command) {
                     if (Util::canBeCovered(par.covThr, par.covMode, resultAC.qLen, resultAC.dbLen) == false) {
                         continue;
                     }
+                    size_t bcTargetSeqId = targetReader.getId(resultBC.dbKey);
+                    tSeq.mapSequence(bcTargetSeqId, targetKey, targetReader.getData(bcTargetSeqId, thread_idx),
+                                     targetReader.getSeqLen(bcTargetSeqId));
 
                     rescoreResultByBacktrace(resultAC, qSeq, tSeq, subMat, compositionBias,
                                              evaluer, par.gapOpen.aminoacids, par.gapExtend.aminoacids, par.seqIdMode);
@@ -230,7 +231,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
             std::vector<Matcher::result_t> *finalResults = &results;
             if (par.expansionMode == 1) {
                 // keep only the best hit to same target
-                std::sort(results.begin(), results.end(), compareHitsByKeyEvalScore);
+                SORT_SERIAL(results.begin(), results.end(), compareHitsByKeyEvalScore);
                 ssize_t lastKey = -1;
                 for (size_t j = 0; j < results.size(); ++j) {
                     const Matcher::result_t& res = results[j];
@@ -242,7 +243,7 @@ int expandaln(int argc, const char **argv, const Command& command) {
                 finalResults = &expanded;
             }
 
-            std::sort(finalResults->begin(), finalResults->end(), Matcher::compareHits);
+            SORT_SERIAL(finalResults->begin(), finalResults->end(), Matcher::compareHits);
 
             writer.writeStart(thread_idx);
             for (size_t j = 0; j < finalResults->size(); ++j) {

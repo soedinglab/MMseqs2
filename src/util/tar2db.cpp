@@ -8,18 +8,13 @@
 
 #ifdef HAVE_ZLIB
 #include <zlib.h>
-static int file_gzwrite(mtar_t *tar, const void *data, size_t size) {
-    size_t res = gzwrite((gzFile)tar->stream, data, size);
-    return (res == size) ? MTAR_ESUCCESS : MTAR_EWRITEFAIL;
-}
-
 static int file_gzread(mtar_t *tar, void *data, size_t size) {
     size_t res = gzread((gzFile)tar->stream, data, size);
     return (res == size) ? MTAR_ESUCCESS : MTAR_EREADFAIL;
 }
 
-static int file_gzseek(mtar_t *tar, long offset) {
-    int res = gzseek((gzFile)tar->stream, offset, SEEK_SET);
+static int file_gzseek(mtar_t *tar, long offset, int whence) {
+    int res = gzseek((gzFile)tar->stream, offset, whence);
     return (res != -1) ? MTAR_ESUCCESS : MTAR_ESEEKFAIL;
 }
 
@@ -28,33 +23,17 @@ static int file_gzclose(mtar_t *tar) {
     return MTAR_ESUCCESS;
 }
 
-int mtar_gzopen(mtar_t *tar, const char *filename, const char *mode) {
+int mtar_gzopen(mtar_t *tar, const char *filename) {
     // Init tar struct and functions
     memset(tar, 0, sizeof(*tar));
-    tar->write = file_gzwrite;
     tar->read = file_gzread;
     tar->seek = file_gzseek;
     tar->close = file_gzclose;
 
-    // Assure mode is always binary
-    if (strchr(mode, 'r')) mode = "rb";
-    if (strchr(mode, 'w')) mode = "wb";
-    if (strchr(mode, 'a')) mode = "ab";
-
     // Open file
-    tar->stream = gzopen(filename, mode);
+    tar->stream = gzopen(filename, "rb");
     if (!tar->stream) {
         return MTAR_EOPENFAIL;
-    }
-
-    // Read first header to check it is valid if mode is `r`
-    if (*mode == 'r') {
-        mtar_header_t h;
-        int err = mtar_read_header(tar, &h);
-        if (err != MTAR_ESUCCESS) {
-            mtar_close(tar);
-            return err;
-        }
     }
 
     // Return ok
@@ -126,7 +105,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
         mtar_t tar;
         if (Util::endsWith(".tar.gz", filenames[i]) || Util::endsWith(".tgz", filenames[i])) {
 #ifdef HAVE_ZLIB
-            if (mtar_gzopen(&tar, filenames[i].c_str(), "r") != MTAR_ESUCCESS) {
+            if (mtar_gzopen(&tar, filenames[i].c_str()) != MTAR_ESUCCESS) {
                 Debug(Debug::ERROR) << "Cannot open file " << filenames[i] << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -135,7 +114,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
             EXIT(EXIT_FAILURE);
 #endif
         } else {
-            if (mtar_open(&tar, filenames[i].c_str(), "r") != MTAR_ESUCCESS) {
+            if (mtar_open(&tar, filenames[i].c_str()) != MTAR_ESUCCESS) {
                 Debug(Debug::ERROR) << "Cannot open file " << filenames[i] << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -150,13 +129,11 @@ int tar2db(int argc, const char **argv, const Command& command) {
         mtar_header_t header;
         while ((mtar_read_header(&tar, &header)) != MTAR_ENULLRECORD ) {
             if (header.type != MTAR_TREG) {
-                mtar_next(&tar);
                 continue;
             }
             progress.updateProgress();
             if (include.isMatch(header.name) == false || exclude.isMatch(header.name) == true) {
                 key++;
-                mtar_next(&tar);
                 continue;
             }
             if (header.size > bufferSize) {
@@ -224,7 +201,6 @@ int tar2db(int argc, const char **argv, const Command& command) {
                 EXIT(EXIT_FAILURE);
             }
             key++;
-            mtar_next(&tar);
         }
 
         free(inflateBuffer);

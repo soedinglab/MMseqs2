@@ -3,7 +3,7 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 
 ##  Publications
 
-[Steinegger M and Soeding J. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi: 10.1038/nbt.3988 (2017)](https://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3988.html).
+[Steinegger M and Soeding J. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi: 10.1038/nbt.3988 (2017)](https://www.nature.com/articles/nbt.3988).
 
 [Steinegger M and Soeding J. Clustering huge protein sequence sets in linear time. Nature Communications, doi: 10.1038/s41467-018-04964-5 (2018)](https://www.nature.com/articles/s41467-018-04964-5).
 
@@ -48,20 +48,6 @@ MMseqs2 comes with a bash command and parameter auto completion, which can be ac
         fi
 </pre>
          
-### Compilation from source
-Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which should improve its performance. To compile MMseqs2 `git`, `g++` (4.8 or later) and `cmake` (2.8.12 or later) are needed. Afterwards, the MMseqs2 binary will be located in the `build/bin/` directory.
-
-        git clone https://github.com/soedinglab/MMseqs2.git
-        cd MMseqs2
-        mkdir build
-        cd build
-        cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=. ..
-        make -j 4
-        make install
-        export PATH=$(pwd)/bin/:$PATH
-
-:exclamation: Compiling MMseqs2 correctly on macOS requires [more effort](https://github.com/soedinglab/MMseqs2/wiki#compile-from-source-under-macos).
-
 ## Getting started
 We provide `easy` workflows to cluster, search and assign taxonomy. These `easy` workflows are a shorthand to deal directly with FASTA/FASTQ files as input and output. MMseqs2 provides many modules to transform, filter, execute external programs and search. However, these modules use the MMseqs2 database formats, instead of the FASTA/FASTQ format. For maximum flexibility, we recommend using MMseqs2 workflows and modules directly. Please read more about this in the [documentation](https://github.com/soedinglab/mmseqs2/wiki).
 
@@ -77,7 +63,6 @@ For clustering, MMseqs2 `easy-cluster` and `easy-linclust` are available.
                 
         mmseqs easy-linclust examples/DB.fasta clusterRes tmp     
                 
-Sequence identity is by default [estimated](https://github.com/soedinglab/MMseqs2/wiki#how-does-mmseqs2-compute-the-sequence-identity) to output real sequence identity use `--alignment-mode 3`.
 Read more about the [clustering format](https://github.com/soedinglab/mmseqs2/wiki#clustering-format) in our user guide.
                 
 Please adjust the [clustering criteria](https://github.com/soedinglab/MMseqs2/wiki#clustering-criteria) and check if temporary directory provides enough free space. For disk space requirements, see the user guide.
@@ -102,6 +87,8 @@ The `databases` workflow provides download and setup procedures for many public 
 The speed and sensitivity of the `search` can be adjusted with `-s` parameter and should be adapted based on your use case (see [setting sensitivity -s parameter](https://github.com/soedinglab/mmseqs2/wiki#set-sensitivity--s-parameter)). A very fast search would use a sensitivity of `-s 1.0`, while a very sensitive search would use a sensitivity of up to `-s 7.0`. A detailed guide how to speed up searches is [here](https://github.com/soedinglab/MMseqs2/wiki#how-to-control-the-speed-of-the-search).
 
 The output can be customized with the `--format-output` option e.g. `--format-output "query,target,qaln,taln"` returns the query and target accession and the pairwise alignments in tab separated format. You can choose many different [output columns](https://github.com/soedinglab/mmseqs2/wiki#custom-alignment-format-with-convertalis).
+
+:exclamation: `easy-search` in default computes the sequence identity by dividing the number of identical residues by the alignment length (`numIdentical/alnLen`). However, `search` [estimates](https://github.com/soedinglab/MMseqs2/wiki#how-does-mmseqs2-compute-the-sequence-identity) the identity in default. To output real sequence identity use `--alignment-mode 3` or `-a`.
 
 ### Taxonomy
 The `easy-taxonomy` workflow can be used to assign sequences taxonomical labels. It performs a search against a sequence database with taxonomy information (seqTaxDb), chooses the most representative sets of aligned target sequences according to different strategies (according to `--lca-mode`) and computes the lowest common ancestor among those.
@@ -143,6 +130,21 @@ Make sure that MMseqs2 was compiled with MPI by using the `-DHAVE_MPI=1` flag (`
 To search with multiple servers, call the `search` or `cluster` workflow with the MPI command exported in the RUNNER environment variable. The databases and temporary folder have to be shared between all nodes (e.g. through NFS):
 
         RUNNER="mpirun -pernode -np 42" mmseqs search queryDB targetDB resultDB tmp
+
+### Compilation from source
+Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which should improve its performance. To compile MMseqs2 `git`, `g++` (4.8 or later) and `cmake` (2.8.12 or later) are needed. Afterwards, the MMseqs2 binary will be located in the `build/bin/` directory.
+
+        git clone https://github.com/soedinglab/MMseqs2.git
+        cd MMseqs2
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=. ..
+        make -j 4
+        make install
+        export PATH=$(pwd)/bin/:$PATH
+
+Compiling MMseqs2 correctly on macOS requires [more effort](https://github.com/soedinglab/MMseqs2/wiki#compile-from-source-under-macos).
+
 
 ## Contributors
 

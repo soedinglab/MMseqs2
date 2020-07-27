@@ -7,7 +7,7 @@
 #include "ReducedMatrix.h"
 #include "DistanceCalculator.h"
 #include "Orf.h"
-#include "omptl/omptl_algorithm"
+#include "FastSort.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -77,7 +77,7 @@ int clusthash(int argc, const char **argv, const Command &command) {
     }
 
     // sort by hash and set up the pointer for parallel processing
-    omptl::sort(hashSeqPair, hashSeqPair + reader.getSize());
+    SORT_PARALLEL(hashSeqPair, hashSeqPair + reader.getSize());
 
     size_t uniqHashes = 1;
     size_t prevHash = hashSeqPair[0].first;

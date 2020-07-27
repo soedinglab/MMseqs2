@@ -58,7 +58,7 @@ fi
 
 if notExists "${TMP_PATH}/result_top1_swapped_sum_tax.dbtype"; then
     # shellcheck disable=SC2086
-     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum" "${TMP_PATH}/result_top1_swapped_sum_tax"  ${THREADS_COMP_PAR} --pick-id-from 1 --tax-lineage  \
+     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum" "${TMP_PATH}/result_top1_swapped_sum_tax"  ${THREADS_COMP_PAR} --pick-id-from 1 --tax-lineage 1  \
         || fail "filterdb died"
 fi
 

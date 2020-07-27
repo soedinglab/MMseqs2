@@ -89,8 +89,13 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     }
 
     if (par.taxonomyOutpuMode == Parameters::TAXONOMY_OUTPUT_LCA) {
-        cmd.addVariable("TAX_OUTPUT_LCA", "1" );
+        cmd.addVariable("TAX_OUTPUT", "0" );
         cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
+    } else if (par.taxonomyOutpuMode == Parameters::TAXONOMY_OUTPUT_BOTH) {
+        cmd.addVariable("TAX_OUTPUT", "2" );
+        cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
+    } else {
+        cmd.addVariable("TAX_OUTPUT", "1" );
     }
 
     FileUtil::writeFile(tmpDir + "/taxonomy.sh", taxonomy_sh, taxonomy_sh_len);

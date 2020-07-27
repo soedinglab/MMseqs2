@@ -132,7 +132,7 @@ size_t FileUtil::getFreeSpace(const char *path) {
     struct statvfs stat;
     if (statvfs(path, &stat) != 0) {
         // error happens, just quits here
-        return -1;
+        return SIZE_MAX;
     }
 
     // the available size is f_bsize * f_bavail

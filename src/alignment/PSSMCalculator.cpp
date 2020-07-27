@@ -379,7 +379,11 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
                     for (int a = 0; a < aa_size; ++a) {
                         simd_float nja = simdi32_i2f(simdi_load(nj + a));
                         simd_float res = simdf32_mul(nja, naa_j);
-                        simdf32_store(w_contrib[j] + (a * VECSIZE_INT), simdf32_rcp(res));
+                        simd_float rcp = simdf32_rcp(res);
+                        // Add one iteration Newton-Raphson to improve approximate rcp
+                        // https://stackoverflow.com/questions/31555260/fast-vectorized-rsqrt-and-reciprocal-with-sse-avx-depending-on-precision
+                        simd_float mul = simdf32_mul(res, simdf32_mul(rcp, rcp));
+                        simdf32_store(w_contrib[j] + (a * VECSIZE_INT), simdf32_sub(simdf32_add(rcp, rcp), mul));
                     }
                     for (int a = MultipleAlignment::ANY; a < MultipleAlignment::NAA + 3; ++a)
                         w_contrib[j][a] = 0.0f;  // set non-amino acid values to 0 to avoid checking in next loop for X[k][j]<ANY

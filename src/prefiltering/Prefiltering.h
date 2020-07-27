@@ -28,7 +28,7 @@ public:
     void runAllSplits(const std::string &resultDB, const std::string &resultDBIndex);
 
 #ifdef HAVE_MPI
-    void runMpiSplits(const std::string &resultDB, const std::string &resultDBIndex, const std::string &localTmpPath);
+    void runMpiSplits(const std::string &resultDB, const std::string &resultDBIndex, const std::string &localTmpPath, const int runRandomId);
 #endif
 
     int runSplits(const std::string &resultDB, const std::string &resultDBIndex, size_t fromSplit, size_t splitProcessCount, bool merge);
