@@ -1261,7 +1261,7 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
                         valueString = SSTR(*(double *) par->value);
                     } else if (par->type == typeid(ByteParser)) {
                         paramString.append(" BYTE");
-                        valueString = ByteParser::format(*((size_t *) par->value));
+                        valueString = ByteParser::format(*((size_t *) par->value), 'a', 'h');
                     } else if (par->type == typeid(bool)) {
                         paramString.append(" BOOL");
                         valueString = SSTR(*(bool *)par->value);
@@ -1890,7 +1890,7 @@ void Parameters::printParameters(const std::string &module, int argc, const char
         if(typeid(int) == par[i]->type ){
             ss << *((int *)par[i]->value);
         } else if(typeid(ByteParser) == par[i]->type) {
-            ss << ByteParser::format(*((size_t *)par[i]->value));
+            ss << ByteParser::format(*((size_t *)par[i]->value), 'a', 'h');
         } else if(typeid(MultiParam<char*>) == par[i]->type) {
             ss << MultiParam<char*>::format(*((MultiParam<char*> *)par[i]->value));
         } else if(typeid(MultiParam<int>) == par[i]->type) {
@@ -2282,7 +2282,7 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
             ss << *((int *)par[i]->value) << " ";
         } else if (typeid(ByteParser) == par[i]->type) {
             ss << par[i]->name << " ";
-            ss << ByteParser::format(*((size_t *)par[i]->value)) << " ";
+            ss << ByteParser::format(*((size_t *)par[i]->value), 'a', 'h') << " ";
         } else if (typeid(float) == par[i]->type){
             ss << par[i]->name << " ";
             ss << *((float *)par[i]->value) << " ";
