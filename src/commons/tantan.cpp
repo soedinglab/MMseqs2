@@ -20,10 +20,10 @@ namespace tantan {
     }
 
     double firstRepeatOffsetProb(double probMult, int maxRepeatOffset) {
-        if (probMult < 1 || probMult > 1)
+        if (probMult < 1 || probMult > 1) {
             return (1 - probMult) / (1 - std::pow(probMult, maxRepeatOffset));
-        else
-            return 1.0 / maxRepeatOffset;
+        }
+        return 1.0 / maxRepeatOffset;
     }
 
     void checkForwardAndBackwardTotals(double fTot, double bTot) {
@@ -64,6 +64,7 @@ namespace tantan {
         double b2fLast;  // background state to last foreground state
 
         double backgroundProb;
+        std::vector<double> b2fProbs;  // background state to each foreground state
         std::vector<double> foregroundProbs;
         std::vector<double> insertionProbs;
 
@@ -99,7 +100,7 @@ namespace tantan {
             //f2g = firstGapProb;
             //g2f = 1 - otherGapProb;
             oneGapProb = firstGapProb * (1 - otherGapProb);
-            endGapProb = firstGapProb * 1;
+            endGapProb = firstGapProb * (maxRepeatOffset > 1);
             f2f0 = 1 - repeatEndProb;
             f2f1 = 1 - repeatEndProb - firstGapProb;
             f2f2 = 1 - repeatEndProb - firstGapProb * 2;
@@ -110,8 +111,15 @@ namespace tantan {
             b2fFirst = repeatProb * firstRepeatOffsetProb(b2fDecay, maxRepeatOffset);
             b2fLast = repeatProb * firstRepeatOffsetProb(b2fGrowth, maxRepeatOffset);
 
+            b2fProbs.resize(maxRepeatOffset);
             foregroundProbs.resize(maxRepeatOffset);
             insertionProbs.resize(maxRepeatOffset - 1);
+
+            double p = b2fFirst;
+            for (int i = 0; i < maxRepeatOffset; ++i) {
+                b2fProbs[i] = p;
+                p *= b2fDecay;
+            }
 
             scaleFactors.resize((seqEnd - seqBeg) / scaleStepSize);
         }
@@ -125,8 +133,7 @@ namespace tantan {
         double forwardTotal() {
             double fromForeground = std::accumulate(foregroundProbs.begin(),
                                                     foregroundProbs.end(), 0.0);
-            fromForeground *= f2b;
-            double total = backgroundProb * b2b + fromForeground;
+            double total = backgroundProb * b2b + fromForeground * f2b;
             assert(total > 0);
             return total;
         }
@@ -148,36 +155,31 @@ namespace tantan {
             double f = *foregroundPtr;
             double fromForeground = f;
 
-            if (insertionProbs.empty()) {
-                *foregroundPtr = fromBackground + f * f2f0;
-            } else {
-                double *insertionPtr = &insertionProbs.back();
-                double i = *insertionPtr;
-                *foregroundPtr = fromBackground + f * f2f1 + i * endGapProb;
-                double d = f;
-                --foregroundPtr;
-                fromBackground *= b2fGrowth;
+            double *insertionPtr = &insertionProbs.back();
+            double i = *insertionPtr;
+            *foregroundPtr = fromBackground + f * f2f1 + i * endGapProb;
+            double d = f;
+            --foregroundPtr;
+            fromBackground *= b2fGrowth;
 
-                while (foregroundPtr > &foregroundProbs.front()) {
-                    f = *foregroundPtr;
-                    fromForeground += f;
-                    i = *(insertionPtr - 1);
-                    *foregroundPtr = fromBackground + f * f2f2 + (i + d) * oneGapProb;
-                    *insertionPtr = f + i * g2g;
-                    d = f + d * g2g;
-                    --foregroundPtr;
-                    --insertionPtr;
-                    fromBackground *= b2fGrowth;
-                }
-
+            while (foregroundPtr > &foregroundProbs.front()) {
                 f = *foregroundPtr;
                 fromForeground += f;
-                *foregroundPtr = fromBackground + f * f2f1 + d * endGapProb;
-                *insertionPtr = f;
+                i = *(insertionPtr - 1);
+                *foregroundPtr = fromBackground + f * f2f2 + (i + d) * oneGapProb;
+                *insertionPtr = f + i * g2g;
+                d = f + d * g2g;
+                --foregroundPtr;
+                --insertionPtr;
+                fromBackground *= b2fGrowth;
             }
 
-            fromForeground *= f2b;
-            backgroundProb = backgroundProb * b2b + fromForeground;
+            f = *foregroundPtr;
+            fromForeground += f;
+            *foregroundPtr = fromBackground + f * f2f1 + d * endGapProb;
+            *insertionPtr = f;
+
+            backgroundProb = backgroundProb * b2b + fromForeground * f2b;
         }
 
         void calcBackwardTransitionProbsWithGaps() {
@@ -186,57 +188,48 @@ namespace tantan {
             double f = *foregroundPtr;
             double toForeground = f;
 
-            if (insertionProbs.empty()) {
-                *foregroundPtr = toBackground + f2f0 * f;
-            } else {
-                double *insertionPtr = &insertionProbs.front();
-                double i = *insertionPtr;
-                *foregroundPtr = toBackground + f2f1 * f + i;
-                double d = endGapProb * f;
-                ++foregroundPtr;
-                toForeground *= b2fGrowth;
+            double *insertionPtr = &insertionProbs.front();
+            double i = *insertionPtr;
+            *foregroundPtr = toBackground + f2f1 * f + i;
+            double d = endGapProb * f;
+            ++foregroundPtr;
+            toForeground *= b2fGrowth;
 
-                while (foregroundPtr < &foregroundProbs.back()) {
-                    f = *foregroundPtr;
-                    toForeground += f;
-                    i = *(insertionPtr + 1);
-                    *foregroundPtr = toBackground + f2f2 * f + (i + d);
-                    double oneGapProb_f = oneGapProb * f;
-                    *insertionPtr = oneGapProb_f + g2g * i;
-                    d = oneGapProb_f + g2g * d;
-                    ++foregroundPtr;
-                    ++insertionPtr;
-                    toForeground *= b2fGrowth;
-                }
-
+            while (foregroundPtr < &foregroundProbs.back()) {
                 f = *foregroundPtr;
                 toForeground += f;
-                *foregroundPtr = toBackground + f2f1 * f + d;
-                *insertionPtr = endGapProb * f;
+                i = *(insertionPtr + 1);
+                *foregroundPtr = toBackground + f2f2 * f + (i + d);
+                double oneGapProb_f = oneGapProb * f;
+                *insertionPtr = oneGapProb_f + g2g * i;
+                d = oneGapProb_f + g2g * d;
+                ++foregroundPtr;
+                ++insertionPtr;
+                toForeground *= b2fGrowth;
             }
 
-            toForeground *= b2fLast;
-            backgroundProb = b2b * backgroundProb + toForeground;
+            f = *foregroundPtr;
+            toForeground += f;
+            *foregroundPtr = toBackground + f2f1 * f + d;
+            *insertionPtr = endGapProb * f;
+
+            backgroundProb = b2b * backgroundProb + b2fLast * toForeground;
         }
 
         void calcForwardTransitionProbs() {
             if (endGapProb > 0) return calcForwardTransitionProbsWithGaps();
 
-            double fromBackground = backgroundProb * b2fLast;
+            double b = backgroundProb;
             double fromForeground = 0;
-            double *foregroundPtr = END(foregroundProbs);
             double *foregroundBeg = BEG(foregroundProbs);
 
-            while (foregroundPtr > foregroundBeg) {
-                --foregroundPtr;
-                double f = *foregroundPtr;
+            for (int i = 0; i < maxRepeatOffset; ++i) {
+                double f = foregroundBeg[i];
                 fromForeground += f;
-                *foregroundPtr = fromBackground + f * f2f0;
-                fromBackground *= b2fGrowth;
+                foregroundBeg[i] = b * b2fProbs[i] + f * f2f0;
             }
 
-            fromForeground *= f2b;
-            backgroundProb = backgroundProb * b2b + fromForeground;
+            backgroundProb = b * b2b + fromForeground * f2b;
         }
 
         void calcBackwardTransitionProbs() {
@@ -244,33 +237,60 @@ namespace tantan {
 
             double toBackground = f2b * backgroundProb;
             double toForeground = 0;
-            double *foregroundPtr = BEG(foregroundProbs);
-            double *foregroundEnd = END(foregroundProbs);
+            double *foregroundBeg = BEG(foregroundProbs);
 
-            while (foregroundPtr < foregroundEnd) {
-                toForeground *= b2fGrowth;
-                double f = *foregroundPtr;
-                toForeground += f;
-                *foregroundPtr = toBackground + f2f0 * f;
-                ++foregroundPtr;
+            for (int i = 0; i < maxRepeatOffset; ++i) {
+                double f = foregroundBeg[i];
+                toForeground += b2fProbs[i] * f;
+                foregroundBeg[i] = toBackground + f2f0 * f;
             }
 
-            toForeground *= b2fLast;
             backgroundProb = b2b * backgroundProb + toForeground;
         }
 
+        void addEndCounts(double forwardProb,
+                          double totalProb,
+                          double *transitionCounts) {
+            double toEnd = forwardProb * b2b / totalProb;
+            transitionCounts[0] += toEnd;
+        }
+
+        void addTransitionCounts(double forwardProb,
+                                 double totalProb,
+                                 double *transitionCounts) {
+            double toBg = forwardProb * b2b / totalProb;
+            double toFg = forwardProb * b2fFirst / totalProb;
+
+            transitionCounts[0] += backgroundProb * toBg;
+
+            for (double *i = BEG(foregroundProbs); i < END(foregroundProbs); ++i) {
+                ++transitionCounts;
+                *transitionCounts += *i * toFg;
+                toFg *= b2fDecay;
+            }
+        }
+
+        bool isNearSeqBeg() {
+            return seqPtr - seqBeg < maxRepeatOffset;
+        }
+
+        int maxOffsetInTheSequence() {
+            return isNearSeqBeg() ? (seqPtr - seqBeg) : maxRepeatOffset;
+        }
+
+        const char *seqFurthestBack() {
+            return isNearSeqBeg() ? seqBeg : seqPtr - maxRepeatOffset;
+        }
+
         void calcEmissionProbs() {
-            const double *lrRow = likelihoodRatioMatrix[static_cast<int>(*seqPtr)];
-
-            bool isNearSeqBeg = (seqPtr - seqBeg < maxRepeatOffset);
-            const char *seqStop = isNearSeqBeg ? seqBeg : seqPtr - maxRepeatOffset;
-
+            const double *lrRow = likelihoodRatioMatrix[(int)*seqPtr];
+            const char *seqStop = seqFurthestBack();
             double *foregroundPtr = BEG(foregroundProbs);
             const char *offsetPtr = seqPtr;
 
             while (offsetPtr > seqStop) {
                 --offsetPtr;
-                *foregroundPtr *= lrRow[static_cast<int>(*offsetPtr)];
+                *foregroundPtr *= lrRow[(int)*offsetPtr];
                 ++foregroundPtr;
             }
 
@@ -278,6 +298,50 @@ namespace tantan {
                 *foregroundPtr *= 0;
                 ++foregroundPtr;
             }
+        }
+
+        void calcForwardTransitionAndEmissionProbs() {
+            if (endGapProb > 0) {
+                calcForwardTransitionProbsWithGaps();
+                calcEmissionProbs();
+                return;
+            }
+
+            double b = backgroundProb;
+            double fromForeground = 0;
+            double *foregroundBeg = BEG(foregroundProbs);
+            const double *lrRow = likelihoodRatioMatrix[(int)*seqPtr];
+            int maxOffset = maxOffsetInTheSequence();
+
+            for (int i = 0; i < maxOffset; ++i) {
+                double f = foregroundBeg[i];
+                fromForeground += f;
+                foregroundBeg[i] = (b * b2fProbs[i] + f * f2f0) * lrRow[(int)seqPtr[-i-1]];
+            }
+
+            backgroundProb = b * b2b + fromForeground * f2b;
+        }
+
+        void calcEmissionAndBackwardTransitionProbs() {
+            if (endGapProb > 0) {
+                calcEmissionProbs();
+                calcBackwardTransitionProbsWithGaps();
+                return;
+            }
+
+            double toBackground = f2b * backgroundProb;
+            double toForeground = 0;
+            double *foregroundBeg = BEG(foregroundProbs);
+            const double *lrRow = likelihoodRatioMatrix[(int)*seqPtr];
+            int maxOffset = maxOffsetInTheSequence();
+
+            for (int i = 0; i < maxOffset; ++i) {
+                double f = foregroundBeg[i] * lrRow[(int)seqPtr[-i-1]];
+                toForeground += b2fProbs[i] * f;
+                foregroundBeg[i] = toBackground + f2f0 * f;
+            }
+
+            backgroundProb = b2b * backgroundProb + toForeground;
         }
 
         void rescale(double scale) {
@@ -306,8 +370,7 @@ namespace tantan {
             initializeForwardAlgorithm();
 
             while (seqPtr < seqEnd) {
-                calcForwardTransitionProbs();
-                calcEmissionProbs();
+                calcForwardTransitionAndEmissionProbs();
                 rescaleForward();
                 *letterProbs = static_cast<float>(backgroundProb);
                 ++letterProbs;
@@ -327,14 +390,46 @@ namespace tantan {
                 // a sequence:
                 *letterProbs = 1 - static_cast<float>(nonRepeatProb);
                 rescaleBackward();
-                calcEmissionProbs();
-                calcBackwardTransitionProbs();
+                calcEmissionAndBackwardTransitionProbs();
             }
 
             double z2 = backwardTotal();
             checkForwardAndBackwardTotals(z, z2);
         }
 
+        void countTransitions(double *transitionCounts) {
+            std::vector<float> p(seqEnd - seqBeg);
+            float *letterProbs = BEG(p);
+
+            initializeForwardAlgorithm();
+
+            while (seqPtr < seqEnd) {
+                *letterProbs = static_cast<float>(backgroundProb);
+                calcForwardTransitionProbs();
+                calcEmissionProbs();
+                rescaleForward();
+                ++letterProbs;
+                ++seqPtr;
+            }
+
+            double z = forwardTotal();
+
+            addEndCounts(backgroundProb, z, transitionCounts);
+
+            initializeBackwardAlgorithm();
+
+            while (seqPtr > seqBeg) {
+                --seqPtr;
+                --letterProbs;
+                rescaleBackward();
+                calcEmissionProbs();
+                addTransitionCounts(*letterProbs, z, transitionCounts);
+                calcBackwardTransitionProbs();
+            }
+
+            double z2 = backwardTotal();
+            checkForwardAndBackwardTotals(z, z2);
+        }
     };
 
     int maskSequences(char *seqBeg,
@@ -383,13 +478,29 @@ namespace tantan {
         int masked = 0;
         while (seqBeg < seqEnd) {
             if (*probabilities >= minMaskProb){
+                *seqBeg = maskTable[(int)*seqBeg];
                 masked++;
-                *seqBeg = maskTable[static_cast<int>(*seqBeg)];
             }
             ++probabilities;
             ++seqBeg;
         }
         return masked;
+    }
+
+    void countTransitions(const char *seqBeg,
+                          const char *seqEnd,
+                          int maxRepeatOffset,
+                          const const_double_ptr *likelihoodRatioMatrix,
+                          double repeatProb,
+                          double repeatEndProb,
+                          double repeatOffsetProbDecay,
+                          double firstGapProb,
+                          double otherGapProb,
+                          double *transitionCounts) {
+        Tantan tantan(seqBeg, seqEnd, maxRepeatOffset, likelihoodRatioMatrix,
+                      repeatProb, repeatEndProb, repeatOffsetProbDecay,
+                      firstGapProb, otherGapProb);
+        tantan.countTransitions(transitionCounts);
     }
 
 }
