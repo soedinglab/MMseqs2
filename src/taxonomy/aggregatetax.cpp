@@ -14,9 +14,7 @@
 
 const double MAX_WEIGHT = 1000;
 const TaxID ROOT_TAXID = 1;
-const TaxID CELL_ORG_TAXID = 131567;
 const int ROOT_RANK = INT_MAX;
-const int CELL_ORG_RANK = INT_MAX - 1;
 
 struct taxHit {
     void setByEntry(const TaxID & taxonInput, const bool useAln, const char ** taxHitData, const size_t numCols, const int voteMode) {
