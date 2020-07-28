@@ -611,9 +611,10 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
             DBReader<unsigned int>::moveDatafiles(filenames, outFileName);
         }
     }
-    if(indexNeedsToBeSorted){
+    if (indexNeedsToBeSorted) {
         DBWriter::sortIndex(indexFileNames[0], outFileNameIndex, lexicographicOrder);
-    }else{
+        FileUtil::remove(indexFileNames[0]);
+    } else {
         FileUtil::move(indexFileNames[0], outFileNameIndex);
     }
     Debug(Debug::INFO) << "Time for merging to " << FileUtil::baseName(outFileName) << ": " << timer.lap() << "\n";
