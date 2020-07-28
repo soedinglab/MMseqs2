@@ -290,7 +290,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     // master reduces results
     if (MMseqsMPI::isMaster()) {
         std::vector<std::pair<std::string, std::string>> splitFiles;
-        for (unsigned int procs = 0; procs < MMseqsMPI::numProc; procs++) {
+        for (int procs = 0; procs < MMseqsMPI::numProc; procs++) {
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db4, par.db4Index, procs);
             splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.second));
 

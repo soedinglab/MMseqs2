@@ -364,7 +364,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
     // master reduces results
     if (MMseqsMPI::isMaster()) {
         std::vector<std::pair<std::string, std::string>> splitFiles;
-        for (unsigned int procs = 0; procs < MMseqsMPI::numProc; procs++) {
+        for (int procs = 0; procs < MMseqsMPI::numProc; procs++) {
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(outDb, outIndex, procs);
             splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.second));
 
