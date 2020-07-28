@@ -320,7 +320,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 filteredSetSize = filter.filter(setSize, centerLength, static_cast<int>(par.covMSAThr * 100),
                               static_cast<int>(par.qid * 100), par.qsc,
                               static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
-                              (const char **) msaSequences);
+                              (const char **) msaSequences, true);
             }
 
             PSSMCalculator::Profile pssmRes =

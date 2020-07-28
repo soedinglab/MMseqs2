@@ -16,7 +16,7 @@
 DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFileNameA,
                    const std::string &dataFileNameB, const std::string &indexFileNameB,
                    const std::string &dataFileNameC, const std::string &indexFileNameC,
-                   unsigned int threads, bool write, bool preserveKeysA, bool preserveKeysB, bool takeLargerEntry) {
+                   unsigned int threads, bool write, bool preserveKeysA, bool preserveKeysB, bool takeLargerEntry, size_t trimRight) {
     sameDatabase = dataFileNameA == dataFileNameB;
 
     bool shouldConcatMapping = false;
@@ -80,14 +80,14 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
 
             if (write) {
                 char *data = dbA.getData(id, thread_idx);
-                size_t dataSizeA = dbA.getEntryLen(id) - 1;
-                if(takeLargerEntry == true) {
+                size_t dataSizeA = std::max(dbA.getEntryLen(id), trimRight) - trimRight;
+                if (takeLargerEntry == true) {
                     size_t idB = dbB.getId(newKey);
-                    size_t dataSizeB = dbB.getEntryLen(idB)-1;
-                    if(dataSizeA >= dataSizeB){
+                    size_t dataSizeB = std::max(dbB.getEntryLen(idB), trimRight) - trimRight;
+                    if (dataSizeA >= dataSizeB) {
                         concatWriter->writeData(data, dataSizeA, newKey, thread_idx);
                     }
-                } else if (takeLargerEntry == false) {
+                } else {
                     concatWriter->writeData(data, dataSizeA, newKey, thread_idx);
                 }
             }
@@ -119,14 +119,14 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
 
             if (write) {
                 char *data = dbB.getData(id, thread_idx);
-                size_t dataSizeB = dbB.getEntryLen(id) - 1;
-                if(takeLargerEntry){
+                size_t dataSizeB = std::max(dbB.getEntryLen(id), trimRight) - trimRight;
+                if (takeLargerEntry) {
                     size_t idB = dbA.getId(newKey);
-                    size_t dataSizeA = dbA.getEntryLen(idB)-1;
-                    if(dataSizeB > dataSizeA) {
+                    size_t dataSizeA = std::max(dbA.getEntryLen(idB), trimRight) - trimRight;
+                    if (dataSizeB > dataSizeA) {
                         concatWriter->writeData(data, dataSizeB, newKey, thread_idx);
                     }
-                } else if (takeLargerEntry == false){
+                } else {
                     concatWriter->writeData(data, dataSizeB, newKey, thread_idx);
                 }
             }

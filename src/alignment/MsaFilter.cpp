@@ -45,7 +45,7 @@ MsaFilter::~MsaFilter() {
 }
 
 size_t MsaFilter::filter(MultipleAlignment::MSAResult &msa, int coverage, int qid, float qsc, int max_seqid, int Ndiff) {
-    size_t filteredSize = filter(msa.setSize, msa.centerLength, coverage, qid, qsc, max_seqid, Ndiff, (const char **) msa.msaSequence);
+    size_t filteredSize = filter(msa.setSize, msa.centerLength, coverage, qid, qsc, max_seqid, Ndiff, (const char **) msa.msaSequence, true);
     if (!msa.alignmentResults.empty()) {
         // alignmentResults does not include the query
         for (size_t i = 0, j = 0; j < msa.setSize - 1; j++) {
@@ -62,7 +62,7 @@ size_t MsaFilter::filter(MultipleAlignment::MSAResult &msa, int coverage, int qi
 }
 
 size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const int qid,
-                       const float qsc, const int max_seqid, int Ndiff, const char **X) {
+                       const float qsc, const int max_seqid, int Ndiff, const char **X, const bool shuffleMsa) {
     int seqid1 = 20;
     // X[k][i] contains column i of sequence k in alignment (first seq=0, first char=1) (0-3: ARND ..., 20:X, 21:GAP)
 //    char** X = (char **) &msaSequence;
@@ -274,7 +274,9 @@ size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const 
 
     // If min required seqid larger than max required seqid, return here without doing pairwise seqid filtering
     if (seqid1 > max_seqid) {
-        shuffleSequences(X, N_in);
+        if (shuffleMsa) {
+            shuffleSequences(X, N_in);
+        }
         return nn;
     }
 
@@ -466,7 +468,9 @@ size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const 
         keep[k] = in[k];
     }
 
-    shuffleSequences(X, N_in);
+    if (shuffleMsa) {
+        shuffleSequences(X, N_in);
+    }
     return n;
 }
 
