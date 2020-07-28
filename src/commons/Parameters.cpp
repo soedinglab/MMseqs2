@@ -84,7 +84,7 @@ Parameters::Parameters():
         PARAM_V(PARAM_V_ID, "-v", "Verbosity", "Verbosity level: 0: quiet, 1: +errors, 2: +warnings, 3: +info", typeid(int), (void *) &verbosity, "^[0-3]{1}$", MMseqsParameter::COMMAND_COMMON),
         // convertalignments
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID, "--format-mode", "Alignment format", "Output format: 0: BLAST-TAB, 1: SAM, 2: BLAST-TAB + query/db length, 3: Pretty HTML", typeid(int), (void *) &formatAlignmentMode, "^[0-3]{1}$"),
-        PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID, "--format-output", "Format alignment output", "Choose comma separated list of output columns from: query,target,evalue,gapopen,pident,nident,qstart,qend,qlen\ntstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov\nqset,qsetid,tset,tsetid,taxid,taxname,taxlineage,qorfstart,qorfend,torfstart,torfend", typeid(std::string), (void *) &outfmt, ""),
+        PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID, "--format-output", "Format alignment output", "Choose comma separated list of output columns from: query,target,evalue,gapopen,pident,fident,nident,qstart,qend,qlen\ntstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov\nqset,qsetid,tset,tsetid,taxid,taxname,taxlineage,qorfstart,qorfend,torfstart,torfend", typeid(std::string), (void *) &outfmt, ""),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database output", "Return a result DB instead of a text file", typeid(bool), (void *) &dbOut, "", MMseqsParameter::COMMAND_EXPERT),
         // --include-only-extendablediagonal
         PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID, "--rescore-mode", "Rescore mode", "Rescore diagonals with:\n0: Hamming distance\n1: local alignment (score only)\n2: local alignment\n3: global alignment\n4: longest alignment fullfilling window quality criterion", typeid(int), (void *) &rescoreMode, "^[0-4]{1}$"),
@@ -1106,8 +1106,9 @@ Parameters::Parameters():
     taxonomy.push_back(&PARAM_TAX_OUTPUT_MODE);
 
     // taxpercontig
-    taxpercontig = combineList(removeParameter(extractorfs, PARAM_TRANSLATE), removeParameter(taxonomy, PARAM_TAX_OUTPUT_MODE));
-    taxpercontig = combineList(taxpercontig, aggregatetax);
+    taxpercontig = combineList(taxonomy, aggregatetax);
+    removeParameter(taxpercontig, PARAM_TRANSLATE);
+    removeParameter(taxpercontig, PARAM_TAX_OUTPUT_MODE);
 
     // easy taxonomy
     easytaxonomy = combineList(taxonomy, addtaxonomy);
@@ -1261,7 +1262,7 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
                         valueString = SSTR(*(double *) par->value);
                     } else if (par->type == typeid(ByteParser)) {
                         paramString.append(" BYTE");
-                        valueString = ByteParser::format(*((size_t *) par->value));
+                        valueString = ByteParser::format(*((size_t *) par->value), 'a', 'h');
                     } else if (par->type == typeid(bool)) {
                         paramString.append(" BOOL");
                         valueString = SSTR(*(bool *)par->value);
@@ -1491,12 +1492,9 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                         }
                         argIdx++;
                     } else if (typeid(std::string) == par[parIdx]->type) {
-                        std::string val(pargv[argIdx+1]);
-                        if(val.length() != 0){
-                            std::string * currVal = ((std::string *)par[parIdx]->value);
-                            currVal->assign( val );
-                            par[parIdx]->wasSet = true;
-                        }
+                        std::string* currVal = (std::string*)par[parIdx]->value;
+                        currVal->assign(pargv[argIdx+1]);
+                        par[parIdx]->wasSet = true;
                         argIdx++;
                     } else if (typeid(bool) == par[parIdx]->type) {
                         bool *value = (bool *) par[parIdx]->value;
@@ -1890,7 +1888,7 @@ void Parameters::printParameters(const std::string &module, int argc, const char
         if(typeid(int) == par[i]->type ){
             ss << *((int *)par[i]->value);
         } else if(typeid(ByteParser) == par[i]->type) {
-            ss << ByteParser::format(*((size_t *)par[i]->value));
+            ss << ByteParser::format(*((size_t *)par[i]->value), 'a', 'h');
         } else if(typeid(MultiParam<char*>) == par[i]->type) {
             ss << MultiParam<char*>::format(*((MultiParam<char*> *)par[i]->value));
         } else if(typeid(MultiParam<int>) == par[i]->type) {
@@ -2017,7 +2015,7 @@ void Parameters::setDefaults() {
 
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
-    outfmt = "query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits";
+    outfmt = "query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits";
     dbOut = false;
 
     // result2msa
@@ -2202,8 +2200,8 @@ void Parameters::setDefaults() {
     blacklist = "12908,28384";
 
     // aggregatetax
-    majorityThr = 0;
-    voteMode = 0;
+    majorityThr = 0.5;
+    voteMode = 1;
 
     // taxonomyreport
     reportMode = 0;
@@ -2282,7 +2280,7 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
             ss << *((int *)par[i]->value) << " ";
         } else if (typeid(ByteParser) == par[i]->type) {
             ss << par[i]->name << " ";
-            ss << ByteParser::format(*((size_t *)par[i]->value)) << " ";
+            ss << ByteParser::format(*((size_t *)par[i]->value), 'a', 'h') << " ";
         } else if (typeid(float) == par[i]->type){
             ss << par[i]->name << " ";
             ss << *((float *)par[i]->value) << " ";
@@ -2357,6 +2355,7 @@ std::vector<int> Parameters::getOutputFormat(int formatMode, const std::string &
         else if (outformatSplit[i].compare("evalue") == 0){ code = Parameters::OUTFMT_EVALUE;}
         else if (outformatSplit[i].compare("gapopen") == 0){ code = Parameters::OUTFMT_GAPOPEN;}
         else if (outformatSplit[i].compare("pident") == 0){ code = Parameters::OUTFMT_PIDENT;}
+        else if (outformatSplit[i].compare("fident") == 0){ code = Parameters::OUTFMT_FIDENT;}
         else if (outformatSplit[i].compare("nident") == 0){ code = Parameters::OUTFMT_NIDENT;}
         else if (outformatSplit[i].compare("qstart") == 0){ code = Parameters::OUTFMT_QSTART;}
         else if (outformatSplit[i].compare("qend") == 0){ code = Parameters::OUTFMT_QEND;}

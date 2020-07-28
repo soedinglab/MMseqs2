@@ -13,6 +13,10 @@
 #endif
 
 const double MAX_WEIGHT = 1000;
+const TaxID ROOT_TAXID = 1;
+const TaxID CELL_ORG_TAXID = 131567;
+const int ROOT_RANK = INT_MAX;
+const int CELL_ORG_RANK = INT_MAX - 1;
 
 struct taxHit {
     void setByEntry(const TaxID & taxonInput, const bool useAln, const char ** taxHitData, const size_t numCols, const int voteMode) {
@@ -110,6 +114,13 @@ TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *t
             TaxID currTaxId = it->first;
             TaxonNode const * node = taxonomy->taxonNode(currTaxId, false);
             int currRankInd = NcbiTaxonomy::findRankIndex(node->rank);
+            // don't lose root or cellular organisms, which don't have a rank:
+            if (currTaxId == ROOT_TAXID) {
+                currRankInd = ROOT_RANK;
+            }
+            if (currTaxId == CELL_ORG_TAXID) {
+                currRankInd = CELL_ORG_RANK;
+            }
             if (currRankInd > 0) {
                 if ((currRankInd < minRank) || ((currRankInd == minRank) && (currPercent > selectedPercent))) {
                     selctedTaxon = currTaxId;
@@ -121,7 +132,7 @@ TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *t
     }
 
     // count the number of seqs who have selectedTaxon in their ancestors (agree with selection):
-    if (selctedTaxon == 1) {
+    if (selctedTaxon == ROOT_TAXID) {
         // all agree with "root"
         numSeqsAgreeWithSelectedTaxon = numAssignedSeqs;
         return (selctedTaxon);
@@ -193,7 +204,7 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
 
     std::vector<std::string> ranks = NcbiTaxonomy::parseRanks(par.lcaRanks);
 
-    Debug::Progress progress(taxSeqReader.getSize());
+    Debug::Progress progress(setToSeqReader.getSize());
 
     #pragma omp parallel
     {
@@ -220,13 +231,23 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
                 Util::getWordsOfLine(results, entry, 255);
                 unsigned int seqKey = Util::fast_atoi<unsigned int>(entry[0]);
 
-                char *seqToTaxData = taxSeqReader.getDataByDBKey(seqKey, thread_idx);
+                size_t seqId = taxSeqReader.getId(seqKey);
+                if (seqId == UINT_MAX) {
+                    Debug(Debug::ERROR) << "Missing key " << seqKey << " in tax result\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                char *seqToTaxData = taxSeqReader.getData(seqId, thread_idx);
                 Util::getWordsOfLine(seqToTaxData, entry, 255);
                 TaxID taxon = Util::fast_atoi<int>(entry[0]);
                 size_t numCols = 0;
 
                 if (useAln == true) {
-                    char *seqToAlnData = alnSeqReader->getDataByDBKey(seqKey, thread_idx);
+                    size_t alnId = alnSeqReader->getId(seqKey);
+                    if (alnId == UINT_MAX) {
+                        Debug(Debug::ERROR) << "Missing key " << alnId << " in alignment result\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    char *seqToAlnData = alnSeqReader->getData(alnId, thread_idx);
                     numCols = Util::getWordsOfLine(seqToAlnData, entry, 255);
                 }
 
@@ -303,14 +324,15 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
             // ready to move to the next set
             setTaxa.clear();
         }
-    };
-    Debug(Debug::INFO) << "\n";
+    }
 
     writer.close();
     taxSeqReader.close();
     setToSeqReader.close();
-    alnSeqReader->close();
-    delete alnSeqReader;
+    if (alnSeqReader != NULL) {
+        alnSeqReader->close();
+        delete alnSeqReader;
+    }
     delete t;
 
     return EXIT_SUCCESS;
@@ -318,9 +340,9 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
 }
 
 int aggregatetaxweights(int argc, const char **argv, const Command& command) {
-    return (aggregate(true, argc, argv, command)); 
+    return aggregate(true, argc, argv, command);
 }
 
 int aggregatetax(int argc, const char **argv, const Command& command) {
-    return (aggregate(false, argc, argv, command)); 
+    return aggregate(false, argc, argv, command);
 }

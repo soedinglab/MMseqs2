@@ -295,7 +295,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSi
         //TODO add PROFILE_STATE (just 6-mers)
         std::pair<int, int> splitSettings = Prefiltering::optimizeSplit(memoryLimit, &tdbr, alphabetSize, kmerSize, querySeqTyp, threads);
         if (splitSettings.second == -1) {
-            Debug(Debug::ERROR) << "Cannot fit databased into " << ByteParser::format(memoryLimit) << ". Please use a computer with more main memory.\n";
+            Debug(Debug::ERROR) << "Cannot fit databases into " << ByteParser::format(memoryLimit) << ". Please use a computer with more main memory.\n";
             EXIT(EXIT_FAILURE);
         }
         if (kmerSize == 0) {

@@ -503,8 +503,11 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                     case Parameters::OUTFMT_GAPOPEN:
                                         result.append(SSTR(gapOpenCount));
                                         break;
-                                    case Parameters::OUTFMT_PIDENT:
+                                    case Parameters::OUTFMT_FIDENT:
                                         result.append(SSTR(res.seqId));
+                                        break;
+                                    case Parameters::OUTFMT_PIDENT:
+                                        result.append(SSTR(res.seqId*100));
                                         break;
                                     case Parameters::OUTFMT_NIDENT:
                                         result.append(SSTR(identical));
