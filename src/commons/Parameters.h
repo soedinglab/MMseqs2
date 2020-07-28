@@ -948,6 +948,7 @@ public:
     std::vector<MMseqsParameter*> result2pp;
     std::vector<MMseqsParameter*> result2msa;
     std::vector<MMseqsParameter*> result2dnamsa;
+    std::vector<MMseqsParameter*> filterresult;
     std::vector<MMseqsParameter*> convertmsa;
     std::vector<MMseqsParameter*> msa2profile;
     std::vector<MMseqsParameter*> createtsv;

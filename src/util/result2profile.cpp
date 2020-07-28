@@ -20,8 +20,15 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     // default for result2profile to filter MSA
     par.filterMsa = 1;
     par.pca = 0.0;
-    par.parseParameters(argc, argv, command, true, 0, 0);
-    par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
+    if (returnAlnRes) {
+        par.PARAM_FILTER_MAX_SEQ_ID.removeCategory(MMseqsParameter::COMMAND_EXPERT);
+        par.PARAM_FILTER_QID.removeCategory(MMseqsParameter::COMMAND_EXPERT);
+        par.PARAM_FILTER_QSC.removeCategory(MMseqsParameter::COMMAND_EXPERT);
+        par.PARAM_FILTER_COV.removeCategory(MMseqsParameter::COMMAND_EXPERT);
+        par.PARAM_FILTER_NDIFF.removeCategory(MMseqsParameter::COMMAND_EXPERT);
+    }
+    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.evalProfile = (par.evalThr < par.evalProfile || returnAlnRes) ? par.evalThr : par.evalProfile;
     par.printParameters(command.cmd, argc, argv, *command.params);
 
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
@@ -112,7 +119,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     Debug(Debug::INFO) << "Query database size: " << qDbr->getSize() << " type: " << qDbr->getDbTypeName() << "\n";
     Debug(Debug::INFO) << "Target database size: " << tDbr->getSize() << " type: " << Parameters::getDbTypeName(targetSeqType) << "\n";
 
-    const bool isFiltering = par.filterMsa != 0;
+    const bool isFiltering = par.filterMsa != 0 || returnAlnRes;
     Debug::Progress progress(dbSize - dbFrom);
 #pragma omp parallel num_threads(localThreads)
     {
@@ -203,7 +210,8 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
             //MultipleAlignment::print(res, &subMat);
 
             if (returnAlnRes) {
-                for (size_t i = 0; i < filteredSetSize; i++) {
+                // do not count query
+                for (size_t i = 0; i < (filteredSetSize - 1); ++i) {
                     size_t len = Matcher::resultToBuffer(buffer, res.alignmentResults[i], true);
                     result.append(buffer, len);
                 }
@@ -263,7 +271,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
         }
         delete[] charSequence;
     }
-    resultWriter.close(true);
+    resultWriter.close(returnAlnRes == false);
     resultReader.close();
 
     if (!sameDatabase) {
@@ -301,3 +309,8 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 int result2profile(int argc, const char **argv, const Command &command) {
     return result2profile(argc, argv, command, false);
 }
+
+int filterresult(int argc, const char **argv, const Command &command) {
+    return result2profile(argc, argv, command, true);
+}
+
