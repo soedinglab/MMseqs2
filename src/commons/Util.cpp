@@ -431,7 +431,7 @@ size_t Util::ompCountLines(const char* data, size_t dataSize, unsigned int MAYBE
     }
 #endif
 
-        size_t pageSize = getPageSize();
+    size_t pageSize = getPageSize();
 #pragma omp parallel num_threads(threadCnt)
     {
 #pragma omp for schedule(static) reduction (+: cnt)
@@ -445,6 +445,7 @@ size_t Util::ompCountLines(const char* data, size_t dataSize, unsigned int MAYBE
 
     return cnt;
 }
+
 
 
 

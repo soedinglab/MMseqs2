@@ -157,6 +157,7 @@ public:
     static const int OUTFMT_QORFEND = 36;
     static const int OUTFMT_TORFSTART = 37;
     static const int OUTFMT_TORFEND = 38;
+    static const int OUTFMT_FIDENT = 39;
 
 
 
