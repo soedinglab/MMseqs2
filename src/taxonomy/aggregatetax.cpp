@@ -54,11 +54,32 @@ struct taxHit {
     double weight;
 };
 
+struct taxNode {
+    void set(const double weightInput, const bool isCandidateInput, const TaxID & childTaxonInput) {
+        weight = weightInput;
+        isCandidate = isCandidateInput;
+        childTaxon = childTaxonInput;
+    }
+
+    void update(const double weightToAdd, const TaxID & childTaxonInput) {
+        if (childTaxon != childTaxonInput) {
+            isCandidate = true;
+            childTaxon = childTaxonInput;
+        }
+        weight += weightToAdd;
+    }
+
+    // these will be filled when iterating over all contributing lineages
+    double weight;
+    bool isCandidate;
+    TaxID childTaxon;
+};
+
 TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *taxonomy, const float majorityCutoff, 
                         size_t &numAssignedSeqs, size_t &numUnassignedSeqs, size_t &numSeqsAgreeWithSelectedTaxon, double &selectedPercent) {
     // count num occurences of each ancestor, possibly weighted 
-    std::map<TaxID,double> ancTaxIdsCounts;
-    
+    std::map<TaxID,taxNode> ancTaxIdsCounts;
+
     // initialize counters and weights
     numAssignedSeqs = 0;
     numUnassignedSeqs = 0;
@@ -82,24 +103,28 @@ TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *t
         totalAssignedSeqsWeights += currWeight;
         numAssignedSeqs++;
 
-        // add currWeight
+        // each start of a path due to an orf is a candidate
         if (ancTaxIdsCounts.find(currTaxId) != ancTaxIdsCounts.end()) {
-            ancTaxIdsCounts[currTaxId] += currWeight;
+            ancTaxIdsCounts[currTaxId].update(currWeight, 0);
         } else {
-            ancTaxIdsCounts.insert(std::pair<TaxID,unsigned int>(currTaxId,currWeight));
+            taxNode currNode;
+            currNode.set(currWeight, true, 0);
+            ancTaxIdsCounts.insert(std::pair<TaxID,taxNode>(currTaxId, currNode));
         }
 
-        // iterate all ancestors up to the root (including) and add the currWeight to each
+        // iterate all ancestors up to root (including). add currWeight and candidate status to each
         TaxID currParentTaxId = node->parentTaxId;
         while (currParentTaxId != currTaxId) {
             if (ancTaxIdsCounts.find(currParentTaxId) != ancTaxIdsCounts.end()) {
-                ancTaxIdsCounts[currParentTaxId] += currWeight;
+                ancTaxIdsCounts[currParentTaxId].update(currWeight, currTaxId);
             } else {
-                ancTaxIdsCounts.insert(std::pair<TaxID,unsigned int>(currParentTaxId,currWeight));
+                taxNode currParentNode;
+                currParentNode.set(currWeight, false, currTaxId);
+                ancTaxIdsCounts.insert(std::pair<TaxID,taxNode>(currParentTaxId, currParentNode));
             }
             // move up:
             currTaxId = currParentTaxId;
-            TaxonNode const * node = taxonomy->taxonNode(currParentTaxId, false);
+            node = taxonomy->taxonNode(currParentTaxId, false);
             currParentTaxId = node->parentTaxId;
         }     
     }
@@ -108,25 +133,36 @@ TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *t
     int minRank = INT_MAX;
     TaxID selctedTaxon = 0;
 
-    for (std::map<TaxID,double>::iterator it = ancTaxIdsCounts.begin(); it != ancTaxIdsCounts.end(); it++) {
-        double currPercent = float(it->second) / totalAssignedSeqsWeights;
+    for (std::map<TaxID,taxNode>::iterator it = ancTaxIdsCounts.begin(); it != ancTaxIdsCounts.end(); it++) {
+        // consider only candidates:
+        if (it->second.isCandidate == false) {
+            continue;
+        }
+
+        double currPercent = float(it->second.weight) / totalAssignedSeqsWeights;
         if (currPercent >= majorityCutoff) {
+            // iterate all ancestors to find lineage min rank (the candidate is a descendant of a node with this rank)
             TaxID currTaxId = it->first;
             TaxonNode const * node = taxonomy->taxonNode(currTaxId, false);
-            int currRankInd = NcbiTaxonomy::findRankIndex(node->rank);
-            // don't lose root or cellular organisms, which don't have a rank:
-            if (currTaxId == ROOT_TAXID) {
-                currRankInd = ROOT_RANK;
-            }
-            if (currTaxId == CELL_ORG_TAXID) {
-                currRankInd = CELL_ORG_RANK;
-            }
-            if (currRankInd > 0) {
-                if ((currRankInd < minRank) || ((currRankInd == minRank) && (currPercent > selectedPercent))) {
-                    selctedTaxon = currTaxId;
-                    minRank = currRankInd;
-                    selectedPercent = currPercent;
+            int currMinRank = ROOT_RANK;
+            TaxID currParentTaxId = node->parentTaxId;
+            while (currParentTaxId != currTaxId) {
+                int currRankInd = NcbiTaxonomy::findRankIndex(node->rank);
+                if ((currRankInd > 0) && (currRankInd < currMinRank)) {
+                    currMinRank = currRankInd;
+                    // the rank can only go up on the way to the root, so we can break
+                    break;
                 }
+                // move up:
+                currTaxId = currParentTaxId;
+                node = taxonomy->taxonNode(currParentTaxId, false);
+                currParentTaxId = node->parentTaxId;
+            }
+
+            if ((currMinRank < minRank) || ((currMinRank == minRank) && (currPercent > selectedPercent))) {
+                selctedTaxon = it->first;
+                minRank = currMinRank;
+                selectedPercent = currPercent;
             }
         }
     }
@@ -158,7 +194,7 @@ TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *t
                 break;
             }
             currTaxId = currParentTaxId;
-            TaxonNode const * node = taxonomy->taxonNode(currParentTaxId, false);
+            node = taxonomy->taxonNode(currParentTaxId, false);
             currParentTaxId = node->parentTaxId;
         }
     }
