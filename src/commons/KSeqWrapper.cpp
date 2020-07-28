@@ -33,7 +33,10 @@ bool KSeqFile::ReadEntry() {
 
 KSeqFile::~KSeqFile() {
     kseq_destroy((KSEQFILE::kseq_t*)seq);
-    fclose(file);
+    if (fclose(file) != 0) {
+        Debug(Debug::ERROR) << "Cannot close KSeq input file\n";
+        EXIT(EXIT_FAILURE);
+    }
 }
 
 

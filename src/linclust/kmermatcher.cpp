@@ -1075,7 +1075,10 @@ void mergeKmerFilesAndOutput(DBWriter & dbw,
         prefResultsOutString.append(buffer, len);
     }
     for(size_t file = 0; file < tmpFiles.size(); file++) {
-        fclose(files[file]);
+        if (fclose(files[file]) != 0) {
+            Debug(Debug::ERROR) << "Cannot close file " << tmpFiles[file] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         if(dataSizes[file] > 0 && munmap((void*)entries[file], dataSizes[file]) < 0){
             Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSizes[file] <<"\n";
             EXIT(EXIT_FAILURE);
@@ -1172,10 +1175,16 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition<seqLenType> *hashSeqPair
         fwrite(writeBuffer, sizeof(T), bufferPos, filePtr);
         fwrite(&nullEntry,  sizeof(T), 1, filePtr);
     }
-    fclose(filePtr);
+    if (fclose(filePtr) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << tmpFile << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     std::string fileName = tmpFile + ".done";
-    FILE  * done = FileUtil::openFileOrDie(fileName.c_str(),"w", false);
-    fclose(done);
+    FILE* done = FileUtil::openFileOrDie(fileName.c_str(),"w", false);
+    if (fclose(done) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << fileName << "\n";
+        EXIT(EXIT_FAILURE);
+    }
 }
 
 void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTyp) {

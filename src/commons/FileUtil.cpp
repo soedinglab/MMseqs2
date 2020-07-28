@@ -75,14 +75,16 @@ FILE* FileUtil::openFileOrDie(const char * fileName, const char * mode, bool sho
     return file;
 }
 size_t FileUtil::countLines(const char* name) {
-    FILE *fp=FileUtil::openFileOrDie(name, "r", true);
+    FILE *fp = FileUtil::openFileOrDie(name, "r", true);
     size_t cnt = 0;
-    while(!feof(fp))
-    {
+    while (!feof(fp)) {
         char ch = fgetc(fp);
         cnt += (ch == '\n') ? 1 : 0;
     }
-    fclose(fp);
+    if (fclose(fp) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << name << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     return cnt;
 }
 
@@ -364,8 +366,14 @@ void FileUtil::move(const char * src, const char * dst) {
         EXIT(EXIT_FAILURE);
     }
     bool sameFileSystem = (srcDirInfo.st_dev == srcFileInfo.st_dev);
-    fclose(srcFile);
-    fclose(dstDir);
+    if (fclose(srcFile) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << src << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (fclose(dstDir) != 0) {
+        Debug(Debug::ERROR) << "Cannot close directory " << dirName << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     if(sameFileSystem){
         if (std::rename(src, dst) != 0){
             Debug(Debug::ERROR) << "Could not copy file " << src << " to " << dst << "!\n";
@@ -400,7 +408,10 @@ int FileUtil::parseDbType(const char *name) {
         Debug(Debug::ERROR) << "Could not read " << dbTypeFile << "!\n";
         EXIT(EXIT_FAILURE);
     }
-    fclose(file);
+    if (fclose(file) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << dbTypeFile << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     return dbtype;
 }
 

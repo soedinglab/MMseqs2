@@ -137,7 +137,10 @@ void LinsearchIndexReader::mergeAndWriteIndex(DBWriter & dbw, std::vector<std::s
     dbw.alignToPageSize();
     // clear memory
     for(size_t file = 0; file < tmpFiles.size(); file++) {
-        fclose(files[file]);
+        if (fclose(files[file]) != 0) {
+            Debug(Debug::ERROR) << "Cannot close file " << tmpFiles[file] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         FileUtil::munmapData((void*)entries[file], dataSizes[file]);
     }
     delete [] dataSizes;
@@ -245,7 +248,10 @@ void LinsearchIndexReader::writeKmerIndexToDisk(std::string fileName, KmerPositi
     FILE* filePtr = fopen(fileName.c_str(), "wb");
     if(filePtr == NULL) { perror(fileName.c_str()); EXIT(EXIT_FAILURE); }
     fwrite(kmers, sizeof(KmerPosition<unsigned short>), kmerCnt, filePtr);
-    fclose(filePtr);
+    if (fclose(filePtr) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << fileName << "\n";
+        EXIT(EXIT_FAILURE);
+    }
 }
 
 

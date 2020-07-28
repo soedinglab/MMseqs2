@@ -194,7 +194,10 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
                 EXIT(EXIT_FAILURE);
             }
         }
-        fclose (mappingFilePtr);
+        if (fclose(mappingFilePtr) != 0) {
+            Debug(Debug::ERROR) << "Cannot close data file " << dataFileNameC << "_mapping\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
 
     unsigned int maxSetIdA = 0;
@@ -266,8 +269,11 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
 
             line.clear();
         }
+        if (fclose(lookupFilePtr) != 0) {
+            Debug(Debug::ERROR) << "Cannot close file " << dataFileNameC << ".lookup\n";
+            EXIT(EXIT_FAILURE);
+        }
         lookupReaderB.close();
-        fclose(lookupFilePtr);
     }
 
     // handle source
@@ -329,7 +335,10 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
             }
             line.clear();
         }
-        fclose(sourceFilePtr);
+        if (fclose(sourceFilePtr) != 0) {
+            Debug(Debug::ERROR) << "Cannot close file " << dataFileNameC << ".source\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
 }
 

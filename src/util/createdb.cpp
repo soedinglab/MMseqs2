@@ -137,7 +137,10 @@ int createdb(int argc, const char **argv, const Command& command) {
             hdrWriter.close();
             seqWriter.close();
             delete kseq;
-            fclose(source);
+            if (fclose(source) != 0) {
+                Debug(Debug::ERROR) << "Cannot close file " << sourceFile << "\n";
+                EXIT(EXIT_FAILURE);
+            }
             for (size_t i = 0; i < shuffleSplits; ++i) {
                 sourceLookup[i].clear();
             }
@@ -199,7 +202,10 @@ int createdb(int argc, const char **argv, const Command& command) {
                     hdrWriter.close();
                     seqWriter.close();
                     delete kseq;
-                    fclose(source);
+                    if (fclose(source) != 0) {
+                        Debug(Debug::ERROR) << "Cannot close file " << sourceFile << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
                     for (size_t i = 0; i < shuffleSplits; ++i) {
                         sourceLookup[i].clear();
                     }
@@ -234,7 +240,10 @@ int createdb(int argc, const char **argv, const Command& command) {
         }
     }
     Debug(Debug::INFO) << "\n";
-    fclose(source);
+    if (fclose(source) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << sourceFile << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     hdrWriter.close(true, false);
     seqWriter.close(true, false);
     if (dbType == -1) {
@@ -310,7 +319,10 @@ int createdb(int argc, const char **argv, const Command& command) {
             buffer.clear();
             splitCounter++;
         }
-        fclose(file);
+        if (fclose(file) != 0) {
+            Debug(Debug::ERROR) << "Cannot close file " << lookupFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         readerHeader.close();
     }
     delete[] sourceLookup;

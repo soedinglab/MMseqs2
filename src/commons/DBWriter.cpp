@@ -242,15 +242,24 @@ void DBWriter::writeDbtypeFile(const char* path, int dbtype, bool isCompressed) 
         Debug(Debug::ERROR) << "Can not write to data file " << name << "\n";
         EXIT(EXIT_FAILURE);
     }
-    fclose(file);
+    if (fclose(file) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << name << "\n";
+        EXIT(EXIT_FAILURE);
+    }
 }
 
 
 void DBWriter::close(bool merge, bool needsSort) {
     // close all datafiles
     for (unsigned int i = 0; i < threads; i++) {
-        fclose(dataFiles[i]);
-        fclose(indexFiles[i]);
+        if (fclose(dataFiles[i]) != 0) {
+            Debug(Debug::ERROR) << "Cannot close data file " << dataFileNames[i] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if (fclose(indexFiles[i]) != 0) {
+            Debug(Debug::ERROR) << "Cannot close index file " << indexFileNames[i] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
 
     if(compressedBuffers){
@@ -583,11 +592,17 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         if (mergeDatafiles) {
             FILE *outFh = FileUtil::openAndDelete(outFileName, "w");
             Concat::concatFiles(datafiles, outFh);
-            fclose(outFh);
+            if (fclose(outFh) != 0) {
+                Debug(Debug::ERROR) << "Cannot close data file " << outFileName << "\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
 
         for (unsigned int i = 0; i < datafiles.size(); ++i) {
-            fclose(datafiles[i]);
+            if (fclose(datafiles[i]) != 0) {
+                Debug(Debug::ERROR) << "Cannot close data file in merge\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
 
         if (mergeDatafiles) {
@@ -643,7 +658,10 @@ void DBWriter::mergeIndex(const char** indexFilenames, unsigned int fileCount, c
 
         globalOffset += dataSizes[fileIdx];
     }
-    fclose(index_file);
+    if (fclose(index_file) != 0) {
+        Debug(Debug::ERROR) << "Cannot close index file " << indexFilenames[0] << "\n";
+        EXIT(EXIT_FAILURE);
+    }
 }
 
 void DBWriter::sortIndex(const char *inFileNameIndex, const char *outFileNameIndex, const bool lexicographicOrder){
@@ -654,7 +672,10 @@ void DBWriter::sortIndex(const char *inFileNameIndex, const char *outFileNameInd
         DBReader<unsigned int>::Index *index = indexReader.getIndex();
         FILE *index_file  = FileUtil::openAndDelete(outFileNameIndex, "w");
         writeIndex(index_file, indexReader.getSize(), index);
-        fclose(index_file);
+        if (fclose(index_file) != 0) {
+            Debug(Debug::ERROR) << "Cannot close index file " << outFileNameIndex << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         indexReader.close();
 
     } else {
@@ -663,7 +684,10 @@ void DBWriter::sortIndex(const char *inFileNameIndex, const char *outFileNameInd
         DBReader<std::string>::Index *index = indexReader.getIndex();
         FILE *index_file  = FileUtil::openAndDelete(outFileNameIndex, "w");
         writeIndex(index_file, indexReader.getSize(), index);
-        fclose(index_file);
+        if (fclose(index_file) != 0) {
+            Debug(Debug::ERROR) << "Cannot close index file " << outFileNameIndex << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         indexReader.close();
     }
 }
@@ -719,12 +743,18 @@ void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string
             strBuffer.clear();
         }
     }
-    fclose(sIndex);
+    if (fclose(sIndex) != 0) {
+        Debug(Debug::ERROR) << "Cannot close index file " << indexTmp << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     reader.close();
     std::rename(indexTmp.c_str(), indexFile.c_str());
 
     if (lookupReader != NULL) {
-        fclose(sLookup);
+        if (fclose(sLookup) != 0) {
+            Debug(Debug::ERROR) << "Cannot close file " << dataFile << ".lookup\n";
+            EXIT(EXIT_FAILURE);
+        }
         lookupReader->close();
     }
 }
