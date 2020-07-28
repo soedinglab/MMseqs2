@@ -106,9 +106,10 @@ jobs:
         packages:
         - *default_packages
         - build-essential
-        - intel-oneapi-icc=2021.1-634.beta07
-        - intel-oneapi-common-vars=2021.1-391.beta07
+        - intel-oneapi-icc
     env: CC=icc CXX=icpc
+    # icc is broken with beta08
+    if: false
   fast_finish: true
 
 before_install:
