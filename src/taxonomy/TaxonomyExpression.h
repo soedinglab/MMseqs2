@@ -83,7 +83,6 @@ private:
     TaxContext tc;
     ExpressionParser *parser;
     std::vector<te_variable> vars;
-    CommaMeaning commaIsOperator;
 
     static double acst(void *context, double a) {
         TaxContext *o = (TaxContext *) context;
