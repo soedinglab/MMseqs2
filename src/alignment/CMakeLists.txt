@@ -6,6 +6,7 @@ set(alignment_header_files
         alignment/MsaFilter.h
         alignment/MultipleAlignment.h
         alignment/PSSMCalculator.h
+        alignment/PSSMMasker.h
         alignment/StripedSmithWaterman.h
         alignment/BandedNucleotideAligner.h
         alignment/DistanceCalculator.h

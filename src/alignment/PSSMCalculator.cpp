@@ -4,13 +4,13 @@
 #include "PSSMCalculator.h"
 #include "simd.h"
 #include "MathUtil.h"
-#include "SubstitutionMatrix.h"
+#include "BaseMatrix.h"
 #include "Sequence.h"
 #include "Util.h"
 #include "Debug.h"
 #include "MultipleAlignment.h"
 
-PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb) :
+PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb) :
         subMat(subMat)
 {
     this->maxSeqLength = maxSeqLength;
@@ -479,3 +479,18 @@ std::string PSSMCalculator::computeConsensusSequence(float *frequency, size_t qu
     return consens;
 }
 
+void PSSMCalculator::Profile::toBuffer(Sequence &centerSequence, BaseMatrix& subMat, std::string &result) {
+    toBuffer(centerSequence.numSequence, centerSequence.L, subMat, result);
+}
+
+void PSSMCalculator::Profile::toBuffer(const unsigned char* centerSequence, size_t centerSeqLen, BaseMatrix& subMat, std::string& result) {
+    for (size_t pos = 0; pos < centerSeqLen; pos++) {
+        for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+            result.push_back(Sequence::scoreMask(prob[pos * Sequence::PROFILE_AA_SIZE + aa]));
+        }
+        // write query, consensus sequence and neffM
+        result.push_back(static_cast<unsigned char>(centerSequence[pos]));
+        result.push_back(static_cast<unsigned char>(subMat.aa2num[static_cast<int>(consensus[pos])]));
+        result.push_back(static_cast<unsigned char>(MathUtil::convertNeffToChar(neffM[pos])));
+    }
+}

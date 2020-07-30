@@ -4,21 +4,23 @@
 #include <cstddef>
 #include <string>
 
-class SubstitutionMatrix;
+class BaseMatrix;
+class Sequence;
 
 class PSSMCalculator {
 public:
-
-    struct Profile{
+    struct Profile {
         const char * pssm;
         float * prob;
         const float * neffM;
         std::string consensus;
         Profile(char * pssm, float * prob, float * neffM, std::string consensus)
-                :pssm(pssm), prob(prob), neffM(neffM), consensus(consensus){}
+                : pssm(pssm), prob(prob), neffM(neffM), consensus(consensus) {};
+        void toBuffer(const unsigned char* centerSequence, size_t centerSeqLen, BaseMatrix& subMat, std::string& result);
+        void toBuffer(Sequence& centerSequence, BaseMatrix& subMat, std::string& result);
     };
 
-    PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb);
+    PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb);
 
     ~PSSMCalculator();
 
@@ -38,7 +40,7 @@ public:
     static void computeSequenceWeights(float *seqWeight, size_t queryLength, size_t setSize, const char **msaSeqs);
 
 private:
-    SubstitutionMatrix * subMat;
+    BaseMatrix* subMat;
 
     // contains sequence weights (global)
     float * seqWeight;
