@@ -75,8 +75,7 @@ const int8_t spaced_seed_30[] = {1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1,
 
 class Sequence {
 public:
-    Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, 
-             const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC = true, const std::string& spacedKmerPattern = "");
+    Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat,  const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC = true, const std::string& userSpacedKmerPattern = "");
     ~Sequence();
 
     // Map char -> int
@@ -439,44 +438,9 @@ public:
     size_t getMaxLen() { return maxLen; }
     unsigned int getKmerSize(){ return kmerSize; }
     bool isSpaced() { return spaced; }
-    const std::string& getSpacedKmerPattern() { return spacedKmerPattern; }
 
     // reverse the sequence for the match statistics calculation
     void reverse();
-
-
-    // submat
-    BaseMatrix * subMat;
-
-    // length of sequence
-    int L;
-
-    // each amino acid coded as integer
-    unsigned char *numSequence;
-
-    // each consensus amino acid as integer (PROFILE ONLY)
-    unsigned char *numConsensusSequence;
-
-    // Contains profile information
-    short           *profile_score;
-    unsigned int    *profile_index;
-    float           *profile;
-    float           *neffM;
-    float           *pseudocountsWeight;
-    // (PROFILE_AA_SIZE / SIMD_SIZE) + 1 * SIMD_SIZE
-    size_t profile_row_size;
-
-    static const size_t PROFILE_AA_SIZE = 20;
-    // 20 AA, 1 query, 1 consensus, 2 for Neff M,
-    static const size_t PROFILE_READIN_SIZE = 23;
-    ScoreMatrix **profile_matrix;
-    // Memory layout of this profile is qL * AA
-    //   Query length
-    // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
-    // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
-    // ...
-    // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
-    int8_t *profile_for_alignment;
 
     std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
 
@@ -490,11 +454,17 @@ public:
 
     void printProfile();
 
-    int8_t const * getAlignmentProfile()const;
+    int8_t const* getAlignmentProfile() const {
+        return profile_for_alignment;
+    }
 
-    int getSequenceType()const;
+    int getSequenceType() const {
+        return seqType;
+    }
 
-    unsigned int getEffectiveKmerSize();
+    unsigned int getEffectiveKmerSize() {
+        return spacedPatternSize;
+    }
 
     static unsigned char scoreMask(float prob) {
         unsigned char charProb = MathUtil::convertFloatToChar(prob);
@@ -512,7 +482,6 @@ public:
         return MathUtil::flog2(proba / pBack);
     }
 
-
     static float scoreToProba(short score, double pBack, double bitFactor, double scoreBias) {
         if (score == -127) {
             return 0.0;
@@ -522,14 +491,57 @@ public:
         return MathUtil::fpow2((float)(dblScore - scoreBias) / bitFactor) * pBack;
     }
 
-    const float *getProfile();
+    const float *getProfile() {
+        return profile;
+    }
 
     const char *getSeqData() {
         return seqData;
     }
 
+    const std::string &getUserSpacedKmerPattern() const {
+        return userSpacedKmerPattern;
+    }
+
+    static const size_t PROFILE_AA_SIZE = 20;
+    // 20 AA, 1 query, 1 consensus, 2 for Neff M,
+    static const size_t PROFILE_READIN_SIZE = 23;
+    // (PROFILE_AA_SIZE / SIMD_SIZE) + 1 * SIMD_SIZE
+    const size_t PROFILE_ROW_SIZE = (((size_t) PROFILE_AA_SIZE / (VECSIZE_INT * 4)) + 1) * (VECSIZE_INT * 4);
+
+    // submat
+    BaseMatrix *subMat;
+
+    // length of sequence
+    int L;
+
+    // each amino acid coded as integer
+    unsigned char *numSequence;
+
+    // each consensus amino acid as integer (PROFILE ONLY)
+    unsigned char *numConsensusSequence;
+
+    // Contains profile information
+    short           *profile_score;
+    unsigned int    *profile_index;
+    float           *profile;
+    float           *neffM;
+    float           *pseudocountsWeight;
+
+    ScoreMatrix **profile_matrix;
+    // Memory layout of this profile is qL * AA
+    //   Query length
+    // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+    // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
+    // ...
+    // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+    int8_t *profile_for_alignment;
+
 private:
     void mapSequence(const char *seq, unsigned int dataLen);
+    // read next kmer profile in profile_matrix
+    void nextProfileKmer();
+
     size_t id;
     unsigned int dbKey;
     const char *seqData;
@@ -542,9 +554,6 @@ private:
 
     // maximum possible length of sequence
     size_t maxLen;
-
-    // read next kmer profile in profile_matrix
-    void nextProfileKmer();
 
     // size of Pattern
     int spacedPatternSize;
@@ -579,7 +588,6 @@ private:
     // should add pseudo-counts when loading the profile?
     bool shouldAddPC;
 
-    //spaced kmer pattern
-    const std::string spacedKmerPattern;
+    std::string userSpacedKmerPattern;
 };
 #endif
