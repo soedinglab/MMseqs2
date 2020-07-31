@@ -8,10 +8,12 @@
 #include "EvalueComputation.h"
 #include "CompressedA3M.h"
 #include "Sequence.h"
-#include "Alignment.h"
 #include "SubstitutionMatrix.h"
+#include "MultipleAlignment.h"
+#include "MsaFilter.h"
+#include "PSSMCalculator.h"
+#include "PSSMMasker.h"
 #include "FastSort.h"
-#include <cassert>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -82,7 +84,7 @@ static bool compareHitsByKeyScore(const Matcher::result_t &first, const Matcher:
     return false;
 }
 
-int expandaln(int argc, const char **argv, const Command& command) {
+int expandaln(int argc, const char **argv, const Command& command, bool returnAlnRes) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
@@ -126,12 +128,21 @@ int expandaln(int argc, const char **argv, const Command& command) {
         resultBcReader.readMmapedDataInMemory();
     }
 
-    DBWriter writer(par.db5.c_str(), par.db5Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
+    int dbType = Parameters::DBTYPE_ALIGNMENT_RES;
+    if (returnAlnRes == false) {
+        dbType = Parameters::DBTYPE_HMM_PROFILE;
+    }
+    DBWriter writer(par.db5.c_str(), par.db5Index.c_str(), par.threads, par.compressed, dbType);
     writer.open();
 
     BacktraceTranslator translator;
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, par.scoreBias);
-    EvalueComputation evaluer(cReader->getAminoAcidDBSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, par.scoreBias);\
+
+    ProbabilityMatrix *probMatrix = NULL;
+    if (returnAlnRes == false) {
+        probMatrix = new ProbabilityMatrix(subMat);
+    }
+//    EvalueComputation evaluer(cReader->getAminoAcidDBSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
     Debug::Progress progress(resultAbReader->getSize());
 #pragma omp parallel
     {
@@ -142,6 +153,24 @@ int expandaln(int argc, const char **argv, const Command& command) {
 
         Sequence aSeq(par.maxSeqLen, aSeqDbType, &subMat, 0, false, par.compBiasCorrection);
         Sequence cSeq(par.maxSeqLen, cSeqDbType, &subMat, 0, false, false);
+
+        MultipleAlignment *aligner = NULL;
+        MsaFilter *filter = NULL;
+        PSSMCalculator *calculator = NULL;
+        PSSMMasker *masker = NULL;
+        std::vector<Sequence *> seqSet;
+        std::string result;
+
+        if (returnAlnRes == false) {
+            aligner = new MultipleAlignment(par.maxSeqLen, &subMat, NULL);
+            if (par.filterMsa) {
+                filter = new MsaFilter(par.maxSeqLen, 300, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+            }
+            calculator = new PSSMCalculator(&subMat, par.maxSeqLen, 300, par.pca, par.pcb);
+            masker = new PSSMMasker(par.maxSeqLen, *probMatrix, subMat);
+            seqSet.reserve(300);
+            result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE);
+        }
 
         size_t compBufferSize = (par.maxSeqLen + 1) * sizeof(float);
         float *compositionBias = (float*)malloc(compBufferSize);
@@ -220,6 +249,9 @@ int expandaln(int argc, const char **argv, const Command& command) {
                     if (lastCKey != cSeqKey) {
                         if (currBestAc.score != INT_MIN) {
                             resultsAc.emplace_back(currBestAc);
+                            if (returnAlnRes == false) {
+                                seqSet.push_back(new Sequence(cSeq));
+                            }
                         }
                         currBestAc.score = INT_MIN;
 
@@ -234,22 +266,55 @@ int expandaln(int argc, const char **argv, const Command& command) {
                 }
                 if (currBestAc.score != INT_MIN) {
                     resultsAc.emplace_back(currBestAc);
+                    if (returnAlnRes == false) {
+                        seqSet.push_back(new Sequence(cSeq));
+                    }
                 }
                 resultsBc.clear();
             }
 
-            SORT_SERIAL(resultsAc.begin(), resultsAc.end(), Matcher::compareHits);
-            writer.writeStart(thread_idx);
-            for (size_t j = 0; j < resultsAc.size(); ++j) {
-                size_t len = Matcher::resultToBuffer(buffer, resultsAc[j], true, true);
-                writer.writeAdd(buffer, len, thread_idx);
+            if (returnAlnRes) {
+                SORT_SERIAL(resultsAc.begin(), resultsAc.end(), Matcher::compareHits);
+                writer.writeStart(thread_idx);
+                for (size_t j = 0; j < resultsAc.size(); ++j) {
+                    size_t len = Matcher::resultToBuffer(buffer, resultsAc[j], true, true);
+                    writer.writeAdd(buffer, len, thread_idx);
+                }
+                writer.writeEnd(resAbKey, thread_idx);
+                resultsAc.clear();
+            } else {
+                MultipleAlignment::MSAResult res = aligner->computeMSA(&aSeq, seqSet, resultsAc, true);
+                resultsAc.clear();
+                size_t filteredSetSize = par.filterMsa == false ? res.setSize
+                        : filter->filter(res, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff);
+                PSSMCalculator::Profile pssmRes = calculator->computePSSMFromMSA(filteredSetSize, aSeq.L, (const char **) res.msaSequence, par.wg);
+                if (par.maskProfile == true) {
+                    masker->mask(aSeq, pssmRes);
+                }
+                pssmRes.toBuffer(aSeq, subMat, result);
+                writer.writeData(result.c_str(), result.length(), resAbKey, thread_idx);
+                result.clear();
+                MultipleAlignment::deleteMSA(&res);
+                for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
+                    delete *it;
+                }
+                seqSet.clear();
             }
-            writer.writeEnd(resAbKey, thread_idx);
-            resultsAc.clear();
         }
         free(compositionBias);
+        if (returnAlnRes == false) {
+            delete aligner;
+            if (filter != NULL) {
+                delete filter;
+            }
+            delete calculator;
+            delete masker;
+        }
     }
-    writer.close();
+    writer.close(returnAlnRes == false);
+    if (probMatrix != NULL) {
+        delete probMatrix;
+    }
     resultBcReader.close();
     resultAbReader->close();
     delete resultAbReader;
@@ -260,4 +325,12 @@ int expandaln(int argc, const char **argv, const Command& command) {
     aReader.close();
 
     return EXIT_SUCCESS;
+}
+
+int expandaln(int argc, const char **argv, const Command& command) {
+    return expandaln(argc, argv, command, true);
+}
+
+int expand2profile(int argc, const char **argv, const Command& command) {
+    return expandaln(argc, argv, command, false);
 }
