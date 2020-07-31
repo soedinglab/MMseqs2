@@ -5,11 +5,9 @@
 #include "SubstitutionMatrix.h"
 #include "Util.h"
 
-MultipleAlignment::MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat,
-                                     Matcher *aligner) {
+MultipleAlignment::MultipleAlignment(size_t maxSeqLen, SubstitutionMatrix *subMat, Matcher *aligner) {
     this->maxSeqLen = maxSeqLen;
     this->maxMsaSeqLen = maxSeqLen * 2;
-    this->maxSetSize = maxSetSize;
 
     this->aligner = aligner;
     this->subMat = subMat;

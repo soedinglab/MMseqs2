@@ -73,6 +73,7 @@ private:
     int *naa;
 
     size_t maxSeqLength;
+    size_t maxSetSize;
 
     // compute position-specific scoring matrix PSSM score
     // 1.) convert PFM to PPM (position probability matrix)
@@ -92,6 +93,8 @@ private:
     float pcb;
 
     std::string computeConsensusSequence(float *pDouble, size_t queryLength, double *back, char *num2aa);
+
+    void increaseSetSize(size_t newSetSize);
 };
 
 

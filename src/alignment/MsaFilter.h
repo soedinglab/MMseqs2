@@ -53,6 +53,8 @@ private:
     // prune sequence based on score
     int prune(int start, int end, float b, char * query, char *target);
 
+    void increaseSetSize(int newSetSize);
+
     BaseMatrix *m;
 
     int maxSeqLen;

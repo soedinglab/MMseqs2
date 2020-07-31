@@ -35,7 +35,7 @@ public:
     };
 
 
-    MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat, Matcher *aligner);
+    MultipleAlignment(size_t maxSeqLen, SubstitutionMatrix *subMat, Matcher *aligner);
 
     ~MultipleAlignment();
 
@@ -58,7 +58,6 @@ private:
     BaseMatrix * subMat;
 
     size_t maxSeqLen;
-    size_t maxSetSize;
     size_t maxMsaSeqLen;
     unsigned int * queryGaps;
 

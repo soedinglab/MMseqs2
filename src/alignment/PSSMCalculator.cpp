@@ -11,12 +11,12 @@
 #include "MultipleAlignment.h"
 
 PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb) :
-        subMat(subMat)
-{
+        subMat(subMat) {
     this->maxSeqLength = maxSeqLength;
+    this->maxSetSize = maxSetSize;
     this->profile            = new float[(maxSeqLength + 1) * Sequence::PROFILE_AA_SIZE];
     this->Neff_M             = new float[(maxSeqLength + 1)];
-    this->seqWeight          = new float[maxSetSize];
+    this->seqWeight          = (float*)malloc(maxSetSize * sizeof(float));
     this->pssm               = new char[(maxSeqLength + 1) * Sequence::PROFILE_AA_SIZE];
     this->matchWeight        = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * (maxSeqLength + 1) * sizeof(float));
     this->pseudocountsWeight = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * (maxSeqLength + 1) * sizeof(float));
@@ -26,7 +26,7 @@ PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t m
     for (size_t j = 0; j < (maxSeqLength + 1); j++) {
         this->w_contrib[j] = (float *) malloc_simd_int(NAA_VECSIZE * sizeof(float));
     }
-    wi = new float[maxSetSize];
+    wi = (float*)malloc(maxSetSize * sizeof(float));
     naa = new int[maxSeqLength + 1];
     this->pca = pca;
     this->pcb = pcb;
@@ -36,7 +36,7 @@ PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t m
 PSSMCalculator::~PSSMCalculator() {
     delete [] profile;
     delete [] Neff_M;
-    delete [] seqWeight;
+    free(seqWeight);
     delete [] pssm;
     delete [] nseqs;
     free(matchWeight);
@@ -45,7 +45,7 @@ PSSMCalculator::~PSSMCalculator() {
         free(w_contrib[j]);
     }
     delete [] w_contrib;
-    delete [] wi;
+    free(wi);
     delete [] naa;
 }
 
@@ -53,6 +53,7 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
                                            size_t queryLength,
                                            const char **msaSeqs,
                                            bool wg) {
+    increaseSetSize(setSize);
     // Quick and dirty calculation of the weight per sequence wg[k]
     computeSequenceWeights(seqWeight, queryLength, setSize, msaSeqs);
     MathUtil::NormalizeTo1(seqWeight, setSize);
@@ -492,5 +493,13 @@ void PSSMCalculator::Profile::toBuffer(const unsigned char* centerSequence, size
         result.push_back(static_cast<unsigned char>(centerSequence[pos]));
         result.push_back(static_cast<unsigned char>(subMat.aa2num[static_cast<int>(consensus[pos])]));
         result.push_back(static_cast<unsigned char>(MathUtil::convertNeffToChar(neffM[pos])));
+    }
+}
+
+void PSSMCalculator::increaseSetSize(size_t newSetSize) {
+    if (newSetSize > maxSetSize) {
+        maxSetSize = newSetSize * 1.5;
+        seqWeight = (float*)realloc(seqWeight, maxSetSize);
+        wi = (float*)realloc(wi, maxSetSize);
     }
 }
