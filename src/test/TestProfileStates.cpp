@@ -589,7 +589,8 @@ int main (int, const char**) {
     MultipleAlignment::print(res, &subMat);
 
     MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
-    size_t filteredSetSize = msaFilter.filter(res, 0, 0,-20.0, 90, 100);
+    std::vector<Matcher::result_t> empty;
+    size_t filteredSetSize = msaFilter.filter(res, empty, 0, 0,-20.0, 90, 100);
 
 /*    std::cout << "Filtered:" << filterResult.setSize << std::endl;
 //    for(size_t k = 0; k < res.setSize; k++){
