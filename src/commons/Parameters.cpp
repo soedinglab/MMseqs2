@@ -93,7 +93,6 @@ Parameters::Parameters():
         PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by E-value (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID, "--allow-deletion", "Allow deletions", "Allow deletions in a MSA", typeid(bool), (void *) &allowDeletion, ""),
-        PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID, "--add-iternal-id", "Add internal ID", "Add internal id as comment to MSA", typeid(bool), (void *) &addInternalId, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_COMPRESS_MSA(PARAM_COMPRESS_MSA_ID, "--compress", "Compress MSA", "Create MSA in CA3M format", typeid(bool), (void *) &compressMSA, ""),
         PARAM_SUMMARIZE_HEADER(PARAM_SUMMARIZE_HEADER_ID, "--summarize", "Summarize headers", "Summarize cluster headers into a single header description", typeid(bool), (void *) &summarizeHeader, ""),
         PARAM_SUMMARY_PREFIX(PARAM_SUMMARY_PREFIX_ID, "--summary-prefix", "Summary prefix", "Set the cluster summary prefix", typeid(std::string), (void *) &summaryPrefix, "", MMseqsParameter::COMMAND_EXPERT),
@@ -528,7 +527,6 @@ Parameters::Parameters():
     // result2msa
     result2msa.push_back(&PARAM_SUB_MAT);
     result2msa.push_back(&PARAM_ALLOW_DELETION);
-    result2msa.push_back(&PARAM_ADD_INTERNAL_ID);
     result2msa.push_back(&PARAM_NO_COMP_BIAS_CORR);
     result2msa.push_back(&PARAM_FILTER_MSA);
     result2msa.push_back(&PARAM_FILTER_MAX_SEQ_ID);
@@ -2062,7 +2060,6 @@ void Parameters::setDefaults() {
 
     // result2msa
     allowDeletion = false;
-    addInternalId = false;
     compressMSA = false;
     summarizeHeader = false;
     summaryPrefix = "cl";

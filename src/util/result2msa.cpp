@@ -270,12 +270,6 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         length = targetHeaderReader->getEntryLen(id) - 1;
                     }
 
-                    if (par.addInternalId) {
-                        result.append(1, '#');
-                        result.append(SSTR(key));
-                        result.append(1, '\n');
-                    }
-
                     result.append(1, '>');
                     result.append(header, length);
                     // need to allow insertion in the centerSequence
