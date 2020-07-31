@@ -24,14 +24,9 @@ public:
         size_t centerLength;
         size_t setSize;
         char ** msaSequence;
-        char * keep;
-		std::vector<Matcher::result_t> alignmentResults;
 
         MSAResult(size_t msaSequenceLength, size_t centerLength, size_t setSize, char **msa)
-                : msaSequenceLength(msaSequenceLength), centerLength(centerLength), setSize(setSize), msaSequence(msa), keep(NULL) {}
-
-        MSAResult(size_t msaSequenceLength, size_t centerLength, size_t setSize, char **msa, std::vector<Matcher::result_t> alignmentResults)
-                : msaSequenceLength(msaSequenceLength), centerLength(centerLength), setSize(setSize), msaSequence(msa), keep(NULL), alignmentResults(alignmentResults) {}
+                : msaSequenceLength(msaSequenceLength), centerLength(centerLength), setSize(setSize), msaSequence(msa) {}
     };
 
 

@@ -203,19 +203,20 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 
             // Recompute if not all the backtraces are present
             MultipleAlignment::MSAResult res = aligner.computeMSA(&centerSequence, seqSet, alnResults, true);
-            //MultipleAlignment::print(res, &subMat);
-            alnResults.clear();
-
+            if (returnAlnRes == false) {
+                alnResults.clear();
+            }
             size_t filteredSetSize = isFiltering == false ? res.setSize
-                    : filter.filter(res, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff);
+                    : filter.filter(res, alnResults, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff);
             //MultipleAlignment::print(res, &subMat);
 
             if (returnAlnRes) {
                 // do not count query
                 for (size_t i = 0; i < (filteredSetSize - 1); ++i) {
-                    size_t len = Matcher::resultToBuffer(buffer, res.alignmentResults[i], true);
+                    size_t len = Matcher::resultToBuffer(buffer, alnResults[i], true);
                     result.append(buffer, len);
                 }
+                alnResults.clear();
             } else {
                 for (size_t pos = 0; pos < res.centerLength; pos++) {
                     if (res.msaSequence[0][pos] == MultipleAlignment::GAP) {

@@ -224,7 +224,7 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
 	
 	
     // +1 for the query
-    return MSAResult(centerSeqSize, centerSeq->L, edgeSeqs.size() + 1, msaSequence, alignmentResults);
+    return MSAResult(centerSeqSize, centerSeq->L, edgeSeqs.size() + 1, msaSequence);
 }
 
 MultipleAlignment::MSAResult MultipleAlignment::singleSequenceMSA(Sequence *centerSeq) {

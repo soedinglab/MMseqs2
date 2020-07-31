@@ -59,19 +59,19 @@ void MsaFilter::increaseSetSize(int newSetSize) {
     }
 }
 
-size_t MsaFilter::filter(MultipleAlignment::MSAResult &msa, int coverage, int qid, float qsc, int max_seqid, int Ndiff) {
+size_t MsaFilter::filter(MultipleAlignment::MSAResult &msa, std::vector<Matcher::result_t> &alnResults, int coverage, int qid, float qsc, int max_seqid, int Ndiff) {
     size_t filteredSize = filter(msa.setSize, msa.centerLength, coverage, qid, qsc, max_seqid, Ndiff, (const char **) msa.msaSequence, true);
-    if (!msa.alignmentResults.empty()) {
+    if (!alnResults.empty()) {
         // alignmentResults does not include the query
         for (size_t i = 0, j = 0; j < msa.setSize - 1; j++) {
             if (keep[j] != 0) {
                 if (i < j) {
-                    std::swap(msa.alignmentResults[i], msa.alignmentResults[j]);
+                    std::swap(alnResults[i], alnResults[j]);
                 }
                 i++;
             }
         }
-        msa.alignmentResults.resize(filteredSize - 1);
+        alnResults.resize(filteredSize - 1);
     }
     return filteredSize;
 }

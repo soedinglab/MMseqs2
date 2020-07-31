@@ -226,7 +226,6 @@ int result2msa(int argc, const char **argv, const Command &command) {
 
             MultipleAlignment::MSAResult res = aligner.computeMSA(&centerSequence, seqSet, alnResults, !par.allowDeletion);
             //MultipleAlignment::print(res, &subMat);
-            alnResults.clear();
 
             if (par.compressMSA == false) {
                 if (isFiltering) {
@@ -286,7 +285,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
             } else {
                 size_t filteredSetSize = res.setSize;
                 if (isFiltering) {
-                    filteredSetSize = filter.filter(res, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
+                    filteredSetSize = filter.filter(res, alnResults, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
                 }
                 if (par.omitConsensus == false) {
                     for (size_t pos = 0; pos < res.centerLength; pos++) {
@@ -317,11 +316,11 @@ int result2msa(int argc, const char **argv, const Command &command) {
                 queryAln.dbStartPos = 0;
                 queryAln.backtrace = std::string(centerSequence.L, 'M'); // only matches
                 CompressedA3M::hitToBuffer(refReader->getId(newQueryKey), queryAln, result);
-                for (size_t i = 0; i < res.alignmentResults.size(); ++i) {
-                    unsigned int key = res.alignmentResults[i].dbKey;
+                for (size_t i = 0; i < alnResults.size(); ++i) {
+                    unsigned int key = alnResults[i].dbKey;
                     unsigned int targetKey = seqConcat->dbBKeyMap(key);
                     unsigned int targetId = refReader->getId(targetKey);
-                    CompressedA3M::hitToBuffer(targetId, res.alignmentResults[i], result);
+                    CompressedA3M::hitToBuffer(targetId, alnResults[i], result);
                 }
             }
             resultWriter.writeData(result.c_str(), result.length(), queryKey, thread_idx);
@@ -330,6 +329,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
             MultipleAlignment::deleteMSA(&res);
             seqSet.clear();
             seqIds.clear();
+            alnResults.clear();
         }
 
         delete[] kept;
