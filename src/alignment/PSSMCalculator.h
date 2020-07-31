@@ -72,6 +72,10 @@ private:
     // number of different amino acids
     int *naa;
 
+    float **f;
+
+    int **n;
+
     size_t maxSeqLength;
     size_t maxSetSize;
 

@@ -28,9 +28,13 @@ PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t m
     }
     wi = (float*)malloc(maxSetSize * sizeof(float));
     naa = new int[maxSeqLength + 1];
+    f = malloc_matrix<float>(maxSeqLength + 1, MultipleAlignment::NAA + 3);
+    n = new int*[maxSeqLength + 2];
+    for (size_t j = 0; j < maxSeqLength; j++) {
+        n[j] = (int *) malloc_simd_int(NAA_VECSIZE * sizeof(int));
+    }
     this->pca = pca;
     this->pcb = pcb;
-
 }
 
 PSSMCalculator::~PSSMCalculator() {
@@ -47,6 +51,11 @@ PSSMCalculator::~PSSMCalculator() {
     delete [] w_contrib;
     free(wi);
     delete [] naa;
+    for (size_t j = 0; j < maxSeqLength; ++j){
+        free(n[j]);
+    }
+    delete [] n;
+    free(f);
 }
 
 PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
@@ -286,11 +295,8 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
 
     int nseqi = 0;
     unsigned int NAA_VECSIZE = ((MultipleAlignment::NAA+ 3 + VECSIZE_INT - 1) / VECSIZE_INT) * VECSIZE_INT; // round NAA+3 up to next multiple of VECSIZE_INT
-    float** f = malloc_matrix<float>(queryLength+1, MultipleAlignment::NAA+3);
-    int ** n = new int*[queryLength + 2];
-    for (size_t j = 0; j < queryLength; j++){
-        n[j] = (int *) malloc_simd_int(NAA_VECSIZE * sizeof(int));
-        memset(n[j], 0, sizeof(int) * NAA_VECSIZE );
+    for (size_t j = 0; j < queryLength; j++) {
+        memset(n[j], 0, sizeof(int) * NAA_VECSIZE);
     }
 
     for (size_t j = 0; j < queryLength; j++){
@@ -455,12 +461,6 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
         for (int i = queryLength - 1; i >= 0 && X[k][i] == ENDGAP; i--)
             ((char**)X)[k][i] = MultipleAlignment::GAP;
     }
-
-    for (size_t j = 0; j < queryLength; ++j){
-        free(n[j]);
-    }
-    delete [] n;
-    free(f);
 }
 
 std::string PSSMCalculator::computeConsensusSequence(float *frequency, size_t queryLength, double *pBack, char *num2aa) {
