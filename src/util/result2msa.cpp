@@ -131,11 +131,12 @@ int result2msa(int argc, const char **argv, const Command &command) {
 #endif
 
         Matcher matcher(qDbr.getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
-        MultipleAlignment aligner(maxSequenceLength, &subMat, &matcher);
+        MultipleAlignment aligner(maxSequenceLength, &subMat);
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
         UniprotHeaderSummarizer summarizer;
         Sequence centerSequence(maxSequenceLength, qDbr.getDbtype(), &subMat, 0, false, par.compBiasCorrection);
+        Sequence edgeSequence(maxSequenceLength, tDbr->getDbtype(), &subMat, 0, false, false);
 
         // which sequences where kept after filtering
         bool *kept = new bool[maxSetSize];
@@ -152,8 +153,11 @@ int result2msa(int argc, const char **argv, const Command &command) {
         std::vector<Matcher::result_t> alnResults;
         alnResults.reserve(300);
 
-        std::vector<Sequence *> seqSet;
+        std::vector<std::vector<unsigned char>> seqSet;
         seqSet.reserve(300);
+
+        std::vector<size_t> seqIds;
+        seqIds.reserve(300);
 
         std::string result;
         result.reserve(300 * 1024);
@@ -186,6 +190,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
             char* centerSequenceHeader = queryHeaderReader.getData(centerHeaderId, thread_idx);
             size_t centerHeaderLength = queryHeaderReader.getEntryLen(centerHeaderId) - 1;
 
+            bool isQueryInit = false;
             char *data = resultReader.getData(id, thread_idx);
             while (*data != '\0') {
                 Util::parseKey(data, dbKey);
@@ -196,27 +201,30 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     continue;
                 }
 
-                const size_t columns = Util::getWordsOfLine(data, entry, 255);
-                if (columns > Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
-                    alnResults.push_back(Matcher::parseAlignmentRecord(data));
-                }
-
                 const size_t edgeId = tDbr->getId(key);
                 if (edgeId == UINT_MAX) {
                     Debug(Debug::ERROR) << "Sequence " << key << " does not exist in target sequence database\n";
                     EXIT(EXIT_FAILURE);
                 }
-                Sequence *edgeSequence = new Sequence(tDbr->getSeqLen(edgeId), tDbr->getDbtype(), &subMat, 0, false, false);
-                edgeSequence->mapSequence(edgeId, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId));
-                seqSet.push_back(edgeSequence);
+                edgeSequence.mapSequence(edgeId, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId));
+                seqSet.emplace_back(std::vector<unsigned char>(edgeSequence.numSequence, edgeSequence.numSequence + edgeSequence.L));
+                seqIds.emplace_back(edgeId);
 
+                const size_t columns = Util::getWordsOfLine(data, entry, 255);
+                if (columns > Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
+                    alnResults.emplace_back(Matcher::parseAlignmentRecord(data));
+                } else {
+                    // Recompute if not all the backtraces are present
+                    if (isQueryInit == false) {
+                        matcher.initQuery(&centerSequence);
+                        isQueryInit = true;
+                    }
+                    alnResults.emplace_back(matcher.getSWResult(&edgeSequence, INT_MAX, false, 0, 0.0, FLT_MAX, Matcher::SCORE_COV_SEQID, 0, false));
+                }
                 data = Util::skipLine(data);
             }
 
-            // Recompute if not all the backtraces are present
-            MultipleAlignment::MSAResult res = (alnResults.size() == seqSet.size())
-                                               ? aligner.computeMSA(&centerSequence, seqSet, alnResults, !par.allowDeletion)
-                                               : aligner.computeMSA(&centerSequence, seqSet, !par.allowDeletion);
+            MultipleAlignment::MSAResult res = aligner.computeMSA(&centerSequence, seqSet, alnResults, !par.allowDeletion);
             //MultipleAlignment::print(res, &subMat);
             alnResults.clear();
 
@@ -231,8 +239,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         if (i == 0) {
                             headers.emplace_back(centerSequenceHeader, centerHeaderLength);
                         } else if (kept[i] == true) {
-                            unsigned int id = seqSet[i - 1]->getId();
-                            char *header = targetHeaderReader->getData(id, thread_idx);
+                            char *header = targetHeaderReader->getData(seqIds[i - 1], thread_idx);
                             size_t length = targetHeaderReader->getEntryLen(id) - 1;
                             headers.emplace_back(header, length);
                         }
@@ -256,16 +263,13 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         continue;
                     }
 
-                    unsigned int key;
                     char *header;
                     size_t length;
                     if (i == 0) {
-                        key = queryKey;
                         header = centerSequenceHeader;
                         length = centerHeaderLength - 1;
                     } else {
-                        key = seqSet[i - 1]->getDbKey();
-                        size_t id = seqSet[i - 1]->getId();
+                        size_t id = seqIds[i - 1];
                         header = targetHeaderReader->getData(id, thread_idx);
                         length = targetHeaderReader->getEntryLen(id) - 1;
                     }
@@ -324,10 +328,8 @@ int result2msa(int argc, const char **argv, const Command &command) {
             result.clear();
 
             MultipleAlignment::deleteMSA(&res);
-            for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
-                delete *it;
-            }
             seqSet.clear();
+            seqIds.clear();
         }
 
         delete[] kept;

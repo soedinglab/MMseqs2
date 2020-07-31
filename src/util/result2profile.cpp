@@ -129,11 +129,12 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 #endif
 
         Matcher matcher(qDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
-        MultipleAlignment aligner(maxSequenceLength, &subMat, &matcher);
+        MultipleAlignment aligner(maxSequenceLength, &subMat);
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
         PSSMMasker masker(maxSequenceLength, probMatrix, subMat);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
         Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
+        Sequence edgeSequence(maxSequenceLength, targetSeqType, &subMat, 0, false, false);
 
         char dbKey[255];
         const char *entry[255];
@@ -142,7 +143,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
         std::vector<Matcher::result_t> alnResults;
         alnResults.reserve(300);
 
-        std::vector<Sequence *> seqSet;
+        std::vector<std::vector<unsigned char>> seqSet;
         seqSet.reserve(300);
 
         std::string result;
@@ -160,6 +161,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
             }
             centerSequence.mapSequence(queryId, queryKey, qDbr->getData(queryId, thread_idx), qDbr->getSeqLen(queryId));
 
+            bool isQueryInit = false;
             char *data = resultReader.getData(id, thread_idx);
             while (*data != '\0') {
                 Util::parseKey(data, dbKey);
@@ -177,26 +179,30 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                 }
 
                 if (evalue < par.evalProfile) {
-                    if (columns > Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
-                        alnResults.push_back(Matcher::parseAlignmentRecord(data));
-                    }
-
                     const size_t edgeId = tDbr->getId(key);
                     if (edgeId == UINT_MAX) {
                         Debug(Debug::ERROR) << "Sequence " << key << " does not exist in target sequence database\n";
                         EXIT(EXIT_FAILURE);
                     }
-                    Sequence *edgeSequence = new Sequence(tDbr->getSeqLen(edgeId), targetSeqType, &subMat, 0, false, false);
-                    edgeSequence->mapSequence(edgeId, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId));
-                    seqSet.push_back(edgeSequence);
+                    edgeSequence.mapSequence(edgeId, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId));
+                    seqSet.emplace_back(std::vector<unsigned char>(edgeSequence.numSequence, edgeSequence.numSequence + edgeSequence.L));
+
+                    if (columns > Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
+                        alnResults.emplace_back(Matcher::parseAlignmentRecord(data));
+                    } else {
+                        // Recompute if not all the backtraces are present
+                        if (isQueryInit == false) {
+                            matcher.initQuery(&centerSequence);
+                            isQueryInit = true;
+                        }
+                        alnResults.emplace_back(matcher.getSWResult(&edgeSequence, INT_MAX, false, 0, 0.0, FLT_MAX, Matcher::SCORE_COV_SEQID, 0, false));
+                    }
                 }
                 data = Util::skipLine(data);
             }
 
             // Recompute if not all the backtraces are present
-            MultipleAlignment::MSAResult res = (alnResults.size() == seqSet.size())
-                                               ? aligner.computeMSA(&centerSequence, seqSet, alnResults, true)
-                                               : aligner.computeMSA(&centerSequence, seqSet, true);
+            MultipleAlignment::MSAResult res = aligner.computeMSA(&centerSequence, seqSet, alnResults, true);
             //MultipleAlignment::print(res, &subMat);
             alnResults.clear();
 
@@ -228,9 +234,6 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
             result.clear();
 
             MultipleAlignment::deleteMSA(&res);
-            for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
-                delete *it;
-            }
             seqSet.clear();
         }
     }

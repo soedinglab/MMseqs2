@@ -158,11 +158,11 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         MsaFilter *filter = NULL;
         PSSMCalculator *calculator = NULL;
         PSSMMasker *masker = NULL;
-        std::vector<Sequence *> seqSet;
+        std::vector<std::vector<unsigned char>> seqSet;
         std::string result;
 
         if (returnAlnRes == false) {
-            aligner = new MultipleAlignment(par.maxSeqLen, &subMat, NULL);
+            aligner = new MultipleAlignment(par.maxSeqLen, &subMat);
             if (par.filterMsa) {
                 filter = new MsaFilter(par.maxSeqLen, 300, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
             }
@@ -250,7 +250,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                         if (currBestAc.score != INT_MIN) {
                             resultsAc.emplace_back(currBestAc);
                             if (returnAlnRes == false) {
-                                seqSet.push_back(new Sequence(cSeq));
+                                seqSet.emplace_back(std::vector<unsigned char>(cSeq.numSequence, cSeq.numSequence + cSeq.L));
                             }
                         }
                         currBestAc.score = INT_MIN;
@@ -267,7 +267,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 if (currBestAc.score != INT_MIN) {
                     resultsAc.emplace_back(currBestAc);
                     if (returnAlnRes == false) {
-                        seqSet.push_back(new Sequence(cSeq));
+                        seqSet.emplace_back(std::vector<unsigned char>(cSeq.numSequence, cSeq.numSequence + cSeq.L));
                     }
                 }
                 resultsBc.clear();
@@ -295,9 +295,6 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 writer.writeData(result.c_str(), result.length(), resAbKey, thread_idx);
                 result.clear();
                 MultipleAlignment::deleteMSA(&res);
-                for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
-                    delete *it;
-                }
                 seqSet.clear();
             }
         }
