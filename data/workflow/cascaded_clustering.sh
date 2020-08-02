@@ -177,7 +177,7 @@ if [ -n "$REASSIGN" ]; then
         # combine clusters
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${TMP_PATH}/seq_seeds.merged" "${TMP_PATH}/clu_accepted_plus_wrong" "${TMP_PATH}/clu_accepted" \
-                        "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_ocol" \
+                        "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_ocol" ${MERGEDBS_PAR} \
                              || fail "mergedbs reassign died"
     fi
 
@@ -192,7 +192,7 @@ if [ -n "$REASSIGN" ]; then
         # combine clusters
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${SOURCE}" "${TMP_PATH}/clu_accepted_plus_wrong_plus_single" "${TMP_PATH}/clu_accepted_plus_wrong" \
-                        "${TMP_PATH}/missing.single.seqs.db" \
+                        "${TMP_PATH}/missing.single.seqs.db" ${MERGEDBS_PAR} \
                              || fail "mergedbs2 reassign died"
     fi
 
