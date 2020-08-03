@@ -226,7 +226,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     Matcher::readAlignmentResults(resultsBc, resultBcReader.getData(bResId, thread_idx), false);
                 }
 
-                std::stable_sort(resultsAc.begin(), resultsAc.end(), compareHitsByKeyScore);
+                std::stable_sort(resultsBc.begin(), resultsBc.end(), compareHitsByKeyScore);
 
                 size_t lastCKey = SIZE_MAX;
                 currBestAc.score = INT_MIN;
@@ -250,7 +250,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                         if (currBestAc.score != INT_MIN) {
                             resultsAc.emplace_back(currBestAc);
                             if (returnAlnRes == false) {
-                                seqSet.emplace_back(std::vector<unsigned char>(cSeq.numSequence, cSeq.numSequence + cSeq.L));
+                                seqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
                             }
                         }
                         currBestAc.score = INT_MIN;
@@ -267,7 +267,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 if (currBestAc.score != INT_MIN) {
                     resultsAc.emplace_back(currBestAc);
                     if (returnAlnRes == false) {
-                        seqSet.emplace_back(std::vector<unsigned char>(cSeq.numSequence, cSeq.numSequence + cSeq.L));
+                        seqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
                     }
                 }
                 resultsBc.clear();
