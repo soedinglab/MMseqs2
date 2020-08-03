@@ -499,7 +499,7 @@ void PSSMCalculator::Profile::toBuffer(const unsigned char* centerSequence, size
 void PSSMCalculator::increaseSetSize(size_t newSetSize) {
     if (newSetSize > maxSetSize) {
         maxSetSize = newSetSize * 1.5;
-        seqWeight = (float*)realloc(seqWeight, maxSetSize);
-        wi = (float*)realloc(wi, maxSetSize);
+        seqWeight = (float*)realloc(seqWeight, maxSetSize * sizeof(float));
+        wi = (float*)realloc(wi, maxSetSize * sizeof(float));
     }
 }

@@ -47,15 +47,15 @@ MsaFilter::~MsaFilter() {
 void MsaFilter::increaseSetSize(int newSetSize) {
     if (newSetSize > maxSetSize) {
         maxSetSize = newSetSize * 1.5;
-        in = (char*)realloc(in, maxSetSize);
-        inkk = (char*)realloc(inkk, maxSetSize);
-        seqid_prev = (int*)realloc(seqid_prev, maxSetSize);
-        first = (int*)realloc(first, maxSetSize);
-        last = (int*)realloc(last, maxSetSize);
-        nres = (int*)realloc(nres, maxSetSize);
-        ksort = (int*)realloc(ksort, maxSetSize);
-        display = (char*)realloc(display, maxSetSize);
-        keep = (char*)realloc(keep, maxSetSize);
+        in = (char*)realloc(in, maxSetSize * sizeof(char));
+        inkk = (char*)realloc(inkk, maxSetSize * sizeof(char));
+        seqid_prev = (int*)realloc(seqid_prev, maxSetSize * sizeof(int));
+        first = (int*)realloc(first, maxSetSize * sizeof(int));
+        last = (int*)realloc(last, maxSetSize * sizeof(int));
+        nres = (int*)realloc(nres, maxSetSize * sizeof(int));
+        ksort = (int*)realloc(ksort, maxSetSize * sizeof(int));
+        display = (char*)realloc(display, maxSetSize * sizeof(char));
+        keep = (char*)realloc(keep, maxSetSize * sizeof(char));
     }
 }
 
