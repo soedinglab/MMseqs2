@@ -49,7 +49,7 @@ void MultipleAlignment::computeQueryGaps(unsigned int *queryGaps, Sequence *cent
     memset(queryGaps, 0, sizeof(unsigned int) * centerSeq->L);
     for(size_t i = 0; i < edges; i++) {
         const Matcher::result_t& alignment = alignmentResults[i];
-        std::string bt = alignment.backtrace;
+        const std::string& bt = alignment.backtrace;
         size_t queryPos = 0;
         size_t targetPos = 0;
         size_t currentQueryGapSize = 0;
@@ -102,7 +102,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
                                                 bool noDeletionMSA) {
     for(size_t i = 0; i < seqs.size(); i++) {
         const Matcher::result_t& result = alignmentResults[i];
-        std::string bt = result.backtrace;
+        const std::string& bt = result.backtrace;
         char *edgeSeqMSA = msaSequence[i+1];
         const std::vector<unsigned char> &edgeSeq = seqs[i];
         unsigned int queryPos = result.qStartPos;
@@ -149,7 +149,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
                         bufferPos++;
                         queryPos++;
                     } else if(bt.at(alnPos) == 'M'){
-                        edgeSeqMSA[bufferPos] = subMat->num2aa[(int)edgeSeq[targetPos]];
+                        edgeSeqMSA[bufferPos] = subMat->num2aa[edgeSeq[targetPos]];
                         bufferPos++;
                         queryPos++;
                         targetPos++;
@@ -165,7 +165,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
                         }
                     }
                     // M state
-                    edgeSeqMSA[bufferPos] = subMat->num2aa[(int)edgeSeq[targetPos]];
+                    edgeSeqMSA[bufferPos] = subMat->num2aa[edgeSeq[targetPos]];
 
                     bufferPos++;
                     queryPos++;
