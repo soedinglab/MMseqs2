@@ -67,9 +67,7 @@ void rescoreResultByBacktrace(Matcher::result_t &result, Sequence &qSeq, Sequenc
         lastState = state;
     }
     result.score = score;
-//    result.eval = evaluer.computeEvalue(score, qSeq.L);
-//    result.score = static_cast<int>(evaluer.computeBitScore(score)+0.5);
-//    result.seqId = Util::computeSeqId(seqIdMode, identities, qSeq.L, tSeq.L, result.backtrace.size());
+    result.seqId = identities;
 }
 
 static bool compareHitsByKeyScore(const Matcher::result_t &first, const Matcher::result_t &second) {
@@ -138,11 +136,13 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     BacktraceTranslator translator;
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, par.scoreBias);\
 
+    EvalueComputation *evaluer = NULL;
     ProbabilityMatrix *probMatrix = NULL;
     if (returnAlnRes == false) {
         probMatrix = new ProbabilityMatrix(subMat);
+    } else {
+        evaluer = new EvalueComputation(cReader->getAminoAcidDBSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
     }
-//    EvalueComputation evaluer(cReader->getAminoAcidDBSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
     Debug::Progress progress(resultAbReader->getSize());
 #pragma omp parallel
     {
@@ -248,10 +248,14 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     unsigned int cSeqKey = resultBc.dbKey;
                     if (lastCKey != cSeqKey) {
                         if (currBestAc.score != INT_MIN) {
-                            resultsAc.emplace_back(currBestAc);
                             if (returnAlnRes == false) {
                                 seqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
+                            } else {
+                                currBestAc.eval = evaluer->computeEvalue(currBestAc.score, aSeq.L);
+                                currBestAc.score = static_cast<int>(evaluer->computeBitScore(currBestAc.score)+0.5);
+                                currBestAc.seqId = Util::computeSeqId(par.seqIdMode, currBestAc.seqId, aSeq.L, cSeq.L, currBestAc.backtrace.size());
                             }
+                            resultsAc.emplace_back(currBestAc);
                         }
                         currBestAc.score = INT_MIN;
 
@@ -265,10 +269,14 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     }
                 }
                 if (currBestAc.score != INT_MIN) {
-                    resultsAc.emplace_back(currBestAc);
                     if (returnAlnRes == false) {
                         seqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
+                    } else {
+                        currBestAc.eval = evaluer->computeEvalue(currBestAc.score, aSeq.L);
+                        currBestAc.score = static_cast<int>(evaluer->computeBitScore(currBestAc.score)+0.5);
+                        currBestAc.seqId = Util::computeSeqId(par.seqIdMode, currBestAc.seqId, aSeq.L, cSeq.L, currBestAc.backtrace.size());
                     }
+                    resultsAc.emplace_back(currBestAc);
                 }
                 resultsBc.clear();
             }
@@ -311,6 +319,9 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     writer.close(returnAlnRes == false);
     if (probMatrix != NULL) {
         delete probMatrix;
+    }
+    if (evaluer != NULL) {
+        delete evaluer;
     }
     resultBcReader.close();
     resultAbReader->close();
