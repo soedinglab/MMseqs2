@@ -107,6 +107,9 @@ public:
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
     static const unsigned int ALIGNMENT_MODE_UNGAPPED = 4;
 
+    static const unsigned int EXPAND_TRANSFER_EVALUE = 0;
+    static const unsigned int EXPAND_RESCORE_BACKTRACE = 1;
+
     static const unsigned int WRITER_ASCII_MODE = 0;
     static const unsigned int WRITER_COMPRESSED_MODE = 1;
     static const unsigned int WRITER_LEXICOGRAPHIC_MODE = 2;
@@ -566,7 +569,7 @@ public:
     // diff
     bool useSequenceId;
 
-    //prefixid
+    // prefixid
     std::string prefix;
     bool tsvOut;
 

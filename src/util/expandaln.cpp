@@ -14,7 +14,9 @@
 #include "PSSMCalculator.h"
 #include "PSSMMasker.h"
 #include "FastSort.h"
-
+#include "IntervalArray.h"
+#include <stack>
+#include <map>
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -71,10 +73,6 @@ void rescoreResultByBacktrace(Matcher::result_t &result, Sequence &qSeq, Sequenc
 }
 
 static bool compareHitsByKeyScore(const Matcher::result_t &first, const Matcher::result_t &second) {
-    if (first.dbKey < second.dbKey)
-        return true;
-    if (second.dbKey < first.dbKey)
-        return false;
     if (first.score > second.score)
         return true;
     if (second.score > first.score)
@@ -183,8 +181,8 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
 
         Matcher::result_t resultAc;
         resultAc.backtrace.reserve(par.maxSeqLen + 1);
-        Matcher::result_t currBestAc;
-
+        std::map<unsigned int, IntervalArray *> interval;
+        std::stack<IntervalArray *> intervalBuffer;
         std::vector<Matcher::result_t> resultsAc;
         resultsAc.reserve(1000);
 
@@ -210,7 +208,9 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
             while (*data != '\0') {
                 Matcher::result_t resultAb = Matcher::parseAlignmentRecord(data, false);
                 data = Util::skipLine(data);
-
+                if(returnAlnRes == false && resultAb.eval > par.evalProfile){
+                    continue;
+                }
                 if (resultAb.backtrace.empty()) {
                     Debug(Debug::ERROR) << "Alignment must contain a backtrace\n";
                     EXIT(EXIT_FAILURE);
@@ -228,8 +228,6 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
 
                 std::stable_sort(resultsBc.begin(), resultsBc.end(), compareHitsByKeyScore);
 
-                size_t lastCKey = SIZE_MAX;
-                currBestAc.score = INT_MIN;
                 for (size_t k = 0; k < resultsBc.size(); ++k) {
                     Matcher::result_t &resultBc = resultsBc[k];
                     if (resultBc.backtrace.size() == 0) {
@@ -246,40 +244,60 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     }
 
                     unsigned int cSeqKey = resultBc.dbKey;
-                    if (lastCKey != cSeqKey) {
-                        if (currBestAc.score != INT_MIN) {
-                            if (returnAlnRes == false) {
-                                seqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
-                            } else {
-                                currBestAc.eval = evaluer->computeEvalue(currBestAc.score, aSeq.L);
-                                currBestAc.score = static_cast<int>(evaluer->computeBitScore(currBestAc.score)+0.5);
-                                currBestAc.seqId = Util::computeSeqId(par.seqIdMode, currBestAc.seqId, aSeq.L, cSeq.L, currBestAc.backtrace.size());
-                            }
-                            resultsAc.emplace_back(currBestAc);
+                    // A single target sequence can cover a query just a single time
+                    // If a target has the same domain several times, then we only consider one
+                    if(interval.find(cSeqKey) != interval.end()) {
+                        if(interval[cSeqKey]->doesOverlap(resultAc.qStartPos, resultAc.qEndPos)){
+                            continue;
                         }
-                        currBestAc.score = INT_MIN;
-
+                    } else {
                         size_t cSeqId = cReader->getId(cSeqKey);
                         cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
-                        lastCKey = cSeqKey;
+                        rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+                        if(resultAc.score < 0){ // alignment too bad
+                            continue;
+                        }
+
+                        if(par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE){
+                            resultAc.eval = evaluer->computeEvalue(resultAc.score, aSeq.L);
+                            resultAc.score = static_cast<int>(evaluer->computeBitScore(resultAc.score)+0.5);
+                            resultAc.seqId = Util::computeSeqId(par.seqIdMode, resultAc.seqId, aSeq.L, cSeq.L, resultAc.backtrace.size());
+                        }else{
+                            resultAc.eval = resultAb.eval;
+                            resultAc.score = resultAb.score;
+                            resultAc.seqId = resultAb.seqId;
+                        }
+                        float queryCov = SmithWaterman::computeCov(resultAc.qStartPos, resultAc.qEndPos, resultAc.qLen);
+                        float targetCov = SmithWaterman::computeCov(resultAc.dbStartPos, resultAc.dbEndPos, resultAc.dbLen);
+                        bool hasCov = Util::hasCoverage(par.covThr, par.covMode, queryCov, targetCov);
+                        bool hasSeqId = resultAc.seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
+                        bool hasEvalue = (resultAc.eval <= par.evalThr);
+                        bool hasAlnLen = (static_cast<int>(resultAc.alnLength) >= par.alnLenThr);
+                        if(hasCov && hasSeqId && hasEvalue && hasAlnLen){
+                            if (returnAlnRes == false) {
+                                seqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
+                            }
+                            resultsAc.emplace_back(resultAc);
+                            // only if accepted avoid same alignment against
+                            if(intervalBuffer.size() == 0){
+                                interval[cSeqKey] = new IntervalArray();
+                            } else {
+                                interval[cSeqKey] = intervalBuffer.top();
+                                intervalBuffer.pop();
+                            }
+                            interval[cSeqKey]->insert(resultAc.qStartPos, resultAc.qEndPos);
+                        }
+
                     }
-                    rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
-                    if (resultAc.score > par.minDiagScoreThr && resultAc.score > currBestAc.score) {
-                        currBestAc = resultAc;
-                    }
-                }
-                if (currBestAc.score != INT_MIN) {
-                    if (returnAlnRes == false) {
-                        seqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
-                    } else {
-                        currBestAc.eval = evaluer->computeEvalue(currBestAc.score, aSeq.L);
-                        currBestAc.score = static_cast<int>(evaluer->computeBitScore(currBestAc.score)+0.5);
-                        currBestAc.seqId = Util::computeSeqId(par.seqIdMode, currBestAc.seqId, aSeq.L, cSeq.L, currBestAc.backtrace.size());
-                    }
-                    resultsAc.emplace_back(currBestAc);
                 }
                 resultsBc.clear();
             }
+            for (std::map<unsigned int, IntervalArray *>::iterator it = interval.begin(); it != interval.end(); it++ )
+            {
+                it->second->reset();
+                intervalBuffer.push(it->second);
+            }
+            interval.clear();
 
             if (returnAlnRes) {
                 SORT_SERIAL(resultsAc.begin(), resultsAc.end(), Matcher::compareHits);
@@ -294,7 +312,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 MultipleAlignment::MSAResult res = aligner->computeMSA(&aSeq, seqSet, resultsAc, true);
                 resultsAc.clear();
                 size_t filteredSetSize = par.filterMsa == false ? res.setSize
-                        : filter->filter(res.setSize, res.centerLength, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, true);
+                                                                : filter->filter(res.setSize, res.centerLength, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, true);
                 PSSMCalculator::Profile pssmRes = calculator->computePSSMFromMSA(filteredSetSize, aSeq.L, (const char **) res.msaSequence, par.wg);
                 if (par.maskProfile == true) {
                     masker->mask(aSeq, pssmRes);
@@ -315,7 +333,12 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
             delete calculator;
             delete masker;
         }
+        while(intervalBuffer.size()){
+            delete intervalBuffer.top();
+            intervalBuffer.pop();
+        }
     }
+
     writer.close(returnAlnRes == false);
     if (probMatrix != NULL) {
         delete probMatrix;
