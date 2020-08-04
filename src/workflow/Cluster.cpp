@@ -238,7 +238,11 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         }
         cmd.addVariable("THREADSANDCOMPRESS", par.createParameterString(par.threadsandcompression).c_str());
         cmd.addVariable("VERBCOMPRESS", par.createParameterString(par.verbandcompression).c_str());
+        int swapedCovMode = Util::swapCoverageMode(par.covMode);
+        int tmpCovMode = par.covMode;
+        par.covMode = swapedCovMode;
         cmd.addVariable("PREFILTER_REASSIGN_PAR", par.createParameterString(par.prefilter).c_str());
+        par.covMode = tmpCovMode;
         cmd.addVariable("ALIGNMENT_REASSIGN_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("MERGEDBS_PAR", par.createParameterString(par.mergedbs).c_str());
 
