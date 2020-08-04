@@ -238,7 +238,9 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         }
         cmd.addVariable("THREADSANDCOMPRESS", par.createParameterString(par.threadsandcompression).c_str());
         cmd.addVariable("VERBCOMPRESS", par.createParameterString(par.verbandcompression).c_str());
+        cmd.addVariable("PREFILTER_REASSIGN_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT_REASSIGN_PAR", par.createParameterString(par.align).c_str());
+        cmd.addVariable("MERGEDBS_PAR", par.createParameterString(par.mergedbs).c_str());
 
         std::string program = tmpDir + "/cascaded_clustering.sh";
         FileUtil::writeFile(program, cascaded_clustering_sh, cascaded_clustering_sh_len);

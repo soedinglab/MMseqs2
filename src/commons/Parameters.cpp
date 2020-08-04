@@ -93,7 +93,6 @@ Parameters::Parameters():
         PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by E-value (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID, "--allow-deletion", "Allow deletions", "Allow deletions in a MSA", typeid(bool), (void *) &allowDeletion, ""),
-        PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID, "--add-iternal-id", "Add internal ID", "Add internal id as comment to MSA", typeid(bool), (void *) &addInternalId, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_COMPRESS_MSA(PARAM_COMPRESS_MSA_ID, "--compress", "Compress MSA", "Create MSA in CA3M format", typeid(bool), (void *) &compressMSA, ""),
         PARAM_SUMMARIZE_HEADER(PARAM_SUMMARIZE_HEADER_ID, "--summarize", "Summarize headers", "Summarize cluster headers into a single header description", typeid(bool), (void *) &summarizeHeader, ""),
         PARAM_SUMMARY_PREFIX(PARAM_SUMMARY_PREFIX_ID, "--summary-prefix", "Summary prefix", "Set the cluster summary prefix", typeid(std::string), (void *) &summaryPrefix, "", MMseqsParameter::COMMAND_EXPERT),
@@ -527,9 +526,7 @@ Parameters::Parameters():
 
     // result2msa
     result2msa.push_back(&PARAM_SUB_MAT);
-    result2msa.push_back(&PARAM_E_PROFILE);
     result2msa.push_back(&PARAM_ALLOW_DELETION);
-    result2msa.push_back(&PARAM_ADD_INTERNAL_ID);
     result2msa.push_back(&PARAM_NO_COMP_BIAS_CORR);
     result2msa.push_back(&PARAM_FILTER_MSA);
     result2msa.push_back(&PARAM_FILTER_MAX_SEQ_ID);
@@ -555,6 +552,21 @@ Parameters::Parameters():
     result2dnamsa.push_back(&PARAM_COMPRESSED);
     //result2msa.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
     result2dnamsa.push_back(&PARAM_V);
+
+    // filterresult
+    filterresult.push_back(&PARAM_SUB_MAT);
+    filterresult.push_back(&PARAM_GAP_OPEN);
+    filterresult.push_back(&PARAM_GAP_EXTEND);
+    filterresult.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    filterresult.push_back(&PARAM_ALLOW_DELETION);
+    filterresult.push_back(&PARAM_FILTER_MAX_SEQ_ID);
+    filterresult.push_back(&PARAM_FILTER_QID);
+    filterresult.push_back(&PARAM_FILTER_QSC);
+    filterresult.push_back(&PARAM_FILTER_COV);
+    filterresult.push_back(&PARAM_FILTER_NDIFF);
+    filterresult.push_back(&PARAM_THREADS);
+    filterresult.push_back(&PARAM_COMPRESSED);
+    filterresult.push_back(&PARAM_V);
 
     // convertmsa
     convertmsa.push_back(&PARAM_IDENTIFIER_FIELD);
@@ -1001,7 +1013,6 @@ Parameters::Parameters():
     view.push_back(&PARAM_V);
 
     // exapandaln
-    expandaln.push_back(&PARAM_COMPRESSED);
     expandaln.push_back(&PARAM_EXPANSION_MODE);
     expandaln.push_back(&PARAM_SUB_MAT);
     expandaln.push_back(&PARAM_GAP_OPEN);
@@ -1009,15 +1020,44 @@ Parameters::Parameters():
     expandaln.push_back(&PARAM_MAX_SEQ_LEN);
     expandaln.push_back(&PARAM_SCORE_BIAS);
     expandaln.push_back(&PARAM_NO_COMP_BIAS_CORR);
-    expandaln.push_back(&PARAM_E);
-    expandaln.push_back(&PARAM_MIN_SEQ_ID);
-    expandaln.push_back(&PARAM_SEQ_ID_MODE);
+//    expandaln.push_back(&PARAM_E);
+//    expandaln.push_back(&PARAM_MIN_SEQ_ID);
+//    expandaln.push_back(&PARAM_SEQ_ID_MODE);
     expandaln.push_back(&PARAM_C);
     expandaln.push_back(&PARAM_COV_MODE);
     expandaln.push_back(&PARAM_PCA);
     expandaln.push_back(&PARAM_PCB);
+    expandaln.push_back(&PARAM_COMPRESSED);
     expandaln.push_back(&PARAM_THREADS);
     expandaln.push_back(&PARAM_V);
+
+    // expand2profile
+    expand2profile.push_back(&PARAM_EXPANSION_MODE);
+    expand2profile.push_back(&PARAM_SUB_MAT);
+    expand2profile.push_back(&PARAM_GAP_OPEN);
+    expand2profile.push_back(&PARAM_GAP_EXTEND);
+    expand2profile.push_back(&PARAM_MAX_SEQ_LEN);
+    expand2profile.push_back(&PARAM_SCORE_BIAS);
+    expand2profile.push_back(&PARAM_NO_COMP_BIAS_CORR);
+//    expand2profile.push_back(&PARAM_E);
+//    expand2profile.push_back(&PARAM_MIN_SEQ_ID);
+//    expand2profile.push_back(&PARAM_SEQ_ID_MODE);
+    expand2profile.push_back(&PARAM_C);
+    expand2profile.push_back(&PARAM_COV_MODE);
+    expand2profile.push_back(&PARAM_MASK_PROFILE);
+    expand2profile.push_back(&PARAM_WG);
+    expand2profile.push_back(&PARAM_ALLOW_DELETION);
+    expand2profile.push_back(&PARAM_FILTER_MSA);
+    expand2profile.push_back(&PARAM_FILTER_MAX_SEQ_ID);
+    expand2profile.push_back(&PARAM_FILTER_QID);
+    expand2profile.push_back(&PARAM_FILTER_QSC);
+    expand2profile.push_back(&PARAM_FILTER_COV);
+    expand2profile.push_back(&PARAM_FILTER_NDIFF);
+    expand2profile.push_back(&PARAM_PCA);
+    expand2profile.push_back(&PARAM_PCB);
+    expand2profile.push_back(&PARAM_COMPRESSED);
+    expand2profile.push_back(&PARAM_THREADS);
+    expand2profile.push_back(&PARAM_V);
 
     sortresult.push_back(&PARAM_COMPRESSED);
     sortresult.push_back(&PARAM_THREADS);
@@ -2020,7 +2060,6 @@ void Parameters::setDefaults() {
 
     // result2msa
     allowDeletion = false;
-    addInternalId = false;
     compressMSA = false;
     summarizeHeader = false;
     summaryPrefix = "cl";

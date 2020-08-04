@@ -168,7 +168,10 @@ int filterdb(int argc, const char **argv, const Command &command) {
                 key[offset] = '\0';
                 filter.emplace_back(key);
             }
-            fclose(orderFile);
+            if (fclose(orderFile) != 0) {
+                Debug(Debug::ERROR) << "Cannot close file " << filenames[i] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
         SORT_PARALLEL(filter.begin(), filter.end());
         std::vector<std::string>::iterator last = std::unique(filter.begin(), filter.end());

@@ -88,9 +88,6 @@ static int file_close(mtar_t *tar) {
 }
 
 int mtar_open(mtar_t *tar, const char *filename) {
-  int err;
-  mtar_header_t h;
-
   /* Init tar struct and functions */
   memset(tar, 0, sizeof(*tar));
   tar->read = file_read;

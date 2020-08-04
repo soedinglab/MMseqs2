@@ -108,6 +108,8 @@ jobs:
         - build-essential
         - intel-oneapi-icc
     env: CC=icc CXX=icpc
+    # icc is broken with beta08
+    if: false
   fast_finish: true
 
 before_install:

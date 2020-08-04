@@ -78,7 +78,10 @@ int createsubdb(int argc, const char **argv, const Command& command) {
 
     free(line);
     reader.close();
-    fclose(orderFile);
+    if (fclose(orderFile) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << par.db1 << "\n";
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }

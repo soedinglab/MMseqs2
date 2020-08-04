@@ -124,7 +124,10 @@ template <typename T> bool DBReader<T>::open(int accessType){
             dataFiles[fileIdx] = mmapData(dataFile, &dataSize);
             dataSizeOffset[fileIdx]=totalDataSize;
             totalDataSize += dataSize;
-            fclose(dataFile);
+            if (fclose(dataFile) != 0) {
+                Debug(Debug::ERROR) << "Cannot close file " << dataFileName << "\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
         dataSizeOffset[dataFileNames.size()]=totalDataSize;
         dataMapped = true;
@@ -454,8 +457,10 @@ template <typename T> void DBReader<T>::remapData(){
             }
             size_t dataSize = 0;
             dataFiles[fileIdx] = mmapData(dataFile, &dataSize);
-            fclose(dataFile);
-
+            if (fclose(dataFile) != 0) {
+                Debug(Debug::ERROR) << "Cannot close file " << dataFileNames[fileIdx] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
         dataMapped = true;
     }

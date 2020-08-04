@@ -6,6 +6,8 @@
 #include "FileUtil.h"
 #include "CompressedA3M.h"
 #include "MathUtil.h"
+#include "AlignmentSymmetry.h"
+#include "Matcher.h"
 
 #include "kseq.h"
 #include "KSeqBufferReader.h"
@@ -16,14 +18,16 @@ KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 #include <omp.h>
 #endif
 
-void setMsa2ProfileDefaults(Parameters *p) {
+void setMsa2ResultDefaults(Parameters *p) {
     p->msaType = 2;
     p->pca = 0.0;
 }
 
-int msa2profile(int argc, const char **argv, const Command &command) {
+int msa2result(int argc, const char **argv, const Command &command) {
+//    return EXIT_FAILURE;
+//}
     Parameters &par = Parameters::getInstance();
-    setMsa2ProfileDefaults(&par);
+    setMsa2ResultDefaults(&par);
     par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_PROFILE);
 
     std::string msaData = par.db1;
@@ -50,12 +54,13 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     if (FileUtil::fileExists(lookupFile.c_str())) {
         mode |= DBReader<unsigned int>::USE_LOOKUP;
     }
-    DBReader<unsigned int> qDbr(msaData.c_str(), msaIndex.c_str(), par.threads, mode);
-    qDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<unsigned int> msaReader(msaData.c_str(), msaIndex.c_str(), par.threads, mode);
+    msaReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    Debug(Debug::INFO) << "Finding maximum sequence length and set size.\n";
-    unsigned int maxSeqLength = 0;
+    size_t maxMsaArea = 0;
     unsigned int maxSetSize = 0;
+    unsigned int maxSeqLength = 0;
+    unsigned int* setSizes = (unsigned int*)calloc((msaReader.getSize() + 1), sizeof(unsigned int));
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -64,13 +69,13 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 #endif
 
 #pragma omp for schedule(dynamic, 10) reduction(max:maxSeqLength, maxSetSize)
-        for (size_t id = 0; id < qDbr.getSize(); id++) {
+        for (size_t id = 0; id < msaReader.getSize(); ++id) {
             bool inHeader = false;
             unsigned int setSize = 0;
             unsigned int seqLength = 0;
 
-            char *entryData = qDbr.getData(id, thread_idx);
-            for (size_t i = 0; i < qDbr.getEntryLen(id); ++i) {
+            char *entryData = msaReader.getData(id, thread_idx);
+            for (size_t i = 0; i < msaReader.getEntryLen(id); ++i) {
                 // state machine to get the max sequence length and set size from MSA
                 switch (entryData[i]) {
                     case '>':
@@ -101,27 +106,42 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 }
                 setSize++;
             }
-
+            setSizes[id] = setSize;
             if (setSize > maxSetSize) {
                 maxSetSize = setSize;
             }
+            size_t area = setSize * (seqLength + 1);
+            if (area > maxMsaArea) {
+                maxMsaArea = area;
+            }
         }
     }
+    AlignmentSymmetry::computeOffsetFromCounts(setSizes, msaReader.getSize());
 
     // for SIMD memory alignment
     maxSeqLength = (maxSeqLength) / (VECSIZE_INT * 4) + 2;
     maxSeqLength *= (VECSIZE_INT * 4);
 
     unsigned int threads = (unsigned int) par.threads;
-    DBWriter resultWriter(par.db2.c_str(), par.db2Index.c_str(), threads, par.compressed, Parameters::DBTYPE_HMM_PROFILE);
-    resultWriter.open();
+    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), threads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
+    sequenceWriter.open();
 
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
+    DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
+    resultWriter.open();
 
-    Debug::Progress progress(qDbr.getSize());
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
+    SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(subMat);
+    // we need an evaluer to compute a normalized bitScore.
+    // the validity of the evalue is questionable since we give the number of entries in the MSA db
+    // and not the total number of residues
+    // also, since not all against all comparisons were carried out, it is not straight-forward to
+    // decide what to correct for.
+    EvalueComputation evaluer(msaReader.getSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+
+    Debug::Progress progress(msaReader.getSize());
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -135,7 +155,9 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * (maxSeqLength + 1) * maxSetSize);
 
         float *seqWeight = new float[maxSetSize];
-        bool *maskedColumns = new bool[maxSeqLength + 1];
+        char *maskedColumns = new char[maxSeqLength + 1];
+        char *seqBuffer = new char[maxSeqLength + 1];
+
         std::string result;
         result.reserve((par.maxSeqLen + 1) * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
@@ -148,11 +170,15 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         const float matchRatio = par.matchRatio;
         MsaFilter filter(maxSeqLength + 1, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
 
+        char buffer[2048];
+        std::vector<Matcher::result_t> results;
+        results.reserve(300);
+
 #pragma omp for schedule(dynamic, 1)
-        for (size_t id = 0; id < qDbr.getSize(); ++id) {
+        for (size_t id = 0; id < msaReader.getSize(); ++id) {
             progress.updateProgress();
 
-            unsigned int queryKey = qDbr.getDbKey(id);
+            unsigned int queryKey = msaReader.getDbKey(id);
 
             size_t msaPos = 0;
 
@@ -162,8 +188,8 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             bool fastaError = false;
 
-            char *entryData = qDbr.getData(id, thread_idx);
-            size_t entryLength = qDbr.getEntryLen(id);
+            char *entryData = msaReader.getData(id, thread_idx);
+            size_t entryLength = msaReader.getEntryLen(id);
 
             std::string msa;
             if (par.msaType == 0) {
@@ -195,6 +221,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 }
             }
 
+            unsigned int startKey = setSizes[id];
             while (kseq_read(seq) >= 0) {
                 if (seq->name.l == 0 || seq->seq.l == 0) {
                     Debug(Debug::WARNING) << "Invalid fasta sequence " << setSize << " in entry " << queryKey << "\n";
@@ -208,35 +235,47 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                     break;
                 }
 
+                const char newline = '\n';
+                headerWriter.writeStart(thread_idx);
+                headerWriter.writeAdd(seq->name.s, seq->name.l, thread_idx);
+                if (seq->comment.l > 0) {
+                    const char space = ' ';
+                    headerWriter.writeAdd(&space, 1, thread_idx);
+                    headerWriter.writeAdd(seq->comment.s, seq->comment.l, thread_idx);
+                }
+                headerWriter.writeAdd(&newline, 1, thread_idx);
+                headerWriter.writeEnd(startKey, thread_idx);
+                sequenceWriter.writeStart(thread_idx);
+                for (size_t i = 0; i < seq->seq.l; ++i) {
+                    if (seq->seq.s[i] == '-') {
+                        continue;
+                    }
+                    sequenceWriter.writeAdd(&(seq->seq.s[i]), 1, thread_idx);
+                }
+                sequenceWriter.writeAdd(&newline, 1, thread_idx);
+                sequenceWriter.writeEnd(startKey, thread_idx);
+                startKey++;
+
                 // first sequence is always the query
                 if (setSize == 0) {
                     centerLengthWithGaps = seq->seq.l;
-                    if (maskByFirst == true) {
-                        for (size_t i = 0; i < centerLengthWithGaps; ++i) {
-                            if (seq->seq.s[i] == '-') {
-                                maskedColumns[i] = true;
-                                maskedCount++;
-                            } else {
-                                maskedColumns[i] = false;
-                            }
-                        }
-                    }
-                    if ((mode & DBReader<unsigned int>::USE_LOOKUP) == 0) {
-                        std::string header(seq->name.s);
-                        if (seq->comment.l > 0) {
-                            header.append(" ");
-                            header.append(seq->comment.s);
-                        }
-                        header.append("\n");
-                        headerWriter.writeData(header.c_str(), header.size(), queryKey, thread_idx);
-                    }
+//                    if (maskByFirst == true) {
+//                        for (size_t i = 0; i < centerLengthWithGaps; ++i) {
+//                            if (seq->seq.s[i] == '-') {
+//                                maskedColumns[i] = true;
+//                                maskedCount++;
+//                            } else {
+//                                maskedColumns[i] = false;
+//                            }
+//                        }
+//                    }
                 }
 
                 sequence.mapSequence(0, 0, seq->seq.s, seq->seq.l);
                 msaSequences[setSize] = msaContent + msaPos;
 
                 for (size_t i = 0; i < centerLengthWithGaps; ++i) {
-                    if (maskByFirst == true && maskedColumns[i] == true) {
+                    if (maskByFirst == true && maskedColumns[i] == 1) {
                         continue;
                     }
 
@@ -251,7 +290,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 // fill up the sequence buffer for the SIMD profile calculation
                 size_t rowSize = msaPos / (VECSIZE_INT*4);
                 rowSize = (rowSize+1) * (VECSIZE_INT*4);
-                while(msaPos < rowSize) {
+                while (msaPos < rowSize) {
                     msaContent[msaPos++] = MultipleAlignment::GAP;
                 }
 
@@ -270,8 +309,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             }
 
             if (maskByFirst == false) {
-                PSSMCalculator::computeSequenceWeights(seqWeight, centerLengthWithGaps,
-                                                       setSize, const_cast<const char**>(msaSequences));
+                PSSMCalculator::computeSequenceWeights(seqWeight, centerLengthWithGaps, setSize, const_cast<const char**>(msaSequences));
 
                 // Replace GAP with ENDGAP for all end gaps
                 // ENDGAPs are ignored for counting percentage (multi-domain proteins)
@@ -296,25 +334,28 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                         }
                     }
 
-                    maskedColumns[l] =  (gap / (res + gap)) > matchRatio;
-                    maskedCount += maskedColumns[l] ? 1 : 0;
+                    maskedColumns[l] = ((gap / (res + gap)) > matchRatio) ? 1 : 0;
+                    maskedCount += maskedColumns[l];
                 }
 
                 for (unsigned int k = 0; k < setSize; ++k) {
                     unsigned int currentCol = 0;
+                    unsigned int currentMask = 0;
                     for (unsigned int l = 0; l < centerLengthWithGaps; ++l) {
-                        if (maskedColumns[l] == false) {
+                        if (maskedColumns[l] == 0) {
                             msaSequences[k][currentCol++] = msaSequences[k][l];
+                        } else {
+                            seqBuffer[currentMask++] = msaSequences[k][l];
                         }
                     }
 
                     for (unsigned int l = currentCol; l < centerLengthWithGaps; ++l) {
-                        msaSequences[k][l] = MultipleAlignment::GAP;
+                        msaSequences[k][l] = seqBuffer[l - currentCol];
                     }
                 }
             }
-            unsigned int centerLength = centerLengthWithGaps - maskedCount;
 
+            unsigned int centerLength = centerLengthWithGaps - maskedCount;
             size_t filteredSetSize = setSize;
             if (par.filterMsa == 1) {
                 filteredSetSize = filter.filter(setSize, centerLength, static_cast<int>(par.covMSAThr * 100),
@@ -322,21 +363,91 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                               static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
                               (const char **) msaSequences, true);
             }
+            PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, centerLength, (const char **) msaSequences, par.wg);
 
-            PSSMCalculator::Profile pssmRes =
-                    calculator.computePSSMFromMSA(filteredSetSize, centerLength,
-                                                  (const char **) msaSequences, par.wg);
-            pssmRes.toBuffer((const unsigned char*)msaSequences[0], centerLength, subMat, result);
+            for (size_t i = 0; i < setSize; ++i) {
+                const char* currSeq = msaSequences[i];
+                unsigned int currentCol = 0;
+                unsigned int currentMask = 0;
+                std::string bt;
+                std::string currSeqNoGaps;
+                std::string consSeqNoGaps;
+                size_t numIdentical = 0;
+                for (size_t j = 0; j < centerLengthWithGaps; ++j) {
+                    bool takeFromEnd = false;
+                    if (maskedColumns[j] == 1) {
+                        takeFromEnd = true;
+                        currentMask++;
+                    } else {
+                        currentCol++;
+                    }
 
-            if (mode & DBReader<unsigned int>::USE_LOOKUP) {
-                size_t lookupId = qDbr.getLookupIdByKey(queryKey);
-                std::string header = qDbr.getLookupEntryName(lookupId);
-                header.append(1, '\n');
-                headerWriter.writeData(header.c_str(), header.length(), queryKey, thread_idx);
+                    char conRes = takeFromEnd ? '-' : pssmRes.consensus[currentCol - 1];
+                    char seqRes = currSeq[takeFromEnd ? (centerLength + (currentMask - 1)) : currentCol - 1];
+                    seqRes = seqRes == MultipleAlignment::GAP ? '-' : subMat.num2aa[(int)seqRes];
+
+                    if (conRes == '-' && seqRes == '-') {
+                        continue;
+                    } else if (conRes != '-' && seqRes == '-') {
+                        bt.append(1, 'I');
+                        consSeqNoGaps.append(1, conRes);
+                    } else if (conRes == '-' && seqRes != '-') {
+                        bt.append(1, 'D');
+                        currSeqNoGaps.append(1, seqRes);
+                    } else if (conRes != '-' && seqRes != '-') {
+                        bt.append(1, 'M');
+                        currSeqNoGaps.append(1, seqRes);
+                        consSeqNoGaps.append(1, conRes);
+                    }
+
+                    if (conRes == seqRes) {
+                        numIdentical++;
+                    }
+                }
+//                std::cout << gapCons << '\n';
+//                std::cout << bt << '\n';
+//                std::cout << gapSeq << '\n';
+//                for(size_t pos = 0; pos < centerLength; pos++){
+//                    int aa = currSeq[pos];
+//                    std::cout << (char)((aa != MultipleAlignment::GAP) ? subMat.num2aa[(int)aa] : '-' );
+//                }
+//                std::cout << '\n';
+
+/*
+ *         result_t(unsigned int dbkey,int score,
+                 float qcov, float dbcov,
+                 float seqId, double eval,
+                 unsigned int alnLength,
+                 int qStartPos,
+                 int qEndPos,
+                 unsigned int qLen,
+                 int dbStartPos,
+                 int dbEndPos,
+                 unsigned int dbLen,
+                 std::string backtrace)
+ */
+
+                float seqId = (float)numIdentical / bt.length();
+
+                unsigned int key = setSizes[id] + i;
+                // initialize res with some values
+                Matcher::result_t res(key, 0, 1.0, 1.0, seqId, 0, bt.length(), 0, consSeqNoGaps.size() - 1, consSeqNoGaps.size(), 0, currSeqNoGaps.size() - 1, currSeqNoGaps.size(), bt);
+
+                // and update them and compute the score
+                Matcher::updateResultByRescoringBacktrace(consSeqNoGaps.c_str(), currSeqNoGaps.c_str(), fastMatrix.matrix, evaluer, par.gapOpen.aminoacids, par.gapExtend.aminoacids, res);
+                
+                results.emplace_back(res);
             }
-            resultWriter.writeData(result.c_str(), result.length(), queryKey, thread_idx);
-            result.clear();
+
+            resultWriter.writeStart(thread_idx);
+            for (size_t i = 0; i < setSize; ++i) {
+                unsigned int len = Matcher::resultToBuffer(buffer, results[i], true, true);
+                resultWriter.writeAdd(buffer, len, thread_idx);
+            }
+            resultWriter.writeEnd(queryKey, thread_idx);
+            results.clear();
         }
+
         kseq_destroy(seq);
         free(msaSequences);
         free(msaContent);
@@ -344,9 +455,10 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         delete[] maskedColumns;
         delete[] seqWeight;
     }
+    resultWriter.close();
     headerWriter.close(true);
-    resultWriter.close(true);
-    qDbr.close();
+    sequenceWriter.close(true);
+    msaReader.close();
 
     DBReader<unsigned int>::softlinkDb(par.db1, par.db2, (DBFiles::Files)(DBFiles::LOOKUP | DBFiles::SOURCE));
 

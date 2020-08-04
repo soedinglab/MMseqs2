@@ -22,17 +22,15 @@ public:
 //        transitions[D][I] = Transition('\0',1,1);
 
         // Martins Clovis Eli's Rules
-        transitions[M][M] = Transition('M',1,1);
-        transitions[I][M] = Transition('I',1,1);
-        transitions[D][M] = Transition('D', 1,1);
-
-        transitions[M][D] = Transition('D',1,1);
-        transitions[I][D] = Transition('\0', 1,1);
-        transitions[D][D] = Transition('D',1,1);
-
-        transitions[M][I] = Transition('I',1,1);
-        transitions[I][I] = Transition('I',0,1);
-        transitions[D][I] = Transition('\0',1,1);
+        transitions[M][M] = 'M';
+        transitions[I][M] = 'I';
+        transitions[D][M] = 'D';
+        transitions[M][D] = 'D';
+        transitions[I][D] = '\0';
+        transitions[D][D] = 'D';
+        transitions[M][I] = 'I';
+        transitions[I][I] = 'I';
+        transitions[D][I] = '\0';
     }
 
     /* translate results takes an pairwise alignment between sequence AB (resultAB), and BC (resultBC) to infer an alignment between AC (resultAC)
@@ -110,8 +108,8 @@ public:
             i++;
             State ab = mapState(resultAB.backtrace[offsetBab]);
             State bc = mapState(resultBC.backtrace[offsetBbc]);
-            Transition& t = transitions[ab][bc];
-            switch (t.newState) {
+            char t = transitions[ab][bc];
+            switch (t) {
                 case '\0':
 //                    i = i > 0 ? i - 1 : 0;
                     i--;
@@ -122,20 +120,20 @@ public:
                     dbAlnLength++;
                     break;
                 case 'D':
-                    dbAlnLength++;
+                    qAlnLength++;
                     break;
                 case 'I':
-                    qAlnLength++;
+                    dbAlnLength++;
                     break;
                 default:
                     Debug(Debug::ERROR) << "Invalid backtrace translation state.\n";
                     EXIT(EXIT_FAILURE);
 
             }
-            resultAC.backtrace.append(1, t.newState);
+            resultAC.backtrace.append(1, t);
             next:
-            offsetBab += t.incrementAB;
-            offsetBbc += t.incrementBC;
+            offsetBab += 1;
+            offsetBbc += 1;
         }
 
         resultAC.dbKey = resultBC.dbKey;
@@ -156,15 +154,7 @@ public:
 
 
 private:
-    struct Transition {
-        Transition() : newState('\0'), incrementAB(0), incrementBC(0) {};
-        Transition(char newState, uint8_t incrementAB, uint8_t incrementBC) : newState(newState), incrementAB(incrementAB), incrementBC(incrementBC) {};
-        char newState;
-        uint8_t incrementAB;
-        uint8_t incrementBC;
-    };
-
-    Transition transitions[3][3];
+    char transitions[3][3];
 
     enum State {
         M = 0,

@@ -468,7 +468,10 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
     for (size_t i = 0; i < splits; ++i) {
         DBReader<unsigned int>::removeDb(fileNames[i].first);
         FileUtil::munmapData(dataFile[i], dataFileSize[i]);
-        fclose(files[i]);
+        if (fclose(files[i]) != 0) {
+            Debug(Debug::ERROR) << "Cannot close file " << fileNames[i].first << "\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
     delete [] dataFile;
     delete [] dataFileSize;

@@ -70,7 +70,8 @@ int main (int, const char**) {
         }
         printf("\n");
     }
-    size_t filterSetSize = msaFilter.filter(res, 0, 0, -20.0f, 90, 100);
+    std::vector<Matcher::result_t> empty;
+    size_t filterSetSize = msaFilter.filter(res, empty, 0, 0, -20.0f, 90, 100);
     std::cout << "Filtered:" << filterSetSize << std::endl;
 //    for(size_t k = 0; k < res.setSize; k++){
 //        std::cout << "k=" << k << "\t" << (int)filterResult.keep[k] << std::endl;

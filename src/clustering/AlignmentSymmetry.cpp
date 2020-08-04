@@ -23,11 +23,11 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
     const int alnType = alnDbr->getDbtype();
     const size_t dbSize = seqDbr->getSize();
     const size_t flushSize = 1000000;
+    Debug::Progress progress(dbSize);
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbSize)/static_cast<double>(flushSize)));
     for(size_t it = 0; it < iterations; it++) {
         size_t start = it * flushSize;
         size_t bucketSize = std::min(dbSize - (it * flushSize), flushSize);
-        Debug::Progress progress(bucketSize);
 #pragma omp parallel
         {
             unsigned int thread_idx = 0;

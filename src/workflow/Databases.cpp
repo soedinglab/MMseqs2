@@ -131,6 +131,13 @@ std::vector<DatabaseDownload> downloads = {{
     false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
     { }
 }, {
+    "SILVA",
+    "SILVA provides datasets of aligned small and large subunit ribosomal RNA sequences for all three domains of life.",
+    "Yilmaz et al: The SILVA and \"All-species Living Tree Project (LTP)\" taxonomic frameworks. Nucleic Acids Res 42(D1), D643-D648 (2014)",
+    "https://www.arb-silva.de",
+    true, Parameters::DBTYPE_NUCLEOTIDES, databases_sh, databases_sh_len,
+    { { "SILVA_REL", "138" } }
+}, {
     "Resfinder",
     "ResFinder is a database that captures antimicrobial resistance genes from whole-genome data sets.",
     "Zankari et al: Identification of acquired antimicrobial resistance genes. J Antimicrob Chemother 67(11), 2640-2644 (2012)",

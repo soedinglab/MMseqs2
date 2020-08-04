@@ -8,7 +8,7 @@ class DBConcat;
 
 class CompressedA3M {
 public:
-    static std::string fromAlignmentResult(const std::vector<Matcher::result_t>& alignment, DBConcat& referenceDBr);
+    static void hitToBuffer(unsigned int targetId, const Matcher::result_t& hit, std::string& buffer);
 
     static std::string extractA3M(const char *data, size_t data_size,
                                   DBReader<unsigned int>& sequenceReader,

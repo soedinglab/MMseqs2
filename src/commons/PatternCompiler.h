@@ -1,10 +1,8 @@
 #ifndef MMSEQS_PATTERNCOMPILER_H
 #define MMSEQS_PATTERNCOMPILER_H
 #include <regex.h>
-#include "PatternCompiler.h"
 #include "Debug.h"
 #include "Util.h"
-
 
 class PatternCompiler {
 public:

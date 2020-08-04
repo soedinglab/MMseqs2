@@ -54,8 +54,10 @@ int convert2fasta(int argc, const char **argv, const Command& command) {
         fwrite(bodyData, sizeof(char), bodyLen - 2, fastaFP);
         fwrite(newline, sizeof(char), 1, fastaFP);
     }
-
-    fclose(fastaFP);
+    if (fclose(fastaFP) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << par.db2 << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     db_header.close();
     db.close();
 

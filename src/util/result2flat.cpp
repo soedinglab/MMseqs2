@@ -97,12 +97,13 @@ int result2flat(int argc, const char **argv, const Command &command) {
         }
     }
 
-
-    fclose(fastaFP);
+    if (fclose(fastaFP) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << par.db4 << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     targetdb_header.close();
     querydb_header.close();
     dbr_data.close();
 
-
-    return 0;
+    return EXIT_SUCCESS;
 }
