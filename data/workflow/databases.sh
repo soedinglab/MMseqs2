@@ -118,6 +118,10 @@ case "${SELECTION}" in
         if notExists "${TMP_PATH}/nr.gz"; then
             date "+%s" > "${TMP_PATH}/version"
             downloadFile "https://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz" "${TMP_PATH}/nr.gz"
+            downloadFile "https://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz" "${TMP_PATH}/prot.accession2taxid.gz"
+            gunzip "${TMP_PATH}/prot.accession2taxid.gz"
+            downloadFile "https://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz" "${TMP_PATH}/pdb.accession2taxid.gz"
+            gunzip "${TMP_PATH}/pdb.accession2taxid.gz"
         fi
         push_back "${TMP_PATH}/nr.gz"
         INPUT_TYPE="FASTA_LIST"
@@ -315,7 +319,8 @@ esac
 fi
 
 if [ -n "${TAXONOMY}" ] && notExists "${OUTDB}_mapping"; then
-    if [ "${SELECTION}" = "SILVA" ]; then
+    case "${SELECTION}" in
+      "SILVA")
         mkdir -p "${TMP_PATH}/taxonomy"
         # shellcheck disable=SC2016
         CMD='BEGIN {
@@ -341,17 +346,32 @@ if [ -n "${TAXONOMY}" ] && notExists "${OUTDB}_mapping"; then
         touch "${TMP_PATH}/taxonomy/delnodes.dmp"
         # shellcheck disable=SC2086
         "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxdb" --ncbi-tax-dump "${TMP_PATH}/taxonomy" --tax-mapping-file "${TMP_PATH}/silva.acc_taxid" ${THREADS_PAR}
-    else
-      # shellcheck disable=SC2086
-      "${MMSEQS}" prefixid "${OUTDB}_h" "${TMP_PATH}/header_pref.tsv" --tsv ${THREADS_PAR} \
-          || fail "prefixid died"
-      awk '{ match($0, / OX=[0-9]+ /); if (RLENGTH != -1) { print $1"\t"substr($0, RSTART+4, RLENGTH-5); next; } match($0, / TaxID=[0-9]+ /); print $1"\t"substr($0, RSTART+7, RLENGTH-8); }' "${TMP_PATH}/header_pref.tsv" \
-          | LC_ALL=C sort -n > "${OUTDB}_mapping"
-      rm -f "${TMP_PATH}/header_pref.tsv"
-      # shellcheck disable=SC2086
-      "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxonomy" ${THREADS_PAR} \
-          || fail "createtaxdb died"
-    fi
+       ;;
+     "NR")
+        touch "${OUTDB}_mapping"
+        # shellcheck disable=SC2086
+        "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxonomy" ${THREADS_PAR} \
+            || fail "createtaxdb died"
+        awk -F'[\t][|][\t]|[\t][|]' '$4 == "scientific name" { t[$2] = $1; if ($2 in c) { c[$2]++; } else { c[$2] = 1; } } END { for (tax in t) { if (c[tax] == 1) { print t[tax]"\t"tax; } } }' "${OUTDB}_names.dmp" | sort -n > "${TMP_PATH}/names_unique.tsv"
+        # shellcheck disable=SC2086
+        "${MMSEQS}" prefixid "${OUTDB}_h" "${TMP_PATH}/header_pref.tsv" --tsv --threads 1 ${VERB_PAR} \
+            || fail "prefixid died"
+        SOH_CHAR=$(printf '\001')
+        cut -d "$SOH_CHAR" -f1 "${TMP_PATH}/header_pref.tsv" | awk -F'\t' '{ match($2, /^([^ .]+)/, accession); match($2, /\[([^\]]+)\]$/, name); print $1"\t"accession[1]"\t"name[1]; }' > "${TMP_PATH}/acc_names.tsv"
+        awk 'FNR == 1 { FINDEX++; } FINDEX <= 2 { a2t[$1] = $3; next; } FINDEX == 3 { n2t[$2] = $1; next; } { split($2, a, "."); $2 = a[1]; } $2 in a2t { print $1"\t"a2t[$2]; next; } $3 in n2t { print $1"\t"n2t[$3]; }' "${TMP_PATH}/pdb.accession2taxid" "${TMP_PATH}/prot.accession2taxid" "${TMP_PATH}/names_unique.tsv" "${TMP_PATH}/acc_names.tsv" > "${OUTDB}_mapping"
+       ;;
+     *)
+       # shellcheck disable=SC2086
+       "${MMSEQS}" prefixid "${OUTDB}_h" "${TMP_PATH}/header_pref.tsv" --tsv ${THREADS_PAR} \
+           || fail "prefixid died"
+       awk '{ match($0, / OX=[0-9]+ /); if (RLENGTH != -1) { print $1"\t"substr($0, RSTART+4, RLENGTH-5); next; } match($0, / TaxID=[0-9]+ /); print $1"\t"substr($0, RSTART+7, RLENGTH-8); }' "${TMP_PATH}/header_pref.tsv" \
+           | LC_ALL=C sort -n > "${OUTDB}_mapping"
+       rm -f "${TMP_PATH}/header_pref.tsv"
+       # shellcheck disable=SC2086
+       "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxonomy" ${THREADS_PAR} \
+           || fail "createtaxdb died"
+       ;;
+     esac
 fi
 
 if notExists "${OUTDB}.version"; then
