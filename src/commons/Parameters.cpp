@@ -379,6 +379,7 @@ Parameters::Parameters():
     ungappedprefilter.push_back(&PARAM_COV_MODE);
     ungappedprefilter.push_back(&PARAM_NO_COMP_BIAS_CORR);
     ungappedprefilter.push_back(&PARAM_MIN_DIAG_SCORE);
+    ungappedprefilter.push_back(&PARAM_MAX_SEQS);
     ungappedprefilter.push_back(&PARAM_THREADS);
     ungappedprefilter.push_back(&PARAM_COMPRESSED);
     ungappedprefilter.push_back(&PARAM_V);
