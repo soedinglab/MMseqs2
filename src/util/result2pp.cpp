@@ -106,6 +106,8 @@ int result2pp(int argc, const char **argv, const Command& command) {
                 neffM[pos] = queryProfile.neffM[pos];
             }
 
+            int minqStartPos = INT_MAX;
+            int maxqEndPos = 0;
             bool didMerge = false;
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
@@ -125,6 +127,8 @@ int result2pp(int argc, const char **argv, const Command& command) {
                     targetProfile.mapSequence(edgeId, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId));
                     const float *tProfile = targetProfile.getProfile();
                     size_t qPos = res.qStartPos;
+                    minqStartPos = std::min(minqStartPos, res.qStartPos);
+                    maxqEndPos = std::max(maxqEndPos, res.qEndPos);
                     size_t tPos = res.dbStartPos;
                     size_t aliLength = 0;
                     float avgEntropy = 0.0f;
@@ -190,6 +194,17 @@ int result2pp(int argc, const char **argv, const Command& command) {
             if (didMerge == false) {
                 resultWriter.writeData(queryData, qDbr.getEntryLen(queryId) - 1, queryKey, thread_idx);
                 continue;
+            }
+
+            for (int l = 0; l < minqStartPos; l++) {
+                for (size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
+                    outProfile[l*Sequence::PROFILE_AA_SIZE + aa_num] = qProfile[l * Sequence::PROFILE_AA_SIZE + aa_num];
+                }
+            }
+            for (int l = maxqEndPos; l < queryProfile.L; l++) {
+                for (size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
+                    outProfile[l * Sequence::PROFILE_AA_SIZE + aa_num] = qProfile[l * Sequence::PROFILE_AA_SIZE + aa_num];
+                }
             }
             /*
             float maxNewNeff = 0.0;
