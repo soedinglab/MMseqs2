@@ -41,11 +41,11 @@ void rescoreResultByBacktrace(Matcher::result_t &result, Sequence &qSeq, Sequenc
         char state = result.backtrace[i];
         if (state == 'M') {
             if (isTargetProf) {
-                score += tSeq.profile_for_alignment[qSeq.numSequence[qPos] * tSeq.L + tPos]  + static_cast<short>((compositionBias[i] < 0.0) ? (compositionBias[i] - 0.5) : (compositionBias[i] + 0.5));
+                score += tSeq.profile_for_alignment[qSeq.numSequence[qPos] * tSeq.L + tPos];
             } else if (isQueryProf) {
                 score += qSeq.profile_for_alignment[tSeq.numSequence[tPos] * qSeq.L + qPos];
             } else {
-                score += subMat.subMatrix[qSeq.numSequence[qPos]][tSeq.numSequence[tPos]] + static_cast<short>((compositionBias[i] < 0.0) ? (compositionBias[i] - 0.5) : (compositionBias[i] + 0.5));
+                score += subMat.subMatrix[qSeq.numSequence[qPos]][tSeq.numSequence[tPos]] + static_cast<short>((compositionBias[qPos] < 0.0) ? (compositionBias[qPos] - 0.5) : (compositionBias[qPos] + 0.5));
             }
             identities += qSeq.numSequence[qPos] == tSeq.numSequence[tPos] ? 1 : 0;
             qPos++;
@@ -190,10 +190,10 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         for (size_t i = 0; i < resultAbReader->getSize(); ++i) {
             progress.updateProgress();
 
-            unsigned int resAbKey = resultAbReader->getDbKey(i);
+            unsigned int queryKey = resultAbReader->getDbKey(i);
 
-            size_t aSeqId = aReader.getId(resAbKey);
-            aSeq.mapSequence(aSeqId, resAbKey, aReader.getData(aSeqId, thread_idx), aReader.getSeqLen(aSeqId));
+            size_t aSeqId = aReader.getId(queryKey);
+            aSeq.mapSequence(aSeqId, queryKey, aReader.getData(aSeqId, thread_idx), aReader.getSeqLen(aSeqId));
 
             if (par.compBiasCorrection == true && Parameters::isEqualDbtype(aSeqDbType, Parameters::DBTYPE_AMINO_ACIDS)) {
                 if ((size_t)aSeq.L >= compBufferSize) {
@@ -235,6 +235,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                         EXIT(EXIT_FAILURE);
                     }
                     translator.translateResult(resultAb, resultBc, resultAc);
+
                     if (resultAc.backtrace.size() == 0) {
                         continue;
                     }
@@ -254,7 +255,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                         size_t cSeqId = cReader->getId(cSeqKey);
                         cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
                         rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
-                        if(resultAc.score < 0){ // alignment too bad
+                        if(resultAc.score < -6){ // alignment too bad (fitted on regression benchmark EXPAND)
                             continue;
                         }
 
@@ -278,7 +279,6 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                                 seqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
                             }
                             resultsAc.emplace_back(resultAc);
-                            // only if accepted avoid same alignment against
                             if(intervalBuffer.size() == 0){
                                 interval[cSeqKey] = new IntervalArray();
                             } else {
@@ -306,7 +306,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     size_t len = Matcher::resultToBuffer(buffer, resultsAc[j], true, true);
                     writer.writeAdd(buffer, len, thread_idx);
                 }
-                writer.writeEnd(resAbKey, thread_idx);
+                writer.writeEnd(queryKey, thread_idx);
                 resultsAc.clear();
             } else {
                 MultipleAlignment::MSAResult res = aligner->computeMSA(&aSeq, seqSet, resultsAc, true);
@@ -318,7 +318,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     masker->mask(aSeq, pssmRes);
                 }
                 pssmRes.toBuffer(aSeq, subMat, result);
-                writer.writeData(result.c_str(), result.length(), resAbKey, thread_idx);
+                writer.writeData(result.c_str(), result.length(), queryKey, thread_idx);
                 result.clear();
                 MultipleAlignment::deleteMSA(&res);
                 seqSet.clear();
