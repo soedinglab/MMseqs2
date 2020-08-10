@@ -25,6 +25,9 @@ int result2pp(int argc, const char **argv, const Command& command) {
 
     DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     qDbr.open(DBReader<unsigned int>::NOSORT);
+    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+        qDbr.readMmapedDataInMemory();
+    }
 
     DBReader<unsigned int> *tDbr = &qDbr;
     bool sameDatabase = true;
@@ -32,6 +35,9 @@ int result2pp(int argc, const char **argv, const Command& command) {
         sameDatabase = false;
         tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         tDbr->open(DBReader<unsigned int>::NOSORT);
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+            tDbr->readMmapedDataInMemory();
+        }
     }
 
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
