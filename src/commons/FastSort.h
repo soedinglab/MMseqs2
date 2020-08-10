@@ -11,7 +11,7 @@
 # else
 #  define SORT_PARALLEL ips4o::sort
 # endif
-# define SORT_SERIAL ips4o::sort
+# define SORT_SERIAL std::sort
 #else
 # ifdef OPENMP
 #  include <omptl/omptl_algorithm>
