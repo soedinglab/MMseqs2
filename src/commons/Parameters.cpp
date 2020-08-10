@@ -477,8 +477,6 @@ Parameters::Parameters():
     // result2pp
     result2pp.push_back(&PARAM_SUB_MAT);
     result2pp.push_back(&PARAM_E_PROFILE);
-    result2pp.push_back(&PARAM_E);
-    result2pp.push_back(&PARAM_NO_COMP_BIAS_CORR);
     result2pp.push_back(&PARAM_PRELOAD_MODE);
     result2pp.push_back(&PARAM_THREADS);
     result2pp.push_back(&PARAM_COMPRESSED);

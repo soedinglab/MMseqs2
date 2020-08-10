@@ -21,9 +21,7 @@ int result2pp(int argc, const char **argv, const Command& command) {
     MMseqsMPI::init(argc, argv);
 
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
-    par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
-    par.printParameters(command.cmd, argc, argv, *command.params);
+    par.parseParameters(argc, argv, command, true, 0, 0);
 
     DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     qDbr.open(DBReader<unsigned int>::NOSORT);
@@ -63,8 +61,8 @@ int result2pp(int argc, const char **argv, const Command& command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        Sequence queryProfile(par.maxSeqLen, qDbr.getDbtype(), &subMat, 0, false, par.compBiasCorrection, false);
-        Sequence targetProfile(par.maxSeqLen, tDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection, false);
+        Sequence queryProfile(par.maxSeqLen, qDbr.getDbtype(), &subMat, 0, false, false, false);
+        Sequence targetProfile(par.maxSeqLen, tDbr->getDbtype(), &subMat, 0, false, false, false);
         float *outProfile = new float[(par.maxSeqLen + 1) * Sequence::PROFILE_AA_SIZE];
         float *neffM = new float[par.maxSeqLen + 1];
 
