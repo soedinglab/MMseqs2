@@ -92,7 +92,7 @@ int result2pp(int argc, const char **argv, const Command& command) {
                 continue;
             }
 
-            queryProfile.mapSequence(queryId, queryKey, queryData, qDbr.getSeqLen(queryId));
+            queryProfile.mapSequence(queryId, queryKey, queryData, qDbr.getSeqLen(queryId), false);
             const float *qProfile = queryProfile.getProfile();
 
             /*const size_t profile_row_size = queryProfile.profile_row_size;
@@ -128,7 +128,7 @@ int result2pp(int argc, const char **argv, const Command& command) {
                     didMerge = true;
                     const Matcher::result_t res = Matcher::parseAlignmentRecord(results);
                     const size_t edgeId = tDbr->getId(key);
-                    targetProfile.mapSequence(edgeId, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId));
+                    targetProfile.mapSequence(edgeId, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId), false);
                     const float *tProfile = targetProfile.getProfile();
                     size_t qPos = res.qStartPos;
                     minqStartPos = std::min(minqStartPos, res.qStartPos);
