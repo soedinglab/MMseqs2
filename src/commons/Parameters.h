@@ -1015,6 +1015,7 @@ public:
     std::vector<MMseqsParameter*> taxpercontig;
     std::vector<MMseqsParameter*> easytaxonomy;
     std::vector<MMseqsParameter*> createsubdb;
+    std::vector<MMseqsParameter*> renamedbkeys;
     std::vector<MMseqsParameter*> createtaxdb;
     std::vector<MMseqsParameter*> profile2pssm;
     std::vector<MMseqsParameter*> profile2seq;

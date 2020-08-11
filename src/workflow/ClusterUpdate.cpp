@@ -45,6 +45,7 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("DIFF_PAR", par.createParameterString(par.diff).c_str());
     cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
+    cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
 
     int maxAccept = par.maxAccept;
     par.maxAccept = 1;

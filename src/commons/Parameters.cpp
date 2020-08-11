@@ -977,6 +977,11 @@ Parameters::Parameters():
     createsubdb.push_back(&PARAM_SUBDB_MODE);
     createsubdb.push_back(&PARAM_V);
 
+    // renamedbkeys
+    renamedbkeys.push_back(&PARAM_SUBDB_MODE);
+    renamedbkeys.push_back(&PARAM_THREADS);
+    renamedbkeys.push_back(&PARAM_V);
+
     // createtaxdb
     createtaxdb.push_back(&PARAM_NCBI_TAX_DUMP);
     createtaxdb.push_back(&PARAM_TAX_MAPPING_FILE);

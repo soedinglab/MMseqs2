@@ -788,7 +788,14 @@ std::vector<Command> baseCommands = {
                 "<i:resultDB> <o:resultDB>",
                 CITATION_MMSEQS2, {{"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
                                           {"DB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
-
+        {"renamedbkeys",         renamedbkeys,         &par.renamedbkeys,         COMMAND_DB,
+                "Create a new DB with original keys renamed",
+                NULL,
+                "Milot Mirdita <milot@mirdita.de>",
+                "<i:idMapFile|stdin> <i:DB> <o:DB>",
+                CITATION_MMSEQS2, {{"idMapFile", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::flatfileAndStdin },
+                                          {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
+                                          {"resultDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
 
         {"extractorfs",          extractorfs,          &par.extractorfs,          COMMAND_SEQUENCE,
                 "Six-frame extraction of open reading frames",
