@@ -51,7 +51,8 @@ int UngappedAlignment::scalarDiagonalScoring(const char * profile,
 }
 
 #ifdef AVX2
-inline __m256i Shuffle(const __m256i & value, const __m256i & shuffle)
+// made static and private for Profile2Profile alignment
+__m256i UngappedAlignment::Shuffle(const __m256i & value, const __m256i & shuffle)
 {
     const __m256i K0 = _mm256_setr_epi8(
             (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70,

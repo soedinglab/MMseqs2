@@ -33,6 +33,8 @@ public:
         return bias;
     }
 
+    static __m256i Shuffle(const __m256i &value, const __m256i &shuffle);
+
 private:
     const static unsigned int DIAGONALCOUNT = 0xFFFF + 1;
     const static unsigned int PROFILESIZE = 32;

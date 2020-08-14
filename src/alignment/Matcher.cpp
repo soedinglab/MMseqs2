@@ -7,7 +7,7 @@
 
 
 Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
-                 bool aaBiasCorrection, int gapOpen, int gapExtend, int zdrop)
+                 bool aaBiasCorrection, int gapOpen, int gapExtend, int zdrop, int targetLen)
                  : gapOpen(gapOpen), gapExtend(gapExtend), m(m), evaluer(evaluer), tinySubMat(NULL) {
     if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) == false ) {
         setSubstitutionMatrix(m);
@@ -87,11 +87,12 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
         }
         alignment = nuclaligner->align(dbSeq, diagonal, isReverse, backtrace, aaIds, evaluer, wrappedScoring);
         alignmentMode = Matcher::SCORE_COV_SEQID;
-    }else{ if(isIdentity==false){
-            alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode, covThr, maskLen);
-        }else{
-            alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode);
-        }
+    }else{// if(isIdentity==false){
+            alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode,
+                    covThr, maskLen, dbSeq->profile, dbSeq->numConsensusSequence, dbSeq->getAlignmentProfile(), dbSeq->L, dbSeq->getSequenceType());
+//        }else{
+//            alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode);
+//        }
         if(alignmentMode == Matcher::SCORE_COV_SEQID){
             if(isIdentity==false){
                 if(alignment.cigar){

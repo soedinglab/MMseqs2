@@ -87,6 +87,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         shortResults.reserve(std::max(static_cast<size_t >(1), tdbr->getSize()/5));
         Sequence qSeq(par.maxSeqLen, querySeqType, subMat, 0, false, par.compBiasCorrection);
         Sequence tSeq(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
+        // 0 as a placeholder argument
         SmithWaterman aligner(par.maxSeqLen, subMat->alphabetSize, par.compBiasCorrection);
 
         std::string resultBuffer;

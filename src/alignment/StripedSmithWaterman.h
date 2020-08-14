@@ -138,7 +138,12 @@ public:
                         const double filters,
                         EvalueComputation * filterd,
                         const int covMode, const float covThr,
-                        const int32_t maskLen);
+                        const int32_t maskLen,
+                        const float *db_profile,
+                        const unsigned char *db_consensus_sequence,
+                        const int8_t *db_profile_for_alignment,
+                        const int targetLen,
+                        const int targetSeqType);
 
 
     /*!	@function computed ungapped alignment score
@@ -224,6 +229,14 @@ private:
         int32_t alphabetSize;
         uint8_t bias;
         short ** profile_word_linear;
+        short *profile_from_sequence;
+        float *profile_from_profile;
+        double *background_freqs;
+        // getting the consensus sequence (numerical form) from the query side
+        unsigned char *consensus_sequence;  // 0: none
+        float scoringBias;
+        simd_int *profile_consens;
+        simd_int *target_profile_byte;
     };
     simd_int* vHStore;
     simd_int* vHLoad;
@@ -257,6 +270,8 @@ private:
                                  const uint8_t gap_open, /* will be used as - */
                                  const uint8_t gap_extend, /* will be used as - */
                                  const simd_int* query_profile_byte,
+                                 const simd_int* query_profile_consens,
+                                 const simd_int* target_profile_byte,
                                  uint8_t terminate,	/* the best alignment score: used to terminate
                                                      the matrix calculation when locating the
                                                      alignment beginning point. If this score
@@ -291,10 +306,23 @@ private:
     const static unsigned int PROFILE = 2;
 
     template <typename T, size_t Elements, const unsigned int type>
-    void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias, const int8_t *mat, const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
+    void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias, const int8_t *mat, const float *query_profile, const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
 
     float *tmp_composition_bias;
     short * profile_word_linear_data;
     bool aaBiasCorrection;
+
+    alignment_end simpleGotoh(const unsigned char *db_sequence, const unsigned char *db_consensus_sequence, const unsigned char *query_consensus_sequence, const short *profile_from_sequence, const double *background_freqs, const float *query_profile, const float *target_profile, int32_t query_start,
+                              int32_t query_end, int32_t target_start, int32_t target_end, const short gap_open,
+                              const short gap_extend, float scoringBias);
+
+    template <typename T, size_t Elements, const unsigned int type>
+    void createConsensProfile(simd_int *profile, const unsigned char *consensus_sequence, const int32_t query_length);
+
+    template <typename T, size_t Elements, const unsigned int type>
+    void createTargetProfile(simd_int *profile, const int8_t *db_profile_for_alignment, const int targetLen, uint8_t bias);
+
+    template <typename T, size_t Elements, const unsigned int type>
+    void updateQueryProfile(simd_int *profile, const int32_t query_length, const int32_t aaSize, const int shift);
 };
 #endif /* SMITH_WATERMAN_SSE2_H */

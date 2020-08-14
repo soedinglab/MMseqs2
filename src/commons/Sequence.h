@@ -488,7 +488,7 @@ public:
 
     void printProfileStatePSSM();
 
-    void printProfile();
+    void printProfile() const;
 
     int8_t const * getAlignmentProfile()const;
 
@@ -581,5 +581,9 @@ private:
 
     //spaced kmer pattern
     const std::string spacedKmerPattern;
+
+    void printProfileForAlignment() const;
+
+    void printConsensus() const;
 };
 #endif

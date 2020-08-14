@@ -525,7 +525,7 @@ void Sequence::printProfileStatePSSM(){
 }
 
 
-void Sequence::printProfile(){
+void Sequence::printProfile() const {
     printf("Query profile of sequence %d\n", dbKey);
     printf("Pos ");
     for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++) {
@@ -539,6 +539,30 @@ void Sequence::printProfile(){
         }
         printf("\n");
     }
+}
+
+void Sequence::printProfileForAlignment() const {
+    printf("Profile of", dbKey);
+    printf("Pos ");
+    for (size_t aa = 0; aa < PROFILE_AA_SIZE; aa++) {
+        printf("%3c ", subMat->num2aa[aa]);
+    }
+    printf(" \n");
+    for (size_t i = 0; i < PROFILE_AA_SIZE; i++) {
+        printf("%3d ", i);
+        for(int j = 0; j < this->L; j++) {
+            printf("%3d ", profile_for_alignment[i * this->L + j]);
+        }
+        printf("\n");
+    }
+}
+
+void Sequence::printConsensus() const {
+    printf("Consensus of", dbKey);
+    for (int i = 0; i < this->L; i++) {
+        printf("%3d", numConsensusSequence[i]);
+    }
+    printf("\n");
 }
 
 void Sequence::reverse() {
@@ -587,7 +611,9 @@ void Sequence::extractProfileConsensus(const char* data, const BaseMatrix &subma
     extractProfileData(data, submat, 1, result);
 }
 
-int8_t const * Sequence::getAlignmentProfile()const {
+const int8_t * Sequence::getAlignmentProfile() const {
+//    printProfileForAlignment();
+//    printConsensus();
     return profile_for_alignment;
 }
 

@@ -19,8 +19,6 @@ set(NATIVE_ARCH 1 CACHE BOOL "Assume native architecture for SIMD. Use one of th
 if (HAVE_SANITIZER)
     include(FindUBSan)
     include(FindASan)
-    include(FindMSan)
-    include(FindTSan)
 endif ()
 
 if (NOT CMAKE_BUILD_TYPE)

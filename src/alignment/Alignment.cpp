@@ -111,10 +111,10 @@ Alignment::Alignment(const std::string &querySeqDB,
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)) {
-        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
-        EXIT(EXIT_FAILURE);
-    }
+//    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)) {
+//        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
+//        EXIT(EXIT_FAILURE);
+//    }
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) == false && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
         EXIT(EXIT_FAILURE);
@@ -140,6 +140,7 @@ Alignment::Alignment(const std::string &querySeqDB,
         gapExtend = par.gapExtend.aminoacids;
     } else {
         // keep score bias at 0.0 (improved ROC)
+        // this is where profile-profile alignment drops to
         m = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, scoreBias);
         gapOpen = par.gapOpen.aminoacids;
         gapExtend = par.gapExtend.aminoacids;
@@ -293,7 +294,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
             Matcher matcher(querySeqType,
                                 (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ? maxSeqLen : std::max(tdbr->getMaxSeqLen(), qdbr->getMaxSeqLen()),
-                                 m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
+                                 m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop, dbSeq.L);
             Matcher *realigner = NULL;
             if (realign ==  true && wrappedScoring == false) {
                 realigner = new Matcher(querySeqType,
