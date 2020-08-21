@@ -233,8 +233,7 @@ SmithWaterman::~SmithWaterman(){
 	free(profile->profile_rev_byte);
 	free(profile->profile_rev_word);
 	free(profile->profile_consens_byte);
-    free(profile->profile_consens_word);
-    free(profile->target_profile_byte);
+	free(profile->target_profile_byte);
 	free(profile->target_profile_word);
 	delete [] profile->query_rev_sequence;
 	delete [] profile->query_sequence;

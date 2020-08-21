@@ -238,7 +238,6 @@ private:
         simd_int *profile_consens_byte;
         simd_int *target_profile_byte;
         simd_int *target_profile_word;
-        simd_int *profile_consens_word;
     };
     simd_int* vHStore;
     simd_int* vHLoad;
