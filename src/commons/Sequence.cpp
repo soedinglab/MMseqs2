@@ -367,6 +367,8 @@ void Sequence::mapProfile(const char * profileData, bool mapScores, unsigned int
     //printPSSM();
 
 //    printProfile();
+//    printConsensus();
+//    printNumSequence();
 }
 
 
@@ -561,6 +563,14 @@ void Sequence::printConsensus() const {
     printf("Consensus of", dbKey);
     for (int i = 0; i < this->L; i++) {
         printf("%3d", numConsensusSequence[i]);
+    }
+    printf("\n");
+}
+
+void Sequence::printNumSequence() const {
+    printf("NumSequence of", dbKey);
+    for (int i = 0; i < this->L; i++) {
+        printf("%3d", numSequence[i]);
     }
     printf("\n");
 }

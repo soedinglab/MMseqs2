@@ -490,7 +490,7 @@ public:
 
     void printProfile() const;
 
-    int8_t const * getAlignmentProfile()const;
+    const int8_t * getAlignmentProfile()const;
 
     int getSequenceType()const;
 
@@ -585,5 +585,7 @@ private:
     void printProfileForAlignment() const;
 
     void printConsensus() const;
+
+    void printNumSequence() const;
 };
 #endif

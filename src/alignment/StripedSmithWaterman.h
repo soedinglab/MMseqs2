@@ -235,8 +235,10 @@ private:
         // getting the consensus sequence (numerical form) from the query side
         unsigned char *consensus_sequence;  // 0: none
         float scoringBias;
-        simd_int *profile_consens;
+        simd_int *profile_consens_byte;
         simd_int *target_profile_byte;
+        simd_int *target_profile_word;
+        simd_int *profile_consens_word;
     };
     simd_int* vHStore;
     simd_int* vHLoad;
@@ -264,6 +266,7 @@ private:
      The returned positions are 0-based.
      */
     std::pair<alignment_end, alignment_end> sw_sse2_byte (const unsigned char*db_sequence,
+                                 const unsigned char *db_consens_sequence,
                                  int8_t ref_dir,	// 0: forward ref; 1: reverse ref
                                  int32_t db_length,
                                  int32_t query_length,
@@ -280,13 +283,17 @@ private:
                                  int32_t maskLen);
 
     std::pair<alignment_end, alignment_end> sw_sse2_word (const unsigned char* db_sequence,
+                                 const unsigned char* db_consens_sequence,
                                  int8_t ref_dir,	// 0: forward ref; 1: reverse ref
                                  int32_t db_length,
                                  int32_t query_length,
                                  const uint8_t gap_open, /* will be used as - */
                                  const uint8_t gap_extend, /* will be used as - */
                                  const simd_int*query_profile_byte,
+                                 const simd_int* query_profile_consens,
+                                 const simd_int* target_profile_byte,
                                  uint16_t terminate,
+                                 uint16_t bias,
                                  int32_t maskLen);
 
     template <const unsigned int type>
@@ -306,7 +313,7 @@ private:
     const static unsigned int PROFILE = 2;
 
     template <typename T, size_t Elements, const unsigned int type>
-    void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias, const int8_t *mat, const float *query_profile, const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
+    void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias, const int8_t *mat, const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
 
     float *tmp_composition_bias;
     short * profile_word_linear_data;
