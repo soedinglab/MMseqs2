@@ -64,33 +64,47 @@ WARN
     exit 1
 fi
 
-if [ -n "${RECOVER_DELETED}" ] && [ -s "${TMP_PATH}/removedSeqs" ]; then
-    log "=== Recover removed sequences"
-    if notExists "${TMP_PATH}/OLDDB.removedMapping"; then
-        HIGHESTID="$(awk '$1 > max { max = $1 } END { print max }' "${NEWDB}.index")"
-        awk -v highest="$HIGHESTID" 'BEGIN { start=highest+1 } { print $1"\t"start; start=start+1; }' \
-            "${TMP_PATH}/removedSeqs" > "${TMP_PATH}/OLDDB.removedMapping"
-        cat "${TMP_PATH}/OLDDB.removedMapping" >> "${TMP_PATH}/mappingSeqs"
-    fi
+if [ -s "${TMP_PATH}/removedSeqs" ]; then
+    if [ -n "${RECOVER_DELETED}" ]; then
+        log "=== Recover removed sequences"
+        if notExists "${TMP_PATH}/OLDDB.removedMapping"; then
+            HIGHESTID="$(awk '$1 > max { max = $1 } END { print max }' "${NEWDB}.index")"
+            awk -v highest="$HIGHESTID" 'BEGIN { start=highest+1 } { print $1"\t"start; start=start+1; }' \
+                "${TMP_PATH}/removedSeqs" > "${TMP_PATH}/OLDDB.removedMapping"
+            cat "${TMP_PATH}/OLDDB.removedMapping" >> "${TMP_PATH}/mappingSeqs"
+        fi
 
-    if notExists "${TMP_PATH}/NEWDB.withOld.dbtype"; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" renamedbkeys "${TMP_PATH}/OLDDB.removedMapping" "${OLDDB}" "${TMP_PATH}/OLDDB.removedDb" --subdb-mode 1 ${VERBOSITY} \
-            || fail "renamedbkeys died"
-        # shellcheck disable=SC2086
-        "$MMSEQS" concatdbs "$NEWDB" "${TMP_PATH}/OLDDB.removedDb" "${TMP_PATH}/NEWDB.withOld" --preserve-keys --threads 1 ${VERBOSITY} \
-            || fail "concatdbs died"
-        # shellcheck disable=SC2086
-        "$MMSEQS" concatdbs "${NEWDB}_h" "${TMP_PATH}/OLDDB.removedDb_h" "${TMP_PATH}/NEWDB.withOld_h" --preserve-keys --threads 1 ${VERBOSITY} \
-            || fail "concatdbs died"
-    fi
-    NEWDB="${TMP_PATH}/NEWDB.withOld"
+        if notExists "${TMP_PATH}/NEWDB.withOld.dbtype"; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" renamedbkeys "${TMP_PATH}/OLDDB.removedMapping" "${OLDDB}" "${TMP_PATH}/OLDDB.removedDb" --subdb-mode 1 ${VERBOSITY} \
+                || fail "renamedbkeys died"
+            # shellcheck disable=SC2086
+            "$MMSEQS" concatdbs "$NEWDB" "${TMP_PATH}/OLDDB.removedDb" "${TMP_PATH}/NEWDB.withOld" --preserve-keys --threads 1 ${VERBOSITY} \
+                || fail "concatdbs died"
+            # shellcheck disable=SC2086
+            "$MMSEQS" concatdbs "${NEWDB}_h" "${TMP_PATH}/OLDDB.removedDb_h" "${TMP_PATH}/NEWDB.withOld_h" --preserve-keys --threads 1 ${VERBOSITY} \
+                || fail "concatdbs died"
+        fi
+        NEWDB="${TMP_PATH}/NEWDB.withOld"
 
-    if [ -n "$REMOVE_TMP" ]; then
-        echo "Remove temporary files 1/3"
-        rm -f "${TMP_PATH}/OLDDB.removedMapping"
-        # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/OLDDB.removedDb" ${VERBOSITY}
+        if [ -n "$REMOVE_TMP" ]; then
+            echo "Remove temporary files 1/3"
+            rm -f "${TMP_PATH}/OLDDB.removedMapping"
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/OLDDB.removedDb" ${VERBOSITY}
+        fi
+    else
+        if notExists "${TMP_PATH}/OLCLUST.withoutDeletedKeys.dbtype"; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" createsubdb "${TMP_PATH}/mappingSeqs" "${OLDCLUST}" "${TMP_PATH}/OLCLUST.withoutDeletedKeys" --subdb-mode 1 ${VERBOSITY} \
+                || fail "createsubdb died"
+        fi
+        if notExists "${TMP_PATH}/OLCLUST.withoutDeleted.dbtype"; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" filterdb "${TMP_PATH}/OLCLUST.withoutDeletedKeys" "${TMP_PATH}/OLCLUST.withoutDeleted" --filter-file "${TMP_PATH}/removedSeqs" --positive-filter ${THREADS_PAR} \
+                || fail "filterdb died"
+        fi
+        OLDCLUST="${TMP_PATH}/OLCLUST.withoutDeleted"
     fi
 fi
 
@@ -194,6 +208,11 @@ if [ -n "$REMOVE_TMP" ]; then
         "$MMSEQS" rmdb "${TMP_PATH}/NEWDB.withOld" ${VERBOSITY}
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/NEWDB.withOld_h" ${VERBOSITY}
+    else
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/OLCLUST.withoutDeletedKeys" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/OLCLUST.withoutDeleted" ${VERBOSITY}
     fi
 
     # shellcheck disable=SC2086
