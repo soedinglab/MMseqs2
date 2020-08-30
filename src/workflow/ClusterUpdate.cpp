@@ -1,15 +1,24 @@
-#include <cassert>
-
 #include "Debug.h"
 #include "Util.h"
 #include "Parameters.h"
 #include "FileUtil.h"
 #include "CommandCaller.h"
 
+#include <cassert>
+
 #include "update_clustering.sh.h"
 
+extern void setClusterAutomagicParameters(Parameters& par);
+
+void setClusterUpdateDefaults(Parameters *p) {
+    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+}
+void setClusterUpdateMustPassAlong(Parameters *p) {
+    p->PARAM_ALIGNMENT_MODE.wasSet = true;
+}
 int clusterupdate(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
+    setClusterUpdateDefaults(&par);
     par.PARAM_ADD_BACKTRACE.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_ALT_ALIGNMENT.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_RESCORE_MODE.addCategory(MMseqsParameter::COMMAND_EXPERT);
@@ -37,6 +46,8 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     par.PARAM_V.removeCategory(MMseqsParameter::COMMAND_EXPERT);
 
     par.parseParameters(argc, argv, command, true, 0, 0);
+    setClusterUpdateMustPassAlong(&par);
+    setClusterAutomagicParameters(par);
 
     CommandCaller cmd;
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
@@ -47,12 +58,13 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
     cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
 
+    cmd.addVariable("CLUST_PAR", par.createParameterString(par.clusterworkflow, true).c_str());
+
     int maxAccept = par.maxAccept;
     par.maxAccept = 1;
-    cmd.addVariable("SEARCH_PAR", par.createParameterString(par.clusterUpdateSearch).c_str());
+    par.PARAM_MAX_ACCEPT.wasSet = true;
+    cmd.addVariable("SEARCH_PAR", par.createParameterString(par.clusterUpdateSearch, true).c_str());
     par.maxAccept = maxAccept;
-
-    cmd.addVariable("CLUST_PAR", par.createParameterString(par.clusterworkflow).c_str());
 
     std::string tmpDir = par.db6;
     std::string hash = SSTR(par.hashParameter(par.filenames, par.clusterUpdate));
@@ -69,5 +81,5 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
 
     // Should never get here
     assert(false);
-    return 0;
+    return EXIT_FAILURE;
 }
