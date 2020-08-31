@@ -37,9 +37,9 @@ private:
 
     void initClustersizes();
 
-    void removeClustersize(int clusterid);
+    void removeClustersize(unsigned int clusterid);
 
-    void decreaseClustersize(int clusterid);
+    void decreaseClustersize(unsigned int clusterid);
 //for connected component
     int maxiterations;
 
