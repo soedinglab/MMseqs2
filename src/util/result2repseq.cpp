@@ -48,7 +48,7 @@ int result2repseq(int argc, const char **argv, const Command &command) {
     resultWriter.close(true);
     resultReader.close();
     seqReader.close();
-    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
+    DBReader<unsigned int>::softlinkDb(par.db1, par.db3, DBFiles::SEQUENCE_ANCILLARY);
 
     return EXIT_SUCCESS;
 }

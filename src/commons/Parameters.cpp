@@ -229,7 +229,7 @@ Parameters::Parameters():
         PARAM_EXTRACT_MODE(PARAM_EXTRACT_MODE_ID, "--extract-mode", "Extract mode", "Extract from 1: Query, 2: Target", typeid(int), (void *) &extractMode, "^[1-2]{1}$"),
         // convertkb
         PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB columns", "list of indices of UniprotKB columns to be extracted", typeid(std::string), (void *) &kbColumns, ""),
-        PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover deleted", "Indicates if sequences are allowed to be be removed during updating", typeid(bool), (void *) &recoverDeleted, ""),
+        PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover deleted", "Find and recover deleted sequences during updating of clustering", typeid(bool), (void *) &recoverDeleted, ""),
         // filtertaxdb
         PARAM_TAXON_LIST(PARAM_TAXON_LIST_ID, "--taxon-list", "Selected taxa", "Taxonomy ID, possibly multiple values separated by ','", typeid(std::string), (void *) &taxonList, ""),
         // view
@@ -976,6 +976,11 @@ Parameters::Parameters():
     // createsubdb
     createsubdb.push_back(&PARAM_SUBDB_MODE);
     createsubdb.push_back(&PARAM_V);
+
+    // renamedbkeys
+    renamedbkeys.push_back(&PARAM_SUBDB_MODE);
+    renamedbkeys.push_back(&PARAM_THREADS);
+    renamedbkeys.push_back(&PARAM_V);
 
     // createtaxdb
     createtaxdb.push_back(&PARAM_NCBI_TAX_DUMP);

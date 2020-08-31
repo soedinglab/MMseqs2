@@ -18,8 +18,6 @@ const int ROOT_RANK = INT_MAX;
 
 struct taxHit {
     void setByEntry(const TaxID & taxonInput, const bool useAln, const char ** taxHitData, const size_t numCols, const int voteMode) {
-        // plain format: 3+ tax columns: taxid, rank (can be more than one col), name (can be more than one col)
-        // taxid + aln format has 11 columns: taxid, tkey, bitscore, seqid, evalue, qs, qe, ql, ts, te, tl
         taxon = taxonInput;
         evalue = 1.0;
         weight = 0.0;
@@ -291,7 +289,7 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
                 results = Util::skipLine(results);
             }
 
-            // aggregate - the counters will be filled by the section function:
+            // aggregate - the counters will be filled by the selection function:
             size_t numAssignedSeqs = 0;
             size_t numUnassignedSeqs = 0;
             size_t numSeqsAgreeWithSelectedTaxon = 0;

@@ -121,7 +121,7 @@ script:
     if [ -e "/opt/intel/inteloneapi/setvars.sh" ]; then source /opt/intel/inteloneapi/setvars.sh; fi; \
     mkdir build; cd build; \
     cmake -DHAVE_MPI="$([[ -z "$MPI" ]]; echo $?)" -DENABLE_WERROR=1 -DHAVE_TESTS=1 ..; \
-    make -j $(nproc --all); \
+    make -j ${MMSEQS_NUM_THREADS:-$(nproc --all)}; \
     mkdir path; \
     printf '#!/bin/sh\n/usr/bin/tee "$@" | tail\n' > path/tee; \
     chmod +x path/tee; \
