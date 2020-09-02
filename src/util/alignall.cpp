@@ -67,8 +67,8 @@ int alignall(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-
-            Matcher matcher(targetSeqType, par.maxSeqLen, subMat, &evaluer, par.compBiasCorrection, gapOpen, gapExtend, par.zdrop);
+            // TODO: is this right?
+            Matcher matcher(targetSeqType, targetSeqType, par.maxSeqLen, subMat, &evaluer, par.compBiasCorrection, gapOpen, gapExtend, par.zdrop);
 
             Sequence query(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
             Sequence target(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);

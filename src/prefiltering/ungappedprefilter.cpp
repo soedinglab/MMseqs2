@@ -88,7 +88,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         Sequence qSeq(par.maxSeqLen, querySeqType, subMat, 0, false, par.compBiasCorrection);
         Sequence tSeq(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
         // 0 as a placeholder argument
-        SmithWaterman aligner(par.maxSeqLen, subMat->alphabetSize, par.compBiasCorrection);
+        SmithWaterman aligner(par.maxSeqLen, subMat->alphabetSize, par.compBiasCorrection, targetSeqType);
 
         std::string resultBuffer;
         resultBuffer.reserve(262144);
@@ -103,9 +103,9 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
 //            qSeq.printProfileStatePSSM();
             if(Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE) ||
                Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
-                aligner.ssw_init(&qSeq, qSeq.getAlignmentProfile(), subMat, 0);
+                aligner.ssw_init(&qSeq, qSeq.getAlignmentProfile(), subMat);
             }else{
-                aligner.ssw_init(&qSeq, tinySubMat, subMat, 0);
+                aligner.ssw_init(&qSeq, tinySubMat, subMat);
             }
 
             for (size_t tId = 0; tId < tdbr->getSize(); tId++) {

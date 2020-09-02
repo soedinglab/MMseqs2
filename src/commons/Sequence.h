@@ -490,7 +490,7 @@ public:
 
     void printProfile() const;
 
-    const int8_t * getAlignmentProfile()const;
+    int8_t const * getAlignmentProfile()const;
 
     int getSequenceType()const;
 
@@ -582,10 +582,5 @@ private:
     //spaced kmer pattern
     const std::string spacedKmerPattern;
 
-    void printProfileForAlignment() const;
-
-    void printConsensus() const;
-
-    void printNumSequence() const;
 };
 #endif

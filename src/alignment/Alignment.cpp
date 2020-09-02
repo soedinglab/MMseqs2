@@ -111,10 +111,7 @@ Alignment::Alignment(const std::string &querySeqDB,
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-//    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)) {
-//        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
-//        EXIT(EXIT_FAILURE);
-//    }
+
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) == false && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
         EXIT(EXIT_FAILURE);
@@ -275,6 +272,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
         flushSize = dbSize;
     }
 
+
     size_t iterations = static_cast<size_t>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
     for (size_t i = 0; i < iterations; i++) {
         size_t start = dbFrom + (i * flushSize);
@@ -292,12 +290,12 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             char buffer[1024+32768];
             Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
             Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
-            Matcher matcher(querySeqType,
+            Matcher matcher(querySeqType, targetSeqType,
                                 (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ? maxSeqLen : std::max(tdbr->getMaxSeqLen(), qdbr->getMaxSeqLen()),
-                                 m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop, dbSeq.L);
+                                 m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
             Matcher *realigner = NULL;
             if (realign ==  true && wrappedScoring == false) {
-                realigner = new Matcher(querySeqType,
+                realigner = new Matcher(querySeqType, targetSeqType,
                                        (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ? maxSeqLen : std::max(tdbr->getMaxSeqLen(), qdbr->getMaxSeqLen()),
                                        realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
             }
@@ -376,6 +374,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     const bool isIdentity = (queryDbKey == dbKey && (includeIdentity || sameQTDB)) ? true : false;
 
                     // calculate Smith-Waterman alignment
+
                     Matcher::result_t res = matcher.getSWResult(&dbSeq, static_cast<int>(diagonal), isReverse, covMode, covThr, evalThr, swMode, seqIdMode, isIdentity, wrappedScoring);
                     alignmentsNum++;
 

@@ -142,9 +142,10 @@ public:
         }
     };
 
-    Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m,
+    // deleted unused db_length parameter at the end
+    Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m,
             EvalueComputation * evaluer, bool aaBiasCorrection,
-            int gapOpen, int gapExtend, int zdrop = 40, int targetLen = 0);
+            int gapOpen, int gapExtend, int zdrop = 40);
 
     ~Matcher();
 
@@ -242,7 +243,6 @@ private:
     int8_t * tinySubMat;
     // set substituion matrix
     void setSubstitutionMatrix(BaseMatrix *m);
-
 };
 
 #endif

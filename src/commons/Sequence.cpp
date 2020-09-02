@@ -15,7 +15,7 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
  : spacedKmerPattern(spacedKmerPattern) {
     this->maxLen = maxLen;
     this->numSequence = static_cast<unsigned char*>(malloc(maxLen + 1));
-    this->numConsensusSequence = new unsigned char[maxLen + 1];
+    this->numConsensusSequence = static_cast<unsigned char*>(malloc(maxLen + 1));
     this->aaBiasCorrection = aaBiasCorrection;
     this->subMat = (BaseMatrix*)subMat;
     this->spaced = spaced;
@@ -84,7 +84,7 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
 Sequence::~Sequence() {
     delete[] spacedPattern;
     free(numSequence);
-    delete[] numConsensusSequence;
+    free(numConsensusSequence);
     if (kmerWindow) {
         free(kmerWindow);
     }
@@ -362,15 +362,11 @@ void Sequence::mapProfile(const char * profileData, bool mapScores, unsigned int
                 profile_for_alignment[aa_idx * this-> L + i] = profile_score[i * profile_row_size + aa_num] / 4;
             }
         }
-
-
         //TODO what is with the X
     }
     //printPSSM();
 
 //    printProfile();
-//    printConsensus();
-//    printNumSequence();
 }
 
 
@@ -545,38 +541,6 @@ void Sequence::printProfile() const {
     }
 }
 
-void Sequence::printProfileForAlignment() const {
-    printf("Profile of", dbKey);
-    printf("Pos ");
-    for (size_t aa = 0; aa < PROFILE_AA_SIZE; aa++) {
-        printf("%3c ", subMat->num2aa[aa]);
-    }
-    printf(" \n");
-    for (size_t i = 0; i < PROFILE_AA_SIZE; i++) {
-        printf("%3d ", i);
-        for(int j = 0; j < this->L; j++) {
-            printf("%3d ", profile_for_alignment[i * this->L + j]);
-        }
-        printf("\n");
-    }
-}
-
-void Sequence::printConsensus() const {
-    printf("Consensus of", dbKey);
-    for (int i = 0; i < this->L; i++) {
-        printf("%3d", numConsensusSequence[i]);
-    }
-    printf("\n");
-}
-
-void Sequence::printNumSequence() const {
-    printf("NumSequence of", dbKey);
-    for (int i = 0; i < this->L; i++) {
-        printf("%3d", numSequence[i]);
-    }
-    printf("\n");
-}
-
 void Sequence::reverse() {
     if(Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
         short        tmpScore[PROFILE_AA_SIZE*4];
@@ -623,9 +587,7 @@ void Sequence::extractProfileConsensus(const char* data, const BaseMatrix &subma
     extractProfileData(data, submat, 1, result);
 }
 
-const int8_t * Sequence::getAlignmentProfile() const {
-//    printProfileForAlignment();
-//    printConsensus();
+int8_t const * Sequence::getAlignmentProfile() const {
     return profile_for_alignment;
 }
 

@@ -55,9 +55,9 @@ const char* Orf::iupacReverseComplementTable =
 Orf::Orf(const unsigned int requestedGenCode, bool useAllTableStarts) {
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(requestedGenCode));
     std::vector<std::string> codons = translateNucl.getStopCodons();
-    stopCodons = (char*)mem_align(ALIGN_INT, 8 * sizeof(int));
-    codon      = (char*)mem_align(ALIGN_INT, 8 * sizeof(int));
-    memset(stopCodons, 0, 8 * sizeof(int));
+    stopCodons = (char*)mem_align(ALIGN_INT, 16 * sizeof(int));
+    codon      = (char*)mem_align(ALIGN_INT, 16 * sizeof(int));
+    memset(stopCodons, 0, 16 * sizeof(int));
     size_t count = 0;
     for (size_t i = 0; i < codons.size(); ++i) {
         memcpy(stopCodons + count, codons[i].c_str(), 3);
@@ -77,8 +77,8 @@ Orf::Orf(const unsigned int requestedGenCode, bool useAllTableStarts) {
         codons.push_back("ATG");
     }
 
-    startCodons = (char*)mem_align(ALIGN_INT, 8 * sizeof(int));
-    memset(startCodons, 0, 8 * sizeof(int));
+    startCodons = (char*)mem_align(ALIGN_INT, 16 * sizeof(int));
+    memset(startCodons, 0, 16 * sizeof(int));
     count = 0;
     for (size_t i = 0; i < codons.size(); ++i) {
         memcpy(startCodons + count, codons[i].c_str(), 3);

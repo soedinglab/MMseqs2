@@ -6,8 +6,8 @@
 #include "StripedSmithWaterman.h"
 
 
-Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
-                 bool aaBiasCorrection, int gapOpen, int gapExtend, int zdrop, int targetLen)
+Matcher::Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
+                 bool aaBiasCorrection, int gapOpen, int gapExtend, int zdrop)
                  : gapOpen(gapOpen), gapExtend(gapExtend), m(m), evaluer(evaluer), tinySubMat(NULL) {
     if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) == false ) {
         setSubstitutionMatrix(m);
@@ -18,14 +18,14 @@ Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputati
         aligner = NULL;
     } else {
         nuclaligner = NULL;
-        aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection);
+        aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection, targetSeqType);
     }
     //std::cout << "lambda=" << lambdaLog2 << " logKLog2=" << logKLog2 << std::endl;
 }
 
 
 void Matcher::setSubstitutionMatrix(BaseMatrix *m){
-    tinySubMat = new int8_t[m->alphabetSize*m->alphabetSize];
+    tinySubMat = new int8_t[m->alphabetSize * m->alphabetSize];
     for (int i = 0; i < m->alphabetSize; i++) {
         for (int j = 0; j < m->alphabetSize; j++) {
             tinySubMat[i*m->alphabetSize + j] = m->subMatrix[i][j];
@@ -51,17 +51,16 @@ void Matcher::initQuery(Sequence* query){
     if(Parameters::isEqualDbtype(query->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
         nuclaligner->initQuery(query);
     }else if(Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
-        std::cout << "wow";
-        aligner->ssw_init(query, query->getAlignmentProfile(), this->m, 2);
+        aligner->ssw_init(query, query->getAlignmentProfile(), this->m);
     }else{
-        aligner->ssw_init(query, this->tinySubMat, this->m, 2);
+        aligner->ssw_init(query, this->tinySubMat, this->m);
     }
 }
-
 
 Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool isReverse, const int covMode, const float covThr,
                                        const double evalThr, unsigned int alignmentMode, unsigned int seqIdMode, bool isIdentity,
                                        bool wrappedScoring){
+
     // calculation of the score and traceback of the alignment
     int32_t maskLen = currentQuery->L / 2;
     int origQueryLen = wrappedScoring? currentQuery->L / 2 : currentQuery->L ;
@@ -88,24 +87,25 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
         }
         alignment = nuclaligner->align(dbSeq, diagonal, isReverse, backtrace, aaIds, evaluer, wrappedScoring);
         alignmentMode = Matcher::SCORE_COV_SEQID;
-    }else{// if(isIdentity==false){
-            alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode,
-                    covThr, maskLen, dbSeq->profile, dbSeq->numConsensusSequence, dbSeq->getAlignmentProfile(), dbSeq->L, dbSeq->getSequenceType());
-//        }else{
-//            alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode);
-//        }
-        if(alignmentMode == Matcher::SCORE_COV_SEQID){
-            if(isIdentity==false){
-                if(alignment.cigar){
+    } else {
+        if (isIdentity == false) {
+            alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->numConsensusSequence, dbSeq->getAlignmentProfile(), dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr,
+                                           evaluer, covMode, covThr, maskLen);
+        } else {
+            alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode);
+        }
+        if (alignmentMode == Matcher::SCORE_COV_SEQID) {
+            if (isIdentity == false) {
+                if (alignment.cigar) {
                     int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
                     for (int32_t c = 0; c < alignment.cigarLen; ++c) {
                         char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
                         uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
                         backtrace.reserve(length);
 
-                        for (uint32_t i = 0; i < length; ++i){
+                        for (uint32_t i = 0; i < length; ++i) {
                             if (letter == 'M') {
-                                if (dbSeq->numSequence[targetPos] == currentQuery->numSequence[queryPos]){
+                                if (dbSeq->numSequence[targetPos] == currentQuery->numSequence[queryPos]) {
                                     aaIds++;
                                 }
                                 ++queryPos;
@@ -115,8 +115,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
                                 if (letter == 'I') {
                                     ++queryPos;
                                     backtrace.append("I");
-                                }
-                                else{
+                                } else {
                                     ++targetPos;
                                     backtrace.append("D");
                                 }
@@ -131,7 +130,6 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
                 }
             }
         }
-
     }
 
     // calculation of the coverage and e-value
