@@ -67,6 +67,8 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     CommandCaller cmd;
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("RUNNER", par.runner.c_str());
+    cmd.addVariable("THREADS_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
+    cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
 
     int alignmentMode = par.alignmentMode;
     if (par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA || par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA_APPROX) {

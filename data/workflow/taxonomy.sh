@@ -33,10 +33,11 @@ if [ ! -e "${TMP_PATH}/first.dbtype" ]; then
 fi
 LCA_SOURCE="${TMP_PATH}/first"
 
-# top hip mode
 if [ -n "${TOP_HIT}" ]; then
+    # top hit mode
     if [ ! -e "${TMP_PATH}/top1.dbtype" ]; then
-        "$MMSEQS" filterdb "${TMP_PATH}/first" "${TMP_PATH}/top1" --beats-first --filter-column 4 --comparison-operator le \
+        # shellcheck disable=SC2086
+        "$MMSEQS" filterdb "${TMP_PATH}/first" "${TMP_PATH}/top1" --beats-first --filter-column 4 --comparison-operator le ${THREADS_COMP_PAR} \
             || fail "First filterdb died"
     fi
     LCA_SOURCE="${TMP_PATH}/top1"
@@ -44,12 +45,14 @@ else
     # 2bLCA mode
     if [ -n "${SEARCH2_PAR}" ]; then
         if [ ! -e "${TMP_PATH}/top1.dbtype" ]; then
-            "$MMSEQS" filterdb "${TMP_PATH}/first" "${TMP_PATH}/top1" --extract-lines 1 \
+            # shellcheck disable=SC2086
+            "$MMSEQS" filterdb "${TMP_PATH}/first" "${TMP_PATH}/top1" --extract-lines 1 ${THREADS_COMP_PAR} \
                 || fail "Filterdb died"
         fi
 
         if [ ! -e "${TMP_PATH}/aligned.dbtype" ]; then
-            "$MMSEQS" extractalignedregion "${INPUT}" "${TARGET}" "${TMP_PATH}/top1" "${TMP_PATH}/aligned" --extract-mode 2 \
+            # shellcheck disable=SC2086
+            "$MMSEQS" extractalignedregion "${INPUT}" "${TARGET}" "${TMP_PATH}/top1" "${TMP_PATH}/aligned" --extract-mode 2 ${THREADS_COMP_PAR} \
                 || fail "Extractalignedregion failed"
         fi
 
@@ -57,7 +60,7 @@ else
                 if [ -n "${APPROX_2BLCA}" ]; then
                     if [ ! -e "${TMP_PATH}/first_sub" ]; then
                         # shellcheck disable=SC2086
-                        "$MMSEQS" createsubdb  "${TMP_PATH}/aligned" "${TMP_PATH}/first" "${TMP_PATH}/first_sub" ${VERBOSITY} --subdb-mode 1 \
+                        "$MMSEQS" createsubdb "${TMP_PATH}/aligned" "${TMP_PATH}/first" "${TMP_PATH}/first_sub" ${VERBOSITY} --subdb-mode 1 \
                             || fail "createsubdb"
                     fi
                     # shellcheck disable=SC2086
@@ -75,13 +78,15 @@ else
         # We can use filterdb --beats-first to filter out all entries from second search that
         # do not reach the evalue of the top 1 hit
         if [ ! -e "${TMP_PATH}/merged.dbtype" ]; then
-            "$MMSEQS" mergedbs "${TMP_PATH}/top1" "${TMP_PATH}/merged" "${TMP_PATH}/top1" "${TMP_PATH}/round2" \
-                || fail "Mergedbs died"
+            # shellcheck disable=SC2086
+            "$MMSEQS" mergedbs "${TMP_PATH}/top1" "${TMP_PATH}/merged" "${TMP_PATH}/top1" "${TMP_PATH}/round2" ${VERBOSITY} \
+                || fail "mergedbs died"
         fi
 
         if [ ! -e "${TMP_PATH}/2b_ali.dbtype" ]; then
-            "$MMSEQS" filterdb "${TMP_PATH}/merged" "${TMP_PATH}/2b_ali" --beats-first --filter-column 4 --comparison-operator le \
-                || fail "First filterdb died"
+            # shellcheck disable=SC2086
+            "$MMSEQS" filterdb "${TMP_PATH}/merged" "${TMP_PATH}/2b_ali" --beats-first --filter-column 4 --comparison-operator le ${THREADS_COMP_PAR} \
+                || fail "filterdb died"
         fi
 
         LCA_SOURCE="${TMP_PATH}/2b_ali"
@@ -96,10 +101,13 @@ elif [ "${TAX_OUTPUT}" -eq "2" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" lca "${TARGET}" "${LCA_SOURCE}" "${RESULTS}" ${LCA_PAR} \
         || fail "Lca died"
-    "$MMSEQS" mvdb "${LCA_SOURCE}" "${RESULTS}_aln"  \
+    # shellcheck disable=SC2086
+    "$MMSEQS" mvdb "${LCA_SOURCE}" "${RESULTS}_aln" ${VERBOSITY} \
         || fail "mvdb died"
-else # return alignment
-    "$MMSEQS" mvdb "${LCA_SOURCE}" "${RESULTS}"  \
+else
+    # return alignment
+    # shellcheck disable=SC2086
+    "$MMSEQS" mvdb "${LCA_SOURCE}" "${RESULTS}" ${VERBOSITY} \
         || fail "mvdb died"
 fi
 
