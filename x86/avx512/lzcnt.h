@@ -24,10 +24,11 @@
  *   2020      Evan Nemerson <evan@nemerson.com>
  */
 
-#if !defined(SIMDE_X86_AVX512CD_H)
-#define SIMDE_X86_AVX512CD_H
+#if !defined(SIMDE_X86_AVX512_LZCNT_H)
+#define SIMDE_X86_AVX512_LZCNT_H
 
-#include "avx512vl.h"
+#include "types.h"
+#include "mov.h"
 
 HEDLEY_DIAGNOSTIC_PUSH
 SIMDE_DISABLE_UNWANTED_DIAGNOSTICS
@@ -205,4 +206,4 @@ simde_mm_maskz_lzcnt_epi32(simde__mmask8 k, simde__m128i a) {
 SIMDE_END_DECLS_
 HEDLEY_DIAGNOSTIC_POP
 
-#endif /* !defined(SIMDE_X86_AVX512CD_H) */
+#endif /* !defined(SIMDE_X86_AVX512_LZCNT_H) */

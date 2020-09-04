@@ -30,6 +30,10 @@
 
 #include "sse4.1.h"
 
+#if defined(__ARM_ACLE) || (defined(__GNUC__) && defined(__ARM_FEATURE_CRC32))
+  #include <arm_acle.h>
+#endif
+
 HEDLEY_DIAGNOSTIC_PUSH
 SIMDE_DISABLE_UNWANTED_DIAGNOSTICS
 SIMDE_BEGIN_DECLS_
@@ -132,55 +136,55 @@ int simde_mm_cmpestrz (simde__m128i a, int la, simde__m128i b, int lb, const int
 SIMDE_FUNCTION_ATTRIBUTES
 simde__m128i
 simde_mm_cmpgt_epi64 (simde__m128i a, simde__m128i b) {
-#if defined(SIMDE_X86_SSE4_2_NATIVE)
-  return _mm_cmpgt_epi64(a, b);
-#else
-  simde__m128i_private
-    r_,
-    a_ = simde__m128i_to_private(a),
-    b_ = simde__m128i_to_private(b);
-
-  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE)
-    r_.neon_u64 = vcgtq_s64(a_.neon_i64, b_.neon_i64);
-  #elif defined(SIMDE_ARM_NEON_A32V7_NATIVE)
-    // ARMv7 lacks vcgtq_s64.
-    // This is based off of Clang's SSE2 polyfill:
-    // (a > b) -> ((a_hi > b_hi) || (a_lo > b_lo && a_hi == b_hi))
-
-    // Mask the sign bit out since we need a signed AND an unsigned comparison
-    // and it is ugly to try and split them.
-    int32x4_t mask   = vreinterpretq_s32_s64(vdupq_n_s64(0x80000000ull));
-    int32x4_t a_mask = veorq_s32(a_.neon_i32, mask);
-    int32x4_t b_mask = veorq_s32(b_.neon_i32, mask);
-    // Check if a > b
-    int64x2_t greater = vreinterpretq_s64_u32(vcgtq_s32(a_mask, b_mask));
-    // Copy upper mask to lower mask
-    // a_hi > b_hi
-    int64x2_t gt_hi = vshrq_n_s64(greater, 63);
-    // Copy lower mask to upper mask
-    // a_lo > b_lo
-    int64x2_t gt_lo = vsliq_n_s64(greater, greater, 32);
-    // Compare for equality
-    int64x2_t equal = vreinterpretq_s64_u32(vceqq_s32(a_mask, b_mask));
-    // Copy upper mask to lower mask
-    // a_hi == b_hi
-    int64x2_t eq_hi = vshrq_n_s64(equal, 63);
-    // a_hi > b_hi || (a_lo > b_lo && a_hi == b_hi)
-    int64x2_t ret = vorrq_s64(gt_hi, vandq_s64(gt_lo, eq_hi));
-    r_.neon_i64 = ret;
-  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE)
-    r_.altivec_u64 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned long long), vec_cmpgt(a_.altivec_i64, b_.altivec_i64));
-  #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
-    r_.i64 = HEDLEY_STATIC_CAST(__typeof__(r_.i64), a_.i64 > b_.i64);
+  #if defined(SIMDE_X86_SSE4_2_NATIVE)
+    return _mm_cmpgt_epi64(a, b);
   #else
-    SIMDE_VECTORIZE
-    for (size_t i = 0 ; i < (sizeof(r_.i64) / sizeof(r_.i64[0])) ; i++) {
-      r_.i64[i] = (a_.i64[i] > b_.i64[i]) ? ~INT64_C(0) : INT64_C(0);
-    }
-  #endif
+    simde__m128i_private
+      r_,
+      a_ = simde__m128i_to_private(a),
+      b_ = simde__m128i_to_private(b);
 
-  return simde__m128i_from_private(r_);
-#endif
+    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE)
+      r_.neon_u64 = vcgtq_s64(a_.neon_i64, b_.neon_i64);
+    #elif defined(SIMDE_ARM_NEON_A32V7_NATIVE)
+      // ARMv7 lacks vcgtq_s64.
+      // This is based off of Clang's SSE2 polyfill:
+      // (a > b) -> ((a_hi > b_hi) || (a_lo > b_lo && a_hi == b_hi))
+
+      // Mask the sign bit out since we need a signed AND an unsigned comparison
+      // and it is ugly to try and split them.
+      int32x4_t mask   = vreinterpretq_s32_s64(vdupq_n_s64(0x80000000ull));
+      int32x4_t a_mask = veorq_s32(a_.neon_i32, mask);
+      int32x4_t b_mask = veorq_s32(b_.neon_i32, mask);
+      // Check if a > b
+      int64x2_t greater = vreinterpretq_s64_u32(vcgtq_s32(a_mask, b_mask));
+      // Copy upper mask to lower mask
+      // a_hi > b_hi
+      int64x2_t gt_hi = vshrq_n_s64(greater, 63);
+      // Copy lower mask to upper mask
+      // a_lo > b_lo
+      int64x2_t gt_lo = vsliq_n_s64(greater, greater, 32);
+      // Compare for equality
+      int64x2_t equal = vreinterpretq_s64_u32(vceqq_s32(a_mask, b_mask));
+      // Copy upper mask to lower mask
+      // a_hi == b_hi
+      int64x2_t eq_hi = vshrq_n_s64(equal, 63);
+      // a_hi > b_hi || (a_lo > b_lo && a_hi == b_hi)
+      int64x2_t ret = vorrq_s64(gt_hi, vandq_s64(gt_lo, eq_hi));
+      r_.neon_i64 = ret;
+    #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE)
+      r_.altivec_u64 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned long long), vec_cmpgt(a_.altivec_i64, b_.altivec_i64));
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+      r_.i64 = HEDLEY_STATIC_CAST(__typeof__(r_.i64), a_.i64 > b_.i64);
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.i64) / sizeof(r_.i64[0])) ; i++) {
+        r_.i64[i] = (a_.i64[i] > b_.i64[i]) ? ~INT64_C(0) : INT64_C(0);
+      }
+    #endif
+
+    return simde__m128i_from_private(r_);
+  #endif
 }
 #if defined(SIMDE_X86_SSE4_2_ENABLE_NATIVE_ALIASES)
   #undef _mm_cmpgt_epi64
@@ -275,15 +279,19 @@ simde_mm_crc32_u8(uint32_t prevcrc, uint8_t v) {
   #if defined(SIMDE_X86_SSE4_2_NATIVE)
     return _mm_crc32_u8(prevcrc, v);
   #else
-    uint32_t crc = prevcrc;
-    crc ^= v;
-    for(int bit = 0 ; bit < 8 ; bit++) {
-      if (crc & 1)
-        crc = (crc >> 1) ^ UINT32_C(0x82f63b78);
-      else
-        crc = (crc >> 1);
-    }
-    return crc;
+    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(__ARM_FEATURE_CRC32)
+      return __crc32cb(prevcrc, v);
+    #else
+      uint32_t crc = prevcrc;
+      crc ^= v;
+      for(int bit = 0 ; bit < 8 ; bit++) {
+        if (crc & 1)
+          crc = (crc >> 1) ^ UINT32_C(0x82f63b78);
+        else
+          crc = (crc >> 1);
+      }
+      return crc;
+    #endif
   #endif
 }
 #if defined(SIMDE_X86_SSE4_2_ENABLE_NATIVE_ALIASES)
@@ -296,10 +304,14 @@ simde_mm_crc32_u16(uint32_t prevcrc, uint16_t v) {
   #if defined(SIMDE_X86_SSE4_2_NATIVE)
     return _mm_crc32_u16(prevcrc, v);
   #else
-    uint32_t crc = prevcrc;
-    crc = simde_mm_crc32_u8(crc, v & 0xff);
-    crc = simde_mm_crc32_u8(crc, (v >> 8) & 0xff);
-    return crc;
+    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(__ARM_FEATURE_CRC32)
+      return __crc32ch(prevcrc, v);
+    #else
+      uint32_t crc = prevcrc;
+      crc = simde_mm_crc32_u8(crc, v & 0xff);
+      crc = simde_mm_crc32_u8(crc, (v >> 8) & 0xff);
+      return crc;
+    #endif
   #endif
 }
 #if defined(SIMDE_X86_SSE4_2_ENABLE_NATIVE_ALIASES)
@@ -312,10 +324,14 @@ simde_mm_crc32_u32(uint32_t prevcrc, uint32_t v) {
   #if defined(SIMDE_X86_SSE4_2_NATIVE)
     return _mm_crc32_u32(prevcrc, v);
   #else
-    uint32_t crc = prevcrc;
-    crc = simde_mm_crc32_u16(crc, v & 0xffff);
-    crc = simde_mm_crc32_u16(crc, (v >> 16) & 0xffff);
-    return crc;
+    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(__ARM_FEATURE_CRC32)
+      return __crc32cw(prevcrc, v);
+    #else
+      uint32_t crc = prevcrc;
+      crc = simde_mm_crc32_u16(crc, v & 0xffff);
+      crc = simde_mm_crc32_u16(crc, (v >> 16) & 0xffff);
+      return crc;
+    #endif
   #endif
 }
 #if defined(SIMDE_X86_SSE4_2_ENABLE_NATIVE_ALIASES)
@@ -325,13 +341,17 @@ simde_mm_crc32_u32(uint32_t prevcrc, uint32_t v) {
 SIMDE_FUNCTION_ATTRIBUTES
 uint64_t
 simde_mm_crc32_u64(uint64_t prevcrc, uint64_t v) {
-  #if defined(SIMDE_X86_SSE4_2_NATIVE)
+  #if defined(SIMDE_X86_SSE4_2_NATIVE) && defined(SIMDE_ARCH_AMD64)
     return _mm_crc32_u64(prevcrc, v);
   #else
-    uint64_t crc = prevcrc;
-    crc = simde_mm_crc32_u32(HEDLEY_STATIC_CAST(uint32_t, crc), v & 0xffffffff);
-    crc = simde_mm_crc32_u32(HEDLEY_STATIC_CAST(uint32_t, crc), (v >> 32) & 0xffffffff);
-    return crc;
+    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(__ARM_FEATURE_CRC32)
+      return __crc32cd(HEDLEY_STATIC_CAST(uint32_t, prevcrc), v);
+    #else
+      uint64_t crc = prevcrc;
+      crc = simde_mm_crc32_u32(HEDLEY_STATIC_CAST(uint32_t, crc), v & 0xffffffff);
+      crc = simde_mm_crc32_u32(HEDLEY_STATIC_CAST(uint32_t, crc), (v >> 32) & 0xffffffff);
+      return crc;
+    #endif
   #endif
 }
 #if defined(SIMDE_X86_SSE4_2_ENABLE_NATIVE_ALIASES)
