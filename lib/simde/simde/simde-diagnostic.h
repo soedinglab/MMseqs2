@@ -48,6 +48,7 @@
 #define SIMDE_DIAGNOSTIC_H
 
 #include "hedley.h"
+#include "simde-detect-clang.h"
 
 /* This is only to help us implement functions like _mm_undefined_ps. */
 #if defined(SIMDE_DIAGNOSTIC_DISABLE_UNINITIALIZED_)
@@ -267,6 +268,9 @@
   #define SIMDE_DIAGNOSTIC_DISABLE_CAST_FUNCTION_TYPE_
 #endif
 
+/* clang will emit this warning when we use C99 extensions whan not in
+ * C99 mode, even though it does support this.  In such cases we check
+ * the compiler and version first, so we know it's not a problem. */
 #if HEDLEY_HAS_WARNING("-Wc99-extensions")
   #define SIMDE_DIAGNOSTIC_DISABLE_C99_EXTENSIONS_ _Pragma("clang diagnostic ignored \"-Wc99-extensions\"")
 #else
@@ -274,7 +278,7 @@
 #endif
 
 /* https://github.com/simd-everywhere/simde/issues/277 */
-#if defined(HEDLEY_GCC_VERSION) && HEDLEY_GCC_VERSION_CHECK(4,6,0) && !HEDLEY_GCC_VERSION_CHECK(6,0,0) && defined(__cplusplus)
+#if defined(HEDLEY_GCC_VERSION) && HEDLEY_GCC_VERSION_CHECK(4,6,0) && !HEDLEY_GCC_VERSION_CHECK(6,4,0) && defined(__cplusplus)
   #define SIMDE_DIAGNOSTIC_DISABLE_BUGGY_UNUSED_BUT_SET_VARIBALE_ _Pragma("GCC diagnostic ignored \"-Wunused-but-set-variable\"")
 #else
   #define SIMDE_DIAGNOSTIC_DISABLE_BUGGY_UNUSED_BUT_SET_VARIBALE_
@@ -299,12 +303,60 @@
   #define SIMDE_DIAGNOSTIC_DISABLE_CPP98_COMPAT_PEDANTIC_
 #endif
 
+/* Some problem as above */
+#if HEDLEY_HAS_WARNING("-Wc++11-long-long")
+  #define SIMDE_DIAGNOSTIC_DISABLE_CPP11_LONG_LONG_ _Pragma("clang diagnostic ignored \"-Wc++11-long-long\"")
+#else
+  #define SIMDE_DIAGNOSTIC_DISABLE_CPP11_LONG_LONG_
+#endif
+
 /* emscripten emits this whenever stdin/stdout/stderr is used in a
  * macro. */
 #if HEDLEY_HAS_WARNING("-Wdisabled-macro-expansion")
   #define SIMDE_DIAGNOSTIC_DISABLE_DISABLED_MACRO_EXPANSION_ _Pragma("clang diagnostic ignored \"-Wdisabled-macro-expansion\"")
 #else
   #define SIMDE_DIAGNOSTIC_DISABLE_DISABLED_MACRO_EXPANSION_
+#endif
+
+/* Clang uses C11 generic selections to implement some AltiVec
+ * functions, which triggers this diagnostic when not compiling
+ * in C11 mode */
+#if HEDLEY_HAS_WARNING("-Wc11-extensions")
+  #define SIMDE_DIAGNOSTIC_DISABLE_C11_EXTENSIONS_ _Pragma("clang diagnostic ignored \"-Wc11-extensions\"")
+#else
+  #define SIMDE_DIAGNOSTIC_DISABLE_C11_EXTENSIONS_
+#endif
+
+/* Clang sometimes triggers this warning in macros in the AltiVec and
+ * NEON headers, or due to missing functions. */
+#if HEDLEY_HAS_WARNING("-Wvector-conversion")
+  #define SIMDE_DIAGNOSTIC_DISABLE_VECTOR_CONVERSION_ _Pragma("clang diagnostic ignored \"-Wvector-conversion\"")
+  /* For NEON, the situation with -Wvector-conversion in clang < 10 is
+   * bad enough that we just disable the warning altogether. */
+  #if defined(__arm__) && SIMDE_DETECT_CLANG_VERSION_NOT(10,0,0)
+    #define SIMDE_DIAGNOSTIC_DISABLE_BUGGY_VECTOR_CONVERSION_ SIMDE_DIAGNOSTIC_DISABLE_VECTOR_CONVERSION_
+  #endif
+#else
+  #define SIMDE_DIAGNOSTIC_DISABLE_VECTOR_CONVERSION_
+#endif
+#if !defined(SIMDE_DIAGNOSTIC_DISABLE_BUGGY_VECTOR_CONVERSION_)
+  #define SIMDE_DIAGNOSTIC_DISABLE_BUGGY_VECTOR_CONVERSION_
+#endif
+
+/* SLEEF triggers this a *lot* in their headers */
+#if HEDLEY_HAS_WARNING("-Wignored-qualifiers")
+  #define SIMDE_DIAGNOSTIC_DISABLE_IGNORED_QUALIFIERS_ _Pragma("clang diagnostic ignored \"-Wignored-qualifiers\"")
+#elif HEDLEY_GCC_VERSION_CHECK(4,3,0)
+  #define SIMDE_DIAGNOSTIC_DISABLE_IGNORED_QUALIFIERS_ _Pragma("GCC diagnostic ignored \"-Wignored-qualifiers\"")
+#else
+  #define SIMDE_DIAGNOSTIC_DISABLE_IGNORED_QUALIFIERS_
+#endif
+
+/* GCC emits this under some circumstances when using __int128 */
+#if HEDLEY_GCC_VERSION_CHECK(4,8,0)
+  #define SIMDE_DIAGNOSTIC_DISABLE_PEDANTIC_ _Pragma("GCC diagnostic ignored \"-Wpedantic\"")
+#else
+  #define SIMDE_DIAGNOSTIC_DISABLE_PEDANTIC_
 #endif
 
 #define SIMDE_DISABLE_UNWANTED_DIAGNOSTICS \
@@ -320,6 +372,8 @@
   SIMDE_DIAGNOSTIC_DISABLE_UNUSED_FUNCTION_ \
   SIMDE_DIAGNOSTIC_DISABLE_PASS_FAILED_ \
   SIMDE_DIAGNOSTIC_DISABLE_CPP98_COMPAT_PEDANTIC_ \
-  SIMDE_DIAGNOSTIC_DISABLE_BUGGY_UNUSED_BUT_SET_VARIBALE_
+  SIMDE_DIAGNOSTIC_DISABLE_CPP11_LONG_LONG_ \
+  SIMDE_DIAGNOSTIC_DISABLE_BUGGY_UNUSED_BUT_SET_VARIBALE_ \
+  SIMDE_DIAGNOSTIC_DISABLE_BUGGY_VECTOR_CONVERSION_
 
 #endif /* !defined(SIMDE_DIAGNOSTIC_H) */

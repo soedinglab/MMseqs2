@@ -231,7 +231,7 @@ simde_vshl_s64 (const simde_int64x1_t a, const simde_int64x1_t b) {
 }
 #if defined(SIMDE_ARM_NEON_A32V7_ENABLE_NATIVE_ALIASES)
   #undef vshl_s64
-  #define vshl_s64(a, b) simde_vshl_u64((a), (b))
+  #define vshl_s64(a, b) simde_vshl_s64((a), (b))
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -405,11 +405,11 @@ simde_vshlq_s8 (const simde_int8x16_t a, const simde_int8x16_t b) {
                                       _mm256_srav_epi16(a256, _mm256_abs_epi16(b256)),
                                       _mm256_cmpgt_epi16(_mm256_setzero_si256(), b256));
     return _mm256_cvtepi16_epi8(r256);
-  #elif defined(SIMDE_POWER_ALTIVEC_P5_NATIVE)
-    vector signed char a_shl, a_shr;
-    vector unsigned char b_abs, b_max;
-    vector bool char b_mask;
-    b_abs = HEDLEY_REINTERPRET_CAST(vector unsigned char, vec_abs(b));
+  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+    SIMDE_POWER_ALTIVEC_VECTOR(signed char) a_shl, a_shr;
+    SIMDE_POWER_ALTIVEC_VECTOR(unsigned char) b_abs, b_max;
+    SIMDE_POWER_ALTIVEC_VECTOR(bool char) b_mask;
+    b_abs = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned char), vec_abs(b));
     b_max = vec_splat_u8(7);
     #if defined(SIMDE_POWER_ALTIVEC_P7_NATIVE)
       a_shl = vec_and(vec_sl(a, b_abs), vec_cmple(b_abs, b_max));
@@ -451,7 +451,7 @@ simde_vshlq_s16 (const simde_int16x8_t a, const simde_int16x8_t b) {
     return _mm_blendv_epi8(_mm_sllv_epi16(a, b_),
                            _mm_srav_epi16(a, _mm_abs_epi16(b_)),
                            _mm_cmpgt_epi16(_mm_setzero_si128(), b_));
-  #elif defined(SIMDE_X86_AVX2_NATIVE)
+  #elif defined(SIMDE_X86_AVX2_NATIVE) && defined(SIMDE_ARCH_AMD64)
     __m256i a256 = _mm256_cvtepi16_epi32(a);
     __m256i b256 = _mm256_cvtepi16_epi32(b);
     b256 = _mm256_srai_epi32(_mm256_slli_epi32(b256, 24), 24);
@@ -460,12 +460,12 @@ simde_vshlq_s16 (const simde_int16x8_t a, const simde_int16x8_t b) {
                                       _mm256_cmpgt_epi32(_mm256_setzero_si256(), b256));
     r256 = _mm256_shuffle_epi8(r256, _mm256_set1_epi64x(0x0D0C090805040100));
     return _mm_set_epi64x(_mm256_extract_epi64(r256, 2), _mm256_extract_epi64(r256, 0));
-  #elif defined(SIMDE_POWER_ALTIVEC_P5_NATIVE)
-    vector signed short a_shl, a_shr;
-    vector unsigned short b_abs, b_max;
-    vector bool short b_mask;
-    b_abs = vec_and(HEDLEY_REINTERPRET_CAST(vector unsigned short,
-                                            vec_abs(HEDLEY_REINTERPRET_CAST(vector signed char, b))),
+  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+    SIMDE_POWER_ALTIVEC_VECTOR(signed short) a_shl, a_shr;
+    SIMDE_POWER_ALTIVEC_VECTOR(unsigned short) b_abs, b_max;
+    SIMDE_POWER_ALTIVEC_VECTOR(bool short) b_mask;
+    b_abs = vec_and(HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned short),
+                                            vec_abs(HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(signed char), b))),
                     vec_splats(HEDLEY_STATIC_CAST(unsigned short, 0xFF)));
     b_max = vec_splat_u16(15);
     #if defined(SIMDE_POWER_ALTIVEC_P7_NATIVE)
@@ -509,12 +509,12 @@ simde_vshlq_s32 (const simde_int32x4_t a, const simde_int32x4_t b) {
     return _mm_blendv_epi8(_mm_sllv_epi32(a, b_),
                            _mm_srav_epi32(a, _mm_abs_epi32(b_)),
                            _mm_cmpgt_epi32(_mm_setzero_si128(), b_));
-  #elif defined(SIMDE_POWER_ALTIVEC_P5_NATIVE)
-    vector signed int a_shl, a_shr;
-    vector unsigned int b_abs, b_max;
-    vector bool int b_mask;
-    b_abs = vec_and(HEDLEY_REINTERPRET_CAST(vector unsigned int,
-                                            vec_abs(HEDLEY_REINTERPRET_CAST(vector signed char, b))),
+  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+    SIMDE_POWER_ALTIVEC_VECTOR(signed int) a_shl, a_shr;
+    SIMDE_POWER_ALTIVEC_VECTOR(unsigned int) b_abs, b_max;
+    SIMDE_POWER_ALTIVEC_VECTOR(bool int) b_mask;
+    b_abs = vec_and(HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned int),
+                                            vec_abs(HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(signed char), b))),
                     vec_splats(HEDLEY_STATIC_CAST(unsigned int, 0xFF)));
     b_max = vec_splats(HEDLEY_STATIC_CAST(unsigned int, 31));
     #if defined(SIMDE_POWER_ALTIVEC_P7_NATIVE)
@@ -568,18 +568,23 @@ simde_vshlq_s64 (const simde_int64x2_t a, const simde_int64x2_t b) {
                            _mm_xor_si128(_mm_srlv_epi64(_mm_xor_si128(a, maska), b_abs), maska),
                            _mm_cmpgt_epi64(zero, _mm_slli_epi64(b, 56)));
   #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE)
-    vector signed long long a_shl, a_shr;
-    vector unsigned long long b_abs, b_max;
-    vector bool long long b_mask;
-    b_abs = vec_and(HEDLEY_REINTERPRET_CAST(vector unsigned long long,
-                                            vec_abs(HEDLEY_REINTERPRET_CAST(vector signed char, b))),
+    SIMDE_POWER_ALTIVEC_VECTOR(signed long long) a_shl, a_shr;
+    SIMDE_POWER_ALTIVEC_VECTOR(unsigned long long) b_abs, b_max;
+    SIMDE_POWER_ALTIVEC_VECTOR(bool long long) b_mask;
+    b_abs = vec_and(HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned long long),
+                                            vec_abs(HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(signed char), b))),
                     vec_splats(HEDLEY_STATIC_CAST(unsigned long long, 0xFF)));
     b_max = vec_splats(HEDLEY_STATIC_CAST(unsigned long long, 63));
     a_shl = vec_and(vec_sl(a, b_abs), vec_cmple(b_abs, b_max));
     a_shr = vec_sra(a, vec_min(b_abs, b_max));
     b_mask = vec_cmplt(vec_sl(b, vec_splats(HEDLEY_STATIC_CAST(unsigned long long, 56))),
                        vec_splats(HEDLEY_STATIC_CAST(signed long long, 0)));
+    HEDLEY_DIAGNOSTIC_PUSH
+    #if defined(SIMDE_BUG_CLANG_46770)
+      SIMDE_DIAGNOSTIC_DISABLE_VECTOR_CONVERSION_
+    #endif
     return vec_sel(a_shl, a_shr, b_mask);
+    HEDLEY_DIAGNOSTIC_POP
   #else
     simde_int64x2_private
       r_,
@@ -615,10 +620,10 @@ simde_vshlq_u8 (const simde_uint8x16_t a, const simde_int8x16_t b) {
                                       _mm256_srlv_epi16(a256, _mm256_abs_epi16(b256)),
                                       _mm256_cmpgt_epi16(_mm256_setzero_si256(), b256));
     return _mm256_cvtepi16_epi8(r256);
-  #elif defined(SIMDE_POWER_ALTIVEC_P5_NATIVE)
-    vector unsigned char b_abs;
-    vector bool char b_mask;
-    b_abs = HEDLEY_REINTERPRET_CAST(vector unsigned char, vec_abs(b));
+  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+    SIMDE_POWER_ALTIVEC_VECTOR(unsigned char) b_abs;
+    SIMDE_POWER_ALTIVEC_VECTOR(bool char) b_mask;
+    b_abs = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned char), vec_abs(b));
     b_mask = vec_cmplt(b, vec_splat_s8(0));
     return vec_and(vec_sel(vec_sl(a, b_abs), vec_sr(a, b_abs), b_mask),
                    vec_cmplt(b_abs, vec_splat_u8(8)));
@@ -654,7 +659,7 @@ simde_vshlq_u16 (const simde_uint16x8_t a, const simde_int16x8_t b) {
     return _mm_blendv_epi8(_mm_sllv_epi16(a, b_),
                            _mm_srlv_epi16(a, _mm_abs_epi16(b_)),
                            _mm_cmpgt_epi16(_mm_setzero_si128(), b_));
-  #elif defined(SIMDE_X86_AVX2_NATIVE)
+  #elif defined(SIMDE_X86_AVX2_NATIVE) && defined(SIMDE_ARCH_AMD64)
     __m256i a256 = _mm256_cvtepu16_epi32(a);
     __m256i b256 = _mm256_cvtepi16_epi32(b);
     b256 = _mm256_srai_epi32(_mm256_slli_epi32(b256, 24), 24);
@@ -663,11 +668,11 @@ simde_vshlq_u16 (const simde_uint16x8_t a, const simde_int16x8_t b) {
                                       _mm256_cmpgt_epi32(_mm256_setzero_si256(), b256));
     r256 = _mm256_shuffle_epi8(r256, _mm256_set1_epi64x(0x0D0C090805040100));
     return _mm_set_epi64x(_mm256_extract_epi64(r256, 2), _mm256_extract_epi64(r256, 0));
-  #elif defined(SIMDE_POWER_ALTIVEC_P5_NATIVE)
-    vector unsigned short b_abs;
-    vector bool short b_mask;
-    b_abs = vec_and(HEDLEY_REINTERPRET_CAST(vector unsigned short,
-                                            vec_abs(HEDLEY_REINTERPRET_CAST(vector signed char, b))),
+  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+    SIMDE_POWER_ALTIVEC_VECTOR(unsigned short) b_abs;
+    SIMDE_POWER_ALTIVEC_VECTOR(bool short) b_mask;
+    b_abs = vec_and(HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned short),
+                                            vec_abs(HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(signed char), b))),
                     vec_splats(HEDLEY_STATIC_CAST(unsigned short, 0xFF)));
     b_mask = vec_cmplt(vec_sl(b, vec_splat_u16(8)), vec_splat_s16(0));
     #if defined(SIMDE_POWER_ALTIVEC_P7_NATIVE)
@@ -710,11 +715,11 @@ simde_vshlq_u32 (const simde_uint32x4_t a, const simde_int32x4_t b) {
     return _mm_blendv_epi8(_mm_sllv_epi32(a, b_),
                            _mm_srlv_epi32(a, _mm_abs_epi32(b_)),
                            _mm_cmpgt_epi32(_mm_setzero_si128(), b_));
-  #elif defined(SIMDE_POWER_ALTIVEC_P5_NATIVE)
-    vector unsigned int b_abs;
-    vector bool int b_mask;
-    b_abs = vec_and(HEDLEY_REINTERPRET_CAST(vector unsigned int,
-                                            vec_abs(HEDLEY_REINTERPRET_CAST(vector signed char, b))),
+  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+    SIMDE_POWER_ALTIVEC_VECTOR(unsigned int) b_abs;
+    SIMDE_POWER_ALTIVEC_VECTOR(bool int) b_mask;
+    b_abs = vec_and(HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned int),
+                                            vec_abs(HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(signed char), b))),
                     vec_splats(HEDLEY_STATIC_CAST(unsigned int, 0xFF)));
     b_mask = vec_cmplt(vec_sl(b, vec_splats(HEDLEY_STATIC_CAST(unsigned int, 24))), vec_splat_s32(0));
     return vec_and(vec_sel(vec_sl(a, b_abs), vec_sr(a, b_abs), b_mask),
@@ -758,15 +763,20 @@ simde_vshlq_u64 (const simde_uint64x2_t a, const simde_int64x2_t b) {
                            _mm_srlv_epi64(a, b_abs),
                            _mm_cmpgt_epi64(_mm_setzero_si128(), _mm_slli_epi64(b, 56)));
   #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE)
-    vector unsigned long long b_abs;
-    vector bool long long b_mask;
-    b_abs = vec_and(HEDLEY_REINTERPRET_CAST(vector unsigned long long,
-                                            vec_abs(HEDLEY_REINTERPRET_CAST(vector signed char, b))),
+    SIMDE_POWER_ALTIVEC_VECTOR(unsigned long long) b_abs;
+    SIMDE_POWER_ALTIVEC_VECTOR(bool long long) b_mask;
+    b_abs = vec_and(HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned long long),
+                                            vec_abs(HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(signed char), b))),
                     vec_splats(HEDLEY_STATIC_CAST(unsigned long long, 0xFF)));
     b_mask = vec_cmplt(vec_sl(b, vec_splats(HEDLEY_STATIC_CAST(unsigned long long, 56))),
                        vec_splats(HEDLEY_STATIC_CAST(signed long long, 0)));
+    HEDLEY_DIAGNOSTIC_PUSH
+    #if defined(SIMDE_BUG_CLANG_46770)
+      SIMDE_DIAGNOSTIC_DISABLE_VECTOR_CONVERSION_
+    #endif
     return vec_and(vec_sel(vec_sl(a, b_abs), vec_sr(a, b_abs), b_mask),
                    vec_cmplt(b_abs, vec_splats(HEDLEY_STATIC_CAST(unsigned long long, 64))));
+    HEDLEY_DIAGNOSTIC_POP
   #else
     simde_uint64x2_private
       r_,
