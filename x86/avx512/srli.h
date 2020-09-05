@@ -41,23 +41,33 @@ SIMDE_FUNCTION_ATTRIBUTES
 simde__m512i
 simde_mm512_srli_epi16 (simde__m512i a, const int imm8)
     SIMDE_REQUIRE_CONSTANT_RANGE(imm8, 0, 255) {
-  simde__m512i_private
-    r_,
-    a_ = simde__m512i_to_private(a);
+  #if defined(SIMDE_X86_AVX512BW_NATIVE) && (defined(HEDLEY_GCC_VERSION) && ((__GNUC__ == 5 && __GNUC_MINOR__ == 5) || (__GNUC__ == 6 && __GNUC_MINOR__ >= 4)))
+    simde__m512i r;
 
-  if (HEDLEY_STATIC_CAST(unsigned int, imm8) > 15)
-    return simde_mm512_setzero_si512();
+    SIMDE_CONSTIFY_16_(_mm512_srli_epi16, r, simde_mm512_setzero_si512(), imm8, a);
 
-  #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR)
-    r_.u16 = a_.u16 >> HEDLEY_STATIC_CAST(int16_t, imm8);
+    return r;
+  #elif defined(SIMDE_X86_AVX512BW_NATIVE)
+    return SIMDE_BUG_IGNORE_SIGN_CONVERSION(_mm512_srli_epi16(a, imm8));
   #else
-    SIMDE_VECTORIZE
-    for (size_t i = 0 ; i < (sizeof(r_.u16) / sizeof(r_.u16[0])) ; i++) {
-      r_.u16[i] = a_.u16[i] >> imm8;
-    }
-  #endif
+    simde__m512i_private
+      r_,
+      a_ = simde__m512i_to_private(a);
 
-  return simde__m512i_from_private(r_);
+    if (HEDLEY_STATIC_CAST(unsigned int, imm8) > 15)
+      return simde_mm512_setzero_si512();
+
+    #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR)
+      r_.u16 = a_.u16 >> HEDLEY_STATIC_CAST(int16_t, imm8);
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.u16) / sizeof(r_.u16[0])) ; i++) {
+        r_.u16[i] = a_.u16[i] >> imm8;
+      }
+    #endif
+
+    return simde__m512i_from_private(r_);
+  #endif
 }
 #if defined(SIMDE_X86_AVX512BW_NATIVE)
   #define simde_mm512_srli_epi16(a, imm8) _mm512_srli_epi16(a, imm8)
@@ -70,7 +80,13 @@ simde_mm512_srli_epi16 (simde__m512i a, const int imm8)
 SIMDE_FUNCTION_ATTRIBUTES
 simde__m512i
 simde_mm512_srli_epi32 (simde__m512i a, unsigned int imm8) {
-  #if defined(SIMDE_X86_AVX512F_NATIVE)
+  #if defined(SIMDE_X86_AVX512F_NATIVE) && (defined(HEDLEY_GCC_VERSION) && ((__GNUC__ == 5 && __GNUC_MINOR__ == 5) || (__GNUC__ == 6 && __GNUC_MINOR__ >= 4)))
+    simde__m512i r;
+
+    SIMDE_CONSTIFY_32_(_mm512_srli_epi32, r, simde_mm512_setzero_si512(), imm8, a);
+
+    return r;
+  #elif defined(SIMDE_X86_AVX512F_NATIVE)
     return SIMDE_BUG_IGNORE_SIGN_CONVERSION(_mm512_srli_epi32(a, imm8));
   #else
     simde__m512i_private
@@ -111,8 +127,14 @@ simde_mm512_srli_epi32 (simde__m512i a, unsigned int imm8) {
 SIMDE_FUNCTION_ATTRIBUTES
 simde__m512i
 simde_mm512_srli_epi64 (simde__m512i a, unsigned int imm8) {
-  #if defined(SIMDE_X86_AVX512F_NATIVE)
-    return _mm512_srli_epi64(a, imm8);
+  #if defined(SIMDE_X86_AVX512F_NATIVE) && (defined(HEDLEY_GCC_VERSION) && ((__GNUC__ == 5 && __GNUC_MINOR__ == 5) || (__GNUC__ == 6 && __GNUC_MINOR__ >= 4)))
+    simde__m512i r;
+
+    SIMDE_CONSTIFY_64_(_mm512_srli_epi64, r, simde_mm512_setzero_si512(), imm8, a);
+
+    return r;
+  #elif defined(SIMDE_X86_AVX512F_NATIVE)
+    return SIMDE_BUG_IGNORE_SIGN_CONVERSION(_mm512_srli_epi64(a, imm8));
   #else
     simde__m512i_private
       r_,
