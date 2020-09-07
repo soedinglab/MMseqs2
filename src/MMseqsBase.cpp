@@ -683,10 +683,10 @@ std::vector<Command> baseCommands = {
                 "mmseqs cluster sequenceDB clusterDB tmp\n"
                 "mmseqs createsubdb clusterDB sequenceDB representativesDB\n",
                 "Milot Mirdita <milot@mirdita.de>",
-                "<i:subsetFile|DB> <i:resultDB> <o:resultDB>",
+                "<i:subsetFile|DB> <i:DB> <o:DB>",
                 CITATION_MMSEQS2, {{"subsetFile", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDbAndFlat },
-                                          {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
-                                          {"resultDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
+                                          {"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
+                                          {"DB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
         {"concatdbs",            concatdbs,            &par.concatdbs,            COMMAND_SET,
                 "Concatenate two DBs, giving new IDs to entries from 2nd DB",
 //                "If exist, the auxillary files: _mapping, source and lookup are also concatenated after IDs update of the 2nd DB",
