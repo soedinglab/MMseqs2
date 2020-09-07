@@ -352,13 +352,9 @@ if [ -n "${TAXONOMY}" ] && notExists "${OUTDB}_mapping"; then
         # shellcheck disable=SC2086
         "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxonomy" ${THREADS_PAR} \
             || fail "createtaxdb died"
-        awk -F'[\t][|][\t]|[\t][|]' '$4 == "scientific name" { t[$2] = $1; if ($2 in c) { c[$2]++; } else { c[$2] = 1; } } END { for (tax in t) { if (c[tax] == 1) { print t[tax]"\t"tax; } } }' "${OUTDB}_names.dmp" | sort -n > "${TMP_PATH}/names_unique.tsv"
         # shellcheck disable=SC2086
-        "${MMSEQS}" prefixid "${OUTDB}_h" "${TMP_PATH}/header_pref.tsv" --tsv --threads 1 ${VERB_PAR} \
-            || fail "prefixid died"
-        SOH_CHAR=$(printf '\001')
-        cut -d "$SOH_CHAR" -f1 "${TMP_PATH}/header_pref.tsv" | awk -F'\t' '{ match($2, /^([^ .]+)/, accession); match($2, /\[([^\]]+)\]$/, name); print $1"\t"accession[1]"\t"name[1]; }' > "${TMP_PATH}/acc_names.tsv"
-        awk 'FNR == 1 { FINDEX++; } FINDEX <= 2 { a2t[$1] = $3; next; } FINDEX == 3 { n2t[$2] = $1; next; } { split($2, a, "."); $2 = a[1]; } $2 in a2t { print $1"\t"a2t[$2]; next; } $3 in n2t { print $1"\t"n2t[$3]; }' "${TMP_PATH}/pdb.accession2taxid" "${TMP_PATH}/prot.accession2taxid" "${TMP_PATH}/names_unique.tsv" "${TMP_PATH}/acc_names.tsv" > "${OUTDB}_mapping"
+        "${MMSEQS}" nrtotaxmapping "${TMP_PATH}/pdb.accession2taxid" "${TMP_PATH}/prot.accession2taxid" "${OUTDB}" "${OUTDB}_mapping" ${THREADS_PAR} \
+            || fail "nrtotaxmapping died"
        ;;
      *)
        # shellcheck disable=SC2086
