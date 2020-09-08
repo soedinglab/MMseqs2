@@ -717,6 +717,12 @@ Parameters::Parameters():
     result2flat.push_back(&PARAM_USE_HEADER);
     result2flat.push_back(&PARAM_V);
 
+    // result2repseq
+    result2repseq.push_back(&PARAM_PRELOAD_MODE);
+    result2repseq.push_back(&PARAM_COMPRESSED);
+    result2repseq.push_back(&PARAM_THREADS);
+    result2repseq.push_back(&PARAM_V);
+
     // gff2db
     gff2db.push_back(&PARAM_GFF_TYPE);
     gff2db.push_back(&PARAM_ID_OFFSET);

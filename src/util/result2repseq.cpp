@@ -14,14 +14,17 @@ int result2repseq(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> seqReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     seqReader.open(DBReader<unsigned int>::NOSORT);
+    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+        seqReader.readMmapedDataInMemory();
+    }
 
     DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, seqReader.getDbtype());
     resultWriter.open();
-    Debug::Progress progress(resultReader.getSize());
 
+    Debug::Progress progress(resultReader.getSize());
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;

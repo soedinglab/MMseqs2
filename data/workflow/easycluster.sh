@@ -29,7 +29,7 @@ fi
 
 if notExists "${TMP_PATH}/rep_seq.fasta"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" result2repseq "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/clu_rep" ${THREADS_PAR} \
+    "$MMSEQS" result2repseq "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/clu_rep" ${RESULT2REPSEQ_PAR} \
             || fail "Result2repseq  died"
 
     # shellcheck disable=SC2086

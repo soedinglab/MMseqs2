@@ -135,7 +135,7 @@ fi
 if notExists "${TMP_PATH}/OLDDB.repSeq.dbtype"; then
     log "=== Extract representative sequences"
     # shellcheck disable=SC2086
-    "$MMSEQS" result2repseq "$OLDDB" "$OLDCLUST" "${TMP_PATH}/OLDDB.repSeq" ${THREADS_PAR} \
+    "$MMSEQS" result2repseq "$OLDDB" "$OLDCLUST" "${TMP_PATH}/OLDDB.repSeq" ${RESULT2REPSEQ_PAR} \
         || fail "result2repseq died"
 fi
 

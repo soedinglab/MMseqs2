@@ -941,7 +941,7 @@ std::vector<Command> baseCommands = {
                                           {"aaTargetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                           {"alnDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::alignmentDb },
                                           {"alnDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb }}},
-        {"result2repseq",       result2repseq,         &par.threadsandcompression,COMMAND_RESULT,
+        {"result2repseq",       result2repseq,         &par.result2repseq,        COMMAND_RESULT,
                 "Get representative sequences from result DB",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@snu.ac.kr>",
