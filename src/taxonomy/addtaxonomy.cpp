@@ -70,10 +70,10 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
             if (par.pickIdFrom == Parameters::EXTRACT_QUERY) {
                 val.first = key;
                 mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
-            }
-            if (mappingIt == mapping.end() || mappingIt->first != val.first) {
-                taxonNotFound++;
-                continue;
+                if (mappingIt == mapping.end() || mappingIt->first != val.first) {
+                    taxonNotFound++;
+                    continue;
+                }
             }
 
             while (*data != '\0') {
@@ -87,11 +87,11 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
                     unsigned int id = Util::fast_atoi<unsigned int>(entry[0]);
                     val.first = id;
                     mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
-                }
-                if (mappingIt == mapping.end() || mappingIt->first != val.first) {
-                    taxonNotFound++;
-                    data = Util::skipLine(data);
-                    continue;
+                    if (mappingIt == mapping.end() || mappingIt->first != val.first) {
+                        taxonNotFound++;
+                        data = Util::skipLine(data);
+                        continue;
+                    }
                 }
                 unsigned int taxon = mappingIt->second;
                 TaxonNode const *node = t->taxonNode(taxon, false);
