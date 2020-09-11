@@ -34,13 +34,13 @@ fi
 if [ -n "${ORF_FILTER}" ]; then
     if notExists "${TMP_PATH}/orfs_pref.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" prefilter "${ORFS_DB}" "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_pref" --min-ungapped-score 3 -s 2 --diag-score 0 --max-seqs 1 ${THREAD_COMP_PAR} \
+        "$MMSEQS" prefilter "${ORFS_DB}" "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_pref" ${ORF_FILTER_PREFILTER} \
             || fail "orf filter prefilter died"
     fi
 
     if notExists "${TMP_PATH}/orfs_aln.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" rescorediagonal "${ORFS_DB}" "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_pref" "${TMP_PATH}/orfs_aln" --rescore-mode 2 -e 100 ${THREAD_COMP_PAR} \
+        "$MMSEQS" rescorediagonal "${ORFS_DB}" "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_pref" "${TMP_PATH}/orfs_aln" ${ORF_FILTER_RESCOREDIAGONAL} \
             || fail "orf filter rescorediagonal died"
     fi
 

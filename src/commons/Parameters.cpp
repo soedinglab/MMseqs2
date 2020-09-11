@@ -144,6 +144,8 @@ Parameters::Parameters():
         PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Slice search mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results", typeid(bool), (void *) &sliceSearch, "", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_STRAND(PARAM_STRAND_ID, "--strand", "Strand selection", "Strand selection only works for DNA/DNA search 0: reverse, 1: forward, 2: both", typeid(int), (void *) &strand, "^[0-2]{1}$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_ORF_FILTER(PARAM_ORF_FILTER_ID, "--orf-filter", "ORF filter", "Prefilter query ORFs with non-selective before search", typeid(int), (void *) &orfFilter, "^[0-1]{1}$", MMseqsParameter::COMMAND_HIDDEN),
+        PARAM_ORF_FILTER_S(PARAM_ORF_FILTER_S_ID, "--orf-filter-s", "ORF filter sensitivity", "Sensitivity used for query ORF prefiltering", typeid(float), (void *) &orfFilterSens, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_HIDDEN),
+        PARAM_ORF_FILTER_E(PARAM_ORF_FILTER_E_ID, "--orf-filter-e", "ORF filter e-value", "E-value threshold used for query ORF prefiltering", typeid(float), (void *) &orfFilterEval, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_HIDDEN),
         // easysearch
         PARAM_GREEDY_BEST_HITS(PARAM_GREEDY_BEST_HITS_ID, "--greedy-best-hits", "Greedy best hits", "Choose the best hits greedily to cover the query", typeid(bool), (void *) &greedyBestHits, ""),
         // extractorfs
@@ -1084,6 +1086,8 @@ Parameters::Parameters():
     searchworkflow.push_back(&PARAM_SLICE_SEARCH);
     searchworkflow.push_back(&PARAM_STRAND);
     searchworkflow.push_back(&PARAM_ORF_FILTER);
+    searchworkflow.push_back(&PARAM_ORF_FILTER_E);
+    searchworkflow.push_back(&PARAM_ORF_FILTER_S);
     searchworkflow.push_back(&PARAM_DISK_SPACE_LIMIT);
     searchworkflow.push_back(&PARAM_RUNNER);
     searchworkflow.push_back(&PARAM_REUSELATEST);
@@ -1987,6 +1991,8 @@ void Parameters::setDefaults() {
     sliceSearch = false;
     strand = 1;
     orfFilter = 0;
+    orfFilterSens = 2.0;
+    orfFilterEval = 100;
 
     greedyBestHits = false;
 

@@ -9,6 +9,7 @@ void setTaxPerContigDefaults(Parameters *p) {
     p->orfStartMode = 1;
     p->taxonomyOutpuMode = 2;
     p->showTaxLineage = 0;
+    p->orfFilter = true;
 }
 
 void setTaxPerContigMustPassAlong(Parameters *p) {
@@ -61,7 +62,6 @@ int taxpercontig(int argc, const char **argv, const Command& command) {
 
     CommandCaller cmd;
     par.translate = 1;
-    cmd.addVariable("ORF_FILTER", par.orfFilter ? "TRUE" : NULL);
     cmd.addVariable("EXTRACT_ORFS_PAR", par.createParameterString(par.extractorfs).c_str());
     int showTaxLineageOrig = par.showTaxLineage;
     // never show lineage for the orfs
@@ -73,6 +73,22 @@ int taxpercontig(int argc, const char **argv, const Command& command) {
     cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
     cmd.addVariable("THREAD_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
     cmd.addVariable("SWAPDB_PAR", par.createParameterString(par.swapdb).c_str());
+
+    cmd.addVariable("ORF_FILTER", par.orfFilter && par.orfFilterSens <= par.sensitivity ? "TRUE" : NULL);
+    // --min-ungapped-score 3 -s 2 --diag-score 0 --max-seqs 1
+    par.minDiagScoreThr = 3;
+    par.sensitivity = par.orfFilterSens;
+    par.diagonalScoring = false;
+    par.maxResListLen = 1;
+    cmd.addVariable("ORF_FILTER_PREFILTER", par.createParameterString(par.prefilter).c_str());
+
+    par.evalThr = par.orfFilterEval;
+    par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+    cmd.addVariable("ORF_FILTER_RESCOREDIAGONAL", par.createParameterString(par.rescorediagonal).c_str());
+
+    par.subDbMode = Parameters::SUBDB_MODE_SOFT;
+    cmd.addVariable("CREATESUBDB_PAR", par.createParameterString(par.createsubdb).c_str());
+
 
     std::string program(tmpDir + "/taxpercontig.sh");
     FileUtil::writeFile(program, taxpercontig_sh, taxpercontig_sh_len);

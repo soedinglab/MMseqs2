@@ -409,6 +409,8 @@ public:
     bool sliceSearch;
     int strand;
     int orfFilter;
+    float orfFilterSens;
+    float orfFilterEval;
 
     // easysearch
     bool greedyBestHits;
@@ -783,6 +785,8 @@ public:
     PARAMETER(PARAM_SLICE_SEARCH)
     PARAMETER(PARAM_STRAND)
     PARAMETER(PARAM_ORF_FILTER)
+    PARAMETER(PARAM_ORF_FILTER_S)
+    PARAMETER(PARAM_ORF_FILTER_E)
 
     // easysearch
     PARAMETER(PARAM_GREEDY_BEST_HITS)
