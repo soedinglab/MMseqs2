@@ -10,6 +10,7 @@ void setTaxPerContigDefaults(Parameters *p) {
     p->taxonomyOutpuMode = 2;
     p->showTaxLineage = 0;
     p->orfFilter = true;
+    p->taxonomySearchMode = Parameters::TAXONOMY_2BLCA_APPROX;
 }
 
 void setTaxPerContigMustPassAlong(Parameters *p) {
@@ -17,6 +18,7 @@ void setTaxPerContigMustPassAlong(Parameters *p) {
     p->PARAM_TRANSLATE.wasSet = true;
     p->PARAM_TAX_OUTPUT_MODE.wasSet = true;
     p->PARAM_TAXON_ADD_LINEAGE.wasSet = true;
+    p->PARAM_LCA_MODE.wasSet = true;
 }
 
 int taxpercontig(int argc, const char **argv, const Command& command) {
