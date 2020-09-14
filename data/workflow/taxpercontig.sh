@@ -71,7 +71,7 @@ if [ ! -e "${TMP_PATH}/orfs_tax.dbtype" ]; then
         || fail "taxonomy died"
 fi
 
-if [ ! -e "${ORFS_DB}_h_swapped.dbtype" ]; then
+if [ ! -e "${TMP_PATH}/orfs_h_swapped.dbtype" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" swapdb "${ORFS_DB}_h" "${TMP_PATH}/orfs_h_swapped" ${SWAPDB_PAR} \
         || fail "swapdb died"

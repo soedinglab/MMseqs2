@@ -22,7 +22,7 @@ fi
 
 if notExists "${TMP_PATH}/result_lca.dbtype"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" lca "${TARGET}"  "${TMP_PATH}/result"  "${TMP_PATH}/result_lca" ${LCA_PAR} \
+    "$MMSEQS" lca "${TARGET}" "${TMP_PATH}/result" "${TMP_PATH}/result_lca" ${LCA_PAR} \
         || fail "lca died"
 fi
 

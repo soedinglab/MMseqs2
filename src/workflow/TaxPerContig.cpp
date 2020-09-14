@@ -7,16 +7,13 @@
 
 void setTaxPerContigDefaults(Parameters *p) {
     p->orfStartMode = 1;
-    p->taxonomyOutpuMode = 2;
     p->showTaxLineage = 0;
-    p->orfFilter = true;
     p->taxonomySearchMode = Parameters::TAXONOMY_2BLCA_APPROX;
+    p->orfFilter = true;
 }
 
 void setTaxPerContigMustPassAlong(Parameters *p) {
     p->PARAM_ORF_START_MODE.wasSet = true;
-    p->PARAM_TRANSLATE.wasSet = true;
-    p->PARAM_TAX_OUTPUT_MODE.wasSet = true;
     p->PARAM_TAXON_ADD_LINEAGE.wasSet = true;
     p->PARAM_LCA_MODE.wasSet = true;
 }
@@ -68,7 +65,8 @@ int taxpercontig(int argc, const char **argv, const Command& command) {
     int showTaxLineageOrig = par.showTaxLineage;
     // never show lineage for the orfs
     par.showTaxLineage = 0;
-    par.translate = 0;
+    par.taxonomyOutpuMode = 2;
+    par.PARAM_TAX_OUTPUT_MODE.wasSet = true;
     cmd.addVariable("TAXONOMY_PAR", par.createParameterString(par.taxonomy, true).c_str());
     par.showTaxLineage = showTaxLineageOrig;
     cmd.addVariable("AGGREGATETAX_PAR", par.createParameterString(par.aggregatetax).c_str());
