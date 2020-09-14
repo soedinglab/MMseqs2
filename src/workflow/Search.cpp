@@ -302,7 +302,6 @@ int search(int argc, const char **argv, const Command& command) {
 //    cmd.addVariable("ALIGNMENT_DB_EXT", Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ) ? ".255" : "");
     par.filenames[1] = targetDB;
     if (par.sliceSearch == true) {
-
         // By default (0), diskSpaceLimit (in bytes) will be set in the workflow to use as much as possible
         cmd.addVariable("AVAIL_DISK", SSTR(static_cast<size_t>(par.diskSpaceLimit)).c_str());
 
@@ -321,7 +320,13 @@ int search(int argc, const char **argv, const Command& command) {
         par.evalThr = std::numeric_limits<float>::max();
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         par.evalThr = originalEvalThr;
-        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        if (isUngappedMode) {
+            par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
+            par.rescoreMode = originalRescoreMode;
+        } else {
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        }
         cmd.addVariable("SORTRESULT_PAR", par.createParameterString(par.sortresult).c_str());
         par.covMode = originalCovMode;
 
