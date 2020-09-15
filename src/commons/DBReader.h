@@ -278,6 +278,7 @@ public:
     static void removeDb(const std::string &databaseName);
 
     static void softlinkDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags = DBFiles::ALL);
+    static void copyDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags = DBFiles::ALL);
 
     char *mmapData(FILE *file, size_t *dataSize);
 

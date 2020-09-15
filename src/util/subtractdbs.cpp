@@ -1,11 +1,4 @@
-//
-// Created by mad on 2/6/16.
-//
-
-#include <climits>
-#include <list>
-#include <vector>
-#include <Matcher.h>
+#include "Matcher.h"
 #include "DBReader.h"
 #include "Debug.h"
 #include "DBWriter.h"
@@ -18,19 +11,24 @@
 #include <omp.h>
 #endif
 
-void dosubstractresult(std::string leftDb, std::string rightDb, std::string outDb,
-                       size_t maxLineLength, double evalThreshold, int threads, int compressed)
-{
-    Debug(Debug::INFO) << "Remove " << rightDb << " ids from " << leftDb << "\n";
-    DBReader<unsigned int> leftDbr(leftDb.c_str(), (leftDb + std::string(".index")).c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    leftDbr.open(DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int> rightDbr(rightDb.c_str(), (rightDb + std::string(".index")).c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+int subtractdbs(int argc, const char **argv, const Command& command) {
+    Parameters &par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, true, 0, 0);
+    par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
+    par.printParameters(command.cmd, argc, argv, *command.params);
+    const float evalThreshold = par.evalProfile;
+
+    Debug(Debug::INFO) << "Remove " << par.db2 << " ids from " << par.db1 << "\n";
+    DBReader<unsigned int> leftDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+    leftDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+
+    DBReader<unsigned int> rightDbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     rightDbr.open(DBReader<unsigned int>::NOSORT);
 
-    Debug(Debug::INFO) << "Output databse: " << outDb << "\n";
-    DBWriter writer(outDb.c_str(), (outDb + std::string(".index")).c_str(), threads, compressed, leftDbr.getDbtype());
+    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, leftDbr.getDbtype());
     writer.open();
-    const size_t LINE_BUFFER_SIZE = 1000000;
+
+    Debug::Progress progress(leftDbr.getSize());
 #pragma omp parallel
     {
         int thread_idx = 0;
@@ -39,13 +37,13 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
 #endif
 
         const char *entry[255];
-        char * lineBuffer = new char[LINE_BUFFER_SIZE];
-        char * key = new char[255];
-        std::string minusResultsOutString;
-        minusResultsOutString.reserve(maxLineLength);
+        char key[255];
+        std::string result;
+        result.reserve(100000);
 
 #pragma omp  for schedule(dynamic, 10)
         for (size_t id = 0; id < leftDbr.getSize(); id++) {
+            progress.updateProgress();
             std::map<unsigned int, bool> elementLookup;
             const char *leftData = leftDbr.getData(id, thread_idx);
             unsigned int leftDbKey = leftDbr.getDbKey(id);
@@ -62,7 +60,7 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
                     if (columns >= Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
                         evalue = strtod(entry[3], NULL);
                     }
-                    if(evalue <= evalThreshold){
+                    if (evalue <= evalThreshold) {
                         elementLookup[dbKey] = true;
                     }
                     data = Util::skipLine(data);
@@ -81,7 +79,7 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
                     if (columns >= Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
                         evalue = strtod(entry[3], NULL);
                     }
-                    if(evalue <= evalThreshold) {
+                    if (evalue <= evalThreshold) {
                         elementLookup[element] = false;
                     }
                     data = Util::skipLine(data);
@@ -96,31 +94,19 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
                     Util::parseKey(start, key);
                     unsigned int elementIdx = std::strtoul(key, NULL, 10);
                     if (elementLookup[elementIdx]) {
-                        minusResultsOutString.append(start, data - start);
+                        result.append(start, data - start);
                     }
                 }
             }
-            
-            // write result
-            char *mergeResultsOutData = (char *) minusResultsOutString.c_str();
-            writer.writeData(mergeResultsOutData, minusResultsOutString.length(), leftDbKey, thread_idx);
-            minusResultsOutString.clear();
+
+            writer.writeData(result.c_str(), result.length(), leftDbKey, thread_idx);
+            result.clear();
         }
-        delete [] lineBuffer;
-        delete [] key;
     }
     writer.close();
 
     leftDbr.close();
     rightDbr.close();
-}
 
-int subtractdbs(int argc, const char **argv, const Command& command) {
-    Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, true, 0, 0);
-    par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
-    std::vector<MMseqsParameter*>* params = command.params;
-    par.printParameters(command.cmd, argc, argv, *params);
-    dosubstractresult(par.db1, par.db2, par.db3, 1000000, par.evalProfile, par.threads, par.compressed);
     return EXIT_SUCCESS;
 }

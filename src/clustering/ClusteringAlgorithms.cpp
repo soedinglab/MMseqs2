@@ -131,8 +131,8 @@ std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) 
 #pragma omp for schedule(static)
         for (size_t i = 0; i < dbSize; i++) {
             if (assignedcluster[i] == UINT_MAX) {
-                Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(i) <<
-                                    " is not assigned to a cluster\n";
+                Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(i) << "\t" << i <<
+                                    "\tis not assigned to a cluster\n";
                 continue;
             }
 
@@ -146,32 +146,32 @@ std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) 
 }
 
 void ClusteringAlgorithms::initClustersizes(){
-    int * setsize_abundance=new int[maxClustersize+1];
+    unsigned int * setsize_abundance = new unsigned int[maxClustersize+1];
 
-    std::fill_n(setsize_abundance,maxClustersize+1,0);
+    std::fill_n(setsize_abundance, maxClustersize+1, 0);
     //count how often a set size occurs
     for (unsigned int i = 0; i < dbSize; ++i) {
         setsize_abundance[clustersizes[i]]++;
     }
     //compute offsets
-    borders_of_set= new unsigned int[maxClustersize+1];
+    borders_of_set = new unsigned int[maxClustersize+1];
     borders_of_set[0] = 0;
     for (unsigned int i = 1; i < maxClustersize+1; ++i) {
         borders_of_set[i] = borders_of_set[i-1] + setsize_abundance[i-1];
     }
     //fill array
-    sorted_clustersizes = new(std::nothrow)  unsigned int[dbSize + 1];
+    sorted_clustersizes = new(std::nothrow) unsigned int[dbSize + 1];
     Util::checkAllocation(sorted_clustersizes, "Can not allocate sorted_clustersizes memory in ClusteringAlgorithms::initClustersizes");
 
     std::fill_n(sorted_clustersizes, dbSize+1, 0);
-    clusterid_to_arrayposition = new(std::nothrow)  unsigned int[dbSize + 1];
+    clusterid_to_arrayposition = new(std::nothrow) unsigned int[dbSize + 1];
     Util::checkAllocation(clusterid_to_arrayposition, "Can not allocate sorted_clustersizes memory in ClusteringAlgorithms::initClustersizes");
 
     std::fill_n(clusterid_to_arrayposition, dbSize + 1, 0);
     //reuse setsize_abundance as offset counter
     std::fill_n(setsize_abundance, maxClustersize + 1, 0);
     for (unsigned int i = 0; i < dbSize; ++i) {
-        int position=borders_of_set[clustersizes[i]] + setsize_abundance[clustersizes[i]];
+        unsigned int position = borders_of_set[clustersizes[i]] + setsize_abundance[clustersizes[i]];
         sorted_clustersizes[position] = i;
         clusterid_to_arrayposition[i] = position;
         setsize_abundance[clustersizes[i]]++;
@@ -180,13 +180,13 @@ void ClusteringAlgorithms::initClustersizes(){
 }
 
 
-void ClusteringAlgorithms::removeClustersize(int clusterid){
+void ClusteringAlgorithms::removeClustersize(unsigned int clusterid){
     clustersizes[clusterid]=0;
     sorted_clustersizes[clusterid_to_arrayposition[clusterid]] = UINT_MAX;
     clusterid_to_arrayposition[clusterid]=UINT_MAX;
 }
 
-void ClusteringAlgorithms::decreaseClustersize(int clusterid){
+void ClusteringAlgorithms::decreaseClustersize(unsigned int clusterid){
     const unsigned int oldposition=clusterid_to_arrayposition[clusterid];
     const unsigned int newposition=borders_of_set[clustersizes[clusterid]];
     const unsigned int swapid=sorted_clustersizes[newposition];
@@ -203,7 +203,7 @@ void ClusteringAlgorithms::decreaseClustersize(int clusterid){
 
 void ClusteringAlgorithms::setCover(unsigned int **elementLookupTable, unsigned short ** elementScoreLookupTable,
                                     unsigned int *assignedcluster, short *bestscore, size_t *newElementOffsets) {
-    for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
+    for (int64_t cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
         const unsigned int representative = sorted_clustersizes[cl_size];
         if (representative == UINT_MAX) {
             continue;
@@ -211,7 +211,6 @@ void ClusteringAlgorithms::setCover(unsigned int **elementLookupTable, unsigned 
 //          Debug(Debug::INFO)<<alnDbr->getDbKey(representative)<<"\n";
         removeClustersize(representative);
         assignedcluster[representative] = representative;
-
         //delete clusters of members;
         size_t elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
         for (size_t elementId = 0; elementId < elementSize; elementId++) {

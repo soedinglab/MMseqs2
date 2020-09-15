@@ -1053,7 +1053,7 @@ unsigned short SmithWaterman::sse2_extract_epi16(__m128i v, int pos) {
 }
 
 float SmithWaterman::computeCov(unsigned int startPos, unsigned int endPos, unsigned int len) {
-	return (std::min(len, endPos) - startPos + 1) / (float) len;
+	return (std::min(len, std::max(startPos, endPos)) - std::min(startPos, endPos) + 1) / (float) len;
 }
 
 s_align SmithWaterman::scoreIdentical(unsigned char *dbSeq, int L, EvalueComputation * evaluer, int alignmentMode) {

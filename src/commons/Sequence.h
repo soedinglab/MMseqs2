@@ -79,7 +79,7 @@ public:
     ~Sequence();
 
     // Map char -> int
-    void mapSequence(size_t id, unsigned int dbKey, const char *seq, unsigned int seqLen);
+    void mapSequence(size_t id, unsigned int dbKey, const char *seq, unsigned int seqLen, bool mapProfileScores = true);
 
     // map sequence from SequenceLookup
     void mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *, const unsigned int> data);

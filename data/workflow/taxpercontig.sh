@@ -34,7 +34,7 @@ fi
 if [ -n "${ORF_FILTER}" ]; then
     if notExists "${TMP_PATH}/orfs_pref.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" prefilter "${ORFS_DB}" "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_pref" --min-ungapped-score 3 -s 3 -k 6 --diag-score 0 --spaced-kmer-mode 0 --max-seqs 1 ${THREAD_COMP_PAR} \
+        "$MMSEQS" prefilter "${ORFS_DB}" "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_pref" --min-ungapped-score 3 -s 2 --diag-score 0 --max-seqs 1 ${THREAD_COMP_PAR} \
             || fail "orf filter prefilter died"
     fi
 

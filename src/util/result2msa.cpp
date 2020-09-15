@@ -266,7 +266,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     size_t length;
                     if (i == 0) {
                         header = centerSequenceHeader;
-                        length = centerHeaderLength - 1;
+                        length = centerHeaderLength;
                     } else {
                         size_t id = seqIds[i - 1];
                         header = targetHeaderReader->getData(id, thread_idx);

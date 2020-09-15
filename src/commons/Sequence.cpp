@@ -196,14 +196,14 @@ std::pair<const char *, unsigned int> Sequence::parseSpacedPattern(unsigned int 
     return std::make_pair<const char *, unsigned int>((const char *) pattern, spacedKmerPattern.size());
 }
 
-void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence, unsigned int seqLen) {
+void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence, unsigned int seqLen, bool mapProfileScores) {
     this->id = id;
     this->dbKey = dbKey;
     this->seqData = sequence;
     if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_AMINO_ACIDS) || Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         mapSequence(sequence, seqLen);
     } else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_HMM_PROFILE)) {
-        mapProfile(sequence, true, seqLen);
+        mapProfile(sequence, mapProfileScores, seqLen);
     } else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
         mapProfileStateSequence(sequence, seqLen);
     }else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
