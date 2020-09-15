@@ -239,6 +239,7 @@ private:
         int32_t alphabetSize;
         uint8_t bias;
         short ** profile_word_linear;
+        simd_int *target_profile_byte;
     };
 
     simd_int* vHStore;
@@ -251,6 +252,8 @@ private:
     simd_int* target_profile_byte;
     simd_int* target_profile_rev_byte;
     int8_t* target_mat_rev;
+    int8_t* target_consens_rev_sequence;
+    int segSize;
 
     // needed for type checking query and target databases
     bool isTargetProfile, isQueryProfile;
@@ -302,7 +305,8 @@ private:
                                                      alignment beginning point. If this score
                                                      is set to 0, it will not be used */
                                  uint8_t bias,  /* Shift 0 point to a positive value. */
-                                 int32_t maskLen);
+                                 int32_t maskLen,
+                                 bool print);
 
     template <const unsigned int type>
     std::pair<alignment_end, alignment_end> sw_sse2_word (const unsigned char* db_sequence,
@@ -319,7 +323,7 @@ private:
                                  int32_t maskLen);
 
     template <const unsigned int type>
-    SmithWaterman::cigar *banded_sw(const unsigned char *db_sequence, const int8_t *query_sequence, const int8_t * compositionBias, int32_t db_length, int32_t query_length, int32_t queryStart, int32_t targetStart, int32_t score, const uint32_t gap_open, const uint32_t gap_extend, int32_t band_width, const int8_t *mat, const int8_t *target_mat, int32_t n);
+    SmithWaterman::cigar *banded_sw(const unsigned char *db_sequence, const int8_t *query_sequence, const int8_t *query_consens_sequence, const int8_t * compositionBias, int32_t db_length, int32_t query_length, int32_t queryStart, int32_t targetStart, int32_t score, const uint32_t gap_open, const uint32_t gap_extend, int32_t band_width, const int8_t *mat, const int8_t *target_mat, const int32_t qry_n, const int32_t tgt_n);
 
     /*!	@function		Produce CIGAR 32-bit unsigned integer from CIGAR operation and CIGAR length
      @param	length		length of CIGAR
@@ -331,17 +335,19 @@ private:
     s_profile* profile;
 
     template <typename T, size_t Elements, const unsigned int type>
-    void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias, const int8_t *mat, const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
+    void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias,
+            const int8_t *mat, const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
 
     float *tmp_composition_bias;
     short * profile_word_linear_data;
     bool aaBiasCorrection;
 
     template <typename T, size_t Elements>
-    void createConsensProfile(simd_int *profile, const int8_t *consens_sequence, const int32_t query_length);
+    void createConsensProfile(simd_int *profile, const int8_t *consens_sequence, const int32_t query_length, const int32_t offset);
 
     void createTargetProfile(simd_int *profile, const int8_t *mat, const int target_length, const int32_t aaSize, uint8_t bias);
 
+    template <typename T, size_t Elements>
     void updateQueryProfile(simd_int *profile, const int32_t query_length, const int32_t aaSize, uint8_t shift);
 
     uint8_t computeBias(const int32_t target_length, const int8_t *mat, const int32_t aaSize);

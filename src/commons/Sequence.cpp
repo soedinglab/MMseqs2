@@ -362,6 +362,12 @@ void Sequence::mapProfile(const char * profileData, bool mapScores, unsigned int
                 profile_for_alignment[aa_idx * this-> L + i] = profile_score[i * profile_row_size + aa_num] / 4;
             }
         }
+
+        // set the X value to 0
+        // TODO: memory leak!
+        if(subMat->alphabetSize - PROFILE_AA_SIZE != 0){
+            memset(&profile_for_alignment[(subMat->alphabetSize-1) * this-> L], 0, this->L);
+        }
         //TODO what is with the X
     }
     //printPSSM();
