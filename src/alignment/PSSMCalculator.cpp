@@ -21,40 +21,39 @@ PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t m
     this->matchWeight        = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * (maxSeqLength + 1) * sizeof(float));
     this->pseudocountsWeight = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * (maxSeqLength + 1) * sizeof(float));
     this->nseqs              = new int[maxSeqLength + 1];
-    const unsigned int NAA_VECSIZE = ((MultipleAlignment::NAA+ 3 + VECSIZE_INT - 1) / VECSIZE_INT) * VECSIZE_INT;
-    this->w_contrib          = new float*[maxSeqLength + 1];
+    unsigned int NAA_ALIGNSIZE = ((((MultipleAlignment::NAA + 3) + VECSIZE_FLOAT - 1) / VECSIZE_FLOAT) * VECSIZE_FLOAT) * sizeof(float);
+    NAA_ALIGNSIZE = ((NAA_ALIGNSIZE + ALIGN_FLOAT - 1) / ALIGN_FLOAT) * ALIGN_FLOAT;
+    w_contrib         = new float*[maxSeqLength + 1];
+    w_contrib_backing = (unsigned char*)mem_align(ALIGN_FLOAT, NAA_ALIGNSIZE * (maxSeqLength + 1));
     for (size_t j = 0; j < (maxSeqLength + 1); j++) {
-        this->w_contrib[j] = (float *) malloc_simd_int(NAA_VECSIZE * sizeof(float));
+        w_contrib[j] = (float*)(w_contrib_backing + (NAA_ALIGNSIZE * j));
     }
     wi = (float*)malloc(maxSetSize * sizeof(float));
     naa = new int[maxSeqLength + 1];
     f = malloc_matrix<float>(maxSeqLength + 1, MultipleAlignment::NAA + 3);
     n = new int*[maxSeqLength + 2];
-    for (size_t j = 0; j < maxSeqLength; j++) {
-        n[j] = (int *) malloc_simd_int(NAA_VECSIZE * sizeof(int));
+    n_backing = (unsigned char*)mem_align(ALIGN_INT, NAA_ALIGNSIZE * (maxSeqLength + 2));
+    for (size_t j = 0; j < (maxSeqLength + 2); j++) {
+        n[j] = (int*)(n_backing + (NAA_ALIGNSIZE * j));
     }
     this->pca = pca;
     this->pcb = pcb;
 }
 
 PSSMCalculator::~PSSMCalculator() {
-    delete [] profile;
-    delete [] Neff_M;
+    delete[] profile;
+    delete[] Neff_M;
     free(seqWeight);
-    delete [] pssm;
-    delete [] nseqs;
+    delete[] pssm;
+    delete[] nseqs;
     free(matchWeight);
     free(pseudocountsWeight);
-    for (size_t j = 0; j < (maxSeqLength + 1); j++) {
-        free(w_contrib[j]);
-    }
-    delete [] w_contrib;
+    free(w_contrib_backing);
+    delete[] w_contrib;
     free(wi);
-    delete [] naa;
-    for (size_t j = 0; j < maxSeqLength; ++j){
-        free(n[j]);
-    }
-    delete [] n;
+    delete[] naa;
+    free(n_backing);
+    delete[] n;
     free(f);
 }
 
@@ -294,14 +293,15 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
     const int ENDGAP=22;    //Important to distinguish because end gaps do not contribute to tansition counts
 
     int nseqi = 0;
-    unsigned int NAA_VECSIZE = ((MultipleAlignment::NAA+ 3 + VECSIZE_INT - 1) / VECSIZE_INT) * VECSIZE_INT; // round NAA+3 up to next multiple of VECSIZE_INT
-    for (size_t j = 0; j < queryLength; j++) {
-        memset(n[j], 0, sizeof(int) * NAA_VECSIZE);
-    }
-
-    for (size_t j = 0; j < queryLength; j++){
-        memset(w_contrib[j], 0, NAA_VECSIZE * sizeof(int));
-    }
+//    unsigned int NAA_VECSIZE = ((MultipleAlignment::NAA+ 3 + VECSIZE_INT - 1) / VECSIZE_INT) * VECSIZE_INT; // round NAA+3 up to next multiple of VECSIZE_INT
+//    for (size_t j = 0; j < queryLength; j++) {
+//        memset(n[j], 0, NAA_VECSIZE * sizeof(int));
+//        memset(w_contrib[j], 0, NAA_VECSIZE * sizeof(int));
+//    }
+    unsigned int NAA_ALIGNSIZE = ((((MultipleAlignment::NAA + 3) + VECSIZE_FLOAT - 1) / VECSIZE_FLOAT) * VECSIZE_FLOAT) * sizeof(float);
+    NAA_ALIGNSIZE = ((NAA_ALIGNSIZE + ALIGN_FLOAT - 1) / ALIGN_FLOAT) * ALIGN_FLOAT;
+    memset(n_backing, 0, NAA_ALIGNSIZE * queryLength);
+    memset(w_contrib_backing, 0, NAA_ALIGNSIZE * queryLength);
     // insert endgaps
     for (size_t k = 0; k < setSize; ++k) {
         for (size_t i = 0; i < queryLength && X[k][i] == MultipleAlignment::GAP; ++i)
