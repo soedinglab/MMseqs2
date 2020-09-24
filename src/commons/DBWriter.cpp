@@ -110,48 +110,6 @@ void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
 
 }
 
-void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr,
-                          const std::vector<std::pair<std::string, std::string>>& files,
-                          const std::vector<std::string>& prefixes) {
-    Debug(Debug::INFO) << "Merging the results to " << dataFileName << "\n";
-
-    // open DBReader
-    const size_t fileCount = files.size();
-    DBReader<unsigned int> **filesToMerge = new DBReader<unsigned int>*[fileCount];
-    for (size_t i = 0; i < fileCount; i++) {
-        filesToMerge[i] = new DBReader<unsigned int>(files[i].first.c_str(),
-                                                     files[i].second.c_str(), 1, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-        filesToMerge[i]->open(DBReader<unsigned int>::NOSORT);
-    }
-    std::string result;
-
-    for (size_t id = 0; id < qdbr.getSize(); id++) {
-        unsigned int key = qdbr.getDbKey(id);
-        // get all data for the id from all files
-        for (size_t i = 0; i < fileCount; i++) {
-            const char *data = filesToMerge[i]->getDataByDBKey(key, 0);
-            if (data != NULL) {
-                if(i < prefixes.size()) {
-                    result.append( prefixes[i]);
-                }
-                result.append(data);
-            }
-        }
-        // write result
-        writeData(result.c_str(), result.length(), key, 0);
-        result.clear();
-    }
-
-    // close all reader
-    for (size_t i = 0; i < fileCount; i++) {
-        filesToMerge[i]->close();
-        delete filesToMerge[i];
-    }
-    delete [] filesToMerge;
-
-
-}
-
 // allocates heap memory, careful
 char* makeResultFilename(const char* name, size_t split) {
     std::ostringstream ss;
