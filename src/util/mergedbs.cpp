@@ -45,7 +45,11 @@ int mergedbs(int argc, const char **argv, const Command& command) {
             }
             const char *data = filesToMerge[i]->getData(entryId, 0);
             if (data == NULL) {
-                continue;
+                if (par.mergeStopEmpty == true) {
+                    break;
+                } else {
+                    continue;
+                }
             }
             if (i < prefices.size()) {
                 writer.writeAdd(prefices[i].c_str(), prefices[i].size(), 0);

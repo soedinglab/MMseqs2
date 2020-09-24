@@ -71,7 +71,7 @@ fi
 # do not reach the evalue of the top 1 hit
 if [ ! -e "${TMP_PATH}/merged.dbtype" ]; then
     # shellcheck disable=SC2086
-    "$MMSEQS" mergedbs "${TMP_PATH}/top1_aln" "${TMP_PATH}/merged" "${TMP_PATH}/top1_aln" "${TMP_PATH}/round2" ${VERBOSITY} \
+    "$MMSEQS" mergedbs "${TMP_PATH}/top1_aln" "${TMP_PATH}/merged" "${TMP_PATH}/top1_aln" "${TMP_PATH}/round2" --merge-stop-empty ${VERBOSITY} \
         || fail "mergedbs died"
 fi
 
