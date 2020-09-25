@@ -370,6 +370,8 @@ public:
     bool   splitAA;                      // Split database by amino acid count instead
     int    preloadMode;                  // Preload mode of database
     float  scoreBias;                    // Add this bias to the score when computing the alignements
+    float  realignScoreBias;             // Add this bias additionally when realigning
+    int    realignMaxSeqs;               // Max alignments to realign
     std::string spacedKmerPattern;       // User-specified kmer pattern
     std::string localTmp;                // Local temporary path
 
@@ -697,6 +699,8 @@ public:
     PARAMETER(PARAM_MIN_SEQ_ID)
     PARAMETER(PARAM_MIN_ALN_LEN)
     PARAMETER(PARAM_SCORE_BIAS)
+    PARAMETER(PARAM_REALIGN_SCORE_BIAS)
+    PARAMETER(PARAM_REALIGN_MAX_SEQS)
     PARAMETER(PARAM_ALT_ALIGNMENT)
     PARAMETER(PARAM_GAP_OPEN)
     PARAMETER(PARAM_GAP_EXTEND)
