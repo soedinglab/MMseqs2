@@ -67,6 +67,8 @@ int CommandCaller::callProgram(const char* program, size_t argc, const char **ar
 }
 
 void CommandCaller::execProgram(const char* program, const std::vector<std::string> &argv) {
+    std::cerr.flush();
+    std::cout.flush();
     // hack: our argv string does not contain a program name anymore, readd it
     const char **pArgv = new const char*[argv.size() + 2];
     pArgv[0] = program;
