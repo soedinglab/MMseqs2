@@ -167,7 +167,8 @@ jobs:
           deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ focal-backports main universe multiverse
           deb [arch=$ARCH] http://ports.ubuntu.com/ubuntu-ports/ focal-security main universe multiverse
           HEREDOC
-          sudo rm -rf /etc/apt/sources.list.d/*
+          sudo apt install -y ppa-purge
+          sudo ppa-purge -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update
           sudo apt-get -y install crossbuild-essential-$ARCH zlib1g-dev:$ARCH libbz2-dev:$ARCH
         displayName: Install Toolchain
