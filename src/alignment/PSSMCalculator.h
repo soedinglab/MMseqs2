@@ -65,6 +65,8 @@ private:
 
     // weight contribution value for each sequence
     float **w_contrib;
+    // backing aligned memory
+    unsigned char *w_contrib_backing;
 
     // weight of sequence k in column i, calculated from subalignment i
     float *wi;
@@ -75,6 +77,8 @@ private:
     float **f;
 
     int **n;
+    // backing aligned memory
+    unsigned char *n_backing;
 
     size_t maxSeqLength;
     size_t maxSetSize;

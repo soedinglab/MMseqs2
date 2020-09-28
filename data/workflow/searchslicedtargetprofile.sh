@@ -126,7 +126,7 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
     # align current step chunk
     if notExists "${TMP_PATH}/aln.done"; then
         # shellcheck disable=SC2086
-        ${RUNNER} "$MMSEQS" align "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
+        ${RUNNER} "$MMSEQS" "${ALIGN_MODULE}" "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
             || fail "align died"
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/pref" ${VERBOSITY}

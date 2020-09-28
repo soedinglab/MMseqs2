@@ -71,7 +71,6 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     }
 
     DBReader<unsigned int> *qDbr = NULL;
-    unsigned int maxSequenceLength = 0;
     const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
     if (!sameDatabase) {
         qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
@@ -79,11 +78,10 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             qDbr->readMmapedDataInMemory();
         }
-        maxSequenceLength = qDbr->getMaxSeqLen();
     } else {
         qDbr = tDbr;
     }
-    maxSequenceLength = std::max(maxSequenceLength, qDbr->getMaxSeqLen());
+    const unsigned int maxSequenceLength = std::max(tDbr->getMaxSeqLen(), qDbr->getMaxSeqLen());
 
     // qDbr->readMmapedDataInMemory();
     // make sure to touch target after query, so if there is not enough memory for the query, at least the targets
