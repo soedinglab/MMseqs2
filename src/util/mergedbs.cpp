@@ -10,24 +10,56 @@ int mergedbs(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
 
     if (par.filenames.size() <= 2) {
-        Debug(Debug::ERROR) << "Not enough databases for merging passed!\n";
+        Debug(Debug::ERROR) << "Need at least two databases for merging\n";
         EXIT(EXIT_FAILURE);
     }
 
-    std::vector<std::pair<std::string, std::string>> filenames;
-    for (size_t i = 2; i < par.filenames.size(); ++i) {
-        filenames.emplace_back(par.filenames[i], par.filenames[i] + ".index");
+    const std::vector<std::string> prefices = Util::split(par.mergePrefixes, ",");
+
+    const int preloadMode = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) ? IndexReader::PRELOAD_INDEX : 0;
+    IndexReader qDbr(par.db1, 1, IndexReader::SEQUENCES, preloadMode, DBReader<unsigned int>::USE_INDEX);
+
+    // skip par.db{1,2}
+    const size_t fileCount = par.filenames.size() - 2;
+    DBReader<unsigned int> **filesToMerge = new DBReader<unsigned int>*[fileCount];
+    for (size_t i = 0; i < fileCount; i++) {
+        std::string indexName = par.filenames[i + 2] + ".index";
+        filesToMerge[i] = new DBReader<unsigned int>(par.filenames[i + 2].c_str(), indexName.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
+        filesToMerge[i]->open(DBReader<unsigned int>::NOSORT);
     }
 
-    std::vector<std::string> prefixes = Util::split(par.mergePrefixes, ",");
-    const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-    IndexReader qDbr(par.db1, par.threads,  IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0, DBReader<unsigned int>::USE_INDEX);
-    int dbtype = FileUtil::parseDbType(filenames[0].first.c_str());
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), 1, par.compressed, dbtype);
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), 1, par.compressed, filesToMerge[0]->getDbtype());
     writer.open();
-    writer.mergeFiles(*qDbr.sequenceReader, filenames, prefixes);
-    writer.close();
 
+    Debug(Debug::INFO) << "Merging the results to " << par.db2.c_str() << "\n";
+    Debug::Progress progress(qDbr.sequenceReader->getSize());
+    for (size_t id = 0; id < qDbr.sequenceReader->getSize(); id++) {
+        progress.updateProgress();
+        unsigned int key = qDbr.sequenceReader->getDbKey(id);
+        // get all data for the id from all files
+        writer.writeStart(0);
+        for (size_t i = 0; i < fileCount; i++) {
+            size_t entryId = filesToMerge[i]->getId(key);
+            if (entryId == UINT_MAX) {
+                continue;
+            }
+            const char *data = filesToMerge[i]->getData(entryId, 0);
+            if (data == NULL) {
+                continue;
+            }
+            if (i < prefices.size()) {
+                writer.writeAdd(prefices[i].c_str(), prefices[i].size(), 0);
+            }
+            writer.writeAdd(data, filesToMerge[i]->getEntryLen(entryId) - 1, 0);
+        }
+        writer.writeEnd(key, 0);
+    }
+    writer.close();
+    for (size_t i = 0; i < fileCount; i++) {
+        filesToMerge[i]->close();
+        delete filesToMerge[i];
+    }
+    delete[] filesToMerge;
 
     return EXIT_SUCCESS;
 }

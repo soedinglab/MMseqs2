@@ -18,7 +18,6 @@ KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 
 void setMsa2ProfileDefaults(Parameters *p) {
     p->msaType = 2;
-    p->pca = 0.0;
 }
 
 int msa2profile(int argc, const char **argv, const Command &command) {
@@ -119,6 +118,8 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
+
     Debug::Progress progress(qDbr.getSize());
 #pragma omp parallel
     {
@@ -127,7 +128,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
         PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pca, par.pcb);
         Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
@@ -166,12 +166,12 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             std::string msa;
             if (par.msaType == 0) {
-                msa = CompressedA3M::extractA3M(entryData, entryLength, *sequenceReader, *headerReader, thread_idx);
+                msa = CompressedA3M::extractA3M(entryData, entryLength - 2, *sequenceReader, *headerReader, thread_idx);
                 d.buffer = const_cast<char*>(msa.c_str());
                 d.length = msa.length();
             } else {
                 d.buffer = entryData;
-                d.length = entryLength;
+                d.length = entryLength - 1;
             }
             d.position = 0;
 
@@ -196,22 +196,20 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             while (kseq_read(seq) >= 0) {
                 if (seq->name.l == 0 || seq->seq.l == 0) {
-                    Debug(Debug::WARNING) << "Invalid fasta sequence "
-                                          << setSize << " in entry " << queryKey << "!\n";
+                    Debug(Debug::WARNING) << "Invalid fasta sequence " << setSize << " in entry " << queryKey << "\n";
                     fastaError = true;
                     break;
                 }
 
                 if (seq->seq.l > maxSeqLength) {
-                    Debug(Debug::WARNING) << "Member sequence "
-                                          << setSize << " in entry " << id << " too long!\n";
+                    Debug(Debug::WARNING) << "Member sequence " << setSize << " in entry " << queryKey << " too long\n";
                     fastaError = true;
                     break;
                 }
 
                 // first sequence is always the query
                 if (setSize == 0) {
-                    centerLengthWithGaps = static_cast<unsigned int>(strlen(seq->seq.s));
+                    centerLengthWithGaps = seq->seq.l;
                     if (maskByFirst == true) {
                         for (size_t i = 0; i < centerLengthWithGaps; ++i) {
                             if (seq->seq.s[i] == '-') {
@@ -246,12 +244,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                         continue;
                     }
 
-                    if (seq->seq.s[i] == '-'){
-                        msaContent[msaPos++] = MultipleAlignment::GAP;
-                    } else {
-                        int aa = sequence.numSequence[i];
-                        msaContent[msaPos++] = aa;
-                    }
+                    msaContent[msaPos++] = (seq->seq.s[i] == '-') ? (int)MultipleAlignment::GAP : sequence.numSequence[i];
                 }
 
                 // fill up the sequence buffer for the SIMD profile calculation
@@ -326,21 +319,13 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 filteredSetSize = filter.filter(setSize, centerLength, static_cast<int>(par.covMSAThr * 100),
                               static_cast<int>(par.qid * 100), par.qsc,
                               static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
-                              (const char **) msaSequences);
+                              (const char **) msaSequences, true);
             }
 
             PSSMCalculator::Profile pssmRes =
                     calculator.computePSSMFromMSA(filteredSetSize, centerLength,
                                                   (const char **) msaSequences, par.wg);
-            for(size_t pos = 0; pos < centerLength; pos++){
-                for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-                    result.push_back(Sequence::scoreMask(pssmRes.prob[pos*Sequence::PROFILE_AA_SIZE + aa]));
-                }
-                // write query, consensus sequence and neffM
-                result.push_back(static_cast<unsigned char>(msaSequences[0][pos]));
-                result.push_back(subMat.aa2num[static_cast<int>(pssmRes.consensus[pos])]);
-                result += MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
-            }
+            pssmRes.toBuffer((const unsigned char*)msaSequences[0], centerLength, subMat, result);
 
             if (mode & DBReader<unsigned int>::USE_LOOKUP) {
                 size_t lookupId = qDbr.getLookupIdByKey(queryKey);

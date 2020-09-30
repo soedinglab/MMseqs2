@@ -18,51 +18,68 @@ MsaFilter::MsaFilter(int maxSeqLen, int maxSetSize, SubstitutionMatrix *m, int g
     this->Nmax = new int[maxSeqLen + 2];       // position-dependent maximum-sequence-identity threshold for filtering? (variable used in former version was idmax)
     this->idmaxwin = new int[maxSeqLen + 2];   // minimum value of idmax[i-WFIL,i+WFIL]
     this->N = new int[maxSeqLen + 2];  // N[i] number of already accepted sequences at position i
-    this->in = new char[maxSetSize + 1];  // in[k]=1: seq k has been accepted; in[k]=0: seq k has not yet been accepted at current seqid
-    this->inkk = new char[maxSetSize + 1];  // inkk[k]=1 iff in[ksort[k]]=1 else 0;
-    this->seqid_prev = new int[maxSetSize + 1];  // maximum-sequence-identity threshold used in previous round of filtering (with lower seqid)
-    this->first = new int[maxSetSize];         // first non-gap position in sequence k
-    this->last = new int[maxSetSize];          // last  non-gap position in sequence k
-    this->nres = new int[maxSetSize];
-    this->ksort = new int[maxSetSize];
-    this->display = new char[maxSetSize + 2];
-    this->keep = new char[maxSetSize];
+    this->in = (char*)malloc((maxSetSize + 1) * sizeof(char));  // in[k]=1: seq k has been accepted; in[k]=0: seq k has not yet been accepted at current seqid
+    this->inkk = (char*)malloc((maxSetSize + 1) * sizeof(char));  // inkk[k]=1 iff in[ksort[k]]=1 else 0;
+    this->seqid_prev = (int*)malloc((maxSetSize + 1) * sizeof(int));  // maximum-sequence-identity threshold used in previous round of filtering (with lower seqid)
+    this->first = (int*)malloc(maxSetSize * sizeof(int));         // first non-gap position in sequence k
+    this->last = (int*)malloc(maxSetSize * sizeof(int));          // last  non-gap position in sequence k
+    this->nres = (int*)malloc(maxSetSize * sizeof(int));
+    this->ksort = (int*)malloc(maxSetSize * sizeof(int));
+    this->display = (char*)malloc((maxSetSize + 2) * sizeof(char));
+    this->keep = (char*)malloc(maxSetSize * sizeof(char));
 }
 
 MsaFilter::~MsaFilter() {
-    delete [] keep;
     delete [] Nmax;
     delete [] idmaxwin;
     delete [] N;
-    delete [] in;
-    delete [] inkk;
-    delete [] seqid_prev;
-    delete [] first;
-    delete [] last;
-    delete [] nres;
-    delete [] ksort;
-    delete [] display;
+    free(in);
+    free(inkk);
+    free(seqid_prev);
+    free(first);
+    free(last);
+    free(nres);
+    free(ksort);
+    free(display);
+    free(keep);
 }
 
-size_t MsaFilter::filter(MultipleAlignment::MSAResult &msa, int coverage, int qid, float qsc, int max_seqid, int Ndiff) {
-    size_t filteredSize = filter(msa.setSize, msa.centerLength, coverage, qid, qsc, max_seqid, Ndiff, (const char **) msa.msaSequence);
-    if (!msa.alignmentResults.empty()) {
+void MsaFilter::increaseSetSize(int newSetSize) {
+    if (newSetSize > maxSetSize) {
+        maxSetSize = newSetSize * 1.5;
+        in = (char*)realloc(in, maxSetSize * sizeof(char));
+        inkk = (char*)realloc(inkk, maxSetSize * sizeof(char));
+        seqid_prev = (int*)realloc(seqid_prev, maxSetSize * sizeof(int));
+        first = (int*)realloc(first, maxSetSize * sizeof(int));
+        last = (int*)realloc(last, maxSetSize * sizeof(int));
+        nres = (int*)realloc(nres, maxSetSize * sizeof(int));
+        ksort = (int*)realloc(ksort, maxSetSize * sizeof(int));
+        display = (char*)realloc(display, maxSetSize * sizeof(char));
+        keep = (char*)realloc(keep, maxSetSize * sizeof(char));
+    }
+}
+
+size_t MsaFilter::filter(MultipleAlignment::MSAResult &msa, std::vector<Matcher::result_t> &alnResults, int coverage, int qid, float qsc, int max_seqid, int Ndiff) {
+    size_t filteredSize = filter(msa.setSize, msa.centerLength, coverage, qid, qsc, max_seqid, Ndiff, (const char **) msa.msaSequence, true);
+    if (!alnResults.empty()) {
         // alignmentResults does not include the query
         for (size_t i = 0, j = 0; j < msa.setSize - 1; j++) {
             if (keep[j] != 0) {
                 if (i < j) {
-                    std::swap(msa.alignmentResults[i], msa.alignmentResults[j]);
+                    std::swap(alnResults[i], alnResults[j]);
                 }
                 i++;
             }
         }
-        msa.alignmentResults.resize(filteredSize - 1);
+        alnResults.resize(filteredSize - 1);
     }
     return filteredSize;
 }
 
 size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const int qid,
-                       const float qsc, const int max_seqid, int Ndiff, const char **X) {
+                       const float qsc, const int max_seqid, int Ndiff, const char **X, const bool shuffleMsa) {
+    increaseSetSize(N_in);
+
     int seqid1 = 20;
     // X[k][i] contains column i of sequence k in alignment (first seq=0, first char=1) (0-3: ARND ..., 20:X, 21:GAP)
 //    char** X = (char **) &msaSequence;
@@ -274,7 +291,9 @@ size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const 
 
     // If min required seqid larger than max required seqid, return here without doing pairwise seqid filtering
     if (seqid1 > max_seqid) {
-        shuffleSequences(X, N_in);
+        if (shuffleMsa) {
+            shuffleSequences(X, N_in);
+        }
         return nn;
     }
 
@@ -466,7 +485,9 @@ size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const 
         keep[k] = in[k];
     }
 
-    shuffleSequences(X, N_in);
+    if (shuffleMsa) {
+        shuffleSequences(X, N_in);
+    }
     return n;
 }
 

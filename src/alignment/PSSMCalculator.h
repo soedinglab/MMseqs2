@@ -4,7 +4,8 @@
 #include <cstddef>
 #include <string>
 
-class SubstitutionMatrix;
+class BaseMatrix;
+class Sequence;
 
 class PSSMCalculator {
 public:
@@ -15,10 +16,12 @@ public:
         const float * neffM;
         std::string consensus;
         Profile(char * pssm, float * prob, float * neffM, std::string consensus)
-                :pssm(pssm), prob(prob), neffM(neffM), consensus(consensus){}
+                : pssm(pssm), prob(prob), neffM(neffM), consensus(consensus) {};
+        void toBuffer(const unsigned char* centerSequence, size_t centerSeqLen, BaseMatrix& subMat, std::string& result);
+        void toBuffer(Sequence& centerSequence, BaseMatrix& subMat, std::string& result);
     };
 
-    PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb);
+    PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb);
 
     ~PSSMCalculator();
 
@@ -38,7 +41,7 @@ public:
     static void computeSequenceWeights(float *seqWeight, size_t queryLength, size_t setSize, const char **msaSeqs);
 
 private:
-    SubstitutionMatrix * subMat;
+    BaseMatrix* subMat;
 
     // contains sequence weights (global)
     float * seqWeight;
@@ -63,6 +66,8 @@ private:
 
     // weight contribution value for each sequence
     float **w_contrib;
+    // backing aligned memory
+    unsigned char *w_contrib_backing;
 
     // weight of sequence k in column i, calculated from subalignment i
     float *wi;
@@ -70,7 +75,14 @@ private:
     // number of different amino acids
     int *naa;
 
+    float **f;
+
+    int **n;
+    // backing aligned memory
+    unsigned char *n_backing;
+
     size_t maxSeqLength;
+    size_t maxSetSize;
 
     // compute position-specific scoring matrix PSSM score
     // 1.) convert PFM to PPM (position probability matrix)
@@ -90,6 +102,8 @@ private:
     float pcb;
 
     std::string computeConsensusSequence(float *pDouble, size_t queryLength, double *back, char *num2aa);
+
+    void increaseSetSize(size_t newSetSize);
 };
 
 

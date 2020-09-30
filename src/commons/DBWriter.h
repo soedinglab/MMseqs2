@@ -19,7 +19,7 @@ public:
 
     void open(size_t bufferSize = SIZE_MAX);
 
-    void close(bool merge = false);
+    void close(bool merge = false, bool needsSort = true);
 
     char* getDataFileName() { return dataFileName; }
 
@@ -34,10 +34,6 @@ public:
     static size_t indexToBuffer(char *buff1, unsigned int key, size_t offsetStart, size_t len);
 
     void alignToPageSize(int thrIdx = 0);
-
-    void mergeFiles(DBReader<unsigned int>& qdbr,
-                    const std::vector<std::pair<std::string, std::string> >& files,
-                    const std::vector<std::string>& prefixes);
 
     void sortDatafileByIdOrder(DBReader<unsigned int>& qdbr);
 
@@ -76,7 +72,8 @@ private:
 
     static void mergeResults(const char *outFileName, const char *outFileNameIndex,
                              const char **dataFileNames, const char **indexFileNames,
-                             unsigned long fileCount, bool mergeDatafiles, bool lexicographicOrder = false);
+                             unsigned long fileCount, bool mergeDatafiles,
+                             bool lexicographicOrder = false, bool indexNeedsToBeSorted = true);
 
     static void mergeIndex(const char** indexFilenames, unsigned int fileCount, const std::vector<size_t> &dataSizes);
 

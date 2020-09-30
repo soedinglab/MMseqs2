@@ -8,7 +8,7 @@
 #include "Parameters.h"
 #include "Util.h"
 #include "Debug.h"
-
+#include "FastSort.h"
 #include <cmath>
 
 #ifdef OPENMP
@@ -23,11 +23,11 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
     const int alnType = alnDbr->getDbtype();
     const size_t dbSize = seqDbr->getSize();
     const size_t flushSize = 1000000;
+    Debug::Progress progress(dbSize);
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbSize)/static_cast<double>(flushSize)));
     for(size_t it = 0; it < iterations; it++) {
         size_t start = it * flushSize;
         size_t bucketSize = std::min(dbSize - (it * flushSize), flushSize);
-        Debug::Progress progress(bucketSize);
 #pragma omp parallel
         {
             unsigned int thread_idx = 0;
@@ -213,7 +213,7 @@ void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
 void AlignmentSymmetry::sortElements(unsigned int **elementLookupTable, size_t *elementOffsets, size_t dbSize) {
 #pragma omp parallel for schedule(dynamic, 1000)
     for (size_t i = 0; i < dbSize; i++) {
-        std::sort(elementLookupTable[i], elementLookupTable[i] + LEN(elementOffsets, i));
+        SORT_SERIAL(elementLookupTable[i], elementLookupTable[i] + LEN(elementOffsets, i));
     }
 }
 #undef LEN

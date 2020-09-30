@@ -11,20 +11,19 @@
 #include <climits> // short_max
 #include <cstddef>
 
-Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC, const std::string& spacedKmerPattern)
- : spacedKmerPattern(spacedKmerPattern) {
+Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC, const std::string& userSpacedKmerPattern) {
     this->maxLen = maxLen;
-    this->numSequence = static_cast<unsigned char*>(malloc(maxLen + 1));
-    this->numConsensusSequence = static_cast<unsigned char*>(malloc(maxLen + 1));
+    this->numSequence = (unsigned char*)malloc(maxLen + 1);
+    this->numConsensusSequence = (unsigned char*)malloc(maxLen + 1);
     this->aaBiasCorrection = aaBiasCorrection;
     this->subMat = (BaseMatrix*)subMat;
     this->spaced = spaced;
     this->seqType = seqType;
     std::pair<const char *, unsigned int> spacedKmerInformation;
-    if (spacedKmerPattern.empty()) {
+    if (userSpacedKmerPattern.empty()) {
         spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
     } else {
-        spacedKmerInformation = parseSpacedPattern(kmerSize, spaced, spacedKmerPattern);
+        spacedKmerInformation = parseSpacedPattern(kmerSize, spaced, userSpacedKmerPattern);
     }
     this->spacedPattern = spacedKmerInformation.first;
     this->spacedPatternSize = spacedKmerInformation.second;
@@ -32,13 +31,14 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
     this->kmerWindow = NULL;
     this->aaPosInSpacedPattern = NULL;
     this->shouldAddPC = shouldAddPC;
+    this->userSpacedKmerPattern = userSpacedKmerPattern;
     if(spacedPatternSize){
         simdKmerRegisterCnt = (kmerSize / (VECSIZE_INT*4)) + 1;
         unsigned int simdKmerLen =  simdKmerRegisterCnt *  (VECSIZE_INT*4); // for SIMD memory alignment
         this->kmerWindow = (unsigned char*) mem_align(ALIGN_INT, simdKmerLen * sizeof(unsigned char));
         memset(this->kmerWindow, 0, simdKmerLen * sizeof(unsigned char));
         this->aaPosInSpacedPattern = new unsigned char[kmerSize];
-        if(spacedPattern == NULL ) {
+        if(spacedPattern == NULL) {
             Debug(Debug::ERROR) << "Sequence does not have a kmerSize (kmerSize= " << spacedPatternSize << ") to use nextKmer.\n";
             Debug(Debug::ERROR) << "Please report this bug to the developer\n";
             EXIT(EXIT_FAILURE);
@@ -54,22 +54,20 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
 
     // init memory for profile search
     if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE)) {
-        // setup memory for profiles
-        profile_row_size = (size_t) PROFILE_AA_SIZE / (VECSIZE_INT*4); //
-        profile_row_size = (profile_row_size+1) * (VECSIZE_INT*4); // for SIMD memory alignment
+
         profile_matrix = new ScoreMatrix*[PROFILE_AA_SIZE]; // init 20 matrix pointer (its more than enough for all kmer parameter)
         for (size_t i = 0; i < kmerSize; i++) {
-            profile_matrix[i] = new ScoreMatrix(NULL, NULL, PROFILE_AA_SIZE, profile_row_size);
+            profile_matrix[i] = new ScoreMatrix(NULL, NULL, PROFILE_AA_SIZE, PROFILE_ROW_SIZE);
         }
         this->pNullBuffer           = new float[maxLen + 1];
         this->neffM                 = new float[maxLen + 1];
-        this->profile_score         = (short *)        mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(short));
-        this->profile_index         = (unsigned int *) mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(int));
-        this->pseudocountsWeight    = (float *)        mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(float));
+        this->profile_score         = (short *)        mem_align(ALIGN_INT, (maxLen + 1) * PROFILE_ROW_SIZE * sizeof(short));
+        this->profile_index         = (unsigned int *) mem_align(ALIGN_INT, (maxLen + 1) * PROFILE_ROW_SIZE * sizeof(int));
+        this->pseudocountsWeight    = (float *)        mem_align(ALIGN_INT, (maxLen + 1) * PROFILE_ROW_SIZE * sizeof(float));
         this->profile_for_alignment = (int8_t *)       mem_align(ALIGN_INT, (maxLen + 1) * subMat->alphabetSize * sizeof(int8_t));
         // init profile
         memset(this->profile_for_alignment, 0, (maxLen + 1) * subMat->alphabetSize * sizeof(int8_t));
-        for (size_t i = 0; i < (maxLen + 1) * profile_row_size; ++i){
+        for (size_t i = 0; i < (maxLen + 1) * PROFILE_ROW_SIZE; ++i){
             profile_score[i] = -SHRT_MAX;
             profile_index[i] = UINT_MAX;
         }
@@ -117,33 +115,33 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
         case 0: // if no kmer iterator support
             pair = std::make_pair<const char *, unsigned int>(NULL, 0);
             break;
-        CASE(4)
-        CASE(5)
-        CASE(6)
-        CASE(7)
-        CASE(8)
-        CASE(9)
-        CASE(10)
-        CASE(11)
-        CASE(12)
-        CASE(13)
-        CASE(14)
-        CASE(15)
-        CASE(16)
-        CASE(17)
-        CASE(18)
-        CASE(19)
-        CASE(20)
-        CASE(21)
-        CASE(22)
-        CASE(23)
-        CASE(24)
-        CASE(25)
-        CASE(26)
-        CASE(27)
-        CASE(28)
-        CASE(29)
-        CASE(30)
+            CASE(4)
+            CASE(5)
+            CASE(6)
+            CASE(7)
+            CASE(8)
+            CASE(9)
+            CASE(10)
+            CASE(11)
+            CASE(12)
+            CASE(13)
+            CASE(14)
+            CASE(15)
+            CASE(16)
+            CASE(17)
+            CASE(18)
+            CASE(19)
+            CASE(20)
+            CASE(21)
+            CASE(22)
+            CASE(23)
+            CASE(24)
+            CASE(25)
+            CASE(26)
+            CASE(27)
+            CASE(28)
+            CASE(29)
+            CASE(30)
         default:
 
             char * pattern = new char[kmerSize];
@@ -181,16 +179,16 @@ std::pair<const char *, unsigned int> Sequence::parseSpacedPattern(unsigned int 
                 break;
             default:
                 Debug(Debug::ERROR) << "Invalid character in user-specified k-mer pattern\n";
-                EXIT(EXIT_FAILURE);  
+                EXIT(EXIT_FAILURE);
                 break;
         }
     }
     if (spacedKmerPatternKmerSize != kmerSize){
         Debug(Debug::ERROR) << "User-specified k-mer pattern is not consistent with stated k-mer size\n";
-        EXIT(EXIT_FAILURE);        
+        EXIT(EXIT_FAILURE);
     } else if (spacedKmerPatternSpaced != spaced) {
         Debug(Debug::ERROR) << "User-specified k-mer pattern is not consistent with spaced k-mer true/false\n";
-        EXIT(EXIT_FAILURE);         
+        EXIT(EXIT_FAILURE);
     }
     return std::make_pair<const char *, unsigned int>((const char *) pattern, spacedKmerPattern.size());
 }
@@ -208,7 +206,6 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence, 
         EXIT(EXIT_FAILURE);
     }
     currItPos = -1;
-
 }
 
 void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *,const unsigned int> data){
@@ -229,7 +226,6 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
     currItPos = -1;
 }
 
-
 void Sequence::mapProfile(const char * profileData, unsigned int seqLen){
     char * data = (char *) profileData;
     size_t currPos = 0;
@@ -238,7 +234,7 @@ void Sequence::mapProfile(const char * profileData, unsigned int seqLen){
         size_t l = 0;
         while (l < maxLen  && l < seqLen){
             for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
-                profile_score[l * profile_row_size + aa_idx] = static_cast<short>(data[currPos + aa_idx]);
+                profile_score[l * PROFILE_ROW_SIZE + aa_idx] = static_cast<short>(data[currPos + aa_idx]);
             }
 
             unsigned char queryLetter = data[currPos + PROFILE_AA_SIZE];
@@ -260,7 +256,7 @@ void Sequence::mapProfile(const char * profileData, unsigned int seqLen){
     // create alignment profile
     for (int i = 0; i < this->L; i++){
         for (size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
-            profile_for_alignment[aa_num * this-> L + i] = profile_score[i * profile_row_size + aa_num] / 4;
+            profile_for_alignment[aa_num * this-> L + i] = profile_score[i * PROFILE_ROW_SIZE + aa_num] / 4;
         }
     }        // set the X value to 0
     if(subMat->alphabetSize - PROFILE_AA_SIZE != 0){
@@ -273,20 +269,18 @@ void Sequence::mapProfile(const char * profileData, unsigned int seqLen){
         for (int i = 0; i < this->L; i++) {
             unsigned int indexArray[PROFILE_AA_SIZE] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
                                                         18, 19};
-            Util::rankedDescSort20(&profile_score[i * profile_row_size], (unsigned int *) &indexArray);
-            memcpy(&profile_index[i * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int));
+            Util::rankedDescSort20(&profile_score[i * PROFILE_ROW_SIZE], (unsigned int *) &indexArray);
+            memcpy(&profile_index[i * PROFILE_ROW_SIZE], &indexArray, PROFILE_AA_SIZE * sizeof(int));
         }
     }
 }
 
-
-
 void Sequence::nextProfileKmer() {
     int pos = 0;
-    for(int i = 0; i < this->spacedPatternSize; i++) {
-        if(spacedPattern[i]) {
-            unsigned int * index = profile_index + ((currItPos + i) * profile_row_size);
-            short * score        = profile_score + ((currItPos + i) * profile_row_size);
+    for (int i = 0; i < spacedPatternSize; i++) {
+        if (spacedPattern[i]) {
+            unsigned int *index = profile_index + ((currItPos + i) * PROFILE_ROW_SIZE);
+            short *score = profile_score + ((currItPos + i) * PROFILE_ROW_SIZE);
             profile_matrix[pos]->index = index;
             profile_matrix[pos]->score = score;
             pos++;
@@ -326,23 +320,40 @@ void Sequence::printPSSM(){
     }
 }
 
+void Sequence::printProfileStatePSSM(){
+    printf("Query profile of sequence %d\n", dbKey);
+    printf("Pos ");
+    for(int aa = 0; aa < subMat->alphabetSize; aa++) {
+        printf("%3c ", subMat->num2aa[aa]);
+    }
+    printf("\n");
+    for(int i = 0; i < this->L; i++){
+        printf("%3d ", i);
+        for(int aa = 0; aa < subMat->alphabetSize; aa++){
+//            printf("%3d ", profile_for_alignment[aa * L + i] );
+            printf("%3d ", profile_score[i * PROFILE_ROW_SIZE + profile_index[i * PROFILE_ROW_SIZE + aa]] );
+        }
+        printf("\n");
+    }
+}
+
 void Sequence::reverse() {
     if(Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE)){
         short        tmpScore[PROFILE_AA_SIZE*4];
         unsigned int tmpIndex[PROFILE_AA_SIZE*4];
 
         int i_curr = 0;
-        int j_curr = (this->L - 1)  * profile_row_size;
+        int j_curr = (this->L - 1) * PROFILE_ROW_SIZE;
 
         for (int i = 0; i < this->L/2; i++) {
-            memcpy(&tmpScore[0], profile_score + i_curr, profile_row_size * sizeof(short));
-            memcpy(&tmpIndex[0], profile_index + i_curr, profile_row_size * sizeof(unsigned int));
-            memcpy(profile_score + i_curr, profile_score + j_curr, profile_row_size * sizeof(short));
-            memcpy(profile_index + i_curr, profile_index + j_curr, profile_row_size * sizeof(unsigned int));
-            memcpy(profile_score + j_curr, &tmpScore[0], profile_row_size * sizeof(short));
-            memcpy(profile_index + j_curr, &tmpIndex[0], profile_row_size * sizeof(unsigned int));
-            i_curr += profile_row_size;
-            j_curr -= profile_row_size;
+            memcpy(&tmpScore[0], profile_score + i_curr, PROFILE_ROW_SIZE * sizeof(short));
+            memcpy(&tmpIndex[0], profile_index + i_curr, PROFILE_ROW_SIZE * sizeof(unsigned int));
+            memcpy(profile_score + i_curr, profile_score + j_curr, PROFILE_ROW_SIZE * sizeof(short));
+            memcpy(profile_index + i_curr, profile_index + j_curr, PROFILE_ROW_SIZE * sizeof(unsigned int));
+            memcpy(profile_score + j_curr, &tmpScore[0], PROFILE_ROW_SIZE * sizeof(short));
+            memcpy(profile_index + j_curr, &tmpIndex[0], PROFILE_ROW_SIZE * sizeof(unsigned int));
+            i_curr += PROFILE_ROW_SIZE;
+            j_curr -= PROFILE_ROW_SIZE;
         }
     }
     std::reverse(numSequence, numSequence + this->L); // reverse sequence
@@ -371,16 +382,3 @@ void Sequence::extractProfileSequence(const char* data, const BaseMatrix &submat
 void Sequence::extractProfileConsensus(const char* data, const BaseMatrix &submat, std::string &result) {
     extractProfileData(data, submat, 1, result);
 }
-
-int8_t const * Sequence::getAlignmentProfile() const {
-    return profile_for_alignment;
-}
-
-int Sequence::getSequenceType() const {
-    return seqType;
-}
-
-unsigned int Sequence::getEffectiveKmerSize() {
-    return spacedPatternSize;
-}
-

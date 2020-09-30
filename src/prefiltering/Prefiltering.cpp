@@ -12,6 +12,7 @@
 #include "ByteParser.h"
 #include "Parameters.h"
 #include "MemoryMapped.h"
+#include "FastSort.h"
 #include <sys/mman.h>
 
 #ifdef OPENMP
@@ -289,7 +290,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& tdbr, const int alphabetSi
         //TODO add PROFILE_STATE (just 6-mers)
         std::pair<int, int> splitSettings = Prefiltering::optimizeSplit(memoryLimit, &tdbr, alphabetSize, kmerSize, querySeqTyp, threads);
         if (splitSettings.second == -1) {
-            Debug(Debug::ERROR) << "Cannot fit databased into " << ByteParser::format(memoryLimit) << ". Please use a computer with more main memory.\n";
+            Debug(Debug::ERROR) << "Cannot fit databases into " << ByteParser::format(memoryLimit) << ". Please use a computer with more main memory.\n";
             EXIT(EXIT_FAILURE);
         }
         if (kmerSize == 0) {
@@ -441,7 +442,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
                 QueryMatcher::parsePrefilterHits(&dataFile[file][pos], hits);
             }
             if (hits.size() > 1) {
-                std::sort(hits.begin(), hits.end(), hit_t::compareHitsByScoreAndId);
+                SORT_SERIAL(hits.begin(), hits.end(), hit_t::compareHitsByScoreAndId);
             }
             for (size_t i = 0; i < hits.size(); ++i) {
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, hits[i]);
@@ -462,7 +463,10 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
     for (size_t i = 0; i < splits; ++i) {
         DBReader<unsigned int>::removeDb(fileNames[i].first);
         FileUtil::munmapData(dataFile[i], dataFileSize[i]);
-        fclose(files[i]);
+        if (fclose(files[i]) != 0) {
+            Debug(Debug::ERROR) << "Cannot close file " << fileNames[i].first << "\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
     delete [] dataFile;
     delete [] dataFileSize;

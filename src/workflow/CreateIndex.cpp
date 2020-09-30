@@ -100,7 +100,8 @@ int createlinindex(int argc, const char **argv, const Command& command) {
                             << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
         return EXIT_FAILURE;
     }
-    return createindex(par, "kmerindexdb", (isNucl == false) ? "" : (par.searchType == Parameters::SEARCH_TYPE_TRANSLATED) ? "TRANSLATED" : "LIN_NUCL");
+    return createindex(par, "kmerindexdb", (isNucl == false) ? "" : (par.searchType == Parameters::SEARCH_TYPE_TRANSLATED||
+                                                                                           par.searchType == Parameters::SEARCH_TYPE_TRANS_NUCL_ALN) ? "TRANSLATED" : "LIN_NUCL");
 }
 
 int createindex(int argc, const char **argv, const Command& command) {
@@ -168,5 +169,6 @@ int createindex(int argc, const char **argv, const Command& command) {
                             << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
         return EXIT_FAILURE;
     }
-    return createindex(par, "indexdb",  (isNucl == false) ? "" : (par.searchType == Parameters::SEARCH_TYPE_TRANSLATED) ? "TRANSLATED" : "NUCL");
+    return createindex(par, "indexdb",  (isNucl == false) ? "" : (par.searchType == Parameters::SEARCH_TYPE_TRANSLATED||
+                                                                  par.searchType == Parameters::SEARCH_TYPE_TRANS_NUCL_ALN) ? "TRANSLATED" : "NUCL");
 }

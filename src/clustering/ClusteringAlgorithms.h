@@ -16,7 +16,7 @@ class ClusteringAlgorithms {
 public:
     ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBReader<unsigned int>* alnDbr, int threads,int scoretype, int maxiterations);
     ~ClusteringAlgorithms();
-    std::unordered_map<unsigned int, std::vector<unsigned int>> execute(int mode);
+    std::pair<unsigned int, unsigned int> * execute(int mode);
 private:
     DBReader<unsigned int>* seqDbr;
 
@@ -37,9 +37,9 @@ private:
 
     void initClustersizes();
 
-    void removeClustersize(int clusterid);
+    void removeClustersize(unsigned int clusterid);
 
-    void decreaseClustersize(int clusterid);
+    void decreaseClustersize(unsigned int clusterid);
 //for connected component
     int maxiterations;
 

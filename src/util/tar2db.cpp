@@ -208,8 +208,14 @@ int tar2db(int argc, const char **argv, const Command& command) {
 
         mtar_close(&tar);
     }
-    fclose(lookup);
-    fclose(source);
+    if (fclose(lookup) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << lookupFile << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (fclose(source) != 0) {
+        Debug(Debug::ERROR) << "Cannot close file " << sourceFile << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     writer.close();
 
 #ifdef HAVE_ZLIB

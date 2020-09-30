@@ -81,8 +81,8 @@ if (ENABLE_WERROR)
 endif()
 
 # needed for concat.h
-include(CheckCXXSourceRuns)
-check_cxx_source_runs("
+include(CheckCXXSourceCompiles)
+check_cxx_source_compiles("
         #include <stdlib.h>
         #include <fcntl.h>
         #include <stdio.h>
@@ -99,7 +99,7 @@ if (HAVE_POSIX_FADVISE)
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_POSIX_FADVISE=1)
 endif ()
 
-check_cxx_source_runs("
+check_cxx_source_compiles("
         #include <stdlib.h>
         #include <fcntl.h>
         #include <stdio.h>
@@ -115,6 +115,19 @@ check_cxx_source_runs("
         HAVE_POSIX_MADVISE)
 if (HAVE_POSIX_MADVISE)
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_POSIX_MADVISE=1)
+endif ()
+
+if (NOT DISABLE_IPS4O)
+    find_package(Atomic)
+    if (ATOMIC_FOUND)
+        target_link_libraries(mmseqs-framework ${ATOMIC_LIBRARIES})
+        target_compile_definitions(mmseqs-framework PUBLIC -DENABLE_IPS4O=1)
+        message("-- IPS4O sorting works")
+    else ()
+        message("-- OMPTL sorting fallback")
+    endif ()
+else ()
+    message("-- OMPTL sorting fallback")
 endif ()
 
 target_link_libraries(mmseqs-framework tinyexpr libzstd_static microtar)
@@ -136,7 +149,7 @@ if (ZLIB_FOUND)
     set(CMAKE_REQUIRED_FLAGS -lz)
     set(CMAKE_REQUIRED_INCLUDES ${ZLIB_INCLUDE_DIRS})
     set(CMAKE_REQUIRED_LIBRARIES ${ZLIB_LIBRARIES})
-    check_cxx_source_runs("
+    check_cxx_source_compiles("
         #include <zlib.h>
         int main() { gzFile file; return 0; }"
         HAVE_ZLIB_CHECK)
@@ -164,7 +177,7 @@ if (BZIP2_FOUND)
     set(CMAKE_REQUIRED_FLAGS -lbz2)
     set(CMAKE_REQUIRED_INCLUDES ${BZIP_INCLUDE_DIRS})
     set(CMAKE_REQUIRED_LIBRARIES ${BZIP2_LIBRARIES})
-    check_cxx_source_runs("
+    check_cxx_source_compiles("
         #include <bzlib.h>
         int main() { bz_stream stream; return 0; }"
         HAVE_BZLIB_CHECK)

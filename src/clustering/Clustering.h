@@ -20,7 +20,7 @@ public:
 
 private:
 
-    void writeData(DBWriter *dbw, const std::unordered_map<unsigned int, std::vector<unsigned int>> &ret);
+    void writeData(DBWriter *dbw, const std::pair<unsigned int, unsigned int> * ret, size_t dbSize);
 
     DBReader<unsigned int> *seqDbr;
     DBReader<unsigned int> *alnDbr;

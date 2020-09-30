@@ -5,6 +5,7 @@
 #include "Util.h"
 #include "Matcher.h"
 #include "QueryMatcher.h"
+#include "FastSort.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -61,13 +62,13 @@ int sortresult(int argc, const char **argv, const Command &command) {
 
             writer.writeStart(thread_idx);
             if (format == 0 || format == 1) {
-                std::sort(alnResults.begin(), alnResults.end(), Matcher::compareHits);
+                SORT_SERIAL(alnResults.begin(), alnResults.end(), Matcher::compareHits);
                 for (size_t i = 0; i < alnResults.size(); ++i) {
                     size_t length = Matcher::resultToBuffer(buffer, alnResults[i], format == 1, false);
                     writer.writeAdd(buffer, length, thread_idx);
                 }
             } else if (format == 2) {
-                std::sort(prefResults.begin(), prefResults.end(), hit_t::compareHitsByScoreAndId);
+                SORT_SERIAL(prefResults.begin(), prefResults.end(), hit_t::compareHitsByScoreAndId);
                 for (size_t i = 0; i < prefResults.size(); ++i) {
                     size_t length = QueryMatcher::prefilterHitToBuffer(buffer, prefResults[i]);
                     writer.writeAdd(buffer, length, thread_idx);

@@ -302,7 +302,6 @@ int search(int argc, const char **argv, const Command& command) {
 //    cmd.addVariable("ALIGNMENT_DB_EXT", Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ) ? ".255" : "");
     par.filenames[1] = targetDB;
     if (par.sliceSearch == true) {
-
         // By default (0), diskSpaceLimit (in bytes) will be set in the workflow to use as much as possible
         cmd.addVariable("AVAIL_DISK", SSTR(static_cast<size_t>(par.diskSpaceLimit)).c_str());
 
@@ -321,7 +320,13 @@ int search(int argc, const char **argv, const Command& command) {
         par.evalThr = std::numeric_limits<float>::max();
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         par.evalThr = originalEvalThr;
-        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        if (isUngappedMode) {
+            par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
+            par.rescoreMode = originalRescoreMode;
+        } else {
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        }
         cmd.addVariable("SORTRESULT_PAR", par.createParameterString(par.sortresult).c_str());
         par.covMode = originalCovMode;
 
@@ -432,6 +437,10 @@ int search(int argc, const char **argv, const Command& command) {
         FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
         cmd.addVariable("QUERY_NUCL", (searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_TRANSLATED) ? "TRUE" : NULL);
         cmd.addVariable("TARGET_NUCL", (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_TRANSLATED)  ? "TRUE" : NULL);
+        cmd.addVariable("ORF_FILTER", par.orfFilter ? "TRUE" : NULL);
+        cmd.addVariable("THREAD_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
+        par.subDbMode = 1;
+        cmd.addVariable("CREATESUBDB_PAR", par.createParameterString(par.createsubdb).c_str());
         par.translate = 1;
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());

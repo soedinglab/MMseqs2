@@ -1,5 +1,6 @@
 #include "Debug.h"
 #include "Parameters.h"
+#include "FastSort.h"
 #include "Aggregation.h"
 
 #include <algorithm>
@@ -122,7 +123,7 @@ public:
             }
         }
 
-        std::sort(genesPositions.begin(), genesPositions.end(), compareByStart());
+        SORT_SERIAL(genesPositions.begin(), genesPositions.end(), compareByStart());
 
         // TODO: Get size for whole genome (multiple contigs, proteines etc.)
         double genomeSize = (targetSourceReader->getSeqLen(targetSourceReader->getId(targetSetKey)));
@@ -135,7 +136,7 @@ public:
                 size_t currentInterGenePosition = genesPositions[i + 1].first - genesPositions[i].second;
                 interGeneSpaces.push_back(currentInterGenePosition);
             }
-            std::sort(interGeneSpaces.begin(), interGeneSpaces.end());
+            SORT_SERIAL(interGeneSpaces.begin(), interGeneSpaces.end());
 
             //if odd number
             unsigned int interSpaceIndex = 0;

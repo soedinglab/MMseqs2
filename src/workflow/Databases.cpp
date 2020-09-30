@@ -72,7 +72,7 @@ std::vector<DatabaseDownload> downloads = {{
     "Non-redundant protein sequences from GenPept, Swissprot, PIR, PDF, PDB, and NCBI RefSeq.",
     "NCBI Resource Coordinators: Database resources of the National Center for Biotechnology Information. Nucleic Acids Res 46(D1), D8-D13 (2018)",
     "https://ftp.ncbi.nlm.nih.gov/blast/db/FASTA",
-    false, Parameters::DBTYPE_AMINO_ACIDS, databases_sh, databases_sh_len,
+    true, Parameters::DBTYPE_AMINO_ACIDS, databases_sh, databases_sh_len,
     { }
 }, {
     "NT",
@@ -130,6 +130,13 @@ std::vector<DatabaseDownload> downloads = {{
     "http://bcb.unl.edu/dbCAN2",
     false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
     { }
+}, {
+    "SILVA",
+    "SILVA provides datasets of aligned small and large subunit ribosomal RNA sequences for all three domains of life.",
+    "Yilmaz et al: The SILVA and \"All-species Living Tree Project (LTP)\" taxonomic frameworks. Nucleic Acids Res 42(D1), D643-D648 (2014)",
+    "https://www.arb-silva.de",
+    true, Parameters::DBTYPE_NUCLEOTIDES, databases_sh, databases_sh_len,
+    { { "SILVA_REL", "138" } }
 }, {
     "Resfinder",
     "ResFinder is a database that captures antimicrobial resistance genes from whole-genome data sets.",

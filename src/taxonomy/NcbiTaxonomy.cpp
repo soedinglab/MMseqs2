@@ -337,7 +337,7 @@ char NcbiTaxonomy::findShortRank(const std::string& rank) {
     return '-';
 }
 
-std::string NcbiTaxonomy::taxLineage(TaxonNode const *node) {
+std::string NcbiTaxonomy::taxLineage(TaxonNode const *node, bool infoAsName) {
     std::vector<TaxonNode const *> taxLineageVec;
     std::string taxLineage;
     taxLineage.reserve(4096);
@@ -347,9 +347,14 @@ std::string NcbiTaxonomy::taxLineage(TaxonNode const *node) {
     } while (node->parentTaxId != node->taxId);
 
     for (int i = taxLineageVec.size() - 1; i >= 0; --i) {
-        taxLineage += findShortRank(taxLineageVec[i]->rank);
-        taxLineage += '_';
-        taxLineage += taxLineageVec[i]->name;
+        if (infoAsName) {
+            taxLineage += findShortRank(taxLineageVec[i]->rank);
+            taxLineage += '_';
+            taxLineage += taxLineageVec[i]->name;
+        } else {
+            taxLineage += SSTR(taxLineageVec[i]->taxId);
+        }
+        
         if (i > 0) {
             taxLineage += ";";
         }

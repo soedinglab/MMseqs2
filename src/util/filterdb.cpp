@@ -5,10 +5,11 @@
 #include "Debug.h"
 #include "FileUtil.h"
 #include "ExpressionParser.h"
-
+#include "FastSort.h"
 #include <fstream>
+#include <random>
+#include <iostream>
 
-#include <omptl/omptl_algorithm>
 #include <regex.h>
 
 #ifdef OPENMP
@@ -110,7 +111,8 @@ int filterdb(int argc, const char **argv, const Command &command) {
 
     // REGEX_FILTERING
     regex_t regex;
-
+    std::random_device rng;
+    std::mt19937 urng(rng());
     int mode;
     if (par.sortEntries != 0) {
         mode = SORT_ENTRIES;
@@ -166,9 +168,12 @@ int filterdb(int argc, const char **argv, const Command &command) {
                 key[offset] = '\0';
                 filter.emplace_back(key);
             }
-            fclose(orderFile);
+            if (fclose(orderFile) != 0) {
+                Debug(Debug::ERROR) << "Cannot close file " << filenames[i] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
-        omptl::sort(filter.begin(), filter.end());
+        SORT_PARALLEL(filter.begin(), filter.end());
         std::vector<std::string>::iterator last = std::unique(filter.begin(), filter.end());
         filter.erase(last, filter.end());
     } else if (par.mappingFile.empty() == false) {
@@ -479,8 +484,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
                 } else if (par.sortEntries == DECREASING) {
                     std::stable_sort(toSort.begin(), toSort.end(), compareFirstEntryDecreasing());
                 } else if (par.sortEntries == SHUFFLE) {
-                    srand(unsigned(time(0)));
-                    std::random_shuffle(toSort.begin(), toSort.end());
+                    std::shuffle(toSort.begin(), toSort.end(), urng);
                 }
 
                 for (size_t i = 0; i < toSort.size(); i++) {

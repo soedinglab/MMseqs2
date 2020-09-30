@@ -79,7 +79,7 @@ public:
     TaxID LCA(TaxID taxonA, TaxID taxonB) const;
     std::vector<std::string> AtRanks(TaxonNode const * node, const std::vector<std::string> &levels) const;
     std::map<std::string, std::string> AllRanks(TaxonNode const *node) const;
-    std::string taxLineage(TaxonNode const *node);
+    std::string taxLineage(TaxonNode const *node, bool infoAsName = true);
 
     static std::vector<std::string> parseRanks(const std::string& ranks);
     static int findRankIndex(const std::string& rank);
@@ -91,6 +91,8 @@ public:
     std::unordered_map<TaxID, TaxonCounts> getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts) const;
 
     static NcbiTaxonomy * openTaxonomy(std::string & database);
+
+    std::vector<TaxonNode> taxonNodes;
 private:
     size_t loadNodes(const std::string &nodesFile);
     size_t loadMerged(const std::string &mergedFile);
@@ -103,7 +105,6 @@ private:
     int RangeMinimumQuery(int i, int j) const;
     int lcaHelper(int i, int j) const;
 
-    std::vector<TaxonNode> taxonNodes;
     std::vector<int> D; // maps from taxID to node ID in taxonNodes
     std::vector<int> E; // for Euler tour sequence (size 2N-1)
     std::vector<int> L; // Level of nodes in tour sequence (size 2N-1)

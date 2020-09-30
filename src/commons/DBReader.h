@@ -277,6 +277,7 @@ public:
     static void removeDb(const std::string &databaseName);
 
     static void softlinkDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags = DBFiles::ALL);
+    static void copyDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags = DBFiles::ALL);
 
     char *mmapData(FILE *file, size_t *dataSize);
 
@@ -285,6 +286,8 @@ public:
     void readLookup(char *data, size_t dataSize, LookupEntry *lookup);
 
     void readIndexId(T* id, char * line, const char** cols);
+
+    unsigned int indexIdToNum(T* id);
 
     void readMmapedDataInMemory();
 

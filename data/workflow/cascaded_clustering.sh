@@ -144,13 +144,15 @@ if [ -n "$REASSIGN" ]; then
     eval PREFILTER_PAR="\$$PARAM"
     # try to find best matching centroid sequences for prev. wrong assigned sequences
     if notExists "${TMP_PATH}/seq_wrong_assigned_pref.dbtype"; then
-        # combine seq dbs
-        MAXOFFSET=$(awk '($2+$3) > max{max=$2+$3}END{print max}' "${TMP_PATH}/seq_seeds.index")
-        awk -v OFFSET="${MAXOFFSET}" 'FNR==NR{print $0; next}{print $1"\t"$2+OFFSET"\t"$3}' "${TMP_PATH}/seq_seeds.index" \
-             "${TMP_PATH}/seq_wrong_assigned.index" > "${TMP_PATH}/seq_seeds.merged.index"
-        ln -s "$(abspath "${TMP_PATH}/seq_seeds")" "${TMP_PATH}/seq_seeds.merged.0"
-        ln -s "$(abspath "${TMP_PATH}/seq_wrong_assigned")" "${TMP_PATH}/seq_seeds.merged.1"
-        cp "${TMP_PATH}/seq_seeds.dbtype" "${TMP_PATH}/seq_seeds.merged.dbtype"
+        if notExists "${TMP_PATH}/seq_seeds.merged.dbtype"; then
+            # combine seq dbs
+            MAXOFFSET=$(awk '($2+$3) > max{max=$2+$3}END{print max}' "${TMP_PATH}/seq_seeds.index")
+            awk -v OFFSET="${MAXOFFSET}" 'FNR==NR{print $0; next}{print $1"\t"$2+OFFSET"\t"$3}' "${TMP_PATH}/seq_seeds.index" \
+                 "${TMP_PATH}/seq_wrong_assigned.index" > "${TMP_PATH}/seq_seeds.merged.index"
+            ln -s "$(abspath "${TMP_PATH}/seq_seeds")" "${TMP_PATH}/seq_seeds.merged.0"
+            ln -s "$(abspath "${TMP_PATH}/seq_wrong_assigned")" "${TMP_PATH}/seq_seeds.merged.1"
+            cp "${TMP_PATH}/seq_seeds.dbtype" "${TMP_PATH}/seq_seeds.merged.dbtype"
+        fi
         # shellcheck disable=SC2086
         $RUNNER "$MMSEQS" prefilter "${TMP_PATH}/seq_wrong_assigned" "${TMP_PATH}/seq_seeds.merged" "${TMP_PATH}/seq_wrong_assigned_pref" ${PREFILTER_REASSIGN_PAR} \
                  || fail "Prefilter reassign died"
@@ -177,7 +179,7 @@ if [ -n "$REASSIGN" ]; then
         # combine clusters
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${TMP_PATH}/seq_seeds.merged" "${TMP_PATH}/clu_accepted_plus_wrong" "${TMP_PATH}/clu_accepted" \
-                        "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_ocol" \
+                        "${TMP_PATH}/seq_wrong_assigned_pref_swaped_aln_ocol" ${MERGEDBS_PAR} \
                              || fail "mergedbs reassign died"
     fi
 
@@ -192,7 +194,7 @@ if [ -n "$REASSIGN" ]; then
         # combine clusters
         # shellcheck disable=SC2086
         "$MMSEQS" mergedbs "${SOURCE}" "${TMP_PATH}/clu_accepted_plus_wrong_plus_single" "${TMP_PATH}/clu_accepted_plus_wrong" \
-                        "${TMP_PATH}/missing.single.seqs.db" \
+                        "${TMP_PATH}/missing.single.seqs.db" ${MERGEDBS_PAR} \
                              || fail "mergedbs2 reassign died"
     fi
 

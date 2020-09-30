@@ -1,16 +1,15 @@
 #ifndef DBCONCAT_H
 #define DBCONCAT_H
 
-#include "DBReader.h"
+#include <string>
+#include <utility>
 
-class DBConcat : public DBReader<unsigned int> {
-
+class DBConcat {
 public:
     DBConcat(const std::string &dataFileNameA, const std::string &indexFileNameA,
              const std::string &dataFileNameB, const std::string &indexFileNameB,
              const std::string &dataFileNameC, const std::string &indexFileNameC,
-             unsigned int threads, int dataMode = USE_DATA | USE_INDEX | USE_LOOKUP, bool write = true,
-             bool preserveKeysA = false, bool preserveKeysB = false, bool takeLargerEntry = false);
+             unsigned int threads, bool write = true, bool preserveKeysA = false, bool preserveKeysB = false, bool takeLargerEntry = false, size_t trimRight = 1);
 
     ~DBConcat();
 
@@ -37,8 +36,6 @@ private:
             return (lhs <= rhs.first);
         }
     };
-
 };
-
 
 #endif

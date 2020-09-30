@@ -13,7 +13,7 @@
 #include "LinsearchIndexReader.h"
 #include "IndexReader.h"
 #include "Parameters.h"
-
+#include "FastSort.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -293,8 +293,6 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             swResults.reserve(300);
             std::vector<Matcher::result_t> swRealignResults;
             swRealignResults.reserve(300);
-            std::vector<hit_t> shortResults;
-            shortResults.reserve(300);
 
 #pragma omp for schedule(dynamic, 5) reduction(+: alignmentsNum, totalPassedNum)
             for (size_t id = start; id < (start + bucketSize); id++) {
@@ -389,12 +387,9 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     computeAlternativeAlignment(queryDbKey, dbSeq, swResults, matcher, evalThr, swMode, thread_idx);
                 }
 
-                if(wrappedScoring && shortResults.size() > 1)
-                    std::sort(shortResults.begin(), shortResults.end(), hit_t::compareHitsByScoreAndId);
-
                 // write the results
                 if(swResults.size() > 1)
-                    std::sort(swResults.begin(), swResults.end(), Matcher::compareHits);
+                    SORT_SERIAL(swResults.begin(), swResults.end(), Matcher::compareHits);
                 if (realign == true) {
                     realigner->initQuery(&qSeq);
                     for (size_t result = 0; result < swResults.size(); result++) {
@@ -435,17 +430,10 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     alnResultsOutString.append(buffer, len);
                 }
 
-                for (size_t result = 0; result < shortResults.size(); result++) {
-                    size_t len = snprintf(buffer, 100, "%u\t%d\t%d\n", shortResults[result].seqId, shortResults[result].prefScore,
-                                          shortResults[result].diagonal);
-                    alnResultsOutString.append(buffer, len);
-                }
-
                 dbw.writeData(alnResultsOutString.c_str(), alnResultsOutString.length(), queryDbKey, thread_idx);
                 alnResultsOutString.clear();
                 swResults.clear();
                 swRealignResults.clear();
-                shortResults.clear();
             }
             if (realign == true) {
                 delete realigner;

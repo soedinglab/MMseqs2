@@ -165,7 +165,9 @@
 #endif
 
 #if !defined(SIMDE_NO_CHECK_IMMEDIATE_CONSTANT)
-  #if defined(SIMDE_CHECK_CONSTANT_) && SIMDE_DETECT_CLANG_VERSION_NOT(9,0,0)
+  #if defined(SIMDE_CHECK_CONSTANT_) && \
+      SIMDE_DETECT_CLANG_VERSION_CHECK(9,0,0) && \
+      (!defined(__apple_build_version__) || ((__apple_build_version__ < 11000000) || (__apple_build_version__ >= 12000000)))
     #define SIMDE_REQUIRE_CONSTANT(arg) HEDLEY_REQUIRE_MSG(SIMDE_CHECK_CONSTANT_(arg), "`" #arg "' must be constant")
   #else
     #define SIMDE_REQUIRE_CONSTANT(arg)
@@ -253,6 +255,7 @@
 
     * SIMDE_VECTOR - Declaring a vector.
     * SIMDE_VECTOR_OPS - basic operations (binary and unary).
+    * SIMDE_VECTOR_NEGATE - negating a vector
     * SIMDE_VECTOR_SCALAR - For binary operators, the second argument
         can be a scalar, in which case the result is as if that scalar
         had been broadcast to all lanes of a vector.
@@ -266,11 +269,13 @@
     HEDLEY_GCC_VERSION_CHECK(4,8,0)
 #    define SIMDE_VECTOR(size) __attribute__((__vector_size__(size)))
 #    define SIMDE_VECTOR_OPS
+#    define SIMDE_VECTOR_NEGATE
 #    define SIMDE_VECTOR_SCALAR
 #    define SIMDE_VECTOR_SUBSCRIPT
 #  elif HEDLEY_INTEL_VERSION_CHECK(16,0,0)
 #    define SIMDE_VECTOR(size) __attribute__((__vector_size__(size)))
 #    define SIMDE_VECTOR_OPS
+#    define SIMDE_VECTOR_NEGATE
 /* ICC only supports SIMDE_VECTOR_SCALAR for constants */
 #    define SIMDE_VECTOR_SUBSCRIPT
 #  elif \
@@ -283,8 +288,9 @@
 #  elif HEDLEY_HAS_ATTRIBUTE(vector_size)
 #    define SIMDE_VECTOR(size) __attribute__((__vector_size__(size)))
 #    define SIMDE_VECTOR_OPS
+#    define SIMDE_VECTOR_NEGATE
 #    define SIMDE_VECTOR_SUBSCRIPT
-#    if HEDLEY_HAS_ATTRIBUTE(diagnose_if) /* clang 4.0 */
+#    if SIMDE_DETECT_CLANG_VERSION_CHECK(5,0,0)
 #      define SIMDE_VECTOR_SCALAR
 #    endif
 #  endif
@@ -359,7 +365,15 @@
 #if defined(SIMDE_ENABLE_OPENMP)
 #  define SIMDE_VECTORIZE HEDLEY_PRAGMA(omp simd)
 #  define SIMDE_VECTORIZE_SAFELEN(l) HEDLEY_PRAGMA(omp simd safelen(l))
-#  define SIMDE_VECTORIZE_REDUCTION(r) HEDLEY_PRAGMA(omp simd reduction(r))
+#  if defined(__clang__)
+#    define SIMDE_VECTORIZE_REDUCTION(r) \
+        HEDLEY_DIAGNOSTIC_PUSH \
+        _Pragma("clang diagnostic ignored \"-Wsign-conversion\"") \
+        HEDLEY_PRAGMA(omp simd reduction(r)) \
+        HEDLEY_DIAGNOSTIC_POP
+#  else
+#    define SIMDE_VECTORIZE_REDUCTION(r) HEDLEY_PRAGMA(omp simd reduction(r))
+#  endif
 #  define SIMDE_VECTORIZE_ALIGNED(a) HEDLEY_PRAGMA(omp simd aligned(a))
 #elif defined(SIMDE_ENABLE_CILKPLUS)
 #  define SIMDE_VECTORIZE HEDLEY_PRAGMA(simd)
@@ -425,18 +439,10 @@
      HEDLEY_DIAGNOSTIC_POP
 #endif
 
-#if HEDLEY_HAS_WARNING("-Wpedantic")
-#  define SIMDE_DIAGNOSTIC_DISABLE_INT128 _Pragma("clang diagnostic ignored \"-Wpedantic\"")
-#elif defined(HEDLEY_GCC_VERSION)
-#  define SIMDE_DIAGNOSTIC_DISABLE_INT128 _Pragma("GCC diagnostic ignored \"-Wpedantic\"")
-#else
-#  define SIMDE_DIAGNOSTIC_DISABLE_INT128
-#endif
-
 #if defined(__SIZEOF_INT128__)
 #  define SIMDE_HAVE_INT128_
 HEDLEY_DIAGNOSTIC_PUSH
-SIMDE_DIAGNOSTIC_DISABLE_INT128
+SIMDE_DIAGNOSTIC_DISABLE_PEDANTIC_
 typedef __int128 simde_int128;
 typedef unsigned __int128 simde_uint128;
 HEDLEY_DIAGNOSTIC_POP
@@ -557,37 +563,6 @@ typedef SIMDE_FLOAT32_TYPE simde_float32;
 #  define SIMDE_FLOAT32_C(value) ((SIMDE_FLOAT64_TYPE) value)
 #endif
 typedef SIMDE_FLOAT64_TYPE simde_float64;
-
-/* Whether to assume that the compiler can auto-vectorize reasonably
-   well.  This will cause SIMDe to attempt to compose vector
-   operations using more simple vector operations instead of minimize
-   serial work.
-
-   As an example, consider the _mm_add_ss(a, b) function from SSE,
-   which returns { a0 + b0, a1, a2, a3 }.  This pattern is repeated
-   for other operations (sub, mul, etc.).
-
-   The naïve implementation would result in loading a0 and b0, adding
-   them into a temporary variable, then splicing that value into a new
-   vector with the remaining elements from a.
-
-   On platforms which support vectorization, it's generally faster to
-   simply perform the operation on the entire vector to avoid having
-   to move data between SIMD registers and non-SIMD registers.
-   Basically, instead of the temporary variable being (a0 + b0) it
-   would be a vector of (a + b), which is then combined with a to form
-   the result.
-
-   By default, SIMDe will prefer the pure-vector versions if we detect
-   a vector ISA extension, but this can be overridden by defining
-   SIMDE_NO_ASSUME_VECTORIZATION.  You can also define
-   SIMDE_ASSUME_VECTORIZATION if you want to force SIMDe to use the
-   vectorized version. */
-#if !defined(SIMDE_NO_ASSUME_VECTORIZATION) && !defined(SIMDE_ASSUME_VECTORIZATION)
-#  if defined(__SSE__) || defined(__ARM_NEON) || defined(__mips_msa) || defined(__ALTIVEC__) || defined(__wasm_simd128__)
-#    define SIMDE_ASSUME_VECTORIZATION
-#  endif
-#endif
 
 #if HEDLEY_HAS_WARNING("-Wbad-function-cast")
 #  define SIMDE_CONVERT_FTOI(T,v) \
@@ -798,6 +773,14 @@ typedef SIMDE_FLOAT64_TYPE simde_float64;
 #    if defined(SIMDE_ARCH_X86) && !defined(SIMDE_ARCH_AMD64)
 #      define SIMDE_BUG_GCC_94482
 #    endif
+#    if (defined(SIMDE_ARCH_X86) && !defined(SIMDE_ARCH_AMD64)) || defined(SIMDE_ARCH_SYSTEMZ)
+#      define SIMDE_BUG_GCC_53784
+#    endif
+#    if defined(SIMDE_ARCH_X86) || defined(SIMDE_ARCH_AMD64)
+#      if HEDLEY_GCC_VERSION_CHECK(4,3,0) /* -Wsign-conversion */
+#        define SIMDE_BUG_GCC_95144
+#      endif
+#    endif
 #    if !HEDLEY_GCC_VERSION_CHECK(9,4,0) && defined(SIMDE_ARCH_AARCH64)
 #      define SIMDE_BUG_GCC_94488
 #    endif
@@ -807,12 +790,26 @@ typedef SIMDE_FLOAT64_TYPE simde_float64;
 #    elif defined(SIMDE_ARCH_POWER)
 #      define SIMDE_BUG_GCC_95227
 #      define SIMDE_BUG_GCC_95782
+#    elif defined(SIMDE_ARCH_X86) || defined(SIMDE_ARCH_AMD64)
+#      if !HEDLEY_GCC_VERSION_CHECK(10,2,0) && !defined(__OPTIMIZE__)
+#        define SIMDE_BUG_GCC_96174
+#      endif
 #    endif
 #    define SIMDE_BUG_GCC_95399
 #  elif defined(__clang__)
 #    if defined(SIMDE_ARCH_AARCH64)
 #      define SIMDE_BUG_CLANG_45541
+#      define SIMDE_BUG_CLANG_46844
 #    endif
+#    if defined(SIMDE_ARCH_POWER)
+#      define SIMDE_BUG_CLANG_46770
+#    endif
+#    if defined(SIMDE_ARCH_X86) || defined(SIMDE_ARCH_AMD64)
+#      if HEDLEY_HAS_WARNING("-Wsign-conversion") && SIMDE_DETECT_CLANG_VERSION_NOT(11,0,0)
+#        define SIMDE_BUG_CLANG_45931
+#      endif
+#    endif
+#    define SIMDE_BUG_CLANG_45959
 #  elif defined(HEDLEY_MSVC_VERSION)
 #    if defined(SIMDE_ARCH_X86)
 #      define SIMDE_BUG_MSVC_ROUND_EXTRACT
@@ -829,8 +826,11 @@ typedef SIMDE_FLOAT64_TYPE simde_float64;
 /* GCC and Clang both have the same issue:
  * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95144
  * https://bugs.llvm.org/show_bug.cgi?id=45931
+ * This is just an easy way to work around it.
  */
-#if HEDLEY_HAS_WARNING("-Wsign-conversion") || HEDLEY_GCC_VERSION_CHECK(4,3,0)
+#if \
+    (HEDLEY_HAS_WARNING("-Wsign-conversion") && SIMDE_DETECT_CLANG_VERSION_NOT(11,0,0)) || \
+    HEDLEY_GCC_VERSION_CHECK(4,3,0)
 #  define SIMDE_BUG_IGNORE_SIGN_CONVERSION(expr) (__extension__ ({ \
        HEDLEY_DIAGNOSTIC_PUSH  \
        HEDLEY_DIAGNOSTIC_POP  \
