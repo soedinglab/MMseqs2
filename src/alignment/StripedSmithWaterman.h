@@ -250,9 +250,6 @@ private:
 
     // target variables
     simd_int* target_profile_byte;
-    simd_int* target_profile_rev_byte;
-    int8_t* target_mat_rev;
-    int8_t* target_consens_rev_sequence;
     int segSize;
 
     // needed for type checking query and target databases
@@ -305,8 +302,7 @@ private:
                                                      alignment beginning point. If this score
                                                      is set to 0, it will not be used */
                                  uint8_t bias,  /* Shift 0 point to a positive value. */
-                                 int32_t maskLen,
-                                 bool print);
+                                 int32_t maskLen);
 
     template <const unsigned int type>
     std::pair<alignment_end, alignment_end> sw_sse2_word (const unsigned char* db_sequence,

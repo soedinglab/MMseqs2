@@ -10,7 +10,7 @@ class PSSMCalculator {
 public:
 
     struct Profile{
-        const char * pssm;
+        char * pssm;
         float * prob;
         const float * neffM;
         std::string consensus;

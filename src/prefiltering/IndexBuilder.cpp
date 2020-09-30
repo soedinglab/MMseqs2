@@ -85,10 +85,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     }
 
     // identical scores for memory reduction code
-    char *idScoreLookup = NULL;
-    if (Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_PROFILE_STATE_SEQ) == false) {
-        idScoreLookup = getScoreLookup(subMat);
-    }
+    char *idScoreLookup = getScoreLookup(subMat);
     Debug::Progress progress(dbTo-dbFrom);
 
     size_t maskedResidues = 0;

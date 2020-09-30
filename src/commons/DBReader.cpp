@@ -535,7 +535,7 @@ template <typename T> char* DBReader<T>::getDataCompressed(size_t id, int thrIdx
 
 template <typename T> size_t DBReader<T>::getAminoAcidDBSize() {
     checkClosed();
-    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE)){
         // Get the actual profile column without the null byte per entry
         return (dataSize / Sequence::PROFILE_READIN_SIZE) - size;
     } else {

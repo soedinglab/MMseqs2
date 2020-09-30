@@ -70,11 +70,6 @@ Prefiltering::Prefiltering(const std::string &queryDB,
             ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, par.alphabetSize, 2.0, false, false);
             alphabetSize = kmerSubMat->alphabetSize;
             break;
-        case Parameters::DBTYPE_PROFILE_STATE_PROFILE:
-            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, par.alphabetSize, 8.0, true, false);
-            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, par.alphabetSize, 2.0, false, false);
-            alphabetSize = kmerSubMat->alphabetSize;
-            break;
         default:
             Debug(Debug::ERROR) << "Query sequence type not implemented!\n";
             EXIT(EXIT_FAILURE);
@@ -169,7 +164,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
     maxResListLen = std::min(tdbr->getSize(), maxResListLen);
 
     // investigate if it makes sense to mask the profile consensus sequence
-    if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
+    if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)) {
         maskMode = 0;
     }
 
@@ -504,7 +499,6 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
 
         Sequence tseq(maxSeqLen, targetSeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
         int localKmerThr = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) ||
-                            Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) ||
                             Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES) ||
                             (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) == false && takeOnlyBestKmer == true) ) ? 0 : kmerThr;
 

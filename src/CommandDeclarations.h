@@ -80,7 +80,6 @@ extern int rbh(int argc, const char **argv, const Command& command);
 extern int result2flat(int argc, const char **argv, const Command& command);
 extern int result2msa(int argc, const char **argv, const Command& command);
 extern int result2dnamsa(int argc, const char **argv, const Command& command);
-extern int result2pp(int argc, const char **argv, const Command& command);
 extern int result2profile(int argc, const char **argv, const Command& command);
 extern int result2rbh(int argc, const char **argv, const Command& command);
 extern int result2repseq(int argc, const char **argv, const Command& command);

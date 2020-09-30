@@ -34,9 +34,6 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         }
     }
     const int targetSeqType = tdbr->getDbtype();
-    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
-        querySeqType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
-    }
 
     BaseMatrix *subMat;
     EvalueComputation * evaluer;
@@ -48,17 +45,6 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         for (int i = 0; i < subMat->alphabetSize; i++) {
             for (int j = 0; j < subMat->alphabetSize; j++) {
                 tinySubMat[i*subMat->alphabetSize + j] = subMat->subMatrix[i][j];
-            }
-        }
-    } else if(Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ) ){
-        SubstitutionMatrix sMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
-        evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), &sMat);
-        subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,
-                                                     sMat.subMatrixPseudoCounts, 2.0, 0.0, 219);
-        tinySubMat = new int8_t[sMat.alphabetSize*sMat.alphabetSize];
-        for (int i = 0; i < sMat.alphabetSize; i++) {
-            for (int j = 0; j < sMat.alphabetSize; j++) {
-                tinySubMat[i*sMat.alphabetSize + j] = sMat.subMatrix[i][j];
             }
         }
     } else {
@@ -101,8 +87,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
 
             qSeq.mapSequence(id, queryKey, querySeqData, querySeqLen);
 //            qSeq.printProfileStatePSSM();
-            if(Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE) ||
-               Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
+            if(Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE) ){
                 aligner.ssw_init(&qSeq, qSeq.getAlignmentProfile(), subMat);
             }else{
                 aligner.ssw_init(&qSeq, tinySubMat, subMat);

@@ -79,8 +79,8 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
             }
         }
     }
-    // create final Matrix
-    computeLogPSSM(pssm, profile, 2.0, queryLength, 0.0);
+    // create PSSM profile scaled with 8 bit (needed by the prefilter)
+    computeLogPSSM(pssm, profile, 8.0, queryLength, 0.0);
 //    PSSMCalculator::printProfile(queryLength);
 
 //    PSSMCalculator::printPSSM(queryLength);
@@ -128,11 +128,11 @@ void PSSMCalculator::computeLogPSSM(char *pssm, const float *profile, float bitF
             const float aaProb = profile[pos * Sequence::PROFILE_AA_SIZE + aa];
             const unsigned int idx = pos * Sequence::PROFILE_AA_SIZE + aa;
             float logProb = MathUtil::flog2(aaProb / subMat->pBack[aa]);
-            const float pssmVal = bitFactor * logProb  + scoreBias;
-            pssm[idx] = static_cast<char>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
+            float pssmVal = bitFactor * logProb  + scoreBias;
+            pssmVal = static_cast<char>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
             float truncPssmVal =  std::min(pssmVal, 127.0f);
             truncPssmVal       =  std::max(-128.0f, truncPssmVal);
-            pssm[idx] = static_cast<char>((truncPssmVal < 0.0) ? truncPssmVal - 0.5 : truncPssmVal + 0.5);
+            pssm[idx] = truncPssmVal;
         }
 
     }

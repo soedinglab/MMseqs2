@@ -43,12 +43,6 @@ int prefilter(int argc, const char **argv, const Command& command) {
         Debug(Debug::ERROR) << "The prefilter can not search nucleotides against amino acids. Something might got wrong while createdb or createindex.\n";
         return EXIT_FAILURE;
     }
-    if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE) == false && Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
-        Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
-        return EXIT_FAILURE;
-    } else if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
-        queryDbType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
-    }
 
     Prefiltering pref(par.db1, par.db1Index, par.db2, par.db2Index, queryDbType, targetDbType, par);
 

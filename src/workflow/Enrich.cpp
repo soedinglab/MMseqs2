@@ -69,10 +69,7 @@ int enrich(int argc, const char **argv, const Command &command) {
         }
 
         cmd.addVariable(std::string("EXPAND_PAR_" + SSTR(i)).c_str(), par.createParameterString(par.expandaln).c_str());
-
-        par.pca = 0.0;
         cmd.addVariable(std::string("PROFILE_PAR_" + SSTR(i)).c_str(), par.createParameterString(par.result2profile).c_str());
-        par.pca = 1.0;
     }
 
     std::string program = tmpDir + "/enrich.sh";

@@ -74,8 +74,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     writer.writeData(metadataptr, sizeof(metadata), META, 0);
     writer.alignToPageSize();
 
-    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) == false &&
-        Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_SEQ) == false) {
+    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) == false) {
         int alphabetSize = subMat->alphabetSize;
         subMat->alphabetSize = subMat->alphabetSize-1;
         ScoreMatrix s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);

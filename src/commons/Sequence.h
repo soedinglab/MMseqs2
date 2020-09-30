@@ -86,14 +86,7 @@ public:
     void mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *, const unsigned int> data);
 
     // map profile HMM, *data points to start position of Profile
-    void mapProfile(const char *profileData, bool mapScores,  unsigned int seqLen);
-
-    // mixture of library and profile prob
-    template <int T>
-    void mapProfileState(const char *profileState, unsigned int seqLen);
-
-    // map the profile state sequence
-    void mapProfileStateSequence(const char *profileStateSeq, unsigned int seqLen);
+    void mapProfile(const char *profileData, unsigned int seqLen);
 
     // checks if there is still a k-mer left
     bool hasNextKmer() {
@@ -408,8 +401,7 @@ public:
             simd_int kmer = simdi_load((((simd_int *) kmerWindow) + i));
             kmerHasX |= static_cast<unsigned int>(simdi8_movemask(simdi8_eq(kmer, xChar)));
         }
-        if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) ||
-            Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
+        if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE)) {
             nextProfileKmer();
             for (unsigned int i = 0; i < this->kmerSize; i++) {
                     kmerWindow[i] = 0;
@@ -460,7 +452,6 @@ public:
     // Contains profile information
     short           *profile_score;
     unsigned int    *profile_index;
-    float           *profile;
     float           *neffM;
     float           *pseudocountsWeight;
     // (PROFILE_AA_SIZE / SIMD_SIZE) + 1 * SIMD_SIZE
@@ -486,9 +477,6 @@ public:
 
     void printPSSM();
 
-    void printProfileStatePSSM();
-
-    void printProfile() const;
 
     int8_t const * getAlignmentProfile()const;
 
@@ -521,8 +509,6 @@ public:
         // No score bias when profile probability stored in file
         return MathUtil::fpow2((float)(dblScore - scoreBias) / bitFactor) * pBack;
     }
-
-    const float *getProfile();
 
     const char *getSeqData() {
         return seqData;

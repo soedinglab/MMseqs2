@@ -212,6 +212,7 @@ typedef __m256i simd_int;
 #define simdi32_add(x,y)    _mm256_add_epi32(x,y)
 #define simdi16_add(x,y)    _mm256_add_epi16(x,y)
 #define simdi16_adds(x,y)   _mm256_adds_epi16(x,y)
+#define simdi16_sub(x,y)    _mm256_sub_epi16(x,y)
 #define simdui8_adds(x,y)   _mm256_adds_epu8(x,y)
 #define simdi32_sub(x,y)    _mm256_sub_epi32(x,y)
 #define simdui16_subs(x,y)  _mm256_subs_epu16(x,y)
@@ -223,6 +224,8 @@ typedef __m256i simd_int;
 #define simdui8_max(x,y)    _mm256_max_epu8(x,y)
 #define simdi8_hmax(x)      simd_hmax8_avx(x)
 #define simdi_load(x)       _mm256_load_si256(x)
+#define simdui8_avg(x,y)    _mm256_avg_epu8(x,y)
+#define simdui16_avg(x,y)   _mm256_avg_epu16(x,y)
 #define simdi_loadu(x)       _mm256_loadu_si256(x)
 #define simdi_streamload(x) _mm256_stream_load_si256(x)
 #define simdi_store(x,y)    _mm256_store_si256(x,y)
@@ -399,6 +402,8 @@ inline unsigned short extract_epi16(__m128i v, int pos) {
 typedef __m128i simd_int;
 #define simdi32_add(x,y)    _mm_add_epi32(x,y)
 #define simdi16_add(x,y)    _mm_add_epi16(x,y)
+#define simdi16_sub(x,y)    _mm256_sub_epi16(x,y)
+
 #define simdi16_adds(x,y)   _mm_adds_epi16(x,y)
 #define simdui8_adds(x,y)   _mm_adds_epu8(x,y)
 #define simdi32_sub(x,y)    _mm_sub_epi32(x,y)

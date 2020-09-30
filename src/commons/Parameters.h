@@ -65,8 +65,8 @@ public:
     static const int DBTYPE_AMINO_ACIDS = 0;
     static const int DBTYPE_NUCLEOTIDES = 1;
     static const int DBTYPE_HMM_PROFILE = 2;
-    static const int DBTYPE_PROFILE_STATE_SEQ = 3;
-    static const int DBTYPE_PROFILE_STATE_PROFILE = 4;
+    //static const int DBTYPE_PROFILE_STATE_SEQ = 3;
+    //static const int DBTYPE_PROFILE_STATE_PROFILE = 4;
     static const int DBTYPE_ALIGNMENT_RES = 5;
     static const int DBTYPE_CLUSTER_RES = 6;
     static const int DBTYPE_PREFILTER_RES = 7;
@@ -943,7 +943,6 @@ public:
     std::vector<MMseqsParameter*> convertprofiledb;
     std::vector<MMseqsParameter*> sequence2profile;
     std::vector<MMseqsParameter*> result2profile;
-    std::vector<MMseqsParameter*> result2pp;
     std::vector<MMseqsParameter*> result2msa;
     std::vector<MMseqsParameter*> result2dnamsa;
     std::vector<MMseqsParameter*> convertmsa;
@@ -1013,7 +1012,6 @@ public:
     std::vector<MMseqsParameter*> createtaxdb;
     std::vector<MMseqsParameter*> profile2pssm;
     std::vector<MMseqsParameter*> profile2seq;
-    std::vector<MMseqsParameter*> profile2cs;
     std::vector<MMseqsParameter*> besthitbyset;
     std::vector<MMseqsParameter*> combinepvalbyset;
     std::vector<MMseqsParameter*> multihitdb;
@@ -1044,8 +1042,6 @@ public:
             case DBTYPE_AMINO_ACIDS: return "Aminoacid";
             case DBTYPE_NUCLEOTIDES: return "Nucleotide";
             case DBTYPE_HMM_PROFILE: return "Profile";
-            case DBTYPE_PROFILE_STATE_SEQ: return "Profile state";
-            case DBTYPE_PROFILE_STATE_PROFILE: return "Profile profile";
             case DBTYPE_ALIGNMENT_RES: return "Alignment";
             case DBTYPE_CLUSTER_RES: return "Clustering";
             case DBTYPE_PREFILTER_RES: return "Prefilter";

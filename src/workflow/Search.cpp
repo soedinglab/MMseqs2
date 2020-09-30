@@ -378,10 +378,8 @@ int search(int argc, const char **argv, const Command& command) {
                 cmd.addVariable(std::string("ALIGNMENT_PAR_" + SSTR(i)).c_str(),
                                 par.createParameterString(par.align).c_str());
             }
-            par.pca = 0.0;
             cmd.addVariable(std::string("PROFILE_PAR_" + SSTR(i)).c_str(),
                             par.createParameterString(par.result2profile).c_str());
-            par.pca = 1.0;
         }
 
         FileUtil::writeFile(tmpDir + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);

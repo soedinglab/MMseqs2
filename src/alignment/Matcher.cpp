@@ -9,9 +9,7 @@
 Matcher::Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
                  bool aaBiasCorrection, int gapOpen, int gapExtend, int zdrop)
                  : gapOpen(gapOpen), gapExtend(gapExtend), m(m), evaluer(evaluer), tinySubMat(NULL) {
-    if(Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) == false ) {
-        setSubstitutionMatrix(m);
-    }
+    setSubstitutionMatrix(m);
 
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         nuclaligner = new BandedNucleotideAligner(m, maxSeqLen, gapOpen, gapExtend, zdrop);
@@ -50,7 +48,7 @@ void Matcher::initQuery(Sequence* query){
     currentQuery = query;
     if(Parameters::isEqualDbtype(query->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
         nuclaligner->initQuery(query);
-    }else if(Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
+    }else if(Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_HMM_PROFILE)){
         aligner->ssw_init(query, query->getAlignmentProfile(), this->m);
     }else{
         aligner->ssw_init(query, this->tinySubMat, this->m);

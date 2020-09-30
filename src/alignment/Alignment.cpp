@@ -112,12 +112,6 @@ Alignment::Alignment(const std::string &querySeqDB,
         EXIT(EXIT_FAILURE);
     }
 
-    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) == false && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
-        Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
-        EXIT(EXIT_FAILURE);
-    } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
-        querySeqType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
-    }
     Debug(Debug::INFO) << "Query database size: "  << qdbr->getSize() << " type: " << Parameters::getDbTypeName(querySeqType) << "\n";
     Debug(Debug::INFO) << "Target database size: " << tdbr->getSize() << " type: " << Parameters::getDbTypeName(targetSeqType) << "\n";
 
@@ -130,11 +124,6 @@ Alignment::Alignment(const std::string &querySeqDB,
         gapOpen = par.gapOpen.nucleotides;
         gapExtend = par.gapExtend.nucleotides;
         zdrop = par.zdrop;
-    } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
-        SubstitutionMatrix s(par.scoringMatrixFile.aminoacids, 2.0, scoreBias);
-        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 219);
-        gapOpen = par.gapOpen.aminoacids;
-        gapExtend = par.gapExtend.aminoacids;
     } else {
         // keep score bias at 0.0 (improved ROC)
         // this is where profile-profile alignment drops to

@@ -473,26 +473,6 @@ Parameters::Parameters():
     result2profile.push_back(&PARAM_COMPRESSED);
     result2profile.push_back(&PARAM_V);
 
-    // result2pp
-    result2pp.push_back(&PARAM_SUB_MAT);
-    result2pp.push_back(&PARAM_E_PROFILE);
-    result2pp.push_back(&PARAM_E);
-    result2pp.push_back(&PARAM_NO_COMP_BIAS_CORR);
-    result2pp.push_back(&PARAM_WG);
-    result2pp.push_back(&PARAM_FILTER_MSA);
-    result2pp.push_back(&PARAM_FILTER_MAX_SEQ_ID);
-    result2pp.push_back(&PARAM_FILTER_QID);
-    result2pp.push_back(&PARAM_FILTER_QSC);
-    result2pp.push_back(&PARAM_FILTER_COV);
-    result2pp.push_back(&PARAM_FILTER_NDIFF);
-    result2pp.push_back(&PARAM_PCA);
-    result2pp.push_back(&PARAM_PCB);
-    result2pp.push_back(&PARAM_OMIT_CONSENSUS);
-    result2pp.push_back(&PARAM_PRELOAD_MODE);
-    result2pp.push_back(&PARAM_THREADS);
-    result2pp.push_back(&PARAM_COMPRESSED);
-    result2pp.push_back(&PARAM_V);
-
     // createtsv
     createtsv.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
     createtsv.push_back(&PARAM_TARGET_COLUMN);
@@ -597,14 +577,6 @@ Parameters::Parameters():
     profile2seq.push_back(&PARAM_COMPRESSED);
     profile2seq.push_back(&PARAM_V);
 
-    // profile2cs
-    profile2cs.push_back(&PARAM_SUB_MAT);
-//    profile2cs.push_back(&PARAM_ALPH_SIZE);
-    profile2cs.push_back(&PARAM_PCA);
-    profile2cs.push_back(&PARAM_PCB);
-    profile2cs.push_back(&PARAM_THREADS);
-    profile2cs.push_back(&PARAM_COMPRESSED);
-    profile2cs.push_back(&PARAM_V);
 
     // extract orf
     extractorfs.push_back(&PARAM_ORF_MIN_LENGTH);

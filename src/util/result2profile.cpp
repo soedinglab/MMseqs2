@@ -114,7 +114,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         std::string result;
         result.reserve((maxSequenceLength + 1) * Sequence::PROFILE_READIN_SIZE);
         char *charSequence = new char[maxSequenceLength];
-
+        // buffer for background null probability for global aa bias correction
+        float * pNullBuffer = new float[maxSequenceLength];
         std::vector<Matcher::result_t> alnResults;
         alnResults.reserve(300);
 
@@ -178,8 +179,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
             size_t filteredSetSize = res.setSize;
             if (isFiltering) {
                 filteredSetSize = filter.filter(res, static_cast<int>(par.covMSAThr * 100),
-                              static_cast<int>(par.qid * 100), par.qsc,
-                              static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
+                                                static_cast<int>(par.qid * 100), par.qsc,
+                                                static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
             }
             //MultipleAlignment::print(res, &subMat);
 
@@ -209,16 +210,21 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 for (size_t pos = 0; pos < res.centerLength; pos++) {
                     if (charSequence[pos] == xAmioAcid) {
                         for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-                            pssmRes.prob[pos * Sequence::PROFILE_AA_SIZE + aa] = subMat.pBack[aa] * 0.5;
+                            pssmRes.pssm[pos * Sequence::PROFILE_AA_SIZE + aa] = -1;
                         }
                         pssmRes.consensus[pos] = 'X';
                     }
                 }
             }
+            if (par.compBiasCorrection == true){
+                SubstitutionMatrix::calcGlobalAaBiasCorrection(&subMat, pssmRes.pssm, pNullBuffer,
+                                                               Sequence::PROFILE_AA_SIZE,
+                                                               res.centerLength);
+            }
 
             for (size_t pos = 0; pos < res.centerLength; pos++) {
                 for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-                    result.push_back(Sequence::scoreMask(pssmRes.prob[pos * Sequence::PROFILE_AA_SIZE + aa]));
+                    result.push_back(pssmRes.pssm[pos * Sequence::PROFILE_AA_SIZE + aa]);
                 }
                 // write query, consensus sequence and neffM
                 result.push_back(static_cast<unsigned char>(centerSequence.numSequence[pos]));
@@ -236,6 +242,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
             seqSet.clear();
         }
         delete[] charSequence;
+        delete[] pNullBuffer;
     }
     resultWriter.close(true);
 
@@ -287,7 +294,6 @@ int result2profile(int argc, const char **argv, const Command &command) {
     // default for result2profile filter MSA
     par.filterMsa = 1;
     // no pseudo counts
-    par.pca = 0.0;
     par.parseParameters(argc, argv, command, true, 0, 0);
     par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
     par.printParameters(command.cmd, argc, argv, *command.params);
