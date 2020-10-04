@@ -19,7 +19,7 @@ const char* binary_name = "test_pssmprune";
 
 int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, -0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, -0.0);
     std::cout << "Subustitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
@@ -58,7 +58,7 @@ int main (int, const char**) {
     MultipleAlignment::MSAResult res(strlen(seqs[0]), strlen(seqs[0]), counter, seqsCpy);
     MultipleAlignment::print(res, &subMat);
 
-    MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     msaFilter.pruneAlignment((char**)res.msaSequence, res.setSize, res.centerLength);
 
     std::cout <<"Pruned MSA" << std::endl;

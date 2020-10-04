@@ -132,14 +132,14 @@ int msa2result(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(subMat);
     // we need an evaluer to compute a normalized bitScore.
     // the validity of the evalue is questionable since we give the number of entries in the MSA db
     // and not the total number of residues
     // also, since not all against all comparisons were carried out, it is not straight-forward to
     // decide what to correct for.
-    EvalueComputation evaluer(msaReader.getSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    EvalueComputation evaluer(msaReader.getSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
 
     Debug::Progress progress(msaReader.getSize());
 #pragma omp parallel
@@ -149,7 +149,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pca, par.pcb);
+        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pcmode, par.pca, par.pcb);
         Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
         char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * (maxSeqLength + 1) * maxSetSize);
@@ -168,7 +168,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
 
         const bool maskByFirst = par.matchMode == 0;
         const float matchRatio = par.matchRatio;
-        MsaFilter filter(maxSeqLength + 1, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        MsaFilter filter(maxSeqLength + 1, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
 
         char buffer[2048];
         std::vector<Matcher::result_t> results;
@@ -434,7 +434,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
                 Matcher::result_t res(key, 0, 1.0, 1.0, seqId, 0, bt.length(), 0, consSeqNoGaps.size() - 1, consSeqNoGaps.size(), 0, currSeqNoGaps.size() - 1, currSeqNoGaps.size(), bt);
 
                 // and update them and compute the score
-                Matcher::updateResultByRescoringBacktrace(consSeqNoGaps.c_str(), currSeqNoGaps.c_str(), fastMatrix.matrix, evaluer, par.gapOpen.aminoacids, par.gapExtend.aminoacids, res);
+                Matcher::updateResultByRescoringBacktrace(consSeqNoGaps.c_str(), currSeqNoGaps.c_str(), fastMatrix.matrix, evaluer, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), res);
                 
                 results.emplace_back(res);
             }

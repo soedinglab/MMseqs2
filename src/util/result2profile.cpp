@@ -100,9 +100,9 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
     ProbabilityMatrix probMatrix(subMat);
-    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
 
     if (qDbr->getDbtype() == -1 || targetSeqType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database\n";
@@ -124,11 +124,11 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-        Matcher matcher(qDbr->getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        Matcher matcher(qDbr->getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
         MultipleAlignment aligner(maxSequenceLength, &subMat);
-        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
+        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb);
         PSSMMasker masker(maxSequenceLength, probMatrix, subMat);
-        MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
         Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
         Sequence edgeSequence(maxSequenceLength, targetSeqType, &subMat, 0, false, false);
 

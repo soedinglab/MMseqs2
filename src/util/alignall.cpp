@@ -37,14 +37,14 @@ int alignall(int argc, const char **argv, const Command &command) {
     int gapOpen, gapExtend;
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, par.scoreBias);
-        gapOpen = par.gapOpen.nucleotides;
-        gapExtend = par.gapExtend.nucleotides;
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, par.scoreBias);
+        gapOpen = par.gapOpen.values.nucleotide();
+        gapExtend = par.gapExtend.values.nucleotide();
     } else {
         // keep score bias at 0.0 (improved ROC)
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, par.scoreBias);
-        gapOpen = par.gapOpen.aminoacids;
-        gapExtend = par.gapExtend.aminoacids;
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
+        gapOpen = par.gapOpen.values.aminoacid();
+        gapExtend = par.gapExtend.values.aminoacid();
     }
 
     DBReader<unsigned int> dbr_res(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);

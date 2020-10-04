@@ -261,7 +261,7 @@ std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned in
         return "maxSeqLen";
     if (meta.seqType != dbtype)
         return "seqType";
-    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES) == false && meta.alphabetSize != par.alphabetSize.aminoacids)
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES) == false && meta.alphabetSize != par.alphabetSize.values.aminoacid())
         return "alphabetSize";
     if (meta.kmerSize != par.kmerSize)
         return "kmerSize";
@@ -269,7 +269,7 @@ std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned in
         return "maskMode";
     if (meta.spacedKmer != par.spacedKmer)
         return "spacedKmer";
-    if (par.seedScoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
+    if (par.seedScoringMatrixFile.values != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
         return "seedScoringMatrixFile";
     if (par.spacedKmerPattern != PrefilteringIndexReader::getSpacedPattern(&index))
         return "spacedKmerPattern";

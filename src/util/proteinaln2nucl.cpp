@@ -25,7 +25,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> *tdbr_nuc = NULL;
     DBReader<unsigned int> *tdbr_aa = NULL;
-//    NucleotideMatrix subMat(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
+//    NucleotideMatrix subMat(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, 0.0);
 
     bool sameDB = false;
     if (par.db1.compare(par.db2) == 0 && par.db3.compare(par.db4) == 0) {

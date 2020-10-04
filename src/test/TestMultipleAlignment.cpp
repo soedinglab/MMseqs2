@@ -20,7 +20,7 @@ int main (int, const char**) {
 
     const size_t kmer_size=6;
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
@@ -30,8 +30,8 @@ int main (int, const char**) {
     //    ReducedMatrix subMat(subMat.probMatrix, 20);
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "\n";
-    EvalueComputation evaluer(100000, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
-    Matcher * aligner = new Matcher(Parameters::DBTYPE_AMINO_ACIDS, 10000, &subMat, &evaluer, false, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    EvalueComputation evaluer(100000, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
+    Matcher * aligner = new Matcher(Parameters::DBTYPE_AMINO_ACIDS, 10000, &subMat, &evaluer, false, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     std::vector<Matcher::result_t> alnResults;
     std::vector<std::vector<unsigned char>> seqSet;
     std::cout << "Sequence (id 0):\n";
@@ -69,7 +69,7 @@ int main (int, const char**) {
 
     MultipleAlignment msaAligner(1000, &subMat);
     MultipleAlignment::MSAResult res = msaAligner.computeMSA(&s, seqSet, alnResults, true);
-    MsaFilter filter(1000, 10000, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    MsaFilter filter(1000, 10000, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     size_t filterSetSize = filter.filter(res, alnResults, 0, 0, -20.0, 50, 100);
     std::cout << "Filtered:" << filterSetSize << std::endl;
     MultipleAlignment::print(res, &subMat);

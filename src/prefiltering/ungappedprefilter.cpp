@@ -40,7 +40,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
     EvalueComputation * evaluer;
     int8_t * tinySubMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, 0.0);
         evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), subMat);
         tinySubMat = new int8_t[subMat->alphabetSize*subMat->alphabetSize];
         for (int i = 0; i < subMat->alphabetSize; i++) {
@@ -50,7 +50,7 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         }
     } else {
         // keep score bias at 0.0 (improved ROC)
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
         evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), subMat);
         tinySubMat = new int8_t[subMat->alphabetSize*subMat->alphabetSize];
         for (int i = 0; i < subMat->alphabetSize; i++) {

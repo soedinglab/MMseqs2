@@ -132,14 +132,14 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     writer.open();
 
     BacktraceTranslator translator;
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, par.scoreBias);\
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);\
 
     EvalueComputation *evaluer = NULL;
     ProbabilityMatrix *probMatrix = NULL;
     if (returnAlnRes == false) {
         probMatrix = new ProbabilityMatrix(subMat);
     } else {
-        evaluer = new EvalueComputation(cReader->getAminoAcidDBSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        evaluer = new EvalueComputation(cReader->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     }
     Debug::Progress progress(resultAbReader->getSize());
 #pragma omp parallel
@@ -162,9 +162,9 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         if (returnAlnRes == false) {
             aligner = new MultipleAlignment(par.maxSeqLen, &subMat);
             if (par.filterMsa) {
-                filter = new MsaFilter(par.maxSeqLen, 300, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+                filter = new MsaFilter(par.maxSeqLen, 300, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
             }
-            calculator = new PSSMCalculator(&subMat, par.maxSeqLen, 300, par.pca, par.pcb);
+            calculator = new PSSMCalculator(&subMat, par.maxSeqLen, 300, par.pcmode, par.pca, par.pcb);
             masker = new PSSMMasker(par.maxSeqLen, *probMatrix, subMat);
             seqSet.reserve(300);
             result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE);
@@ -254,7 +254,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     } else {
                         size_t cSeqId = cReader->getId(cSeqKey);
                         cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
-                        rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+                        rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
                         if(resultAc.score < -6){ // alignment too bad (fitted on regression benchmark EXPAND)
                             continue;
                         }

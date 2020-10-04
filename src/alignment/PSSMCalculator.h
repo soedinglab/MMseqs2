@@ -22,7 +22,8 @@ public:
         void toBuffer(Sequence& centerSequence, BaseMatrix& subMat, std::string& result);
     };
 
-    PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb);
+    PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, int pcmode,
+                   MultiParam<PseudoCounts> pca, MultiParam<PseudoCounts> pcb);
 
     ~PSSMCalculator();
 
@@ -110,8 +111,9 @@ private:
 
     void computeContextSpecificWeights(float * matchWeight, float *seqWeight, float * Neff_M, size_t queryLength, size_t setSize, const char **msaSeqs);
 
-    float pca;
-    float pcb;
+    int pcmode;
+    MultiParam<PseudoCounts> pca;
+    MultiParam<PseudoCounts> pcb;
 
     void computeConsensusSequence(unsigned char * consensusSeq, float *frequency, size_t queryLength, double *back, char *num2aa);
 

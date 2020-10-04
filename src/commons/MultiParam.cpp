@@ -1,112 +1,66 @@
 #include "MultiParam.h"
-#include <stdio.h>
-#include <cfloat>
+template <> const int NuclAA<int>::max(INT_MAX);
+template <> const std::string NuclAA<int>::constFirst = "nucl";
+template <> const std::string NuclAA<int>::parseStr = "%d";
+template <> const std::string NuclAA<int>::constSecond = "aa";
 
-#include "Util.h"
+template <> const float NuclAA<float>::max(FLT_MAX);
+template <> const std::string NuclAA<float>::constFirst = "nucl";
+template <> const std::string NuclAA<float>::parseStr = "%f";
+template <> const std::string NuclAA<float>::constSecond = "aa";
+
+template <> const std::string NuclAA<std::string>::max("INVALID");
+template <> const std::string NuclAA<std::string>::constFirst = "nucl";
+template <> const std::string NuclAA<std::string>::parseStr = "%s";
+template <> const std::string NuclAA<std::string>::constSecond = "aa";
+
+const float PseudoCounts::max(FLT_MAX);
+const std::string PseudoCounts::constFirst = "substitution";
+const std::string PseudoCounts::parseStr = "%f";
+const std::string PseudoCounts::constSecond = "context";
+
+
 
 template <typename T>
-MultiParam<T>::MultiParam(T aminoacids, T nucleotides) {
-    this->nucleotides = nucleotides;
-    this->aminoacids = aminoacids;
-}
-
-template <typename T>
-std::string MultiParam<T>::format(const MultiParam<T> &multiparam) {
-    if (multiparam.nucleotides == multiparam.aminoacids) {
-        return SSTR(multiparam.nucleotides);
-    } else {
-        return std::string("nucl:") + SSTR(multiparam.nucleotides) + ",aa:" + SSTR(multiparam.aminoacids);
-    }
-}
-
-template<>
-MultiParam<int>::MultiParam(const char* parametercstring) {
+MultiParam<T>::MultiParam(const char* parametercstring){
     if (strchr(parametercstring, ',') != NULL) {
-        if (sscanf(parametercstring, "aa:%d,nucl:%d", &aminoacids, &nucleotides) != 2 &&
-            sscanf(parametercstring, "nucl:%d,aa:%d", &nucleotides, &aminoacids) != 2) {
-            nucleotides = INT_MAX;
-            aminoacids = INT_MAX;
+        std::vector<std::string> params = Util::split(parametercstring,",");
+        if(params.size() == 2){
+            for(size_t i = 0; i < params.size();i++) {
+                if (params[i].rfind(T::constFirst +":", 0) == 0) {
+                    std::vector<std::string> pair = Util::split(params[i],":");
+                    values.first = T::max;
+                    if(pair.size() == 2) {
+                        if(assign(pair[1], values.first) != 1){
+                            values.first = T::max;
+                        }
+                    }
+                }
+                if (params[i].rfind(T::constSecond +":", 0) == 0) {
+                    std::vector<std::string> pair = Util::split(params[i],":");
+                    values.second = T::max;
+                    if(pair.size() == 2) {
+                        if(assign(pair[1], values.second)!=1){
+                            values.second = T::max;
+                        }
+                    }
+                }
+            }
+        } else {
+            values.first = T::max;
+            values.second = T::max;
         }
     } else {
-
-        if (sscanf(parametercstring, "%d", &aminoacids) != 1) {
-            nucleotides = INT_MAX;
-            aminoacids = INT_MAX;
+        if (sscanf(parametercstring, T::parseStr.c_str(), &values.second) != 1) {
+            values.first = T::max;
+            values.second = T::max;
         }
         else
-            nucleotides = aminoacids;
+            values.first = values.second;
     }
 }
 
-template<>
-MultiParam<float>::MultiParam(const char* parametercstring) {
-    if (strchr(parametercstring, ',') != NULL) {
-        if (sscanf(parametercstring, "aa:%f,nucl:%f", &aminoacids, &nucleotides) != 2 &&
-            sscanf(parametercstring, "nucl:%f,aa:%f", &nucleotides, &aminoacids) != 2) {
-            nucleotides = FLT_MAX;
-            aminoacids = FLT_MAX;
-        }
-    } else {
-
-        if (sscanf(parametercstring, "%f", &aminoacids) != 1) {
-            nucleotides = FLT_MAX;
-            aminoacids = FLT_MAX;
-        }
-        else
-            nucleotides = aminoacids;
-    }
-}
-
-
-template class MultiParam<int>;
-template class MultiParam<float>;
-
-/* explicit implementation for MultiParam<char*> */
-
-MultiParam<char*>::MultiParam(const char*  aminoacids, const char*  nucleotides) {
-    this->nucleotides = strdup(nucleotides);
-    this->aminoacids = strdup(aminoacids);
-}
-
-MultiParam<char*>::MultiParam(const char* filename) {
-    if (strchr(filename, ',') != NULL) {
-        size_t len = strlen(filename);
-        aminoacids = (char*) malloc(len * sizeof(char));
-        nucleotides = (char*) malloc(len * sizeof(char));
-        if (sscanf(filename, "aa:%[^,],nucl:%s", aminoacids, nucleotides) != 2 && sscanf(filename, "nucl:%[^,],aa:%s", nucleotides, aminoacids) != 2) {
-            free((char*)nucleotides);
-            free((char*)aminoacids);
-            nucleotides = strdup("INVALID");
-            aminoacids = strdup("INVALID");
-        }
-    } else {
-        nucleotides = strdup(filename);
-        aminoacids = strdup(filename);
-    }
-}
-
-MultiParam<char*>::~MultiParam() {
-    free(nucleotides);
-    free(aminoacids);
-}
-
-std::string MultiParam<char*>::format(const MultiParam<char*> &file) {
-    /*if (strncmp(file.nucleotides, file.aminoacids, strlen(file.aminoacids)) == 0) {
-        return file.nucleotides;
-    } else {*/
-        return std::string("nucl:") + file.nucleotides + ",aa:" + file.aminoacids;
-    //}
-}
-
-
-bool MultiParam<char*>::operator==(const char* other) const {
-    return strncmp(other, nucleotides, strlen(nucleotides)) == 0 || strncmp(other, aminoacids, strlen(aminoacids)) == 0;
-}
-
-bool MultiParam<char*>::operator==(const std::string& other) const {
-    return strncmp(other.c_str(), nucleotides, strlen(nucleotides)) == 0 || strncmp(other.c_str(), aminoacids, strlen(aminoacids)) == 0;
-}
-
-bool MultiParam<char*>::operator==(const MultiParam<char*>& other) const {
-    return strncmp(other.nucleotides, nucleotides, strlen(nucleotides)) == 0 && strncmp(other.aminoacids, aminoacids, strlen(aminoacids)) == 0;
-}
+template class MultiParam<NuclAA<int>>;
+template class MultiParam<NuclAA<float>>;
+template class MultiParam<NuclAA<std::string>>;
+template class MultiParam<PseudoCounts>;

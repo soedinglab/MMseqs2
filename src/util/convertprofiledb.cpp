@@ -146,7 +146,7 @@ int convertprofiledb(int argc, const char **argv, const Command &command) {
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
 
     size_t maxElementSize = 0;
     for (size_t i = 0; i < reader.getSize(); i++) {

@@ -70,7 +70,7 @@ int createlinindex(int argc, const char **argv, const Command& command) {
     par.maskMode = 0;
     par.spacedKmer = false;
     // VTML has a slightly lower sensitivity in the regression test
-    par.seedScoringMatrixFile = MultiParam<char*>("blosum62.out", "nucleotide.out");
+    par.seedScoringMatrixFile = MultiParam<NuclAA<std::string>>(NuclAA<std::string>("blosum62.out", "nucleotide.out"));
 
     par.PARAM_COV_MODE.addCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_C.addCategory(MMseqsParameter::COMMAND_EXPERT);

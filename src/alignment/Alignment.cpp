@@ -120,23 +120,23 @@ Alignment::Alignment(const std::string &querySeqDB,
     reversePrefilterResult = (Parameters::isEqualDbtype(prefdbr->getDbtype(), Parameters::DBTYPE_PREFILTER_REV_RES));
 
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        m = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, scoreBias);
-        gapOpen = par.gapOpen.nucleotides;
-        gapExtend = par.gapExtend.nucleotides;
+        m = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, scoreBias);
+        gapOpen = par.gapOpen.values.nucleotide();
+        gapExtend = par.gapExtend.values.nucleotide();
         zdrop = par.zdrop;
     } else {
         // keep score bias at 0.0 (improved ROC)
         // this is where profile-profile alignment drops to
-        m = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, scoreBias);
-        gapOpen = par.gapOpen.aminoacids;
-        gapExtend = par.gapExtend.aminoacids;
+        m = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, scoreBias);
+        gapOpen = par.gapOpen.values.aminoacid();
+        gapExtend = par.gapExtend.values.aminoacid();
     }
 
     if (realign == true) {
         if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-            realign_m = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, scoreBias-0.2f);
+            realign_m = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, scoreBias-0.2f);
         } else {
-            realign_m = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, scoreBias-0.2f);
+            realign_m = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, scoreBias-0.2f);
         }
     } else {
         realign_m = NULL;

@@ -110,6 +110,10 @@ public:
     static const unsigned int EXPAND_TRANSFER_EVALUE = 0;
     static const unsigned int EXPAND_RESCORE_BACKTRACE = 1;
 
+    static const unsigned int PCMODE_SUBSTITUION_SCORE = 0;
+    static const unsigned int PCMODE_CONTEXT_SPECIFIC = 1;
+
+
     static const unsigned int WRITER_ASCII_MODE = 0;
     static const unsigned int WRITER_COMPRESSED_MODE = 1;
     static const unsigned int WRITER_LEXICOGRAPHIC_MODE = 2;
@@ -333,8 +337,8 @@ public:
     const char** restArgv;
     int restArgc;
 
-    MultiParam<char*> scoringMatrixFile;       // path to scoring matrix
-    MultiParam<char*> seedScoringMatrixFile;   // seed sub. matrix
+    MultiParam<NuclAA<std::string>> scoringMatrixFile;       // path to scoring matrix
+    MultiParam<NuclAA<std::string>> seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
     int    verbosity;                    // log level
@@ -347,7 +351,7 @@ public:
     float  sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
     int    kmerScore;                    // kmer score for the prefilter
-    MultiParam<int> alphabetSize;                 // alphabet size for the prefilter
+    MultiParam<NuclAA<int>> alphabetSize;                 // alphabet size for the prefilter
     int    compBiasCorrection;           // Aminoacid composiont correction
     bool   diagonalScoring;              // switch diagonal scoring
     int    exactKmerMatching;            // only exact k-mer matching
@@ -381,8 +385,8 @@ public:
     int    alnLenThr;                    // min. alignment length
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
-    MultiParam<int> gapOpen;             // gap open cost
-    MultiParam<int> gapExtend;           // gap extension cost
+    MultiParam<NuclAA<int>> gapOpen;             // gap open cost
+    MultiParam<NuclAA<int>> gapExtend;           // gap extension cost
     int    zdrop;                        // zdrop
 
     // workflow
@@ -461,8 +465,9 @@ public:
     float covMSAThr;
     int Ndiff;
     bool wg;
-    float pca;
-    float pcb;
+    int pcmode;
+    MultiParam<PseudoCounts> pca;
+    MultiParam<PseudoCounts> pcb;
 
     // sequence2profile
     float neff;
@@ -479,7 +484,7 @@ public:
 
     // linearcluster
     int kmersPerSequence;
-    MultiParam<float> kmersPerSequenceScale;
+    MultiParam<NuclAA<float>> kmersPerSequenceScale;
     bool includeOnlyExtendable;
     bool ignoreMultiKmer;
     int hashShift;
@@ -744,6 +749,7 @@ public:
     PARAMETER(PARAM_FILTER_COV)
     PARAMETER(PARAM_FILTER_NDIFF)
     PARAMETER(PARAM_WG)
+    PARAMETER(PARAM_PC_MODE)
     PARAMETER(PARAM_PCA)
     PARAMETER(PARAM_PCB)
 
@@ -1070,7 +1076,6 @@ public:
 protected:
     Parameters();
     static Parameters* instance;
-    virtual ~Parameters() {};
 
 private:
     Parameters(Parameters const&);

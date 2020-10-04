@@ -10,7 +10,8 @@
 #include "Debug.h"
 #include "MultipleAlignment.h"
 
-PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb) :
+PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize,
+                               int pcmode, MultiParam<PseudoCounts> pca, MultiParam<PseudoCounts> pcb) :
         subMat(subMat), ps(maxSeqLength + 1) {
     this->maxSeqLength = maxSeqLength;
     this->maxSetSize = maxSetSize;
@@ -24,7 +25,6 @@ PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t m
     this->counts             = (float *) mem_align(ALIGN_FLOAT, (Sequence::PROFILE_AA_SIZE + 4) * (maxSeqLength + 1) * sizeof(float));
     memset(this->counts, 0, (Sequence::PROFILE_AA_SIZE + 4) * (maxSeqLength + 1) * sizeof(float));
     this->nseqs              = new int[maxSeqLength + 1];
-
     unsigned int NAA_ALIGNSIZE = ((((MultipleAlignment::NAA + 3) + VECSIZE_FLOAT - 1) / VECSIZE_FLOAT) * VECSIZE_FLOAT) * sizeof(float);
     NAA_ALIGNSIZE = ((NAA_ALIGNSIZE + ALIGN_FLOAT - 1) / ALIGN_FLOAT) * ALIGN_FLOAT;
     w_contrib         = new float*[maxSeqLength + 1];
@@ -40,6 +40,7 @@ PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t m
     for (size_t j = 0; j < (maxSeqLength + 2); j++) {
         n[j] = (int*)(n_backing + (NAA_ALIGNSIZE * j));
     }
+    this->pcmode = pcmode;
     this->pca = pca;
     this->pcb = pcb;
 }
@@ -81,22 +82,20 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
     }
     // compute consensus sequence
     computeConsensusSequence(consensusSequence, matchWeight, queryLength, subMat->pBack, subMat->num2aa);
-    if(pca > 0.0){
-        if(false){
-            // add pseudocounts (compute the scalar product between matchWeight and substitution matrix with pseudo counts)
-            preparePseudoCounts(matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, queryLength, (const float **) subMat->subMatrixPseudoCounts);
-            //    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->num2aa, 20 );
-            computePseudoCounts(profile, matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, Neff_M, queryLength, pca, pcb);
-        }else{
-            fillCounteProfile(counts, matchWeight, Neff_M, queryLength);
-            float * csprofile = ps.computeProfileCs(static_cast<int>(queryLength), counts, Neff_M, pca, pcb);
-            for (size_t pos = 0; pos < queryLength; pos++) {
-                for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
-                    this->profile[pos * Sequence::PROFILE_AA_SIZE + aa] = csprofile[(pos * (Sequence::PROFILE_AA_SIZE + 4)) + aa];
-                }
+    if(pcmode == Parameters::PCMODE_SUBSTITUION_SCORE && pca.values.normal() > 0.0){
+        // add pseudocounts (compute the scalar product between matchWeight and substitution matrix with pseudo counts)
+        preparePseudoCounts(matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, queryLength, (const float **) subMat->subMatrixPseudoCounts);
+        //    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->num2aa, 20 );
+        computePseudoCounts(profile, matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, Neff_M, queryLength, pca.values.normal(), pcb.values.normal());
+    }else if (pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC && pca.values.cs() > 0.0){
+        fillCounteProfile(counts, matchWeight, Neff_M, queryLength);
+        float * csprofile = ps.computeProfileCs(static_cast<int>(queryLength), counts, Neff_M, pca.values.cs(), pcb.values.cs());
+        for (size_t pos = 0; pos < queryLength; pos++) {
+            for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
+                this->profile[pos * Sequence::PROFILE_AA_SIZE + aa] = csprofile[(pos * (Sequence::PROFILE_AA_SIZE + 4)) + aa];
             }
         }
-    }else{
+    } else{
         for (size_t pos = 0; pos < queryLength; pos++) {
             for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
                 profile[pos * Sequence::PROFILE_AA_SIZE + aa] = matchWeight[pos * Sequence::PROFILE_AA_SIZE + aa];;

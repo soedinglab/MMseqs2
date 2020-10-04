@@ -27,7 +27,7 @@ void setLinsearchDefaults(Parameters *p) {
     p->evalProfile = 0.1;
 
     // VTML has a slightly lower sensitivity in the regression test
-    p->seedScoringMatrixFile = MultiParam<char*>("blosum62.out", "nucleotide.out");
+    p->seedScoringMatrixFile = MultiParam<NuclAA<std::string>>(NuclAA<std::string>("blosum62.out", "nucleotide.out"));
 }
 
 

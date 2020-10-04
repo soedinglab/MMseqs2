@@ -18,7 +18,7 @@ const char* binary_name = "test_pssm";
 
 int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
     std::cout << "Subustitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
@@ -1585,7 +1585,7 @@ int main (int, const char**) {
     MultipleAlignment::MSAResult res(122, 122, counter, seqsCpy);
     MultipleAlignment::print(res, &subMat);
 
-    MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     std::vector<Matcher::result_t> empty;
     size_t filterSetSize = msaFilter.filter(res, empty, 0, 0, -20.0f, 90, 100);
     std::cout << "Filtered:" << filterSetSize << std::endl;

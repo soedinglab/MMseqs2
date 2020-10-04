@@ -181,8 +181,8 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     } else if (par.singleStepClustering == false) {
         // save some values to restore them later
         float targetSensitivity = par.sensitivity;
-        MultiParam<int> alphabetSize = par.alphabetSize;
-        par.alphabetSize = MultiParam<int>(Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE, 5);
+        MultiParam<NuclAA<int>> alphabetSize = par.alphabetSize;
+        par.alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE, 5));
         int kmerSize = par.kmerSize;
         par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
         int maskMode = par.maskMode;
@@ -243,8 +243,8 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         cmd.execProgram(program.c_str(), par.filenames);
     } else {
         // same as above, clusthash needs a smaller alphabetsize
-        MultiParam<int> alphabetSize = par.alphabetSize;
-        par.alphabetSize = MultiParam<int>(Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE, 5);
+        MultiParam<NuclAA<int>> alphabetSize = par.alphabetSize;
+        par.alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE, 5));
         float seqIdThr = par.seqIdThr;
         par.seqIdThr = (float) Parameters::CLUST_HASH_DEFAULT_MIN_SEQ_ID / 100.0f;
         cmd.addVariable("DETECTREDUNDANCY_PAR", par.createParameterString(par.clusthash).c_str());

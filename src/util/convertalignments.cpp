@@ -238,13 +238,13 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     int gapOpen, gapExtend;
     SubstitutionMatrix * subMat= NULL;
     if (targetNucs == true && queryNucs == true && isTranslatedSearch == false) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
-        gapOpen = par.gapOpen.nucleotides;
-        gapExtend = par.gapExtend.nucleotides;
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, 0.0);
+        gapOpen = par.gapOpen.values.nucleotide();
+        gapExtend =  par.gapExtend.values.nucleotide();
     }else{
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
-        gapOpen = par.gapOpen.aminoacids;
-        gapExtend = par.gapExtend.aminoacids;
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
+        gapOpen = par.gapOpen.values.aminoacid();
+        gapExtend = par.gapExtend.values.aminoacid();
     }
     EvalueComputation *evaluer = NULL;
     bool queryProfile = false;

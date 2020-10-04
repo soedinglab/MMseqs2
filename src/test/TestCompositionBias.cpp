@@ -51,7 +51,7 @@ int main (int, const char**) {
     const size_t kmer_size = 6;
 
     Parameters& par = Parameters::getInstance();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 8.0, 0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 8.0, 0);
     std::cout << "Substitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix, subMat.num2aa, subMat.alphabetSize);
 

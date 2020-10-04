@@ -118,7 +118,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
 
     Debug::Progress progress(qDbr.getSize());
 #pragma omp parallel
@@ -128,7 +128,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pca, par.pcb);
+        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pcmode, par.pca, par.pcb);
         Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
         char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * (maxSeqLength + 1) * maxSetSize);
@@ -146,7 +146,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
         const bool maskByFirst = par.matchMode == 0;
         const float matchRatio = par.matchRatio;
-        MsaFilter filter(maxSeqLength + 1, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        MsaFilter filter(maxSeqLength + 1, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
 
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < qDbr.getSize(); ++id) {
