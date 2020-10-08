@@ -1106,7 +1106,7 @@ void copyLinkDb(const std::string &databaseName, const std::string &outDb, DBFil
                 if (idx != std::string::npos) {
                     ext = names[i].substr(idx);
                 } else {
-                    Debug(Debug::ERROR) << "File extention was not found but it is expected to be there!\n"
+                    Debug(Debug::ERROR) << "File extension was not found but it is expected to be there!\n"
                                         << "Filename: " << names[i] << ".\n";
                     EXIT(EXIT_FAILURE);
                 }

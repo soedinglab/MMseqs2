@@ -717,7 +717,7 @@ std::vector<Command> baseCommands = {
                                           {"DB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb },
                                           {"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::allDb }}},
         {"subtractdbs",          subtractdbs,          &par.subtractdbs,          COMMAND_SET,
-                "Remove all entries from first DB occuring in second DB by key",
+                "Remove all entries from first DB occurring in second DB by key",
                 NULL,
                 "Martin Steinegger <martin.steinegger@snu.ac.kr>",
                 "<i:resultDBLeft> <i:resultDBRight> <o:resultDB>",

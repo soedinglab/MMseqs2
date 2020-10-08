@@ -69,7 +69,7 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
     fi
 
     # predict NUM_SEQS_THAT_SATURATE as the average number of prefilter results per profile in previous steps
-    # this allows to increase NUM_PROFS_IN_STEP
+    # this allows one to increase NUM_PROFS_IN_STEP
     if [ "${NUM_PREF_RESULTS_IN_ALL_PREV_STEPS}" -gt 0 ]; then
         # BE MORE CAUTIOUS?
         NUM_PROFS_PROCESSED="$((FIRST_INDEX_LINE-1))"
