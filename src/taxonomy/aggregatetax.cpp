@@ -227,7 +227,7 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
         outDbStr = par.db5;
         outDbIndexStr = par.db5Index;
     } else if (par.voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL) {
-        Debug(Debug::ERROR) << "voteMode is evalue-based but no alignment databse was provided. consider calling aggregatetaxweights\n";
+        Debug(Debug::ERROR) << "voteMode is evalue-based but no alignment database was provided. consider calling aggregatetaxweights\n";
         EXIT(EXIT_FAILURE);
     }
 

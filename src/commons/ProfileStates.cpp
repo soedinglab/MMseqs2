@@ -120,7 +120,7 @@ int ProfileStates::readProfile(std::stringstream &in, float * profile,  float * 
 
     if (nalph != 20)
     {
-        Debug(Debug::WARNING) << "Alphabet size of serialized context profile should be " << 20 << " but is acutally "<< nalph <<"!\n";
+        Debug(Debug::WARNING) << "Alphabet size of serialized context profile should be " << 20 << " but is actually "<< nalph <<"!\n";
         return -1;
     }
 
