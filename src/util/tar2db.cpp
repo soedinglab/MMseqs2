@@ -6,6 +6,10 @@
 
 #include "microtar.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 #ifdef HAVE_ZLIB
 #include <zlib.h>
 static int file_gzread(mtar_t *tar, void *data, size_t size) {
@@ -29,7 +33,7 @@ int mtar_gzopen(mtar_t *tar, const char *filename) {
     tar->read = file_gzread;
     tar->seek = file_gzseek;
     tar->close = file_gzclose;
-
+    tar->isFinished = 0;
     // Open file
     tar->stream = gzopen(filename, "rb");
     if (!tar->stream) {
@@ -70,28 +74,11 @@ int tar2db(int argc, const char **argv, const Command& command) {
     std::string lookupFile = dataFile + ".lookup";
     FILE *lookup = FileUtil::openAndDelete(lookupFile.c_str(), "w");
 
-    DBWriter writer(dataFile.c_str(), indexFile.c_str(), 1, par.compressed, par.outputDbType);
+    DBWriter writer(dataFile.c_str(), indexFile.c_str(), par.threads, par.compressed, par.outputDbType);
     writer.open();
     Debug::Progress progress;
     char buffer[4096];
 
-#ifdef HAVE_ZLIB
-    const unsigned int CHUNK = 128 * 1024;
-    unsigned char in[CHUNK];
-    unsigned char out[CHUNK];
-    z_stream strm;
-    memset(&strm, 0, sizeof(z_stream));
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    strm.next_in = in;
-    strm.avail_in = 0;
-    int status = inflateInit2(&strm, 15 | 32);
-    if (status < 0) {
-        Debug(Debug::ERROR) << "Cannot initialize zlib stream\n";
-        EXIT(EXIT_FAILURE);
-    }
-#endif
 
     size_t key = 0;
     for (size_t i = 0; i < filenames.size(); i++) {
@@ -120,94 +107,132 @@ int tar2db(int argc, const char **argv, const Command& command) {
             }
         }
 
-        size_t bufferSize = 10 * 1024;
-        char* dataBuffer = (char*) malloc(bufferSize);
-
-        size_t inflateSize = 10 * 1024;
-        char* inflateBuffer = (char*) malloc(inflateSize);
-
-        mtar_header_t header;
-        while ((mtar_read_header(&tar, &header)) != MTAR_ENULLRECORD ) {
-            if (header.type != MTAR_TREG) {
-                continue;
-            }
-            progress.updateProgress();
-            if (include.isMatch(header.name) == false || exclude.isMatch(header.name) == true) {
-                key++;
-                continue;
-            }
-            if (header.size > bufferSize) {
-                bufferSize = header.size * 1.5;
-                dataBuffer = (char*)realloc(dataBuffer, bufferSize);
-            }
-            if (mtar_read_data(&tar, dataBuffer, header.size) != MTAR_ESUCCESS) {
-                Debug(Debug::ERROR) << "Cannot read entry " << header.name << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-
-            if (Util::endsWith(".gz", header.name)) {
+#pragma omp parallel shared(tar, buffer)
+        {
+            size_t bufferSize = 10 * 1024;
+            char *dataBuffer = (char *) malloc(bufferSize);
+            size_t inflateSize = 10 * 1024;
+            char *inflateBuffer = (char *) malloc(inflateSize);
+            mtar_header_t header;
 #ifdef HAVE_ZLIB
-                inflateReset(&strm);
-                writer.writeStart(0);
-                strm.avail_in = header.size;
-                strm.next_in = (unsigned char*)dataBuffer;
-                do {
-                    unsigned have;
-                    strm.avail_out = CHUNK;
-                    strm.next_out = out;
-                    int err = inflate(&strm, Z_NO_FLUSH);
-                    switch (err) {
-                        case Z_OK:
-                        case Z_STREAM_END:
-                        case Z_BUF_ERROR:
-                            break;
-                        default:
-                            inflateEnd(&strm);
-                            Debug(Debug::ERROR) << "Gzip error " << err << " entry " << header.name << "\n";
-                            EXIT(EXIT_FAILURE);
+            const unsigned int CHUNK = 128 * 1024;
+            unsigned char in[CHUNK];
+            unsigned char out[CHUNK];
+            z_stream strm;
+            memset(&strm, 0, sizeof(z_stream));
+            strm.zalloc = Z_NULL;
+            strm.zfree = Z_NULL;
+            strm.opaque = Z_NULL;
+            strm.next_in = in;
+            strm.avail_in = 0;
+            int status = inflateInit2(&strm, 15 | 32);
+            if (status < 0) {
+                Debug(Debug::ERROR) << "Cannot initialize zlib stream\n";
+                EXIT(EXIT_FAILURE);
+            }
+#endif
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+            bool proceed = true;
+            while (proceed) {
+#pragma omp critical
+                {
+                    if (tar.isFinished == 0 && (mtar_read_header(&tar, &header)) != MTAR_ENULLRECORD) {
+                        if (header.type == MTAR_TREG) {
+                            progress.updateProgress();
+                            if (include.isMatch(header.name) == false || exclude.isMatch(header.name) == true) {
+                                key++;
+                            }else{
+                                if (header.size > bufferSize) {
+                                    bufferSize = header.size * 1.5;
+                                    dataBuffer = (char *) realloc(dataBuffer, bufferSize);
+                                }
+                                if (mtar_read_data(&tar, dataBuffer, header.size) != MTAR_ESUCCESS) {
+                                    Debug(Debug::ERROR) << "Cannot read entry " << header.name << "\n";
+                                    EXIT(EXIT_FAILURE);
+                                }
+                                proceed = true;
+                                size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\t%zu\n", key,
+                                          FileUtil::baseName(header.name).c_str(), i);
+                                int written = fwrite(buffer, sizeof(char), len, lookup);
+                                if (written != (int) len) {
+                                    Debug(Debug::ERROR) << "Cannot write to lookup file " << lookupFile << "\n";
+                                    EXIT(EXIT_FAILURE);
+                                }
+                            }
+                        }
+                    } else {
+                        tar.isFinished = 1;
+                        proceed = false;
                     }
-                    have = CHUNK - strm.avail_out;
-                    writer.writeAdd((const char*)out, have, 0);
-                } while (strm.avail_out == 0);
-                writer.writeEnd(key, 0);
+                }
+                if(proceed){
+                    if (Util::endsWith(".gz", header.name)) {
+#ifdef HAVE_ZLIB
+                        inflateReset(&strm);
+                        writer.writeStart(thread_idx);
+                        strm.avail_in = header.size;
+                        strm.next_in = (unsigned char *) dataBuffer;
+                        do {
+                            unsigned have;
+                            strm.avail_out = CHUNK;
+                            strm.next_out = out;
+                            int err = inflate(&strm, Z_NO_FLUSH);
+                            switch (err) {
+                                case Z_OK:
+                                case Z_STREAM_END:
+                                case Z_BUF_ERROR:
+                                    break;
+                                default:
+                                    inflateEnd(&strm);
+                                    Debug(Debug::ERROR) << "Gzip error " << err << " entry " << header.name << "\n";
+                                    EXIT(EXIT_FAILURE);
+                            }
+                            have = CHUNK - strm.avail_out;
+                            writer.writeAdd((const char *) out, have, thread_idx);
+                        } while (strm.avail_out == 0);
+                        writer.writeEnd(key, thread_idx);
 #else
-                Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Cannot read compressed input.\n";
+                        Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Cannot read compressed input.\n";
                 EXIT(EXIT_FAILURE);
 #endif
-            } else if (Util::endsWith(".bz2", header.name)) {
+                    } else if (Util::endsWith(".bz2", header.name)) {
 #ifdef HAVE_BZLIB
-                unsigned int entrySize = inflateSize;
-                int err;
-                while ((err = BZ2_bzBuffToBuffDecompress(inflateBuffer, &entrySize, dataBuffer, header.size, 0, 0) == BZ_OUTBUFF_FULL)) {
-                    entrySize = inflateSize = inflateSize * 1.5;
-                    inflateBuffer = (char*)realloc(inflateBuffer, inflateSize);
-                }
-                if (err != BZ_OK) {
-                    Debug(Debug::ERROR) << "Could not decompress " << header.name  << "\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                writer.writeData(inflateBuffer, entrySize, key, 0);
+                        unsigned int entrySize = inflateSize;
+                        int err;
+                        while ((err = BZ2_bzBuffToBuffDecompress(inflateBuffer, &entrySize, dataBuffer, header.size, 0,
+                                                                 0) == BZ_OUTBUFF_FULL)) {
+                            entrySize = inflateSize = inflateSize * 1.5;
+                            inflateBuffer = (char *) realloc(inflateBuffer, inflateSize);
+                        }
+                        if (err != BZ_OK) {
+                            Debug(Debug::ERROR) << "Could not decompress " << header.name << "\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                        writer.writeData(inflateBuffer, entrySize, key, thread_idx);
 #else
-                Debug(Debug::ERROR) << "MMseqs2 was not compiled with bzlib support. Cannot read compressed input.\n";
+                        Debug(Debug::ERROR) << "MMseqs2 was not compiled with bzlib support. Cannot read compressed input.\n";
                 EXIT(EXIT_FAILURE);
 #endif
-            } else {
-                writer.writeData(dataBuffer, header.size, key, 0);
-            }
-            size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\t%zu\n", key, FileUtil::baseName(header.name).c_str(), i);
-            int written = fwrite(buffer, sizeof(char), len, lookup);
-            if (written != (int) len) {
-                Debug(Debug::ERROR) << "Cannot write to lookup file " << lookupFile << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-            key++;
-        }
+                    } else {
+                        writer.writeData(dataBuffer, header.size, key, thread_idx);
+                    }
 
-        free(inflateBuffer);
-        free(dataBuffer);
+                    key++;
+                }
+            }
+
+#ifdef HAVE_ZLIB
+            inflateEnd(&strm);
+#endif
+            free(inflateBuffer);
+            free(dataBuffer);
+        } // end omp
 
         mtar_close(&tar);
-    }
+    } // filename for
     if (fclose(lookup) != 0) {
         Debug(Debug::ERROR) << "Cannot close file " << lookupFile << "\n";
         EXIT(EXIT_FAILURE);
@@ -218,9 +243,6 @@ int tar2db(int argc, const char **argv, const Command& command) {
     }
     writer.close();
 
-#ifdef HAVE_ZLIB
-    inflateEnd(&strm);
-#endif
 
     return EXIT_SUCCESS;
 }

@@ -1202,6 +1202,7 @@ Parameters::Parameters():
     tar2db.push_back(&PARAM_TAR_INCLUDE);
     tar2db.push_back(&PARAM_TAR_EXCLUDE);
     tar2db.push_back(&PARAM_COMPRESSED);
+    tar2db.push_back(&PARAM_THREADS);
     tar2db.push_back(&PARAM_V);
 
     //checkSaneEnvironment();

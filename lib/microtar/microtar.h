@@ -58,6 +58,7 @@ struct mtar_t {
   int (*close)(mtar_t *tar);
   void *stream;
   size_t curr_size;
+  int isFinished;
 };
 
 
