@@ -387,6 +387,7 @@ public:
     bool   realign;                      // realign hit with more conservative score
     MultiParam<NuclAA<int>> gapOpen;             // gap open cost
     MultiParam<NuclAA<int>> gapExtend;           // gap extension cost
+    float correlationScoreWeight; // correlation score weight
     int    zdrop;                        // zdrop
 
     // workflow
@@ -694,6 +695,7 @@ public:
     PARAMETER(PARAM_MIN_SEQ_ID)
     PARAMETER(PARAM_MIN_ALN_LEN)
     PARAMETER(PARAM_SCORE_BIAS)
+    PARAMETER(PARAM_CORR_SCORE_WEIGHT)
     PARAMETER(PARAM_ALT_ALIGNMENT)
     PARAMETER(PARAM_GAP_OPEN)
     PARAMETER(PARAM_GAP_EXTEND)

@@ -145,7 +145,8 @@ public:
     // deleted unused db_length parameter at the end
     Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m,
             EvalueComputation * evaluer, bool aaBiasCorrection,
-            int gapOpen, int gapExtend, int zdrop = 40);
+            int gapOpen, int gapExtend, float correlationScoreWeight,
+            int zdrop = 40);
 
     ~Matcher();
 
@@ -229,6 +230,9 @@ private:
     int gapOpen;
     // costs to extend a gap
     int gapExtend;
+
+    // weight for the correlation score, if set to 0.0 it is turned off
+    float correlationScoreWeight;
 
     // holds values of the current active query
     Sequence * currentQuery;

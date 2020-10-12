@@ -219,22 +219,22 @@ s_align SmithWaterman::ssw_align (
         const uint8_t alignmentMode,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
         const double  evalueThr,
         EvalueComputation * evaluer,
-        const int covMode, const float covThr,
+        const int covMode, const float covThr, const float correlationScoreWeight,
         const int32_t maskLen) {
     s_align alignment;
     // check if both query and target are profiles
     if (isQueryProfile && isTargetProfile) {
         alignment = ssw_align_private<SmithWaterman::PROFILE_PROFILE>(db_consens_sequence, db_mat, db_length, backtrace, gap_open,
-                                                                       gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, maskLen);
+                                                                       gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, correlationScoreWeight, maskLen);
     } else if (isQueryProfile && !isTargetProfile) {
         alignment = ssw_align_private<SmithWaterman::PROFILE_SEQ>(db_num_sequence, db_mat, db_length, backtrace, gap_open,
-                                                                  gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, maskLen);
+                                                                  gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, correlationScoreWeight, maskLen);
     } else if (!isQueryProfile && isTargetProfile) {
         alignment = ssw_align_private<SmithWaterman::SEQ_PROFILE>(db_num_sequence, db_mat, db_length, backtrace, gap_open,
-                                                                  gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, maskLen);
+                                                                  gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, correlationScoreWeight, maskLen);
     } else {
         alignment = ssw_align_private<SmithWaterman::SEQ_SEQ>(db_num_sequence, db_mat, db_length, backtrace, gap_open,
-                                                              gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, maskLen);
+                                                              gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, correlationScoreWeight, maskLen);
     }
     return alignment;
 }
@@ -250,7 +250,7 @@ s_align SmithWaterman::ssw_align_private (
 		const uint8_t alignmentMode,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
 		const double  evalueThr,
 		EvalueComputation * evaluer,
-		const int covMode, const float covThr,
+		const int covMode, const float covThr, const float correlationScoreWeight,
 		const int32_t maskLen) {
 
 	int32_t word = 0, query_length = profile->query_length;
@@ -416,7 +416,6 @@ s_align SmithWaterman::ssw_align_private (
         computerBacktrace<SUBSTITUTIONMATRIX>(profile, db_sequence, r, backtrace, aaIds, scorePerCol, mStateCnt);
     }
     r.identicalAACnt = aaIds;
-    float correlationScoreWeight = 0.01;
     if(correlationScoreWeight > 0.0){
         int correlationScore = computeCorrelationScore(scorePerCol, mStateCnt);
         r.score1 += static_cast<float>(correlationScore) * correlationScoreWeight;

@@ -7,8 +7,8 @@
 
 
 Matcher::Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
-                 bool aaBiasCorrection, int gapOpen, int gapExtend, int zdrop)
-                 : gapOpen(gapOpen), gapExtend(gapExtend), m(m), evaluer(evaluer), tinySubMat(NULL) {
+                 bool aaBiasCorrection, int gapOpen, int gapExtend, float correlationScoreWeight, int zdrop)
+                 : gapOpen(gapOpen), gapExtend(gapExtend), correlationScoreWeight(correlationScoreWeight), m(m), evaluer(evaluer), tinySubMat(NULL)  {
     setSubstitutionMatrix(m);
 
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
@@ -80,7 +80,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
         if (isIdentity == false) {
             alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->numConsensusSequence, dbSeq->getAlignmentProfile(), dbSeq->L, backtrace,
                                            gapOpen, gapExtend, alignmentMode, evalThr,
-                                           evaluer, covMode, covThr, maskLen);
+                                           evaluer, covMode, covThr, correlationScoreWeight, maskLen);
         } else {
             alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode, backtrace);
         }

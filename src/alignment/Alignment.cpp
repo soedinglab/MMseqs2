@@ -118,7 +118,7 @@ Alignment::Alignment(const std::string &querySeqDB,
     prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     reversePrefilterResult = (Parameters::isEqualDbtype(prefdbr->getDbtype(), Parameters::DBTYPE_PREFILTER_REV_RES));
-
+    correlationScoreWeight = par.correlationScoreWeight;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         m = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, scoreBias);
         gapOpen = par.gapOpen.values.nucleotide();
@@ -281,12 +281,12 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
             Matcher matcher(querySeqType, targetSeqType,
                                 (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ? maxSeqLen : std::max(tdbr->getMaxSeqLen(), qdbr->getMaxSeqLen()),
-                                 m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
+                                 m, &evaluer, compBiasCorrection, gapOpen, gapExtend, correlationScoreWeight, zdrop);
             Matcher *realigner = NULL;
             if (realign ==  true && wrappedScoring == false) {
                 realigner = new Matcher(querySeqType, targetSeqType,
                                        (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ? maxSeqLen : std::max(tdbr->getMaxSeqLen(), qdbr->getMaxSeqLen()),
-                                       realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
+                                       realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend, 0.0, zdrop);
             }
 
             std::vector<Matcher::result_t> swResults;

@@ -129,7 +129,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-        Matcher matcher(qDbr.getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
+        Matcher matcher(qDbr.getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0);
         MultipleAlignment aligner(maxSequenceLength, &subMat);
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());

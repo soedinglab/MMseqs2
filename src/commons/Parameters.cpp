@@ -68,6 +68,7 @@ Parameters::Parameters():
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID, "--min-seq-id", "Seq. id. threshold", "List matches above this sequence identity (for clustering) (range 0.0-1.0)", typeid(float), (void *) &seqIdThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_MIN_ALN_LEN(PARAM_MIN_ALN_LEN_ID, "--min-aln-len", "Min alignment length", "Minimum alignment length (range 0-INT_MAX)", typeid(int), (void *) &alnLenThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID, "--score-bias", "Score bias", "Score bias when computing SW alignment (in bits)", typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_CORR_SCORE_WEIGHT(PARAM_CORR_SCORE_WEIGHT_ID, "--corr-score-weight", "Correlation score weight", "Weight of backtrace correlation score that is added to the alignment score", typeid(float), (void *) &correlationScoreWeight, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID, "--alt-ali", "Alternative alignments", "Show up to this many alternative alignments", typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID, "--gap-open", "Gap open cost", "Gap open cost", typeid(MultiParam<NuclAA<int>>), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID, "--gap-extend", "Gap extension cost", "Gap extension cost", typeid(MultiParam<NuclAA<int>>), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
@@ -335,6 +336,7 @@ Parameters::Parameters():
     align.push_back(&PARAM_PCA);
     align.push_back(&PARAM_PCB);
     align.push_back(&PARAM_SCORE_BIAS);
+    align.push_back(&PARAM_CORR_SCORE_WEIGHT);
     align.push_back(&PARAM_GAP_OPEN);
     align.push_back(&PARAM_GAP_EXTEND);
     align.push_back(&PARAM_ZDROP);
@@ -2032,6 +2034,7 @@ void Parameters::setDefaults() {
     clusterSteps = 3;
     preloadMode = 0;
     scoreBias = 0.0;
+    correlationScoreWeight = 0.0;
 
     // affinity clustering
     maxIteration=1000;
