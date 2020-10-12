@@ -175,10 +175,10 @@ case "${SELECTION}" in
     "eggNOG")
         if notExists "${TMP_PATH}/download.done"; then
             date "+%s" > "${TMP_PATH}/version"
-            downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/2/2_raw_algs.tar" "${TMP_PATH}/bacteria"
-            downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/2157/2157_raw_algs.tar" "${TMP_PATH}/archea"
-            downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/2759/2759_raw_algs.tar" "${TMP_PATH}/eukaryota"
-            downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/10239/10239_raw_algs.tar" "${TMP_PATH}/viruses"
+            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2/2_raw_algs.tar" "${TMP_PATH}/bacteria"
+            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2157/2157_raw_algs.tar" "${TMP_PATH}/archea"
+            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2759/2759_raw_algs.tar" "${TMP_PATH}/eukaryota"
+            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/10239/10239_raw_algs.tar" "${TMP_PATH}/viruses"
             touch "${TMP_PATH}/download.done"
         fi
         INPUT_TYPE="eggNOG"
