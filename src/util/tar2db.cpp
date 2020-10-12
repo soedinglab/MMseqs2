@@ -126,7 +126,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
             strm.next_in = in;
             strm.avail_in = 0;
             int status = inflateInit2(&strm, 15 | 32);
-            size_t currentKey;
+            size_t currentKey = 0;
             if (status < 0) {
                 Debug(Debug::ERROR) << "Cannot initialize zlib stream\n";
                 EXIT(EXIT_FAILURE);
