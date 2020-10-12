@@ -80,7 +80,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
     char buffer[4096];
 
 
-    size_t key = 0;
+    size_t globalKey = 0;
     for (size_t i = 0; i < filenames.size(); i++) {
         size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\n", i, FileUtil::baseName(filenames[i]).c_str());
         int written = fwrite(buffer, sizeof(char), len, source);
@@ -126,6 +126,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
             strm.next_in = in;
             strm.avail_in = 0;
             int status = inflateInit2(&strm, 15 | 32);
+            size_t currentKey;
             if (status < 0) {
                 Debug(Debug::ERROR) << "Cannot initialize zlib stream\n";
                 EXIT(EXIT_FAILURE);
@@ -137,13 +138,15 @@ int tar2db(int argc, const char **argv, const Command& command) {
 #endif
             bool proceed = true;
             while (proceed) {
+                bool writeEntry = true;
 #pragma omp critical
                 {
                     if (tar.isFinished == 0 && (mtar_read_header(&tar, &header)) != MTAR_ENULLRECORD) {
                         if (header.type == MTAR_TREG) {
                             progress.updateProgress();
                             if (include.isMatch(header.name) == false || exclude.isMatch(header.name) == true) {
-                                key++;
+                                __sync_fetch_and_add(&(globalKey), 1);
+                                writeEntry = false;
                             }else{
                                 if (header.size > bufferSize) {
                                     bufferSize = header.size * 1.5;
@@ -154,7 +157,9 @@ int tar2db(int argc, const char **argv, const Command& command) {
                                     EXIT(EXIT_FAILURE);
                                 }
                                 proceed = true;
-                                size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\t%zu\n", key,
+                                currentKey = __sync_fetch_and_add(&(globalKey), 1);
+
+                                size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\t%zu\n", currentKey,
                                           FileUtil::baseName(header.name).c_str(), i);
                                 int written = fwrite(buffer, sizeof(char), len, lookup);
                                 if (written != (int) len) {
@@ -166,9 +171,10 @@ int tar2db(int argc, const char **argv, const Command& command) {
                     } else {
                         tar.isFinished = 1;
                         proceed = false;
+                        writeEntry = false;
                     }
                 }
-                if(proceed){
+                if(proceed && writeEntry){
                     if (Util::endsWith(".gz", header.name)) {
 #ifdef HAVE_ZLIB
                         inflateReset(&strm);
@@ -193,7 +199,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
                             have = CHUNK - strm.avail_out;
                             writer.writeAdd((const char *) out, have, thread_idx);
                         } while (strm.avail_out == 0);
-                        writer.writeEnd(key, thread_idx);
+                        writer.writeEnd(currentKey, thread_idx);
 #else
                         Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Cannot read compressed input.\n";
                 EXIT(EXIT_FAILURE);
@@ -211,16 +217,15 @@ int tar2db(int argc, const char **argv, const Command& command) {
                             Debug(Debug::ERROR) << "Could not decompress " << header.name << "\n";
                             EXIT(EXIT_FAILURE);
                         }
-                        writer.writeData(inflateBuffer, entrySize, key, thread_idx);
+                        writer.writeData(inflateBuffer, entrySize, currentKey, thread_idx);
 #else
                         Debug(Debug::ERROR) << "MMseqs2 was not compiled with bzlib support. Cannot read compressed input.\n";
                 EXIT(EXIT_FAILURE);
 #endif
                     } else {
-                        writer.writeData(dataBuffer, header.size, key, thread_idx);
+                        writer.writeData(dataBuffer, header.size, currentKey, thread_idx);
                     }
 
-                    key++;
                 }
             }
 
@@ -246,3 +251,4 @@ int tar2db(int argc, const char **argv, const Command& command) {
 
     return EXIT_SUCCESS;
 }
+
