@@ -930,7 +930,7 @@ std::vector<Command> baseCommands = {
                                           {"targetOrfDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                           {"alnDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::alignmentDb },
                                           {"alnDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb }}},
-        {"proteinaln2nucl",      proteinaln2nucl,      &par.threadsandcompression,COMMAND_RESULT,
+        {"proteinaln2nucl",      proteinaln2nucl,      &par.proteinaln2nucl,      COMMAND_RESULT,
                 "Transform protein alignments to nucleotide alignments",
                 NULL,
                 "Martin Steinegger <martin.steinegger@snu.ac.kr> ",

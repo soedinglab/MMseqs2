@@ -790,6 +790,14 @@ Parameters::Parameters():
     offsetalignment.push_back(&PARAM_PRELOAD_MODE);
     offsetalignment.push_back(&PARAM_V);
 
+    // proteinaln2nucl
+    proteinaln2nucl.push_back(&PARAM_SUB_MAT);
+    proteinaln2nucl.push_back(&PARAM_GAP_OPEN);
+    proteinaln2nucl.push_back(&PARAM_GAP_EXTEND);
+    proteinaln2nucl.push_back(&PARAM_THREADS);
+    proteinaln2nucl.push_back(&PARAM_COMPRESSED);
+    proteinaln2nucl.push_back(&PARAM_V);
+
     // tsv2db
     tsv2db.push_back(&PARAM_INCLUDE_IDENTITY);
     tsv2db.push_back(&PARAM_OUTPUT_DBTYPE);
