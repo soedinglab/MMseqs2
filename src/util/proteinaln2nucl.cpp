@@ -174,7 +174,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
                         newBacktrace.push_back(res.backtrace[pos]);
                     }
                 }
-                res.score = score;
+                res.score = evaluer.computeBitScore(score);
                 res.eval = evaluer.computeEvalue(score, nuclQuerySeqLen);
                 res.backtrace = newBacktrace;
                 res.seqId = static_cast<float>(idCnt) / static_cast<float>(alnLen);
