@@ -174,6 +174,7 @@ Parameters::Parameters():
         // splitsequence
         PARAM_SEQUENCE_OVERLAP(PARAM_SEQUENCE_OVERLAP_ID, "--sequence-overlap", "Overlap between sequences", "Overlap between sequences", typeid(int), (void *) &sequenceOverlap, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_SEQUENCE_SPLIT_MODE(PARAM_SEQUENCE_SPLIT_MODE_ID, "--sequence-split-mode", "Sequence split mode", "Sequence split mode 0: copy data, 1: soft link data and write new index,", typeid(int), (void *) &sequenceSplitMode, "^[0-1]{1}$"),
+        PARAM_HEADER_SPLIT_MODE(PARAM_HEADER_SPLIT_MODE_ID, "--headers-split-mode", "Header split mode", "Header split mode: 0: split position, 1: original header", typeid(int), (void *) &headerSplitMode, "^[0-1]{1}$"),
         // gff2db
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID, "--gff-type", "GFF type", "Type in the GFF file to filter by", typeid(std::string), (void *) &gffType, ""),
         // translatenucs
@@ -648,6 +649,7 @@ Parameters::Parameters():
     splitsequence.push_back(&PARAM_MAX_SEQ_LEN);
     splitsequence.push_back(&PARAM_SEQUENCE_OVERLAP);
     splitsequence.push_back(&PARAM_SEQUENCE_SPLIT_MODE);
+    splitsequence.push_back(&PARAM_HEADER_SPLIT_MODE);
     splitsequence.push_back(&PARAM_CREATE_LOOKUP);
     splitsequence.push_back(&PARAM_THREADS);
     splitsequence.push_back(&PARAM_COMPRESSED);
@@ -2125,6 +2127,7 @@ void Parameters::setDefaults() {
     // split sequence
     sequenceOverlap = 0;
     sequenceSplitMode = Parameters::SEQUENCE_SPLIT_MODE_SOFT;
+    headerSplitMode = 0;
 
     // convert2fasta
     useHeaderFile = false;
