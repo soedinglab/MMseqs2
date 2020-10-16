@@ -81,6 +81,8 @@ int splitsequence(int argc, const char **argv, const Command& command) {
             char* header = headerReader.getData(i, thread_idx);
             size_t headerLen = headerReader.getEntryLen(i) - 1;
             Orf::SequenceLocation loc;
+            loc.id = UINT_MAX;
+            loc.strand = Orf::STRAND_PLUS;
             size_t from = 0;
             unsigned int dbKey = key;
             if (par.headerSplitMode == 0) {
