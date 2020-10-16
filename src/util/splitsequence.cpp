@@ -82,13 +82,14 @@ int splitsequence(int argc, const char **argv, const Command& command) {
             size_t headerLen = headerReader.getEntryLen(i) - 1;
             Orf::SequenceLocation loc;
             size_t from = 0;
+            unsigned int dbKey = key;
             if (par.headerSplitMode == 0) {
                 loc = Orf::parseOrfHeader(header);
                 if (loc.id != UINT_MAX) {
-                    from = (loc.strand==Orf::STRAND_MINUS)? loc.to : loc.from;
+                    from = (loc.strand == Orf::STRAND_MINUS) ? loc.to : loc.from;
+                    dbKey = loc.id;
                 }
             }
-            unsigned int dbKey = (loc.id != UINT_MAX) ? loc.id : key;
             size_t splitCnt = (size_t) ceilf(static_cast<float>(seqLen) / static_cast<float>(par.maxSeqLen - sequenceOverlap));
 
             for (size_t split = 0; split < splitCnt; split++) {
