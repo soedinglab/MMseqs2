@@ -93,6 +93,9 @@ public:
     static NcbiTaxonomy * openTaxonomy(std::string & database);
 
     std::vector<TaxonNode> taxonNodes;
+
+    TaxID taxIdAtRank(int taxId, std::string &rank);
+    void makeTaxIdListAtRank(std::vector<int> & taxIdList, std::vector<int> & taxIdListAtRank, std::string rank);
 private:
     size_t loadNodes(const std::string &nodesFile);
     size_t loadMerged(const std::string &mergedFile);
