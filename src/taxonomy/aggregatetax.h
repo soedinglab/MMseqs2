@@ -75,6 +75,8 @@ struct taxNode {
 
 TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *taxonomy, const float majorityCutoff,
                        size_t &numAssignedSeqs, size_t &numUnassignedSeqs, size_t &numSeqsAgreeWithSelectedTaxon, double &selectedPercent);
+TaxID selectLcaFromTaxIdList(const std::vector<int> & taxIdList, NcbiTaxonomy const & taxonomy, const float majorityCutoff,
+                             size_t &numAssignedSeqs, size_t &numUnassignedSeqs, size_t &numSeqsAgreeWithSelectedTaxon, double &selectedPercent);
 int aggregate(const bool useAln, int argc, const char **argv, const Command& command);
 int aggregatetaxweights(int argc, const char **argv, const Command& command);
 int aggregatetax(int argc, const char **argv, const Command& command);

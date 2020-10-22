@@ -1,76 +1,100 @@
-#include "NcbiTaxonomy.h"
-#include "Parameters.h"
-#include "DBWriter.h"
-#include "FileUtil.h"
-#include "Debug.h"
-#include "Util.h"
-#include "Matcher.h"
-#include <map>
-#include <algorithm>
+#include "aggregatetax.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
+TaxID selectLcaFromTaxIdList(const std::vector<int> & taxIdList, NcbiTaxonomy const & taxonomy, const float majorityCutoff,
+                             size_t &numAssignedSeqs, size_t &numUnassignedSeqs, size_t &numSeqsAgreeWithSelectedTaxon, double &selectedPercent){
+    std::map<TaxID,taxNode> ancTaxIdsCounts;
 
-const double MAX_WEIGHT = 1000;
-const TaxID ROOT_TAXID = 1;
-const int ROOT_RANK = INT_MAX;
+    numAssignedSeqs = 0;
+    numUnassignedSeqs = 0;
+    numSeqsAgreeWithSelectedTaxon = 0;
+    selectedPercent = 0;
+    double totalAssignedSeqsWeights = 0.0;
 
-struct taxHit {
-    void setByEntry(const TaxID & taxonInput, const bool useAln, const char ** taxHitData, const size_t numCols, const int voteMode) {
-        taxon = taxonInput;
-        evalue = 1.0;
-        weight = 0.0;
-
-        // if voteMode is evalue-based, all tax-assigned sequences should have alignment info...
-        if ((taxon != 0) && (numCols < Matcher::ALN_RES_WITHOUT_BT_COL_CNT) && (useAln == true)) {
-            Debug(Debug::ERROR) << "voteMode is evalue-based but taxonid: " << taxon << " does not have alignment info.\n";
+    for (size_t i = 0; i < taxIdList.size(); ++i) {
+        TaxID currTaxId = taxIdList[i];
+        double currWeight = 1;
+        // ignore unassigned sequences
+        if (currTaxId == 0) {
+            numUnassignedSeqs++;
+            continue;
+        }
+        TaxonNode const * node = taxonomy.taxonNode(currTaxId, false);
+        if (node == NULL) {
+            Debug(Debug::ERROR) << "taxonid: " << currTaxId << " does not match a legal taxonomy node.\n";
             EXIT(EXIT_FAILURE);
         }
+        totalAssignedSeqsWeights += currWeight;
+        numAssignedSeqs++;
 
-        // extract from alignment info
-        if (useAln == true) {
-            evalue = strtod(taxHitData[3],NULL);
+        // each start of a path due to an orf is a candidate
+        if (ancTaxIdsCounts.find(currTaxId) != ancTaxIdsCounts.end()) { //원소가 있다면
+            ancTaxIdsCounts[currTaxId].update(currWeight, 0);
+        } else {
+            taxNode currNode;
+            currNode.set(currWeight, true, 0);
+            ancTaxIdsCounts.insert(std::pair<TaxID,taxNode>(currTaxId, currNode));
         }
 
-        // update weight according to mode
-        if (voteMode == Parameters::AGG_TAX_UNIFORM) {
-            weight = 1.0;
-        } else if (voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL) {
-            if (evalue > 0) {
-                weight = -log(evalue);
+        // iterate all ancestors up to root (including). add currWeight and candidate status to each
+        TaxID currParentTaxId = node->parentTaxId;
+        while (currParentTaxId != currTaxId) {
+            if (ancTaxIdsCounts.find(currParentTaxId) != ancTaxIdsCounts.end()) {
+                ancTaxIdsCounts[currParentTaxId].update(currWeight, currTaxId);
             } else {
-                weight = MAX_WEIGHT;
+                taxNode currParentNode;
+                currParentNode.set(currWeight, false, currTaxId);
+                ancTaxIdsCounts.insert(std::pair<TaxID,taxNode>(currParentTaxId, currParentNode));
+            }
+            // move up:
+            currTaxId = currParentTaxId;
+            node = taxonomy.taxonNode(currParentTaxId, false);
+            currParentTaxId = node->parentTaxId;
+        }
+    }
+
+    // select the lowest ancestor that meets the cutoff
+    int minRank = INT_MAX;
+    TaxID selctedTaxon = 0;
+
+    for (std::map<TaxID,taxNode>::iterator it = ancTaxIdsCounts.begin(); it != ancTaxIdsCounts.end(); it++) {
+        // consider only candidates:
+        if (!(it->second.isCandidate)) {
+            continue;
+        }
+
+        double currPercent = float(it->second.weight) / totalAssignedSeqsWeights;
+        if (currPercent >= majorityCutoff) {
+            // iterate all ancestors to find lineage min rank (the candidate is a descendant of a node with this rank)
+            TaxID currTaxId = it->first;
+            TaxonNode const * node = taxonomy.taxonNode(currTaxId, false);
+            int currMinRank = ROOT_RANK;
+            TaxID currParentTaxId = node->parentTaxId;
+            while (currParentTaxId != currTaxId) {
+                int currRankInd = NcbiTaxonomy::findRankIndex(node->rank);
+                if ((currRankInd > 0) && (currRankInd < currMinRank)) {
+                    currMinRank = currRankInd;
+                    // the rank can only go up on the way to the root, so we can break
+                    break;
+                }
+                // move up:
+                currTaxId = currParentTaxId;
+                node = taxonomy.taxonNode(currParentTaxId, false);
+                currParentTaxId = node->parentTaxId;
+            }
+
+            if ((currMinRank < minRank) || ((currMinRank == minRank) && (currPercent > selectedPercent))) {
+                selctedTaxon = it->first;
+                minRank = currMinRank;
+                selectedPercent = currPercent;
             }
         }
     }
 
-    TaxID taxon;
-    double evalue;
-    double weight;
-};
-
-struct taxNode {
-    void set(const double weightInput, const bool isCandidateInput, const TaxID & childTaxonInput) {
-        weight = weightInput;
-        isCandidate = isCandidateInput;
-        childTaxon = childTaxonInput;
-    }
-
-    void update(const double weightToAdd, const TaxID & childTaxonInput) {
-        if (childTaxon != childTaxonInput) {
-            isCandidate = true;
-            childTaxon = childTaxonInput;
-        }
-        weight += weightToAdd;
-    }
-
-    // these will be filled when iterating over all contributing lineages
-    double weight;
-    bool isCandidate;
-    TaxID childTaxon;
-};
-
+    return selctedTaxon;
+}
 TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *taxonomy, const float majorityCutoff, 
                         size_t &numAssignedSeqs, size_t &numUnassignedSeqs, size_t &numSeqsAgreeWithSelectedTaxon, double &selectedPercent) {
     // count num occurences of each ancestor, possibly weighted 
@@ -100,7 +124,7 @@ TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *t
         numAssignedSeqs++;
 
         // each start of a path due to an orf is a candidate
-        if (ancTaxIdsCounts.find(currTaxId) != ancTaxIdsCounts.end()) {
+        if (ancTaxIdsCounts.find(currTaxId) != ancTaxIdsCounts.end()) { //원소가 있다면
             ancTaxIdsCounts[currTaxId].update(currWeight, 0);
         } else {
             taxNode currNode;
@@ -131,7 +155,7 @@ TaxID selectTaxForSet (const std::vector<taxHit> &setTaxa, NcbiTaxonomy const *t
 
     for (std::map<TaxID,taxNode>::iterator it = ancTaxIdsCounts.begin(); it != ancTaxIdsCounts.end(); it++) {
         // consider only candidates:
-        if (it->second.isCandidate == false) {
+        if (!(it->second.isCandidate)) {
             continue;
         }
 

@@ -6,6 +6,7 @@ set(taxonomy_header_files
 
 set(taxonomy_source_files
         taxonomy/lca.cpp
+        taxonomy/aggregatetax.h
         taxonomy/addtaxonomy.cpp
         taxonomy/NcbiTaxonomy.cpp
         taxonomy/filtertaxdb.cpp
