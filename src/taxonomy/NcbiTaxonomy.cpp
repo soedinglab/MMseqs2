@@ -309,6 +309,24 @@ std::vector<std::string> NcbiTaxonomy::AtRanks(TaxonNode const *node, const std:
     }
     return result;
 }
+TaxID NcbiTaxonomy::taxIdAtRank(int taxId, std::string &rank) {
+    int rankIndex = findRankIndex(rank);
+    const TaxonNode * curNode = taxonNode(taxId, true);
+    TaxID result;
+    while (findRankIndex(taxonNode(curNode->parentTaxId, true)->rank) <= rankIndex)
+    {
+        curNode = taxonNode(curNode->parentTaxId,true);
+    }
+    result = curNode->taxId;
+    return result;
+}
+
+void NcbiTaxonomy::makeTaxIdListAtRank(std::vector<int> & taxIdList, std::vector<int> & taxIdListAtRank, std::string rank){
+    size_t sizeOfList = taxIdList.size();
+    for(size_t i = 0; i < sizeOfList; i ++){
+        taxIdListAtRank[i] = taxIdAtRank(taxIdList[i], rank);
+    }
+}
 
 std::vector<std::string> NcbiTaxonomy::parseRanks(const std::string& ranks) {
     std::vector<std::string> temp = Util::split(ranks, ",");
