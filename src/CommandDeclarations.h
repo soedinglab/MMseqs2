@@ -56,6 +56,7 @@ extern int kmermatcher(int argc, const char **argv, const Command &command);
 extern int kmersearch(int argc, const char **argv, const Command &command);
 extern int kmerindexdb(int argc, const char **argv, const Command &command);
 extern int lca(int argc, const char **argv, const Command& command);
+extern int lcaalign(int argc, const char **argv, const Command& command);
 extern int taxonomyreport(int argc, const char **argv, const Command& command);
 extern int linclust(int argc, const char **argv, const Command& command);
 extern int map(int argc, const char **argv, const Command& command);

@@ -21,8 +21,7 @@ set(GENERATED_WORKFLOWS
         workflow/enrich.sh
         workflow/blastn.sh
         workflow/searchslicedtargetprofile.sh
-        workflow/lcaapprox2blca.sh
-        workflow/lcatophit.sh
+        workflow/taxonomy.sh
         workflow/linsearch.sh
         workflow/databases.sh
         workflow/nucleotide_clustering.sh

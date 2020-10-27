@@ -11,6 +11,7 @@
 #include "FileUtil.h"
 #include "Parameters.h"
 #include "FastSort.h"
+#include "Sequence.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -18,12 +19,12 @@
 
 Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeqDB,
                      const std::string &prefDB, const std::string &prefDBIndex,
-                     const std::string &outDB, const std::string &outDBIndex, const Parameters &par) :
+                     const std::string &outDB, const std::string &outDBIndex, const Parameters &par, const bool lcaAlign) :
         covThr(par.covThr), canCovThr(par.covThr), covMode(par.covMode), seqIdMode(par.seqIdMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
         alnLenThr(par.alnLenThr), includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign), scoreBias(par.scoreBias), realignScoreBias(par.realignScoreBias), realignMaxSeqs(par.realignMaxSeqs),
         threads(static_cast<unsigned int>(par.threads)), compressed(par.compressed), outDB(outDB), outDBIndex(outDBIndex),
-        maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), qdbr(NULL), qDbrIdx(NULL),
-        tdbr(NULL), tDbrIdx(NULL) {
+        maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), maxAccept(static_cast<unsigned int>(par.maxAccept)), maxReject(static_cast<unsigned int>(par.maxRejected)), wrappedScoring(par.wrappedScoring),
+        lcaAlign(lcaAlign), qdbr(NULL), qDbrIdx(NULL), tdbr(NULL), tDbrIdx(NULL) {
     unsigned int alignmentMode = par.alignmentMode;
     if (alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED) {
         Debug(Debug::ERROR) << "Use rescorediagonal for ungapped alignment mode.\n";
@@ -34,12 +35,19 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     }
 
+    if (lcaAlign == true) {
+        lcaSwMode = initSWMode(std::max(alignmentMode, (unsigned int)Parameters::ALIGNMENT_MODE_SCORE_ONLY), 0.0f, 0.0f);
+        realign = true;
+        realignScoreBias = 0.0f;
+        realignMaxSeqs = 1;
+    }
+
     if (realign == true) {
-        realignSwMode = initSWMode(std::max(alignmentMode, Parameters::ALIGNMENT_MODE_SCORE_COV), 0.0f, 0.0f);
+        realignSwMode = initSWMode(std::max(alignmentMode, (unsigned int)Parameters::ALIGNMENT_MODE_SCORE_COV), 0.0f, 0.0f);
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_ONLY;
         realignCov = par.covThr;
         covThr = 0.0;
-        if (addBacktrace == false) {
+        if (addBacktrace == false && lcaAlign == false) {
             Debug(Debug::WARNING) << "Turn on backtrace for realign.\n";
             addBacktrace = true;
         }
@@ -70,11 +78,26 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
 //            Debug(Debug::ERROR) << "Alternative alignments do not supported realignment.\n";
 //            EXIT(EXIT_FAILURE);
 //        }
-        alignmentMode = std::max(alignmentMode, Parameters::ALIGNMENT_MODE_SCORE_COV);
+        alignmentMode = std::max(alignmentMode, (unsigned int)Parameters::ALIGNMENT_MODE_SCORE_COV);
     }
-    swMode = initSWMode(alignmentMode, par.covThr, par.seqIdThr);
+    swMode = initSWMode(lcaAlign ? lcaSwMode : alignmentMode, par.covThr, par.seqIdThr);
+    // print out mode and check for errors
+    switch (swMode) {
+        case Matcher::SCORE_ONLY:
+            Debug(Debug::INFO) << "Compute score only\n";
+            break;
+        case Matcher::SCORE_COV:
+            Debug(Debug::INFO) << "Compute score and coverage\n";
+            break;
+        case Matcher::SCORE_COV_SEQID:
+            Debug(Debug::INFO) << "Compute score, coverage and sequence identity\n";
+            break;
+        default:
+            Debug(Debug::ERROR) << "Wrong swMode mode\n";
+            EXIT(EXIT_FAILURE);
+    }
 
-    if (par.wrappedScoring) {
+    if (wrappedScoring) {
         maxSeqLen = maxSeqLen * 2;
         if (!Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
             Debug(Debug::ERROR) << "Wrapped scoring is only supported for nucleotides\n";
@@ -136,14 +159,13 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         gapExtend = par.gapExtend.aminoacids;
     }
 
-    if (realign == true) {
+    realign_m = NULL;
+    if (realign == true && realignScoreBias != 0.0f) {
         if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
             realign_m = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, scoreBias + realignScoreBias);
         } else {
             realign_m = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, scoreBias + realignScoreBias);
         }
-    } else {
-        realign_m = NULL;
     }
 }
 
@@ -170,26 +192,11 @@ unsigned int Alignment::initSWMode(unsigned int alignmentMode, float covThr, flo
             break;
     }
 
-    // print out mode and check for errors
-    switch (swMode) {
-        case Matcher::SCORE_ONLY:
-            Debug(Debug::INFO) << "Compute score only\n";
-            break;
-        case Matcher::SCORE_COV:
-            Debug(Debug::INFO) << "Compute score and coverage\n";
-            break;
-        case Matcher::SCORE_COV_SEQID:
-            Debug(Debug::INFO) << "Compute score, coverage and sequence identity\n";
-            break;
-        default:
-            Debug(Debug::ERROR) << "Wrong swMode mode\n";
-            EXIT(EXIT_FAILURE);
-    }
     return swMode;
 }
 
 Alignment::~Alignment() {
-    if (realign == true) {
+    if (realign_m != NULL) {
         delete realign_m;
     }
     delete m;
@@ -214,8 +221,7 @@ Alignment::~Alignment() {
     delete prefdbr;
 }
 
-void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
-                    const unsigned int maxAlnNum, const unsigned int maxRejected, bool wrappedScoring) {
+void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc) {
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
@@ -223,7 +229,7 @@ void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
 
     Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << (dbFrom + dbSize) << "\n";
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outDB, outDBIndex, mpiRank);
-    run(tmpOutput.first, tmpOutput.second, dbFrom, dbSize, maxAlnNum, maxRejected, true, wrappedScoring);
+    run(tmpOutput.first, tmpOutput.second, dbFrom, dbSize, true);
 
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
@@ -240,12 +246,11 @@ void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
     }
 }
 
-void Alignment::run(const unsigned int maxAlnNum, const unsigned int maxRejected, bool wrappedScoring) {
-    run(outDB, outDBIndex, 0, prefdbr->getSize(), maxAlnNum, maxRejected, false, wrappedScoring);
+void Alignment::run() {
+    run(outDB, outDBIndex, 0, prefdbr->getSize(), false);
 }
 
-void Alignment::run(const std::string &outDB, const std::string &outDBIndex, const size_t dbFrom, const size_t dbSize,
-                    const unsigned int maxAlnNum, const unsigned int maxRejected, bool merge, bool wrappedScoring) {
+void Alignment::run(const std::string &outDB, const std::string &outDBIndex, const size_t dbFrom, const size_t dbSize, bool merge) {
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     dbw.open();
 
@@ -293,20 +298,26 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
 
             std::vector<Matcher::result_t> swRealignResults;
             Matcher *realigner = NULL;
-            if (realign == true && wrappedScoring == false) {
+            if (realign == true) {
                 swRealignResults.reserve(300);
-                realigner = new Matcher(querySeqType, maxMatcherSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
+                realigner = &matcher;
+                if (realign_m != NULL) {
+                    realigner = new Matcher(querySeqType, maxMatcherSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
+                }
             }
 
             std::string queryToWrap;
             queryToWrap.reserve(maxSeqLen * 2);
+
+            const char* words[10];
 
 #pragma omp for schedule(dynamic, 5) reduction(+: alignmentsNum, totalPassedNum)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
 
                 // get the prefiltering list
-                char *data = prefdbr->getData(id, thread_idx);
+                char *data, *origData;
+                data = origData = prefdbr->getData(id, thread_idx);
                 unsigned int queryDbKey = prefdbr->getDbKey(id);
                 size_t origQueryLen = 0;
                 // only load query data if data != \0
@@ -334,11 +345,9 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                 // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list
                 size_t passedNum = 0;
                 unsigned int rejected = 0;
-                while (*data != '\0' && passedNum < maxAlnNum && rejected < maxRejected) {
+                while (*data != '\0' && passedNum < maxAccept && rejected < maxReject) {
                     Util::parseKey(data, buffer);
                     const unsigned int dbKey = (unsigned int) strtoul(buffer, NULL, 10);
-
-                    const char* words[10];
                     size_t elements = Util::getWordsOfLine(data, words, 10);
 
                     short diagonal = 0;
@@ -389,7 +398,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                 }
 
                 if (altAlignment > 0 && realign == false && wrappedScoring == false) {
-                    computeAlternativeAlignment(queryDbKey, dbSeq, swResults, matcher, evalThr, swMode, thread_idx);
+                    computeAlternativeAlignment(queryDbKey, dbSeq, swResults, matcher, covThr, evalThr, swMode, thread_idx);
                 }
 
                 if (swResults.size() > 1) {
@@ -409,27 +418,21 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                         }
                         dbSeq.mapSequence(dbId, swResults[result].dbKey, dbSeqData, tdbr->getSeqLen(dbId));
 
+                        // recompute alignment boundaries (without changing evalue)
                         const bool isIdentity = (queryDbKey == swResults[result].dbKey && (includeIdentity || sameQTDB)) ? true : false;
-                        Matcher::result_t res = realigner->getSWResult(&dbSeq, INT_MAX, false, covMode, covThr, FLT_MAX, realignSwMode, seqIdMode, isIdentity);
+                        Matcher::result_t res = realigner->getSWResult(&dbSeq, INT_MAX, false, realignCov, covThr, FLT_MAX, realignSwMode, seqIdMode, isIdentity);
 
                         const bool covOK = Util::hasCoverage(realignCov, covMode, res.qcov, res.dbcov);
-                        if (covOK == true|| isIdentity) {
-                            swResults[result].backtrace  = res.backtrace;
-                            swResults[result].qStartPos  = res.qStartPos;
-                            swResults[result].qEndPos    = res.qEndPos;
-                            swResults[result].dbStartPos = res.dbStartPos;
-                            swResults[result].dbEndPos   = res.dbEndPos;
-                            swResults[result].alnLength  = res.alnLength;
-                            swResults[result].seqId      = res.seqId;
-                            swResults[result].qcov       = res.qcov;
-                            swResults[result].dbcov      = res.dbcov;
-                            swRealignResults.push_back(swResults[result]);
+                        if (covOK == true || isIdentity) {
+                            res.score = swResults[result].score;
+                            res.eval  = swResults[result].eval;
+                            swRealignResults.emplace_back(res);
                             realignAccepted++;
                         }
                     }
 
                     if (altAlignment > 0) {
-                        computeAlternativeAlignment(queryDbKey, dbSeq, swRealignResults, *realigner, FLT_MAX, realignSwMode, thread_idx);
+                        computeAlternativeAlignment(queryDbKey, dbSeq, swRealignResults, *realigner, realignCov, FLT_MAX, realignSwMode, thread_idx);
                     }
 
                     if (swRealignResults.size() > 1) {
@@ -439,18 +442,72 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                     returnRes = &swRealignResults;
                 }
 
-                // put the contents of the swResults list into a result DB
+                if (lcaAlign == true && swRealignResults.size() > 0) {
+                    Matcher::result_t& topHit = swRealignResults[0];
+                    const unsigned int topHitKey = topHit.dbKey;
+                    size_t dbId = tdbr->getId(topHitKey);
+                    char *qSeqData = tdbr->getData(dbId, thread_idx);
+                    if (qSeqData == NULL) {
+                        Debug(Debug::ERROR) << "Sequence " << topHitKey << " is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    qSeq.mapSequence(dbId, topHitKey, qSeqData + topHit.dbStartPos, topHit.dbEndPos - topHit.dbStartPos + 1);
+                    realigner->initQuery(&qSeq);
+
+                    const double topHitEval = topHit.eval;
+                    swRealignResults.clear();
+
+                    data = origData;
+                    unsigned int rejected = 0;
+                    while (*data != '\0' && rejected < maxReject) {
+                        Util::parseKey(data, buffer);
+                        const unsigned int dbKey = (unsigned int) strtoul(buffer, NULL, 10);
+//                        size_t elements = Util::getWordsOfLine(data, words, 10);
+//                        short diagonal = 0;
+//                        bool isReverse = false;
+//                        // Prefilter result (need to make this better)
+//                        if (elements == 3) {
+//                            hit_t hit = QueryMatcher::parsePrefilterHit(data);
+//                            isReverse = reversePrefilterResult && (hit.prefScore < 0);
+//                            diagonal = static_cast<short>(hit.diagonal);
+//                        }
+                        data = Util::skipLine(data);
+
+                        dbId = tdbr->getId(dbKey);
+                        char* dbSeqData = tdbr->getData(dbId, thread_idx);
+                        if (dbSeqData == NULL) {
+                            Debug(Debug::ERROR) << "Sequence " << dbKey << " is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                        dbSeq.mapSequence(dbId, dbKey, dbSeqData, tdbr->getSeqLen(dbId));
+
+                        Matcher::result_t res = realigner->getSWResult(&dbSeq, INT_MAX, false, covMode, realignCov, topHitEval, lcaSwMode, seqIdMode, false);
+
+                        if (checkCriteria(res, false, topHitEval, seqIdThr, alnLenThr, covMode, realignCov)) {
+                            swRealignResults.emplace_back(res);
+                            rejected = 0;
+                        } else {
+                            rejected++;
+                        }
+                    }
+
+                    if (swRealignResults.size() > 1) {
+                        SORT_SERIAL(swRealignResults.begin(), swRealignResults.end(), Matcher::compareHits);
+                    }
+
+                    returnRes = &swRealignResults;
+                }
+
                 for (size_t result = 0; result < returnRes->size(); result++) {
                     size_t len = Matcher::resultToBuffer(buffer, (*returnRes)[result], addBacktrace);
                     alnResultsOutString.append(buffer, len);
                 }
-
                 dbw.writeData(alnResultsOutString.c_str(), alnResultsOutString.length(), queryDbKey, thread_idx);
                 alnResultsOutString.clear();
                 swResults.clear();
                 swRealignResults.clear();
             }
-            if (realign == true) {
+            if (realigner != NULL && realigner != &matcher) {
                 delete realigner;
             }
             // only remap if we have more than one iteration and we are not at the last iteration
@@ -505,7 +562,7 @@ bool Alignment::checkCriteria(Matcher::result_t &res, bool isIdentity, double ev
 }
 
 void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &dbSeq, std::vector<Matcher::result_t> &swResults,
-                                            Matcher &matcher, float evalThr, int swMode, int thread_idx) {
+                                            Matcher &matcher, float covThr, float evalThr, int swMode, int thread_idx) {
     const unsigned char xIndex = m->aa2num[static_cast<int>('X')];
     const size_t firstItResSize = swResults.size();
     for (size_t i = 0; i < firstItResSize; i++) {

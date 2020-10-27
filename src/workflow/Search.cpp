@@ -253,7 +253,13 @@ int search(int argc, const char **argv, const Command& command) {
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
     if (isUngappedMode && (searchMode & (Parameters::SEARCH_MODE_FLAG_QUERY_PROFILE |Parameters::SEARCH_MODE_FLAG_TARGET_PROFILE ))) {
         par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
-        Debug(Debug::ERROR) << "Cannot use ungapped alignment mode with profile databases.\n";
+        Debug(Debug::ERROR) << "Cannot use ungapped alignment mode with profile databases\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    if (isUngappedMode && par.lcaSearch) {
+        par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
+        Debug(Debug::ERROR) << "Cannot use ungapped alignment mode with lca search\n";
         EXIT(EXIT_FAILURE);
     }
 
@@ -295,7 +301,13 @@ int search(int argc, const char **argv, const Command& command) {
     cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
     cmd.addVariable("THREADS_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
     cmd.addVariable("VERB_COMP_PAR", par.createParameterString(par.verbandcompression).c_str());
-    cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
+    if (isUngappedMode) {
+        cmd.addVariable("ALIGN_MODULE", "rescorediagonal");
+    } else if (par.lcaSearch) {
+        cmd.addVariable("ALIGN_MODULE", "lcaalign");
+    } else {
+        cmd.addVariable("ALIGN_MODULE", "align");
+    }
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     std::string program;
     cmd.addVariable("RUNNER", par.runner.c_str());

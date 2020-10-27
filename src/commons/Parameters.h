@@ -413,6 +413,7 @@ public:
     int orfFilter;
     float orfFilterSens;
     float orfFilterEval;
+    bool lcaSearch;
 
     // easysearch
     bool greedyBestHits;
@@ -792,6 +793,7 @@ public:
     PARAMETER(PARAM_ORF_FILTER)
     PARAMETER(PARAM_ORF_FILTER_S)
     PARAMETER(PARAM_ORF_FILTER_E)
+    PARAMETER(PARAM_LCA_SEARCH)
 
     // easysearch
     PARAMETER(PARAM_GREEDY_BEST_HITS)

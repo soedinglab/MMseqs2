@@ -3,6 +3,7 @@
 #include "Debug.h"
 #include "Util.h"
 #include "CommandCaller.h"
+#include "PrefilteringIndexReader.h"
 #include "taxpercontig.sh.h"
 
 void setTaxPerContigDefaults(Parameters *p) {
@@ -60,6 +61,9 @@ int taxpercontig(int argc, const char **argv, const Command& command) {
     par.filenames.push_back(tmpDir);
 
     CommandCaller cmd;
+    std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
+    cmd.addVariable("TARGETDB_IDX", (indexStr == "") ? par.db2.c_str() : indexStr.c_str());
+    cmd.addVariable("RUNNER", par.runner.c_str());
     par.translate = 1;
     cmd.addVariable("EXTRACT_ORFS_PAR", par.createParameterString(par.extractorfs).c_str());
     int showTaxLineageOrig = par.showTaxLineage;
@@ -88,7 +92,6 @@ int taxpercontig(int argc, const char **argv, const Command& command) {
 
     par.subDbMode = Parameters::SUBDB_MODE_SOFT;
     cmd.addVariable("CREATESUBDB_PAR", par.createParameterString(par.createsubdb).c_str());
-
 
     std::string program(tmpDir + "/taxpercontig.sh");
     FileUtil::writeFile(program, taxpercontig_sh, taxpercontig_sh_len);
