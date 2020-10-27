@@ -9,7 +9,7 @@
 void setTaxPerContigDefaults(Parameters *p) {
     p->orfStartMode = 1;
     p->showTaxLineage = 0;
-    p->taxonomySearchMode = Parameters::TAXONOMY_2BLCA_APPROX;
+    p->taxonomySearchMode = Parameters::TAXONOMY_ACCEL_2BLCA;
     p->orfFilter = true;
 }
 
@@ -79,7 +79,6 @@ int taxpercontig(int argc, const char **argv, const Command& command) {
     cmd.addVariable("SWAPDB_PAR", par.createParameterString(par.swapdb).c_str());
 
     cmd.addVariable("ORF_FILTER", par.orfFilter && par.orfFilterSens <= par.sensitivity ? "TRUE" : NULL);
-    // --min-ungapped-score 3 -s 2 --diag-score 0 --max-seqs 1
     par.minDiagScoreThr = 3;
     par.sensitivity = par.orfFilterSens;
     par.diagonalScoring = false;

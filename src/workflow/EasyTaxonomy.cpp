@@ -85,17 +85,9 @@ int easytaxonomy(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
 
-    int alignmentMode = par.alignmentMode;
-    if (par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA) {
-        // at least cov must be set for extractalignedregion
-        int targetMode = (int)Parameters::ALIGNMENT_MODE_SCORE_COV;
-        par.alignmentMode = std::max(par.alignmentMode, targetMode);
-    }
     par.taxonomyOutpuMode = Parameters::TAXONOMY_OUTPUT_ALIGNMENT;
     par.PARAM_TAX_OUTPUT_MODE.wasSet = true;
     cmd.addVariable("TAXONOMY_PAR", par.createParameterString(par.taxonomy, true).c_str());
-    par.alignmentMode = alignmentMode;
-
     cmd.addVariable("CREATEDB_QUERY_PAR", par.createParameterString(par.createdb).c_str());
     cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
     cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());

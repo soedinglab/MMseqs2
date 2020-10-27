@@ -201,7 +201,7 @@ public:
     // taxonomy search strategy
     static const int TAXONOMY_SINGLE_SEARCH = 1;
     static const int TAXONOMY_2BLCA = 2;
-    static const int TAXONOMY_2BLCA_APPROX = 3;
+    static const int TAXONOMY_ACCEL_2BLCA = 3;
     static const int TAXONOMY_TOP_HIT = 4;
 
     static const int PARSE_VARIADIC = 1;

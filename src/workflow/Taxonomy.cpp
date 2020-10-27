@@ -3,8 +3,11 @@
 #include "Debug.h"
 #include "Util.h"
 #include "CommandCaller.h"
+#include "PrefilteringIndexReader.h"
 
 #include "taxonomy.sh.h"
+
+extern int computeSearchMode(int queryDbType, int targetDbType, int targetSrcDbType, int searchType);
 
 void setTaxonomyDefaults(Parameters *p) {
     p->spacedKmer = true;
@@ -60,6 +63,37 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, true, 0, 0);
     setTaxonomyMustPassAlong(&par);
 
+    if (par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA) {
+        Debug(Debug::WARNING) << "2bLCA was replaced by Accelerated 2bLCA\n";
+        par.taxonomySearchMode = Parameters::TAXONOMY_ACCEL_2BLCA;
+    }
+
+    std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
+    int targetDbType = FileUtil::parseDbType(par.db2.c_str());
+    std::string targetDB = (indexStr == "") ? par.db2.c_str() : indexStr.c_str();
+    int targetSrcDbType = -1;
+    if (indexStr != "" || Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB)) {
+        indexStr = par.db2;
+        DBReader<unsigned int> dbr(targetDB.c_str(), (targetDB + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+        dbr.open(DBReader<unsigned int>::NOSORT);
+        PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&dbr);
+        targetSrcDbType = data.srcSeqType;
+        targetDbType = data.seqType;
+    }
+    const int queryDbType = FileUtil::parseDbType(par.db1.c_str());
+    if (queryDbType == -1 || targetDbType == -1) {
+        Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    int searchMode = computeSearchMode(queryDbType, targetDbType, targetSrcDbType, par.searchType);
+    if ((searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE) && (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_NUCLEOTIDE)) {
+        if (par.taxonomySearchMode == Parameters::TAXONOMY_ACCEL_2BLCA) {
+            Debug(Debug::WARNING) << "Accel. 2bLCA cannot be used with nucl-nucl taxonomy, using top-hit instead";
+            par.taxonomySearchMode = Parameters::TAXONOMY_TOP_HIT;
+        }
+    }
+
     std::string tmpDir = par.db4;
     std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.taxonomy));
     if (par.reuseLatest) {
@@ -75,15 +109,10 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     cmd.addVariable("THREADS_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
     cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
 
-    if (par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA) {
-        Debug(Debug::WARNING) << "2bLCA was replaced by Approx 2bLCA\n";
-        par.taxonomySearchMode = Parameters::TAXONOMY_2BLCA_APPROX;
-    }
-
     std::string program(tmpDir);
     if (par.taxonomySearchMode == Parameters::TAXONOMY_TOP_HIT) {
         cmd.addVariable("TOPHIT_MODE", "1");
-    } else if (par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA_APPROX) {
+    } else if (par.taxonomySearchMode == Parameters::TAXONOMY_ACCEL_2BLCA) {
         par.lcaSearch = true;
         par.PARAM_LCA_SEARCH.wasSet = true;
         cmd.addVariable("TOPHIT_MODE", NULL);

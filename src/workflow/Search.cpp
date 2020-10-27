@@ -30,7 +30,7 @@ void setSearchDefaults(Parameters *p) {
 }
 
 
-int computeSearchMode(int queryDbType, int targetDbType, int targetSrcDbType, int searchType){
+int computeSearchMode(int queryDbType, int targetDbType, int targetSrcDbType, int searchType) {
     // reject unvalid search
     if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_HMM_PROFILE) &&
         Parameters::isEqualDbtype(targetDbType,Parameters::DBTYPE_HMM_PROFILE)) {
@@ -238,7 +238,6 @@ int search(int argc, const char **argv, const Command& command) {
     }
 
     int searchMode = computeSearchMode(queryDbType, targetDbType, targetSrcDbType, par.searchType);
-
     if ((searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE) && (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_NUCLEOTIDE)) {
         setNuclSearchDefaults(&par);
     } else{
