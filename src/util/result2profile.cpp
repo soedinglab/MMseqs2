@@ -264,7 +264,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     }
 #endif
 
-    if (MMseqsMPI::isMaster()) {
+    if (MMseqsMPI::isMaster() && returnAlnRes == false) {
         DBReader<unsigned int>::softlinkDb(par.db1, par.db4, DBFiles::SEQUENCE_ANCILLARY);
     }
 
