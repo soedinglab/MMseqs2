@@ -120,6 +120,13 @@ public:
     static const int FORMAT_ALIGNMENT_BLAST_WITH_LEN = 2;
     static const int FORMAT_ALIGNMENT_HTML = 3;
 
+    // result2msa
+    static const int FORMAT_MSA_CA3M = 0;
+    static const int FORMAT_MSA_CA3M_CONSENSUS = 1;
+    static const int FORMAT_MSA_FASTADB = 2;
+    static const int FORMAT_MSA_FASTADB_SUMMARY = 3;
+    static const int FORMAT_MSA_STOCKHOLM_FLAT = 4;
+
     // outfmt
     static const int OUTFMT_QUERY = 0;
     static const int OUTFMT_TARGET = 1;
@@ -424,7 +431,7 @@ public:
     int createLookup;
 
     // convertalis
-    int formatAlignmentMode;            // BLAST_TAB, PAIRWISE or SAM
+    int formatAlignmentMode;
     std::string outfmt;
     bool dbOut;
 
@@ -436,12 +443,9 @@ public:
     int sortResults;
 
     // result2msa
+    int msaFormatMode;
     bool allowDeletion;
-    bool addInternalId;
-    bool compressMSA;
-    bool summarizeHeader;
     std::string summaryPrefix;
-    bool omitConsensus;
     bool skipQuery;
 
     // convertmsa
@@ -721,11 +725,9 @@ public:
     PARAMETER(PARAM_SORT_RESULTS)
 
     // result2msa
+    PARAMETER(PARAM_MSA_FORMAT_MODE)
     PARAMETER(PARAM_ALLOW_DELETION)
-    PARAMETER(PARAM_COMPRESS_MSA)
-    PARAMETER(PARAM_SUMMARIZE_HEADER)
     PARAMETER(PARAM_SUMMARY_PREFIX)
-    PARAMETER(PARAM_OMIT_CONSENSUS)
     PARAMETER(PARAM_SKIP_QUERY)
 
     // convertmsa

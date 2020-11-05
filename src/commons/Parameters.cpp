@@ -92,11 +92,9 @@ Parameters::Parameters():
         PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID, "--filter-hits", "Remove hits by seq. id. and coverage", "Filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by E-value (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // result2msa
+        PARAM_MSA_FORMAT_MODE(PARAM_MSA_FORMAT_MODE_ID, "--msa-format-mode", "MSA format mode", "Format MSA as: 0: binary cA3M DB\n1: binary ca3m w. consensus DB\n2: aligned FASTA DB\n3: aligned FASTA w. header summary\n4: STOCKHOLM flat file", typeid(int), (void *) &msaFormatMode, "^[0-4]{1}$"),
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID, "--allow-deletion", "Allow deletions", "Allow deletions in a MSA", typeid(bool), (void *) &allowDeletion, ""),
-        PARAM_COMPRESS_MSA(PARAM_COMPRESS_MSA_ID, "--compress", "Compress MSA", "Create MSA in CA3M format", typeid(bool), (void *) &compressMSA, ""),
-        PARAM_SUMMARIZE_HEADER(PARAM_SUMMARIZE_HEADER_ID, "--summarize", "Summarize headers", "Summarize cluster headers into a single header description", typeid(bool), (void *) &summarizeHeader, ""),
         PARAM_SUMMARY_PREFIX(PARAM_SUMMARY_PREFIX_ID, "--summary-prefix", "Summary prefix", "Set the cluster summary prefix", typeid(std::string), (void *) &summaryPrefix, "", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_OMIT_CONSENSUS(PARAM_OMIT_CONSENSUS_ID, "--omit-consensus", "Omit consensus", "Omit consensus sequence in alignment", typeid(bool), (void *) &omitConsensus, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SKIP_QUERY(PARAM_SKIP_QUERY_ID, "--skip-query", "Skip query", "Skip the query sequence", typeid(bool), (void *) &skipQuery, "", MMseqsParameter::COMMAND_EXPERT),
         // convertmsa
         PARAM_IDENTIFIER_FIELD(PARAM_IDENTIFIER_FIELD_ID, "--identifier-field", "Identifier field", "Field from STOCKHOLM comments for choosing the MSA identifier: 0: ID, 1: AC. If the respective comment does not exist, the name of the first sequence will become the identifier", typeid(int), (void *) &identifierField, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
@@ -467,7 +465,6 @@ Parameters::Parameters():
     result2profile.push_back(&PARAM_FILTER_NDIFF);
     result2profile.push_back(&PARAM_PCA);
     result2profile.push_back(&PARAM_PCB);
-    result2profile.push_back(&PARAM_OMIT_CONSENSUS);
     result2profile.push_back(&PARAM_PRELOAD_MODE);
     result2profile.push_back(&PARAM_GAP_OPEN);
     result2profile.push_back(&PARAM_GAP_EXTEND);
@@ -516,8 +513,13 @@ Parameters::Parameters():
 
     // result2msa
     result2msa.push_back(&PARAM_SUB_MAT);
+    result2msa.push_back(&PARAM_GAP_OPEN);
+    result2msa.push_back(&PARAM_GAP_EXTEND);
     result2msa.push_back(&PARAM_ALLOW_DELETION);
     result2msa.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    result2msa.push_back(&PARAM_MSA_FORMAT_MODE);
+    result2msa.push_back(&PARAM_SUMMARY_PREFIX);
+    result2msa.push_back(&PARAM_SKIP_QUERY);
     result2msa.push_back(&PARAM_FILTER_MSA);
     result2msa.push_back(&PARAM_FILTER_MAX_SEQ_ID);
     result2msa.push_back(&PARAM_FILTER_QID);
@@ -525,20 +527,12 @@ Parameters::Parameters():
     result2msa.push_back(&PARAM_FILTER_COV);
     result2msa.push_back(&PARAM_FILTER_NDIFF);
     result2msa.push_back(&PARAM_THREADS);
-    result2msa.push_back(&PARAM_COMPRESS_MSA);
-    result2msa.push_back(&PARAM_SUMMARIZE_HEADER);
-    result2msa.push_back(&PARAM_SUMMARY_PREFIX);
-    result2msa.push_back(&PARAM_OMIT_CONSENSUS);
-    result2msa.push_back(&PARAM_SKIP_QUERY);
-    result2msa.push_back(&PARAM_GAP_OPEN);
-    result2msa.push_back(&PARAM_GAP_EXTEND);
     result2msa.push_back(&PARAM_COMPRESSED);
-    //result2msa.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
     result2msa.push_back(&PARAM_V);
 
     // result2dnamsa
-    result2dnamsa.push_back(&PARAM_THREADS);
     result2dnamsa.push_back(&PARAM_SKIP_QUERY);
+    result2dnamsa.push_back(&PARAM_THREADS);
     result2dnamsa.push_back(&PARAM_COMPRESSED);
     //result2msa.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
     result2dnamsa.push_back(&PARAM_V);
@@ -2073,11 +2067,7 @@ void Parameters::setDefaults() {
 
     // result2msa
     allowDeletion = false;
-    compressMSA = false;
-    summarizeHeader = false;
     summaryPrefix = "cl";
-    compressMSA = false;
-    omitConsensus = false;
     skipQuery = false;
 
     // convertmsa
