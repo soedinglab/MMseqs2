@@ -22,6 +22,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
     par.pca = 0.0;
     par.parseParameters(argc, argv, command, true, 0, 0);
 
+    const bool isCA3M = par.msaFormatMode == Parameters::FORMAT_MSA_CA3M || par.msaFormatMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS;
     const bool shouldWriteNullByte = par.msaFormatMode != Parameters::FORMAT_MSA_STOCKHOLM_FLAT;
 
     DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
@@ -46,7 +47,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
             tDbr->readMmapedDataInMemory();
         }
 
-        if (par.msaFormatMode != Parameters::FORMAT_MSA_CA3M && par.msaFormatMode != Parameters::FORMAT_MSA_CA3M_CONSENSUS) {
+        if (isCA3M == false) {
             targetHeaderReader = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
             targetHeaderReader->open(DBReader<unsigned int>::NOSORT);
 
@@ -60,7 +61,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> *refReader = NULL;
     std::string outDb = par.db4;
     std::string outIndex = par.db4Index;
-    if (par.msaFormatMode == Parameters::FORMAT_MSA_CA3M || par.msaFormatMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS) {
+    if (isCA3M == true) {
         std::string refData = outDb + "_sequence.ffdata";
         std::string refIndex = outDb + "_sequence.ffindex";
         // Use only 1 thread for concat to ensure the same order
@@ -99,7 +100,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 
     size_t mode = par.compressed;
     int type = Parameters::DBTYPE_MSA_DB;
-    if (par.msaFormatMode == Parameters::FORMAT_MSA_CA3M || par.msaFormatMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS) {
+    if (isCA3M == true) {
         mode |= Parameters::WRITER_LEXICOGRAPHIC_MODE;
         type = Parameters::DBTYPE_CA3M_DB;
     } else if (par.msaFormatMode == Parameters::FORMAT_MSA_STOCKHOLM_FLAT) {
@@ -330,7 +331,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     result.append(1, '\n');
                 }
                 result.append("//\n");
-            } else if (par.msaFormatMode == Parameters::FORMAT_MSA_CA3M || par.msaFormatMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS) {
+            } else if (isCA3M == true) {
                 size_t filteredSetSize = res.setSize;
                 if (isFiltering) {
                     filteredSetSize = filter.filter(res, alnResults, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
@@ -390,7 +391,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
     queryHeaderReader.close();
     qDbr.close();
     if (!sameDatabase) {
-        if (par.msaFormatMode != Parameters::FORMAT_MSA_CA3M && par.msaFormatMode != Parameters::FORMAT_MSA_CA3M_CONSENSUS) {
+        if (isCA3M == false) {
             targetHeaderReader->close();
             delete targetHeaderReader;
         }
@@ -416,7 +417,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
             splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.second));
 
         }
-        DBWriter::mergeResults(outDb, outIndex, splitFiles, par.compressMSA);
+        DBWriter::mergeResults(outDb, outIndex, splitFiles, isCA3M);
     }
 #endif
     return EXIT_SUCCESS;
