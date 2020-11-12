@@ -56,7 +56,7 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     setTaxonomyMustPassAlong(&par);
 
     std::string tmpDir = par.db4;
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.taxonomy));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.taxonomy));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }

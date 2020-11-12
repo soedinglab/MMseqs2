@@ -11,7 +11,7 @@
 #include <cassert>
 #include <climits>
 
-int createindex(Parameters &par, std::string indexerModule, std::string flag) {
+int createindex(Parameters &par, const Command &command, const std::string &indexerModule, const std::string &flag) {
     bool sensitivity = false;
     // only set kmerScore  to INT_MAX if -s was used
     for (size_t i = 0; i < par.createindex.size(); i++) {
@@ -30,7 +30,7 @@ int createindex(Parameters &par, std::string indexerModule, std::string flag) {
     }
 
     std::string tmpDir = par.db2;
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.createindex));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.createindex));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
@@ -100,7 +100,7 @@ int createlinindex(int argc, const char **argv, const Command& command) {
                             << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
         return EXIT_FAILURE;
     }
-    return createindex(par, "kmerindexdb", (isNucl == false) ? "" : (par.searchType == Parameters::SEARCH_TYPE_TRANSLATED||
+    return createindex(par, command, "kmerindexdb", (isNucl == false) ? "" : (par.searchType == Parameters::SEARCH_TYPE_TRANSLATED||
                                                                                            par.searchType == Parameters::SEARCH_TYPE_TRANS_NUCL_ALN) ? "TRANSLATED" : "LIN_NUCL");
 }
 
@@ -169,6 +169,6 @@ int createindex(int argc, const char **argv, const Command& command) {
                             << "Please provide the parameter --search-type 2 (translated) or 3 (nucleotide)\n";
         return EXIT_FAILURE;
     }
-    return createindex(par, "indexdb",  (isNucl == false) ? "" : (par.searchType == Parameters::SEARCH_TYPE_TRANSLATED||
+    return createindex(par, command, "indexdb",  (isNucl == false) ? "" : (par.searchType == Parameters::SEARCH_TYPE_TRANSLATED||
                                                                   par.searchType == Parameters::SEARCH_TYPE_TRANS_NUCL_ALN) ? "TRANSLATED" : "NUCL");
 }

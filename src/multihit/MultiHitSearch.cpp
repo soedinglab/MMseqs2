@@ -56,7 +56,7 @@ int multihitsearch(int argc, const char **argv, const Command &command) {
             Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
         }
     }
-    size_t hash = par.hashParameter(par.filenames, par.multihitsearch);
+    size_t hash = par.hashParameter(command.databases, par.filenames, par.multihitsearch);
     std::string tmpDir = par.db4 + "/" + SSTR(hash);
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {

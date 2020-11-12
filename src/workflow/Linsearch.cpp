@@ -103,7 +103,7 @@ int linsearch(int argc, const char **argv, const Command &command) {
     par.printParameters(command.cmd, argc, argv, par.searchworkflow);
 
     std::string tmpDir = par.db4;
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.linsearchworkflow));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.linsearchworkflow));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }

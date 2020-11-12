@@ -28,7 +28,7 @@ int multihitdb(int argc, const char **argv, const Command &command) {
             Debug(Debug::INFO) << "Created dir " << tmpDir << "\n";
         }
     }
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.multihitdb));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.multihitdb));
     if(par.reuseLatest == true){
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest" );
     }

@@ -68,7 +68,7 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     par.maxAccept = maxAccept;
 
     std::string tmpDir = par.db6;
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.clusterUpdate));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.clusterUpdate));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }

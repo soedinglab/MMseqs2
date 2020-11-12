@@ -2289,18 +2289,57 @@ std::vector<MMseqsParameter*> Parameters::combineList(const std::vector<MMseqsPa
     return retVec;
 }
 
-size_t Parameters::hashParameter(const std::vector<std::string> &filenames, const std::vector<MMseqsParameter*> &par){
+size_t Parameters::hashParameter(const std::vector<DbType> &dbtypes, const std::vector<std::string> &filenames, const std::vector<MMseqsParameter*> &par){
     std::string hashString;
     hashString.reserve(1024);
+
+    struct stat stat_buf;
+    bool stopAfterVariadic = false;
     for (size_t i = 0; i < filenames.size(); ++i){
         hashString.append(filenames[i]);
-        hashString.append(" ");
+        if (stopAfterVariadic == false && i < dbtypes.size()) {
+            const DbType& type = dbtypes[i];
+            if (type.accessMode != DbType::ACCESS_MODE_INPUT) {
+                continue;
+            }
+
+            if (type.specialType & DbType::VARIADIC) {
+                stopAfterVariadic = true;
+            }
+
+            if (filenames[i] == "stdin") {
+                continue;
+            }
+
+            if (::stat(filenames[i].c_str(), &stat_buf) == 0) {
+                hashString.append(SSTR(stat_buf.st_size));
+#ifdef __APPLE__
+                hashString.append(SSTR(stat_buf.st_mtimespec.tv_sec));
+#else
+                hashString.append(SSTR(stat_buf.st_mtime));
+#endif
+                continue;
+            }
+
+            std::string index(filenames[i]);
+            index.append(".index");
+            if (::stat(index.c_str(), &stat_buf) == 0) {
+                hashString.append(SSTR(stat_buf.st_size));
+#ifdef __APPLE__
+                hashString.append(SSTR(stat_buf.st_mtimespec.tv_sec));
+#else
+                hashString.append(SSTR(stat_buf.st_mtime));
+#endif
+                continue;
+            }
+        }
     }
     hashString.append(createParameterString(par));
     hashString.append(version);
     for (int i = 0; i < restArgc; ++i) {
         hashString.append(restArgv[i]);
     }
+    Debug(Debug::ERROR) << hashString << "\n";
     return Util::hash(hashString.c_str(), hashString.size());
 }
 

@@ -247,7 +247,7 @@ int databases(int argc, const char **argv, const Command &command) {
     }
     par.printParameters(command.cmd, argc, argv, par.databases);
     std::string tmpDir = par.db3;
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.databases));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.databases));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }

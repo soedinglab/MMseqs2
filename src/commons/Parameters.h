@@ -1040,7 +1040,7 @@ public:
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);
 
-    size_t hashParameter(const std::vector<std::string> &filenames, const std::vector<MMseqsParameter*> &par);
+    size_t hashParameter(const std::vector<DbType> &dbtypes, const std::vector<std::string> &filenames, const std::vector<MMseqsParameter*> &par);
 
     std::string createParameterString(const std::vector<MMseqsParameter*> &vector, bool wasSet = false);
 

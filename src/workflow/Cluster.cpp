@@ -130,7 +130,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     setClusterAutomagicParameters(par);
 
     std::string tmpDir = par.db3;
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.clusterworkflow));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.clusterworkflow));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }

@@ -68,7 +68,7 @@ int easytaxonomy(int argc, const char **argv, const Command& command) {
     setEasyTaxonomyMustPassAlong(&par);
 
     std::string tmpDir = par.filenames.back();
-    std::string hash = SSTR(par.hashParameter(par.filenames, *command.params));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, *command.params));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
