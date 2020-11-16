@@ -2357,7 +2357,6 @@ size_t Parameters::hashParameter(const std::vector<DbType> &dbtypes, const std::
     for (int i = 0; i < restArgc; ++i) {
         hashString.append(restArgv[i]);
     }
-    Debug(Debug::ERROR) << hashString << "\n";
     return Util::hash(hashString.c_str(), hashString.size());
 }
 
