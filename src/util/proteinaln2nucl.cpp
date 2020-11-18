@@ -159,12 +159,12 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
                             break;
                         case 'D':
                             tPos += cnt * 3;
-                            score += gapOpen + ((cnt - 1) * 3) * gapExtend;
+                            score -= gapOpen + ((cnt - 1) * 3) * gapExtend;
                             update = true;
                             break;
                         case 'I':
                             qPos += cnt * 3;
-                            score += gapOpen + ((cnt - 1) * 3) * gapExtend;
+                            score -= gapOpen + ((cnt - 1) * 3) * gapExtend;
                             update = true;
                             break;
                     }
