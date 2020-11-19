@@ -147,7 +147,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
                             if (include.isMatch(header.name) == false || exclude.isMatch(header.name) == true) {
                                 __sync_fetch_and_add(&(globalKey), 1);
                                 writeEntry = false;
-                            }else{
+                            } else {
                                 if (header.size > bufferSize) {
                                     bufferSize = header.size * 1.5;
                                     dataBuffer = (char *) realloc(dataBuffer, bufferSize);
@@ -160,13 +160,16 @@ int tar2db(int argc, const char **argv, const Command& command) {
                                 currentKey = __sync_fetch_and_add(&(globalKey), 1);
 
                                 size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\t%zu\n", currentKey,
-                                          FileUtil::baseName(header.name).c_str(), i);
+                                                      FileUtil::baseName(header.name).c_str(), i);
                                 int written = fwrite(buffer, sizeof(char), len, lookup);
                                 if (written != (int) len) {
                                     Debug(Debug::ERROR) << "Cannot write to lookup file " << lookupFile << "\n";
                                     EXIT(EXIT_FAILURE);
                                 }
                             }
+                        } else {
+                            proceed = false;
+                            writeEntry = false;
                         }
                     } else {
                         tar.isFinished = 1;
@@ -174,7 +177,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
                         writeEntry = false;
                     }
                 }
-                if(proceed && writeEntry){
+                if (proceed && writeEntry) {
                     if (Util::endsWith(".gz", header.name)) {
 #ifdef HAVE_ZLIB
                         inflateReset(&strm);
@@ -225,7 +228,6 @@ int tar2db(int argc, const char **argv, const Command& command) {
                     } else {
                         writer.writeData(dataBuffer, header.size, currentKey, thread_idx);
                     }
-
                 }
             }
 
@@ -238,6 +240,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
 
         mtar_close(&tar);
     } // filename for
+    writer.close();
     if (fclose(lookup) != 0) {
         Debug(Debug::ERROR) << "Cannot close file " << lookupFile << "\n";
         EXIT(EXIT_FAILURE);
@@ -246,9 +249,6 @@ int tar2db(int argc, const char **argv, const Command& command) {
         Debug(Debug::ERROR) << "Cannot close file " << sourceFile << "\n";
         EXIT(EXIT_FAILURE);
     }
-    writer.close();
-
 
     return EXIT_SUCCESS;
 }
-
