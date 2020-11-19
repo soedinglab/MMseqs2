@@ -1083,6 +1083,7 @@ public:
             case DBTYPE_OFFSETDB: return "Offsetted headers";
             case DBTYPE_DIRECTORY: return "Directory";
             case DBTYPE_FLATFILE: return "Flatfile";
+            case DBTYPE_STDIN: return "stdin";
 
             default: return "Unknown";
         }
