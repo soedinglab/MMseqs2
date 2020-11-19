@@ -28,7 +28,11 @@ threads(threads), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
         totalDataSize(0), dataSize(0), lastKey(T()), closed(1), dbtype(Parameters::DBTYPE_GENERIC_DB),
         compressedBuffers(NULL), compressedBufferSizes(NULL), index(NULL), id2local(NULL), local2id(NULL),
         dataMapped(false), accessType(0), externalData(false), didMlock(false)
-{}
+{
+    if (threads > 1) {
+        FileUtil::fixRlimitNoFile();
+    }
+}
 
 template <typename T>
 DBReader<T>::DBReader(DBReader<T>::Index *index, size_t size, size_t dataSize, T lastKey,
