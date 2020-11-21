@@ -73,8 +73,14 @@ if notExists "${TAXDBNAME}_mapping"; then
         fi
         MAPPINGFILE="${TMP_PATH}/taxidmapping"
     fi
-    awk 'NR == FNR { f[$1] = $2; next } $2 in f { print $1"\t"f[$2] }' \
-        "$MAPPINGFILE" "${TAXDBNAME}.lookup" > "${TAXDBNAME}_mapping"
+
+    if [ "$MAPPINGMODE" = "0" ]; then
+        awk 'NR == FNR { f[$1] = $2; next } $2 in f { print $1"\t"f[$2] }' \
+            "$MAPPINGFILE" "${TAXDBNAME}.lookup" > "${TAXDBNAME}_mapping"
+    else
+        awk 'FNR == 1 { fidx++; } fidx == 1 { tax[$1] = $2; next; } fidx == 2 { source[$1] = tax[$2]; next; } fidx == 3 { print $1"\t"source[$3]; next; }' \
+            "$MAPPINGFILE" "${TAXDBNAME}.source" "${TAXDBNAME}.lookup" > "${TAXDBNAME}_mapping"
+    fi
 fi
 
 # finalize database

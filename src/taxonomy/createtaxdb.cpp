@@ -21,7 +21,6 @@ int createtaxdb(int argc, const char **argv, const Command& command) {
             Debug(Debug::INFO) << "Created dir " << tmp << "\n";
         }
     }
-    //[<i:taxMappingFile> <i:ncbi-taxdump-folder>]
     CommandCaller cmd;
 
     cmd.addVariable("TMP_PATH", tmp.c_str());
@@ -30,8 +29,8 @@ int createtaxdb(int argc, const char **argv, const Command& command) {
     }else{
         cmd.addVariable("DOWNLOAD_MAPPING", "0");
         cmd.addVariable("MAPPINGFILE", par.taxMappingFile.c_str());
-
     }
+    cmd.addVariable("MAPPINGMODE", SSTR(par.taxMappingMode).c_str());
     if (par.ncbiTaxDump.empty()) {
         cmd.addVariable("DOWNLOAD_NCBITAXDUMP", "1");
     }else{

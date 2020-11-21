@@ -613,6 +613,7 @@ public:
     // createtaxdb
     std::string ncbiTaxDump;
     std::string taxMappingFile;
+    int taxMappingMode;
 
     // exapandaln
     int expansionMode;
@@ -929,6 +930,8 @@ public:
     // createtaxdb
     PARAMETER(PARAM_NCBI_TAX_DUMP)
     PARAMETER(PARAM_TAX_MAPPING_FILE)
+    PARAMETER(PARAM_TAX_MAPPING_MODE)
+
     // exapandaln
     PARAMETER(PARAM_EXPANSION_MODE)
 
