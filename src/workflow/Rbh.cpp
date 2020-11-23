@@ -30,6 +30,9 @@ int rbh(int argc, const char **argv, const Command &command) {
     for (size_t i = 0; i < par.translatenucs.size(); i++){
         par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
+    for (size_t i = 0; i < par.splitsequence.size(); i++) {
+        par.splitsequence[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
+    }
     // restore threads and verbosity
     par.PARAM_COMPRESSED.removeCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_V.removeCategory(MMseqsParameter::COMMAND_EXPERT);

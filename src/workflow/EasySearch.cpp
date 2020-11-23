@@ -47,6 +47,9 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     for (size_t i = 0; i < par.translatenucs.size(); i++){
         par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
+    for (size_t i = 0; i < par.splitsequence.size(); i++) {
+        par.splitsequence[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
+    }
     for (size_t i = 0; i < par.result2profile.size(); i++){
         par.result2profile[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
