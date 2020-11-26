@@ -29,6 +29,8 @@ extern int createsubdb(int argc, const char **argv, const Command& command);
 extern int view(int argc, const char **argv, const Command& command);
 extern int rmdb(int argc, const char **argv, const Command& command);
 extern int mvdb(int argc, const char **argv, const Command& command);
+extern int cpdb(int argc, const char **argv, const Command& command);
+extern int lndb(int argc, const char **argv, const Command& command);
 extern int createtsv(int argc, const char **argv, const Command& command);
 extern int databases(int argc, const char **argv, const Command& command);
 extern int dbtype(int argc, const char **argv, const Command& command);
