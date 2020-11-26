@@ -41,6 +41,7 @@ int splitdb(int argc, const char **argv, const Command& command) {
             writer.writeData(data, dbr.getEntryLen(i) - 1, outerKey);
         }
         writer.close();
+        DBReader<unsigned int>::softlinkDb(par.db1, outDb, DBFiles::SEQUENCE_ANCILLARY);
     }
 
     dbr.close();
