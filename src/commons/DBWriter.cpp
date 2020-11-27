@@ -230,6 +230,7 @@ void DBWriter::close(bool merge, bool needsSort) {
         }
     }
 
+    merge = getenv("MMSEQS_FORCE_MERGE") != NULL ? true : merge;
     mergeResults(dataFileName, indexFileName, (const char **) dataFileNames, (const char **) indexFileNames,
                  threads, merge, ((mode & Parameters::WRITER_LEXICOGRAPHIC_MODE) != 0), needsSort);
 
