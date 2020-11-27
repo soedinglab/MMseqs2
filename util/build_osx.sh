@@ -42,6 +42,11 @@ if [ "$(echo $(otool -L "src/${BINARY_NAME}" | wc -l))" != 5 ]; then
     exit 1
 fi
 
+if sw_vers -productVersion | awk -F. '$1 < 11 && $2 < 16 { exit 0; } { exit 1; }'; then
+    lipo -create -arch x86_64 "$BUILD/build_sse41/src/${BINARY_NAME}" -arch x86_64h "$BUILD/build_avx2/src/${BINARY_NAME}" -output "$BUILD/${BINARY_NAME}"
+    exit 0
+fi
+
 unset MACOSX_DEPLOYMENT_TARGET
 
 cd "$BUILD" && mkdir -p "build_libomp" && cd "build_libomp"

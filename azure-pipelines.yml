@@ -27,10 +27,10 @@ jobs:
           targetPath: $(System.DefaultWorkingDirectory)/userguide.pdf
           artifactName: userguide
 
-  - job: build_macos_11
-    displayName: macOS 11
+  - job: build_macos_1015
+    displayName: macOS 1015
     pool:
-      vmImage: 'macos-11.0'
+      vmImage: 'macos-10.15'
     steps:
       - checkout: self
         submodules: true
@@ -243,7 +243,7 @@ jobs:
       vmImage: 'Ubuntu-18.04'
     dependsOn:
       - build_ubuntu_1804_userguide
-      - build_macos_11
+      - build_macos_1015
       - build_ubuntu_1804
       - build_ubuntu_cross_2004
       - build_windows_2019
