@@ -43,7 +43,7 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "Intel")
 endif ()
 
 # see https://wiki.debian.org/ArchitectureSpecificsMemo for char signedness
-set(MMSEQS_CXX_FLAGS "-std=c++1y -fsigned-char")
+set(MMSEQS_CXX_FLAGS "-fsigned-char")
 
 # SIMD instruction sets support
 set(MMSEQS_ARCH "")
@@ -121,13 +121,6 @@ if (CYGWIN OR ARM OR PPC64)
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -D_GNU_SOURCE=1")
 endif ()
 
-# Compiler-specific features
-if (CMAKE_COMPILER_IS_CLANG AND (NOT EMSCRIPTEN))
-    set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++11")
-    set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
-    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -stdlib=libc++")
-endif ()
-
 if (CMAKE_COMPILER_IS_ICC)
     # default -fp-model results in inconsistent results in profile search
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -fp-model precise")
@@ -163,6 +156,16 @@ if (PPC64)
     set(DISABLE_IPS4O 1)
 endif ()
 
+set(MMSEQS_C_FLAGS "${MMSEQS_CXX_FLAGS}")
+set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -std=c++1y")
+# Compiler-specific features
+if (CMAKE_COMPILER_IS_CLANG AND (NOT EMSCRIPTEN))
+    set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++11")
+    set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
+    set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} -stdlib=libc++")
+endif ()
+
+
 # zstd
 # We use ZSTD_findDecompressedSize which is only available with ZSTD_STATIC_LINKING_ONLY
 # Thus we cannot use a system provided libzstd
@@ -178,6 +181,7 @@ option(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
 option(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
 include_directories(lib/zstd/lib)
 add_subdirectory(lib/zstd/build/cmake/lib EXCLUDE_FROM_ALL)
+set_target_properties(libzstd_static PROPERTIES COMPILE_FLAGS "${MMSEQS_C_FLAGS}" LINK_FLAGS "${MMSEQS_C_FLAGS}")
 
 # tinyexpr
 include_directories(lib/tinyexpr)
