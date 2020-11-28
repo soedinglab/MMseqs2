@@ -35,14 +35,13 @@ jobs:
       - checkout: self
         submodules: true
       - script: |
-          brew install cmake libomp
-        displayName: Install Dependencies
+          sudo xcode-select -s "/Applications/Xcode_12.2.app"
+        displayName: Use Xcode 12.2
       - script: |
           cd ${BUILD_SOURCESDIRECTORY}
           ./util/build_osx.sh . build
         displayName: Build MMseqs2
       - script: |
-          sudo xcode-select -s "/Applications/Xcode_12.2.app"
           ${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/mmseqs ${BUILD_SOURCESDIRECTORY}/regression
         displayName: Run Regression Suite
         condition: eq(variables['regression'], 1)
