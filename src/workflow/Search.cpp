@@ -330,8 +330,8 @@ int search(int argc, const char **argv, const Command& command) {
         par.maxResListLen = INT_MAX;
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         par.maxResListLen = maxResListLen;
-        float originalEvalThr = par.evalThr;
-        par.evalThr = std::numeric_limits<float>::max();
+        double originalEvalThr = par.evalThr;
+        par.evalThr = std::numeric_limits<double>::max();
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         par.evalThr = originalEvalThr;
         if (isUngappedMode) {
@@ -370,7 +370,7 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.subtractdbs).c_str());
         cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
 
-        float originalEval = par.evalThr;
+        double originalEval = par.evalThr;
         par.evalThr = (par.evalThr < par.evalProfile) ? par.evalThr  : par.evalProfile;
         for (int i = 0; i < par.numIterations; i++) {
             if (i == 0 && (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_PROFILE) == false) {

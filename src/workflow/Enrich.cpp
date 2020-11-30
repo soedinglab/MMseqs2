@@ -50,7 +50,7 @@ int enrich(int argc, const char **argv, const Command &command) {
     const bool isUngappedMode = false;
     cmd.addVariable("ALIGN_MODULE", "align");
 
-    float originalEval = par.evalThr;
+    double originalEval = par.evalThr;
     par.evalThr = par.evalProfile;
     par.realign = false;
     for (int i = 0; i < par.numIterations; i++) {

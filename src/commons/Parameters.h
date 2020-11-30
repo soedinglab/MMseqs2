@@ -378,7 +378,7 @@ public:
     // ALIGNMENT
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
                                          // 1=score only, 2=score, cov, start/end pos, 3=score, cov, start/end pos, seq.id,
-    float  evalThr;                      // e-value threshold for acceptance
+    double evalThr;                      // e-value threshold for acceptance
     float  covThr;                       // coverage query&target threshold for acceptance
     int    covMode;                      // coverage target threshold for acceptance
     int    seqIdMode;                    // seq. id. normalize mode
@@ -412,7 +412,7 @@ public:
     int strand;
     int orfFilter;
     float orfFilterSens;
-    float orfFilterEval;
+    double orfFilterEval;
     bool lcaSearch;
 
     // easysearch
@@ -463,7 +463,7 @@ public:
     // result2profile
     int maskProfile;
     float filterMaxSeqId;
-    float evalProfile;
+    double evalProfile;
     int filterMsa;
     float qsc;
     float qid;

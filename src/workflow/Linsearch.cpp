@@ -126,7 +126,7 @@ int linsearch(int argc, const char **argv, const Command &command) {
 
     cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
     cmd.addVariable("KMERSEARCH_PAR", par.createParameterString(par.kmersearch).c_str());
-    float oldEval = par.evalThr;
+    double oldEval = par.evalThr;
     par.evalThr = 100000;
     cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
     par.evalThr = oldEval;
