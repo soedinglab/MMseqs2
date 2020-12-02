@@ -111,7 +111,9 @@ int createdb(int argc, const char **argv, const Command& command) {
 
         std::string sourceName;
         if (dbInput == true) {
-            sourceName = reader->getLookupEntryName(fileIdx);
+            unsigned int dbKey = reader->getDbKey(fileIdx);
+            size_t lookupId = reader->getLookupIdByKey(dbKey);
+            sourceName = reader->getLookupEntryName(lookupId);
         } else {
             sourceName = FileUtil::baseName(filenames[fileIdx]);
         }
