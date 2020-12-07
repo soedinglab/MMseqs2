@@ -235,6 +235,10 @@ int msa2result(int argc, const char **argv, const Command &command) {
                     break;
                 }
 
+                if ((par.msaType == 0 || par.msaType == 1) && strncmp("ss_", seq->name.s, strlen("ss_")) == 0) {
+                    continue;
+                }
+
                 const char newline = '\n';
                 headerWriter.writeStart(thread_idx);
                 headerWriter.writeAdd(seq->name.s, seq->name.l, thread_idx);

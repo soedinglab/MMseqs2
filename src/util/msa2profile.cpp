@@ -208,6 +208,10 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                     break;
                 }
 
+                if ((par.msaType == 0 || par.msaType == 1) && strncmp("ss_", seq->name.s, strlen("ss_")) == 0) {
+                    continue;
+                }
+
                 // first sequence is always the query
                 if (setSize == 0) {
                     centerLengthWithGaps = seq->seq.l;
