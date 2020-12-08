@@ -4,6 +4,7 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "Util.h"
+#include "Matcher.h"
 #include <algorithm>
 
 #ifdef OPENMP
@@ -14,7 +15,7 @@ static bool compareToFirstInt(const std::pair<unsigned int, unsigned int>& lhs, 
     return (lhs.first <= rhs.first);
 }
 
-int lca(int argc, const char **argv, const Command& command) {
+int dolca(int argc, const char **argv, const Command& command, bool majority) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
     NcbiTaxonomy * t = NcbiTaxonomy::openTaxonomy(par.db1);
@@ -81,6 +82,7 @@ int lca(int argc, const char **argv, const Command& command) {
             size_t length = reader.getEntryLen(i);
 
             std::vector<int> taxa;
+            std::vector<WeightedTaxHit> weightedTaxa;
             while (*data != '\0') {
                 TaxID taxon;
                 unsigned int id;
@@ -117,7 +119,19 @@ int lca(int argc, const char **argv, const Command& command) {
                 }
 
                 if (isBlacklisted == false) {
-                    taxa.emplace_back(taxon);
+                    if (majority) {
+                        float evalue = FLT_MAX;
+                        if (par.voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL) {
+                            if (columns < Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
+                                Debug(Debug::ERROR) << "No alignment result for taxon " << taxon << " found\n";
+                                EXIT(EXIT_FAILURE);
+                            }
+                            evalue = strtod(entry[3], NULL);
+                        }
+                        weightedTaxa.emplace_back(taxon, evalue);
+                    } else {
+                        taxa.emplace_back(taxon);
+                    }
                 }
             }
 
@@ -126,7 +140,13 @@ int lca(int argc, const char **argv, const Command& command) {
                 continue;
             }
 
-            TaxonNode const * node = t->LCA(taxa);
+            TaxonNode const * node = NULL;
+            if (majority) {
+                WeightedTaxResult result = t->weightedMajorityLCA(weightedTaxa, par.majorityThr);
+                node = t->taxonNode(result.taxon, false);
+            } else {
+                node = t->LCA(taxa);
+            }
             if (node == NULL) {
                 writer.writeData(noTaxResult.c_str(), noTaxResult.size(), key, thread_idx);
                 continue;
@@ -156,4 +176,12 @@ int lca(int argc, const char **argv, const Command& command) {
     delete[] taxaBlacklist;
 
     return EXIT_SUCCESS;
+}
+
+int lca(int argc, const char **argv, const Command& command) {
+    return dolca(argc, argv, command, false);
+}
+
+int majoritylca(int argc, const char **argv, const Command& command) {
+    return dolca(argc, argv, command, true);
 }

@@ -1027,6 +1027,7 @@ public:
     std::vector<MMseqsParameter*> convertkb;
     std::vector<MMseqsParameter*> tsv2db;
     std::vector<MMseqsParameter*> lca;
+    std::vector<MMseqsParameter*> majoritylca;
     std::vector<MMseqsParameter*> addtaxonomy;
     std::vector<MMseqsParameter*> taxonomyreport;
     std::vector<MMseqsParameter*> filtertaxdb;

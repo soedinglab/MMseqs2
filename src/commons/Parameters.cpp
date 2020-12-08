@@ -993,6 +993,16 @@ Parameters::Parameters():
     lca.push_back(&PARAM_THREADS);
     lca.push_back(&PARAM_V);
 
+    // majoritylca
+    majoritylca.push_back(&PARAM_MAJORITY);
+    majoritylca.push_back(&PARAM_VOTE_MODE);
+    majoritylca.push_back(&PARAM_LCA_RANKS);
+    majoritylca.push_back(&PARAM_BLACKLIST);
+    majoritylca.push_back(&PARAM_TAXON_ADD_LINEAGE);
+    majoritylca.push_back(&PARAM_COMPRESSED);
+    majoritylca.push_back(&PARAM_THREADS);
+    majoritylca.push_back(&PARAM_V);
+
     // createsubdb
     createsubdb.push_back(&PARAM_SUBDB_MODE);
     createsubdb.push_back(&PARAM_V);

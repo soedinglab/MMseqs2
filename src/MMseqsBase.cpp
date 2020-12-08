@@ -470,7 +470,14 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2, {{"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
                                           {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
                                           {"taxDB",    DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxResult }}},
-
+        {"majoritylca",          majoritylca,          &par.majoritylca,          COMMAND_TAXONOMY | COMMAND_EXPERT,
+                "Compute the lowest common ancestor using majority voting",
+                NULL,
+                "Milot Mirdita <milot@mirdita.de>",
+                "<i:targetDB> <i:resultDB> <o:taxaDB>",
+                CITATION_MMSEQS2, {{"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
+                                          {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
+                                          {"taxDB",    DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxResult }}},
 
 
         {"multihitdb",           multihitdb,           &par.multihitdb,           COMMAND_MULTIHIT,

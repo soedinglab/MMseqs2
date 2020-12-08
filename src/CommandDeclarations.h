@@ -63,6 +63,7 @@ extern int taxonomyreport(int argc, const char **argv, const Command& command);
 extern int linclust(int argc, const char **argv, const Command& command);
 extern int map(int argc, const char **argv, const Command& command);
 extern int renamedbkeys(int argc, const char **argv, const Command& command);
+extern int majoritylca(int argc, const char **argv, const Command& command);
 extern int maskbygff(int argc, const char **argv, const Command& command);
 extern int mergeclusters(int argc, const char **argv, const Command& command);
 extern int mergedbs(int argc, const char **argv, const Command& command);
