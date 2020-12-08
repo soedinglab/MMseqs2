@@ -84,7 +84,7 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
                 TaxID taxon = Util::fast_atoi<int>(seqToTaxData);
 
                 float evalue = FLT_MAX;
-                if (useAln == true) {
+                if (useAln == true && taxon != 0) {
                     size_t alnId = alnSeqReader->getId(seqKey);
                     if (alnId == UINT_MAX) {
                         Debug(Debug::ERROR) << "Missing key " << alnId << " in alignment result\n";
