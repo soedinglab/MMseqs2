@@ -975,21 +975,21 @@ Parameters::Parameters():
     filtertaxseqdb.push_back(&PARAM_V);
 
     // aggregatetax
-    aggregatetax.push_back(&PARAM_COMPRESSED);
     aggregatetax.push_back(&PARAM_MAJORITY);
     aggregatetax.push_back(&PARAM_VOTE_MODE);
     aggregatetax.push_back(&PARAM_LCA_RANKS);
     aggregatetax.push_back(&PARAM_TAXON_ADD_LINEAGE);
+    aggregatetax.push_back(&PARAM_COMPRESSED);
     aggregatetax.push_back(&PARAM_THREADS);
     aggregatetax.push_back(&PARAM_V);
     // TODO should we add this in the future?
     //aggregatetax.push_back(&PARAM_BLACKLIST);
 
     // lca
-    lca.push_back(&PARAM_COMPRESSED);
     lca.push_back(&PARAM_LCA_RANKS);
     lca.push_back(&PARAM_BLACKLIST);
     lca.push_back(&PARAM_TAXON_ADD_LINEAGE);
+    lca.push_back(&PARAM_COMPRESSED);
     lca.push_back(&PARAM_THREADS);
     lca.push_back(&PARAM_V);
 
