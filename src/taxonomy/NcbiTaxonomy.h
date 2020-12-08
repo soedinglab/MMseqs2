@@ -24,6 +24,25 @@ struct TaxonNode {
             : id(id), taxId(taxId), parentTaxId(parentTaxId), rank(rank), name("") {};
 };
 
+const double MAX_TAX_WEIGHT = 1000;
+struct WeightedTaxHit {
+    WeightedTaxHit(const TaxID taxon, const float evalue);
+
+    TaxID taxon;
+    double weight;
+};
+
+struct WeightedTaxResult {
+    WeightedTaxResult(TaxID taxon, size_t assignedSeqs, size_t unassignedSeqs, size_t seqsAgreeWithSelectedTaxon, double selectedPercent)
+            : taxon(taxon), assignedSeqs(assignedSeqs), unassignedSeqs(unassignedSeqs), seqsAgreeWithSelectedTaxon(seqsAgreeWithSelectedTaxon), selectedPercent(selectedPercent) {};
+
+    TaxID  taxon;
+    size_t assignedSeqs;
+    size_t unassignedSeqs;
+    size_t seqsAgreeWithSelectedTaxon;
+    double selectedPercent;
+};
+
 struct TaxonCounts {
     unsigned int taxCount;       // number of reads/sequences matching to taxa
     unsigned int cladeCount;     // number of reads/sequences matching to taxa or its children
@@ -89,6 +108,8 @@ public:
     TaxonNode const* taxonNode(TaxID taxonId, bool fail = true) const;
     //std::unordered_map<TaxID, unsigned int> getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts, TaxID taxon = 1) const;
     std::unordered_map<TaxID, TaxonCounts> getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts) const;
+
+    WeightedTaxResult weightedMajorityLCA(const std::vector<WeightedTaxHit> &setTaxa, const float majorityCutoff);
 
     static NcbiTaxonomy * openTaxonomy(std::string & database);
 

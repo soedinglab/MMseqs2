@@ -472,3 +472,159 @@ NcbiTaxonomy * NcbiTaxonomy::openTaxonomy(std::string &database){
     }
     return new NcbiTaxonomy(namesFile, nodesFile, mergedFile);
 }
+
+const TaxID ROOT_TAXID = 1;
+const int ROOT_RANK = INT_MAX;
+
+struct TaxNode {
+    TaxNode(const double weight, const bool isCandidate, const TaxID childTaxon)
+            : weight(weight), isCandidate(isCandidate), childTaxon(childTaxon) {}
+
+    void update(const double weightToAdd, const TaxID & childTaxonInput) {
+        if (childTaxon != childTaxonInput) {
+            isCandidate = true;
+            childTaxon = childTaxonInput;
+        }
+        weight += weightToAdd;
+    }
+
+    double weight;
+    bool isCandidate;
+    TaxID childTaxon;
+};
+
+WeightedTaxHit::WeightedTaxHit(const TaxID taxon, const float evalue) : taxon(taxon) {
+        weight = 1.0;
+        if (evalue != FLT_MAX) {
+            if (evalue > 0) {
+                weight = -log(evalue);
+            } else {
+                weight = MAX_TAX_WEIGHT;
+            }
+        }
+}
+
+WeightedTaxResult NcbiTaxonomy::weightedMajorityLCA(const std::vector<WeightedTaxHit> &setTaxa, const float majorityCutoff) {
+    // count num occurences of each ancestor, possibly weighted
+    std::map<TaxID, TaxNode> ancTaxIdsCounts;
+
+    // initialize counters and weights
+    size_t assignedSeqs = 0;
+    size_t unassignedSeqs = 0;
+    size_t seqsAgreeWithSelectedTaxon = 0;
+    double selectedPercent = 0;
+    double totalAssignedSeqsWeights = 0.0;
+
+    for (size_t i = 0; i < setTaxa.size(); ++i) {
+        TaxID currTaxId = setTaxa[i].taxon;
+        double currWeight = setTaxa[i].weight;
+        // ignore unassigned sequences
+        if (currTaxId == 0) {
+            unassignedSeqs++;
+            continue;
+        }
+        TaxonNode const *node = taxonNode(currTaxId, false);
+        if (node == NULL) {
+            Debug(Debug::ERROR) << "taxonid: " << currTaxId << " does not match a legal taxonomy node.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        totalAssignedSeqsWeights += currWeight;
+        assignedSeqs++;
+
+        // each start of a path due to an orf is a candidate
+        std::map<TaxID, TaxNode>::iterator it;
+        if ((it = ancTaxIdsCounts.find(currTaxId)) != ancTaxIdsCounts.end()) {
+            it->second.update(currWeight, 0);
+        } else {
+            TaxNode current(currWeight, true, 0);
+            ancTaxIdsCounts.emplace(currTaxId, current);
+        }
+
+        // iterate all ancestors up to root (including). add currWeight and candidate status to each
+        TaxID currParentTaxId = node->parentTaxId;
+        while (currParentTaxId != currTaxId) {
+            if ((it = ancTaxIdsCounts.find(currParentTaxId)) != ancTaxIdsCounts.end()) {
+                it->second.update(currWeight, currTaxId);
+            } else {
+                TaxNode parent(currWeight, false, currTaxId);
+                ancTaxIdsCounts.emplace(currParentTaxId, parent);
+            }
+            // move up:
+            currTaxId = currParentTaxId;
+            node = taxonNode(currParentTaxId, false);
+            currParentTaxId = node->parentTaxId;
+        }
+    }
+
+    // select the lowest ancestor that meets the cutoff
+    int minRank = INT_MAX;
+    TaxID selctedTaxon = 0;
+
+    for (std::map<TaxID, TaxNode>::iterator it = ancTaxIdsCounts.begin(); it != ancTaxIdsCounts.end(); it++) {
+        // consider only candidates:
+        if (it->second.isCandidate == false) {
+            continue;
+        }
+
+        double currPercent = float(it->second.weight) / totalAssignedSeqsWeights;
+        if (currPercent >= majorityCutoff) {
+            // iterate all ancestors to find lineage min rank (the candidate is a descendant of a node with this rank)
+            TaxID currTaxId = it->first;
+            TaxonNode const *node = taxonNode(currTaxId, false);
+            int currMinRank = ROOT_RANK;
+            TaxID currParentTaxId = node->parentTaxId;
+            while (currParentTaxId != currTaxId) {
+                int currRankInd = NcbiTaxonomy::findRankIndex(node->rank);
+                if ((currRankInd > 0) && (currRankInd < currMinRank)) {
+                    currMinRank = currRankInd;
+                    // the rank can only go up on the way to the root, so we can break
+                    break;
+                }
+                // move up:
+                currTaxId = currParentTaxId;
+                node = taxonNode(currParentTaxId, false);
+                currParentTaxId = node->parentTaxId;
+            }
+
+            if ((currMinRank < minRank) || ((currMinRank == minRank) && (currPercent > selectedPercent))) {
+                selctedTaxon = it->first;
+                minRank = currMinRank;
+                selectedPercent = currPercent;
+            }
+        }
+    }
+
+    // count the number of seqs who have selectedTaxon in their ancestors (agree with selection):
+    if (selctedTaxon == ROOT_TAXID) {
+        // all agree with "root"
+        seqsAgreeWithSelectedTaxon = assignedSeqs;
+        return WeightedTaxResult(selctedTaxon, assignedSeqs, unassignedSeqs, seqsAgreeWithSelectedTaxon, selectedPercent);
+    }
+    if (selctedTaxon == 0) {
+        // nothing informative
+        return WeightedTaxResult(selctedTaxon, assignedSeqs, unassignedSeqs, seqsAgreeWithSelectedTaxon, selectedPercent);
+    }
+    // otherwise, iterate over all seqs
+    for (size_t i = 0; i < setTaxa.size(); ++i) {
+        TaxID currTaxId = setTaxa[i].taxon;
+        // ignore unassigned sequences
+        if (currTaxId == 0) {
+            continue;
+        }
+        TaxonNode const *node = taxonNode(currTaxId, false);
+
+        // iterate all ancestors up to the root
+        TaxID currParentTaxId = node->parentTaxId;
+        while (currParentTaxId != currTaxId) {
+            if (currTaxId == selctedTaxon) {
+                seqsAgreeWithSelectedTaxon++;
+                break;
+            }
+            currTaxId = currParentTaxId;
+            node = taxonNode(currParentTaxId, false);
+            currParentTaxId = node->parentTaxId;
+        }
+    }
+
+    return WeightedTaxResult(selctedTaxon, assignedSeqs, unassignedSeqs, seqsAgreeWithSelectedTaxon, selectedPercent);
+}
