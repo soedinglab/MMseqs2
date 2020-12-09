@@ -26,7 +26,7 @@ struct TaxonNode {
 
 const double MAX_TAX_WEIGHT = 1000;
 struct WeightedTaxHit {
-    WeightedTaxHit(const TaxID taxon, const float evalue);
+    WeightedTaxHit(const TaxID taxon, const float evalue, const int weightVoteMode);
 
     TaxID taxon;
     double weight;

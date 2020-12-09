@@ -120,15 +120,21 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
 
                 if (isBlacklisted == false) {
                     if (majority) {
-                        float evalue = FLT_MAX;
+                        float weight = FLT_MAX;
                         if (par.voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL) {
-                            if (columns < Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
+                            if (columns <= 3) {
                                 Debug(Debug::ERROR) << "No alignment result for taxon " << taxon << " found\n";
                                 EXIT(EXIT_FAILURE);
                             }
-                            evalue = strtod(entry[3], NULL);
+                            weight = strtod(entry[3], NULL);
+                        } else if (par.voteMode == Parameters::AGG_TAX_SCORE) {
+                            if (columns <= 1) {
+                                Debug(Debug::ERROR) << "No alignment result for taxon " << taxon << " found\n";
+                                EXIT(EXIT_FAILURE);
+                            }
+                            weight = strtod(entry[1], NULL);
                         }
-                        weightedTaxa.emplace_back(taxon, evalue);
+                        weightedTaxa.emplace_back(taxon, weight, par.voteMode);
                     } else {
                         taxa.emplace_back(taxon);
                     }

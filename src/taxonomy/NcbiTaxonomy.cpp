@@ -493,15 +493,28 @@ struct TaxNode {
     TaxID childTaxon;
 };
 
-WeightedTaxHit::WeightedTaxHit(const TaxID taxon, const float evalue) : taxon(taxon) {
-        weight = 1.0;
-        if (evalue != FLT_MAX) {
-            if (evalue > 0) {
-                weight = -log(evalue);
-            } else {
-                weight = MAX_TAX_WEIGHT;
+WeightedTaxHit::WeightedTaxHit(const TaxID taxon, const float evalue, const int weightVoteMode) : taxon(taxon) {
+    switch (weightVoteMode) {
+        case Parameters::AGG_TAX_UNIFORM:
+            weight = 1.0;
+            break;
+        case Parameters::AGG_TAX_MINUS_LOG_EVAL:
+            weight = evalue;
+            if (evalue != FLT_MAX) {
+                if (evalue > 0) {
+                    weight = -log(evalue);
+                } else {
+                    weight = MAX_TAX_WEIGHT;
+                }
             }
-        }
+            break;
+        case Parameters::AGG_TAX_SCORE:
+            weight = evalue;
+            break;
+        default:
+            Debug(Debug::ERROR) << "Invalid weight vote mode\n";
+            EXIT(EXIT_FAILURE);
+    }
 }
 
 WeightedTaxResult NcbiTaxonomy::weightedMajorityLCA(const std::vector<WeightedTaxHit> &setTaxa, const float majorityCutoff) {
