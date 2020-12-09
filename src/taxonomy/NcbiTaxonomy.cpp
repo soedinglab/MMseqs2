@@ -241,7 +241,7 @@ bool NcbiTaxonomy::IsAncestor(TaxID ancestor, TaxID child) {
     if (!nodeExists(child)) {
         Debug(Debug::WARNING) << "No node for taxID " << child << ".\n";
         return false;
-    } 
+    }
 
     if (!nodeExists(ancestor)) {
         Debug(Debug::WARNING) << "No node for taxID " << ancestor << ".\n";
@@ -354,7 +354,7 @@ std::string NcbiTaxonomy::taxLineage(TaxonNode const *node, bool infoAsName) {
         } else {
             taxLineage += SSTR(taxLineageVec[i]->taxId);
         }
-        
+
         if (i > 0) {
             taxLineage += ";";
         }
@@ -524,8 +524,6 @@ WeightedTaxResult NcbiTaxonomy::weightedMajorityLCA(const std::vector<WeightedTa
     // initialize counters and weights
     size_t assignedSeqs = 0;
     size_t unassignedSeqs = 0;
-    size_t seqsAgreeWithSelectedTaxon = 0;
-    double selectedPercent = 0;
     double totalAssignedSeqsWeights = 0.0;
 
     for (size_t i = 0; i < setTaxa.size(); ++i) {
@@ -562,24 +560,28 @@ WeightedTaxResult NcbiTaxonomy::weightedMajorityLCA(const std::vector<WeightedTa
                 TaxNode parent(currWeight, false, currTaxId);
                 ancTaxIdsCounts.emplace(currParentTaxId, parent);
             }
-            // move up:
+            // move up
             currTaxId = currParentTaxId;
             node = taxonNode(currParentTaxId, false);
             currParentTaxId = node->parentTaxId;
         }
     }
 
+    TaxID selctedTaxon = 0;
+    if (totalAssignedSeqsWeights == 0) {
+        return WeightedTaxResult(selctedTaxon, assignedSeqs, unassignedSeqs, 0, 0.0);
+    }
+
     // select the lowest ancestor that meets the cutoff
     int minRank = INT_MAX;
-    TaxID selctedTaxon = 0;
-
+    double selectedPercent = 0;
     for (std::map<TaxID, TaxNode>::iterator it = ancTaxIdsCounts.begin(); it != ancTaxIdsCounts.end(); it++) {
-        // consider only candidates:
+        // consider only candidates
         if (it->second.isCandidate == false) {
             continue;
         }
 
-        double currPercent = float(it->second.weight) / totalAssignedSeqsWeights;
+        double currPercent = it->second.weight / totalAssignedSeqsWeights;
         if (currPercent >= majorityCutoff) {
             // iterate all ancestors to find lineage min rank (the candidate is a descendant of a node with this rank)
             TaxID currTaxId = it->first;
@@ -610,13 +612,13 @@ WeightedTaxResult NcbiTaxonomy::weightedMajorityLCA(const std::vector<WeightedTa
     // count the number of seqs who have selectedTaxon in their ancestors (agree with selection):
     if (selctedTaxon == ROOT_TAXID) {
         // all agree with "root"
-        seqsAgreeWithSelectedTaxon = assignedSeqs;
-        return WeightedTaxResult(selctedTaxon, assignedSeqs, unassignedSeqs, seqsAgreeWithSelectedTaxon, selectedPercent);
+        return WeightedTaxResult(selctedTaxon, assignedSeqs, unassignedSeqs, assignedSeqs, selectedPercent);
     }
     if (selctedTaxon == 0) {
         // nothing informative
-        return WeightedTaxResult(selctedTaxon, assignedSeqs, unassignedSeqs, seqsAgreeWithSelectedTaxon, selectedPercent);
+        return WeightedTaxResult(selctedTaxon, assignedSeqs, unassignedSeqs, 0, selectedPercent);
     }
+    size_t seqsAgreeWithSelectedTaxon = 0;
     // otherwise, iterate over all seqs
     for (size_t i = 0; i < setTaxa.size(); ++i) {
         TaxID currTaxId = setTaxa[i].taxon;
