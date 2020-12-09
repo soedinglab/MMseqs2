@@ -974,14 +974,22 @@ Parameters::Parameters():
     filtertaxseqdb.push_back(&PARAM_THREADS);
     filtertaxseqdb.push_back(&PARAM_V);
 
+    // aggregatetaxweights
+    aggregatetaxweights.push_back(&PARAM_MAJORITY);
+    aggregatetaxweights.push_back(&PARAM_VOTE_MODE);
+    aggregatetaxweights.push_back(&PARAM_LCA_RANKS);
+    aggregatetaxweights.push_back(&PARAM_TAXON_ADD_LINEAGE);
+    aggregatetaxweights.push_back(&PARAM_COMPRESSED);
+    aggregatetaxweights.push_back(&PARAM_THREADS);
+    aggregatetaxweights.push_back(&PARAM_V);
+
     // aggregatetax
-    aggregatetax.push_back(&PARAM_MAJORITY);
-    aggregatetax.push_back(&PARAM_VOTE_MODE);
     aggregatetax.push_back(&PARAM_LCA_RANKS);
     aggregatetax.push_back(&PARAM_TAXON_ADD_LINEAGE);
     aggregatetax.push_back(&PARAM_COMPRESSED);
     aggregatetax.push_back(&PARAM_THREADS);
     aggregatetax.push_back(&PARAM_V);
+
     // TODO should we add this in the future?
     //aggregatetax.push_back(&PARAM_BLACKLIST);
 
@@ -2276,7 +2284,7 @@ void Parameters::setDefaults() {
 
     // aggregatetax
     majorityThr = 0.5;
-    voteMode = 1;
+    voteMode = AGG_TAX_MINUS_LOG_EVAL;
 
     // taxonomyreport
     reportMode = 0;

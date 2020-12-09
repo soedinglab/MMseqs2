@@ -434,7 +434,7 @@ std::vector<Command> baseCommands = {
                                                            {"setToSeqMap",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb },
                                                            {"taxResPerSeqDB",   DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::taxResult },
                                                            {"taxResPerSetDB",   DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::taxResult }}},
-        {"aggregatetaxweights",         aggregatetaxweights,         &par.aggregatetax,         COMMAND_TAXONOMY,
+        {"aggregatetaxweights",  aggregatetaxweights,  &par.aggregatetaxweights,  COMMAND_TAXONOMY,
                 "Aggregate multiple taxon labels to a single label",
                 "# Download a sequence database with taxonomy information\n"
                 "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n\n"

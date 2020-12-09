@@ -83,7 +83,6 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
                 char *seqToTaxData = taxSeqReader.getData(seqId, thread_idx);
                 TaxID taxon = Util::fast_atoi<int>(seqToTaxData);
 
-                float evalue = FLT_MAX;
                 if (useAln == true && taxon != 0) {
                     size_t alnId = alnSeqReader->getId(seqKey);
                     if (alnId == UINT_MAX) {
@@ -91,6 +90,7 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
                         EXIT(EXIT_FAILURE);
                     }
                     char *seqToAlnData = alnSeqReader->getData(alnId, thread_idx);
+                    float weight = FLT_MAX;
                     size_t columns = Util::getWordsOfLine(seqToAlnData, entry, 255);
                     if (par.voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL) {
                         if (columns <= 3) {
@@ -105,9 +105,12 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
                         }
                         weight = strtod(entry[1], NULL);
                     }
+                    setTaxa.emplace_back(taxon, weight, par.voteMode);
+                } else {
+                    const int uniformMode = Parameters::AGG_TAX_UNIFORM;
+                    setTaxa.emplace_back(taxon, 1.0, uniformMode);
                 }
 
-                setTaxa.emplace_back(taxon, weight, par.voteMode);
                 results = Util::skipLine(results);
             }
 
