@@ -1,7 +1,7 @@
-#!/bin/sh -e
+#!/bin/sh -ex
 
 notExists() {
-	  [ ! -f "$1" ]
+	  [ ! -e "$1" ]
 }
 
 hasCommand () {
@@ -49,17 +49,24 @@ downloadFile() {
     fail "Could not download $URL to $OUTPUT"
 }
 
-if [ "$DOWNLOAD_NCBITAXDUMP" -eq "1" ]; then
-    # Download NCBI taxon information
-    if notExists "${TMP_PATH}/ncbi_download.complete"; then
-        echo "Download taxdump.tar.gz"
-        downloadFile "https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz" "${TMP_PATH}/taxdump.tar.gz"
-        tar -C "${TMP_PATH}" -xzf "${TMP_PATH}/taxdump.tar.gz" names.dmp nodes.dmp merged.dmp delnodes.dmp
-        touch "${TMP_PATH}/ncbi_download.complete"
-        rm -f "${TMP_PATH}/taxdump.tar.gz"
+if notExists "${TAXDBNAME}_names.dmp" || notExists "${TAXDBNAME}_nodes.dmp" || notExists "${TAXDBNAME}_merged.dmp"; then
+    if [ "$DOWNLOAD_NCBITAXDUMP" -eq "1" ]; then
+        # Download NCBI taxon information
+        if notExists "${TMP_PATH}/ncbi_download.complete"; then
+            echo "Download taxdump.tar.gz"
+            downloadFile "https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz" "${TMP_PATH}/taxdump.tar.gz"
+            tar -C "${TMP_PATH}" -xzf "${TMP_PATH}/taxdump.tar.gz" names.dmp nodes.dmp merged.dmp delnodes.dmp
+            touch "${TMP_PATH}/ncbi_download.complete"
+            rm -f "${TMP_PATH}/taxdump.tar.gz"
+        fi
+        NCBITAXINFO="${TMP_PATH}"
     fi
-    NCBITAXINFO="${TMP_PATH}"
+    cp -f "${NCBITAXINFO}/names.dmp"    "${TAXDBNAME}_names.dmp"
+    cp -f "${NCBITAXINFO}/nodes.dmp"    "${TAXDBNAME}_nodes.dmp"
+    cp -f "${NCBITAXINFO}/merged.dmp"   "${TAXDBNAME}_merged.dmp"
+    cp -f "${NCBITAXINFO}/delnodes.dmp" "${TAXDBNAME}_delnodes.dmp"
 fi
+
 if notExists "${TAXDBNAME}_mapping"; then
     if [ "$DOWNLOAD_MAPPING" -eq "1" ]; then
         # Download the latest UniProt ID mapping to extract taxon identifiers
@@ -83,19 +90,13 @@ if notExists "${TAXDBNAME}_mapping"; then
     fi
 fi
 
-# finalize database
-cp -f "${NCBITAXINFO}/names.dmp"     "${TAXDBNAME}_names.dmp"
-cp -f "${NCBITAXINFO}/nodes.dmp"     "${TAXDBNAME}_nodes.dmp"
-cp -f "${NCBITAXINFO}/merged.dmp"    "${TAXDBNAME}_merged.dmp"
-cp -f "${NCBITAXINFO}/delnodes.dmp"  "${TAXDBNAME}_delnodes.dmp"
-echo "Database created"
-
 if [ -n "$REMOVE_TMP" ]; then
-   rm -f "${TMP_PATH}/names.dmp" "${TMP_PATH}/nodes.dmp" "${TMP_PATH}/merged.dmp" "${TMP_PATH}/delnodes.dmp"
-   rm -f "${TMP_PATH}/taxidmapping"
-   if [ "$DOWNLOAD_DATA" -eq "1" ]; then
-      rm -f "${TMP_PATH}/taxdump.tar.gz"
-      rm -f "${TMP_PATH}/ncbi_download.complete" "${TMP_PATH}/mapping_download.complete"
-   fi
-   rm -f "${TMP_PATH}/createtaxdb.sh"
+    if [ "$DOWNLOAD_NCBITAXDUMP" -eq "1" ]; then
+        rm -f "${TMP_PATH}/names.dmp" "${TMP_PATH}/nodes.dmp" "${TMP_PATH}/merged.dmp" "${TMP_PATH}/delnodes.dmp"
+        rm -f "${TMP_PATH}/ncbi_download.complete"
+    fi
+    if [ "$DOWNLOAD_MAPPING" -eq "1" ]; then
+        rm -f "${TMP_PATH}/taxidmapping" "${TMP_PATH}/mapping_download.complete"
+    fi
+    rm -f "${TMP_PATH}/createtaxdb.sh"
 fi
