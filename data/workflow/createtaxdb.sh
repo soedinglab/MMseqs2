@@ -1,4 +1,4 @@
-#!/bin/sh -ex
+#!/bin/sh -e
 
 notExists() {
 	  [ ! -e "$1" ]
