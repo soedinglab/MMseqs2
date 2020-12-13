@@ -102,7 +102,7 @@ private:
     struct SortBlockByIndex {
         SortBlockByIndex(char* data, size_t* offsets) : data(data), offsets(offsets) {}
         bool operator() (size_t i, size_t j) const {
-            return strcmp(data + offsets[i], data + offsets[j]) <= 0;
+            return strcmp(data + offsets[i], data + offsets[j]) < 0;
         }
         char* data;
         size_t* offsets;
