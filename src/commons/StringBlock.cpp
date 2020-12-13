@@ -1,13 +1,11 @@
 #include "StringBlock.h"
-
-#include <algorithm>
+#include "FastSort.h"
 #include <numeric>
-
 
 void StringBlock::compact() {
     size_t* indices = new size_t[entryCount];
     std::iota(indices, indices + entryCount, 0);
-    std::sort(indices, indices + entryCount, SortBlockByIndex(data, offsets));
+    SORT_SERIAL(indices, indices + entryCount, SortBlockByIndex(data, offsets));
     size_t unique = 1;
     size_t totalLength = strlen(getString(indices[0]));
     for (size_t i = 1; i < entryCount; ++i) {
