@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <cassert>
 
+const int NcbiTaxonomy::SERIALIZATION_VERSION = 1;
+
 int **makeMatrix(size_t maxNodes) {
     size_t dimension = maxNodes * 2;
     int **M = new int*[dimension];

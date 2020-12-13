@@ -148,7 +148,7 @@ private:
     char* mmapData;
     size_t mmapSize;
 
-    static const int SERIALIZATION_VERSION = 1;
+    static const int SERIALIZATION_VERSION;
 };
 
 #endif
