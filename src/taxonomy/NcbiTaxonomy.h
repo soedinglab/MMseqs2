@@ -6,6 +6,8 @@
 #ifndef MMSEQS_NCBITAXONOMY_H
 #define MMSEQS_NCBITAXONOMY_H
 
+#include "StringBlock.h"
+
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -14,14 +16,17 @@
 typedef int TaxID;
 
 struct TaxonNode {
+public:
     int id;
     TaxID taxId;
     TaxID parentTaxId;
-    std::string rank;
-    std::string name;
+    size_t rankIdx;
+    size_t nameIdx;
 
-    TaxonNode(int id, TaxID taxId, TaxID parentTaxId, const std::string& rank)
-            : id(id), taxId(taxId), parentTaxId(parentTaxId), rank(rank), name("") {};
+    TaxonNode() {};
+
+    TaxonNode(int id, TaxID taxId, TaxID parentTaxId, size_t rankIdx, size_t nameIdx)
+            : id(id), taxId(taxId), parentTaxId(parentTaxId), rankIdx(rankIdx), nameIdx(nameIdx) {};
 };
 
 const double MAX_TAX_WEIGHT = 1000;
@@ -48,7 +53,6 @@ struct TaxonCounts {
     unsigned int cladeCount;     // number of reads/sequences matching to taxa or its children
     std::vector<TaxID> children; // list of children
 };
-
 
 static const std::map<std::string, int> NcbiRanks = {{ "forma", 1 },
                                                      { "varietas", 2 },
@@ -90,8 +94,8 @@ static const std::map<std::string, char> NcbiShortRanks = {{ "species", 's' },
 
 class NcbiTaxonomy {
 public:
-    NcbiTaxonomy(const std::string &namesFile,  const std::string &nodesFile,
-                 const std::string &mergedFile);
+    static NcbiTaxonomy* openTaxonomy(const std::string &database);
+    NcbiTaxonomy(const std::string &namesFile,  const std::string &nodesFile, const std::string &mergedFile);
     ~NcbiTaxonomy();
 
     TaxonNode const * LCA(const std::vector<TaxID>& taxa) const;
@@ -111,14 +115,18 @@ public:
 
     WeightedTaxResult weightedMajorityLCA(const std::vector<WeightedTaxHit> &setTaxa, const float majorityCutoff);
 
-    static NcbiTaxonomy * openTaxonomy(std::string & database);
+    const char* getString(size_t blockIdx) const;
 
-    std::vector<TaxonNode> taxonNodes;
+    static std::pair<char*, size_t> serialize(const NcbiTaxonomy& taxonomy);
+    static NcbiTaxonomy* unserialize(char* data);
+
+    TaxonNode* taxonNodes;
+    size_t maxNodes;
 private:
-    size_t loadNodes(const std::string &nodesFile);
+    size_t loadNodes(std::vector<TaxonNode> &tmpNodes, const std::string &nodesFile);
     size_t loadMerged(const std::string &mergedFile);
-    void loadNames(const std::string &namesFile);
-    void elh(std::vector< std::vector<TaxID> > const & children, int node, int level);
+    void loadNames(std::vector<TaxonNode> &tmpNodes, const std::string &namesFile);
+    void elh(std::vector<std::vector<TaxID>> const & children, int node, int level, std::vector<int> &tmpE, std::vector<int> &tmpL);
     void InitRangeMinimumQuery();
     int nodeId(TaxID taxId) const;
     bool nodeExists(TaxID taxId) const;
@@ -126,13 +134,19 @@ private:
     int RangeMinimumQuery(int i, int j) const;
     int lcaHelper(int i, int j) const;
 
-    std::vector<int> D; // maps from taxID to node ID in taxonNodes
-    std::vector<int> E; // for Euler tour sequence (size 2N-1)
-    std::vector<int> L; // Level of nodes in tour sequence (size 2N-1)
-    int* H;
+    NcbiTaxonomy(TaxonNode* taxonNodes, size_t maxNodes, int maxTaxID, int *D, int *E, int *L, int *H, int **M, StringBlock *block)
+        : taxonNodes(taxonNodes), maxNodes(maxNodes), maxTaxID(maxTaxID), D(D), E(E), L(L), H(H), M(M), block(block), externalData(true), mmapData(NULL), mmapSize(0) {};
+    int maxTaxID;
+    int *D; // maps from taxID to node ID in taxonNodes
+    int *E; // for Euler tour sequence (size 2N-1)
+    int *L; // Level of nodes in tour sequence (size 2N-1)
+    int *H;
     int **M;
-    size_t maxNodes;
+    StringBlock* block;
 
+    bool externalData;
+    char* mmapData;
+    size_t mmapSize;
 };
 
 #endif

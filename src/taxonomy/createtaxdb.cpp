@@ -31,6 +31,7 @@ int createtaxdb(int argc, const char **argv, const Command& command) {
         cmd.addVariable("MAPPINGFILE", par.taxMappingFile.c_str());
     }
     cmd.addVariable("MAPPINGMODE", SSTR(par.taxMappingMode).c_str());
+    cmd.addVariable("DBMODE", SSTR(par.taxDbMode).c_str());
     if (par.ncbiTaxDump.empty()) {
         cmd.addVariable("DOWNLOAD_NCBITAXDUMP", "1");
     }else{
@@ -38,6 +39,7 @@ int createtaxdb(int argc, const char **argv, const Command& command) {
         cmd.addVariable("NCBITAXINFO", par.ncbiTaxDump.c_str());
     }
     cmd.addVariable("ARIA_NUM_CONN", SSTR(std::min(16, par.threads)).c_str());
+    cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
     FileUtil::writeFile(tmp + "/createindex.sh", createtaxdb_sh, createtaxdb_sh_len);
     std::string program(tmp + "/createindex.sh");
     cmd.execProgram(program.c_str(), par.filenames);

@@ -1,5 +1,10 @@
 #!/bin/sh -e
 
+fail() {
+    echo "Error: $1"
+    exit 1
+}
+
 notExists() {
 	  [ ! -e "$1" ]
 }
@@ -61,10 +66,16 @@ if notExists "${TAXDBNAME}_names.dmp" || notExists "${TAXDBNAME}_nodes.dmp" || n
         fi
         NCBITAXINFO="${TMP_PATH}"
     fi
-    cp -f "${NCBITAXINFO}/names.dmp"    "${TAXDBNAME}_names.dmp"
-    cp -f "${NCBITAXINFO}/nodes.dmp"    "${TAXDBNAME}_nodes.dmp"
-    cp -f "${NCBITAXINFO}/merged.dmp"   "${TAXDBNAME}_merged.dmp"
-    cp -f "${NCBITAXINFO}/delnodes.dmp" "${TAXDBNAME}_delnodes.dmp"
+    if [ "${DBMODE}" = "1" ]; then
+        # shellcheck disable=SC2086
+        "${MMSEQS}" createbintaxonomy "${NCBITAXINFO}/names.dmp" "${NCBITAXINFO}/nodes.dmp" "${NCBITAXINFO}/merged.dmp" "${TAXDBNAME}_taxonomy" ${VERBOSITY_PAR} \
+            || fail "createbintaxonomy failed"
+    else
+        cp -f "${NCBITAXINFO}/names.dmp"    "${TAXDBNAME}_names.dmp"
+        cp -f "${NCBITAXINFO}/nodes.dmp"    "${TAXDBNAME}_nodes.dmp"
+        cp -f "${NCBITAXINFO}/merged.dmp"   "${TAXDBNAME}_merged.dmp"
+        cp -f "${NCBITAXINFO}/delnodes.dmp" "${TAXDBNAME}_delnodes.dmp"
+    fi
 fi
 
 if notExists "${TAXDBNAME}_mapping"; then

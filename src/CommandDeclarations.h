@@ -112,6 +112,7 @@ extern int taxonomy(int argc, const char **argv, const Command& command);
 extern int taxpercontig(int argc, const char **argv, const Command& command);
 extern int easytaxonomy(int argc, const char **argv, const Command& command);
 extern int createtaxdb(int argc, const char **argv, const Command& command);
+extern int createbintaxonomy(int argc, const char **argv, const Command& command);
 extern int translateaa(int argc, const char **argv, const Command& command);
 extern int translatenucs(int argc, const char **argv, const Command& command);
 extern int tsv2db(int argc, const char **argv, const Command& command);

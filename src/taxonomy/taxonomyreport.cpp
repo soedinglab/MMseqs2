@@ -55,7 +55,7 @@ void taxReport(FILE* FP, const NcbiTaxonomy& taxDB, const std::unordered_map<Tax
         const TaxonNode* taxon = taxDB.taxonNode(taxID);
         fprintf(FP, "%.4f\t%i\t%i\t%s\t%i\t%s%s\n",
                 100*cladeCount/double(totalReads), cladeCount, taxCount,
-                taxon->rank.c_str(), taxID, std::string(2*depth, ' ').c_str(), taxon->name.c_str());
+                taxDB.getString(taxon->rankIdx), taxID, std::string(2*depth, ' ').c_str(),  taxDB.getString(taxon->nameIdx));
 
         std::vector<TaxID> children = it->second.children;
         std::sort(children.begin(), children.end(), [&](int a, int b) { return cladeCountVal(cladeCounts, a) > cladeCountVal(cladeCounts,b); });
@@ -114,7 +114,7 @@ void kronaReport(FILE* FP, const NcbiTaxonomy& taxDB, const std::unordered_map<T
             return;
         }
         const TaxonNode* taxon = taxDB.taxonNode(taxID);
-        std::string escapedName = escapeAttribute(taxon->name);
+        std::string escapedName = escapeAttribute(taxDB.getString(taxon->nameIdx));
         fprintf(FP, "<node name=\"%s\"><magnitude><val>%d</val></magnitude>", escapedName.c_str(), cladeCount);
         std::vector<TaxID> children = it->second.children;
         std::sort(children.begin(), children.end(), [&](int a, int b) { return cladeCountVal(cladeCounts, a) > cladeCountVal(cladeCounts,b); });

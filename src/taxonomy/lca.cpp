@@ -65,8 +65,8 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
     #pragma omp parallel
     {
         const char *entry[255];
-        std::string resultData;
-        resultData.reserve(4096);
+        std::string result;
+        result.reserve(4096);
         unsigned int thread_idx = 0;
 
 #ifdef OPENMP
@@ -158,22 +158,27 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
                 continue;
             }
 
-            resultData = SSTR(node->taxId) + '\t' + node->rank + '\t' + node->name;
+            result.append(SSTR(node->taxId));
+            result.append(1, '\t');
+            result.append(t->getString(node->rankIdx));
+            result.append(1, '\t');
+            result.append(t->getString(node->nameIdx));
             if (!ranks.empty()) {
-                std::string lcaRanks = Util::implode(t->AtRanks(node, ranks), ';');
-                resultData += '\t' + lcaRanks;
+                result.append(1, '\t');
+                result.append(Util::implode(t->AtRanks(node, ranks), ';'));
             }
             if (par.showTaxLineage == 1) {
-                resultData += '\t' + t->taxLineage(node, true);
+                result.append(1, '\t');
+                result.append(t->taxLineage(node, true));
             }
             if (par.showTaxLineage == 2) {
-                resultData += '\t' + t->taxLineage(node, false);
+                result.append(1, '\t');
+                result.append(t->taxLineage(node, false));
             }
-            resultData += '\n';
-            writer.writeData(resultData.c_str(), resultData.size(), key, thread_idx);
-            resultData.clear();
+            writer.writeData(result.c_str(), result.size(), key, thread_idx);
+            result.clear();
         }
-    };
+    }
     Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " out of " << taxonNotFound+found << " entries not found\n";
     writer.close();

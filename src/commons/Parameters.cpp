@@ -254,6 +254,7 @@ Parameters::Parameters():
         PARAM_NCBI_TAX_DUMP(PARAM_NCBI_TAX_DUMP_ID, "--ncbi-tax-dump", "NCBI tax dump directory", "NCBI tax dump directory. The tax dump can be downloaded here \"ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz\"", typeid(std::string), (void *) &ncbiTaxDump, ""),
         PARAM_TAX_MAPPING_FILE(PARAM_TAX_MAPPING_FILE_ID, "--tax-mapping-file", "Taxonomy mapping file", "File to map sequence identifier to taxonomical identifier", typeid(std::string), (void *) &taxMappingFile, ""),
         PARAM_TAX_MAPPING_MODE(PARAM_TAX_MAPPING_MODE_ID, "--tax-mapping-mode", "Taxonomy mapping mode", "Map taxonomy based on sequence database 0: .lookup file 1: .source file", typeid(int), (void *) &taxMappingMode, "^[0-1]{1}$"),
+        PARAM_TAX_DB_MODE(PARAM_TAX_DB_MODE_ID, "--tax-db-mode", "Taxonomy db mode", "Create taxonomy database as: 0: .dmp flat files (human readable) 1: binary dump (faster readin)", typeid(int), (void *) &taxDbMode, "^[0-1]{1}$"),
         // expandaln
         PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion mode", "Update score, E-value, and sequence identity by 0: input alignment 1: rescoring the inferred backtrace", typeid(int), (void *) &expansionMode, "^[0-2]{1}$"),
         // taxonomy
@@ -1024,6 +1025,7 @@ Parameters::Parameters():
     createtaxdb.push_back(&PARAM_NCBI_TAX_DUMP);
     createtaxdb.push_back(&PARAM_TAX_MAPPING_FILE);
     createtaxdb.push_back(&PARAM_TAX_MAPPING_MODE);
+    createtaxdb.push_back(&PARAM_TAX_DB_MODE);
     createtaxdb.push_back(&PARAM_THREADS);
     createtaxdb.push_back(&PARAM_V);
 
@@ -1798,26 +1800,29 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
 }
 
 void Parameters::checkIfTaxDbIsComplete(std::string & filename){
-        if (FileUtil::fileExists((filename + "_mapping").c_str()) == false) {
-            Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
-                                << "The " << filename << "_mapping is missing.\n";
-            EXIT(EXIT_FAILURE);
-        }
-        if (FileUtil::fileExists((filename + "_nodes.dmp").c_str()) == false) {
-            Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
-                                << "The " << filename << "_nodes.dmp is missing.\n";
-            EXIT(EXIT_FAILURE);
-        }
-        if (FileUtil::fileExists((filename + "_names.dmp").c_str()) == false) {
-            Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
-                                << "The " << filename << "_names.dmp is missing.\n";
-            EXIT(EXIT_FAILURE);
-        }
-        if (FileUtil::fileExists((filename + "_merged.dmp").c_str()) == false) {
-            Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
-                                << "The " << filename << "_merged.dmp is missing.\n";
-            EXIT(EXIT_FAILURE);
-        }
+    if (FileUtil::fileExists((filename + "_mapping").c_str()) == false) {
+        Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
+                            << "The " << filename << "_mapping is missing.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (FileUtil::fileExists((filename + "_taxonomy").c_str()) == true) {
+        return;
+    }
+    if (FileUtil::fileExists((filename + "_nodes.dmp").c_str()) == false) {
+        Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
+                            << "The " << filename << "_nodes.dmp is missing.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (FileUtil::fileExists((filename + "_names.dmp").c_str()) == false) {
+        Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
+                            << "The " << filename << "_names.dmp is missing.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (FileUtil::fileExists((filename + "_merged.dmp").c_str()) == false) {
+        Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
+                            << "The " << filename << "_merged.dmp is missing.\n";
+        EXIT(EXIT_FAILURE);
+    }
 }
 
 void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar, bool isMiddleVar, bool isEndVar) {
@@ -2255,6 +2260,7 @@ void Parameters::setDefaults() {
     // createtaxdb
     taxMappingFile = "";
     taxMappingMode = 0;
+    taxDbMode = 1;
     ncbiTaxDump = "";
 
     // filtertaxdb, filtertaxseqdb

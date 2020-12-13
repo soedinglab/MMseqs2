@@ -145,9 +145,9 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
             } else {
                 setTaxStr.append(SSTR(node->taxId));
                 setTaxStr.append(1, '\t');
-                setTaxStr.append(node->rank);
+                setTaxStr.append(t->getString(node->rankIdx));
                 setTaxStr.append(1, '\t');
-                setTaxStr.append(node->name);
+                setTaxStr.append(t->getString(node->nameIdx));
                 setTaxStr.append(1, '\t');
                 setTaxStr.append(SSTR(totalNumSeqs));
                 setTaxStr.append(1, '\t');
