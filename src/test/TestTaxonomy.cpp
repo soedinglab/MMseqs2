@@ -12,5 +12,5 @@ int main (int, const char**) {
     taxa.push_back(9);
     taxa.push_back(7);
     TaxonNode const * node = t.LCA(taxa);
-    Debug(Debug::INFO) << node->name << "\n";
+    Debug(Debug::INFO) << t.getString(node->nameIdx) << "\n";
 }
