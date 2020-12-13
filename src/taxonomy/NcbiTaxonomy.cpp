@@ -498,9 +498,13 @@ NcbiTaxonomy * NcbiTaxonomy::openTaxonomy(const std::string &database){
         }
         fclose(handle);
         NcbiTaxonomy* t = NcbiTaxonomy::unserialize(data);
-        t->mmapData = data;
-        t->mmapSize = sb.st_size;
-        return t;
+        if (t != NULL) {
+            t->mmapData = data;
+            t->mmapSize = sb.st_size;
+            return t;
+        } else {
+            Debug(Debug::WARNING) << "Outdated taxonomy information, please recreate with createtaxdb.\n";
+        }
     }
     Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
     std::string nodesFile = database + "_nodes.dmp";
@@ -703,7 +707,8 @@ std::pair<char*, size_t> NcbiTaxonomy::serialize(const NcbiTaxonomy& t) {
     size_t matrixK = (int)(MathUtil::flog2(matrixDim)) + 1;
     size_t matrixSize = matrixDim * matrixK * sizeof(int);
     size_t blockSize = StringBlock::memorySize(*t.block);
-    size_t memSize = sizeof(size_t) // maxNodes
+    size_t memSize = sizeof(int) // SERIALIZATION_VERSION
+        + sizeof(size_t) // maxNodes
         + sizeof(int) // maxTaxID
         + t.maxNodes * sizeof(TaxonNode) // taxonNodes
         + (t.maxTaxID + 1) * sizeof(int) // D
@@ -714,6 +719,8 @@ std::pair<char*, size_t> NcbiTaxonomy::serialize(const NcbiTaxonomy& t) {
 
     char* mem = (char*) malloc(memSize);
     char* p = mem;
+    memcpy(p, &t.SERIALIZATION_VERSION, sizeof(int));
+    p += sizeof(int);
     memcpy(p, &t.maxNodes, sizeof(size_t));
     p += sizeof(size_t);
     memcpy(p, &t.maxTaxID, sizeof(int));
@@ -739,6 +746,11 @@ std::pair<char*, size_t> NcbiTaxonomy::serialize(const NcbiTaxonomy& t) {
 
 NcbiTaxonomy* NcbiTaxonomy::unserialize(char* mem) {
     const char* p = mem;
+    int version = *((int*)p);
+    p += sizeof(int);
+    if (version != NcbiTaxonomy::SERIALIZATION_VERSION) {
+        return NULL;
+    }
     size_t maxNodes = *((size_t*)p);
     p += sizeof(size_t);
     int maxTaxID = *((int*)p);
