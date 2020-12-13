@@ -175,6 +175,7 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
                 result.append(1, '\t');
                 result.append(t->taxLineage(node, false));
             }
+            result.append(1, '\n');
             writer.writeData(result.c_str(), result.size(), key, thread_idx);
             result.clear();
         }
