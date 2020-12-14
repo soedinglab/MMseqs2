@@ -86,7 +86,7 @@ NcbiTaxonomy::~NcbiTaxonomy() {
         delete[] L;
         deleteMatrix(M);
     }
-    free(block);
+    delete block;
     if (mmapData != NULL) {
         munmap(mmapData, mmapSize);
     }
