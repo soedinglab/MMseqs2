@@ -31,7 +31,7 @@ static bool sortByFirstString(const std::pair<std::string, TaxID>& lhs, const st
 struct SortByName {
     SortByName(NcbiTaxonomy* taxonomy) : taxonomy(taxonomy) {}
     bool operator() (const TaxonNode& lhs, const TaxonNode& rhs) const {
-        return strcmp(taxonomy->getString(lhs.nameIdx), taxonomy->getString(rhs.nameIdx)) <= 0;
+        return strcmp(taxonomy->getString(lhs.nameIdx), taxonomy->getString(rhs.nameIdx)) <  0;
     }
     const NcbiTaxonomy* taxonomy;
 };
