@@ -54,7 +54,7 @@ downloadFile() {
     fail "Could not download $URL to $OUTPUT"
 }
 
-if notExists "${TAXDBNAME}_names.dmp" || notExists "${TAXDBNAME}_nodes.dmp" || notExists "${TAXDBNAME}_merged.dmp"; then
+if { [ "${DBMODE}" = "1" ] && notExists "${TAXDBNAME}_taxonomy"; } || { [ "${DBMODE}" = "0" ] && { notExists "${TAXDBNAME}_names.dmp" || notExists "${TAXDBNAME}_nodes.dmp" || notExists "${TAXDBNAME}_merged.dmp"; }; }; then
     if [ "$DOWNLOAD_NCBITAXDUMP" -eq "1" ]; then
         # Download NCBI taxon information
         if notExists "${TMP_PATH}/ncbi_download.complete"; then
