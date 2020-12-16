@@ -33,7 +33,6 @@ set(commons_header_files
         commons/ScoreMatrix.h
         commons/Sequence.h
         commons/StringBlock.h
-        commons/StringBlock.cpp
         commons/SubstitutionMatrix.h
         commons/SubstitutionMatrixProfileStates.h
         commons/tantan.h

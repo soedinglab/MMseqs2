@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <cassert>
 
-const int NcbiTaxonomy::SERIALIZATION_VERSION = 1;
+const int NcbiTaxonomy::SERIALIZATION_VERSION = 2;
 
 int **makeMatrix(size_t maxNodes) {
     size_t dimension = maxNodes * 2;
@@ -33,7 +33,7 @@ void deleteMatrix(int** M) {
 }
 
 NcbiTaxonomy::NcbiTaxonomy(const std::string &namesFile, const std::string &nodesFile, const std::string &mergedFile) : externalData(false) {
-    block = new StringBlock();
+    block = new StringBlock<unsigned int>();
     std::vector<TaxonNode> tmpNodes;
     loadNodes(tmpNodes, nodesFile);
     loadMerged(mergedFile);
@@ -708,7 +708,7 @@ std::pair<char*, size_t> NcbiTaxonomy::serialize(const NcbiTaxonomy& t) {
     size_t matrixDim = (t.maxNodes * 2);
     size_t matrixK = (int)(MathUtil::flog2(matrixDim)) + 1;
     size_t matrixSize = matrixDim * matrixK * sizeof(int);
-    size_t blockSize = StringBlock::memorySize(*t.block);
+    size_t blockSize = StringBlock<unsigned int>::memorySize(*t.block);
     size_t memSize = sizeof(int) // SERIALIZATION_VERSION
         + sizeof(size_t) // maxNodes
         + sizeof(int) // maxTaxID
@@ -739,7 +739,7 @@ std::pair<char*, size_t> NcbiTaxonomy::serialize(const NcbiTaxonomy& t) {
     p += t.maxNodes * sizeof(int);
     memcpy(p, t.M[0], matrixSize);
     p += matrixSize;
-    char* blockData = StringBlock::serialize(*t.block);
+    char* blockData = StringBlock<unsigned int>::serialize(*t.block);
     memcpy(p, blockData, blockSize);
     p += blockSize;
     free(blockData);
@@ -776,6 +776,6 @@ NcbiTaxonomy* NcbiTaxonomy::unserialize(char* mem) {
         M[i] = M[i-1] + matrixK;
     }
     p += matrixSize;
-    StringBlock* block = StringBlock::unserialize(p);
+    StringBlock<unsigned int>* block = StringBlock<unsigned int>::unserialize(p);
     return new NcbiTaxonomy(taxonNodes, maxNodes, maxTaxID, D, E, L, H, M, block);
 }
