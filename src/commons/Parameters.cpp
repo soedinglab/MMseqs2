@@ -2361,6 +2361,7 @@ void Parameters::setDefaults() {
             { CITATION_LINCLUST, "Steinegger M, Soding J: Clustering huge protein sequence sets in linear time. Nature Communications, 9(1), 2542 (2018)" },
             { CITATION_PLASS,    "Steinegger M, Mirdita M, Soding J: Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. Nature Methods, 16(7), 603-606 (2019)" },
             { CITATION_SERVER,   "Mirdita M, Steinegger M, Soding J: MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, 35(16), 2856–2858 (2019)" },
+            { CITATION_TAXONOMY, "Mirdita M, Steinegger M, Breitwieser F, Soding J, Levy Karin E: Fast and sensitive taxonomic assignment to metagenomic contigs. bioRxiv, 2020.11.27.401018 (2020)" },
     };
 }
 
