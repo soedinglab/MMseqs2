@@ -22,7 +22,6 @@ void setSearchDefaults(Parameters *p) {
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
     p->sensitivity = 5.7;
     p->evalThr = 0.001;
-    //p->orfLongest = true;
     p->orfStartMode = 1;
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
@@ -453,7 +452,6 @@ int search(int argc, const char **argv, const Command& command) {
         FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
         cmd.addVariable("QUERY_NUCL", (searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_TRANSLATED) ? "TRUE" : NULL);
         cmd.addVariable("TARGET_NUCL", (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_TRANSLATED)  ? "TRUE" : NULL);
-        cmd.addVariable("ORF_FILTER", par.orfFilter ? "TRUE" : NULL);
         cmd.addVariable("THREAD_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
         par.subDbMode = 1;
         cmd.addVariable("CREATESUBDB_PAR", par.createParameterString(par.createsubdb).c_str());

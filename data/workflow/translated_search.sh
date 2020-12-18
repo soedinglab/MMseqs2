@@ -44,22 +44,22 @@ if [ -n "$NO_TARGET_INDEX" ]; then
 fi
 fi
 
-if [ -n "$QUERY_NUCL" ] && [ -n "${ORF_FILTER}" ]; then
-    if notExists "${TMP_PATH}/q_orfs_aa_pref.dbtype"; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" prefilter "${QUERY}" "${TARGET}" "${TMP_PATH}/q_orfs_aa_pref" --min-ungapped-score 3 -s 3 -k 6 --diag-score 0 --spaced-kmer-mode 0 --max-seqs 1 ${THREAD_COMP_PAR} \
-            || fail "Reference search died"
-    fi
-
-    if notExists "${TMP_PATH}/q_orfs_aa_filter.dbtype"; then
-        awk '$3 > 1 { print $1 }' "${TMP_PATH}/q_orfs_aa_pref.index" > "${TMP_PATH}/q_orfs_aa_filter.list"
-        # shellcheck disable=SC2086
-        "$MMSEQS" createsubdb "${TMP_PATH}/q_orfs_aa_filter.list" "${QUERY}" "${TMP_PATH}/q_orfs_aa_filter" ${CREATESUBDB_PAR} \
-            || fail "createsubdb died"
-    fi
-    QUERY="${TMP_PATH}/q_orfs_aa_filter"
-    QUERY_ORF="${TMP_PATH}/q_orfs_aa_filter"
-fi
+#if [ -n "$QUERY_NUCL" ] && [ -n "${ORF_FILTER}" ]; then
+#    if notExists "${TMP_PATH}/q_orfs_aa_pref.dbtype"; then
+#        # shellcheck disable=SC2086
+#        "$MMSEQS" prefilter "${QUERY}" "${TARGET}" "${TMP_PATH}/q_orfs_aa_pref" --min-ungapped-score 3 -s 3 -k 6 --diag-score 0 --spaced-kmer-mode 0 --max-seqs 1 ${THREAD_COMP_PAR} \
+#            || fail "Reference search died"
+#    fi
+#
+#    if notExists "${TMP_PATH}/q_orfs_aa_filter.dbtype"; then
+#        awk '$3 > 1 { print $1 }' "${TMP_PATH}/q_orfs_aa_pref.index" > "${TMP_PATH}/q_orfs_aa_filter.list"
+#        # shellcheck disable=SC2086
+#        "$MMSEQS" createsubdb "${TMP_PATH}/q_orfs_aa_filter.list" "${QUERY}" "${TMP_PATH}/q_orfs_aa_filter" ${CREATESUBDB_PAR} \
+#            || fail "createsubdb died"
+#    fi
+#    QUERY="${TMP_PATH}/q_orfs_aa_filter"
+#    QUERY_ORF="${TMP_PATH}/q_orfs_aa_filter"
+#fi
 
 mkdir -p "${TMP_PATH}/search"
 if notExists "${TMP_PATH}/aln.dbtype"; then
