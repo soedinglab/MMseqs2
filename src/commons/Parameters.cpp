@@ -151,9 +151,9 @@ Parameters::Parameters():
         PARAM_SENS_STEPS(PARAM_SENS_STEPS_ID, "--sens-steps", "Search steps", "Number of search steps performed from --start-sens to -s", typeid(int), (void *) &sensSteps, "^[1-9]{1}$"),
         PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Slice search mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results", typeid(bool), (void *) &sliceSearch, "", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_STRAND(PARAM_STRAND_ID, "--strand", "Strand selection", "Strand selection only works for DNA/DNA search 0: reverse, 1: forward, 2: both", typeid(int), (void *) &strand, "^[0-2]{1}$", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_ORF_FILTER(PARAM_ORF_FILTER_ID, "--orf-filter", "ORF filter", "Prefilter query ORFs with non-selective before search", typeid(int), (void *) &orfFilter, "^[0-1]{1}$", MMseqsParameter::COMMAND_HIDDEN),
-        PARAM_ORF_FILTER_S(PARAM_ORF_FILTER_S_ID, "--orf-filter-s", "ORF filter sensitivity", "Sensitivity used for query ORF prefiltering", typeid(float), (void *) &orfFilterSens, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_HIDDEN),
-        PARAM_ORF_FILTER_E(PARAM_ORF_FILTER_E_ID, "--orf-filter-e", "ORF filter e-value", "E-value threshold used for query ORF prefiltering", typeid(double), (void *) &orfFilterEval, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_HIDDEN),
+        PARAM_ORF_FILTER(PARAM_ORF_FILTER_ID, "--orf-filter", "ORF filter", "Prefilter query ORFs with non-selective before search", typeid(int), (void *) &orfFilter, "^[0-1]{1}$"),
+        PARAM_ORF_FILTER_S(PARAM_ORF_FILTER_S_ID, "--orf-filter-s", "ORF filter sensitivity", "Sensitivity used for query ORF prefiltering", typeid(float), (void *) &orfFilterSens, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_ORF_FILTER_E(PARAM_ORF_FILTER_E_ID, "--orf-filter-e", "ORF filter e-value", "E-value threshold used for query ORF prefiltering", typeid(double), (void *) &orfFilterEval, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$"),
         PARAM_LCA_SEARCH(PARAM_LCA_SEARCH_ID, "--lca-search", "LCA search mode", "Efficient search for LCA candidates", typeid(bool), (void *) &lcaSearch, "", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         // easysearch
         PARAM_GREEDY_BEST_HITS(PARAM_GREEDY_BEST_HITS_ID, "--greedy-best-hits", "Greedy best hits", "Choose the best hits greedily to cover the query", typeid(bool), (void *) &greedyBestHits, ""),
@@ -1187,6 +1187,9 @@ Parameters::Parameters():
 
     // taxonomy
     taxonomy = combineList(searchworkflow, lca);
+    taxonomy.push_back(&PARAM_ORF_FILTER);
+    taxonomy.push_back(&PARAM_ORF_FILTER_E);
+    taxonomy.push_back(&PARAM_ORF_FILTER_S);
     taxonomy.push_back(&PARAM_LCA_MODE);
     taxonomy.push_back(&PARAM_TAX_OUTPUT_MODE);
 
