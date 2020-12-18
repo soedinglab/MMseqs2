@@ -126,7 +126,7 @@ int taxonomy(int argc, const char **argv, const Command& command) {
         // never show lineage for the orfs
         par.showTaxLineage = 0;
         par.PARAM_TAXON_ADD_LINEAGE.wasSet = true;
-        par.taxonomyOutpuMode = 2;
+        par.taxonomyOutputMode = Parameters::TAXONOMY_OUTPUT_BOTH;
         par.PARAM_TAX_OUTPUT_MODE.wasSet = true;
         cmd.addVariable("TAXONOMY_PAR", par.createParameterString(par.taxonomy, true).c_str());
         par.showTaxLineage = showTaxLineageOrig;
@@ -159,17 +159,17 @@ int taxonomy(int argc, const char **argv, const Command& command) {
         }
         cmd.addVariable("SEARCH_PAR", par.createParameterString(par.searchworkflow, true).c_str());
 
-        if (par.taxonomyOutpuMode == Parameters::TAXONOMY_OUTPUT_LCA) {
-            cmd.addVariable("TAX_OUTPUT", "0");
-            cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
-        } else if (par.taxonomyOutpuMode == Parameters::TAXONOMY_OUTPUT_BOTH) {
-            cmd.addVariable("TAX_OUTPUT", "2");
-            cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
-        } else {
-            cmd.addVariable("TAX_OUTPUT", "1");
-        }
         program = tmpDir + "/taxonomy.sh";
         FileUtil::writeFile(program.c_str(), taxonomy_sh, taxonomy_sh_len);
+    }
+    if (par.taxonomyOutputMode == Parameters::TAXONOMY_OUTPUT_LCA) {
+        cmd.addVariable("TAX_OUTPUT", "0");
+        cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
+    } else if (par.taxonomyOutputMode == Parameters::TAXONOMY_OUTPUT_BOTH) {
+        cmd.addVariable("TAX_OUTPUT", "2");
+        cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
+    } else {
+        cmd.addVariable("TAX_OUTPUT", "1");
     }
     cmd.execProgram(program.c_str(), par.filenames);
 

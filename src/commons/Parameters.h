@@ -622,7 +622,7 @@ public:
 
     // taxonomy
     int taxonomySearchMode;
-    int taxonomyOutpuMode;
+    int taxonomyOutputMode;
 
     // createsubdb
     int subDbMode;

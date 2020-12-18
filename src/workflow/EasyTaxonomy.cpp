@@ -88,7 +88,7 @@ int easytaxonomy(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
 
-    par.taxonomyOutpuMode = Parameters::TAXONOMY_OUTPUT_ALIGNMENT;
+    par.taxonomyOutputMode = Parameters::TAXONOMY_OUTPUT_BOTH;
     par.PARAM_TAX_OUTPUT_MODE.wasSet = true;
     cmd.addVariable("TAXONOMY_PAR", par.createParameterString(par.taxonomy, true).c_str());
     cmd.addVariable("CREATEDB_QUERY_PAR", par.createParameterString(par.createdb).c_str());
