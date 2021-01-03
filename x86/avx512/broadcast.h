@@ -220,12 +220,12 @@ simde_mm512_broadcast_f64x2 (simde__m128d a) {
     simde__m512d_private r_;
     simde__m128d_private a_ = simde__m128d_to_private(a);
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT) && HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
+    #if defined(SIMDE_VECTOR_SUBSCRIPT) && HEDLEY_HAS_BUILTIN(__builtin_shufflevector) && !defined(SIMDE_BUG_CLANG_BAD_VI64_OPS)
       r_.f64 = __builtin_shufflevector(a_.f64, a_.f64, 0, 1, 0, 1, 0, 1, 0, 1);
     #else
       SIMDE_VECTORIZE
-      for (size_t i = 0 ; i < (sizeof(r_.f64) / sizeof(r_.f64[0])) ; i+=2) {
-         r_.f64[i]     = a_.f64[0];
+      for (size_t i = 0 ; i < (sizeof(r_.f64) / sizeof(r_.f64[0])) ; i += 2) {
+         r_.f64[  i  ] = a_.f64[0];
          r_.f64[i + 1] = a_.f64[1];
       }
     #endif
@@ -419,7 +419,8 @@ simde_mm512_mask_broadcast_f32x4(simde__m512 src, simde__mmask16 k, simde__m128 
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_mask_broadcast_f32x4(src, k, a) simde_mm512_mask_broadcast_f32x4(src, k, a)
+  #undef _mm512_mask_broadcast_f32x4
+  #define _mm512_mask_broadcast_f32x4(src, k, a) simde_mm512_mask_broadcast_f32x4(src, k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -432,7 +433,8 @@ simde_mm512_maskz_broadcast_f32x4(simde__mmask16 k, simde__m128 a) {
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_maskz_broadcast_f32x4(k, a) simde_mm512_maskz_broadcast_f32x4(k, a)
+  #undef _mm512_maskz_broadcast_f32x4
+  #define _mm512_maskz_broadcast_f32x4(k, a) simde_mm512_maskz_broadcast_f32x4(k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -466,7 +468,8 @@ simde_mm512_mask_broadcast_f64x4(simde__m512d src, simde__mmask8 k, simde__m256d
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_mask_broadcast_f64x4(src, k, a) simde_mm512_mask_broadcast_f64x4(src, k, a)
+  #undef _mm512_mask_broadcast_f64x4
+  #define _mm512_mask_broadcast_f64x4(src, k, a) simde_mm512_mask_broadcast_f64x4(src, k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -479,7 +482,8 @@ simde_mm512_maskz_broadcast_f64x4(simde__mmask8 k, simde__m256d a) {
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_maskz_broadcast_f64x4(k, a) simde_mm512_maskz_broadcast_f64x4(k, a)
+  #undef _mm512_maskz_broadcast_f64x4
+  #define _mm512_maskz_broadcast_f64x4(k, a) simde_mm512_maskz_broadcast_f64x4(k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -519,7 +523,8 @@ simde_mm512_mask_broadcast_i32x4(simde__m512i src, simde__mmask16 k, simde__m128
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_mask_broadcast_i32x4(src, k, a) simde_mm512_mask_broadcast_i32x4(src, k, a)
+  #undef _mm512_mask_broadcast_i32x4
+  #define _mm512_mask_broadcast_i32x4(src, k, a) simde_mm512_mask_broadcast_i32x4(src, k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -532,7 +537,8 @@ simde_mm512_maskz_broadcast_i32x4(simde__mmask16 k, simde__m128i a) {
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_maskz_broadcast_i32x4(k, a) simde_mm512_maskz_broadcast_i32x4(k, a)
+  #undef _mm512_maskz_broadcast_i32x4
+  #define _mm512_maskz_broadcast_i32x4(k, a) simde_mm512_maskz_broadcast_i32x4(k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -566,7 +572,8 @@ simde_mm512_mask_broadcast_i64x4(simde__m512i src, simde__mmask8 k, simde__m256i
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_mask_broadcast_i64x4(src, k, a) simde_mm512_mask_broadcast_i64x4(src, k, a)
+  #undef _mm512_mask_broadcast_i64x4
+  #define _mm512_mask_broadcast_i64x4(src, k, a) simde_mm512_mask_broadcast_i64x4(src, k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -579,7 +586,8 @@ simde_mm512_maskz_broadcast_i64x4(simde__mmask8 k, simde__m256i a) {
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_maskz_broadcast_i64x4(k, a) simde_mm512_maskz_broadcast_i64x4(k, a)
+  #undef _mm512_maskz_broadcast_i64x4
+  #define _mm512_maskz_broadcast_i64x4(k, a) simde_mm512_maskz_broadcast_i64x4(k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -614,7 +622,8 @@ simde_mm512_mask_broadcastd_epi32(simde__m512i src, simde__mmask16 k, simde__m12
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_mask_broadcastd_epi32(src, k, a) simde_mm512_mask_broadcastd_epi32(src, k, a)
+  #undef _mm512_mask_broadcastd_epi32
+  #define _mm512_mask_broadcastd_epi32(src, k, a) simde_mm512_mask_broadcastd_epi32(src, k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -627,7 +636,8 @@ simde_mm512_maskz_broadcastd_epi32(simde__mmask16 k, simde__m128i a) {
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_maskz_broadcastd_epi32(k, a) simde_mm512_maskz_broadcastd_epi32(k, a)
+  #undef _mm512_maskz_broadcastd_epi32
+  #define _mm512_maskz_broadcastd_epi32(k, a) simde_mm512_maskz_broadcastd_epi32(k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -662,7 +672,8 @@ simde_mm512_mask_broadcastq_epi64(simde__m512i src, simde__mmask8 k, simde__m128
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_mask_broadcastq_epi64(src, k, a) simde_mm512_mask_broadcastq_epi64(src, k, a)
+  #undef _mm512_mask_broadcastq_epi64
+  #define _mm512_mask_broadcastq_epi64(src, k, a) simde_mm512_mask_broadcastq_epi64(src, k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -675,7 +686,8 @@ simde_mm512_maskz_broadcastq_epi64(simde__mmask8 k, simde__m128i a) {
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_maskz_broadcastq_epi64(k, a) simde_mm512_maskz_broadcastq_epi64(k, a)
+  #undef _mm512_maskz_broadcastq_epi64
+  #define _mm512_maskz_broadcastq_epi64(k, a) simde_mm512_maskz_broadcastq_epi64(k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -722,7 +734,8 @@ simde_mm512_mask_broadcastss_ps(simde__m512 src, simde__mmask16 k, simde__m128 a
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_mask_broadcastss_ps(src, k, a) simde_mm512_mask_broadcastss_ps(src, k, a)
+  #undef _mm512_mask_broadcastss_ps
+  #define _mm512_mask_broadcastss_ps(src, k, a) simde_mm512_mask_broadcastss_ps(src, k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -745,7 +758,8 @@ simde_mm512_maskz_broadcastss_ps(simde__mmask16 k, simde__m128 a) {
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_maskz_broadcastss_ps(k, a) simde_mm512_maskz_broadcastss_ps(k, a)
+  #undef _mm512_maskz_broadcastss_ps
+  #define _mm512_maskz_broadcastss_ps(k, a) simde_mm512_maskz_broadcastss_ps(k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -791,7 +805,8 @@ simde_mm512_mask_broadcastsd_pd(simde__m512d src, simde__mmask8 k, simde__m128d 
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_mask_broadcastsd_pd(src, k, a) simde_mm512_mask_broadcastsd_pd(src, k, a)
+  #undef _mm512_mask_broadcastsd_pd
+  #define _mm512_mask_broadcastsd_pd(src, k, a) simde_mm512_mask_broadcastsd_pd(src, k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -814,7 +829,8 @@ simde_mm512_maskz_broadcastsd_pd(simde__mmask8 k, simde__m128d a) {
   #endif
 }
 #if defined(SIMDE_X86_AVX512F_ENABLE_NATIVE_ALIASES)
-#define _mm512_maskz_broadcastsd_pd(k, a) simde_mm512_maskz_broadcastsd_pd(k, a)
+  #undef _mm512_maskz_broadcastsd_pd
+  #define _mm512_maskz_broadcastsd_pd(k, a) simde_mm512_maskz_broadcastsd_pd(k, a)
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES

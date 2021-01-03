@@ -29,6 +29,7 @@
 
 #include "avx512/types.h"
 
+#include "avx512/2intersect.h"
 #include "avx512/abs.h"
 #include "avx512/add.h"
 #include "avx512/adds.h"
@@ -54,9 +55,12 @@
 #include "avx512/fnmadd.h"
 #include "avx512/fnmsub.h"
 #include "avx512/insert.h"
+#include "avx512/kshift.h"
 #include "avx512/load.h"
 #include "avx512/loadu.h"
 #include "avx512/lzcnt.h"
+#include "avx512/madd.h"
+#include "avx512/maddubs.h"
 #include "avx512/max.h"
 #include "avx512/min.h"
 #include "avx512/mov.h"
