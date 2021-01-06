@@ -1,3 +1,7 @@
+// include xxhash early to avoid incompatibilites with SIMDe
+#define XXH_INLINE_ALL
+#include "xxhash.h"
+
 #include "kmermatcher.h"
 #include "Indexer.h"
 #include "ReducedMatrix.h"
@@ -19,7 +23,6 @@
 #include "ExtendedSubstitutionMatrix.h"
 #include "KmerGenerator.h"
 #include "MarkovKmerScore.h"
-#include "xxhash.h"
 #include <limits>
 #include <string>
 #include <vector>
