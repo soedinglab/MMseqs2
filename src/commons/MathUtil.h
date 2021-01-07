@@ -13,12 +13,15 @@
 #define M_PI (3.14159265358979323846264338327950288)
 #endif
 
-#ifndef __has_attribute
-#define __has_attribute(x) 0
+#if defined(__has_attribute)
+#  define HAS_ATTRIBUTE(x) __has_attribute(x)
+#else
+#  define HAS_ATTRIBUTE(x) (0)
 #endif
 
+
 #ifndef MAY_ALIAS
-#if defined(__GNUC__) || __has_attribute(__may_alias__)
+#if HAS_ATTRIBUTE(__may_alias__)
 #  define MAY_ALIAS(x) x __attribute__((__may_alias__))
 #else
 #  define MAY_ALIAS(x) x

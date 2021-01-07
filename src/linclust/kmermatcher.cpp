@@ -1,34 +1,27 @@
+// include xxhash early to avoid incompatibilites with SIMDe
+#define XXH_INLINE_ALL
+#include "xxhash.h"
+
 #include "kmermatcher.h"
-#include "Indexer.h"
-#include "ReducedMatrix.h"
-#include "DBWriter.h"
-#include "SubstitutionMatrix.h"
-#include "Util.h"
-#include "Parameters.h"
-#include "Matcher.h"
 #include "Debug.h"
-#include "MemoryTracker.h"
-#include "DBReader.h"
-#include "MathUtil.h"
-#include "FileUtil.h"
-#include "NucleotideMatrix.h"
-#include "QueryMatcher.h"
-#include "FileUtil.h"
-#include "Timer.h"
-#include "tantan.h"
+#include "Indexer.h"
+#include "SubstitutionMatrix.h"
+#include "ReducedMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
+#include "NucleotideMatrix.h"
+#include "tantan.h"
+#include "QueryMatcher.h"
 #include "KmerGenerator.h"
 #include "MarkovKmerScore.h"
-#include "xxhash.h"
-#include <limits>
-#include <string>
-#include <vector>
-#include <iomanip>
-#include <algorithm>
+#include "FileUtil.h"
+#include "FastSort.h"
+
+#include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
-#include <sys/stat.h>
-#include "FastSort.h"
+
+#include <limits>
+#include <algorithm>
 
 #ifdef OPENMP
 #include <omp.h>

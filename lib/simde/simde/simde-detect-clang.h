@@ -57,7 +57,9 @@
  * anything we can detect. */
 
 #if defined(__clang__) && !defined(SIMDE_DETECT_CLANG_VERSION)
-#  if __has_warning("-Wimplicit-const-int-float-conversion")
+#  if __has_warning("-Wformat-insufficient-args")
+#    define SIMDE_DETECT_CLANG_VERSION 120000
+#  elif __has_warning("-Wimplicit-const-int-float-conversion")
 #    define SIMDE_DETECT_CLANG_VERSION 110000
 #  elif __has_warning("-Wmisleading-indentation")
 #    define SIMDE_DETECT_CLANG_VERSION 100000
@@ -101,7 +103,7 @@
 #  define SIMDE_DETECT_CLANG_VERSION_NOT(major, minor, revision) (SIMDE_DETECT_CLANG_VERSION < ((major * 10000) + (minor * 1000) + (revision)))
 #else
 #  define SIMDE_DETECT_CLANG_VERSION_CHECK(major, minor, revision) (0)
-#  define SIMDE_DETECT_CLANG_VERSION_NOT(major, minor, revision) (1)
+#  define SIMDE_DETECT_CLANG_VERSION_NOT(major, minor, revision) (0)
 #endif
 
 #endif /* !defined(SIMDE_DETECT_CLANG_H) */

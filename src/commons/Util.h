@@ -47,23 +47,27 @@ template<> std::string SSTR(float);
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
-#ifndef __has_builtin
-#define __has_builtin(x) 0
-#endif
-
-#if defined(__GNUC__) || __has_builtin(__builtin_expect)
-#define LIKELY(x) __builtin_expect((x),1)
-#define UNLIKELY(x) __builtin_expect((x),0)
+#if defined(__has_builtin)
+#  define HAS_BUILTIN(x) __has_builtin(x)
 #else
-#define LIKELY(x) (x)
-#define UNLIKELY(x) (x)
+#  define HAS_BUILTIN(x) (0)
 #endif
 
-#ifndef __has_attribute
-#define __has_attribute(x) 0
+#if HAS_BUILTIN(__builtin_expect)
+#  define LIKELY(x) __builtin_expect((x),1)
+#  define UNLIKELY(x) __builtin_expect((x),0)
+#else
+#  define LIKELY(x) (x)
+#  define UNLIKELY(x) (x)
 #endif
 
-#if defined(__GNUC__) || __has_attribute(__unused__)
+#if defined(__has_attribute)
+#  define HAS_ATTRIBUTE(x) __has_attribute(x)
+#else
+#  define HAS_ATTRIBUTE(x) (0)
+#endif
+
+#if HAS_ATTRIBUTE(__unused__)
 #  define MAYBE_UNUSED(x) x __attribute__((__unused__))
 #else
 #  define MAYBE_UNUSED(x) x
