@@ -100,8 +100,12 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     cmd.addVariable("TARGET", target.c_str());
     par.filenames.pop_back();
 
-    if(needTaxonomy || needTaxonomyMapping){
-        Parameters::checkIfTaxDbIsComplete(target);
+    if (needTaxonomy || needTaxonomyMapping) {
+        std::vector<std::string> missingFiles = Parameters::findMissingTaxDbFiles(target);
+        if (missingFiles.empty() == false) {
+            Parameters::printTaxDbError(target, missingFiles);
+            EXIT(EXIT_FAILURE);
+        }
     }
 
     if (linsearch) {

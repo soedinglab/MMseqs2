@@ -1796,8 +1796,8 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             if (parseFlags & PARSE_ALLOW_EMPTY)
                 break;
             printUsageMessage(command, outputFlags);
-            Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";
             printParameters(command.cmd, argc, pargv, par);
+            Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";
             EXIT(EXIT_FAILURE);
     }
 
@@ -1830,88 +1830,83 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
     }
 
     if (ignorePathCountChecks == false) {
-        checkIfDatabaseIsValid(command, isStartVar, isMiddleVar, isEndVar);
+        checkIfDatabaseIsValid(command, argc, pargv, isStartVar, isMiddleVar, isEndVar);
     }
 
-    if(printPar == true) {
+    if (printPar == true) {
         printParameters(command.cmd, argc, pargv, par);
     }
 
 }
 
-void Parameters::checkIfTaxDbIsComplete(std::string & filename){
+std::vector<std::string> Parameters::findMissingTaxDbFiles(const std::string &filename) {
+    std::vector<std::string> missingFiles;
     if (FileUtil::fileExists((filename + "_mapping").c_str()) == false) {
-        Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
-                            << "The " << filename << "_mapping is missing.\n";
-        EXIT(EXIT_FAILURE);
+        missingFiles.emplace_back(filename + "_mapping");
+    } else if (FileUtil::fileExists((filename + "_taxonomy").c_str()) == true) {
+        return missingFiles;
     }
-    if (FileUtil::fileExists((filename + "_taxonomy").c_str()) == true) {
-        return;
+    const std::vector<std::string> suffices = {"_nodes.dmp",  "_names.dmp", "_merged.dmp"};
+    for (size_t i = 0; i < suffices.size(); ++i) {
+        if (FileUtil::fileExists((filename + suffices[i]).c_str()) == false) {
+            missingFiles.emplace_back(filename + suffices[i]);
+        }
     }
-    if (FileUtil::fileExists((filename + "_nodes.dmp").c_str()) == false) {
-        Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
-                            << "The " << filename << "_nodes.dmp is missing.\n";
-        EXIT(EXIT_FAILURE);
-    }
-    if (FileUtil::fileExists((filename + "_names.dmp").c_str()) == false) {
-        Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
-                            << "The " << filename << "_names.dmp is missing.\n";
-        EXIT(EXIT_FAILURE);
-    }
-    if (FileUtil::fileExists((filename + "_merged.dmp").c_str()) == false) {
-        Debug(Debug::ERROR) << "Database " << filename << " need taxonomical information.\n"
-                            << "The " << filename << "_merged.dmp is missing.\n";
-        EXIT(EXIT_FAILURE);
+    return missingFiles;
+}
+
+void Parameters::printTaxDbError(const std::string &filename, const std::vector<std::string>& missingFiles) {
+    Debug(Debug::ERROR) << "Input taxonomy database \"" << filename << "\" is missing files:\n";
+    for (size_t i = 0; i < missingFiles.size(); ++i) {
+        Debug(Debug::ERROR) << "- " << missingFiles[i] << "\n";
     }
 }
 
-void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar, bool isMiddleVar, bool isEndVar) {
+void Parameters::checkIfDatabaseIsValid(const Command& command, int argc, const char** argv, bool isStartVar, bool isMiddleVar, bool isEndVar) {
     size_t fileIdx = 0;
     for (size_t dbIdx = 0; dbIdx < command.databases.size(); dbIdx++) {
         const DbType &db = command.databases[dbIdx];
-        // special checks
 
+        // special checks
         if (db.accessMode == db.ACCESS_MODE_INPUT) {
             size_t argumentDist = 0;
-            if(dbIdx == 0 && isStartVar){
+            if (dbIdx == 0 && isStartVar) {
                 argumentDist = (filenames.size() - command.databases.size());
-            }else if(dbIdx == command.databases.size() - 1 && isEndVar){
+            } else if (dbIdx == command.databases.size() - 1 && isEndVar) {
                 argumentDist = (filenames.size() - command.databases.size());
-            }else if((command.databases[dbIdx].specialType & DbType::VARIADIC) && isMiddleVar){
+            } else if ((command.databases[dbIdx].specialType & DbType::VARIADIC) && isMiddleVar) {
                 argumentDist = (filenames.size() - command.databases.size());
             }
 
-
             size_t currFileIdx = fileIdx;
-            for(; fileIdx <= currFileIdx+argumentDist; fileIdx++){
+            for (; fileIdx <= currFileIdx + argumentDist; fileIdx++) {
                 if (db.validator == NULL) {
                     continue;
                 }
 
-                std::string dbTypeFile = std::string(filenames[fileIdx]) + ".dbtype";
-                // check if file exists
-                // if file is not a
-                if (FileUtil::fileExists((filenames[fileIdx]).c_str()) == false && FileUtil::fileExists(dbTypeFile.c_str()) == false && filenames[fileIdx] != "stdin" ) {
-                    Debug(Debug::ERROR) << "Input " << filenames[fileIdx] << " does not exist.\n";
+                if (filenames[fileIdx] != "stdin" && FileUtil::fileExists((filenames[fileIdx]).c_str()) == false && FileUtil::fileExists((filenames[fileIdx] + ".dbtype").c_str()) == false) {
+                    printParameters(command.cmd, argc, argv, *command.params);
+                    Debug(Debug::ERROR) << "Input " << filenames[fileIdx] << " does not exist\n";
                     EXIT(EXIT_FAILURE);
                 }
                 int dbtype = FileUtil::parseDbType(filenames[fileIdx].c_str());
-                if (db.specialType & DbType::NEED_HEADER) {
-                    if (FileUtil::fileExists((filenames[fileIdx] + "_h.dbtype").c_str()) == false && Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_INDEX_DB)==false) {
-                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " needs header information.\n"
-                                            << filenames[fileIdx] << "_h is missing.\n";
-                        EXIT(EXIT_FAILURE);
-                    }
+                if (db.specialType & DbType::NEED_HEADER && FileUtil::fileExists((filenames[fileIdx] + "_h.dbtype").c_str()) == false && Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_INDEX_DB) == false) {
+                    printParameters(command.cmd, argc, argv, *command.params);
+                    Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " needs header information\n";
+                    EXIT(EXIT_FAILURE);
                 }
                 if (db.specialType & DbType::NEED_TAXONOMY) {
-                    checkIfTaxDbIsComplete(filenames[fileIdx]);
-                }
-                if (db.specialType & DbType::NEED_LOOKUP) {
-                    if (FileUtil::fileExists((filenames[fileIdx] + ".lookup").c_str()) == false) {
-                        Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " needs a lookup file.\n"
-                                            << filenames[fileIdx] << ".lookup is missing.\n";
+                    std::vector<std::string> missingFiles = findMissingTaxDbFiles(filenames[fileIdx]);
+                    if (missingFiles.empty() == false) {
+                        printParameters(command.cmd, argc, argv, *command.params);
+                        printTaxDbError(filenames[fileIdx], missingFiles);
                         EXIT(EXIT_FAILURE);
                     }
+                }
+                if (db.specialType & DbType::NEED_LOOKUP && FileUtil::fileExists((filenames[fileIdx] + ".lookup").c_str()) == false) {
+                    printParameters(command.cmd, argc, argv, *command.params);
+                    Debug(Debug::ERROR) << "Database " << filenames[fileIdx] << " needs a lookup file\n";
+                    EXIT(EXIT_FAILURE);
                 }
                 bool dbtypeFound = false;
                 for (size_t i = 0; i < db.validator->size() && dbtypeFound == false; i++) {
@@ -1928,15 +1923,12 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
                     }
                 }
                 if (dbtypeFound == false) {
-                    Debug(Debug::ERROR) << "Input database \"" << filenames[fileIdx] << "\" is wrong!" << "\n"
-                                        << "Current input: " << Parameters::getDbTypeName(dbtype) << ". Allowed input: ";
-                    for (size_t i = 0; i < db.validator->size() && dbtypeFound == false; i++) {
-                        Debug(Debug::ERROR) << Parameters::getDbTypeName(db.validator->at(i));
-                        if (i != db.validator->size() - 1) {
-                            Debug(Debug::ERROR) << ", ";
-                        }
+                    printParameters(command.cmd, argc, argv, *command.params);
+                    Debug(Debug::ERROR) << "Input database \"" << filenames[fileIdx] << "\" has the wrong type ("
+                                        << Parameters::getDbTypeName(dbtype) << ")\nAllowed input:\n";
+                    for (size_t i = 0; i < db.validator->size(); ++i) {
+                        Debug(Debug::ERROR) << "- " << Parameters::getDbTypeName(db.validator->at(i)) << "\n";
                     }
-                    Debug(Debug::ERROR) << "\n";
                     EXIT(EXIT_FAILURE);
                 }
             }
@@ -1944,30 +1936,19 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
             if (db.validator == &DbValidator::directory) {
                 if (FileUtil::directoryExists(filenames[fileIdx].c_str()) == false) {
                     if (FileUtil::makeDir(filenames[fileIdx].c_str()) == false) {
-                        Debug(Debug::ERROR) << "Can not create tmp folder " << filenames[dbIdx] << ".\n";
+                        printParameters(command.cmd, argc, argv, *command.params);
+                        Debug(Debug::ERROR) << "Cannot create temporary directory " << filenames[dbIdx] << "\n";
                         EXIT(EXIT_FAILURE);
                     } else {
-                        Debug(Debug::INFO) << "Create dir " << filenames[dbIdx] << "\n";
+                        Debug(Debug::INFO) << "Create directory " << filenames[dbIdx] << "\n";
                     }
                 }
                 fileIdx++;
             } else {
                 if (FileUtil::fileExists(filenames[fileIdx].c_str()) == true) {
-                    Debug(Debug::WARNING) << filenames[fileIdx] << " exists and will be overwritten.\n";
+                    Debug(Debug::WARNING) << filenames[fileIdx] << " exists and will be overwritten\n";
                 }
                 fileIdx++;
-//                FILE *fp = fopen(filenames[dbIdx].c_str(), "a");
-//                if (fp == NULL) {
-//                    if (errno == EACCES) {
-//                        Debug(Debug::ERROR) << "No permission to write file " << filenames[dbIdx] << ".\n";
-//                        EXIT(EXIT_FAILURE);
-//                    } else {
-//                        Debug(Debug::ERROR) << "Error while writing file " << filenames[dbIdx] << ".\n";
-//                        EXIT(EXIT_FAILURE);
-//                    }
-//                }
-//                fclose(fp);
-//                FileUtil::remove(filenames[dbIdx].c_str());
             }
         } else {
             fileIdx++;
