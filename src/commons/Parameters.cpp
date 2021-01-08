@@ -1607,21 +1607,23 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
 
             if (hasUnrecognizedParameter) {
                 printUsageMessage(command, 0xFFFFFFFF);
-                Debug(Debug::INFO) << "Unrecognized parameter " << parameter << "\n";
 
                 // Suggest some parameter that the user might have meant
                 std::vector<MMseqsParameter *>::const_iterator index = par.end();
                 int maxDistance = 0;
                 for (std::vector<MMseqsParameter *>::const_iterator it = par.begin(); it != par.end(); ++it) {
                     int distance = DistanceCalculator::localLevenshteinDistance(parameter, (*it)->name);
-                    if(distance > maxDistance) {
+                    if (distance > maxDistance) {
                         maxDistance = distance;
                         index = it;
                     }
                 }
 
-                if(index != par.end()) {
-                    Debug(Debug::WARNING) << "Did you mean \"" << (*index)->name << "\"?\n";
+                Debug(Debug::ERROR) << "Unrecognized parameter \"" << parameter << "\"";
+                if (index != par.end()) {
+                    Debug(Debug::ERROR) << ". Did you mean \"" << (*index)->name << "\" (" << (*index)->display << ")?\n";
+                } else {
+                    Debug(Debug::ERROR) << "\n";
                 }
 
                 EXIT(EXIT_FAILURE);
