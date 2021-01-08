@@ -1941,8 +1941,6 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, bool isStartVar,
         } else if (db.accessMode == db.ACCESS_MODE_OUTPUT) {
             if (db.validator == &DbValidator::directory) {
                 if (FileUtil::directoryExists(filenames[fileIdx].c_str()) == false) {
-                    Debug(Debug::WARNING) << "Tmp " << filenames[dbIdx]
-                                          << " folder does not exist or is not a directory.\n";
                     if (FileUtil::makeDir(filenames[fileIdx].c_str()) == false) {
                         Debug(Debug::ERROR) << "Can not create tmp folder " << filenames[dbIdx] << ".\n";
                         EXIT(EXIT_FAILURE);
