@@ -20,7 +20,6 @@ void setTaxonomyDefaults(Parameters *p) {
     p->orfStartMode = 1;
     p->orfMinLength = 30;
     p->orfMaxLength = 32734;
-    p->showTaxLineage = 0;
     p->orfFilter = true;
 }
 void setTaxonomyMustPassAlong(Parameters *p) {
@@ -33,8 +32,6 @@ void setTaxonomyMustPassAlong(Parameters *p) {
     p->PARAM_ORF_START_MODE.wasSet = true;
     p->PARAM_ORF_MIN_LENGTH.wasSet = true;
     p->PARAM_ORF_MAX_LENGTH.wasSet = true;
-    p->PARAM_TAXON_ADD_LINEAGE.wasSet = true;
-
 }
 
 int taxonomy(int argc, const char **argv, const Command& command) {
