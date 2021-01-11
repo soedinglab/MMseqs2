@@ -58,11 +58,12 @@ else
 fi
 
 if [ -n "${REMOVE_TMP}" ]; then
-    rm -rf "${TMP_PATH}/tmp_hsp1"
-
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/first" ${VERBOSITY}
     if [ -n "${TOPHIT_MODE}" ]; then
         # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/first" ${VERBOSITY}
+        "$MMSEQS" rmdb "${TMP_PATH}/top1" ${VERBOSITY}
     fi
+    rm -rf "${TMP_PATH}/tmp_hsp1"
     rm -f "${TMP_PATH}/taxonomy.sh"
 fi
