@@ -1200,10 +1200,12 @@ Parameters::Parameters():
 
     // easy taxonomy
     easytaxonomy = combineList(taxonomy, addtaxonomy);
+    easytaxonomy = combineList(easytaxonomy, taxonomyreport);
     easytaxonomy = combineList(easytaxonomy, convertalignments);
     easytaxonomy = combineList(easytaxonomy, createtsv);
     easytaxonomy = combineList(easytaxonomy, createdb);
     easytaxonomy = removeParameter(easytaxonomy, PARAM_TAX_OUTPUT_MODE);
+    easytaxonomy = removeParameter(easytaxonomy, PARAM_PICK_ID_FROM);
 
     // multi hit db
     multihitdb = combineList(createdb, extractorfs);

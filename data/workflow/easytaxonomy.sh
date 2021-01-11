@@ -33,7 +33,7 @@ if notExists "${RESULTS}_lca.tsv"; then
 fi
 
 # shellcheck disable=SC2086
-"$MMSEQS" taxonomyreport "${TARGET}" "${TMP_PATH}/result_lca" "${RESULTS}_report" ${THREADS_PAR} \
+"$MMSEQS" taxonomyreport "${TARGET}" "${TMP_PATH}/result_lca" "${RESULTS}_report" ${TAXONOMYREPORT_PAR} \
         || fail "taxonomyreport died"
 
 if notExists "${TMP_PATH}/result_tophit1.dbtype"; then
@@ -56,7 +56,7 @@ fi
 
 if notExists "${TMP_PATH}/result_top1_swapped_sum_tax.dbtype"; then
     # shellcheck disable=SC2086
-     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum" "${TMP_PATH}/result_top1_swapped_sum_tax"  ${THREADS_COMP_PAR} --pick-id-from 1 --tax-lineage 1  \
+     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum" "${TMP_PATH}/result_top1_swapped_sum_tax" ${ADDTAXONOMY_PAR} \
         || fail "filterdb died"
 fi
 
@@ -70,7 +70,7 @@ fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/result"
+    "$MMSEQS" rmdb "${TMP_PATH}/result" ${VERBOSITY}
     if [ -z "${LEAVE_INPUT}" ]; then
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/query" ${VERBOSITY}
@@ -78,13 +78,13 @@ if [ -n "${REMOVE_TMP}" ]; then
         "$MMSEQS" rmdb "${TMP_PATH}/query_h" ${VERBOSITY}
     fi
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/result_top1" ${VERBOSITY}
+    "$MMSEQS" rmdb "${TMP_PATH}/result_aln" ${VERBOSITY}
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/result_top1_swapped" ${VERBOSITY}
+    "$MMSEQS" rmdb "${TMP_PATH}/result_aln_swapped" ${VERBOSITY}
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/result_top1_swapped_sum" ${VERBOSITY}
+    "$MMSEQS" rmdb "${TMP_PATH}/result_aln_swapped_sum" ${VERBOSITY}
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/result_top1_swapped_sum_tax" ${VERBOSITY}
+    "$MMSEQS" rmdb "${TMP_PATH}/result_aln_swapped_sum_tax" ${VERBOSITY}
 
     rm -rf "${TMP_PATH}/taxonomy_tmp"
     rm -f "${TMP_PATH}/easytaxonomy.sh"
