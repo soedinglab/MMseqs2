@@ -75,15 +75,29 @@ if [ ! -e "${TMP_PATH}/orfs_h_swapped.dbtype" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" swapdb "${ORFS_DB}_h" "${TMP_PATH}/orfs_h_swapped" ${SWAPDB_PAR} \
         || fail "swapdb died"
+    awk 'BEGIN { printf("%c%c%c%c",5,0,0,0); exit; }' > "${TMP_PATH}/orfs_h_swapped.dbtype"
 fi
 
-if [ ! -e "${RESULTS}.dbtype" ]; then
+
+OUT_ALN="${RESULTS}_aln"
+if [ "${TAX_OUTPUT}" = "0" ] || [ "${TAX_OUTPUT}" = "2" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" aggregatetaxweights "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_h_swapped" "${TMP_PATH}/orfs_tax" "${TMP_PATH}/orfs_tax_aln" "${RESULTS}" ${AGGREGATETAX_PAR} \
         || fail "aggregatetaxweights died"
+    OUT_ALN="${RESULTS}"
 fi
 
+if [ "${TAX_OUTPUT}" = "1" ] || [ "${TAX_OUTPUT}" = "2" ]; then
+    if [ ! -e "${TMP_PATH}/orfs_tax_aln_first.dbtype" ]; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" filterdb "${TMP_PATH}/orfs_tax_aln" "${TMP_PATH}/orfs_tax_aln_first" --extract-lines 1 ${THREADS_COMP_PAR} \
+            || fail "filterdb died"
+    fi
 
+    # shellcheck disable=SC2086
+    "$MMSEQS" mergeresultsbyset "${TMP_PATH}/orfs_h_swapped"  "${TMP_PATH}/orfs_tax_aln_first" "${OUT_ALN}" ${THREADS_COMP_PAR} \
+        || fail "mvdb died"
+fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     # shellcheck disable=SC2086
@@ -105,6 +119,11 @@ if [ -n "${REMOVE_TMP}" ]; then
     "$MMSEQS" rmdb "${TMP_PATH}/orfs_tax_aln" ${VERBOSITY}
      # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/orfs_h_swapped" ${VERBOSITY}
+
+    if [ "${TAX_OUTPUT}" = "1" ] || [ "${TAX_OUTPUT}" = "2" ]; then
+          # shellcheck disable=SC2086
+          "$MMSEQS" rmdb "${TMP_PATH}/orfs_tax_aln_first" ${VERBOSITY}
+    fi
 
     rm -rf "${TMP_PATH}/tmp_taxonomy"
     rm -f "${TMP_PATH}/taxpercontig.sh"
