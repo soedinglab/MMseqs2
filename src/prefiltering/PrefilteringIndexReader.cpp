@@ -103,8 +103,8 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     }
 
     Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << SCOREMATRIXNAME << ")\n";
-    char* subData = BaseMatrix::serialize(subMat);
-    writer.writeData(subData, BaseMatrix::memorySize(subMat), SCOREMATRIXNAME, SPLIT_META);
+    char* subData = BaseMatrix::serialize(subMat->matrixName, subMat->matrixData);
+    writer.writeData(subData, BaseMatrix::memorySize(subMat->matrixName, subMat->matrixData), SCOREMATRIXNAME, SPLIT_META);
     writer.alignToPageSize(SPLIT_META);
     free(subData);
 

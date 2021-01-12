@@ -213,8 +213,8 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         dbw.alignToPageSize();
 
         Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << PrefilteringIndexReader::SCOREMATRIXNAME << ")\n";
-        char* subData = BaseMatrix::serialize(subMat);
-        dbw.writeData(subData, BaseMatrix::memorySize(subMat), PrefilteringIndexReader::SCOREMATRIXNAME, 0);
+        char* subData = BaseMatrix::serialize(subMat->matrixName, subMat->matrixData);
+        dbw.writeData(subData, BaseMatrix::memorySize(subMat->matrixName, subMat->matrixData), PrefilteringIndexReader::SCOREMATRIXNAME, 0);
         dbw.alignToPageSize();
         free(subData);
 

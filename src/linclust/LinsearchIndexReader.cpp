@@ -269,7 +269,8 @@ std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned in
         return "maskMode";
     if (meta.spacedKmer != par.spacedKmer)
         return "spacedKmer";
-    if (par.seedScoringMatrixFile != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
+    if (BaseMatrix::unserializeName(par.seedScoringMatrixFile.aminoacids)  != PrefilteringIndexReader::getSubstitutionMatrixName(&index) &&
+        BaseMatrix::unserializeName(par.seedScoringMatrixFile.nucleotides) != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
         return "seedScoringMatrixFile";
     if (par.spacedKmerPattern != PrefilteringIndexReader::getSpacedPattern(&index))
         return "spacedKmerPattern";

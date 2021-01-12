@@ -11,6 +11,12 @@
 #include <regex.h>
 #include <unistd.h>
 
+#include "blosum62.out.h"
+#include "PAM30.out.h"
+#include "VTML80.out.h"
+#include "VTML40.out.h"
+#include "nucleotide.out.h"
+
 #ifdef __CYGWIN__
 #include <sys/cygwin.h>
 #endif
@@ -274,7 +280,8 @@ Parameters::Parameters():
     }
     instance = this;
 
-    // onlyverbosity
+
+        // onlyverbosity
     onlyverbosity.push_back(&PARAM_V);
 
     // verbandcompression
@@ -1790,6 +1797,35 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             printParameters(command.cmd, argc, pargv, par);
             EXIT(EXIT_FAILURE);
     }
+
+    // set up substituionMatrix
+    for(size_t i = 0 ; i < substitutionMatrices.size(); i++) {
+        bool isAminoAcid   = (strcmp(scoringMatrixFile.aminoacids, substitutionMatrices[i].name.c_str()) == 0);
+        bool isNucleotide  = (strcmp(scoringMatrixFile.nucleotides, substitutionMatrices[i].name.c_str()) == 0);
+        bool isSeedAminoAcid   = (strcmp(seedScoringMatrixFile.aminoacids, substitutionMatrices[i].name.c_str()) == 0);
+        bool isSeedNucleotide  = (strcmp(seedScoringMatrixFile.nucleotides, substitutionMatrices[i].name.c_str()) == 0);
+        if (isAminoAcid || isNucleotide|| isSeedAminoAcid|| isSeedNucleotide) {
+            std::string matrixData((const char *)substitutionMatrices[i].subMatData, substitutionMatrices[i].subMatDataLen);
+            std::string matrixName = substitutionMatrices[i].name;
+            if(isAminoAcid) {
+                free(scoringMatrixFile.aminoacids);
+                scoringMatrixFile.aminoacids = BaseMatrix::serialize(matrixName, matrixData);
+            }
+            if(isNucleotide) {
+                free(scoringMatrixFile.nucleotides);
+                scoringMatrixFile.nucleotides = BaseMatrix::serialize(matrixName, matrixData);
+            }
+            if(isSeedAminoAcid) {
+                free(seedScoringMatrixFile.aminoacids);
+                seedScoringMatrixFile.aminoacids = BaseMatrix::serialize(matrixName, matrixData);
+            }
+            if(isSeedNucleotide) {
+                free(seedScoringMatrixFile.nucleotides);
+                seedScoringMatrixFile.nucleotides = BaseMatrix::serialize(matrixName, matrixData);
+            }
+        }
+    }
+
     if (ignorePathCountChecks == false) {
         checkIfDatabaseIsValid(command, isStartVar, isMiddleVar, isEndVar);
     }
@@ -1797,6 +1833,7 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
     if(printPar == true) {
         printParameters(command.cmd, argc, pargv, par);
     }
+
 }
 
 void Parameters::checkIfTaxDbIsComplete(std::string & filename){
@@ -1974,6 +2011,12 @@ void Parameters::printParameters(const std::string &module, int argc, const char
             ss << *((int *)par[i]->value);
         } else if(typeid(ByteParser) == par[i]->type) {
             ss << ByteParser::format(*((size_t *)par[i]->value), 'a', 'h');
+        } else if(PARAM_SUB_MAT.uniqid == par[i]->uniqid ||
+                  PARAM_SEED_SUB_MAT.uniqid == par[i]->uniqid) {
+            MultiParam<char*> * param = ((MultiParam<char*> *) par[i]->value);
+            MultiParam<char*> tmpPar(BaseMatrix::unserializeName(param->aminoacids).c_str(),
+                                     BaseMatrix::unserializeName(param->nucleotides).c_str());
+            ss << MultiParam<char*>::format(tmpPar);
         } else if(typeid(MultiParam<char*>) == par[i]->type) {
             ss << MultiParam<char*>::format(*((MultiParam<char*> *)par[i]->value));
         } else if(typeid(MultiParam<int>) == par[i]->type) {
@@ -2302,6 +2345,15 @@ void Parameters::setDefaults() {
     taxonomySearchMode = Parameters::TAXONOMY_ACCEL_2BLCA;
     taxonomyOutpuMode = Parameters::TAXONOMY_OUTPUT_LCA;
 
+    // substituion matrix
+    substitutionMatrices = {
+            {"nucleotide.out", nucleotide_out, nucleotide_out_len },
+            {"blosum62.out", blosum62_out, blosum62_out_len },
+            {"VTML80.out", VTML80_out, VTML80_out_len},
+            {"VTML40.out", VTML40_out, VTML40_out_len},
+            {"PAM30.out", PAM30_out, PAM30_out_len}
+    };
+
     citations = {
             { CITATION_MMSEQS1,  "Hauser M, Steinegger M, Soding J: MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016)" },
             { CITATION_MMSEQS2,  "Steinegger M, Soding J: MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, 35(11), 1026-1028 (2017)" },
@@ -2414,6 +2466,13 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
         } else if (typeid(double) == par[i]->type){
             ss << par[i]->name << " ";
             ss << *((double *)par[i]->value) << " ";
+        } else if (PARAM_SUB_MAT.uniqid == par[i]->uniqid ||
+                   PARAM_SEED_SUB_MAT.uniqid == par[i]->uniqid){
+            MultiParam<char*> * param = ((MultiParam<char*> *) par[i]->value);
+            MultiParam<char*> tmpPar(BaseMatrix::unserializeName(param->aminoacids).c_str(),
+                                     BaseMatrix::unserializeName(param->nucleotides).c_str());
+            ss << par[i]->name << " ";
+            ss << MultiParam<char*>::format(tmpPar) << " ";
         } else if (typeid(std::string) == par[i]->type){
             if (*((std::string *) par[i]->value) != "") {
                 ss << par[i]->name << " ";
