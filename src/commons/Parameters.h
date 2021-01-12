@@ -953,15 +953,15 @@ public:
     PARAMETER(PARAM_HELP)
     PARAMETER(PARAM_HELP_LONG)
 
-    struct PredefinedSubstitionMatrix{
+    struct PredefinedSubstitutionMatrix{
         std::string name;
         const unsigned char * subMatData;
         unsigned int subMatDataLen;
-        PredefinedSubstitionMatrix(const char * name, const unsigned char * subMatData, const unsigned int subMatDataLen)
+        PredefinedSubstitutionMatrix(const char * name, const unsigned char * subMatData, const unsigned int subMatDataLen)
                 : name(name), subMatData(subMatData), subMatDataLen(subMatDataLen) {}
 
     };
-    std::vector<PredefinedSubstitionMatrix> substitutionMatrices;
+    std::vector<PredefinedSubstitutionMatrix> substitutionMatrices;
 
     std::vector<MMseqsParameter*> empty;
     std::vector<MMseqsParameter*> onlyverbosity;
