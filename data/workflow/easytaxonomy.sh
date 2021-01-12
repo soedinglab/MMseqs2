@@ -20,52 +20,46 @@ if notExists "${TMP_PATH}/result.dbtype"; then
         || fail "Search died"
 fi
 
-if notExists "${TMP_PATH}/result_lca.dbtype"; then
-    # shellcheck disable=SC2086
-    "$MMSEQS" lca "${TARGET}" "${TMP_PATH}/result" "${TMP_PATH}/result_lca" ${LCA_PAR} \
-        || fail "lca died"
-fi
-
 if notExists "${RESULTS}_lca.tsv"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" createtsv "${TMP_PATH}/query" "${TMP_PATH}/result_lca" "${RESULTS}_lca.tsv" ${CREATETSV_PAR} \
+    "$MMSEQS" createtsv "${TMP_PATH}/query" "${TMP_PATH}/result" "${RESULTS}_lca.tsv" ${CREATETSV_PAR} \
         || fail "createtsv died"
 fi
 
 # shellcheck disable=SC2086
-"$MMSEQS" taxonomyreport "${TARGET}" "${TMP_PATH}/result_lca" "${RESULTS}_report" ${TAXONOMYREPORT_PAR} \
+"$MMSEQS" taxonomyreport "${TARGET}" "${TMP_PATH}/result" "${RESULTS}_report" ${TAXONOMYREPORT_PAR} \
         || fail "taxonomyreport died"
 
-if notExists "${TMP_PATH}/result_tophit1.dbtype"; then
+#if notExists "${TMP_PATH}/result_aln.dbtype"; then
+#    # shellcheck disable=SC2086
+#     "$MMSEQS" filterdb "${TMP_PATH}/result" "${TMP_PATH}/result_aln" --extract-lines 1 ${THREADS_COMP_PAR} \
+#        || fail "filterdb died"
+#fi
+
+if notExists "${TMP_PATH}/result_aln_swapped.dbtype"; then
     # shellcheck disable=SC2086
-     "$MMSEQS" filterdb "${TMP_PATH}/result" "${TMP_PATH}/result_top1" --extract-lines 1 ${THREADS_COMP_PAR} \
+     "$MMSEQS" swapresults "${TMP_PATH}/query" "${TARGET}" "${TMP_PATH}/result_aln" "${TMP_PATH}/result_aln_swapped" ${SWAPRESULT_PAR}  \
         || fail "filterdb died"
 fi
 
-if notExists "${TMP_PATH}/result_top1_swapped.dbtype"; then
+if notExists "${TMP_PATH}/result_aln_swapped_sum.dbtype"; then
     # shellcheck disable=SC2086
-     "$MMSEQS" swapresults "${TMP_PATH}/query" "${TARGET}" "${TMP_PATH}/result_top1" "${TMP_PATH}/result_top1_swapped" ${SWAPRESULT_PAR}  \
+     "$MMSEQS" summarizealis "${TMP_PATH}/result_aln_swapped" "${TMP_PATH}/result_aln_swapped_sum" ${THREADS_COMP_PAR}  \
         || fail "filterdb died"
 fi
 
-if notExists "${TMP_PATH}/result_top1_swapped_sum.dbtype"; then
+if notExists "${TMP_PATH}/result_aln_swapped_sum_tax.dbtype"; then
     # shellcheck disable=SC2086
-     "$MMSEQS" summarizealis "${TMP_PATH}/result_top1_swapped" "${TMP_PATH}/result_top1_swapped_sum" ${THREADS_COMP_PAR}  \
-        || fail "filterdb died"
-fi
-
-if notExists "${TMP_PATH}/result_top1_swapped_sum_tax.dbtype"; then
-    # shellcheck disable=SC2086
-     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum" "${TMP_PATH}/result_top1_swapped_sum_tax" ${ADDTAXONOMY_PAR} \
+     "$MMSEQS" addtaxonomy "${TARGET}" "${TMP_PATH}/result_aln_swapped_sum" "${TMP_PATH}/result_aln_swapped_sum_tax" ${ADDTAXONOMY_PAR} \
         || fail "filterdb died"
 fi
 
 # shellcheck disable=SC2086
-"$MMSEQS" createtsv "${TARGET}" "${TMP_PATH}/result_top1_swapped_sum_tax" "${RESULTS}_tophit_report" ${CREATETSV_PAR} \
+"$MMSEQS" createtsv "${TARGET}" "${TMP_PATH}/result_aln_swapped_sum_tax" "${RESULTS}_tophit_report" ${CREATETSV_PAR} \
         || fail "filterdb died"
 
 # shellcheck disable=SC2086
-"$MMSEQS" convertalis "${TMP_PATH}/query" "${TARGET}" "${TMP_PATH}/result_top1" "${RESULTS}_tophit_aln" ${CONVERT_PAR} \
+"$MMSEQS" convertalis "${TMP_PATH}/query" "${TARGET}" "${TMP_PATH}/result_aln" "${RESULTS}_tophit_aln" ${CONVERT_PAR} \
         || fail "convertalis died"
 
 if [ -n "${REMOVE_TMP}" ]; then
