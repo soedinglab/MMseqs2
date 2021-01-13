@@ -105,10 +105,12 @@ int taxonomy(int argc, const char **argv, const Command& command) {
         // never show lineage for the orfs
         par.showTaxLineage = 0;
         par.PARAM_TAXON_ADD_LINEAGE.wasSet = true;
+        int taxonomyOutputMode = par.taxonomyOutputMode;
         par.taxonomyOutputMode = Parameters::TAXONOMY_OUTPUT_BOTH;
         par.PARAM_TAX_OUTPUT_MODE.wasSet = true;
         cmd.addVariable("TAXONOMY_PAR", par.createParameterString(par.taxonomy, true).c_str());
         par.showTaxLineage = showTaxLineageOrig;
+        par.taxonomyOutputMode = taxonomyOutputMode;
         cmd.addVariable("AGGREGATETAX_PAR", par.createParameterString(par.aggregatetax).c_str());
         cmd.addVariable("SWAPDB_PAR", par.createParameterString(par.swapdb).c_str());
 

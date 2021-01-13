@@ -78,13 +78,10 @@ if [ ! -e "${TMP_PATH}/orfs_h_swapped.dbtype" ]; then
     awk 'BEGIN { printf("%c%c%c%c",5,0,0,0); exit; }' > "${TMP_PATH}/orfs_h_swapped.dbtype"
 fi
 
-
-OUT_ALN="${RESULTS}_aln"
 if [ "${TAX_OUTPUT}" = "0" ] || [ "${TAX_OUTPUT}" = "2" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" aggregatetaxweights "${TAX_SEQ_DB}" "${TMP_PATH}/orfs_h_swapped" "${TMP_PATH}/orfs_tax" "${TMP_PATH}/orfs_tax_aln" "${RESULTS}" ${AGGREGATETAX_PAR} \
         || fail "aggregatetaxweights died"
-    OUT_ALN="${RESULTS}"
 fi
 
 if [ "${TAX_OUTPUT}" = "1" ] || [ "${TAX_OUTPUT}" = "2" ]; then
@@ -94,6 +91,10 @@ if [ "${TAX_OUTPUT}" = "1" ] || [ "${TAX_OUTPUT}" = "2" ]; then
             || fail "filterdb died"
     fi
 
+    OUT_ALN="${RESULTS}_aln"
+    if [ "${TAX_OUTPUT}" = "1" ]; then
+        OUT_ALN="${RESULTS}"
+    fi
     # shellcheck disable=SC2086
     "$MMSEQS" mergeresultsbyset "${TMP_PATH}/orfs_h_swapped"  "${TMP_PATH}/orfs_tax_aln_first" "${OUT_ALN}" ${THREADS_COMP_PAR} \
         || fail "mvdb died"
