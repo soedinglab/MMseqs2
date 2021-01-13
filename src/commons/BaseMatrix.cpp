@@ -171,13 +171,15 @@ size_t BaseMatrix::memorySize(std::string & matrixName, std::string & matrixData
 }
 
 char * BaseMatrix::serialize(std::string &matrixName, std::string &matrixData ) {
-    char* data = (char*) malloc(memorySize(matrixName, matrixData));
+    char* data = (char*) malloc(memorySize(matrixName, matrixData) + 1);
     char* p = data;
     memcpy(p, matrixName.c_str(), matrixName.size() * sizeof(char));
     p += (matrixName.size() * sizeof(char));
     memcpy(p, ":", 1);
     p += 1;
     memcpy(p, matrixData.c_str(), matrixData.size() * sizeof(char));
+    p += (matrixData.size() * sizeof(char));;
+    memcpy(p, "\0", 1);
     return data;
 }
 
