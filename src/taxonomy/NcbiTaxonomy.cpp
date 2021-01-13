@@ -266,12 +266,10 @@ bool NcbiTaxonomy::IsAncestor(TaxID ancestor, TaxID child) {
     }
 
     if (!nodeExists(child)) {
-        Debug(Debug::WARNING) << "No node for taxID " << child << ".\n";
         return false;
     }
 
     if (!nodeExists(ancestor)) {
-        Debug(Debug::WARNING) << "No node for taxID " << ancestor << ".\n";
         return false;
     }
 
