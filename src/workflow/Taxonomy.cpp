@@ -76,7 +76,7 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     int searchMode = computeSearchMode(queryDbType, targetDbType, targetSrcDbType, par.searchType);
     if ((searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE) && (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_NUCLEOTIDE)) {
         if (par.taxonomySearchMode == Parameters::TAXONOMY_ACCEL_2BLCA) {
-            Debug(Debug::WARNING) << "Accel. 2bLCA cannot be used with nucl-nucl taxonomy, using top-hit instead";
+            Debug(Debug::WARNING) << "Accel. 2bLCA cannot be used with nucl-nucl taxonomy, using top-hit instead\n";
             par.taxonomySearchMode = Parameters::TAXONOMY_TOP_HIT;
         }
     }
