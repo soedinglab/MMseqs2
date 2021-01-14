@@ -16,6 +16,7 @@
 #include "VTML80.out.h"
 #include "VTML40.out.h"
 #include "nucleotide.out.h"
+#include "base64/base64.h"
 
 #ifdef __CYGWIN__
 #include <sys/cygwin.h>
@@ -1522,7 +1523,11 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                         }
                         argIdx++;
                     } else if (typeid(MultiParam<char*>) == par[parIdx]->type) {
-                        MultiParam<char*> value = MultiParam<char*>(pargv[argIdx+1]);
+                        std::string val(pargv[argIdx+1]);
+                        if (Util::startWith("b64:", val)) {
+                            val = base64_decode(val.c_str() + 4, val.size() - 4);
+                        }
+                        MultiParam<char*> value = MultiParam<char*>(val);
                         if (value == MultiParam<char*>("INVALID", "INVALID")) {
                             printUsageMessage(command, 0xFFFFFFFF);
                             Debug(Debug::ERROR) << "Error in value parsing " << par[parIdx]->name << "\n";
@@ -1584,8 +1589,12 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                         }
                         argIdx++;
                     } else if (typeid(std::string) == par[parIdx]->type) {
+                        std::string val(pargv[argIdx+1]);
+                        if (Util::startWith("b64:", val)) {
+                            val = base64_decode(val.c_str() + 4, val.size() - 4);
+                        }
                         std::string* currVal = (std::string*)par[parIdx]->value;
-                        currVal->assign(pargv[argIdx+1]);
+                        currVal->assign(val);
                         par[parIdx]->wasSet = true;
                         argIdx++;
                     } else if (typeid(bool) == par[parIdx]->type) {
@@ -1967,7 +1976,12 @@ void Parameters::printParameters(const std::string &module, int argc, const char
 
     Debug(Debug::INFO) << module << " ";
     for (int i = 0; i < argc; i++) {
-        Debug(Debug::INFO) << pargv[i] << " ";
+        // don't expose users to the interal b64 masking of whitespace characters
+        if (strncmp("b64:", pargv[i], 4) == 0) {
+            Debug(Debug::INFO) << "'" << base64_decode(pargv[i] + 4, strlen(pargv[i]) - 4) << "' ";
+        } else {
+            Debug(Debug::INFO) << pargv[i] << " ";
+        }
     }
     Debug(Debug::INFO) << "\n\n";
 
@@ -2456,12 +2470,23 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
             MultiParam<char*> * param = ((MultiParam<char*> *) par[i]->value);
             MultiParam<char*> tmpPar(BaseMatrix::unserializeName(param->aminoacids).c_str(),
                                      BaseMatrix::unserializeName(param->nucleotides).c_str());
-            ss << par[i]->name << " ";
-            ss << MultiParam<char*>::format(tmpPar) << " ";
+            std::string value = MultiParam<char*>::format(tmpPar);
+            // encode parameters as base64 if it contains whitespaces
+            // whitespaces break parameters in the workflow shell scripts
+            if (value.find_first_of(" \n\t") != std::string::npos) {
+                ss << par[i]->name << " b64:" << base64_encode(value.c_str(), value.size()) << " ";
+            } else {
+                ss << par[i]->name << " " << value << " ";
+            }
         } else if (typeid(std::string) == par[i]->type){
-            if (*((std::string *) par[i]->value) != "") {
-                ss << par[i]->name << " ";
-                ss << *((std::string *) par[i]->value) << " ";
+            std::string& value = *((std::string *) par[i]->value);
+            if (value != "") {
+                // see above
+                if (value.find_first_of(" \n\t") != std::string::npos) {
+                    ss << par[i]->name << " b64:" << base64_encode(value.c_str(), value.size()) << " ";
+                } else {
+                    ss << par[i]->name << " " << value << " ";
+                }
             }
         } else if (typeid(bool) == par[i]->type){
             bool val = *((bool *)(par[i]->value));
@@ -2472,7 +2497,13 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
             }
         } else if (typeid(MultiParam<char*>) == par[i]->type) {
             ss << par[i]->name << " ";
-            ss << MultiParam<char*>::format(*((MultiParam<char*> *) par[i]->value)) << " ";
+            std::string value = MultiParam<char*>::format(*((MultiParam<char*> *) par[i]->value));
+            // see above
+            if (value.find_first_of(" \n\t") != std::string::npos) {
+                ss << par[i]->name << " b64:" << base64_encode(value.c_str(), value.size()) << " ";
+            } else {
+                ss << par[i]->name << " " << value << " ";
+            }
         } else if (typeid(MultiParam<int>) == par[i]->type) {
             ss << par[i]->name << " ";
             ss << MultiParam<int>::format(*((MultiParam<int> *) par[i]->value)) << " ";
