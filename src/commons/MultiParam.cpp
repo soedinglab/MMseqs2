@@ -69,7 +69,7 @@ MultiParam<char*>::MultiParam(const char*  aminoacids, const char*  nucleotides)
 }
 
 MultiParam<char*>::MultiParam(const char* filename) {
-    char *split;
+    const char *split;
     if ((split = strchr(filename, ',')) != NULL) {
         const char* first = filename;
         const char* second = split + 1;
