@@ -398,7 +398,7 @@ int NcbiTaxonomy::nodeId(TaxID taxonId) const {
 }
 
 bool NcbiTaxonomy::nodeExists(TaxID taxonId) const {
-    return D[taxonId] != -1;
+    return taxonId <= maxTaxID && D[taxonId] != -1;
 }
 
 TaxonNode const * NcbiTaxonomy::taxonNode(TaxID taxonId, bool fail) const {

@@ -110,7 +110,8 @@ public:
 
     bool IsAncestor(TaxID ancestor, TaxID child);
     TaxonNode const* taxonNode(TaxID taxonId, bool fail = true) const;
-    //std::unordered_map<TaxID, unsigned int> getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts, TaxID taxon = 1) const;
+    bool nodeExists(TaxID taxId) const;
+
     std::unordered_map<TaxID, TaxonCounts> getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts) const;
 
     WeightedTaxResult weightedMajorityLCA(const std::vector<WeightedTaxHit> &setTaxa, const float majorityCutoff);
@@ -129,7 +130,6 @@ private:
     void elh(std::vector<std::vector<TaxID>> const & children, int node, int level, std::vector<int> &tmpE, std::vector<int> &tmpL);
     void InitRangeMinimumQuery();
     int nodeId(TaxID taxId) const;
-    bool nodeExists(TaxID taxId) const;
 
     int RangeMinimumQuery(int i, int j) const;
     int lcaHelper(int i, int j) const;

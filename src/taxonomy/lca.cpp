@@ -40,15 +40,35 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
 
     // a few NCBI taxa are blacklisted by default, they contain unclassified sequences (e.g. metagenomes) or other sequences (e.g. plasmids)
     // if we do not remove those, a lot of sequences would be classified as Root, even though they have a sensible LCA
-    std::vector<std::string> blacklist = Util::split(par.blacklist, ",");
-    const size_t taxaBlacklistSize = blacklist.size();
-    int* taxaBlacklist = new int[taxaBlacklistSize];
-    for (size_t i = 0; i < taxaBlacklistSize; ++i) {
-        taxaBlacklist[i] = Util::fast_atoi<int>(blacklist[i].c_str());
+    std::vector<TaxID> blacklist;
+    std::vector<std::string> splits = Util::split(par.blacklist, ",");
+    for (size_t i = 0; i < splits.size(); ++i) {
+        TaxID taxon = Util::fast_atoi<int>(splits[i].c_str());
+        if (taxon == 0) {
+            Debug(Debug::WARNING) << "Cannot block root taxon 0\n";
+            continue;
+        }
+        if (t->nodeExists(taxon) == false) {
+            Debug(Debug::WARNING) << "Ignoring missing blocked taxon " << taxon << "\n";
+            continue;
+        }
+
+        char *split;
+        if ((split = strchr(splits[i].c_str(), ':')) != NULL) {
+            const char* name = split + 1;
+            const TaxonNode* node = t->taxonNode(taxon, false);
+            if (node == NULL) {
+                Debug(Debug::WARNING) << "Ignoring missing blocked taxon " << taxon << "\n";
+                continue;
+            }
+            const char* nodeName = t->getString(node->nameIdx);
+            if (strcmp(nodeName, name) != 0) {
+                Debug(Debug::WARNING) << "Node name '" << name << "' does not match to be blocked name '" << nodeName << "'\n";
+                continue;
+            }
+        }
+        blacklist.emplace_back(taxon);
     }
-    Debug::Progress progress(reader.getSize());
-    size_t taxonNotFound = 0;
-    size_t found = 0;
 
     // will be used when no hits
     std::string noTaxResult = "0\tno rank\tunclassified";
@@ -61,7 +81,9 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
     noTaxResult += '\n';
 
 
-    Debug(Debug::INFO) << "Computing LCA\n";
+    size_t taxonNotFound = 0;
+    size_t found = 0;
+    Debug::Progress progress(reader.getSize());
     #pragma omp parallel
     {
         const char *entry[255];
@@ -109,10 +131,11 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
 
                 // remove blacklisted taxa
                 bool isBlacklisted = false;
-                for (size_t j = 0; j < taxaBlacklistSize; ++j) {
-                    if(taxaBlacklist[j] == 0)
+                for (size_t j = 0; j < blacklist.size(); ++j) {
+                    if (blacklist[j] == 0) {
                         continue;
-                    if (t->IsAncestor(taxaBlacklist[j], taxon)) {
+                    }
+                    if (t->IsAncestor(blacklist[j], taxon)) {
                         isBlacklisted = true;
                         break;
                     }
@@ -180,12 +203,10 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
             result.clear();
         }
     }
-    Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Taxonomy for " << taxonNotFound << " out of " << taxonNotFound+found << " entries not found\n";
     writer.close();
     reader.close();
     delete t;
-    delete[] taxaBlacklist;
 
     return EXIT_SUCCESS;
 }

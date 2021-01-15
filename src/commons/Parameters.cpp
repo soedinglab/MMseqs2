@@ -2327,7 +2327,7 @@ void Parameters::setDefaults() {
     // https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=12908
     // other sequences (plasmids, etc)
     // https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=28384
-    blacklist = "12908,28384";
+    blacklist = "12908:unclassified sequences,28384:other sequences";
 
     // aggregatetax
     majorityThr = 0.5;
