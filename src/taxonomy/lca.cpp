@@ -53,7 +53,7 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
             continue;
         }
 
-        char *split;
+        const char *split;
         if ((split = strchr(splits[i].c_str(), ':')) != NULL) {
             const char* name = split + 1;
             const TaxonNode* node = t->taxonNode(taxon, false);
