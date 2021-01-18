@@ -215,7 +215,11 @@ void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
 std::string FileUtil::getCurrentWorkingDirectory() {
     // CWD can be larger than PATH_MAX and allocating enough memory is somewhat tricky
     char* wd = NULL;
+#ifdef PATH_MAX
     size_t bufferSize = PATH_MAX;
+#else
+    size_t bufferSize = 1024;
+#endif
     do {
         if (wd != NULL) {
             free(wd);

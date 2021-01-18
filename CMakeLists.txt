@@ -81,6 +81,8 @@ if (NATIVE_ARCH AND (MMSEQS_ARCH STREQUAL ""))
         set(X64 1)
     elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "x86|X86")
         set(X86 1)
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^sparc")
+        set(SPARC 1)
     else ()
         message(WARNING "CPU without native SIMD instructions. Performance will be bad.")
     endif ()
@@ -151,7 +153,7 @@ if ((CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSI
     set(DISABLE_IPS4O 1)
 endif ()
 
-if (PPC64)
+if (PPC64 OR SPARC)
     # FIXME: investigate why on ppc the regression seems to fail randomly
     set(DISABLE_IPS4O 1)
 endif ()
