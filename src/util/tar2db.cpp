@@ -94,6 +94,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
             EXIT(EXIT_FAILURE);
         }
 
+        int localThreads = par.threads;
         mtar_t tar;
         if (Util::endsWith(".tar.gz", filenames[i]) || Util::endsWith(".tgz", filenames[i])) {
 #ifdef HAVE_ZLIB
@@ -101,6 +102,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
                 Debug(Debug::ERROR) << "Cannot open file " << filenames[i] << "\n";
                 EXIT(EXIT_FAILURE);
             }
+            localThreads = 1;
 #else
             Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Cannot read compressed input.\n";
             EXIT(EXIT_FAILURE);
@@ -112,7 +114,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
             }
         }
 
-#pragma omp parallel shared(tar, buffer)
+#pragma omp parallel shared(tar) num_threads(localThreads)
         {
             size_t bufferSize = 10 * 1024;
             char *dataBuffer = (char *) malloc(bufferSize);
