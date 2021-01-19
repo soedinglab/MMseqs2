@@ -40,7 +40,12 @@ int mtar_gzopen(mtar_t *tar, const char *filename) {
         return MTAR_EOPENFAIL;
     }
 
-    // Return ok
+#if defined(ZLIB_VERNUM) && ZLIB_VERNUM >= 0x1240
+    if (gzbuffer((gzFile)tar->stream, 1 * 1024 * 1024) != 0) {
+        Debug(Debug::WARNING) << "Could not set gzbuffer size, performance might be bad\n";
+    }
+#endif
+
     return MTAR_ESUCCESS;
 }
 #endif
