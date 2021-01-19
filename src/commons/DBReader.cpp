@@ -175,9 +175,8 @@ template <typename T> bool DBReader<T>::open(int accessType){
         size = Util::ompCountLines(indexDataChar, indexDataSize, threads);
 
         index = new(std::nothrow) Index[this->size];
-        incrementMemory(sizeof(Index) * size);
-
         Util::checkAllocation(index, "Can not allocate index memory in DBReader");
+        incrementMemory(sizeof(Index) * size);
 
         bool isSortedById = readIndex(indexDataChar, indexDataSize, index, dataSize);
         indexData.close();
@@ -436,8 +435,9 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
             }
         } else {
             ret = static_cast<char*>(malloc(*dataSize));
-            incrementMemory(*dataSize);
             Util::checkAllocation(ret, "Not enough system memory to read in the whole data file.");
+            incrementMemory(*dataSize);
+
             size_t result = fread(ret, 1, *dataSize, file);
             if (result != *dataSize) {
                 Debug(Debug::ERROR) << "Failed to read in datafile (" << dataFileName << "). Error " << errno << "\n";

@@ -142,8 +142,8 @@ void DBWriter::open(size_t bufferSize) {
         }
 
         dataFilesBuffer[i] = new(std::nothrow) char[bufferSize];
-        incrementMemory(bufferSize);
         Util::checkAllocation(dataFilesBuffer[i], "Cannot allocate buffer for DBWriter");
+        incrementMemory(bufferSize);
         this->bufferSize = bufferSize;
 
         // set buffer to 64
