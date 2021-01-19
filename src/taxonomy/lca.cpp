@@ -33,6 +33,16 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
+    if (majority) {
+        if (par.voteMode != Parameters::AGG_TAX_UNIFORM && Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_CLUSTER_RES)) {
+            Debug(Debug::WARNING) << "Cluster input can only be used with --vote-mode 0\nContinuing with --vote-mode 0\n";
+            par.voteMode = Parameters::AGG_TAX_UNIFORM;
+        } else if (par.voteMode == Parameters::AGG_TAX_MINUS_LOG_EVAL && (Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_PREFILTER_RES) || Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_PREFILTER_REV_RES))) {
+            Debug(Debug::WARNING) << "Prefilter input can only be used with --vote-mode 0 or 2\nContinuing with --vote-mode 0\n";
+            par.voteMode = Parameters::AGG_TAX_UNIFORM;
+        }
+    }
+
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_TAXONOMICAL_RESULT);
     writer.open();
 
