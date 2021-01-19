@@ -118,9 +118,9 @@ int tar2db(int argc, const char **argv, const Command& command) {
 #pragma omp parallel shared(tar) num_threads(localThreads)
         {
             char buffer[4096];
-            size_t bufferSize = 10 * 1024;
+            size_t bufferSize = 1024 * 1024;
             char *dataBuffer = (char *) malloc(bufferSize);
-            size_t inflateSize = 10 * 1024;
+            size_t inflateSize = 1024 * 1024;
             char *inflateBuffer = (char *) malloc(inflateSize);
             mtar_header_t header;
             size_t currentKey = 0;
