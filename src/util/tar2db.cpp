@@ -154,6 +154,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
                         if (header.type == MTAR_TREG) {
                             if (include.isMatch(header.name) == false || exclude.isMatch(header.name) == true) {
                                 __sync_fetch_and_add(&(globalKey), 1);
+                                proceed = true;
                                 writeEntry = false;
                             } else {
                                 if (header.size > bufferSize) {
@@ -165,11 +166,11 @@ int tar2db(int argc, const char **argv, const Command& command) {
                                     EXIT(EXIT_FAILURE);
                                 }
                                 proceed = true;
+                                writeEntry = true;
                                 currentKey = __sync_fetch_and_add(&(globalKey), 1);
-
                             }
                         } else {
-                            proceed = false;
+                            proceed = true;
                             writeEntry = false;
                         }
                     } else {
