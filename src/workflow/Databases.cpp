@@ -204,7 +204,9 @@ std::string listDatabases(const Command &command, bool detailed) {
         description.append(1, '\t');
         appendPadded(description, (downloads[i].hasTaxonomy ? "yes" : "-"), 8, PAD_RIGHT);
         description.append(1, '\t');
-        appendPadded(description, downloads[i].url, urlWidth);
+        // last field in line should not be padded
+        //appendPadded(description, downloads[i].url, urlWidth);
+        description.append(downloads[i].url);
         description.append(1, '\n');
         if (detailed) {
             if (strlen(downloads[i].description) > 0) {
@@ -217,6 +219,7 @@ std::string listDatabases(const Command &command, bool detailed) {
                 description.append(downloads[i].citation);
                 description.append(1, '\n');
             }
+            description.append(1, '\n');
         }
     }
 
