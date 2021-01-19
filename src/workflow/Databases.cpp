@@ -82,6 +82,13 @@ std::vector<DatabaseDownload> downloads = {{
     false, Parameters::DBTYPE_NUCLEOTIDES, databases_sh, databases_sh_len,
     { }
 }, {
+    "GTDB",
+    "Genome Taxonomy Database is a phylogenetically consistent, genome-based taxonomy that provides rank-normalized classifications for ~150,000 bacterial and archaeal genomes from domain to genus.",
+    "Parks et al: A complete domain-to-species taxonomy for Bacteria and Archaea. Nat Biotechnol 38(9), 1079–1086 (2020)",
+    "https://gtdb.ecogenomic.org",
+    true, Parameters::DBTYPE_AMINO_ACIDS, databases_sh, databases_sh_len,
+    { }
+}, {
     "PDB",
     "The Protein Data Bank is the single worldwide archive of structural data of biological macromolecules.",
     "Berman et al: The Protein Data Bank. Nucleic Acids Res 28(1), 235-242 (2000)",

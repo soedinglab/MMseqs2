@@ -134,6 +134,16 @@ case "${SELECTION}" in
         push_back "${TMP_PATH}/nt.gz"
         INPUT_TYPE="FASTA_LIST"
     ;;
+    "GTDB")
+        if notExists "${TMP_PATH}/download.done"; then
+            downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/VERSION" "${TMP_PATH}/version"
+            downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/genomic_files_reps/gtdb_proteins_aa_reps.tar.gz" "${TMP_PATH}/gtdb.tar.gz"
+            downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/bac120_taxonomy.tsv" "${TMP_PATH}/bac120_taxonomy.tsv"
+            downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/ar122_taxonomy.tsv" "${TMP_PATH}/ar122_taxonomy.tsv"
+            touch "${TMP_PATH}/download.done"
+        fi
+        INPUT_TYPE="GTDB"
+    ;;
     "PDB")
         if notExists "${TMP_PATH}/pdb_seqres.txt.gz"; then
             date "+%s" > "${TMP_PATH}/version"
@@ -320,6 +330,21 @@ case "${INPUT_TYPE}" in
                 || fail "rmdb died"
         fi
     ;;
+    "GTDB")
+        # shellcheck disable=SC2086
+        "${MMSEQS}" tar2db "${TMP_PATH}/gtdb.tar.gz" "${TMP_PATH}/tardb" --tar-include 'faa$' ${COMP_PAR} \
+            || fail "tar2db died"
+        sed 's|_protein\.faa||g' "${TMP_PATH}/tardb.lookup" > "${TMP_PATH}/tardb.lookup.tmp"
+        mv -f -- "${TMP_PATH}/tardb.lookup.tmp" "${TMP_PATH}/tardb.lookup"
+        # shellcheck disable=SC2086
+        "${MMSEQS}" createdb "${TMP_PATH}/tardb" "${OUTDB}" ${COMP_PAR} \
+            || fail "createdb died"
+        if [ -n "${REMOVE_TMP}" ]; then
+            # shellcheck disable=SC2086
+            "${MMSEQS}" rmdb "${TMP_PATH}/tardb" ${VERB_PAR} \
+                || fail "rmdb died"
+        fi
+    ;;
 esac
 fi
 
@@ -361,6 +386,52 @@ if [ -n "${TAXONOMY}" ] && notExists "${OUTDB}_mapping"; then
         "${MMSEQS}" nrtotaxmapping "${TMP_PATH}/pdb.accession2taxid" "${TMP_PATH}/prot.accession2taxid" "${OUTDB}" "${OUTDB}_mapping" ${THREADS_PAR} \
             || fail "nrtotaxmapping died"
        ;;
+     "GTDB")
+          # shellcheck disable=SC2016
+          CMD='BEGIN {
+              FS = "[\t;]";
+              rank["c"] = "class";
+              rank["d"] = "superkingdom";
+              rank["f"] = "family";
+              rank["g"] = "genus";
+              rank["o"] = "order";
+              rank["p"] = "phylum";
+              rank["s"] = "species";
+              taxCnt = 1;
+              ids["root"] = 1;
+              print "1\t|\t1\t|\tno rank\t|\t-\t|" > taxdir"/nodes.dmp";
+              print "1\t|\troot\t|\t-\t|\tscientific name\t|" > taxdir"/names.dmp";
+          }
+          {
+              prevTaxon=1;
+              for (i = 2; i <= NF; i++) {
+                  if ($i in ids) {
+                      prevTaxon = ids[$i];
+                  } else {
+                      taxCnt++;
+                      ids[$i] = taxCnt;
+                      r = substr($i, 0, 1);
+                      name = substr($i, 4);
+                      gsub(/_/, " ", name);
+                      printf("%s\t|\t%s\t|\t%s\t|\t-\t|\n", taxCnt, prevTaxon, rank[r]) > taxdir"/nodes.dmp";
+                      printf("%s\t|\t%s\t|\t-\t|\tscientific name\t|\n", taxCnt, name) > taxdir"/names.dmp";
+                      prevTaxon = taxCnt;
+                  }
+              }
+              printf("%s\t%s\n", $1, ids[$NF]) > taxdir"/mapping_genomes";
+          }'
+          mkdir -p "${TMP_PATH}/taxonomy"
+          awk -v taxdir="${TMP_PATH}/taxonomy" "$CMD" "${TMP_PATH}/bac120_taxonomy.tsv" "${TMP_PATH}/ar122_taxonomy.tsv"
+          touch "${TMP_PATH}/taxonomy/merged.dmp"
+          touch "${TMP_PATH}/taxonomy/delnodes.dmp"
+          # shellcheck disable=SC2086
+          "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxdb" --ncbi-tax-dump "${TMP_PATH}/taxonomy" --tax-mapping-file "${TMP_PATH}/taxonomy/mapping_genomes" --tax-mapping-mode 1 ${THREADS_PAR} \
+              || fail "createtaxdb died"
+          if [ -n "${REMOVE_TMP}" ]; then
+              rm -f -- "${TMP_PATH}/taxonomy/nodes.dmp" "${TMP_PATH}/taxonomy/names.dmp" "${TMP_PATH}/taxonomy/merged.dmp" "${TMP_PATH}/taxonomy/delnodes.dmp" "${TMP_PATH}/taxonomy/mapping_genomes" "${TMP_PATH}/bac120_taxonomy.tsv" "${TMP_PATH}/ar122_taxonomy.tsv"
+              rm -rf -- "${TMP_PATH}/taxdb" "${TMP_PATH}/taxonomy"
+          fi
+     ;;
      *)
        # shellcheck disable=SC2086
        "${MMSEQS}" prefixid "${OUTDB}_h" "${TMP_PATH}/header_pref.tsv" --tsv ${THREADS_PAR} \
