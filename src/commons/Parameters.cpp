@@ -1187,12 +1187,13 @@ Parameters::Parameters():
     easyclusterworkflow = combineList(clusterworkflow, createdb);
 
     // taxonomy
-    taxonomy = combineList(searchworkflow, lca);
     taxonomy.push_back(&PARAM_ORF_FILTER);
     taxonomy.push_back(&PARAM_ORF_FILTER_E);
     taxonomy.push_back(&PARAM_ORF_FILTER_S);
     taxonomy.push_back(&PARAM_LCA_MODE);
     taxonomy.push_back(&PARAM_TAX_OUTPUT_MODE);
+    taxonomy = combineList(taxonomy, lca);
+    taxonomy = combineList(taxonomy, searchworkflow);
 
     // taxpercontig
     taxpercontig = combineList(taxonomy, aggregatetax);
