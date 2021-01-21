@@ -7,19 +7,29 @@ variables:
     regression: 1
 
 jobs:
-  - job: build_ubuntu_1804_userguide
-    displayName: Ubuntu 1804 Userguide
+  - job: build_ubuntu_2004_userguide
+    displayName: Ubuntu 2004 Userguide
     pool:
-      vmImage: 'Ubuntu-18.04'
+      vmImage: 'Ubuntu-20.04'
     steps:
       - checkout: "none"
+      - task: Cache@2
+        inputs:
+          key: '"tectonic" | "$(Agent.OS)"'
+          restoreKeys: |
+            "tectonic" | "$(Agent.OS)"
+            "tectonic"
+          path: $(Pipeline.Workspace)/tectonic-cache/
+        displayName: Cache Tectonic
       - script: |
-          sudo apt-get update
-          sudo apt-get -y install pandoc texlive-latex-recommended texlive-fonts-extra
+          wget -qO- https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.4.1/tectonic-0.4.1-x86_64-unknown-linux-gnu.tar.gz | tar xzvf - tectonic
+          wget -qO- https://github.com/jgm/pandoc/releases/download/2.11.3.2/pandoc-2.11.3.2-linux-amd64.tar.gz | tar --strip-components=2 -xzvf - pandoc-2.11.3.2/bin/pandoc
+          sudo mv -f pandoc tectonic /usr/local/bin
         displayName: Install Dependencies
       - script: |
           cd ${SYSTEM_DEFAULTWORKINGDIRECTORY}
           git clone https://github.com/soedinglab/MMseqs2.wiki.git .
+          export XDG_CACHE_HOME=${PIPELINE_WORKSPACE}/tectonic-cache/
           .pandoc/make-pdf.sh
         displayName: Build Userguide
       - task: PublishPipelineArtifact@0
