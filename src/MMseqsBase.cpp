@@ -84,10 +84,13 @@ std::vector<Command> baseCommands = {
                 "  - result_report: kraken style report\n"
                 "# Download a sequence database with taxonomy information\n"
                 "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n\n"
-                "# Assign taxonomy based on top hit\n"
+                "# Assign taxonomy based on 2bLCA hit\n"
                 "mmseqs easy-taxonomy examples/DB.fasta swissprotDB result tmp\n\n"
-                "# Assign taxonomy based on 2bLCA\n"
-                "mmseqs easy-taxonomy examples/DB.fasta swissprotDB result tmp --lca-mode 2\n",
+                "# Assign taxonomy based on top hit\n"
+                "mmseqs easy-taxonomy examples/DB.fasta swissprotDB result tmp --lca-mode 4\n\n"
+                "# Assign taxonomy without ORF prefilter\n"
+                "# Classifies higher percentage for short nucleotide input (e.g. short reads) at the cost of speed\n"
+                "mmseqs easy-taxonomy queryNuclDB swissprotDB result tmp --orf-filter 0\n",
                 "Martin Steinegger <martin.steinegger@snu.ac.kr>",
                 "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]> <i:targetDB> <o:taxReports> <tmpDir>",
                 CITATION_TAXONOMY|CITATION_MMSEQS2, {{"queryFastaFile[.gz]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
@@ -286,10 +289,13 @@ std::vector<Command> baseCommands = {
                 "Taxonomic classification",
                 "# Download a sequence database with taxonomy information\n"
                 "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n\n"
-                "# Assign taxonomy based on top hit\n"
-                "mmseqs taxonomy queryDB swissprotDB result tmp\n\n"
                 "# Assign taxonomy based on 2bLCA\n"
-                "mmseqs taxonomy queryDB swissprotDB result tmp --lca-mode 2\n\n"
+                "mmseqs taxonomy queryDB swissprotDB result tmp\n\n"
+                "# Assign taxonomy based on top hit\n"
+                "mmseqs taxonomy queryDB swissprotDB result tmp --lca-mode 4\n\n"
+                "# Assign taxonomy without ORF prefilter\n"
+                "# Classifies higher percentage for short nucleotide input (e.g. short reads) at the cost of speed\n"
+                "mmseqs taxonomy queryNuclDB swissprotDB result tmp --orf-filter 0\n\n"
                 "# Create a Krona report\n"
                 "mmseqs taxonomyreport swissprotDB result report.html --report-mode 1\n",
                 "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@snu.ac.kr> & Eli Levy Karin <eli.levy.karin@gmail.com>",
