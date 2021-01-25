@@ -36,7 +36,7 @@ int convertca3m(int argc, const char **argv, const Command &command) {
         std::vector<Matcher::result_t> results;
         results.reserve(1000);
 
-        char buffer[1024];
+        char buffer[1024 + 32768*4];
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < reader.getSize(); ++i) {

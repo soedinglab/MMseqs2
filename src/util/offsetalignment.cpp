@@ -356,7 +356,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        char * buffer = new char[65536];
+        char buffer[1024 + 32768*4];
 
         std::string ss;
         ss.reserve(1024);
@@ -469,7 +469,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 tmp.clear();
             }
         }
-        delete[] buffer;
     }
     Debug(Debug::INFO) << "\n";
     resultWriter.close();

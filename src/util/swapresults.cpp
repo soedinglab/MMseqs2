@@ -248,7 +248,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
             std::vector<Matcher::result_t> curRes;
             curRes.reserve(300);
 
-            char buffer[1024+32768];
+            char buffer[1024 + 32768*4];
             std::string ss;
             ss.reserve(100000);
 

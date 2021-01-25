@@ -45,7 +45,7 @@ int summarizeresult(int argc, const char **argv, const Command &command) {
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
 
-        char buffer[32768];
+        char buffer[1024 + 32768*4];
         std::vector<bool> covered(par.maxSeqLen + 1, false);
 
 #pragma omp for schedule(dynamic, 10)

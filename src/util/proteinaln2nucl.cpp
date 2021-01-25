@@ -71,7 +71,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
 
-        char buffer[1024];
+        char buffer[1024 + 32768*4];
 
         std::string result;
         result.reserve(1024);

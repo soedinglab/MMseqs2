@@ -284,7 +284,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
 #endif
             std::string alnResultsOutString;
             alnResultsOutString.reserve(1024*1024);
-            char buffer[1024+32768];
+            char buffer[1024 + 32768*4];
             Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
             Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
 

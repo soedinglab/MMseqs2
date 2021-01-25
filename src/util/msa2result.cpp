@@ -170,7 +170,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
         const float matchRatio = par.matchRatio;
         MsaFilter filter(maxSeqLength + 1, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
 
-        char buffer[2048];
+        char buffer[1024 + 32768*4];
 
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < msaReader.getSize(); ++id) {

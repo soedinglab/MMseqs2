@@ -174,7 +174,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         float *compositionBias = (float*)malloc(compBufferSize);
         memset(compositionBias, 0, compBufferSize);
 
-        char buffer[1024 + 32000];
+        char buffer[1024 + 32768*4];
 
         std::vector<Matcher::result_t> resultsBc;
         resultsBc.reserve(300);
