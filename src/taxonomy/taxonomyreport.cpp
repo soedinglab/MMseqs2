@@ -100,10 +100,6 @@ std::string escapeAttribute(const std::string &data) {
 void kronaReport(FILE *FP, const NcbiTaxonomy &taxDB, const std::unordered_map<TaxID, TaxonCounts> &cladeCounts, unsigned long totalReads, TaxID taxID = 0, int depth = 0) {
     std::unordered_map<TaxID, TaxonCounts>::const_iterator it = cladeCounts.find(taxID);
     unsigned int cladeCount = it == cladeCounts.end() ? 0 : it->second.cladeCount;
-//    unsigned int taxCount = it == cladeCounts.end()? 0 : it->second.taxCount;
-    if (cladeCount == 0) {
-        return;
-    }
     if (taxID == 0) {
         if (cladeCount > 0) {
             fprintf(FP, "<node name=\"unclassified\"><magnitude><val>%d</val></magnitude></node>", cladeCount);
