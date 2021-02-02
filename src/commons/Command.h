@@ -62,6 +62,7 @@ struct DbValidator {
     static std::vector<int> allDb;
     static std::vector<int> allDbAndFlat;
     static std::vector<int> taxResult;
+    static std::vector<int> resultAndTaxDb;
     static std::vector<int> directory;
     static std::vector<int> flatfile;
     static std::vector<int> flatfileAndStdin;

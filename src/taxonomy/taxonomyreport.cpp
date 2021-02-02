@@ -130,53 +130,73 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    // 1. Read taxonomy
     NcbiTaxonomy *taxDB = NcbiTaxonomy::openTaxonomy(par.db1);
 
-    std::vector<std::pair<unsigned int, unsigned int>> mapping;
-    if (FileUtil::fileExists(std::string(par.db1 + "_mapping").c_str()) == false) {
-        Debug(Debug::ERROR) << par.db1 + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
-        EXIT(EXIT_FAILURE);
-    }
-    bool isSorted = Util::readMapping(par.db1 + "_mapping", mapping);
-    if (isSorted == false) {
-        std::stable_sort(mapping.begin(), mapping.end(), compareToFirstInt);
-    }
-
-    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
+    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+
+    // support reading both LCA databases and result databases (e.g. alignment)
+    const bool isTaxonomyInput = Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_TAXONOMICAL_RESULT);
+    std::vector<std::pair<unsigned int, unsigned int>> mapping;
+    if (isTaxonomyInput == false) {
+        if (FileUtil::fileExists(std::string(par.db1 + "_mapping").c_str()) == false) {
+            Debug(Debug::ERROR) << par.db1 + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        bool isSorted = Util::readMapping(par.db1 + "_mapping", mapping);
+        if (isSorted == false) {
+            std::stable_sort(mapping.begin(), mapping.end(), compareToFirstInt);
+        }
+    }
 
     FILE *resultFP = FileUtil::openAndDelete(par.db3.c_str(), "w");
 
-    // 2. Read LCA file
     std::unordered_map<TaxID, unsigned int> taxCounts;
     Debug::Progress progress(reader.getSize());
-//    #pragma omp parallel
+#pragma omp parallel
     {
-        const char *entry[255];
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-//        #pragma omp for schedule(dynamic, 10) reduction (+:taxonNotFound, found)
+        std::unordered_map<TaxID, unsigned int> localTaxCounts;
+#pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
 
             char *data = reader.getData(i, thread_idx);
+            while (*data != '\0') {
+                if (isTaxonomyInput) {
+                    TaxID taxon = Util::fast_atoi<int>(data);
+                    ++localTaxCounts[taxon];
+                } else {
+                    // match dbKey to its taxon based on mapping
+                    std::pair<unsigned int, unsigned int> val;
+                    val.first = Util::fast_atoi<unsigned int>(data);
+                    std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
+                    mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
+                    if (mappingIt != mapping.end() && mappingIt->first == val.first) {
+                        ++localTaxCounts[mappingIt->second];
+                    }
+                }
+                data = Util::skipLine(data);
+            }
+        }
 
-            const size_t columns = Util::getWordsOfLine(data, entry, 255);
-            if (columns == 0) {
-                Debug(Debug::WARNING) << "Empty entry: " << i << "!";
+        // merge maps again
+#pragma omp critical
+        for (std::unordered_map<TaxID, unsigned int>::const_iterator it = localTaxCounts.cbegin(); it != localTaxCounts.cend(); ++it) {
+            if (taxCounts[it->first]) {
+                taxCounts[it->first] += it->second;
             } else {
-                int taxon = Util::fast_atoi<int>(entry[0]);
-                ++taxCounts[taxon];
+                taxCounts[it->first] = it->second;
             }
         }
     }
-    Debug(Debug::INFO) << "Found " << taxCounts.size() << " different taxa for " << reader.getSize() << " different reads.\n";
+    Debug(Debug::INFO) << "Found " << taxCounts.size() << " different taxa for " << reader.getSize() << " different reads\n";
     unsigned int unknownCnt = (taxCounts.find(0) != taxCounts.end()) ? taxCounts.at(0) : 0;
-    Debug(Debug::INFO) << unknownCnt << " reads are unclassified.\n";
+    Debug(Debug::INFO) << unknownCnt << " reads are unclassified\n";
     const size_t entryCount = reader.getSize();
     reader.close();
 
