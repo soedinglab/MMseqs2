@@ -252,7 +252,7 @@ jobs:
     pool:
       vmImage: 'Ubuntu-18.04'
     dependsOn:
-      - build_ubuntu_1804_userguide
+      - build_ubuntu_2004_userguide
       - build_macos_1015
       - build_ubuntu_1804
       - build_ubuntu_cross_2004
