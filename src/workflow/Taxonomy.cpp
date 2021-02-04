@@ -51,8 +51,8 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     setTaxonomyMustPassAlong(&par);
 
     if (par.taxonomySearchMode == Parameters::TAXONOMY_2BLCA) {
-        Debug(Debug::WARNING) << "2bLCA was replaced by Accelerated 2bLCA\n";
-        par.taxonomySearchMode = Parameters::TAXONOMY_ACCEL_2BLCA;
+        Debug(Debug::WARNING) << "2bLCA was replaced by approximate 2bLCA\n";
+        par.taxonomySearchMode = Parameters::TAXONOMY_APPROX_2BLCA;
     }
 
     std::string indexStr = PrefilteringIndexReader::searchForIndex(par.db2);
@@ -75,7 +75,7 @@ int taxonomy(int argc, const char **argv, const Command& command) {
 
     int searchMode = computeSearchMode(queryDbType, targetDbType, targetSrcDbType, par.searchType);
     if ((searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE) && (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_NUCLEOTIDE)) {
-        if (par.taxonomySearchMode == Parameters::TAXONOMY_ACCEL_2BLCA) {
+        if (par.taxonomySearchMode == Parameters::TAXONOMY_APPROX_2BLCA) {
             Debug(Debug::WARNING) << "Accel. 2bLCA cannot be used with nucl-nucl taxonomy, using top-hit instead\n";
             par.taxonomySearchMode = Parameters::TAXONOMY_TOP_HIT;
         }
@@ -133,7 +133,7 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     } else {
         if (par.taxonomySearchMode == Parameters::TAXONOMY_TOP_HIT) {
             cmd.addVariable("TOPHIT_MODE", "1");
-        } else if (par.taxonomySearchMode == Parameters::TAXONOMY_ACCEL_2BLCA) {
+        } else if (par.taxonomySearchMode == Parameters::TAXONOMY_APPROX_2BLCA) {
             par.lcaSearch = true;
             par.PARAM_LCA_SEARCH.wasSet = true;
             cmd.addVariable("TOPHIT_MODE", NULL);
