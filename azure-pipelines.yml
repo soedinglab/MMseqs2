@@ -261,7 +261,7 @@ jobs:
       - script: |
           cd "${BUILD_SOURCESDIRECTORY}"
           mkdir mmseqs
-          cp -f README.md LICENCE.md mmseqs
+          cp -f README.md LICENSE.md mmseqs
           cp -r examples mmseqs
           mkdir mmseqs/matrices
           cp -f data/*.out mmseqs/matrices
