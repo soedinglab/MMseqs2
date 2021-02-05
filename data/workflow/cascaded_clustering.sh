@@ -239,12 +239,13 @@ if [ -n "$REASSIGN" ]; then
     fi
 fi
 
-
 if [ -n "$REMOVE_TMP" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/clu_redundancy" ${VERBOSITY}
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy" ${VERBOSITY}
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy_h" ${VERBOSITY}
     STEP=0
     while [ "$STEP" -lt "$STEPS" ]; do
         # shellcheck disable=SC2086
@@ -260,6 +261,8 @@ if [ -n "$REMOVE_TMP" ]; then
     while [ "$STEP" -lt "$STEPS" ]; do
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/input_step$STEP" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/input_step${STEP}_h" ${VERBOSITY}
         STEP=$((STEP+1))
     done
 
