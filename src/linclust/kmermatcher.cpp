@@ -1184,8 +1184,8 @@ void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTy
     if(Parameters::isEqualDbtype(seqTyp, Parameters::DBTYPE_NUCLEOTIDES)){
         if(parameters.kmerSize == 0) {
             parameters.kmerSize = std::max(17, static_cast<int>(log(static_cast<float>(aaDbSize))/log(4)));
+            parameters.spacedKmerPattern = "";
             parameters.alphabetSize.nucleotides = 5;
-
         }
         if(parameters.kmersPerSequence == 0){
             parameters.kmersPerSequence = 60;
@@ -1202,6 +1202,7 @@ void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTy
                 parameters.kmerSize = std::max(10, static_cast<int>(log(static_cast<float>(aaDbSize))/log(8.7)));
                 parameters.alphabetSize.aminoacids = 13;
             }
+            parameters.spacedKmerPattern = "";
         }
         if(parameters.kmersPerSequence == 0){
             parameters.kmersPerSequence = 20;
