@@ -131,8 +131,16 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, true, 0, 0);
 
     NcbiTaxonomy *taxDB = NcbiTaxonomy::openTaxonomy(par.db1);
-
-    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
+    // allow reading any kind of sequence database
+    const int readerDbType = FileUtil::parseDbType(par.db2.c_str());
+    const bool isSequenceDB = Parameters::isEqualDbtype(readerDbType, Parameters::DBTYPE_HMM_PROFILE)
+                             || Parameters::isEqualDbtype(readerDbType, Parameters::DBTYPE_AMINO_ACIDS)
+                             || Parameters::isEqualDbtype(readerDbType, Parameters::DBTYPE_NUCLEOTIDES);
+    int dataMode = DBReader<unsigned int>::USE_INDEX;
+    if (isSequenceDB == false) {
+        dataMode |= DBReader<unsigned int>::USE_DATA;
+    }
+    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, dataMode);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     // support reading both LCA databases and result databases (e.g. alignment)
@@ -164,6 +172,17 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
+
+            if (isSequenceDB == true) {
+                std::pair<unsigned int, unsigned int> val;
+                val.first = reader.getDbKey(i);
+                std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
+                mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
+                if (mappingIt != mapping.end() && mappingIt->first == val.first) {
+                    ++localTaxCounts[mappingIt->second];
+                }
+                continue;
+            }
 
             char *data = reader.getData(i, thread_idx);
             while (*data != '\0') {
