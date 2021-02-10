@@ -124,6 +124,13 @@ std::vector<DatabaseDownload> downloads = {{
     false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
     { }
 }, {
+    "CDD",
+    "Conserved Domain Database is a protein annotation resource consisting of well-annotated MSAs for ancient domains and full-length proteins.",
+    "Lu et al: CDD/SPARCLE: the conserved domain database in 2020. Nucleic Acids Res 48(D1), D265–D268 (2020)",
+    "https://www.ncbi.nlm.nih.gov/Structure/cdd/cdd.shtml",
+    false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
+    { }
+}, {
     "eggNOG",
     "eggNOG is a hierarchical, functionally and phylogenetically annotated orthology resource",
     "Huerta-Cepas et al: eggNOG 5.0: a hierarchical, functionally and phylogenetically annotated orthology resource based on 5090 organisms and 2502 viruses. Nucleic Acids Res 47(D1), D309–D314 (2019)",

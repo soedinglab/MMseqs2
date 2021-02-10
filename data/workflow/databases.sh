@@ -193,6 +193,15 @@ case "${SELECTION}" in
         fi
         INPUT_TYPE="eggNOG"
     ;;
+    "CDD")
+        if notExists "${TMP_PATH}/msa.msa.gz"; then
+            downloadFile "https://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.info" "${TMP_PATH}/version"
+            downloadFile "https://ftp.ncbi.nih.gov/pub/mmdb/cdd/fasta.tar.gz" "${TMP_PATH}/msa.tar.gz"
+        fi
+        INPUT_TYPE="FASTA_MSA"
+        FASTA_MSA_SED='s|\.FASTA||g'
+        FASTA_MSA_MSA2PROFILE_PAR="--skip-query"
+    ;;
     "Resfinder")
         if notExists "${TMP_PATH}/download.done"; then
             downloadFile "https://api.bitbucket.org/2.0/repositories/genomicepidemiology/resfinder_db/commit/master?fields=hash,date" "${TMP_PATH}/version"
@@ -302,9 +311,13 @@ case "${INPUT_TYPE}" in
         # shellcheck disable=SC2086
         "${MMSEQS}" tar2db "${TMP_PATH}/msa.tar.gz" "${TMP_PATH}/msa" --output-dbtype 11 ${THREADS_PAR}  \
             || fail "tar2db died"
+        if [ -n "${FASTA_MSA_SED}" ]; then
+            sed "${FASTA_MSA_SED}" "${TMP_PATH}/msa.lookup" > "${TMP_PATH}/msa.lookup_tmp"
+            mv -f "${TMP_PATH}/msa.lookup_tmp" "${TMP_PATH}/msa.lookup"
+        fi
         rm -f "${TMP_PATH}/msa.tar.gz"
         # shellcheck disable=SC2086
-        "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${THREADS_PAR} \
+        "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${FASTA_MSA_MSA2PROFILE_PAR} ${THREADS_PAR} \
             || fail "msa2profile died"
         if [ -n "${REMOVE_TMP}" ]; then
             # shellcheck disable=SC2086
