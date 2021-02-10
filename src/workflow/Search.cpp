@@ -326,7 +326,7 @@ int search(int argc, const char **argv, const Command& command) {
         int originalCovMode = par.covMode;
         par.covMode = Util::swapCoverageMode(par.covMode);
         size_t maxResListLen = par.maxResListLen;
-        par.maxResListLen = INT_MAX;
+        par.maxResListLen = std::max((size_t)300, queryDbSize);
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         par.maxResListLen = maxResListLen;
         double originalEvalThr = par.evalThr;
