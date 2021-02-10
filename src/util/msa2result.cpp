@@ -219,6 +219,11 @@ int msa2result(int argc, const char **argv, const Command &command) {
                 }
             }
 
+            // allow skipping first sequence in case of consensus, etc
+            if (par.skipQuery == true) {
+                kseq_read(seq);
+            }
+
             unsigned int startKey = setSizes[id];
             while (kseq_read(seq) >= 0) {
                 if (seq->name.l == 0 || seq->seq.l == 0) {

@@ -195,6 +195,11 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 }
             }
 
+            // allow skipping first sequence in case of consensus, etc
+            if (par.skipQuery == true) {
+                kseq_read(seq);
+            }
+
             while (kseq_read(seq) >= 0) {
                 if (seq->name.l == 0 || seq->seq.l == 0) {
                     Debug(Debug::WARNING) << "Invalid fasta sequence " << setSize << " in entry " << queryKey << "\n";

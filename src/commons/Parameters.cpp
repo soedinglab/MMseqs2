@@ -592,6 +592,7 @@ Parameters::Parameters():
     msa2profile.push_back(&PARAM_FILTER_NDIFF);
     msa2profile.push_back(&PARAM_GAP_OPEN);
     msa2profile.push_back(&PARAM_GAP_EXTEND);
+    msa2profile.push_back(&PARAM_SKIP_QUERY);
     msa2profile.push_back(&PARAM_THREADS);
     msa2profile.push_back(&PARAM_COMPRESSED);
     msa2profile.push_back(&PARAM_V);
