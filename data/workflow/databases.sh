@@ -300,7 +300,7 @@ case "${INPUT_TYPE}" in
     ;;
     "FASTA_MSA")
         # shellcheck disable=SC2086
-        "${MMSEQS}" tar2db "${TMP_PATH}/msa.tar.gz" "${TMP_PATH}/msa" ${VERB_PAR} --output-dbtype 11 \
+        "${MMSEQS}" tar2db "${TMP_PATH}/msa.tar.gz" "${TMP_PATH}/msa" --output-dbtype 11 ${THREADS_PAR}  \
             || fail "tar2db died"
         rm -f "${TMP_PATH}/msa.tar.gz"
         # shellcheck disable=SC2086
@@ -314,7 +314,7 @@ case "${INPUT_TYPE}" in
     ;;
     "eggNOG")
         # shellcheck disable=SC2086
-        "${MMSEQS}" tar2db "${TMP_PATH}/bacteria" "${TMP_PATH}/archea" "${TMP_PATH}/eukaryota" "${TMP_PATH}/viruses" "${TMP_PATH}/msa" --output-dbtype 11 --tar-include '\.raw_alg\.faa\.gz$' ${COMP_PAR} \
+        "${MMSEQS}" tar2db "${TMP_PATH}/bacteria" "${TMP_PATH}/archea" "${TMP_PATH}/eukaryota" "${TMP_PATH}/viruses" "${TMP_PATH}/msa" --output-dbtype 11 --tar-include '\.raw_alg\.faa\.gz$' ${THREADS_PAR} \
             || fail "tar2db died"
         rm -f "${TMP_PATH}/bacteria.tar" "${TMP_PATH}/archea.tar" "${TMP_PATH}/eukaryota.tar" "${TMP_PATH}/viruses.tar"
         sed 's|\.raw_alg\.faa\.gz||g' "${TMP_PATH}/msa.lookup" > "${TMP_PATH}/msa.lookup.tmp"
@@ -332,7 +332,7 @@ case "${INPUT_TYPE}" in
     ;;
     "GTDB")
         # shellcheck disable=SC2086
-        "${MMSEQS}" tar2db "${TMP_PATH}/gtdb.tar.gz" "${TMP_PATH}/tardb" --tar-include 'faa$' ${COMP_PAR} \
+        "${MMSEQS}" tar2db "${TMP_PATH}/gtdb.tar.gz" "${TMP_PATH}/tardb" --tar-include 'faa$' ${THREADS_PAR} \
             || fail "tar2db died"
         sed 's|_protein\.faa||g' "${TMP_PATH}/tardb.lookup" > "${TMP_PATH}/tardb.lookup.tmp"
         mv -f -- "${TMP_PATH}/tardb.lookup.tmp" "${TMP_PATH}/tardb.lookup"
