@@ -357,7 +357,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     resultWriter.close(true);
     qDbr.close();
 
-    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, (DBFiles::Files)(DBFiles::LOOKUP | DBFiles::SOURCE));
+    DBReader<unsigned int>::copyDb(par.db1, par.db2, (DBFiles::Files)(DBFiles::LOOKUP | DBFiles::SOURCE));
 
     if (sequenceReader != NULL) {
         sequenceReader->close();
