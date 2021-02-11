@@ -1,0 +1,7 @@
+
+                              gzstream
+      C++ iostream classes wrapping the zlib compression library.
+===========================================================================
+
+    Header Only version of this library from:
+    https://gist.github.com/piti118/1508048
