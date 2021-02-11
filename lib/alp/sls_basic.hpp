@@ -50,7 +50,6 @@ Contents: Some basic functions and types
 #include <iomanip>
 #include <cmath>  // ?
 #include <math.h>
-#include <iostream>
 #include <string>
 
 namespace Sls { 
@@ -176,7 +175,7 @@ namespace Sls {
 		{
 			if(!pointer_)
 			{
-                std::cout << "Memory allocation error\n";
+				throw error("Memory allocation error\n",41);
 			};
 		}
 
