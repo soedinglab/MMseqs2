@@ -277,6 +277,10 @@ public:
     static const int SUBDB_MODE_HARD = 0;
     static const int SUBDB_MODE_SOFT = 1;
 
+    // unpackdb
+    static const int UNPACK_NAME_KEY = 0;
+    static const int UNPACK_NAME_ACCESSION = 1;
+
     // result direction
     static const int PARAM_RESULT_DIRECTION_QUERY  = 0;
     static const int PARAM_RESULT_DIRECTION_TARGET = 1;
@@ -631,6 +635,10 @@ public:
     std::string tarInclude;
     std::string tarExclude;
 
+    // unpackdb
+    std::string unpackSuffix;
+    int unpackNameMode;
+
     // for modules that should handle -h themselves
     bool help;
 
@@ -948,6 +956,10 @@ public:
     // tar2db
     PARAMETER(PARAM_TAR_INCLUDE)
     PARAMETER(PARAM_TAR_EXCLUDE)
+
+    // unpackdb
+    PARAMETER(PARAM_UNPACK_SUFFIX)
+    PARAMETER(PARAM_UNPACK_NAME_MODE)
 
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
