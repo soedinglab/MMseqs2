@@ -146,7 +146,7 @@ bool Orf::setSequence(const char* seq, size_t length) {
     for(size_t i = 0; i < sequenceLength; ++i) {
         reverseComplement[i] = complement(sequence[sequenceLength - i - 1]);
         if(reverseComplement[i] == '.') {
-            return false;
+            reverseComplement[i] = 'N';
         }
     }
 

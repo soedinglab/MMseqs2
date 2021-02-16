@@ -45,8 +45,8 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     const char newline = '\n';
     Debug::Progress progress(reader.getSize());
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
-
-#pragma omp parallel
+    int wrongSeqCnt = 0;
+#pragma omp parallel reduction(+:wrongSeqCnt)
     {
         Orf orf(par.translationTable, par.useAllTableStarts);
         int thread_idx = 0;
@@ -71,7 +71,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
             const char* data = reader.getData(i, thread_idx);
             size_t sequenceLength = reader.getSeqLen(i);
             if(!orf.setSequence(data, sequenceLength)) {
-                Debug(Debug::WARNING) << "Invalid sequence with index " << i << "!\n";
+                wrongSeqCnt++;
                 continue;
             }
 
@@ -131,6 +131,10 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     sequenceWriter.close(true);
     headerReader.close();
     reader.close();
+    if(wrongSeqCnt > 0){
+        Debug(Debug::WARNING) << wrongSeqCnt << " sequence where short than 3!\n";
+    }
+
     // make identifiers stable
 #pragma omp parallel
     {
