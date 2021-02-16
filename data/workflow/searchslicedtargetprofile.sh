@@ -150,7 +150,7 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
     # merge swapped alignment of current chunk to previous steps
     if [ -f "${TMP_PATH}/aln_merged.dbtype" ]; then
         # shellcheck disable=SC2086
-        "$MMSEQS" mergedbs "${PROFILEDB}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln" ${VERBOSITY} \
+        "$MMSEQS" mergedbs "${TARGET}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln" ${VERBOSITY} \
             || fail "mergedbs died"
         # rmdb of aln_merged to avoid conflict with unmerged dbs: aln_merged.0, .1...
         # shellcheck disable=SC2086
@@ -177,7 +177,7 @@ done
 if notExists "${TMP_PATH}/aln.done"; then
     # keep only the top max-seqs hits according to the default alignment sorting criteria
     # shellcheck disable=SC2086
-    "$MMSEQS" align "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
+    "$MMSEQS" align "${TARGET}" "${INPUT}" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
        || fail "sortresult died"
     # rmdb of aln_merged to avoid conflict with unmerged dbs: aln_merged.0, .1...
        # shellcheck disable=SC2086
