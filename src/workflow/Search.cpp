@@ -347,7 +347,6 @@ int search(int argc, const char **argv, const Command& command) {
             cmd.addVariable("ALIGNMENT_IT_PAR", par.createParameterString(par.align).c_str());
         }
 
-        cmd.addVariable("SORTRESULT_PAR", par.createParameterString(par.sortresult).c_str());
         par.covMode = originalCovMode;
 
         program = tmpDir + "/searchslicedtargetprofile.sh";
