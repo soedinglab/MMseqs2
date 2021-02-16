@@ -63,7 +63,7 @@ Parameters::Parameters():
         PARAM_SPACED_KMER_PATTERN(PARAM_SPACED_KMER_PATTERN_ID, "--spaced-kmer-pattern", "Spaced k-mer pattern", "User-specified spaced k-mer pattern", typeid(std::string), (void *) &spacedKmerPattern, "^1[01]*1$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_LOCAL_TMP(PARAM_LOCAL_TMP_ID, "--local-tmp", "Local temporary path", "Path where some of the temporary files will be created", typeid(std::string), (void *) &localTmp, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         // alignment
-        PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID, "--alignment-mode", "Alignment mode", "How to compute the alignment:\n0: automatic\n1: only score and end_pos\n2: also start_pos and cov\n3: also seq.id\n4: only ungapped alignment", typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID, "--alignment-mode", "Alignment mode", "How to compute the alignment:\n0: automatic\n1: only score and end_pos\n2: also start_pos and cov\n3: also seq.id\n4: only ungapped alignment\n5: score only (output) cluster format", typeid(int), (void *) &alignmentMode, "^[0-5]{1}$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_E(PARAM_E_ID, "-e", "E-value threshold", "List matches below this E-value (range 0.0-inf)", typeid(double), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_C(PARAM_C_ID, "-c", "Coverage threshold", "List matches above this fraction of aligned (covered) residues (see --cov-mode)", typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|^1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_COV_MODE(PARAM_COV_MODE_ID, "--cov-mode", "Coverage mode", "0: coverage of query and target\n1: coverage of target\n2: coverage of query\n3: target seq. length has to be at least x% of query length\n4: query seq. length has to be at least x% of target length\n5: short seq. needs to be at least x% of the other seq. length", typeid(int), (void *) &covMode, "^[0-5]{1}$", MMseqsParameter::COMMAND_ALIGN),
@@ -150,7 +150,9 @@ Parameters::Parameters():
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Search iterations", "Number of iterative profile search iterations", typeid(int), (void *) &numIterations, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_START_SENS(PARAM_START_SENS_ID, "--start-sens", "Start sensitivity", "Start sensitivity", typeid(float), (void *) &startSens, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_SENS_STEPS(PARAM_SENS_STEPS_ID, "--sens-steps", "Search steps", "Number of search steps performed from --start-sens to -s", typeid(int), (void *) &sensSteps, "^[1-9]{1}$"),
-        PARAM_SLICE_SEARCH(PARAM_SLICE_SEARCH_ID, "--slice-search", "Slice search mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results", typeid(bool), (void *) &sliceSearch, "", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_EXHAUSTIVE_SEARCH(PARAM_EXHAUSTIVE_SEARCH_ID, "--exhaustive-search", "Exhaustive search mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results", typeid(bool), (void *) &exhaustiveSearch, "", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_EXHAUSTIVE_SEARCH_FILTER(PARAM_EXHAUSTIVE_SEARCH_FILTER_ID, "--exhaustive-search-filter", "Filter results during exhaustive search", "Filter result during search: 0: do not filter, 1: filter", typeid(int), (void *) &exhaustiveFilterMsa, "^[0-1]{1}$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
+
         PARAM_STRAND(PARAM_STRAND_ID, "--strand", "Strand selection", "Strand selection only works for DNA/DNA search 0: reverse, 1: forward, 2: both", typeid(int), (void *) &strand, "^[0-2]{1}$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_ORF_FILTER(PARAM_ORF_FILTER_ID, "--orf-filter", "ORF filter", "Prefilter query ORFs with non-selective search\nOnly used during nucleotide-vs-protein classification\nNOTE: Consider disabling when classifying short reads", typeid(int), (void *) &orfFilter, "^[0-1]{1}$"),
         PARAM_ORF_FILTER_S(PARAM_ORF_FILTER_S_ID, "--orf-filter-s", "ORF filter sensitivity", "Sensitivity used for query ORF prefiltering", typeid(float), (void *) &orfFilterSens, "^[0-9]*(\\.[0-9]+)?$"),
@@ -1125,7 +1127,8 @@ Parameters::Parameters():
     searchworkflow.push_back(&PARAM_NUM_ITERATIONS);
     searchworkflow.push_back(&PARAM_START_SENS);
     searchworkflow.push_back(&PARAM_SENS_STEPS);
-    searchworkflow.push_back(&PARAM_SLICE_SEARCH);
+    searchworkflow.push_back(&PARAM_EXHAUSTIVE_SEARCH);
+    searchworkflow.push_back(&PARAM_EXHAUSTIVE_SEARCH_FILTER);
     searchworkflow.push_back(&PARAM_STRAND);
     searchworkflow.push_back(&PARAM_LCA_SEARCH);
     searchworkflow.push_back(&PARAM_DISK_SPACE_LIMIT);
@@ -2068,7 +2071,8 @@ void Parameters::setDefaults() {
     numIterations = 1;
     startSens = 4;
     sensSteps = 1;
-    sliceSearch = false;
+    exhaustiveSearch = false;
+    exhaustiveFilterMsa = 0;
     strand = 1;
     orfFilter = 0;
     orfFilterSens = 2.0;

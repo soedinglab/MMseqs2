@@ -247,7 +247,7 @@ int search(int argc, const char **argv, const Command& command) {
     }
     // FIXME: use larger default k-mer size in target-profile case if memory is available
     // overwrite default kmerSize for target-profile searches and parse parameters again
-    if (par.sliceSearch == false && (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_PROFILE) && par.PARAM_K.wasSet == false) {
+    if (par.exhaustiveSearch == false && (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_PROFILE) && par.PARAM_K.wasSet == false) {
         par.kmerSize = 5;
     }
 
@@ -314,7 +314,7 @@ int search(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
 //    cmd.addVariable("ALIGNMENT_DB_EXT", Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ) ? ".255" : "");
     par.filenames[1] = targetDB;
-    if (par.sliceSearch == true) {
+    if (par.exhaustiveSearch == true) {
         // By default (0), diskSpaceLimit (in bytes) will be set in the workflow to use as much as possible
         cmd.addVariable("AVAIL_DISK", SSTR(static_cast<size_t>(par.diskSpaceLimit)).c_str());
 
@@ -331,15 +331,22 @@ int search(int argc, const char **argv, const Command& command) {
         par.maxResListLen = maxResListLen;
         double originalEvalThr = par.evalThr;
         par.evalThr = std::numeric_limits<double>::max();
-        cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
+        cmd.addVariable("SWAPRES_PAR", par.createParameterString(par.swapresult).c_str());
         par.evalThr = originalEvalThr;
+        cmd.addVariable("FILTER_PAR", par.createParameterString(par.filterresult).c_str());
+        if(par.exhaustiveFilterMsa == 1){
+            cmd.addVariable("FILTER_RESULT", "1");
+        }
         if (isUngappedMode) {
             par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
             cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
             par.rescoreMode = originalRescoreMode;
         } else {
             cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+            par.alignmentMode = Parameters::ALIGNMENT_MODE_CLUSTER;
+            cmd.addVariable("ALIGNMENT_IT_PAR", par.createParameterString(par.align).c_str());
         }
+
         cmd.addVariable("SORTRESULT_PAR", par.createParameterString(par.sortresult).c_str());
         par.covMode = originalCovMode;
 

@@ -34,6 +34,11 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
     if (addBacktrace == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     }
+    outputClusterFormat = false;
+    if (par.alignmentMode == Parameters::ALIGNMENT_MODE_CLUSTER) {
+        alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_ONLY;
+        outputClusterFormat = true;
+    }
 
     if (lcaAlign == true) {
         lcaSwMode = initSWMode(std::max(alignmentMode, (unsigned int)Parameters::ALIGNMENT_MODE_SCORE_ONLY), 0.0f, 0.0f);
@@ -251,7 +256,11 @@ void Alignment::run() {
 }
 
 void Alignment::run(const std::string &outDB, const std::string &outDBIndex, const size_t dbFrom, const size_t dbSize, bool merge) {
-    DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_ALIGNMENT_RES);
+    int dbtype = Parameters::DBTYPE_ALIGNMENT_RES;
+    if(outputClusterFormat){
+        dbtype =  Parameters::DBTYPE_CLUSTER_RES;
+    }
+    DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, dbtype);
     dbw.open();
 
     // handle no alignment case early, below would divide by 0 otherwise
@@ -497,10 +506,16 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
 
                     returnRes = &swRealignResults;
                 }
-
-                for (size_t result = 0; result < returnRes->size(); result++) {
-                    size_t len = Matcher::resultToBuffer(buffer, (*returnRes)[result], addBacktrace);
-                    alnResultsOutString.append(buffer, len);
+                if(outputClusterFormat) {
+                    for (size_t result = 0; result < returnRes->size(); result++) {
+                        alnResultsOutString.append(SSTR((*returnRes)[result].dbKey));
+                        alnResultsOutString.push_back('\n');
+                    }
+                }else{
+                    for (size_t result = 0; result < returnRes->size(); result++) {
+                        size_t len = Matcher::resultToBuffer(buffer, (*returnRes)[result], addBacktrace);
+                        alnResultsOutString.append(buffer, len);
+                    }
                 }
                 dbw.writeData(alnResultsOutString.c_str(), alnResultsOutString.length(), queryDbKey, thread_idx);
                 alnResultsOutString.clear();

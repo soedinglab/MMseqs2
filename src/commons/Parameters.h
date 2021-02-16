@@ -106,6 +106,7 @@ public:
     static const unsigned int ALIGNMENT_MODE_SCORE_COV = 2;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
     static const unsigned int ALIGNMENT_MODE_UNGAPPED = 4;
+    static const unsigned int ALIGNMENT_MODE_CLUSTER = 5;
 
     static const unsigned int EXPAND_TRANSFER_EVALUE = 0;
     static const unsigned int EXPAND_RESCORE_BACKTRACE = 1;
@@ -413,7 +414,8 @@ public:
     int numIterations;
     float startSens;
     int sensSteps;
-    bool sliceSearch;
+    bool exhaustiveSearch;
+    int exhaustiveFilterMsa;
     int strand;
     int orfFilter;
     float orfFilterSens;
@@ -799,7 +801,8 @@ public:
     PARAMETER(PARAM_NUM_ITERATIONS)
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEPS)
-    PARAMETER(PARAM_SLICE_SEARCH)
+    PARAMETER(PARAM_EXHAUSTIVE_SEARCH)
+    PARAMETER(PARAM_EXHAUSTIVE_SEARCH_FILTER)
     PARAMETER(PARAM_STRAND)
     PARAMETER(PARAM_ORF_FILTER)
     PARAMETER(PARAM_ORF_FILTER_S)
