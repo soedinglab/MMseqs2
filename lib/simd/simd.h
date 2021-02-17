@@ -8,6 +8,7 @@
 #include <limits>
 #include <algorithm>
 #include <iostream>
+#include <float.h>
 
 #define AVX512_ALIGN_DOUBLE		64
 #define AVX512_VECSIZE_DOUBLE	8
@@ -316,6 +317,16 @@ typedef __m256 simd_float;
 #endif
 #endif
 
+inline float simdf32_hadd(__m256 x) {
+    /* ( x3+x7, x2+x6, x1+x5, x0+x4 ) */
+    const __m128 x128 = _mm_add_ps(_mm256_extractf128_ps(x, 1), _mm256_castps256_ps128(x));
+    /* ( -, -, x1+x3+x5+x7, x0+x2+x4+x6 ) */
+    const __m128 x64 = _mm_add_ps(x128, _mm_movehl_ps(x128, x128));
+    /* ( -, -, -, x0+x1+x2+x3+x4+x5+x6+x7 ) */
+    const __m128 x32 = _mm_add_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
+    /* Conversion to float is a no-op on x86-64 */
+    return _mm_cvtss_f32(x32);
+}
 #include <simde/x86/sse4.1.h>
 inline uint16_t simd_hmax16_sse(const __m128i buffer) {
     __m128i tmp1 = _mm_subs_epu16(_mm_set1_epi16((short)65535), buffer);
@@ -498,6 +509,78 @@ T** malloc_matrix(int dim1, int dim2) {
 #undef ICEIL
     return matrix;
 }
+
+
+inline simd_float simdf32_fpow2(simd_float X) {
+
+    simd_int* xPtr = (simd_int*) &X;    // store address of float as pointer to int
+
+    const simd_float CONST32_05f       = simdf32_set(0.5f); // Initialize a vector (4x32) with 0.5f
+    // (3 << 22) --> Initialize a large integer vector (shift left)
+    const simd_int CONST32_3i          = simdi32_set(3);
+    const simd_int CONST32_3shift22    = simdi32_slli(CONST32_3i, 22);
+    const simd_float CONST32_1f        = simdf32_set(1.0f);
+    const simd_float CONST32_FLTMAXEXP = simdf32_set(FLT_MAX_EXP);
+    const simd_float CONST32_FLTMAX    = simdf32_set(FLT_MAX);
+    const simd_float CONST32_FLTMINEXP = simdf32_set(FLT_MIN_EXP);
+    // fifth order
+    const simd_float CONST32_A = simdf32_set(0.00187682f);
+    const simd_float CONST32_B = simdf32_set(0.00898898f);
+    const simd_float CONST32_C = simdf32_set(0.0558282f);
+    const simd_float CONST32_D = simdf32_set(0.240153f);
+    const simd_float CONST32_E = simdf32_set(0.693153f);
+
+    simd_float tx;
+    simd_int lx;
+    simd_float dx;
+    simd_float result    = simdf32_set(0.0f);
+    simd_float maskedMax = simdf32_set(0.0f);
+    simd_float maskedMin = simdf32_set(0.0f);
+
+    // Check wheter one of the values is bigger or smaller than FLT_MIN_EXP or FLT_MAX_EXP
+    // The correct FLT_MAX_EXP value is written to the right place
+    maskedMax = simdf32_gt(X, CONST32_FLTMAXEXP);
+    maskedMin = simdf32_gt(X, CONST32_FLTMINEXP);
+    maskedMin = simdf32_xor(maskedMin, maskedMax);
+    // If a value is bigger than FLT_MAX_EXP --> replace the later result with FLTMAX
+    maskedMax = simdf32_and(CONST32_FLTMAX, simdf32_gt(X, CONST32_FLTMAXEXP));
+
+    tx = simdf32_add((simd_float ) CONST32_3shift22, simdf32_sub(X, CONST32_05f)); // temporary value for truncation: x-0.5 is added to a large integer (3<<22),
+    // 3<<22 = (1.1bin)*2^23 = (1.1bin)*2^(150-127),
+    // which, in internal bits, is written 0x4b400000 (since 10010110bin = 150)
+
+    lx = simdf32_f2i(tx);                                       // integer value of x
+
+    dx = simdf32_sub(X, simdi32_i2f(lx));                       // float remainder of x
+
+    //   x = 1.0f + dx*(0.693153f             // polynomial apporoximation of 2^x for x in the range [0, 1]
+    //            + dx*(0.240153f             // Gives relative deviation < 2.3E-7
+    //            + dx*(0.0558282f            // Speed: 2.3E-8s
+    //            + dx*(0.00898898f
+    //            + dx* 0.00187682f ))));
+    X = simdf32_mul(dx, CONST32_A);
+    X = simdf32_add(CONST32_B, X);  // add constant B
+    X = simdf32_mul(dx, X);
+    X = simdf32_add(CONST32_C, X);  // add constant C
+    X = simdf32_mul(dx, X);
+    X = simdf32_add(CONST32_D, X);  // add constant D
+    X = simdf32_mul(dx, X);
+    X = simdf32_add(CONST32_E, X);  // add constant E
+    X = simdf32_mul(dx, X);
+    X = simdf32_add(X, CONST32_1f); // add 1.0f
+
+    simd_int lxExp = simdi32_slli(lx, 23); // add integer power of 2 to exponent
+
+    *xPtr = simdi32_add(*xPtr, lxExp); // add integer power of 2 to exponent
+
+    // Add all Values that are greater than min and less than max
+    result = simdf32_and(maskedMin, X);
+    // Add MAX_FLT values where entry values were > FLT_MAX_EXP
+    result = simdf32_or(result, maskedMax);
+
+    return result;
+}
+
 
 
 inline float ScalarProd20(const float* qi, const float* tj) {

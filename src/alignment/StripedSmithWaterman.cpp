@@ -74,7 +74,8 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
 	profile->mat_rev            = new int8_t[maxSequenceLength * aaSize * 2];
 	profile->mat                = new int8_t[maxSequenceLength * aaSize * 2];
 	tmp_composition_bias   = new float[maxSequenceLength];
-	/* array to record the largest score of each reference position */
+    scorePerCol = new int8_t[maxSequenceLength];
+    /* array to record the largest score of each reference position */
 	maxColumn = new uint8_t[maxSequenceLength*sizeof(uint16_t)];
 	memset(maxColumn, 0, maxSequenceLength*sizeof(uint16_t));
 	memset(profile->query_sequence, 0, maxSequenceLength * sizeof(int8_t));
@@ -111,6 +112,7 @@ SmithWaterman::~SmithWaterman(){
 	delete [] profile->mat_rev;
 	delete [] profile->mat;
 	delete [] tmp_composition_bias;
+	delete [] scorePerCol;
 	delete [] maxColumn;
 	delete profile;
 }
@@ -211,6 +213,7 @@ s_align SmithWaterman::ssw_align (
         const unsigned char *db_consens_sequence,
         const int8_t *db_mat,
         int32_t db_length,
+        std::string & backtrace,
         const uint8_t gap_open,
         const uint8_t gap_extend,
         const uint8_t alignmentMode,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
@@ -221,16 +224,16 @@ s_align SmithWaterman::ssw_align (
     s_align alignment;
     // check if both query and target are profiles
     if (isQueryProfile && isTargetProfile) {
-        alignment = ssw_align_private<SmithWaterman::PROFILE_PROFILE>(db_consens_sequence, db_mat, db_length, gap_open,
+        alignment = ssw_align_private<SmithWaterman::PROFILE_PROFILE>(db_consens_sequence, db_mat, db_length, backtrace, gap_open,
                                                                        gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, maskLen);
     } else if (isQueryProfile && !isTargetProfile) {
-        alignment = ssw_align_private<SmithWaterman::PROFILE_SEQ>(db_num_sequence, db_mat, db_length, gap_open,
+        alignment = ssw_align_private<SmithWaterman::PROFILE_SEQ>(db_num_sequence, db_mat, db_length, backtrace, gap_open,
                                                                   gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, maskLen);
     } else if (!isQueryProfile && isTargetProfile) {
-        alignment = ssw_align_private<SmithWaterman::SEQ_PROFILE>(db_num_sequence, db_mat, db_length, gap_open,
+        alignment = ssw_align_private<SmithWaterman::SEQ_PROFILE>(db_num_sequence, db_mat, db_length, backtrace, gap_open,
                                                                   gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, maskLen);
     } else {
-        alignment = ssw_align_private<SmithWaterman::SEQ_SEQ>(db_num_sequence, db_mat, db_length, gap_open,
+        alignment = ssw_align_private<SmithWaterman::SEQ_SEQ>(db_num_sequence, db_mat, db_length, backtrace, gap_open,
                                                               gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, maskLen);
     }
     return alignment;
@@ -241,7 +244,8 @@ s_align SmithWaterman::ssw_align_private (
 		const unsigned char *db_sequence,
 		const int8_t *db_mat,
 		int32_t db_length,
-		const uint8_t gap_open,
+        std::string & backtrace,
+        const uint8_t gap_open,
 		const uint8_t gap_extend,
 		const uint8_t alignmentMode,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
 		const double  evalueThr,
@@ -398,16 +402,64 @@ s_align SmithWaterman::ssw_align_private (
                 profile->alphabetSize, 0);
 	}
 
-	if (path != NULL) {
-		r.cigar = path->seq;
-		r.cigarLen = path->length;
-	}
-	delete path;
+    if (path != NULL) {
+        r.cigar = path->seq;
+        r.cigarLen = path->length;
+    }
+    delete path;
 
-	return r;
+    uint32_t aaIds = 0;
+    size_t mStateCnt = 0;
+    if (type == PROFILE_PROFILE) {
+        computerBacktrace<PROFILE>(profile, db_sequence, r, backtrace, aaIds, scorePerCol, mStateCnt);
+    }else{
+        computerBacktrace<SUBSTITUTIONMATRIX>(profile, db_sequence, r, backtrace, aaIds, scorePerCol, mStateCnt);
+    }
+    r.identicalAACnt = aaIds;
+    float correlationScoreWeight = 0.01;
+    if(correlationScoreWeight > 0.0){
+        int correlationScore = computeCorrelationScore(scorePerCol, mStateCnt);
+        r.score1 += static_cast<float>(correlationScore) * correlationScoreWeight;
+        r.evalue = evaluer->computeEvalue(r.score1, query_length);
+    }
+    return r;
 }
 
-
+template <const unsigned int type>
+void SmithWaterman::computerBacktrace(s_profile * query, const unsigned char * db_sequence,
+                                      s_align & alignment, std::string & backtrace,
+                                      uint32_t & aaIds, int8_t * scorePerCol, size_t & mStatesCnt){
+    int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
+    for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+        char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
+        uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
+        backtrace.reserve(length);
+        for (uint32_t i = 0; i < length; ++i){
+            if (letter == 'M') {
+                aaIds += (db_sequence[targetPos] == query->query_sequence[queryPos]);
+                if(type == PROFILE){
+                    scorePerCol[mStatesCnt] = query->mat[db_sequence[targetPos] * query->query_length + queryPos];
+                }
+                if(type == SUBSTITUTIONMATRIX){
+                    scorePerCol[mStatesCnt] = query->mat[query->query_sequence[queryPos] * query->alphabetSize + db_sequence[targetPos]] + query->composition_bias[queryPos];
+                }
+                ++mStatesCnt;
+                ++queryPos;
+                ++targetPos;
+                backtrace.append("M");
+            } else {
+                if (letter == 'I') {
+                    ++queryPos;
+                    backtrace.append("I");
+                }
+                else{
+                    ++targetPos;
+                    backtrace.append("D");
+                }
+            }
+        }
+    }
+}
 
 char SmithWaterman::cigar_int_to_op(uint32_t cigar_int) {
 	uint8_t letter_code = cigar_int & 0xfU;
@@ -435,6 +487,34 @@ uint32_t SmithWaterman::cigar_int_to_len (uint32_t cigar_int)
 	uint32_t res = cigar_int >> 4;
 	return res;
 }
+
+
+int SmithWaterman::computeCorrelationScore(int8_t * scorePreCol, size_t length){
+    int corrScore1=0;
+    int corrScore2=0;
+    int corrScore3=0;
+    int corrScore4=0;
+    if(length >= 2){
+        corrScore1 += scorePreCol[1] * scorePreCol[0];
+    }
+    if(length >= 3){
+        corrScore1 += scorePreCol[2] * scorePreCol[1];
+        corrScore2 += scorePreCol[2] * scorePreCol[0];
+    }
+    if(length >= 4){
+        corrScore1 += scorePreCol[3] * scorePreCol[2];
+        corrScore2 += scorePreCol[3] * scorePreCol[1];
+        corrScore3 += scorePreCol[3] * scorePreCol[0];
+    }
+    for (size_t step = 4; step < length; step++){
+        corrScore1 += scorePreCol[step] * scorePreCol[step - 1];
+        corrScore2 += scorePreCol[step] * scorePreCol[step - 2];
+        corrScore3 += scorePreCol[step] * scorePreCol[step - 3];
+        corrScore4 += scorePreCol[step] * scorePreCol[step - 4];
+    }
+    return (corrScore1+corrScore2+corrScore3+corrScore4);
+}
+
 
 template <const unsigned int type>
 std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWaterman::sw_sse2_byte (
@@ -1325,7 +1405,8 @@ float SmithWaterman::computeCov(unsigned int startPos, unsigned int endPos, unsi
 	return (std::min(len, std::max(startPos, endPos)) - std::min(startPos, endPos) + 1) / (float) len;
 }
 
-s_align SmithWaterman::scoreIdentical(unsigned char *dbSeq, int L, EvalueComputation * evaluer, int alignmentMode) {
+s_align SmithWaterman::scoreIdentical(unsigned char *dbSeq, int L, EvalueComputation * evaluer,
+                                      int alignmentMode, std::string &backtrace) {
 	if(profile->query_length != L){
 		std::cerr << "scoreIdentical has different length L: "
 				  << L << " query_length: " << profile->query_length
@@ -1348,16 +1429,16 @@ s_align SmithWaterman::scoreIdentical(unsigned char *dbSeq, int L, EvalueComputa
 	r.cigarLen = L;
 	r.qCov =  1.0;
 	r.tCov = 1.0;
-	r.cigar = new uint32_t[L];
+    r.cigar = NULL;
 	short score = 0;
 	for(int pos = 0; pos < L; pos++){
 		int currScore = profile->profile_word_linear[dbSeq[pos]][pos];
 		score += currScore;
-		r.cigar[pos] = 'M';
+        backtrace.push_back('M');
 	}
 	r.score1=score;
 	r.evalue = evaluer->computeEvalue(r.score1, profile->query_length);
-
+    r.identicalAACnt = L;
 	return r;
 }
 

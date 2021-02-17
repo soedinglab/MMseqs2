@@ -63,18 +63,9 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
     int32_t maskLen = currentQuery->L / 2;
     int origQueryLen = wrappedScoring? currentQuery->L / 2 : currentQuery->L ;
 
-    // calcuate stop score
-//    const double qL = static_cast<double>(currentQuery->L);
-//    const double dbL = static_cast<double>(dbSeq->L);
-
-    // avoid nummerical issues -log(evalThr/(qL*dbL*seqDbSize))
-//    double datapoints = -log(static_cast<double>(seqDbSize)) - log(qL) - log(dbL) + log(evalThr);
-    //std::cout << seqDbSize << " " << 100 << " " << scoreThr << std::endl;
-    //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
     s_align alignment;
     // compute sequence identity
     std::string backtrace;
-    int aaIds = 0;
 
     if(Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
         if(diagonal==INT_MAX){
@@ -83,50 +74,15 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
                                 << "Please check your database.\n";
             EXIT(EXIT_FAILURE);
         }
-        alignment = nuclaligner->align(dbSeq, diagonal, isReverse, backtrace, aaIds, evaluer, wrappedScoring);
+        alignment = nuclaligner->align(dbSeq, diagonal, isReverse, backtrace, evaluer, wrappedScoring);
         alignmentMode = Matcher::SCORE_COV_SEQID;
     } else {
         if (isIdentity == false) {
-            alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->numConsensusSequence, dbSeq->getAlignmentProfile(), dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr,
+            alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->numConsensusSequence, dbSeq->getAlignmentProfile(), dbSeq->L, backtrace,
+                                           gapOpen, gapExtend, alignmentMode, evalThr,
                                            evaluer, covMode, covThr, maskLen);
         } else {
-            alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode);
-        }
-        if (alignmentMode == Matcher::SCORE_COV_SEQID) {
-            if (isIdentity == false) {
-                if (alignment.cigar) {
-                    int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
-                    for (int32_t c = 0; c < alignment.cigarLen; ++c) {
-                        char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
-                        uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
-                        backtrace.reserve(length);
-
-                        for (uint32_t i = 0; i < length; ++i) {
-                            if (letter == 'M') {
-                                if (dbSeq->numSequence[targetPos] == currentQuery->numSequence[queryPos]) {
-                                    aaIds++;
-                                }
-                                ++queryPos;
-                                ++targetPos;
-                                backtrace.append("M");
-                            } else {
-                                if (letter == 'I') {
-                                    ++queryPos;
-                                    backtrace.append("I");
-                                } else {
-                                    ++targetPos;
-                                    backtrace.append("D");
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                for (int32_t c = 0; c < origQueryLen; ++c) {
-                    aaIds++;
-                    backtrace.append("M");
-                }
-            }
+            alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode, backtrace);
         }
     }
 
@@ -154,8 +110,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
             // OVERWRITE alnLength with gapped value
             alnLength = backtrace.size();
         }
-        seqId = Util::computeSeqId(seqIdMode, aaIds, origQueryLen, dbSeq->L, alnLength);
-
+        seqId = Util::computeSeqId(seqIdMode, alignment.identicalAACnt, origQueryLen, dbSeq->L, alnLength);
     }else if( alignmentMode == Matcher::SCORE_COV){
         // "20%   30%   40%   50%   60%   70%   80%   90%   99%"
         // "0.52  1.12  1.73  2.33  2.93  3.53  4.14  4.74  5.28"

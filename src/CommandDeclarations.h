@@ -65,6 +65,7 @@ extern int mergeclusters(int argc, const char **argv, const Command& command);
 extern int mergedbs(int argc, const char **argv, const Command& command);
 extern int mergeresultsbyset(int argc, const char **argv, const Command &command);
 extern int msa2profile(int argc, const char **argv, const Command& command);
+extern int sequence2profile(int argc, const char **argv, const Command& command);
 extern int msa2result(int argc, const char **argv, const Command& command);
 extern int multihitdb(int argc, const char **argv, const Command& command);
 extern int multihitsearch(int argc, const char **argv, const Command& command);

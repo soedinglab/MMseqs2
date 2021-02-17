@@ -3,6 +3,8 @@ set(commons_header_files
         commons/AminoAcidLookupTables.h
         commons/BacktraceTranslator.h
         commons/ByteParser.h
+        commons/CSProfile.h
+        commons/CSProfile.cpp
         commons/Command.h
         commons/CommandCaller.h
         commons/Concat.h

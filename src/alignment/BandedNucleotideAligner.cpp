@@ -16,7 +16,7 @@
 
 
 BandedNucleotideAligner::BandedNucleotideAligner(BaseMatrix * subMat, size_t maxSequenceLength, int gapo, int gape, int zdrop) :
-fastMatrix(SubstitutionMatrix::createAsciiSubMat(*subMat))
+        fastMatrix(SubstitutionMatrix::createAsciiSubMat(*subMat))
 {
     targetSeqRevDataLen = maxSequenceLength;
     targetSeqRev = static_cast<uint8_t*>(malloc(targetSeqRevDataLen + 1));
@@ -72,7 +72,7 @@ void BandedNucleotideAligner::initQuery(Sequence * query){
 
 s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
                                        int diagonal, bool reverse,
-                                       std::string & backtrace, int & aaIds,
+                                       std::string & backtrace,
                                        EvalueComputation * evaluer, bool wrappedScoring)
 {
     char * queryCharSeqAlign = (char*) querySeqObj->getSeqData();
@@ -142,12 +142,14 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
             result.qCov = std::min(1.0f, result.qCov*2);
         result.tCov = SmithWaterman::computeCov(result.dbStartPos1, result.dbEndPos1, targetSeqObj->L);
         result.evalue = evaluer->computeEvalue(result.score1, origQueryLen);
+        int aaIds = 0;
         for (int i = qUngappedStartPos; i <= qUngappedEndPos; i++) {
             aaIds += (querySeqAlign[i] == targetSeq[dbUngappedStartPos + (i - qUngappedStartPos)]) ? 1 : 0;
         }
         for(int pos = 0; pos <  origQueryLen; pos++){
             backtrace.append("M");
         }
+        result.identicalAACnt = aaIds;
         return result;
     }
 //    printf("%d\t%d\t%d\n", alignment.score,  alignment.startPos, alignment.endPos);
@@ -203,7 +205,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
         for(int i = 0; i < ezAlign.n_cigar; i++){
             retCigar[i]=ezAlign.cigar[i];
         }
-   }
+    }
 
     s_align result;
     result.cigar = retCigar;
@@ -219,6 +221,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
     }
     result.tCov = SmithWaterman::computeCov(result.dbStartPos1, result.dbEndPos1, targetSeqObj->L);
     result.evalue = evaluer->computeEvalue(result.score1, origQueryLen);
+    int aaIds = 0;
     if(result.cigar){
         int32_t targetPos = result.dbStartPos1, queryPos = result.qStartPos1;
         for (int32_t c = 0; c < result.cigarLen; ++c) {
@@ -247,7 +250,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
             }
         }
     }
-    
+    result.identicalAACnt = aaIds;
     free(ezAlign.cigar);
     return result;
 //        std::cout << static_cast<float>(aaIds)/ static_cast<float>(alignment.len) << std::endl;

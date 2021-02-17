@@ -297,14 +297,16 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, par.wg);
                     result.append(">consensus_");
                     result.append(centerSequenceHeader, centerHeaderLength);
-                    result.append(pssmRes.consensus);
+                    for (int pos = 0; pos < centerSequence.L; pos++) {
+                        result.push_back(subMat.num2aa[pssmRes.consensus[pos]]);
+                    }
                     result.append("\n;");
                 } else {
                     result.append(1, '>');
                     result.append(centerSequenceHeader, centerHeaderLength);
                     // Retrieve the master sequence
                     for (int pos = 0; pos < centerSequence.L; pos++) {
-                        result.append(1, subMat.num2aa[centerSequence.numSequence[pos]]);
+                        result.push_back(subMat.num2aa[centerSequence.numSequence[pos]]);
                     }
                     result.append("\n;");
                 }

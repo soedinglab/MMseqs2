@@ -66,6 +66,7 @@ typedef struct {
     uint32_t* cigar;
     int32_t cigarLen;
     double evalue;
+    uint32_t identicalAACnt;
 } s_align;
 
 class SmithWaterman{
@@ -73,6 +74,43 @@ public:
 
     SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection, int targetSeqType);
     ~SmithWaterman();
+
+    struct s_profile{
+        simd_int* profile_byte;	// 0: none
+        simd_int* profile_word;	// 0: none
+        simd_int* profile_rev_byte;	// 0: none
+        simd_int* profile_rev_word;	// 0: none
+        simd_int* consens_byte;
+        simd_int* consens_word;
+        simd_int* consens_rev_byte;
+        simd_int* consens_rev_word;
+        int8_t* query_sequence;
+        int8_t* query_rev_sequence;
+        int8_t* query_consens_sequence;
+        int8_t* query_consens_rev_sequence;
+        int8_t* composition_bias;
+        int8_t* composition_bias_rev;
+        int8_t* mat;
+        // Memory layout of if mat + queryProfile is qL * AA
+        //    Query length
+        // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+        // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
+        // ...
+        // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+        // Memory layout of if mat + sub is AA * AA
+        //     A   C    ...                                                                Y
+        // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+        // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
+        // ...
+        // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+        int8_t* mat_rev; // needed for queryProfile
+        int32_t query_length;
+        int32_t sequence_type;
+        int32_t alphabetSize;
+        uint8_t bias;
+        short ** profile_word_linear;
+        simd_int *target_profile_byte;
+    };
 
     // prints a __m128 vector containing 8 signed shorts
     static void printVector (__m128i v);
@@ -134,6 +172,7 @@ public:
                         const unsigned char *db_consens_sequence,
                         const int8_t *db_profile,
                         int32_t db_length,
+                        std::string &backtrace,
                         const uint8_t gap_open,
                         const uint8_t gap_extend,
                         const uint8_t alignmentMode,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
@@ -182,7 +221,7 @@ public:
 
     static float computeCov(unsigned int startPos, unsigned int endPos, unsigned int len);
 
-    s_align scoreIdentical(unsigned char *dbSeq, int L, EvalueComputation * evaluer, int alignmentMode);
+    s_align scoreIdentical(unsigned char *dbSeq, int L, EvalueComputation * evaluer, int alignmentMode, std::string &backtrace);
 
     static void seq_reverse(int8_t * reverse, const int8_t* seq, int32_t end)	/* end is 0-based alignment ending position */
     {
@@ -194,6 +233,15 @@ public:
             --end;
         }
     }
+
+
+    static int computeCorrelationScore(int8_t * scorePreCol, size_t length);
+
+    template <const unsigned int type>
+    void computerBacktrace(s_profile * query, const unsigned char * db_sequence,
+                           s_align & alignment, std::string & backtrace, uint32_t & aaIds, int8_t * scorePerCol, size_t & mStatesCnt);
+
+
     // ssw_init
     const static unsigned int SUBSTITUTIONMATRIX = 1;
     const static unsigned int PROFILE = 2;
@@ -204,43 +252,6 @@ public:
     const static unsigned int PROFILE_PROFILE = 6;
 
 private:
-
-    struct s_profile{
-        simd_int* profile_byte;	// 0: none
-        simd_int* profile_word;	// 0: none
-        simd_int* profile_rev_byte;	// 0: none
-        simd_int* profile_rev_word;	// 0: none
-        simd_int* consens_byte;
-        simd_int* consens_word;
-        simd_int* consens_rev_byte;
-        simd_int* consens_rev_word;
-        int8_t* query_sequence;
-        int8_t* query_rev_sequence;
-        int8_t* query_consens_sequence;
-        int8_t* query_consens_rev_sequence;
-        int8_t* composition_bias;
-        int8_t* composition_bias_rev;
-        int8_t* mat;
-        // Memory layout of if mat + queryProfile is qL * AA
-        //    Query length
-        // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
-        // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
-        // ...
-        // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
-        // Memory layout of if mat + sub is AA * AA
-        //     A   C    ...                                                                Y
-        // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
-        // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
-        // ...
-        // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
-        int8_t* mat_rev; // needed for queryProfile
-        int32_t query_length;
-        int32_t sequence_type;
-        int32_t alphabetSize;
-        uint8_t bias;
-        short ** profile_word_linear;
-        simd_int *target_profile_byte;
-    };
 
     simd_int* vHStore;
     simd_int* vHLoad;
@@ -272,6 +283,7 @@ private:
     s_align ssw_align_private (const unsigned char*db_sequence,
                         const int8_t *db_profile,
                         int32_t db_length,
+                        std::string &backtrace,
                         const uint8_t gap_open,
                         const uint8_t gap_extend,
                         const uint8_t alignmentMode,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
@@ -335,6 +347,7 @@ private:
             const int8_t *mat, const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
 
     float *tmp_composition_bias;
+    int8_t * scorePerCol;
     short * profile_word_linear_data;
     bool aaBiasCorrection;
 

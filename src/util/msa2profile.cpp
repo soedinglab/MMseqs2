@@ -134,6 +134,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * (maxSeqLength + 1) * maxSetSize);
 
         float *seqWeight = new float[maxSetSize];
+        float *pNullBuffer = new float[maxSeqLength + 1];
         bool *maskedColumns = new bool[maxSeqLength + 1];
         std::string result;
         result.reserve((par.maxSeqLen + 1) * Sequence::PROFILE_READIN_SIZE * sizeof(char));
@@ -325,6 +326,12 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             PSSMCalculator::Profile pssmRes =
                     calculator.computePSSMFromMSA(filteredSetSize, centerLength,
                                                   (const char **) msaSequences, par.wg);
+            if (par.compBiasCorrection == true){
+                SubstitutionMatrix::calcGlobalAaBiasCorrection(&subMat, pssmRes.pssm, pNullBuffer,
+                                                               Sequence::PROFILE_AA_SIZE,
+                                                               centerLength);
+            }
+
             pssmRes.toBuffer((const unsigned char*)msaSequences[0], centerLength, subMat, result);
 
             if (mode & DBReader<unsigned int>::USE_LOOKUP) {
@@ -339,7 +346,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         kseq_destroy(seq);
         free(msaSequences);
         free(msaContent);
-
+        delete[] pNullBuffer;
         delete[] maskedColumns;
         delete[] seqWeight;
     }

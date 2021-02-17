@@ -51,6 +51,7 @@ set(util_source_files
         util/reverseseq.cpp
         util/rmdb.cpp
         util/extractframes.cpp
+        util/sequence2profile.cpp
         util/sortresult.cpp
         util/splitdb.cpp
         util/splitsequence.cpp
