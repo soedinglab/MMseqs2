@@ -1199,13 +1199,9 @@ Parameters::Parameters():
     taxonomy.push_back(&PARAM_ORF_FILTER_S);
     taxonomy.push_back(&PARAM_LCA_MODE);
     taxonomy.push_back(&PARAM_TAX_OUTPUT_MODE);
+    taxonomy = combineList(taxonomy, aggregatetaxweights);
     taxonomy = combineList(taxonomy, lca);
     taxonomy = combineList(taxonomy, searchworkflow);
-
-    // taxpercontig
-    taxpercontig = combineList(taxonomy, aggregatetax);
-    removeParameter(taxpercontig, PARAM_TRANSLATE);
-    removeParameter(taxpercontig, PARAM_TAX_OUTPUT_MODE);
 
     // easy taxonomy
     easytaxonomy = combineList(taxonomy, addtaxonomy);
