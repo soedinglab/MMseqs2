@@ -85,9 +85,8 @@ private:
     int targetSeqType;
     bool compBiasCorrection;
 
-    bool outputClusterFormat;
-
     int altAlignment;
+    int alignmentOutputMode;
 
     const unsigned int maxAccept;
     const unsigned int maxReject;

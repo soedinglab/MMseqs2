@@ -23,7 +23,8 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         covThr(par.covThr), canCovThr(par.covThr), covMode(par.covMode), seqIdMode(par.seqIdMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
         alnLenThr(par.alnLenThr), includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign), scoreBias(par.scoreBias), realignScoreBias(par.realignScoreBias), realignMaxSeqs(par.realignMaxSeqs),
         threads(static_cast<unsigned int>(par.threads)), compressed(par.compressed), outDB(outDB), outDBIndex(outDBIndex),
-        maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), maxAccept(static_cast<unsigned int>(par.maxAccept)), maxReject(static_cast<unsigned int>(par.maxRejected)), wrappedScoring(par.wrappedScoring),
+        maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), alignmentOutputMode(par.alignmentOutputMode),
+        maxAccept(static_cast<unsigned int>(par.maxAccept)), maxReject(static_cast<unsigned int>(par.maxRejected)), wrappedScoring(par.wrappedScoring),
         lcaAlign(lcaAlign), qdbr(NULL), qDbrIdx(NULL), tdbr(NULL), tDbrIdx(NULL) {
     unsigned int alignmentMode = par.alignmentMode;
     if (alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED) {
@@ -34,11 +35,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
     if (addBacktrace == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     }
-    outputClusterFormat = false;
-    if (par.alignmentMode == Parameters::ALIGNMENT_MODE_CLUSTER) {
-        alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_ONLY;
-        outputClusterFormat = true;
-    }
+
 
     if (lcaAlign == true) {
         lcaSwMode = initSWMode(std::max(alignmentMode, (unsigned int)Parameters::ALIGNMENT_MODE_SCORE_ONLY), 0.0f, 0.0f);
@@ -257,7 +254,7 @@ void Alignment::run() {
 
 void Alignment::run(const std::string &outDB, const std::string &outDBIndex, const size_t dbFrom, const size_t dbSize, bool merge) {
     int dbtype = Parameters::DBTYPE_ALIGNMENT_RES;
-    if(outputClusterFormat){
+    if(alignmentOutputMode == Parameters::ALIGNMENT_OUTPUT_CLUSTER){
         dbtype =  Parameters::DBTYPE_CLUSTER_RES;
     }
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, dbtype);
@@ -506,7 +503,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
 
                     returnRes = &swRealignResults;
                 }
-                if(outputClusterFormat) {
+                if(alignmentOutputMode == Parameters::ALIGNMENT_OUTPUT_CLUSTER) {
                     for (size_t result = 0; result < returnRes->size(); result++) {
                         alnResultsOutString.append(SSTR((*returnRes)[result].dbKey));
                         alnResultsOutString.push_back('\n');

@@ -106,7 +106,9 @@ public:
     static const unsigned int ALIGNMENT_MODE_SCORE_COV = 2;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
     static const unsigned int ALIGNMENT_MODE_UNGAPPED = 4;
-    static const unsigned int ALIGNMENT_MODE_CLUSTER = 5;
+
+    static const unsigned int ALIGNMENT_OUTPUT_ALIGNMENT = 0;
+    static const unsigned int ALIGNMENT_OUTPUT_CLUSTER = 1;
 
     static const unsigned int EXPAND_TRANSFER_EVALUE = 0;
     static const unsigned int EXPAND_RESCORE_BACKTRACE = 1;
@@ -384,6 +386,7 @@ public:
     // ALIGNMENT
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
                                          // 1=score only, 2=score, cov, start/end pos, 3=score, cov, start/end pos, seq.id,
+    int alignmentOutputMode;             // alignment output mode 0=alignment, 1=cluster
     double evalThr;                      // e-value threshold for acceptance
     float  covThr;                       // coverage query&target threshold for acceptance
     int    covMode;                      // coverage target threshold for acceptance
@@ -702,6 +705,7 @@ public:
 
     // alignment
     PARAMETER(PARAM_ALIGNMENT_MODE)
+    PARAMETER(PARAM_ALIGNMENT_OUTPUT_MODE)
     PARAMETER(PARAM_E)
     PARAMETER(PARAM_C)
     PARAMETER(PARAM_COV_MODE)
