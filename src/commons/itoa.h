@@ -26,8 +26,26 @@ THE SOFTWARE.
 #include <cstdint>
 
 #define SIMDE_ENABLE_NATIVE_ALIASES
-#include <simde/x86/sse2.h>
+#include <simde/simde-common.h>
 
+#if SIMDE_ENDIAN_ORDER != SIMDE_ENDIAN_LITTLE
+class Itoa{
+public:
+    static char* u32toa_sse2(uint32_t value, char* buffer) {
+        return buffer + sprintf(buffer, "%d", value) + 1;
+    }
+    static char* i32toa_sse2(int32_t value, char* buffer) {
+        return buffer + sprintf(buffer, "%d", value) + 1;
+    }
+    static char* u64toa_sse2(uint64_t value, char* buffer) {
+        return buffer + sprintf(buffer, "%zu", value) + 1;
+    }
+    static char* i64toa_sse2(uint64_t value, char* buffer) {
+        return buffer + sprintf(buffer, "%zu", value) + 1;
+    }
+};
+#else
+#include <simde/x86/sse2.h>
 // FIXME: NEON throws many warnings due to the reinterpret casts
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
@@ -308,4 +326,5 @@ public:
 
 #pragma GCC diagnostic pop
 
+#endif
 #endif
