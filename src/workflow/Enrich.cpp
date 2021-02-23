@@ -19,7 +19,7 @@ int enrich(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, true, 0, 0);
 
     std::string tmpDir = par.db6;
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.enrichworkflow));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.enrichworkflow));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
@@ -36,9 +36,9 @@ int enrich(int argc, const char **argv, const Command &command) {
 
     int originalNumIterations = par.numIterations;
     par.numIterations = 1;
-    par.sliceSearch = true;
+    par.exhaustiveSearch = true;
     cmd.addVariable("PROF_SEARCH_PAR", par.createParameterString(par.searchworkflow).c_str());
-    par.sliceSearch = false;
+    par.exhaustiveSearch = false;
     par.numIterations = originalNumIterations;
 
 
@@ -50,7 +50,7 @@ int enrich(int argc, const char **argv, const Command &command) {
     const bool isUngappedMode = false;
     cmd.addVariable("ALIGN_MODULE", "align");
 
-    float originalEval = par.evalThr;
+    double originalEval = par.evalThr;
     par.evalThr = par.evalProfile;
     par.realign = false;
     for (int i = 0; i < par.numIterations; i++) {

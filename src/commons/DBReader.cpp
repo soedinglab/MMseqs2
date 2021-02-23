@@ -28,7 +28,11 @@ threads(threads), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
         totalDataSize(0), dataSize(0), lastKey(T()), closed(1), dbtype(Parameters::DBTYPE_GENERIC_DB),
         compressedBuffers(NULL), compressedBufferSizes(NULL), index(NULL), id2local(NULL), local2id(NULL),
         dataMapped(false), accessType(0), externalData(false), didMlock(false)
-{}
+{
+    if (threads > 1) {
+        FileUtil::fixRlimitNoFile();
+    }
+}
 
 template <typename T>
 DBReader<T>::DBReader(DBReader<T>::Index *index, size_t size, size_t dataSize, T lastKey,
@@ -171,9 +175,8 @@ template <typename T> bool DBReader<T>::open(int accessType){
         size = Util::ompCountLines(indexDataChar, indexDataSize, threads);
 
         index = new(std::nothrow) Index[this->size];
-        incrementMemory(sizeof(Index) * size);
-
         Util::checkAllocation(index, "Can not allocate index memory in DBReader");
+        incrementMemory(sizeof(Index) * size);
 
         bool isSortedById = readIndex(indexDataChar, indexDataSize, index, dataSize);
         indexData.close();
@@ -432,8 +435,9 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
             }
         } else {
             ret = static_cast<char*>(malloc(*dataSize));
-            incrementMemory(*dataSize);
             Util::checkAllocation(ret, "Not enough system memory to read in the whole data file.");
+            incrementMemory(*dataSize);
+
             size_t result = fread(ret, 1, *dataSize, file);
             if (result != *dataSize) {
                 Debug(Debug::ERROR) << "Failed to read in datafile (" << dataFileName << "). Error " << errno << "\n";
@@ -1106,7 +1110,7 @@ void copyLinkDb(const std::string &databaseName, const std::string &outDb, DBFil
                 if (idx != std::string::npos) {
                     ext = names[i].substr(idx);
                 } else {
-                    Debug(Debug::ERROR) << "File extention was not found but it is expected to be there!\n"
+                    Debug(Debug::ERROR) << "File extension was not found but it is expected to be there!\n"
                                         << "Filename: " << names[i] << ".\n";
                     EXIT(EXIT_FAILURE);
                 }

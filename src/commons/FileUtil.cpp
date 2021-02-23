@@ -6,14 +6,16 @@
 #include <cstring>
 #include <climits>
 #include <algorithm>
-#include <sys/stat.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <dirent.h>
+
+#include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/types.h>
-#include <dirent.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 
 bool FileUtil::fileExists(const char* fileName) {
     struct stat st;
@@ -213,7 +215,11 @@ void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
 std::string FileUtil::getCurrentWorkingDirectory() {
     // CWD can be larger than PATH_MAX and allocating enough memory is somewhat tricky
     char* wd = NULL;
+#ifdef PATH_MAX
     size_t bufferSize = PATH_MAX;
+#else
+    size_t bufferSize = 1024;
+#endif
     do {
         if (wd != NULL) {
             free(wd);
@@ -435,4 +441,21 @@ std::string FileUtil::createTemporaryDirectory(const std::string& basePath, cons
     }
     FileUtil::symlinkAlias(tmpDir, "latest");
     return tmpDir;
+}
+
+void FileUtil::fixRlimitNoFile() {
+    static bool increasedRlimitNoFile(false);
+    if (increasedRlimitNoFile == false) {
+        increasedRlimitNoFile = true;
+        struct rlimit limit;
+        if (getrlimit(RLIMIT_NOFILE, &limit) != 0) {
+            Debug(Debug::WARNING) << "Could not increase maximum number of open files (getrlimit " << errno << "). Use ulimit manually\n";
+            return;
+        }
+        limit.rlim_cur = std::min(std::max((rlim_t)8192, limit.rlim_cur), limit.rlim_max);
+        limit.rlim_max = std::min(RLIM_INFINITY, limit.rlim_max);
+        if (setrlimit(RLIMIT_NOFILE, &limit) != 0) {
+            Debug(Debug::WARNING) << "Could not increase maximum number of open files (setrlimit " << errno << "). Use ulimit manually\n";
+        }
+    }
 }

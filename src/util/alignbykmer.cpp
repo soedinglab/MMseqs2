@@ -185,7 +185,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-            char buffer[1024 + 32768];
+            char buffer[1024 + 32768*4];
             char dbKeyBuffer[255 + 1];
 
 #pragma omp for schedule(dynamic, 1)

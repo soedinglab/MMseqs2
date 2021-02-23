@@ -38,6 +38,9 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < par.translatenucs.size(); i++) {
         par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
+    for (size_t i = 0; i < par.splitsequence.size(); i++) {
+        par.splitsequence[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
+    }
     for (size_t i = 0; i < par.result2profile.size(); i++){
         par.result2profile[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
@@ -68,7 +71,7 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     par.maxAccept = maxAccept;
 
     std::string tmpDir = par.db6;
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.clusterUpdate));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.clusterUpdate));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }

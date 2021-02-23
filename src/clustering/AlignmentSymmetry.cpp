@@ -57,6 +57,8 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                                    Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_REV_RES)) {
                             //column 1 = alignment score or sequence identity [0-100]
                             elementScoreTable[i][0] = (unsigned short) (USHRT_MAX);
+                        } else if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_CLUSTER_RES)) {
+                            elementScoreTable[i][0] = (unsigned short) (USHRT_MAX);
                         }
                     }
                     continue;
@@ -93,6 +95,9 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                             Util::parseByColumnNumber(data, similarity, 1);
                             short sim = atoi(similarity);
                             elementScoreTable[i][writePos] = (unsigned short) (sim >0 ? sim : -sim);
+                        }
+                        else if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_CLUSTER_RES)) {
+                            elementScoreTable[i][writePos] = (unsigned short) (USHRT_MAX);
                         }
                         else {
                             Debug(Debug::ERROR) << "Alignment format is not supported!\n";

@@ -30,6 +30,9 @@ int rbh(int argc, const char **argv, const Command &command) {
     for (size_t i = 0; i < par.translatenucs.size(); i++){
         par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
+    for (size_t i = 0; i < par.splitsequence.size(); i++) {
+        par.splitsequence[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
+    }
     // restore threads and verbosity
     par.PARAM_COMPRESSED.removeCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_V.removeCategory(MMseqsParameter::COMMAND_EXPERT);
@@ -39,7 +42,7 @@ int rbh(int argc, const char **argv, const Command &command) {
 
 
     std::string tmpDir = par.db4;
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.searchworkflow));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.searchworkflow));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }

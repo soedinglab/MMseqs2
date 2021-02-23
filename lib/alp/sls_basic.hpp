@@ -176,7 +176,8 @@ namespace Sls {
 		{
 			if(!pointer_)
 			{
-                std::cout << "Memory allocation error\n";
+                std::cerr << "Memory allocation error" << std::endl;
+                abort();
 			};
 		}
 

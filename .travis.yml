@@ -21,7 +21,7 @@ jobs:
         - g++-8
         - gcc-8
     arch: arm64
-    env: CC=gcc-8 CXX=g++-8 MMSEQS_NUM_THREADS=8
+    env: CC=gcc-8 CXX=g++-8 MMSEQS_NUM_THREADS=4
     dist: bionic
   - addons:
       apt:
@@ -32,7 +32,7 @@ jobs:
           - gcc-8
     arch: ppc64le
     dist: bionic
-    env: CC=gcc-8 CXX=g++-8 MMSEQS_NUM_THREADS=8
+    env: CC=gcc-8 CXX=g++-8 MMSEQS_NUM_THREADS=4
   - addons:
       apt:
         packages:

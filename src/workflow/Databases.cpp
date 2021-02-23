@@ -82,6 +82,13 @@ std::vector<DatabaseDownload> downloads = {{
     false, Parameters::DBTYPE_NUCLEOTIDES, databases_sh, databases_sh_len,
     { }
 }, {
+    "GTDB",
+    "Genome Taxonomy Database is a phylogenetically consistent, genome-based taxonomy that provides rank-normalized classifications for ~150,000 bacterial and archaeal genomes from domain to genus.",
+    "Parks et al: A complete domain-to-species taxonomy for Bacteria and Archaea. Nat Biotechnol 38(9), 1079–1086 (2020)",
+    "https://gtdb.ecogenomic.org",
+    true, Parameters::DBTYPE_AMINO_ACIDS, databases_sh, databases_sh_len,
+    { }
+}, {
     "PDB",
     "The Protein Data Bank is the single worldwide archive of structural data of biological macromolecules.",
     "Berman et al: The Protein Data Bank. Nucleic Acids Res 28(1), 235-242 (2000)",
@@ -114,6 +121,13 @@ std::vector<DatabaseDownload> downloads = {{
     "Pfam-B is a large automatically generated supplement to the Pfam database.",
     "Sonnhammer et al: A new Pfam-B is released. Xfam Blog (2020)",
     "https://xfam.wordpress.com/2020/06/30/a-new-pfam-b-is-released",
+    false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
+    { }
+}, {
+    "CDD",
+    "Conserved Domain Database is a protein annotation resource consisting of well-annotated MSAs for ancient domains and full-length proteins.",
+    "Lu et al: CDD/SPARCLE: the conserved domain database in 2020. Nucleic Acids Res 48(D1), D265–D268 (2020)",
+    "https://www.ncbi.nlm.nih.gov/Structure/cdd/cdd.shtml",
     false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
     { }
 }, {
@@ -204,7 +218,9 @@ std::string listDatabases(const Command &command, bool detailed) {
         description.append(1, '\t');
         appendPadded(description, (downloads[i].hasTaxonomy ? "yes" : "-"), 8, PAD_RIGHT);
         description.append(1, '\t');
-        appendPadded(description, downloads[i].url, urlWidth);
+        // last field in line should not be padded
+        //appendPadded(description, downloads[i].url, urlWidth);
+        description.append(downloads[i].url);
         description.append(1, '\n');
         if (detailed) {
             if (strlen(downloads[i].description) > 0) {
@@ -217,6 +233,7 @@ std::string listDatabases(const Command &command, bool detailed) {
                 description.append(downloads[i].citation);
                 description.append(1, '\n');
             }
+            description.append(1, '\n');
         }
     }
 
@@ -247,7 +264,7 @@ int databases(int argc, const char **argv, const Command &command) {
     }
     par.printParameters(command.cmd, argc, argv, par.databases);
     std::string tmpDir = par.db3;
-    std::string hash = SSTR(par.hashParameter(par.filenames, par.databases));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.databases));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }

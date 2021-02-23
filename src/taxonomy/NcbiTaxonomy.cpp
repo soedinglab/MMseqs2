@@ -7,63 +7,89 @@
 #include "MathUtil.h"
 #include "Debug.h"
 #include "Util.h"
+#include "sys/mman.h"
 
 #include <fstream>
 #include <algorithm>
 #include <cassert>
 
+const int NcbiTaxonomy::SERIALIZATION_VERSION = 2;
+
 int **makeMatrix(size_t maxNodes) {
-    Debug(Debug::INFO) << "Making matrix ...";
     size_t dimension = maxNodes * 2;
     int **M = new int*[dimension];
     int k = (int)(MathUtil::flog2(dimension)) + 1;
-    for (size_t i = 0; i < dimension; ++i) {
-        M[i] = new int[k]();
+    M[0] = new int[dimension * k]();
+    for(size_t i = 1; i < dimension; i++) {
+        M[i] = M[i-1] + k;
     }
-    Debug(Debug::INFO) << " Done\n";
+
     return M;
 }
 
-void deleteMatrix(int** M, size_t maxNodes) {
-    for (size_t i = 0; i < (maxNodes * 2); ++i) {
-        delete[] M[i];
-    }
+void deleteMatrix(int** M) {
+    delete[] M[0];
     delete[] M;
 }
 
-
-NcbiTaxonomy::NcbiTaxonomy(const std::string &namesFile,  const std::string &nodesFile,
-                           const std::string &mergedFile) {
-    loadNodes(nodesFile);
+NcbiTaxonomy::NcbiTaxonomy(const std::string &namesFile, const std::string &nodesFile, const std::string &mergedFile) : externalData(false) {
+    block = new StringBlock<unsigned int>();
+    std::vector<TaxonNode> tmpNodes;
+    loadNodes(tmpNodes, nodesFile);
     loadMerged(mergedFile);
-    loadNames(namesFile);
+    loadNames(tmpNodes, namesFile);
 
-    maxNodes = taxonNodes.size();
+    maxNodes = tmpNodes.size();
+    taxonNodes = new TaxonNode[maxNodes];
+    std::copy(tmpNodes.begin(), tmpNodes.end(), taxonNodes);
 
-    E.reserve(maxNodes * 2);
-    L.reserve(maxNodes * 2);
+    std::vector<int> tmpE;
+    tmpE.reserve(maxNodes * 2);
+
+    std::vector<int> tmpL;
+    tmpL.reserve(maxNodes * 2);
 
     H = new int[maxNodes];
     std::fill(H, H + maxNodes, 0);
 
-    std::vector< std::vector<TaxID> > children(taxonNodes.size());
-    for (std::vector<TaxonNode>::iterator it = taxonNodes.begin(); it != taxonNodes.end(); ++it) {
+    std::vector<std::vector<TaxID>> children(tmpNodes.size());
+    for (std::vector<TaxonNode>::const_iterator it = tmpNodes.begin(); it != tmpNodes.end(); ++it) {
         if (it->parentTaxId != it->taxId) {
             children[nodeId(it->parentTaxId)].push_back(it->taxId);
         }
     }
 
-    elh(children, 1, 0);
-    E.resize(maxNodes * 2, 0);
-    L.resize(maxNodes * 2, 0);
+    elh(children, 1, 0, tmpE, tmpL);
+    tmpE.resize(maxNodes * 2, 0);
+    tmpL.resize(maxNodes * 2, 0);
+
+    E = new int[maxNodes * 2];
+    std::copy(tmpE.begin(), tmpE.end(), E);
+    L = new int[maxNodes * 2];
+    std::copy(tmpL.begin(), tmpL.end(), L);
 
     M = makeMatrix(maxNodes);
     InitRangeMinimumQuery();
+
+    mmapData = NULL;
+    mmapSize = 0;
 }
 
 NcbiTaxonomy::~NcbiTaxonomy() {
-    delete[] H;
-    deleteMatrix(M, maxNodes);
+    if (externalData) {
+        delete[] M;
+    } else {
+        delete[] taxonNodes;
+        delete[] H;
+        delete[] D;
+        delete[] E;
+        delete[] L;
+        deleteMatrix(M);
+    }
+    delete block;
+    if (mmapData != NULL) {
+        munmap(mmapData, mmapSize);
+    }
 }
 
 std::vector<std::string> splitByDelimiter(const std::string &s, const std::string &delimiter, int maxCol) {
@@ -81,7 +107,7 @@ std::vector<std::string> splitByDelimiter(const std::string &s, const std::strin
     return result;
 }
 
-size_t NcbiTaxonomy::loadNodes(const std::string &nodesFile) {
+size_t NcbiTaxonomy::loadNodes(std::vector<TaxonNode> &tmpNodes, const std::string &nodesFile) {
     Debug(Debug::INFO) << "Loading nodes file ...";
     std::ifstream ss(nodesFile);
     if (ss.fail()) {
@@ -90,7 +116,7 @@ size_t NcbiTaxonomy::loadNodes(const std::string &nodesFile) {
     }
 
     std::map<TaxID, int> Dm; // temporary map TaxID -> internal ID;
-    int maxTaxID = 0;
+    maxTaxID = 0;
     int currentId = 0;
     std::string line;
     while (std::getline(ss, line)) {
@@ -100,28 +126,29 @@ size_t NcbiTaxonomy::loadNodes(const std::string &nodesFile) {
         if (taxId > maxTaxID) {
             maxTaxID = taxId;
         }
-        taxonNodes.emplace_back(currentId, taxId, parentTaxId, result[2]);
+        size_t rankIdx = block->append(result[2].c_str(), result[2].size());
+        tmpNodes.emplace_back(currentId, taxId, parentTaxId, rankIdx, (size_t)-1);
         Dm.emplace(taxId, currentId);
         ++currentId;
     }
 
-    D.clear();
-    D.resize(maxTaxID + 1, -1);
+    D = new int[maxTaxID + 1];
+    std::fill_n(D, maxTaxID + 1, -1);
     for (std::map<TaxID, int>::iterator it = Dm.begin(); it != Dm.end(); ++it) {
         assert(it->first <= maxTaxID);
         D[it->first] = it->second;
     }
 
     // Loop over taxonNodes and check all parents exist
-    for (std::vector<TaxonNode>::iterator it = taxonNodes.begin(); it != taxonNodes.end(); ++it) {
+    for (std::vector<TaxonNode>::iterator it = tmpNodes.begin(); it != tmpNodes.end(); ++it) {
         if (!nodeExists(it->parentTaxId)) {
             Debug(Debug::ERROR) << "Inconsistent nodes.dmp taxonomy file! Cannot find parent taxon with ID " << it->parentTaxId << "!\n";
             EXIT(EXIT_FAILURE);
         }
     }
 
-    Debug(Debug::INFO) << " Done, got " << taxonNodes.size() << " nodes\n";
-    return taxonNodes.size();
+    Debug(Debug::INFO) << " Done, got " << tmpNodes.size() << " nodes\n";
+    return tmpNodes.size();
 }
 
 std::pair<int, std::string> parseName(const std::string &line) {
@@ -133,7 +160,7 @@ std::pair<int, std::string> parseName(const std::string &line) {
     return std::make_pair((int)strtol(result[0].c_str(), NULL, 10), result[1]);
 }
 
-void NcbiTaxonomy::loadNames(const std::string &namesFile) {
+void NcbiTaxonomy::loadNames(std::vector<TaxonNode> &tmpNodes, const std::string &namesFile) {
     Debug(Debug::INFO) << "Loading names file ...";
     std::ifstream ss(namesFile);
     if (ss.fail()) {
@@ -152,28 +179,28 @@ void NcbiTaxonomy::loadNames(const std::string &namesFile) {
             Debug(Debug::ERROR) << "loadNames: Taxon " << entry.first << " not present in nodes file!\n";
             EXIT(EXIT_FAILURE);
         }
-        taxonNodes[nodeId(entry.first)].name = entry.second;
+        tmpNodes[nodeId(entry.first)].nameIdx = block->append(entry.second.c_str(), entry.second.size());
     }
     Debug(Debug::INFO) << " Done\n";
 }
 
 // Euler traversal of tree
-void NcbiTaxonomy::elh(std::vector< std::vector<TaxID> > const & children, TaxID taxId, int level) {
+void NcbiTaxonomy::elh(std::vector<std::vector<TaxID>> const & children, TaxID taxId, int level, std::vector<int> &tmpE, std::vector<int> &tmpL) {
     assert (taxId > 0);
     int id = nodeId(taxId);
 
     if (H[id] == 0) {
-        H[id] = E.size();
+        H[id] = tmpE.size();
     }
 
-    E.emplace_back(id);
-    L.emplace_back(level);
+    tmpE.emplace_back(id);
+    tmpL.emplace_back(level);
 
     for (std::vector<TaxID>::const_iterator child_it = children[id].begin(); child_it != children[id].end(); ++child_it) {
-        elh(children, *child_it, level + 1);
+        elh(children, *child_it, level + 1, tmpE, tmpL);
     }
-    E.emplace_back(nodeId(taxonNodes[id].parentTaxId));
-    L.emplace_back(level - 1);
+    tmpE.emplace_back(nodeId(taxonNodes[id].parentTaxId));
+    tmpL.emplace_back(level - 1);
 }
 
 void NcbiTaxonomy::InitRangeMinimumQuery() {
@@ -239,12 +266,10 @@ bool NcbiTaxonomy::IsAncestor(TaxID ancestor, TaxID child) {
     }
 
     if (!nodeExists(child)) {
-        Debug(Debug::WARNING) << "No node for taxID " << child << ".\n";
         return false;
-    } 
+    }
 
     if (!nodeExists(ancestor)) {
-        Debug(Debug::WARNING) << "No node for taxID " << ancestor << ".\n";
         return false;
     }
 
@@ -278,7 +303,7 @@ TaxonNode const * NcbiTaxonomy::LCA(const std::vector<TaxID>& taxa) const {
         }
     }
 
-    assert(red >= 0 && static_cast<unsigned int>(red) < taxonNodes.size());
+    assert(red >= 0 && static_cast<unsigned int>(red) < maxNodes);
 
     return &(taxonNodes[red]);
 }
@@ -289,8 +314,10 @@ std::vector<std::string> NcbiTaxonomy::AtRanks(TaxonNode const *node, const std:
     std::vector<std::string> result;
     std::map<std::string, std::string> allRanks = AllRanks(node);
     // map does not include "no rank" nor "no_rank"
-    int baseRankIndex = findRankIndex(node->rank);
-    std::string baseRank = "uc_" + node->name;
+    const char* rank = getString(node->rankIdx);
+    int baseRankIndex = findRankIndex(rank);
+    std::string baseRank = "uc_";
+    baseRank.append(getString(node->nameIdx));
     for (std::vector<std::string>::const_iterator it = levels.begin(); it != levels.end(); ++it) {
         std::map<std::string, std::string>::iterator jt = allRanks.find(*it);
         if (jt != allRanks.end()) {
@@ -348,13 +375,13 @@ std::string NcbiTaxonomy::taxLineage(TaxonNode const *node, bool infoAsName) {
 
     for (int i = taxLineageVec.size() - 1; i >= 0; --i) {
         if (infoAsName) {
-            taxLineage += findShortRank(taxLineageVec[i]->rank);
+            taxLineage += findShortRank(getString(taxLineageVec[i]->rankIdx));
             taxLineage += '_';
-            taxLineage += taxLineageVec[i]->name;
+            taxLineage += getString(taxLineageVec[i]->nameIdx);
         } else {
             taxLineage += SSTR(taxLineageVec[i]->taxId);
         }
-        
+
         if (i > 0) {
             taxLineage += ";";
         }
@@ -371,7 +398,7 @@ int NcbiTaxonomy::nodeId(TaxID taxonId) const {
 }
 
 bool NcbiTaxonomy::nodeExists(TaxID taxonId) const {
-    return D[taxonId] != -1;
+    return taxonId <= maxTaxID && D[taxonId] != -1;
 }
 
 TaxonNode const * NcbiTaxonomy::taxonNode(TaxID taxonId, bool fail) const {
@@ -384,13 +411,15 @@ TaxonNode const * NcbiTaxonomy::taxonNode(TaxID taxonId, bool fail) const {
 std::map<std::string, std::string> NcbiTaxonomy::AllRanks(TaxonNode const *node) const {
     std::map<std::string, std::string> result;
     while (true) {
+        std::string rank = getString(node->rankIdx);
+        std::string name = getString(node->nameIdx);
         if (node->taxId == 1) {
-            result.emplace(node->rank, node->name);
+            result.emplace(rank, name);
             return result;
         }
 
-        if ((node->rank != "no_rank") && (node->rank != "no rank")) {
-            result.emplace(node->rank, node->name);
+        if ((rank != "no_rank") && (rank != "no rank")) {
+            result.emplace(rank, name);
         }
 
         node = taxonNode(node->parentTaxId);
@@ -441,7 +470,8 @@ std::unordered_map<TaxID, TaxonCounts> NcbiTaxonomy::getCladeCounts(std::unorder
         }
     }
 
-    for (const TaxonNode& tn : taxonNodes) {
+    for (size_t i = 0; i < maxNodes; ++i) {
+        TaxonNode& tn = taxonNodes[i];
         if (tn.parentTaxId != tn.taxId && cladeCounts.count(tn.taxId)) {
             std::unordered_map<TaxID, TaxonCounts>::iterator itp = cladeCounts.find(tn.parentTaxId);
             itp->second.children.push_back(tn.taxId);
@@ -452,7 +482,30 @@ std::unordered_map<TaxID, TaxonCounts> NcbiTaxonomy::getCladeCounts(std::unorder
     return cladeCounts;
 }
 
-NcbiTaxonomy * NcbiTaxonomy::openTaxonomy(std::string &database){
+NcbiTaxonomy * NcbiTaxonomy::openTaxonomy(const std::string &database){
+    std::string binFile = database + "_taxonomy";
+    if (FileUtil::fileExists(binFile.c_str())) {
+        FILE* handle = fopen(binFile.c_str(), "r");
+        struct stat sb;
+        if (fstat(fileno(handle), &sb) < 0) {
+            Debug(Debug::ERROR) << "Failed to fstat file " << binFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        char* data = (char*)mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fileno(handle), 0);
+        if (data == MAP_FAILED){
+            Debug(Debug::ERROR) << "Failed to mmap file " << binFile << " with error " << errno << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        fclose(handle);
+        NcbiTaxonomy* t = NcbiTaxonomy::unserialize(data);
+        if (t != NULL) {
+            t->mmapData = data;
+            t->mmapSize = sb.st_size;
+            return t;
+        } else {
+            Debug(Debug::WARNING) << "Outdated taxonomy information, please recreate with createtaxdb.\n";
+        }
+    }
     Debug(Debug::INFO) << "Loading NCBI taxonomy\n";
     std::string nodesFile = database + "_nodes.dmp";
     std::string namesFile = database + "_names.dmp";
@@ -471,4 +524,256 @@ NcbiTaxonomy * NcbiTaxonomy::openTaxonomy(std::string &database){
         EXIT(EXIT_FAILURE);
     }
     return new NcbiTaxonomy(namesFile, nodesFile, mergedFile);
+}
+
+const TaxID ROOT_TAXID = 1;
+const int ROOT_RANK = INT_MAX;
+
+struct TaxNode {
+    TaxNode(const double weight, const bool isCandidate, const TaxID childTaxon)
+            : weight(weight), isCandidate(isCandidate), childTaxon(childTaxon) {}
+
+    void update(const double weightToAdd, const TaxID & childTaxonInput) {
+        if (childTaxon != childTaxonInput) {
+            isCandidate = true;
+            childTaxon = childTaxonInput;
+        }
+        weight += weightToAdd;
+    }
+
+    double weight;
+    bool isCandidate;
+    TaxID childTaxon;
+};
+
+const char* NcbiTaxonomy::getString(size_t blockIdx) const {
+    return block->getString(blockIdx);
+}
+
+WeightedTaxHit::WeightedTaxHit(const TaxID taxon, const float evalue, const int weightVoteMode) : taxon(taxon) {
+    switch (weightVoteMode) {
+        case Parameters::AGG_TAX_UNIFORM:
+            weight = 1.0;
+            break;
+        case Parameters::AGG_TAX_MINUS_LOG_EVAL:
+            weight = evalue;
+            if (evalue != FLT_MAX) {
+                if (evalue > 0) {
+                    weight = -log(evalue);
+                } else {
+                    weight = MAX_TAX_WEIGHT;
+                }
+            }
+            break;
+        case Parameters::AGG_TAX_SCORE:
+            weight = evalue;
+            break;
+        default:
+            Debug(Debug::ERROR) << "Invalid weight vote mode\n";
+            EXIT(EXIT_FAILURE);
+    }
+}
+
+WeightedTaxResult NcbiTaxonomy::weightedMajorityLCA(const std::vector<WeightedTaxHit> &setTaxa, const float majorityCutoff) {
+    // count num occurences of each ancestor, possibly weighted
+    std::map<TaxID, TaxNode> ancTaxIdsCounts;
+
+    // initialize counters and weights
+    size_t assignedSeqs = 0;
+    size_t unassignedSeqs = 0;
+    double totalAssignedSeqsWeights = 0.0;
+
+    for (size_t i = 0; i < setTaxa.size(); ++i) {
+        TaxID currTaxId = setTaxa[i].taxon;
+        double currWeight = setTaxa[i].weight;
+        // ignore unassigned sequences
+        if (currTaxId == 0) {
+            unassignedSeqs++;
+            continue;
+        }
+        TaxonNode const *node = taxonNode(currTaxId, false);
+        if (node == NULL) {
+            Debug(Debug::ERROR) << "taxonid: " << currTaxId << " does not match a legal taxonomy node.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        totalAssignedSeqsWeights += currWeight;
+        assignedSeqs++;
+
+        // each start of a path due to an orf is a candidate
+        std::map<TaxID, TaxNode>::iterator it;
+        if ((it = ancTaxIdsCounts.find(currTaxId)) != ancTaxIdsCounts.end()) {
+            it->second.update(currWeight, 0);
+        } else {
+            TaxNode current(currWeight, true, 0);
+            ancTaxIdsCounts.emplace(currTaxId, current);
+        }
+
+        // iterate all ancestors up to root (including). add currWeight and candidate status to each
+        TaxID currParentTaxId = node->parentTaxId;
+        while (currParentTaxId != currTaxId) {
+            if ((it = ancTaxIdsCounts.find(currParentTaxId)) != ancTaxIdsCounts.end()) {
+                it->second.update(currWeight, currTaxId);
+            } else {
+                TaxNode parent(currWeight, false, currTaxId);
+                ancTaxIdsCounts.emplace(currParentTaxId, parent);
+            }
+            // move up
+            currTaxId = currParentTaxId;
+            node = taxonNode(currParentTaxId, false);
+            currParentTaxId = node->parentTaxId;
+        }
+    }
+
+    TaxID selctedTaxon = 0;
+    if (totalAssignedSeqsWeights == 0) {
+        return WeightedTaxResult(selctedTaxon, assignedSeqs, unassignedSeqs, 0, 0.0);
+    }
+
+    // select the lowest ancestor that meets the cutoff
+    int minRank = INT_MAX;
+    double selectedPercent = 0;
+    for (std::map<TaxID, TaxNode>::iterator it = ancTaxIdsCounts.begin(); it != ancTaxIdsCounts.end(); it++) {
+        // consider only candidates
+        if (it->second.isCandidate == false) {
+            continue;
+        }
+
+        double currPercent = it->second.weight / totalAssignedSeqsWeights;
+        if (currPercent >= majorityCutoff) {
+            // iterate all ancestors to find lineage min rank (the candidate is a descendant of a node with this rank)
+            TaxID currTaxId = it->first;
+            TaxonNode const *node = taxonNode(currTaxId, false);
+            int currMinRank = ROOT_RANK;
+            TaxID currParentTaxId = node->parentTaxId;
+            while (currParentTaxId != currTaxId) {
+                int currRankInd = NcbiTaxonomy::findRankIndex(getString(node->rankIdx));
+                if ((currRankInd > 0) && (currRankInd < currMinRank)) {
+                    currMinRank = currRankInd;
+                    // the rank can only go up on the way to the root, so we can break
+                    break;
+                }
+                // move up:
+                currTaxId = currParentTaxId;
+                node = taxonNode(currParentTaxId, false);
+                currParentTaxId = node->parentTaxId;
+            }
+
+            if ((currMinRank < minRank) || ((currMinRank == minRank) && (currPercent > selectedPercent))) {
+                selctedTaxon = it->first;
+                minRank = currMinRank;
+                selectedPercent = currPercent;
+            }
+        }
+    }
+
+    // count the number of seqs who have selectedTaxon in their ancestors (agree with selection):
+    if (selctedTaxon == ROOT_TAXID) {
+        // all agree with "root"
+        return WeightedTaxResult(selctedTaxon, assignedSeqs, unassignedSeqs, assignedSeqs, selectedPercent);
+    }
+    if (selctedTaxon == 0) {
+        // nothing informative
+        return WeightedTaxResult(selctedTaxon, assignedSeqs, unassignedSeqs, 0, selectedPercent);
+    }
+    size_t seqsAgreeWithSelectedTaxon = 0;
+    // otherwise, iterate over all seqs
+    for (size_t i = 0; i < setTaxa.size(); ++i) {
+        TaxID currTaxId = setTaxa[i].taxon;
+        // ignore unassigned sequences
+        if (currTaxId == 0) {
+            continue;
+        }
+        TaxonNode const *node = taxonNode(currTaxId, false);
+
+        // iterate all ancestors up to the root
+        TaxID currParentTaxId = node->parentTaxId;
+        while (currParentTaxId != currTaxId) {
+            if (currTaxId == selctedTaxon) {
+                seqsAgreeWithSelectedTaxon++;
+                break;
+            }
+            currTaxId = currParentTaxId;
+            node = taxonNode(currParentTaxId, false);
+            currParentTaxId = node->parentTaxId;
+        }
+    }
+
+    return WeightedTaxResult(selctedTaxon, assignedSeqs, unassignedSeqs, seqsAgreeWithSelectedTaxon, selectedPercent);
+}
+
+std::pair<char*, size_t> NcbiTaxonomy::serialize(const NcbiTaxonomy& t) {
+    t.block->compact();
+    size_t matrixDim = (t.maxNodes * 2);
+    size_t matrixK = (int)(MathUtil::flog2(matrixDim)) + 1;
+    size_t matrixSize = matrixDim * matrixK * sizeof(int);
+    size_t blockSize = StringBlock<unsigned int>::memorySize(*t.block);
+    size_t memSize = sizeof(int) // SERIALIZATION_VERSION
+        + sizeof(size_t) // maxNodes
+        + sizeof(int) // maxTaxID
+        + t.maxNodes * sizeof(TaxonNode) // taxonNodes
+        + (t.maxTaxID + 1) * sizeof(int) // D
+        + 2 * (t.maxNodes * 2) * sizeof(int) // E,L
+        + t.maxNodes * sizeof(int) // H
+        + matrixSize // M
+        + blockSize; // block
+
+    char* mem = (char*) malloc(memSize);
+    char* p = mem;
+    memcpy(p, &t.SERIALIZATION_VERSION, sizeof(int));
+    p += sizeof(int);
+    memcpy(p, &t.maxNodes, sizeof(size_t));
+    p += sizeof(size_t);
+    memcpy(p, &t.maxTaxID, sizeof(int));
+    p += sizeof(int);
+    memcpy(p, t.taxonNodes, t.maxNodes * sizeof(TaxonNode));
+    p += t.maxNodes * sizeof(TaxonNode);
+    memcpy(p, t.D, (t.maxTaxID + 1) * sizeof(int));
+    p += (t.maxTaxID + 1) * sizeof(int);
+    memcpy(p, t.E, (t.maxNodes * 2) * sizeof(int));
+    p += (t.maxNodes * 2) * sizeof(int);
+    memcpy(p, t.L, (t.maxNodes * 2) * sizeof(int));
+    p += (t.maxNodes * 2) * sizeof(int);
+    memcpy(p, t.H, t.maxNodes * sizeof(int));
+    p += t.maxNodes * sizeof(int);
+    memcpy(p, t.M[0], matrixSize);
+    p += matrixSize;
+    char* blockData = StringBlock<unsigned int>::serialize(*t.block);
+    memcpy(p, blockData, blockSize);
+    p += blockSize;
+    free(blockData);
+    return std::make_pair(mem, memSize);
+}
+
+NcbiTaxonomy* NcbiTaxonomy::unserialize(char* mem) {
+    const char* p = mem;
+    int version = *((int*)p);
+    p += sizeof(int);
+    if (version != NcbiTaxonomy::SERIALIZATION_VERSION) {
+        return NULL;
+    }
+    size_t maxNodes = *((size_t*)p);
+    p += sizeof(size_t);
+    int maxTaxID = *((int*)p);
+    p += sizeof(int);
+    TaxonNode* taxonNodes = (TaxonNode*)p;
+    p += maxNodes * sizeof(TaxonNode);
+    int* D = (int*)p;
+    p += (maxTaxID + 1) * sizeof(int);
+    int* E = (int*)p;
+    p += (maxNodes * 2) * sizeof(int);
+    int* L = (int*)p;
+    p += (maxNodes * 2) * sizeof(int);
+    int* H = (int*)p;
+    p += maxNodes * sizeof(int);
+    size_t matrixDim = (maxNodes * 2);
+    size_t matrixK = (int)(MathUtil::flog2(matrixDim)) + 1;
+    size_t matrixSize = matrixDim * matrixK * sizeof(int);
+    int** M = new int*[matrixDim];
+    M[0] = (int*)p;
+    for(size_t i = 1; i < matrixDim; i++) {
+        M[i] = M[i-1] + matrixK;
+    }
+    p += matrixSize;
+    StringBlock<unsigned int>* block = StringBlock<unsigned int>::unserialize(p);
+    return new NcbiTaxonomy(taxonNodes, maxNodes, maxTaxID, D, E, L, H, M, block);
 }

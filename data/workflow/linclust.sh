@@ -90,6 +90,8 @@ fi
 
 if [ -n "$REMOVE_TMP" ]; then
     # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/pref_filter1" ${VERBOSITY}
+    # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/pref" ${VERBOSITY}
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/pref_rescore1" ${VERBOSITY}
@@ -97,21 +99,17 @@ if [ -n "$REMOVE_TMP" ]; then
     "$MMSEQS" rmdb "${TMP_PATH}/pre_clust" ${VERBOSITY}
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy" ${VERBOSITY}
-    rm -f "${TMP_PATH}/order_redundancy"
-
     # shellcheck disable=SC2086
-    "$MMSEQS" rmdb "${TMP_PATH}/pref_filter1" ${VERBOSITY}
+    "$MMSEQS" rmdb "${TMP_PATH}/input_step_redundancy_h" ${VERBOSITY}
+    rm -f "${TMP_PATH}/order_redundancy"
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/pref_filter2" ${VERBOSITY}
-
-    if [ -n "${ALIGN_GAPPED}" ]; then
-        if [ -n "$FILTER" ]; then
-            # shellcheck disable=SC2086
-            "$MMSEQS" rmdb "${TMP_PATH}/pref_rescore2" ${VERBOSITY}
-        fi
+    if [ -n "$FILTER" ]; then
         # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY}
+        "$MMSEQS" rmdb "${TMP_PATH}/pref_rescore2" ${VERBOSITY}
     fi
+    # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY}
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/clust" ${VERBOSITY}
     rm -f "${TMP_PATH}/linclust.sh"

@@ -16,7 +16,6 @@ void setEasySearchDefaults(Parameters *p, bool linsearch) {
     p->removeTmpFiles = true;
     p->writeLookup = false;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
-    p->orfFilter = 0;
 }
 
 void setEasySearchMustPassAlong(Parameters *p, bool linsearch) {
@@ -26,7 +25,6 @@ void setEasySearchMustPassAlong(Parameters *p, bool linsearch) {
     p->PARAM_S.wasSet = true;
     p->PARAM_REMOVE_TMP_FILES.wasSet = true;
     p->PARAM_ALIGNMENT_MODE.wasSet = true;
-    p->PARAM_ORF_FILTER.wasSet = true;
 }
 
 int doeasysearch(int argc, const char **argv, const Command &command, bool linsearch) {
@@ -46,6 +44,9 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     }
     for (size_t i = 0; i < par.translatenucs.size(); i++){
         par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
+    }
+    for (size_t i = 0; i < par.splitsequence.size(); i++) {
+        par.splitsequence[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
     for (size_t i = 0; i < par.result2profile.size(); i++){
         par.result2profile[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
@@ -84,7 +85,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     }
 
     std::string tmpDir = par.filenames.back();
-    std::string hash = SSTR(par.hashParameter(par.filenames, *command.params));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, *command.params));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
@@ -99,8 +100,12 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     cmd.addVariable("TARGET", target.c_str());
     par.filenames.pop_back();
 
-    if(needTaxonomy || needTaxonomyMapping){
-        Parameters::checkIfTaxDbIsComplete(target);
+    if (needTaxonomy || needTaxonomyMapping) {
+        std::vector<std::string> missingFiles = Parameters::findMissingTaxDbFiles(target);
+        if (missingFiles.empty() == false) {
+            Parameters::printTaxDbError(target, missingFiles);
+            EXIT(EXIT_FAILURE);
+        }
     }
 
     if (linsearch) {

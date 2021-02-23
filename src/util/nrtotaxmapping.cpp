@@ -28,9 +28,13 @@ static bool sortByFirstString(const std::pair<std::string, TaxID>& lhs, const st
     return (lhs.first < rhs.first);
 }
 
-static bool sortByName(const TaxonNode& lhs, const TaxonNode& rhs){
-    return (lhs.name < rhs.name);
-}
+struct SortByName {
+    SortByName(NcbiTaxonomy* taxonomy) : taxonomy(taxonomy) {}
+    bool operator() (const TaxonNode& lhs, const TaxonNode& rhs) const {
+        return strcmp(taxonomy->getString(lhs.nameIdx), taxonomy->getString(rhs.nameIdx)) <  0;
+    }
+    const NcbiTaxonomy* taxonomy;
+};
 
 TaxID lookupTaxID(const std::vector<std::pair<std::string, TaxID>>& mapping, const std::string& value) {
     std::pair<std::string, TaxID> val;
@@ -97,22 +101,22 @@ int nrtotaxmapping(int argc, const char **argv, const Command& command) {
     NcbiTaxonomy* taxonomy = NcbiTaxonomy::openTaxonomy(seqDbData);
 
     // make sure to create a copy since taxonNodes is still used later
-    std::vector<TaxonNode> nodesCopy(taxonomy->taxonNodes.begin(), taxonomy->taxonNodes.end());
-    SORT_PARALLEL(nodesCopy.begin(), nodesCopy.end(), sortByName);
+    std::vector<TaxonNode> nodesCopy(taxonomy->taxonNodes, taxonomy->taxonNodes + taxonomy->maxNodes);
+    SORT_PARALLEL(nodesCopy.begin(), nodesCopy.end(), SortByName(taxonomy));
 
     // get a sorted list of taxa that uniquely point to a taxid
     std::vector<std::pair<std::string, TaxID>> uniqueNames;
     size_t nodesSize = nodesCopy.size();
-    if (nodesSize >= 2 && nodesCopy[0].name != nodesCopy[1].name) {
-        uniqueNames.emplace_back(nodesCopy[0].name, nodesCopy[0].taxId);
+    if (nodesSize >= 2 && taxonomy->getString(nodesCopy[0].nameIdx) != taxonomy->getString(nodesCopy[1].nameIdx)) {
+        uniqueNames.emplace_back(taxonomy->getString(nodesCopy[0].nameIdx), nodesCopy[0].taxId);
     }
     for (size_t i = 1; i < (nodesSize - 1); ++i) {
-        if ((nodesCopy[i - 1].name != nodesCopy[i].name) && (nodesCopy[i].name != nodesCopy[i + 1].name)) {
-            uniqueNames.emplace_back(nodesCopy[i].name, nodesCopy[i].taxId);
+        if ((taxonomy->getString(nodesCopy[i - 1].nameIdx) != taxonomy->getString(nodesCopy[i].nameIdx)) && (taxonomy->getString(nodesCopy[i].nameIdx) != taxonomy->getString(nodesCopy[i + 1].nameIdx))) {
+            uniqueNames.emplace_back(taxonomy->getString(nodesCopy[i].nameIdx), nodesCopy[i].taxId);
         }
     }
-    if (nodesSize > 2 && (nodesCopy[nodesSize - 1].name != nodesCopy[nodesSize - 2].name)) {
-        uniqueNames.emplace_back(nodesCopy[nodesSize - 1].name, nodesCopy[nodesSize - 1].taxId);
+    if (nodesSize > 2 && (taxonomy->getString(nodesCopy[nodesSize - 1].nameIdx) != taxonomy->getString(nodesCopy[nodesSize - 2].nameIdx))) {
+        uniqueNames.emplace_back(taxonomy->getString(nodesCopy[nodesSize - 1].nameIdx), nodesCopy[nodesSize - 1].taxId);
     }
     nodesCopy.clear();
 

@@ -69,13 +69,17 @@ MultiParam<char*>::MultiParam(const char*  aminoacids, const char*  nucleotides)
 }
 
 MultiParam<char*>::MultiParam(const char* filename) {
-    if (strchr(filename, ',') != NULL) {
-        size_t len = strlen(filename);
-        aminoacids = (char*) malloc(len * sizeof(char));
-        nucleotides = (char*) malloc(len * sizeof(char));
-        if (sscanf(filename, "aa:%[^,],nucl:%s", aminoacids, nucleotides) != 2 && sscanf(filename, "nucl:%[^,],aa:%s", nucleotides, aminoacids) != 2) {
-            free((char*)nucleotides);
-            free((char*)aminoacids);
+    const char *split;
+    if ((split = strchr(filename, ',')) != NULL) {
+        const char* first = filename;
+        const char* second = split + 1;
+        if (strncmp("aa:", first, strlen("aa:")) == 0 && strncmp("nucl:", second, strlen("nucl:")) == 0) {
+            aminoacids = strndup(first + 3, split - first - 5);
+            nucleotides = strdup(second + 5);
+        } else if (strncmp("nucl:", first, strlen("nucl:")) == 0 && strncmp("aa:", second, strlen("aa:")) == 0) {
+            nucleotides = strndup(first + 5, split - first - 5);
+            aminoacids = strdup(second + 3);
+        } else {
             nucleotides = strdup("INVALID");
             aminoacids = strdup("INVALID");
         }

@@ -73,7 +73,7 @@ int alignall(int argc, const char **argv, const Command &command) {
             Sequence query(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
             Sequence target(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
 
-            char buffer[1024 + 32768];
+            char buffer[1024 + 32768*4];
 
             std::vector<unsigned int> results;
             results.reserve(300);

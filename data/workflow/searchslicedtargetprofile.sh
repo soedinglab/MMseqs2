@@ -69,7 +69,7 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
     fi
 
     # predict NUM_SEQS_THAT_SATURATE as the average number of prefilter results per profile in previous steps
-    # this allows to increase NUM_PROFS_IN_STEP
+    # this allows one to increase NUM_PROFS_IN_STEP
     if [ "${NUM_PREF_RESULTS_IN_ALL_PREV_STEPS}" -gt 0 ]; then
         # BE MORE CAUTIOUS?
         NUM_PROFS_PROCESSED="$((FIRST_INDEX_LINE-1))"
@@ -126,28 +126,31 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
     # align current step chunk
     if notExists "${TMP_PATH}/aln.done"; then
         # shellcheck disable=SC2086
-        ${RUNNER} "$MMSEQS" "${ALIGN_MODULE}" "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
+        ${RUNNER} "$MMSEQS" "${ALIGN_MODULE}" "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/pref" "${TMP_PATH}/aln"  ${ALIGNMENT_IT_PAR} \
             || fail "align died"
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/pref" ${VERBOSITY}
         touch "${TMP_PATH}/aln.done"
     fi
 
-    # swap alignment of current step chunk
-    if notExists "${TMP_PATH}/aln_swap.done"; then
-        # note: the evalue has been corrected for inverted search by the workflow caller
+
+        # no matter what, process at least one profile...
+    if [ "${FILTER_RESULT}" -eq 1 ]; then
         # shellcheck disable=SC2086
-        "$MMSEQS" swapresults "${TARGET}" "${INPUT}" "${TMP_PATH}/aln" "${TMP_PATH}/aln_swap" ${SWAP_PAR} \
-            || fail "swapresults died"
+        ${RUNNER} "$MMSEQS" filterresult "${PROFILEDB}" "${INPUT}" "${TMP_PATH}/aln" "${TMP_PATH}/aln_filt"  ${FILTER_PAR} \
+            || fail "align died"
         # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY}
-        touch "${TMP_PATH}/aln_swap.done"
+        "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY} || fail "rmdb aln died"
+        # shellcheck disable=SC2086
+        "$MMSEQS" mvdb "${TMP_PATH}/aln_filt" "${TMP_PATH}/aln" ${VERBOSITY} || fail "mv aln_filt aln died"
+        touch "${TMP_PATH}/aln.done"
     fi
+
 
     # merge swapped alignment of current chunk to previous steps
     if [ -f "${TMP_PATH}/aln_merged.dbtype" ]; then
         # shellcheck disable=SC2086
-        "$MMSEQS" mergedbs "${INPUT}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln_swap" ${VERBOSITY} \
+        "$MMSEQS" mergedbs "${TARGET}" "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln" ${VERBOSITY} \
             || fail "mergedbs died"
         # rmdb of aln_merged to avoid conflict with unmerged dbs: aln_merged.0, .1...
         # shellcheck disable=SC2086
@@ -155,24 +158,36 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
         # shellcheck disable=SC2086
         "$MMSEQS" mvdb "${TMP_PATH}/aln_merged_new" "${TMP_PATH}/aln_merged" ${VERBOSITY} || fail "mv aln_merged_new aln_merged died"
         # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/aln_swap" ${VERBOSITY} || fail "rmdb aln_swap died"
+        "$MMSEQS" rmdb "${TMP_PATH}/aln" ${VERBOSITY} || fail "rmdb aln died"
     else
         # shellcheck disable=SC2086
-        "$MMSEQS" mvdb "${TMP_PATH}/aln_swap" "${TMP_PATH}/aln_merged" ${VERBOSITY} \
+        "$MMSEQS" mvdb "${TMP_PATH}/aln" "${TMP_PATH}/aln_merged" ${VERBOSITY} \
             || fail "mvdb died"
     fi
 
     STEP="$((STEP+1))"
     # update for the next step
-    rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done" "${TMP_PATH}/aln_swap.done"
+    rm -f "${TMP_PATH}/pref.done" "${TMP_PATH}/aln.done"
     printf "%d\\t%s\\n" "${FIRST_INDEX_LINE}" "${NUM_PREF_RESULTS_IN_ALL_PREV_STEPS}" > "${TMP_PATH}/aln_${STEP}.checkpoint"
 
 done
 
-# keep only the top max-seqs hits according to the default alignment sorting criteria
+
+# swap alignment of current step chunk
+if notExists "${TMP_PATH}/aln.done"; then
+    # keep only the top max-seqs hits according to the default alignment sorting criteria
+    # shellcheck disable=SC2086
+    "$MMSEQS" align "${TARGET}" "${INPUT}" "${TMP_PATH}/aln_merged" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
+       || fail "sortresult died"
+    # rmdb of aln_merged to avoid conflict with unmerged dbs: aln_merged.0, .1...
+       # shellcheck disable=SC2086
+    "$MMSEQS" rmdb "${TMP_PATH}/aln_merged" ${VERBOSITY} || fail "rmdb aln_merged died"
+fi
+
+# note: the evalue has been corrected for inverted search by the workflow caller
 # shellcheck disable=SC2086
-"$MMSEQS" sortresult "${TMP_PATH}/aln_merged" "${RESULT}" ${SORTRESULT_PAR} \
-    || fail "sortresult died"
+"$MMSEQS" swapresults  "${TARGET}" "${INPUT}" "${TMP_PATH}/aln" "${RESULT}" ${SWAPRES_PAR} \
+    || fail "swapresults died"
 
 
 if [ -n "$REMOVE_TMP" ]; then

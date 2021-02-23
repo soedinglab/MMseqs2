@@ -7,9 +7,9 @@
 # ATOMIC_LIBRARIES    - libraries needed to use libatomic
 #
 
-include(CheckCXXSourceRuns)
+include(CheckCXXSourceCompiles)
 
-check_cxx_source_runs("
+check_cxx_source_compiles("
            int main() {
              volatile unsigned __int128 all_ = 4;
              __atomic_fetch_add(&all_, 8, __ATOMIC_RELAXED);
@@ -23,7 +23,7 @@ if (ATOMIC_LIBRARY_NATIVE)
     set(ATOMIC_LIBRARY)
 else ()
     set(CMAKE_REQUIRED_LIBRARIES "-latomic")
-    check_cxx_source_runs("
+    check_cxx_source_compiles("
            int main() {
              volatile unsigned __int128 all_ = 4;
              __atomic_fetch_add(&all_, 8, __ATOMIC_RELAXED);

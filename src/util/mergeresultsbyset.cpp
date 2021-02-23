@@ -38,7 +38,7 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
                 size_t id = resultReader.getId(key);
                 if (id == UINT_MAX) {
                     Debug(Debug::ERROR) << "Invalid key " << key << " in entry " << i << ".\n";
-                    EXIT(EXIT_SUCCESS);
+                    EXIT(EXIT_FAILURE);
                 }
                 buffer.append(resultReader.getData(id, thread_idx));
                 data = Util::skipLine(data);

@@ -219,6 +219,8 @@ typedef __m256i simd_int;
 #define simdi32_mul(x,y)    _mm256_mullo_epi32(x,y)
 #define simdi32_max(x,y)    _mm256_max_epi32(x,y)
 #define simdi16_max(x,y)    _mm256_max_epi16(x,y)
+#define simdi32_insert(x,y,z) _mm256_insert_epi32(x,y,z)
+#define simdi32_extract(x,y) _mm256_extract_epi32(x,y)
 #define simdi16_hmax(x)     simd_hmax16_avx(x)
 #define simdui8_max(x,y)    _mm256_max_epu8(x,y)
 #define simdi8_hmax(x)      simd_hmax8_avx(x)
@@ -234,6 +236,7 @@ typedef __m256i simd_int;
 #define simdi16_shuffle(x,y) _mm256_shuffle_epi16(x,y)
 #define simdi8_shuffle(x,y)  _mm256_shuffle_epi8(x,y)
 #define simdi_setzero()     _mm256_setzero_si256()
+#define simdi8_blend(x,y,z) _mm256_blendv_epi8(x,y,z)
 #define simdi32_gt(x,y)     _mm256_cmpgt_epi32(x,y)
 #define simdi8_gt(x,y)      _mm256_cmpgt_epi8(x,y)
 #define simdi16_gt(x,y)     _mm256_cmpgt_epi16(x,y)
@@ -253,6 +256,8 @@ typedef __m256i simd_int;
 #define SIMD_MOVEMASK_MAX   0xffffffff
 #define simdi8_movemask(x)  _mm256_movemask_epi8(x)
 #define simdi16_extract(x,y) extract_epi16(x,y)
+#define simdi32_pack(x,y)   _mm256_packs_epi32(x,y)
+#define simdi16_pack(x,y)   _mm256_packs_epi16(x,y)
 #define simdi16_slli(x,y)	_mm256_slli_epi16(x,y) // shift integers in a left by y
 #define simdi16_srli(x,y)	_mm256_srli_epi16(x,y) // shift integers in a right by y
 #define simdi32_slli(x,y)   _mm256_slli_epi32(x,y) // shift integers in a left by y
@@ -407,6 +412,8 @@ typedef __m128i simd_int;
 #define simdi32_mul(x,y)    _mm_mullo_epi32(x,y) // SSE4.1
 #define simdi32_max(x,y)    _mm_max_epi32(x,y) // SSE4.1
 #define simdi16_max(x,y)    _mm_max_epi16(x,y)
+#define simdi32_insert(x,y,z) _mm_insert_epi32(x,y,z)
+#define simdi32_extract(x,y) _mm_extract_epi32(x,y)
 #define simdi16_hmax(x)     simd_hmax16_sse(x)
 #define simdui8_max(x,y)    _mm_max_epu8(x,y)
 #define simdi8_hmax(x)      simd_hmax8_sse(x)
@@ -422,6 +429,7 @@ typedef __m128i simd_int;
 #define simdi16_shuffle(x,y) _mm_shuffle_epi16(x,y)
 #define simdi8_shuffle(x,y)  _mm_shuffle_epi8(x,y)
 #define simdi_setzero()     _mm_setzero_si128()
+#define simdi8_blend(x,y,z) _mm_blendv_epi8(x,y,z)
 #define simdi32_gt(x,y)     _mm_cmpgt_epi32(x,y)
 #define simdi8_gt(x,y)      _mm_cmpgt_epi8(x,y)
 #define simdi32_eq(x,y)     _mm_cmpeq_epi32(x,y)
@@ -440,6 +448,8 @@ typedef __m128i simd_int;
 #define SIMD_MOVEMASK_MAX   0xffff
 #define simdi8_movemask(x)  _mm_movemask_epi8(x)
 #define simdi16_extract(x,y) extract_epi16(x,y)
+#define simdi32_pack(x,y)   _mm_packs_epi32(x,y)
+#define simdi16_pack(x,y)   _mm_packs_epi16(x,y)
 #define simdi16_slli(x,y)	_mm_slli_epi16(x,y) // shift integers in a left by y
 #define simdi16_srli(x,y)	_mm_srli_epi16(x,y) // shift integers in a right by y
 #define simdi32_slli(x,y)	_mm_slli_epi32(x,y) // shift integers in a left by y

@@ -16,7 +16,7 @@ int subtractdbs(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, true, 0, 0);
     par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
     par.printParameters(command.cmd, argc, argv, *command.params);
-    const float evalThreshold = par.evalProfile;
+    const double evalThreshold = par.evalProfile;
 
     Debug(Debug::INFO) << "Remove " << par.db2 << " ids from " << par.db1 << "\n";
     DBReader<unsigned int> leftDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);

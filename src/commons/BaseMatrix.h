@@ -70,9 +70,10 @@ public:
 
     static void computeBackground(double **probMat, double *pBack, int alphabetSize, bool containsX);
 
-    static size_t memorySize(BaseMatrix *pMatrix);
+    static size_t memorySize(std::string & matrixName , std::string & matrixData);
     static std::pair<std::string, std::string> unserialize(const char * data);
-    static char * serialize(BaseMatrix *pMatrix);
+    static char * serialize(std::string &matrixName, std::string &matrixData );
+    static std::string unserializeName(const char * data);
 };
 
 

@@ -107,6 +107,9 @@ public:
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
     static const unsigned int ALIGNMENT_MODE_UNGAPPED = 4;
 
+    static const unsigned int ALIGNMENT_OUTPUT_ALIGNMENT = 0;
+    static const unsigned int ALIGNMENT_OUTPUT_CLUSTER = 1;
+
     static const unsigned int EXPAND_TRANSFER_EVALUE = 0;
     static const unsigned int EXPAND_RESCORE_BACKTRACE = 1;
 
@@ -119,6 +122,13 @@ public:
     static const int FORMAT_ALIGNMENT_SAM = 1;
     static const int FORMAT_ALIGNMENT_BLAST_WITH_LEN = 2;
     static const int FORMAT_ALIGNMENT_HTML = 3;
+
+    // result2msa
+    static const int FORMAT_MSA_CA3M = 0;
+    static const int FORMAT_MSA_CA3M_CONSENSUS = 1;
+    static const int FORMAT_MSA_FASTADB = 2;
+    static const int FORMAT_MSA_FASTADB_SUMMARY = 3;
+    static const int FORMAT_MSA_STOCKHOLM_FLAT = 4;
 
     // outfmt
     static const int OUTFMT_QUERY = 0;
@@ -190,11 +200,12 @@ public:
     // aggregate taxonomy
     static const int AGG_TAX_UNIFORM = 0;
     static const int AGG_TAX_MINUS_LOG_EVAL = 1;
+    static const int AGG_TAX_SCORE = 2;
 
     // taxonomy search strategy
     static const int TAXONOMY_SINGLE_SEARCH = 1;
     static const int TAXONOMY_2BLCA = 2;
-    static const int TAXONOMY_2BLCA_APPROX = 3;
+    static const int TAXONOMY_APPROX_2BLCA = 3;
     static const int TAXONOMY_TOP_HIT = 4;
 
     static const int PARSE_VARIADIC = 1;
@@ -268,6 +279,10 @@ public:
     // createsubdb, filtertaxseqdb type
     static const int SUBDB_MODE_HARD = 0;
     static const int SUBDB_MODE_SOFT = 1;
+
+    // unpackdb
+    static const int UNPACK_NAME_KEY = 0;
+    static const int UNPACK_NAME_ACCESSION = 1;
 
     // result direction
     static const int PARAM_RESULT_DIRECTION_QUERY  = 0;
@@ -363,13 +378,16 @@ public:
     bool   splitAA;                      // Split database by amino acid count instead
     int    preloadMode;                  // Preload mode of database
     float  scoreBias;                    // Add this bias to the score when computing the alignements
+    float  realignScoreBias;             // Add this bias additionally when realigning
+    int    realignMaxSeqs;               // Max alignments to realign
     std::string spacedKmerPattern;       // User-specified kmer pattern
     std::string localTmp;                // Local temporary path
 
     // ALIGNMENT
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
                                          // 1=score only, 2=score, cov, start/end pos, 3=score, cov, start/end pos, seq.id,
-    float  evalThr;                      // e-value threshold for acceptance
+    int alignmentOutputMode;             // alignment output mode 0=alignment, 1=cluster
+    double evalThr;                      // e-value threshold for acceptance
     float  covThr;                       // coverage query&target threshold for acceptance
     int    covMode;                      // coverage target threshold for acceptance
     int    seqIdMode;                    // seq. id. normalize mode
@@ -399,9 +417,13 @@ public:
     int numIterations;
     float startSens;
     int sensSteps;
-    bool sliceSearch;
+    bool exhaustiveSearch;
+    int exhaustiveFilterMsa;
     int strand;
     int orfFilter;
+    float orfFilterSens;
+    double orfFilterEval;
+    bool lcaSearch;
 
     // easysearch
     bool greedyBestHits;
@@ -424,7 +446,7 @@ public:
     int createLookup;
 
     // convertalis
-    int formatAlignmentMode;            // BLAST_TAB, PAIRWISE or SAM
+    int formatAlignmentMode;
     std::string outfmt;
     bool dbOut;
 
@@ -436,12 +458,9 @@ public:
     int sortResults;
 
     // result2msa
+    int msaFormatMode;
     bool allowDeletion;
-    bool addInternalId;
-    bool compressMSA;
-    bool summarizeHeader;
     std::string summaryPrefix;
-    bool omitConsensus;
     bool skipQuery;
 
     // convertmsa
@@ -454,7 +473,7 @@ public:
     // result2profile
     int maskProfile;
     float filterMaxSeqId;
-    float evalProfile;
+    double evalProfile;
     int filterMsa;
     float qsc;
     float qid;
@@ -500,6 +519,7 @@ public:
     // splitsequence
     int sequenceOverlap;
     int sequenceSplitMode;
+    int headerSplitMode;
 
     // convert2fasta
     bool useHeaderFile;
@@ -544,6 +564,7 @@ public:
 
     // mergedbs
     std::string mergePrefixes;
+    bool mergeStopEmpty;
 
     // summarizetabs
     float overlap;
@@ -602,13 +623,15 @@ public:
     // createtaxdb
     std::string ncbiTaxDump;
     std::string taxMappingFile;
+    int taxMappingMode;
+    int taxDbMode;
 
     // exapandaln
     int expansionMode;
 
     // taxonomy
     int taxonomySearchMode;
-    int taxonomyOutpuMode;
+    int taxonomyOutputMode;
 
     // createsubdb
     int subDbMode;
@@ -616,6 +639,10 @@ public:
     // tar2db
     std::string tarInclude;
     std::string tarExclude;
+
+    // unpackdb
+    std::string unpackSuffix;
+    int unpackNameMode;
 
     // for modules that should handle -h themselves
     bool help;
@@ -641,7 +668,7 @@ public:
     void printParameters(const std::string &module, int argc, const char* pargv[],
                          const std::vector<MMseqsParameter*> &par);
 
-    void checkIfDatabaseIsValid(const Command& command, bool isStartVar, bool isMiddleVar, bool isEndVar);
+    void checkIfDatabaseIsValid(const Command& command, int argc, const char** argv, bool isStartVar, bool isMiddleVar, bool isEndVar);
 
     std::vector<MMseqsParameter*> removeParameter(const std::vector<MMseqsParameter*>& par, const MMseqsParameter& x);
 
@@ -678,6 +705,7 @@ public:
 
     // alignment
     PARAMETER(PARAM_ALIGNMENT_MODE)
+    PARAMETER(PARAM_ALIGNMENT_OUTPUT_MODE)
     PARAMETER(PARAM_E)
     PARAMETER(PARAM_C)
     PARAMETER(PARAM_COV_MODE)
@@ -689,6 +717,8 @@ public:
     PARAMETER(PARAM_MIN_SEQ_ID)
     PARAMETER(PARAM_MIN_ALN_LEN)
     PARAMETER(PARAM_SCORE_BIAS)
+    PARAMETER(PARAM_REALIGN_SCORE_BIAS)
+    PARAMETER(PARAM_REALIGN_MAX_SEQS)
     PARAMETER(PARAM_ALT_ALIGNMENT)
     PARAMETER(PARAM_GAP_OPEN)
     PARAMETER(PARAM_GAP_EXTEND)
@@ -720,11 +750,9 @@ public:
     PARAMETER(PARAM_SORT_RESULTS)
 
     // result2msa
+    PARAMETER(PARAM_MSA_FORMAT_MODE)
     PARAMETER(PARAM_ALLOW_DELETION)
-    PARAMETER(PARAM_COMPRESS_MSA)
-    PARAMETER(PARAM_SUMMARIZE_HEADER)
     PARAMETER(PARAM_SUMMARY_PREFIX)
-    PARAMETER(PARAM_OMIT_CONSENSUS)
     PARAMETER(PARAM_SKIP_QUERY)
 
     // convertmsa
@@ -777,9 +805,13 @@ public:
     PARAMETER(PARAM_NUM_ITERATIONS)
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEPS)
-    PARAMETER(PARAM_SLICE_SEARCH)
+    PARAMETER(PARAM_EXHAUSTIVE_SEARCH)
+    PARAMETER(PARAM_EXHAUSTIVE_SEARCH_FILTER)
     PARAMETER(PARAM_STRAND)
     PARAMETER(PARAM_ORF_FILTER)
+    PARAMETER(PARAM_ORF_FILTER_S)
+    PARAMETER(PARAM_ORF_FILTER_E)
+    PARAMETER(PARAM_LCA_SEARCH)
 
     // easysearch
     PARAMETER(PARAM_GREEDY_BEST_HITS)
@@ -815,6 +847,7 @@ public:
     // split sequence
     PARAMETER(PARAM_SEQUENCE_OVERLAP)
     PARAMETER(PARAM_SEQUENCE_SPLIT_MODE)
+    PARAMETER(PARAM_HEADER_SPLIT_MODE)
 
     // gff2db
     PARAMETER(PARAM_GFF_TYPE)
@@ -874,6 +907,7 @@ public:
 
     // mergedbs
     PARAMETER(PARAM_MERGE_PREFIXES)
+    PARAMETER(PARAM_MERGE_STOP_EMPTY)
 
     // summarizetabs
     PARAMETER(PARAM_OVERLAP)
@@ -913,6 +947,9 @@ public:
     // createtaxdb
     PARAMETER(PARAM_NCBI_TAX_DUMP)
     PARAMETER(PARAM_TAX_MAPPING_FILE)
+    PARAMETER(PARAM_TAX_MAPPING_MODE)
+    PARAMETER(PARAM_TAX_DB_MODE)
+
     // exapandaln
     PARAMETER(PARAM_EXPANSION_MODE)
 
@@ -927,10 +964,23 @@ public:
     PARAMETER(PARAM_TAR_INCLUDE)
     PARAMETER(PARAM_TAR_EXCLUDE)
 
+    // unpackdb
+    PARAMETER(PARAM_UNPACK_SUFFIX)
+    PARAMETER(PARAM_UNPACK_NAME_MODE)
+
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
     PARAMETER(PARAM_HELP_LONG)
 
+    struct PredefinedSubstitutionMatrix{
+        std::string name;
+        const unsigned char * subMatData;
+        unsigned int subMatDataLen;
+        PredefinedSubstitutionMatrix(const char * name, const unsigned char * subMatData, const unsigned int subMatDataLen)
+                : name(name), subMatData(subMatData), subMatDataLen(subMatDataLen) {}
+
+    };
+    std::vector<PredefinedSubstitutionMatrix> substitutionMatrices;
 
     std::vector<MMseqsParameter*> empty;
     std::vector<MMseqsParameter*> onlyverbosity;
@@ -994,6 +1044,7 @@ public:
     std::vector<MMseqsParameter*> createseqfiledb;
     std::vector<MMseqsParameter*> filterDb;
     std::vector<MMseqsParameter*> offsetalignment;
+    std::vector<MMseqsParameter*> proteinaln2nucl;
     std::vector<MMseqsParameter*> subtractdbs;
     std::vector<MMseqsParameter*> diff;
     std::vector<MMseqsParameter*> concatdbs;
@@ -1007,13 +1058,14 @@ public:
     std::vector<MMseqsParameter*> convertkb;
     std::vector<MMseqsParameter*> tsv2db;
     std::vector<MMseqsParameter*> lca;
+    std::vector<MMseqsParameter*> majoritylca;
     std::vector<MMseqsParameter*> addtaxonomy;
     std::vector<MMseqsParameter*> taxonomyreport;
     std::vector<MMseqsParameter*> filtertaxdb;
     std::vector<MMseqsParameter*> filtertaxseqdb;
     std::vector<MMseqsParameter*> aggregatetax;
+    std::vector<MMseqsParameter*> aggregatetaxweights;
     std::vector<MMseqsParameter*> taxonomy;
-    std::vector<MMseqsParameter*> taxpercontig;
     std::vector<MMseqsParameter*> easytaxonomy;
     std::vector<MMseqsParameter*> createsubdb;
     std::vector<MMseqsParameter*> renamedbkeys;
@@ -1035,13 +1087,14 @@ public:
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);
 
-    size_t hashParameter(const std::vector<std::string> &filenames, const std::vector<MMseqsParameter*> &par);
+    size_t hashParameter(const std::vector<DbType> &dbtypes, const std::vector<std::string> &filenames, const std::vector<MMseqsParameter*> &par);
 
     std::string createParameterString(const std::vector<MMseqsParameter*> &vector, bool wasSet = false);
 
     void overrideParameterDescription(MMseqsParameter& par, const char *description, const char *regex = NULL, int category = 0);
 
-    static void checkIfTaxDbIsComplete(std::string & filename);
+    static std::vector<std::string> findMissingTaxDbFiles(const std::string &filename);
+    static void printTaxDbError(const std::string &filename, const std::vector<std::string>& missingFiles);
 
     static bool isEqualDbtype(const int type1, const int type2) {
         return ((type1 & 0x3FFFFFFF) == (type2 & 0x3FFFFFFF));
@@ -1066,6 +1119,7 @@ public:
             case DBTYPE_OFFSETDB: return "Offsetted headers";
             case DBTYPE_DIRECTORY: return "Directory";
             case DBTYPE_FLATFILE: return "Flatfile";
+            case DBTYPE_STDIN: return "stdin";
 
             default: return "Unknown";
         }

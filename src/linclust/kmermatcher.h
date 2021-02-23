@@ -1,12 +1,11 @@
 #ifndef MMSEQS_KMERMATCHER_H
 #define MMSEQS_KMERMATCHER_H
-#include <queue>
-#include "DBWriter.h"
-#include "Util.h"
 #include "DBReader.h"
+#include "DBWriter.h"
 #include "Parameters.h"
 #include "BaseMatrix.h"
 
+#include <queue>
 
 struct SequencePosition{
     unsigned short score;

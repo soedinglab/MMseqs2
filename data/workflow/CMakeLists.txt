@@ -15,13 +15,13 @@ set(GENERATED_WORKFLOWS
         workflow/createindex.sh
         workflow/createtaxdb.sh
         workflow/translated_search.sh
-        workflow/taxonomy.sh
         workflow/taxpercontig.sh
         workflow/multihitdb.sh
         workflow/multihitsearch.sh
         workflow/enrich.sh
         workflow/blastn.sh
         workflow/searchslicedtargetprofile.sh
+        workflow/taxonomy.sh
         workflow/linsearch.sh
         workflow/databases.sh
         workflow/nucleotide_clustering.sh

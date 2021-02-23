@@ -65,7 +65,7 @@ int easyrbh(int argc, const char **argv, const Command &command) {
     }
 
     std::string tmpDir = par.filenames.back();
-    std::string hash = SSTR(par.hashParameter(par.filenames, *command.params));
+    std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, *command.params));
     if (par.reuseLatest) {
         hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
     }
@@ -79,8 +79,13 @@ int easyrbh(int argc, const char **argv, const Command &command) {
     std::string target = par.filenames.back().c_str();
     cmd.addVariable("TARGET", target.c_str());
     par.filenames.pop_back();
-    if(needTaxonomy || needTaxonomyMapping){
-        Parameters::checkIfTaxDbIsComplete(target);
+
+    if (needTaxonomy || needTaxonomyMapping) {
+        std::vector<std::string> missingFiles = Parameters::findMissingTaxDbFiles(target);
+        if (missingFiles.empty() == false) {
+            Parameters::printTaxDbError(target, missingFiles);
+            EXIT(EXIT_FAILURE);
+        }
     }
 
     cmd.addVariable("QUERY", par.filenames.back().c_str());

@@ -195,6 +195,11 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 }
             }
 
+            // allow skipping first sequence in case of consensus, etc
+            if (par.skipQuery == true) {
+                kseq_read(seq);
+            }
+
             while (kseq_read(seq) >= 0) {
                 if (seq->name.l == 0 || seq->seq.l == 0) {
                     Debug(Debug::WARNING) << "Invalid fasta sequence " << setSize << " in entry " << queryKey << "\n";
@@ -206,6 +211,10 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                     Debug(Debug::WARNING) << "Member sequence " << setSize << " in entry " << queryKey << " too long\n";
                     fastaError = true;
                     break;
+                }
+
+                if ((par.msaType == 0 || par.msaType == 1) && strncmp("ss_", seq->name.s, strlen("ss_")) == 0) {
+                    continue;
                 }
 
                 // first sequence is always the query
@@ -348,7 +357,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     resultWriter.close(true);
     qDbr.close();
 
-    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, (DBFiles::Files)(DBFiles::LOOKUP | DBFiles::SOURCE));
+    DBReader<unsigned int>::copyDb(par.db1, par.db2, (DBFiles::Files)(DBFiles::LOOKUP | DBFiles::SOURCE));
 
     if (sequenceReader != NULL) {
         sequenceReader->close();

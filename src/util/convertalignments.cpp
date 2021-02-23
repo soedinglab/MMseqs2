@@ -617,7 +617,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         result.append(SSTR(taxon));
                                         break;
                                     case Parameters::OUTFMT_TAXNAME:
-                                        result.append((taxonNode != NULL) ? taxonNode->name : "unclassified");
+                                        result.append((taxonNode != NULL) ? t->getString(taxonNode->nameIdx) : "unclassified");
                                         break;
                                     case Parameters::OUTFMT_TAXLIN:
                                         result.append((taxonNode != NULL) ? t->taxLineage(taxonNode, true) : "unclassified");

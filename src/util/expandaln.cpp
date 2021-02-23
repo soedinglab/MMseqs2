@@ -82,8 +82,10 @@ static bool compareHitsByKeyScore(const Matcher::result_t &first, const Matcher:
 
 int expandaln(int argc, const char **argv, const Command& command, bool returnAlnRes) {
     Parameters &par = Parameters::getInstance();
+    // default for expand2profile to filter MSA
+    par.filterMsa = 1;
+    par.pca = 0.0;
     par.parseParameters(argc, argv, command, true, 0, 0);
-
     DBReader<unsigned int> aReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     aReader.open(DBReader<unsigned int>::NOSORT);
     const int aSeqDbType = aReader.getDbtype();
@@ -174,7 +176,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         float *compositionBias = (float*)malloc(compBufferSize);
         memset(compositionBias, 0, compBufferSize);
 
-        char buffer[1024 + 32000];
+        char buffer[1024 + 32768*4];
 
         std::vector<Matcher::result_t> resultsBc;
         resultsBc.reserve(300);

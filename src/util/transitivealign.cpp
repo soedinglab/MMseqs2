@@ -66,7 +66,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 //            Sequence query(par.maxSeqLen, targetSeqType, subMat, par.kmerSize, par.spacedKmer, par.compBiasCorrection);
 //            Sequence target(par.maxSeqLen, targetSeqType, subMat, par.kmerSize, par.spacedKmer, par.compBiasCorrection);
 
-            char * buffer = new char[1024 + 32768*4];
+            char buffer[1024 + 32768*4];
             BacktraceTranslator btTranslate;
             std::vector<Matcher::result_t> results;
             results.reserve(300);
@@ -150,7 +150,6 @@ int transitivealign(int argc, const char **argv, const Command &command) {
                 }
                 resultWriter.writeEnd(alnKey, thread_idx);
             }
-            delete [] buffer;
         }
         alnReader.remapData();
     }
@@ -231,8 +230,8 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     for (size_t split = 0; split < splits.size(); split++) {
         unsigned int dbKeyToWrite = splits[split].first;
         size_t bytesToWrite = splits[split].second;
-        char *tmpData = new char[bytesToWrite];
-        Util::checkAllocation(tmpData, "Could not allocate tmpData memory in doswap");
+        char *tmpData = new(std::nothrow) char[bytesToWrite];
+        Util::checkAllocation(tmpData, "Cannot allocate tmpData memory");
         Debug(Debug::INFO) << "\nReading results.\n";
 #pragma omp parallel
         {

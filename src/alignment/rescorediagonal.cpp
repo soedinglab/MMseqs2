@@ -124,7 +124,7 @@ int doRescorediagonal(Parameters &par,
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-            char buffer[1024 + 32768];
+            char buffer[1024 + 32768*4];
             std::string resultBuffer;
             resultBuffer.reserve(1000000);
             std::string queryBuffer;

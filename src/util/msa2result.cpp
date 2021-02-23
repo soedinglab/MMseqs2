@@ -170,9 +170,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
         const float matchRatio = par.matchRatio;
         MsaFilter filter(maxSeqLength + 1, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
 
-        char buffer[2048];
-        std::vector<Matcher::result_t> results;
-        results.reserve(300);
+        char buffer[1024 + 32768*4];
 
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < msaReader.getSize(); ++id) {
@@ -221,6 +219,11 @@ int msa2result(int argc, const char **argv, const Command &command) {
                 }
             }
 
+            // allow skipping first sequence in case of consensus, etc
+            if (par.skipQuery == true) {
+                kseq_read(seq);
+            }
+
             unsigned int startKey = setSizes[id];
             while (kseq_read(seq) >= 0) {
                 if (seq->name.l == 0 || seq->seq.l == 0) {
@@ -233,6 +236,10 @@ int msa2result(int argc, const char **argv, const Command &command) {
                     Debug(Debug::WARNING) << "Member sequence " << setSize << " in entry " << queryKey << " too long\n";
                     fastaError = true;
                     break;
+                }
+
+                if ((par.msaType == 0 || par.msaType == 1) && strncmp("ss_", seq->name.s, strlen("ss_")) == 0) {
+                    continue;
                 }
 
                 const char newline = '\n';
@@ -365,6 +372,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
             }
             PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, centerLength, (const char **) msaSequences, par.wg);
 
+            resultWriter.writeStart(thread_idx);
             for (size_t i = 0; i < setSize; ++i) {
                 const char* currSeq = msaSequences[i];
                 unsigned int currentCol = 0;
@@ -435,17 +443,11 @@ int msa2result(int argc, const char **argv, const Command &command) {
 
                 // and update them and compute the score
                 Matcher::updateResultByRescoringBacktrace(consSeqNoGaps.c_str(), currSeqNoGaps.c_str(), fastMatrix.matrix, evaluer, par.gapOpen.aminoacids, par.gapExtend.aminoacids, res);
-                
-                results.emplace_back(res);
-            }
 
-            resultWriter.writeStart(thread_idx);
-            for (size_t i = 0; i < setSize; ++i) {
-                unsigned int len = Matcher::resultToBuffer(buffer, results[i], true, true);
+                unsigned int len = Matcher::resultToBuffer(buffer, res, true, true);
                 resultWriter.writeAdd(buffer, len, thread_idx);
             }
             resultWriter.writeEnd(queryKey, thread_idx);
-            results.clear();
         }
 
         kseq_destroy(seq);

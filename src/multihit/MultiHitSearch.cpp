@@ -38,6 +38,9 @@ int multihitsearch(int argc, const char **argv, const Command &command) {
     for (size_t i = 0; i < par.translatenucs.size(); i++){
         par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
+    for (size_t i = 0; i < par.splitsequence.size(); i++) {
+        par.splitsequence[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
+    }
     for (size_t i = 0; i < par.result2profile.size(); i++){
         par.result2profile[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
@@ -56,7 +59,7 @@ int multihitsearch(int argc, const char **argv, const Command &command) {
             Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
         }
     }
-    size_t hash = par.hashParameter(par.filenames, par.multihitsearch);
+    size_t hash = par.hashParameter(command.databases, par.filenames, par.multihitsearch);
     std::string tmpDir = par.db4 + "/" + SSTR(hash);
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {

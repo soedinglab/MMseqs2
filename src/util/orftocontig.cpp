@@ -33,7 +33,7 @@ int orftocontig(int argn, const char **argv, const Command& command) {
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif 
-        char orfToContigBuffer[1024];
+        char orfToContigBuffer[1024 + 32768*4];
         
 #pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < orfHeadersReader.getSize(); ++id) {

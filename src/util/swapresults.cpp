@@ -167,8 +167,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
     for (size_t split = 0; split < splits.size(); split++) {
         unsigned int dbKeyToWrite = splits[split].first;
         size_t bytesToWrite = splits[split].second;
-        char *tmpData = new char[bytesToWrite];
-        Util::checkAllocation(tmpData, "Can not allocate tmpData memory in doswap");
+        char *tmpData = new(std::nothrow) char[bytesToWrite];
+        Util::checkAllocation(tmpData, "Cannot allocate tmpData memory");
         Debug(Debug::INFO) << "\nReading results.\n";
         Debug::Progress progress(resultSize);
 #pragma omp parallel
@@ -248,7 +248,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
             std::vector<Matcher::result_t> curRes;
             curRes.reserve(300);
 
-            char buffer[1024+32768];
+            char buffer[1024 + 32768*4];
             std::string ss;
             ss.reserve(100000);
 

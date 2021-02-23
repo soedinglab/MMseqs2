@@ -36,7 +36,6 @@ set(util_source_files
         util/msa2profile.cpp
         util/msa2result.cpp
         util/nrtotaxmapping.cpp
-        util/mvdb.cpp
         util/countkmer.cpp
         util/prefixid.cpp
         util/profile2cs.cpp
@@ -51,7 +50,7 @@ set(util_source_files
         util/result2repseq.cpp
         util/result2stats.cpp
         util/reverseseq.cpp
-        util/rmdb.cpp
+        util/cpmvrmlndb.cpp
         util/extractframes.cpp
         util/sortresult.cpp
         util/splitdb.cpp
@@ -67,6 +66,7 @@ set(util_source_files
         util/translateaa.cpp
         util/tsv2db.cpp
         util/tar2db.cpp
+        util/unpackdb.cpp
         util/proteinaln2nucl.cpp
         util/versionstring.cpp
         util/diskspaceavail.cpp

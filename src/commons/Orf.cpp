@@ -146,7 +146,7 @@ bool Orf::setSequence(const char* seq, size_t length) {
     for(size_t i = 0; i < sequenceLength; ++i) {
         reverseComplement[i] = complement(sequence[sequenceLength - i - 1]);
         if(reverseComplement[i] == '.') {
-            return false;
+            reverseComplement[i] = 'N';
         }
     }
 
@@ -207,7 +207,11 @@ inline bool isInCodons(const char* sequence, simd_int codons, simd_int) {
     // s: ATGA GTGA TGAT GAGT
     // c: ATGA ATGA ATGA ATGA
     simd_int c = simdi32_set(*(unsigned int*)sequence);
+#if SIMDE_ENDIAN_ORDER == SIMDE_ENDIAN_LITTLE
     simd_int mask = simdi32_set(0x00FFFFFF);
+#else
+    simd_int mask = simdi32_set(0xFFFFFF00);
+#endif
     // c: ATG0 ATG0 ATG0 ATG0
     c = simdi_and(mask, c);
     // t: FFFF 0000 0000 0000

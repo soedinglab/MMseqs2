@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 2.8.12)
 
 project(tinyexpr)
 
@@ -24,6 +24,7 @@ set(SOURCE_FILES
         )
 
 add_library(tinyexpr STATIC ${SOURCE_FILES})
+set_target_properties(tinyexpr PROPERTIES COMPILE_FLAGS "${MMSEQS_C_FLAGS}" LINK_FLAGS "${MMSEQS_C_FLAGS}")
 if (TE_POW_FROM_RIGHT)
     target_compile_definitions(tinyexpr PRIVATE TE_POW_FROM_RIGHT)
 endif()

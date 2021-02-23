@@ -20,10 +20,10 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
     this->spaced = spaced;
     this->seqType = seqType;
     std::pair<const char *, unsigned int> spacedKmerInformation;
-    if (userSpacedKmerPattern.empty()) {
-        spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
-    } else {
+    if (spaced == true && userSpacedKmerPattern.empty() == false) {
         spacedKmerInformation = parseSpacedPattern(kmerSize, spaced, userSpacedKmerPattern);
+    } else {
+        spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
     }
     this->spacedPattern = spacedKmerInformation.first;
     this->spacedPatternSize = spacedKmerInformation.second;

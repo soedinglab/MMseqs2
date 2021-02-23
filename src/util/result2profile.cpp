@@ -136,7 +136,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 
         char dbKey[255];
         const char *entry[255];
-        char buffer[2048];
+        char buffer[1024 + 32768*4];
 
         std::vector<Matcher::result_t> alnResults;
         alnResults.reserve(300);
@@ -264,7 +264,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     }
 #endif
 
-    if (MMseqsMPI::isMaster()) {
+    if (MMseqsMPI::isMaster() && returnAlnRes == false) {
         DBReader<unsigned int>::softlinkDb(par.db1, par.db4, DBFiles::SEQUENCE_ANCILLARY);
     }
 

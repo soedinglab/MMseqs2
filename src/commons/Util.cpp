@@ -578,6 +578,8 @@ int Util::swapCoverageMode(int covMode) {
             return Parameters::COV_MODE_LENGTH_TARGET;
         case Parameters::COV_MODE_LENGTH_TARGET:
             return Parameters::COV_MODE_LENGTH_QUERY;
+        case Parameters::COV_MODE_LENGTH_SHORTER:
+            return Parameters::COV_MODE_LENGTH_SHORTER;
     }
     Debug(Debug::ERROR) << "Unknown coverage mode " << covMode << ".\n";
     EXIT(EXIT_FAILURE);

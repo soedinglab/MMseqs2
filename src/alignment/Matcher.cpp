@@ -80,9 +80,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
 
     if(Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
         if(diagonal==INT_MAX){
-            Debug(Debug::ERROR) << "Query sequence " << currentQuery->getDbKey()
-                                << " has a result with no proper diagonal information , "
-                                << "Please check your database.\n";
+            Debug(Debug::ERROR) << "Query sequence " << currentQuery->getDbKey() << " has a result with no diagonal information. Please check your database.\n";
             EXIT(EXIT_FAILURE);
         }
         alignment = nuclaligner->align(dbSeq, diagonal, isReverse, backtrace, aaIds, evaluer, wrappedScoring);

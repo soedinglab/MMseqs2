@@ -43,7 +43,7 @@ downloadFile() {
             aria2c --max-connection-per-server="$ARIA_NUM_CONN" --allow-overwrite=true -o "$FILENAME" -d "$DIR" "$URL" && return 0
             ;;
         CURL)
-            curl -o "$OUTPUT" "$URL" && return 0
+            curl -L -o "$OUTPUT" "$URL" && return 0
             ;;
         WGET)
             wget -O "$OUTPUT" "$URL" && return 0
@@ -134,6 +134,16 @@ case "${SELECTION}" in
         push_back "${TMP_PATH}/nt.gz"
         INPUT_TYPE="FASTA_LIST"
     ;;
+    "GTDB")
+        if notExists "${TMP_PATH}/download.done"; then
+            downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/VERSION" "${TMP_PATH}/version"
+            downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/genomic_files_reps/gtdb_proteins_aa_reps.tar.gz" "${TMP_PATH}/gtdb.tar.gz"
+            downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/bac120_taxonomy.tsv" "${TMP_PATH}/bac120_taxonomy.tsv"
+            downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/ar122_taxonomy.tsv" "${TMP_PATH}/ar122_taxonomy.tsv"
+            touch "${TMP_PATH}/download.done"
+        fi
+        INPUT_TYPE="GTDB"
+    ;;
     "PDB")
         if notExists "${TMP_PATH}/pdb_seqres.txt.gz"; then
             date "+%s" > "${TMP_PATH}/version"
@@ -175,13 +185,22 @@ case "${SELECTION}" in
     "eggNOG")
         if notExists "${TMP_PATH}/download.done"; then
             date "+%s" > "${TMP_PATH}/version"
-            downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/2/2_raw_algs.tar" "${TMP_PATH}/bacteria"
-            downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/2157/2157_raw_algs.tar" "${TMP_PATH}/archea"
-            downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/2759/2759_raw_algs.tar" "${TMP_PATH}/eukaryota"
-            downloadFile "http://eggnogdb.embl.de/download/eggnog_5.0/per_tax_level/10239/10239_raw_algs.tar" "${TMP_PATH}/viruses"
+            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2/2_raw_algs.tar" "${TMP_PATH}/bacteria"
+            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2157/2157_raw_algs.tar" "${TMP_PATH}/archea"
+            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2759/2759_raw_algs.tar" "${TMP_PATH}/eukaryota"
+            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/10239/10239_raw_algs.tar" "${TMP_PATH}/viruses"
             touch "${TMP_PATH}/download.done"
         fi
         INPUT_TYPE="eggNOG"
+    ;;
+    "CDD")
+        if notExists "${TMP_PATH}/msa.msa.gz"; then
+            downloadFile "https://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.info" "${TMP_PATH}/version"
+            downloadFile "https://ftp.ncbi.nih.gov/pub/mmdb/cdd/fasta.tar.gz" "${TMP_PATH}/msa.tar.gz"
+        fi
+        INPUT_TYPE="FASTA_MSA"
+        FASTA_MSA_SED='s|\.FASTA||g'
+        FASTA_MSA_MSA2PROFILE_PAR="--skip-query"
     ;;
     "Resfinder")
         if notExists "${TMP_PATH}/download.done"; then
@@ -283,27 +302,33 @@ case "${INPUT_TYPE}" in
         "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${THREADS_PAR} \
             || fail "msa2profile died"
         if [ -n "${REMOVE_TMP}" ]; then
-          "${MMSEQS}" rmdb "${TMP_PATH}/msa" \
-              || fail "rmdb died"
+            # shellcheck disable=SC2086
+            "${MMSEQS}" rmdb "${TMP_PATH}/msa" ${VERB_PAR} \
+                || fail "rmdb died"
         fi
     ;;
     "FASTA_MSA")
         # shellcheck disable=SC2086
-        "${MMSEQS}" tar2db "${TMP_PATH}/msa.tar.gz" "${TMP_PATH}/msa" ${VERB_PAR} --output-dbtype 11 \
+        "${MMSEQS}" tar2db "${TMP_PATH}/msa.tar.gz" "${TMP_PATH}/msa" --output-dbtype 11 ${THREADS_PAR}  \
             || fail "tar2db died"
+        if [ -n "${FASTA_MSA_SED}" ]; then
+            sed "${FASTA_MSA_SED}" "${TMP_PATH}/msa.lookup" > "${TMP_PATH}/msa.lookup_tmp"
+            mv -f "${TMP_PATH}/msa.lookup_tmp" "${TMP_PATH}/msa.lookup"
+        fi
         rm -f "${TMP_PATH}/msa.tar.gz"
         # shellcheck disable=SC2086
-        "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${THREADS_PAR} \
+        "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${FASTA_MSA_MSA2PROFILE_PAR} ${THREADS_PAR} \
             || fail "msa2profile died"
         if [ -n "${REMOVE_TMP}" ]; then
-            "${MMSEQS}" rmdb "${TMP_PATH}/msa" \
+            # shellcheck disable=SC2086
+            "${MMSEQS}" rmdb "${TMP_PATH}/msa" ${VERB_PAR} \
                 || fail "rmdb died"
         fi
     ;;
     "eggNOG")
         # shellcheck disable=SC2086
-        "${MMSEQS}" tar2db "${TMP_PATH}/bacteria" "${TMP_PATH}/archea" "${TMP_PATH}/eukaryota" "${TMP_PATH}/viruses" "${TMP_PATH}/msa" --output-dbtype 11 --tar-include '\.raw_alg\.faa\.gz$' ${COMP_PAR} \
-            || fail "msa2profile died"
+        "${MMSEQS}" tar2db "${TMP_PATH}/bacteria" "${TMP_PATH}/archea" "${TMP_PATH}/eukaryota" "${TMP_PATH}/viruses" "${TMP_PATH}/msa" --output-dbtype 11 --tar-include '\.raw_alg\.faa\.gz$' ${THREADS_PAR} \
+            || fail "tar2db died"
         rm -f "${TMP_PATH}/bacteria.tar" "${TMP_PATH}/archea.tar" "${TMP_PATH}/eukaryota.tar" "${TMP_PATH}/viruses.tar"
         sed 's|\.raw_alg\.faa\.gz||g' "${TMP_PATH}/msa.lookup" > "${TMP_PATH}/msa.lookup.tmp"
         mv -f "${TMP_PATH}/msa.lookup.tmp" "${TMP_PATH}/msa.lookup"
@@ -312,8 +337,26 @@ case "${INPUT_TYPE}" in
             || fail "msa2profile died"
         mv -f "${TMP_PATH}/msa.lookup" "${OUTDB}.lookup"
         mv -f "${TMP_PATH}/msa.source" "${OUTDB}.source"
-        "${MMSEQS}" rmdb "${TMP_PATH}/msa" \
-            || fail "rmdb died"
+        if [ -n "${REMOVE_TMP}" ]; then
+            # shellcheck disable=SC2086
+            "${MMSEQS}" rmdb "${TMP_PATH}/msa" ${VERB_PAR} \
+                || fail "rmdb died"
+        fi
+    ;;
+    "GTDB")
+        # shellcheck disable=SC2086
+        "${MMSEQS}" tar2db "${TMP_PATH}/gtdb.tar.gz" "${TMP_PATH}/tardb" --tar-include 'faa$' ${THREADS_PAR} \
+            || fail "tar2db died"
+        sed 's|_protein\.faa||g' "${TMP_PATH}/tardb.lookup" > "${TMP_PATH}/tardb.lookup.tmp"
+        mv -f -- "${TMP_PATH}/tardb.lookup.tmp" "${TMP_PATH}/tardb.lookup"
+        # shellcheck disable=SC2086
+        "${MMSEQS}" createdb "${TMP_PATH}/tardb" "${OUTDB}" ${COMP_PAR} \
+            || fail "createdb died"
+        if [ -n "${REMOVE_TMP}" ]; then
+            # shellcheck disable=SC2086
+            "${MMSEQS}" rmdb "${TMP_PATH}/tardb" ${VERB_PAR} \
+                || fail "rmdb died"
+        fi
     ;;
 esac
 fi
@@ -356,6 +399,52 @@ if [ -n "${TAXONOMY}" ] && notExists "${OUTDB}_mapping"; then
         "${MMSEQS}" nrtotaxmapping "${TMP_PATH}/pdb.accession2taxid" "${TMP_PATH}/prot.accession2taxid" "${OUTDB}" "${OUTDB}_mapping" ${THREADS_PAR} \
             || fail "nrtotaxmapping died"
        ;;
+     "GTDB")
+          # shellcheck disable=SC2016
+          CMD='BEGIN {
+              FS = "[\t;]";
+              rank["c"] = "class";
+              rank["d"] = "superkingdom";
+              rank["f"] = "family";
+              rank["g"] = "genus";
+              rank["o"] = "order";
+              rank["p"] = "phylum";
+              rank["s"] = "species";
+              taxCnt = 1;
+              ids["root"] = 1;
+              print "1\t|\t1\t|\tno rank\t|\t-\t|" > taxdir"/nodes.dmp";
+              print "1\t|\troot\t|\t-\t|\tscientific name\t|" > taxdir"/names.dmp";
+          }
+          {
+              prevTaxon=1;
+              for (i = 2; i <= NF; i++) {
+                  if ($i in ids) {
+                      prevTaxon = ids[$i];
+                  } else {
+                      taxCnt++;
+                      ids[$i] = taxCnt;
+                      r = substr($i, 0, 1);
+                      name = substr($i, 4);
+                      gsub(/_/, " ", name);
+                      printf("%s\t|\t%s\t|\t%s\t|\t-\t|\n", taxCnt, prevTaxon, rank[r]) > taxdir"/nodes.dmp";
+                      printf("%s\t|\t%s\t|\t-\t|\tscientific name\t|\n", taxCnt, name) > taxdir"/names.dmp";
+                      prevTaxon = taxCnt;
+                  }
+              }
+              printf("%s\t%s\n", $1, ids[$NF]) > taxdir"/mapping_genomes";
+          }'
+          mkdir -p "${TMP_PATH}/taxonomy"
+          awk -v taxdir="${TMP_PATH}/taxonomy" "$CMD" "${TMP_PATH}/bac120_taxonomy.tsv" "${TMP_PATH}/ar122_taxonomy.tsv"
+          touch "${TMP_PATH}/taxonomy/merged.dmp"
+          touch "${TMP_PATH}/taxonomy/delnodes.dmp"
+          # shellcheck disable=SC2086
+          "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxdb" --ncbi-tax-dump "${TMP_PATH}/taxonomy" --tax-mapping-file "${TMP_PATH}/taxonomy/mapping_genomes" --tax-mapping-mode 1 ${THREADS_PAR} \
+              || fail "createtaxdb died"
+          if [ -n "${REMOVE_TMP}" ]; then
+              rm -f -- "${TMP_PATH}/taxonomy/nodes.dmp" "${TMP_PATH}/taxonomy/names.dmp" "${TMP_PATH}/taxonomy/merged.dmp" "${TMP_PATH}/taxonomy/delnodes.dmp" "${TMP_PATH}/taxonomy/mapping_genomes" "${TMP_PATH}/bac120_taxonomy.tsv" "${TMP_PATH}/ar122_taxonomy.tsv"
+              rm -rf -- "${TMP_PATH}/taxdb" "${TMP_PATH}/taxonomy"
+          fi
+     ;;
      *)
        # shellcheck disable=SC2086
        "${MMSEQS}" prefixid "${OUTDB}_h" "${TMP_PATH}/header_pref.tsv" --tsv ${THREADS_PAR} \
