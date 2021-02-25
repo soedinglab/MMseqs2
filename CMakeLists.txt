@@ -73,7 +73,7 @@ elseif (HAVE_ARM8)
     set(MMSEQS_ARCH "${MMSEQS_ARCH} -march=armv8-a+simd")
     set(ARM 1)
 elseif (HAVE_S390X)
-    set(MMSEQS_ARCH "${MMSEQS_ARCH} -mzarch -march=z14")
+    set(MMSEQS_ARCH "${MMSEQS_ARCH} -march=z14 -mzarch -mzvector")
     set(ZARCH 1)
 endif ()
 
