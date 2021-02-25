@@ -40,7 +40,7 @@ public:
         }
         
         // convert to uint64_t
-        if (1 == sscanf(digitsString.c_str(), "%"PRIu64, &size)) {
+        if (1 == sscanf(digitsString.c_str(), "%" PRIu64, &size)) {
             uint64_t sizeBits = highestOneBitPosition(size);
             uint64_t unitFactorBits = highestOneBitPosition(unitFactor);
 
