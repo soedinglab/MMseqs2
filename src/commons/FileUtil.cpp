@@ -418,6 +418,9 @@ int FileUtil::parseDbType(const char *name) {
         Debug(Debug::ERROR) << "Cannot close file " << dbTypeFile << "\n";
         EXIT(EXIT_FAILURE);
     }
+#if SIMDE_ENDIAN_ORDER == SIMDE_ENDIAN_BIG
+    dbtype = __builtin_bswap64(dbtype);
+#endif
     return dbtype;
 }
 

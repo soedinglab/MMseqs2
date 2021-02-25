@@ -195,6 +195,9 @@ void DBWriter::writeDbtypeFile(const char* path, int dbtype, bool isCompressed) 
     std::string name = std::string(path) + ".dbtype";
     FILE* file = FileUtil::openAndDelete(name.c_str(), "wb");
     dbtype = isCompressed ? dbtype | (1 << 31) : dbtype & ~(1 << 31);
+#if SIMDE_ENDIAN_ORDER == SIMDE_ENDIAN_BIG
+    dbtype = __builtin_bswap64(dbtype);
+#endif
     size_t written = fwrite(&dbtype, sizeof(int), 1, file);
     if (written != 1) {
         Debug(Debug::ERROR) << "Can not write to data file " << name << "\n";
