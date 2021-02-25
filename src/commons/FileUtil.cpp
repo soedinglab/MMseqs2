@@ -2,6 +2,9 @@
 #include "Util.h"
 #include "Debug.h"
 
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include <simde/simde-common.h>
+
 #include <cstddef>
 #include <cstring>
 #include <climits>
@@ -419,7 +422,7 @@ int FileUtil::parseDbType(const char *name) {
         EXIT(EXIT_FAILURE);
     }
 #if SIMDE_ENDIAN_ORDER == SIMDE_ENDIAN_BIG
-    dbtype = __builtin_bswap64(dbtype);
+    dbtype = __builtin_bswap32(dbtype);
 #endif
     return dbtype;
 }
