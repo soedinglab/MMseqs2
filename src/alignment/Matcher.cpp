@@ -208,22 +208,23 @@ float Matcher::estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, uns
     return std::max(0.0f, estimatedSeqId);
 }
 
-
 std::string Matcher::compressAlignment(const std::string& bt) {
     std::string ret;
     char state = 'M';
     size_t counter = 0;
-    for(size_t i = 0; i < bt.size(); i++){
-        if(bt[i] != state){
-            ret.append(std::to_string(counter));
+    for (size_t i = 0; i < bt.size(); ++i) {
+        if (bt[i] != state) {
+            // we could leave this out if counter == 1
+            // to save a few byte (~5% of total cigar strings)
+            ret.append(SSTR(counter));
             ret.push_back(state);
             state = bt[i];
             counter = 1;
-        }else{
+        } else {
             counter++;
         }
     }
-    ret.append(std::to_string(counter));
+    ret.append(SSTR(counter));
     ret.push_back(state);
     return ret;
 }
