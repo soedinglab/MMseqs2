@@ -230,16 +230,15 @@ std::string Matcher::compressAlignment(const std::string& bt) {
 
 std::string Matcher::uncompressAlignment(const std::string &cbt) {
     std::string bt;
+    bt.reserve(cbt.size());
     size_t count = 0;
-    for(size_t i = 0; i < cbt.size(); i++) {
-        sscanf(cbt.c_str() + i, "%zu", &count);
-        for(size_t j = i; j < cbt.size(); j++ ){
-            if(isdigit(cbt[j]) == false){
-                char state = cbt[j];
-                bt.append(count, state);
-                i = j;
-                break;
-            }
+    for (size_t i = 0; i < cbt.size(); ++i) {
+        char c = cbt[i];
+        if (c >= '0' && c <= '9') {
+            count = count * 10 + c - '0';
+        } else {
+            bt.append(count == 0 ? 1 : count, c);
+            count = 0;
         }
     }
     return bt;
