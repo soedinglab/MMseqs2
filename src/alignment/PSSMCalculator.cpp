@@ -82,7 +82,7 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
     }
     // compute consensus sequence
     computeConsensusSequence(consensusSequence, matchWeight, queryLength, subMat->pBack, subMat->num2aa);
-    if(pcmode == Parameters::PCMODE_SUBSTITUION_SCORE && pca.values.normal() > 0.0){
+    if(pcmode == Parameters::PCMODE_SUBSTITUTION_SCORE && pca.values.normal() > 0.0){
         // add pseudocounts (compute the scalar product between matchWeight and substitution matrix with pseudo counts)
         preparePseudoCounts(matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, queryLength, (const float **) subMat->subMatrixPseudoCounts);
         //    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->num2aa, 20 );

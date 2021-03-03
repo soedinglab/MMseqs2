@@ -2091,7 +2091,7 @@ void Parameters::setDefaults() {
     covMSAThr = 0.0;           // default for minimum coverage threshold
     Ndiff = 1000;        // pick Ndiff most different sequences from alignment
     wg = false;
-    pcmode = PCMODE_SUBSTITUION_SCORE;
+    pcmode = PCMODE_SUBSTITUTION_SCORE;
     pca = MultiParam<PseudoCounts>(PseudoCounts(1.1, 1.4));
     pcb = MultiParam<PseudoCounts>(PseudoCounts(4.1, 5.8));
 
