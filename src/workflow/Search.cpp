@@ -10,6 +10,7 @@
 #include "translated_search.sh.h"
 #include "blastp.sh.h"
 #include "blastn.sh.h"
+#include "iterativepp.sh.h"
 #include "Parameters.h"
 
 #include <iomanip>
@@ -71,7 +72,7 @@ int computeSearchMode(int queryDbType, int targetDbType, int targetSrcDbType, in
             return Parameters::SEARCH_MODE_FLAG_QUERY_PROFILE | Parameters::SEARCH_MODE_FLAG_TARGET_AMINOACID;
         }
 
-        // protein/profile
+        // protein/profile -> iterativepp
         if (Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_AMINO_ACIDS) &&
             Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_HMM_PROFILE)){
             return Parameters::SEARCH_MODE_FLAG_QUERY_AMINOACID | Parameters::SEARCH_MODE_FLAG_TARGET_PROFILE;
@@ -248,7 +249,11 @@ int search(int argc, const char **argv, const Command& command) {
     // FIXME: use larger default k-mer size in target-profile case if memory is available
     // overwrite default kmerSize for target-profile searches and parse parameters again
     if (par.exhaustiveSearch == false && (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_PROFILE) && par.PARAM_K.wasSet == false) {
-        par.kmerSize = 5;
+        if ((searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_AMINOACID) && par.PARAM_NUM_ITERATIONS.wasSet) {
+            par.kmerSize = 0;
+        } else {
+            par.kmerSize = 5;
+        }
     }
 
     const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
@@ -266,11 +271,13 @@ int search(int argc, const char **argv, const Command& command) {
 
     // validate and set parameters for iterative search
     if (par.numIterations > 1) {
-        if (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_PROFILE) {
-            par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
-            Debug(Debug::ERROR) << "Iterative target-profile searches are not supported.\n";
-            EXIT(EXIT_FAILURE);
-        }
+        // commmented out to test iterativepp workflow
+        // TODO: check if there exists an aln db underneath the targetdb -> used specifically in iterativepp workflow
+//        if (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_PROFILE) {
+//            par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PREFILTER);
+//            Debug(Debug::ERROR) << "Iterative target-profile searches are not supported.\n";
+//            EXIT(EXIT_FAILURE);
+//        }
 
         par.addBacktrace = true;
         if (searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_PROFILE) {
@@ -351,6 +358,53 @@ int search(int argc, const char **argv, const Command& command) {
 
         program = tmpDir + "/searchslicedtargetprofile.sh";
         FileUtil::writeFile(program, searchslicedtargetprofile_sh, searchslicedtargetprofile_sh_len);
+    } else if (((searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_PROFILE) && (searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_AMINOACID))
+        && par.PARAM_NUM_ITERATIONS.wasSet){
+        par.exhaustiveSearch = true;
+        int originalNumIterations = par.numIterations;
+        par.numIterations = 1;
+//        par.realign = true;
+        // slice-search evalThr must be set as the minimum val between evalThr and evalProfile
+        // evalThr set as 1000 for regression / benchmark purposes
+        // TODO: recommend that evalThr = 1000, evalProfile = 0.1
+        // default for evalThr = 0.001; evalProfile = 0.1
+        par.addBacktrace = true;
+        cmd.addVariable("SEARCH_PAR", par.createParameterString(par.searchworkflow).c_str());
+        int originalEval = par.evalThr;
+        par.evalThr = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
+        par.numIterations = originalNumIterations;
+        cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
+        cmd.addVariable("SUBTRACT_PAR", par.createParameterString(par.subtractdbs).c_str());
+        cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
+        // set the pcmode at context-specific
+        par.pcmode = 1;
+        // TODO: is this right? or efficient?
+        cmd.addVariable("EXPAND_PAR", par.createParameterString(par.expand2profile).c_str());
+        cmd.addVariable("CONSENSUS_PAR", par.createParameterString(par.profile2seq).c_str());
+        for (int i = 1; i < par.numIterations; i++) {
+//            par.realign = false;
+            if (i == (par.numIterations - 1)) {
+                par.evalThr = originalEval;
+            }
+            cmd.addVariable(std::string("PREFILTER_PAR_" + SSTR(i)).c_str(),
+                            par.createParameterString(par.prefilter).c_str());
+            if (isUngappedMode) {
+                par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+                cmd.addVariable(std::string("ALIGNMENT_PAR_" + SSTR(i)).c_str(),
+                                par.createParameterString(par.rescorediagonal).c_str());
+                par.rescoreMode = originalRescoreMode;
+            } else {
+                cmd.addVariable(std::string("ALIGNMENT_PAR_" + SSTR(i)).c_str(),
+                        par.createParameterString(par.align).c_str());
+            }
+            cmd.addVariable(std::string("EXPANDPROFILE_PAR_" + SSTR(i)).c_str(),
+                            par.createParameterString(par.expand2profile).c_str());
+            if (i == (par.numIterations - 1)) {
+                cmd.addVariable("EXPANDALN_PAR", par.createParameterString(par.expandaln).c_str());
+            }
+        }
+        FileUtil::writeFile(tmpDir + "/iterativepp.sh", iterativepp_sh, iterativepp_sh_len);
+        program = std::string(tmpDir + "/iterativepp.sh");
     } else if (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_PROFILE) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         // we need to align all hits in case of target Profile hits
@@ -402,10 +456,8 @@ int search(int argc, const char **argv, const Command& command) {
                 cmd.addVariable(std::string("ALIGNMENT_PAR_" + SSTR(i)).c_str(),
                                 par.createParameterString(par.align).c_str());
             }
-            par.pca = 0.0;
             cmd.addVariable(std::string("PROFILE_PAR_" + SSTR(i)).c_str(),
                             par.createParameterString(par.result2profile).c_str());
-            par.pca = 1.0;
         }
 
         FileUtil::writeFile(tmpDir + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);

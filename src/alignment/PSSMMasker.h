@@ -37,6 +37,9 @@ public:
                 for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
                     pssmRes.prob[pos * Sequence::PROFILE_AA_SIZE + aa] = subMat.pBack[aa] * 0.5;
                 }
+                for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+                    pssmRes.pssm[pos * Sequence::PROFILE_AA_SIZE + aa] = -1;
+                }
                 pssmRes.consensus[pos] = 'X';
             }
         }

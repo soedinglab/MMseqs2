@@ -20,7 +20,6 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     Parameters &par = Parameters::getInstance();
     // default for result2profile to filter MSA
     par.filterMsa = 1;
-    par.pca = 0.0;
     if (returnAlnRes) {
         par.PARAM_FILTER_MAX_SEQ_ID.removeCategory(MMseqsParameter::COMMAND_EXPERT);
         par.PARAM_FILTER_QID.removeCategory(MMseqsParameter::COMMAND_EXPERT);
@@ -45,7 +44,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     std::pair<std::string, std::string> tmpOutput = std::make_pair(par.db4, par.db4Index);
 #endif
 
-   int localThreads = par.threads;
+    int localThreads = par.threads;
     if (static_cast<int>(resultReader.getSize()) <= par.threads) {
         localThreads = static_cast<int>(resultReader.getSize());
     }
@@ -101,9 +100,9 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
     ProbabilityMatrix probMatrix(subMat);
-    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
 
     if (qDbr->getDbtype() == -1 || targetSeqType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database\n";
@@ -125,18 +124,19 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-
-        Matcher matcher(qDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        Matcher matcher(qDbr->getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection,
+                        par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0);
         MultipleAlignment aligner(maxSequenceLength, &subMat);
-        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
+        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb);
         PSSMMasker masker(maxSequenceLength, probMatrix, subMat);
-        MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
         Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
         Sequence edgeSequence(maxSequenceLength, targetSeqType, &subMat, 0, false, false);
 
         char dbKey[255];
         const char *entry[255];
         char buffer[1024 + 32768*4];
+        float * pNullBuffer = new float[maxSequenceLength + 1];
 
         std::vector<Matcher::result_t> alnResults;
         alnResults.reserve(300);
@@ -205,7 +205,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                 alnResults.clear();
             }
             size_t filteredSetSize = isFiltering == false ? res.setSize
-                    : filter.filter(res, alnResults, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff);
+                                                          : filter.filter(res, alnResults, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff);
             //MultipleAlignment::print(res, &subMat);
 
             if (returnAlnRes) {
@@ -224,6 +224,12 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                 }
 
                 PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, par.wg);
+                if (par.compBiasCorrection == true){
+                    SubstitutionMatrix::calcGlobalAaBiasCorrection(&subMat, pssmRes.pssm, pNullBuffer,
+                                                                   Sequence::PROFILE_AA_SIZE,
+                                                                   res.centerLength);
+                }
+
                 if (par.maskProfile == true) {
                     masker.mask(centerSequence, pssmRes);
                 }
@@ -235,6 +241,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
             MultipleAlignment::deleteMSA(&res);
             seqSet.clear();
         }
+        delete[] pNullBuffer;
     }
     resultWriter.close(returnAlnRes == false);
     resultReader.close();

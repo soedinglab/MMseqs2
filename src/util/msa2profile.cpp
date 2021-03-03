@@ -18,7 +18,6 @@ KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 
 void setMsa2ProfileDefaults(Parameters *p) {
     p->msaType = 2;
-    p->pca = 0.0;
 }
 
 int msa2profile(int argc, const char **argv, const Command &command) {
@@ -119,7 +118,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     headerWriter.open();
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
 
     Debug::Progress progress(qDbr.getSize());
 #pragma omp parallel
@@ -129,12 +128,13 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pca, par.pcb);
+        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pcmode, par.pca, par.pcb);
         Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
         char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * (maxSeqLength + 1) * maxSetSize);
 
         float *seqWeight = new float[maxSetSize];
+        float *pNullBuffer = new float[maxSeqLength + 1];
         bool *maskedColumns = new bool[maxSeqLength + 1];
         std::string result;
         result.reserve((par.maxSeqLen + 1) * Sequence::PROFILE_READIN_SIZE * sizeof(char));
@@ -146,7 +146,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
         const bool maskByFirst = par.matchMode == 0;
         const float matchRatio = par.matchRatio;
-        MsaFilter filter(maxSeqLength + 1, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        MsaFilter filter(maxSeqLength + 1, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
 
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < qDbr.getSize(); ++id) {
@@ -335,6 +335,12 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             PSSMCalculator::Profile pssmRes =
                     calculator.computePSSMFromMSA(filteredSetSize, centerLength,
                                                   (const char **) msaSequences, par.wg);
+            if (par.compBiasCorrection == true){
+                SubstitutionMatrix::calcGlobalAaBiasCorrection(&subMat, pssmRes.pssm, pNullBuffer,
+                                                               Sequence::PROFILE_AA_SIZE,
+                                                               centerLength);
+            }
+
             pssmRes.toBuffer((const unsigned char*)msaSequences[0], centerLength, subMat, result);
 
             if (mode & DBReader<unsigned int>::USE_LOOKUP) {
@@ -349,7 +355,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         kseq_destroy(seq);
         free(msaSequences);
         free(msaContent);
-
+        delete[] pNullBuffer;
         delete[] maskedColumns;
         delete[] seqWeight;
     }

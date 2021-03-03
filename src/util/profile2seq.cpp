@@ -20,7 +20,7 @@ int profile2seq(int argc, const char **argv, const Command &command, bool consen
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
     writer.open();
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, 0.0);
 
     size_t entries = reader.getSize();
     Debug::Progress progress(entries);
@@ -36,7 +36,7 @@ int profile2seq(int argc, const char **argv, const Command &command, bool consen
 #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < entries; ++i) {
             progress.updateProgress();
-            seq.mapProfile(reader.getData(i, thread_idx), false, reader.getSeqLen(i));
+            seq.mapProfile(reader.getData(i, thread_idx), reader.getSeqLen(i));
             unsigned char * sequence = consensus ? seq.numConsensusSequence : seq.numSequence;
             for (int aa = 0; aa < seq.L; aa++) {
                 result.append(1, subMat.num2aa[sequence[aa]]);

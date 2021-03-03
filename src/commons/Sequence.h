@@ -75,24 +75,18 @@ const int8_t spaced_seed_30[] = {1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1,
 
 class Sequence {
 public:
-    Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat,  const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC = true, const std::string& userSpacedKmerPattern = "");
+    Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat,  const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection,
+             bool shouldAddPC = true, const std::string& userSpacedKmerPattern = "");
     ~Sequence();
 
     // Map char -> int
-    void mapSequence(size_t id, unsigned int dbKey, const char *seq, unsigned int seqLen, bool mapProfileScores = true);
+    void mapSequence(size_t id, unsigned int dbKey, const char *seq, unsigned int seqLen);
 
     // map sequence from SequenceLookup
     void mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *, const unsigned int> data);
 
     // map profile HMM, *data points to start position of Profile
-    void mapProfile(const char *profileData, bool mapScores,  unsigned int seqLen);
-
-    // mixture of library and profile prob
-    template <int T>
-    void mapProfileState(const char *profileState, unsigned int seqLen);
-
-    // map the profile state sequence
-    void mapProfileStateSequence(const char *profileStateSeq, unsigned int seqLen);
+    void mapProfile(const char *profileData, unsigned int seqLen);
 
     // checks if there is still a k-mer left
     bool hasNextKmer() {
@@ -407,11 +401,10 @@ public:
             simd_int kmer = simdi_load((((simd_int *) kmerWindow) + i));
             kmerHasX |= static_cast<unsigned int>(simdi8_movemask(simdi8_eq(kmer, xChar)));
         }
-        if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) ||
-            Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
+        if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE)) {
             nextProfileKmer();
             for (unsigned int i = 0; i < this->kmerSize; i++) {
-                    kmerWindow[i] = 0;
+                kmerWindow[i] = 0;
             }
             return kmerWindow;
         }
@@ -444,15 +437,13 @@ public:
 
     std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
 
-    std::pair<const char *, unsigned int> parseSpacedPattern(unsigned int kmerSize, bool spaced, const std::string& spacedKmerPattern);    
+    std::pair<const char *, unsigned int> parseSpacedPattern(unsigned int kmerSize, bool spaced, const std::string& spacedKmerPattern);
 
     const unsigned char *getAAPosInSpacedPattern() { return aaPosInSpacedPattern; }
 
     void printPSSM();
 
     void printProfileStatePSSM();
-
-    void printProfile();
 
     int8_t const* getAlignmentProfile() const {
         return profile_for_alignment;
@@ -491,10 +482,6 @@ public:
         return MathUtil::fpow2((float)(dblScore - scoreBias) / bitFactor) * pBack;
     }
 
-    const float *getProfile() {
-        return profile;
-    }
-
     const char *getSeqData() {
         return seqData;
     }
@@ -524,7 +511,6 @@ public:
     // Contains profile information
     short           *profile_score;
     unsigned int    *profile_index;
-    float           *profile;
     float           *neffM;
     float           *pseudocountsWeight;
 
@@ -584,10 +570,11 @@ private:
 
     // spaced pattern
     bool spaced;
-    
+
     // should add pseudo-counts when loading the profile?
     bool shouldAddPC;
 
+    // user kmer pattern
     std::string userSpacedKmerPattern;
 };
 #endif

@@ -185,8 +185,7 @@ public:
             length=index[id].length;
         }
 
-        if(Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE ) ||
-           Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_PROFILE_STATE_PROFILE ) ){
+        if(Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE ) ){
             // -1 null byte
             return (std::max(length, 1u) - 1u) / Sequence::PROFILE_READIN_SIZE;
         }else{

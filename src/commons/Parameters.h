@@ -65,8 +65,8 @@ public:
     static const int DBTYPE_AMINO_ACIDS = 0;
     static const int DBTYPE_NUCLEOTIDES = 1;
     static const int DBTYPE_HMM_PROFILE = 2;
-    static const int DBTYPE_PROFILE_STATE_SEQ = 3;
-    static const int DBTYPE_PROFILE_STATE_PROFILE = 4;
+    //static const int DBTYPE_PROFILE_STATE_SEQ = 3;
+    //static const int DBTYPE_PROFILE_STATE_PROFILE = 4;
     static const int DBTYPE_ALIGNMENT_RES = 5;
     static const int DBTYPE_CLUSTER_RES = 6;
     static const int DBTYPE_PREFILTER_RES = 7;
@@ -112,6 +112,10 @@ public:
 
     static const unsigned int EXPAND_TRANSFER_EVALUE = 0;
     static const unsigned int EXPAND_RESCORE_BACKTRACE = 1;
+
+    static const unsigned int PCMODE_SUBSTITUTION_SCORE = 0;
+    static const unsigned int PCMODE_CONTEXT_SPECIFIC = 1;
+
 
     static const unsigned int WRITER_ASCII_MODE = 0;
     static const unsigned int WRITER_COMPRESSED_MODE = 1;
@@ -348,8 +352,8 @@ public:
     const char** restArgv;
     int restArgc;
 
-    MultiParam<char*> scoringMatrixFile;       // path to scoring matrix
-    MultiParam<char*> seedScoringMatrixFile;   // seed sub. matrix
+    MultiParam<NuclAA<std::string>> scoringMatrixFile;       // path to scoring matrix
+    MultiParam<NuclAA<std::string>> seedScoringMatrixFile;   // seed sub. matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
     int    verbosity;                    // log level
@@ -362,7 +366,7 @@ public:
     float  sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
     int    kmerScore;                    // kmer score for the prefilter
-    MultiParam<int> alphabetSize;                 // alphabet size for the prefilter
+    MultiParam<NuclAA<int>> alphabetSize;                 // alphabet size for the prefilter
     int    compBiasCorrection;           // Aminoacid composiont correction
     bool   diagonalScoring;              // switch diagonal scoring
     int    exactKmerMatching;            // only exact k-mer matching
@@ -399,8 +403,9 @@ public:
     int    alnLenThr;                    // min. alignment length
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
-    MultiParam<int> gapOpen;             // gap open cost
-    MultiParam<int> gapExtend;           // gap extension cost
+    MultiParam<NuclAA<int>> gapOpen;             // gap open cost
+    MultiParam<NuclAA<int>> gapExtend;           // gap extension cost
+    float correlationScoreWeight; // correlation score weight
     int    zdrop;                        // zdrop
 
     // workflow
@@ -480,8 +485,9 @@ public:
     float covMSAThr;
     int Ndiff;
     bool wg;
-    float pca;
-    float pcb;
+    int pcmode;
+    MultiParam<PseudoCounts> pca;
+    MultiParam<PseudoCounts> pcb;
 
     // sequence2profile
     float neff;
@@ -498,7 +504,7 @@ public:
 
     // linearcluster
     int kmersPerSequence;
-    MultiParam<float> kmersPerSequenceScale;
+    MultiParam<NuclAA<float>> kmersPerSequenceScale;
     bool includeOnlyExtendable;
     bool ignoreMultiKmer;
     int hashShift;
@@ -719,6 +725,7 @@ public:
     PARAMETER(PARAM_SCORE_BIAS)
     PARAMETER(PARAM_REALIGN_SCORE_BIAS)
     PARAMETER(PARAM_REALIGN_MAX_SEQS)
+    PARAMETER(PARAM_CORR_SCORE_WEIGHT)
     PARAMETER(PARAM_ALT_ALIGNMENT)
     PARAMETER(PARAM_GAP_OPEN)
     PARAMETER(PARAM_GAP_EXTEND)
@@ -772,6 +779,7 @@ public:
     PARAMETER(PARAM_FILTER_COV)
     PARAMETER(PARAM_FILTER_NDIFF)
     PARAMETER(PARAM_WG)
+    PARAMETER(PARAM_PC_MODE)
     PARAMETER(PARAM_PCA)
     PARAMETER(PARAM_PCB)
 
@@ -997,7 +1005,6 @@ public:
     std::vector<MMseqsParameter*> convertprofiledb;
     std::vector<MMseqsParameter*> sequence2profile;
     std::vector<MMseqsParameter*> result2profile;
-    std::vector<MMseqsParameter*> result2pp;
     std::vector<MMseqsParameter*> result2msa;
     std::vector<MMseqsParameter*> result2dnamsa;
     std::vector<MMseqsParameter*> filterresult;
@@ -1072,7 +1079,6 @@ public:
     std::vector<MMseqsParameter*> createtaxdb;
     std::vector<MMseqsParameter*> profile2pssm;
     std::vector<MMseqsParameter*> profile2seq;
-    std::vector<MMseqsParameter*> profile2cs;
     std::vector<MMseqsParameter*> besthitbyset;
     std::vector<MMseqsParameter*> combinepvalbyset;
     std::vector<MMseqsParameter*> multihitdb;
@@ -1105,8 +1111,6 @@ public:
             case DBTYPE_AMINO_ACIDS: return "Aminoacid";
             case DBTYPE_NUCLEOTIDES: return "Nucleotide";
             case DBTYPE_HMM_PROFILE: return "Profile";
-            case DBTYPE_PROFILE_STATE_SEQ: return "Profile state";
-            case DBTYPE_PROFILE_STATE_PROFILE: return "Profile profile";
             case DBTYPE_ALIGNMENT_RES: return "Alignment";
             case DBTYPE_CLUSTER_RES: return "Clustering";
             case DBTYPE_PREFILTER_RES: return "Prefilter";
@@ -1128,7 +1132,6 @@ public:
 protected:
     Parameters();
     static Parameters* instance;
-    virtual ~Parameters() {};
 
 private:
     Parameters(Parameters const&);

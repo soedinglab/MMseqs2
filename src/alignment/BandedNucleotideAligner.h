@@ -24,7 +24,7 @@ public:
     void initQuery(Sequence *q);
 
     s_align align(Sequence * targetSeqObj, int diagonal, bool reverse,
-                  std::string & backtrace, int & aaIds, EvalueComputation * evaluer, bool wrappedScoring=false);
+                  std::string & backtrace, EvalueComputation * evaluer, bool wrappedScoring=false);
 
 private:
     SubstitutionMatrix::FastMatrix fastMatrix;

@@ -32,14 +32,14 @@ extern const char* binary_name;
 extern const char* version;
 
 Parameters::Parameters():
-        scoringMatrixFile("INVALID", "INVALID"),
-        seedScoringMatrixFile("INVALID", "INVALID"),
-        alphabetSize(INT_MAX,INT_MAX),
+        scoringMatrixFile(NuclAA<std::string>("INVALID", "INVALID")),
+        seedScoringMatrixFile(NuclAA<std::string>("INVALID", "INVALID")),
+        alphabetSize(NuclAA<int>(INT_MAX,INT_MAX)),
         PARAM_S(PARAM_S_ID, "-s", "Sensitivity", "Sensitivity: 1.0 faster; 4.0 fast; 7.5 sensitive", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_K(PARAM_K_ID, "-k", "k-mer length", "k-mer length (0: automatically set to optimum)", typeid(int), (void *) &kmerSize, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_THREADS(PARAM_THREADS_ID, "--threads", "Threads", "Number of CPU-cores used (all by default)", typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
         PARAM_COMPRESSED(PARAM_COMPRESSED_ID, "--compressed", "Compressed", "Write compressed output", typeid(int), (void *) &compressed, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
-        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID, "--alph-size", "Alphabet size", "Alphabet size (range 2-21)", typeid(MultiParam<int>), (void *) &alphabetSize, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID, "--alph-size", "Alphabet size", "Alphabet size (range 2-21)", typeid(MultiParam<NuclAA<int>>), (void *) &alphabetSize, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID, "--max-seq-len", "Max sequence length", "Maximum sequence length", typeid(size_t), (void *) &maxSeqLen, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID, "--diag-score", "Diagonal scoring", "Use ungapped diagonal scoring during prefilter", typeid(bool), (void *) &diagonalScoring, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_EXACT_KMER_MATCHING(PARAM_EXACT_KMER_MATCHING_ID, "--exact-kmer-matching", "Exact k-mer matching", "Extract only exact k-mers for matching (range 0-1)", typeid(int), (void *) &exactKmerMatching, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
@@ -53,8 +53,8 @@ Parameters::Parameters():
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split memory limit", "Set max memory per split. E.g. 800B, 5K, 10M, 1G. Default (0) to all available system memory", typeid(ByteParser), (void *) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_DISK_SPACE_LIMIT(PARAM_DISK_SPACE_LIMIT_ID, "--disk-space-limit", "Disk space limit", "Set max disk space to use for reverse profile searches. E.g. 800B, 5K, 10M, 1G. Default (0) to all available disk space in the temp folder", typeid(ByteParser), (void *) &diskSpaceLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID, "--split-aa", "Split by amino acid", "Try to find the best split boundaries by entry lengths", typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_SUB_MAT(PARAM_SUB_MAT_ID, "--sub-mat", "Substitution matrix", "Substitution matrix file", typeid(MultiParam<char*>), (void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_SEED_SUB_MAT(PARAM_SEED_SUB_MAT_ID, "--seed-sub-mat", "Seed substitution matrix", "Substitution matrix file for k-mer generation", typeid(MultiParam<char*>), (void *) &seedScoringMatrixFile, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SUB_MAT(PARAM_SUB_MAT_ID, "--sub-mat", "Substitution matrix", "Substitution matrix file", typeid(MultiParam<NuclAA<std::string>>), (void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SEED_SUB_MAT(PARAM_SEED_SUB_MAT_ID, "--seed-sub-mat", "Seed substitution matrix", "Substitution matrix file for k-mer generation", typeid(MultiParam<NuclAA<std::string>>), (void *) &seedScoringMatrixFile, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID, "--comp-bias-corr", "Compositional bias", "Correct for locally biased amino acid composition (range 0-1)", typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID, "--spaced-kmer-mode", "Spaced k-mers", "0: use consecutive positions in k-mers; 1: use spaced k-mers", typeid(int), (void *) &spacedKmer, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove temporary files", "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
@@ -78,9 +78,10 @@ Parameters::Parameters():
         PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID, "--score-bias", "Score bias", "Score bias when computing SW alignment (in bits)", typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_REALIGN_SCORE_BIAS(PARAM_REALIGN_SCORE_BIAS_ID, "--realign-score-bias", "Realign score bias", "Additional bias when computing realignment", typeid(float), (void *) &realignScoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_REALIGN_MAX_SEQS(PARAM_REALIGN_MAX_SEQS_ID, "--realign-max-seqs", "Realign max seqs", "Maximum number of results to return in realignment", typeid(int), (void *) &realignMaxSeqs, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_CORR_SCORE_WEIGHT(PARAM_CORR_SCORE_WEIGHT_ID, "--corr-score-weight", "Correlation score weight", "Weight of backtrace correlation score that is added to the alignment score", typeid(float), (void *) &correlationScoreWeight, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID, "--alt-ali", "Alternative alignments", "Show up to this many alternative alignments", typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
-        PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID, "--gap-open", "Gap open cost", "Gap open cost", typeid(MultiParam<int>), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID, "--gap-extend", "Gap extension cost", "Gap extension cost", typeid(MultiParam<int>), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID, "--gap-open", "Gap open cost", "Gap open cost", typeid(MultiParam<NuclAA<int>>), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID, "--gap-extend", "Gap extension cost", "Gap extension cost", typeid(MultiParam<NuclAA<int>>), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_ZDROP(PARAM_ZDROP_ID, "--zdrop", "Zdrop", "Maximal allowed difference between score values before alignment is truncated  (nucleotide alignment only)", typeid(int), (void*) &zdrop, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID, "--cluster-mode", "Cluster mode", "0: Set-Cover (greedy)\n1: Connected component (BLASTclust)\n2,3: Greedy clustering by sequence length (CDHIT)", typeid(int), (void *) &clusteringMode, "[0-3]{1}$", MMseqsParameter::COMMAND_CLUST),
@@ -121,8 +122,9 @@ Parameters::Parameters():
         PARAM_FILTER_COV(PARAM_FILTER_COV_ID, "--cov", "Minimum coverage", "Filter output MSAs using min. fraction of query residues covered by matched sequences [0.0,1.0]", typeid(float), (void *) &covMSAThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_NDIFF(PARAM_FILTER_NDIFF_ID, "--diff", "Select N most diverse seqs", "Filter MSAs by selecting most diverse set of sequences, keeping at least this many seqs in each MSA block of length 50", typeid(int), (void *) &Ndiff, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_WG(PARAM_WG_ID, "--wg", "Global sequence weighting", "Use global sequence weighting for profile calculation", typeid(bool), (void *) &wg, "", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "Pseudo count admixture strength", typeid(float), (void *) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "Pseudo counts: Neff at half of maximum admixture (range 0.0-inf)", typeid(float), (void *) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PC_MODE(PARAM_PC_MODE_ID, "--pseudo-cnt-mode", "Pseudo count mode", "use 0: substitution-matrix or 1: context-specific pseudocounts", typeid(int), (void *) &pcmode, "^[0-1]{1}$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "Pseudo count admixture strength", typeid(MultiParam<PseudoCounts>), (void *) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "Pseudo counts: Neff at half of maximum admixture (range 0.0-inf)", typeid(MultiParam<PseudoCounts>), (void *) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         // sequence2profile
         PARAM_NEFF(PARAM_NEFF_ID, "--neff", "Neff", "Neff included into context state profile (1.0,20.0)", typeid(float), (void *) &neff, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_TAU(PARAM_TAU_ID, "--tau", "Tau", "Tau: context state pseudo count mixture (0.0,1.0)", typeid(float), (void *) &tau, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
@@ -136,7 +138,7 @@ Parameters::Parameters():
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "One of: linecount, mean, doolittle, charges, seqlen, firstline", typeid(std::string), (void *) &stat, ""),
         // linearcluster
         PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "k-mers per sequence", "k-mers per sequence", typeid(int), (void *) &kmersPerSequence, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
-        PARAM_KMER_PER_SEQ_SCALE(PARAM_KMER_PER_SEQ_SCALE_ID, "--kmer-per-seq-scale", "Scale k-mers per sequence", "Scale k-mer per sequence based on sequence length as kmer-per-seq val + scale x seqlen", typeid(MultiParam<float>), (void *) &kmersPerSequenceScale, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_CLUSTLINEAR),
+        PARAM_KMER_PER_SEQ_SCALE(PARAM_KMER_PER_SEQ_SCALE_ID, "--kmer-per-seq-scale", "Scale k-mers per sequence", "Scale k-mer per sequence based on sequence length as kmer-per-seq val + scale x seqlen", typeid(MultiParam<NuclAA<float>>), (void *) &kmersPerSequenceScale, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_INCLUDE_ONLY_EXTENDABLE(PARAM_INCLUDE_ONLY_EXTENDABLE_ID, "--include-only-extendable", "Include only extendable", "Include only extendable", typeid(bool), (void *) &includeOnlyExtendable, "", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_IGNORE_MULTI_KMER(PARAM_IGNORE_MULTI_KMER_ID, "--ignore-multi-kmer", "Skip repeating k-mers", "Skip k-mers occurring multiple times (>=2)", typeid(bool), (void *) &ignoreMultiKmer, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash initialization", typeid(int), (void *) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
@@ -358,6 +360,7 @@ Parameters::Parameters():
     align.push_back(&PARAM_REALIGN);
     align.push_back(&PARAM_REALIGN_SCORE_BIAS);
     align.push_back(&PARAM_REALIGN_MAX_SEQS);
+    align.push_back(&PARAM_CORR_SCORE_WEIGHT);
     align.push_back(&PARAM_GAP_OPEN);
     align.push_back(&PARAM_GAP_EXTEND);
     align.push_back(&PARAM_ZDROP);
@@ -488,6 +491,7 @@ Parameters::Parameters():
     result2profile.push_back(&PARAM_FILTER_QSC);
     result2profile.push_back(&PARAM_FILTER_COV);
     result2profile.push_back(&PARAM_FILTER_NDIFF);
+    result2profile.push_back(&PARAM_PC_MODE);
     result2profile.push_back(&PARAM_PCA);
     result2profile.push_back(&PARAM_PCB);
     result2profile.push_back(&PARAM_PRELOAD_MODE);
@@ -496,14 +500,6 @@ Parameters::Parameters():
     result2profile.push_back(&PARAM_THREADS);
     result2profile.push_back(&PARAM_COMPRESSED);
     result2profile.push_back(&PARAM_V);
-
-    // result2pp
-    result2pp.push_back(&PARAM_SUB_MAT);
-    result2pp.push_back(&PARAM_E_PROFILE);
-    result2pp.push_back(&PARAM_PRELOAD_MODE);
-    result2pp.push_back(&PARAM_THREADS);
-    result2pp.push_back(&PARAM_COMPRESSED);
-    result2pp.push_back(&PARAM_V);
 
     // createtsv
     createtsv.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
@@ -587,6 +583,7 @@ Parameters::Parameters():
     msa2profile.push_back(&PARAM_SUB_MAT);
     msa2profile.push_back(&PARAM_MATCH_MODE);
     msa2profile.push_back(&PARAM_MATCH_RATIO);
+    msa2profile.push_back(&PARAM_PC_MODE);
     msa2profile.push_back(&PARAM_PCA);
     msa2profile.push_back(&PARAM_PCB);
     msa2profile.push_back(&PARAM_NO_COMP_BIAS_CORR);
@@ -620,14 +617,6 @@ Parameters::Parameters():
     profile2seq.push_back(&PARAM_COMPRESSED);
     profile2seq.push_back(&PARAM_V);
 
-    // profile2cs
-    profile2cs.push_back(&PARAM_SUB_MAT);
-//    profile2cs.push_back(&PARAM_ALPH_SIZE);
-    profile2cs.push_back(&PARAM_PCA);
-    profile2cs.push_back(&PARAM_PCB);
-    profile2cs.push_back(&PARAM_THREADS);
-    profile2cs.push_back(&PARAM_COMPRESSED);
-    profile2cs.push_back(&PARAM_V);
 
     // extract orf
     extractorfs.push_back(&PARAM_ORF_MIN_LENGTH);
@@ -1077,6 +1066,7 @@ Parameters::Parameters():
 //    expandaln.push_back(&PARAM_SEQ_ID_MODE);
     expandaln.push_back(&PARAM_C);
     expandaln.push_back(&PARAM_COV_MODE);
+    expandaln.push_back(&PARAM_PC_MODE);
     expandaln.push_back(&PARAM_PCA);
     expandaln.push_back(&PARAM_PCB);
     expandaln.push_back(&PARAM_COMPRESSED);
@@ -1106,6 +1096,7 @@ Parameters::Parameters():
     expand2profile.push_back(&PARAM_FILTER_QSC);
     expand2profile.push_back(&PARAM_FILTER_COV);
     expand2profile.push_back(&PARAM_FILTER_NDIFF);
+    expand2profile.push_back(&PARAM_PC_MODE);
     expand2profile.push_back(&PARAM_PCA);
     expand2profile.push_back(&PARAM_PCB);
     expand2profile.push_back(&PARAM_COMPRESSED);
@@ -1371,15 +1362,15 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
                     } else if (par->type == typeid(std::string)) {
                         paramString.append(" STR");
                         valueString = *((std::string *) par->value);
-                    } else if (par->type == typeid(MultiParam<char*>)) {
+                    } else if (par->type == typeid(MultiParam<NuclAA<std::string>>)) {
                         paramString.append(" TWIN"); //nucl:VAL,aa:VAL"
-                        valueString = MultiParam<char*>::format(*((MultiParam<char*> *) par->value));
-                    } else if (par->type == typeid(MultiParam<int>)) {
+                        valueString = MultiParam<NuclAA<std::string>>::format(*((MultiParam<NuclAA<std::string>> *) par->value));
+                    } else if (par->type == typeid(MultiParam<NuclAA<int>>)) {
                         paramString.append(" TWIN"); //nucl:VAL,aa:VAL"
-                        valueString = MultiParam<int>::format(*((MultiParam<int> *) par->value));
-                    } else if (par->type == typeid(MultiParam<float>)) {
+                        valueString = MultiParam<NuclAA<int>>::format(*((MultiParam<NuclAA<int>> *) par->value));
+                    } else if (par->type == typeid(MultiParam<NuclAA<float>>)) {
                         paramString.append(" TWIN"); //nucl:VAL,aa:VAL"
-                        valueString = MultiParam<float>::format(*((MultiParam<float> *) par->value));
+                        valueString = MultiParam<NuclAA<float>>::format(*((MultiParam<NuclAA<float>> *) par->value));
                     }
 
                     ss << " " << paramString << std::string(maxParamWidth < paramString.size()? 1 : maxParamWidth - paramString.size(), ' ');
@@ -1546,40 +1537,51 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                             }
                         }
                         argIdx++;
-                    } else if (typeid(MultiParam<char*>) == par[parIdx]->type) {
+                    } else if (typeid(MultiParam<NuclAA<std::string>>) == par[parIdx]->type) {
                         std::string val(pargv[argIdx+1]);
                         if (Util::startWith("b64:", val)) {
                             val = base64_decode(val.c_str() + 4, val.size() - 4);
                         }
-                        MultiParam<char*> value = MultiParam<char*>(val);
-                        if (value == MultiParam<char*>("INVALID", "INVALID")) {
+                        NuclAA<std::string> value = MultiParam<NuclAA<std::string>>(val).values;
+                        if (value.first == "INVALID" || value.second == "INVALID") {
                             printUsageMessage(command, 0xFFFFFFFF);
                             Debug(Debug::ERROR) << "Error in value parsing " << par[parIdx]->name << "\n";
                             EXIT(EXIT_FAILURE);
                         } else {
-                            *((MultiParam<char*> *) par[parIdx]->value) = value;
+                            *((MultiParam<NuclAA<std::string>> *) par[parIdx]->value) = value;
                             par[parIdx]->wasSet = true;
                         }
                         argIdx++;
-                    }else if (typeid(MultiParam<int>) == par[parIdx]->type) {
-                        MultiParam<int> value = MultiParam<int>(pargv[argIdx+1]);
-                        if (value.aminoacids == INT_MAX || value.nucleotides == INT_MAX) {
+                    }else if (typeid(MultiParam<NuclAA<int>>) == par[parIdx]->type) {
+                        NuclAA<int> value = MultiParam<NuclAA<int>>(pargv[argIdx+1]).values;
+                        if (value.first == INT_MAX || value.second == INT_MAX) {
                             printUsageMessage(command, 0xFFFFFFFF);
                             Debug(Debug::ERROR) << "Error in value parsing " << par[parIdx]->name << "\n";
                             EXIT(EXIT_FAILURE);
                         } else {
-                            *((MultiParam<int> *) par[parIdx]->value) = value;
+                            *((MultiParam<NuclAA<int>> *) par[parIdx]->value) = value;
                             par[parIdx]->wasSet = true;
                         }
                         argIdx++;
-                    }else if (typeid(MultiParam<float>) == par[parIdx]->type) {
-                        MultiParam<float> value = MultiParam<float>(pargv[argIdx + 1]);
-                        if (value.aminoacids == FLT_MAX || value.nucleotides == FLT_MAX) {
+                    }else if (typeid(MultiParam<NuclAA<float>>) == par[parIdx]->type) {
+                        NuclAA<float> value = MultiParam<NuclAA<float>>(pargv[argIdx + 1]).values;
+                        if (value.first == FLT_MAX || value.second == FLT_MAX) {
                             printUsageMessage(command, 0xFFFFFFFF);
                             Debug(Debug::ERROR) << "Error in value parsing " << par[parIdx]->name << "\n";
                             EXIT(EXIT_FAILURE);
                         } else {
-                            *((MultiParam<float> *) par[parIdx]->value) = value;
+                            *((MultiParam<NuclAA<float>> *) par[parIdx]->value) = value;
+                            par[parIdx]->wasSet = true;
+                        }
+                        argIdx++;
+                    }else if (typeid(MultiParam<PseudoCounts>) == par[parIdx]->type) {
+                        PseudoCounts value = MultiParam<PseudoCounts>(pargv[argIdx + 1]).values;
+                        if (value.first == FLT_MAX || value.second == FLT_MAX) {
+                            printUsageMessage(command, 0xFFFFFFFF);
+                            Debug(Debug::ERROR) << "Error in value parsing " << par[parIdx]->name << "\n";
+                            EXIT(EXIT_FAILURE);
+                        } else {
+                            *((MultiParam<PseudoCounts> *) par[parIdx]->value) = value;
                             par[parIdx]->wasSet = true;
                         }
                         argIdx++;
@@ -1838,28 +1840,24 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
 
     // set up substituionMatrix
     for(size_t i = 0 ; i < substitutionMatrices.size(); i++) {
-        bool isAminoAcid   = (strcmp(scoringMatrixFile.aminoacids, substitutionMatrices[i].name.c_str()) == 0);
-        bool isNucleotide  = (strcmp(scoringMatrixFile.nucleotides, substitutionMatrices[i].name.c_str()) == 0);
-        bool isSeedAminoAcid   = (strcmp(seedScoringMatrixFile.aminoacids, substitutionMatrices[i].name.c_str()) == 0);
-        bool isSeedNucleotide  = (strcmp(seedScoringMatrixFile.nucleotides, substitutionMatrices[i].name.c_str()) == 0);
+        bool isAminoAcid   = scoringMatrixFile.values.aminoacid() == substitutionMatrices[i].name;
+        bool isNucleotide  = scoringMatrixFile.values.nucleotide() == substitutionMatrices[i].name;
+        bool isSeedAminoAcid   = seedScoringMatrixFile.values.aminoacid() == substitutionMatrices[i].name;
+        bool isSeedNucleotide  = seedScoringMatrixFile.values.nucleotide() == substitutionMatrices[i].name;
         if (isAminoAcid || isNucleotide|| isSeedAminoAcid|| isSeedNucleotide) {
             std::string matrixData((const char *)substitutionMatrices[i].subMatData, substitutionMatrices[i].subMatDataLen);
             std::string matrixName = substitutionMatrices[i].name;
             if(isAminoAcid) {
-                free(scoringMatrixFile.aminoacids);
-                scoringMatrixFile.aminoacids = BaseMatrix::serialize(matrixName, matrixData);
+                scoringMatrixFile.values.aminoacid(BaseMatrix::serialize(matrixName, matrixData));
             }
             if(isNucleotide) {
-                free(scoringMatrixFile.nucleotides);
-                scoringMatrixFile.nucleotides = BaseMatrix::serialize(matrixName, matrixData);
+                scoringMatrixFile.values.nucleotide(BaseMatrix::serialize(matrixName, matrixData));
             }
             if(isSeedAminoAcid) {
-                free(seedScoringMatrixFile.aminoacids);
-                seedScoringMatrixFile.aminoacids = BaseMatrix::serialize(matrixName, matrixData);
+                seedScoringMatrixFile.values.aminoacid(BaseMatrix::serialize(matrixName, matrixData));
             }
             if(isSeedNucleotide) {
-                free(seedScoringMatrixFile.nucleotides);
-                seedScoringMatrixFile.nucleotides = BaseMatrix::serialize(matrixName, matrixData);
+                seedScoringMatrixFile.values.nucleotide(BaseMatrix::serialize(matrixName, matrixData));
             }
         }
     }
@@ -2035,18 +2033,21 @@ void Parameters::printParameters(const std::string &module, int argc, const char
             ss << *((size_t *)par[i]->value);
         } else if(typeid(ByteParser) == par[i]->type) {
             ss << ByteParser::format(*((size_t *)par[i]->value), 'a', 'h');
-        } else if(PARAM_SUB_MAT.uniqid == par[i]->uniqid ||
-                  PARAM_SEED_SUB_MAT.uniqid == par[i]->uniqid) {
-            MultiParam<char*> * param = ((MultiParam<char*> *) par[i]->value);
-            MultiParam<char*> tmpPar(BaseMatrix::unserializeName(param->aminoacids).c_str(),
-                                     BaseMatrix::unserializeName(param->nucleotides).c_str());
-            ss << MultiParam<char*>::format(tmpPar);
-        } else if(typeid(MultiParam<char*>) == par[i]->type) {
-            ss << MultiParam<char*>::format(*((MultiParam<char*> *)par[i]->value));
-        } else if(typeid(MultiParam<int>) == par[i]->type) {
-            ss << MultiParam<int>::format(*((MultiParam<int> *)par[i]->value));
-        } else if(typeid(MultiParam<float>) == par[i]->type) {
-            ss << MultiParam<float>::format(*((MultiParam<float> *)par[i]->value));
+        } else if(PARAM_SUB_MAT.uniqid == par[i]->uniqid || PARAM_SEED_SUB_MAT.uniqid == par[i]->uniqid) {
+            MultiParam<NuclAA<std::string>>* param = ((MultiParam<NuclAA<std::string>>*) par[i]->value);
+            MultiParam<NuclAA<std::string>> tmpPar(NuclAA<std::string>(
+                BaseMatrix::unserializeName(param->values.aminoacid().c_str()),
+                BaseMatrix::unserializeName(param->values.nucleotide().c_str())
+            ));
+            ss << MultiParam<NuclAA<std::string>>::format(tmpPar);
+        } else if(typeid(MultiParam<NuclAA<std::string>>) == par[i]->type) {
+            ss << MultiParam<NuclAA<std::string>>::format(*((MultiParam<NuclAA<std::string>> *)par[i]->value));
+        } else if(typeid(MultiParam<NuclAA<int>>) == par[i]->type) {
+            ss << MultiParam<NuclAA<int>>::format(*((MultiParam<NuclAA<int>> *)par[i]->value));
+        } else if(typeid(MultiParam<NuclAA<float>>) == par[i]->type) {
+            ss << MultiParam<NuclAA<float>>::format(*((MultiParam<NuclAA<float>> *)par[i]->value));
+        } else if(typeid(MultiParam<PseudoCounts>) == par[i]->type) {
+            ss << MultiParam<PseudoCounts>::format(*((MultiParam<PseudoCounts> *)par[i]->value));
         } else if(typeid(float) == par[i]->type) {
             ss << *((float *)par[i]->value);
         } else if(typeid(double) == par[i]->type) {
@@ -2068,12 +2069,12 @@ void Parameters::setDefaults() {
     restArgv = NULL;
     restArgc = 0;
 
-    scoringMatrixFile =  MultiParam<char*>("blosum62.out", "nucleotide.out");
-    seedScoringMatrixFile = MultiParam<char*>("VTML80.out", "nucleotide.out");
+    scoringMatrixFile =  MultiParam<NuclAA<std::string>>(NuclAA<std::string>("blosum62.out", "nucleotide.out"));
+    seedScoringMatrixFile = MultiParam<NuclAA<std::string>>(NuclAA<std::string>("VTML80.out", "nucleotide.out"));
 
     kmerSize =  0;
     kmerScore = INT_MAX;
-    alphabetSize = MultiParam<int>(21,5);
+    alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(21,5));
     maxSeqLen = MAX_SEQ_LEN; // 2^16
     maxResListLen = 300;
     sensitivity = 4;
@@ -2134,8 +2135,8 @@ void Parameters::setDefaults() {
     seqIdThr = 0.0;
     alnLenThr = 0;
     altAlignment = 0;
-    gapOpen = MultiParam<int>(11, 5);
-    gapExtend = MultiParam<int>(1, 2);
+    gapOpen = MultiParam<NuclAA<int>>(NuclAA<int>(11, 5));
+    gapExtend = MultiParam<NuclAA<int>>(NuclAA<int>(1, 2));
     zdrop = 40;
     addBacktrace = false;
     realign = false;
@@ -2147,6 +2148,7 @@ void Parameters::setDefaults() {
     scoreBias = 0.0;
     realignScoreBias = -0.2f;
     realignMaxSeqs = INT_MAX;
+    correlationScoreWeight = 0.0;
 
     // affinity clustering
     maxIteration=1000;
@@ -2199,8 +2201,9 @@ void Parameters::setDefaults() {
     covMSAThr = 0.0;           // default for minimum coverage threshold
     Ndiff = 1000;        // pick Ndiff most different sequences from alignment
     wg = false;
-    pca = 1.0;
-    pcb = 1.5;
+    pcmode = PCMODE_SUBSTITUTION_SCORE;
+    pca = MultiParam<PseudoCounts>(PseudoCounts(1.1, 1.4));
+    pcb = MultiParam<PseudoCounts>(PseudoCounts(4.1, 5.8));
 
     // sequence2profile
     neff = 1.0;
@@ -2310,7 +2313,7 @@ void Parameters::setDefaults() {
 
     // linearcluster
     kmersPerSequence = 21;
-    kmersPerSequenceScale = MultiParam<float>(0.0, 0.2);
+    kmersPerSequenceScale = MultiParam<NuclAA<float>>(NuclAA<float>(0.0, 0.2));
     includeOnlyExtendable = false;
     ignoreMultiKmer = false;
     hashShift = 67;
@@ -2500,12 +2503,13 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
         } else if (typeid(double) == par[i]->type){
             ss << par[i]->name << " ";
             ss << *((double *)par[i]->value) << " ";
-        } else if (PARAM_SUB_MAT.uniqid == par[i]->uniqid ||
-                   PARAM_SEED_SUB_MAT.uniqid == par[i]->uniqid){
-            MultiParam<char*> * param = ((MultiParam<char*> *) par[i]->value);
-            MultiParam<char*> tmpPar(BaseMatrix::unserializeName(param->aminoacids).c_str(),
-                                     BaseMatrix::unserializeName(param->nucleotides).c_str());
-            std::string value = MultiParam<char*>::format(tmpPar);
+        } else if (PARAM_SUB_MAT.uniqid == par[i]->uniqid || PARAM_SEED_SUB_MAT.uniqid == par[i]->uniqid){
+            MultiParam<NuclAA<std::string>>* param = ((MultiParam<NuclAA<std::string>>*) par[i]->value);
+            MultiParam<NuclAA<std::string>> tmpPar(NuclAA<std::string>(
+                BaseMatrix::unserializeName(param->values.aminoacid().c_str()),
+                BaseMatrix::unserializeName(param->values.nucleotide().c_str())
+            ));
+            std::string value = MultiParam<NuclAA<std::string>>::format(tmpPar);
             // encode parameters as base64 if it contains whitespaces
             // whitespaces break parameters in the workflow shell scripts
             if (value.find_first_of(" \n\t") != std::string::npos) {
@@ -2530,21 +2534,24 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
             } else {
                 ss << par[i]->name << " 0 ";
             }
-        } else if (typeid(MultiParam<char*>) == par[i]->type) {
+        } else if (typeid(MultiParam<NuclAA<std::string>>) == par[i]->type) {
             ss << par[i]->name << " ";
-            std::string value = MultiParam<char*>::format(*((MultiParam<char*> *) par[i]->value));
+            std::string value = MultiParam<NuclAA<std::string>>::format(*((MultiParam<NuclAA<std::string>> *) par[i]->value));
             // see above
             if (value.find_first_of(" \n\t") != std::string::npos) {
                 ss << par[i]->name << " b64:" << base64_encode(value.c_str(), value.size()) << " ";
             } else {
                 ss << par[i]->name << " " << value << " ";
             }
-        } else if (typeid(MultiParam<int>) == par[i]->type) {
+        } else if (typeid(MultiParam<NuclAA<int>>) == par[i]->type) {
             ss << par[i]->name << " ";
-            ss << MultiParam<int>::format(*((MultiParam<int> *) par[i]->value)) << " ";
-        } else if (typeid(MultiParam<float>) == par[i]->type) {
+            ss << MultiParam<NuclAA<int>>::format(*((MultiParam<NuclAA<int>> *) par[i]->value)) << " ";
+        } else if (typeid(MultiParam<NuclAA<float>>) == par[i]->type) {
             ss << par[i]->name << " ";
-            ss << MultiParam<float>::format(*((MultiParam<float> *) par[i]->value)) << " ";
+            ss << MultiParam<NuclAA<float>>::format(*((MultiParam<NuclAA<float>> *) par[i]->value)) << " ";
+        } else if (typeid(MultiParam<PseudoCounts>) == par[i]->type) {
+            ss << par[i]->name << " ";
+            ss << MultiParam<PseudoCounts>::format(*((MultiParam<PseudoCounts> *) par[i]->value)) << " ";
         } else {
             Debug(Debug::ERROR) << "Wrong parameter type. Please inform the developers!\n";
             EXIT(EXIT_FAILURE);

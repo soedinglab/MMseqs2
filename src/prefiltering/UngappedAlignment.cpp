@@ -50,19 +50,6 @@ int UngappedAlignment::scalarDiagonalScoring(const char * profile,
     return max;
 }
 
-#ifdef AVX2
-inline __m256i Shuffle(const __m256i & value, const __m256i & shuffle)
-{
-    const __m256i K0 = _mm256_setr_epi8(
-            (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70,
-            (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0);
-    const __m256i K1 = _mm256_setr_epi8(
-            (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0,
-            (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70);
-    return _mm256_or_si256(_mm256_shuffle_epi8(value, _mm256_add_epi8(shuffle, K0)),
-                           _mm256_shuffle_epi8(_mm256_permute4x64_epi64(value, 0x4E), _mm256_add_epi8(shuffle, K1)));
-}
-#endif
 
 simd_int UngappedAlignment::vectorDiagonalScoring(const char *profile,
                                                 const char bias,
@@ -297,13 +284,8 @@ short UngappedAlignment::createProfile(Sequence *seq,
                                      short **subMat, int alphabetSize) {
     short bias = 0;
     int aaBias = 0;
-    if(Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
-        size_t matSize = 0;
-        if(Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
-            matSize = seq->L * alphabetSize;
-        }else{
-            matSize= seq->L * Sequence::PROFILE_AA_SIZE;
-        }
+    if(Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE)){
+        size_t matSize = seq->L * Sequence::PROFILE_AA_SIZE;
         const int8_t * mat = seq->getAlignmentProfile();
         for (size_t i = 0; i < matSize; i++){
             if (mat[i] < bias){
@@ -330,17 +312,11 @@ short UngappedAlignment::createProfile(Sequence *seq,
     bias = abs(bias) + abs(aaBias);
     memset(queryProfile, bias, PROFILESIZE * seq->L);
     // create profile
-    if(Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
+    if(Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE)) {
         const int8_t * profile_aln = seq->getAlignmentProfile();
         for (int pos = 0; pos < seq->L; pos++) {
-            if(Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
-                for (int aa_num = 0; aa_num < alphabetSize; aa_num++) {
-                    queryProfile[pos * PROFILESIZE + aa_num] = (profile_aln[aa_num * seq->L + pos] ) + bias;
-                }
-            }else{
-                for (size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
-                    queryProfile[pos * PROFILESIZE + aa_num] = (profile_aln[aa_num * seq->L + pos]) + bias;
-                }
+            for (size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
+                queryProfile[pos * PROFILESIZE + aa_num] = (profile_aln[aa_num * seq->L + pos]) + bias;
             }
         }
     }else{

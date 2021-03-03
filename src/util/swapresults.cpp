@@ -87,14 +87,14 @@ int doswap(Parameters& par, bool isGeneralMode) {
         }
         int gapOpen, gapExtend;
         if (Parameters::isEqualDbtype(target.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-            subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
-            gapOpen = par.gapOpen.nucleotides;
-            gapExtend = par.gapExtend.nucleotides;
+            subMat = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, 0.0);
+            gapOpen = par.gapOpen.values.nucleotide();
+            gapExtend =  par.gapExtend.values.nucleotide();
         } else {
             // keep score bias at 0.0 (improved ROC)
-            subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
-            gapOpen = par.gapOpen.aminoacids;
-            gapExtend = par.gapExtend.aminoacids;
+            subMat = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
+            gapOpen = par.gapOpen.values.aminoacid();
+            gapExtend = par.gapExtend.values.aminoacid();
         }
         evaluer = new EvalueComputation(aaResSize, subMat, gapOpen, gapExtend);
     }

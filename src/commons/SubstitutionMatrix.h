@@ -33,7 +33,7 @@ class SubstitutionMatrix: public BaseMatrix {
                                                              size_t alphabetSize,
                                                              BaseMatrix *subMat);
         static void calcGlobalAaBiasCorrection(const BaseMatrix * m,
-                                               short *profileScores,
+                                               char *profileScores,
                                                float *pNullBuffer,
                                                const size_t profileAASize,
                                                const int N);

@@ -97,6 +97,10 @@ private:
     int gapOpen;
     // costs to extend a gap
     int gapExtend;
+
+    // correction score weight
+    float correlationScoreWeight;
+
     // score difference to break alignment
     int zdrop;
 

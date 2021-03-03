@@ -79,8 +79,6 @@ public:
                                 size_t world_size, size_t *subdomain_start,
                                 size_t *subdomain_size);
 
-    static void rankedDescSort8(short *val, unsigned int *index);
-    static void rankedDescSort32(short *val, unsigned int *index);
     static void rankedDescSort20(short *val, unsigned int *index);
 
     static size_t getTotalSystemMemory();

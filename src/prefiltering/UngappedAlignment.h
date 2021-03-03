@@ -33,6 +33,20 @@ public:
         return bias;
     }
 
+#ifdef AVX2
+    static __m256i Shuffle(const __m256i & value, const __m256i & shuffle)
+    {
+        const __m256i K0 = _mm256_setr_epi8(
+                (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70,
+                (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0);
+        const __m256i K1 = _mm256_setr_epi8(
+                (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0,
+                (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70);
+        return _mm256_or_si256(_mm256_shuffle_epi8(value, _mm256_add_epi8(shuffle, K0)),
+                               _mm256_shuffle_epi8(_mm256_permute4x64_epi64(value, 0x4E), _mm256_add_epi8(shuffle, K1)));
+    }
+#endif
+
 private:
     const static unsigned int DIAGONALCOUNT = 0xFFFF + 1;
     const static unsigned int PROFILESIZE = 32;

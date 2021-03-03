@@ -38,7 +38,6 @@ set(util_source_files
         util/nrtotaxmapping.cpp
         util/countkmer.cpp
         util/prefixid.cpp
-        util/profile2cs.cpp
         util/profile2pssm.cpp
         util/profile2seq.cpp
         util/result2dnamsa.cpp
@@ -46,12 +45,12 @@ set(util_source_files
         util/result2msa.cpp
         util/result2rbh.cpp
         util/result2profile.cpp
-        util/result2pp.cpp
         util/result2repseq.cpp
         util/result2stats.cpp
         util/reverseseq.cpp
         util/cpmvrmlndb.cpp
         util/extractframes.cpp
+        util/sequence2profile.cpp
         util/sortresult.cpp
         util/splitdb.cpp
         util/splitsequence.cpp

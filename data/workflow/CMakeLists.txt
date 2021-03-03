@@ -25,5 +25,6 @@ set(GENERATED_WORKFLOWS
         workflow/linsearch.sh
         workflow/databases.sh
         workflow/nucleotide_clustering.sh
+        workflow/iterativepp.sh
         PARENT_SCOPE
         )

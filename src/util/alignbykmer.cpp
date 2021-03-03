@@ -51,15 +51,15 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         if(par.PARAM_K.wasSet == false) {
             par.kmerSize = 9;
         }
-        gapOpen = par.gapOpen.nucleotides;
-        gapExtend = par.gapExtend.nucleotides;
+        gapOpen = par.gapOpen.values.nucleotide();
+        gapExtend =  par.gapExtend.values.nucleotide();
     } else {
         if(par.PARAM_K.wasSet == false) {
             par.kmerSize = 4;
         }
         par.alphabetSize = 21;
-        gapOpen = par.gapOpen.aminoacids;
-        gapExtend = par.gapExtend.aminoacids;
+        gapOpen = par.gapOpen.values.aminoacid();
+        gapExtend = par.gapExtend.values.aminoacid();
     }
     par.printParameters(command.cmd, argc, argv, *command.params);
 
@@ -72,14 +72,14 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType,Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, 0.0);
     } else {
-        if (par.alphabetSize.aminoacids == 21) {
-            subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
+        if (par.alphabetSize.values.aminoacid() == 21) {
+            subMat = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
         } else {
-            SubstitutionMatrix sMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
+            SubstitutionMatrix sMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
             subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa,
-                    sMat.alphabetSize, par.alphabetSize.aminoacids, 2.0);
+                    sMat.alphabetSize, par.alphabetSize.values.aminoacid(), 2.0);
             SubstitutionMatrix::print(subMat->subMatrix, subMat->num2aa, subMat->alphabetSize );
         }
     }

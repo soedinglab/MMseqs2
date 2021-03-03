@@ -38,7 +38,6 @@ std::vector<int> DbValidator::allDbAndFlat = {Parameters::DBTYPE_SEQTAXDB, Param
                                               Parameters::DBTYPE_PREFILTER_RES, Parameters::DBTYPE_PREFILTER_REV_RES, Parameters::DBTYPE_CLUSTER_RES,
                                               Parameters::DBTYPE_OFFSETDB, Parameters::DBTYPE_GENERIC_DB, Parameters::DBTYPE_TAXONOMICAL_RESULT,
                                               Parameters::DBTYPE_FLATFILE};
-std::vector<int> DbValidator::csDb = {Parameters::DBTYPE_PROFILE_STATE_SEQ};
 std::vector<int> DbValidator::ca3mDb = {Parameters::DBTYPE_CA3M_DB};
 std::vector<int> DbValidator::msaDb = {Parameters::DBTYPE_MSA_DB};
 std::vector<int> DbValidator::genericDb = {Parameters::DBTYPE_GENERIC_DB};

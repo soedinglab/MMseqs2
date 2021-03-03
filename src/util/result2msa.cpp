@@ -113,8 +113,8 @@ int result2msa(int argc, const char **argv, const Command &command) {
     size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
-    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
+    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     if (qDbr.getDbtype() == -1 || tDbr->getDbtype() == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database\n";
         return EXIT_FAILURE;
@@ -134,11 +134,10 @@ int result2msa(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-
-        Matcher matcher(qDbr.getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        Matcher matcher(qDbr.getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0);
         MultipleAlignment aligner(maxSequenceLength, &subMat);
-        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
-        MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb);
+        MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
         UniprotHeaderSummarizer summarizer;
         Sequence centerSequence(maxSequenceLength, qDbr.getDbtype(), &subMat, 0, false, par.compBiasCorrection);
         Sequence edgeSequence(maxSequenceLength, tDbr->getDbtype(), &subMat, 0, false, false);
@@ -347,14 +346,16 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, par.wg);
                     result.append(">consensus_");
                     result.append(centerSequenceHeader, centerHeaderLength);
-                    result.append(pssmRes.consensus);
+                    for (int pos = 0; pos < centerSequence.L; pos++) {
+                        result.push_back(subMat.num2aa[pssmRes.consensus[pos]]);
+                    }
                     result.append("\n;");
                 } else {
                     result.append(1, '>');
                     result.append(centerSequenceHeader, centerHeaderLength);
                     // Retrieve the master sequence
                     for (int pos = 0; pos < centerSequence.L; pos++) {
-                        result.append(1, subMat.num2aa[centerSequence.numSequence[pos]]);
+                        result.push_back(subMat.num2aa[centerSequence.numSequence[pos]]);
                     }
                     result.append("\n;");
                 }

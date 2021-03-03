@@ -71,11 +71,6 @@ Prefiltering::Prefiltering(const std::string &queryDB,
             ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, par.alphabetSize, 2.0, false, false);
             alphabetSize = kmerSubMat->alphabetSize;
             break;
-        case Parameters::DBTYPE_PROFILE_STATE_PROFILE:
-            kmerSubMat = getSubstitutionMatrix(scoringMatrixFile, par.alphabetSize, 8.0, true, false);
-            ungappedSubMat = getSubstitutionMatrix(scoringMatrixFile, par.alphabetSize, 2.0, false, false);
-            alphabetSize = kmerSubMat->alphabetSize;
-            break;
         default:
             Debug(Debug::ERROR) << "Query sequence type not implemented!\n";
             EXIT(EXIT_FAILURE);
@@ -154,7 +149,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
             }
             spacedKmer = data.spacedKmer != 0;
             spacedKmerPattern = PrefilteringIndexReader::getSpacedPattern(tidxdbr);
-            seedScoringMatrixFile = MultiParam<char*>(PrefilteringIndexReader::getSubstitutionMatrix(tidxdbr));
+            seedScoringMatrixFile = MultiParam<NuclAA<std::string>>(PrefilteringIndexReader::getSubstitutionMatrix(tidxdbr));
         } else {
             Debug(Debug::ERROR) << "Outdated index version. Please recompute it with 'createindex'!\n";
             EXIT(EXIT_FAILURE);
@@ -170,7 +165,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
     maxResListLen = std::min(tdbr->getSize(), maxResListLen);
 
     // investigate if it makes sense to mask the profile consensus sequence
-    if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
+    if (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)) {
         maskMode = 0;
     }
 
@@ -508,7 +503,6 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
 
         Sequence tseq(maxSeqLen, targetSeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
         int localKmerThr = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) ||
-                            Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE) ||
                             Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES) ||
                             (Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE) == false && takeOnlyBestKmer == true) ) ? 0 : kmerThr;
 
@@ -952,20 +946,20 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
 }
 
 
-BaseMatrix *Prefiltering::getSubstitutionMatrix(const MultiParam<char*> &scoringMatrixFile, MultiParam<int> alphabetSize, float bitFactor, bool profileState, bool isNucl) {
+BaseMatrix *Prefiltering::getSubstitutionMatrix(const MultiParam<NuclAA<std::string>> &scoringMatrixFile, MultiParam<NuclAA<int>> alphabetSize, float bitFactor, bool profileState, bool isNucl) {
     BaseMatrix *subMat;
 
     if (isNucl){
-        subMat = new NucleotideMatrix(scoringMatrixFile.nucleotides, bitFactor, 0.0);
-    } else if (alphabetSize.aminoacids < 21) {
-        SubstitutionMatrix sMat(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
-        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, alphabetSize.aminoacids, bitFactor);
+        subMat = new NucleotideMatrix(scoringMatrixFile.values.nucleotide().c_str(), bitFactor, 0.0);
+    } else if (alphabetSize.values.aminoacid() < 21) {
+        SubstitutionMatrix sMat(scoringMatrixFile.values.aminoacid().c_str(), bitFactor, -0.2f);
+        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, alphabetSize.values.aminoacid(), bitFactor);
     }else if(profileState == true){
-        SubstitutionMatrix sMat(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
+        SubstitutionMatrix sMat(scoringMatrixFile.values.aminoacid().c_str(), bitFactor, -0.2f);
         subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,
                                                      sMat.subMatrixPseudoCounts, bitFactor, 0.0, 8);
     } else {
-        subMat = new SubstitutionMatrix(scoringMatrixFile.aminoacids, bitFactor, -0.2f);
+        subMat = new SubstitutionMatrix(scoringMatrixFile.values.aminoacid().c_str(), bitFactor, -0.2f);
     }
     return subMat;
 }
@@ -984,13 +978,13 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile
     if (kmerScore == INT_MAX) {
         if(isProfile){
             if (kmerSize == 5) {
-                float base = 140.75;
+                float base = 97.75;
                 kmerThrBest = base - (sensitivity * 8.75);
             } else if (kmerSize == 6) {
-                float base = 155.75;
+                float base = 132.75;
                 kmerThrBest = base - (sensitivity * 8.75);
             } else if (kmerSize == 7) {
-                float base = 171.75;
+                float base = 158.75;
                 kmerThrBest = base - (sensitivity * 9.75);
             } else {
                 Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";

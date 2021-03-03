@@ -10,16 +10,20 @@
 #include "Debug.h"
 #include "MultipleAlignment.h"
 
-PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb) :
-        subMat(subMat) {
+PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize,
+                               int pcmode, MultiParam<PseudoCounts> pca, MultiParam<PseudoCounts> pcb) :
+        subMat(subMat), ps(maxSeqLength + 1) {
     this->maxSeqLength = maxSeqLength;
     this->maxSetSize = maxSetSize;
     this->profile            = new float[(maxSeqLength + 1) * Sequence::PROFILE_AA_SIZE];
     this->Neff_M             = new float[(maxSeqLength + 1)];
     this->seqWeight          = (float*)malloc(maxSetSize * sizeof(float));
     this->pssm               = new char[(maxSeqLength + 1) * Sequence::PROFILE_AA_SIZE];
+    this->consensusSequence  = new unsigned char[maxSeqLength + 1];
     this->matchWeight        = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * (maxSeqLength + 1) * sizeof(float));
     this->pseudocountsWeight = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * (maxSeqLength + 1) * sizeof(float));
+    this->counts             = (float *) mem_align(ALIGN_FLOAT, (Sequence::PROFILE_AA_SIZE + 4) * (maxSeqLength + 1) * sizeof(float));
+    memset(this->counts, 0, (Sequence::PROFILE_AA_SIZE + 4) * (maxSeqLength + 1) * sizeof(float));
     this->nseqs              = new int[maxSeqLength + 1];
     unsigned int NAA_ALIGNSIZE = ((((MultipleAlignment::NAA + 3) + VECSIZE_FLOAT - 1) / VECSIZE_FLOAT) * VECSIZE_FLOAT) * sizeof(float);
     NAA_ALIGNSIZE = ((NAA_ALIGNSIZE + ALIGN_FLOAT - 1) / ALIGN_FLOAT) * ALIGN_FLOAT;
@@ -36,6 +40,7 @@ PSSMCalculator::PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t m
     for (size_t j = 0; j < (maxSeqLength + 2); j++) {
         n[j] = (int*)(n_backing + (NAA_ALIGNSIZE * j));
     }
+    this->pcmode = pcmode;
     this->pca = pca;
     this->pcb = pcb;
 }
@@ -46,6 +51,7 @@ PSSMCalculator::~PSSMCalculator() {
     free(seqWeight);
     delete[] pssm;
     delete[] nseqs;
+    delete[] consensusSequence;
     free(matchWeight);
     free(pseudocountsWeight);
     free(w_contrib_backing);
@@ -75,25 +81,32 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
         computeNeff_M(matchWeight, seqWeight, Neff_M, queryLength, setSize, msaSeqs);
     }
     // compute consensus sequence
-    std::string consensusSequence = computeConsensusSequence(matchWeight, queryLength, subMat->pBack, subMat->num2aa);
-    if(pca > 0.0){
+    computeConsensusSequence(consensusSequence, matchWeight, queryLength, subMat->pBack, subMat->num2aa);
+    if(pcmode == Parameters::PCMODE_SUBSTITUTION_SCORE && pca.values.normal() > 0.0){
         // add pseudocounts (compute the scalar product between matchWeight and substitution matrix with pseudo counts)
         preparePseudoCounts(matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, queryLength, (const float **) subMat->subMatrixPseudoCounts);
         //    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->num2aa, 20 );
-        computePseudoCounts(profile, matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, Neff_M, queryLength, pca, pcb);
-    }else{
+        computePseudoCounts(profile, matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, Neff_M, queryLength, pca.values.normal(), pcb.values.normal());
+    }else if (pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC && pca.values.cs() > 0.0){
+        fillCounteProfile(counts, matchWeight, Neff_M, queryLength);
+        float * csprofile = ps.computeProfileCs(static_cast<int>(queryLength), counts, Neff_M, pca.values.cs(), pcb.values.cs());
+        for (size_t pos = 0; pos < queryLength; pos++) {
+            for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
+                this->profile[pos * Sequence::PROFILE_AA_SIZE + aa] = csprofile[(pos * (Sequence::PROFILE_AA_SIZE + 4)) + aa];
+            }
+        }
+    } else{
         for (size_t pos = 0; pos < queryLength; pos++) {
             for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
                 profile[pos * Sequence::PROFILE_AA_SIZE + aa] = matchWeight[pos * Sequence::PROFILE_AA_SIZE + aa];;
             }
         }
     }
-    // create final Matrix
-    computeLogPSSM(pssm, profile, 2.0, queryLength, 0.0);
-//    PSSMCalculator::printProfile(queryLength);
 
-//    PSSMCalculator::printPSSM(queryLength);
+    computeLogPSSM(subMat, pssm, profile, 8.0, queryLength, 0.0);
     return Profile(pssm, profile, Neff_M, consensusSequence);
+//    PSSMCalculator::printProfile(queryLength);
+//    PSSMCalculator::printPSSM(queryLength);
 }
 
 void PSSMCalculator::printProfile(size_t queryLength) {
@@ -129,7 +142,7 @@ void PSSMCalculator::printPSSM(size_t queryLength){
     }
 }
 
-void PSSMCalculator::computeLogPSSM(char *pssm, const float *profile, float bitFactor,
+void PSSMCalculator::computeLogPSSM(BaseMatrix * subMat, char *pssm, const float *profile, float bitFactor,
                                     size_t queryLength, float scoreBias) {
     for(size_t pos = 0; pos < queryLength; pos++) {
 
@@ -137,11 +150,11 @@ void PSSMCalculator::computeLogPSSM(char *pssm, const float *profile, float bitF
             const float aaProb = profile[pos * Sequence::PROFILE_AA_SIZE + aa];
             const unsigned int idx = pos * Sequence::PROFILE_AA_SIZE + aa;
             float logProb = MathUtil::flog2(aaProb / subMat->pBack[aa]);
-            const float pssmVal = bitFactor * logProb  + scoreBias;
-            pssm[idx] = static_cast<char>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
+            float pssmVal = bitFactor * logProb  + scoreBias;
+            pssmVal = static_cast<char>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
             float truncPssmVal =  std::min(pssmVal, 127.0f);
             truncPssmVal       =  std::max(-128.0f, truncPssmVal);
-            pssm[idx] = static_cast<char>((truncPssmVal < 0.0) ? truncPssmVal - 0.5 : truncPssmVal + 0.5);
+            pssm[idx] = truncPssmVal;
         }
 
     }
@@ -463,8 +476,7 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
     }
 }
 
-std::string PSSMCalculator::computeConsensusSequence(float *frequency, size_t queryLength, double *pBack, char *num2aa) {
-    std::string consens;
+void PSSMCalculator::computeConsensusSequence(unsigned char * consensusSeq, float *frequency, size_t queryLength, double *pBack, char *num2aa) {
     for (size_t pos = 0; pos < queryLength; pos++) {
         float maxw = 1E-8;
         int maxa = MultipleAlignment::ANY;
@@ -475,9 +487,8 @@ std::string PSSMCalculator::computeConsensusSequence(float *frequency, size_t qu
                 maxa = aa;
             }
         }
-        consens.push_back(num2aa[maxa]);
+        consensusSeq[pos]=num2aa[maxa];
     }
-    return consens;
 }
 
 void PSSMCalculator::Profile::toBuffer(Sequence &centerSequence, BaseMatrix& subMat, std::string &result) {
@@ -487,7 +498,7 @@ void PSSMCalculator::Profile::toBuffer(Sequence &centerSequence, BaseMatrix& sub
 void PSSMCalculator::Profile::toBuffer(const unsigned char* centerSequence, size_t centerSeqLen, BaseMatrix& subMat, std::string& result) {
     for (size_t pos = 0; pos < centerSeqLen; pos++) {
         for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-            result.push_back(Sequence::scoreMask(prob[pos * Sequence::PROFILE_AA_SIZE + aa]));
+            result.push_back(pssm[pos * Sequence::PROFILE_AA_SIZE + aa]);
         }
         // write query, consensus sequence and neffM
         result.push_back(static_cast<unsigned char>(centerSequence[pos]));
@@ -501,5 +512,14 @@ void PSSMCalculator::increaseSetSize(size_t newSetSize) {
         maxSetSize = newSetSize * 1.5;
         seqWeight = (float*)realloc(seqWeight, maxSetSize * sizeof(float));
         wi = (float*)realloc(wi, maxSetSize * sizeof(float));
+    }
+}
+
+void PSSMCalculator::fillCounteProfile(float *counts, float *matchWeight, float *Neff_M, size_t queryLength) {
+    for (size_t pos = 0; pos < queryLength; ++pos) {
+        //csProfile->neff[i] = Neff_M[i];
+        for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++){
+            counts[(pos * (Sequence::PROFILE_AA_SIZE + 4)) + aa] = matchWeight[pos * Sequence::PROFILE_AA_SIZE + aa] * Neff_M[pos];
+        }
     }
 }

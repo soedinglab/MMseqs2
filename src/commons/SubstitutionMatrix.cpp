@@ -207,14 +207,14 @@ void SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrectionAln(int8_t *prof
  */
 
 void SubstitutionMatrix::calcGlobalAaBiasCorrection(const BaseMatrix *m,
-                                                    short *profileScores,
+                                                    char *profileScores,
                                                     float *pNullBuffer,
                                                     const size_t profileAASize,
                                                     const int N) {
     memset(pNullBuffer, 0, sizeof(float) * N);
     const int windowSize = 40;
     for (int pos = 0; pos < N; pos++) {
-        const short * subMat = profileScores + (pos * profileAASize);
+        const char * subMat = profileScores + (pos * profileAASize);
         for(size_t aa = 0; aa < 20; aa++) {
             pNullBuffer[pos] += m->pBack[aa] * static_cast<float>(subMat[aa]);
         }
@@ -230,7 +230,7 @@ void SubstitutionMatrix::calcGlobalAaBiasCorrection(const BaseMatrix *m,
         memset(aaSum, 0, sizeof(float) * 20);
 
         for (int j = minPos; j < maxPos; j++) {
-            const short *subMat = profileScores + (j * profileAASize);
+            const char *subMat = profileScores + (j * profileAASize);
             if (i == j) {
                 continue;
             }
@@ -239,16 +239,11 @@ void SubstitutionMatrix::calcGlobalAaBiasCorrection(const BaseMatrix *m,
             }
         }
         for (size_t aa = 0; aa < 20; aa++) {
-//            printf("%d\t%d\t%2.3f\t%d\n", i, (profileScores + (i * profileAASize))[aa],
-//                   aaSum[aa]/windowLength,
-//                   static_cast<int>((profileScores + (i * profileAASize))[aa] -  aaSum[aa]/windowLength) );
-            //std::cout << i << "\t" << (profileScores + (i * profileAASize))[aa] << "\t" <<  aaSum[aa]/windowLength << "\t" <<  (profileScores + (i * profileAASize))[aa] -  aaSum[aa]/windowLength << std::endl;
             profileScores[i * profileAASize + aa] = static_cast<int>((profileScores + (i * profileAASize))[aa] -
                                                                      aaSum[aa] / windowLength);
 //            avg += static_cast<int>((profileScores + (i * profileAASize))[aa] -  aaSum[aa]/windowLength);
         }
     }
-//    std::cout << "avg=" << avg/(N*20) << std::endl;
 }
 
 

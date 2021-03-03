@@ -15,7 +15,7 @@ const char* binary_name = "test_indextable";
 
 int main (int, const char**) {
     Parameters &par = Parameters::getInstance();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 8.0, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 8.0, -0.2f);
     DBReader<unsigned int> dbr(
                                "/Users/mad/Documents/databases/db_small/db_small",
 //                               "/Users/mad/Documents/databases/mmseqs_benchmark/benchmarks/protein_search_uniscop/db/mmseqs/db_sw",

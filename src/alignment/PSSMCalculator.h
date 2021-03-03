@@ -3,24 +3,27 @@
 
 #include <cstddef>
 #include <string>
+#include <CSProfile.h>
 
 class BaseMatrix;
 class Sequence;
 
 class PSSMCalculator {
 public:
-    struct Profile {
-        const char * pssm;
+
+    struct Profile{
+        char * pssm;
         float * prob;
         const float * neffM;
-        std::string consensus;
-        Profile(char * pssm, float * prob, float * neffM, std::string consensus)
+        unsigned char * consensus;
+        Profile(char * pssm, float * prob, float * neffM, unsigned char * consensus)
                 : pssm(pssm), prob(prob), neffM(neffM), consensus(consensus) {};
         void toBuffer(const unsigned char* centerSequence, size_t centerSeqLen, BaseMatrix& subMat, std::string& result);
         void toBuffer(Sequence& centerSequence, BaseMatrix& subMat, std::string& result);
     };
 
-    PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb);
+    PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, int pcmode,
+                   MultiParam<PseudoCounts> pca, MultiParam<PseudoCounts> pcb);
 
     ~PSSMCalculator();
 
@@ -39,14 +42,28 @@ public:
     // Compute weight for sequence based on "Position-based Sequence Weights' (1994)
     static void computeSequenceWeights(float *seqWeight, size_t queryLength, size_t setSize, const char **msaSeqs);
 
+    // compute position-specific scoring matrix PSSM score
+    // 1.) convert PFM to PPM (position probability matrix)
+    //     Both PPMs assume statistical independence between positions in the pattern
+    // 2.) PSSM Log odds score
+    //     M_{aa,pos}={log(M_{aa,pos} / b_{aa}).
+    static void computeLogPSSM(BaseMatrix * subMat, char *pssm, const float *profile, float bitFactor, size_t queryLength, float scoreBias);
+
+
 private:
     BaseMatrix* subMat;
+
+    // cs profiles
+    CSProfile ps;
 
     // contains sequence weights (global)
     float * seqWeight;
 
     // contains MSA AA matchWeight
     float * matchWeight;
+
+    // counts for cs pseudo counts
+    float * counts;
 
     // contains MSA AA pseudocount weight
     float * pseudocountsWeight;
@@ -59,6 +76,9 @@ private:
 
     // PSSM contains log odds PSSM values
     char * pssm;
+
+    // Consensus sequence
+    unsigned char * consensusSequence;
 
     // number of sequences in subalignment i (only for DEBUGGING)
     int *nseqs;
@@ -83,12 +103,6 @@ private:
     size_t maxSeqLength;
     size_t maxSetSize;
 
-    // compute position-specific scoring matrix PSSM score
-    // 1.) convert PFM to PPM (position probability matrix)
-    //     Both PPMs assume statistical independence between positions in the pattern
-    // 2.) PSSM Log odds score
-    //     M_{aa,pos}={log(M_{aa,pos} / b_{aa}).
-    void computeLogPSSM(char *pssm, const float *profile, float bitFactor, size_t queryLength, float scoreBias);
 
     // compute the Neff_M per column -p log(p)
     void computeNeff_M(float *frequency, float *seqWeight, float *Neff_M, size_t queryLength, size_t setSize, char const **msaSeqs);
@@ -97,12 +111,15 @@ private:
 
     void computeContextSpecificWeights(float * matchWeight, float *seqWeight, float * Neff_M, size_t queryLength, size_t setSize, const char **msaSeqs);
 
-    float pca;
-    float pcb;
+    int pcmode;
+    MultiParam<PseudoCounts> pca;
+    MultiParam<PseudoCounts> pcb;
 
-    std::string computeConsensusSequence(float *pDouble, size_t queryLength, double *back, char *num2aa);
+    void computeConsensusSequence(unsigned char * consensusSeq, float *frequency, size_t queryLength, double *back, char *num2aa);
 
     void increaseSetSize(size_t newSetSize);
+
+    void fillCounteProfile(float *counts, float *matchWeight, float *Neff_M, size_t queryLength);
 };
 
 

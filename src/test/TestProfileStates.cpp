@@ -20,7 +20,7 @@ const char* binary_name = "test_profilestates";
 
 int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
 
 
 
@@ -588,7 +588,7 @@ int main (int, const char**) {
     MultipleAlignment::MSAResult res(122, 122, counter, seqsCpy);
     MultipleAlignment::print(res, &subMat);
 
-    MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     std::vector<Matcher::result_t> empty;
     size_t filteredSetSize = msaFilter.filter(res, empty, 0, 0,-20.0, 90, 100);
 

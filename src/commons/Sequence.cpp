@@ -53,7 +53,7 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
     }
 
     // init memory for profile search
-    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
+    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE)) {
 
         profile_matrix = new ScoreMatrix*[PROFILE_AA_SIZE]; // init 20 matrix pointer (its more than enough for all kmer parameter)
         for (size_t i = 0; i < kmerSize; i++) {
@@ -63,12 +63,10 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
         this->neffM                 = new float[maxLen + 1];
         this->profile_score         = (short *)        mem_align(ALIGN_INT, (maxLen + 1) * PROFILE_ROW_SIZE * sizeof(short));
         this->profile_index         = (unsigned int *) mem_align(ALIGN_INT, (maxLen + 1) * PROFILE_ROW_SIZE * sizeof(int));
-        this->profile               = (float *)        mem_align(ALIGN_INT, (maxLen + 1) * PROFILE_AA_SIZE * sizeof(float));
         this->pseudocountsWeight    = (float *)        mem_align(ALIGN_INT, (maxLen + 1) * PROFILE_ROW_SIZE * sizeof(float));
         this->profile_for_alignment = (int8_t *)       mem_align(ALIGN_INT, (maxLen + 1) * subMat->alphabetSize * sizeof(int8_t));
         // init profile
         memset(this->profile_for_alignment, 0, (maxLen + 1) * subMat->alphabetSize * sizeof(int8_t));
-        memset(this->profile, 0, (maxLen + 1) * PROFILE_AA_SIZE * sizeof(float));
         for (size_t i = 0; i < (maxLen + 1) * PROFILE_ROW_SIZE; ++i){
             profile_score[i] = -SHRT_MAX;
             profile_index[i] = UINT_MAX;
@@ -89,14 +87,13 @@ Sequence::~Sequence() {
     if (aaPosInSpacedPattern){
         delete[] aaPosInSpacedPattern;
     }
-    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE)|| Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
+    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE)) {
         for (size_t i = 0; i < kmerSize; ++i) {
             delete profile_matrix[i];
         }
         delete[] profile_matrix;
         delete[] neffM;
         delete[] pNullBuffer;
-        free(profile);
         free(pseudocountsWeight);
         free(profile_score);
         free(profile_index);
@@ -118,33 +115,33 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
         case 0: // if no kmer iterator support
             pair = std::make_pair<const char *, unsigned int>(NULL, 0);
             break;
-        CASE(4)
-        CASE(5)
-        CASE(6)
-        CASE(7)
-        CASE(8)
-        CASE(9)
-        CASE(10)
-        CASE(11)
-        CASE(12)
-        CASE(13)
-        CASE(14)
-        CASE(15)
-        CASE(16)
-        CASE(17)
-        CASE(18)
-        CASE(19)
-        CASE(20)
-        CASE(21)
-        CASE(22)
-        CASE(23)
-        CASE(24)
-        CASE(25)
-        CASE(26)
-        CASE(27)
-        CASE(28)
-        CASE(29)
-        CASE(30)
+            CASE(4)
+            CASE(5)
+            CASE(6)
+            CASE(7)
+            CASE(8)
+            CASE(9)
+            CASE(10)
+            CASE(11)
+            CASE(12)
+            CASE(13)
+            CASE(14)
+            CASE(15)
+            CASE(16)
+            CASE(17)
+            CASE(18)
+            CASE(19)
+            CASE(20)
+            CASE(21)
+            CASE(22)
+            CASE(23)
+            CASE(24)
+            CASE(25)
+            CASE(26)
+            CASE(27)
+            CASE(28)
+            CASE(29)
+            CASE(30)
         default:
 
             char * pattern = new char[kmerSize];
@@ -182,63 +179,40 @@ std::pair<const char *, unsigned int> Sequence::parseSpacedPattern(unsigned int 
                 break;
             default:
                 Debug(Debug::ERROR) << "Invalid character in user-specified k-mer pattern\n";
-                EXIT(EXIT_FAILURE);  
+                EXIT(EXIT_FAILURE);
                 break;
         }
     }
     if (spacedKmerPatternKmerSize != kmerSize){
         Debug(Debug::ERROR) << "User-specified k-mer pattern is not consistent with stated k-mer size\n";
-        EXIT(EXIT_FAILURE);        
+        EXIT(EXIT_FAILURE);
     } else if (spacedKmerPatternSpaced != spaced) {
         Debug(Debug::ERROR) << "User-specified k-mer pattern is not consistent with spaced k-mer true/false\n";
-        EXIT(EXIT_FAILURE);         
+        EXIT(EXIT_FAILURE);
     }
     return std::make_pair<const char *, unsigned int>((const char *) pattern, spacedKmerPattern.size());
 }
 
-void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence, unsigned int seqLen, bool mapProfileScores) {
+void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence, unsigned int seqLen) {
     this->id = id;
     this->dbKey = dbKey;
     this->seqData = sequence;
     if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_AMINO_ACIDS) || Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         mapSequence(sequence, seqLen);
     } else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_HMM_PROFILE)) {
-        mapProfile(sequence, mapProfileScores, seqLen);
-    } else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
-        mapProfileStateSequence(sequence, seqLen);
-    }else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
-        switch(subMat->alphabetSize) {
-            case 8:
-                mapProfileState<8>(sequence, seqLen);
-                break;
-            case 32:
-                mapProfileState<32>(sequence, seqLen);
-                break;
-            case 219:
-                mapProfileState<219>(sequence, seqLen);
-                break;
-            case 255:
-                mapProfileState<255>(sequence, seqLen);
-                break;
-            default:
-                Debug(Debug::ERROR) << "Invalid alphabet size type!\n";
-                EXIT(EXIT_FAILURE);
-                break;
-        }
+        mapProfile(sequence, seqLen);
     } else {
         Debug(Debug::ERROR) << "Invalid sequence type!\n";
         EXIT(EXIT_FAILURE);
     }
     currItPos = -1;
-
 }
 
 void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *,const unsigned int> data){
     this->id = id;
     this->dbKey = dbKey;
     if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_AMINO_ACIDS)
-        || Parameters::isEqualDbtype( this->seqType,Parameters::DBTYPE_NUCLEOTIDES)
-        || Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)){
+        || Parameters::isEqualDbtype( this->seqType,Parameters::DBTYPE_NUCLEOTIDES)){
         this->L = data.second;
         if(this->L >= static_cast<int>(maxLen)){
             numSequence = static_cast<unsigned char *>(realloc(numSequence, this->L+1));
@@ -252,48 +226,15 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
     currItPos = -1;
 }
 
-void Sequence::mapProfileStateSequence(const char * profileStateSeq, unsigned int seqLen){
-    size_t l = 0;
-    size_t pos = 0;
-    unsigned char curr = profileStateSeq[pos];
-    while (curr != '\0' && l < seqLen){
-
-        this->numSequence[l]  = curr - 1;
-
-        l++;
-        if (l > maxLen){
-            Debug(Debug::ERROR) << "Sequence too long! Max length allowed would be " << maxLen << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        pos++;
-        curr  = profileStateSeq[pos];
-    }
-    this->L = l;
-}
-
-
-
-void Sequence::mapProfile(const char * profileData, bool mapScores, unsigned int seqLen){
+void Sequence::mapProfile(const char * profileData, unsigned int seqLen){
     char * data = (char *) profileData;
     size_t currPos = 0;
-    float scoreBias = 0.0;
     // if no data exists
     {
         size_t l = 0;
-        while (data[currPos] != '\0' && l < maxLen  && l < seqLen){
+        while (l < maxLen  && l < seqLen){
             for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
-                // shift bytes back (avoids NULL byte)
-//            short value = static_cast<short>( ^ mask);
-                profile[l * PROFILE_AA_SIZE + aa_idx] = scoreUnmask(data[currPos + aa_idx]);
-                //value * 4;
-            }
-
-            float sumProb = 0.0;
-            for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++){
-                sumProb += profile[l * PROFILE_AA_SIZE + aa];
-            }
-            if(sumProb > 0.9){
-                MathUtil::NormalizeTo1(&profile[l * PROFILE_AA_SIZE], PROFILE_AA_SIZE);
+                profile_score[l * PROFILE_ROW_SIZE + aa_idx] = static_cast<short>(data[currPos + aa_idx]);
             }
 
             unsigned char queryLetter = data[currPos + PROFILE_AA_SIZE];
@@ -304,159 +245,33 @@ void Sequence::mapProfile(const char * profileData, bool mapScores, unsigned int
             unsigned short neff = data[currPos + PROFILE_AA_SIZE+2];
             neffM[l] = MathUtil::convertNeffToFloat(neff);
             l++;
-
-
             // go to begin of next entry 0, 20, 40, 60, ...
             currPos += PROFILE_READIN_SIZE;
         }
         this->L = l;
-        if(l > maxLen ){
+        if(l > maxLen){
             Debug(Debug::INFO) << "Entry " << dbKey << " is longer than max seq. len " << maxLen << "\n";
         }
-
+    }
+    // create alignment profile
+    for (int i = 0; i < this->L; i++){
+        for (size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
+            profile_for_alignment[aa_num * this-> L + i] = profile_score[i * PROFILE_ROW_SIZE + aa_num] / 4;
+        }
+    }        // set the X value to 0
+    if(subMat->alphabetSize - PROFILE_AA_SIZE != 0){
+        memset(&profile_for_alignment[(subMat->alphabetSize-1) * this-> L], 0, this->L);
     }
 
-
-    // TODO: Make dependency explicit
-    float pca = Parameters::getInstance().pca;
-    if(shouldAddPC && pca  > 0.0){
-        PSSMCalculator::preparePseudoCounts(profile, pseudocountsWeight, PROFILE_AA_SIZE, L,
-                                            (const float **) subMat->subMatrixPseudoCounts);
-        float pcb = Parameters::getInstance().pcb;
-        PSSMCalculator::computePseudoCounts(profile, profile, pseudocountsWeight, PROFILE_AA_SIZE, neffM, L, pca, pcb);
-    }
-//    printProfile();
-
-    if (mapScores) {
-        for(int l = 0; l < this->L; l++) {
-    //        MathUtil::NormalizeTo1(&profile[l * profile_row_size], PROFILE_AA_SIZE);
-            for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
-                float bitScore = probaToBitScore(profile[l * PROFILE_AA_SIZE + aa_idx], subMat->pBack[aa_idx]);
-                if(bitScore<=-128){ //X state
-                    bitScore = -1;
-                }
-                const float bitScore8 =  bitScore * 2.0 + scoreBias;
-                profile_score[l * PROFILE_ROW_SIZE + aa_idx] = static_cast<short>( ((bitScore8 < 0.0) ? bitScore8 - 0.5 : bitScore8 + 0.5) );
-                profile_score[l * PROFILE_ROW_SIZE + aa_idx] = profile_score[l * PROFILE_ROW_SIZE + aa_idx] * 4;
-            }
-        }
-        //printPSSM();
-
-        if (aaBiasCorrection == true){
-            SubstitutionMatrix::calcGlobalAaBiasCorrection(subMat, profile_score, pNullBuffer, PROFILE_ROW_SIZE, this->L);
-        }
-
+    // kmerSize != 0 => Prefilter
+    if (this->kmerSize != 0) {
         // sort profile scores and index for KmerGenerator (prefilter step)
-        for (int i = 0; i < this->L; i++){
-            unsigned int indexArray[PROFILE_AA_SIZE] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
+        for (int i = 0; i < this->L; i++) {
+            unsigned int indexArray[PROFILE_AA_SIZE] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+                                                        18, 19};
             Util::rankedDescSort20(&profile_score[i * PROFILE_ROW_SIZE], (unsigned int *) &indexArray);
             memcpy(&profile_index[i * PROFILE_ROW_SIZE], &indexArray, PROFILE_AA_SIZE * sizeof(int));
         }
-
-        // write alignment profile
-        for (int i = 0; i < this->L; i++){
-            for (size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
-                unsigned int aa_idx = profile_index[i * PROFILE_ROW_SIZE + aa_num];
-                profile_for_alignment[aa_idx * this-> L + i] = profile_score[i * PROFILE_ROW_SIZE + aa_num] / 4;
-            }
-        }
-        //TODO what is with the X
-    }
-    //printPSSM();
-
-//    printProfile();
-}
-
-
-template <int T>
-void Sequence::mapProfileState(const char * profileState, unsigned int seqLen){
-    mapProfile(profileState, false, seqLen);
-
-    SubstitutionMatrixProfileStates * profileStateMat = (SubstitutionMatrixProfileStates *) subMat;
-    // compute avg. amino acid probability
-    float pav[20];
-    // initialize vector of average aa freqs with pseudocounts
-    for (int a = 0; a < 20; a++){
-        pav[a] = subMat->pBack[a] * 10.0;
-    }
-    // calculate averages
-    for (int i = 0; i < L; ++i){
-        for (int a = 0; a < 20; a++){
-            pav[a] += profile[i * Sequence::PROFILE_AA_SIZE + a];
-        }
-    }
-    // Normalize vector of average aa frequencies pav[a]
-    MathUtil::NormalizeTo1(pav, Sequence::PROFILE_AA_SIZE);
-
-    // log (S(i,k)) = log ( SUM_a p(i,a) * p(k,a) / f(a) )   k: column state, i: pos in ali, a: amino acid
-    if(profileStateMat->alphabetSize != 255 && profileStateMat->alphabetSize != 219){
-        for (int i = 0; i < L; i++){
-            for (int k = 0; k < profileStateMat->alphabetSize; k++) {
-                // compute log score for all 32 profile states
-                float sum = profileStateMat->scoreState(&profile[i * Sequence::PROFILE_AA_SIZE], pav, k);
-                float pssmVal = (sum) * 10.0 * profileStateMat->getScoreNormalization();
-                profile_score[i * PROFILE_ROW_SIZE + k] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
-            }
-        }
-//        printProfileStatePSSM();
-
-        if(aaBiasCorrection==true){
-            //TODO use new formular
-            SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrection(profile_score, PROFILE_ROW_SIZE, this->L, profileStateMat->alphabetSize);
-        }
-    //    printProfileStatePSSM();
-
-        // sort profile scores and index for KmerGenerator (prefilter step)
-        for(int l = 0; l < this->L; l++){
-            unsigned int indexArray[T] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-            switch (T) {
-                case 8:
-                    Util::rankedDescSort8(&profile_score[l * PROFILE_ROW_SIZE], (unsigned int *) &indexArray);
-                    break;
-                case 32:
-                    Util::rankedDescSort32(&profile_score[l * PROFILE_ROW_SIZE], (unsigned int *) &indexArray);
-                    break;
-                default:
-                    Debug(Debug::ERROR) << "Sort for T of " << T << " is not defined \n";
-                    EXIT(EXIT_FAILURE);
-                    break;
-            }
-
-            memcpy(&profile_index[l * PROFILE_ROW_SIZE], &indexArray, T * sizeof(int) );
-            // create consensus sequence
-    //        sequence[l] = indexArray[0]; // index 0 is the highst scoring one
-        }
-
-        // write alignment profile
-        for(int l = 0; l < this->L; l++){
-            for(size_t aa_num = 0; aa_num < T; aa_num++) {
-                unsigned int aa_idx = profile_index[l * PROFILE_ROW_SIZE + aa_num];
-                float scale = 5.0*profileStateMat->getScoreNormalization();
-                float score = static_cast<float>(profile_score[l * PROFILE_ROW_SIZE + aa_num]);
-                float pssmVal = score/scale;
-                profile_for_alignment[aa_idx * this->L + l] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
-            }
-        }
-    } else {
-        // write alignment profile
-        for (int l = 0; l < this->L; ++l) {
-            for (size_t aa_num = 0; aa_num < static_cast<size_t>(subMat->alphabetSize); ++aa_num) {
-                float sum = profileStateMat->scoreState(&profile[l * Sequence::PROFILE_AA_SIZE], pav, aa_num);
-                float pssmVal = 2.0 * sum * profileStateMat->getScoreNormalization();
-                profile_for_alignment[aa_num * this->L + l] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
-            }
-        }
-        if(aaBiasCorrection==true){
-            SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrectionAln(profile_for_alignment,this->L,profileStateMat->alphabetSize,subMat);
-        }
-	/*
- 	//TEST with a neg bias to avoid over extension
-        for (int l = 0; l < this->L; ++l) {
-            for (size_t aa_num = 0; aa_num < static_cast<size_t>(subMat->alphabetSize); ++aa_num) {
-                profile_for_alignment[aa_num * this->L + l] -= 1;
-            }
-        }*/
- 
     }
 }
 
@@ -522,24 +337,8 @@ void Sequence::printProfileStatePSSM(){
     }
 }
 
-void Sequence::printProfile(){
-    printf("Query profile of sequence %d\n", dbKey);
-    printf("Pos ");
-    for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++) {
-        printf("%3c ", subMat->num2aa[aa]);
-    }
-    printf("\n");
-    for(int i = 0; i < this->L; i++){
-        printf("%3d ", i);
-        for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++){
-            printf("%03.4f ", profile[i * PROFILE_AA_SIZE + aa] );
-        }
-        printf("\n");
-    }
-}
-
 void Sequence::reverse() {
-    if(Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) || Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
+    if(Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE)){
         short        tmpScore[PROFILE_AA_SIZE*4];
         unsigned int tmpIndex[PROFILE_AA_SIZE*4];
 

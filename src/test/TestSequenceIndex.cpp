@@ -15,7 +15,7 @@ const char* binary_name = "test_sequenceindex";
 int main (int, const char**) {
     size_t kmer_size = 6;
     Parameters &par = Parameters::getInstance();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
     std::string S1 = "PQITLWQRPLVTIKIGGQLKEALLDTGADDTVLEEMSLPGRWKPKMIGGIGGFIKVRQYDQILIEICGHKAIGTVLVGPTPVNIIGRNLLTQIGCTLNF";
     const char *S1char = S1.c_str();
     std::cout << S1char << "\n\n";
