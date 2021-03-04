@@ -66,6 +66,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
     s_align alignment;
     // compute sequence identity
     std::string backtrace;
+    int aaIds = 0;
 
     if(Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
         if(diagonal==INT_MAX){
@@ -76,11 +77,50 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
         alignmentMode = Matcher::SCORE_COV_SEQID;
     } else {
         if (isIdentity == false) {
-            alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->numConsensusSequence, dbSeq->getAlignmentProfile(), dbSeq->L, backtrace,
-                                           gapOpen, gapExtend, alignmentMode, evalThr,
-                                           evaluer, covMode, covThr, correlationScoreWeight, maskLen);
+            // gpmode set as false for now
+            alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->numConsensusSequence,
+                                           dbSeq->getAlignmentProfile(), dbSeq->L, backtrace,
+                                           gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode,
+                                           covThr, correlationScoreWeight, maskLen, dbSeq->getId(), false);
         } else {
             alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode, backtrace);
+        }
+        if(alignmentMode == Matcher::SCORE_COV_SEQID){
+            if(isIdentity==false){
+                if(alignment.cigar){
+                    int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
+                    for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+                        char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
+                        uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
+                        backtrace.reserve(length);
+
+                        for (uint32_t i = 0; i < length; ++i){
+                            if (letter == 'M') {
+                                if (dbSeq->numSequence[targetPos] == currentQuery->numSequence[queryPos]){
+                                    aaIds++;
+                                }
+                                ++queryPos;
+                                ++targetPos;
+                                backtrace.append("M");
+                            } else {
+                                if (letter == 'I') {
+                                    ++queryPos;
+                                    backtrace.append("I");
+                                }
+                                else{
+                                    ++targetPos;
+                                    backtrace.append("D");
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                for (int32_t c = 0; c < origQueryLen; ++c) {
+                    aaIds++;
+                    backtrace.append("M");
+                }
+            }
         }
     }
 

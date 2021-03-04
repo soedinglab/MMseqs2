@@ -4,6 +4,10 @@
 #include <cstddef>
 #include <string>
 #include <CSProfile.h>
+#include <vector>
+
+#include "Matcher.h"
+
 
 class BaseMatrix;
 class Sequence;
@@ -15,20 +19,28 @@ public:
         char * pssm;
         float * prob;
         const float * neffM;
+        const uint8_t *gDel;
+        const uint8_t *gIns;
+//        std::string consensus;
         unsigned char * consensus;
-        Profile(char * pssm, float * prob, float * neffM, unsigned char * consensus)
-                : pssm(pssm), prob(prob), neffM(neffM), consensus(consensus) {};
+
+//        Profile(char *pssm, float *prob, float *neffM, const uint8_t *gDel, const uint8_t *gIns, std::string consensus)
+//                : pssm(pssm), prob(prob), neffM(neffM), gDel(gDel), gIns(gIns), consensus(consensus) {
+//        }
+        Profile(char *pssm, float *prob, float *neffM, const uint8_t *gDel, const uint8_t *gIns, unsigned char * consensus)
+                : pssm(pssm), prob(prob), neffM(neffM), gDel(gDel), gIns(gIns), consensus(consensus) {
+        }
         void toBuffer(const unsigned char* centerSequence, size_t centerSeqLen, BaseMatrix& subMat, std::string& result);
         void toBuffer(Sequence& centerSequence, BaseMatrix& subMat, std::string& result);
     };
 
-    PSSMCalculator(BaseMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, int pcmode,
-                   MultiParam<PseudoCounts> pca, MultiParam<PseudoCounts> pcb);
+    PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, int pcmode,
+                   MultiParam<PseudoCounts> pca, MultiParam<PseudoCounts> pcb, int gapOpen, int gapPseudoCount);
 
     ~PSSMCalculator();
 
-    Profile computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs,
-                                    bool wg);
+    Profile computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs, bool wg);
+    Profile computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs, const std::vector<Matcher::result_t> &alnResults, bool wg);
 
     void printProfile(size_t queryLength);
     void printPSSM(size_t queryLength);
@@ -59,6 +71,9 @@ private:
     // contains sequence weights (global)
     float * seqWeight;
 
+    // sum of sequence weights
+    float seqWeightTotal;
+
     // contains MSA AA matchWeight
     float * matchWeight;
 
@@ -79,6 +94,16 @@ private:
 
     // Consensus sequence
     unsigned char * consensusSequence;
+
+    // position-specific deletion penalties
+    uint8_t *gDel;
+
+    // position-specific gap open penalties for insertions
+    uint8_t *gIns;
+
+    // preallocated memory for computing of gap penalties
+    std::vector<float> gapWeightsIns;
+
 
     // number of sequences in subalignment i (only for DEBUGGING)
     int *nseqs;
@@ -103,6 +128,19 @@ private:
     size_t maxSeqLength;
     size_t maxSetSize;
 
+    // default gap opening penalty
+    int gapOpen;
+
+    // pseudo count for calculation of gap opening penalties
+    int gapPseudoCount;
+
+    // compute position-specific scoring matrix PSSM score
+    // 1.) convert PFM to PPM (position probability matrix)
+    //     Both PPMs assume statistical independence between positions in the pattern
+    // 2.) PSSM Log odds score
+    //     M_{aa,pos}={log(M_{aa,pos} / b_{aa}).
+    void computeLogPSSM(char *pssm, const float *profile, float bitFactor, size_t queryLength, float scoreBias);
+
 
     // compute the Neff_M per column -p log(p)
     void computeNeff_M(float *frequency, float *seqWeight, float *Neff_M, size_t queryLength, size_t setSize, char const **msaSeqs);
@@ -116,8 +154,11 @@ private:
     MultiParam<PseudoCounts> pcb;
 
     void computeConsensusSequence(unsigned char * consensusSeq, float *frequency, size_t queryLength, double *back, char *num2aa);
-
+//    std::string computeConsensusSequence(float *pDouble, size_t queryLength, double *back, char *num2aa);
     void increaseSetSize(size_t newSetSize);
+
+    // compute position-specific gap penalties for both deletions and insertions
+    void computeGapPenalties(size_t queryLength, size_t setSize, const char **msaSeqs, const std::vector<Matcher::result_t> &alnResults);
 
     void fillCounteProfile(float *counts, float *matchWeight, float *Neff_M, size_t queryLength);
 };

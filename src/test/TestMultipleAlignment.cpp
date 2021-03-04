@@ -73,8 +73,8 @@ int main (int, const char**) {
     size_t filterSetSize = filter.filter(res, alnResults, 0, 0, -20.0, 50, 100);
     std::cout << "Filtered:" << filterSetSize << std::endl;
     MultipleAlignment::print(res, &subMat);
-    PSSMCalculator pssm(&subMat, 1000, 5, 1.0, 1.5);
-    pssm.computePSSMFromMSA(filterSetSize, res.centerLength, (const char**)res.msaSequence, false);
+    PSSMCalculator pssm(&subMat, 1000, 5, 1.0, 1.5, 11, 10);
+    pssm.computePSSMFromMSA(filterSetSize, res.centerLength, (const char **) res.msaSequence, res.alignmentResults, false);
     pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);
     MultipleAlignment::deleteMSA(&res);

@@ -101,6 +101,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 
     // adjust score of each match state by -0.2 to trim alignment
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
+    const int xAmioAcid = subMat.aa2num[static_cast<int>('X')];
     ProbabilityMatrix probMatrix(subMat);
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
 
@@ -124,14 +125,17 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
+
         Matcher matcher(qDbr->getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection,
                         par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0);
-        MultipleAlignment aligner(maxSequenceLength, &subMat);
-        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb);
-        PSSMMasker masker(maxSequenceLength, probMatrix, subMat);
+        MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
+        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode,
+                                  par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
         Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
         Sequence edgeSequence(maxSequenceLength, targetSeqType, &subMat, 0, false, false);
+
+        char *charSequence = new char[maxSequenceLength];
 
         char dbKey[255];
         const char *entry[255];
@@ -140,7 +144,8 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 
         std::vector<Matcher::result_t> alnResults;
         alnResults.reserve(300);
-
+// TODO: explore
+//        std::vector<Sequence *> seqSet;
         std::vector<std::vector<unsigned char>> seqSet;
         seqSet.reserve(300);
 
@@ -223,7 +228,8 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                     }
                 }
 
-                PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, par.wg);
+                PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
+                                                                                                                  (const char **) res.msaSequence, res.alignmentResults, par.wg);
                 if (par.compBiasCorrection == true){
                     SubstitutionMatrix::calcGlobalAaBiasCorrection(&subMat, pssmRes.pssm, pNullBuffer,
                                                                    Sequence::PROFILE_AA_SIZE,
@@ -231,7 +237,41 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                 }
 
                 if (par.maskProfile == true) {
-                    masker.mask(centerSequence, pssmRes);
+                    for (int i = 0; i < centerSequence.L; ++i) {
+                        charSequence[i] = (unsigned char) centerSequence.numSequence[i];
+                    }
+
+                    tantan::maskSequences(charSequence, charSequence + centerSequence.L,
+                                          50 /*options.maxCycleLength*/,
+                                          probMatrix.probMatrixPointers,
+                                          0.005 /*options.repeatProb*/,
+                                          0.05 /*options.repeatEndProb*/,
+                                          0.9 /*options.repeatOffsetProbDecay*/,
+                                          0, 0,
+                                          0.9 /*options.minMaskProb*/,
+                                          probMatrix.hardMaskTable);
+
+                    for (size_t pos = 0; pos < res.centerLength; pos++) {
+                        if (charSequence[pos] == xAmioAcid) {
+                            for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+                                pssmRes.prob[pos * Sequence::PROFILE_AA_SIZE + aa] = subMat.pBack[aa] * 0.5;
+                            }
+                            pssmRes.consensus[pos] = 'X';
+                        }
+                    }
+                }
+
+                for (size_t pos = 0; pos < res.centerLength; pos++) {
+                    for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+                        result.push_back(Sequence::scoreMask(pssmRes.prob[pos * Sequence::PROFILE_AA_SIZE + aa]));
+                    }
+                    // write query, consensus sequence and neffM
+                    result.push_back(static_cast<unsigned char>(centerSequence.numSequence[pos]));
+                    result.push_back(static_cast<unsigned char>(subMat.aa2num[static_cast<int>(pssmRes.consensus[pos])]));
+                    unsigned char neff = MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
+                    result.push_back(neff);
+                    result.push_back(pssmRes.gDel[pos]);
+                    result.push_back(pssmRes.gIns[pos]);
                 }
                 pssmRes.toBuffer(centerSequence, subMat, result);
             }

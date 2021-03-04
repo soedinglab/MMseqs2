@@ -608,8 +608,8 @@ int main (int, const char**) {
     }
 */
     //seqSet.push_back(s5);
-    PSSMCalculator pssm(&subMat, par.maxSeqLen, filteredSetSize, 1.0, 1.5);
-    PSSMCalculator::Profile profile = pssm.computePSSMFromMSA(filteredSetSize, res.centerLength,  (const char **) res.msaSequence, false);
+    PSSMCalculator pssm(&subMat, par.maxSeqLen, filteredSetSize, 1.0, 1.5, 11, 10);
+    PSSMCalculator::Profile profile = pssm.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, res.alignmentResults, false);
     //std::string libraryString((const char *)Library1_lib, Library1_lib_len);
     ProfileStates ps(32, subMat.pBack);
 

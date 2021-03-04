@@ -753,7 +753,7 @@ int main (int, const char**) {
             "\x7f\x7d\x7d\x7d";
     std::cout << "Sequence (id 0):";
     //const char* sequence = read_seq;
-    PSSMCalculator pssmCalculator(&subMat, 10000, 10000, 1.4, 2.5);
+    PSSMCalculator pssmCalculator(&subMat, 10000, 10000, 1.4, 2.5, 11, 10);
     const size_t setSize = 1;
     const char * msaSeq[setSize] = {"LFILNIISMNKQTKVKGYLLLLLVISSLFISLVGHGYTANKVSAPNPAKEYPQDNLSVIDMKNLPGTQIKSMVKDELQQFLEEQGFRRLKNKSLVDLRRIWLGFMYEDFFYTMHKKTDLPISVIYAFFIIEATNAGIESKLMAKALNPGGIKYRGTGKKMKAMDDCY",
                         };

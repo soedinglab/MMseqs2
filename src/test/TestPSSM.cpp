@@ -1603,7 +1603,7 @@ int main (int, const char**) {
     }
 
     //seqSet.push_back(s5);
-    PSSMCalculator pssm(&subMat, 122, counter, 1.0, 1.5);
+    PSSMCalculator pssm(&subMat, 122, counter, 1.0, 1.5, 11, 10);
     pssm.computePSSMFromMSA(filterSetSize, res.centerLength, (const char**) res.msaSequence, false);
     //pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);

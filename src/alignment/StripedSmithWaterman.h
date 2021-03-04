@@ -75,11 +75,32 @@ public:
     SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection, int targetSeqType);
     ~SmithWaterman();
 
+    // TODO: private or public?
     struct s_profile{
         simd_int* profile_byte;	// 0: none
         simd_int* profile_word;	// 0: none
         simd_int* profile_rev_byte;	// 0: none
         simd_int* profile_rev_word;	// 0: none
+        // gap penalties
+        simd_int* profile_gDelOpen_byte;
+        simd_int* profile_gDelOpen_word;
+        simd_int* profile_gDelClose_byte;
+        simd_int* profile_gDelClose_word;
+        simd_int* profile_gIns_byte;
+        simd_int* profile_gIns_word;
+        simd_int* profile_gDelOpen_rev_byte;
+        simd_int* profile_gDelOpen_rev_word;
+        simd_int* profile_gDelClose_rev_byte;
+        simd_int* profile_gDelClose_rev_word;
+        simd_int* profile_gIns_rev_byte;
+        simd_int* profile_gIns_rev_word;
+        uint8_t* gDelOpen;
+        uint8_t* gDelClose;
+        uint8_t* gIns;
+        uint8_t* gDelOpen_rev;
+        uint8_t* gDelClose_rev;
+        uint8_t* gIns_rev;
+        // profile-profile
         simd_int* consens_byte;
         simd_int* consens_word;
         simd_int* consens_rev_byte;
@@ -179,7 +200,7 @@ public:
                         const double filters,
                         EvalueComputation * filterd,
                         const int covMode, const float covThr, const float correlationScoreWeight,
-                        const int32_t maskLen);
+                        const int32_t maskLen, const size_t id, bool gpmode);
 
 
     /*!	@function computed ungapped alignment score
@@ -290,7 +311,7 @@ private:
                         const double filters,
                         EvalueComputation * filterd,
                         const int covMode, const float covThr, const float correlationScoreWeight,
-                        const int32_t maskLen);
+                        const int32_t maskLen, const size_t id, bool gpmode);
 
     /* Striped Smith-Waterman
      Record the highest score of each reference position.
@@ -300,6 +321,7 @@ private:
      The returned positions are 0-based.
      */
     template <const unsigned int type>
+
     std::pair<alignment_end, alignment_end> sw_sse2_byte (const unsigned char *db_sequence,
                                  const simd_int* db_profile_byte,
                                  int8_t ref_dir,	// 0: forward ref; 1: reverse ref
@@ -309,12 +331,16 @@ private:
                                  const uint8_t gap_extend, /* will be used as - */
                                  const simd_int* query_profile_byte,
                                  const simd_int* query_consens_byte,
+                                 const simd_int* gap_open_del,
+                                 const simd_int* gap_close_del,
+                                 const simd_int* gap_open_ins,
                                  uint8_t terminate,	/* the best alignment score: used to terminate
                                                      the matrix calculation when locating the
                                                      alignment beginning point. If this score
                                                      is set to 0, it will not be used */
                                  uint8_t bias,  /* Shift 0 point to a positive value. */
-                                 int32_t maskLen);
+                                 int32_t maskLen,
+                                 bool gpmode);
 
     template <const unsigned int type>
     std::pair<alignment_end, alignment_end> sw_sse2_word (const unsigned char* db_sequence,
@@ -326,12 +352,23 @@ private:
                                  const uint8_t gap_extend, /* will be used as - */
                                  const simd_int*query_profile_word,
                                  const simd_int* query_consens_word,
+//                                 const simd_int*query_profile_byte,
+                                 const simd_int* gap_open_del,
+                                 const simd_int* gap_close_del,
+                                 const simd_int* gap_open_ins,
                                  uint16_t terminate,
                                  uint16_t bias,
-                                 int32_t maskLen);
+                                 int32_t maskLen,
+                                 bool gpmode);
 
     template <const unsigned int type>
-    SmithWaterman::cigar *banded_sw(const unsigned char *db_sequence, const int8_t *query_sequence, const int8_t *query_consens_sequence, const int8_t * compositionBias, int32_t db_length, int32_t query_length, int32_t queryStart, int32_t targetStart, int32_t score, const uint32_t gap_open, const uint32_t gap_extend, int32_t band_width, const int8_t *mat, const int8_t *target_mat, const int32_t qry_n, const int32_t tgt_n);
+    SmithWaterman::cigar *banded_sw(const unsigned char *db_sequence, const int8_t *query_sequence,
+                                    const int8_t *query_consens_sequence, const int8_t * compositionBias,
+                                    int32_t db_length, int32_t query_length, int32_t queryStart, int32_t targetStart,
+                                    int32_t score, const uint32_t gap_open, const uint32_t gap_extend, uint8_t *gDelOpen,
+                                    uint8_t *gDelClose, uint8_t *gIns, int32_t band_width,
+                                    const int8_t *mat, const int8_t *target_mat, const int32_t qry_n, const int32_t tgt_n, bool gpmode);
+
 
     /*!	@function		Produce CIGAR 32-bit unsigned integer from CIGAR operation and CIGAR length
      @param	length		length of CIGAR
@@ -341,6 +378,10 @@ private:
     inline uint32_t to_cigar_int (uint32_t length, char op_letter);
 
     s_profile* profile;
+
+    size_t query_id;
+    size_t target_id;
+
 
     template <typename T, size_t Elements, const unsigned int type>
     void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias,

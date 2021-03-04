@@ -162,11 +162,12 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         std::string result;
 
         if (returnAlnRes == false) {
-            aligner = new MultipleAlignment(par.maxSeqLen, &subMat);
+            aligner = new MultipleAlignment(par.maxSeqLen, NULL, &subMat, NULL);
             if (par.filterMsa) {
                 filter = new MsaFilter(par.maxSeqLen, 300, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
             }
-            calculator = new PSSMCalculator(&subMat, par.maxSeqLen, 300, par.pcmode, par.pca, par.pcb);
+            // TODO: is this right?
+            calculator = new PSSMCalculator(&subMat, par.maxSeqLen, 300, par.pcmode, par.pca, par.pcb, 0, 0);
             masker = new PSSMMasker(par.maxSeqLen, *probMatrix, subMat);
             seqSet.reserve(300);
             result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE);

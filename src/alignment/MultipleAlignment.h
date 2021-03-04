@@ -24,13 +24,21 @@ public:
         size_t centerLength;
         size_t setSize;
         char ** msaSequence;
+        char * keep;
+        std::vector<Matcher::result_t> alignmentResults;
 
         MSAResult(size_t msaSequenceLength, size_t centerLength, size_t setSize, char **msa)
-                : msaSequenceLength(msaSequenceLength), centerLength(centerLength), setSize(setSize), msaSequence(msa) {}
+                : msaSequenceLength(msaSequenceLength), centerLength(centerLength), setSize(setSize), msaSequence(msa), keep(NULL) {}
+
+        MSAResult(size_t msaSequenceLength, size_t centerLength, size_t setSize, char **msa,std::vector<Matcher::result_t> alignmentResults)
+                : msaSequenceLength(msaSequenceLength), centerLength(centerLength), setSize(setSize), msaSequence(msa), keep(NULL), alignmentResults(alignmentResults) {}
     };
 
 
-    MultipleAlignment(size_t maxSeqLen, SubstitutionMatrix *subMat);
+    MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat, Matcher *aligner);
+
+//    template <const unsigned int type>
+//    MultipleAlignment(size_t maxSeqLen, SubstitutionMatrix *subMat);
 
     ~MultipleAlignment();
 
@@ -45,13 +53,18 @@ public:
     static void deleteMSA(MultipleAlignment::MSAResult * res);
 
 private:
-    BaseMatrix *subMat;
+    Matcher * aligner;
+    BaseMatrix * subMat;
 
     size_t maxSeqLen;
+    size_t maxSetSize;
     size_t maxMsaSeqLen;
     unsigned int * queryGaps;
 
-    void computeQueryGaps(unsigned int *queryGaps, Sequence *centerSeq, size_t edges, const std::vector<Matcher::result_t> &alignmentResults);
+
+    std::vector<Matcher::result_t> computeBacktrace(Sequence *centerSeq, const std::vector<Sequence *> &sequences);
+
+    void computeQueryGaps(unsigned int *queryGaps, Sequence *centerSeq, const std::vector<Matcher::result_t> &alignmentResults);
 
     size_t updateGapsInCenterSequence(char **msaSequence, Sequence *centerSeq, bool noDeletionMSA);
 

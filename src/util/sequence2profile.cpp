@@ -54,7 +54,8 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
             seq.mapSequence(id, queryKey, seqData, seqLen);
             float * profile = ps.computeSequenceCs(seq.numSequence, seq.L, par.tau);
             PSSMCalculator::computeLogPSSM(&subMat, pssm, profile, 8.0,  seq.L, 0.0);
-            PSSMCalculator::Profile pssmRes(pssm, profile, Neff_M, seq.numSequence);
+            // TODO: gDel, gIns left NULL
+            PSSMCalculator::Profile pssmRes(pssm, profile, Neff_M, NULL, NULL, seq.numSequence);
             if (par.maskProfile == true) {
                 masker.mask(seq, pssmRes);
             }
