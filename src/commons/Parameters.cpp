@@ -1542,7 +1542,7 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                         if (Util::startWith("b64:", val)) {
                             val = base64_decode(val.c_str() + 4, val.size() - 4);
                         }
-                        NuclAA<std::string> value = MultiParam<NuclAA<std::string>>(val).values;
+                        NuclAA<std::string> value = MultiParam<NuclAA<std::string>>(val.c_str()).values;
                         if (value.first == "INVALID" || value.second == "INVALID") {
                             printUsageMessage(command, 0xFFFFFFFF);
                             Debug(Debug::ERROR) << "Error in value parsing " << par[parIdx]->name << "\n";
@@ -1847,18 +1847,20 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
         if (isAminoAcid || isNucleotide|| isSeedAminoAcid|| isSeedNucleotide) {
             std::string matrixData((const char *)substitutionMatrices[i].subMatData, substitutionMatrices[i].subMatDataLen);
             std::string matrixName = substitutionMatrices[i].name;
+            char* serialized = BaseMatrix::serialize(matrixName, matrixData);
             if(isAminoAcid) {
-                scoringMatrixFile.values.aminoacid(BaseMatrix::serialize(matrixName, matrixData));
+                scoringMatrixFile.values.aminoacid(serialized);
             }
             if(isNucleotide) {
-                scoringMatrixFile.values.nucleotide(BaseMatrix::serialize(matrixName, matrixData));
+                scoringMatrixFile.values.nucleotide(serialized);
             }
             if(isSeedAminoAcid) {
-                seedScoringMatrixFile.values.aminoacid(BaseMatrix::serialize(matrixName, matrixData));
+                seedScoringMatrixFile.values.aminoacid(serialized);
             }
             if(isSeedNucleotide) {
-                seedScoringMatrixFile.values.nucleotide(BaseMatrix::serialize(matrixName, matrixData));
+                seedScoringMatrixFile.values.nucleotide(serialized);
             }
+            free(serialized);
         }
     }
 

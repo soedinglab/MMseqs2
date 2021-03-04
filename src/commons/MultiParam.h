@@ -154,7 +154,7 @@ public:
 
     bool assign(const std::string &value, float &obj) {
         char *rest = NULL;
-        int tmp = strtof(value.c_str(), &rest);
+        float tmp = strtof(value.c_str(), &rest);
         if ((rest != value.c_str() && *rest != '\0') || errno == ERANGE) {
             return false;
         }
