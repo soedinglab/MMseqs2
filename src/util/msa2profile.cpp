@@ -25,7 +25,6 @@ enum {
 
 void setMsa2ProfileDefaults(Parameters *p) {
     p->msaType = MSA_STOCKHOLM;
-    p->pca = 0.0;
 }
 
 int msa2profile(int argc, const char **argv, const Command &command) {
@@ -136,8 +135,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, NULL, par.pca, par.pcb, par.gapOpen.values.aminoacid(),
-                                  par.gapPseudoCount);
+        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
 
         Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
@@ -382,7 +380,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             }
             unsigned int centerLength = centerLengthWithGaps - maskedCount;
 
-            MultipleAlignment::MSAResult msaResult(centerLength, centerLength, setSize, msaSequences, alnResults);
+            MultipleAlignment::MSAResult msaResult(centerLength, centerLength, setSize, msaSequences);
             size_t filteredSetSize = setSize;
             if (par.filterMsa == 1) {
                 filteredSetSize = filter.filter(setSize, centerLength, static_cast<int>(par.covMSAThr * 100),
@@ -393,24 +391,12 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             PSSMCalculator::Profile pssmRes =
                     calculator.computePSSMFromMSA(filteredSetSize, msaResult.centerLength,
-                                                  (const char **) msaResult.msaSequence, msaResult.alignmentResults, par.wg);
+                                                  (const char **) msaResult.msaSequence, alnResults, par.wg);
             if (par.compBiasCorrection == true) {
                 SubstitutionMatrix::calcGlobalAaBiasCorrection(&subMat, pssmRes.pssm, pNullBuffer,
                                                                Sequence::PROFILE_AA_SIZE,
                                                                centerLength);
             }
-            for(size_t pos = 0; pos < centerLength; pos++){
-                for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-                    result.push_back(Sequence::scoreMask(pssmRes.prob[pos*Sequence::PROFILE_AA_SIZE + aa]));
-                }
-                // write query, consensus sequence and neffM
-                result.push_back(static_cast<unsigned char>(msaSequences[0][pos]));
-                result.push_back(subMat.aa2num[static_cast<int>(pssmRes.consensus[pos])]);
-                result += MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
-                result.push_back(pssmRes.gDel[pos]);
-                result.push_back(pssmRes.gIns[pos]);
-            }
-
             pssmRes.toBuffer((const unsigned char*)msaSequences[0], centerLength, subMat, result);
 
             if (mode & DBReader<unsigned int>::USE_LOOKUP) {

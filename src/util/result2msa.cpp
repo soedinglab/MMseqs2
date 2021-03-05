@@ -19,7 +19,6 @@ int result2msa(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     // do not filter by default
     par.filterMsa = 0;
-    par.pca = 0.0;
     par.parseParameters(argc, argv, command, true, 0, 0);
 
     const bool isCA3M = par.msaFormatMode == Parameters::FORMAT_MSA_CA3M || par.msaFormatMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS;
@@ -137,7 +136,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 
         Matcher matcher(qDbr.getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection,
                         par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0);
-        MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
+        MultipleAlignment aligner(maxSequenceLength, &subMat);
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
         UniprotHeaderSummarizer summarizer;
@@ -345,7 +344,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         }
                     }
 
-                    PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, res.alignmentResults, par.wg);
+                    PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, alnResults, par.wg);
                     result.append(">consensus_");
                     result.append(centerSequenceHeader, centerHeaderLength);
                     for (int pos = 0; pos < centerSequence.L; pos++) {
@@ -379,10 +378,6 @@ int result2msa(int argc, const char **argv, const Command &command) {
             result.clear();
 
             MultipleAlignment::deleteMSA(&res);
-    // TODO: why do you need this?
-//            for (Sequence *seq : seqSet) {
-//                delete seq;
-//            }
             seqSet.clear();
             seqIds.clear();
             alnResults.clear();

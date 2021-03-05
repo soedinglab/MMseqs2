@@ -11,6 +11,7 @@
 #include <climits>
 #include <cstdlib>
 #include <cfloat>
+#include <cerrno>
 #include "Util.h"
 
 template<class T>

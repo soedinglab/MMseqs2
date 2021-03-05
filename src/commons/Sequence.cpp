@@ -54,7 +54,9 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
 
     // init memory for profile search
     if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE)) {
-
+        // setup memory for profiles
+        profile_row_size = (size_t) PROFILE_AA_SIZE / (VECSIZE_INT*4); //
+        profile_row_size = (profile_row_size+1) * (VECSIZE_INT*4); // for SIMD memory alignment
         profile_matrix = new ScoreMatrix*[PROFILE_AA_SIZE]; // init 20 matrix pointer (its more than enough for all kmer parameter)
         for (size_t i = 0; i < kmerSize; i++) {
             profile_matrix[i] = new ScoreMatrix(NULL, NULL, PROFILE_AA_SIZE, profile_row_size);
@@ -65,7 +67,6 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
         this->gIns                  = new uint8_t[maxLen + 1];
         this->profile_score         = (short *)        mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(short));
         this->profile_index         = (unsigned int *) mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(int));
-        this->profile               = (float *)        mem_align(ALIGN_INT, (maxLen + 1) * PROFILE_AA_SIZE * sizeof(float));
         this->pseudocountsWeight    = (float *)        mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(float));
         this->profile_for_alignment = (int8_t *)       mem_align(ALIGN_INT, (maxLen + 1) * subMat->alphabetSize * sizeof(int8_t));
         // init profile
@@ -235,36 +236,19 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
 void Sequence::mapProfile(const char * profileData, unsigned int seqLen){
     char * data = (char *) profileData;
     size_t currPos = 0;
-    float scoreBias = 0.0;
     // if no data exists
     {
         size_t l = 0;
-        while (data[currPos] != '\0' && l < maxLen  && l < seqLen){
+        while (l < maxLen  && l < seqLen){
             for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
-                // shift bytes back (avoids NULL byte)
-//            short value = static_cast<short>( ^ mask);
-                profile[l * PROFILE_AA_SIZE + aa_idx] = scoreUnmask(data[currPos + aa_idx]);
-                //value * 4;
+                profile_score[l * profile_row_size + aa_idx] = static_cast<short>(data[currPos + aa_idx]);
             }
-            float sumProb = 0.0;
-            for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++){
-                sumProb += profile[l * PROFILE_AA_SIZE + aa];
-            }
-            if(sumProb > 0.9){
-                MathUtil::NormalizeTo1(&profile[l * PROFILE_AA_SIZE], PROFILE_AA_SIZE);
-            }
-//        while (l < maxLen  && l < seqLen){
-//            for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
-//                profile_score[l * PROFILE_ROW_SIZE + aa_idx] = static_cast<short>(data[currPos + aa_idx]);
-//            }
 
             unsigned char queryLetter = data[currPos + PROFILE_AA_SIZE];
             // read query sequence
             numSequence[l] = queryLetter; // index 0 is the highst scoring one
-            unsigned char consensusLetter = data[currPos + PROFILE_AA_SIZE+1];
-            numConsensusSequence[l] = consensusLetter;
-            unsigned short neff = data[currPos + PROFILE_AA_SIZE+2];
-            neffM[l] = MathUtil::convertNeffToFloat(neff);
+            numConsensusSequence[l] = data[currPos + PROFILE_CONSENSUS];
+            neffM[l] = MathUtil::convertNeffToFloat(data[currPos + PROFILE_NEFF]);
             gDel[l] = data[currPos + PROFILE_GAP_DEL];
             gIns[l] = data[currPos + PROFILE_GAP_INS];
             l++;
@@ -276,21 +260,14 @@ void Sequence::mapProfile(const char * profileData, unsigned int seqLen){
             Debug(Debug::INFO) << "Entry " << dbKey << " is longer than max seq. len " << maxLen << "\n";
         }
     }
-    // TODO: Make dependency explicit
-    // TODO: are pca & pcb correct?
-    float pca = Parameters::getInstance().pca.values.normal();
-    if(shouldAddPC && pca  > 0.0){
-        PSSMCalculator::preparePseudoCounts(profile, pseudocountsWeight, PROFILE_AA_SIZE, L,
-                                            (const float **) subMat->subMatrixPseudoCounts);
-        float pcb = Parameters::getInstance().pcb.values.normal();
-        PSSMCalculator::computePseudoCounts(profile, profile, pseudocountsWeight, PROFILE_AA_SIZE, neffM, L, pca, pcb);
-    }
+
     // create alignment profile
     for (int i = 0; i < this->L; i++){
         for (size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
             profile_for_alignment[aa_num * this-> L + i] = profile_score[i * profile_row_size + aa_num] / 4;
         }
-    }        // set the X value to 0
+    }
+    // set the X value to 0
     if(subMat->alphabetSize - PROFILE_AA_SIZE != 0){
         memset(&profile_for_alignment[(subMat->alphabetSize-1) * this-> L], 0, this->L);
     }
@@ -352,24 +329,6 @@ void Sequence::printPSSM(){
     }
 }
 
-void Sequence::printProfileStatePSSM(){
-    printf("Query profile of sequence %d\n", dbKey);
-    printf("Pos ");
-    for(int aa = 0; aa < subMat->alphabetSize; aa++) {
-        printf("%3c ", subMat->num2aa[aa]);
-    }
-    printf("\n");
-    for(int i = 0; i < this->L; i++){
-        printf("%3d ", i);
-        for(int aa = 0; aa < subMat->alphabetSize; aa++){
-//            printf("%3d ", profile_for_alignment[aa * L + i] );
-            printf("%3d ", profile_score[i * profile_row_size + profile_index[i * profile_row_size+aa]] );
-        }
-        printf("\n");
-    }
-}
-
-
 void Sequence::printProfile() const {
     printf("Query profile of sequence %d\n", dbKey);
     printf("Pos ");
@@ -380,7 +339,7 @@ void Sequence::printProfile() const {
     for (int i = 0; i < this->L; i++){
         printf("%3d ", i);
         for (size_t aa = 0; aa < PROFILE_AA_SIZE; aa++){
-            printf("%.4f ", profile[i * PROFILE_AA_SIZE + aa]);
+            printf("%d ", profile_score[i * profile_row_size + profile_index[i * profile_row_size + aa]]);
         }
         printf("%3d %3d %3d\n", gDel[i] & 0xF, gDel[i] >> 4, gIns[i]);
     }

@@ -58,6 +58,7 @@ PSSMCalculator::~PSSMCalculator() {
     delete[] nseqs;
     delete[] consensusSequence;
     free(matchWeight);
+    free(counts);
     free(pseudocountsWeight);
     free(w_contrib_backing);
     delete[] w_contrib;
@@ -66,10 +67,8 @@ PSSMCalculator::~PSSMCalculator() {
     free(n_backing);
     delete[] n;
     free(f);
-    delete [] gDel;
-    free(gDel);
-    delete [] gIns;
-    free(gIns);
+    delete[] gDel;
+    delete[] gIns;
 }
 
 //    PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
@@ -125,7 +124,6 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize, size_
 
 PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs,
                                                            const std::vector<Matcher::result_t> &alnResults, bool wg) {
-    // TODO: is this right?
     increaseSetSize(setSize);
     // Quick and dirty calculation of the weight per sequence wg[k]
     computeSequenceWeights(seqWeight, queryLength, setSize, msaSeqs);
@@ -170,7 +168,7 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize, size_
 //    PSSMCalculator::printPSSM(queryLength);
 
     // create final Matrix
-    computeLogPSSM(pssm, profile, 2.0, queryLength, 0.0);
+    computeLogPSSM(subMat, pssm, profile, 8.0, queryLength, 0.0);
     computeGapPenalties(queryLength, setSize, msaSeqs, alnResults);
 //    PSSMCalculator::printProfile(queryLength);
 
@@ -211,10 +209,8 @@ void PSSMCalculator::printPSSM(size_t queryLength){
     }
 }
 
-void PSSMCalculator::computeLogPSSM(BaseMatrix * subMat, char *pssm, const float *profile, float bitFactor,
-                                    size_t queryLength, float scoreBias) {
+void PSSMCalculator::computeLogPSSM(BaseMatrix *subMat, char *pssm, const float *profile, float bitFactor, size_t queryLength, float scoreBias) {
     for(size_t pos = 0; pos < queryLength; pos++) {
-
         for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
             const float aaProb = profile[pos * Sequence::PROFILE_AA_SIZE + aa];
             const unsigned int idx = pos * Sequence::PROFILE_AA_SIZE + aa;
@@ -225,27 +221,8 @@ void PSSMCalculator::computeLogPSSM(BaseMatrix * subMat, char *pssm, const float
             truncPssmVal       =  std::max(-128.0f, truncPssmVal);
             pssm[idx] = truncPssmVal;
         }
-
     }
 }
-
-    void PSSMCalculator::computeLogPSSM(char *pssm, const float *profile, float bitFactor,
-                                        size_t queryLength, float scoreBias) {
-        for(size_t pos = 0; pos < queryLength; pos++) {
-
-            for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-                const float aaProb = profile[pos * Sequence::PROFILE_AA_SIZE + aa];
-                const unsigned int idx = pos * Sequence::PROFILE_AA_SIZE + aa;
-                float logProb = MathUtil::flog2(aaProb / subMat->pBack[aa]);
-                const float pssmVal = bitFactor * logProb  + scoreBias;
-                pssm[idx] = static_cast<char>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
-                float truncPssmVal =  std::min(pssmVal, 127.0f);
-                truncPssmVal       =  std::max(-128.0f, truncPssmVal);
-                pssm[idx] = static_cast<char>((truncPssmVal < 0.0) ? truncPssmVal - 0.5 : truncPssmVal + 0.5);
-            }
-
-        }
-    }
 
 void PSSMCalculator::preparePseudoCounts(float *frequency, float *frequency_with_pseudocounts, size_t entrySize,
                                          size_t queryLength, float const ** R) {
@@ -647,10 +624,11 @@ void PSSMCalculator::Profile::toBuffer(const unsigned char* centerSequence, size
         for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
             result.push_back(pssm[pos * Sequence::PROFILE_AA_SIZE + aa]);
         }
-        // write query, consensus sequence and neffM
         result.push_back(static_cast<unsigned char>(centerSequence[pos]));
         result.push_back(static_cast<unsigned char>(subMat.aa2num[static_cast<int>(consensus[pos])]));
         result.push_back(static_cast<unsigned char>(MathUtil::convertNeffToChar(neffM[pos])));
+        result.push_back(gDel[pos]);
+        result.push_back(gIns[pos]);
     }
 }
 

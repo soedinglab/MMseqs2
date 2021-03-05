@@ -450,7 +450,6 @@ public:
     // Contains profile information
     short           *profile_score;
     unsigned int    *profile_index;
-    float           *profile;
     float           *neffM;
     uint8_t         *gDel;
     uint8_t         *gIns;
@@ -480,8 +479,6 @@ public:
     const unsigned char *getAAPosInSpacedPattern() { return aaPosInSpacedPattern; }
 
     void printPSSM();
-
-    void printProfileStatePSSM();
 
     int8_t const* getAlignmentProfile() const {
         return profile_for_alignment;

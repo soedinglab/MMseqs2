@@ -35,9 +35,7 @@ public:
         for (int pos = 0; pos < centerSequence.L; pos++) {
             if (charSequence[pos] == xAmioAcid) {
                 for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-                    pssmRes.prob[pos * Sequence::PROFILE_AA_SIZE + aa] = subMat.pBack[aa] * 0.5;
-                }
-                for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+//                    pssmRes.prob[pos * Sequence::PROFILE_AA_SIZE + aa] = subMat.pBack[aa] * 0.5;
                     pssmRes.pssm[pos * Sequence::PROFILE_AA_SIZE + aa] = -1;
                 }
                 pssmRes.consensus[pos] = 'X';

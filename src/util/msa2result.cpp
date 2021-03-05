@@ -20,7 +20,6 @@ KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 
 void setMsa2ResultDefaults(Parameters *p) {
     p->msaType = 2;
-    p->pca = 0.0;
 }
 
 int msa2result(int argc, const char **argv, const Command &command) {
