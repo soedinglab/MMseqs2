@@ -229,16 +229,6 @@
   #define SIMDE_DIAGNOSTIC_DISABLE_USED_BUT_MARKED_UNUSED_
 #endif
 
-#if HEDLEY_HAS_WARNING("-Wunused-function")
-  #define SIMDE_DIAGNOSTIC_DISABLE_UNUSED_FUNCTION_ _Pragma("clang diagnostic ignored \"-Wunused-function\"")
-#elif HEDLEY_GCC_VERSION_CHECK(3,4,0)
-  #define SIMDE_DIAGNOSTIC_DISABLE_UNUSED_FUNCTION_ _Pragma("GCC diagnostic ignored \"-Wunused-function\"")
-#elif HEDLEY_MSVC_VERSION_CHECK(19,0,0) /* Likely goes back further */
-  #define SIMDE_DIAGNOSTIC_DISABLE_UNUSED_FUNCTION_ __pragma(warning(disable:4505))
-#else
-  #define SIMDE_DIAGNOSTIC_DISABLE_UNUSED_FUNCTION_
-#endif
-
 #if HEDLEY_HAS_WARNING("-Wpass-failed")
   #define SIMDE_DIAGNOSTIC_DISABLE_PASS_FAILED_ _Pragma("clang diagnostic ignored \"-Wpass-failed\"")
 #else
@@ -341,8 +331,11 @@
 #if HEDLEY_HAS_WARNING("-Wvector-conversion")
   #define SIMDE_DIAGNOSTIC_DISABLE_VECTOR_CONVERSION_ _Pragma("clang diagnostic ignored \"-Wvector-conversion\"")
   /* For NEON, the situation with -Wvector-conversion in clang < 10 is
-   * bad enough that we just disable the warning altogether. */
-  #if defined(SIMDE_ARCH_ARM) && SIMDE_DETECT_CLANG_VERSION_NOT(10,0,0)
+   * bad enough that we just disable the warning altogether.  On x86,
+   * clang has similar issues on several sse4.2+ intrinsics before 3.8. */
+  #if \
+      (defined(SIMDE_ARCH_ARM) && SIMDE_DETECT_CLANG_VERSION_NOT(10,0,0)) || \
+      SIMDE_DETECT_CLANG_VERSION_NOT(3,8,0)
     #define SIMDE_DIAGNOSTIC_DISABLE_BUGGY_VECTOR_CONVERSION_ SIMDE_DIAGNOSTIC_DISABLE_VECTOR_CONVERSION_
   #endif
 #else
@@ -407,6 +400,7 @@
 #endif
 
 #define SIMDE_DISABLE_UNWANTED_DIAGNOSTICS \
+  HEDLEY_DIAGNOSTIC_DISABLE_UNUSED_FUNCTION \
   SIMDE_DISABLE_UNWANTED_DIAGNOSTICS_NATIVE_ALIASES_ \
   SIMDE_DIAGNOSTIC_DISABLE_PSABI_ \
   SIMDE_DIAGNOSTIC_DISABLE_NO_EMMS_INSTRUCTION_ \
@@ -417,7 +411,6 @@
   SIMDE_DIAGNOSTIC_DISABLE_EXTRA_SEMI_ \
   SIMDE_DIAGNOSTIC_DISABLE_VLA_ \
   SIMDE_DIAGNOSTIC_DISABLE_USED_BUT_MARKED_UNUSED_ \
-  SIMDE_DIAGNOSTIC_DISABLE_UNUSED_FUNCTION_ \
   SIMDE_DIAGNOSTIC_DISABLE_PASS_FAILED_ \
   SIMDE_DIAGNOSTIC_DISABLE_CPP98_COMPAT_PEDANTIC_ \
   SIMDE_DIAGNOSTIC_DISABLE_CPP11_LONG_LONG_ \
