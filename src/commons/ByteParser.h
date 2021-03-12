@@ -1,8 +1,8 @@
 #ifndef BYTE_PARSER_H
 #define BYTE_PARSER_H
 
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
+#include <cinttypes>
+#include <cerrno>
 #include <string>
 #include "Debug.h"
 
@@ -11,7 +11,6 @@ public:
     static uint64_t parse(const std::string& sizeAndUnit) {
         // default unit is M
         uint64_t unitFactor = TWO_POW_10 * TWO_POW_10;
-        uint64_t size = 0;
 
         size_t strLen = sizeAndUnit.size();
         char lastChar = sizeAndUnit[strLen - 1];
@@ -39,21 +38,21 @@ public:
             }
         }
         
-        // convert to uint64_t
-        if (1 == sscanf(digitsString.c_str(), "%" PRIu64, &size)) {
-            uint64_t sizeBits = highestOneBitPosition(size);
-            uint64_t unitFactorBits = highestOneBitPosition(unitFactor);
-
-            if ((sizeBits + unitFactorBits) > 64) {
-                // cannot store (size * unitFactor) in a uint64_t
-                return INVALID_SIZE;
-            }
-            uint64_t numBytes = (size * unitFactor);
-            return numBytes;
-        } else {
-            // conversion failed
+        char* rest;
+        uint64_t size = strtoull(digitsString.c_str(), &rest, 10);
+        if ((rest != digitsString.c_str() && *rest != '\0') || errno == ERANGE) {
+            // conversion to uint64_t failed
             return INVALID_SIZE;
         }
+        uint64_t sizeBits = highestOneBitPosition(size);
+        uint64_t unitFactorBits = highestOneBitPosition(unitFactor);
+
+        if ((sizeBits + unitFactorBits) > 64) {
+            // cannot store (size * unitFactor) in a uint64_t
+            return INVALID_SIZE;
+        }
+        uint64_t numBytes = (size * unitFactor);
+        return numBytes;
     };
     
     static std::string format(uint64_t numBytes, char unit='a', char accuracy='l') {

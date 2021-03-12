@@ -126,16 +126,16 @@ int mtar_read_header(mtar_t *tar, mtar_header_t *h) {
 
   /* Build and compare checksum */
   chksum1 = checksum(&rh);
-  sscanf(rh.checksum, "%o", &chksum2);
+  chksum2 = strtoul(rh.checksum, NULL, 8);
   if (chksum1 != chksum2) {
       return MTAR_EBADCHKSUM;
   }
 
   /* Load raw header into header */
-  sscanf(rh.mode, "%o", &h->mode);
-  sscanf(rh.owner, "%o", &h->owner);
-  sscanf(rh.size, "%o", &h->size);
-  sscanf(rh.mtime, "%o", &h->mtime);
+  h->mode =  strtoul(rh.mode,  NULL, 8);
+  h->owner = strtoul(rh.owner, NULL, 8);
+  h->size =  strtoul(rh.size,  NULL, 8);
+  h->mtime = strtoul(rh.mtime, NULL, 8);
   h->type = rh.type;
   strcpy(h->name, rh.name);
   strcpy(h->linkname, rh.linkname);

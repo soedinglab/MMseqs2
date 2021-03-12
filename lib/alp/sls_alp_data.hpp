@@ -407,11 +407,11 @@ namespace Sls {
 				static bool the_value_is_double(
 				std::string str_,
 				double &val_);
-
+/*
 				static bool the_value_is_long(
 				std::string str_,
 				long int &val_);
-
+*/
 
 
 
