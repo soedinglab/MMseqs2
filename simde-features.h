@@ -305,12 +305,6 @@
   #endif
 #endif
 #if defined(SIMDE_WASM_SIMD128_NATIVE)
-  #if !defined(__wasm_unimplemented_simd128__)
-    HEDLEY_DIAGNOSTIC_PUSH
-    SIMDE_DIAGNOSTIC_DISABLE_RESERVED_ID_MACRO_
-    #define __wasm_unimplemented_simd128__
-    HEDLEY_DIAGNOSTIC_POP
-  #endif
   #include <wasm_simd128.h>
 #endif
 
@@ -524,6 +518,10 @@
   #endif
   #if !defined(SIMDE_ARM_NEON_A64V8_NATIVE)
     #define SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES
+  #endif
+
+  #if !defined(SIMDE_WASM_SIMD128_NATIVE)
+    #define SIMDE_WASM_SIMD128_ENABLE_NATIVE_ALIASES
   #endif
 #endif
 

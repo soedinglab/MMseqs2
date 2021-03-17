@@ -186,7 +186,7 @@
     HEDLEY_SUNPRO_VERSION_CHECK(5,12,0) || \
     HEDLEY_IBM_VERSION_CHECK(11,1,0) || \
     HEDLEY_MCST_LCC_VERSION_CHECK(1,25,10)
-  #define SIMDE_STATEMENT_EXPR_(expr) (__extension__ (expr))
+  #define SIMDE_STATEMENT_EXPR_(expr) (__extension__ expr)
 #endif
 
 #if defined(SIMDE_CHECK_CONSTANT_) && defined(SIMDE_STATIC_ASSERT)
@@ -888,6 +888,11 @@ HEDLEY_DIAGNOSTIC_POP
 #      if SIMDE_DETECT_CLANG_VERSION_NOT(9,0,0)
 #        define SIMDE_BUG_CLANG_GIT_4EC445B8
 #        define SIMDE_BUG_CLANG_REV_365298 /* 0464e07c8f6e3310c28eb210a4513bc2243c2a7e */
+#      endif
+#    endif
+#    if defined(SIMDE_ARCH_ARM)
+#      if !SIMDE_DETECT_CLANG_VERSION_CHECK(11,0,0)
+#        define SIMDE_BUG_CLANG_BAD_VGET_SET_LANE_TYPES
 #      endif
 #    endif
 #    if defined(SIMDE_ARCH_POWER)
