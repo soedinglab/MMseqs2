@@ -137,9 +137,15 @@ int mtar_read_header(mtar_t *tar, mtar_header_t *h) {
   h->size =  strtoul(rh.size,  NULL, 8);
   h->mtime = strtoul(rh.mtime, NULL, 8);
   h->type = rh.type;
-  strcpy(h->name, rh.name);
-  strcpy(h->linkname, rh.linkname);
-
+  if (h->type != MTAR_TGNU_LONGNAME && h->type != MTAR_TGNU_LONGLINK) {
+    memcpy(h->name, rh.name, sizeof(h->name));
+    h->name[sizeof(h->name)-1] = '\0';
+    memcpy(h->linkname, rh.linkname, sizeof(h->linkname));
+    h->linkname[sizeof(h->linkname)-1] = '\0';
+  } else {
+    h->name[0] = '\0';
+    h->linkname[0] = '\0';
+  }
   tar->curr_size = h->size;
 
   return MTAR_ESUCCESS;
