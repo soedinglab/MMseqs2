@@ -1081,6 +1081,7 @@ Parameters::Parameters():
     expand2profile.push_back(&PARAM_SUB_MAT);
     expand2profile.push_back(&PARAM_GAP_OPEN);
     expand2profile.push_back(&PARAM_GAP_EXTEND);
+    expand2profile.push_back(&PARAM_GAP_PSEUDOCOUNT);
     expand2profile.push_back(&PARAM_MAX_SEQ_LEN);
     expand2profile.push_back(&PARAM_SCORE_BIAS);
     expand2profile.push_back(&PARAM_NO_COMP_BIAS_CORR);

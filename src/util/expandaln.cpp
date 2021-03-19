@@ -166,7 +166,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 filter = new MsaFilter(par.maxSeqLen, 300, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
             }
             // TODO: is this right?
-            calculator = new PSSMCalculator(&subMat, par.maxSeqLen, 300, par.pcmode, par.pca, par.pcb, 0, 0);
+            calculator = new PSSMCalculator(&subMat, par.maxSeqLen, 300, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
             masker = new PSSMMasker(par.maxSeqLen, *probMatrix, subMat);
             seqSet.reserve(300);
             result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE);
@@ -228,7 +228,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     Matcher::readAlignmentResults(resultsBc, resultBcReader.getData(bResId, thread_idx), false);
                 }
 
-                std::stable_sort(resultsBc.begin(), resultsBc.end(), compareHitsByKeyScore);
+                //std::stable_sort(resultsBc.begin(), resultsBc.end(), compareHitsByKeyScore);
 
                 for (size_t k = 0; k < resultsBc.size(); ++k) {
                     Matcher::result_t &resultBc = resultsBc[k];
@@ -256,13 +256,18 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     } else {
                         size_t cSeqId = cReader->getId(cSeqKey);
                         cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
-                        rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
-                        if(resultAc.score < -6){ // alignment too bad (fitted on regression benchmark EXPAND)
-                            continue;
-                        }
+                        //rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
+                        //if(resultAc.score < -6){ // alignment too bad (fitted on regression benchmark EXPAND)
+                        //   continue;
+                        //}
 
                         if(par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE){
-                            resultAc.eval = evaluer->computeEvalue(resultAc.score, aSeq.L);
+		 rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
+                            // alignment too bad (fitted on regression benchmark EXPAND)
+                            if (resultAc.score < -6) {
+                                continue;
+                            } 
+			   resultAc.eval = evaluer->computeEvalue(resultAc.score, aSeq.L);
                             resultAc.score = static_cast<int>(evaluer->computeBitScore(resultAc.score)+0.5);
                             resultAc.seqId = Util::computeSeqId(par.seqIdMode, resultAc.seqId, aSeq.L, cSeq.L, resultAc.backtrace.size());
                         }else{
@@ -302,7 +307,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
             interval.clear();
 
             if (returnAlnRes) {
-                SORT_SERIAL(resultsAc.begin(), resultsAc.end(), Matcher::compareHits);
+                //SORT_SERIAL(resultsAc.begin(), resultsAc.end(), Matcher::compareHits);
                 writer.writeStart(thread_idx);
                 for (size_t j = 0; j < resultsAc.size(); ++j) {
                     size_t len = Matcher::resultToBuffer(buffer, resultsAc[j], true, true);

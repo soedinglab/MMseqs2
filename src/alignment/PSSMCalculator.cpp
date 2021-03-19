@@ -548,15 +548,15 @@ void PSSMCalculator::computeGapPenalties(size_t queryLength, size_t setSize, con
     // compute penalties for insertions
     gapWeightsIns.resize(queryLength, gapWeightStart);
     for (size_t i = 0; i < alnResults.size(); ++i) {
-        size_t targetPos = alnResults[i].dbStartPos; // current position in the reference sequence
+        size_t queryPos = alnResults[i].qStartPos; // current position in the reference sequence
         for (size_t k = 0; k < alnResults[i].backtrace.length(); ++k) {
             char c = alnResults[i].backtrace[k];
             if (c == 'M' || c == 'I') {
-                ++targetPos;
+                ++queryPos;
             } else if (c == 'D') {
                 if (k > 0 && alnResults[i].backtrace[k - 1] == 'M') {
                     // seqWeight includes the query, alnResults does not
-                    gapWeightsIns[targetPos] += seqWeight[i + 1];
+                    gapWeightsIns[queryPos] += seqWeight[i + 1];
                 }
             }
         }

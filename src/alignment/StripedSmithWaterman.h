@@ -200,7 +200,7 @@ public:
                         const double filters,
                         EvalueComputation * filterd,
                         const int covMode, const float covThr, const float correlationScoreWeight,
-                        const int32_t maskLen, const size_t id, bool gpmode);
+                        const int32_t maskLen, const size_t id);
 
 
     /*!	@function computed ungapped alignment score
