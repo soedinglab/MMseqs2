@@ -131,8 +131,10 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     sequenceWriter.close(true);
     headerReader.close();
     reader.close();
-    if(wrongSeqCnt > 0){
-        Debug(Debug::WARNING) << wrongSeqCnt << " sequence where short than 3!\n";
+    if (wrongSeqCnt == 1) {
+        Debug(Debug::WARNING) << "1 input sequence was shorter than 3 nucleotides\n";
+    } else if (wrongSeqCnt > 1) {
+        Debug(Debug::WARNING) << wrongSeqCnt << " input sequences were shorter than 3 nucleotides\n";
     }
 
     // make identifiers stable
