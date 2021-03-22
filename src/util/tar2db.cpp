@@ -145,14 +145,34 @@ int tar2db(int argc, const char **argv, const Command& command) {
 #ifdef OPENMP
             thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
+            std::string name;
             bool proceed = true;
             while (proceed) {
                 bool writeEntry = true;
 #pragma omp critical
                 {
                     if (tar.isFinished == 0 && (mtar_read_header(&tar, &header)) != MTAR_ENULLRECORD) {
-                        if (header.type == MTAR_TREG) {
-                            if (include.isMatch(header.name) == false || exclude.isMatch(header.name) == true) {
+                        // GNU tar has special blocks for long filenames
+                        if (header.type == MTAR_TGNU_LONGNAME || header.type == MTAR_TGNU_LONGLINK) {
+                            if (header.size > bufferSize) {
+                                bufferSize = header.size * 1.5;
+                                dataBuffer = (char *) realloc(dataBuffer, bufferSize);
+                            }
+                            if (mtar_read_data(&tar, dataBuffer, header.size) != MTAR_ESUCCESS) {
+                                Debug(Debug::ERROR) << "Cannot read entry " << header.name << "\n";
+                                EXIT(EXIT_FAILURE);
+                            }
+                            name.assign(dataBuffer, header.size);
+                            // skip to next record
+                            if (mtar_read_header(&tar, &header) == MTAR_ENULLRECORD) {
+                                Debug(Debug::ERROR) << "Tar truncated after entry " << name << "\n";
+                                EXIT(EXIT_FAILURE);
+                            }
+                        } else {
+                            name = header.name;
+                        }
+                        if (header.type == MTAR_TREG || header.type == MTAR_TCONT || header.type == MTAR_TOLDREG) {
+                            if (include.isMatch(name.c_str()) == false || exclude.isMatch(name.c_str()) == true) {
                                 __sync_fetch_and_add(&(globalKey), 1);
                                 proceed = true;
                                 writeEntry = false;
@@ -162,7 +182,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
                                     dataBuffer = (char *) realloc(dataBuffer, bufferSize);
                                 }
                                 if (mtar_read_data(&tar, dataBuffer, header.size) != MTAR_ESUCCESS) {
-                                    Debug(Debug::ERROR) << "Cannot read entry " << header.name << "\n";
+                                    Debug(Debug::ERROR) << "Cannot read entry " << name << "\n";
                                     EXIT(EXIT_FAILURE);
                                 }
                                 proceed = true;
@@ -181,7 +201,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
                 }
                 if (proceed && writeEntry) {
                     progress.updateProgress();
-                    if (Util::endsWith(".gz", header.name)) {
+                    if (Util::endsWith(".gz", name)) {
 #ifdef HAVE_ZLIB
                         inflateReset(&strm);
                         writer.writeStart(thread_idx);
@@ -199,7 +219,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
                                     break;
                                 default:
                                     inflateEnd(&strm);
-                                    Debug(Debug::ERROR) << "Gzip error " << err << " entry " << header.name << "\n";
+                                    Debug(Debug::ERROR) << "Gzip error " << err << " entry " << name << "\n";
                                     EXIT(EXIT_FAILURE);
                             }
                             have = CHUNK - strm.avail_out;
@@ -210,7 +230,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
                         Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Cannot read compressed input.\n";
                 EXIT(EXIT_FAILURE);
 #endif
-                    } else if (Util::endsWith(".bz2", header.name)) {
+                    } else if (Util::endsWith(".bz2", name)) {
 #ifdef HAVE_BZLIB
                         unsigned int entrySize = inflateSize;
                         int err;
@@ -220,7 +240,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
                             inflateBuffer = (char *) realloc(inflateBuffer, inflateSize);
                         }
                         if (err != BZ_OK) {
-                            Debug(Debug::ERROR) << "Could not decompress " << header.name << "\n";
+                            Debug(Debug::ERROR) << "Could not decompress " << name << "\n";
                             EXIT(EXIT_FAILURE);
                         }
                         writer.writeData(inflateBuffer, entrySize, currentKey, thread_idx);
@@ -231,7 +251,7 @@ int tar2db(int argc, const char **argv, const Command& command) {
                     } else {
                         writer.writeData(dataBuffer, header.size, currentKey, thread_idx);
                     }
-                    size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\t%zu\n", currentKey, FileUtil::baseName(header.name).c_str(), i);
+                    size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\t%zu\n", currentKey, FileUtil::baseName(name).c_str(), i);
                     lookupWriter.writeData(buffer, len, thread_idx, false, false);
                 }
             }

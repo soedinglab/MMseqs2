@@ -402,7 +402,7 @@ public:
 
                 Debug(Debug::INFO) << "\n";
                 IndexEntryLocal *e = &entries[offsets[i]];
-                for (unsigned int j = 0; j < entrySize; j++) {
+                for (ptrdiff_t j = 0; j < entrySize; j++) {
                     Debug(Debug::INFO) << "\t(" << e[j].seqId << ", " << e[j].position_j << ")\n";
                 }
             }

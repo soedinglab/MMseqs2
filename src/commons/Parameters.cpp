@@ -40,14 +40,14 @@ Parameters::Parameters():
         PARAM_THREADS(PARAM_THREADS_ID, "--threads", "Threads", "Number of CPU-cores used (all by default)", typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
         PARAM_COMPRESSED(PARAM_COMPRESSED_ID, "--compressed", "Compressed", "Write compressed output", typeid(int), (void *) &compressed, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
         PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID, "--alph-size", "Alphabet size", "Alphabet size (range 2-21)", typeid(MultiParam<int>), (void *) &alphabetSize, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID, "--max-seq-len", "Max sequence length", "Maximum sequence length", typeid(int), (void *) &maxSeqLen, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID, "--max-seq-len", "Max sequence length", "Maximum sequence length", typeid(size_t), (void *) &maxSeqLen, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID, "--diag-score", "Diagonal scoring", "Use ungapped diagonal scoring during prefilter", typeid(bool), (void *) &diagonalScoring, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_EXACT_KMER_MATCHING(PARAM_EXACT_KMER_MATCHING_ID, "--exact-kmer-matching", "Exact k-mer matching", "Extract only exact k-mers for matching (range 0-1)", typeid(int), (void *) &exactKmerMatching, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID, "--mask", "Mask residues", "Mask sequences in k-mer stage: 0: w/o low complexity masking, 1: with low complexity masking", typeid(int), (void *) &maskMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_LOWER_CASE(PARAM_MASK_LOWER_CASE_ID, "--mask-lower-case", "Mask lower case residues", "Lowercase letters will be excluded from k-mer search 0: include region, 1: exclude region", typeid(int), (void *) &maskLowerCaseMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID, "--min-ungapped-score", "Minimum diagonal score", "Accept only matches with ungapped alignment score above threshold", typeid(int), (void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_K_SCORE(PARAM_K_SCORE_ID, "--k-score", "k-score", "k-mer threshold for generating similar k-mer lists", typeid(int), (void *) &kmerScore, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID, "--max-seqs", "Max results per query", "Maximum results per query sequence allowed to pass the prefilter (affects sensitivity)", typeid(int), (void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
+        PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID, "--max-seqs", "Max results per query", "Maximum results per query sequence allowed to pass the prefilter (affects sensitivity)", typeid(size_t), (void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_SPLIT(PARAM_SPLIT_ID, "--split", "Split database", "Split input into N equally distributed chunks. 0: set the best split automatically", typeid(int), (void *) &split, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID, "--split-mode", "Split mode", "0: split target db; 1: split query db; 2: auto, depending on main memory", typeid(int), (void *) &splitMode, "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split memory limit", "Set max memory per split. E.g. 800B, 5K, 10M, 1G. Default (0) to all available system memory", typeid(ByteParser), (void *) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*(B|K|M|G|T)?)$", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
@@ -1353,6 +1353,9 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
                     if (par->type == typeid(int)) {
                         paramString.append(" INT");
                         valueString = SSTR(*(int *) par->value);
+                    } else if (par->type == typeid(size_t)) {
+                        paramString.append(" INT");
+                        valueString = SSTR(*(float *) par->value);
                     } else if (par->type == typeid(float)) {
                         paramString.append(" FLOAT");
                         valueString = SSTR(*(float *) par->value);
@@ -1502,6 +1505,21 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                             EXIT(EXIT_FAILURE);
                         }else{
                             *((int *) par[parIdx]->value) = atoi(pargv[argIdx+1]);
+                            par[parIdx]->wasSet = true;
+                        }
+                        argIdx++;
+                    } else if (typeid(size_t) == par[parIdx]->type) {
+                        regex_t regex;
+                        compileRegex(&regex, par[parIdx]->regex);
+                        int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
+                        regfree(&regex);
+                        // if no match found or two matches found (we want exactly one match)
+                        if (nomatch){
+                            printUsageMessage(command, 0xFFFFFFFF);
+                            Debug(Debug::ERROR) << "Error in argument " << par[parIdx]->name << "\n";
+                            EXIT(EXIT_FAILURE);
+                        }else{
+                            *((size_t *) par[parIdx]->value) = atoi(pargv[argIdx+1]);
                             par[parIdx]->wasSet = true;
                         }
                         argIdx++;
@@ -2011,8 +2029,10 @@ void Parameters::printParameters(const std::string &module, int argc, const char
             continue;
         }
         ss << std::setw(maxWidth) << std::left << par[i]->display << "\t";
-        if(typeid(int) == par[i]->type ){
+        if (typeid(int) == par[i]->type ) {
             ss << *((int *)par[i]->value);
+        } else if(typeid(size_t) == par[i]->type ){
+            ss << *((size_t *)par[i]->value);
         } else if(typeid(ByteParser) == par[i]->type) {
             ss << ByteParser::format(*((size_t *)par[i]->value), 'a', 'h');
         } else if(PARAM_SUB_MAT.uniqid == par[i]->uniqid ||
@@ -2468,6 +2488,9 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
         if (typeid(int) == par[i]->type){
             ss << par[i]->name << " ";
             ss << *((int *)par[i]->value) << " ";
+        } else if (typeid(size_t) == par[i]->type){
+            ss << par[i]->name << " ";
+            ss << *((size_t *)par[i]->value) << " ";
         } else if (typeid(ByteParser) == par[i]->type) {
             ss << par[i]->name << " ";
             ss << ByteParser::format(*((size_t *)par[i]->value), 'a', 'h') << " ";

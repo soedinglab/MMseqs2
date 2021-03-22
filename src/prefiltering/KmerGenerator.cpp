@@ -1,8 +1,5 @@
 #include "KmerGenerator.h"
 #include <algorithm>    // std::reverse
-#include <MathUtil.h>
-#include "simd.h"
-
 
 KmerGenerator::KmerGenerator(size_t kmerSize, size_t alphabetSize, short threshold ){
     this->threshold = threshold;

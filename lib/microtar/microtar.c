@@ -126,20 +126,26 @@ int mtar_read_header(mtar_t *tar, mtar_header_t *h) {
 
   /* Build and compare checksum */
   chksum1 = checksum(&rh);
-  sscanf(rh.checksum, "%o", &chksum2);
+  chksum2 = strtoul(rh.checksum, NULL, 8);
   if (chksum1 != chksum2) {
       return MTAR_EBADCHKSUM;
   }
 
   /* Load raw header into header */
-  sscanf(rh.mode, "%o", &h->mode);
-  sscanf(rh.owner, "%o", &h->owner);
-  sscanf(rh.size, "%o", &h->size);
-  sscanf(rh.mtime, "%o", &h->mtime);
+  h->mode =  strtoul(rh.mode,  NULL, 8);
+  h->owner = strtoul(rh.owner, NULL, 8);
+  h->size =  strtoul(rh.size,  NULL, 8);
+  h->mtime = strtoul(rh.mtime, NULL, 8);
   h->type = rh.type;
-  strcpy(h->name, rh.name);
-  strcpy(h->linkname, rh.linkname);
-
+  if (h->type != MTAR_TGNU_LONGNAME && h->type != MTAR_TGNU_LONGLINK) {
+    memcpy(h->name, rh.name, sizeof(h->name));
+    h->name[sizeof(h->name)-1] = '\0';
+    memcpy(h->linkname, rh.linkname, sizeof(h->linkname));
+    h->linkname[sizeof(h->linkname)-1] = '\0';
+  } else {
+    h->name[0] = '\0';
+    h->linkname[0] = '\0';
+  }
   tar->curr_size = h->size;
 
   return MTAR_ESUCCESS;

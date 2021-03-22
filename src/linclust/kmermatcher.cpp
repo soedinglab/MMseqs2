@@ -30,6 +30,13 @@
 #define SIZE_T_MAX ((size_t) -1)
 #endif
 
+uint64_t hashUInt64(uint64_t in, uint64_t seed) {
+#if SIMDE_ENDIAN_ORDER == SIMDE_ENDIAN_BIG
+    in = __builtin_bswap64(in);
+#endif
+    return XXH64(&in, sizeof(uint64_t), seed);
+}
+
 template <typename T>
 KmerPosition<T> *initKmerPositionMemory(size_t size) {
     KmerPosition<T> * hashSeqPair = new(std::nothrow) KmerPosition<T>[size + 1];
@@ -127,7 +134,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                 //TODO, how to handle this in reverse?
                 if(hashWholeSequence){
                     seqHash = Util::hash(seq.numSequence, seq.L);
-                    seqHash = XXH64(&seqHash, sizeof(size_t), par.hashShift);
+                    seqHash = hashUInt64(seqHash, par.hashShift);
                 }
 
                 maskSequence(par.maskMode, par.maskLowerCaseMode, seq, subMat->aa2num[static_cast<int>('X')], probMatrix);
@@ -151,8 +158,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                         }
                         bool pickReverseKmer = (revkmerIdx<kmerIdx);
                         kmerIdx = (pickReverseKmer) ? revkmerIdx : kmerIdx;
-
-                        const unsigned short hash = static_cast<unsigned short>(XXH64(&kmerIdx, 8, par.hashShift));
+                        const unsigned short hash = hashUInt64(kmerIdx, par.hashShift);
 
                         if(par.adjustKmerLength) {
                             unsigned char revKmer[32];
@@ -183,19 +189,20 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                         std::pair<size_t*, size_t>  scoreMat = generator->generateKmerList(kmer, true);
 //                        std::cout << scoreMat.elementSize << std::endl;
                         for(size_t kmerPos = 0; kmerPos < scoreMat.second && kmerPos < static_cast<size_t >(par.pickNbest); kmerPos++){
-                            (kmers + seqKmerCount)->kmer  =  scoreMat.first[kmerPos];
+                            size_t kmerIdx = scoreMat.first[kmerPos];
+                            (kmers + seqKmerCount)->kmer = kmerIdx;
                             (kmers + seqKmerCount)->pos = seq.getCurrentPosition();
-                            const unsigned short hash = static_cast<unsigned short>(XXH64(&(kmers + seqKmerCount)->kmer, 8, par.hashShift));
+                            const unsigned short hash = hashUInt64(kmerIdx, par.hashShift);
                             (kmers + seqKmerCount)->score = hash;
                             scoreDist[hash]++;
                             hierarchicalScoreDist[hash >> 9]++;
                             seqKmerCount++;
                         }
                     } else {
-                        uint64_t kmerIdx = idxer.int2index(kmer, 0, par.kmerSize);
+                        size_t kmerIdx = idxer.int2index(kmer, 0, par.kmerSize);
                         (kmers + seqKmerCount)->kmer = kmerIdx;
                         (kmers + seqKmerCount)->pos = seq.getCurrentPosition();
-                        const unsigned short hash = static_cast<unsigned short>(XXH64(&kmerIdx, sizeof(kmerIdx), par.hashShift));
+                        const unsigned short hash = hashUInt64(kmerIdx, par.hashShift);
 //                        (kmers + seqKmerCount)->score = hash;
 //                        const unsigned short hash = circ_hash(kmer, par.kmerSize, 5);
                         (kmers + seqKmerCount)->score = hash;
