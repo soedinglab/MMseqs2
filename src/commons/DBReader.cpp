@@ -658,9 +658,9 @@ template <typename T> size_t DBReader<T>::getLookupIdByAccession(const std::stri
     }
     LookupEntry val;
     val.entryName = accession;
-    size_t id = std::upper_bound(lookup, lookup + lookupSize, val, LookupEntry::compareByAccession) - lookup;
+    size_t id = std::upper_bound(lookup, lookup + lookupSize, val, LookupEntry::compareByAccessionOnly) - lookup;
 
-    return (id < lookupSize && lookup[id].entryName == accession) ? id : SIZE_MAX;
+    return (id < lookupSize && lookup[id].entryName.compare(accession) == 0) ? id : SIZE_MAX;
 }
 
 template <typename T> T DBReader<T>::getLookupKey(size_t id){
