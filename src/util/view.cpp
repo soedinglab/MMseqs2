@@ -22,9 +22,26 @@ int view(int argc, const char **argv, const Command& command) {
             indexSrcType = IndexReader::SRC_HEADERS;
             break;
     }
-    IndexReader reader(par.db1, par.threads, indexSrcType, 0);
+    const bool lookupMode = par.dbIdMode == Parameters::ID_MODE_LOOKUP;
+    int dbMode = DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA;
+    if (lookupMode) {
+        dbMode |= DBReader<unsigned int>::USE_LOOKUP_REV;
+    }
+    IndexReader reader(par.db1, par.threads, indexSrcType, false, dbMode);
     for (size_t i = 0; i < ids.size(); ++i) {
-        const unsigned int key = Util::fast_atoi<unsigned int>(ids[i].c_str());
+        unsigned int key;
+        std::string& ref = ids[i];
+        if (lookupMode) {
+            size_t lookupId = reader.sequenceReader->getLookupIdByAccession(ref);
+            if (lookupId == SIZE_MAX) {
+                Debug(Debug::WARNING) << "Could not find " << ref << " in lookup\n";
+                continue;
+            }
+            key = reader.sequenceReader->getLookupKey(lookupId);
+        } else {
+            key = Util::fast_atoi<unsigned int>(ref.c_str());
+        }
+
         const size_t id = reader.sequenceReader->getId(key);
         if (id >= UINT_MAX) {
             Debug(Debug::ERROR) << "Key " << ids[i] << " not found in database\n";
