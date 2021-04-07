@@ -1207,6 +1207,9 @@ Parameters::Parameters():
     taxonomy = combineList(taxonomy, aggregatetaxweights);
     taxonomy = combineList(taxonomy, lca);
     taxonomy = combineList(taxonomy, searchworkflow);
+    taxonomy = removeParameter(taxonomy, PARAM_NUM_ITERATIONS);
+    taxonomy = removeParameter(taxonomy, PARAM_START_SENS);
+    taxonomy = removeParameter(taxonomy, PARAM_SENS_STEPS);
 
     // easy taxonomy
     easytaxonomy = combineList(taxonomy, addtaxonomy);
