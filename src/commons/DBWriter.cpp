@@ -734,5 +734,6 @@ void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string
             EXIT(EXIT_FAILURE);
         }
         lookupReader->close();
+        delete lookupReader;
     }
 }
