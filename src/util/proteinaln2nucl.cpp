@@ -195,6 +195,8 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
         delete tdbr_nuc;
         delete tdbr_aa;
     }
+    qdbr_nuc.close();
+    qdbr_aa.close();
     delete[] fastMatrix.matrix;
     delete[] fastMatrix.matrixData;
 
