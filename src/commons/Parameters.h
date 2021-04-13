@@ -280,6 +280,9 @@ public:
     static const int SUBDB_MODE_HARD = 0;
     static const int SUBDB_MODE_SOFT = 1;
 
+    static const int ID_MODE_KEYS = 0;
+    static const int ID_MODE_LOOKUP = 1;
+
     // unpackdb
     static const int UNPACK_NAME_KEY = 0;
     static const int UNPACK_NAME_ACCESSION = 1;
@@ -635,6 +638,7 @@ public:
 
     // createsubdb
     int subDbMode;
+    int dbIdMode;
 
     // tar2db
     std::string tarInclude;
@@ -959,6 +963,7 @@ public:
 
     // createsubdb
     PARAMETER(PARAM_SUBDB_MODE)
+    PARAMETER(PARAM_ID_MODE)
 
     // tar2db
     PARAMETER(PARAM_TAR_INCLUDE)

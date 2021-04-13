@@ -581,7 +581,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
 
         // merge index
         mergeIndex(indexFileNames, dataFilenames.size(), mergedSizes);
-    } else {
+    } else if (dataFilenames.size() == 1) {
         std::vector<std::string>& filenames = dataFilenames[0];
         if (filenames.size() == 1) {
             // In single thread dbreader mode it will create a .0
@@ -590,12 +590,25 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         } else {
             DBReader<unsigned int>::moveDatafiles(filenames, outFileName);
         }
-    }
-    if (indexNeedsToBeSorted) {
-        DBWriter::sortIndex(indexFileNames[0], outFileNameIndex, lexicographicOrder);
-        FileUtil::remove(indexFileNames[0]);
     } else {
-        FileUtil::move(indexFileNames[0], outFileNameIndex);
+        FILE *outFh = FileUtil::openAndDelete(outFileName, "w");
+        if (fclose(outFh) != 0) {
+            Debug(Debug::ERROR) << "Cannot close data file " << outFileName << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        outFh = FileUtil::openAndDelete(outFileNameIndex, "w");
+        if (fclose(outFh) != 0) {
+            Debug(Debug::ERROR) << "Cannot close index file " << outFileNameIndex << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    if (dataFilenames.size() > 0) {
+        if (indexNeedsToBeSorted) {
+            DBWriter::sortIndex(indexFileNames[0], outFileNameIndex, lexicographicOrder);
+            FileUtil::remove(indexFileNames[0]);
+        } else {
+            FileUtil::move(indexFileNames[0], outFileNameIndex);
+        }
     }
     Debug(Debug::INFO) << "Time for merging to " << FileUtil::baseName(outFileName) << ": " << timer.lap() << "\n";
 }
@@ -721,5 +734,6 @@ void DBWriter::createRenumberedDB(const std::string& dataFile, const std::string
             EXIT(EXIT_FAILURE);
         }
         lookupReader->close();
+        delete lookupReader;
     }
 }

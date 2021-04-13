@@ -473,6 +473,8 @@ int msa2result(int argc, const char **argv, const Command &command) {
         headerReader->close();
         delete headerReader;
     }
+    delete[] fastMatrix.matrix;
+    delete[] fastMatrix.matrixData;
 
     return EXIT_SUCCESS;
 }
