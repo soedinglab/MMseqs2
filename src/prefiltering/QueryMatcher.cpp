@@ -117,7 +117,7 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, unsigned 
       // check for multiple diagonals with score > maxDiagonalScoreThr between same ids to force rescoring in case of ambiguous
       bool haveClash = false;
       unsigned char currentMaxScore=0;
-      int currentId = -1;
+      unsigned int currentId = UINT_MAX;
       for (unsigned int i=0; i< elementsCntAboveDiagonalThr; i++) {
         if ((foundDiagonals + resultSize)[i].id != currentId) {
           currentId = (foundDiagonals + resultSize)[i].id;
