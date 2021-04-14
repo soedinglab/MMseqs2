@@ -99,61 +99,39 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, unsigned 
 
     size_t resultSize = match(querySeq, compositionBias);
     std::pair<hit_t *, size_t> queryResult;
-  if (diagonalScoring) {
-    // write diagonal scores in count value
-    ungappedAlignment->processQuery(querySeq, compositionBias, foundDiagonals, resultSize);
-    memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
-
-    updateScoreBins(foundDiagonals, resultSize);
-    unsigned int diagonalThr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
-    diagonalThr = std::max(minDiagScoreThr, diagonalThr);
-
-    // sort to not lose highest scoring hits if > 150.000 hits are searched
-    if(resultSize < foundDiagonalsSize / 2){
-      unsigned int maxDiagonalScoreThr = (UCHAR_MAX - ungappedAlignment->getQueryBias());
-      bool scoreIsTruncated = (diagonalThr >= maxDiagonalScoreThr) ? true : false;
-      size_t elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
-
-      // check for multiple diagonals with score > maxDiagonalScoreThr between same ids to force rescoring in case of ambiguous
-      bool haveClash = false;
-      unsigned char currentMaxScore=0;
-      unsigned int currentId = UINT_MAX;
-      for (unsigned int i=0; i< elementsCntAboveDiagonalThr; i++) {
-        if ((foundDiagonals + resultSize)[i].id != currentId) {
-          currentId = (foundDiagonals + resultSize)[i].id;
-          currentMaxScore = (foundDiagonals + resultSize)[i].count;
-        } else {
-          if ((currentMaxScore == (foundDiagonals + resultSize)[i].count) &&
-                     (currentMaxScore >= maxDiagonalScoreThr)) {
-            haveClash = true;
-            break;
-          }else if (currentMaxScore < (foundDiagonals + resultSize)[i].count) {
-            currentMaxScore = (foundDiagonals + resultSize)[i].count;
-          }
-        }
-      }
-
-      if (haveClash == true || scoreIsTruncated == true) {
+    if (diagonalScoring) {
+        // write diagonal scores in count value
+        ungappedAlignment->processQuery(querySeq, compositionBias, foundDiagonals, resultSize);
         memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
-        std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, scoreSizes, foundDiagonals + resultSize, elementsCntAboveDiagonalThr, ungappedAlignment, maxDiagonalScoreThr);
-        size_t newResultSize = rescoreResult.first;
-        unsigned int maxSelfScoreMinusDiag = rescoreResult.second;
-        elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals, 0, foundDiagonals + resultSize, newResultSize);
-        elementsCntAboveDiagonalThr = keepMaxScoreElementOnly(foundDiagonals, elementsCntAboveDiagonalThr);
-        queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(foundDiagonals, elementsCntAboveDiagonalThr, identityId, 0, ungappedAlignment, maxSelfScoreMinusDiag);
-      }else{
-        elementsCntAboveDiagonalThr = keepMaxScoreElementOnly(foundDiagonals + resultSize, elementsCntAboveDiagonalThr);
-        queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, identityId, diagonalThr, ungappedAlignment, false);
-      }
-      stats->truncated = 0;
-    }else{
-      //Debug(Debug::WARNING) << "Sequence " << querySeq->getDbKey() << " produces too many hits. Results might be truncated\n";
-      resultSize = keepMaxScoreElementOnly(foundDiagonals, resultSize);
-      queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(foundDiagonals, resultSize, identityId, diagonalThr, ungappedAlignment, false);
-      stats->truncated = 1;
-    }
 
-  }else{
+        resultSize = keepMaxScoreElementOnly(foundDiagonals, resultSize);
+
+        updateScoreBins(foundDiagonals, resultSize);
+        unsigned int diagonalThr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
+        diagonalThr = std::max(minDiagScoreThr, diagonalThr);
+
+        // sort to not lose highest scoring hits if > 150.000 hits are searched
+        if(resultSize < foundDiagonalsSize / 2){
+            unsigned int maxDiagonalScoreThr = (UCHAR_MAX - ungappedAlignment->getQueryBias());
+            bool scoreIsTruncated = (diagonalThr >= maxDiagonalScoreThr) ? true : false;
+            size_t elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
+            if (scoreIsTruncated == true) {
+                memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
+                std::pair<size_t, unsigned int> rescoreResult = rescoreHits(querySeq, scoreSizes, foundDiagonals + resultSize, elementsCntAboveDiagonalThr, ungappedAlignment, maxDiagonalScoreThr);
+                size_t newResultSize = rescoreResult.first;
+                unsigned int maxSelfScoreMinusDiag = rescoreResult.second;
+                elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals, 0, foundDiagonals + resultSize, newResultSize);
+                queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(foundDiagonals, elementsCntAboveDiagonalThr, identityId, 0, ungappedAlignment, maxSelfScoreMinusDiag);
+            }else{
+                queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, identityId, diagonalThr, ungappedAlignment, false);
+            }
+            stats->truncated = 0;
+        }else{
+            //Debug(Debug::WARNING) << "Sequence " << querySeq->getDbKey() << " produces too many hits. Results might be truncated\n";
+            queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(foundDiagonals, resultSize, identityId, diagonalThr, ungappedAlignment, false);
+            stats->truncated = 1;
+        }
+    }else{
         unsigned int thr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         thr = std::max(minDiagScoreThr, thr);
         if(resultSize < foundDiagonalsSize / 2) {
@@ -479,10 +457,10 @@ std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, u
     size_t elements = 0;
     const unsigned char * query = querySeq->numSequence;
     int maxSelfScore = align->scoreSingleSequence(std::make_pair(query, querySeq->L), 0,0);
+
+    maxSelfScore = std::min(maxSelfScore, USHRT_MAX);
     maxSelfScore = (maxSelfScore-lowerBoundScore);
     maxSelfScore = std::max(1, maxSelfScore);
-    maxSelfScore = std::min(maxSelfScore, USHRT_MAX);
-
     float fltMaxSelfScore = static_cast<float>(maxSelfScore);
     for (size_t i = 0; i < resultSize && results[i].count >= lowerBoundScore; i++) {
         unsigned int newScore = align->scoreSingelSequenceByCounterResult(results[i]);
