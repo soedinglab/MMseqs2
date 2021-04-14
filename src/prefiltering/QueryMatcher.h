@@ -56,12 +56,12 @@ public:
                  BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
                  short kmerThr, int kmerSize, size_t dbSize, unsigned int maxSeqLen,
                  size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoringMode,
-                 unsigned int minDiagScoreThr, bool takeOnlyBestKmer);
+                 unsigned int minDiagScoreThr, bool takeOnlyBestKmer, bool isNucleotide);
     ~QueryMatcher();
 
     // returns result for the sequence
     // identityId is the id of the identitical sequence in the target database if there is any, UINT_MAX otherwise
-    std::pair<hit_t*, size_t> matchQuery(Sequence *querySeq, unsigned int identityId);
+    std::pair<hit_t*, size_t> matchQuery(Sequence *querySeq, unsigned int identityId,  bool isNucleotide);
 
     // set substituion matrix for KmerGenerator
     void setProfileMatrix(ScoreMatrix **matrix){
@@ -189,6 +189,8 @@ protected:
     unsigned int minDiagScoreThr;
 
     Indexer idx;
+
+    bool isNucleotide;
 
     const static size_t SCORE_RANGE = 256;
 

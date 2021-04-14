@@ -782,7 +782,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
         Sequence seq(qdbr->getMaxSeqLen(), querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
                              kmerThr, kmerSize, dbSize, std::max(tdbr->getMaxSeqLen(),qdbr->getMaxSeqLen()), maxResListLen, aaBiasCorrection,
-                             diagonalScoring, minDiagScoreThr, takeOnlyBestKmer);
+                             diagonalScoring, minDiagScoreThr, takeOnlyBestKmer, targetSeqType==Parameters::DBTYPE_NUCLEOTIDES);
 
         if (seq.profile_matrix != NULL) {
             matcher.setProfileMatrix(seq.profile_matrix);
@@ -818,7 +818,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                 }
             }
             // calculate prefiltering results
-            std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId);
+            std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId, targetSeqType==Parameters::DBTYPE_NUCLEOTIDES);
             size_t resultSize = prefResults.second;
             const float queryLength = static_cast<float>(qdbr->getSeqLen(id));
             for (size_t i = 0; i < resultSize; i++) {
