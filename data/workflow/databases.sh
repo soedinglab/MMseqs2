@@ -214,11 +214,12 @@ case "${SELECTION}" in
     ;;
     "dbCAN2")
         if notExists "${TMP_PATH}/download.done"; then
-            downloadFile "http://bcb.unl.edu/dbCAN2/download/dbCAN-fam-aln-V8.tar.gz" "${TMP_PATH}/msa.tar.gz"
-            printf "8 %s\n" "$(date "+%s")" > "${TMP_PATH}/version"
+            downloadFile "http://bcb.unl.edu/dbCAN2/download/dbCAN-fam-aln-V9.tar.gz" "${TMP_PATH}/msa.tar.gz"
+            printf "9 %s\n" "$(date "+%s")" > "${TMP_PATH}/version"
             touch "${TMP_PATH}/download.done"
         fi
         INPUT_TYPE="FASTA_MSA"
+        FASTA_MSA_SED='s|\.aln||g'
     ;;
     "SILVA")
        if notExists "${TMP_PATH}/download.done"; then
