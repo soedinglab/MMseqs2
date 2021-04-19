@@ -138,6 +138,13 @@ std::vector<DatabaseDownload> downloads = {{
     false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
     { }
 }, {
+    "VOGDB",
+    "VOGDB is a continously updated resource of Virus Orthologous Groups",
+    "Marz et al: Challenges in RNA virus bioinformatics. Bioinformatics 30, 1793–9 (2014)",
+    "https://vogdb.org",
+    false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
+    { }
+}, {
     "dbCAN2",
     "dbCAN2 is a database of carbohydrate-active enzymes.",
     "Zhang et al: dbCAN2: a meta server for automated carbohydrate-active enzyme annotation. Nucleic Acids Res 46(W1), W95-W101 (2018)",
