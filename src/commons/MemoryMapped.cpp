@@ -50,9 +50,8 @@ MemoryMapped::MemoryMapped()
 #ifdef _MSC_VER
         _mappedFile (NULL),
 #endif
-          _mappedView (NULL)
-{
-}
+          _mappedView (NULL),
+          _emptyView ("") {}
 
 
 /// open file, mappedBytes = 0 maps the whole file
@@ -65,8 +64,8 @@ MemoryMapped::MemoryMapped(const std::string& filename, size_t mappedBytes, Cach
 #ifdef _MSC_VER
         _mappedFile (NULL),
 #endif
-          _mappedView (NULL)
-{
+          _mappedView (NULL),
+          _emptyView ("") {
     open(filename, mappedBytes, hint);
 }
 
@@ -157,13 +156,14 @@ bool MemoryMapped::open(const std::string& filename, size_t mappedBytes, CacheHi
 void MemoryMapped::close()
 {
     // kill pointer
-    if (_mappedView)
-    {
+    if (_mappedView) {
+        if (_mappedView != _emptyView) {
 #ifdef _MSC_VER
-        ::UnmapViewOfFile(_mappedView);
+            ::UnmapViewOfFile(_mappedView);
 #else
-        ::munmap(_mappedView, _filesize);
+            ::munmap(_mappedView, _filesize);
 #endif
+        }
         _mappedView = NULL;
     }
 
@@ -247,13 +247,14 @@ bool MemoryMapped::remap(uint64_t offset, size_t mappedBytes)
         mappedBytes = _filesize;
 
     // close old mapping
-    if (_mappedView)
-    {
+    if (_mappedView) {
+        if (_mappedView != _emptyView) {
 #ifdef _MSC_VER
-        ::UnmapViewOfFile(_mappedView);
+            ::UnmapViewOfFile(_mappedView);
 #else
-        ::munmap(_mappedView, _mappedBytes);
+            ::munmap(_mappedView, _mappedBytes);
 #endif
+        }
         _mappedView = NULL;
     }
 
@@ -262,6 +263,13 @@ bool MemoryMapped::remap(uint64_t offset, size_t mappedBytes)
         return false;
     if (offset + mappedBytes > _filesize)
         mappedBytes = size_t(_filesize - offset);
+
+    // mmap doesn't opening 0-byte large files
+    // map a fake null view to support this case
+    if (mappedBytes == 0) {
+        _mappedView = (void*)_emptyView;
+        return true;
+    }
 
 #ifdef _MSC_VER
     // Windows

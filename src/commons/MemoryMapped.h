@@ -104,5 +104,7 @@ private:
   FileHandle  _file;
   /// pointer to the file contents mapped into memory
   void*       _mappedView;
+  /// pointer to an empty string (to support mapping 0-byte size files)
+  const char* _emptyView;
 };
 #endif
