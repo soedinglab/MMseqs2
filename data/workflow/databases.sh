@@ -185,13 +185,30 @@ case "${SELECTION}" in
     "eggNOG")
         if notExists "${TMP_PATH}/download.done"; then
             date "+%s" > "${TMP_PATH}/version"
-            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2/2_raw_algs.tar" "${TMP_PATH}/bacteria"
-            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2157/2157_raw_algs.tar" "${TMP_PATH}/archea"
-            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2759/2759_raw_algs.tar" "${TMP_PATH}/eukaryota"
-            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/10239/10239_raw_algs.tar" "${TMP_PATH}/viruses"
+            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2/2_raw_algs.tar" "${TMP_PATH}/bacteria.tar"
+            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2157/2157_raw_algs.tar" "${TMP_PATH}/archea.tar"
+            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2759/2759_raw_algs.tar" "${TMP_PATH}/eukaryota.tar"
+            downloadFile "http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/10239/10239_raw_algs.tar" "${TMP_PATH}/viruses.tar"
             touch "${TMP_PATH}/download.done"
         fi
         INPUT_TYPE="eggNOG"
+        push_back "${TMP_PATH}/bacteria.tar"
+        push_back "${TMP_PATH}/archea.tar"
+        push_back "${TMP_PATH}/eukaryota.tar"
+        push_back "${TMP_PATH}/viruses.tar"
+        TAR2DB_INCLUDE='\.raw_alg\.faa\.gz$'
+        SED_FIX_LOOKUP='s|\.raw_alg\.faa\.gz||g'
+    ;;
+    "VOGDB")
+        if notExists "${TMP_PATH}/download.done"; then
+            downloadFile "http://fileshare.csb.univie.ac.at/vog/latest/release.txt" "${TMP_PATH}/version"
+            downloadFile "http://fileshare.csb.univie.ac.at/vog/latest/vog.raw_algs.tar.gz" "${TMP_PATH}/vog.tar.gz"
+            touch "${TMP_PATH}/download.done"
+        fi
+        INPUT_TYPE="eggNOG"
+        push_back "${TMP_PATH}/vog.tar.gz"
+        TAR2DB_INCLUDE='\.msa$'
+        SED_FIX_LOOKUP='s|\.msa||g'
     ;;
     "CDD")
         if notExists "${TMP_PATH}/msa.msa.gz"; then
@@ -199,7 +216,7 @@ case "${SELECTION}" in
             downloadFile "https://ftp.ncbi.nih.gov/pub/mmdb/cdd/fasta.tar.gz" "${TMP_PATH}/msa.tar.gz"
         fi
         INPUT_TYPE="FASTA_MSA"
-        FASTA_MSA_SED='s|\.FASTA||g'
+        SED_FIX_LOOKUP='s|\.FASTA||g'
         FASTA_MSA_MSA2PROFILE_PAR="--skip-query"
     ;;
     "Resfinder")
@@ -214,11 +231,12 @@ case "${SELECTION}" in
     ;;
     "dbCAN2")
         if notExists "${TMP_PATH}/download.done"; then
-            downloadFile "http://bcb.unl.edu/dbCAN2/download/dbCAN-fam-aln-V8.tar.gz" "${TMP_PATH}/msa.tar.gz"
-            printf "8 %s\n" "$(date "+%s")" > "${TMP_PATH}/version"
+            downloadFile "http://bcb.unl.edu/dbCAN2/download/dbCAN-fam-aln-V9.tar.gz" "${TMP_PATH}/msa.tar.gz"
+            printf "9 %s\n" "$(date "+%s")" > "${TMP_PATH}/version"
             touch "${TMP_PATH}/download.done"
         fi
         INPUT_TYPE="FASTA_MSA"
+        SED_FIX_LOOKUP='s|\.aln||g'
     ;;
     "SILVA")
        if notExists "${TMP_PATH}/download.done"; then
@@ -311,11 +329,11 @@ case "${INPUT_TYPE}" in
         # shellcheck disable=SC2086
         "${MMSEQS}" tar2db "${TMP_PATH}/msa.tar.gz" "${TMP_PATH}/msa" --output-dbtype 11 ${THREADS_PAR}  \
             || fail "tar2db died"
-        if [ -n "${FASTA_MSA_SED}" ]; then
-            sed "${FASTA_MSA_SED}" "${TMP_PATH}/msa.lookup" > "${TMP_PATH}/msa.lookup_tmp"
-            mv -f "${TMP_PATH}/msa.lookup_tmp" "${TMP_PATH}/msa.lookup"
+        if [ -n "${SED_FIX_LOOKUP}" ]; then
+            sed "${SED_FIX_LOOKUP}" "${TMP_PATH}/msa.lookup" > "${TMP_PATH}/msa.lookup_tmp"
+            mv -f -- "${TMP_PATH}/msa.lookup_tmp" "${TMP_PATH}/msa.lookup"
         fi
-        rm -f "${TMP_PATH}/msa.tar.gz"
+        rm -f -- "${TMP_PATH}/msa.tar.gz"
         # shellcheck disable=SC2086
         "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${FASTA_MSA_MSA2PROFILE_PAR} ${THREADS_PAR} \
             || fail "msa2profile died"
@@ -326,17 +344,22 @@ case "${INPUT_TYPE}" in
         fi
     ;;
     "eggNOG")
+        eval "set -- $ARR"
         # shellcheck disable=SC2086
-        "${MMSEQS}" tar2db "${TMP_PATH}/bacteria" "${TMP_PATH}/archea" "${TMP_PATH}/eukaryota" "${TMP_PATH}/viruses" "${TMP_PATH}/msa" --output-dbtype 11 --tar-include '\.raw_alg\.faa\.gz$' ${THREADS_PAR} \
+        "${MMSEQS}" tar2db "${@}" "${TMP_PATH}/msa" --output-dbtype 11 --tar-include "${TAR2DB_INCLUDE}" ${THREADS_PAR} \
             || fail "tar2db died"
-        rm -f "${TMP_PATH}/bacteria.tar" "${TMP_PATH}/archea.tar" "${TMP_PATH}/eukaryota.tar" "${TMP_PATH}/viruses.tar"
+        rm -f -- "${@}"
+        if [ -n "${SED_FIX_LOOKUP}" ]; then
+            sed "${SED_FIX_LOOKUP}" "${TMP_PATH}/msa.lookup" > "${TMP_PATH}/msa.lookup_tmp"
+            mv -f -- "${TMP_PATH}/msa.lookup_tmp" "${TMP_PATH}/msa.lookup"
+        fi
         sed 's|\.raw_alg\.faa\.gz||g' "${TMP_PATH}/msa.lookup" > "${TMP_PATH}/msa.lookup.tmp"
-        mv -f "${TMP_PATH}/msa.lookup.tmp" "${TMP_PATH}/msa.lookup"
+        mv -f -- "${TMP_PATH}/msa.lookup.tmp" "${TMP_PATH}/msa.lookup"
         # shellcheck disable=SC2086
         "${MMSEQS}" msa2profile "${TMP_PATH}/msa" "${OUTDB}" --match-mode 1 --match-ratio 0.5 ${THREADS_PAR} \
             || fail "msa2profile died"
-        mv -f "${TMP_PATH}/msa.lookup" "${OUTDB}.lookup"
-        mv -f "${TMP_PATH}/msa.source" "${OUTDB}.source"
+        mv -f -- "${TMP_PATH}/msa.lookup" "${OUTDB}.lookup"
+        mv -f -- "${TMP_PATH}/msa.source" "${OUTDB}.source"
         if [ -n "${REMOVE_TMP}" ]; then
             # shellcheck disable=SC2086
             "${MMSEQS}" rmdb "${TMP_PATH}/msa" ${VERB_PAR} \

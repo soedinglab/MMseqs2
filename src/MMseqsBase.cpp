@@ -1060,7 +1060,7 @@ std::vector<Command> baseCommands = {
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",
                 "<i:profileDB> <o:sequenceDB>",
-                CITATION_MMSEQS2, {{"profileDB",DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::aaDb },
+                CITATION_MMSEQS2, {{"profileDB",DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::profileDb },
                                                            {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::aaDb }}},
         {"convertprofiledb",     convertprofiledb,     &par.convertprofiledb,     COMMAND_PROFILE,
                 "Convert a HH-suite HHM DB to a profile DB",

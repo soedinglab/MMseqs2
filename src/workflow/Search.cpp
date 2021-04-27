@@ -334,9 +334,7 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("SWAPRES_PAR", par.createParameterString(par.swapresult).c_str());
         par.evalThr = originalEvalThr;
         cmd.addVariable("FILTER_PAR", par.createParameterString(par.filterresult).c_str());
-        if(par.exhaustiveFilterMsa == 1){
-            cmd.addVariable("FILTER_RESULT", "1");
-        }
+        cmd.addVariable("FILTER_RESULT", par.exhaustiveFilterMsa == 1 ? "1" : "0");
         if (isUngappedMode) {
             par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
             cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());

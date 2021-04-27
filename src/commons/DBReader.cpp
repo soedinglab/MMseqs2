@@ -121,7 +121,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         for(size_t fileIdx = 0; fileIdx < dataFileNames.size(); fileIdx++){
             FILE* dataFile = fopen(dataFileNames[fileIdx].c_str(), "r");
             if (dataFile == NULL) {
-                Debug(Debug::ERROR) << "Can not open data file " << dataFileName << "!\n";
+                Debug(Debug::ERROR) << "Cannot open data file " << dataFileName << "!\n";
                 EXIT(EXIT_FAILURE);
             }
             size_t dataSize;
@@ -141,13 +141,13 @@ template <typename T> bool DBReader<T>::open(int accessType){
     }
     if (dataMode & USE_LOOKUP || dataMode & USE_LOOKUP_REV) {
         std::string lookupFilename = (std::string(dataFileName) + ".lookup");
-        if(FileUtil::fileExists(lookupFilename.c_str()) == false){
-            Debug(Debug::ERROR) << "Can not open lookup file " << lookupFilename << "!\n";
+        MemoryMapped lookupData(lookupFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+        if (lookupData.isValid() == false) {
+            Debug(Debug::ERROR) << "Cannot open lookup file " << lookupFilename << "!\n";
             EXIT(EXIT_FAILURE);
         }
-        MemoryMapped indexData(lookupFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
-        char* lookupDataChar = (char *) indexData.getData();
-        size_t lookupDataSize = indexData.size();
+        char* lookupDataChar = (char *) lookupData.getData();
+        size_t lookupDataSize = lookupData.size();
         lookupSize = Util::ompCountLines(lookupDataChar, lookupDataSize, threads);
         lookup = new(std::nothrow) LookupEntry[this->lookupSize];
         incrementMemory(sizeof(LookupEntry) * this->lookupSize);
@@ -157,25 +157,21 @@ template <typename T> bool DBReader<T>::open(int accessType){
         } else {
             SORT_PARALLEL(lookup, lookup + lookupSize, LookupEntry::compareByAccession);
         }
-        indexData.close();
+        lookupData.close();
     }
     bool isSortedById = false;
     if (externalData == false) {
-        if(FileUtil::fileExists(indexFileName)==false){
-            Debug(Debug::ERROR) << "Can not open index file " << indexFileName << "!\n";
-            EXIT(EXIT_FAILURE);
-        }
         MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
         if (!indexData.isValid()){
-            Debug(Debug::ERROR) << "Can map open index file " << indexFileName << "\n";
+            Debug(Debug::ERROR) << "Cannot open index file " << indexFileName << "\n";
             EXIT(EXIT_FAILURE);
         }
         char* indexDataChar = (char *) indexData.getData();
         size_t indexDataSize = indexData.size();
         size = Util::ompCountLines(indexDataChar, indexDataSize, threads);
 
-        index = new(std::nothrow) Index[this->size];
-        Util::checkAllocation(index, "Can not allocate index memory in DBReader");
+        index = new(std::nothrow) Index[size];
+        Util::checkAllocation(index, "Cannot allocate index memory in DBReader");
         incrementMemory(sizeof(Index) * size);
 
         bool isSortedById = readIndex(indexDataChar, indexDataSize, index, dataSize);
@@ -203,7 +199,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
             compressedBuffers[i] = (char*) malloc(compressedBufferSizes[i]);
             incrementMemory(compressedBufferSizes[i]);
             if(compressedBuffers[i]==NULL){
-                Debug(Debug::ERROR) << "Can not allocate compressedBuffer!\n";
+                Debug(Debug::ERROR) << "Cannot allocate compressedBuffer!\n";
                 EXIT(EXIT_FAILURE);
             }
             dstream[i] = ZSTD_createDStream();
@@ -236,7 +232,7 @@ void DBReader<std::string>::sortIndex(bool isSortedById) {
         SORT_PARALLEL(index, index + size, Index::compareById);
     } else {
         if(accessType != NOSORT && accessType != HARDNOSORT){
-            Debug(Debug::ERROR) << "DBReader<std::string> can not be opened in sort mode\n";
+            Debug(Debug::ERROR) << "DBReader<std::string> cannot be opened in sort mode\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -456,7 +452,7 @@ template <typename T> void DBReader<T>::remapData(){
         for(size_t fileIdx = 0; fileIdx < dataFileNames.size(); fileIdx++){
             FILE* dataFile = fopen(dataFileNames[fileIdx].c_str(), "r");
             if (dataFile == NULL) {
-                Debug(Debug::ERROR) << "Can not open data file " << dataFileNames[fileIdx] << "!\n";
+                Debug(Debug::ERROR) << "Cannot open data file " << dataFileNames[fileIdx] << "!\n";
                 EXIT(EXIT_FAILURE);
             }
             size_t dataSize = 0;
