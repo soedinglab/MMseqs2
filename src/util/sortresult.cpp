@@ -29,7 +29,7 @@ int sortresult(int argc, const char **argv, const Command &command) {
         thread_idx = omp_get_thread_num();
 #endif
         const char *entry[255];
-        char buffer[2048];
+        char buffer[1024 + 32768*4];
 
         std::vector<Matcher::result_t> alnResults;
         alnResults.reserve(300);
