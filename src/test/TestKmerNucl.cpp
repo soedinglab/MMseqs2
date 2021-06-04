@@ -22,6 +22,7 @@ int main (int, const char**) {
     const size_t kmer_size = 6;
 
     Parameters& par = Parameters::getInstance();
+    par.initMatrices();
     NucleotideMatrix subMat(par.scoringMatrixFile.nucleotides, 2.0, -0.0f);
 
     Indexer idx((size_t)subMat.alphabetSize, kmer_size);

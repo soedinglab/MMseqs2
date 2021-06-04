@@ -1456,6 +1456,36 @@ bool parseBool(const std::string &p) {
     }
 }
 
+void Parameters::initMatrices() {
+    // set up substituionMatrix
+    for(size_t i = 0 ; i < substitutionMatrices.size(); i++) {
+        bool isAminoAcid = (strcmp(scoringMatrixFile.aminoacids, substitutionMatrices[i].name.c_str()) == 0);
+        bool isNucleotide = (strcmp(scoringMatrixFile.nucleotides, substitutionMatrices[i].name.c_str()) == 0);
+        bool isSeedAminoAcid = (strcmp(seedScoringMatrixFile.aminoacids, substitutionMatrices[i].name.c_str()) == 0);
+        bool isSeedNucleotide = (strcmp(seedScoringMatrixFile.nucleotides, substitutionMatrices[i].name.c_str()) == 0);
+        if (isAminoAcid || isNucleotide || isSeedAminoAcid || isSeedNucleotide) {
+            std::string matrixData((const char *) substitutionMatrices[i].subMatData, substitutionMatrices[i].subMatDataLen);
+            std::string matrixName = substitutionMatrices[i].name;
+            if (isAminoAcid) {
+                free(scoringMatrixFile.aminoacids);
+                scoringMatrixFile.aminoacids = BaseMatrix::serialize(matrixName, matrixData);
+            }
+            if (isNucleotide) {
+                free(scoringMatrixFile.nucleotides);
+                scoringMatrixFile.nucleotides = BaseMatrix::serialize(matrixName, matrixData);
+            }
+            if (isSeedAminoAcid) {
+                free(seedScoringMatrixFile.aminoacids);
+                seedScoringMatrixFile.aminoacids = BaseMatrix::serialize(matrixName, matrixData);
+            }
+            if (isSeedNucleotide) {
+                free(seedScoringMatrixFile.nucleotides);
+                seedScoringMatrixFile.nucleotides = BaseMatrix::serialize(matrixName, matrixData);
+            }
+        }
+    }
+}
+
 void Parameters::parseParameters(int argc, const char *pargv[], const Command &command, bool printPar, int parseFlags,
                                  int outputFlags) {
     filenames.clear();
@@ -1842,33 +1872,7 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             EXIT(EXIT_FAILURE);
     }
 
-    // set up substituionMatrix
-    for(size_t i = 0 ; i < substitutionMatrices.size(); i++) {
-        bool isAminoAcid   = (strcmp(scoringMatrixFile.aminoacids, substitutionMatrices[i].name.c_str()) == 0);
-        bool isNucleotide  = (strcmp(scoringMatrixFile.nucleotides, substitutionMatrices[i].name.c_str()) == 0);
-        bool isSeedAminoAcid   = (strcmp(seedScoringMatrixFile.aminoacids, substitutionMatrices[i].name.c_str()) == 0);
-        bool isSeedNucleotide  = (strcmp(seedScoringMatrixFile.nucleotides, substitutionMatrices[i].name.c_str()) == 0);
-        if (isAminoAcid || isNucleotide|| isSeedAminoAcid|| isSeedNucleotide) {
-            std::string matrixData((const char *)substitutionMatrices[i].subMatData, substitutionMatrices[i].subMatDataLen);
-            std::string matrixName = substitutionMatrices[i].name;
-            if(isAminoAcid) {
-                free(scoringMatrixFile.aminoacids);
-                scoringMatrixFile.aminoacids = BaseMatrix::serialize(matrixName, matrixData);
-            }
-            if(isNucleotide) {
-                free(scoringMatrixFile.nucleotides);
-                scoringMatrixFile.nucleotides = BaseMatrix::serialize(matrixName, matrixData);
-            }
-            if(isSeedAminoAcid) {
-                free(seedScoringMatrixFile.aminoacids);
-                seedScoringMatrixFile.aminoacids = BaseMatrix::serialize(matrixName, matrixData);
-            }
-            if(isSeedNucleotide) {
-                free(seedScoringMatrixFile.nucleotides);
-                seedScoringMatrixFile.nucleotides = BaseMatrix::serialize(matrixName, matrixData);
-            }
-        }
-    }
+    initMatrices();
 
     if (ignorePathCountChecks == false) {
         checkIfDatabaseIsValid(command, argc, pargv, isStartVar, isMiddleVar, isEndVar);
@@ -1877,7 +1881,6 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
     if (printPar == true) {
         printParameters(command.cmd, argc, pargv, par);
     }
-
 }
 
 std::vector<std::string> Parameters::findMissingTaxDbFiles(const std::string &filename) {
