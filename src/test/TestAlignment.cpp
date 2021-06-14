@@ -24,15 +24,16 @@ const char* binary_name = "test_alignment";
 int main (int, const char**) {
     const size_t kmer_size=6;
 
-
     char buffer[1024];
     const Matcher::result_t result(1351, 232, 1.0, 1.0, 0.99, 0.000000001, 20,
                                    3, 15, 22, 4, 18, 354, "MMMMMIIMMMMDDMMMMMM");
     size_t len = Matcher::resultToBuffer(buffer, result, true, false);
     std::cout << std::string(buffer, len) << std::endl;
 
-    SubstitutionMatrix subMat("blosum62.out", 2.0, -0.0f);
-    std::cout << "Subustitution matrix:\n";
+    Parameters& par = Parameters::getInstance();
+    par.initMatrices();
+    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, -0.0f);
+    std::cout << "Substitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
 //    for(int i = 0; i < 255; i++){
