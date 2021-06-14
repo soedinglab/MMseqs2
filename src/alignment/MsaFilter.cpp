@@ -417,15 +417,14 @@ size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const 
 //                        printf("%02d:%02d ", (int) ((char*)&XK[i])[u], (int) ((char*)&XK[i])[u]);
 //                    }
 //                    std::cout << std::endl;
-                    cov_kj -= MathUtil::popCount(res);  // subtract positions that should not contribute to coverage
+                    cov_kj -= __builtin_popcount(res);  // subtract positions that should not contribute to coverage
 
                     // Compute 16 bit mask that indicates positions where k and j have identical residues
                     int c = simdi8_movemask(simdi8_eq(XK[i], XJ[i]));
 
                     // Count positions where  k and j have different amino acids, which is equal to 16 minus the
                     //  number of positions for which either j and k are equal or which contain ANY, GAP, or ENDGAP
-                    diff += (VECSIZE_INT * 4) - MathUtil::popCount(c | res);
-
+                    diff += (VECSIZE_INT * 4) - __builtin_popcount(c | res);
                 }
 //            // DEBUG
 //            printf("%20.20s with %20.20s:  diff=%i  diff_min_frac*cov_kj=%f  diff_suff=%i  nres=%i  cov_kj=%i\n",sname[k],sname[j],diff,diff_min_frac*cov_kj,diff_suff,nres[k],cov_kj);
