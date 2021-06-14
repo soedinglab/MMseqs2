@@ -675,6 +675,11 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 		step = -1;
 	}
 
+#ifndef AVX2
+    const simd_int sixten  = simdi8_set(16);
+    const simd_int fiveten = simdi8_set(15);
+#endif
+
     // store the query consensus profile
     const simd_int* vQueryCons = query_consens_byte;
 	for (i = begin; LIKELY(i != end); i += step) {
@@ -696,8 +701,8 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
         simd_int target_scores1 = simdi8_set(0);
         simd_int target_scores2 = simdi8_set(0);
         if (type == PROFILE_PROFILE) {
-            target_scores1 = simdi_load(&target_profile_byte[i]);
-            target_scores2 = simdi_load(&target_profile_byte[i + 16]);
+            target_scores1 = simdi_load(&db_profile_byte[i]);
+            target_scores2 = simdi_load(&db_profile_byte[i + 16]);
         }
 #endif
 
@@ -711,21 +716,19 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 		    simd_int score = simdi8_set(0);
 		    if (type == PROFILE_PROFILE) {
 #ifdef AVX2
-                __m256i scoreLookup = simdi8_set(0);
-                scoreLookup = UngappedAlignment::Shuffle(target_scores1, simdi_load(vQueryCons + j));
+                __m256i scoreLookup = UngappedAlignment::Shuffle(target_scores1, simdi_load(vQueryCons + j));
 #else
-                __m128i score01 = _mm_shuffle_epi8(target_scores1, vQueryCons + j);
-                __m128i score16 = _mm_shuffle_epi8(target_scores2, vQueryCons + j);
-                __m128i lookup_mask01 = _mm_cmplt_epi8(vQueryCons + j, sixten);
-                __m128i lookup_mask16 = _mm_cmplt_epi8(fiveten, vQueryCons + j);
+		        const __m128i vQueryConsJ = _mm_load_si128(vQueryCons + j);
+                __m128i score01 = _mm_shuffle_epi8(target_scores1, vQueryConsJ);
+                __m128i score16 = _mm_shuffle_epi8(target_scores2, vQueryConsJ);
+                __m128i lookup_mask01 = _mm_cmplt_epi8(vQueryConsJ, sixten);
+                __m128i lookup_mask16 = _mm_cmplt_epi8(fiveten, vQueryConsJ);
                 score01 = _mm_and_si128(lookup_mask01, score01);
                 score16 = _mm_and_si128(lookup_mask16, score16);
-                __mm128i scoreLookup = _mm_add_epi8(score01, score16);
+                __m128i scoreLookup = _mm_add_epi8(score01, score16);
 #endif
                 //score = simdui8_max(scoreLookup, simdi_load(vP + j));
-		score = simdui8_avg(scoreLookup, simdi_load(vP + j));
-//                simdi_store(tmpScoreStore+j, simdi_load(vQueryCons + j));
-//                simdi_store(tmpScoreStore2 + j, target_scores1);
+                score = simdui8_avg(scoreLookup, simdi_load(vP + j));
 		    } else {
 		        score = simdi_load(vP + j);
 		    }
@@ -964,6 +967,11 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
     // store the query consensus profile
 	const simd_int* vQueryCons = query_consens_word;
 
+#ifndef AVX2
+    const simd_int sixten  = simdi8_set(16);
+    const simd_int fiveten = simdi8_set(15);
+#endif
+
 	for (i = begin; LIKELY(i != end); i += step) {
 		simd_int e, vF = vZero, vMaxColumn = vZero; /* Initialize F value to 0.
                                 Any errors to vH values will be corrected in the Lazy_F loop.
@@ -982,8 +990,8 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
         simd_int target_scores1 = simdi16_set(0);
         simd_int target_scores2 = simdi16_set(0);
         if (type == PROFILE_PROFILE) {
-            target_scores1 = simdi_load(&target_profile_word[i]);
-            target_scores2 = simdi_load(&target_profile_word[i + 16]);
+            target_scores1 = simdi_load(&db_profile_byte[i]);
+            target_scores2 = simdi_load(&db_profile_byte[i + 16]);
         }
 #endif
 
@@ -997,16 +1005,16 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 		    simd_int score = simdi16_set(0);
 		    if (type == PROFILE_PROFILE) {
 #ifdef AVX2
-                __m256i scoreLookup = simdi16_set(0);
-                scoreLookup = UngappedAlignment::Shuffle(target_scores1, simdi_load(vQueryCons + j));
+                __m256i scoreLookup = UngappedAlignment::Shuffle(target_scores1, simdi_load(vQueryCons + j));
 #else
-                __m256i score01 = _mm_shuffle_epi16(target_scores1, vQueryCons + j);
-                __m256i score16 = _mm_shuffle_epi16(target_scores2, vQueryCons + j);
-                __m256i lookup_mask01 = _mm_cmplt_epi16(vQueryCons + j, sixten);
-                __m256i lookup_mask16 = _mm_cmplt_epi16(fiveten, vQueryCons + j);
-                score01 = _mm_and_si256(lookup_mask01, score01);
-                score16 = _mm_and_si256(lookup_mask16, score16);
-                __m256i scoreLookup = _mm_add_epi16(score01, score16);
+                const __m128i vQueryConsJ = _mm_load_si128(vQueryCons + j);
+                __m128i score01 = _mm_shuffle_epi8(target_scores1, vQueryConsJ);
+                __m128i score16 = _mm_shuffle_epi8(target_scores2, vQueryConsJ);
+                __m128i lookup_mask01 = _mm_cmplt_epi8(vQueryConsJ, sixten);
+                __m128i lookup_mask16 = _mm_cmplt_epi8(fiveten, vQueryConsJ);
+                score01 = _mm_and_si128(lookup_mask01, score01);
+                score16 = _mm_and_si128(lookup_mask16, score16);
+                __m128i scoreLookup = _mm_add_epi8(score01, score16);
 #endif
                 scoreLookup = simdi_and(scoreLookup, simdi16_set(0x00FF));
                 score = simdui16_avg(scoreLookup, simdi16_add(simdi_load(vP + j), vBias));
