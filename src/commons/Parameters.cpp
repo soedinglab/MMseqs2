@@ -1082,6 +1082,7 @@ Parameters::Parameters():
     expandaln.push_back(&PARAM_COV_MODE);
     expandaln.push_back(&PARAM_PCA);
     expandaln.push_back(&PARAM_PCB);
+    expandaln.push_back(&PARAM_PRELOAD_MODE);
     expandaln.push_back(&PARAM_COMPRESSED);
     expandaln.push_back(&PARAM_THREADS);
     expandaln.push_back(&PARAM_V);
@@ -1111,6 +1112,7 @@ Parameters::Parameters():
     expand2profile.push_back(&PARAM_FILTER_NDIFF);
     expand2profile.push_back(&PARAM_PCA);
     expand2profile.push_back(&PARAM_PCB);
+    expand2profile.push_back(&PARAM_PRELOAD_MODE);
     expand2profile.push_back(&PARAM_COMPRESSED);
     expand2profile.push_back(&PARAM_THREADS);
     expand2profile.push_back(&PARAM_V);
