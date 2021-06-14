@@ -347,6 +347,15 @@ inline uint8_t simd_hmax8_sse(const __m128i buffer) {
     return (int8_t)(255 -(int8_t) _mm_cvtsi128_si32(tmp3));
 }
 
+// see https://stackoverflow.com/questions/6996764/fastest-way-to-do-horizontal-sse-vector-sum-or-other-reduction
+inline float simdf32_hadd(const __m128 v) {
+    __m128 shuf = _mm_movehdup_ps(v);        // broadcast elements 3,1 to 2,0
+    __m128 sums = _mm_add_ps(v, shuf);
+    shuf        = _mm_movehl_ps(shuf, sums); // high half -> low half
+    sums        = _mm_add_ss(sums, shuf);
+    return        _mm_cvtss_f32(sums);
+}
+
 // double support
 #ifndef SIMD_DOUBLE
 #define SIMD_DOUBLE
@@ -434,6 +443,8 @@ typedef __m128i simd_int;
 #define simdi16_hmax(x)     simd_hmax16_sse(x)
 #define simdui8_max(x,y)    _mm_max_epu8(x,y)
 #define simdi8_hmax(x)      simd_hmax8_sse(x)
+#define simdui8_avg(x,y)    _mm_avg_epu8(x,y)
+#define simdui16_avg(x,y)   _mm_avg_epu16(x,y)
 #define simdi_load(x)       _mm_load_si128(x)
 #define simdi_loadu(x)      _mm_loadu_si128(x)
 #define simdi_streamload(x) _mm_stream_load_si128(x)
