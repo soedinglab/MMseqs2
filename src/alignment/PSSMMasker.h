@@ -8,7 +8,7 @@
 
 class PSSMMasker {
 public:
-    PSSMMasker(size_t maxSeqLen, ProbabilityMatrix& probMatrix, BaseMatrix& subMat) : maxSeqLen(maxSeqLen), probMatrix(probMatrix), subMat(subMat), xAmioAcid(subMat.aa2num[static_cast<int>('X')]) {
+    PSSMMasker(size_t maxSeqLen, ProbabilityMatrix& probMatrix, BaseMatrix& subMat) : maxSeqLen(maxSeqLen), probMatrix(probMatrix), xAmioAcid(subMat.aa2num[static_cast<int>('X')]) {
         charSequence = (char*)malloc(sizeof(char) * maxSeqLen);
     }
 
@@ -46,7 +46,6 @@ private:
     char *charSequence;
     size_t maxSeqLen;
     ProbabilityMatrix& probMatrix;
-    BaseMatrix& subMat;
     const int xAmioAcid;
 };
 
