@@ -165,9 +165,7 @@ public:
 
     MultiParam(const char *parametercstring);
 
-    static std::string format(const MultiParam<T> &file) {
-        return T::constFirst + ":" + SSTR(file.values.first) + "," + T::constSecond + ":" + SSTR(file.values.second);
-    }
+    static std::string format(const MultiParam<T> &file);
 
     MultiParam<T> &operator=(T value) {
         this->values = value;

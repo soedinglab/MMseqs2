@@ -32,6 +32,11 @@ MultiParam<T>::MultiParam(const char *parametercstring) {
     }
 }
 
+template<typename T>
+std::string MultiParam<T>::format(const MultiParam<T> &file) {
+    return T::constFirst + ":" + SSTR(file.values.first) + "," + T::constSecond + ":" + SSTR(file.values.second);
+}
+
 template<> const int NuclAA<int>::max(INT_MAX);
 template<> const std::string NuclAA<int>::constFirst = "aa";
 template<> const std::string NuclAA<int>::constSecond = "nucl";
