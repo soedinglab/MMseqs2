@@ -48,6 +48,7 @@ while [ $STEP -lt "$NUM_IT" ]; do
     $RUNNER "$MMSEQS" prefilter "$QUERYDB" "$TARGETDB" "$TMP_PATH/pref_tmp_$STEP" ${TMP} \
       || fail "Prefilter died"
     STEPPREV=$((STEP-1))
+    # shellcheck disable=SC2086
     "$MMSEQS" subtractdbs "$TMP_PATH/pref_tmp_$STEP" "$TMP_PATH/aln_$STEPPREV" "$TMP_PATH/pref_$STEP" $SUBTRACT_PAR \
       || fail "Subtract died"
     "$MMSEQS" rmdb "$TMP_PATH/pref_tmp_$STEP"
