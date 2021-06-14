@@ -32,7 +32,7 @@ int main(int, const char**) {
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "\n";
     EvalueComputation evaluer(100000, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
-    Matcher * aligner = new Matcher(Parameters::DBTYPE_AMINO_ACIDS, 10000, &subMat, &evaluer, false, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
+    Matcher * aligner = new Matcher(Parameters::DBTYPE_AMINO_ACIDS, Parameters::DBTYPE_AMINO_ACIDS, 10000, &subMat, &evaluer, false, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0);
     std::vector<Matcher::result_t> alnResults;
     std::vector<std::vector<unsigned char>> seqSet;
     std::cout << "Sequence (id 0):\n";
@@ -74,8 +74,8 @@ int main(int, const char**) {
     size_t filterSetSize = filter.filter(res, alnResults, 0, 0, -20.0, 50, 100);
     std::cout << "Filtered:" << filterSetSize << std::endl;
     MultipleAlignment::print(res, &subMat);
-    PSSMCalculator pssm(&subMat, 1000, 5, 1.0, 1.5, 11, 10);
-    pssm.computePSSMFromMSA(filterSetSize, res.centerLength, (const char **) res.msaSequence, res.alignmentResults, false);
+    PSSMCalculator pssm(&subMat, 1000, 5, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
+    pssm.computePSSMFromMSA(filterSetSize, res.centerLength, (const char **) res.msaSequence, alnResults, false);
     pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);
     MultipleAlignment::deleteMSA(&res);

@@ -346,9 +346,8 @@ int main (int, const char**) {
     for(i = 0; i < p.cnt; i++) {
         std::string target = generate_mutated_sequence((char*)query.c_str(), (int) query.size(), p.x, p.d, 8);
         targetObj->mapSequence(1, 1, target.c_str(), target.size());
-        int aaIds = 0;
         std::string backtrace;
-        s_align alignment = aligner.align(targetObj,diagonal, false, backtrace, aaIds, &evalueComputation);
+        s_align alignment = aligner.align(targetObj,diagonal, false, backtrace, &evalueComputation);
         std::string queryAln;
         std::string targetAln;
         std::string middleAln;
