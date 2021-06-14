@@ -275,6 +275,7 @@ Parameters::Parameters():
         PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment 2: output both", typeid(int), (void *) &taxonomyOutputMode, "^[0-2]{1}$"),
         // createsubdb, filtertaxseqdb
         PARAM_SUBDB_MODE(PARAM_SUBDB_MODE_ID, "--subdb-mode", "Subdb mode", "Subdb mode 0: copy data 1: soft link data and write index", typeid(int), (void *) &subDbMode, "^[0-1]{1}$"),
+        PARAM_ID_MODE(PARAM_ID_MODE_ID, "--id-mode", "Database ID mode", "Select DB entries based on 0: database keys, 1: FASTA identifiers (.lookup)", typeid(int), (void *) &dbIdMode, "^[0-1]{1}$"),
         PARAM_TAR_INCLUDE(PARAM_TAR_INCLUDE_ID, "--tar-include", "Tar Inclusion Regex", "Include file names based on this regex", typeid(std::string), (void *) &tarInclude, "^.*$"),
         PARAM_TAR_EXCLUDE(PARAM_TAR_EXCLUDE_ID, "--tar-exclude", "Tar Exclusion Regex", "Exclude file names based on this regex", typeid(std::string), (void *) &tarExclude, "^.*$"),
         // unpackdb
@@ -1022,6 +1023,7 @@ Parameters::Parameters():
 
     // createsubdb
     createsubdb.push_back(&PARAM_SUBDB_MODE);
+    createsubdb.push_back(&PARAM_ID_MODE);
     createsubdb.push_back(&PARAM_V);
 
     // renamedbkeys
@@ -1052,6 +1054,7 @@ Parameters::Parameters():
 
     // view
     view.push_back(&PARAM_ID_LIST);
+    view.push_back(&PARAM_ID_MODE);
     view.push_back(&PARAM_IDX_ENTRY_TYPE);
     view.push_back(&PARAM_V);
 
@@ -1072,6 +1075,7 @@ Parameters::Parameters():
     expandaln.push_back(&PARAM_PC_MODE);
     expandaln.push_back(&PARAM_PCA);
     expandaln.push_back(&PARAM_PCB);
+    expandaln.push_back(&PARAM_PRELOAD_MODE);
     expandaln.push_back(&PARAM_COMPRESSED);
     expandaln.push_back(&PARAM_THREADS);
     expandaln.push_back(&PARAM_V);
@@ -1103,6 +1107,7 @@ Parameters::Parameters():
     expand2profile.push_back(&PARAM_PC_MODE);
     expand2profile.push_back(&PARAM_PCA);
     expand2profile.push_back(&PARAM_PCB);
+    expand2profile.push_back(&PARAM_PRELOAD_MODE);
     expand2profile.push_back(&PARAM_COMPRESSED);
     expand2profile.push_back(&PARAM_THREADS);
     expand2profile.push_back(&PARAM_V);
@@ -1199,6 +1204,9 @@ Parameters::Parameters():
     taxonomy = combineList(taxonomy, aggregatetaxweights);
     taxonomy = combineList(taxonomy, lca);
     taxonomy = combineList(taxonomy, searchworkflow);
+    taxonomy = removeParameter(taxonomy, PARAM_NUM_ITERATIONS);
+    taxonomy = removeParameter(taxonomy, PARAM_START_SENS);
+    taxonomy = removeParameter(taxonomy, PARAM_SENS_STEPS);
 
     // easy taxonomy
     easytaxonomy = combineList(taxonomy, addtaxonomy);
@@ -1442,6 +1450,34 @@ bool parseBool(const std::string &p) {
     } else {
         Debug(Debug::ERROR) << "Invalid boolean string " << p << "\n";
         EXIT(EXIT_FAILURE);
+    }
+}
+
+void Parameters::initMatrices() {
+    // set up substituionMatrix
+    for(size_t i = 0 ; i < substitutionMatrices.size(); i++) {
+        bool isAminoAcid   = scoringMatrixFile.values.aminoacid() == substitutionMatrices[i].name;
+        bool isNucleotide  = scoringMatrixFile.values.nucleotide() == substitutionMatrices[i].name;
+        bool isSeedAminoAcid   = seedScoringMatrixFile.values.aminoacid() == substitutionMatrices[i].name;
+        bool isSeedNucleotide  = seedScoringMatrixFile.values.nucleotide() == substitutionMatrices[i].name;
+        if (isAminoAcid || isNucleotide|| isSeedAminoAcid|| isSeedNucleotide) {
+            std::string matrixData((const char *)substitutionMatrices[i].subMatData, substitutionMatrices[i].subMatDataLen);
+            std::string matrixName = substitutionMatrices[i].name;
+            char* serialized = BaseMatrix::serialize(matrixName, matrixData);
+            if(isAminoAcid) {
+                scoringMatrixFile.values.aminoacid(serialized);
+            }
+            if(isNucleotide) {
+                scoringMatrixFile.values.nucleotide(serialized);
+            }
+            if(isSeedAminoAcid) {
+                seedScoringMatrixFile.values.aminoacid(serialized);
+            }
+            if(isSeedNucleotide) {
+                seedScoringMatrixFile.values.nucleotide(serialized);
+            }
+            free(serialized);
+        }
     }
 }
 
@@ -1842,31 +1878,7 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             EXIT(EXIT_FAILURE);
     }
 
-    // set up substituionMatrix
-    for(size_t i = 0 ; i < substitutionMatrices.size(); i++) {
-        bool isAminoAcid   = scoringMatrixFile.values.aminoacid() == substitutionMatrices[i].name;
-        bool isNucleotide  = scoringMatrixFile.values.nucleotide() == substitutionMatrices[i].name;
-        bool isSeedAminoAcid   = seedScoringMatrixFile.values.aminoacid() == substitutionMatrices[i].name;
-        bool isSeedNucleotide  = seedScoringMatrixFile.values.nucleotide() == substitutionMatrices[i].name;
-        if (isAminoAcid || isNucleotide|| isSeedAminoAcid|| isSeedNucleotide) {
-            std::string matrixData((const char *)substitutionMatrices[i].subMatData, substitutionMatrices[i].subMatDataLen);
-            std::string matrixName = substitutionMatrices[i].name;
-            char* serialized = BaseMatrix::serialize(matrixName, matrixData);
-            if(isAminoAcid) {
-                scoringMatrixFile.values.aminoacid(serialized);
-            }
-            if(isNucleotide) {
-                scoringMatrixFile.values.nucleotide(serialized);
-            }
-            if(isSeedAminoAcid) {
-                seedScoringMatrixFile.values.aminoacid(serialized);
-            }
-            if(isSeedNucleotide) {
-                seedScoringMatrixFile.values.nucleotide(serialized);
-            }
-            free(serialized);
-        }
-    }
+    initMatrices();
 
     if (ignorePathCountChecks == false) {
         checkIfDatabaseIsValid(command, argc, pargv, isStartVar, isMiddleVar, isEndVar);
@@ -1875,7 +1887,6 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
     if (printPar == true) {
         printParameters(command.cmd, argc, pargv, par);
     }
-
 }
 
 std::vector<std::string> Parameters::findMissingTaxDbFiles(const std::string &filename) {
@@ -2354,6 +2365,7 @@ void Parameters::setDefaults() {
 
     // createsubdb
     subDbMode = Parameters::SUBDB_MODE_HARD;
+    dbIdMode = Parameters::ID_MODE_KEYS;
 
     // tar2db
     tarInclude = ".*";
@@ -2401,7 +2413,7 @@ void Parameters::setDefaults() {
             { CITATION_LINCLUST, "Steinegger M, Soding J: Clustering huge protein sequence sets in linear time. Nature Communications, 9(1), 2542 (2018)" },
             { CITATION_PLASS,    "Steinegger M, Mirdita M, Soding J: Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. Nature Methods, 16(7), 603-606 (2019)" },
             { CITATION_SERVER,   "Mirdita M, Steinegger M, Soding J: MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, 35(16), 2856–2858 (2019)" },
-            { CITATION_TAXONOMY, "Mirdita M, Steinegger M, Breitwieser F, Soding J, Levy Karin E: Fast and sensitive taxonomic assignment to metagenomic contigs. bioRxiv, 2020.11.27.401018 (2020)" },
+            { CITATION_TAXONOMY, "Mirdita M, Steinegger M, Breitwieser F, Soding J, Levy Karin E: Fast and sensitive taxonomic assignment to metagenomic contigs. Bioinformatics, btab184 (2021)" },
     };
 }
 

@@ -32,16 +32,16 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         EXIT(EXIT_FAILURE);
     }
 
-    if (addBacktrace == true) {
+    if (lcaAlign == false && addBacktrace == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     }
-
 
     if (lcaAlign == true) {
         lcaSwMode = initSWMode(std::max(alignmentMode, (unsigned int)Parameters::ALIGNMENT_MODE_SCORE_ONLY), 0.0f, 0.0f);
         realign = true;
         realignScoreBias = 0.0f;
         realignMaxSeqs = 1;
+        addBacktrace = false;
     }
 
     if (realign == true) {

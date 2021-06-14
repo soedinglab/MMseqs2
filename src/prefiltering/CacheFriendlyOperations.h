@@ -47,6 +47,15 @@ struct __attribute__((__packed__)) CounterResult {
     unsigned int id;
     unsigned short diagonal;
     unsigned char count;
+
+    static bool sortById(const CounterResult &first, const CounterResult &second) {
+        if (first.id < second.id)
+            return true;
+        if (second.id < first.id)
+            return false;
+        return false;
+    }
+
 };
 
 template<unsigned int BINSIZE>

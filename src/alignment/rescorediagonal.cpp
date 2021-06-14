@@ -111,8 +111,12 @@ int doRescorediagonal(Parameters &par,
     if (totalMemory > resultReader.getTotalDataSize()) {
         flushSize = resultReader.getSize();
     }
-    size_t iterations = static_cast<int>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
-
+    
+    size_t iterations = 1;
+    if(flushSize > 0){
+        iterations = static_cast<int>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
+    }
+    
     for (size_t i = 0; i < iterations; i++) {
         size_t start = dbFrom + (i * flushSize);
         size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);

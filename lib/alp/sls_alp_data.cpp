@@ -1533,7 +1533,7 @@ double &val_)
 	};
 	return res;
 }
-
+/*
 bool alp_data::the_value_is_long(
 string str_,
 long int &val_)
@@ -1577,7 +1577,7 @@ long int &val_)
 		{
 			return false;
 		};
-		*/
+		* /
 
 		while(str_[start_digit]=='0')
 		{
@@ -1651,4 +1651,4 @@ long int &val_)
 
 	return true;
 }
-
+*/

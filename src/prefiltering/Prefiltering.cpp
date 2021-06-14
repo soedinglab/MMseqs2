@@ -627,13 +627,13 @@ void Prefiltering::runMpiSplits(const std::string &resultDB, const std::string &
             // merge output databases
             mergePrefilterSplits(resultDB, resultDBIndex, splitFiles);
         } else {
-            Debug(Debug::ERROR) << "Aborting. No results were computed!\n";
-            EXIT(EXIT_FAILURE);
+            DBWriter writer(resultDB.c_str(), resultDBIndex.c_str(), 1, compressed, Parameters::DBTYPE_PREFILTER_RES);
+            writer.open();
+            writer.close();
         }
 
         delete [] results;
     }
-
 }
 #endif
 
@@ -690,6 +690,11 @@ int Prefiltering::runSplits(const std::string &resultDB, const std::string &resu
         if (runSplit(resultDB.c_str(), resultDBIndex.c_str(), fromSplit, merge)) {
             hasResult = true;
         }
+    } else if (splitProcessCount == 0) {
+        DBWriter writer(resultDB.c_str(), resultDBIndex.c_str(), 1, compressed, Parameters::DBTYPE_PREFILTER_RES);
+        writer.open();
+        writer.close();
+        hasResult = false;
     }
 
     return hasResult;
@@ -771,7 +776,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
         Sequence seq(qdbr->getMaxSeqLen(), querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
                              kmerThr, kmerSize, dbSize, std::max(tdbr->getMaxSeqLen(),qdbr->getMaxSeqLen()), maxResListLen, aaBiasCorrection,
-                             diagonalScoring, minDiagScoreThr, takeOnlyBestKmer);
+                             diagonalScoring, minDiagScoreThr, takeOnlyBestKmer, targetSeqType==Parameters::DBTYPE_NUCLEOTIDES);
 
         if (seq.profile_matrix != NULL) {
             matcher.setProfileMatrix(seq.profile_matrix);
@@ -807,7 +812,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                 }
             }
             // calculate prefiltering results
-            std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId);
+            std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId, targetSeqType==Parameters::DBTYPE_NUCLEOTIDES);
             size_t resultSize = prefResults.second;
             const float queryLength = static_cast<float>(qdbr->getSeqLen(id));
             for (size_t i = 0; i < resultSize; i++) {

@@ -23,7 +23,12 @@ int createsubdb(int argc, const char **argv, const Command& command) {
         }
     }
 
-    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    const bool lookupMode = par.dbIdMode == Parameters::ID_MODE_LOOKUP;
+    int dbMode = DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA;
+    if (lookupMode) {
+        dbMode |= DBReader<unsigned int>::USE_LOOKUP_REV;
+    }
+    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), 1, dbMode);
     reader.open(DBReader<unsigned int>::NOSORT);
     const bool isCompressed = reader.isCompressed();
 
@@ -37,7 +42,18 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     bool isOrdered = true;
     while (getline(&line, &len, orderFile) != -1) {
         Util::parseKey(line, dbKey);
-        const unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
+        unsigned int key;
+        if (lookupMode) {
+            size_t lookupId = reader.getLookupIdByAccession(dbKey);
+            if (lookupId == SIZE_MAX) {
+                Debug(Debug::WARNING) << "Could not find name " << dbKey << " in lookup\n";
+                continue;
+            }
+            key = reader.getLookupKey(lookupId);
+        } else {
+            key = Util::fast_atoi<unsigned int>(dbKey);
+        }
+
         isOrdered &= (prevKey <= key);
         prevKey = key;
         const size_t id = reader.getId(key);

@@ -196,7 +196,7 @@ typedef struct __kstring_t {
             seq->headerOffset = ks->cur_buf_pos + ks->begin; \
 		} \
 		seq->comment.l = seq->seq.l = seq->qual.l = 0; /* reset all members */ \
-		if ((r=ks_getuntil(ks, 0, &seq->name, &c)) < 0) return r;  /* normal exit: EOF or error */ \
+		if ((r=ks_getuntil(ks, KS_SEP_SPACE, &seq->name, &c)) < 0) return r;  /* normal exit: EOF or error */ \
 		if (c != '\n') ks_getuntil(ks, KS_SEP_LINE, &seq->comment, 0); /* read FASTA/Q comment */ \
 		seq->sequenceOffset = ks->cur_buf_pos + ks->begin; \
 		if (seq->seq.s == 0) { /* we can do this in the loop below, but that is slower */ \

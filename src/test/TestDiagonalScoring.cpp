@@ -18,6 +18,7 @@ const char* binary_name = "test_diagonalscoring";
 int main (int, const char**) {
     size_t kmer_size = 6;
     Parameters& par = Parameters::getInstance();
+    par.initMatrices();
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 8.0, -0.2);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
 

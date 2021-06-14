@@ -95,7 +95,7 @@ typedef union {
     #endif
   #elif defined(SIMDE_WASM_SIMD128_NATIVE)
     SIMDE_ALIGN_TO_16 v128_t         wasm_v128;
-  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_13_NATIVE)
     SIMDE_ALIGN_TO_16 SIMDE_POWER_ALTIVEC_VECTOR(unsigned char)      altivec_u8;
     SIMDE_ALIGN_TO_16 SIMDE_POWER_ALTIVEC_VECTOR(unsigned short)     altivec_u16;
     SIMDE_ALIGN_TO_16 SIMDE_POWER_ALTIVEC_VECTOR(unsigned int)       altivec_u32;
@@ -103,7 +103,7 @@ typedef union {
     SIMDE_ALIGN_TO_16 SIMDE_POWER_ALTIVEC_VECTOR(signed short)       altivec_i16;
     SIMDE_ALIGN_TO_16 SIMDE_POWER_ALTIVEC_VECTOR(signed int)         altivec_i32;
     SIMDE_ALIGN_TO_16 SIMDE_POWER_ALTIVEC_VECTOR(float)              altivec_f32;
-    #if defined(SIMDE_POWER_ALTIVEC_P7_NATIVE)
+    #if defined(SIMDE_POWER_ALTIVEC_P7_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_13_NATIVE)
       SIMDE_ALIGN_TO_16 SIMDE_POWER_ALTIVEC_VECTOR(unsigned long long) altivec_u64;
       SIMDE_ALIGN_TO_16 SIMDE_POWER_ALTIVEC_VECTOR(signed long long)   altivec_i64;
       SIMDE_ALIGN_TO_16 SIMDE_POWER_ALTIVEC_VECTOR(double)             altivec_f64;
@@ -117,7 +117,7 @@ typedef union {
    typedef float32x4_t simde__m128;
 #elif defined(SIMDE_WASM_SIMD128_NATIVE)
    typedef v128_t simde__m128;
-#elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+#elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_13_NATIVE)
    typedef SIMDE_POWER_ALTIVEC_VECTOR(float) simde__m128;
 #elif defined(SIMDE_VECTOR_SUBSCRIPT)
   typedef simde_float32 simde__m128 SIMDE_ALIGN_TO_16 SIMDE_VECTOR(16) SIMDE_MAY_ALIAS;
@@ -167,7 +167,7 @@ simde__m128_to_private(simde__m128 v) {
   #endif
 #endif /* defined(SIMDE_ARM_NEON_A32V7_NATIVE) */
 
-#if defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+#if defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_13_NATIVE)
   SIMDE_X86_GENERATE_CONVERSION_FUNCTION(m128, SIMDE_POWER_ALTIVEC_VECTOR(signed char), altivec, i8)
   SIMDE_X86_GENERATE_CONVERSION_FUNCTION(m128, SIMDE_POWER_ALTIVEC_VECTOR(signed short), altivec, i16)
   SIMDE_X86_GENERATE_CONVERSION_FUNCTION(m128, SIMDE_POWER_ALTIVEC_VECTOR(signed int), altivec, i32)
@@ -194,7 +194,7 @@ simde__m128_to_private(simde__m128 v) {
     SIMDE_X86_GENERATE_CONVERSION_FUNCTION(m128, SIMDE_POWER_ALTIVEC_VECTOR(float), altivec, f32)
   #endif
 
-  #if defined(SIMDE_POWER_ALTIVEC_P7_NATIVE)
+  #if defined(SIMDE_POWER_ALTIVEC_P7_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_13_NATIVE)
     SIMDE_X86_GENERATE_CONVERSION_FUNCTION(m128, SIMDE_POWER_ALTIVEC_VECTOR(signed long long), altivec, i64)
     SIMDE_X86_GENERATE_CONVERSION_FUNCTION(m128, SIMDE_POWER_ALTIVEC_VECTOR(unsigned long long), altivec, u64)
   #endif
@@ -262,6 +262,123 @@ enum {
 #  define _MM_FROUND_TRUNC SIMDE_MM_FROUND_TRUNC
 #  define _MM_FROUND_RINT SIMDE_MM_FROUND_RINT
 #  define _MM_FROUND_NEARBYINT SIMDE_MM_FROUND_NEARBYINT
+#endif
+
+#if defined(_MM_EXCEPT_INVALID)
+#  define SIMDE_MM_EXCEPT_INVALID _MM_EXCEPT_INVALID
+#else
+#  define SIMDE_MM_EXCEPT_INVALID (0x0001)
+#endif
+#if defined(_MM_EXCEPT_DENORM)
+#  define SIMDE_MM_EXCEPT_DENORM _MM_EXCEPT_DENORM
+#else
+#  define SIMDE_MM_EXCEPT_DENORM (0x0002)
+#endif
+#if defined(_MM_EXCEPT_DIV_ZERO)
+#  define SIMDE_MM_EXCEPT_DIV_ZERO _MM_EXCEPT_DIV_ZERO
+#else
+#  define SIMDE_MM_EXCEPT_DIV_ZERO (0x0004)
+#endif
+#if defined(_MM_EXCEPT_OVERFLOW)
+#  define SIMDE_MM_EXCEPT_OVERFLOW _MM_EXCEPT_OVERFLOW
+#else
+#  define SIMDE_MM_EXCEPT_OVERFLOW (0x0008)
+#endif
+#if defined(_MM_EXCEPT_UNDERFLOW)
+#  define SIMDE_MM_EXCEPT_UNDERFLOW _MM_EXCEPT_UNDERFLOW
+#else
+#  define SIMDE_MM_EXCEPT_UNDERFLOW (0x0010)
+#endif
+#if defined(_MM_EXCEPT_INEXACT)
+#  define SIMDE_MM_EXCEPT_INEXACT _MM_EXCEPT_INEXACT
+#else
+#  define SIMDE_MM_EXCEPT_INEXACT (0x0020)
+#endif
+#if defined(_MM_EXCEPT_MASK)
+#  define SIMDE_MM_EXCEPT_MASK _MM_EXCEPT_MASK
+#else
+#  define SIMDE_MM_EXCEPT_MASK \
+     (SIMDE_MM_EXCEPT_INVALID | SIMDE_MM_EXCEPT_DENORM | \
+      SIMDE_MM_EXCEPT_DIV_ZERO | SIMDE_MM_EXCEPT_OVERFLOW | \
+      SIMDE_MM_EXCEPT_UNDERFLOW | SIMDE_MM_EXCEPT_INEXACT)
+#endif
+#if defined(SIMDE_X86_SSE_ENABLE_NATIVE_ALIASES)
+  #define _MM_EXCEPT_INVALID SIMDE_MM_EXCEPT_INVALID
+  #define _MM_EXCEPT_DENORM SIMDE_MM_EXCEPT_DENORM
+  #define _MM_EXCEPT_DIV_ZERO SIMDE_MM_EXCEPT_DIV_ZERO
+  #define _MM_EXCEPT_OVERFLOW SIMDE_MM_EXCEPT_OVERFLOW
+  #define _MM_EXCEPT_UNDERFLOW SIMDE_MM_EXCEPT_UNDERFLOW
+  #define _MM_EXCEPT_INEXACT SIMDE_MM_EXCEPT_INEXACT
+  #define _MM_EXCEPT_MASK SIMDE_MM_EXCEPT_MASK
+#endif
+
+#if defined(_MM_MASK_INVALID)
+#  define SIMDE_MM_MASK_INVALID _MM_MASK_INVALID
+#else
+#  define SIMDE_MM_MASK_INVALID (0x0080)
+#endif
+#if defined(_MM_MASK_DENORM)
+#  define SIMDE_MM_MASK_DENORM _MM_MASK_DENORM
+#else
+#  define SIMDE_MM_MASK_DENORM (0x0100)
+#endif
+#if defined(_MM_MASK_DIV_ZERO)
+#  define SIMDE_MM_MASK_DIV_ZERO _MM_MASK_DIV_ZERO
+#else
+#  define SIMDE_MM_MASK_DIV_ZERO (0x0200)
+#endif
+#if defined(_MM_MASK_OVERFLOW)
+#  define SIMDE_MM_MASK_OVERFLOW _MM_MASK_OVERFLOW
+#else
+#  define SIMDE_MM_MASK_OVERFLOW (0x0400)
+#endif
+#if defined(_MM_MASK_UNDERFLOW)
+#  define SIMDE_MM_MASK_UNDERFLOW _MM_MASK_UNDERFLOW
+#else
+#  define SIMDE_MM_MASK_UNDERFLOW (0x0800)
+#endif
+#if defined(_MM_MASK_INEXACT)
+#  define SIMDE_MM_MASK_INEXACT _MM_MASK_INEXACT
+#else
+#  define SIMDE_MM_MASK_INEXACT (0x1000)
+#endif
+#if defined(_MM_MASK_MASK)
+#  define SIMDE_MM_MASK_MASK _MM_MASK_MASK
+#else
+#  define SIMDE_MM_MASK_MASK \
+     (SIMDE_MM_MASK_INVALID | SIMDE_MM_MASK_DENORM | \
+      SIMDE_MM_MASK_DIV_ZERO | SIMDE_MM_MASK_OVERFLOW | \
+      SIMDE_MM_MASK_UNDERFLOW | SIMDE_MM_MASK_INEXACT)
+#endif
+#if defined(SIMDE_X86_SSE_ENABLE_NATIVE_ALIASES)
+  #define _MM_MASK_INVALID SIMDE_MM_MASK_INVALID
+  #define _MM_MASK_DENORM SIMDE_MM_MASK_DENORM
+  #define _MM_MASK_DIV_ZERO SIMDE_MM_MASK_DIV_ZERO
+  #define _MM_MASK_OVERFLOW SIMDE_MM_MASK_OVERFLOW
+  #define _MM_MASK_UNDERFLOW SIMDE_MM_MASK_UNDERFLOW
+  #define _MM_MASK_INEXACT SIMDE_MM_MASK_INEXACT
+  #define _MM_MASK_MASK SIMDE_MM_MASK_MASK
+#endif
+
+#if defined(_MM_FLUSH_ZERO_MASK)
+#  define SIMDE_MM_FLUSH_ZERO_MASK _MM_FLUSH_ZERO_MASK
+#else
+#  define SIMDE_MM_FLUSH_ZERO_MASK (0x8000)
+#endif
+#if defined(_MM_FLUSH_ZERO_ON)
+#  define SIMDE_MM_FLUSH_ZERO_ON _MM_FLUSH_ZERO_ON
+#else
+#  define SIMDE_MM_FLUSH_ZERO_ON (0x8000)
+#endif
+#if defined(_MM_FLUSH_ZERO_OFF)
+#  define SIMDE_MM_FLUSH_ZERO_OFF _MM_FLUSH_ZERO_OFF
+#else
+#  define SIMDE_MM_FLUSH_ZERO_OFF (0x0000)
+#endif
+#if defined(SIMDE_X86_SSE_ENABLE_NATIVE_ALIASES)
+  #define _MM_FLUSH_ZERO_MASK SIMDE_MM_FLUSH_ZERO_MASK
+  #define _MM_FLUSH_ZERO_ON SIMDE_MM_FLUSH_ZERO_ON
+  #define _MM_FLUSH_ZERO_OFF SIMDE_MM_FLUSH_ZERO_OFF
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
@@ -359,6 +476,32 @@ SIMDE_MM_SET_ROUNDING_MODE(unsigned int a) {
 
 SIMDE_FUNCTION_ATTRIBUTES
 uint32_t
+SIMDE_MM_GET_FLUSH_ZERO_MODE (void) {
+  #if defined(SIMDE_X86_SSE_NATIVE)
+    return _mm_getcsr() & _MM_FLUSH_ZERO_MASK;
+  #else
+    return SIMDE_MM_FLUSH_ZERO_OFF;
+  #endif
+}
+#if defined(SIMDE_X86_SSE_ENABLE_NATIVE_ALIASES)
+  #define _MM_SET_FLUSH_ZERO_MODE(a) SIMDE_MM_SET_FLUSH_ZERO_MODE(a)
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+void
+SIMDE_MM_SET_FLUSH_ZERO_MODE (uint32_t a) {
+  #if defined(SIMDE_X86_SSE_NATIVE)
+    _MM_SET_FLUSH_ZERO_MODE(a);
+  #else
+    (void) a;
+  #endif
+}
+#if defined(SIMDE_X86_SSE_ENABLE_NATIVE_ALIASES)
+  #define _MM_SET_FLUSH_ZERO_MODE(a) SIMDE_MM_SET_FLUSH_ZERO_MODE(a)
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+uint32_t
 simde_mm_getcsr (void) {
   #if defined(SIMDE_X86_SSE_NATIVE)
     return _mm_getcsr();
@@ -409,7 +552,7 @@ simde_x_mm_round_ps (simde__m128 a, int rounding, int lax_rounding)
 
   switch (rounding & ~SIMDE_MM_FROUND_NO_EXC) {
     case SIMDE_MM_FROUND_CUR_DIRECTION:
-      #if defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+      #if defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
         r_.altivec_f32 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(float), vec_round(a_.altivec_f32));
       #elif defined(SIMDE_ARM_NEON_A32V8_NATIVE) && !defined(SIMDE_BUG_GCC_95399)
         r_.neon_f32 = vrndiq_f32(a_.neon_f32);
@@ -424,7 +567,7 @@ simde_x_mm_round_ps (simde__m128 a, int rounding, int lax_rounding)
       break;
 
     case SIMDE_MM_FROUND_TO_NEAREST_INT:
-      #if defined(SIMDE_POWER_ALTIVEC_P8_NATIVE)
+      #if defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
         r_.altivec_f32 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(float), vec_rint(a_.altivec_f32));
       #elif defined(SIMDE_ARM_NEON_A32V8_NATIVE)
         r_.neon_f32 = vrndnq_f32(a_.neon_f32);
@@ -439,7 +582,7 @@ simde_x_mm_round_ps (simde__m128 a, int rounding, int lax_rounding)
       break;
 
     case SIMDE_MM_FROUND_TO_NEG_INF:
-      #if defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+      #if defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
         r_.altivec_f32 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(float), vec_floor(a_.altivec_f32));
       #elif defined(SIMDE_ARM_NEON_A32V8_NATIVE)
         r_.neon_f32 = vrndmq_f32(a_.neon_f32);
@@ -454,7 +597,7 @@ simde_x_mm_round_ps (simde__m128 a, int rounding, int lax_rounding)
       break;
 
     case SIMDE_MM_FROUND_TO_POS_INF:
-      #if defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+      #if defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
         r_.altivec_f32 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(float), vec_ceil(a_.altivec_f32));
       #elif defined(SIMDE_ARM_NEON_A32V8_NATIVE)
         r_.neon_f32 = vrndpq_f32(a_.neon_f32);
@@ -469,7 +612,7 @@ simde_x_mm_round_ps (simde__m128 a, int rounding, int lax_rounding)
       break;
 
     case SIMDE_MM_FROUND_TO_ZERO:
-      #if defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+      #if defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
         r_.altivec_f32 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(float), vec_trunc(a_.altivec_f32));
       #elif defined(SIMDE_ARM_NEON_A32V8_NATIVE)
         r_.neon_f32 = vrndq_f32(a_.neon_f32);
@@ -532,7 +675,7 @@ simde_mm_set_ps1 (simde_float32 a) {
     return _mm_set_ps1(a);
   #elif defined(SIMDE_ARM_NEON_A32V7_NATIVE)
     return vdupq_n_f32(a);
-  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
     (void) a;
     return vec_splats(a);
   #else
@@ -697,7 +840,7 @@ simde_mm_andnot_ps (simde__m128 a, simde__m128 b) {
       r_.neon_i32 = vbicq_s32(b_.neon_i32, a_.neon_i32);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.wasm_v128 = wasm_v128_andnot(b_.wasm_v128, a_.wasm_v128);
-    #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+    #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
       r_.altivec_f32 = vec_andc(b_.altivec_f32, a_.altivec_f32);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.i32 = ~a_.i32 & b_.i32;
@@ -840,7 +983,7 @@ simde_x_mm_select_ps(simde__m128 a, simde__m128 b, simde__m128 mask) {
       r_.neon_i32 = vbslq_s32(mask_.neon_u32, b_.neon_i32, a_.neon_i32);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.wasm_v128 = wasm_v128_bitselect(b_.wasm_v128, a_.wasm_v128, mask_.wasm_v128);
-    #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+    #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_13_NATIVE)
       r_.altivec_i32 = vec_sel(a_.altivec_i32, b_.altivec_i32, mask_.altivec_u32);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.i32 = a_.i32 ^ ((a_.i32 ^ b_.i32) & mask_.i32);
@@ -932,9 +1075,11 @@ simde_mm_avg_pu8 (simde__m64 a, simde__m64 b) {
 SIMDE_FUNCTION_ATTRIBUTES
 simde__m128
 simde_x_mm_abs_ps(simde__m128 a) {
-  #if defined(SIMDE_X86_AVX512F_NATIVE) && \
-        (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(7,1,0))
-    return _mm512_castps512_ps128(_mm512_abs_ps(_mm512_castps128_ps512(a)));
+  #if defined(SIMDE_X86_SSE_NATIVE)
+    simde_float32 mask_;
+    uint32_t u32_ = UINT32_C(0x7FFFFFFF);
+    simde_memcpy(&mask_, &u32_, sizeof(u32_));
+    return _mm_and_ps(_mm_set1_ps(mask_), a);
   #else
     simde__m128_private
       r_,
@@ -942,7 +1087,7 @@ simde_x_mm_abs_ps(simde__m128 a) {
 
     #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
       r_.neon_f32 = vabsq_f32(a_.neon_f32);
-    #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+    #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
       r_.altivec_f32 = vec_abs(a_.altivec_f32);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.wasm_v128 = wasm_f32x4_abs(a_.wasm_v128);
@@ -972,7 +1117,7 @@ simde_mm_cmpeq_ps (simde__m128 a, simde__m128 b) {
       r_.neon_u32 = vceqq_f32(a_.neon_f32, b_.neon_f32);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.wasm_v128 = wasm_f32x4_eq(a_.wasm_v128, b_.wasm_v128);
-    #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+    #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
       r_.altivec_f32 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(float), vec_cmpeq(a_.altivec_f32, b_.altivec_f32));
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.i32 = HEDLEY_STATIC_CAST(__typeof__(r_.i32), a_.f32 == b_.f32);
@@ -1274,7 +1419,7 @@ simde_mm_cmpneq_ps (simde__m128 a, simde__m128 b) {
         Linux Compiler Reference, Version 16.1.1) shows that it should be
         present.  Both GCC and clang support it. */
       r_.altivec_f32 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(float), vec_cmpne(a_.altivec_f32, b_.altivec_f32));
-    #elif defined(SIMDE_POWER_ALTIVEC_P7_NATIVE)
+    #elif defined(SIMDE_POWER_ALTIVEC_P7_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
       r_.altivec_f32 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(float), vec_cmpeq(a_.altivec_f32, b_.altivec_f32));
       r_.altivec_f32 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(float), vec_nor(r_.altivec_f32, r_.altivec_f32));
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
@@ -1674,7 +1819,7 @@ simde_x_mm_copysign_ps(simde__m128 dest, simde__m128 src) {
     #else
       r_.altivec_f32 = vec_cpsgn(src_.altivec_f32, dest_.altivec_f32);
     #endif
-  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
     const SIMDE_POWER_ALTIVEC_VECTOR(unsigned int) sign_pos = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned int), vec_splats(-0.0f));
     r_.altivec_f32 = vec_sel(dest_.altivec_f32, src_.altivec_f32, sign_pos);
   #elif defined(SIMDE_IEEE754_STORAGE)
@@ -2111,7 +2256,7 @@ simde_mm_cvtsi64_ss (simde__m128 a, int64_t b) {
     return simde__m128_from_private(r_);
   #endif
 }
-#if defined(SIMDE_X86_SSE_ENABLE_NATIVE_ALIASES)
+#if defined(SIMDE_X86_SSE_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && !defined(SIMDE_ARCH_AMD64))
 #  define _mm_cvtsi64_ss(a, b) simde_mm_cvtsi64_ss((a), b)
 #endif
 
@@ -2160,7 +2305,7 @@ simde_mm_cvtss_si64 (simde__m128 a) {
     #endif
   #endif
 }
-#if defined(SIMDE_X86_SSE_ENABLE_NATIVE_ALIASES)
+#if defined(SIMDE_X86_SSE_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && !defined(SIMDE_ARCH_AMD64))
 #  define _mm_cvtss_si64(a) simde_mm_cvtss_si64((a))
 #endif
 
@@ -2243,7 +2388,7 @@ simde_mm_cvttss_si64 (simde__m128 a) {
     #endif
   #endif
 }
-#if defined(SIMDE_X86_SSE_ENABLE_NATIVE_ALIASES)
+#if defined(SIMDE_X86_SSE_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && !defined(SIMDE_ARCH_AMD64))
 #  define _mm_cvttss_si64(a) simde_mm_cvttss_si64((a))
 #endif
 
@@ -2676,9 +2821,9 @@ simde_mm_max_ps (simde__m128 a, simde__m128 b) {
       r_.wasm_v128 = wasm_f32x4_max(a_.wasm_v128, b_.wasm_v128);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.wasm_v128 = wasm_v128_bitselect(a_.wasm_v128, b_.wasm_v128, wasm_f32x4_gt(a_.wasm_v128, b_.wasm_v128));
-    #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) && defined(SIMDE_FAST_NANS)
+    #elif (defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)) && defined(SIMDE_FAST_NANS)
       r_.altivec_f32 = vec_max(a_.altivec_f32, b_.altivec_f32);
-    #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+    #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
       r_.altivec_f32 = vec_sel(b_.altivec_f32, a_.altivec_f32, vec_cmpgt(a_.altivec_f32, b_.altivec_f32));
     #else
       SIMDE_VECTORIZE
@@ -2800,7 +2945,7 @@ simde_mm_min_ps (simde__m128 a, simde__m128 b) {
       r_.wasm_v128 = wasm_v128_bitselect(a_.wasm_v128, b_.wasm_v128, wasm_f32x4_lt(a_.wasm_v128, b_.wasm_v128));
     #endif
     return simde__m128_from_private(r_);
-  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+  #elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
     simde__m128_private
       r_,
       a_ = simde__m128_to_private(a),
@@ -2908,7 +3053,7 @@ simde_mm_movehl_ps (simde__m128 a, simde__m128 b) {
       float32x2_t a32 = vget_high_f32(a_.neon_f32);
       float32x2_t b32 = vget_high_f32(b_.neon_f32);
       r_.neon_f32 = vcombine_f32(b32, a32);
-    #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE)
+    #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_13_NATIVE)
       r_.altivec_f32 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(float),
           vec_mergel(b_.altivec_i64, a_.altivec_i64));
     #elif defined(SIMDE_SHUFFLE_VECTOR_)
@@ -2944,7 +3089,7 @@ simde_mm_movelh_ps (simde__m128 a, simde__m128 b) {
       r_.neon_f32 = vcombine_f32(a10, b10);
     #elif defined(SIMDE_SHUFFLE_VECTOR_)
       r_.f32 = SIMDE_SHUFFLE_VECTOR_(32, 16, a_.f32, b_.f32, 0, 1, 4, 5);
-    #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE)
+    #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_13_NATIVE)
       r_.altivec_f32 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(float),
           vec_mergeh(a_.altivec_i64, b_.altivec_i64));
     #else
@@ -3689,7 +3834,7 @@ simde_mm_sqrt_ps (simde__m128 a) {
       r_.neon_f32 = vmulq_f32(a_.neon_f32, est);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.wasm_v128 = wasm_f32x4_sqrt(a_.wasm_v128);
-    #elif defined(SIMDE_POWER_ALTIVEC_P7_NATIVE)
+    #elif defined(SIMDE_POWER_ALTIVEC_P7_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_14_NATIVE)
       r_.altivec_f32 = vec_sqrt(a_.altivec_f32);
     #elif defined(simde_math_sqrt)
       SIMDE_VECTORIZE
@@ -4319,100 +4464,6 @@ simde_mm_stream_ps (simde_float32 mem_addr[4], simde__m128 a) {
 #endif
 #if defined(SIMDE_X86_SSE_ENABLE_NATIVE_ALIASES)
 #  define _MM_TRANSPOSE4_PS(row0, row1, row2, row3) SIMDE_MM_TRANSPOSE4_PS(row0, row1, row2, row3)
-#endif
-
-#if defined(_MM_EXCEPT_INVALID)
-#  define SIMDE_MM_EXCEPT_INVALID _MM_EXCEPT_INVALID
-#else
-#  define SIMDE_MM_EXCEPT_INVALID (0x0001)
-#endif
-#if defined(_MM_EXCEPT_DENORM)
-#  define SIMDE_MM_EXCEPT_DENORM _MM_EXCEPT_DENORM
-#else
-#  define SIMDE_MM_EXCEPT_DENORM (0x0002)
-#endif
-#if defined(_MM_EXCEPT_DIV_ZERO)
-#  define SIMDE_MM_EXCEPT_DIV_ZERO _MM_EXCEPT_DIV_ZERO
-#else
-#  define SIMDE_MM_EXCEPT_DIV_ZERO (0x0004)
-#endif
-#if defined(_MM_EXCEPT_OVERFLOW)
-#  define SIMDE_MM_EXCEPT_OVERFLOW _MM_EXCEPT_OVERFLOW
-#else
-#  define SIMDE_MM_EXCEPT_OVERFLOW (0x0008)
-#endif
-#if defined(_MM_EXCEPT_UNDERFLOW)
-#  define SIMDE_MM_EXCEPT_UNDERFLOW _MM_EXCEPT_UNDERFLOW
-#else
-#  define SIMDE_MM_EXCEPT_UNDERFLOW (0x0010)
-#endif
-#if defined(_MM_EXCEPT_INEXACT)
-#  define SIMDE_MM_EXCEPT_INEXACT _MM_EXCEPT_INEXACT
-#else
-#  define SIMDE_MM_EXCEPT_INEXACT (0x0020)
-#endif
-#if defined(_MM_EXCEPT_MASK)
-#  define SIMDE_MM_EXCEPT_MASK _MM_EXCEPT_MASK
-#else
-#  define SIMDE_MM_EXCEPT_MASK \
-     (SIMDE_MM_EXCEPT_INVALID | SIMDE_MM_EXCEPT_DENORM | \
-      SIMDE_MM_EXCEPT_DIV_ZERO | SIMDE_MM_EXCEPT_OVERFLOW | \
-      SIMDE_MM_EXCEPT_UNDERFLOW | SIMDE_MM_EXCEPT_INEXACT)
-#endif
-
-#if defined(_MM_MASK_INVALID)
-#  define SIMDE_MM_MASK_INVALID _MM_MASK_INVALID
-#else
-#  define SIMDE_MM_MASK_INVALID (0x0080)
-#endif
-#if defined(_MM_MASK_DENORM)
-#  define SIMDE_MM_MASK_DENORM _MM_MASK_DENORM
-#else
-#  define SIMDE_MM_MASK_DENORM (0x0100)
-#endif
-#if defined(_MM_MASK_DIV_ZERO)
-#  define SIMDE_MM_MASK_DIV_ZERO _MM_MASK_DIV_ZERO
-#else
-#  define SIMDE_MM_MASK_DIV_ZERO (0x0200)
-#endif
-#if defined(_MM_MASK_OVERFLOW)
-#  define SIMDE_MM_MASK_OVERFLOW _MM_MASK_OVERFLOW
-#else
-#  define SIMDE_MM_MASK_OVERFLOW (0x0400)
-#endif
-#if defined(_MM_MASK_UNDERFLOW)
-#  define SIMDE_MM_MASK_UNDERFLOW _MM_MASK_UNDERFLOW
-#else
-#  define SIMDE_MM_MASK_UNDERFLOW (0x0800)
-#endif
-#if defined(_MM_MASK_INEXACT)
-#  define SIMDE_MM_MASK_INEXACT _MM_MASK_INEXACT
-#else
-#  define SIMDE_MM_MASK_INEXACT (0x1000)
-#endif
-#if defined(_MM_MASK_MASK)
-#  define SIMDE_MM_MASK_MASK _MM_MASK_MASK
-#else
-#  define SIMDE_MM_MASK_MASK \
-     (SIMDE_MM_MASK_INVALID | SIMDE_MM_MASK_DENORM | \
-      SIMDE_MM_MASK_DIV_ZERO | SIMDE_MM_MASK_OVERFLOW | \
-      SIMDE_MM_MASK_UNDERFLOW | SIMDE_MM_MASK_INEXACT)
-#endif
-
-#if defined(_MM_FLUSH_ZERO_MASK)
-#  define SIMDE_MM_FLUSH_ZERO_MASK _MM_FLUSH_ZERO_MASK
-#else
-#  define SIMDE_MM_FLUSH_ZERO_MASK (0x8000)
-#endif
-#if defined(_MM_FLUSH_ZERO_ON)
-#  define SIMDE_MM_FLUSH_ZERO_ON _MM_FLUSH_ZERO_ON
-#else
-#  define SIMDE_MM_FLUSH_ZERO_ON (0x8000)
-#endif
-#if defined(_MM_FLUSH_ZERO_OFF)
-#  define SIMDE_MM_FLUSH_ZERO_OFF _MM_FLUSH_ZERO_OFF
-#else
-#  define SIMDE_MM_FLUSH_ZERO_OFF (0x0000)
 #endif
 
 SIMDE_END_DECLS_
