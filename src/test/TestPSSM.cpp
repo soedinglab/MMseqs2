@@ -1573,9 +1573,8 @@ int main (int, const char**) {
     seqs[counter++] = "----------------------------------------AVLANINRLLLMCQLSQGEKCVGELEELLDLHQPTLSQQLGVLRGAGLVNTRRDGKKIHYSVADARVLTL------------";
     seqs[counter++] = "---------------------------------QTLLGFFQALADANRLRIVGVLAQGPQTVEQISALLGLGMSTTSHHLRKLAKAGLVEARADGHYSVYSLRTQTLEELAKNLL-------";
     seqs[counter++] = "-------------------------------------DLFKCIGNPTRYKILKVLCERPLCVNKLNEAVGYSQPNISQHLKLMRMSGIVTCSKNGMNICYQIADDDIIKLLELAEDILKNRR";
-    char ** seqsCpy = new char*[counter];
+    char ** seqsCpy = MultipleAlignment::initX(122, counter);
     for (int k = 0; k < counter; ++k) {
-        seqsCpy[k] = MultipleAlignment::initX(122);
         for (int pos = 0; pos < 122; ++pos) {
 //            seqs[k][pos] = (seqs[k][pos] == '-') ? MultipleAlignment::GAP : subMat.aa2num[(int) seqs[k][pos]];
             seqsCpy[k][pos] = (seqs[k][pos] == '-') ? MultipleAlignment::GAP : static_cast<int>(subMat.aa2num[(int) seqs[k][pos]]);
@@ -1607,10 +1606,7 @@ int main (int, const char**) {
     pssm.computePSSMFromMSA(filterSetSize, res.centerLength, (const char**) res.msaSequence, false);
     //pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);
-    for (int k = 0; k < counter; ++k) {
-        free(seqsCpy[k]);
-    }
-    delete [] seqsCpy;
+    MultipleAlignment::deleteMSA(&res);
     return 0;
 }
 

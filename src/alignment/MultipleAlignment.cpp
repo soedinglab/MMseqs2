@@ -14,18 +14,20 @@ MultipleAlignment::~MultipleAlignment() {
     delete[] queryGaps;
 }
 
-char* MultipleAlignment::initX(int len) {
-    int seqSimdLength = (len) / (VECSIZE_INT * 4) + 2;
+char **MultipleAlignment::initX(size_t len, size_t setSize) {
+    size_t seqSimdLength = (len) / (VECSIZE_INT * 4) + 2;
     seqSimdLength *= (VECSIZE_INT * 4);
-    char *ptr = (char *) malloc_simd_int(seqSimdLength);
-    std::fill(ptr, ptr + seqSimdLength, MultipleAlignment::GAP);
-    return ptr;
+    char *ptr = (char *) malloc_simd_int(seqSimdLength * setSize);
+    memset(ptr, MultipleAlignment::GAP, (seqSimdLength * setSize));
+    char **arr = new char *[setSize];
+    for (size_t i = 0; i < setSize; ++i) {
+        arr[i] = ptr + (seqSimdLength * i);
+    }
+    return arr;
 }
 
-void MultipleAlignment::deleteMSA(MultipleAlignment::MSAResult * res) {
-    for (size_t i = 0; i < res->setSize; i++) {
-        free(res->msaSequence[i]);
-    }
+void MultipleAlignment::deleteMSA(MultipleAlignment::MSAResult *res) {
+    free(res->msaSequence[0]);
     delete[] res->msaSequence;
 }
 
@@ -187,11 +189,7 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
         EXIT(EXIT_FAILURE);
     }
 
-    char ** msaSequence = new char *[edgeSeqs.size() + 1];
-    for(size_t i = 0; i <= edgeSeqs.size(); i++){
-        // FIXME: in deletion case, the msa could become even larger than maxSeqLen
-        msaSequence[i] = initX(noDeletionMSA ? centerSeq->L + 1: maxSeqLen + 1);
-    }
+    char ** msaSequence = initX(noDeletionMSA ? centerSeq->L + 1 : maxSeqLen + 1, edgeSeqs.size() + 1);
     computeQueryGaps(queryGaps, centerSeq, alignmentResults);
     // process gaps in Query (update sequences)
     // and write query Alignment at position 0
@@ -223,8 +221,7 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
 
 MultipleAlignment::MSAResult MultipleAlignment::singleSequenceMSA(Sequence *centerSeq) {
     size_t queryMSASize = 0;
-    char ** msaSequence = new char *[1];
-    msaSequence[0] = initX(centerSeq->L);
+    char** msaSequence = initX(centerSeq->L, 1);
     for(int queryPos = 0; queryPos < centerSeq->L; queryPos++) {
         if (queryMSASize >= maxMsaSeqLen) {
             Debug(Debug::ERROR) << "queryMSASize (" << queryMSASize << ") is >= maxMsaSeqLen (" << maxMsaSeqLen << ")" << "\n";

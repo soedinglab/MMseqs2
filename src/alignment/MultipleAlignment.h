@@ -36,7 +36,7 @@ public:
     static void print(MSAResult msaResult, SubstitutionMatrix * subMat);
 
     // init aligned memory for the MSA
-    static char *initX(int len);
+    static char **initX(size_t len, size_t setSize);
 
     // clean memory for MSA
     static void deleteMSA(MultipleAlignment::MSAResult * res);
