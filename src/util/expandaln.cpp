@@ -133,7 +133,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     writer.open();
 
     BacktraceTranslator translator;
-    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);\
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
 
     EvalueComputation *evaluer = NULL;
     ProbabilityMatrix *probMatrix = NULL;
@@ -173,8 +173,11 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         }
 
         size_t compBufferSize = (par.maxSeqLen + 1) * sizeof(float);
-        float *compositionBias = (float*)malloc(compBufferSize);
-        memset(compositionBias, 0, compBufferSize);
+        float *compositionBias = NULL;
+        if (par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE) {
+            compositionBias = (float*)malloc(compBufferSize);
+            memset(compositionBias, 0, compBufferSize);
+        }
 
         char buffer[1024 + 32768*4];
 
@@ -195,9 +198,13 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
             unsigned int queryKey = resultAbReader->getDbKey(i);
 
             size_t aSeqId = aReader.getId(queryKey);
-            aSeq.mapSequence(aSeqId, queryKey, aReader.getData(aSeqId, thread_idx), aReader.getSeqLen(aSeqId));
+            if (returnAlnRes == false || par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE) {
+                aSeq.mapSequence(aSeqId, queryKey, aReader.getData(aSeqId, thread_idx), aReader.getSeqLen(aSeqId));
+            }
 
-            if (par.compBiasCorrection == true && Parameters::isEqualDbtype(aSeqDbType, Parameters::DBTYPE_AMINO_ACIDS)) {
+            if (par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE
+                && par.compBiasCorrection == true
+                && Parameters::isEqualDbtype(aSeqDbType, Parameters::DBTYPE_AMINO_ACIDS)) {
                 if ((size_t)aSeq.L >= compBufferSize) {
                     compBufferSize = (size_t)aSeq.L * 1.5 * sizeof(float);
                     compositionBias = (float*)realloc(compositionBias, compBufferSize);
@@ -255,7 +262,9 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                         }
                     } else {
                         size_t cSeqId = cReader->getId(cSeqKey);
-                        cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
+                        if (returnAlnRes == false || par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE) {
+                            cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
+                        }
                         //rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
                         //if(resultAc.score < -6){ // alignment too bad (fitted on regression benchmark EXPAND)
                         //   continue;
@@ -299,8 +308,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 }
                 resultsBc.clear();
             }
-            for (std::map<unsigned int, IntervalArray *>::iterator it = interval.begin(); it != interval.end(); it++ )
-            {
+            for (std::map<unsigned int, IntervalArray *>::iterator it = interval.begin(); it != interval.end(); it++) {
                 it->second->reset();
                 intervalBuffer.push(it->second);
             }
@@ -331,7 +339,9 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 seqSet.clear();
             }
         }
-        free(compositionBias);
+        if (compositionBias != NULL) {
+            free(compositionBias);
+        }
         if (returnAlnRes == false) {
             delete aligner;
             if (filter != NULL) {
