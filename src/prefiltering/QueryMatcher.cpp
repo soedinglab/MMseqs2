@@ -469,7 +469,7 @@ size_t QueryMatcher::radixSortByScoreSize(const unsigned int * scoreSizes,
         ptr_prev = ptr[i];
     }
     size_t aboveThresholdCnt = 0;
-    for (size_t i = 0; i < resultSize; i++) {
+    for (size_t i = 0; i < resultSize && i < maxHitsPerQuery; i++) {
         const unsigned int scoreCurr = results[i].count;
         if(scoreCurr >= scoreThreshold) {
             aboveThresholdCnt++;
