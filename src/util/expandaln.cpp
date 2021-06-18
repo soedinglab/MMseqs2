@@ -17,6 +17,7 @@
 #include "IntervalArray.h"
 #include <stack>
 #include <map>
+
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -256,8 +257,9 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     unsigned int cSeqKey = resultBc.dbKey;
                     // A single target sequence can cover a query just a single time
                     // If a target has the same domain several times, then we only consider one
-                    if(interval.find(cSeqKey) != interval.end()) {
-                        if(interval[cSeqKey]->doesOverlap(resultAc.qStartPos, resultAc.qEndPos)){
+                    std::map<unsigned int, IntervalArray *>::iterator it = interval.find(cSeqKey);
+                    if (it != interval.end()) {
+                        if (it->second->doesOverlap(resultAc.qStartPos, resultAc.qEndPos)) {
                             continue;
                         }
                     } else {
@@ -269,17 +271,16 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                         //if(resultAc.score < -6){ // alignment too bad (fitted on regression benchmark EXPAND)
                         //   continue;
                         //}
-
-                        if(par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE){
-		 rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
+                        if (par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE) {
+                            rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
                             // alignment too bad (fitted on regression benchmark EXPAND)
                             if (resultAc.score < -6) {
                                 continue;
                             } 
-			   resultAc.eval = evaluer->computeEvalue(resultAc.score, aSeq.L);
+			                resultAc.eval = evaluer->computeEvalue(resultAc.score, aSeq.L);
                             resultAc.score = static_cast<int>(evaluer->computeBitScore(resultAc.score)+0.5);
                             resultAc.seqId = Util::computeSeqId(par.seqIdMode, resultAc.seqId, aSeq.L, cSeq.L, resultAc.backtrace.size());
-                        }else{
+                        } else {
                             resultAc.eval = resultAb.eval;
                             resultAc.score = resultAb.score;
                             resultAc.seqId = resultAb.seqId;
@@ -295,20 +296,21 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                                 seqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
                             }
                             resultsAc.emplace_back(resultAc);
-                            if(intervalBuffer.size() == 0){
-                                interval[cSeqKey] = new IntervalArray();
+                            IntervalArray* tmp;
+                            if (intervalBuffer.size() == 0) {
+                                tmp = new IntervalArray();
                             } else {
-                                interval[cSeqKey] = intervalBuffer.top();
+                                tmp = intervalBuffer.top();
                                 intervalBuffer.pop();
                             }
-                            interval[cSeqKey]->insert(resultAc.qStartPos, resultAc.qEndPos);
+                            tmp->insert(resultAc.qStartPos, resultAc.qEndPos);
+                            interval.insert(std::make_pair(cSeqKey, tmp));
                         }
-
                     }
                 }
                 resultsBc.clear();
             }
-            for (std::map<unsigned int, IntervalArray *>::iterator it = interval.begin(); it != interval.end(); it++) {
+            for (std::map<unsigned int, IntervalArray *>::iterator it = interval.begin(); it != interval.end(); ++it) {
                 it->second->reset();
                 intervalBuffer.push(it->second);
             }
