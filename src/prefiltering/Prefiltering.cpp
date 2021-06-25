@@ -406,7 +406,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
         files[i] = FileUtil::openFileOrDie(fileNames[i].first.c_str(), "r", true);
         dataFile[i] = static_cast<char*>(FileUtil::mmapFile(files[i], &dataFileSize[i]));
 #ifdef HAVE_POSIX_MADVISE
-        if (posix_madvise (dataFile[i], dataFileSize[i], POSIX_MADV_SEQUENTIAL) != 0){
+        if (dataFileSize[i] > 0 && posix_madvise (dataFile[i], dataFileSize[i], POSIX_MADV_SEQUENTIAL) != 0){
             Debug(Debug::ERROR) << "posix_madvise returned an error " << fileNames[i].first << "\n";
         }
 #endif

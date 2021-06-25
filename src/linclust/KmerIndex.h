@@ -183,7 +183,7 @@ public:
         this->indexGridSize = MathUtil::ceilIntDivision( MathUtil::ipow<size_t>(alphabetSize, kmerSize), gridResolution );
         this->entryOffsets = (size_t *) entriesOffetData;
 #if HAVE_POSIX_MADVISE
-        if (posix_madvise (entriesData, entryCount* sizeof(KmerEntryRelative), POSIX_MADV_SEQUENTIAL) != 0){
+        if (entryCount > 0 && posix_madvise (entriesData, entryCount* sizeof(KmerEntryRelative), POSIX_MADV_SEQUENTIAL) != 0){
             Debug(Debug::ERROR) << "KmerIndex posix_madvise returned an error\n";
         }
 #endif
