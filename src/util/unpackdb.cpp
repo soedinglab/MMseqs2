@@ -27,6 +27,14 @@ int unpackdb(int argc, const char **argv, const Command& command) {
 
     size_t entries = reader.getSize();
     Debug::Progress progress(entries);
+
+    std::map<char, char> sub_symbols = {{'\\', '@'}, {'/', '@'}, {':', '@'}, {'*', '@'}, {'?', '@'}, {'<', '@'}, {'>', '@'}, {'|', '!'}};
+    auto path_substitution = [&](std::string name)
+    {
+        for (auto const &symbol : sub_symbols)
+            std::replace(name.begin(), name.end(), symbol.first, symbol.second);
+        return name;
+    };
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -44,9 +52,9 @@ int unpackdb(int argc, const char **argv, const Command& command) {
             }
             if (par.unpackNameMode == Parameters::UNPACK_NAME_ACCESSION) {
                 size_t lookupId = reader.getLookupIdByKey(key);
-                name.append(reader.getLookupEntryName(lookupId));
+                name.append(path_substitution(reader.getLookupEntryName(lookupId)));
             } else {
-                name.append(SSTR(key));
+                name.append(path_substitution(SSTR(key)));
             }
             name.append(par.unpackSuffix);
             FILE* handle = FileUtil::openAndDelete(name.c_str(), "w");
