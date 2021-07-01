@@ -1,0 +1,14 @@
+freebsd_instance:
+  image_family: freebsd-13-0
+
+task:
+  env:
+    CIRRUS_CLONE_SUBMODULES: true
+  install_script: pkg install -y cmake git
+  script: |
+    mkdir build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_SSE4_1=1 ..
+    make -j $(sysctl -n hw.ncpu)
+    cd ..
+    ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH
