@@ -133,16 +133,14 @@ void sw(
 
 }
 
-
-int main (int, const char**) {
+int main(int, const char**) {
     const size_t kmer_size=6;
 
     Parameters& par = Parameters::getInstance();
+    par.initMatrices();
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
-    std::cout << "Subustitution matrix:\n";
+    std::cout << "Substitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
-
-
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "\n";
 

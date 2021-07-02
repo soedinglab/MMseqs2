@@ -14,7 +14,7 @@ std::vector<Command> baseCommands = {
                 "mmseqs databases PFAM pfam_db tmp\n"
                 "mmseqs easy-search examples/QUERY.fasta pfam_db res.m8 tmp\n\n"
                 "# Exhaustive search against sequences or profiles (works for large DBs)\n"
-                "mmseqs easy-search examples/QUERY.fasta targetProfiles res.m8 tmp --slice-search\n\n"
+                "mmseqs easy-search examples/QUERY.fasta targetProfiles res.m8 tmp --exhaustive-search\n\n"
                 "# Increasing sensitivity search (from 2 to 7 in 3 steps)\n"
                 "mmseqs easy-search examples/QUERY.fasta examples/DB.fasta result.m8 tmp --start-sens 2 -s 7 --sens-steps 3\n",
                 "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@snu.ac.kr>",
@@ -190,7 +190,7 @@ std::vector<Command> baseCommands = {
                 "mmseqs databases PFAM pfam_db tmp\n"
                 "mmseqs search queryDB pfam_db resultDB tmp\n\n"
                 "# Exhaustive search against sequences or profiles (works for large DBs)\n"
-                "mmseqs search queryDB targetDB resultDB tmp --slice-search\n\n"
+                "mmseqs search queryDB targetDB resultDB tmp --exhaustive-search\n\n"
                 "# Increasing sensitivity search (from 2 to 7 in 3 steps)\n"
                 "mmseqs search queryDB targetDB resultDB --start-sens 2 -s 7 --sens-steps 3\n",
                 "Martin Steinegger <martin.steinegger@snu.ac.kr>",

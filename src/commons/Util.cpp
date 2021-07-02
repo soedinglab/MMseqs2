@@ -389,7 +389,7 @@ uint64_t Util::getL2CacheSize() {
 
 char Util::touchMemory(const char *memory, size_t size) {
 #ifdef HAVE_POSIX_MADVISE
-    if (posix_madvise ((void*)memory, size, POSIX_MADV_WILLNEED) != 0){
+    if (size > 0 && posix_madvise ((void*)memory, size, POSIX_MADV_WILLNEED) != 0){
         Debug(Debug::ERROR) << "posix_madvise returned an error (touchMemory)\n";
     }
 #endif

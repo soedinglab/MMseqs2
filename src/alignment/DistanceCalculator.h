@@ -285,7 +285,7 @@ public:
             // the 16 signed or unsigned 8-bit integers in a and zero-extends the upper bits.
             simd_int seqComparision = simdi8_eq(seq1vec, seq2vec);
             int res = simdi8_movemask(seqComparision);
-            diff += MathUtil::popCount(res);  // subtract positions that should not contribute to coverage
+            diff += __builtin_popcount(res);  // subtract positions that should not contribute to coverage
         }
         // compute missing rest
         for (unsigned int pos = simdBlock*(VECSIZE_INT*4); pos < length; pos++ ) {

@@ -8,6 +8,7 @@ const char* binary_name = "test_scorematrixserialization";
 
 int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
+    par.initMatrices();
     SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 8.0, 0);
     ScoreMatrix extMattwo = ExtendedSubstitutionMatrix::calcScoreMatrix(subMat, 2);
 

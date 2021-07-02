@@ -1083,6 +1083,7 @@ Parameters::Parameters():
     expandaln.push_back(&PARAM_COV_MODE);
     expandaln.push_back(&PARAM_PCA);
     expandaln.push_back(&PARAM_PCB);
+    expandaln.push_back(&PARAM_PRELOAD_MODE);
     expandaln.push_back(&PARAM_COMPRESSED);
     expandaln.push_back(&PARAM_THREADS);
     expandaln.push_back(&PARAM_V);
@@ -1112,6 +1113,7 @@ Parameters::Parameters():
     expand2profile.push_back(&PARAM_FILTER_NDIFF);
     expand2profile.push_back(&PARAM_PCA);
     expand2profile.push_back(&PARAM_PCB);
+    expand2profile.push_back(&PARAM_PRELOAD_MODE);
     expand2profile.push_back(&PARAM_COMPRESSED);
     expand2profile.push_back(&PARAM_THREADS);
     expand2profile.push_back(&PARAM_V);
@@ -1454,6 +1456,36 @@ bool parseBool(const std::string &p) {
     } else {
         Debug(Debug::ERROR) << "Invalid boolean string " << p << "\n";
         EXIT(EXIT_FAILURE);
+    }
+}
+
+void Parameters::initMatrices() {
+    // set up substituionMatrix
+    for(size_t i = 0 ; i < substitutionMatrices.size(); i++) {
+        bool isAminoAcid = (strcmp(scoringMatrixFile.aminoacids, substitutionMatrices[i].name.c_str()) == 0);
+        bool isNucleotide = (strcmp(scoringMatrixFile.nucleotides, substitutionMatrices[i].name.c_str()) == 0);
+        bool isSeedAminoAcid = (strcmp(seedScoringMatrixFile.aminoacids, substitutionMatrices[i].name.c_str()) == 0);
+        bool isSeedNucleotide = (strcmp(seedScoringMatrixFile.nucleotides, substitutionMatrices[i].name.c_str()) == 0);
+        if (isAminoAcid || isNucleotide || isSeedAminoAcid || isSeedNucleotide) {
+            std::string matrixData((const char *) substitutionMatrices[i].subMatData, substitutionMatrices[i].subMatDataLen);
+            std::string matrixName = substitutionMatrices[i].name;
+            if (isAminoAcid) {
+                free(scoringMatrixFile.aminoacids);
+                scoringMatrixFile.aminoacids = BaseMatrix::serialize(matrixName, matrixData);
+            }
+            if (isNucleotide) {
+                free(scoringMatrixFile.nucleotides);
+                scoringMatrixFile.nucleotides = BaseMatrix::serialize(matrixName, matrixData);
+            }
+            if (isSeedAminoAcid) {
+                free(seedScoringMatrixFile.aminoacids);
+                seedScoringMatrixFile.aminoacids = BaseMatrix::serialize(matrixName, matrixData);
+            }
+            if (isSeedNucleotide) {
+                free(seedScoringMatrixFile.nucleotides);
+                seedScoringMatrixFile.nucleotides = BaseMatrix::serialize(matrixName, matrixData);
+            }
+        }
     }
 }
 
@@ -1843,33 +1875,7 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
             EXIT(EXIT_FAILURE);
     }
 
-    // set up substituionMatrix
-    for(size_t i = 0 ; i < substitutionMatrices.size(); i++) {
-        bool isAminoAcid   = (strcmp(scoringMatrixFile.aminoacids, substitutionMatrices[i].name.c_str()) == 0);
-        bool isNucleotide  = (strcmp(scoringMatrixFile.nucleotides, substitutionMatrices[i].name.c_str()) == 0);
-        bool isSeedAminoAcid   = (strcmp(seedScoringMatrixFile.aminoacids, substitutionMatrices[i].name.c_str()) == 0);
-        bool isSeedNucleotide  = (strcmp(seedScoringMatrixFile.nucleotides, substitutionMatrices[i].name.c_str()) == 0);
-        if (isAminoAcid || isNucleotide|| isSeedAminoAcid|| isSeedNucleotide) {
-            std::string matrixData((const char *)substitutionMatrices[i].subMatData, substitutionMatrices[i].subMatDataLen);
-            std::string matrixName = substitutionMatrices[i].name;
-            if(isAminoAcid) {
-                free(scoringMatrixFile.aminoacids);
-                scoringMatrixFile.aminoacids = BaseMatrix::serialize(matrixName, matrixData);
-            }
-            if(isNucleotide) {
-                free(scoringMatrixFile.nucleotides);
-                scoringMatrixFile.nucleotides = BaseMatrix::serialize(matrixName, matrixData);
-            }
-            if(isSeedAminoAcid) {
-                free(seedScoringMatrixFile.aminoacids);
-                seedScoringMatrixFile.aminoacids = BaseMatrix::serialize(matrixName, matrixData);
-            }
-            if(isSeedNucleotide) {
-                free(seedScoringMatrixFile.nucleotides);
-                seedScoringMatrixFile.nucleotides = BaseMatrix::serialize(matrixName, matrixData);
-            }
-        }
-    }
+    initMatrices();
 
     if (ignorePathCountChecks == false) {
         checkIfDatabaseIsValid(command, argc, pargv, isStartVar, isMiddleVar, isEndVar);
@@ -1878,7 +1884,6 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
     if (printPar == true) {
         printParameters(command.cmd, argc, pargv, par);
     }
-
 }
 
 std::vector<std::string> Parameters::findMissingTaxDbFiles(const std::string &filename) {
@@ -2399,7 +2404,7 @@ void Parameters::setDefaults() {
             { CITATION_LINCLUST, "Steinegger M, Soding J: Clustering huge protein sequence sets in linear time. Nature Communications, 9(1), 2542 (2018)" },
             { CITATION_PLASS,    "Steinegger M, Mirdita M, Soding J: Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. Nature Methods, 16(7), 603-606 (2019)" },
             { CITATION_SERVER,   "Mirdita M, Steinegger M, Soding J: MMseqs2 desktop and local web server app for fast, interactive sequence searches. Bioinformatics, 35(16), 2856–2858 (2019)" },
-            { CITATION_TAXONOMY, "Mirdita M, Steinegger M, Breitwieser F, Soding J, Levy Karin E: Fast and sensitive taxonomic assignment to metagenomic contigs. bioRxiv, 2020.11.27.401018 (2020)" },
+            { CITATION_TAXONOMY, "Mirdita M, Steinegger M, Breitwieser F, Soding J, Levy Karin E: Fast and sensitive taxonomic assignment to metagenomic contigs. Bioinformatics, btab184 (2021)" },
     };
 }
 

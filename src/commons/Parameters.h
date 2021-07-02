@@ -666,6 +666,7 @@ public:
     }
 
     void setDefaults();
+    void initMatrices();
     void parseParameters(int argc, const char *pargv[], const Command &command, bool printPar, int parseFlags,
                          int outputFlags);
     void printUsageMessage(const Command& command, unsigned int outputFlag, const char* extraText = NULL);

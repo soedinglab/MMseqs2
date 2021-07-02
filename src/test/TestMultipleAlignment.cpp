@@ -15,8 +15,9 @@
 
 const char* binary_name = "test_multiplealignment";
 
-int main (int, const char**) {
+int main(int, const char**) {
     Parameters& par = Parameters::getInstance();
+    par.initMatrices();
 
     const size_t kmer_size=6;
 
