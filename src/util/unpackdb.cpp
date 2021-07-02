@@ -29,7 +29,7 @@ int unpackdb(int argc, const char **argv, const Command& command) {
     Debug::Progress progress(entries);
 
     // Modify system forbidden symbols in database filename
-    std::map<char, char> sub_symbols = {{'\\', '@'}, {'/', '@'}, {':', '@'}, {'*', '@'}, {'?', '@'}, {'<', '@'}, {'>', '@'}, {'|', '!'}};
+    std::map<char, char> const sub_symbols = {{'\\', '@'}, {'/', '@'}, {':', '@'}, {'*', '@'}, {'?', '@'}, {'<', '@'}, {'>', '@'}, {'|', '!'}};
     auto path_substitution = [&](std::string name)
     {
         for (auto const &symbol : sub_symbols)
