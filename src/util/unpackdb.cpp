@@ -28,6 +28,7 @@ int unpackdb(int argc, const char **argv, const Command& command) {
     size_t entries = reader.getSize();
     Debug::Progress progress(entries);
 
+    // Modify system forbidden symbols in database filename
     std::map<char, char> sub_symbols = {{'\\', '@'}, {'/', '@'}, {':', '@'}, {'*', '@'}, {'?', '@'}, {'<', '@'}, {'>', '@'}, {'|', '!'}};
     auto path_substitution = [&](std::string name)
     {
