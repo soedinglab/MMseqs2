@@ -95,7 +95,9 @@ int tar2db(int argc, const char **argv, const Command& command) {
             EXIT(EXIT_FAILURE);
         }
 
+#ifdef OPENMP
         int localThreads = par.threads;
+#endif
         mtar_t tar;
         if (Util::endsWith(".tar.gz", filenames[i]) || Util::endsWith(".tgz", filenames[i])) {
 #ifdef HAVE_ZLIB
@@ -103,7 +105,9 @@ int tar2db(int argc, const char **argv, const Command& command) {
                 Debug(Debug::ERROR) << "Cannot open file " << filenames[i] << "\n";
                 EXIT(EXIT_FAILURE);
             }
+#ifdef OPENMP
             localThreads = 1;
+#endif
 #else
             Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Cannot read compressed input.\n";
             EXIT(EXIT_FAILURE);
