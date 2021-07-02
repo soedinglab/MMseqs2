@@ -749,6 +749,7 @@ Parameters::Parameters():
     // gff2db
     gff2db.push_back(&PARAM_GFF_TYPE);
     gff2db.push_back(&PARAM_ID_OFFSET);
+    gff2db.push_back(&PARAM_THREADS);
     gff2db.push_back(&PARAM_V);
 
 
