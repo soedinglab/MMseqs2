@@ -43,7 +43,9 @@ int gff2db(int argc, const char **argv, const Command &command) {
         EXIT(EXIT_FAILURE);
     }
 
-    bool shouldCompareType = par.gffType.length() > 0;
+    const std::vector<std::string> features = Util::split(par.gffType, ",");
+    std::vector<size_t> featureCount(features.size(), 0);
+
     if (par.filenames.size() < reader.getSize()) {
         Debug(Debug::WARNING) << "Not enough GFF files are provided. Some results might be omitted. \n";
     }
@@ -63,7 +65,9 @@ int gff2db(int argc, const char **argv, const Command &command) {
         std::string revStr;
         revStr.reserve(par.maxSeqLen + 1);
 
-#pragma omp for schedule(dynamic, 10)
+        std::vector<size_t> localFeatureCount(features.size(), 0);
+
+#pragma omp for schedule(dynamic, 1) nowait
         for (size_t i = 0; i < par.filenames.size(); ++i) {
             progress.updateProgress();
             MemoryMapped file(par.filenames[i], MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
@@ -87,13 +91,18 @@ int gff2db(int argc, const char **argv, const Command &command) {
                     continue;
                 }
 
-                if (shouldCompareType) {
+                if (features.empty() == false) {
                     std::string type(fields[2], fields[3] - fields[2] - 1);
-                    if (type.compare(par.gffType) != 0) {
-                        continue;
+                    for (size_t i = 0; i < features.size(); ++i) {
+                        if (type.compare(features[i]) == 0) {
+                            localFeatureCount[i]++;
+                            // roundabout way to skip to next entry
+                            goto cont;
+                        }
                     }
+                    continue;
                 }
-
+                cont:
                 unsigned int key = __sync_fetch_and_add(&(entries_num), 1);
                 size_t start = Util::fast_atoi<size_t>(fields[3]);
                 size_t end = Util::fast_atoi<size_t>(fields[4]);
@@ -152,6 +161,10 @@ int gff2db(int argc, const char **argv, const Command &command) {
             }
             file.close();
         }
+#pragma omp critical
+        for (size_t i = 0; i < features.size(); ++i) {
+            featureCount[i] += localFeatureCount[i];
+        }
     }
     lookupWriter.close(true);
     FileUtil::remove(lookupWriter.getIndexFileName());
@@ -159,6 +172,13 @@ int gff2db(int argc, const char **argv, const Command &command) {
     writer.close(true);
     headerReader.close();
     reader.close();
+    if (Debug::debugLevel >= Debug::INFO && features.size() > 0) {
+        Debug(Debug::INFO) << "Found these feature types and counts:\n";
+        for (size_t i = 0; i < features.size(); ++i) {
+            Debug(Debug::INFO) << " - " << features[i] << ": " << SSTR(featureCount[i]) << "\n";
+        }
+    }
+
 
     return EXIT_SUCCESS;
 }
