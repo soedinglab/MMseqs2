@@ -49,10 +49,13 @@ int gff2db(int argc, const char **argv, const Command &command) {
     }
 
     const std::vector<std::string> features = Util::split(par.gffType, ",");
+    if (features.empty()) {
+        Debug(Debug::WARNING) << "No feature types given. All features will be extracted\n";
+    }
     std::vector<size_t> featureCount(features.size(), 0);
 
     if (par.filenames.size() < reader.getSize()) {
-        Debug(Debug::WARNING) << "Not enough GFF files are provided. Some results might be omitted. \n";
+        Debug(Debug::WARNING) << "Not enough GFF files are provided. Some results might be omitted\n";
     }
 
     unsigned int entries_num = 0;
@@ -113,20 +116,20 @@ int gff2db(int argc, const char **argv, const Command &command) {
                 size_t start = Util::fast_atoi<size_t>(fields[3]);
                 size_t end = Util::fast_atoi<size_t>(fields[4]);
                 if (start == end) {
-                    Debug(Debug::WARNING) << "Invalid sequence length in line " << idx << "!\n";
+                    Debug(Debug::WARNING) << "Invalid sequence length in line " << idx << "\n";
                     continue;
                 }
                 std::string strand(fields[6], fields[7] - fields[6] - 1);
                 std::string name(fields[0], fields[1] - fields[0] - 1);
                 size_t lookupId = reader.getLookupIdByAccession(name);
                 if (lookupId == SIZE_MAX) {
-                    Debug(Debug::ERROR) << "GFF entry not found in database lookup: " << name << "!\n";
+                    Debug(Debug::ERROR) << "GFF entry not found in database lookup: " << name << "\n";
                     EXIT(EXIT_FAILURE);
                 }
                 unsigned int lookupKey = reader.getLookupKey(lookupId);
                 size_t seqId = reader.getId(lookupKey);
                 if (seqId == UINT_MAX) {
-                    Debug(Debug::ERROR) << "GFF entry not found in sequence database: " << name << "!\n";
+                    Debug(Debug::ERROR) << "GFF entry not found in sequence database: " << name << "\n";
                     EXIT(EXIT_FAILURE);
                 }
 
@@ -176,8 +179,10 @@ int gff2db(int argc, const char **argv, const Command &command) {
     if (Debug::debugLevel >= Debug::INFO && features.size() > 0) {
         Debug(Debug::INFO) << "Found these feature types and counts:\n";
         for (size_t i = 0; i < features.size(); ++i) {
-            Debug(Debug::INFO) << " - " << features[i] << ": " << SSTR(featureCount[i]) << "\n";
+            Debug(Debug::INFO) << " - " << features[i] << ": " << featureCount[i] << "\n";
         }
+    } else {
+        Debug(Debug::INFO) << (entries_num + 1) << " features were extracted\n";
     }
 
     if (par.filenames.size() > 1 && par.threads > 1) {
