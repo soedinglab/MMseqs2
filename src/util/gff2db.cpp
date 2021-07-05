@@ -97,17 +97,19 @@ int gff2db(int argc, const char **argv, const Command &command) {
                 }
 
                 if (features.empty() == false) {
+                    bool shouldSkip = true;
                     std::string type(fields[2], fields[3] - fields[2] - 1);
                     for (size_t i = 0; i < features.size(); ++i) {
                         if (type.compare(features[i]) == 0) {
                             localFeatureCount[i]++;
-                            // roundabout way to skip to next entry
-                            goto cont;
+                            shouldSkip = false;
+                            break;
                         }
                     }
-                    continue;
+                    if (shouldSkip) {
+                        continue;
+                    }
                 }
-                cont:
                 size_t start = Util::fast_atoi<size_t>(fields[3]);
                 size_t end = Util::fast_atoi<size_t>(fields[4]);
                 if (start == end) {
