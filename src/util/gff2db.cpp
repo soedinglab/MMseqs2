@@ -79,8 +79,8 @@ int gff2db(int argc, const char **argv, const Command &command) {
                     data = Util::skipLine(data);
                     continue;
                 }
-                //TODO: multi-word column 2 could exist
-                const size_t columns = Util::getWordsOfLine(data, fields, 255);
+
+                const size_t columns = Util::getFieldsOfLine(data, fields, 255);
                 data = Util::skipLine(data);
                 if (columns < 9) {
                     Debug(Debug::WARNING) << "Not enough columns in GFF file\n";
