@@ -18,6 +18,7 @@ extern bool hide_base_commands;
 extern std::vector<Command> commands;
 extern std::vector<Command> baseCommands;
 extern std::vector<Categories> categories;
+extern void (*validatorUpdate)(void);
 
 Command *getCommandByName(const char *s) {
     for (size_t i = 0; i < commands.size(); i++) {
@@ -186,6 +187,10 @@ int main(int argc, const char **argv) {
     if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0){
         printUsage(true);
         return EXIT_SUCCESS;
+    }
+
+    if(validatorUpdate != NULL){
+        (*validatorUpdate)();
     }
 
     setenv("MMSEQS", argv[0], true);

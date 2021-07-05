@@ -7,4 +7,5 @@ const char* main_author = "Martin Steinegger (martin.steinegger@snu.ac.kr)";
 const char* show_extended_help = "1";
 const char* show_bash_info = "1";
 bool hide_base_commands = false;
+void (*validatorUpdate)(void) = 0;
 std::vector<Command> commands = {};
