@@ -179,6 +179,24 @@ int gff2db(int argc, const char **argv, const Command &command) {
         }
     }
 
+    if (par.filenames.size() > 1 && par.threads > 1) {
+    // make identifiers stable
+#pragma omp parallel
+        {
+#pragma omp single
+            {
+#pragma omp task
+                {
+                    DBWriter::createRenumberedDB(outHdr, outHdrIndex, "", "");
+                }
+
+#pragma omp task
+                {
+                    DBWriter::createRenumberedDB(outDb, outDbIndex, outDb, outDbIndex);
+                }
+            }
+        }
+    }
 
     return EXIT_SUCCESS;
 }
