@@ -168,9 +168,17 @@ public:
 
     static bool getLine(const char* data, size_t dataLength, char* buffer, size_t bufferLength);
 
-    static inline size_t skipWhitespace(const char* data){
+    static inline size_t skipWhitespace(const char* data) {
         size_t counter = 0;
-        while((data[counter] == ' ' || data[counter] == '\t') == true) {
+        while ((data[counter] == ' ' || data[counter] == '\t') == true) {
+            counter++;
+        }
+        return counter;
+    }
+
+    static inline size_t skipTab(const char* data) {
+        size_t counter = 0;
+        while (data[counter] == '\t') {
             counter++;
         }
         return counter;
@@ -200,6 +208,14 @@ public:
         //A value different from zero (i.e., true) if indeed c is a white-space character. Zero (i.e., false) otherwise.
         size_t counter = 0;
         while((data[counter] == ' '  || data[counter] == '\t' || data[counter] == '\n' || data[counter] == '\0') == false) {
+            counter++;
+        }
+        return counter;
+    }
+
+    static inline size_t skipNonTab(const char * data) {
+        size_t counter = 0;
+        while (data[counter] != '\t' && data[counter] != '\n' && data[counter] != '\0') {
             counter++;
         }
         return counter;
@@ -240,6 +256,22 @@ public:
             data += skipNoneWhitespace(data);
         }
         if(elementCounter < maxElement)
+            words[elementCounter] = data;
+
+        return elementCounter;
+    }
+
+    static inline size_t getFieldsOfLine(const char* data, const char** words, size_t maxElement) {
+        size_t elementCounter = 0;
+        while (*data != '\n' && *data != '\0') {
+            data += skipTab(data);
+            words[elementCounter] = data;
+            elementCounter++;
+            if (elementCounter >= maxElement)
+                return elementCounter;
+            data += skipNonTab(data);
+        }
+        if (elementCounter < maxElement)
             words[elementCounter] = data;
 
         return elementCounter;
