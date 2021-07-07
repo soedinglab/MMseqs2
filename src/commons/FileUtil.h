@@ -64,6 +64,8 @@ public:
     static std::string createTemporaryDirectory(const std::string& basePath, const std::string& subDirectory);
 
     static void fixRlimitNoFile();
+
+    static std::string pathSubstitution(std::string path, const std::map<char, char> symbolTable);
 };
 
 

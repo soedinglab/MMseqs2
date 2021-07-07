@@ -465,3 +465,11 @@ void FileUtil::fixRlimitNoFile() {
         }
     }
 }
+
+std::string FileUtil::pathSubstitution(std::string path, const std::map<char, char> symbolTable){
+    std::map<char, char>::const_iterator it;
+    for (it = symbolTable.begin(); it != symbolTable.end(); it++) {
+        std::replace(path.begin(), path.end(), it->first, it->second);
+    }
+    return path;
+}
