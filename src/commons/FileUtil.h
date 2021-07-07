@@ -65,7 +65,8 @@ public:
 
     static void fixRlimitNoFile();
 
-    static std::string pathSubstitution(std::string path, const std::map<char, char> symbolTable);
+    // remove forbidden symbols in from filenames
+    static std::string sanitizeFilename(std::string name);
 };
 
 

@@ -9,16 +9,6 @@
 #include <omp.h>
 #endif
 
-// Modify system forbidden symbols in database filename
-static const std::map<char, char> sub_symbols = {{'\\', '@'},
-                                                 {'/', '@'},
-                                                 {':', '@'},
-                                                 {'*', '@'},
-                                                 {'?', '@'},
-                                                 {'<', '@'},
-                                                 {'>', '@'},
-                                                 {'|', '!'}};
-
 int unpackdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
@@ -55,7 +45,7 @@ int unpackdb(int argc, const char **argv, const Command& command) {
             }
             if (par.unpackNameMode == Parameters::UNPACK_NAME_ACCESSION) {
                 size_t lookupId = reader.getLookupIdByKey(key);
-                name.append(FileUtil::pathSubstitution(reader.getLookupEntryName(lookupId), sub_symbols));
+                name.append(FileUtil::sanitizeFilename(reader.getLookupEntryName(lookupId)));
             } else {
                 name.append(SSTR(key));
             }
