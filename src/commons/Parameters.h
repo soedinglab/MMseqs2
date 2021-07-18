@@ -129,7 +129,7 @@ public:
     static const int FORMAT_MSA_FASTADB = 2;
     static const int FORMAT_MSA_FASTADB_SUMMARY = 3;
     static const int FORMAT_MSA_STOCKHOLM_FLAT = 4;
-
+    static const int FORMAT_MSA_A3M = 5;
     // outfmt
     static const int OUTFMT_QUERY = 0;
     static const int OUTFMT_TARGET = 1;
