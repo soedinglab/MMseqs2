@@ -363,10 +363,10 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         }
                         result.append(1, '\n');
                     }else{
-                        std::vector<unsigned char> seq = seqSet[i-1];
+                        const std::vector<unsigned char> & seq = seqSet[i-1];
                         int seqStartPos = alnResults[i-1].dbStartPos;
                         size_t seqPos = 0;
-                        std::string bt = alnResults[i-1].backtrace;
+                        const std::string & bt = alnResults[i-1].backtrace;
                         size_t btPos = 0;
 
                         for (size_t pos = 0; pos < res.centerLength; pos++) {
