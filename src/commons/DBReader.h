@@ -38,11 +38,12 @@ struct DBFiles {
         CA3M_SEQ_IDX      = (1ull << 15),
         CA3M_HDR          = (1ull << 16),
         CA3M_HDR_IDX      = (1ull << 17),
+        TAX_BINARY        = (1ull << 18),
 
 
         GENERIC           = DATA | DATA_INDEX | DATA_DBTYPE,
         HEADERS           = HEADER | HEADER_INDEX | HEADER_DBTYPE,
-        TAXONOMY          = TAX_MAPPING | TAX_NAMES | TAX_NODES | TAX_MERGED,
+        TAXONOMY          = TAX_MAPPING | TAX_NAMES | TAX_NODES | TAX_MERGED | TAX_BINARY,
         SEQUENCE_DB       = GENERIC | HEADERS | TAXONOMY | LOOKUP | SOURCE,
         SEQUENCE_ANCILLARY= SEQUENCE_DB & (~GENERIC),
         SEQUENCE_NO_DATA_INDEX = SEQUENCE_DB & (~DATA_INDEX),

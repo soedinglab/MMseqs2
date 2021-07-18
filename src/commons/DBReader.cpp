@@ -1132,6 +1132,7 @@ void copyLinkDb(const std::string &databaseName, const std::string &outDb, DBFil
         { DBFiles::TAX_NAMES,     "_names.dmp"        },
         { DBFiles::TAX_NODES,     "_nodes.dmp"        },
         { DBFiles::TAX_MERGED,    "_merged.dmp"       },
+        { DBFiles::TAX_MERGED,    "_taxonomy"         },
         { DBFiles::CA3M_DATA,     "_ca3m.ffdata"      },
         { DBFiles::CA3M_INDEX,    "_ca3m.ffindex"     },
         { DBFiles::CA3M_SEQ,      "_sequence.ffdata"  },
