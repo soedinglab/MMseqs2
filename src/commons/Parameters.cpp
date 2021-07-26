@@ -1984,10 +1984,10 @@ void Parameters::checkIfDatabaseIsValid(const Command& command, int argc, const 
                 if (FileUtil::directoryExists(filenames[fileIdx].c_str()) == false) {
                     if (FileUtil::makeDir(filenames[fileIdx].c_str()) == false) {
                         printParameters(command.cmd, argc, argv, *command.params);
-                        Debug(Debug::ERROR) << "Cannot create temporary directory " << filenames[dbIdx] << "\n";
+                        Debug(Debug::ERROR) << "Cannot create temporary directory " << filenames[fileIdx] << "\n";
                         EXIT(EXIT_FAILURE);
                     } else {
-                        Debug(Debug::INFO) << "Create directory " << filenames[dbIdx] << "\n";
+                        Debug(Debug::INFO) << "Create directory " << filenames[fileIdx] << "\n";
                     }
                 }
                 fileIdx++;
