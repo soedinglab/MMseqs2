@@ -2,6 +2,7 @@
 #include "Util.h"
 #include "Command.h"
 #include "DistanceCalculator.h"
+#include "FileUtil.h"
 #include "Timer.h"
 
 #include <iomanip>
@@ -18,6 +19,7 @@ extern bool hide_base_commands;
 extern std::vector<Command> commands;
 extern std::vector<Command> baseCommands;
 extern std::vector<Categories> categories;
+extern void (*validatorUpdate)(void);
 
 Command *getCommandByName(const char *s) {
     for (size_t i = 0; i < commands.size(); i++) {
@@ -187,6 +189,11 @@ int main(int argc, const char **argv) {
         printUsage(true);
         return EXIT_SUCCESS;
     }
+
+    if(validatorUpdate != NULL){
+        (*validatorUpdate)();
+    }
+    FileUtil::fixRlimitNoFile();
 
     setenv("MMSEQS", argv[0], true);
     Command *c = NULL;

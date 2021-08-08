@@ -465,3 +465,21 @@ void FileUtil::fixRlimitNoFile() {
         }
     }
 }
+
+std::string FileUtil::sanitizeFilename(std::string name){
+    static const std::vector<std::pair<char, char>> symbolTable =
+            {{'\\', '@'},
+             {'/', '@'},
+             {':', '@'},
+             {'*', '@'},
+             {'?', '@'},
+             {'<', '@'},
+             {'>', '@'},
+             {'|', '!'}};
+
+    std::vector<std::pair<char, char>>::const_iterator it;
+    for (it = symbolTable.begin(); it != symbolTable.end(); ++it) {
+        std::replace(name.begin(), name.end(), it->first, it->second);
+    }
+    return name;
+}

@@ -1,0 +1,36 @@
+env:
+  CIRRUS_CLONE_SUBMODULES: true
+
+task:
+  name: FreeBSD-13
+  freebsd_instance:
+    image_family: freebsd-13-0
+  install_script: pkg install -y cmake git samtools
+  compile_script: |
+    mkdir build && cd build
+    cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_SSE4_1=1 ..
+    make -j $(sysctl -n hw.ncpu)
+  test_script: ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH
+
+task:
+  name: "Old compilers"
+  container:
+    image: debian:jessie-slim
+    memory: 8G
+  matrix:
+    - name: Clang-4
+      install_script: apt update --yes && apt install cmake clang-4.0 libc++-dev make git ca-certificates --yes --no-install-suggests --no-install-recommends
+      env:
+        CC: clang-4.0
+        CXX: clang++-4.0
+    - name: GCC-4.9
+      install_script: apt update --yes && apt install cmake gcc-4.9 g++-4.9 make git ca-certificates --yes --no-install-suggests --no-install-recommends
+      env:
+        CC: gcc-4.9
+        CXX: g++-4.9
+  compile_script: |
+    mkdir build && cd build
+    cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_SSE4_1=1 -DREQUIRE_OPENMP=0 ..
+    make -j $(nproc --all)
+  test_script: ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH SEARCH
+

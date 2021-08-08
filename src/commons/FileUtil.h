@@ -64,6 +64,9 @@ public:
     static std::string createTemporaryDirectory(const std::string& basePath, const std::string& subDirectory);
 
     static void fixRlimitNoFile();
+
+    // remove forbidden symbols in from filenames
+    static std::string sanitizeFilename(std::string name);
 };
 
 

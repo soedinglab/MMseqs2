@@ -92,7 +92,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
     std::pair<std::string, std::string> tmpOutput = std::make_pair(outDb, outIndex);
 #endif
 
-   int localThreads = par.threads;
+    int localThreads = par.threads;
     if (static_cast<int>(resultReader.getSize()) <= par.threads) {
         localThreads = static_cast<int>(resultReader.getSize());
     }
@@ -331,6 +331,67 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     result.append(1, '\n');
                 }
                 result.append("//\n");
+            } else if (par.msaFormatMode == Parameters::FORMAT_MSA_A3M) {
+                if (isFiltering) {
+                    filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, false);
+                    filter.getKept(kept, res.setSize);
+                }
+
+                size_t start = (par.skipQuery == true) ? 1 : 0;
+                for (size_t i = start; i < res.setSize; i++) {
+                    if (kept[i] == false) {
+                        continue;
+                    }
+
+                    char *header;
+                    if (i == 0) {
+                        header = centerSequenceHeader;
+                    } else {
+                        size_t id = seqIds[i - 1];
+                        header = targetHeaderReader->getData(id, thread_idx);
+                    }
+                    accession = Util::parseFastaHeader(header);
+                    result.push_back('>');
+                    result.append(accession);
+                    result.push_back('\n');
+                    // need to allow insertion in the centerSequence
+
+                    if(i == 0){
+                        for (size_t pos = 0; pos < res.centerLength; pos++) {
+                            char aa = res.msaSequence[i][pos];
+                            result.append(1, ((aa < MultipleAlignment::NAA) ? subMat.num2aa[(int) aa] : '-'));
+                        }
+                        result.append(1, '\n');
+                    }else{
+                        const std::vector<unsigned char> & seq = seqSet[i-1];
+                        int seqStartPos = alnResults[i-1].dbStartPos;
+                        size_t seqPos = 0;
+                        const std::string & bt = alnResults[i-1].backtrace;
+                        size_t btPos = 0;
+
+                        for (size_t pos = 0; pos < res.centerLength; pos++) {
+                            char aa = res.msaSequence[i][pos];
+
+                            if(aa>=MultipleAlignment::GAP){
+                                result.push_back('-');
+                            }else if(aa<MultipleAlignment::GAP){
+                                result.push_back( subMat.num2aa[(int) aa]);
+                                btPos++;
+                                seqPos++;
+                            }
+                            // skip insert
+                            while(btPos < bt.size() && bt[btPos] == 'I') { btPos++;}
+
+                            // add lower case deletions
+                            while(btPos < bt.size() && bt[btPos] == 'D') {
+                                result.push_back(tolower(subMat.num2aa[seq[seqStartPos+seqPos]]));
+                                btPos++;
+                                seqPos++;
+                            }
+                        }
+                        result.append(1, '\n');
+                    }
+                }
             } else if (isCA3M == true) {
                 size_t filteredSetSize = res.setSize;
                 if (isFiltering) {
