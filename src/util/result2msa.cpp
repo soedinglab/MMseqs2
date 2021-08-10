@@ -93,10 +93,10 @@ int result2msa(int argc, const char **argv, const Command &command) {
     std::pair<std::string, std::string> tmpOutput = std::make_pair(outDb, outIndex);
 #endif
 
-    int localThreads = par.threads;
-    if (static_cast<int>(resultReader.getSize()) <= par.threads) {
-        localThreads = static_cast<int>(resultReader.getSize());
-    }
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, resultReader.getSize()), (size_t)1);
+#endif
 
     size_t mode = par.compressed;
     int type = Parameters::DBTYPE_MSA_DB;

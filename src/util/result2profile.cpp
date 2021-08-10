@@ -45,10 +45,10 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     std::pair<std::string, std::string> tmpOutput = std::make_pair(par.db4, par.db4Index);
 #endif
 
-   int localThreads = par.threads;
-    if (static_cast<int>(resultReader.getSize()) <= par.threads) {
-        localThreads = static_cast<int>(resultReader.getSize());
-    }
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, resultReader.getSize()), (size_t)1);
+#endif
 
     DBReader<unsigned int> *tDbr = NULL;
     IndexReader *tDbrIdx = NULL;
