@@ -1,7 +1,7 @@
 #include "MsaFilter.h"
 #include "Parameters.h"
 #include "PSSMCalculator.h"
-#include "DBReader.h"
+#include "IndexReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
@@ -24,37 +24,60 @@ int result2msa(int argc, const char **argv, const Command &command) {
     const bool isCA3M = par.msaFormatMode == Parameters::FORMAT_MSA_CA3M || par.msaFormatMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS;
     const bool shouldWriteNullByte = par.msaFormatMode != Parameters::FORMAT_MSA_STOCKHOLM_FLAT;
 
-    DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    qDbr.open(DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int> queryHeaderReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    queryHeaderReader.open(DBReader<unsigned int>::NOSORT);
-    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-        qDbr.readMmapedDataInMemory();
-        queryHeaderReader.readMmapedDataInMemory();
-    }
+    DBReader<unsigned int> *tDbr = NULL;
+    IndexReader *tDbrIdx = NULL;
+    DBReader<unsigned int> *targetHeaderReader = NULL;
+    IndexReader *targetHeaderReaderIdx = NULL;
 
-    DBReader<unsigned int> *tDbr = &qDbr;
-    DBReader<unsigned int> *targetHeaderReader = &queryHeaderReader;
-    unsigned int maxSequenceLength = qDbr.getMaxSeqLen();
-
-    const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
-    if (!sameDatabase) {
+    if (Parameters::isEqualDbtype(FileUtil::parseDbType(par.db2.c_str()), Parameters::DBTYPE_INDEX_DB)) {
+        if (isCA3M == true) {
+            Debug(Debug::ERROR) << "Cannot use result2msa with indexed target database for CA3M output\n";
+            return EXIT_FAILURE;
+        }
+        uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
+        bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+        tDbrIdx = new IndexReader(par.db2, par.threads,
+                                  extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
+                                  (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        tDbr = tDbrIdx->sequenceReader;
+        targetHeaderReaderIdx = new IndexReader(par.db2, par.threads,
+                                                extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_HEADERS : IndexReader::HEADERS,
+                                                (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        targetHeaderReader = targetHeaderReaderIdx->sequenceReader;
+    } else {
         tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         tDbr->open(DBReader<unsigned int>::NOSORT);
-        maxSequenceLength = std::max(qDbr.getMaxSeqLen(), tDbr->getMaxSeqLen());
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             tDbr->readMmapedDataInMemory();
         }
-
         if (isCA3M == false) {
             targetHeaderReader = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
             targetHeaderReader->open(DBReader<unsigned int>::NOSORT);
-
             if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
                 targetHeaderReader->readMmapedDataInMemory();
             }
         }
     }
+
+    DBReader<unsigned int> *qDbr = NULL;
+    DBReader<unsigned int> *queryHeaderReader = NULL;
+    const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
+    if (!sameDatabase) {
+        qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        qDbr->open(DBReader<unsigned int>::NOSORT);
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+            qDbr->readMmapedDataInMemory();
+        }
+        queryHeaderReader = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        queryHeaderReader->open(DBReader<unsigned int>::NOSORT);
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+            queryHeaderReader->readMmapedDataInMemory();
+        }
+    } else {
+        qDbr = tDbr;
+        queryHeaderReader = targetHeaderReader;
+    }
+    const unsigned int maxSequenceLength = std::max(tDbr->getMaxSeqLen(), qDbr->getMaxSeqLen());
 
     DBConcat *seqConcat = NULL;
     DBReader<unsigned int> *refReader = NULL;
@@ -114,15 +137,15 @@ int result2msa(int argc, const char **argv, const Command &command) {
     // adjust score of each match state by -0.2 to trim alignment
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
-    if (qDbr.getDbtype() == -1 || tDbr->getDbtype() == -1) {
+    if (qDbr->getDbtype() == -1 || tDbr->getDbtype() == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database\n";
         return EXIT_FAILURE;
     }
-    if (Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_HMM_PROFILE)) {
+    if (Parameters::isEqualDbtype(qDbr->getDbtype(), Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_HMM_PROFILE)) {
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database\n";
         return EXIT_FAILURE;
     }
-    Debug(Debug::INFO) << "Query database size: " << qDbr.getSize() << " type: " << qDbr.getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Query database size: " << qDbr->getSize() << " type: " << qDbr->getDbTypeName() << "\n";
     Debug(Debug::INFO) << "Target database size: " << tDbr->getSize() << " type: " << tDbr->getDbTypeName() << "\n";
 
     const bool isFiltering = par.filterMsa != 0;
@@ -134,13 +157,13 @@ int result2msa(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        Matcher matcher(qDbr.getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection,
+        Matcher matcher(qDbr->getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection,
                         par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0);
         MultipleAlignment aligner(maxSequenceLength, &subMat);
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
         UniprotHeaderSummarizer summarizer;
-        Sequence centerSequence(maxSequenceLength, qDbr.getDbtype(), &subMat, 0, false, par.compBiasCorrection);
+        Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
         Sequence edgeSequence(maxSequenceLength, tDbr->getDbtype(), &subMat, 0, false, false);
 
         // which sequences where kept after filtering
@@ -173,12 +196,12 @@ int result2msa(int argc, const char **argv, const Command &command) {
             progress.updateProgress();
 
             unsigned int queryKey = resultReader.getDbKey(id);
-            size_t queryId = qDbr.getId(queryKey);
+            size_t queryId = qDbr->getId(queryKey);
             if (queryId == UINT_MAX) {
                 Debug(Debug::WARNING) << "Invalid query sequence " << queryKey << "\n";
                 continue;
             }
-            centerSequence.mapSequence(queryId, queryKey, qDbr.getData(queryId, thread_idx), qDbr.getSeqLen(queryId));
+            centerSequence.mapSequence(queryId, queryKey, qDbr->getData(queryId, thread_idx), qDbr->getSeqLen(queryId));
 
             // TODO: Do we still need this?
 //            if (centerSequence.L) {
@@ -188,13 +211,13 @@ int result2msa(int argc, const char **argv, const Command &command) {
 //                }
 //            }
 
-            size_t centerHeaderId = queryHeaderReader.getId(queryKey);
+            size_t centerHeaderId = queryHeaderReader->getId(queryKey);
             if (centerHeaderId == UINT_MAX) {
                 Debug(Debug::WARNING) << "Invalid query header " << queryKey << "\n";
                 continue;
             }
-            char *centerSequenceHeader = queryHeaderReader.getData(centerHeaderId, thread_idx);
-            size_t centerHeaderLength = queryHeaderReader.getEntryLen(centerHeaderId) - 1;
+            char *centerSequenceHeader = queryHeaderReader->getData(centerHeaderId, thread_idx);
+            size_t centerHeaderLength = queryHeaderReader->getEntryLen(centerHeaderId) - 1;
 
             if (par.msaFormatMode == Parameters::FORMAT_MSA_STOCKHOLM_FLAT) {
                 accession = Util::parseFastaHeader(centerSequenceHeader);
@@ -451,15 +474,23 @@ int result2msa(int argc, const char **argv, const Command &command) {
         FileUtil::remove(resultWriter.getIndexFileName());
     }
     resultReader.close();
-    queryHeaderReader.close();
-    qDbr.close();
+
     if (!sameDatabase) {
-        if (isCA3M == false) {
+        qDbr->close();
+        delete qDbr;
+        queryHeaderReader->close();
+        delete queryHeaderReader;
+    }
+    if (tDbrIdx == NULL) {
+        tDbr->close();
+        delete tDbr;
+        if (targetHeaderReader != NULL) {
             targetHeaderReader->close();
             delete targetHeaderReader;
         }
-        tDbr->close();
-        delete tDbr;
+    } else {
+        delete tDbrIdx;
+        delete targetHeaderReaderIdx;
     }
 
     if (refReader != NULL) {

@@ -30,6 +30,8 @@ unsigned int PrefilteringIndexReader::HDR2INDEX = 20;
 unsigned int PrefilteringIndexReader::HDR2DATA = 21;
 unsigned int PrefilteringIndexReader::GENERATOR = 22;
 unsigned int PrefilteringIndexReader::SPACEDPATTERN = 23;
+unsigned int PrefilteringIndexReader::ALNINDEX = 24;
+unsigned int PrefilteringIndexReader::ALNDATA = 25;
 
 extern const char* version;
 
@@ -50,6 +52,7 @@ std::string PrefilteringIndexReader::indexName(const std::string &outDB) {
 void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
                                               DBReader<unsigned int> *dbr1, DBReader<unsigned int> *dbr2,
                                               DBReader<unsigned int> *hdbr1, DBReader<unsigned int> *hdbr2,
+                                              DBReader<unsigned int> *alndbr,
                                               BaseMatrix *subMat, int maxSeqLen,
                                               bool hasSpacedKmer, const std::string &spacedKmerPattern,
                                               bool compBiasCorrection, int alphabetSize, int kmerSize,
@@ -183,6 +186,20 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
             writer.writeAdd(hdbr2->getDataForFile(fileIdx), hdbr2->getDataSizeForFile(fileIdx), SPLIT_SEQS);
         }
         writer.writeEnd(HDR2DATA, SPLIT_SEQS);
+        writer.alignToPageSize(SPLIT_SEQS);
+        free(data);
+    }
+    if (alndbr != NULL) {
+        Debug(Debug::INFO) << "Write ALNINDEX (" << ALNINDEX << ")\n";
+        data = DBReader<unsigned int>::serialize(*alndbr);
+        writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*alndbr), ALNINDEX, SPLIT_SEQS);
+        writer.alignToPageSize(SPLIT_SEQS);
+        Debug(Debug::INFO) << "Write ALNDATA (" << ALNDATA << ")\n";
+        writer.writeStart(SPLIT_SEQS);
+        for(size_t fileIdx = 0; fileIdx < alndbr->getDataFileCnt(); fileIdx++) {
+            writer.writeAdd(alndbr->getDataForFile(fileIdx), alndbr->getDataSizeForFile(fileIdx), SPLIT_SEQS);
+        }
+        writer.writeEnd(ALNDATA, SPLIT_SEQS);
         writer.alignToPageSize(SPLIT_SEQS);
         free(data);
     }

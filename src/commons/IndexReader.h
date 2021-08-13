@@ -8,10 +8,10 @@
 
 class IndexReader {
 public:
-
     const static int PRELOAD_NO = 0;
     const static int PRELOAD_DATA = 1;
     const static int PRELOAD_INDEX = 2;
+
     IndexReader(const std::string &dataName, int threads, int databaseType = SEQUENCES | HEADERS, int preloadMode = false, int dataMode=(DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA))
             : sequenceReader(NULL), index(NULL) {
         int targetDbtype = FileUtil::parseDbType(dataName.c_str());
@@ -30,16 +30,24 @@ public:
 
                 } else if (databaseType & SEQUENCES) {
                     sequenceReader = PrefilteringIndexReader::openNewReader(index,
-                            PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX,  dataMode & DBReader<unsigned int>::USE_DATA, threads, touchIndex, touchData);
+                            PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX, dataMode & DBReader<unsigned int>::USE_DATA, threads, touchIndex, touchData);
                 } else if (databaseType & SRC_HEADERS) {
 
                     sequenceReader = PrefilteringIndexReader::openNewHeaderReader(index,
                                                                                   PrefilteringIndexReader::HDR2DATA,
                                                                                   PrefilteringIndexReader::HDR2INDEX,
                                                                                   threads, touchIndex, touchData);
-                }else if(databaseType & HEADERS) {
+                } else if (databaseType & HEADERS) {
                     sequenceReader = PrefilteringIndexReader::openNewHeaderReader(index,
-                                                                                PrefilteringIndexReader::HDR1DATA, PrefilteringIndexReader::HDR1INDEX, threads, touchIndex, touchData);
+                                                                                  PrefilteringIndexReader::HDR1DATA,
+                                                                                  PrefilteringIndexReader::HDR1INDEX,
+                                                                                  threads, touchIndex, touchData);
+                } else if (databaseType & ALIGNMENTS) {
+                    sequenceReader = PrefilteringIndexReader::openNewReader(index,
+                                                                            PrefilteringIndexReader::ALNDATA,
+                                                                            PrefilteringIndexReader::ALNINDEX,
+                                                                            dataMode & DBReader<unsigned int>::USE_DATA,
+                                                                            threads, touchIndex, touchData);
                 }
                 if (sequenceReader == NULL) {
                     Debug(Debug::INFO) << "Index does not contain plain sequences. Using normal database instead.\n";
@@ -54,9 +62,9 @@ public:
         }
 
         if (sequenceReader == NULL) {
-            if(databaseType & (HEADERS | SRC_HEADERS)){
-                sequenceReader = new DBReader<unsigned int>((dataName+"_h").c_str(), ((dataName+"_h") + ".index").c_str(), threads, dataMode);
-            }else{
+            if (databaseType & (HEADERS | SRC_HEADERS)) {
+                sequenceReader = new DBReader<unsigned int>((dataName + "_h").c_str(), (dataName + "_h.index").c_str(), threads, dataMode);
+            } else {
                 sequenceReader = new DBReader<unsigned int>(dataName.c_str(), (dataName + ".index").c_str(), threads, dataMode);
             }
             sequenceReader->open(DBReader<unsigned int>::NOSORT);
@@ -72,6 +80,7 @@ public:
     static const int HEADERS   = 2;
     static const int SRC_HEADERS = 4;
     static const int SRC_SEQUENCES =  8;
+    static const int ALIGNMENTS = 16;
 
     int getDbtype() const {
         return seqType;
@@ -82,8 +91,6 @@ public:
             sequenceReader->close();
             delete sequenceReader;
         }
-
-
 
         if (index != NULL) {
             index->close();

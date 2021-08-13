@@ -83,6 +83,8 @@ public:
     static const int DBTYPE_SEQTAXDB = 18; // needed for verification
     static const int DBTYPE_STDIN = 19; // needed for verification
 
+    static const unsigned int DBTYPE_EXTENDED_COMPRESSED = 1;
+    static const unsigned int DBTYPE_EXTENDED_INDEX_NEED_SRC = 2;
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
@@ -1111,11 +1113,11 @@ public:
     static void printTaxDbError(const std::string &filename, const std::vector<std::string>& missingFiles);
 
     static bool isEqualDbtype(const int type1, const int type2) {
-        return ((type1 & 0x3FFFFFFF) == (type2 & 0x3FFFFFFF));
+        return ((type1 & 0x0000FFFF) == (type2 & 0x0000FFFF));
     }
 
     static const char* getDbTypeName(int dbtype) {
-        switch (dbtype & 0x7FFFFFFF) {
+        switch (dbtype & 0x0000FFFF) {
             case DBTYPE_AMINO_ACIDS: return "Aminoacid";
             case DBTYPE_NUCLEOTIDES: return "Nucleotide";
             case DBTYPE_HMM_PROFILE: return "Profile";

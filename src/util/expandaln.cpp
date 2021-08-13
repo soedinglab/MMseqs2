@@ -15,6 +15,8 @@
 #include "PSSMMasker.h"
 #include "FastSort.h"
 #include "IntervalArray.h"
+#include "IndexReader.h"
+
 #include <stack>
 #include <map>
 
@@ -93,42 +95,47 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         aReader.readMmapedDataInMemory();
     }
 
-    bool isCa3m = false;
-    DBReader<unsigned int> *resultAbReader = NULL;
+    DBReader<unsigned int> *resultAbReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+    resultAbReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+
     DBReader<unsigned int> *cReader = NULL;
-    if (FileUtil::fileExists((par.db3 + "_ca3m.ffdata").c_str())) {
-        resultAbReader = new DBReader<unsigned int>((par.db3 + "_ca3m.ffdata").c_str(), (par.db3 + "_ca3m.ffindex").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        resultAbReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
-        cReader = new DBReader<unsigned int>((par.db3 + "_sequence.ffdata").c_str(), (par.db3 + "_sequence.ffindex").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        cReader->open(DBReader<unsigned int>::SORT_BY_LINE);
-        isCa3m = true;
+    IndexReader *cReaderIdx = NULL;
+    DBReader<unsigned int> *resultBcReader = NULL;
+    IndexReader *resultBcReaderIdx = NULL;
+    if (Parameters::isEqualDbtype(FileUtil::parseDbType(par.db2.c_str()), Parameters::DBTYPE_INDEX_DB)) {
+        bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+        cReaderIdx = new IndexReader(par.db2, par.threads,
+                                     IndexReader::SRC_SEQUENCES,
+                                     (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        cReader = cReaderIdx->sequenceReader;
+        resultBcReaderIdx = new IndexReader(par.db4, par.threads,
+                                            IndexReader::ALIGNMENTS,
+                                            (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        resultBcReader = resultBcReaderIdx->sequenceReader;
     } else {
-        resultAbReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        resultAbReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
         cReader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         cReader->open(DBReader<unsigned int>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             cReader->readMmapedDataInMemory();
         }
-    }
 
+        resultBcReader = new DBReader<unsigned int>(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        resultBcReader->open(DBReader<unsigned int>::NOSORT);
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+            resultBcReader->readMmapedDataInMemory();
+        }
+    }
     const int cSeqDbType = cReader->getDbtype();
     if (Parameters::isEqualDbtype(aSeqDbType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(cSeqDbType, Parameters::DBTYPE_HMM_PROFILE)) {
         Debug(Debug::ERROR) << "Profile-profile is currently not supported\n";
         return EXIT_FAILURE;
     }
 
-    DBReader<unsigned int> resultBcReader(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    resultBcReader.open(DBReader<unsigned int>::NOSORT);
-    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-        resultBcReader.readMmapedDataInMemory();
-    }
-
     int dbType = Parameters::DBTYPE_ALIGNMENT_RES;
     if (returnAlnRes == false) {
         dbType = Parameters::DBTYPE_HMM_PROFILE;
+    } else {
+        dbType = DBReader<unsigned int>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
     }
     DBWriter writer(par.db5.c_str(), par.db5Index.c_str(), par.threads, par.compressed, dbType);
     writer.open();
@@ -227,14 +234,11 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 }
 
                 unsigned int bResKey = resultAb.dbKey;
-                size_t bResId = resultBcReader.getId(bResKey);
-                if (isCa3m) {
-                    unsigned int key;
-                    CompressedA3M::extractMatcherResults(key, resultsBc, resultBcReader.getData(bResId, thread_idx),
-                                                         resultBcReader.getEntryLen(bResId), *cReader, false);
-                } else {
-                    Matcher::readAlignmentResults(resultsBc, resultBcReader.getData(bResId, thread_idx), false);
-                }
+                size_t bResId = resultBcReader->getId(bResKey);
+//                if (isCa3m) {
+//                    unsigned int key;
+//                    CompressedA3M::extractMatcherResults(key, resultsBc, resultBcReader.getData(bResId, thread_idx), resultBcReader.getEntryLen(bResId), *cReader, false);
+                Matcher::readAlignmentResults(resultsBc, resultBcReader->getData(bResId, thread_idx), false);
 
                 //std::stable_sort(resultsBc.begin(), resultsBc.end(), compareHitsByKeyScore);
 
@@ -365,13 +369,20 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     if (evaluer != NULL) {
         delete evaluer;
     }
-    resultBcReader.close();
-    resultAbReader->close();
-    delete resultAbReader;
-    if (cReader != NULL) {
+    if (cReaderIdx == NULL) {
         cReader->close();
         delete cReader;
+    } else {
+        delete cReaderIdx;
     }
+    if (resultBcReaderIdx == NULL) {
+        resultBcReader->close();
+        delete resultBcReader;
+    } else {
+        delete resultBcReaderIdx;
+    }
+    resultAbReader->close();
+    delete resultAbReader;
     aReader.close();
 
     return EXIT_SUCCESS;

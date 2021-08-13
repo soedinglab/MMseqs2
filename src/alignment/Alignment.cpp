@@ -55,8 +55,11 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         }
     }
 
+    uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(prefDB.c_str()));
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-    tDbrIdx = new IndexReader(targetSeqDB, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+    tDbrIdx = new IndexReader(targetSeqDB, par.threads,
+                              extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
+                              (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     tdbr = tDbrIdx->sequenceReader;
     targetSeqType = tdbr->getDbtype();
     sameQTDB = (targetSeqDB.compare(querySeqDB) == 0);
@@ -66,7 +69,9 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         querySeqType = targetSeqType;
     } else {
         // open the sequence, prefiltering and output databases
-        qDbrIdx = new IndexReader(par.db1, par.threads, IndexReader::SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0);
+        qDbrIdx = new IndexReader(par.db1, par.threads,
+                                  extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
+                                  (touch) ? IndexReader::PRELOAD_INDEX : 0);
         qdbr = qDbrIdx->sequenceReader;
         querySeqType = qdbr->getDbtype();
     }
@@ -242,9 +247,10 @@ void Alignment::run() {
 
 void Alignment::run(const std::string &outDB, const std::string &outDBIndex, const size_t dbFrom, const size_t dbSize, bool merge) {
     int dbtype = Parameters::DBTYPE_ALIGNMENT_RES;
-    if(alignmentOutputMode == Parameters::ALIGNMENT_OUTPUT_CLUSTER){
-        dbtype =  Parameters::DBTYPE_CLUSTER_RES;
+    if (alignmentOutputMode == Parameters::ALIGNMENT_OUTPUT_CLUSTER) {
+        dbtype = Parameters::DBTYPE_CLUSTER_RES;
     }
+    dbtype = DBReader<unsigned int>::setExtendedDbtype(dbtype, DBReader<unsigned int>::getExtendedDbtype(prefdbr->getDbtype()));
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, dbtype);
     dbw.open();
 

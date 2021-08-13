@@ -340,8 +340,17 @@ public:
 
     static DBReader<unsigned int> *unserialize(const char* data, int threads);
 
-    int getDbtype(){
+    int getDbtype() const {
         return dbtype;
+    }
+
+    static inline uint16_t getExtendedDbtype(int dbtype) {
+        // remove first (compressed) and last bit (compatbility for compressed)
+        return (uint16_t)((uint32_t)dbtype >> 16) & 0x7FFE;
+    }
+
+    static inline int setExtendedDbtype(int dbtype, uint16_t extended) {
+        return dbtype | ((extended & 0x7FFE) << 16);
     }
 
     const char* getDbTypeName() const {

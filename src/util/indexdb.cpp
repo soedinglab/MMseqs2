@@ -45,14 +45,22 @@ int indexdb(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, true, 0, 0);
 
     const bool sameDB = (par.db1 == par.db2);
+    std::string alnDbtypeFile = par.db1 + "_aln.dbtype";
+    std::string seqDbtypeFile = par.db1 + "_seq.dbtype";
+    const bool ppDB = FileUtil::fileExists(alnDbtypeFile.c_str()) && FileUtil::fileExists(seqDbtypeFile.c_str());
 
-    std::string path = FileUtil::getRealPathFromSymLink(par.db2dbtype);
+    std::string db2 = ppDB ? par.db1 + "_seq" : par.db2;
+    std::string db2Index = ppDB ? par.db1 + "_seq.index" : par.db2Index;
+
+    std::string hdr1 = ppDB ? par.db1 + "_seq_h" : par.hdr1;
+    std::string hdr1Index = ppDB ? par.db1 + "_seq_h.index" : par.hdr1Index;
+
     DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr.open(DBReader<unsigned int>::NOSORT);
 
     DBReader<unsigned int> *dbr2 = NULL;
-    if (sameDB == false) {
-        dbr2 = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    if ((sameDB == false) || ppDB) {
+        dbr2 = new DBReader<unsigned int>(db2.c_str(), db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
         dbr2->open(DBReader<unsigned int>::NOSORT);
     }
 
@@ -61,7 +69,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     BaseMatrix *seedSubMat = Prefiltering::getSubstitutionMatrix(par.seedScoringMatrixFile, par.alphabetSize, 8.0f, false, (db1IsNucl && db2IsNucl));
 
     // memoryLimit in bytes
-    size_t memoryLimit=Util::computeMemory(par.splitMemoryLimit);
+    size_t memoryLimit = Util::computeMemory(par.splitMemoryLimit);
 
     int splitMode = Parameters::TARGET_DB_SPLIT;
     par.maxResListLen = std::min(dbr.getSize(), par.maxResListLen);
@@ -87,7 +95,8 @@ int indexdb(int argc, const char **argv, const Command &command) {
     // query seq type is actually unknown here, but if we pass DBTYPE_HMM_PROFILE then its +20 k-score
     par.kmerScore = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, par.kmerScore, par.kmerSize);
 
-    std::string indexDB = PrefilteringIndexReader::indexName(par.db2);
+    const std::string& baseDB = ppDB ? par.db1 : par.db2;
+    std::string indexDB = PrefilteringIndexReader::indexName(baseDB);
 
     int status = EXIT_SUCCESS;
     bool recreate = true;
@@ -120,17 +129,23 @@ int indexdb(int argc, const char **argv, const Command &command) {
     }
 
     if (recreate) {
-        DBReader<unsigned int> hdbr1(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        DBReader<unsigned int> hdbr1(hdr1.c_str(), hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         hdbr1.open(DBReader<unsigned int>::NOSORT);
 
         DBReader<unsigned int> *hdbr2 = NULL;
-        if (sameDB == false) {
+        if (sameDB == false && ppDB == false) {
             hdbr2 = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
             hdbr2->open(DBReader<unsigned int>::NOSORT);
         }
 
+        DBReader<unsigned int> *alndbr = NULL;
+        if (ppDB == true) {
+            alndbr = new DBReader<unsigned int>((par.db1 + "_aln").c_str(), (par.db1 + "_aln.index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+            alndbr->open(DBReader<unsigned int>::NOSORT);
+        }
+
         DBReader<unsigned int>::removeDb(indexDB);
-        PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, &hdbr1, hdbr2, seedSubMat, par.maxSeqLen,
+        PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, &hdbr1, hdbr2, alndbr, seedSubMat, par.maxSeqLen,
                                                  par.spacedKmer, par.spacedKmerPattern, par.compBiasCorrection,
                                                  seedSubMat->alphabetSize, par.kmerSize, par.maskMode, par.maskLowerCaseMode,
                                                  par.kmerScore, par.split);
@@ -138,6 +153,11 @@ int indexdb(int argc, const char **argv, const Command &command) {
         if (hdbr2 != NULL) {
             hdbr2->close();
             delete hdbr2;
+        }
+
+        if (alndbr != NULL) {
+            alndbr->close();
+            delete alndbr;
         }
 
         hdbr1.close();
