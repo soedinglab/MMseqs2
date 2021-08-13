@@ -6,4 +6,4 @@ add_library(cacode OBJECT
         nrutil.cpp
         nrutil.h
         )
-set_target_properties(cacode PROPERTIES COMPILE_FLAGS "${MMSEQS_CXX_FLAGS}" LINK_FLAGS "${MMSEQS_CXX_FLAGS}")
+set_target_properties(cacode PROPERTIES COMPILE_FLAGS "${MMSEQS_CXX_FLAGS} -w" LINK_FLAGS "${MMSEQS_CXX_FLAGS} -w")
