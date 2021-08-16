@@ -52,12 +52,16 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     DBReader<unsigned int> *tDbr = NULL;
     IndexReader *tDbrIdx = NULL;
     bool templateDBIsIndex = false;
-
+    bool needSrcIndex = false;
     int targetSeqType = -1;
     int targetDbtype = FileUtil::parseDbType(par.db2.c_str());
     if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
+        uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
+        needSrcIndex = extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC;
         bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-        tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        tDbrIdx = new IndexReader(par.db2, par.threads,
+                                  needSrcIndex ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
+                                  (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
         tDbr = tDbrIdx->sequenceReader;
         templateDBIsIndex = true;
         targetSeqType = tDbr->getDbtype();
@@ -92,6 +96,9 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     int type = Parameters::DBTYPE_HMM_PROFILE;
     if (returnAlnRes) {
         type = Parameters::DBTYPE_ALIGNMENT_RES;
+        if (needSrcIndex) {
+            type = DBReader<unsigned int>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
+        }
     }
     DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), localThreads, par.compressed, type);
     resultWriter.open();
