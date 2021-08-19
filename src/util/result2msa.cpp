@@ -21,6 +21,14 @@ int result2msa(int argc, const char **argv, const Command &command) {
     par.filterMsa = 0;
     par.parseParameters(argc, argv, command, true, 0, 0);
 
+    std::vector<std::string> qid_str_vec = Util::split(par.qid, ",");
+    std::vector<int> qid_vec;
+    for (size_t qid_idx = 0; qid_idx < qid_str_vec.size(); qid_idx++) {
+        float qid_float = strtod(qid_str_vec[qid_idx].c_str(), NULL);
+        qid_vec.push_back(static_cast<int>(qid_float*100));
+    }
+    std::sort(qid_vec.begin(), qid_vec.end());
+
     const bool isCA3M = par.msaFormatMode == Parameters::FORMAT_MSA_CA3M || par.msaFormatMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS;
     const bool shouldWriteNullByte = par.msaFormatMode != Parameters::FORMAT_MSA_STOCKHOLM_FLAT;
 
@@ -115,10 +123,10 @@ int result2msa(int argc, const char **argv, const Command &command) {
     std::pair<std::string, std::string> tmpOutput = std::make_pair(outDb, outIndex);
 #endif
 
-    int localThreads = par.threads;
-    if (static_cast<int>(resultReader.getSize()) <= par.threads) {
-        localThreads = static_cast<int>(resultReader.getSize());
-    }
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, resultReader.getSize()), (size_t)1);
+#endif
 
     size_t mode = par.compressed;
     int type = Parameters::DBTYPE_MSA_DB;
@@ -263,7 +271,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 
             if (par.msaFormatMode == Parameters::FORMAT_MSA_FASTADB || par.msaFormatMode == Parameters::FORMAT_MSA_FASTADB_SUMMARY) {
                 if (isFiltering) {
-                    filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, false);
+                    filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), qid_vec, par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable, (const char **) res.msaSequence, false);
                     filter.getKept(kept, res.setSize);
                 }
                 if (par.msaFormatMode == Parameters::FORMAT_MSA_FASTADB_SUMMARY) {
@@ -318,7 +326,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                 }
             } else if (par.msaFormatMode == Parameters::FORMAT_MSA_STOCKHOLM_FLAT) {
                 if (isFiltering) {
-                    filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, false);
+                    filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), qid_vec, par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable, (const char **) res.msaSequence, false);
                     filter.getKept(kept, res.setSize);
                 }
 
@@ -356,7 +364,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                 result.append("//\n");
             } else if (par.msaFormatMode == Parameters::FORMAT_MSA_A3M) {
                 if (isFiltering) {
-                    filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, false);
+                    filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), qid_vec, par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable, (const char **) res.msaSequence, false);
                     filter.getKept(kept, res.setSize);
                 }
 
@@ -418,7 +426,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
             } else if (isCA3M == true) {
                 size_t filteredSetSize = res.setSize;
                 if (isFiltering) {
-                    filteredSetSize = filter.filter(res, alnResults, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
+                    filteredSetSize = filter.filter(res, alnResults, static_cast<int>(par.covMSAThr * 100), qid_vec, par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable);
                 }
                 if (par.formatAlignmentMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS) {
                     for (size_t pos = 0; pos < res.centerLength; pos++) {

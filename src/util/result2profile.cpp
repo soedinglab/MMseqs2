@@ -31,6 +31,14 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     par.evalProfile = (par.evalThr < par.evalProfile || returnAlnRes) ? par.evalThr : par.evalProfile;
     par.printParameters(command.cmd, argc, argv, *command.params);
 
+    std::vector<std::string> qid_str_vec = Util::split(par.qid, ",");
+    std::vector<int> qid_vec;
+    for (size_t qid_idx = 0; qid_idx < qid_str_vec.size(); qid_idx++) {
+        float qid_float = strtod(qid_str_vec[qid_idx].c_str(), NULL);
+        qid_vec.push_back(static_cast<int>(qid_float*100));
+    }
+    std::sort(qid_vec.begin(), qid_vec.end());
+
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     size_t dbFrom = 0;
@@ -44,10 +52,10 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     std::pair<std::string, std::string> tmpOutput = std::make_pair(par.db4, par.db4Index);
 #endif
 
-    int localThreads = par.threads;
-    if (static_cast<int>(resultReader.getSize()) <= par.threads) {
-        localThreads = static_cast<int>(resultReader.getSize());
-    }
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, resultReader.getSize()), (size_t)1);
+#endif
 
     DBReader<unsigned int> *tDbr = NULL;
     IndexReader *tDbrIdx = NULL;
@@ -210,9 +218,11 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 
             // Recompute if not all the backtraces are present
             MultipleAlignment::MSAResult res = aligner.computeMSA(&centerSequence, seqSet, alnResults, true);
-            size_t filteredSetSize = isFiltering == false ? res.setSize
-                                                          : filter.filter(res, alnResults, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff);
-            //MultipleAlignment::print(res, &subMat);
+            size_t filteredSetSize = (isFiltering == true)  ?
+                                     filter.filter(res, alnResults, (int)(par.covMSAThr * 100), qid_vec, par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable)
+                                     :
+                                     res.setSize;
+             //MultipleAlignment::print(res, &subMat);
 
             if (returnAlnRes) {
                 // do not count query

@@ -717,7 +717,7 @@ template <typename T> size_t DBReader<T>::maxCount(char c) {
     if (compression == COMPRESSED) {
         size_t entries = getSize();
 #ifdef OPENMP
-        size_t localThreads = std::min(entries, static_cast<size_t>(threads));
+        size_t localThreads = std::max(std::min(entries, static_cast<size_t>(threads)), (size_t)1);
 #endif
 #pragma omp parallel num_threads(localThreads)
         {

@@ -32,6 +32,14 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     setMsa2ProfileDefaults(&par);
     par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_PROFILE);
 
+    std::vector<std::string> qid_str_vec = Util::split(par.qid, ",");
+    std::vector<int> qid_vec;
+    for (size_t qid_idx = 0; qid_idx < qid_str_vec.size(); qid_idx++) {
+        float qid_float = strtod(qid_str_vec[qid_idx].c_str(), NULL);
+        qid_vec.push_back(static_cast<int>(qid_float*100));
+    }
+    std::sort(qid_vec.begin(), qid_vec.end());
+
     std::string msaData = par.db1;
     std::string msaIndex = par.db1Index;
     DBReader<unsigned int> *headerReader = NULL, *sequenceReader = NULL;
@@ -384,8 +392,8 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             size_t filteredSetSize = setSize;
             if (par.filterMsa == 1) {
                 filteredSetSize = filter.filter(setSize, centerLength, static_cast<int>(par.covMSAThr * 100),
-                                                static_cast<int>(par.qid * 100), par.qsc,
-                                                static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
+                                                qid_vec, par.qsc,
+                                                static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable,
                                                 (const char **) msaSequences, true);
             }
 

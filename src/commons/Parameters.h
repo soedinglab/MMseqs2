@@ -487,9 +487,10 @@ public:
     double evalProfile;
     int filterMsa;
     float qsc;
-    float qid;
+    std::string qid;
     float covMSAThr;
     int Ndiff;
+    int filterMinEnable;
     bool wg;
     int pcmode;
     MultiParam<PseudoCounts> pca;
@@ -787,6 +788,7 @@ public:
     PARAMETER(PARAM_FILTER_QID)
     PARAMETER(PARAM_FILTER_COV)
     PARAMETER(PARAM_FILTER_NDIFF)
+    PARAMETER(PARAM_FILTER_MIN_ENABLE)
     PARAMETER(PARAM_WG)
     PARAMETER(PARAM_PC_MODE)
     PARAMETER(PARAM_PCA)

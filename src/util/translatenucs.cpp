@@ -26,7 +26,10 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     }
 
     size_t entries = reader.getSize();
-    unsigned int localThreads = std::max(std::min((unsigned int)par.threads, (unsigned int)entries), 1u);
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, entries), (size_t)1);
+#endif
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), localThreads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
     writer.open();
