@@ -258,9 +258,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    unsigned int localThreads = 1;
+    size_t localThreads = 1;
 #ifdef OPENMP
-    localThreads = std::min((unsigned int)par.threads, (unsigned int)alnDbr.getSize());
+    localThreads = std::max(std::min((size_t)par.threads, alnDbr.getSize()), (size_t)1);
 #endif
 
     const bool shouldCompress = par.dbOut == true && par.compressed == true;
