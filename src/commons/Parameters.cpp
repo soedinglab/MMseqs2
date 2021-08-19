@@ -120,6 +120,8 @@ Parameters::Parameters():
         PARAM_FILTER_QID(PARAM_FILTER_QID_ID, "--qid", "Minimum seq. id.", "Reduce diversity of output MSAs using min.seq. identity with query sequences [0.0,1.0]", typeid(float), (void *) &qid, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_COV(PARAM_FILTER_COV_ID, "--cov", "Minimum coverage", "Filter output MSAs using min. fraction of query residues covered by matched sequences [0.0,1.0]", typeid(float), (void *) &covMSAThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_NDIFF(PARAM_FILTER_NDIFF_ID, "--diff", "Select N most diverse seqs", "Filter MSAs by selecting most diverse set of sequences, keeping at least this many seqs in each MSA block of length 50", typeid(int), (void *) &Ndiff, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_FILTER_MIN_ENABLE(PARAM_FILTER_MIN_ENABLE_ID, "--filter-min-enable", "Use filter only at N seqs", "Filter MSAs only with more than N sequences, 0 is filters all", typeid(int), (void *) &filterMinEnable, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
+
         PARAM_WG(PARAM_WG_ID, "--wg", "Global sequence weighting", "Use global sequence weighting for profile calculation", typeid(bool), (void *) &wg, "", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "Pseudo count admixture strength", typeid(float), (void *) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "Pseudo counts: Neff at half of maximum admixture (range 0.0-inf)", typeid(float), (void *) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
@@ -489,6 +491,7 @@ Parameters::Parameters():
     result2profile.push_back(&PARAM_FILTER_QSC);
     result2profile.push_back(&PARAM_FILTER_COV);
     result2profile.push_back(&PARAM_FILTER_NDIFF);
+    result2profile.push_back(&PARAM_FILTER_MIN_ENABLE);
     result2profile.push_back(&PARAM_PCA);
     result2profile.push_back(&PARAM_PCB);
     result2profile.push_back(&PARAM_PRELOAD_MODE);
@@ -552,6 +555,7 @@ Parameters::Parameters():
     result2msa.push_back(&PARAM_FILTER_QSC);
     result2msa.push_back(&PARAM_FILTER_COV);
     result2msa.push_back(&PARAM_FILTER_NDIFF);
+    result2msa.push_back(&PARAM_FILTER_MIN_ENABLE);
     result2msa.push_back(&PARAM_THREADS);
     result2msa.push_back(&PARAM_COMPRESSED);
     result2msa.push_back(&PARAM_V);
@@ -574,6 +578,7 @@ Parameters::Parameters():
     filterresult.push_back(&PARAM_FILTER_QSC);
     filterresult.push_back(&PARAM_FILTER_COV);
     filterresult.push_back(&PARAM_FILTER_NDIFF);
+    filterresult.push_back(&PARAM_FILTER_MIN_ENABLE);
     filterresult.push_back(&PARAM_THREADS);
     filterresult.push_back(&PARAM_COMPRESSED);
     filterresult.push_back(&PARAM_V);
@@ -598,6 +603,7 @@ Parameters::Parameters():
     msa2profile.push_back(&PARAM_FILTER_QSC);
     msa2profile.push_back(&PARAM_FILTER_MAX_SEQ_ID);
     msa2profile.push_back(&PARAM_FILTER_NDIFF);
+    msa2profile.push_back(&PARAM_FILTER_MIN_ENABLE);
     msa2profile.push_back(&PARAM_GAP_OPEN);
     msa2profile.push_back(&PARAM_GAP_EXTEND);
     msa2profile.push_back(&PARAM_SKIP_QUERY);
@@ -1111,6 +1117,7 @@ Parameters::Parameters():
     expand2profile.push_back(&PARAM_FILTER_QSC);
     expand2profile.push_back(&PARAM_FILTER_COV);
     expand2profile.push_back(&PARAM_FILTER_NDIFF);
+    expand2profile.push_back(&PARAM_FILTER_MIN_ENABLE);
     expand2profile.push_back(&PARAM_PCA);
     expand2profile.push_back(&PARAM_PCB);
     expand2profile.push_back(&PARAM_PRELOAD_MODE);
@@ -2210,6 +2217,7 @@ void Parameters::setDefaults() {
     qsc = -20.0f;        // default for minimum score per column with query
     covMSAThr = 0.0;           // default for minimum coverage threshold
     Ndiff = 1000;        // pick Ndiff most different sequences from alignment
+    filterMinEnable = 0;
     wg = false;
     pca = 1.0;
     pcb = 1.5;

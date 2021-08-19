@@ -313,8 +313,13 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
             } else {
                 MultipleAlignment::MSAResult res = aligner->computeMSA(&aSeq, seqSet, resultsAc, true);
                 resultsAc.clear();
-                size_t filteredSetSize = par.filterMsa == false ? res.setSize
-                                                                : filter->filter(res.setSize, res.centerLength, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, true);
+                size_t filteredSetSize = par.filterMsa == true && res.setSize > par.filterMinEnable ?
+                                         filter->filter(res.setSize, res.centerLength,
+                                                        (int)(par.covMSAThr * 100),
+                                                        (int)(par.qid * 100), par.qsc,
+                                                        (int)(par.filterMaxSeqId * 100), par.Ndiff,
+                                                        (const char **) res.msaSequence, true)
+                                         : res.setSize;
                 PSSMCalculator::Profile pssmRes = calculator->computePSSMFromMSA(filteredSetSize, aSeq.L, (const char **) res.msaSequence, par.wg);
                 if (par.maskProfile == true) {
                     masker->mask(aSeq, pssmRes);

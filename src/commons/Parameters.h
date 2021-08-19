@@ -482,6 +482,7 @@ public:
     float qid;
     float covMSAThr;
     int Ndiff;
+    int filterMinEnable;
     bool wg;
     float pca;
     float pcb;
@@ -776,6 +777,7 @@ public:
     PARAMETER(PARAM_FILTER_QID)
     PARAMETER(PARAM_FILTER_COV)
     PARAMETER(PARAM_FILTER_NDIFF)
+    PARAMETER(PARAM_FILTER_MIN_ENABLE)
     PARAMETER(PARAM_WG)
     PARAMETER(PARAM_PCA)
     PARAMETER(PARAM_PCB)

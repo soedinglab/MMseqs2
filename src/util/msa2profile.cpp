@@ -325,7 +325,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             unsigned int centerLength = centerLengthWithGaps - maskedCount;
 
             size_t filteredSetSize = setSize;
-            if (par.filterMsa == 1) {
+            if (par.filterMsa == 1 && setSize > par.filterMinEnable) {
                 filteredSetSize = filter.filter(setSize, centerLength, static_cast<int>(par.covMSAThr * 100),
                               static_cast<int>(par.qid * 100), par.qsc,
                               static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,

@@ -204,9 +204,11 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
             if (returnAlnRes == false) {
                 alnResults.clear();
             }
-            size_t filteredSetSize = isFiltering == false ? res.setSize
-                    : filter.filter(res, alnResults, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff);
-            //MultipleAlignment::print(res, &subMat);
+            size_t filteredSetSize = (isFiltering == true && res.setSize > par.filterMinEnable)  ?
+                                     filter.filter(res, alnResults, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff)
+                                     :
+                                     res.setSize;
+             //MultipleAlignment::print(res, &subMat);
 
             if (returnAlnRes) {
                 // do not count query

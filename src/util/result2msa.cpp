@@ -239,7 +239,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
             //MultipleAlignment::print(res, &subMat);
 
             if (par.msaFormatMode == Parameters::FORMAT_MSA_FASTADB || par.msaFormatMode == Parameters::FORMAT_MSA_FASTADB_SUMMARY) {
-                if (isFiltering) {
+                if (isFiltering && res.setSize > par.filterMinEnable) {
                     filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, false);
                     filter.getKept(kept, res.setSize);
                 }
@@ -294,7 +294,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     result.append(1, '\n');
                 }
             } else if (par.msaFormatMode == Parameters::FORMAT_MSA_STOCKHOLM_FLAT) {
-                if (isFiltering) {
+                if (isFiltering && res.setSize > par.filterMinEnable)) {
                     filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, false);
                     filter.getKept(kept, res.setSize);
                 }
@@ -332,7 +332,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                 }
                 result.append("//\n");
             } else if (par.msaFormatMode == Parameters::FORMAT_MSA_A3M) {
-                if (isFiltering) {
+                if (isFiltering && res.setSize > par.filterMinEnable) {
                     filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, false);
                     filter.getKept(kept, res.setSize);
                 }
@@ -394,7 +394,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                 }
             } else if (isCA3M == true) {
                 size_t filteredSetSize = res.setSize;
-                if (isFiltering) {
+                if (isFiltering && res.setSize > par.filterMinEnable) {
                     filteredSetSize = filter.filter(res, alnResults, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
                 }
                 if (par.formatAlignmentMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS) {
