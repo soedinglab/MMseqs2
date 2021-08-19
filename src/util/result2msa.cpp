@@ -198,6 +198,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 
         std::string result;
         result.reserve(300 * 1024);
+        char buffer[1024 + 32768*4];
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
@@ -362,7 +363,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     result.append(1, '\n');
                 }
                 result.append("//\n");
-            } else if (par.msaFormatMode == Parameters::FORMAT_MSA_A3M) {
+            } else if (par.msaFormatMode == Parameters::FORMAT_MSA_A3M || par.msaFormatMode == Parameters::FORMAT_MSA_A3M_ALN_INFO) {
                 if (isFiltering) {
                     filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), qid_vec, par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable, (const char **) res.msaSequence, false);
                     filter.getKept(kept, res.setSize);
@@ -374,16 +375,19 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         continue;
                     }
 
-                    char *header;
+                    result.push_back('>');
                     if (i == 0) {
-                        header = centerSequenceHeader;
+                        result.append(Util::parseFastaHeader(centerSequenceHeader));
                     } else {
                         size_t id = seqIds[i - 1];
-                        header = targetHeaderReader->getData(id, thread_idx);
+                        result.append(Util::parseFastaHeader(targetHeaderReader->getData(id, thread_idx)));
+                        if (par.msaFormatMode == Parameters::FORMAT_MSA_A3M_ALN_INFO) {
+                            size_t len = Matcher::resultToBuffer(buffer, alnResults[i], false);
+                            char* data = buffer;
+                            data += Util::skipNoneWhitespace(data);
+                            result.append(data, len - (data - buffer) - 1);
+                        }
                     }
-                    accession = Util::parseFastaHeader(header);
-                    result.push_back('>');
-                    result.append(accession);
                     result.push_back('\n');
                     // need to allow insertion in the centerSequence
 
