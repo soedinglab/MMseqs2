@@ -479,7 +479,7 @@ public:
     double evalProfile;
     int filterMsa;
     float qsc;
-    float qid;
+    std::string qid;
     float covMSAThr;
     int Ndiff;
     int filterMinEnable;

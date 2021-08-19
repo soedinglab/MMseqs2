@@ -86,6 +86,15 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     par.filterMsa = 1;
     par.pca = 0.0;
     par.parseParameters(argc, argv, command, true, 0, 0);
+
+    std::vector<std::string> qid_str_vec = Util::split(par.qid, ",");
+    std::vector<int> qid_vec;
+    for (size_t qid_idx = 0; qid_idx < qid_str_vec.size(); qid_idx++) {
+        float qid_float = strtod(qid_str_vec[qid_idx].c_str(), NULL);
+        qid_vec.push_back(static_cast<int>(qid_float*100));
+    }
+    std::sort(qid_vec.begin(), qid_vec.end());
+
     DBReader<unsigned int> aReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     aReader.open(DBReader<unsigned int>::NOSORT);
     const int aSeqDbType = aReader.getDbtype();
@@ -313,11 +322,11 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
             } else {
                 MultipleAlignment::MSAResult res = aligner->computeMSA(&aSeq, seqSet, resultsAc, true);
                 resultsAc.clear();
-                size_t filteredSetSize = par.filterMsa == true && res.setSize > par.filterMinEnable ?
+                size_t filteredSetSize = par.filterMsa == true ?
                                          filter->filter(res.setSize, res.centerLength,
                                                         (int)(par.covMSAThr * 100),
-                                                        (int)(par.qid * 100), par.qsc,
-                                                        (int)(par.filterMaxSeqId * 100), par.Ndiff,
+                                                        qid_vec, par.qsc,
+                                                        (int)(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable,
                                                         (const char **) res.msaSequence, true)
                                          : res.setSize;
                 PSSMCalculator::Profile pssmRes = calculator->computePSSMFromMSA(filteredSetSize, aSeq.L, (const char **) res.msaSequence, par.wg);

@@ -32,6 +32,14 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     par.evalProfile = (par.evalThr < par.evalProfile || returnAlnRes) ? par.evalThr : par.evalProfile;
     par.printParameters(command.cmd, argc, argv, *command.params);
 
+    std::vector<std::string> qid_str_vec = Util::split(par.qid, ",");
+    std::vector<int> qid_vec;
+    for (size_t qid_idx = 0; qid_idx < qid_str_vec.size(); qid_idx++) {
+        float qid_float = strtod(qid_str_vec[qid_idx].c_str(), NULL);
+        qid_vec.push_back(static_cast<int>(qid_float*100));
+    }
+    std::sort(qid_vec.begin(), qid_vec.end());
+
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     size_t dbFrom = 0;
@@ -204,8 +212,8 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
             if (returnAlnRes == false) {
                 alnResults.clear();
             }
-            size_t filteredSetSize = (isFiltering == true && res.setSize > par.filterMinEnable)  ?
-                                     filter.filter(res, alnResults, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff)
+            size_t filteredSetSize = (isFiltering == true)  ?
+                                     filter.filter(res, alnResults, (int)(par.covMSAThr * 100), qid_vec, par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable)
                                      :
                                      res.setSize;
              //MultipleAlignment::print(res, &subMat);
