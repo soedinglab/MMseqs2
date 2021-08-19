@@ -104,7 +104,7 @@ Parameters::Parameters():
         PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID, "--filter-hits", "Remove hits by seq. id. and coverage", "Filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by E-value (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // result2msa
-        PARAM_MSA_FORMAT_MODE(PARAM_MSA_FORMAT_MODE_ID, "--msa-format-mode", "MSA format mode", "Format MSA as: 0: binary cA3M DB\n1: binary ca3m w. consensus DB\n2: aligned FASTA DB\n3: aligned FASTA w. header summary\n4: STOCKHOLM flat file\n5: A3M format", typeid(int), (void *) &msaFormatMode, "^[0-5]{1}$"),
+        PARAM_MSA_FORMAT_MODE(PARAM_MSA_FORMAT_MODE_ID, "--msa-format-mode", "MSA format mode", "Format MSA as: 0: binary cA3M DB\n1: binary ca3m w. consensus DB\n2: aligned FASTA DB\n3: aligned FASTA w. header summary\n4: STOCKHOLM flat file\n5: A3M format\n6: A3M format w. alignment info", typeid(int), (void *) &msaFormatMode, "^[0-5]{1}$"),
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID, "--allow-deletion", "Allow deletions", "Allow deletions in a MSA", typeid(bool), (void *) &allowDeletion, ""),
         PARAM_SUMMARY_PREFIX(PARAM_SUMMARY_PREFIX_ID, "--summary-prefix", "Summary prefix", "Set the cluster summary prefix", typeid(std::string), (void *) &summaryPrefix, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SKIP_QUERY(PARAM_SKIP_QUERY_ID, "--skip-query", "Skip query", "Skip the query sequence", typeid(bool), (void *) &skipQuery, "", MMseqsParameter::COMMAND_EXPERT),
@@ -272,6 +272,7 @@ Parameters::Parameters():
         PARAM_TAX_DB_MODE(PARAM_TAX_DB_MODE_ID, "--tax-db-mode", "Taxonomy db mode", "Create taxonomy database as: 0: .dmp flat files (human readable) 1: binary dump (faster readin)", typeid(int), (void *) &taxDbMode, "^[0-1]{1}$"),
         // expandaln
         PARAM_EXPANSION_MODE(PARAM_EXPANSION_MODE_ID, "--expansion-mode", "Expansion mode", "Update score, E-value, and sequence identity by 0: input alignment 1: rescoring the inferred backtrace", typeid(int), (void *) &expansionMode, "^[0-2]{1}$"),
+        PARAM_EXPAND_FILTER_CLUSTERS(PARAM_EXPAND_FILTER_CLUSTERS_ID, "--expand-filter-clusters", "Expand filter clusters", "Filter each target cluster during expansion 0: no filter 1: filter", typeid(int), (void *) &expandFilterClusters, "^[0-1]{1}$"),
         // taxonomy
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA mode", "LCA Mode 1: single search LCA , 2/3: approximate 2bLCA, 4: top hit", typeid(int), (void *) &taxonomySearchMode, "^[1-4]{1}$"),
         PARAM_TAX_OUTPUT_MODE(PARAM_TAX_OUTPUT_MODE_ID, "--tax-output-mode", "Taxonomy output mode", "0: output LCA, 1: output alignment 2: output both", typeid(int), (void *) &taxonomyOutputMode, "^[0-2]{1}$"),
@@ -1084,6 +1085,13 @@ Parameters::Parameters():
     expandaln.push_back(&PARAM_PC_MODE);
     expandaln.push_back(&PARAM_PCA);
     expandaln.push_back(&PARAM_PCB);
+    expandaln.push_back(&PARAM_EXPAND_FILTER_CLUSTERS);
+    expandaln.push_back(&PARAM_FILTER_MIN_ENABLE);
+    expandaln.push_back(&PARAM_FILTER_MAX_SEQ_ID);
+    expandaln.push_back(&PARAM_FILTER_QID);
+    expandaln.push_back(&PARAM_FILTER_QSC);
+    expandaln.push_back(&PARAM_FILTER_COV);
+    expandaln.push_back(&PARAM_FILTER_NDIFF);
     expandaln.push_back(&PARAM_PRELOAD_MODE);
     expandaln.push_back(&PARAM_COMPRESSED);
     expandaln.push_back(&PARAM_THREADS);
@@ -1107,6 +1115,7 @@ Parameters::Parameters():
     expand2profile.push_back(&PARAM_MASK_PROFILE);
     expand2profile.push_back(&PARAM_WG);
     expand2profile.push_back(&PARAM_ALLOW_DELETION);
+    expand2profile.push_back(&PARAM_EXPAND_FILTER_CLUSTERS);
     expand2profile.push_back(&PARAM_FILTER_MSA);
     expand2profile.push_back(&PARAM_FILTER_MIN_ENABLE);
     expand2profile.push_back(&PARAM_FILTER_MAX_SEQ_ID);
@@ -2403,6 +2412,7 @@ void Parameters::setDefaults() {
 
     // expandaln
     expansionMode = EXPAND_TRANSFER_EVALUE;
+    expandFilterClusters = 0;
 
     // taxonomy
     taxonomySearchMode = Parameters::TAXONOMY_APPROX_2BLCA;

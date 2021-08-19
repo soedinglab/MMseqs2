@@ -152,6 +152,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     BacktraceTranslator translator;
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
 
+    const bool filterBc = par.expandFilterClusters;
     EvalueComputation *evaluer = NULL;
     ProbabilityMatrix *probMatrix = NULL;
     if (returnAlnRes == false) {
@@ -169,24 +170,33 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
 
         Sequence aSeq(par.maxSeqLen, aSeqDbType, &subMat, 0, false, par.compBiasCorrection);
         Sequence cSeq(par.maxSeqLen, cSeqDbType, &subMat, 0, false, false);
+        Sequence* bSeq = NULL;
+        if (filterBc) {
+            bSeq = new Sequence(par.maxSeqLen, cSeqDbType, &subMat, 0, false, false);
+        }
 
         MultipleAlignment *aligner = NULL;
         MsaFilter *filter = NULL;
         PSSMCalculator *calculator = NULL;
         PSSMMasker *masker = NULL;
         std::vector<std::vector<unsigned char>> seqSet;
+        std::vector<std::vector<unsigned char>> subSeqSet;
         std::string result;
 
-        if (returnAlnRes == false) {
+        if (returnAlnRes == false || filterBc) {
             aligner = new MultipleAlignment(par.maxSeqLen, &subMat);
-            if (par.filterMsa) {
+            if (par.filterMsa || filterBc) {
                 filter = new MsaFilter(par.maxSeqLen, 300, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
             }
+            subSeqSet.reserve(300);
+        }
+
+        if (returnAlnRes == false) {
             // TODO: is this right?
             calculator = new PSSMCalculator(&subMat, par.maxSeqLen, 300, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
             masker = new PSSMMasker(par.maxSeqLen, *probMatrix, subMat);
-            seqSet.reserve(300);
             result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE);
+            seqSet.reserve(300);
         }
 
         size_t compBufferSize = (par.maxSeqLen + 1) * sizeof(float);
@@ -249,6 +259,32 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
 //                    CompressedA3M::extractMatcherResults(key, resultsBc, resultBcReader.getData(bResId, thread_idx), resultBcReader.getEntryLen(bResId), *cReader, false);
                 Matcher::readAlignmentResults(resultsBc, resultBcReader->getData(bResId, thread_idx), false);
 
+                if (filterBc) {
+                    for (size_t k = 0; k < resultsBc.size(); ++k) {
+                        Matcher::result_t &resultBc = resultsBc[k];
+                        if (resultBc.backtrace.size() == 0) {
+                            Debug(Debug::ERROR) << "Alignment must contain a backtrace\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                        if (k == 0) {
+                            unsigned int bSeqKey = resultAb.dbKey;
+                            size_t bSeqId = cReader->getId(bSeqKey);
+                            bSeq->mapSequence(bSeqId, bSeqKey, cReader->getData(bSeqId, thread_idx), cReader->getSeqLen(bSeqId));
+                        } else {
+                            unsigned int cSeqKey = resultBc.dbKey;
+                            size_t cSeqId = cReader->getId(cSeqKey);
+                            cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
+                            subSeqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
+                        }
+                    }
+                    Matcher::result_t query = *(resultsBc.begin());
+                    resultsBc.erase(resultsBc.begin());
+                    MultipleAlignment::MSAResult res = aligner->computeMSA(bSeq, subSeqSet, resultsBc, true);
+                    filter->filter(res, resultsBc, (int)(par.covMSAThr * 100), qid_vec, par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable);
+                    resultsBc.insert(resultsBc.begin(), query);
+                    MultipleAlignment::deleteMSA(&res);
+                    subSeqSet.clear();
+                }
                 //std::stable_sort(resultsBc.begin(), resultsBc.end(), compareHitsByKeyScore);
 
                 for (size_t k = 0; k < resultsBc.size(); ++k) {
@@ -362,17 +398,22 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         if (compositionBias != NULL) {
             free(compositionBias);
         }
-        if (returnAlnRes == false) {
+        if (aligner != NULL) {
             delete aligner;
-            if (filter != NULL) {
-                delete filter;
-            }
+        }
+        if (filter != NULL) {
+            delete filter;
+        }
+        if (returnAlnRes == false) {
             delete calculator;
             delete masker;
         }
         while(intervalBuffer.size()){
             delete intervalBuffer.top();
             intervalBuffer.pop();
+        }
+        if (bSeq != NULL) {
+            delete bSeq;
         }
     }
 

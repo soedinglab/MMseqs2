@@ -641,6 +641,7 @@ public:
 
     // exapandaln
     int expansionMode;
+    int expandFilterClusters;
 
     // taxonomy
     int taxonomySearchMode;
@@ -971,6 +972,7 @@ public:
 
     // exapandaln
     PARAMETER(PARAM_EXPANSION_MODE)
+    PARAMETER(PARAM_EXPAND_FILTER_CLUSTERS)
 
     // taxonomy
     PARAMETER(PARAM_LCA_MODE)
