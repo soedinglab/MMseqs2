@@ -381,21 +381,19 @@ int result2msa(int argc, const char **argv, const Command &command) {
 
                     result.push_back('>');
                     if (i == 0) {
-                        result.append(centerSequenceHeader, centerHeaderLength);
+                        result.append(Util::parseFastaHeader(centerSequenceHeader));
                     } else {
                         unsigned int key = seqKeys[i - 1];
                         size_t id = targetHeaderReader->getId(key);
+                        result.append(Util::parseFastaHeader(targetHeaderReader->getData(id, thread_idx)));
                         if (par.msaFormatMode == Parameters::FORMAT_MSA_A3M_ALN_INFO) {
-                            result.append(Util::parseFastaHeader(targetHeaderReader->getData(id, thread_idx)));
                             size_t len = Matcher::resultToBuffer(buffer, alnResults[i - 1], false);
                             char* data = buffer;
                             data += Util::skipNoneWhitespace(data);
                             result.append(data, len - (data - buffer) - 1);
-                            result.push_back('\n');
-                        } else {
-                            result.append(targetHeaderReader->getData(id, thread_idx), targetHeaderReader->getEntryLen(id) - 1);
                         }
                     }
+                    result.push_back('\n');
 
                     // need to allow insertion in the centerSequence
                     if(i == 0){
