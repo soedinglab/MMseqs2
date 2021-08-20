@@ -189,11 +189,11 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
                 float evalue = 0.0;
-                if (columns >= 4) {
+                if (returnAlnRes == false && columns >= 4) {
                     evalue = strtod(entry[3], NULL);
                 }
 
-                if (evalue < par.evalProfile) {
+                if (returnAlnRes == true || evalue < par.evalProfile) {
                     const size_t edgeId = tDbr->getId(key);
                     if (edgeId == UINT_MAX) {
                         Debug(Debug::ERROR) << "Sequence " << key << " does not exist in target sequence database\n";
