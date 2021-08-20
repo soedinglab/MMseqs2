@@ -193,8 +193,8 @@ int result2msa(int argc, const char **argv, const Command &command) {
         std::vector<std::vector<unsigned char>> seqSet;
         seqSet.reserve(300);
 
-        std::vector<size_t> seqIds;
-        seqIds.reserve(300);
+        std::vector<unsigned int> seqKeys;
+        seqKeys.reserve(300);
 
         std::string result;
         result.reserve(300 * 1024);
@@ -251,7 +251,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                 }
                 edgeSequence.mapSequence(edgeId, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId));
                 seqSet.emplace_back(std::vector<unsigned char>(edgeSequence.numSequence, edgeSequence.numSequence + edgeSequence.L));
-                seqIds.emplace_back(edgeId);
+                seqKeys.emplace_back(key);
 
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
                 if (columns > Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
@@ -281,7 +281,9 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         if (i == 0) {
                             headers.emplace_back(centerSequenceHeader, centerHeaderLength);
                         } else if (kept[i] == true) {
-                            char *header = targetHeaderReader->getData(seqIds[i - 1], thread_idx);
+                            unsigned int key = seqKeys[i - 1];
+                            size_t id = targetHeaderReader->getId(key);
+                            char *header = targetHeaderReader->getData(id, thread_idx);
                             size_t length = targetHeaderReader->getEntryLen(id) - 1;
                             headers.emplace_back(header, length);
                         }
@@ -311,7 +313,8 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         header = centerSequenceHeader;
                         length = centerHeaderLength;
                     } else {
-                        size_t id = seqIds[i - 1];
+                        unsigned int key = seqKeys[i - 1];
+                        size_t id = targetHeaderReader->getId(key);
                         header = targetHeaderReader->getData(id, thread_idx);
                         length = targetHeaderReader->getEntryLen(id) - 1;
                     }
@@ -348,7 +351,8 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     if (i == 0) {
                         header = centerSequenceHeader;
                     } else {
-                        size_t id = seqIds[i - 1];
+                        unsigned int key = seqKeys[i - 1];
+                        size_t id = targetHeaderReader->getId(key);
                         header = targetHeaderReader->getData(id, thread_idx);
                     }
                     accession = Util::parseFastaHeader(header);
@@ -377,20 +381,23 @@ int result2msa(int argc, const char **argv, const Command &command) {
 
                     result.push_back('>');
                     if (i == 0) {
-                        result.append(Util::parseFastaHeader(centerSequenceHeader));
+                        result.append(centerSequenceHeader, centerHeaderLength);
                     } else {
-                        size_t id = seqIds[i - 1];
-                        result.append(Util::parseFastaHeader(targetHeaderReader->getData(id, thread_idx)));
+                        unsigned int key = seqKeys[i - 1];
+                        size_t id = targetHeaderReader->getId(key);
                         if (par.msaFormatMode == Parameters::FORMAT_MSA_A3M_ALN_INFO) {
-                            size_t len = Matcher::resultToBuffer(buffer, alnResults[i], false);
+                            result.append(Util::parseFastaHeader(targetHeaderReader->getData(id, thread_idx)));
+                            size_t len = Matcher::resultToBuffer(buffer, alnResults[i - 1], false);
                             char* data = buffer;
                             data += Util::skipNoneWhitespace(data);
                             result.append(data, len - (data - buffer) - 1);
+                            result.push_back('\n');
+                        } else {
+                            result.append(targetHeaderReader->getData(id, thread_idx), targetHeaderReader->getEntryLen(id) - 1);
                         }
                     }
-                    result.push_back('\n');
-                    // need to allow insertion in the centerSequence
 
+                    // need to allow insertion in the centerSequence
                     if(i == 0){
                         for (size_t pos = 0; pos < res.centerLength; pos++) {
                             char aa = res.msaSequence[i][pos];
@@ -475,7 +482,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 
             MultipleAlignment::deleteMSA(&res);
             seqSet.clear();
-            seqIds.clear();
+            seqKeys.clear();
             alnResults.clear();
         }
 
