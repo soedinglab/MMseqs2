@@ -186,7 +186,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                 // in the same database case, we have the query repeated
                 if (key == queryKey && sameDatabase == true) {
                     if(returnAlnRes && par.includeIdentity){
-                        Matcher::result_t res = Matcher::parseAlignmentRecord(data)
+                        Matcher::result_t res = Matcher::parseAlignmentRecord(data);
                         size_t len = Matcher::resultToBuffer(buffer, res, true);
                         result.append(buffer, len);
                     }
