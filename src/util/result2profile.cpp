@@ -185,6 +185,12 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                 const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
                 // in the same database case, we have the query repeated
                 if (key == queryKey && sameDatabase == true) {
+                    if(returnAlnRes && par.includeIdentity){
+                        Matcher::result_t res = Matcher::parseAlignmentRecord(data)
+                        size_t len = Matcher::resultToBuffer(buffer, res, true);
+                        result.append(buffer, len);
+                    }
+
                     data = Util::skipLine(data);
                     continue;
                 }
@@ -221,16 +227,6 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
             // Recompute if not all the backtraces are present
             MultipleAlignment::MSAResult res = aligner.computeMSA(&centerSequence, seqSet, alnResults, true);
 
-            if(returnAlnRes && par.includeIdentity){
-                for(size_t i = 0; i < alnResults.size(); i++){
-                    if(queryKey == alnResults[i].dbKey){
-                        size_t len = Matcher::resultToBuffer(buffer, alnResults[i], true);
-                        result.append(buffer, len);
-                        break;
-                    }
-                }
-            }
-
             // do not count query
             size_t filteredSetSize = (isFiltering == true)  ?
                                      filter.filter(res, alnResults, (int)(par.covMSAThr * 100), qid_vec, par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable)
@@ -240,9 +236,6 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 
             if (returnAlnRes) {
                 for (size_t i = 0; i < (filteredSetSize - 1); ++i) {
-                    if(par.includeIdentity && alnResults[i].dbKey == queryKey){
-                        continue;
-                    }
                     size_t len = Matcher::resultToBuffer(buffer, alnResults[i], true);
                     result.append(buffer, len);
                 }
