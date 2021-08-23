@@ -582,6 +582,7 @@ Parameters::Parameters():
     filterresult.push_back(&PARAM_PRELOAD_MODE);
     filterresult.push_back(&PARAM_THREADS);
     filterresult.push_back(&PARAM_COMPRESSED);
+    filterresult.push_back(&PARAM_INCLUDE_IDENTITY);
     filterresult.push_back(&PARAM_V);
 
     // convertmsa
