@@ -4,19 +4,16 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "Util.h"
-#include "krona_prelude.html.h"
 #include "FastSort.h"
+#include "MappingReader.h"
 
-#include <algorithm>
 #include <unordered_map>
+
+#include "krona_prelude.html.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
-
-static bool compareToFirstInt(const std::pair<unsigned int, unsigned int> &lhs, const std::pair<unsigned int, unsigned int> &rhs) {
-    return (lhs.first <= rhs.first);
-}
 
 template<typename K, typename V>
 V at(const std::unordered_map<K, V> &map, K key, V default_value = V()) {
@@ -145,16 +142,9 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
 
     // support reading both LCA databases and result databases (e.g. alignment)
     const bool isTaxonomyInput = Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_TAXONOMICAL_RESULT);
-    std::vector<std::pair<unsigned int, unsigned int>> mapping;
+    MappingReader* mapping = NULL;
     if (isTaxonomyInput == false) {
-        if (FileUtil::fileExists(std::string(par.db1 + "_mapping").c_str()) == false) {
-            Debug(Debug::ERROR) << par.db1 + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
-            EXIT(EXIT_FAILURE);
-        }
-        bool isSorted = Util::readMapping(par.db1 + "_mapping", mapping);
-        if (isSorted == false) {
-            std::stable_sort(mapping.begin(), mapping.end(), compareToFirstInt);
-        }
+        mapping = new MappingReader(par.db1);
     }
 
     FILE *resultFP = FileUtil::openAndDelete(par.db3.c_str(), "w");
@@ -174,12 +164,9 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
             progress.updateProgress();
 
             if (isSequenceDB == true) {
-                std::pair<unsigned int, unsigned int> val;
-                val.first = reader.getDbKey(i);
-                std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
-                mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
-                if (mappingIt != mapping.end() && mappingIt->first == val.first) {
-                    ++localTaxCounts[mappingIt->second];
+                unsigned int taxon = mapping->lookup(reader.getDbKey(i));
+                if (taxon != 0) {
+                    ++localTaxCounts[taxon];
                 }
                 continue;
             }
@@ -191,12 +178,9 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
                     ++localTaxCounts[taxon];
                 } else {
                     // match dbKey to its taxon based on mapping
-                    std::pair<unsigned int, unsigned int> val;
-                    val.first = Util::fast_atoi<unsigned int>(data);
-                    std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
-                    mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
-                    if (mappingIt != mapping.end() && mappingIt->first == val.first) {
-                        ++localTaxCounts[mappingIt->second];
+                    unsigned int taxon = mapping->lookup(Util::fast_atoi<unsigned int>(data));
+                    if (taxon != 0) {
+                        ++localTaxCounts[taxon];
                     }
                 }
                 data = Util::skipLine(data);
