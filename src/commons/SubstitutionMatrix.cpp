@@ -43,8 +43,15 @@ SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, fl
     }
     initMatrixMemory(alphabetSize);
     readProbMatrix(matrixData, alphSizeAndX.second);
-
-    setupLetterMapping();
+    if(mappingHasAminoAcidLetters()){
+        setupLetterMapping();
+    }else {
+        for (int letter = 0; letter < UCHAR_MAX; letter++) {
+            char upperLetter = toupper(static_cast<char>(letter));
+            aa2num[letter] = (aa2num[static_cast<int>(upperLetter)] == UCHAR_MAX)
+                             ? alphabetSize-1 : aa2num[static_cast<int>(upperLetter)];
+        }
+    }
 
     //print(probMatrix, num2aa, alphabetSize);
     generateSubMatrix(probMatrix, subMatrixPseudoCounts, subMatrix, alphabetSize, true, bitFactor, scoreBias);
@@ -252,7 +259,15 @@ void SubstitutionMatrix::calcGlobalAaBiasCorrection(const BaseMatrix *m,
 }
 
 
-SubstitutionMatrix::~SubstitutionMatrix() {
+SubstitutionMatrix::~SubstitutionMatrix() {}
+
+bool SubstitutionMatrix::mappingHasAminoAcidLetters(){
+    std::string lettersToCheck = "ATGCDEFHIKLMNPQRSVWYX";
+    size_t cnt = 0;
+    for(size_t i = 0; i < lettersToCheck.size(); i++){
+        cnt += (aa2num[static_cast<int>(lettersToCheck[i])] != UCHAR_MAX);
+    }
+    return (cnt == lettersToCheck.size());
 }
 
 void SubstitutionMatrix::setupLetterMapping(){
