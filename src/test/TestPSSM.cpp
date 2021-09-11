@@ -1587,13 +1587,15 @@ int main (int, const char**) {
 
     MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
     std::vector<Matcher::result_t> empty;
-    size_t filterSetSize = msaFilter.filter(res, empty, 0, 0, -20.0f, 90, 100);
-    std::cout << "Filtered:" << filterSetSize << std::endl;
+    std::vector<int> qid;
+    qid.push_back(0);
+    size_t filteredSetSize = msaFilter.filter(res, empty, 0, qid, -20.0, 90, 100, 10000);
+    std::cout << "Filtered:" << filteredSetSize << std::endl;
 //    for(size_t k = 0; k < res.setSize; k++){
 //        std::cout << "k=" << k << "\t" << (int)filterResult.keep[k] << std::endl;
 //    }
     std::cout <<"Filtered MSA" << std::endl;
-    for(size_t k = 0; k < filterSetSize; k++){
+    for(size_t k = 0; k < filteredSetSize; k++){
         printf("k=%.3zu ", k);
         for (size_t pos = 0; pos < res.centerLength; pos++) {
             char aa = res.msaSequence[k][pos];
@@ -1604,7 +1606,7 @@ int main (int, const char**) {
 
     //seqSet.push_back(s5);
     PSSMCalculator pssm(&subMat, 122, counter, 1.0, 1.5);
-    pssm.computePSSMFromMSA(filterSetSize, res.centerLength, (const char**) res.msaSequence, false);
+    pssm.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char**) res.msaSequence, false);
     //pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);
     for (int k = 0; k < counter; ++k) {

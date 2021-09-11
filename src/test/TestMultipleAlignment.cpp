@@ -71,7 +71,9 @@ int main(int, const char**) {
     MultipleAlignment msaAligner(1000, &subMat);
     MultipleAlignment::MSAResult res = msaAligner.computeMSA(&s, seqSet, alnResults, true);
     MsaFilter filter(1000, 10000, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
-    size_t filterSetSize = filter.filter(res, alnResults, 0, 0, -20.0, 50, 100);
+    std::vector<int> qid;
+    qid.push_back(0);
+    size_t filterSetSize = filter.filter(res, alnResults, 0, qid, -20.0, 50, 100, 10000);
     std::cout << "Filtered:" << filterSetSize << std::endl;
     MultipleAlignment::print(res, &subMat);
     PSSMCalculator pssm(&subMat, 1000, 5, 1.0, 1.5);

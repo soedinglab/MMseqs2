@@ -590,7 +590,9 @@ int main (int, const char**) {
 
     MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
     std::vector<Matcher::result_t> empty;
-    size_t filteredSetSize = msaFilter.filter(res, empty, 0, 0,-20.0, 90, 100);
+    std::vector<int> qid;
+    qid.push_back(0);
+    size_t filteredSetSize = msaFilter.filter(res, empty, 0, qid, -20.0, 90, 100, 10000);
 
 /*    std::cout << "Filtered:" << filterResult.setSize << std::endl;
 //    for(size_t k = 0; k < res.setSize; k++){
