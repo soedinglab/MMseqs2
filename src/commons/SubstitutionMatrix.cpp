@@ -48,7 +48,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, fl
     }else {
         for (int letter = 0; letter < UCHAR_MAX; letter++) {
             char upperLetter = toupper(static_cast<char>(letter));
-            aa2num[letter] = (aa2num[static_cast<int>(upperLetter)] == UCHAR_MAX)
+            aa2num[letter] = (aa2num[static_cast<unsigned char>(upperLetter)] == UCHAR_MAX)
                              ? alphabetSize-1 : aa2num[static_cast<int>(upperLetter)];
         }
     }
