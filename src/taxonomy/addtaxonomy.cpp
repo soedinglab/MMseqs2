@@ -48,7 +48,7 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
             if (length == 1) {
                 continue;
             }
-            unsigned int taxon;
+            unsigned int taxon = 0;
             if (par.pickIdFrom == Parameters::EXTRACT_QUERY) {
                 taxon = mapping.lookup(key);
                 if (taxon == 0) {
