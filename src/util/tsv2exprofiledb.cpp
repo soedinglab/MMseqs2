@@ -2,6 +2,8 @@
 #include "FileUtil.h"
 #include "CommandCaller.h"
 
+#include <cassert>
+
 #include "tsv2exprofiledb.sh.h"
 
 int tsv2exprofiledb(int argc, const char **argv, const Command &command) {
