@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <dirent.h>
 
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -183,12 +182,6 @@ void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
     std::string base = baseName(p);
     free(p);
 
-    DIR *dir = opendir(path.c_str());
-    if (dir == NULL) {
-        Debug(Debug::ERROR) << "Error opening directory " << path << "!\n";
-        EXIT(EXIT_FAILURE);
-    }
-
     std::string pathToAlias = (path + "/" + alias);
     if (symlinkExists(pathToAlias) == true){
         FileUtil::remove(pathToAlias.c_str());
@@ -207,10 +200,6 @@ void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
     }
     if (chdir(oldWd.c_str()) != 0) {
         Debug(Debug::ERROR) << "Could not change working directory to " << oldWd << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    if (closedir(dir) != 0) {
-        Debug(Debug::ERROR) << "Error closing directory " << path << "!\n";
         EXIT(EXIT_FAILURE);
     }
 }
