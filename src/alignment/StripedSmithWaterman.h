@@ -300,7 +300,7 @@ private:
     } cigar;
 
 
-    template <const unsigned int type>
+    template <const unsigned int type, const bool posSpecificGaps>
     s_align ssw_align_private (const unsigned char*db_sequence,
                         const int8_t *db_profile,
                         int32_t db_length,
@@ -311,7 +311,7 @@ private:
                         const double filters,
                         EvalueComputation * filterd,
                         const int covMode, const float covThr, const float correlationScoreWeight,
-                        const int32_t maskLen, const size_t id, bool gpmode);
+                        const int32_t maskLen, const size_t id);
 
     /* Striped Smith-Waterman
      Record the highest score of each reference position.
@@ -320,9 +320,8 @@ private:
      wight_match > 0, all other weights < 0.
      The returned positions are 0-based.
      */
-    template <const unsigned int type>
-
-    std::pair<alignment_end, alignment_end> sw_sse2_byte (const unsigned char *db_sequence,
+    template <const unsigned int type, const bool posSpecificGaps>
+    std::pair<alignment_end, alignment_end> sw_sse2_byte(const unsigned char *db_sequence,
                                  const simd_int* db_profile_byte,
                                  int8_t ref_dir,	// 0: forward ref; 1: reverse ref
                                  int32_t db_length,
@@ -339,10 +338,9 @@ private:
                                                      alignment beginning point. If this score
                                                      is set to 0, it will not be used */
                                  uint8_t bias,  /* Shift 0 point to a positive value. */
-                                 int32_t maskLen,
-                                 bool gpmode);
+                                 int32_t maskLen);
 
-    template <const unsigned int type>
+    template <const unsigned int type, const bool posSpecificGaps>
     std::pair<alignment_end, alignment_end> sw_sse2_word (const unsigned char* db_sequence,
                                  const simd_int* db_profile_byte,
                                  int8_t ref_dir,	// 0: forward ref; 1: reverse ref
@@ -358,16 +356,15 @@ private:
                                  const simd_int* gap_open_ins,
                                  uint16_t terminate,
                                  uint16_t bias,
-                                 int32_t maskLen,
-                                 bool gpmode);
+                                 int32_t maskLen);
 
-    template <const unsigned int type>
+    template <const unsigned int type, const bool posSpecificGaps>
     SmithWaterman::cigar *banded_sw(const unsigned char *db_sequence, const int8_t *query_sequence,
                                     const int8_t *query_consens_sequence, const int8_t * compositionBias,
                                     int32_t db_length, int32_t query_length, int32_t queryStart, int32_t targetStart,
                                     int32_t score, const uint32_t gap_open, const uint32_t gap_extend, uint8_t *gDelOpen,
                                     uint8_t *gDelClose, uint8_t *gIns, int32_t band_width,
-                                    const int8_t *mat, const int8_t *target_mat, const int32_t qry_n, const int32_t tgt_n, bool gpmode);
+                                    const int8_t *mat, const int8_t *target_mat, const int32_t qry_n, const int32_t tgt_n);
 
 
     /*!	@function		Produce CIGAR 32-bit unsigned integer from CIGAR operation and CIGAR length
