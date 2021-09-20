@@ -5,7 +5,7 @@
 
 int createbintaxmapping(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, false, 0, 0);
+    par.parseParameters(argc, argv, command, true, 0, 0);
     MappingReader reader(par.db1, false);
     std::pair<char*, size_t> serialized = MappingReader::serialize(reader);
     FILE* handle = fopen(par.db2.c_str(), "w");
@@ -13,9 +13,9 @@ int createbintaxmapping(int argc, const char **argv, const Command &command) {
         Debug(Debug::ERROR) << "Could not open " << par.db2 << " for writing\n";
         return EXIT_FAILURE;
     }
-    size_t written = fwrite(serialized.first, serialized.second, sizeof(char), handle);
+    size_t written = fwrite(serialized.first, serialized.second * sizeof(char), 1, handle);
     free(serialized.first);
-    if (written != serialized.second) {
+    if (written != 1) {
         Debug(Debug::ERROR) << "Could not write to " << par.db2 << "\n";
         return EXIT_FAILURE;
     }
