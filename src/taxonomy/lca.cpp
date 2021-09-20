@@ -103,10 +103,6 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
             std::vector<int> taxa;
             std::vector<WeightedTaxHit> weightedTaxa;
             while (*data != '\0') {
-                TaxID taxon;
-                unsigned int id;
-                std::pair<unsigned int, unsigned int> val;
-                std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
                 data = Util::skipLine(data);
                 if (columns == 0) {
@@ -114,8 +110,8 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
                     continue;
                 }
 
-                id = Util::fast_atoi<unsigned int>(entry[0]);
-                taxon = mapping.lookup(id);
+                unsigned int id = Util::fast_atoi<unsigned int>(entry[0]);
+                TaxID taxon = mapping.lookup(id);
                 if (taxon == 0) {
                     // TODO: Check which taxa were not found
                     taxonNotFound += 1;
