@@ -87,7 +87,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
         par.kmerScore = 0;
     }
 
-    const bool contextPseudoCnts = true;
+    const bool contextPseudoCnts = DBReader<unsigned int>::getExtendedDbtype(dbr.getDbtype()) & Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS;
 
     // TODO: investigate if it makes sense to mask the profile consensus sequence
     if (isProfileSearch) {
