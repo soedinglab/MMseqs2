@@ -246,13 +246,13 @@ int doRescorediagonal(Parameters &par,
                         alnLen = diagonalLen;
                     } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION ||
                                par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
-                               par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+                               par.rescoreMode == Parameters::RESCORE_MODE_END_TO_END_ALIGNMENT ||
                                par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
                         evalue = evaluer.computeEvalue(distance, origQueryLen);
                         bitScore = static_cast<int>(evaluer.computeBitScore(distance) + 0.5);
 
-                        if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT||
-                            par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+                        if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
+                            par.rescoreMode == Parameters::RESCORE_MODE_END_TO_END_ALIGNMENT ||
                             par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
                             alnLen = (alignment.endPos - alignment.startPos) + 1;
                             int qStartPos, qEndPos, dbStartPos, dbEndPos;
@@ -312,8 +312,8 @@ int doRescorediagonal(Parameters &par,
                     // --filter-hits
                     bool hasToFilter = (par.filterHits == true && currScorePerCol >= scorePerColThr);
                     if (isIdentity || hasToFilter || (hasAlnLen && hasCov && hasSeqId && hasEvalue)) {
-                        if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT||
-                            par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+                        if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
+                            par.rescoreMode == Parameters::RESCORE_MODE_END_TO_END_ALIGNMENT ||
                             par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
                             alnResults.emplace_back(result);
                         } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
@@ -392,7 +392,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     int dbtype = resultReader.getDbtype(); // this is DBTYPE_PREFILTER_RES || DBTYPE_PREFILTER_REV_RES
     if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
-       par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+       par.rescoreMode == Parameters::RESCORE_MODE_END_TO_END_ALIGNMENT ||
        par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT){
         dbtype = Parameters::DBTYPE_ALIGNMENT_RES;
     }

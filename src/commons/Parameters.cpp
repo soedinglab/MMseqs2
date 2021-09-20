@@ -1378,7 +1378,7 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
                         valueString = SSTR(*(int *) par->value);
                     } else if (par->type == typeid(size_t)) {
                         paramString.append(" INT");
-                        valueString = SSTR(*(float *) par->value);
+                        valueString = SSTR(*(size_t *) par->value);
                     } else if (par->type == typeid(float)) {
                         paramString.append(" FLOAT");
                         valueString = SSTR(*(float *) par->value);

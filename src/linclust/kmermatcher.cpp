@@ -272,22 +272,32 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                 }
                 size_t selectedKmer = 0;
                 for (size_t kmerIdx = 0; kmerIdx < seqKmerCount && selectedKmer < kmerConsidered; kmerIdx++) {
-                    size_t kmer = (kmers + kmerIdx)->kmer;
-                    if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                        kmer = BIT_SET(kmer, 63);
-                    }
+
                     /* skip repeated kmer */
                     if (par.ignoreMultiKmer) {
-                        if(kmerIdx + 1 < seqKmerCount){
+                        size_t kmer = (kmers + kmerIdx)->kmer;
+                        if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
+                            kmer = BIT_SET(kmer, 63);
+                        }
+                        if (kmerIdx + 1 < seqKmerCount) {
                             size_t nextKmer = (kmers + kmerIdx + 1)->kmer;
-                            if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
+                            if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
                                 nextKmer = BIT_SET(nextKmer, 63);
                             }
-                            if(kmer == nextKmer){
-                                kmerIdx++;
-                                continue;
+                            if (kmer == nextKmer) {
+                                while (kmer == nextKmer && kmerIdx < seqKmerCount) {
+                                    kmerIdx++;
+                                    if(kmerIdx >= seqKmerCount)
+                                        break;
+                                    nextKmer = (kmers + kmerIdx)->kmer;
+                                    if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
+                                        nextKmer = BIT_SET(nextKmer, 63);
+                                    }
+                                }
                             }
                         }
+                        if(kmerIdx >= seqKmerCount)
+                            break;
                     }
 
                     if ((kmers + kmerIdx)->score < threshold ){
