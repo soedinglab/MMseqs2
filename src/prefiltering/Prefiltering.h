@@ -44,7 +44,8 @@ public:
                            const bool templateDBIsIndex, const size_t memoryLimit, const size_t qDbSize,
                            size_t& maxResListLen, int& kmerSize, int& split, int& splitMode);
 
-    static int getKmerThreshold(const float sensitivity, const bool isProfile, const int kmerScore, const int kmerSize);
+    static int getKmerThreshold(const float sensitivity, const bool isProfile, const bool hasContextPseudoCnts,
+                                const int kmerScore, const int kmerSize);
 
     static void mergeTargetSplits(const std::string &outDB, const std::string &outDBIndex,
                                   const std::vector<std::pair<std::string, std::string>> &fileNames, unsigned int threads);

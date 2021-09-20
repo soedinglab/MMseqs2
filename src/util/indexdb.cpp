@@ -87,13 +87,15 @@ int indexdb(int argc, const char **argv, const Command &command) {
         par.kmerScore = 0;
     }
 
+    const bool contextPseudoCnts = true;
+
     // TODO: investigate if it makes sense to mask the profile consensus sequence
     if (isProfileSearch) {
         par.maskMode = 0;
     }
 
     // query seq type is actually unknown here, but if we pass DBTYPE_HMM_PROFILE then its +20 k-score
-    par.kmerScore = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, par.kmerScore, par.kmerSize);
+    par.kmerScore = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, contextPseudoCnts, par.kmerScore, par.kmerSize);
 
     const std::string& baseDB = ppDB ? par.db1 : par.db2;
     std::string indexDB = PrefilteringIndexReader::indexName(baseDB);

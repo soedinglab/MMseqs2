@@ -191,7 +191,9 @@ Prefiltering::Prefiltering(const std::string &queryDB,
     if(Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES) == false){
         const bool isProfileSearch = Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) ||
                                      Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE);
-        kmerThr = getKmerThreshold(sensitivity, isProfileSearch, kmerScore, kmerSize);
+        //
+        const bool contextPseudoCnts = true;
+        kmerThr = getKmerThreshold(sensitivity, isProfileSearch, contextPseudoCnts, kmerScore, kmerSize);
     }else {
         kmerThr = 0;
     }
@@ -978,10 +980,11 @@ void Prefiltering::mergePrefilterSplits(const std::string &outDB, const std::str
     }
 }
 
-int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile, const int kmerScore, const int kmerSize) {
+int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile, const bool hasContextPseudoCnts,
+                                   const int kmerScore, const int kmerSize) {
     double kmerThrBest = kmerScore;
     if (kmerScore == INT_MAX) {
-        if(isProfile){
+        if(isProfile && hasContextPseudoCnts == true){
             if (kmerSize == 5) {
                 float base = 127.75;
                 kmerThrBest = base - (sensitivity * 8.75);
@@ -995,7 +998,21 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile
                 Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
                 EXIT(EXIT_FAILURE);
             }
-        }else{
+        } if(isProfile && hasContextPseudoCnts == false) {
+            if (kmerSize == 5) {
+                float base = 127.75;
+                kmerThrBest = base - (sensitivity * 8.75);
+            } else if (kmerSize == 6) {
+                float base = 142.75;
+                kmerThrBest = base - (sensitivity * 8.75);
+            } else if (kmerSize == 7) {
+                float base = 158.75;
+                kmerThrBest = base - (sensitivity * 9.75);
+            } else {
+                Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
+                EXIT(EXIT_FAILURE);
+            }
+        } else {
             if (kmerSize == 5) {
                 float base = 160.75;
                 kmerThrBest = base - (sensitivity * 12.75);
