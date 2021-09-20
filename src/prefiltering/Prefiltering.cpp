@@ -191,8 +191,9 @@ Prefiltering::Prefiltering(const std::string &queryDB,
     if(Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_NUCLEOTIDES) == false){
         const bool isProfileSearch = Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) ||
                                      Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE);
-        //
-        const bool contextPseudoCnts = true;
+        const bool queryCPC = DBReader<unsigned int>::getExtendedDbtype(querySeqType) & Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS;
+        const bool targetCPC = DBReader<unsigned int>::getExtendedDbtype(targetSeqType) & Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS;
+        const bool contextPseudoCnts = queryCPC || targetCPC;
         kmerThr = getKmerThreshold(sensitivity, isProfileSearch, contextPseudoCnts, kmerScore, kmerSize);
     }else {
         kmerThr = 0;

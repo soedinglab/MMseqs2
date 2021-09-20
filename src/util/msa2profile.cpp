@@ -127,7 +127,11 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     maxSeqLength *= (VECSIZE_INT * 4);
 
     unsigned int threads = (unsigned int) par.threads;
-    DBWriter resultWriter(par.db2.c_str(), par.db2Index.c_str(), threads, par.compressed, Parameters::DBTYPE_HMM_PROFILE);
+    int type = Parameters::DBTYPE_HMM_PROFILE;
+    if (par.pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
+        type = DBReader<unsigned int>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
+    }
+    DBWriter resultWriter(par.db2.c_str(), par.db2Index.c_str(), threads, par.compressed, type);
     resultWriter.open();
 
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);

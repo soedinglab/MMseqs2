@@ -109,6 +109,8 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
         if (needSrcIndex) {
             type = DBReader<unsigned int>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
         }
+    } else if (par.pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
+        type = DBReader<unsigned int>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
     }
     DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), localThreads, par.compressed, type);
     resultWriter.open();

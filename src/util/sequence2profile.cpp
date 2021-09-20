@@ -24,7 +24,12 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
 
     DBReader<unsigned int> sequenceDb(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     sequenceDb.open(DBReader<unsigned int>::NOSORT);
-    DBWriter resultDbw(par.db2.c_str(), par.db2Index.c_str(), par.threads,  par.compressed, Parameters::DBTYPE_HMM_PROFILE);
+
+    int type = Parameters::DBTYPE_HMM_PROFILE;
+    if (par.pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
+        type = DBReader<unsigned int>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
+    }
+    DBWriter resultDbw(par.db2.c_str(), par.db2Index.c_str(), par.threads,  par.compressed, type);
     resultDbw.open();
     Debug::Progress progress( sequenceDb.getSize());
 

@@ -143,6 +143,9 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     int dbType = Parameters::DBTYPE_ALIGNMENT_RES;
     if (returnAlnRes == false) {
         dbType = Parameters::DBTYPE_HMM_PROFILE;
+        if (par.pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
+            dbType = DBReader<unsigned int>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
+        }
     } else {
         dbType = DBReader<unsigned int>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
     }
