@@ -64,6 +64,7 @@ set(util_source_files
         util/translatenucs.cpp
         util/translateaa.cpp
         util/tsv2db.cpp
+        util/tsv2exprofiledb.cpp
         util/tar2db.cpp
         util/unpackdb.cpp
         util/proteinaln2nucl.cpp

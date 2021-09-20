@@ -316,6 +316,10 @@ void FileUtil::copyFile(const char *src, const char *dst) {
     close(dest);
 }
 
+void FileUtil::copyFile(const std::string& src, const std::string& dst) {
+    copyFile(src.c_str(), dst.c_str());
+}
+
 FILE * FileUtil::openAndDelete(const char *fileName, const char *mode) {
     if(FileUtil::fileExists(fileName) == true){
         if(FileUtil::directoryExists(fileName)){

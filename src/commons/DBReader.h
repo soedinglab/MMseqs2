@@ -293,6 +293,8 @@ public:
 
     static void removeDb(const std::string &databaseName);
 
+
+    static void aliasDb(const std::string &databaseName, const std::string &alias, DBFiles::Files dbFilesFlags = DBFiles::ALL);
     static void softlinkDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags = DBFiles::ALL);
     static void copyDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags = DBFiles::ALL);
 

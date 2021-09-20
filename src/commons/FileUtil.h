@@ -50,6 +50,7 @@ public:
     static bool symlinkExists(const std::string &path);
 
     static void copyFile(const char *src, const char *dst);
+    static void copyFile(const std::string& src, const std::string& dst);
 
     static FILE *openAndDelete(const char *fileName, const char *mode);
 

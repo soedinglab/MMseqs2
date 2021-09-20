@@ -1086,15 +1086,12 @@ void DBReader<T>::removeDb(const std::string &databaseName){
     }
 }
 
-void copyLinkDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags, bool link) {
+typedef void (*DbAction)(const std::string &, const std::string &);
+void copyLinkDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags, DbAction action) {
     if (dbFilesFlags & DBFiles::DATA) {
         std::vector<std::string> names = FileUtil::findDatafiles(databaseName.c_str());
         if (names.size() == 1) {
-            if (link) {
-                FileUtil::symlinkAbs(names[0].c_str(), outDb.c_str());
-            } else {
-                FileUtil::copyFile(names[0].c_str(), outDb.c_str());
-            }
+            action(names[0], outDb);
         } else {
             for (size_t i = 0; i < names.size(); i++) {
                 std::string::size_type idx = names[i].rfind('.');
@@ -1106,11 +1103,7 @@ void copyLinkDb(const std::string &databaseName, const std::string &outDb, DBFil
                                         << "Filename: " << names[i] << ".\n";
                     EXIT(EXIT_FAILURE);
                 }
-                if (link) {
-                    FileUtil::symlinkAbs(names[i], outDb + ext);
-                } else {
-                    FileUtil::copyFile(names[i].c_str(), (outDb + ext).c_str());
-                }
+                action(names[i], outDb + ext);
             }
         }
     }
@@ -1144,24 +1137,24 @@ void copyLinkDb(const std::string &databaseName, const std::string &outDb, DBFil
     for (size_t i = 0; i < ARRAY_SIZE(suffices); ++i) {
         std::string file = databaseName + suffices[i].suffix;
         if (dbFilesFlags & suffices[i].flag && FileUtil::fileExists(file.c_str())) {
-            if (link) {
-                FileUtil::symlinkAbs(file, outDb + suffices[i].suffix);
-            } else {
-                FileUtil::copyFile(file.c_str(), (outDb + suffices[i].suffix).c_str());
-            }
+            action(file, outDb + suffices[i].suffix);
         }
     }
 }
 
+template<typename T>
+void DBReader<T>::aliasDb(const std::string &databaseName, const std::string &alias, DBFiles::Files dbFilesFlags) {
+    copyLinkDb(databaseName, alias, dbFilesFlags, FileUtil::symlinkAlias);
+}
 
 template<typename T>
 void DBReader<T>::softlinkDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags) {
-    copyLinkDb(databaseName, outDb, dbFilesFlags, true);
+    copyLinkDb(databaseName, outDb, dbFilesFlags, FileUtil::symlinkAbs);
 }
 
 template<typename T>
 void DBReader<T>::copyDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags) {
-    copyLinkDb(databaseName, outDb, dbFilesFlags, false);
+    copyLinkDb(databaseName, outDb, dbFilesFlags, FileUtil::copyFile);
 }
 
 template<typename T>

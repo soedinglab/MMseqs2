@@ -26,5 +26,6 @@ set(GENERATED_WORKFLOWS
         workflow/databases.sh
         workflow/nucleotide_clustering.sh
         workflow/iterativepp.sh
+        workflow/tsv2exprofiledb.sh
         PARENT_SCOPE
         )

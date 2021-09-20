@@ -29,3 +29,11 @@ int lndb(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int>::softlinkDb(par.db1.c_str(), par.db2.c_str());
     return EXIT_SUCCESS;
 }
+
+int aliasdb(int argc, const char **argv, const Command &command) {
+    Parameters &par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, true, 0, 0);
+    std::string alias = FileUtil::baseName(par.db2.c_str());
+    DBReader<unsigned int>::aliasDb(par.db1.c_str(), alias);
+    return EXIT_SUCCESS;
+}
