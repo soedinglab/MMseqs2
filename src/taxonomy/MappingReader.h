@@ -47,8 +47,8 @@ public:
             prevId = id;
         }
         file->close();
-        file = NULL;
         delete file;
+        file = NULL;
         if (mapping.size() == 0) {
             Debug(Debug::ERROR) << db << "_mapping is empty. Rerun createtaxdb to recreate taxonomy mapping.\n";
             EXIT(EXIT_FAILURE);
