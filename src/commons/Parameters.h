@@ -1118,12 +1118,14 @@ public:
     static std::vector<std::string> findMissingTaxDbFiles(const std::string &filename);
     static void printTaxDbError(const std::string &filename, const std::vector<std::string>& missingFiles);
 
+    static const uint32_t DBTYPE_MASK = 0x0000FFFF;
+
     static bool isEqualDbtype(const int type1, const int type2) {
-        return ((type1 & 0x0000FFFF) == (type2 & 0x0000FFFF));
+        return ((type1 & DBTYPE_MASK) == (type2 & DBTYPE_MASK));
     }
 
     static const char* getDbTypeName(int dbtype) {
-        switch (dbtype & 0x0000FFFF) {
+        switch (dbtype & DBTYPE_MASK) {
             case DBTYPE_AMINO_ACIDS: return "Aminoacid";
             case DBTYPE_NUCLEOTIDES: return "Nucleotide";
             case DBTYPE_HMM_PROFILE: return "Profile";
