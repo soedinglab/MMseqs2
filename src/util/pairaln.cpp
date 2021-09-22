@@ -47,7 +47,7 @@ int pairaln(int argc, const char **argv, const Command& command) {
     localThreads = std::max(std::min((size_t)par.threads, alnDbr.getSize()), (size_t)1);
 #endif
 
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), localThreads,  par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), localThreads,  par.compressed, alnDbr.getDbtype());
     resultWriter.open();
 
     Debug::Progress progress(alnDbr.getSize());
@@ -101,6 +101,7 @@ int pairaln(int argc, const char **argv, const Command& command) {
             }
             resultWriter.writeData(outputA.c_str(), outputA.length(), alnDbr.getDbKey(i), thread_idx);
             resultWriter.writeData(outputB.c_str(), outputB.length(), alnDbr.getDbKey(i+1), thread_idx);
+            findPair.clear();
         }
     }
 
