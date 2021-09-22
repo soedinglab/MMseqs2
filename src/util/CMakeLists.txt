@@ -37,6 +37,7 @@ set(util_source_files
         util/msa2result.cpp
         util/nrtotaxmapping.cpp
         util/countkmer.cpp
+        util/pairaln.cpp
         util/prefixid.cpp
         util/profile2pssm.cpp
         util/profile2seq.cpp
