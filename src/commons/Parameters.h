@@ -1101,6 +1101,7 @@ public:
     std::vector<MMseqsParameter*> multihitsearch;
     std::vector<MMseqsParameter*> expandaln;
     std::vector<MMseqsParameter*> expand2profile;
+    std::vector<MMseqsParameter*> pairaln;
     std::vector<MMseqsParameter*> sortresult;
     std::vector<MMseqsParameter*> enrichworkflow;
     std::vector<MMseqsParameter*> databases;

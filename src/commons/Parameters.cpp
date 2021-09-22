@@ -1132,6 +1132,11 @@ Parameters::Parameters():
     expand2profile.push_back(&PARAM_THREADS);
     expand2profile.push_back(&PARAM_V);
 
+    pairaln.push_back(&PARAM_PRELOAD_MODE);
+    pairaln.push_back(&PARAM_COMPRESSED);
+    pairaln.push_back(&PARAM_THREADS);
+    pairaln.push_back(&PARAM_V);
+
     sortresult.push_back(&PARAM_COMPRESSED);
     sortresult.push_back(&PARAM_THREADS);
     sortresult.push_back(&PARAM_V);
