@@ -1001,14 +1001,14 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile
             }
         } else if(isProfile && hasContextPseudoCnts == false) {
             if (kmerSize == 5) {
-                float base = 117.35;
-                kmerThrBest = base - (sensitivity * 5.85);
+                float base = 108.8;
+                kmerThrBest = base - (sensitivity * 4.7);
             } else if (kmerSize == 6) {
-                float base = 135.75;
-                kmerThrBest = base - (sensitivity * 6.75);
+                float base = 134.35;
+                kmerThrBest = base - (sensitivity * 6.15);
             } else if (kmerSize == 7) {
-                float base = 152.5;
-                kmerThrBest = base - (sensitivity * 8);
+                float base = 149.15;
+                kmerThrBest = base - (sensitivity * 6.85);
             } else {
                 Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
                 EXIT(EXIT_FAILURE);
