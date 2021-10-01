@@ -1,4 +1,5 @@
 #include "Command.h"
+#include "DownloadDatabase.h"
 
 const char* binary_name = "mmseqs";
 const char* tool_name = "MMseqs2";
@@ -9,3 +10,6 @@ const char* show_bash_info = "1";
 bool hide_base_commands = false;
 void (*validatorUpdate)(void) = 0;
 std::vector<Command> commands = {};
+std::vector<DatabaseDownload> externalDownloads = {};
+
+bool hide_base_downloads = false;
