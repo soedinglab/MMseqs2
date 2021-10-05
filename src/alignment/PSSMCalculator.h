@@ -65,7 +65,7 @@ private:
     BaseMatrix* subMat;
 
     // cs profiles
-    CSProfile ps;
+    CSProfile * ps;
 
     // contains sequence weights (global)
     float * seqWeight;

@@ -13,8 +13,11 @@
 
 PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, int pcmode,
                                MultiParam<PseudoCounts> pca, MultiParam<PseudoCounts> pcb, int gapOpen, int gapPseudoCount)
-    : subMat(subMat), ps(maxSeqLength + 1), maxSeqLength(maxSeqLength), gapOpen(gapOpen), gapPseudoCount(gapPseudoCount), pca(pca), pcb(pcb) {
+    : subMat(subMat),  ps(NULL), maxSeqLength(maxSeqLength), gapOpen(gapOpen), gapPseudoCount(gapPseudoCount), pca(pca), pcb(pcb) {
 
+    if(gapPseudoCount == Parameters::PCMODE_CONTEXT_SPECIFIC){
+        ps = new CSProfile(maxSeqLength + 1);
+    }
     this->maxSeqLength = maxSeqLength;
     this->maxSetSize = maxSetSize;
     this->profile            = new float[(maxSeqLength + 1) * Sequence::PROFILE_AA_SIZE];
@@ -51,6 +54,9 @@ PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, 
 }
 
 PSSMCalculator::~PSSMCalculator() {
+    if(ps != NULL){
+        delete ps;
+    }
     delete[] profile;
     delete[] Neff_M;
     free(seqWeight);
@@ -150,7 +156,7 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize, size_
         computePseudoCounts(profile, matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, Neff_M, queryLength, pca.values.normal(), pcb.values.normal());
     }else if (pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC && pca.values.cs() > 0.0){
         fillCounteProfile(counts, matchWeight, Neff_M, queryLength);
-        float * csprofile = ps.computeProfileCs(static_cast<int>(queryLength), counts, Neff_M, pca.values.cs(), pcb.values.cs());
+        float * csprofile = ps->computeProfileCs(static_cast<int>(queryLength), counts, Neff_M, pca.values.cs(), pcb.values.cs());
         for (size_t pos = 0; pos < queryLength; pos++) {
             for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
                 this->profile[pos * Sequence::PROFILE_AA_SIZE + aa] = csprofile[(pos * (Sequence::PROFILE_AA_SIZE + 4)) + aa];
