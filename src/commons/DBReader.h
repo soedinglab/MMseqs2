@@ -184,7 +184,11 @@ public:
 
     size_t getSize() const;
 
-    unsigned int getMaxSeqLen(){return maxSeqLen;}
+    unsigned int getMaxSeqLen(){ 
+            return (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE ) ) ?
+                    (std::max(maxSeqLen, 1u) - 1u) / Sequence::PROFILE_READIN_SIZE :
+                    (std::max(maxSeqLen, 2u) - 2u);
+    }
 
     T getDbKey(size_t id);
 
