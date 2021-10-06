@@ -825,9 +825,7 @@ bool DBReader<T>::readIndex(char *data, size_t indexDataSize, Index *index, size
         }
     }
     dataSize = localDataSize;
-    maxSeqLen = (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE ) ) ?
-            (std::max(localMaxSeqLen, 1u) - 1u) / Sequence::PROFILE_READIN_SIZE :
-             (std::max(localMaxSeqLen, 2u) - 2u);
+    maxSeqLen = localDataSize;
     lastKey = localLastKey;
     return isSortedById;
 }
