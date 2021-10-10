@@ -66,24 +66,24 @@ INPUT_TYPE=""
 case "${SELECTION}" in
     "UniRef100")
         if notExists "${TMP_PATH}/uniref100.fasta.gz"; then
-            downloadFile "ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref100/uniref100.release_note" "${TMP_PATH}/version"
-            downloadFile "ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref100/uniref100.fasta.gz" "${TMP_PATH}/uniref100.fasta.gz"
+            downloadFile "https://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref100/uniref100.release_note" "${TMP_PATH}/version"
+            downloadFile "https://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref100/uniref100.fasta.gz" "${TMP_PATH}/uniref100.fasta.gz"
         fi
         push_back "${TMP_PATH}/uniref100.fasta.gz"
         INPUT_TYPE="FASTA_LIST"
     ;;
     "UniRef90")
         if notExists "${TMP_PATH}/uniref90.fasta.gz"; then
-            downloadFile "ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref90/uniref90.release_note" "${TMP_PATH}/version"
-            downloadFile "ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz" "${TMP_PATH}/uniref90.fasta.gz"
+            downloadFile "https://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref90/uniref90.release_note" "${TMP_PATH}/version"
+            downloadFile "https://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz" "${TMP_PATH}/uniref90.fasta.gz"
         fi
         push_back "${TMP_PATH}/uniref90.fasta.gz"
         INPUT_TYPE="FASTA_LIST"
     ;;
     "UniRef50")
         if notExists "${TMP_PATH}/uniref50.fasta.gz"; then
-            downloadFile "ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref50/uniref50.release_note" "${TMP_PATH}/version"
-            downloadFile "ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref50/uniref50.fasta.gz" "${TMP_PATH}/uniref50.fasta.gz"
+            downloadFile "https://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref50/uniref50.release_note" "${TMP_PATH}/version"
+            downloadFile "https://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref50/uniref50.fasta.gz" "${TMP_PATH}/uniref50.fasta.gz"
         fi
         push_back "${TMP_PATH}/uniref50.fasta.gz"
         INPUT_TYPE="FASTA_LIST"
