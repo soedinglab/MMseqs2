@@ -15,7 +15,7 @@ PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, 
                                MultiParam<PseudoCounts> pca, MultiParam<PseudoCounts> pcb, int gapOpen, int gapPseudoCount)
     : subMat(subMat),  ps(NULL), maxSeqLength(maxSeqLength), gapOpen(gapOpen), gapPseudoCount(gapPseudoCount), pca(pca), pcb(pcb) {
 
-    if(gapPseudoCount == Parameters::PCMODE_CONTEXT_SPECIFIC){
+    if (pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
         ps = new CSProfile(maxSeqLength + 1);
     }
     this->maxSeqLength = maxSeqLength;
