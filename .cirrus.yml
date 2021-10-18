@@ -16,6 +16,7 @@ task:
   name: "Old compilers"
   container:
     image: debian:jessie-slim
+    cpu: 4
     memory: 8G
   matrix:
     - name: Clang-4
