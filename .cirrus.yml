@@ -33,5 +33,5 @@ task:
     mkdir build && cd build
     cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_SSE4_1=1 -DREQUIRE_OPENMP=0 ..
     make -j $(nproc --all)
-  test_script: ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH SEARCH
+  test_script: MMSEQS_NUM_THREADS=4 ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH SEARCH
 
