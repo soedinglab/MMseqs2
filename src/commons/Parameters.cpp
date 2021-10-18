@@ -46,7 +46,7 @@ Parameters::Parameters():
         PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID, "--mask", "Mask residues", "Mask sequences in k-mer stage: 0: w/o low complexity masking, 1: with low complexity masking", typeid(int), (void *) &maskMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_LOWER_CASE(PARAM_MASK_LOWER_CASE_ID, "--mask-lower-case", "Mask lower case residues", "Lowercase letters will be excluded from k-mer search 0: include region, 1: exclude region", typeid(int), (void *) &maskLowerCaseMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID, "--min-ungapped-score", "Minimum diagonal score", "Accept only matches with ungapped alignment score above threshold", typeid(int), (void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_K_SCORE(PARAM_K_SCORE_ID, "--k-score", "k-score", "k-mer threshold for generating similar k-mer lists", typeid(int), (void *) &kmerScore, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_K_SCORE(PARAM_K_SCORE_ID, "--k-score", "k-score", "k-mer threshold for generating similar k-mer lists", typeid(MultiParam<SeqProf<int>>), (void *) &kmerScore, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID, "--max-seqs", "Max results per query", "Maximum results per query sequence allowed to pass the prefilter (affects sensitivity)", typeid(size_t), (void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_SPLIT(PARAM_SPLIT_ID, "--split", "Split database", "Split input into N equally distributed chunks. 0: set the best split automatically", typeid(int), (void *) &split, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID, "--split-mode", "Split mode", "0: split target db; 1: split query db; 2: auto, depending on main memory", typeid(int), (void *) &splitMode, "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
@@ -1408,6 +1408,9 @@ void Parameters::printUsageMessage(const Command& command, const unsigned int ou
                     } else if (par->type == typeid(MultiParam<NuclAA<float>>)) {
                         paramString.append(" TWIN"); //nucl:VAL,aa:VAL"
                         valueString = MultiParam<NuclAA<float>>::format(*((MultiParam<NuclAA<float>> *) par->value));
+                    } else if (par->type == typeid(MultiParam<SeqProf<int>>)) {
+                        paramString.append(" TWIN"); //seq:VAL,prof:VAL"
+                        valueString = MultiParam<SeqProf<int>>::format(*((MultiParam<SeqProf<int>> *) par->value));
                     }
 
                     ss << " " << paramString << std::string(maxParamWidth < paramString.size()? 1 : maxParamWidth - paramString.size(), ' ');
@@ -1638,6 +1641,11 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                             *((MultiParam<NuclAA<float>> *) par[parIdx]->value) = value;
                             par[parIdx]->wasSet = true;
                         }
+                        argIdx++;
+                    }else if (typeid(MultiParam<SeqProf<int>>) == par[parIdx]->type) {
+                        SeqProf<int> value = MultiParam<SeqProf<int>>(pargv[argIdx+1]).values;
+                        *((MultiParam<SeqProf<int>> *) par[parIdx]->value) = value;
+                        par[parIdx]->wasSet = true;
                         argIdx++;
                     }else if (typeid(MultiParam<PseudoCounts>) == par[parIdx]->type) {
                         PseudoCounts value = MultiParam<PseudoCounts>(pargv[argIdx + 1]).values;
@@ -2088,6 +2096,8 @@ void Parameters::printParameters(const std::string &module, int argc, const char
             ss << MultiParam<NuclAA<int>>::format(*((MultiParam<NuclAA<int>> *)par[i]->value));
         } else if(typeid(MultiParam<NuclAA<float>>) == par[i]->type) {
             ss << MultiParam<NuclAA<float>>::format(*((MultiParam<NuclAA<float>> *)par[i]->value));
+        } else if(typeid(MultiParam<SeqProf<int>>) == par[i]->type) {
+            ss << MultiParam<SeqProf<int>>::format(*((MultiParam<SeqProf<int>> *)par[i]->value));
         } else if(typeid(MultiParam<PseudoCounts>) == par[i]->type) {
             ss << MultiParam<PseudoCounts>::format(*((MultiParam<PseudoCounts> *)par[i]->value));
         } else if(typeid(float) == par[i]->type) {
@@ -2115,7 +2125,7 @@ void Parameters::setDefaults() {
     seedScoringMatrixFile = MultiParam<NuclAA<std::string>>(NuclAA<std::string>("VTML80.out", "nucleotide.out"));
 
     kmerSize =  0;
-    kmerScore = INT_MAX;
+    kmerScore.values = INT_MAX;
     alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(21,5));
     maxSeqLen = MAX_SEQ_LEN; // 2^16
     maxResListLen = 300;
@@ -2595,6 +2605,9 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
         } else if (typeid(MultiParam<NuclAA<float>>) == par[i]->type) {
             ss << par[i]->name << " ";
             ss << MultiParam<NuclAA<float>>::format(*((MultiParam<NuclAA<float>> *) par[i]->value)) << " ";
+        } else if (typeid(MultiParam<SeqProf<int>>) == par[i]->type) {
+            ss << par[i]->name << " ";
+            ss << MultiParam<SeqProf<int>>::format(*((MultiParam<SeqProf<int>> *) par[i]->value)) << " ";
         } else if (typeid(MultiParam<PseudoCounts>) == par[i]->type) {
             ss << par[i]->name << " ";
             ss << MultiParam<PseudoCounts>::format(*((MultiParam<PseudoCounts> *) par[i]->value)) << " ";

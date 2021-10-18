@@ -79,6 +79,70 @@ public:
     }
 };
 
+template<class T>
+class SeqProf {
+public:
+    static const std::string constFirst;
+    static const std::string constSecond;
+    static const std::string parseStr;
+    T first;
+    T second;
+
+    SeqProf<T>(const SeqProf<T> &value) {
+        this->first = value.first;
+        this->second = value.second;
+    }
+
+    static const T max;
+
+    SeqProf<T>() {}
+
+    SeqProf<T>(T first) {
+        this->first = first;
+        this->second = first;
+    }
+
+    SeqProf<T>(T first, T second) {
+        this->first = first;
+        this->second = second;
+    }
+
+    SeqProf<T> &operator=(SeqProf<T> value) {
+        this->first = value.first;
+        this->second = value.second;
+        return *this;
+    }
+
+    SeqProf<T> &operator=(T value) {
+        this->first = value;
+        this->second = value;
+        return *this;
+    }
+
+    T sequence() const {
+        return first;
+    }
+
+    void sequence(T val) {
+        first = val;
+    }
+
+    T profile() const {
+        return second;
+    }
+
+    void profile(T val) {
+        second = val;
+    }
+
+    bool operator==(const T &other) const {
+        return profile() == other || sequence() == other;
+    }
+
+    bool operator!=(const T &other) const {
+        return !(operator==(other));
+    }
+};
 
 class PseudoCounts {
 public:

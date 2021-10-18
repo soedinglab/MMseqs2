@@ -41,7 +41,6 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         seedScoringMatrixFile(par.seedScoringMatrixFile),
         targetSeqType(targetSeqType),
         maxResListLen(par.maxResListLen),
-        kmerScore(par.kmerScore),
         sensitivity(par.sensitivity),
         maxSeqLen(par.maxSeqLen),
         querySeqType(querySeqType),
@@ -194,7 +193,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         const bool queryCPC = DBReader<unsigned int>::getExtendedDbtype(querySeqType) & Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS;
         const bool targetCPC = DBReader<unsigned int>::getExtendedDbtype(targetSeqType) & Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS;
         const bool contextPseudoCnts = queryCPC || targetCPC;
-        kmerThr = getKmerThreshold(sensitivity, isProfileSearch, contextPseudoCnts, kmerScore, kmerSize);
+        kmerThr = getKmerThreshold(sensitivity, isProfileSearch, contextPseudoCnts, par.kmerScore.values, kmerSize);
     }else {
         kmerThr = 0;
     }
@@ -981,11 +980,16 @@ void Prefiltering::mergePrefilterSplits(const std::string &outDB, const std::str
     }
 }
 
-int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile, const bool hasContextPseudoCnts,
-                                   const int kmerScore, const int kmerSize) {
-    double kmerThrBest = kmerScore;
-    if (kmerScore == INT_MAX) {
-        if(isProfile && hasContextPseudoCnts == true){
+int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile, const bool hasContextPseudoCnts, const SeqProf<int> kmerScore, const int kmerSize) {
+    if (isProfile == true && kmerScore.profile() != INT_MAX) {
+        return kmerScore.profile();
+    }
+    if (isProfile == false && kmerScore.sequence() != INT_MAX) {
+        return kmerScore.sequence();
+    }
+    float kmerThrBest = FLT_MAX;
+    if (isProfile == true) {
+        if (hasContextPseudoCnts == true) {
             if (kmerSize == 5) {
                 float base = 97.75;
                 kmerThrBest = base - (sensitivity * 8.75);
@@ -999,7 +1003,7 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile
                 Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
                 EXIT(EXIT_FAILURE);
             }
-        } else if(isProfile && hasContextPseudoCnts == false) {
+        } else {
             if (kmerSize == 5) {
                 float base = 108.8;
                 kmerThrBest = base - (sensitivity * 4.7);
@@ -1010,23 +1014,23 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile
                 float base = 149.15;
                 kmerThrBest = base - (sensitivity * 6.85);
             } else {
-                Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
+                Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid\n";
                 EXIT(EXIT_FAILURE);
             }
+        }
+    } else {
+        if (kmerSize == 5) {
+            float base = 160.75;
+            kmerThrBest = base - (sensitivity * 12.75);
+        } else if (kmerSize == 6) {
+            float base = 163.2;
+            kmerThrBest = base - (sensitivity * 8.917);
+        } else if (kmerSize == 7) {
+            float base = 186.15;
+            kmerThrBest = base - (sensitivity * 11.22);
         } else {
-            if (kmerSize == 5) {
-                float base = 160.75;
-                kmerThrBest = base - (sensitivity * 12.75);
-            } else if (kmerSize == 6) {
-                float base = 163.2;
-                kmerThrBest = base - (sensitivity * 8.917);
-            } else if (kmerSize == 7) {
-                float base = 186.15;
-                kmerThrBest = base - (sensitivity * 11.22);
-            } else {
-                Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
-                EXIT(EXIT_FAILURE);
-            }
+            Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid\n";
+            EXIT(EXIT_FAILURE);
         }
     }
     return static_cast<int>(kmerThrBest);

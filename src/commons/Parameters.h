@@ -372,8 +372,8 @@ public:
     // PREFILTER
     float  sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
-    int    kmerScore;                    // kmer score for the prefilter
-    MultiParam<NuclAA<int>> alphabetSize;                 // alphabet size for the prefilter
+    MultiParam<SeqProf<int>> kmerScore;   // kmer score for the prefilter
+    MultiParam<NuclAA<int>> alphabetSize; // alphabet size for the prefilter
     int    compBiasCorrection;           // Aminoacid composiont correction
     bool   diagonalScoring;              // switch diagonal scoring
     int    exactKmerMatching;            // only exact k-mer matching

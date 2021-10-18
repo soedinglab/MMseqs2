@@ -27,8 +27,13 @@ std::string findIncompatibleParameter(DBReader<unsigned int>& index, const Param
         return "kmerSize";
     if (meta.mask != par.maskMode)
         return "maskMode";
-    if (meta.kmerThr != par.kmerScore)
-        return "kmerScore";
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE)) {
+        if (meta.kmerThr != par.kmerScore.values.profile())
+            return "kmerScore";
+    } else {
+        if (meta.kmerThr != par.kmerScore.values.sequence())
+            return "kmerScore";
+    }
     if (meta.spacedKmer != par.spacedKmer)
         return "spacedKmer";
     if (BaseMatrix::unserializeName(par.seedScoringMatrixFile.values.aminoacid().c_str()) != PrefilteringIndexReader::getSubstitutionMatrixName(&index) &&
@@ -84,7 +89,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
 
     const bool isProfileSearch = (Parameters::isEqualDbtype(dbr.getDbtype(), Parameters::DBTYPE_HMM_PROFILE));
     if (isProfileSearch && kScoreSet == false) {
-        par.kmerScore = 0;
+        par.kmerScore.values = 0;
     }
 
     const bool contextPseudoCnts = DBReader<unsigned int>::getExtendedDbtype(dbr.getDbtype()) & Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS;
@@ -95,7 +100,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     }
 
     // query seq type is actually unknown here, but if we pass DBTYPE_HMM_PROFILE then its +20 k-score
-    par.kmerScore = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, contextPseudoCnts, par.kmerScore, par.kmerSize);
+    int kmerScore = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, contextPseudoCnts, par.kmerScore.values, par.kmerSize);
 
     const std::string& baseDB = ppDB ? par.db1 : par.db2;
     std::string indexDB = PrefilteringIndexReader::indexName(baseDB);
@@ -150,7 +155,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
         PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, &hdbr1, hdbr2, alndbr, seedSubMat, par.maxSeqLen,
                                                  par.spacedKmer, par.spacedKmerPattern, par.compBiasCorrection,
                                                  seedSubMat->alphabetSize, par.kmerSize, par.maskMode, par.maskLowerCaseMode,
-                                                 par.kmerScore, par.split);
+                                                 kmerScore, par.split);
 
         if (hdbr2 != NULL) {
             hdbr2->close();

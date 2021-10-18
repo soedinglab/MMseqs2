@@ -16,7 +16,7 @@ int createindex(Parameters &par, const Command &command, const std::string &inde
     // only set kmerScore  to INT_MAX if -s was used
     for (size_t i = 0; i < par.createindex.size(); i++) {
         if (par.createindex[i]->uniqid == par.PARAM_S.uniqid && par.createindex[i]->wasSet) {
-            par.kmerScore = INT_MAX;
+            par.kmerScore.values = INT_MAX;
             sensitivity=true;
             break;
         }
@@ -66,7 +66,7 @@ int createlinindex(int argc, const char **argv, const Command& command) {
     par.orfStartMode = 1;
     par.orfMinLength = 30;
     par.orfMaxLength = 32734;
-    par.kmerScore = 0; // extract all k-mers
+    par.kmerScore.values = 0; // extract all k-mers
     par.maskMode = 0;
     par.spacedKmer = false;
     // VTML has a slightly lower sensitivity in the regression test
@@ -109,7 +109,7 @@ int createindex(int argc, const char **argv, const Command& command) {
     par.orfStartMode = 1;
     par.orfMinLength = 30;
     par.orfMaxLength = 32734;
-    par.kmerScore = 0; // extract all k-mers
+    par.kmerScore.values = 0; // extract all k-mers
     par.sensitivity = 7.5;
     par.maskMode = 1;
 

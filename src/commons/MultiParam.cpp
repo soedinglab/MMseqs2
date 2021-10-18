@@ -52,6 +52,11 @@ template<> const std::string NuclAA<std::string>::constFirst = "aa";
 template<> const std::string NuclAA<std::string>::constSecond = "nucl";
 template class MultiParam<NuclAA<std::string>>;
 
+template<> const int SeqProf<int>::max(INT_MAX);
+template<> const std::string SeqProf<int>::constFirst = "seq";
+template<> const std::string SeqProf<int>::constSecond = "prof";
+template class MultiParam<SeqProf<int>>;
+
 const float PseudoCounts::max(FLT_MAX);
 const std::string PseudoCounts::constFirst = "substitution";
 const std::string PseudoCounts::constSecond = "context";
