@@ -35,7 +35,7 @@ void MultipleAlignment::print(MSAResult msaResult, SubstitutionMatrix * subMat){
     for(size_t i = 0; i < msaResult.setSize; i++) {
         for(size_t pos = 0; pos < msaResult.msaSequenceLength; pos++){
             char aa = msaResult.msaSequence[i][pos];
-            printf("%c", (aa < NAA) ? subMat->num2aa[(int)aa] : '-' );
+            printf("%c", (aa < GAP) ? subMat->num2aa[(int)aa] : '-' );
         }
         printf("\n");
     }

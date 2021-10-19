@@ -324,7 +324,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     // need to allow insertion in the centerSequence
                     for (size_t pos = 0; pos < res.centerLength; pos++) {
                         char aa = res.msaSequence[i][pos];
-                        result.append(1, ((aa < MultipleAlignment::NAA) ? subMat.num2aa[(int) aa] : '-'));
+                        result.append(1, ((aa < MultipleAlignment::GAP) ? subMat.num2aa[(int) aa] : '-'));
                     }
                     result.append(1, '\n');
                 }
@@ -362,7 +362,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     // need to allow insertion in the centerSequence
                     for (size_t pos = 0; pos < res.centerLength; pos++) {
                         char aa = res.msaSequence[i][pos];
-                        result.append(1, ((aa < MultipleAlignment::NAA) ? subMat.num2aa[(int) aa] : '-'));
+                        result.append(1, ((aa < MultipleAlignment::GAP) ? subMat.num2aa[(int) aa] : '-'));
                     }
                     result.append(1, '\n');
                 }
@@ -399,7 +399,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     if(i == 0){
                         for (size_t pos = 0; pos < res.centerLength; pos++) {
                             char aa = res.msaSequence[i][pos];
-                            result.append(1, ((aa < MultipleAlignment::NAA) ? subMat.num2aa[(int) aa] : '-'));
+                            result.append(1, ((aa < MultipleAlignment::GAP) ? subMat.num2aa[(int) aa] : '-'));
                         }
                         result.append(1, '\n');
                     }else{
