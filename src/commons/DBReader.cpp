@@ -825,7 +825,7 @@ bool DBReader<T>::readIndex(char *data, size_t indexDataSize, Index *index, size
         }
     }
     dataSize = localDataSize;
-    maxSeqLen = localDataSize;
+    maxSeqLen = localMaxSeqLen;
     lastKey = localLastKey;
     return isSortedById;
 }
