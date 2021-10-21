@@ -59,7 +59,7 @@ public:
     template <typename T>
     static void writeIndexEntryToFile(FILE *outFile, char *buff1, T &index);
 
-    static void createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& origData, const std::string& origIndex, int sortMode = DBReader<unsigned int>::SORT_BY_ID_OFFSET);
+    static void createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& origData, const std::string& origIndex, bool keepEntryName = false, int sortMode = DBReader<unsigned int>::SORT_BY_ID_OFFSET);
 
     bool isClosed(){
         return closed;
