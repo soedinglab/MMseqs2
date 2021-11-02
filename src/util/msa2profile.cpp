@@ -283,7 +283,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 }
 
                 // construct backtrace for all but the query sequence
-                if (setSize > 0) {
+                if (false && setSize > 0) {
                     backtrace.clear();
                     for (size_t i = 0; i < centerLengthWithGaps; ++i) {
                         bool isMaskedColumn = (maskByFirst && maskedColumns[i]);
@@ -369,7 +369,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                     }
                 }
 
-                // update backtraces
+                /* update backtraces
                 // TODO: check if this works for a3m as well (probably not...)
                 for (unsigned int k = 0; k < setSize - 1; ++k) {
                     std::string::iterator readIt = alnResults[k].backtrace.begin();
@@ -388,7 +388,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                         }
                     }
                     alnResults[k].backtrace.erase(writeIt, alnResults[k].backtrace.end());
-                }
+                } */
             }
             unsigned int centerLength = centerLengthWithGaps - maskedCount;
 
