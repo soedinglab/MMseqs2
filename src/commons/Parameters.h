@@ -129,6 +129,7 @@ public:
     static const int FORMAT_ALIGNMENT_SAM = 1;
     static const int FORMAT_ALIGNMENT_BLAST_WITH_LEN = 2;
     static const int FORMAT_ALIGNMENT_HTML = 3;
+    static const int FORMAT_ALIGNMENT_BLAST_TAB_WITH_HEADERS = 4;
 
     // result2msa
     static const int FORMAT_MSA_CA3M = 0;

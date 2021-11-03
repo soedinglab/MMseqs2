@@ -145,7 +145,12 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, true, 0, 0);
 
     const bool sameDB = par.db1.compare(par.db2) == 0 ? true : false;
-    const int format = par.formatAlignmentMode;
+    int format = par.formatAlignmentMode;
+    bool addColumnHeaders = false;
+    if (format == Parameters::FORMAT_ALIGNMENT_BLAST_TAB_WITH_HEADERS) {
+        format = Parameters::FORMAT_ALIGNMENT_BLAST_TAB;
+        addColumnHeaders = true;
+    }
     const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
 
     bool needSequenceDB = false;
@@ -304,6 +309,15 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         const char* scriptBlock = "<script>render([";
         resultWriter.writeData(scriptBlock, strlen(scriptBlock), 0, 0, false, false);
         free(dst);
+    } else if (addColumnHeaders == true && outcodes.empty() == false) {
+        std::vector<std::string> outfmt = Util::split(par.outfmt, ",");
+        std::string header(outfmt[0]);
+        for(size_t i = 1; i < outfmt.size(); i++) {
+            header.append(1, '\t');
+            header.append(outfmt[i]);
+        }
+        header.append(1, '\n');
+        resultWriter.writeData(header.c_str(), header.length(), 0, 0, false, false);
     }
 
     Debug::Progress progress(alnDbr.getSize());
