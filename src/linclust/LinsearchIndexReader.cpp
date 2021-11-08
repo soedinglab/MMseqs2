@@ -280,6 +280,11 @@ std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned in
 std::string LinsearchIndexReader::searchForIndex(const std::string& dbName) {
     std::string outIndexName = dbName + ".linidx";
     if (FileUtil::fileExists((outIndexName + ".dbtype").c_str()) == true) {
+        const bool ignore = getenv("MMSEQS_IGNORE_INDEX") != NULL;
+        if (ignore) {
+            Debug(Debug::WARNING) << "Ignoring precomputed index, since environment variable MMSEQS_IGNORE_INDEX is set\n";
+            return "";
+        }
         return outIndexName;
     }
     return "";

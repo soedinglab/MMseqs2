@@ -564,6 +564,11 @@ ScoreMatrix PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *
 std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB) {
     std::string outIndexName = pathToDB + ".idx";
     if (FileUtil::fileExists((outIndexName + ".dbtype").c_str()) == true) {
+        const bool ignore = getenv("MMSEQS_IGNORE_INDEX") != NULL;
+        if (ignore) {
+            Debug(Debug::WARNING) << "Ignoring precomputed index, since environment variable MMSEQS_IGNORE_INDEX is set\n";
+            return "";
+        }
         return outIndexName;
     }
     return "";
