@@ -44,34 +44,29 @@ int pairaln(int argc, const char **argv, const Command& command) {
         std::string output;
         output.reserve(100000);
 
-        unsigned int referenceDbKey = 0;
-        size_t id = alnDbr.getId(referenceDbKey);
-        if (id == UINT_MAX) {
-            break;
-        }
-        char* data = alnDbr.getData(id, thread_idx);
-        Matcher::readAlignmentResults(result, data, true);
-        for (size_t resIdx = 0; resIdx < result.size(); ++resIdx) {
-            unsigned int taxon = mapping->lookup(result[resIdx].dbKey);
-            if (findPair.find(taxon) == findPair.end()) {
-                findPair.emplace(taxon, 1);
-            }
-        }
-
         // find intersection between all proteins
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
-            unsigned int dbKey = alnDbr.getDbKey(i);
-            if (dbKey == referenceDbKey) {
-                continue;
-            }
             result.clear();
             Matcher::readAlignmentResults(result, alnDbr.getData(i, thread_idx), true);
+            for (size_t resIdx = 0; resIdx < result.size(); ++resIdx) {
+                unsigned int taxon = mapping->lookup(result[resIdx].dbKey);
+                // we don't want to introduce a new field, reuse existing unused field here
+                result[resIdx].dbOrfStartPos = taxon;
+            }
+            std::stable_sort(result.begin(), result.end(), compareByTaxId);
+            unsigned int prevTaxon = UINT_MAX;
             // find pairs
             for (size_t resIdx = 0; resIdx < result.size(); ++resIdx) {
                 unsigned int taxon = mapping->lookup(result[resIdx].dbKey);
+                if (taxon == prevTaxon){
+                    continue;
+                }
                 if (findPair.find(taxon) != findPair.end()) {
                     findPair[taxon]++;
+                }else{
+                    findPair.emplace(taxon, 1);
                 }
+                prevTaxon = taxon;
             }
         }
 
