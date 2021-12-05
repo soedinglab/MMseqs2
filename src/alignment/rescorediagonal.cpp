@@ -383,11 +383,6 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    if (par.wrappedScoring && par.rescoreMode != Parameters::RESCORE_MODE_HAMMING) {
-        Debug(Debug::ERROR) << "ERROR: wrapped scoring is only allowed with RESCORE_MODE_HAMMING\n";
-        return EXIT_FAILURE;
-    }
-
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     int dbtype = resultReader.getDbtype(); // this is DBTYPE_PREFILTER_RES || DBTYPE_PREFILTER_REV_RES
