@@ -36,6 +36,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         spacedKmer(par.spacedKmer != 0),
         maskMode(par.maskMode),
         maskLowerCaseMode(par.maskLowerCaseMode),
+        maskProb(par.maskProb),
         splitMode(par.splitMode),
         scoringMatrixFile(par.scoringMatrixFile),
         seedScoringMatrixFile(par.seedScoringMatrixFile),
@@ -517,7 +518,7 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
         SequenceLookup **unmaskedLookup = maskMode == 0 ? &sequenceLookup : NULL;
 
         Debug(Debug::INFO) << "Index table k-mer threshold: " << localKmerThr << " at k-mer size " << kmerSize << " \n";
-        IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *kmerSubMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr, maskMode, maskLowerCaseMode);
+        IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *kmerSubMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr, maskMode, maskLowerCaseMode, maskProb);
 
         // sequenceLookup has to be temporarily present to speed up masking
         // afterwards its not needed anymore without diagonal scoring

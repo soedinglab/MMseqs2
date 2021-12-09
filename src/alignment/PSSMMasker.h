@@ -16,7 +16,7 @@ public:
         free(charSequence);
     }
 
-    void mask(Sequence& centerSequence, PSSMCalculator::Profile& pssmRes) {
+    void mask(Sequence& centerSequence, float maskProb, PSSMCalculator::Profile& pssmRes) {
         if ((size_t)centerSequence.L > maxSeqLen) {
             maxSeqLen = sizeof(char) * centerSequence.L * 1.5;
             charSequence = (char*)realloc(charSequence, maxSeqLen);
@@ -29,7 +29,7 @@ public:
                               0.05 /*options.repeatEndProb*/,
                               0.9 /*options.repeatOffsetProbDecay*/,
                               0, 0,
-                              0.9 /*options.minMaskProb*/,
+                              maskProb /*options.minMaskProb*/,
                               probMatrix.hardMaskTable);
 
         for (int pos = 0; pos < centerSequence.L; pos++) {

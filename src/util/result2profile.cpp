@@ -258,7 +258,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                 }
 
                 if (par.maskProfile == true) {
-                    masker.mask(centerSequence, pssmRes);
+                    masker.mask(centerSequence, par.maskProb, pssmRes);
                 }
                 pssmRes.toBuffer(centerSequence, subMat, result);
             }

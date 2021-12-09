@@ -53,7 +53,7 @@ KmerPosition<T> *initKmerPositionMemory(size_t size) {
     return hashSeqPair;
 }
 
-void maskSequence(int maskMode, int maskLowerCase, Sequence &seq, int maskLetter, ProbabilityMatrix * probMatrix){
+void maskSequence(int maskMode, int maskLowerCase, float maskProb, Sequence &seq, int maskLetter, ProbabilityMatrix * probMatrix){
     if (maskMode == 1) {
         tantan::maskSequences((char*)seq.numSequence,
                               (char*)(seq.numSequence + seq.L),
@@ -63,7 +63,7 @@ void maskSequence(int maskMode, int maskLowerCase, Sequence &seq, int maskLetter
                               0.05 /*options.repeatEndProb*/,
                               0.5 /*options.repeatOffsetProbDecay*/,
                               0, 0,
-                              0.9 /*options.minMaskProb*/, probMatrix->hardMaskTable);
+                              maskProb /*options.minMaskProb*/, probMatrix->hardMaskTable);
     }
     if(maskLowerCase == 1 && (Parameters::isEqualDbtype(seq.getSequenceType(), Parameters::DBTYPE_AMINO_ACIDS) ||
                                       Parameters::isEqualDbtype(seq.getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES))) {
@@ -137,7 +137,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                     seqHash = hashUInt64(seqHash, par.hashShift);
                 }
 
-                maskSequence(par.maskMode, par.maskLowerCaseMode, seq, subMat->aa2num[static_cast<int>('X')], probMatrix);
+                maskSequence(par.maskMode, par.maskLowerCaseMode, par.maskProb, seq, subMat->aa2num[static_cast<int>('X')], probMatrix);
 
                 size_t seqKmerCount = 0;
                 unsigned int seqId = seq.getDbKey();

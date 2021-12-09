@@ -62,7 +62,7 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
             // TODO: gDel, gIns left NULL
             PSSMCalculator::Profile pssmRes(pssm, profile, Neff_M, NULL, NULL, seq.numSequence);
             if (par.maskProfile == true) {
-                masker.mask(seq, pssmRes);
+                masker.mask(seq, par.maskProb, pssmRes);
             }
             pssmRes.toBuffer(seq, subMat, result);
 

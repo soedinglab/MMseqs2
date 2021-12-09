@@ -56,7 +56,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
                                               BaseMatrix *subMat, int maxSeqLen,
                                               bool hasSpacedKmer, const std::string &spacedKmerPattern,
                                               bool compBiasCorrection, int alphabetSize, int kmerSize,
-                                              int maskMode, int maskLowerCase, int kmerThr, int splits) {
+                                              int maskMode, int maskLowerCase, float maskProb, int kmerThr, int splits) {
 
     const int SPLIT_META = splits > 1 ? 0 : 0;
     const int SPLIT_SEQS = splits > 1 ? 1 : 0;
@@ -223,7 +223,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
         IndexBuilder::fillDatabase(&indexTable,
                                    (maskMode == 1 || maskLowerCase == 1) ? &sequenceLookup : NULL,
                                    (maskMode == 0 ) ? &sequenceLookup : NULL,
-                                   *subMat, &seq, dbr1, dbFrom, dbFrom + dbSize, kmerThr, maskMode, maskLowerCase);
+                                   *subMat, &seq, dbr1, dbFrom, dbFrom + dbSize, kmerThr, maskMode, maskLowerCase, maskProb);
         indexTable.printStatistics(subMat->num2aa);
 
         if (sequenceLookup == NULL) {

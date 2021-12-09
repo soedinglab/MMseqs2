@@ -77,6 +77,7 @@ private:
     bool templateDBIsIndex;
     int maskMode;
     int maskLowerCaseMode;
+    float maskProb;
     int splitMode;
     int kmerThr;
     MultiParam<NuclAA<std::string>> scoringMatrixFile;

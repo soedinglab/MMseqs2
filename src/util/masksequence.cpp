@@ -61,7 +61,7 @@ int masksequence(int argc, const char **argv, const Command& command) {
                                   0.05 /*options.repeatEndProb*/,
                                   0.9 /*options.repeatOffsetProbDecay*/,
                                   0, 0,
-                                  0.5 /*options.minMaskProb*/,
+                                  par.maskProb /*options.minMaskProb*/,
                                   probMatrix.hardMaskTable);
 
             for (unsigned int pos = 0; pos < seqLen; pos++) {

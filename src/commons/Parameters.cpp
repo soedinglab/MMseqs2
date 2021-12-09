@@ -44,6 +44,7 @@ Parameters::Parameters():
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID, "--diag-score", "Diagonal scoring", "Use ungapped diagonal scoring during prefilter", typeid(bool), (void *) &diagonalScoring, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_EXACT_KMER_MATCHING(PARAM_EXACT_KMER_MATCHING_ID, "--exact-kmer-matching", "Exact k-mer matching", "Extract only exact k-mers for matching (range 0-1)", typeid(int), (void *) &exactKmerMatching, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID, "--mask", "Mask residues", "Mask sequences in k-mer stage: 0: w/o low complexity masking, 1: with low complexity masking", typeid(int), (void *) &maskMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_MASK_PROBABILTY(PARAM_MASK_PROBABILTY_ID, "--mask-prob", "Mask residues probability", "Mask sequences is probablity is above threshold", typeid(float), (void *) &maskProb, "^0(\\.[0-9]+)?|^1(\\.0+)?$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_LOWER_CASE(PARAM_MASK_LOWER_CASE_ID, "--mask-lower-case", "Mask lower case residues", "Lowercase letters will be excluded from k-mer search 0: include region, 1: exclude region", typeid(int), (void *) &maskLowerCaseMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID, "--min-ungapped-score", "Minimum diagonal score", "Accept only matches with ungapped alignment score above threshold", typeid(int), (void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_K_SCORE(PARAM_K_SCORE_ID, "--k-score", "k-score", "k-mer threshold for generating similar k-mer lists", typeid(MultiParam<SeqProf<int>>), (void *) &kmerScore, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
@@ -391,6 +392,7 @@ Parameters::Parameters():
     prefilter.push_back(&PARAM_DIAGONAL_SCORING);
     prefilter.push_back(&PARAM_EXACT_KMER_MATCHING);
     prefilter.push_back(&PARAM_MASK_RESIDUES);
+    prefilter.push_back(&PARAM_MASK_PROBABILTY);
     prefilter.push_back(&PARAM_MASK_LOWER_CASE);
     prefilter.push_back(&PARAM_MIN_DIAG_SCORE);
     prefilter.push_back(&PARAM_INCLUDE_IDENTITY);
@@ -692,6 +694,7 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_MAX_SEQ_LEN);
     indexdb.push_back(&PARAM_MAX_SEQS);
     indexdb.push_back(&PARAM_MASK_RESIDUES);
+    indexdb.push_back(&PARAM_MASK_PROBABILTY);
     indexdb.push_back(&PARAM_MASK_LOWER_CASE);
     indexdb.push_back(&PARAM_SPACED_KMER_MODE);
     indexdb.push_back(&PARAM_SPACED_KMER_PATTERN);
@@ -717,6 +720,7 @@ Parameters::Parameters():
     kmerindexdb.push_back(&PARAM_ALPH_SIZE);
     kmerindexdb.push_back(&PARAM_MAX_SEQ_LEN);
     kmerindexdb.push_back(&PARAM_MASK_RESIDUES);
+    kmerindexdb.push_back(&PARAM_MASK_PROBABILTY);
     kmerindexdb.push_back(&PARAM_MASK_LOWER_CASE);
     kmerindexdb.push_back(&PARAM_CHECK_COMPATIBLE);
     kmerindexdb.push_back(&PARAM_SEARCH_TYPE);
@@ -874,6 +878,7 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_KMER_PER_SEQ_SCALE);
     kmermatcher.push_back(&PARAM_ADJUST_KMER_LEN);
     kmermatcher.push_back(&PARAM_MASK_RESIDUES);
+    kmermatcher.push_back(&PARAM_MASK_PROBABILTY);
     kmermatcher.push_back(&PARAM_MASK_LOWER_CASE);
     kmermatcher.push_back(&PARAM_COV_MODE);
     kmermatcher.push_back(&PARAM_K);
@@ -892,6 +897,7 @@ Parameters::Parameters():
     kmersearch.push_back(&PARAM_KMER_PER_SEQ);
     kmersearch.push_back(&PARAM_KMER_PER_SEQ_SCALE);
     kmersearch.push_back(&PARAM_MASK_RESIDUES);
+    kmersearch.push_back(&PARAM_MASK_PROBABILTY);
     kmersearch.push_back(&PARAM_MASK_LOWER_CASE);
     kmersearch.push_back(&PARAM_COV_MODE);
     kmersearch.push_back(&PARAM_C);
@@ -2172,6 +2178,7 @@ void Parameters::setDefaults() {
     diagonalScoring = true;
     exactKmerMatching = 0;
     maskMode = 1;
+    maskProb = 0.9;
     maskLowerCaseMode = 0;
     minDiagScoreThr = 15;
     spacedKmer = true;

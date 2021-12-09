@@ -155,7 +155,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
         PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, &hdbr1, hdbr2, alndbr, seedSubMat, par.maxSeqLen,
                                                  par.spacedKmer, par.spacedKmerPattern, par.compBiasCorrection,
                                                  seedSubMat->alphabetSize, par.kmerSize, par.maskMode, par.maskLowerCaseMode,
-                                                 kmerScore, par.split);
+                                                 par.maskProb, kmerScore, par.split);
 
         if (hdbr2 != NULL) {
             hdbr2->close();

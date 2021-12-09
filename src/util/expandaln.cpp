@@ -389,7 +389,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                                          : res.setSize;
                 PSSMCalculator::Profile pssmRes = calculator->computePSSMFromMSA(filteredSetSize, aSeq.L, (const char **) res.msaSequence, par.wg);
                 if (par.maskProfile == true) {
-                    masker->mask(aSeq, pssmRes);
+                    masker->mask(aSeq, par.maskProb, pssmRes);
                 }
                 pssmRes.toBuffer(aSeq, subMat, result);
                 writer.writeData(result.c_str(), result.length(), queryKey, thread_idx);
