@@ -1037,6 +1037,7 @@ public:
     std::vector<MMseqsParameter*> reverseseq;
     std::vector<MMseqsParameter*> splitdb;
     std::vector<MMseqsParameter*> splitsequence;
+    std::vector<MMseqsParameter*> masksequence;
     std::vector<MMseqsParameter*> indexdb;
     std::vector<MMseqsParameter*> kmerindexdb;
     std::vector<MMseqsParameter*> createindex;

@@ -680,6 +680,12 @@ Parameters::Parameters():
     splitsequence.push_back(&PARAM_COMPRESSED);
     splitsequence.push_back(&PARAM_V);
 
+    // mask sequence
+    masksequence.push_back(&PARAM_MASK_PROBABILTY);
+    masksequence.push_back(&PARAM_THREADS);
+    masksequence.push_back(&PARAM_COMPRESSED);
+    masksequence.push_back(&PARAM_V);
+    
     // splitdb
     splitdb.push_back(&PARAM_SPLIT);
     splitdb.push_back(&PARAM_SPLIT_AMINOACID);

@@ -900,7 +900,7 @@ std::vector<Command> baseCommands = {
                 "<i:sequenceDB> <o:sequenceDB>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                           {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::sequenceDb }}},
-        {"masksequence",        masksequence,          &par.threadsandcompression,COMMAND_SEQUENCE,
+        {"masksequence",        masksequence,          &par.masksequence,COMMAND_SEQUENCE,
                 "Soft mask sequence DB using tantan",
 //                "Low. complex regions are masked as lower case characters. The remaining regions are printed as upper case characters.",
                 NULL,
