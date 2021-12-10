@@ -26,7 +26,7 @@ int main (int, const char**) {
 
     Sequence *s = new Sequence(32000, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 6, true, false);
     IndexTable t(subMat.alphabetSize, 6, false);
-    IndexBuilder::fillDatabase(&t, NULL, NULL, subMat, s, &dbr, 0, dbr.getSize(), 0, 1, 1);
+    IndexBuilder::fillDatabase(&t, NULL, NULL, subMat, s, &dbr, 0, dbr.getSize(), 0, 1, 1,0.9);
     t.printStatistics(subMat.num2aa);
 
     delete s;
