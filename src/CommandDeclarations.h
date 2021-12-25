@@ -5,6 +5,7 @@
 extern int align(int argc, const char **argv, const Command& command);
 extern int alignall(int argc, const char **argv, const Command& command);
 extern int alignbykmer(int argc, const char **argv, const Command& command);
+extern int appenddbtoindex(int argc, const char **argv, const Command& command);
 extern int apply(int argc, const char **argv, const Command& command);
 extern int besthitperset(int argc, const char **argv, const Command &command);
 extern int transitivealign(int argc, const char **argv, const Command &command);

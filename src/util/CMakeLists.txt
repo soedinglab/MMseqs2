@@ -1,6 +1,7 @@
 set(util_source_files
         util/alignall.cpp
         util/alignbykmer.cpp
+        util/appenddbtoindex.cpp
         util/apply.cpp
         util/clusthash.cpp
         util/compress.cpp
