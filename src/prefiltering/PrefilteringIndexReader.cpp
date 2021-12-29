@@ -6,7 +6,8 @@
 #include "IndexBuilder.h"
 #include "Parameters.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION = "16";
+extern const char* index_version_compatible;
+const char*  PrefilteringIndexReader::CURRENT_VERSION = index_version_compatible;
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;

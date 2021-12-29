@@ -3,6 +3,8 @@
 #include "CommandDeclarations.h"
 #include "DownloadDatabase.h"
 
+const char* MMSEQS_CURRENT_INDEX_VERSION = "16";
+
 Parameters& par = Parameters::getInstance();
 std::vector<Command> baseCommands = {
         {"easy-search",          easysearch,           &par.easysearchworkflow,   COMMAND_EASY,
