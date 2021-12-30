@@ -74,7 +74,7 @@ public:
         }
 
         if (sequenceReader == NULL) {
-            if (databaseType & (HEADERS | SRC_HEADERS)) {
+            if ((databaseType & USER_SELECT) == false && databaseType & (HEADERS | SRC_HEADERS)) {
                 failSuffix = "_h";
             }
             sequenceReader = new DBReader<unsigned int>(
