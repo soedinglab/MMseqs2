@@ -83,19 +83,19 @@ int appenddbtoindex(int argc, const char **argv, const Command &command) {
         const unsigned int key = keys[i];
         const std::string& inDb = par.filenames[i];
         const std::string inIndexName = inDb + ".index";
-        size_t inSize = 0;
-        FILE* inIndexHandle = FileUtil::openFileOrDie(inIndexName.c_str(), "r", true);
-        size_t indexSize = 0;
-        while ((indexSize = fread(buffer, 1, 8192, inIndexHandle)) > 0) {
-            size_t written = fwrite(buffer, 1, indexSize, outDataHandle);
-            if (written != indexSize) {
-                Debug(Debug::ERROR) << "Cannot write to data file " << outDb << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-            inSize += indexSize;
+
+        DBReader<unsigned int> reader(inDb.c_str(), inIndexName.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
+        reader.open(DBReader<unsigned int>::HARDNOSORT);
+
+        char* data = DBReader<unsigned int>::serialize(reader);
+        size_t inSize = DBReader<unsigned int>::indexMemorySize(reader);
+        size_t written = fwrite(data, 1, inSize, outDataHandle);
+        free(data);
+        if (written != inSize) {
+            Debug(Debug::ERROR) << "Cannot write to data file " << outDb << "\n";
+            EXIT(EXIT_FAILURE);
         }
-        fclose(inIndexHandle);
-        size_t written = fwrite(&nullbyte, sizeof(char), 1, outDataHandle);
+        written = fwrite(&nullbyte, sizeof(char), 1, outDataHandle);
         if (written != 1) {
             Debug(Debug::ERROR) << "Cannot write to data file " << outDb << "\n";
             EXIT(EXIT_FAILURE);
@@ -109,8 +109,6 @@ int appenddbtoindex(int argc, const char **argv, const Command &command) {
         }
         offset += inSize;
 
-        DBReader<unsigned int> reader(inDb.c_str(), inIndexName.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-        reader.open(DBReader<unsigned int>::HARDNOSORT);
         inSize = reader.getTotalDataSize();
         for (size_t idx = 0; idx < reader.getDataFileCnt(); idx++) {
             char* data = reader.getDataForFile(idx);
