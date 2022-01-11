@@ -102,8 +102,9 @@ std::map<unsigned int, unsigned int> readKeyToSet(const std::string& file) {
 
     MemoryMapped lookup(file, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
     char* data = (char *) lookup.getData();
+    char* end = data + lookup.mappedSize();
     const char* entry[255];
-    while (*data != '\0') {
+    while (data < end && *data != '\0') {
         const size_t columns = Util::getWordsOfLine(data, entry, 255);
         if (columns < 3) {
             Debug(Debug::WARNING) << "Not enough columns in lookup file " << file << "\n";
@@ -125,8 +126,9 @@ std::map<unsigned int, std::string> readSetToSource(const std::string& file) {
 
     MemoryMapped source(file, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
     char* data = (char *) source.getData();
+    char* end = data + source.mappedSize();
     const char* entry[255];
-    while (*data != '\0') {
+    while (data < end && *data != '\0') {
         const size_t columns = Util::getWordsOfLine(data, entry, 255);
         if (columns < 2) {
             Debug(Debug::WARNING) << "Not enough columns in lookup file " << file << "\n";
