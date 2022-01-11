@@ -84,8 +84,9 @@ int gff2db(int argc, const char **argv, const Command &command) {
                 EXIT(EXIT_FAILURE);
             }
             char *data = (char *) file.getData();
+            char* end = data + file.mappedSize();
             size_t idx = 0;
-            while (*data != '\0') {
+            while (data < end && *data != '\0') {
                 // line is a comment or empty
                 if (*data == '#' || *data == '\n') {
                     data = Util::skipLine(data);
