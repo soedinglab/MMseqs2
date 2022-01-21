@@ -84,6 +84,7 @@ private:
     int querySeqType;
     int targetSeqType;
     bool compBiasCorrection;
+    float compBiasCorrectionScale;
 
     int altAlignment;
     int alignmentOutputMode;

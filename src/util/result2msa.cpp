@@ -166,7 +166,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 #endif
 
         Matcher matcher(qDbr->getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection,
-                        par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0);
+                        par.compBiasCorrectionScale, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0, par.zdrop);
         MultipleAlignment aligner(maxSequenceLength, &subMat);
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());

@@ -57,6 +57,8 @@ Parameters::Parameters():
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID, "--sub-mat", "Substitution matrix", "Substitution matrix file", typeid(MultiParam<NuclAA<std::string>>), (void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SEED_SUB_MAT(PARAM_SEED_SUB_MAT_ID, "--seed-sub-mat", "Seed substitution matrix", "Substitution matrix file for k-mer generation", typeid(MultiParam<NuclAA<std::string>>), (void *) &seedScoringMatrixFile, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID, "--comp-bias-corr", "Compositional bias", "Correct for locally biased amino acid composition (range 0-1)", typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_NO_COMP_BIAS_CORR_SCALE(PARAM_NO_COMP_BIAS_CORR_SCALE_ID, "--comp-bias-corr-scale", "Compositional bias", "Correct for locally biased amino acid composition (range 0-1)", typeid(float), (void *) &compBiasCorrectionScale,  "^0(\\.[0-9]+)?|^1(\\.0+)?$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
+
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID, "--spaced-kmer-mode", "Spaced k-mers", "0: use consecutive positions in k-mers; 1: use spaced k-mers", typeid(int), (void *) &spacedKmer, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove temporary files", "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID, "--add-self-matches", "Include identical seq. id.", "Artificially add entries of queries with themselves (for clustering)", typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
@@ -326,6 +328,8 @@ Parameters::Parameters():
     alignall.push_back(&PARAM_COV_MODE);
     alignall.push_back(&PARAM_MAX_SEQ_LEN);
     alignall.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    alignall.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
+
 //    alignall.push_back(&PARAM_REALIGN);
 //    alignall.push_back(&PARAM_MAX_REJECTED);
 //    alignall.push_back(&PARAM_MAX_ACCEPT);
@@ -356,6 +360,8 @@ Parameters::Parameters():
     align.push_back(&PARAM_COV_MODE);
     align.push_back(&PARAM_MAX_SEQ_LEN);
     align.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    align.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
+
     align.push_back(&PARAM_MAX_REJECTED);
     align.push_back(&PARAM_MAX_ACCEPT);
     align.push_back(&PARAM_INCLUDE_IDENTITY);
@@ -389,6 +395,7 @@ Parameters::Parameters():
     prefilter.push_back(&PARAM_C);
     prefilter.push_back(&PARAM_COV_MODE);
     prefilter.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    prefilter.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     prefilter.push_back(&PARAM_DIAGONAL_SCORING);
     prefilter.push_back(&PARAM_EXACT_KMER_MATCHING);
     prefilter.push_back(&PARAM_MASK_RESIDUES);
@@ -412,6 +419,7 @@ Parameters::Parameters():
     ungappedprefilter.push_back(&PARAM_E);
     ungappedprefilter.push_back(&PARAM_COV_MODE);
     ungappedprefilter.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    ungappedprefilter.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     ungappedprefilter.push_back(&PARAM_MIN_DIAG_SCORE);
     ungappedprefilter.push_back(&PARAM_MAX_SEQS);
     ungappedprefilter.push_back(&PARAM_THREADS);
@@ -490,6 +498,7 @@ Parameters::Parameters():
     result2profile.push_back(&PARAM_MASK_PROFILE);
     result2profile.push_back(&PARAM_E_PROFILE);
     result2profile.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    result2profile.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     result2profile.push_back(&PARAM_WG);
     result2profile.push_back(&PARAM_ALLOW_DELETION);
     result2profile.push_back(&PARAM_FILTER_MSA);
@@ -547,6 +556,7 @@ Parameters::Parameters():
     result2msa.push_back(&PARAM_GAP_EXTEND);
     result2msa.push_back(&PARAM_ALLOW_DELETION);
     result2msa.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    result2msa.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     result2msa.push_back(&PARAM_MSA_FORMAT_MODE);
     result2msa.push_back(&PARAM_SUMMARY_PREFIX);
     result2msa.push_back(&PARAM_SKIP_QUERY);
@@ -574,6 +584,7 @@ Parameters::Parameters():
     filterresult.push_back(&PARAM_GAP_OPEN);
     filterresult.push_back(&PARAM_GAP_EXTEND);
     filterresult.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    filterresult.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     filterresult.push_back(&PARAM_ALLOW_DELETION);
     filterresult.push_back(&PARAM_FILTER_MIN_ENABLE);
     filterresult.push_back(&PARAM_FILTER_MAX_SEQ_ID);
@@ -601,6 +612,7 @@ Parameters::Parameters():
     msa2profile.push_back(&PARAM_PCA);
     msa2profile.push_back(&PARAM_PCB);
     msa2profile.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    msa2profile.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     msa2profile.push_back(&PARAM_WG);
     msa2profile.push_back(&PARAM_FILTER_MSA);
     msa2profile.push_back(&PARAM_FILTER_MIN_ENABLE);
@@ -621,6 +633,7 @@ Parameters::Parameters():
     profile2pssm.push_back(&PARAM_SUB_MAT);
     profile2pssm.push_back(&PARAM_MAX_SEQ_LEN);
     profile2pssm.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    profile2pssm.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     profile2pssm.push_back(&PARAM_DB_OUTPUT);
     profile2pssm.push_back(&PARAM_THREADS);
     profile2pssm.push_back(&PARAM_COMPRESSED);
@@ -697,6 +710,7 @@ Parameters::Parameters():
     indexdb.push_back(&PARAM_K);
     indexdb.push_back(&PARAM_ALPH_SIZE);
     indexdb.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    indexdb.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     indexdb.push_back(&PARAM_MAX_SEQ_LEN);
     indexdb.push_back(&PARAM_MAX_SEQS);
     indexdb.push_back(&PARAM_MASK_RESIDUES);
@@ -1089,6 +1103,7 @@ Parameters::Parameters():
     expandaln.push_back(&PARAM_MAX_SEQ_LEN);
     expandaln.push_back(&PARAM_SCORE_BIAS);
     expandaln.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    expandaln.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     expandaln.push_back(&PARAM_E);
     expandaln.push_back(&PARAM_MIN_SEQ_ID);
 //    expandaln.push_back(&PARAM_MIN_SEQ_ID);
@@ -1119,6 +1134,7 @@ Parameters::Parameters():
     expand2profile.push_back(&PARAM_MAX_SEQ_LEN);
     expand2profile.push_back(&PARAM_SCORE_BIAS);
     expand2profile.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    expand2profile.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     expand2profile.push_back(&PARAM_E_PROFILE);
 //    expand2profile.push_back(&PARAM_E);
 //    expand2profile.push_back(&PARAM_MIN_SEQ_ID);
@@ -2185,6 +2201,7 @@ void Parameters::setDefaults() {
 
 #endif
     compBiasCorrection = 1;
+    compBiasCorrectionScale = 1.0;
     diagonalScoring = true;
     exactKmerMatching = 0;
     maskMode = 1;

@@ -72,7 +72,8 @@ typedef struct {
 class SmithWaterman{
 public:
 
-    SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection, int targetSeqType);
+    SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection,
+                  float aaBiasCorrectionScale, int targetSeqType);
     ~SmithWaterman();
 
     // TODO: private or public?
@@ -388,6 +389,7 @@ private:
     int8_t * scorePerCol;
     short * profile_word_linear_data;
     bool aaBiasCorrection;
+    float aaBiasCorrectionScale;
 
     template <typename T, size_t Elements>
     void createConsensProfile(simd_int *profile, const int8_t *consens_sequence, const int32_t query_length, const int32_t offset);

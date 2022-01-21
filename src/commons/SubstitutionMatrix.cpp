@@ -92,7 +92,8 @@ bool SubstitutionMatrix::estimateLambdaAndBackground(const double **scoreMatrix,
 void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m,
                                                    const unsigned char *int_sequence,
                                                    const int N,
-                                                   float *compositionBias) {
+                                                   float *compositionBias,
+                                                   float scale) {
     const int windowSize = 40;
     for (int i = 0; i < N; i++) {
         const int minPos = std::max(0, (i - windowSize / 2));
@@ -115,7 +116,7 @@ void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m,
         for (int a = 0; a < m->alphabetSize; a++) {
             deltaS_i += m->pBack[a] * static_cast<float>(subMat[a]);
         }
-        compositionBias[i] = deltaS_i;
+        compositionBias[i] = scale * deltaS_i;
 //        std::cout << i << " " << compositionBias[i] << std::endl;
     }
 }

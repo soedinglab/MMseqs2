@@ -32,8 +32,10 @@
 #include "Debug.h"
 #include <iostream>
 
-SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection, int targetSeqType) {
+SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection,
+                             float aaBiasCorrectionScale, int targetSeqType) {
 	maxSequenceLength += 1;
+    this->aaBiasCorrectionScale = aaBiasCorrectionScale;
 	this->aaBiasCorrection = aaBiasCorrection;
 
 	int segmentSize = (maxSequenceLength+7)/8;
@@ -1169,7 +1171,7 @@ void SmithWaterman::ssw_init(const Sequence* q,
 	int32_t compositionBias = 0;
 	bool isProfile = Parameters::isEqualDbtype(q->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE);
 	if (!isProfile && aaBiasCorrection) {
-		SubstitutionMatrix::calcLocalAaBiasCorrection(m, q->numSequence, q->L, tmp_composition_bias);
+		SubstitutionMatrix::calcLocalAaBiasCorrection(m, q->numSequence, q->L, tmp_composition_bias, aaBiasCorrectionScale);
 		for (int i =0; i < q->L; i++) {
 			profile->composition_bias[i] = (int8_t) (tmp_composition_bias[i] < 0.0)? tmp_composition_bias[i] - 0.5: tmp_composition_bias[i] + 0.5;
 			compositionBias = (compositionBias < profile->composition_bias[i]) ? compositionBias : profile->composition_bias[i];

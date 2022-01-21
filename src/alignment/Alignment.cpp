@@ -23,7 +23,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         covThr(par.covThr), canCovThr(par.covThr), covMode(par.covMode), seqIdMode(par.seqIdMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
         alnLenThr(par.alnLenThr), includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign), scoreBias(par.scoreBias), realignScoreBias(par.realignScoreBias), realignMaxSeqs(par.realignMaxSeqs),
         threads(static_cast<unsigned int>(par.threads)), compressed(par.compressed), outDB(outDB), outDBIndex(outDBIndex),
-        maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), alignmentOutputMode(par.alignmentOutputMode),
+        maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), compBiasCorrectionScale(par.compBiasCorrectionScale), altAlignment(par.altAlignment), alignmentOutputMode(par.alignmentOutputMode),
         maxAccept(static_cast<unsigned int>(par.maxAccept)), maxReject(static_cast<unsigned int>(par.maxRejected)), wrappedScoring(par.wrappedScoring),
         lcaAlign(lcaAlign), qdbr(NULL), qDbrIdx(NULL), tdbr(NULL), tDbrIdx(NULL) {
     unsigned int alignmentMode = par.alignmentMode;
@@ -292,7 +292,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
 
             std::vector<Matcher::result_t> swResults;
             swResults.reserve(300);
-            Matcher matcher(querySeqType, targetSeqType, maxMatcherSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend, correlationScoreWeight, zdrop);
+            Matcher matcher(querySeqType, targetSeqType, maxMatcherSeqLen, m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, correlationScoreWeight, zdrop);
 
             std::vector<Matcher::result_t> swRealignResults;
             Matcher *realigner = NULL;
@@ -300,7 +300,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                 swRealignResults.reserve(300);
                 realigner = &matcher;
                 if (realign_m != NULL) {
-                    realigner = new Matcher(querySeqType, targetSeqType, maxMatcherSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend, 0.0, zdrop);
+                    realigner = new Matcher(querySeqType, targetSeqType, maxMatcherSeqLen, realign_m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, 0.0, zdrop);
                 }
             }
 

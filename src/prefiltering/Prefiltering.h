@@ -92,6 +92,7 @@ private:
     const unsigned int diagonalScoring;
     const unsigned int minDiagScoreThr;
     bool aaBiasCorrection;
+    float aaBiasCorrectionScale;
     const float covThr;
     const int covMode;
     const bool includeIdentical;

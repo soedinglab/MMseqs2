@@ -48,6 +48,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         diagonalScoring(par.diagonalScoring),
         minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
         aaBiasCorrection(par.compBiasCorrection != 0),
+        aaBiasCorrectionScale(par.compBiasCorrectionScale),
         covThr(par.covThr), covMode(par.covMode), includeIdentical(par.includeIdentity),
         preloadMode(par.preloadMode),
         threads(static_cast<unsigned int>(par.threads)), compressed(par.compressed) {
@@ -778,7 +779,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
 #endif
         Sequence seq(qdbr->getMaxSeqLen(), querySeqType, kmerSubMat, kmerSize, spacedKmer, aaBiasCorrection, true, spacedKmerPattern);
         QueryMatcher matcher(indexTable, sequenceLookup, kmerSubMat,  ungappedSubMat,
-                             kmerThr, kmerSize, dbSize, std::max(tdbr->getMaxSeqLen(),qdbr->getMaxSeqLen()), maxResListLen, aaBiasCorrection,
+                             kmerThr, kmerSize, dbSize, std::max(tdbr->getMaxSeqLen(),qdbr->getMaxSeqLen()), maxResListLen, aaBiasCorrection, aaBiasCorrectionScale,
                              diagonalScoring, minDiagScoreThr, takeOnlyBestKmer, targetSeqType==Parameters::DBTYPE_NUCLEOTIDES);
 
         if (seq.profile_matrix != NULL) {

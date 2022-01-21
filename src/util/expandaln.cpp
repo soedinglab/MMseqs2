@@ -240,7 +240,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     compositionBias = (float*)realloc(compositionBias, compBufferSize);
                     memset(compositionBias, 0, compBufferSize);
                 }
-                SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, aSeq.numSequence, aSeq.L, compositionBias);
+                SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, aSeq.numSequence, aSeq.L, compositionBias, par.compBiasCorrectionScale);
             }
 
             char *data = resultAbReader->getData(i, thread_idx);

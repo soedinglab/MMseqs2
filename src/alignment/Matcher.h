@@ -143,9 +143,9 @@ public:
     };
 
     Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m,
-            EvalueComputation * evaluer, bool aaBiasCorrection,
+            EvalueComputation * evaluer, bool aaBiasCorrection, float aaBiasCorrectionScale,
             int gapOpen, int gapExtend, float correlationScoreWeight,
-            int zdrop = 40);
+            int zdrop);
 
     ~Matcher();
 

@@ -7,7 +7,7 @@
 
 
 Matcher::Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
-                 bool aaBiasCorrection, int gapOpen, int gapExtend, float correlationScoreWeight, int zdrop)
+                 bool aaBiasCorrection, float aaBiasCorrectionScale, int gapOpen, int gapExtend, float correlationScoreWeight, int zdrop)
                  : gapOpen(gapOpen), gapExtend(gapExtend), correlationScoreWeight(correlationScoreWeight), m(m), evaluer(evaluer), tinySubMat(NULL)  {
     setSubstitutionMatrix(m);
 
@@ -16,7 +16,8 @@ Matcher::Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix 
         aligner = NULL;
     } else {
         nuclaligner = NULL;
-        aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection, targetSeqType);
+        aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection,
+                                    aaBiasCorrectionScale, targetSeqType);
     }
     //std::cout << "lambda=" << lambdaLog2 << " logKLog2=" << logKLog2 << std::endl;
 }

@@ -22,7 +22,7 @@
 QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLookup,
                            BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
                            short kmerThr, int kmerSize, size_t dbSize,
-                           unsigned int maxSeqLen, size_t maxHitsPerQuery, bool aaBiasCorrection,
+                           unsigned int maxSeqLen, size_t maxHitsPerQuery, bool aaBiasCorrection, float aaBiasCorrectionScale,
                            bool diagonalScoring, unsigned int minDiagScoreThr, bool takeOnlyBestKmer, bool isNucleotide)
         : idx(indexTable->getAlphabetSize(), kmerSize), isNucleotide(isNucleotide)
 {
@@ -33,6 +33,7 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
     this->kmerThr = kmerThr;
     this->kmerGenerator = new KmerGenerator(kmerSize, indexTable->getAlphabetSize(), kmerThr);
     this->aaBiasCorrection = aaBiasCorrection;
+    this->scaleBiasCorr = aaBiasCorrectionScale;
     this->takeOnlyBestKmer = takeOnlyBestKmer;
     this->stats = new statistics_t();
     // assure that the whole database can be matched (extreme case)
@@ -89,7 +90,7 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, unsigned 
     // bias correction
     if(aaBiasCorrection == true){
         if(Parameters::isEqualDbtype(querySeq->getSeqType(), Parameters::DBTYPE_AMINO_ACIDS)) {
-            SubstitutionMatrix::calcLocalAaBiasCorrection(kmerSubMat, querySeq->numSequence, querySeq->L, compositionBias);
+            SubstitutionMatrix::calcLocalAaBiasCorrection(kmerSubMat, querySeq->numSequence, querySeq->L, compositionBias, scaleBiasCorr);
         }else{
             memset(compositionBias, 0, sizeof(float) * querySeq->L);
         }

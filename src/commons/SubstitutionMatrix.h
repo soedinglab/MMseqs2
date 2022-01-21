@@ -22,7 +22,7 @@ public:
 
     virtual double getBackgroundProb(size_t aa_index) { return pBack[aa_index]; }
 
-    static void calcLocalAaBiasCorrection(const BaseMatrix *m ,const unsigned char *int_sequence, const int N, float *compositionBias);
+    static void calcLocalAaBiasCorrection(const BaseMatrix *m ,const unsigned char *int_sequence, const int N, float *compositionBias, float scale);
     static void calcProfileProfileLocalAaBiasCorrection(short *profileScores,
                                                         const size_t profileAASize,
                                                         const int N,
