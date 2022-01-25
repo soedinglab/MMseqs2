@@ -50,7 +50,7 @@ std::vector<Command> baseCommands = {
                 "#        -c 0.7    -    +    -\n"
                 "#        -c 0.6    +    +    +\n\n"
                 "# Cascaded clustering with reassignment\n"
-                "# - Corrects criteria-violoations of cascaded merging\n"
+                "# - Corrects criteria-violations of cascaded merging\n"
                 "# - Produces more clusters and is a bit slower\n"
                 "mmseqs easy-cluster examples/DB.fasta result tmp --cluster-reassign\n",
                 "Martin Steinegger <martin.steinegger@snu.ac.kr>",
