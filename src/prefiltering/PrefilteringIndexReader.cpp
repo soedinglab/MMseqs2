@@ -7,7 +7,6 @@
 #include "Parameters.h"
 
 extern const char* index_version_compatible;
-const char*  PrefilteringIndexReader::CURRENT_VERSION = index_version_compatible;
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
@@ -41,7 +40,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     if(version == NULL){
         return false;
     }
-    return (strncmp(version, CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
+    return (strncmp(version, index_version_compatible, strlen(index_version_compatible)) == 0 ) ? true : false;
 }
 
 std::string PrefilteringIndexReader::indexName(const std::string &outDB) {
@@ -67,7 +66,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     writer.open();
 
     Debug(Debug::INFO) << "Write VERSION (" << VERSION << ")\n";
-    writer.writeData((char *) CURRENT_VERSION, strlen(CURRENT_VERSION) * sizeof(char), VERSION, SPLIT_META);
+    writer.writeData((char *) index_version_compatible, strlen(index_version_compatible) * sizeof(char), VERSION, SPLIT_META);
     writer.alignToPageSize(SPLIT_META);
 
     Debug(Debug::INFO) << "Write META (" << META << ")\n";

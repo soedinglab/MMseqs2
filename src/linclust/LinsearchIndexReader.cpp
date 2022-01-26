@@ -15,6 +15,7 @@
 #define SIZE_T_MAX ((size_t) -1)
 #endif
 
+extern const char* index_version_compatible;
 
 template <int TYPE>
 size_t LinsearchIndexReader::pickCenterKmer(KmerPosition<short> *hashSeqPair, size_t splitKmerCount) {
@@ -241,7 +242,7 @@ bool LinsearchIndexReader::checkIfIndexFile(DBReader<unsigned int> *pReader) {
     if(version == NULL){
         return false;
     }
-    return (strncmp(version, PrefilteringIndexReader::CURRENT_VERSION, strlen(PrefilteringIndexReader::CURRENT_VERSION)) == 0 ) ? true : false;
+    return (strncmp(version, index_version_compatible, strlen(index_version_compatible)) == 0 ) ? true : false;
 }
 
 void LinsearchIndexReader::writeKmerIndexToDisk(std::string fileName, KmerPosition<short> *kmers, size_t kmerCnt){

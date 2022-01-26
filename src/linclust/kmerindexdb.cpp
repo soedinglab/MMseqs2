@@ -14,6 +14,7 @@
 #endif
 
 extern const char* version;
+extern const char* index_version_compatible;
 
 int kmerindexdb(int argc, const char **argv, const Command &command) {
     MMseqsMPI::init(argc, argv);
@@ -169,7 +170,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         dbw.open();
 
         Debug(Debug::INFO) << "Write VERSION (" << PrefilteringIndexReader::VERSION << ")\n";
-        dbw.writeData((char *) PrefilteringIndexReader::CURRENT_VERSION, strlen(PrefilteringIndexReader::CURRENT_VERSION) * sizeof(char), PrefilteringIndexReader::VERSION, 0);
+        dbw.writeData((char *) index_version_compatible, strlen(index_version_compatible) * sizeof(char), PrefilteringIndexReader::VERSION, 0);
         dbw.alignToPageSize();
 
         Debug(Debug::INFO) << "Write META (" << PrefilteringIndexReader::META << ")\n";

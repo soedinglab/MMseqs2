@@ -24,7 +24,6 @@ struct PrefilteringIndexData {
 
 class PrefilteringIndexReader {
 public:
-    static const char*  CURRENT_VERSION;
     static unsigned int VERSION;
     static unsigned int ENTRIES;
     static unsigned int ENTRIESOFFSETS;
