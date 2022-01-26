@@ -94,7 +94,7 @@ int main (int, const char**) {
     CounterResult hits[32];
     UngappedAlignment matcher(10000, &subMat, &lookup);
 
-    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s5.numSequence, s5.L, compositionBias);
+    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s5.numSequence, s5.L, compositionBias, 1.0);
     memset(compositionBias, 0.0, sizeof(float)*s5.L);
 //    std::cout << compositionBias[74] << std::endl;
 //    std::cout << compositionBias[79] << std::endl;
@@ -116,7 +116,7 @@ int main (int, const char**) {
 
 
 
-    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.numSequence, s1.L, compositionBias);
+    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.numSequence, s1.L, compositionBias, 1.0);
 
     hits[0].id = s1.getId();
     hits[0].diagonal = 0;

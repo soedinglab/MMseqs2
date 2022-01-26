@@ -88,7 +88,7 @@ int main (int, const char**) {
     }
 
     float * compositionBias = new float[s1.L];
-    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.numSequence, s1.L, compositionBias);
+    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.numSequence, s1.L, compositionBias, 1.0);
 
 
 

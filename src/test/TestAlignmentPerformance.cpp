@@ -69,7 +69,7 @@ int main (int, const char**) {
     Sequence* query = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     Sequence* dbSeq = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
-    SmithWaterman aligner(15000, subMat.alphabetSize, false, Parameters::DBTYPE_AMINO_ACIDS);
+    SmithWaterman aligner(15000, subMat.alphabetSize, false, 1.0, Parameters::DBTYPE_AMINO_ACIDS);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     for (int i = 0; i < subMat.alphabetSize; i++) {
         for (int j = 0; j < subMat.alphabetSize; j++) {

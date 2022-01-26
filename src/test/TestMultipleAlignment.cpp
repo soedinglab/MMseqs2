@@ -32,7 +32,7 @@ int main(int, const char**) {
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "\n";
     EvalueComputation evaluer(100000, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
-    Matcher * aligner = new Matcher(Parameters::DBTYPE_AMINO_ACIDS, Parameters::DBTYPE_AMINO_ACIDS, 10000, &subMat, &evaluer, false, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0);
+    Matcher * aligner = new Matcher(Parameters::DBTYPE_AMINO_ACIDS, Parameters::DBTYPE_AMINO_ACIDS, 10000, &subMat, &evaluer, false, 1.0, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0, 40);
     std::vector<Matcher::result_t> alnResults;
     std::vector<std::vector<unsigned char>> seqSet;
     std::cout << "Sequence (id 0):\n";

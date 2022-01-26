@@ -788,7 +788,7 @@ int main (int, const char**) {
     const char* sequence2 = "LFILNIISMNKQTKVKGYLLLLLVISSLFISLVGHGYTANKVSAPNPAKEYPQDNLSVIDMKNLPGTQIKSMVKDELQQFLEEQGFRRLKNKSLVDLRRIWLGFMYEDFFYTMHKKTDLPISVIYAFFIIEATNAGIESKLMAKALNPGGIKYRGTGKKMKAMDDCY";
 
     dbSeq->mapSequence(1,1,sequence2, strlen(sequence2));
-    SmithWaterman aligner(15000, subMat.alphabetSize, false, Parameters::DBTYPE_AMINO_ACIDS);
+    SmithWaterman aligner(15000, subMat.alphabetSize, false, 1.0, Parameters::DBTYPE_AMINO_ACIDS);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     aligner.ssw_init(s, s->getAlignmentProfile(), &subMat);
     int32_t maskLen = s->L / 2;
