@@ -257,7 +257,7 @@ case "${SELECTION}" in
     "Kalamari")
         if notExists "${TMP_PATH}/kalamari.tsv"; then
             printf "3.7 %s\n" "$(date "+%s")" > "${TMP_PATH}/version"
-            downloadFile "https://raw.githubusercontent.com/lskatz/Kalamari/master/src/Kalamari_v3.7.tsv" "${TMP_PATH}/kalamari.tsv"
+            downloadFile "https://raw.githubusercontent.com/lskatz/Kalamari/18d71da740546ba4a5117682e1ae2a037379afe0/src/Kalamari_v3.7.tsv" "${TMP_PATH}/kalamari.tsv"
         fi
         ACCESSIONS=""
         # shellcheck disable=SC2034
