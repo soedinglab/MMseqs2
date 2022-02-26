@@ -62,6 +62,7 @@ int pairaln(int argc, const char **argv, const Command& command) {
         for (size_t fileNumber = 0; fileNumber < fileToIds.size(); fileNumber++) {
             char buffer[1024 + 32768 * 4];
             findPair.clear();
+            progress.updateProgress();
 
             // find intersection between all proteins
             for (size_t i = 0; i < fileToIds[fileNumber].size(); i++) {
@@ -91,7 +92,6 @@ int pairaln(int argc, const char **argv, const Command& command) {
             }
 
             for (size_t i = 0; i < fileToIds[fileNumber].size(); i++) {
-                progress.updateProgress();
                 result.clear();
                 output.clear();
                 size_t id = fileToIds[fileNumber][i];
