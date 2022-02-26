@@ -405,7 +405,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                 }
 
                 std::vector<Matcher::result_t> *returnRes = &swResults;
-                if (realign == true) {
+                if (realign == true && *origData != '\0') {
                     realigner->initQuery(&qSeq);
                     int realignAccepted = 0;
                     for (size_t result = 0; result < swResults.size() && realignAccepted < realignMaxSeqs; result++) {
