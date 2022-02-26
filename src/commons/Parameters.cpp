@@ -1317,6 +1317,12 @@ Parameters::Parameters():
     tar2db.push_back(&PARAM_THREADS);
     tar2db.push_back(&PARAM_V);
 
+    // unpackdb
+    unpackdbs.push_back(&PARAM_UNPACK_NAME_MODE);
+    unpackdbs.push_back(&PARAM_UNPACK_SUFFIX);
+    unpackdbs.push_back(&PARAM_THREADS);
+    unpackdbs.push_back(&PARAM_V);
+
     // appenddbtoindex
     appenddbtoindex.push_back(&PARAM_ID_LIST);
     appenddbtoindex.push_back(&PARAM_V);

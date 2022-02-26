@@ -722,7 +722,7 @@ std::vector<Command> baseCommands = {
                 "<i:srcDB> <o:dstDB>",
                 CITATION_MMSEQS2, {{"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, NULL },
                                           {"DB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
-        {"unpackdb",             unpackdb,             &par.onlyverbosity,        COMMAND_STORAGE,
+        {"unpackdb",             unpackdb,             &par.unpackdbs,        COMMAND_STORAGE,
                 "Unpack a DB into separate files",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",

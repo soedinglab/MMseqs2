@@ -1113,6 +1113,7 @@ public:
     std::vector<MMseqsParameter*> enrichworkflow;
     std::vector<MMseqsParameter*> databases;
     std::vector<MMseqsParameter*> tar2db;
+    std::vector<MMseqsParameter*> unpackdbs;
     std::vector<MMseqsParameter*> appenddbtoindex;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
