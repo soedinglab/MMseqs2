@@ -98,11 +98,11 @@ int createdb(int argc, const char **argv, const Command& command) {
 
     size_t fileCount = filenames.size();
     DBReader<unsigned int>* reader = NULL;
-    DBReader<unsigned int>* hdrReader = nullptr;
+    DBReader<unsigned int>* hdrReader = NULL;
     if (dbInput == true) {
         reader = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_LOOKUP);
         reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
-        hdrReader = new DBReader<unsigned int>((par.db1 + "_h").c_str(), (par.db1 + "_h.index").c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
+        hdrReader = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
         hdrReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
         fileCount = reader->getSize();
     }
