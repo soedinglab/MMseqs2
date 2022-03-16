@@ -124,7 +124,7 @@ std::vector<Command> baseCommands = {
                 "mmseqs createdb file1.fa file2.fa.gz file3.fa sequenceDB\n\n"
                 "# Create a seqDB from stdin\n"
                 "cat seq.fasta | mmseqs createdb stdin sequenceDB\n\n"
-                "# Create a seqDB from another seqDB named inputDB\n"
+                "# Create a seqDB from generic DB created by tar2db or another seqDB\n"
                 "mmseqs createdb inputDB sequenceDB\n\n"
                 "# Create a seqDB by indexing existing FASTA/Q (for single line fasta entries only)\n"
                 "mmseqs createdb seq.fasta sequenceDB --createdb-mode 1\n",
