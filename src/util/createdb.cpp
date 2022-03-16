@@ -28,12 +28,17 @@ int createdb(int argc, const char **argv, const Command& command) {
     }
 
     bool dbInput = false;
+    bool isSeqDb = false;
     if (FileUtil::fileExists(par.db1dbtype.c_str()) == true) {
         if (filenames.size() > 1) {
             Debug(Debug::ERROR) << "Only one database can be used with database input\n";
             EXIT(EXIT_FAILURE);
         }
         dbInput = true;
+        // if par.hdr1 is not an empty string and the file exists
+        if (par.hdr1 != "" && FileUtil::fileExists(par.hdr1.c_str()) == true ) {
+            isSeqDb = true;
+        }
         par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
     }
 
@@ -102,8 +107,10 @@ int createdb(int argc, const char **argv, const Command& command) {
     if (dbInput == true) {
         reader = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_LOOKUP);
         reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
-        hdrReader = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-        hdrReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+        if (isSeqDb) {
+            hdrReader = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
+            hdrReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+        }
         fileCount = reader->getSize();
     }
 
@@ -131,9 +138,13 @@ int createdb(int argc, const char **argv, const Command& command) {
         KSeqWrapper* kseq = NULL;
         std::string seq = ">";
         if (dbInput == true) {
-            seq.append(hdrReader->getData(fileIdx, 0));
-            seq.append(reader->getData(fileIdx, 0));
-            kseq = new KSeqBuffer(seq.c_str(), seq.length());
+            if (isSeqDb) {
+                seq.append(reader->getData(fileIdx, 0));
+                seq.append(hdrReader->getData(fileIdx, 0));
+                kseq = new KSeqBuffer(seq.c_str(), seq.length());
+            } else {
+                kseq = new KSeqBuffer(reader->getData(fileIdx, 0), reader->getEntryLen(fileIdx) - 1);
+            }
         } else {
             kseq = KSeqFactory(filenames[fileIdx].c_str());
         }
@@ -266,8 +277,10 @@ int createdb(int argc, const char **argv, const Command& command) {
     if (dbInput == true) {
         reader->close();
         delete reader;
-        hdrReader->close();
-        delete hdrReader;
+        if (isSeqDb) {
+            hdrReader->close();
+            delete hdrReader;
+        }
     }
 
     if (entries_num == 0) {
