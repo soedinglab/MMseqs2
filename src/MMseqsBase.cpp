@@ -124,11 +124,13 @@ std::vector<Command> baseCommands = {
                 "mmseqs createdb file1.fa file2.fa.gz file3.fa sequenceDB\n\n"
                 "# Create a seqDB from stdin\n"
                 "cat seq.fasta | mmseqs createdb stdin sequenceDB\n\n"
+                "# Create a seqDB from another seqDB named inputDB\n"
+                "mmseqs createdb inputDB sequenceDB\n\n"
                 "# Create a seqDB by indexing existing FASTA/Q (for single line fasta entries only)\n"
                 "mmseqs createdb seq.fasta sequenceDB --createdb-mode 1\n",
                 "Martin Steinegger <martin.steinegger@snu.ac.kr>",
-                "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]>|<i:stdin> <o:sequenceDB>",
-                CITATION_MMSEQS2, {{"fast[a|q]File[.gz|bz2]|stdin", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfileStdinAndGeneric },
+                "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]>|<i:stdin>|<i:inputDB> <o:sequenceDB>",
+                CITATION_MMSEQS2, {{"fast[a|q]File[.gz|bz2]|stdin|inputDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfileStdinAndGeneric },
                                                            {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
         {"appenddbtoindex",      appenddbtoindex,      &par.appenddbtoindex,      COMMAND_HIDDEN,
                 NULL,
