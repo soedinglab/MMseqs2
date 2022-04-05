@@ -59,7 +59,8 @@ int pairaln(int argc, const char **argv, const Command& command) {
         std::unordered_map<unsigned int, size_t> findPair;
         std::string output;
         output.reserve(100000);
-        for (size_t fileNumber = 0; fileNumber < fileToIds.size(); fileNumber++) {
+#pragma omp for schedule(dynamic, 1)
+	for (size_t fileNumber = 0; fileNumber < fileToIds.size(); fileNumber++) {
             char buffer[1024 + 32768 * 4];
             findPair.clear();
             progress.updateProgress();
