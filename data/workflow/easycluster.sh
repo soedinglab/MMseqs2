@@ -64,4 +64,7 @@ if [ -n "${REMOVE_TMP}" ]; then
     "$MMSEQS" rmdb "${TMP_PATH}/clu" ${VERBOSITY_PAR}
     rm -rf "${TMP_PATH}/clu_tmp"
     rm -f "${TMP_PATH}/easycluster.sh"
+    rm -rf "${TMP_PATH}"
+    rm -f "${LATEST}"
+
 fi

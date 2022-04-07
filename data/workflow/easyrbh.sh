@@ -53,4 +53,6 @@ if [ -n "${REMOVE_TMP}" ]; then
     fi
     rm -rf "${TMP_PATH}/rbh_tmp"
     rm -f "${TMP_PATH}/easyrbh.sh"
+    rm -rf "${TMP_PATH}"
+    rm -f "${LATEST}"
 fi

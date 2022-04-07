@@ -43,13 +43,15 @@ int easytaxonomy(int argc, const char **argv, const Command& command) {
 
     std::string tmpDir = par.filenames.back();
     std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, *command.params));
+    std::string latest = tmpDir + "/latest";
     if (par.reuseLatest) {
-        hash = FileUtil::getHashFromSymLink(tmpDir + "/latest");
+        hash = FileUtil::getHashFromSymLink(latest);
     }
     tmpDir = FileUtil::createTemporaryDirectory(tmpDir, hash);
     par.filenames.pop_back();
 
     CommandCaller cmd;
+    cmd.addVariable("LATEST", latest.c_str());
     cmd.addVariable("RESULTS", par.filenames.back().c_str());
     par.filenames.pop_back();
     cmd.addVariable("TARGET", par.filenames.back().c_str());
