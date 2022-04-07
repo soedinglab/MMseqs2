@@ -65,6 +65,7 @@ if [ -n "${REMOVE_TMP}" ]; then
     rm -rf "${TMP_PATH}/clu_tmp"
     rm -f "${TMP_PATH}/easycluster.sh"
     rm -rf "${TMP_PATH}"
-    rm -f "${LATEST}"
-
+    if [ "$(basename "${TMP_PATH}")" = "$(readlink "${LATEST}")" ]; then
+        rm -f "${LATEST}"
+    fi
 fi
