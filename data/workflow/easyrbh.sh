@@ -54,7 +54,4 @@ if [ -n "${REMOVE_TMP}" ]; then
     rm -rf "${TMP_PATH}/rbh_tmp"
     rm -f "${TMP_PATH}/easyrbh.sh"
     rm -rf "${TMP_PATH}"
-    if [ "$(basename "${TMP_PATH}")" = "$(readlink "${LATEST}")" ]; then
-        rm -f "${LATEST}"
-    fi
 fi

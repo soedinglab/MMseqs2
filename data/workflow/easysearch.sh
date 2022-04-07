@@ -74,7 +74,4 @@ if [ -n "${REMOVE_TMP}" ]; then
     rm -rf "${TMP_PATH}/search_tmp"
     rm -f "${TMP_PATH}/easysearch.sh"
     rm -rf "${TMP_PATH}"
-    if [ "$(basename "${TMP_PATH}")" = "$(readlink "${LATEST}")" ]; then
-        rm -f "${LATEST}"
-    fi
 fi
