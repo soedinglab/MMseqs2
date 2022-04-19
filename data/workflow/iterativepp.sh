@@ -92,5 +92,5 @@ if [ -n "$REMOVE_TMP" ]; then
     STEP=$((STEP+1))
   done
   rm -f "$TMP_PATH/iterativepp.sh"
-  rm -f "$TMP_PATH"
+  rm -rf "${TMP_PATH}"
 fi

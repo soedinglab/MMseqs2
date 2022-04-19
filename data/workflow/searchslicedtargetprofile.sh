@@ -205,5 +205,5 @@ if [ -n "$REMOVE_TMP" ]; then
     done
     rm -f "${PROFILEDB}.meta"
     rm -f "$TMP_PATH/searchslicedtargetprofile.sh"
-    rm -rf "$TMP_PATH"
+    rm -rf "${TMP_PATH}"
 fi
