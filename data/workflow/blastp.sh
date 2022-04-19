@@ -112,7 +112,7 @@ if [ -n "$REMOVE_TMP" ]; then
     done
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/aln_merge" ${VERBOSITY}
-    rm -f "$(TMP_PATH}/blastp.sh"
+    rm -f "${TMP_PATH}/blastp.sh"
     rm -rf "${TMP_PATH}"
 fi
 
