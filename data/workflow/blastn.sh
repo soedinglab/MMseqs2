@@ -75,5 +75,6 @@ if [ -n "$REMOVE_TMP" ]; then
     "$MMSEQS" rmdb "$4/t_orfs" ${VERBOSITY}
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "$4/t_orfs_aa" ${VERBOSITY}
+    rm -rf "${TMP_PATH}"
 fi
 

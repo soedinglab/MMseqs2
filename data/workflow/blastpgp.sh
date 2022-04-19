@@ -118,5 +118,6 @@ if [ -n "$REMOVE_TMP" ]; then
         STEP=$((STEP+1))
     done
     rm -f "$TMP_PATH/blastpgp.sh"
+    rm -rf "$TMP_PATH"
 fi
 
