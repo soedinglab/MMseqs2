@@ -417,8 +417,8 @@ public:
 
     void print(); // for debugging
 
-    static void extractProfileSequence(const char* data, const BaseMatrix &submat, std::string &result);
-    static void extractProfileConsensus(const char* data, const BaseMatrix &submat, std::string &result);
+    static void extractProfileSequence(const char* data, size_t dataSize, const BaseMatrix &submat, std::string &result);
+    static void extractProfileConsensus(const char* data, size_t dataSize, const BaseMatrix &submat, std::string &result);
 
     int getId() const { return id; }
 
