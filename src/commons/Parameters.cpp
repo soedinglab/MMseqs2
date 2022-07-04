@@ -2608,7 +2608,7 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
             std::string value = MultiParam<NuclAA<std::string>>::format(tmpPar);
             // encode parameters as base64 if it contains whitespaces
             // whitespaces break parameters in the workflow shell scripts
-            if (value.find_first_of(" \n\t") != std::string::npos) {
+            if (value.find_first_of(" \n\t[]{}^$?|.~!*") != std::string::npos) {
                 ss << par[i]->name << " b64:" << base64_encode(value.c_str(), value.size()) << " ";
             } else {
                 ss << par[i]->name << " " << value << " ";
@@ -2617,7 +2617,7 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
             std::string& value = *((std::string *) par[i]->value);
             if (value != "") {
                 // see above
-                if (value.find_first_of(" \n\t") != std::string::npos) {
+                if (value.find_first_of(" \n\t[]{}^$?|.~!*") != std::string::npos) {
                     ss << par[i]->name << " b64:" << base64_encode(value.c_str(), value.size()) << " ";
                 } else {
                     ss << par[i]->name << " " << value << " ";
@@ -2634,7 +2634,7 @@ std::string Parameters::createParameterString(const std::vector<MMseqsParameter*
             ss << par[i]->name << " ";
             std::string value = MultiParam<NuclAA<std::string>>::format(*((MultiParam<NuclAA<std::string>> *) par[i]->value));
             // see above
-            if (value.find_first_of(" \n\t") != std::string::npos) {
+            if (value.find_first_of(" \n\t[]{}^$?|.~!*") != std::string::npos) {
                 ss << par[i]->name << " b64:" << base64_encode(value.c_str(), value.size()) << " ";
             } else {
                 ss << par[i]->name << " " << value << " ";
