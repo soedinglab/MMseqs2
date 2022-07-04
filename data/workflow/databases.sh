@@ -139,7 +139,7 @@ case "${SELECTION}" in
             downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/VERSION" "${TMP_PATH}/version"
             downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/genomic_files_reps/gtdb_proteins_aa_reps.tar.gz" "${TMP_PATH}/gtdb.tar.gz"
             downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/bac120_taxonomy.tsv" "${TMP_PATH}/bac120_taxonomy.tsv"
-            downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/ar122_taxonomy.tsv" "${TMP_PATH}/ar122_taxonomy.tsv"
+            downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/ar53_taxonomy.tsv" "${TMP_PATH}/ar53_taxonomy.tsv"
             touch "${TMP_PATH}/download.done"
         fi
         INPUT_TYPE="GTDB"
@@ -460,7 +460,7 @@ if [ -n "${TAXONOMY}" ] && notExists "${OUTDB}_mapping"; then
               printf("%s\t%s\n", $1, ids[$NF]) > taxdir"/mapping_genomes";
           }'
           mkdir -p "${TMP_PATH}/taxonomy"
-          awk -v taxdir="${TMP_PATH}/taxonomy" "$CMD" "${TMP_PATH}/bac120_taxonomy.tsv" "${TMP_PATH}/ar122_taxonomy.tsv"
+          awk -v taxdir="${TMP_PATH}/taxonomy" "$CMD" "${TMP_PATH}/bac120_taxonomy.tsv" "${TMP_PATH}/ar53_taxonomy.tsv"
           touch "${TMP_PATH}/taxonomy/merged.dmp"
           touch "${TMP_PATH}/taxonomy/delnodes.dmp"
           # shellcheck disable=SC2086
