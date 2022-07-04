@@ -73,6 +73,7 @@ int mtar_close(mtar_t *tar);
 
 int mtar_read_header(mtar_t *tar, mtar_header_t *h);
 int mtar_read_data(mtar_t *tar, void *ptr, size_t size);
+int mtar_skip_data(mtar_t *tar);
 
 #ifdef __cplusplus
 }

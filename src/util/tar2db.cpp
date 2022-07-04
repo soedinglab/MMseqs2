@@ -177,6 +177,10 @@ int tar2db(int argc, const char **argv, const Command& command) {
                         }
                         if (header.type == MTAR_TREG || header.type == MTAR_TCONT || header.type == MTAR_TOLDREG) {
                             if (include.isMatch(name.c_str()) == false || exclude.isMatch(name.c_str()) == true) {
+                                if (header.size > 0 && mtar_skip_data(&tar) != MTAR_ESUCCESS) {
+                                    Debug(Debug::ERROR) << "Cannot skip entry " << name << "\n";
+                                    EXIT(EXIT_FAILURE);
+                                }
                                 __sync_fetch_and_add(&(globalKey), 1);
                                 proceed = true;
                                 writeEntry = false;
@@ -194,6 +198,10 @@ int tar2db(int argc, const char **argv, const Command& command) {
                                 currentKey = __sync_fetch_and_add(&(globalKey), 1);
                             }
                         } else {
+                            if (header.size > 0 && mtar_skip_data(&tar) != MTAR_ESUCCESS) {
+                                Debug(Debug::ERROR) << "Cannot skip entry " << name << "\n";
+                                EXIT(EXIT_FAILURE);
+                            }
                             proceed = true;
                             writeEntry = false;
                         }

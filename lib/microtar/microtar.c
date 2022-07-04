@@ -151,6 +151,15 @@ int mtar_read_header(mtar_t *tar, mtar_header_t *h) {
   return MTAR_ESUCCESS;
 }
 
+int mtar_skip_data(mtar_t *tar) {
+  int n = round_up(tar->curr_size, 512);
+  int err = tar->seek(tar, n, SEEK_CUR);
+  if (err) {
+      return err;
+  }
+  return MTAR_ESUCCESS;
+}
+
 int mtar_read_data(mtar_t *tar, void *ptr, size_t size) {
   /* Read data */
   int err = tar->read(tar, ptr, size);
