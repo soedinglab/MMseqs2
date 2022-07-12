@@ -10,6 +10,11 @@ on:
     inputs:
       tag:
         required: true
+        type: string
+      latest:
+        default: false
+        type: boolean
+
 
 env:
   REGISTRY: ghcr.io
@@ -50,9 +55,14 @@ jobs:
           if [ x"$TAG" != x"" ];then
             echo "::set-output name=tag::${FULL_TAG}"
           fi
+          if [ x"$LATEST" = x"true" ]; then
+            echo "::set-output name=latest::${LATEST_TAG}"
+          fi
         env:
           FULL_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.tag }}
+          LATEST_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           TAG: ${{ github.event.inputs.tag }}
+          LATEST: ${{ github.event.inputs.latest }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
@@ -65,5 +75,6 @@ jobs:
           tags: |
             ${{ steps.meta.outputs.tags }}
             ${{ steps.dispatch_tag.outputs.tag }}
+            ${{ steps.dispatch_tag.outputs.latest }}
           labels: ${{ steps.meta.outputs.labels }}
 
