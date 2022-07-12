@@ -7,6 +7,9 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        required: true
 
 env:
   REGISTRY: ghcr.io
@@ -41,11 +44,26 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
+      - name: Tag for workflow_dispatch
+        id: dispatch_tag
+        run: |
+          if [ x"$TAG" != x"" ];then
+            echo "::set-output name=tag::${FULL_TAG}"
+          fi
+        env:
+          FULL_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.tag }}
+          TAG: ${{ github.event.inputs.tag }}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            ${{ steps.dispatch_tag.outputs.tag }}
           labels: ${{ steps.meta.outputs.labels }}
+

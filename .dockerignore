@@ -1,3 +1,5 @@
 .idea/
 bin/
 cmake-build-*/
+.github/workflows
+Dockerfile
