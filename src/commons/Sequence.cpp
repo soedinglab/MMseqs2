@@ -363,6 +363,10 @@ void Sequence::reverse() {
             i_curr += profile_row_size;
             j_curr -= profile_row_size;
         }
+        for (size_t i = 0; i < PROFILE_AA_SIZE; i++) {
+            int8_t *startToRead = &profile_for_alignment[i * L];
+            std::reverse(startToRead, startToRead + L);
+        }
     }
     std::reverse(numSequence, numSequence + this->L); // reverse sequence
 }
