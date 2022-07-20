@@ -234,6 +234,22 @@ std::string listDatabases(const Command &command, std::vector<DatabaseDownload> 
     return description;
 }
 
+std::string listDatabasesTsv(std::vector<DatabaseDownload> &downloads) {
+    std::string description;
+    description.reserve(1024);
+    for (size_t i = 0; i < downloads.size(); ++i) {
+        description.append(downloads[i].name);
+        description.append(1, '\t');
+        description.append(Parameters::getDbTypeName(downloads[i].dbType));
+        description.append(1, '\t');
+        description.append(downloads[i].hasTaxonomy ? "true" : "false");
+        description.append(1, '\t');
+        description.append(downloads[i].url);
+        description.append(1, '\n');
+    }
+    return description;
+}
+
 int databases(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, false, Parameters::PARSE_ALLOW_EMPTY, 0);
@@ -244,7 +260,11 @@ int databases(int argc, const char **argv, const Command &command) {
     }
     std::string description = listDatabases(command, usedDownloads, par.help);
     if (par.filenames.size() == 0 || par.help) {
-        par.printUsageMessage(command, par.help ? MMseqsParameter::COMMAND_EXPERT : 0, description.c_str());
+        if (par.tsvOut) {
+                Debug(Debug::INFO) << listDatabasesTsv(usedDownloads);
+        } else {
+                par.printUsageMessage(command, par.help ? MMseqsParameter::COMMAND_EXPERT : 0, description.c_str());
+        }
         EXIT(EXIT_SUCCESS);
     }
 

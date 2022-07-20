@@ -1303,6 +1303,7 @@ Parameters::Parameters():
 
     databases.push_back(&PARAM_HELP);
     databases.push_back(&PARAM_HELP_LONG);
+    databases.push_back(&PARAM_TSV);
     databases.push_back(&PARAM_REUSELATEST);
     databases.push_back(&PARAM_REMOVE_TMP_FILES);
     databases.push_back(&PARAM_COMPRESSED);
