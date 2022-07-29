@@ -52,6 +52,7 @@ std::vector<int> DbValidator::directory = {Parameters::DBTYPE_DIRECTORY};
 std::vector<int> DbValidator::flatfile = {Parameters::DBTYPE_FLATFILE};
 std::vector<int> DbValidator::flatfileAndStdin = {Parameters::DBTYPE_FLATFILE, Parameters::DBTYPE_STDIN};
 std::vector<int> DbValidator::flatfileStdinAndGeneric = {Parameters::DBTYPE_FLATFILE, Parameters::DBTYPE_STDIN, Parameters::DBTYPE_GENERIC_DB};
+std::vector<int> DbValidator::flatfileStdinGenericUri = {Parameters::DBTYPE_FLATFILE, Parameters::DBTYPE_STDIN, Parameters::DBTYPE_GENERIC_DB, Parameters::DBTYPE_URI};
 std::vector<int> DbValidator::resultDb =  {Parameters::DBTYPE_ALIGNMENT_RES, Parameters::DBTYPE_PREFILTER_RES, Parameters::DBTYPE_PREFILTER_REV_RES, Parameters::DBTYPE_CLUSTER_RES};
 std::vector<int> DbValidator::ppResultDb =  {Parameters::DBTYPE_ALIGNMENT_RES, Parameters::DBTYPE_PREFILTER_RES, Parameters::DBTYPE_PREFILTER_REV_RES, Parameters::DBTYPE_CLUSTER_RES, Parameters::DBTYPE_INDEX_DB};
 std::vector<int> DbValidator::taxonomyReportInput =  {Parameters::DBTYPE_ALIGNMENT_RES, Parameters::DBTYPE_PREFILTER_RES, Parameters::DBTYPE_PREFILTER_REV_RES, Parameters::DBTYPE_CLUSTER_RES, Parameters::DBTYPE_TAXONOMICAL_RESULT, Parameters::DBTYPE_NUCLEOTIDES, Parameters::DBTYPE_HMM_PROFILE, Parameters::DBTYPE_AMINO_ACIDS};

@@ -82,6 +82,7 @@ public:
     static const int DBTYPE_FLATFILE = 17; // needed for verification
     static const int DBTYPE_SEQTAXDB = 18; // needed for verification
     static const int DBTYPE_STDIN = 19; // needed for verification
+    static const int DBTYPE_URI = 20; // needed for verification
 
     static const unsigned int DBTYPE_EXTENDED_COMPRESSED = 1;
     static const unsigned int DBTYPE_EXTENDED_INDEX_NEED_SRC = 2;
@@ -1152,6 +1153,7 @@ public:
             case DBTYPE_DIRECTORY: return "Directory";
             case DBTYPE_FLATFILE: return "Flatfile";
             case DBTYPE_STDIN: return "stdin";
+            case DBTYPE_URI: return "uri";
 
             default: return "Unknown";
         }

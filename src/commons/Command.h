@@ -68,6 +68,7 @@ struct DbValidator {
     static std::vector<int> flatfile;
     static std::vector<int> flatfileAndStdin;
     static std::vector<int> flatfileStdinAndGeneric;
+    static std::vector<int> flatfileStdinGenericUri;
     static std::vector<int> empty;
 };
 
