@@ -4,6 +4,7 @@
 #include "ExtendedSubstitutionMatrix.h"
 #include "SubstitutionMatrixProfileStates.h"
 #include "DBWriter.h"
+#include "QueryMatcherTaxonomyHook.h"
 
 #include "PatternCompiler.h"
 #include "FileUtil.h"
@@ -219,9 +220,19 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         _3merSubMatrix = getScoreMatrix(*kmerSubMat, 3);
         kmerSubMat->alphabetSize = alphabetSize;
     }
+
+    if (par.taxonList.length() > 0) {
+        taxonomyHook = new QueryMatcherTaxonomyHook(targetDB, tdbr, par.taxonList);
+    } else {
+        taxonomyHook = NULL;
+    }
 }
 
 Prefiltering::~Prefiltering() {
+    if (taxonomyHook != NULL) {
+        delete taxonomyHook;
+    }
+
     if (sameQTDB == false) {
         qdbr->close();
         delete qdbr;
@@ -790,6 +801,10 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
             matcher.setSubstitutionMatrix(NULL, NULL);
         }
 
+        if (taxonomyHook != NULL) {
+            matcher.setQueryMatcherHook(taxonomyHook);
+        }
+
         char buffer[128];
         std::string result;
         result.reserve(1000000);
@@ -816,6 +831,9 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                 }
             }
             // calculate prefiltering results
+            if (taxonomyHook != NULL) {
+                taxonomyHook->setDbFrom(dbFrom);
+            }
             std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId, targetSeqType==Parameters::DBTYPE_NUCLEOTIDES);
             size_t resultSize = prefResults.second;
             const float queryLength = static_cast<float>(qdbr->getSeqLen(id));

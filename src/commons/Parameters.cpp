@@ -402,6 +402,7 @@ Parameters::Parameters():
     prefilter.push_back(&PARAM_MASK_PROBABILTY);
     prefilter.push_back(&PARAM_MASK_LOWER_CASE);
     prefilter.push_back(&PARAM_MIN_DIAG_SCORE);
+    prefilter.push_back(&PARAM_TAXON_LIST);
     prefilter.push_back(&PARAM_INCLUDE_IDENTITY);
     prefilter.push_back(&PARAM_SPACED_KMER_MODE);
     prefilter.push_back(&PARAM_PRELOAD_MODE);

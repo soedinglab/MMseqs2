@@ -24,7 +24,7 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
                            short kmerThr, int kmerSize, size_t dbSize,
                            unsigned int maxSeqLen, size_t maxHitsPerQuery, bool aaBiasCorrection, float aaBiasCorrectionScale,
                            bool diagonalScoring, unsigned int minDiagScoreThr, bool takeOnlyBestKmer, bool isNucleotide)
-        : idx(indexTable->getAlphabetSize(), kmerSize), isNucleotide(isNucleotide)
+        : idx(indexTable->getAlphabetSize(), kmerSize), isNucleotide(isNucleotide), hook(NULL)
 {
     this->kmerSubMat = kmerSubMat;
     this->ungappedAlignmentSubMat = ungappedAlignmentSubMat;
@@ -99,6 +99,9 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, unsigned 
     }
 
     size_t resultSize = match(querySeq, compositionBias);
+    if (hook != NULL) {
+        resultSize = hook->afterDiagonalMatchingHook(*this, resultSize);
+    }
     std::pair<hit_t *, size_t> queryResult;
     if (diagonalScoring) {
         // write diagonal scores in count value

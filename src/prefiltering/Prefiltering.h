@@ -13,6 +13,8 @@
 #include <list>
 #include <utility>
 
+class QueryMatcherTaxonomyHook;
+
 class Prefiltering {
 public:
     Prefiltering(
@@ -99,6 +101,7 @@ private:
     int preloadMode;
     const unsigned int threads;
     int compressed;
+    QueryMatcherTaxonomyHook* taxonomyHook;
 
     bool runSplit(const std::string &resultDB, const std::string &resultDBIndex, size_t split, bool merge);
 
