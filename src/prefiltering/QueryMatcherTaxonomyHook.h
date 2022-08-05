@@ -5,14 +5,13 @@
 #include "NcbiTaxonomy.h"
 #include "MappingReader.h"
 #include "DBReader.h"
-#include "PrefilteringIndexReader.h"
 #include "TaxonomyExpression.h"
 
 class QueryMatcherTaxonomyHook : public QueryMatcherHook {
 public:
     QueryMatcherTaxonomyHook(std::string targetPath, DBReader<unsigned int>* targetReader, const std::string& expressionString)
         : targetReader(targetReader), dbFrom(0) {
-        std::string targetName = PrefilteringIndexReader::dbPathWithoutIndex(targetPath);
+        std::string targetName = dbPathWithoutIndex(targetPath);
         taxonomy = NcbiTaxonomy::openTaxonomy(targetName);
         taxonomyMapping = new MappingReader(targetName);
         expression = new TaxonomyExpression(expressionString, *taxonomy);
@@ -42,6 +41,23 @@ public:
             }
         }
         return writePos;
+    }
+
+    static std::string dbPathWithoutIndex(const std::string& dbname) {
+        static const std::vector<std::string> suffices = {
+            "_ss.idx",
+            "_ss.linidx",
+            "_ss",
+            ".idx",
+            ".linidx"
+        };
+        for (size_t i = 0; i < suffices.size(); ++i) {
+            size_t lastpos = dbname.rfind(suffices[i]);
+            if (lastpos != std::string::npos && dbname.size() - lastpos == suffices[i].length()){
+                return dbname.substr(0, lastpos);
+            }
+        }
+        return dbname;
     }
 
     NcbiTaxonomy* taxonomy;
