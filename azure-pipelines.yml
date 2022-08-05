@@ -37,16 +37,13 @@ jobs:
           targetPath: $(System.DefaultWorkingDirectory)/userguide.pdf
           artifactName: userguide
 
-  - job: build_macos_1015
-    displayName: macOS 1015
+  - job: build_macos_11
+    displayName: macOS 11
     pool:
-      vmImage: 'macos-10.15'
+      vmImage: 'macos-11'
     steps:
       - checkout: self
         submodules: true
-      - script: |
-          sudo xcode-select -s "/Applications/Xcode_12.2.app"
-        displayName: Use Xcode 12.2
       - script: |
           cd ${BUILD_SOURCESDIRECTORY}
           ./util/build_osx.sh . build
@@ -253,7 +250,7 @@ jobs:
       vmImage: 'Ubuntu-18.04'
     dependsOn:
       - build_ubuntu_2004_userguide
-      - build_macos_1015
+      - build_macos_11
       - build_ubuntu_1804
       - build_ubuntu_cross_2004
       - build_windows_2019
