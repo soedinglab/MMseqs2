@@ -73,7 +73,7 @@ int summarizeresult(int argc, const char **argv, const Command &command) {
                     Debug(Debug::WARNING) << "Query alignment start or end is greater than query length! Skipping line.\n";
                     continue;
                 }
-                if (domain.dbcov <= par.covThr) {
+                if (domain.dbcov < par.covThr) {
                     continue;
                 }
 
