@@ -222,7 +222,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
         SequenceLookup *sequenceLookup = NULL;
         IndexBuilder::fillDatabase(&indexTable,
                                    (maskMode == 1 || maskLowerCase == 1) ? &sequenceLookup : NULL,
-                                   (maskMode == 0 ) ? &sequenceLookup : NULL,
+                                   (maskMode == 0 && maskLowerCase == 0) ? &sequenceLookup : NULL,
                                    *subMat, &seq, dbr1, dbFrom, dbFrom + dbSize, kmerThr, maskMode, maskLowerCase, maskProb);
         indexTable.printStatistics(subMat->num2aa);
 
