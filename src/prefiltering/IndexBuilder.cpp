@@ -248,9 +248,6 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     if(idScoreLookup!=NULL){
         delete[] idScoreLookup;
     }
-    if (unmaskedLookup != NULL && maskedLookup != NULL){
-       delete *unmaskedLookup;
-    }
     indexTable->revertPointer();
     indexTable->sortDBSeqLists();
 }
