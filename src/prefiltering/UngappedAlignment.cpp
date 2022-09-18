@@ -49,15 +49,14 @@ int UngappedAlignment::scalarDiagonalScoring(const char * profile,
 
 template <unsigned int T>
 void UngappedAlignment::unrolledDiagonalScoring(const char * profile,
-                                                const unsigned int seqLen,
+                                                const unsigned int * seqLen,
                                                 const unsigned char ** dbSeq,
                                                 unsigned int * max) {
     unsigned int maxScores[DIAGONALBINSIZE];
     simd_int zero = simdi32_set(0);
     simd_int maxVec = simdi32_set(0);
     simd_int score = simdi32_set(0);
-
-    for(unsigned int pos = 0; pos < seqLen; pos++){
+    for(unsigned int pos = 0; pos < seqLen[0]; pos++){
         const char * profileColumn = (profile + pos * T);
         int subScore0 =  profileColumn[dbSeq[0][pos]];
         int subScore1 =  profileColumn[dbSeq[1][pos]];
@@ -79,13 +78,144 @@ void UngappedAlignment::unrolledDiagonalScoring(const char * profile,
         maxVec = simdui8_max(maxVec, score);
     }
 
+    for(unsigned int pos = seqLen[0]; pos < seqLen[1]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        //int subScore0 =  profileColumn[dbSeq[0][pos]];
+        int subScore1 =  profileColumn[dbSeq[1][pos]];
+        int subScore2 =  profileColumn[dbSeq[2][pos]];
+        int subScore3 =  profileColumn[dbSeq[3][pos]];
+
+#ifdef AVX2
+        int subScore4 =  profileColumn[dbSeq[4][pos]];
+        int subScore5 =  profileColumn[dbSeq[5][pos]];
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        simd_int subScores = _mm256_set_epi32(subScore7, subScore6, subScore5, subScore4, subScore3, subScore2, subScore1, 0);
+#else
+        simd_int subScores = _mm_set_epi32(subScore3, subScore2, subScore1, 0);
+#endif
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        //        std::cout << (int)((char *)&template01)[0] << "\t" <<  SSTR(((char *)&score_vec_8bit)[0]) << "\t" << SSTR(((char *)&vMaxScore)[0]) << "\t" << SSTR(((char *)&vscore)[0]) << std::endl;
+        maxVec = simdui8_max(maxVec, score);
+    }
+
+    for(unsigned int pos = seqLen[1]; pos < seqLen[2]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        //int subScore0 =  profileColumn[dbSeq[0][pos]];
+        //int subScore1 =  profileColumn[dbSeq[1][pos]];
+        int subScore2 =  profileColumn[dbSeq[2][pos]];
+        int subScore3 =  profileColumn[dbSeq[3][pos]];
+
+#ifdef AVX2
+        int subScore4 =  profileColumn[dbSeq[4][pos]];
+        int subScore5 =  profileColumn[dbSeq[5][pos]];
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        simd_int subScores = _mm256_set_epi32(subScore7, subScore6, subScore5, subScore4, subScore3, subScore2, 0, 0);
+#else
+        simd_int subScores = _mm_set_epi32(subScore3, subScore2, 0, 0);
+#endif
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        //        std::cout << (int)((char *)&template01)[0] << "\t" <<  SSTR(((char *)&score_vec_8bit)[0]) << "\t" << SSTR(((char *)&vMaxScore)[0]) << "\t" << SSTR(((char *)&vscore)[0]) << std::endl;
+        maxVec = simdui8_max(maxVec, score);
+    }
+
+    for(unsigned int pos = seqLen[2]; pos < seqLen[3]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        //int subScore0 =  profileColumn[dbSeq[0][pos]];
+        //int subScore1 =  profileColumn[dbSeq[1][pos]];
+        //int subScore2 =  profileColumn[dbSeq[2][pos]];
+        int subScore3 =  profileColumn[dbSeq[3][pos]];
+
+#ifdef AVX2
+        int subScore4 =  profileColumn[dbSeq[4][pos]];
+        int subScore5 =  profileColumn[dbSeq[5][pos]];
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        simd_int subScores = _mm256_set_epi32(subScore7, subScore6, subScore5, subScore4, subScore3, 0, 0, 0);
+#else
+        simd_int subScores = _mm_set_epi32(subScore3, 0, 0, 0);
+#endif
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        //        std::cout << (int)((char *)&template01)[0] << "\t" <<  SSTR(((char *)&score_vec_8bit)[0]) << "\t" << SSTR(((char *)&vMaxScore)[0]) << "\t" << SSTR(((char *)&vscore)[0]) << std::endl;
+        maxVec = simdui8_max(maxVec, score);
+    }
+#ifdef AVX2
+    for(unsigned int pos = seqLen[3]; pos < seqLen[4]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        //int subScore0 =  profileColumn[dbSeq[0][pos]];
+        //int subScore1 =  profileColumn[dbSeq[1][pos]];
+        //int subScore2 =  profileColumn[dbSeq[2][pos]];
+        //int subScore3 =  profileColumn[dbSeq[3][pos]];
+        int subScore4 =  profileColumn[dbSeq[4][pos]];
+        int subScore5 =  profileColumn[dbSeq[5][pos]];
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        simd_int subScores = _mm256_set_epi32(subScore7, subScore6, subScore5, subScore4, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        //        std::cout << (int)((char *)&template01)[0] << "\t" <<  SSTR(((char *)&score_vec_8bit)[0]) << "\t" << SSTR(((char *)&vMaxScore)[0]) << "\t" << SSTR(((char *)&vscore)[0]) << std::endl;
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[4]; pos < seqLen[5]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        //int subScore0 =  profileColumn[dbSeq[0][pos]];
+        //int subScore1 =  profileColumn[dbSeq[1][pos]];
+        //int subScore2 =  profileColumn[dbSeq[2][pos]];
+        //int subScore3 =  profileColumn[dbSeq[3][pos]];
+        //int subScore4 =  profileColumn[dbSeq[4][pos]];
+        int subScore5 =  profileColumn[dbSeq[5][pos]];
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        simd_int subScores = _mm256_set_epi32(subScore7, subScore6, subScore5, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        //        std::cout << (int)((char *)&template01)[0] << "\t" <<  SSTR(((char *)&score_vec_8bit)[0]) << "\t" << SSTR(((char *)&vMaxScore)[0]) << "\t" << SSTR(((char *)&vscore)[0]) << std::endl;
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[5]; pos < seqLen[6]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        //int subScore0 =  profileColumn[dbSeq[0][pos]];
+        //int subScore1 =  profileColumn[dbSeq[1][pos]];
+        //int subScore2 =  profileColumn[dbSeq[2][pos]];
+        //int subScore3 =  profileColumn[dbSeq[3][pos]];
+        //int subScore4 =  profileColumn[dbSeq[4][pos]];
+        //int subScore5 =  profileColumn[dbSeq[5][pos]];
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        simd_int subScores = _mm256_set_epi32(subScore7, subScore6, 0, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        //        std::cout << (int)((char *)&template01)[0] << "\t" <<  SSTR(((char *)&score_vec_8bit)[0]) << "\t" << SSTR(((char *)&vMaxScore)[0]) << "\t" << SSTR(((char *)&vscore)[0]) << std::endl;
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[6]; pos < seqLen[7]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        //int subScore0 =  profileColumn[dbSeq[0][pos]];
+        //int subScore1 =  profileColumn[dbSeq[1][pos]];
+        //int subScore2 =  profileColumn[dbSeq[2][pos]];
+        //int subScore3 =  profileColumn[dbSeq[3][pos]];
+        //int subScore4 =  profileColumn[dbSeq[4][pos]];
+        //int subScore5 =  profileColumn[dbSeq[5][pos]];
+        //int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        simd_int subScores = _mm256_set_epi32(subScore7, 0, 0, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        //        std::cout << (int)((char *)&template01)[0] << "\t" <<  SSTR(((char *)&score_vec_8bit)[0]) << "\t" << SSTR(((char *)&vMaxScore)[0]) << "\t" << SSTR(((char *)&vscore)[0]) << std::endl;
+        maxVec = simdui8_max(maxVec, score);
+    }
+#endif
+
     extractScores(maxScores, maxVec);
 
     for(size_t i = 0; i < DIAGONALBINSIZE; i++){
         max[i] = std::max(maxScores[i], max[i]);
     }
 }
-
 
 void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
                                                    const unsigned int queryLen,
@@ -108,54 +238,64 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
     }
     memset(score_arr, 0, sizeof(unsigned int) * DIAGONALBINSIZE);
     if (hitSize == DIAGONALBINSIZE) {
-        std::pair<unsigned char *, unsigned int> seqs[DIAGONALBINSIZE];
+        struct DiagonalSeq{
+            unsigned char * seq;
+            unsigned int seqLen;
+            unsigned int id;
+            static bool compareDiagonalSeqByLen(const DiagonalSeq &first, const DiagonalSeq &second) {
+                return first.seqLen < second.seqLen;
+            }
+        };
+        DiagonalSeq seqs[DIAGONALBINSIZE];
         for (unsigned int seqIdx = 0; seqIdx < hitSize; seqIdx++) {
             std::pair<const unsigned char *, const unsigned int> tmp = sequenceLookup->getSequence(
                     hits[seqIdx]->id);
-            if(hits[seqIdx]->id == 82786){
-                std::cout << "print" << std::endl;
-            }
             if(tmp.second >= 32768){
                 // hack to avoid too long sequences
                 // this sequences will be processed by computeLongScore later
-                seqs[seqIdx] = std::make_pair((unsigned char *) tmp.first, (unsigned int) 1);
+                seqs[seqIdx].seq = (unsigned char *) tmp.first;
+                seqs[seqIdx].seqLen = 1;
+                seqs[seqIdx].id = seqIdx;
             }else{
-                seqs[seqIdx] = std::make_pair((unsigned char *) tmp.first, (unsigned int) tmp.second);
+                seqs[seqIdx].seq = (unsigned char *) tmp.first;
+                seqs[seqIdx].seqLen = (unsigned int) tmp.second;
+                seqs[seqIdx].id = seqIdx;
             }
         }
-
-        unsigned int targetMaxLen = 0;
-        for(size_t seqIdx = 0; seqIdx < DIAGONALBINSIZE; seqIdx++){
-            targetMaxLen = std::max(seqs[seqIdx].second, targetMaxLen);
-        }
+        std::sort(seqs, seqs+DIAGONALBINSIZE, DiagonalSeq::compareDiagonalSeqByLen);
+        unsigned int targetMaxLen = seqs[DIAGONALBINSIZE-1].seqLen;
         if (diagonal >= 0 && minDistToDiagonal < queryLen) {
             const unsigned char * tmpSeqs[DIAGONALBINSIZE];
-            for(size_t i = 0; i < DIAGONALBINSIZE; i++) {
-                tmpSeqs[i] = seqs[i].first;
-            }
+            unsigned int seqLength[DIAGONALBINSIZE];
             unsigned int minSeqLen = std::min(targetMaxLen, queryLen - minDistToDiagonal);
-            unrolledDiagonalScoring<Sequence::PROFILE_AA_SIZE + 1>(queryProfile + (minDistToDiagonal * (Sequence::PROFILE_AA_SIZE + 1)), minSeqLen,
-                                                                   tmpSeqs, score_arr);
+            for(size_t i = 0; i < DIAGONALBINSIZE; i++) {
+                tmpSeqs[i] = seqs[i].seq;
+                seqLength[i] = std::min(seqs[i].seqLen, minSeqLen);
+            }
+            unrolledDiagonalScoring<Sequence::PROFILE_AA_SIZE + 1>(queryProfile + (minDistToDiagonal * (Sequence::PROFILE_AA_SIZE + 1)),
+                                                                   seqLength, tmpSeqs, score_arr);
 
         } else if (diagonal < 0 && minDistToDiagonal < targetMaxLen) {
-            unsigned int minSeqLen = std::min(targetMaxLen - minDistToDiagonal, queryLen);
             const unsigned char * tmpSeqs[DIAGONALBINSIZE];
+            unsigned int seqLength[DIAGONALBINSIZE];
+            unsigned int minSeqLen = std::min(targetMaxLen - minDistToDiagonal, queryLen);
             for(size_t i = 0; i < DIAGONALBINSIZE; i++) {
-                tmpSeqs[i] = seqs[i].first + minDistToDiagonal;
+                tmpSeqs[i] = seqs[i].seq + minDistToDiagonal;
+                seqLength[i] = std::min(seqs[i].seqLen - minDistToDiagonal, minSeqLen);
             }
-            unrolledDiagonalScoring<Sequence::PROFILE_AA_SIZE + 1>(queryProfile, minSeqLen,
+            unrolledDiagonalScoring<Sequence::PROFILE_AA_SIZE + 1>(queryProfile, seqLength,
                                                                    tmpSeqs, score_arr);
         }
 
         // update score
         for(size_t hitIdx = 0; hitIdx < hitSize; hitIdx++){
-            hits[hitIdx]->count = static_cast<unsigned char>(std::min(static_cast<unsigned int>(255),
+            hits[seqs[hitIdx].id]->count = static_cast<unsigned char>(std::min(static_cast<unsigned int>(255),
                                                                       score_arr[hitIdx]));
-            if(seqs[hitIdx].second == 1){
+            if(seqs[hitIdx].seqLen == 1){
                 std::pair<const unsigned char *, const unsigned int> dbSeq =  sequenceLookup->getSequence(hits[hitIdx]->id);
                 if(dbSeq.second >= 32768){
                     int max = computeLongScore(queryProfile, queryLen, dbSeq, diagonal);
-                    hits[hitIdx]->count = static_cast<unsigned char>(std::min(255, max));
+                    hits[seqs[hitIdx].id]->count = static_cast<unsigned char>(std::min(255, max));
                 }
             }
         }
@@ -307,6 +447,7 @@ int UngappedAlignment::scoreSingleSequence(std::pair<const unsigned char *, cons
         return computeSingelSequenceScores(queryProfile,queryLen ,dbSeq, static_cast<short>(diagonal), minDistToDiagonal);
     }
 }
+
 
 
 

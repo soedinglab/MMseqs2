@@ -77,8 +77,9 @@ private:
 
     template <unsigned int T>
     void unrolledDiagonalScoring(const char * profile,
-                                 const unsigned int seqLen,
-                                 const unsigned char ** dbSeq, unsigned int * max);
+                                 const unsigned int * seqLen,
+                                 const unsigned char ** dbSeq,
+                                 unsigned int * max);
 
     // calles vectorDiagonalScoring or scalarDiagonalScoring depending on the hitSize
     // and updates diagonalScore of the hit_t objects
@@ -104,3 +105,4 @@ private:
 
 
 #endif //MMSEQS_DIAGONALMATCHER_H
+
