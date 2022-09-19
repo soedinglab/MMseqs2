@@ -15,6 +15,16 @@
 
 class QueryMatcherTaxonomyHook;
 
+struct KmerThreshold{
+    int sequenceType;
+    int kmerSize;
+    float base;
+    float sensPerStep;
+};
+
+extern std::vector<KmerThreshold> externalThreshold;
+
+
 class Prefiltering {
 public:
     Prefiltering(
@@ -130,3 +140,4 @@ private:
 };
 
 #endif
+

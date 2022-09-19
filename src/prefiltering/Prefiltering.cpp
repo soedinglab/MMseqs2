@@ -1008,6 +1008,12 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const bool isProfile
         return kmerScore.sequence();
     }
     float kmerThrBest = FLT_MAX;
+    int paramType = isProfile ? Parameters::DBTYPE_HMM_PROFILE : Parameters::DBTYPE_AMINO_ACIDS;
+    for(size_t i = 0; i < externalThreshold.size(); i++){
+        if(kmerSize == externalThreshold[i].kmerSize && externalThreshold[i].sequenceType == paramType){
+            return static_cast<int>(externalThreshold[i].base - (externalThreshold[i].sensPerStep * sensitivity));
+        }
+    }
     if (isProfile == true) {
         if (hasContextPseudoCnts == true) {
             if (kmerSize == 5) {
@@ -1129,5 +1135,6 @@ std::pair<int, int> Prefiltering::optimizeSplit(size_t totalMemoryInByte, DBRead
 
     return std::make_pair(-1, -1);
 }
+
 
 

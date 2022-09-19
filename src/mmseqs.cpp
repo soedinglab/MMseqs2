@@ -1,5 +1,6 @@
 #include "Command.h"
 #include "DownloadDatabase.h"
+#include "Prefiltering.h"
 
 const char* binary_name = "mmseqs";
 const char* tool_name = "MMseqs2";
@@ -13,5 +14,6 @@ bool hide_base_commands = false;
 void (*validatorUpdate)(void) = 0;
 std::vector<Command> commands = {};
 std::vector<DatabaseDownload> externalDownloads = {};
+std::vector<KmerThreshold> externalThreshold = {};
 
 bool hide_base_downloads = false;
