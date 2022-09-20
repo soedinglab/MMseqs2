@@ -186,8 +186,15 @@ std::vector<Command> baseCommands = {
                 "Milot Mirdita <milot@mirdita.de>",
                 "<i:tar[.gz]> ... <i:tar[.gz]> <o:resultDB>",
                 CITATION_MMSEQS2, {{".tar[.gz]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfile },
-                                          {"DB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
-
+                                          {"DB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
+        {"db2tar",               db2tar,               &par.onlyverbosity,        COMMAND_DATABASE_CREATION | COMMAND_EXPERT,
+                "Archive contents of a DB to a tar archive",
+                "# Create a tar from a MSA DB\n"
+                "mmseqs db2tar msaDB archive.tar.gz\n",
+                "Milot Mirdita <milot@mirdita.de>",
+                "<i:DB> <o:tar[.gz]>",
+                CITATION_MMSEQS2, {{"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_LOOKUP, &DbValidator::allDb },
+                                          {".tar[.gz]", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile }}},
 
         {"search",               search,               &par.searchworkflow,       COMMAND_MAIN,
                 "Sensitive homology search",

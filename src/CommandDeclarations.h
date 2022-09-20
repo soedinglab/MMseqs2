@@ -36,6 +36,7 @@ extern int aliasdb(int argc, const char **argv, const Command& command);
 extern int createtsv(int argc, const char **argv, const Command& command);
 extern int databases(int argc, const char **argv, const Command& command);
 extern int dbtype(int argc, const char **argv, const Command& command);
+extern int db2tar(int argc, const char **argv, const Command& command);
 extern int decompress(int argc, const char **argv, const Command &command);
 extern int diffseqdbs(int argc, const char **argv, const Command& command);
 extern int easycluster(int argc, const char **argv, const Command& command);

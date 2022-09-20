@@ -13,6 +13,7 @@ set(util_source_files
         util/convertprofiledb.cpp
         util/createdb.cpp
         util/dbtype.cpp
+        util/db2tar.cpp
         util/indexdb.cpp
         util/offsetalignment.cpp
         util/createseqfiledb.cpp
