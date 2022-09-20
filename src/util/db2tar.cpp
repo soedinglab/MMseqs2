@@ -72,7 +72,6 @@ int db2tar(int argc, const char **argv, const Command& command) {
         size_t length = std::max(reader.getEntryLen(i), (size_t)1) - 1;
 
         std::string name = reader.getLookupEntryName(i);
-        name.append(par.tarSuffix);
 
         err = mtar_write_file_header(&tar, name.c_str(), length);
         if (err) {
