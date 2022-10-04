@@ -232,7 +232,8 @@ int mtar_write_dir_header(mtar_t *tar, const char *name) {
 
 static int write_null_bytes(mtar_t *tar, int n) {
   char nul = '\0';
-  for (int i = 0; i < n; i++) {
+  int i;
+  for (i = 0; i < n; i++) {
     int err = tar->write(tar, &nul, 1);
     tar->pos++;
     if (err) {
