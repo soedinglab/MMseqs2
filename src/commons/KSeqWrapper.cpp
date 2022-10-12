@@ -22,7 +22,7 @@ bool KSeqFile::ReadEntry() {
         return false;
     entry.headerOffset = s->headerOffset;
     entry.sequenceOffset = s->sequenceOffset;
-    entry.multiline = s->multiline;
+    entry.newlineCount = s->newlineCount;
     entry.name = s->name;
     entry.comment = s->comment;
     entry.sequence = s->seq;
@@ -100,7 +100,7 @@ bool KSeqGzip::ReadEntry() {
     entry.qual = s->qual;
     entry.headerOffset = 0;
     entry.sequenceOffset = 0;
-    entry.multiline = s->multiline;
+    entry.newlineCount = s->newlineCount;
 
     return true;
 }
@@ -145,7 +145,7 @@ bool KSeqBzip::ReadEntry() {
     entry.qual = s->qual;
     entry.headerOffset = 0;
     entry.sequenceOffset = 0;
-    entry.multiline = s->multiline;
+    entry.newlineCount = s->newlineCount;
 
     return true;
 }
@@ -214,7 +214,7 @@ bool KSeqBuffer::ReadEntry() {
         return false;
     entry.headerOffset = s->headerOffset;
     entry.sequenceOffset = s->sequenceOffset;
-    entry.multiline = s->multiline;
+    entry.newlineCount = s->newlineCount;
     entry.name = s->name;
     entry.comment = s->comment;
     entry.sequence = s->seq;

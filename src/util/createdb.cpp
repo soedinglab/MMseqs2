@@ -131,9 +131,41 @@ int createdb(int argc, const char **argv, const Command& command) {
         } else {
             kseq = KSeqFactory(filenames[fileIdx].c_str());
         }
-        if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && kseq->type != KSeqWrapper::KSEQ_FILE) {
-            Debug(Debug::WARNING) << "Only uncompressed fasta files can be used with --createdb-mode 0.\n";
-            Debug(Debug::WARNING) << "We recompute with --createdb-mode 1.\n";
+
+        bool resetNotFile = par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && kseq->type != KSeqWrapper::KSEQ_FILE;
+        if (resetNotFile) {
+            Debug(Debug::WARNING) << "Only uncompressed fasta files can be used with --createdb-mode 0\n";
+            Debug(Debug::WARNING) << "We recompute with --createdb-mode 1\n";
+        }
+
+        bool resetIncorrectNewline = false;
+        if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && kseq->type == KSeqWrapper::KSEQ_FILE) {
+            // get last byte from filenames[fileIdx].c_str()
+            FILE* fp = fopen(filenames[fileIdx].c_str(), "rb");
+            if (fp == NULL) {
+                Debug(Debug::ERROR) << "Cannot open file " << filenames[fileIdx] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            int res = fseek(fp, -1, SEEK_END);
+            if (res != 0) {
+                Debug(Debug::ERROR) << "Cannot seek at the end of file " << filenames[fileIdx] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            int lastChar = fgetc(fp);
+            if (lastChar == EOF) {
+                Debug(Debug::ERROR) << "Error reading from " << filenames[fileIdx] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            if (fclose(fp) != 0) {
+                Debug(Debug::ERROR) << "Error closing " << filenames[fileIdx] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            if (lastChar != '\n') {
+                Debug(Debug::WARNING) << "Last byte is not a newline. We recompute with --createdb-mode 1\n";
+                resetIncorrectNewline = true;
+            }
+        }
+        if (resetNotFile || resetIncorrectNewline) {
             par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
             progress.reset(SIZE_MAX);
             hdrWriter.close();
@@ -196,22 +228,28 @@ int createdb(int argc, const char **argv, const Command& command) {
                     }
                     sampleCount++;
                 }
-                if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && e.multiline == true) {
-                    Debug(Debug::WARNING) << "Multiline fasta can not be combined with --createdb-mode 0\n";
-                    Debug(Debug::WARNING) << "We recompute with --createdb-mode 1\n";
-                    par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
-                    progress.reset(SIZE_MAX);
-                    hdrWriter.close();
-                    seqWriter.close();
-                    delete kseq;
-                    if (fclose(source) != 0) {
-                        Debug(Debug::ERROR) << "Cannot close file " << sourceFile << "\n";
-                        EXIT(EXIT_FAILURE);
+                if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
+                    if (e.newlineCount != 1) {
+                        if (e.newlineCount == 0) {
+                            Debug(Debug::WARNING) << "Fasta entry " << entries_num << " has no newline character\n";
+                        } else if (e.newlineCount > 1) {
+                            Debug(Debug::WARNING) << "Multiline fasta can not be combined with --createdb-mode 0\n";
+                        }
+                        Debug(Debug::WARNING) << "We recompute with --createdb-mode 1\n";
+                        par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
+                        progress.reset(SIZE_MAX);
+                        hdrWriter.close();
+                        seqWriter.close();
+                        delete kseq;
+                        if (fclose(source) != 0) {
+                            Debug(Debug::ERROR) << "Cannot close file " << sourceFile << "\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                        for (size_t i = 0; i < shuffleSplits; ++i) {
+                            sourceLookup[i].clear();
+                        }
+                        goto redoComputation;
                     }
-                    for (size_t i = 0; i < shuffleSplits; ++i) {
-                        sourceLookup[i].clear();
-                    }
-                    goto redoComputation;
                 }
             }
 
