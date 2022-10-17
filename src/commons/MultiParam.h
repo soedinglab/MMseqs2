@@ -209,6 +209,7 @@ public:
 
     bool assign(const std::string &value, int &obj) {
         char *rest = NULL;
+        errno = 0;
         int tmp = strtol(value.c_str(), &rest, 10);
         if ((rest != value.c_str() && *rest != '\0') || errno == ERANGE) {
             return false;
@@ -219,6 +220,7 @@ public:
 
     bool assign(const std::string &value, float &obj) {
         char *rest = NULL;
+        errno = 0;
         float tmp = strtof(value.c_str(), &rest);
         if ((rest != value.c_str() && *rest != '\0') || errno == ERANGE) {
             return false;

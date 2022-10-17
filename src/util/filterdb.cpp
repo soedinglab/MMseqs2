@@ -329,6 +329,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
                     for (size_t i = 0; i < bindableParserColumns.size(); ++i) {
                         size_t columnToBind = bindableParserColumns[i];
                         char *rest;
+                        errno = 0;
                         const double value = strtod(columnPointers[columnToBind], &rest);
                         if ((rest == columnPointers[columnToBind]) || errno == ERANGE) {
                             Debug(Debug::WARNING) << "Can not parse column " << columnToBind << "!\n";

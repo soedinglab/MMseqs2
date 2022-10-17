@@ -217,6 +217,7 @@ std::string FileUtil::getCurrentWorkingDirectory() {
             free(wd);
             bufferSize *= 2;
         }
+        errno = 0;
         wd = getcwd(NULL, bufferSize);
         if (wd == NULL && errno != ERANGE && errno != 0) {
             Debug(Debug::ERROR) << "Could not get current working directory\n";
