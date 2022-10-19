@@ -6,6 +6,8 @@
 
 int splitdb(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
+    par.overrideParameterDescription(par.PARAM_SPLIT, "Split input into N equally distributed chunks", NULL, MMseqsParameter::COMMAND_COMMON);
+    par.PARAM_SPLIT_AMINOACID.category = MMseqsParameter::COMMAND_COMMON;
     par.parseParameters(argc, argv, command, true, 0, 0);
 
     if (par.split < 1) {
