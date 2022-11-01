@@ -29,6 +29,13 @@
 
 #include "types.h"
 #include "mov.h"
+#if HEDLEY_MSVC_VERSION_CHECK(14,0,0)
+#include <intrin.h>
+#pragma intrinsic(_BitScanReverse)
+  #if defined(_M_AMD64) || defined(_M_ARM64)
+  #pragma intrinsic(_BitScanReverse64)
+  #endif
+#endif
 
 HEDLEY_DIAGNOSTIC_PUSH
 SIMDE_DISABLE_UNWANTED_DIAGNOSTICS
@@ -162,7 +169,7 @@ simde_mm_lzcnt_epi32(simde__m128i a) {
       r_,
       a_ = simde__m128i_to_private(a);
 
-    #if defined(SIMDE_POWER_ALTIVEC_P7_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_13_NATIVE)
+    #if defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_13_NATIVE)
       r_.altivec_u32 = vec_cntlz(a_.altivec_u32);
     #else
       SIMDE_VECTORIZE

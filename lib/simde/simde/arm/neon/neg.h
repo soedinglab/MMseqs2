@@ -34,6 +34,20 @@ SIMDE_DISABLE_UNWANTED_DIAGNOSTICS
 SIMDE_BEGIN_DECLS_
 
 SIMDE_FUNCTION_ATTRIBUTES
+int64_t
+simde_vnegd_s64(int64_t a) {
+  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(9,0,0))
+    return vnegd_s64(a);
+  #else
+    return -a;
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES)
+  #undef vnegd_s64
+  #define vnegd_s64(a) simde_vnegd_s64(a)
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
 simde_float32x2_t
 simde_vneg_f32(simde_float32x2_t a) {
   #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
@@ -151,7 +165,7 @@ simde_vneg_s32(simde_int32x2_t a) {
       r_,
       a_ = simde_int32x2_to_private(a);
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+    #if defined(SIMDE_VECTOR_SUBSCRIPT_OPS) && !defined(SIMDE_BUG_GCC_100762)
       r_.values = -a_.values;
     #else
       SIMDE_VECTORIZE
@@ -183,7 +197,7 @@ simde_vneg_s64(simde_int64x1_t a) {
     #else
       SIMDE_VECTORIZE
       for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
-        r_.values[i] = -(a_.values[i]);
+        r_.values[i] = simde_vnegd_s64(a_.values[i]);
       }
     #endif
 
@@ -200,17 +214,18 @@ simde_float32x4_t
 simde_vnegq_f32(simde_float32x4_t a) {
   #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
     return vnegq_f32(a);
-  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) && \
-      (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(8,1,0))
+  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) && (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(8,1,0))
     return vec_neg(a);
-  #elif defined(SIMDE_WASM_SIMD128_NATIVE)
-    return wasm_f32x4_neg(a);
   #else
     simde_float32x4_private
       r_,
       a_ = simde_float32x4_to_private(a);
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+    #if defined(SIMDE_WASM_SIMD128_NATIVE)
+      r_.v128 = wasm_f32x4_neg(a_.v128);
+    #elif defined(SIMDE_X86_SSE2_NATIVE)
+      r_.m128 = _mm_castsi128_ps(_mm_xor_si128(_mm_set1_epi32(HEDLEY_STATIC_CAST(int32_t, UINT32_C(1) << 31)), _mm_castps_si128(a_.m128)));
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = -a_.values;
     #else
       SIMDE_VECTORIZE
@@ -232,17 +247,18 @@ simde_float64x2_t
 simde_vnegq_f64(simde_float64x2_t a) {
   #if defined(SIMDE_ARM_NEON_A64V8_NATIVE)
     return vnegq_f64(a);
-  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) && \
-      (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(8,1,0))
+  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) && (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(8,1,0))
     return vec_neg(a);
-  #elif defined(SIMDE_WASM_SIMD128_NATIVE)
-    return wasm_f64x2_neg(a);
   #else
     simde_float64x2_private
       r_,
       a_ = simde_float64x2_to_private(a);
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+    #if defined(SIMDE_WASM_SIMD128_NATIVE)
+      r_.v128 = wasm_f64x2_neg(a_.v128);
+    #elif defined(SIMDE_X86_SSE2_NATIVE)
+      r_.m128d = _mm_castsi128_pd(_mm_xor_si128(_mm_set1_epi64x(HEDLEY_STATIC_CAST(int64_t, UINT64_C(1) << 63)), _mm_castpd_si128(a_.m128d)));
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = -a_.values;
     #else
       SIMDE_VECTORIZE
@@ -264,17 +280,18 @@ simde_int8x16_t
 simde_vnegq_s8(simde_int8x16_t a) {
   #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
     return vnegq_s8(a);
-  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) && \
-      (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(8,1,0))
+  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) && (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(8,1,0))
     return vec_neg(a);
-  #elif defined(SIMDE_WASM_SIMD128_NATIVE)
-    return wasm_i8x16_neg(a);
   #else
     simde_int8x16_private
       r_,
       a_ = simde_int8x16_to_private(a);
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+    #if defined(SIMDE_WASM_SIMD128_NATIVE)
+      r_.v128 = wasm_i8x16_neg(a_.v128);
+    #elif defined(SIMDE_X86_SSE2_NATIVE)
+      r_.m128i = _mm_sub_epi8(_mm_setzero_si128(), a_.m128i);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = -a_.values;
     #else
       SIMDE_VECTORIZE
@@ -296,17 +313,18 @@ simde_int16x8_t
 simde_vnegq_s16(simde_int16x8_t a) {
   #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
     return vnegq_s16(a);
-  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) && \
-      (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(8,1,0))
+  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) && (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(8,1,0))
     return vec_neg(a);
-  #elif defined(SIMDE_WASM_SIMD128_NATIVE)
-    return wasm_i16x8_neg(a);
   #else
     simde_int16x8_private
       r_,
       a_ = simde_int16x8_to_private(a);
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+    #if defined(SIMDE_WASM_SIMD128_NATIVE)
+      r_.v128 = wasm_i16x8_neg(a_.v128);
+    #elif defined(SIMDE_X86_SSE2_NATIVE)
+      r_.m128i = _mm_sub_epi16(_mm_setzero_si128(), a_.m128i);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = -a_.values;
     #else
       SIMDE_VECTORIZE
@@ -328,17 +346,18 @@ simde_int32x4_t
 simde_vnegq_s32(simde_int32x4_t a) {
   #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
     return vnegq_s32(a);
-  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) && \
-      (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(8,1,0))
+  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) && (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(8,1,0))
     return vec_neg(a);
-  #elif defined(SIMDE_WASM_SIMD128_NATIVE)
-    return wasm_i32x4_neg(a);
   #else
     simde_int32x4_private
       r_,
       a_ = simde_int32x4_to_private(a);
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+    #if defined(SIMDE_WASM_SIMD128_NATIVE)
+      r_.v128 = wasm_i32x4_neg(a_.v128);
+    #elif defined(SIMDE_X86_SSE2_NATIVE)
+      r_.m128i = _mm_sub_epi32(_mm_setzero_si128(), a_.m128i);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = -a_.values;
     #else
       SIMDE_VECTORIZE
@@ -360,22 +379,23 @@ simde_int64x2_t
 simde_vnegq_s64(simde_int64x2_t a) {
   #if defined(SIMDE_ARM_NEON_A64V8_NATIVE)
     return vnegq_s64(a);
-  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) && \
-      (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(8,1,0))
+  #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE) && (!defined(HEDLEY_GCC_VERSION) || HEDLEY_GCC_VERSION_CHECK(8,1,0))
     return vec_neg(a);
-  #elif defined(SIMDE_WASM_SIMD128_NATIVE)
-    return wasm_i64x2_neg(a);
   #else
     simde_int64x2_private
       r_,
       a_ = simde_int64x2_to_private(a);
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+    #if defined(SIMDE_WASM_SIMD128_NATIVE)
+      r_.v128 = wasm_i64x2_neg(a_.v128);
+    #elif defined(SIMDE_X86_SSE2_NATIVE)
+      r_.m128i = _mm_sub_epi64(_mm_setzero_si128(), a_.m128i);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = -a_.values;
     #else
       SIMDE_VECTORIZE
       for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
-        r_.values[i] = -(a_.values[i]);
+        r_.values[i] = simde_vnegd_s64(a_.values[i]);
       }
     #endif
 

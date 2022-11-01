@@ -106,7 +106,15 @@ int simde_mm_cmpestrs (simde__m128i a, int la, simde__m128i b, int lb, const int
   return la <= ((128 / ((imm8 & SIMDE_SIDD_UWORD_OPS) ? 16 : 8)) - 1);
 }
 #if defined(SIMDE_X86_SSE4_2_NATIVE)
-  #define simde_mm_cmpestrs(a, la, b, lb, imm8) _mm_cmpestrs(a, la, b, lb, imm8)
+  #if defined(__clang__) && !SIMDE_DETECT_CLANG_VERSION_CHECK(3,8,0)
+    #define simde_mm_cmpestrs(a, la, b, lb, imm8) \
+      _mm_cmpestrs( \
+        HEDLEY_REINTERPRET_CAST(__v16qi, a), la, \
+        HEDLEY_REINTERPRET_CAST(__v16qi, b), lb, \
+        imm8)
+  #else
+    #define simde_mm_cmpestrs(a, la, b, lb, imm8) _mm_cmpestrs(a, la, b, lb, imm8)
+  #endif
 #endif
 #if defined(SIMDE_X86_SSE4_2_ENABLE_NATIVE_ALIASES)
   #undef _mm_cmpestrs
@@ -126,7 +134,15 @@ int simde_mm_cmpestrz (simde__m128i a, int la, simde__m128i b, int lb, const int
   return lb <= ((128 / ((imm8 & SIMDE_SIDD_UWORD_OPS) ? 16 : 8)) - 1);
 }
 #if defined(SIMDE_X86_SSE4_2_NATIVE)
-  #define simde_mm_cmpestrz(a, la, b, lb, imm8) _mm_cmpestrz(a, la, b, lb, imm8)
+  #if defined(__clang__) && !SIMDE_DETECT_CLANG_VERSION_CHECK(3,8,0)
+    #define simde_mm_cmpestrz(a, la, b, lb, imm8) \
+      _mm_cmpestrz( \
+        HEDLEY_REINTERPRET_CAST(__v16qi, a), la, \
+        HEDLEY_REINTERPRET_CAST(__v16qi, b), lb, \
+        imm8)
+  #else
+    #define simde_mm_cmpestrz(a, la, b, lb, imm8) _mm_cmpestrz(a, la, b, lb, imm8)
+  #endif
 #endif
 #if defined(SIMDE_X86_SSE4_2_ENABLE_NATIVE_ALIASES)
   #undef _mm_cmpestrz
@@ -157,7 +173,7 @@ simde_mm_cmpgt_epi64 (simde__m128i a, simde__m128i b) {
     #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE)
       r_.altivec_u64 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned long long), vec_cmpgt(a_.altivec_i64, b_.altivec_i64));
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
-      r_.i64 = HEDLEY_STATIC_CAST(__typeof__(r_.i64), a_.i64 > b_.i64);
+      r_.i64 = HEDLEY_REINTERPRET_CAST(__typeof__(r_.i64), a_.i64 > b_.i64);
     #else
       SIMDE_VECTORIZE
       for (size_t i = 0 ; i < (sizeof(r_.i64) / sizeof(r_.i64[0])) ; i++) {
@@ -202,7 +218,15 @@ simde_mm_cmpistrs_16_(simde__m128i a) {
 }
 
 #if defined(SIMDE_X86_SSE4_2_NATIVE)
-  #define simde_mm_cmpistrs(a, b, imm8) _mm_cmpistrs(a, b, imm8)
+  #if defined(__clang__) && !SIMDE_DETECT_CLANG_VERSION_CHECK(3,8,0)
+    #define simde_mm_cmpistrs(a, b, imm8) \
+      _mm_cmpistrs( \
+        HEDLEY_REINTERPRET_CAST(__v16qi, a), \
+        HEDLEY_REINTERPRET_CAST(__v16qi, b), \
+        imm8)
+  #else
+    #define simde_mm_cmpistrs(a, b, imm8) _mm_cmpistrs(a, b, imm8)
+  #endif
 #else
   #define simde_mm_cmpistrs(a, b, imm8) \
      (((imm8) & SIMDE_SIDD_UWORD_OPS) \
@@ -243,7 +267,15 @@ simde_mm_cmpistrz_16_(simde__m128i b) {
 }
 
 #if defined(SIMDE_X86_SSE4_2_NATIVE)
-  #define simde_mm_cmpistrz(a, b, imm8) _mm_cmpistrz(a, b, imm8)
+  #if defined(__clang__) && !SIMDE_DETECT_CLANG_VERSION_CHECK(3,8,0)
+    #define simde_mm_cmpistrz(a, b, imm8) \
+      _mm_cmpistrz( \
+        HEDLEY_REINTERPRET_CAST(__v16qi, a), \
+        HEDLEY_REINTERPRET_CAST(__v16qi, b), \
+        imm8)
+  #else
+    #define simde_mm_cmpistrz(a, b, imm8) _mm_cmpistrz(a, b, imm8)
+  #endif
 #else
   #define simde_mm_cmpistrz(a, b, imm8) \
      (((imm8) & SIMDE_SIDD_UWORD_OPS) \
