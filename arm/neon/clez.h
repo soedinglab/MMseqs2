@@ -37,6 +37,48 @@ SIMDE_DISABLE_UNWANTED_DIAGNOSTICS
 SIMDE_BEGIN_DECLS_
 
 SIMDE_FUNCTION_ATTRIBUTES
+uint64_t
+simde_vclezd_s64(int64_t a) {
+  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE)
+    return HEDLEY_STATIC_CAST(uint64_t, vclezd_s64(a));
+  #else
+    return (a <= 0) ? UINT64_MAX : 0;
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES)
+  #undef vclezd_s64
+  #define vclezd_s64(a) simde_vclezd_s64(a)
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+uint64_t
+simde_vclezd_f64(simde_float64_t a) {
+  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE)
+    return HEDLEY_STATIC_CAST(uint64_t, vclezd_f64(a));
+  #else
+    return (a <= SIMDE_FLOAT64_C(0.0)) ? UINT64_MAX : 0;
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES)
+  #undef vclezd_f64
+  #define vclezd_f64(a) simde_vclezd_f64(a)
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+uint32_t
+simde_vclezs_f32(simde_float32_t a) {
+  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE)
+    return HEDLEY_STATIC_CAST(uint32_t, vclezs_f32(a));
+  #else
+    return (a <= SIMDE_FLOAT32_C(0.0)) ? UINT32_MAX : 0;
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES)
+  #undef vclezs_f32
+  #define vclezs_f32(a) simde_vclezs_f32(a)
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
 simde_uint32x4_t
 simde_vclezq_f32(simde_float32x4_t a) {
   #if defined(SIMDE_ARM_NEON_A64V8_NATIVE)
@@ -215,7 +257,7 @@ simde_vclez_f32(simde_float32x2_t a) {
     simde_float32x2_private a_ = simde_float32x2_to_private(a);
     simde_uint32x2_private r_;
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR)
+    #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR) && !defined(SIMDE_BUG_GCC_100762)
       r_.values = HEDLEY_REINTERPRET_CAST(__typeof__(r_.values), a_.values <= SIMDE_FLOAT32_C(0.0));
     #else
       SIMDE_VECTORIZE
@@ -271,7 +313,7 @@ simde_vclez_s8(simde_int8x8_t a) {
     simde_int8x8_private a_ = simde_int8x8_to_private(a);
     simde_uint8x8_private r_;
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR)
+    #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR) && !defined(SIMDE_BUG_GCC_100762)
       r_.values = HEDLEY_REINTERPRET_CAST(__typeof__(r_.values), a_.values <= 0);
     #else
       SIMDE_VECTORIZE
@@ -299,7 +341,7 @@ simde_vclez_s16(simde_int16x4_t a) {
     simde_int16x4_private a_ = simde_int16x4_to_private(a);
     simde_uint16x4_private r_;
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR)
+    #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR) && !defined(SIMDE_BUG_GCC_100762)
       r_.values = HEDLEY_REINTERPRET_CAST(__typeof__(r_.values), a_.values <= 0);
     #else
       SIMDE_VECTORIZE
@@ -327,7 +369,7 @@ simde_vclez_s32(simde_int32x2_t a) {
     simde_int32x2_private a_ = simde_int32x2_to_private(a);
     simde_uint32x2_private r_;
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR)
+    #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR) && !defined(SIMDE_BUG_GCC_100762)
       r_.values = HEDLEY_REINTERPRET_CAST(__typeof__(r_.values), a_.values <= 0);
     #else
       SIMDE_VECTORIZE

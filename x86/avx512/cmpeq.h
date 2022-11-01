@@ -21,7 +21,7 @@
  * SOFTWARE.
  *
  * Copyright:
- *   2020      Evan Nemerson <evan@nemerson.com>
+ *   2020-2021 Evan Nemerson <evan@nemerson.com>
  *   2020      Himanshi Mathur <himanshi18037@iiitd.ac.in>
  */
 
@@ -60,7 +60,7 @@ simde_mm512_cmpeq_epi8_mask (simde__m512i a, simde__m512i b) {
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       simde__m512i_private tmp;
 
-      tmp.i8 = HEDLEY_STATIC_CAST(__typeof__(tmp.i8), a_.i8 == b_.i8);
+      tmp.i8 = HEDLEY_REINTERPRET_CAST(__typeof__(tmp.i8), a_.i8 == b_.i8);
       r = simde_mm512_movepi8_mask(simde__m512i_from_private(tmp));
     #else
       r = 0;
@@ -77,6 +77,20 @@ simde_mm512_cmpeq_epi8_mask (simde__m512i a, simde__m512i b) {
 #if defined(SIMDE_X86_AVX512BW_ENABLE_NATIVE_ALIASES)
   #undef _mm512_cmpeq_epi8_mask
   #define _mm512_cmpeq_epi8_mask(a, b) simde_mm512_cmpeq_epi8_mask(a, b)
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde__mmask64
+simde_mm512_mask_cmpeq_epi8_mask(simde__mmask64 k1, simde__m512i a, simde__m512i b) {
+  #if defined(SIMDE_X86_AVX512BW_NATIVE)
+    return _mm512_mask_cmpeq_epi8_mask(k1, a, b);
+  #else
+    return simde_mm512_cmpeq_epi8_mask(a, b) & k1;
+  #endif
+}
+#if defined(SIMDE_X86_AVX512BW_ENABLE_NATIVE_ALIASES)
+  #undef _mm512_mask_cmpeq_epi8_mask
+  #define _mm512_mask_cmpeq_epi8_mask(k1, a, b) simde_mm512_mask_cmpeq_epi8_mask((k1), (a), (b))
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
