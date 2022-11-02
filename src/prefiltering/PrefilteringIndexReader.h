@@ -59,7 +59,8 @@ public:
                                 DBReader<unsigned int> *hdbr1, DBReader<unsigned int> *hdbr2,
                                 DBReader<unsigned int> *alndbr,
                                 BaseMatrix *seedSubMat, int maxSeqLen, bool spacedKmer, const std::string &spacedKmerPattern,
-                                bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode, int maskLowerCase, float maskProb, int kmerThr, int splits);
+                                bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode,
+                                int maskLowerCase, float maskProb, int kmerThr, int splits, int indexSubset = 0);
 
     static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads, bool touchIndex, bool touchData);
 

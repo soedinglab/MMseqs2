@@ -136,11 +136,14 @@ int indexdb(int argc, const char **argv, const Command &command) {
     }
 
     if (recreate) {
-        DBReader<unsigned int> hdbr1(hdr1.c_str(), hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        hdbr1.open(DBReader<unsigned int>::NOSORT);
+        DBReader<unsigned int> *hdbr1 = NULL;
+        if (par.indexSubset != Parameters::INDEX_SUBSET_NO_HEADERS) {
+            hdbr1 = new DBReader<unsigned int>(hdr1.c_str(), hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+            hdbr1->open(DBReader<unsigned int>::NOSORT);
+        }
 
         DBReader<unsigned int> *hdbr2 = NULL;
-        if (sameDB == false && ppDB == false) {
+        if (sameDB == false && ppDB == false && par.indexSubset != Parameters::INDEX_SUBSET_NO_HEADERS) {
             hdbr2 = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
             hdbr2->open(DBReader<unsigned int>::NOSORT);
         }
@@ -152,22 +155,25 @@ int indexdb(int argc, const char **argv, const Command &command) {
         }
 
         DBReader<unsigned int>::removeDb(indexDB);
-        PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, &hdbr1, hdbr2, alndbr, seedSubMat, par.maxSeqLen,
+        PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, hdbr1, hdbr2, alndbr, seedSubMat, par.maxSeqLen,
                                                  par.spacedKmer, par.spacedKmerPattern, par.compBiasCorrection,
                                                  seedSubMat->alphabetSize, par.kmerSize, par.maskMode, par.maskLowerCaseMode,
-                                                 par.maskProb, kmerScore, par.split);
-
-        if (hdbr2 != NULL) {
-            hdbr2->close();
-            delete hdbr2;
-        }
+                                                 par.maskProb, kmerScore, par.split, par.indexSubset);
 
         if (alndbr != NULL) {
             alndbr->close();
             delete alndbr;
         }
 
-        hdbr1.close();
+        if (hdbr2 != NULL) {
+            hdbr2->close();
+            delete hdbr2;
+        }
+
+        if (hdbr1 != NULL) {
+            hdbr1->close();
+            delete hdbr1;
+        }
     }
 
     if (dbr2 != NULL) {

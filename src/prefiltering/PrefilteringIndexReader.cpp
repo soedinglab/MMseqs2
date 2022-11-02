@@ -55,8 +55,8 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
                                               DBReader<unsigned int> *alndbr,
                                               BaseMatrix *subMat, int maxSeqLen,
                                               bool hasSpacedKmer, const std::string &spacedKmerPattern,
-                                              bool compBiasCorrection, int alphabetSize, int kmerSize,
-                                              int maskMode, int maskLowerCase, float maskProb, int kmerThr, int splits) {
+                                              bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode,
+                                              int maskLowerCase, float maskProb, int kmerThr, int splits, int indexSubset) {
 
     const int SPLIT_META = splits > 1 ? 0 : 0;
     const int SPLIT_SEQS = splits > 1 ? 1 : 0;
@@ -82,7 +82,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     writer.writeData(metadataptr, sizeof(metadata), META, SPLIT_META);
     writer.alignToPageSize(SPLIT_META);
 
-    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) == false) {
+    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) == false && indexSubset != Parameters::INDEX_SUBSET_NO_PREFILTER) {
         int alphabetSize = subMat->alphabetSize;
         subMat->alphabetSize = subMat->alphabetSize-1;
         ScoreMatrix s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
@@ -210,6 +210,9 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
             (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES) || Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_AMINO_ACIDS))
                 ? alphabetSize -1: alphabetSize;
 
+    if (indexSubset == Parameters::INDEX_SUBSET_NO_PREFILTER) {
+        splits = 0;
+    }
     for (int s = 0; s < splits; s++) {
         size_t dbFrom = 0;
         size_t dbSize = 0;

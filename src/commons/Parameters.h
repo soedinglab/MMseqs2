@@ -182,8 +182,9 @@ public:
     static const int OUTFMT_TORFEND = 38;
     static const int OUTFMT_FIDENT = 39;
 
-
-
+    static const int INDEX_SUBSET_NORMAL = 0;
+    static const int INDEX_SUBSET_NO_HEADERS = 1;
+    static const int INDEX_SUBSET_NO_PREFILTER = 2;
 
     static std::vector<int> getOutputFormat(int formatMode, const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
                                             bool &needLookup, bool &needSource, bool &needTaxonomyMapping, bool &needTaxonomy);
@@ -529,6 +530,7 @@ public:
     // indexdb
     int checkCompatible;
     int searchType;
+    int indexSubset;
 
     // createdb
     int identifierOffset;
@@ -861,6 +863,7 @@ public:
     // indexdb
     PARAMETER(PARAM_CHECK_COMPATIBLE)
     PARAMETER(PARAM_SEARCH_TYPE)
+    PARAMETER(PARAM_INDEX_SUBSET)
 
     // createdb
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
