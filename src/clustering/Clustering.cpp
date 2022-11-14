@@ -24,12 +24,13 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
         seqDbr->open(DBReader<unsigned int>::SORT_BY_ID);
 
         SequenceWeights *sequenceWeights = new SequenceWeights(sequenceWeightFile.c_str());
-        float localid2weight[seqDbr->getSize()];
+        float *localid2weight = new float[seqDbr->getSize()];
         for (size_t id = 0; id < seqDbr->getSize(); id++) {
             size_t key = seqDbr->getDbKey(id);
             localid2weight[id] = sequenceWeights->getWeightById(key);
         }
         seqDbr->sortIndex(localid2weight);
+        delete[] localid2weight;
 
     } else
         seqDbr->open(DBReader<unsigned int>::SORT_BY_LENGTH);
