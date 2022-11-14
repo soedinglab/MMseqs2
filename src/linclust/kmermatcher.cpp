@@ -15,6 +15,7 @@
 #include "MarkovKmerScore.h"
 #include "FileUtil.h"
 #include "FastSort.h"
+#include "SequenceWeights.h"
 
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -384,6 +385,59 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
     return std::make_pair(offset, longestKmer);
 }
 
+
+template <int TYPE, typename T>
+void swapCenterSequence(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, SequenceWeights &seqWeights) {
+
+
+    size_t prevHash = hashSeqPair[0].kmer;
+    if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+        prevHash = BIT_SET(prevHash, 63);
+    }
+
+    size_t repSeqPos = 0;
+    size_t prevHashStart = 0;
+    float repSeqWeight = seqWeights.getWeightById(hashSeqPair[repSeqPos].id);
+    for (size_t elementIdx = 0; elementIdx < splitKmerCount; elementIdx++) {
+
+        size_t currKmer = hashSeqPair[elementIdx].kmer;
+        if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+            currKmer = BIT_SET(currKmer, 63);
+        }
+        if (prevHash != currKmer) {
+
+            // swap sequence with heighest weigtht to the front of the block
+            if (repSeqPos != prevHashStart)
+                std::swap(hashSeqPair[repSeqPos],hashSeqPair[prevHashStart]);
+
+            prevHashStart = elementIdx;
+            prevHash = hashSeqPair[elementIdx].kmer;
+            if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
+                prevHash = BIT_SET(prevHash, 63);
+            }
+            repSeqPos = elementIdx;
+            repSeqWeight = seqWeights.getWeightById(hashSeqPair[repSeqPos].id);
+        }
+        else {
+            float currWeight = seqWeights.getWeightById(hashSeqPair[elementIdx].id);
+            if (currWeight > repSeqWeight) {
+                repSeqWeight = currWeight;
+                repSeqPos = elementIdx;
+            }
+        }
+
+        if (hashSeqPair[elementIdx].kmer == SIZE_T_MAX) {
+            break;
+        }
+
+    }
+}
+
+template void swapCenterSequence<0, short>(KmerPosition<short> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
+template void swapCenterSequence<0, int>(KmerPosition<int> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
+template void swapCenterSequence<1, short>(KmerPosition<short> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
+template void swapCenterSequence<1, int>(KmerPosition<int> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
+
 template <typename T>
 KmerPosition<T> * doComputation(size_t totalKmers, size_t hashStartRange, size_t hashEndRange, std::string splitFile,
                                 DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat) {
@@ -412,13 +466,26 @@ KmerPosition<T> * doComputation(size_t totalKmers, size_t hashStartRange, size_t
     }
     Debug(Debug::INFO) << timer.lap() << "\n";
 
+    SequenceWeights *sequenceWeights = NULL;
+    // use priority information to swap center sequences
+    if (par.PARAM_WEIGHT_FILE.wasSet) {
+        sequenceWeights = new SequenceWeights(par.weightFile.c_str());
+        if (sequenceWeights != NULL) {
+            if (Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
+                swapCenterSequence<Parameters::DBTYPE_NUCLEOTIDES, T>(hashSeqPair, totalKmers, *sequenceWeights);
+            } else {
+                swapCenterSequence<Parameters::DBTYPE_AMINO_ACIDS, T>(hashSeqPair, totalKmers, *sequenceWeights);
+            }
+        }
+    }
+
     // assign rep. sequence to same kmer members
     // The longest sequence is the first since we sorted by kmer, seq.Len and id
     size_t writePos;
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-        writePos = assignGroup<Parameters::DBTYPE_NUCLEOTIDES, T>(hashSeqPair, totalKmers, par.includeOnlyExtendable, par.covMode, par.covThr);
+        writePos = assignGroup<Parameters::DBTYPE_NUCLEOTIDES, T>(hashSeqPair, totalKmers, par.includeOnlyExtendable, par.covMode, par.covThr, sequenceWeights, par.weightThr);
     }else{
-        writePos = assignGroup<Parameters::DBTYPE_AMINO_ACIDS, T>(hashSeqPair, totalKmers, par.includeOnlyExtendable, par.covMode, par.covThr);
+        writePos = assignGroup<Parameters::DBTYPE_AMINO_ACIDS, T>(hashSeqPair, totalKmers, par.includeOnlyExtendable, par.covMode, par.covThr, sequenceWeights, par.weightThr);
     }
 
     // sort by rep. sequence (stored in kmer) and sequence id
@@ -447,8 +514,11 @@ KmerPosition<T> * doComputation(size_t totalKmers, size_t hashStartRange, size_t
     return hashSeqPair;
 }
 
+
+
 template <int TYPE, typename T>
-size_t assignGroup(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr) {
+size_t assignGroup(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr,
+        SequenceWeights * sequenceWeights, float weightThr) {
     size_t writePos=0;
     size_t prevHash = hashSeqPair[0].kmer;
     size_t repSeqId = hashSeqPair[0].id;
@@ -459,6 +529,7 @@ size_t assignGroup(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, bool inc
     }
     size_t prevHashStart = 0;
     size_t prevSetSize = 0;
+    size_t skipByWeightCount = 0;
     T queryLen=hashSeqPair[0].seqLen;
     bool repIsReverse = false;
     T repSeq_i_pos = hashSeqPair[0].pos;
@@ -469,11 +540,15 @@ size_t assignGroup(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, bool inc
         }
         if (prevHash != currKmer) {
             for (size_t i = prevHashStart; i < elementIdx; i++) {
+                // skip target sequences if weight > weightThr
+                if(i > prevHashStart && sequenceWeights != NULL
+                   && sequenceWeights->getWeightById(hashSeqPair[i].id) > weightThr)
+                    continue;
                 size_t kmer = hashSeqPair[i].kmer;
                 if(TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
                     kmer = BIT_SET(hashSeqPair[i].kmer, 63);
                 }
-                size_t rId = (kmer != SIZE_T_MAX) ? ((prevSetSize == 1) ? SIZE_T_MAX : repSeqId) : SIZE_T_MAX;
+                size_t rId = (kmer != SIZE_T_MAX) ? ((prevSetSize-skipByWeightCount == 1) ? SIZE_T_MAX : repSeqId) : SIZE_T_MAX;
                 // remove singletones from set
                 if(rId != SIZE_T_MAX){
                     int diagonal = repSeq_i_pos - hashSeqPair[i].pos;
@@ -536,6 +611,7 @@ size_t assignGroup(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, bool inc
                 hashSeqPair[i].kmer = (i != writePos - 1) ? SIZE_T_MAX : hashSeqPair[i].kmer;
             }
             prevSetSize = 0;
+            skipByWeightCount = 0;
             prevHashStart = elementIdx;
             repSeqId = hashSeqPair[elementIdx].id;
             if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
@@ -549,6 +625,9 @@ size_t assignGroup(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, bool inc
             break;
         }
         prevSetSize++;
+        if(prevSetSize > 1 && sequenceWeights != NULL
+           && sequenceWeights->getWeightById(hashSeqPair[elementIdx].id) > weightThr)
+            skipByWeightCount++;
         prevHash = hashSeqPair[elementIdx].kmer;
         if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
             prevHash = BIT_SET(prevHash, 63);
@@ -558,10 +637,11 @@ size_t assignGroup(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, bool inc
     return writePos;
 }
 
-template size_t assignGroup<0, short>(KmerPosition<short> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr);
-template size_t assignGroup<0, int>(KmerPosition<int> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr);
-template size_t assignGroup<1, short>(KmerPosition<short> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr);
-template size_t assignGroup<1, int>(KmerPosition<int> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr);
+template size_t assignGroup<0, short>(KmerPosition<short> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr, SequenceWeights *sequenceWeights, float weightThr);
+template size_t assignGroup<0, int>(KmerPosition<int> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr, SequenceWeights *sequenceWeights, float weightThr);
+template size_t assignGroup<1, short>(KmerPosition<short> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr, SequenceWeights *sequenceWeights, float weightThr);
+template size_t assignGroup<1, int>(KmerPosition<int> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr, SequenceWeights *sequenceWeights, float weightThr);
+
 
 void setLinearFilterDefault(Parameters *p) {
     p->covThr = 0.8;

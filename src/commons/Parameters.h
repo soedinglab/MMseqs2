@@ -400,6 +400,7 @@ public:
     std::string spacedKmerPattern;       // User-specified kmer pattern
     std::string localTmp;                // Local temporary path
 
+
     // ALIGNMENT
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
                                          // 1=score only, 2=score, cov, start/end pos, 3=score, cov, start/end pos, seq.id,
@@ -526,6 +527,8 @@ public:
     int pickNbest;
     int adjustKmerLength;
     int resultDirection;
+    float weightThr;
+    std::string weightFile;
 
     // indexdb
     int checkCompatible;
@@ -828,6 +831,9 @@ public:
     PARAMETER(PARAM_PICK_N_SIMILAR)
     PARAMETER(PARAM_ADJUST_KMER_LEN)
     PARAMETER(PARAM_RESULT_DIRECTION)
+    PARAMETER(PARAM_WEIGHT_FILE)
+    PARAMETER(PARAM_WEIGHT_THR)
+
     // workflow
     PARAMETER(PARAM_RUNNER)
     PARAMETER(PARAM_REUSELATEST)

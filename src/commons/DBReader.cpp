@@ -213,6 +213,9 @@ template <typename T> bool DBReader<T>::open(int accessType){
 template<typename T>
 void DBReader<T>::sortIndex(bool) {
 }
+template<typename T>
+void DBReader<T>::sortIndex(float*) {
+}
 
 template<typename T>
 bool DBReader<T>::isSortedByOffset(){
@@ -235,7 +238,30 @@ void DBReader<std::string>::sortIndex(bool isSortedById) {
 }
 
 template<>
+void DBReader<unsigned int>::sortIndex(float *weights) {
+
+    this->accessType=DBReader::SORT_BY_WEIGHTS;
+    std::pair<unsigned int, float> *sortForMapping = new std::pair<unsigned int, float>[size];
+    id2local = new unsigned int[size];
+    local2id = new unsigned int[size];
+    incrementMemory(sizeof(unsigned int) * 2 * size);
+    for (size_t i = 0; i < size; i++) {
+        id2local[i] = i;
+        local2id[i] = i;
+        sortForMapping[i] = std::make_pair(i, weights[i]);
+    }
+    //this sort has to be stable to assure same clustering results
+    SORT_PARALLEL(sortForMapping, sortForMapping + size, comparePairByWeight());
+    for (size_t i = 0; i < size; i++) {
+        id2local[sortForMapping[i].first] = i;
+        local2id[i] = sortForMapping[i].first;
+    }
+    delete[] sortForMapping;
+}
+
+template<>
 void DBReader<unsigned int>::sortIndex(bool isSortedById) {
+
     // First, we sort the index by IDs and we keep track of the original
     // ordering in mappingToOriginalIndex array
     size_t* mappingToOriginalIndex=NULL;
@@ -294,7 +320,6 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             mappingToOriginalIndex[i] = i;
         }
     }
-
     if (accessType == SORT_BY_LENGTH) {
         // sort the entries by the length of the sequences
         std::pair<unsigned int, unsigned int> *sortForMapping = new std::pair<unsigned int, unsigned int>[size];

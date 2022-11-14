@@ -282,7 +282,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
 #pragma omp for schedule(dynamic, 1000)
         for(size_t i = 0; i < dbSize; i++) {
             unsigned int clusterKey = seqDbr->getDbKey(i);
-            unsigned int clusterId = seqDbr->getId(clusterKey);
+            unsigned int clusterId = i;
 
             // try to set your self as cluster centriod
             // if some other cluster covered

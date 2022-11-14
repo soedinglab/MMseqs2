@@ -34,6 +34,7 @@ set(commons_header_files
         commons/PatternCompiler.h
         commons/ScoreMatrix.h
         commons/Sequence.h
+        commons/SequenceWeights.h
         commons/StringBlock.h
         commons/SubstitutionMatrix.h
         commons/SubstitutionMatrixProfileStates.h
@@ -69,6 +70,7 @@ set(commons_source_files
         commons/ProfileStates.cpp
         commons/LibraryReader.cpp
         commons/Sequence.cpp
+        commons/SequenceWeights.cpp
         commons/SubstitutionMatrix.cpp
         commons/tantan.cpp
         commons/UniprotKB.cpp

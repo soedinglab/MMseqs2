@@ -257,6 +257,7 @@ public:
     static const int HARDNOSORT = 6; // do not even sort by ids.
     static const int SORT_BY_ID_OFFSET = 7;
     static const int SORT_BY_OFFSET = 8; // only offset sorting saves memory and does not support random access
+    static const int SORT_BY_WEIGHTS= 9;
 
 
     static const unsigned int USE_INDEX      = 0;
@@ -317,6 +318,7 @@ public:
     void mlock();
 
     void sortIndex(bool isSortedById);
+    void sortIndex(float *weights);
     bool isSortedByOffset();
 
     void unmapData();
@@ -380,6 +382,20 @@ public:
 
     struct comparePairBySeqLength {
         bool operator() (const std::pair<unsigned int, unsigned  int>& lhs, const std::pair<unsigned int, unsigned  int>& rhs) const{
+            if(lhs.second > rhs.second)
+                return true;
+            if(rhs.second > lhs.second)
+                return false;
+            if(lhs.first < rhs.first  )
+                return true;
+            if(rhs.first < lhs.first )
+                return false;
+            return false;
+        }
+    };
+
+    struct comparePairByWeight {
+        bool operator() (const std::pair<unsigned int, float>& lhs, const std::pair<unsigned int, float>& rhs) const{
             if(lhs.second > rhs.second)
                 return true;
             if(rhs.second > lhs.second)
