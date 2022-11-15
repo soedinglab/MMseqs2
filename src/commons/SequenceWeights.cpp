@@ -53,3 +53,7 @@ float SequenceWeights::getWeightById(unsigned int id) {
     return (pos < indexSize && weightIndex[pos].id == id ) ? weightIndex[pos].weight : std::numeric_limits<float>::min();
 }
 
+SequenceWeights::~SequenceWeights() {
+    delete[] weightIndex;
+}
+

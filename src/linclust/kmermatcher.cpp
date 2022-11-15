@@ -488,6 +488,8 @@ KmerPosition<T> * doComputation(size_t totalKmers, size_t hashStartRange, size_t
         writePos = assignGroup<Parameters::DBTYPE_AMINO_ACIDS, T>(hashSeqPair, totalKmers, par.includeOnlyExtendable, par.covMode, par.covThr, sequenceWeights, par.weightThr);
     }
 
+    delete sequenceWeights;
+
     // sort by rep. sequence (stored in kmer) and sequence id
     Debug(Debug::INFO) << "Sort by rep. sequence ";
     timer.reset();

@@ -31,6 +31,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
         }
         seqDbr->sortIndex(localid2weight);
         delete[] localid2weight;
+        delete sequenceWeights;
 
     } else
         seqDbr->open(DBReader<unsigned int>::SORT_BY_LENGTH);
