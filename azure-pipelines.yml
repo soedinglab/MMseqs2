@@ -7,8 +7,8 @@ variables:
     regression: 1
 
 jobs:
-  - job: build_ubuntu_2004_userguide
-    displayName: Ubuntu 2004 Userguide
+  - job: build_ubuntu_userguide
+    displayName: Ubuntu Userguide
     pool:
       vmImage: 'Ubuntu-20.04'
     steps:
@@ -37,8 +37,8 @@ jobs:
           targetPath: $(System.DefaultWorkingDirectory)/userguide.pdf
           artifactName: userguide
 
-  - job: build_macos_11
-    displayName: macOS 11
+  - job: build_macos
+    displayName: macOS
     pool:
       vmImage: 'macos-11'
     steps:
@@ -57,10 +57,10 @@ jobs:
           targetPath: $(Build.SourcesDirectory)/build/mmseqs
           artifactName: mmseqs-darwin-universal
 
-  - job: build_ubuntu_1804
-    displayName: Ubuntu 1804 MMseqs2
+  - job: build_ubuntu
+    displayName: Ubuntu MMseqs2
     pool:
-      vmImage: 'Ubuntu-18.04'
+      vmImage: 'Ubuntu-20.04'
     timeoutInMinutes: 120
     strategy:
       matrix:
@@ -94,8 +94,8 @@ jobs:
       - checkout: self
         submodules: true
       - script: |
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          sudo apt-get update
+          #sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          #sudo apt-get update
           sudo apt-get install -y g++-10
         condition: eq(variables['BUILD_TYPE'], 'ASanOpt')
         displayName: Install newer G++
@@ -137,8 +137,8 @@ jobs:
           targetPath: $(Build.SourcesDirectory)/build/src/mmseqs
           artifactName: mmseqs-linux-$(SIMD)
 
-  - job: build_ubuntu_cross_2004
-    displayName: Ubuntu 2004 Cross-Compile
+  - job: build_ubuntu_cross
+    displayName: Ubuntu Cross-Compile
     pool:
       vmImage: 'Ubuntu-20.04'
     timeoutInMinutes: 120
@@ -188,8 +188,8 @@ jobs:
           targetPath: $(Build.SourcesDirectory)/build/src/mmseqs
           artifactName: mmseqs-linux-$(SIMD)
 
-  - job: build_windows_2019
-    displayName: Windows 2019
+  - job: build_windows
+    displayName: Windows
     pool:
       vmImage: 'windows-2019'
     variables:
@@ -247,13 +247,13 @@ jobs:
     displayName: Upload Artifacts
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     pool:
-      vmImage: 'Ubuntu-18.04'
+      vmImage: 'Ubuntu-20.04'
     dependsOn:
-      - build_ubuntu_2004_userguide
-      - build_macos_11
-      - build_ubuntu_1804
-      - build_ubuntu_cross_2004
-      - build_windows_2019
+      - build_ubuntu_userguide
+      - build_macos
+      - build_ubuntu
+      - build_ubuntu_cross
+      - build_windows
     steps:
       - script: |
           cd "${BUILD_SOURCESDIRECTORY}"
