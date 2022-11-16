@@ -8,7 +8,7 @@
 
 class PSSMMasker {
 public:
-    PSSMMasker(size_t maxSeqLen, ProbabilityMatrix& probMatrix, BaseMatrix& subMat) : maxSeqLen(maxSeqLen), probMatrix(probMatrix), subMat(subMat), xAmioAcid(subMat.aa2num[static_cast<int>('X')]) {
+    PSSMMasker(size_t maxSeqLen, ProbabilityMatrix& probMatrix, BaseMatrix& subMat) : maxSeqLen(maxSeqLen), probMatrix(probMatrix), xAmioAcid(subMat.aa2num[static_cast<int>('X')]) {
         charSequence = (char*)malloc(sizeof(char) * maxSeqLen);
     }
 
@@ -16,7 +16,7 @@ public:
         free(charSequence);
     }
 
-    void mask(Sequence& centerSequence, PSSMCalculator::Profile& pssmRes) {
+    void mask(Sequence& centerSequence, float maskProb, PSSMCalculator::Profile& pssmRes) {
         if ((size_t)centerSequence.L > maxSeqLen) {
             maxSeqLen = sizeof(char) * centerSequence.L * 1.5;
             charSequence = (char*)realloc(charSequence, maxSeqLen);
@@ -29,15 +29,16 @@ public:
                               0.05 /*options.repeatEndProb*/,
                               0.9 /*options.repeatOffsetProbDecay*/,
                               0, 0,
-                              0.9 /*options.minMaskProb*/,
+                              maskProb /*options.minMaskProb*/,
                               probMatrix.hardMaskTable);
 
         for (int pos = 0; pos < centerSequence.L; pos++) {
             if (charSequence[pos] == xAmioAcid) {
                 for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-                    pssmRes.prob[pos * Sequence::PROFILE_AA_SIZE + aa] = subMat.pBack[aa] * 0.5;
+//                    pssmRes.prob[pos * Sequence::PROFILE_AA_SIZE + aa] = subMat.pBack[aa] * 0.5;
+                    pssmRes.pssm[pos * Sequence::PROFILE_AA_SIZE + aa] = -1;
                 }
-                pssmRes.consensus[pos] = 'X';
+//                pssmRes.consensus[pos] = 'X';
             }
         }
     }
@@ -45,7 +46,6 @@ private:
     char *charSequence;
     size_t maxSeqLen;
     ProbabilityMatrix& probMatrix;
-    BaseMatrix& subMat;
     const int xAmioAcid;
 };
 

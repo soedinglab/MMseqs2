@@ -24,7 +24,7 @@ const char* binary_name = "test_diagonalscoringperformance";
 int main (int, const char**) {
     size_t kmer_size = 6;
     Parameters& par = Parameters::getInstance();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 8.0, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 8.0, 0.0);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
 
     std::string S1 = "AYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKRQTLGQHDFSAGEGLYTHMKALRPDEDRLSPLHSVYVDQWDWERVMGDGERQFSTLKSTVEAIWAGIKATEAAVSEEFGLAPFLPDQIHFVHSQELLSRYPDLDAKGRERAIAKDLGAVFLVGIGGKLSDGHRHDVRAPDYDDWSTPSELGHAGLNGDILVWNPVLEDAFELSSMGIRVDADTLKHQLALTGDEDRLELEWHQALLRGEMPQTIGGGIGQSRLTMLLLQLPHIGQVQAGVWPAAVRESVPSLL";
@@ -88,7 +88,7 @@ int main (int, const char**) {
     }
 
     float * compositionBias = new float[s1.L];
-    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.numSequence, s1.L, compositionBias);
+    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.numSequence, s1.L, compositionBias, 1.0);
 
 
 

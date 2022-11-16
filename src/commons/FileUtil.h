@@ -50,6 +50,7 @@ public:
     static bool symlinkExists(const std::string &path);
 
     static void copyFile(const char *src, const char *dst);
+    static void copyFile(const std::string& src, const std::string& dst);
 
     static FILE *openAndDelete(const char *fileName, const char *mode);
 
@@ -64,6 +65,9 @@ public:
     static std::string createTemporaryDirectory(const std::string& basePath, const std::string& subDirectory);
 
     static void fixRlimitNoFile();
+
+    // remove forbidden symbols in from filenames
+    static std::string sanitizeFilename(std::string name);
 };
 
 

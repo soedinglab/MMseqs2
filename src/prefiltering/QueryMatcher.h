@@ -50,18 +50,24 @@ struct hit_t {
     }
 };
 
+class QueryMatcherHook;
+
 class QueryMatcher {
 public:
     QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLookup,
                  BaseMatrix *kmerSubMat, BaseMatrix *ungappedAlignmentSubMat,
                  short kmerThr, int kmerSize, size_t dbSize, unsigned int maxSeqLen,
-                 size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoringMode,
+                 size_t maxHitsPerQuery, bool aaBiasCorrection, float aaBiasCorrectionScale, bool diagonalScoringMode,
                  unsigned int minDiagScoreThr, bool takeOnlyBestKmer, bool isNucleotide);
     ~QueryMatcher();
 
     // returns result for the sequence
     // identityId is the id of the identitical sequence in the target database if there is any, UINT_MAX otherwise
     std::pair<hit_t*, size_t> matchQuery(Sequence *querySeq, unsigned int identityId,  bool isNucleotide);
+
+    void setQueryMatcherHook(QueryMatcherHook* hook) {
+        this->hook = hook;
+    }
 
     // set substituion matrix for KmerGenerator
     void setProfileMatrix(ScoreMatrix **matrix){
@@ -143,6 +149,7 @@ protected:
     int kmerSize;
     // local amino acid bias correction
     bool aaBiasCorrection;
+    float scaleBiasCorr;
     // take only best kmer
     bool takeOnlyBestKmer;
     // kmer threshold for kmer generator
@@ -193,6 +200,8 @@ protected:
     bool isNucleotide;
 
     const static size_t SCORE_RANGE = 256;
+
+    QueryMatcherHook* hook;
 
     void updateScoreBins(CounterResult *result, size_t elementCount);
 
@@ -255,6 +264,14 @@ protected:
     size_t mergeElements(CounterResult *foundDiagonals, size_t hitCounter);
 
     size_t keepMaxScoreElementOnly(CounterResult *foundDiagonals, size_t resultSize);
+
+    friend class QueryMatcherTaxonomyHook;
+};
+
+class QueryMatcherHook {
+public:
+    virtual ~QueryMatcherHook() {};
+    virtual size_t afterDiagonalMatchingHook(QueryMatcher& matcher, size_t resultSize) = 0;
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H

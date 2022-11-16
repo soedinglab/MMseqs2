@@ -1,4 +1,6 @@
 #include "Command.h"
+#include "DownloadDatabase.h"
+#include "Prefiltering.h"
 
 const char* binary_name = "mmseqs";
 const char* tool_name = "MMseqs2";
@@ -6,6 +8,12 @@ const char* tool_introduction = "MMseqs2 (Many against Many sequence searching) 
 const char* main_author = "Martin Steinegger (martin.steinegger@snu.ac.kr)";
 const char* show_extended_help = "1";
 const char* show_bash_info = "1";
+extern const char* MMSEQS_CURRENT_INDEX_VERSION;
+const char* index_version_compatible = MMSEQS_CURRENT_INDEX_VERSION;
 bool hide_base_commands = false;
 void (*validatorUpdate)(void) = 0;
 std::vector<Command> commands = {};
+std::vector<DatabaseDownload> externalDownloads = {};
+std::vector<KmerThreshold> externalThreshold = {};
+
+bool hide_base_downloads = false;

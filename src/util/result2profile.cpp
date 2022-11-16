@@ -20,8 +20,9 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     Parameters &par = Parameters::getInstance();
     // default for result2profile to filter MSA
     par.filterMsa = 1;
-    par.pca = 0.0;
     if (returnAlnRes) {
+        par.PARAM_INCLUDE_IDENTITY.description = "keep the query (representative) sequence";
+        par.PARAM_INCLUDE_IDENTITY.removeCategory(MMseqsParameter::COMMAND_EXPERT);
         par.PARAM_FILTER_MAX_SEQ_ID.removeCategory(MMseqsParameter::COMMAND_EXPERT);
         par.PARAM_FILTER_QID.removeCategory(MMseqsParameter::COMMAND_EXPERT);
         par.PARAM_FILTER_QSC.removeCategory(MMseqsParameter::COMMAND_EXPERT);
@@ -31,6 +32,14 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     par.parseParameters(argc, argv, command, false, 0, 0);
     par.evalProfile = (par.evalThr < par.evalProfile || returnAlnRes) ? par.evalThr : par.evalProfile;
     par.printParameters(command.cmd, argc, argv, *command.params);
+
+    std::vector<std::string> qid_str_vec = Util::split(par.qid, ",");
+    std::vector<int> qid_vec;
+    for (size_t qid_idx = 0; qid_idx < qid_str_vec.size(); qid_idx++) {
+        float qid_float = strtod(qid_str_vec[qid_idx].c_str(), NULL);
+        qid_vec.push_back(static_cast<int>(qid_float*100));
+    }
+    std::sort(qid_vec.begin(), qid_vec.end());
 
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -45,20 +54,24 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     std::pair<std::string, std::string> tmpOutput = std::make_pair(par.db4, par.db4Index);
 #endif
 
-   int localThreads = par.threads;
-    if (static_cast<int>(resultReader.getSize()) <= par.threads) {
-        localThreads = static_cast<int>(resultReader.getSize());
-    }
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, resultReader.getSize()), (size_t)1);
+#endif
 
     DBReader<unsigned int> *tDbr = NULL;
     IndexReader *tDbrIdx = NULL;
     bool templateDBIsIndex = false;
-
+    bool needSrcIndex = false;
     int targetSeqType = -1;
     int targetDbtype = FileUtil::parseDbType(par.db2.c_str());
     if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
+        uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
+        needSrcIndex = extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC;
         bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-        tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        tDbrIdx = new IndexReader(par.db2, par.threads,
+                                  needSrcIndex ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
+                                  (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
         tDbr = tDbrIdx->sequenceReader;
         templateDBIsIndex = true;
         targetSeqType = tDbr->getDbtype();
@@ -93,6 +106,11 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     int type = Parameters::DBTYPE_HMM_PROFILE;
     if (returnAlnRes) {
         type = Parameters::DBTYPE_ALIGNMENT_RES;
+        if (needSrcIndex) {
+            type = DBReader<unsigned int>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
+        }
+    } else if (par.pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
+        type = DBReader<unsigned int>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
     }
     DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), localThreads, par.compressed, type);
     resultWriter.open();
@@ -101,9 +119,9 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
     ProbabilityMatrix probMatrix(subMat);
-    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
 
     if (qDbr->getDbtype() == -1 || targetSeqType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database\n";
@@ -126,17 +144,21 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        Matcher matcher(qDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
-        MultipleAlignment aligner(maxSequenceLength, &subMat);
-        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
+        Matcher matcher(qDbr->getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation,
+                        par.compBiasCorrection, par.compBiasCorrectionScale,
+                        par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0, par.zdrop);
         PSSMMasker masker(maxSequenceLength, probMatrix, subMat);
-        MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        MultipleAlignment aligner(maxSequenceLength, &subMat);
+        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode,
+                                  par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
+        MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
         Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
         Sequence edgeSequence(maxSequenceLength, targetSeqType, &subMat, 0, false, false);
 
         char dbKey[255];
         const char *entry[255];
         char buffer[1024 + 32768*4];
+        float * pNullBuffer = new float[maxSequenceLength + 1];
 
         std::vector<Matcher::result_t> alnResults;
         alnResults.reserve(300);
@@ -166,17 +188,23 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                 const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
                 // in the same database case, we have the query repeated
                 if (key == queryKey && sameDatabase == true) {
+                    if(returnAlnRes && par.includeIdentity){
+                        Matcher::result_t res = Matcher::parseAlignmentRecord(data);
+                        size_t len = Matcher::resultToBuffer(buffer, res, true);
+                        result.append(buffer, len);
+                    }
+
                     data = Util::skipLine(data);
                     continue;
                 }
 
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
                 float evalue = 0.0;
-                if (columns >= 4) {
+                if (returnAlnRes == false && columns >= 4) {
                     evalue = strtod(entry[3], NULL);
                 }
 
-                if (evalue < par.evalProfile) {
+                if (returnAlnRes == true || evalue < par.evalProfile) {
                     const size_t edgeId = tDbr->getId(key);
                     if (edgeId == UINT_MAX) {
                         Debug(Debug::ERROR) << "Sequence " << key << " does not exist in target sequence database\n";
@@ -201,20 +229,19 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 
             // Recompute if not all the backtraces are present
             MultipleAlignment::MSAResult res = aligner.computeMSA(&centerSequence, seqSet, alnResults, true);
-            if (returnAlnRes == false) {
-                alnResults.clear();
-            }
-            size_t filteredSetSize = isFiltering == false ? res.setSize
-                    : filter.filter(res, alnResults, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff);
-            //MultipleAlignment::print(res, &subMat);
+
+            // do not count query
+            size_t filteredSetSize = (isFiltering == true)  ?
+                                     filter.filter(res, alnResults, (int)(par.covMSAThr * 100), qid_vec, par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable)
+                                     :
+                                     res.setSize;
+             //MultipleAlignment::print(res, &subMat);
 
             if (returnAlnRes) {
-                // do not count query
                 for (size_t i = 0; i < (filteredSetSize - 1); ++i) {
                     size_t len = Matcher::resultToBuffer(buffer, alnResults[i], true);
                     result.append(buffer, len);
                 }
-                alnResults.clear();
             } else {
                 for (size_t pos = 0; pos < res.centerLength; pos++) {
                     if (res.msaSequence[0][pos] == MultipleAlignment::GAP) {
@@ -223,18 +250,27 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                     }
                 }
 
-                PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, par.wg);
+                PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
+                                                                                (const char **) res.msaSequence, alnResults, par.wg);
+                if (par.compBiasCorrection == true){
+                    SubstitutionMatrix::calcGlobalAaBiasCorrection(&subMat, pssmRes.pssm, pNullBuffer,
+                                                                   Sequence::PROFILE_AA_SIZE,
+                                                                   res.centerLength);
+                }
+
                 if (par.maskProfile == true) {
-                    masker.mask(centerSequence, pssmRes);
+                    masker.mask(centerSequence, par.maskProb, pssmRes);
                 }
                 pssmRes.toBuffer(centerSequence, subMat, result);
             }
             resultWriter.writeData(result.c_str(), result.length(), queryKey, thread_idx);
             result.clear();
+            alnResults.clear();
 
             MultipleAlignment::deleteMSA(&res);
             seqSet.clear();
         }
+        delete[] pNullBuffer;
     }
     resultWriter.close(returnAlnRes == false);
     resultReader.close();

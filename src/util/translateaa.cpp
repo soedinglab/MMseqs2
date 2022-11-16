@@ -22,7 +22,7 @@ int translateaa(int argc, const char **argv, const Command &command) {
     writer.open();
 
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.0f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.0f);
 
     char lookupAA[21][3];
     const char nucLookup[4] = {'A', 'C', 'G', 'T'};

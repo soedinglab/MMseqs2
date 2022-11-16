@@ -13,6 +13,7 @@ set(taxonomy_source_files
         taxonomy/aggregatetax.cpp
         taxonomy/createtaxdb.cpp
         taxonomy/createbintaxonomy.cpp
+        taxonomy/createbintaxmapping.cpp
         taxonomy/taxonomyreport.cpp
         taxonomy/TaxonomyExpression.h
         PARENT_SCOPE

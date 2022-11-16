@@ -2,6 +2,7 @@
 #include "Util.h"
 #include "Command.h"
 #include "DistanceCalculator.h"
+#include "FileUtil.h"
 #include "Timer.h"
 
 #include <iomanip>
@@ -192,6 +193,7 @@ int main(int argc, const char **argv) {
     if(validatorUpdate != NULL){
         (*validatorUpdate)();
     }
+    FileUtil::fixRlimitNoFile();
 
     setenv("MMSEQS", argv[0], true);
     Command *c = NULL;

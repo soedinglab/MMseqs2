@@ -53,7 +53,7 @@ public:
 void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedLookup,
                                 SequenceLookup **unmaskedLookup,BaseMatrix &subMat, Sequence *seq,
                                 DBReader<unsigned int> *dbr, size_t dbFrom, size_t dbTo, int kmerThr,
-                                bool mask, bool maskLowerCaseMode) {
+                                bool mask, bool maskLowerCaseMode, float maskProb) {
     Debug(Debug::INFO) << "Index table: counting k-mers\n";
 
     const bool isProfile = Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_HMM_PROFILE);
@@ -85,10 +85,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     }
 
     // identical scores for memory reduction code
-    char *idScoreLookup = NULL;
-    if (Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_PROFILE_STATE_SEQ) == false) {
-        idScoreLookup = getScoreLookup(subMat);
-    }
+    char *idScoreLookup = getScoreLookup(subMat);
     Debug::Progress progress(dbTo-dbFrom);
 
     size_t maskedResidues = 0;
@@ -144,7 +141,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                                                             0.05 /*options.repeatEndProb*/,
                                                             0.9 /*options.repeatOffsetProbDecay*/,
                                                             0, 0,
-                                                            0.9 /*options.minMaskProb*/,
+                                                            maskProb /*options.minMaskProb*/,
                                                             probMatrix->hardMaskTable);
                 }
 

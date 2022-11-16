@@ -14,6 +14,7 @@
 #endif
 
 extern const char* version;
+extern const char* index_version_compatible;
 
 int kmerindexdb(int argc, const char **argv, const Command &command) {
     MMseqsMPI::init(argc, argv);
@@ -59,13 +60,13 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.seedScoringMatrixFile.nucleotides, 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.seedScoringMatrixFile.values.nucleotide().c_str(), 1.0, 0.0);
     }else {
-        if (par.alphabetSize.aminoacids == 21) {
-            subMat = new SubstitutionMatrix(par.seedScoringMatrixFile.aminoacids, 2.0, 0.0);
+        if (par.alphabetSize.values.aminoacid() == 21) {
+            subMat = new SubstitutionMatrix(par.seedScoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
         } else {
-            SubstitutionMatrix sMat(par.seedScoringMatrixFile.aminoacids, 2.0, 0.0);
-            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize.aminoacids, 2.0);
+            SubstitutionMatrix sMat(par.seedScoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
+            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize.values.aminoacid(), 2.0);
         }
     }
 
@@ -77,7 +78,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "\n";
 
     float kmersPerSequenceScale = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ?
-                                  par.kmersPerSequenceScale.nucleotides : par.kmersPerSequenceScale.aminoacids;
+                                  par.kmersPerSequenceScale.values.nucleotide() : par.kmersPerSequenceScale.values.aminoacid();
     size_t totalKmers = computeKmerCount(seqDbr, par.kmerSize, par.kmersPerSequence, kmersPerSequenceScale);
     totalKmers *= par.pickNbest;
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter<short>(totalKmers);
@@ -169,7 +170,7 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
         dbw.open();
 
         Debug(Debug::INFO) << "Write VERSION (" << PrefilteringIndexReader::VERSION << ")\n";
-        dbw.writeData((char *) PrefilteringIndexReader::CURRENT_VERSION, strlen(PrefilteringIndexReader::CURRENT_VERSION) * sizeof(char), PrefilteringIndexReader::VERSION, 0);
+        dbw.writeData((char *) index_version_compatible, strlen(index_version_compatible) * sizeof(char), PrefilteringIndexReader::VERSION, 0);
         dbw.alignToPageSize();
 
         Debug(Debug::INFO) << "Write META (" << PrefilteringIndexReader::META << ")\n";

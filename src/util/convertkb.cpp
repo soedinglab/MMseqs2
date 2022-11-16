@@ -28,6 +28,7 @@ std::vector<unsigned int> getEnabledColumns(const std::string &columns,
     for (std::vector<std::string>::const_iterator it = kbColumns.begin(); it != kbColumns.end(); ++it) {
         if (Util::isNumber(*it)) {
             char *rest;
+            errno = 0;
             unsigned int col = static_cast<unsigned int>(strtoul((*it).c_str(), &rest, 10));
             if ((rest != (*it).c_str() && *rest != '\0') || errno == ERANGE) {
                 Debug(Debug::ERROR) << "Invalid selected column: " << (*it) << "!\n";

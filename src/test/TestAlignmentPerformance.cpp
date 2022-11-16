@@ -56,7 +56,7 @@ int main (int, const char**) {
 
     Parameters& par = Parameters::getInstance();
     par.initMatrices();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0);
     std::cout << "Substitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
     std::cout << "\n";
@@ -69,7 +69,7 @@ int main (int, const char**) {
     Sequence* query = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     Sequence* dbSeq = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
-    SmithWaterman aligner(15000, subMat.alphabetSize, false);
+    SmithWaterman aligner(15000, subMat.alphabetSize, false, 1.0, Parameters::DBTYPE_AMINO_ACIDS);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     for (int i = 0; i < subMat.alphabetSize; i++) {
         for (int j = 0; j < subMat.alphabetSize; j++) {
@@ -87,13 +87,28 @@ int main (int, const char**) {
     std::vector<std::string> sequences = readData("/Users/mad/Documents/databases/rfam/Rfam.fasta");
     for(size_t seq_i = 0; seq_i < sequences.size(); seq_i++){
         query->mapSequence(1,1,sequences[seq_i].c_str(), sequences[seq_i].size());
-        aligner.ssw_init(query, tinySubMat, &subMat, 2);
+        aligner.ssw_init(query, tinySubMat, &subMat);
 
         for(size_t seq_j = 0; seq_j < sequences.size(); seq_j++) {
             dbSeq->mapSequence(2, 2, sequences[seq_j].c_str(),  sequences[seq_j].size());
             int32_t maskLen = query->L / 2;
             EvalueComputation evalueComputation(100000, &subMat, gap_open, gap_extend);
-            s_align alignment = aligner.ssw_align(dbSeq->numSequence, dbSeq->L, gap_open, gap_extend, 0, 10000, &evalueComputation, 0, 0.0, maskLen);
+            std::string backtrace;
+            s_align alignment = aligner.ssw_align(
+                    dbSeq->numSequence,
+                    dbSeq->numConsensusSequence,
+                    dbSeq->getAlignmentProfile(),
+                    dbSeq->L,
+                    backtrace,
+                    gap_open, gap_extend,
+                    0,
+                    10000,
+                    &evalueComputation,
+                    0, 0.0,
+                    0.0,
+                    maskLen,
+                    dbSeq->getId()
+            );
             if(mode == 0 ){
                 cells += query->L * dbSeq->L;
                 std::cout << alignment.qEndPos1 << " " << alignment.dbEndPos1 << "\n";

@@ -5,30 +5,17 @@
 #include "Debug.h"
 #include "Util.h"
 #include "Matcher.h"
-#include <algorithm>
+#include "MappingReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-static bool compareToFirstInt(const std::pair<unsigned int, unsigned int>& lhs, const std::pair<unsigned int, unsigned int>&  rhs){
-    return (lhs.first <= rhs.first);
-}
-
 int dolca(int argc, const char **argv, const Command& command, bool majority) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
-    NcbiTaxonomy * t = NcbiTaxonomy::openTaxonomy(par.db1);
-
-    std::vector<std::pair<unsigned int, unsigned int>> mapping;
-    if(FileUtil::fileExists(std::string(par.db1 + "_mapping").c_str()) == false){
-        Debug(Debug::ERROR) << par.db1 + "_mapping" << " does not exist. Please create the taxonomy mapping!\n";
-        EXIT(EXIT_FAILURE);
-    }
-    bool isSorted = Util::readMapping( par.db1 + "_mapping", mapping);
-    if(isSorted == false){
-        std::stable_sort(mapping.begin(), mapping.end(), compareToFirstInt);
-    }
+    NcbiTaxonomy* t = NcbiTaxonomy::openTaxonomy(par.db1);
+    MappingReader mapping(par.db1);
 
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -116,10 +103,6 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
             std::vector<int> taxa;
             std::vector<WeightedTaxHit> weightedTaxa;
             while (*data != '\0') {
-                TaxID taxon;
-                unsigned int id;
-                std::pair<unsigned int, unsigned int> val;
-                std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
                 data = Util::skipLine(data);
                 if (columns == 0) {
@@ -127,17 +110,14 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
                     continue;
                 }
 
-                id = Util::fast_atoi<unsigned int>(entry[0]);
-                val.first = id;
-                mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirstInt);
-
-                if (mappingIt == mapping.end() || mappingIt->first != val.first) {
+                unsigned int id = Util::fast_atoi<unsigned int>(entry[0]);
+                TaxID taxon = mapping.lookup(id);
+                if (taxon == 0) {
                     // TODO: Check which taxa were not found
                     taxonNotFound += 1;
                     continue;
                 }
                 found++;
-                taxon = mappingIt->second;
 
                 // remove blacklisted taxa
                 bool isBlacklisted = false;

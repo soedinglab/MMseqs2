@@ -30,10 +30,10 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, 0.0);
     } else {
         // keep score bias at 0.0 (improved ROC)
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
     }
 
     DBReader<unsigned int> alnReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
@@ -47,7 +47,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(tmpRes.c_str(), tmpResIndex.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
 
-    EvalueComputation evaluer(sequenceDbr.getAminoAcidDBSize(), subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    EvalueComputation evaluer(sequenceDbr.getAminoAcidDBSize(), subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     const size_t flushSize = 100000000;
     size_t iterations = static_cast<int>(ceil(static_cast<double>(alnReader.getSize()) / static_cast<double>(flushSize)));
     for (size_t i = 0; i < iterations; i++) {
@@ -60,8 +60,9 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-
-            Matcher matcher(querySeqType, par.maxSeqLen, subMat, &evaluer, par.compBiasCorrection, par.gapOpen.aminoacids, par.gapExtend.aminoacids, par.zdrop);
+            // TODO: is this right? targetSeqType defined as -1 temporarily
+            Matcher matcher(querySeqType, -1, par.maxSeqLen, subMat, &evaluer,
+                            par.compBiasCorrection, par.compBiasCorrectionScale, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0, par.zdrop);
 
 //            Sequence query(par.maxSeqLen, targetSeqType, subMat, par.kmerSize, par.spacedKmer, par.compBiasCorrection);
 //            Sequence target(par.maxSeqLen, targetSeqType, subMat, par.kmerSize, par.spacedKmer, par.compBiasCorrection);
@@ -134,7 +135,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
 //                            result.backtrace.push_back('M');
                         }else{
                             btTranslate.translateResult(swappedResult, results[entryIdx_j], result);
-                            Matcher::updateResultByRescoringBacktrace(querySeq, targetSeq, fastMatrix.matrix, evaluer, par.gapOpen.aminoacids, par.gapExtend.aminoacids, result);
+                            Matcher::updateResultByRescoringBacktrace(querySeq, targetSeq, fastMatrix.matrix, evaluer, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), result);
                         }
                         // checkCriteria and Util::canBeCovered always work together
                         if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr)) {

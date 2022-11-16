@@ -15,8 +15,11 @@
 #include "PSSMMasker.h"
 #include "FastSort.h"
 #include "IntervalArray.h"
+#include "IndexReader.h"
+
 #include <stack>
 #include <map>
+
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -84,8 +87,16 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     Parameters &par = Parameters::getInstance();
     // default for expand2profile to filter MSA
     par.filterMsa = 1;
-    par.pca = 0.0;
     par.parseParameters(argc, argv, command, true, 0, 0);
+
+    std::vector<std::string> qid_str_vec = Util::split(par.qid, ",");
+    std::vector<int> qid_vec;
+    for (size_t qid_idx = 0; qid_idx < qid_str_vec.size(); qid_idx++) {
+        float qid_float = strtod(qid_str_vec[qid_idx].c_str(), NULL);
+        qid_vec.push_back(static_cast<int>(qid_float*100));
+    }
+    std::sort(qid_vec.begin(), qid_vec.end());
+
     DBReader<unsigned int> aReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     aReader.open(DBReader<unsigned int>::NOSORT);
     const int aSeqDbType = aReader.getDbtype();
@@ -93,55 +104,64 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         aReader.readMmapedDataInMemory();
     }
 
-    bool isCa3m = false;
-    DBReader<unsigned int> *resultAbReader = NULL;
+    DBReader<unsigned int> *resultAbReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+    resultAbReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+
     DBReader<unsigned int> *cReader = NULL;
-    if (FileUtil::fileExists((par.db3 + "_ca3m.ffdata").c_str())) {
-        resultAbReader = new DBReader<unsigned int>((par.db3 + "_ca3m.ffdata").c_str(), (par.db3 + "_ca3m.ffindex").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        resultAbReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
-        cReader = new DBReader<unsigned int>((par.db3 + "_sequence.ffdata").c_str(), (par.db3 + "_sequence.ffindex").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        cReader->open(DBReader<unsigned int>::SORT_BY_LINE);
-        isCa3m = true;
+    IndexReader *cReaderIdx = NULL;
+    DBReader<unsigned int> *resultBcReader = NULL;
+    IndexReader *resultBcReaderIdx = NULL;
+    if (Parameters::isEqualDbtype(FileUtil::parseDbType(par.db2.c_str()), Parameters::DBTYPE_INDEX_DB)) {
+        bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+        cReaderIdx = new IndexReader(par.db2, par.threads,
+                                     IndexReader::SRC_SEQUENCES,
+                                     (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        cReader = cReaderIdx->sequenceReader;
+        resultBcReaderIdx = new IndexReader(par.db4, par.threads,
+                                            IndexReader::ALIGNMENTS,
+                                            (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        resultBcReader = resultBcReaderIdx->sequenceReader;
     } else {
-        resultAbReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        resultAbReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
         cReader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         cReader->open(DBReader<unsigned int>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             cReader->readMmapedDataInMemory();
         }
-    }
 
+        resultBcReader = new DBReader<unsigned int>(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        resultBcReader->open(DBReader<unsigned int>::NOSORT);
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+            resultBcReader->readMmapedDataInMemory();
+        }
+    }
     const int cSeqDbType = cReader->getDbtype();
     if (Parameters::isEqualDbtype(aSeqDbType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(cSeqDbType, Parameters::DBTYPE_HMM_PROFILE)) {
         Debug(Debug::ERROR) << "Profile-profile is currently not supported\n";
         return EXIT_FAILURE;
     }
 
-    DBReader<unsigned int> resultBcReader(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    resultBcReader.open(DBReader<unsigned int>::NOSORT);
-    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-        resultBcReader.readMmapedDataInMemory();
-    }
-
     int dbType = Parameters::DBTYPE_ALIGNMENT_RES;
     if (returnAlnRes == false) {
         dbType = Parameters::DBTYPE_HMM_PROFILE;
+        if (par.pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
+            dbType = DBReader<unsigned int>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
+        }
+    } else {
+        dbType = DBReader<unsigned int>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
     }
     DBWriter writer(par.db5.c_str(), par.db5Index.c_str(), par.threads, par.compressed, dbType);
     writer.open();
 
     BacktraceTranslator translator;
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, par.scoreBias);\
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
 
+    const bool filterBc = par.expandFilterClusters;
     EvalueComputation *evaluer = NULL;
     ProbabilityMatrix *probMatrix = NULL;
     if (returnAlnRes == false) {
         probMatrix = new ProbabilityMatrix(subMat);
     } else {
-        evaluer = new EvalueComputation(cReader->getAminoAcidDBSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        evaluer = new EvalueComputation(cReader->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     }
     Debug::Progress progress(resultAbReader->getSize());
 #pragma omp parallel
@@ -153,28 +173,41 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
 
         Sequence aSeq(par.maxSeqLen, aSeqDbType, &subMat, 0, false, par.compBiasCorrection);
         Sequence cSeq(par.maxSeqLen, cSeqDbType, &subMat, 0, false, false);
+        Sequence* bSeq = NULL;
+        if (filterBc) {
+            bSeq = new Sequence(par.maxSeqLen, cSeqDbType, &subMat, 0, false, false);
+        }
 
         MultipleAlignment *aligner = NULL;
         MsaFilter *filter = NULL;
         PSSMCalculator *calculator = NULL;
         PSSMMasker *masker = NULL;
         std::vector<std::vector<unsigned char>> seqSet;
+        std::vector<std::vector<unsigned char>> subSeqSet;
         std::string result;
 
-        if (returnAlnRes == false) {
+        if (returnAlnRes == false || filterBc) {
             aligner = new MultipleAlignment(par.maxSeqLen, &subMat);
-            if (par.filterMsa) {
-                filter = new MsaFilter(par.maxSeqLen, 300, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+            if (par.filterMsa || filterBc) {
+                filter = new MsaFilter(par.maxSeqLen, 300, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
             }
-            calculator = new PSSMCalculator(&subMat, par.maxSeqLen, 300, par.pca, par.pcb);
+            subSeqSet.reserve(300);
+        }
+
+        if (returnAlnRes == false) {
+            // TODO: is this right?
+            calculator = new PSSMCalculator(&subMat, par.maxSeqLen, 300, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
             masker = new PSSMMasker(par.maxSeqLen, *probMatrix, subMat);
-            seqSet.reserve(300);
             result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE);
+            seqSet.reserve(300);
         }
 
         size_t compBufferSize = (par.maxSeqLen + 1) * sizeof(float);
-        float *compositionBias = (float*)malloc(compBufferSize);
-        memset(compositionBias, 0, compBufferSize);
+        float *compositionBias = NULL;
+        if (par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE) {
+            compositionBias = (float*)malloc(compBufferSize);
+            memset(compositionBias, 0, compBufferSize);
+        }
 
         char buffer[1024 + 32768*4];
 
@@ -195,15 +228,19 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
             unsigned int queryKey = resultAbReader->getDbKey(i);
 
             size_t aSeqId = aReader.getId(queryKey);
-            aSeq.mapSequence(aSeqId, queryKey, aReader.getData(aSeqId, thread_idx), aReader.getSeqLen(aSeqId));
+            if (returnAlnRes == false || par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE) {
+                aSeq.mapSequence(aSeqId, queryKey, aReader.getData(aSeqId, thread_idx), aReader.getSeqLen(aSeqId));
+            }
 
-            if (par.compBiasCorrection == true && Parameters::isEqualDbtype(aSeqDbType, Parameters::DBTYPE_AMINO_ACIDS)) {
+            if (par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE
+                && par.compBiasCorrection == true
+                && Parameters::isEqualDbtype(aSeqDbType, Parameters::DBTYPE_AMINO_ACIDS)) {
                 if ((size_t)aSeq.L >= compBufferSize) {
                     compBufferSize = (size_t)aSeq.L * 1.5 * sizeof(float);
                     compositionBias = (float*)realloc(compositionBias, compBufferSize);
                     memset(compositionBias, 0, compBufferSize);
                 }
-                SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, aSeq.numSequence, aSeq.L, compositionBias);
+                SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, aSeq.numSequence, aSeq.L, compositionBias, par.compBiasCorrectionScale);
             }
 
             char *data = resultAbReader->getData(i, thread_idx);
@@ -219,16 +256,39 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 }
 
                 unsigned int bResKey = resultAb.dbKey;
-                size_t bResId = resultBcReader.getId(bResKey);
-                if (isCa3m) {
-                    unsigned int key;
-                    CompressedA3M::extractMatcherResults(key, resultsBc, resultBcReader.getData(bResId, thread_idx),
-                                                         resultBcReader.getEntryLen(bResId), *cReader, false);
-                } else {
-                    Matcher::readAlignmentResults(resultsBc, resultBcReader.getData(bResId, thread_idx), false);
-                }
+                size_t bResId = resultBcReader->getId(bResKey);
+//                if (isCa3m) {
+//                    unsigned int key;
+//                    CompressedA3M::extractMatcherResults(key, resultsBc, resultBcReader.getData(bResId, thread_idx), resultBcReader.getEntryLen(bResId), *cReader, false);
+                Matcher::readAlignmentResults(resultsBc, resultBcReader->getData(bResId, thread_idx), false);
 
-                std::stable_sort(resultsBc.begin(), resultsBc.end(), compareHitsByKeyScore);
+                if (filterBc) {
+                    for (size_t k = 0; k < resultsBc.size(); ++k) {
+                        Matcher::result_t &resultBc = resultsBc[k];
+                        if (resultBc.backtrace.size() == 0) {
+                            Debug(Debug::ERROR) << "Alignment must contain a backtrace\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                        if (k == 0) {
+                            unsigned int bSeqKey = resultAb.dbKey;
+                            size_t bSeqId = cReader->getId(bSeqKey);
+                            bSeq->mapSequence(bSeqId, bSeqKey, cReader->getData(bSeqId, thread_idx), cReader->getSeqLen(bSeqId));
+                        } else {
+                            unsigned int cSeqKey = resultBc.dbKey;
+                            size_t cSeqId = cReader->getId(cSeqKey);
+                            cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
+                            subSeqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
+                        }
+                    }
+                    Matcher::result_t query = *(resultsBc.begin());
+                    resultsBc.erase(resultsBc.begin());
+                    MultipleAlignment::MSAResult res = aligner->computeMSA(bSeq, subSeqSet, resultsBc, true);
+                    filter->filter(res, resultsBc, (int)(par.covMSAThr * 100), qid_vec, par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable);
+                    resultsBc.insert(resultsBc.begin(), query);
+                    MultipleAlignment::deleteMSA(&res);
+                    subSeqSet.clear();
+                }
+                //std::stable_sort(resultsBc.begin(), resultsBc.end(), compareHitsByKeyScore);
 
                 for (size_t k = 0; k < resultsBc.size(); ++k) {
                     Matcher::result_t &resultBc = resultsBc[k];
@@ -249,23 +309,30 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     unsigned int cSeqKey = resultBc.dbKey;
                     // A single target sequence can cover a query just a single time
                     // If a target has the same domain several times, then we only consider one
-                    if(interval.find(cSeqKey) != interval.end()) {
-                        if(interval[cSeqKey]->doesOverlap(resultAc.qStartPos, resultAc.qEndPos)){
+                    std::map<unsigned int, IntervalArray *>::iterator it = interval.find(cSeqKey);
+                    if (it != interval.end()) {
+                        if (it->second->doesOverlap(resultAc.qStartPos, resultAc.qEndPos)) {
                             continue;
                         }
                     } else {
                         size_t cSeqId = cReader->getId(cSeqKey);
-                        cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
-                        rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
-                        if(resultAc.score < -6){ // alignment too bad (fitted on regression benchmark EXPAND)
-                            continue;
+                        if (returnAlnRes == false || par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE) {
+                            cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
                         }
-
-                        if(par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE){
-                            resultAc.eval = evaluer->computeEvalue(resultAc.score, aSeq.L);
+                        //rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
+                        //if(resultAc.score < -6){ // alignment too bad (fitted on regression benchmark EXPAND)
+                        //   continue;
+                        //}
+                        if (par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE) {
+                            rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
+                            // alignment too bad (fitted on regression benchmark EXPAND)
+                            if (resultAc.score < -6) {
+                                continue;
+                            } 
+			                resultAc.eval = evaluer->computeEvalue(resultAc.score, aSeq.L);
                             resultAc.score = static_cast<int>(evaluer->computeBitScore(resultAc.score)+0.5);
                             resultAc.seqId = Util::computeSeqId(par.seqIdMode, resultAc.seqId, aSeq.L, cSeq.L, resultAc.backtrace.size());
-                        }else{
+                        } else {
                             resultAc.eval = resultAb.eval;
                             resultAc.score = resultAb.score;
                             resultAc.seqId = resultAb.seqId;
@@ -281,28 +348,28 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                                 seqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
                             }
                             resultsAc.emplace_back(resultAc);
-                            if(intervalBuffer.size() == 0){
-                                interval[cSeqKey] = new IntervalArray();
+                            IntervalArray* tmp;
+                            if (intervalBuffer.size() == 0) {
+                                tmp = new IntervalArray();
                             } else {
-                                interval[cSeqKey] = intervalBuffer.top();
+                                tmp = intervalBuffer.top();
                                 intervalBuffer.pop();
                             }
-                            interval[cSeqKey]->insert(resultAc.qStartPos, resultAc.qEndPos);
+                            tmp->insert(resultAc.qStartPos, resultAc.qEndPos);
+                            interval.insert(std::make_pair(cSeqKey, tmp));
                         }
-
                     }
                 }
                 resultsBc.clear();
             }
-            for (std::map<unsigned int, IntervalArray *>::iterator it = interval.begin(); it != interval.end(); it++ )
-            {
+            for (std::map<unsigned int, IntervalArray *>::iterator it = interval.begin(); it != interval.end(); ++it) {
                 it->second->reset();
                 intervalBuffer.push(it->second);
             }
             interval.clear();
 
             if (returnAlnRes) {
-                SORT_SERIAL(resultsAc.begin(), resultsAc.end(), Matcher::compareHits);
+                //SORT_SERIAL(resultsAc.begin(), resultsAc.end(), Matcher::compareHits);
                 writer.writeStart(thread_idx);
                 for (size_t j = 0; j < resultsAc.size(); ++j) {
                     size_t len = Matcher::resultToBuffer(buffer, resultsAc[j], true, true);
@@ -313,11 +380,16 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
             } else {
                 MultipleAlignment::MSAResult res = aligner->computeMSA(&aSeq, seqSet, resultsAc, true);
                 resultsAc.clear();
-                size_t filteredSetSize = par.filterMsa == false ? res.setSize
-                                                                : filter->filter(res.setSize, res.centerLength, (int)(par.covMSAThr * 100), (int)(par.qid * 100), par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, true);
+                size_t filteredSetSize = par.filterMsa == true ?
+                                         filter->filter(res.setSize, res.centerLength,
+                                                        (int)(par.covMSAThr * 100),
+                                                        qid_vec, par.qsc,
+                                                        (int)(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable,
+                                                        (const char **) res.msaSequence, true)
+                                         : res.setSize;
                 PSSMCalculator::Profile pssmRes = calculator->computePSSMFromMSA(filteredSetSize, aSeq.L, (const char **) res.msaSequence, par.wg);
                 if (par.maskProfile == true) {
-                    masker->mask(aSeq, pssmRes);
+                    masker->mask(aSeq, par.maskProb, pssmRes);
                 }
                 pssmRes.toBuffer(aSeq, subMat, result);
                 writer.writeData(result.c_str(), result.length(), queryKey, thread_idx);
@@ -326,18 +398,25 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 seqSet.clear();
             }
         }
-        free(compositionBias);
-        if (returnAlnRes == false) {
+        if (compositionBias != NULL) {
+            free(compositionBias);
+        }
+        if (aligner != NULL) {
             delete aligner;
-            if (filter != NULL) {
-                delete filter;
-            }
+        }
+        if (filter != NULL) {
+            delete filter;
+        }
+        if (returnAlnRes == false) {
             delete calculator;
             delete masker;
         }
         while(intervalBuffer.size()){
             delete intervalBuffer.top();
             intervalBuffer.pop();
+        }
+        if (bSeq != NULL) {
+            delete bSeq;
         }
     }
 
@@ -348,13 +427,20 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     if (evaluer != NULL) {
         delete evaluer;
     }
-    resultBcReader.close();
-    resultAbReader->close();
-    delete resultAbReader;
-    if (cReader != NULL) {
+    if (cReaderIdx == NULL) {
         cReader->close();
         delete cReader;
+    } else {
+        delete cReaderIdx;
     }
+    if (resultBcReaderIdx == NULL) {
+        resultBcReader->close();
+        delete resultBcReader;
+    } else {
+        delete resultBcReaderIdx;
+    }
+    resultAbReader->close();
+    delete resultAbReader;
     aReader.close();
 
     return EXIT_SUCCESS;

@@ -7,8 +7,8 @@ variables:
     regression: 1
 
 jobs:
-  - job: build_ubuntu_2004_userguide
-    displayName: Ubuntu 2004 Userguide
+  - job: build_ubuntu_userguide
+    displayName: Ubuntu Userguide
     pool:
       vmImage: 'Ubuntu-20.04'
     steps:
@@ -22,7 +22,7 @@ jobs:
           path: $(Pipeline.Workspace)/tectonic-cache/
         displayName: Cache Tectonic
       - script: |
-          wget -qO- https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.4.1/tectonic-0.4.1-x86_64-unknown-linux-gnu.tar.gz | tar xzvf - tectonic
+          wget -qO- https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.8.0/tectonic-0.8.0-x86_64-unknown-linux-gnu.tar.gz | tar xzvf - tectonic
           wget -qO- https://github.com/jgm/pandoc/releases/download/2.11.3.2/pandoc-2.11.3.2-linux-amd64.tar.gz | tar --strip-components=2 -xzvf - pandoc-2.11.3.2/bin/pandoc
           sudo mv -f pandoc tectonic /usr/local/bin
         displayName: Install Dependencies
@@ -37,16 +37,13 @@ jobs:
           targetPath: $(System.DefaultWorkingDirectory)/userguide.pdf
           artifactName: userguide
 
-  - job: build_macos_1015
-    displayName: macOS 1015
+  - job: build_macos
+    displayName: macOS
     pool:
-      vmImage: 'macos-10.15'
+      vmImage: 'macos-11'
     steps:
       - checkout: self
         submodules: true
-      - script: |
-          sudo xcode-select -s "/Applications/Xcode_12.2.app"
-        displayName: Use Xcode 12.2
       - script: |
           cd ${BUILD_SOURCESDIRECTORY}
           ./util/build_osx.sh . build
@@ -60,10 +57,10 @@ jobs:
           targetPath: $(Build.SourcesDirectory)/build/mmseqs
           artifactName: mmseqs-darwin-universal
 
-  - job: build_ubuntu_1804
-    displayName: Ubuntu 1804 MMseqs2
+  - job: build_ubuntu
+    displayName: Ubuntu MMseqs2
     pool:
-      vmImage: 'Ubuntu-18.04'
+      vmImage: 'Ubuntu-20.04'
     timeoutInMinutes: 120
     strategy:
       matrix:
@@ -97,8 +94,8 @@ jobs:
       - checkout: self
         submodules: true
       - script: |
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          sudo apt-get update
+          #sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          #sudo apt-get update
           sudo apt-get install -y g++-10
         condition: eq(variables['BUILD_TYPE'], 'ASanOpt')
         displayName: Install newer G++
@@ -140,8 +137,8 @@ jobs:
           targetPath: $(Build.SourcesDirectory)/build/src/mmseqs
           artifactName: mmseqs-linux-$(SIMD)
 
-  - job: build_ubuntu_cross_2004
-    displayName: Ubuntu 2004 Cross-Compile
+  - job: build_ubuntu_cross
+    displayName: Ubuntu Cross-Compile
     pool:
       vmImage: 'Ubuntu-20.04'
     timeoutInMinutes: 120
@@ -191,8 +188,8 @@ jobs:
           targetPath: $(Build.SourcesDirectory)/build/src/mmseqs
           artifactName: mmseqs-linux-$(SIMD)
 
-  - job: build_windows_2019
-    displayName: Windows 2019
+  - job: build_windows
+    displayName: Windows
     pool:
       vmImage: 'windows-2019'
     variables:
@@ -250,13 +247,13 @@ jobs:
     displayName: Upload Artifacts
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     pool:
-      vmImage: 'Ubuntu-18.04'
+      vmImage: 'Ubuntu-20.04'
     dependsOn:
-      - build_ubuntu_2004_userguide
-      - build_macos_1015
-      - build_ubuntu_1804
-      - build_ubuntu_cross_2004
-      - build_windows_2019
+      - build_ubuntu_userguide
+      - build_macos
+      - build_ubuntu
+      - build_ubuntu_cross
+      - build_windows
     steps:
       - script: |
           cd "${BUILD_SOURCESDIRECTORY}"

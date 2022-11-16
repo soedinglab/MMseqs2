@@ -52,7 +52,7 @@ int main (int, const char**) {
 
     Parameters& par = Parameters::getInstance();
     par.initMatrices();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 8.0, 0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 8.0, 0);
     std::cout << "Substitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix, subMat.num2aa, subMat.alphabetSize);
 

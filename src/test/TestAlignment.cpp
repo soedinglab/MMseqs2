@@ -32,7 +32,7 @@ int main (int, const char**) {
 
     Parameters& par = Parameters::getInstance();
     par.initMatrices();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, -0.0f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, -0.0f);
     std::cout << "Substitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
@@ -66,7 +66,7 @@ int main (int, const char**) {
     Sequence* dbSeq = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     dbSeq->mapSequence(1,1,tim2.c_str(), tim2.size());
-    SmithWaterman aligner(15000, subMat.alphabetSize, true);
+    SmithWaterman aligner(15000, subMat.alphabetSize, true, 1.0, Parameters::DBTYPE_AMINO_ACIDS);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     for (int i = 0; i < subMat.alphabetSize; i++) {
         for (int j = 0; j < subMat.alphabetSize; j++) {
@@ -81,14 +81,29 @@ int main (int, const char**) {
         sum += subMat.subMatrix[i][i];
     }
     std::cout << "Test: " << sum/ subMat.alphabetSize << std::endl;
-    aligner.ssw_init(s, tinySubMat, &subMat, 2);
+    aligner.ssw_init(s, tinySubMat, &subMat);
     int32_t maskLen = s->L / 2;
     int gap_open = 11;
     int gap_extend = 1;
     float seqId = 1.0;
     int aaIds = 0;
     EvalueComputation evalueComputation(100000, &subMat, gap_open, gap_extend);
-    s_align alignment = aligner.ssw_align(dbSeq->numSequence, dbSeq->L, gap_open, gap_extend, 2, 10000, &evalueComputation, 0, 0.0, maskLen);
+    std::string backtrace;
+    s_align alignment = aligner.ssw_align(
+            dbSeq->numSequence,
+            dbSeq->numConsensusSequence,
+            dbSeq->getAlignmentProfile(),
+            dbSeq->L,
+            backtrace,
+            gap_open, gap_extend,
+            2,
+            10000,
+            &evalueComputation,
+            0, 0.0,
+            0.0,
+            maskLen,
+            dbSeq->getId()
+    );
     if(alignment.cigar){
         std::cout << "Cigar" << std::endl;
 

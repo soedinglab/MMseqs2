@@ -33,7 +33,11 @@ int summarizeresult(int argc, const char **argv, const Command &command) {
     const bool merge = false;
 #endif
 
-    unsigned int localThreads = std::min((unsigned int)par.threads, (unsigned int)dbSize);
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, dbSize), (size_t)1);
+#endif
+
     DBWriter writer(outData, outIndex, localThreads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
 
@@ -69,7 +73,7 @@ int summarizeresult(int argc, const char **argv, const Command &command) {
                     Debug(Debug::WARNING) << "Query alignment start or end is greater than query length! Skipping line.\n";
                     continue;
                 }
-                if (domain.dbcov <= par.covThr) {
+                if (domain.dbcov < par.covThr) {
                     continue;
                 }
 

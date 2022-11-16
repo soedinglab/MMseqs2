@@ -134,7 +134,7 @@ public:
                 res.score = tmp.score;
                 res.startPos = tmp.startPos;
                 res.endPos = tmp.endPos;
-            } else if (alnMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT) {
+            } else if (alnMode == Parameters::RESCORE_MODE_END_TO_END_ALIGNMENT) {
                 LocalAlignment tmp = computeGlobalSubstitutionStartEndDistance(querySeq + minDistToDiagonal, dbSeq, minSeqLen, subMat);
                 res.score = tmp.score;
                 res.startPos = tmp.startPos;
@@ -159,7 +159,7 @@ public:
                 res.score = tmp.score;
                 res.startPos = tmp.startPos;
                 res.endPos = tmp.endPos;
-            } else if (alnMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT) {
+            } else if (alnMode == Parameters::RESCORE_MODE_END_TO_END_ALIGNMENT) {
                 LocalAlignment tmp = computeGlobalSubstitutionStartEndDistance(querySeq, dbSeq + minDistToDiagonal, minSeqLen, subMat);
                 res.score = tmp.score;
                 res.startPos = tmp.startPos;

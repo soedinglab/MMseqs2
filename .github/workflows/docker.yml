@@ -1,0 +1,80 @@
+name: Create and publish a Docker image
+
+on:
+  push:
+    branches:
+      - "master"
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        required: true
+        type: string
+      latest:
+        default: false
+        type: boolean
+
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Tag for workflow_dispatch
+        id: dispatch_tag
+        run: |
+          if [ x"$TAG" != x"" ];then
+            echo "::set-output name=tag::${FULL_TAG}"
+          fi
+          if [ x"$LATEST" = x"true" ]; then
+            echo "::set-output name=latest::${LATEST_TAG}"
+          fi
+        env:
+          FULL_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.tag }}
+          LATEST_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          TAG: ${{ github.event.inputs.tag }}
+          LATEST: ${{ github.event.inputs.latest }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            ${{ steps.dispatch_tag.outputs.tag }}
+            ${{ steps.dispatch_tag.outputs.latest }}
+          labels: ${{ steps.meta.outputs.labels }}
+

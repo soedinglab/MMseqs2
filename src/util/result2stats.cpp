@@ -300,6 +300,7 @@ int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyRes
                 while (*results != '\0') {
                     Util::parseKey(results, dbKey);
                     char *rest;
+                    errno = 0;
                     const unsigned int key = (unsigned int) strtoul(dbKey, &rest, 10);
                     if ((rest != dbKey && *rest != '\0') || errno == ERANGE) {
                         Debug(Debug::WARNING) << "Invalid key in entry " << id << "!\n";

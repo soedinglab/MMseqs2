@@ -42,6 +42,7 @@ void BaseMatrix::initMatrixMemory(int alphabetSize) {
     probMatrix = new double*[alphabetSize];
     subMatrix = new short*[alphabetSize];
     subMatrixPseudoCounts = new float*[alphabetSize];
+    // temporary memory setter
 
     for (int i = 0; i < alphabetSize; i++){
         pBack[i] = 0.0;
@@ -135,6 +136,8 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
 //        subMatrix[i][size - 1] = -.7;
 //    }
 }
+
+// made non-static for testing purpose
 void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseudoCounts, short ** subMatrix, int size, bool containsX, double bitFactor, double scoringBias){
     double** sm = new double* [size];
     for (int i = 0; i < size; i++)
@@ -149,7 +152,7 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseud
             subMatrix[i][j] = (pValNBitScale < 0.0) ? pValNBitScale - 0.5 : pValNBitScale + 0.5;
         }
     }
-
+    scoreBias = scoringBias;
     for (int i = 0; i < size; i++)
         delete[] sm[i];
     delete[] sm;

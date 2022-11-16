@@ -3,6 +3,8 @@ set(commons_header_files
         commons/AminoAcidLookupTables.h
         commons/BacktraceTranslator.h
         commons/ByteParser.h
+        commons/CSProfile.h
+        commons/CSProfile.cpp
         commons/Command.h
         commons/CommandCaller.h
         commons/Concat.h
@@ -32,6 +34,7 @@ set(commons_header_files
         commons/PatternCompiler.h
         commons/ScoreMatrix.h
         commons/Sequence.h
+        commons/SequenceWeights.h
         commons/StringBlock.h
         commons/SubstitutionMatrix.h
         commons/SubstitutionMatrixProfileStates.h
@@ -67,6 +70,7 @@ set(commons_source_files
         commons/ProfileStates.cpp
         commons/LibraryReader.cpp
         commons/Sequence.cpp
+        commons/SequenceWeights.cpp
         commons/SubstitutionMatrix.cpp
         commons/tantan.cpp
         commons/UniprotKB.cpp

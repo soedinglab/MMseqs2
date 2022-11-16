@@ -1,7 +1,7 @@
 #include "MsaFilter.h"
 #include "Parameters.h"
 #include "PSSMCalculator.h"
-#include "DBReader.h"
+#include "IndexReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
@@ -19,43 +19,73 @@ int result2msa(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     // do not filter by default
     par.filterMsa = 0;
-    par.pca = 0.0;
     par.parseParameters(argc, argv, command, true, 0, 0);
+
+    std::vector<std::string> qid_str_vec = Util::split(par.qid, ",");
+    std::vector<int> qid_vec;
+    for (size_t qid_idx = 0; qid_idx < qid_str_vec.size(); qid_idx++) {
+        float qid_float = strtod(qid_str_vec[qid_idx].c_str(), NULL);
+        qid_vec.push_back(static_cast<int>(qid_float*100));
+    }
+    std::sort(qid_vec.begin(), qid_vec.end());
 
     const bool isCA3M = par.msaFormatMode == Parameters::FORMAT_MSA_CA3M || par.msaFormatMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS;
     const bool shouldWriteNullByte = par.msaFormatMode != Parameters::FORMAT_MSA_STOCKHOLM_FLAT;
 
-    DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    qDbr.open(DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int> queryHeaderReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    queryHeaderReader.open(DBReader<unsigned int>::NOSORT);
-    if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-        qDbr.readMmapedDataInMemory();
-        queryHeaderReader.readMmapedDataInMemory();
-    }
+    DBReader<unsigned int> *tDbr = NULL;
+    IndexReader *tDbrIdx = NULL;
+    DBReader<unsigned int> *targetHeaderReader = NULL;
+    IndexReader *targetHeaderReaderIdx = NULL;
 
-    DBReader<unsigned int> *tDbr = &qDbr;
-    DBReader<unsigned int> *targetHeaderReader = &queryHeaderReader;
-    unsigned int maxSequenceLength = qDbr.getMaxSeqLen();
-
-    const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
-    if (!sameDatabase) {
+    if (Parameters::isEqualDbtype(FileUtil::parseDbType(par.db2.c_str()), Parameters::DBTYPE_INDEX_DB)) {
+        if (isCA3M == true) {
+            Debug(Debug::ERROR) << "Cannot use result2msa with indexed target database for CA3M output\n";
+            return EXIT_FAILURE;
+        }
+        uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
+        bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+        tDbrIdx = new IndexReader(par.db2, par.threads,
+                                  extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
+                                  (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        tDbr = tDbrIdx->sequenceReader;
+        targetHeaderReaderIdx = new IndexReader(par.db2, par.threads,
+                                                extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_HEADERS : IndexReader::HEADERS,
+                                                (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+        targetHeaderReader = targetHeaderReaderIdx->sequenceReader;
+    } else {
         tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
         tDbr->open(DBReader<unsigned int>::NOSORT);
-        maxSequenceLength = std::max(qDbr.getMaxSeqLen(), tDbr->getMaxSeqLen());
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             tDbr->readMmapedDataInMemory();
         }
-
         if (isCA3M == false) {
             targetHeaderReader = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
             targetHeaderReader->open(DBReader<unsigned int>::NOSORT);
-
             if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
                 targetHeaderReader->readMmapedDataInMemory();
             }
         }
     }
+
+    DBReader<unsigned int> *qDbr = NULL;
+    DBReader<unsigned int> *queryHeaderReader = NULL;
+    const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
+    if (!sameDatabase) {
+        qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        qDbr->open(DBReader<unsigned int>::NOSORT);
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+            qDbr->readMmapedDataInMemory();
+        }
+        queryHeaderReader = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        queryHeaderReader->open(DBReader<unsigned int>::NOSORT);
+        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
+            queryHeaderReader->readMmapedDataInMemory();
+        }
+    } else {
+        qDbr = tDbr;
+        queryHeaderReader = targetHeaderReader;
+    }
+    const unsigned int maxSequenceLength = std::max(tDbr->getMaxSeqLen(), qDbr->getMaxSeqLen());
 
     DBConcat *seqConcat = NULL;
     DBReader<unsigned int> *refReader = NULL;
@@ -93,10 +123,10 @@ int result2msa(int argc, const char **argv, const Command &command) {
     std::pair<std::string, std::string> tmpOutput = std::make_pair(outDb, outIndex);
 #endif
 
-   int localThreads = par.threads;
-    if (static_cast<int>(resultReader.getSize()) <= par.threads) {
-        localThreads = static_cast<int>(resultReader.getSize());
-    }
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, resultReader.getSize()), (size_t)1);
+#endif
 
     size_t mode = par.compressed;
     int type = Parameters::DBTYPE_MSA_DB;
@@ -113,17 +143,17 @@ int result2msa(int argc, const char **argv, const Command &command) {
     size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
-    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
-    if (qDbr.getDbtype() == -1 || tDbr->getDbtype() == -1) {
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
+    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
+    if (qDbr->getDbtype() == -1 || tDbr->getDbtype() == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database\n";
         return EXIT_FAILURE;
     }
-    if (Parameters::isEqualDbtype(qDbr.getDbtype(), Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_HMM_PROFILE)) {
+    if (Parameters::isEqualDbtype(qDbr->getDbtype(), Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_HMM_PROFILE)) {
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database\n";
         return EXIT_FAILURE;
     }
-    Debug(Debug::INFO) << "Query database size: " << qDbr.getSize() << " type: " << qDbr.getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Query database size: " << qDbr->getSize() << " type: " << qDbr->getDbTypeName() << "\n";
     Debug(Debug::INFO) << "Target database size: " << tDbr->getSize() << " type: " << tDbr->getDbTypeName() << "\n";
 
     const bool isFiltering = par.filterMsa != 0;
@@ -135,12 +165,13 @@ int result2msa(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        Matcher matcher(qDbr.getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        Matcher matcher(qDbr->getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection,
+                        par.compBiasCorrectionScale, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0, par.zdrop);
         MultipleAlignment aligner(maxSequenceLength, &subMat);
-        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
-        MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
+        MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
         UniprotHeaderSummarizer summarizer;
-        Sequence centerSequence(maxSequenceLength, qDbr.getDbtype(), &subMat, 0, false, par.compBiasCorrection);
+        Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
         Sequence edgeSequence(maxSequenceLength, tDbr->getDbtype(), &subMat, 0, false, false);
 
         // which sequences where kept after filtering
@@ -162,23 +193,24 @@ int result2msa(int argc, const char **argv, const Command &command) {
         std::vector<std::vector<unsigned char>> seqSet;
         seqSet.reserve(300);
 
-        std::vector<size_t> seqIds;
-        seqIds.reserve(300);
+        std::vector<unsigned int> seqKeys;
+        seqKeys.reserve(300);
 
         std::string result;
         result.reserve(300 * 1024);
+        char buffer[1024 + 32768*4];
 
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             progress.updateProgress();
 
             unsigned int queryKey = resultReader.getDbKey(id);
-            size_t queryId = qDbr.getId(queryKey);
+            size_t queryId = qDbr->getId(queryKey);
             if (queryId == UINT_MAX) {
                 Debug(Debug::WARNING) << "Invalid query sequence " << queryKey << "\n";
                 continue;
             }
-            centerSequence.mapSequence(queryId, queryKey, qDbr.getData(queryId, thread_idx), qDbr.getSeqLen(queryId));
+            centerSequence.mapSequence(queryId, queryKey, qDbr->getData(queryId, thread_idx), qDbr->getSeqLen(queryId));
 
             // TODO: Do we still need this?
 //            if (centerSequence.L) {
@@ -188,13 +220,13 @@ int result2msa(int argc, const char **argv, const Command &command) {
 //                }
 //            }
 
-            size_t centerHeaderId = queryHeaderReader.getId(queryKey);
+            size_t centerHeaderId = queryHeaderReader->getId(queryKey);
             if (centerHeaderId == UINT_MAX) {
                 Debug(Debug::WARNING) << "Invalid query header " << queryKey << "\n";
                 continue;
             }
-            char *centerSequenceHeader = queryHeaderReader.getData(centerHeaderId, thread_idx);
-            size_t centerHeaderLength = queryHeaderReader.getEntryLen(centerHeaderId) - 1;
+            char *centerSequenceHeader = queryHeaderReader->getData(centerHeaderId, thread_idx);
+            size_t centerHeaderLength = queryHeaderReader->getEntryLen(centerHeaderId) - 1;
 
             if (par.msaFormatMode == Parameters::FORMAT_MSA_STOCKHOLM_FLAT) {
                 accession = Util::parseFastaHeader(centerSequenceHeader);
@@ -219,7 +251,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                 }
                 edgeSequence.mapSequence(edgeId, key, tDbr->getData(edgeId, thread_idx), tDbr->getSeqLen(edgeId));
                 seqSet.emplace_back(std::vector<unsigned char>(edgeSequence.numSequence, edgeSequence.numSequence + edgeSequence.L));
-                seqIds.emplace_back(edgeId);
+                seqKeys.emplace_back(key);
 
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
                 if (columns > Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
@@ -240,7 +272,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 
             if (par.msaFormatMode == Parameters::FORMAT_MSA_FASTADB || par.msaFormatMode == Parameters::FORMAT_MSA_FASTADB_SUMMARY) {
                 if (isFiltering) {
-                    filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, false);
+                    filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), qid_vec, par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable, (const char **) res.msaSequence, false);
                     filter.getKept(kept, res.setSize);
                 }
                 if (par.msaFormatMode == Parameters::FORMAT_MSA_FASTADB_SUMMARY) {
@@ -249,7 +281,9 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         if (i == 0) {
                             headers.emplace_back(centerSequenceHeader, centerHeaderLength);
                         } else if (kept[i] == true) {
-                            char *header = targetHeaderReader->getData(seqIds[i - 1], thread_idx);
+                            unsigned int key = seqKeys[i - 1];
+                            size_t id = targetHeaderReader->getId(key);
+                            char *header = targetHeaderReader->getData(id, thread_idx);
                             size_t length = targetHeaderReader->getEntryLen(id) - 1;
                             headers.emplace_back(header, length);
                         }
@@ -279,7 +313,8 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         header = centerSequenceHeader;
                         length = centerHeaderLength;
                     } else {
-                        size_t id = seqIds[i - 1];
+                        unsigned int key = seqKeys[i - 1];
+                        size_t id = targetHeaderReader->getId(key);
                         header = targetHeaderReader->getData(id, thread_idx);
                         length = targetHeaderReader->getEntryLen(id) - 1;
                     }
@@ -289,13 +324,13 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     // need to allow insertion in the centerSequence
                     for (size_t pos = 0; pos < res.centerLength; pos++) {
                         char aa = res.msaSequence[i][pos];
-                        result.append(1, ((aa < MultipleAlignment::NAA) ? subMat.num2aa[(int) aa] : '-'));
+                        result.append(1, ((aa < MultipleAlignment::GAP) ? subMat.num2aa[(int) aa] : '-'));
                     }
                     result.append(1, '\n');
                 }
             } else if (par.msaFormatMode == Parameters::FORMAT_MSA_STOCKHOLM_FLAT) {
                 if (isFiltering) {
-                    filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, (const char **) res.msaSequence, false);
+                    filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), qid_vec, par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable, (const char **) res.msaSequence, false);
                     filter.getKept(kept, res.setSize);
                 }
 
@@ -316,7 +351,8 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     if (i == 0) {
                         header = centerSequenceHeader;
                     } else {
-                        size_t id = seqIds[i - 1];
+                        unsigned int key = seqKeys[i - 1];
+                        size_t id = targetHeaderReader->getId(key);
                         header = targetHeaderReader->getData(id, thread_idx);
                     }
                     accession = Util::parseFastaHeader(header);
@@ -326,15 +362,80 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     // need to allow insertion in the centerSequence
                     for (size_t pos = 0; pos < res.centerLength; pos++) {
                         char aa = res.msaSequence[i][pos];
-                        result.append(1, ((aa < MultipleAlignment::NAA) ? subMat.num2aa[(int) aa] : '-'));
+                        result.append(1, ((aa < MultipleAlignment::GAP) ? subMat.num2aa[(int) aa] : '-'));
                     }
                     result.append(1, '\n');
                 }
                 result.append("//\n");
+            } else if (par.msaFormatMode == Parameters::FORMAT_MSA_A3M || par.msaFormatMode == Parameters::FORMAT_MSA_A3M_ALN_INFO) {
+                if (isFiltering) {
+                    filter.filter(res.setSize, res.centerLength, static_cast<int>(par.covMSAThr * 100), qid_vec, par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable, (const char **) res.msaSequence, false);
+                    filter.getKept(kept, res.setSize);
+                }
+
+                size_t start = (par.skipQuery == true) ? 1 : 0;
+                for (size_t i = start; i < res.setSize; i++) {
+                    if (kept[i] == false) {
+                        continue;
+                    }
+
+                    result.push_back('>');
+                    if (i == 0) {
+                        result.append(Util::parseFastaHeader(centerSequenceHeader));
+                    } else {
+                        unsigned int key = seqKeys[i - 1];
+                        size_t id = targetHeaderReader->getId(key);
+                        result.append(Util::parseFastaHeader(targetHeaderReader->getData(id, thread_idx)));
+                        if (par.msaFormatMode == Parameters::FORMAT_MSA_A3M_ALN_INFO) {
+                            size_t len = Matcher::resultToBuffer(buffer, alnResults[i - 1], false);
+                            char* data = buffer;
+                            data += Util::skipNoneWhitespace(data);
+                            result.append(data, len - (data - buffer) - 1);
+                        }
+                    }
+                    result.push_back('\n');
+
+                    // need to allow insertion in the centerSequence
+                    if(i == 0){
+                        for (size_t pos = 0; pos < res.centerLength; pos++) {
+                            char aa = res.msaSequence[i][pos];
+                            result.append(1, ((aa < MultipleAlignment::GAP) ? subMat.num2aa[(int) aa] : '-'));
+                        }
+                        result.append(1, '\n');
+                    }else{
+                        const std::vector<unsigned char> & seq = seqSet[i-1];
+                        int seqStartPos = alnResults[i-1].dbStartPos;
+                        size_t seqPos = 0;
+                        const std::string & bt = alnResults[i-1].backtrace;
+                        size_t btPos = 0;
+
+                        for (size_t pos = 0; pos < res.centerLength; pos++) {
+                            char aa = res.msaSequence[i][pos];
+
+                            if(aa>=MultipleAlignment::GAP){
+                                result.push_back('-');
+                            }else if(aa<MultipleAlignment::GAP){
+                                result.push_back( subMat.num2aa[(int) aa]);
+                                btPos++;
+                                seqPos++;
+                            }
+                            // skip insert
+                            while(btPos < bt.size() && bt[btPos] == 'I') { btPos++;}
+
+                            // add lower case deletions
+                            while(btPos < bt.size() && bt[btPos] == 'D') {
+                                result.push_back(tolower(subMat.num2aa[seq[seqStartPos+seqPos]]));
+                                btPos++;
+                                seqPos++;
+                            }
+                        }
+                        result.append(1, '\n');
+                    }
+                }
             } else if (isCA3M == true) {
                 size_t filteredSetSize = res.setSize;
                 if (isFiltering) {
-                    filteredSetSize = filter.filter(res, alnResults, static_cast<int>(par.covMSAThr * 100), static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
+                    filteredSetSize = filter.filter(res, alnResults, static_cast<int>(par.covMSAThr * 100), qid_vec, par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable);
                 }
                 if (par.formatAlignmentMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS) {
                     for (size_t pos = 0; pos < res.centerLength; pos++) {
@@ -344,17 +445,19 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         }
                     }
 
-                    PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, par.wg);
+                    PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, alnResults, par.wg);
                     result.append(">consensus_");
                     result.append(centerSequenceHeader, centerHeaderLength);
-                    result.append(pssmRes.consensus);
+                    for (int pos = 0; pos < centerSequence.L; pos++) {
+                        result.push_back(subMat.num2aa[pssmRes.consensus[pos]]);
+                    }
                     result.append("\n;");
                 } else {
                     result.append(1, '>');
                     result.append(centerSequenceHeader, centerHeaderLength);
                     // Retrieve the master sequence
                     for (int pos = 0; pos < centerSequence.L; pos++) {
-                        result.append(1, subMat.num2aa[centerSequence.numSequence[pos]]);
+                        result.push_back(subMat.num2aa[centerSequence.numSequence[pos]]);
                     }
                     result.append("\n;");
                 }
@@ -377,7 +480,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 
             MultipleAlignment::deleteMSA(&res);
             seqSet.clear();
-            seqIds.clear();
+            seqKeys.clear();
             alnResults.clear();
         }
 
@@ -388,15 +491,23 @@ int result2msa(int argc, const char **argv, const Command &command) {
         FileUtil::remove(resultWriter.getIndexFileName());
     }
     resultReader.close();
-    queryHeaderReader.close();
-    qDbr.close();
+
     if (!sameDatabase) {
-        if (isCA3M == false) {
+        qDbr->close();
+        delete qDbr;
+        queryHeaderReader->close();
+        delete queryHeaderReader;
+    }
+    if (tDbrIdx == NULL) {
+        tDbr->close();
+        delete tDbr;
+        if (targetHeaderReader != NULL) {
             targetHeaderReader->close();
             delete targetHeaderReader;
         }
-        tDbr->close();
-        delete tDbr;
+    } else {
+        delete tDbrIdx;
+        delete targetHeaderReaderIdx;
     }
 
     if (refReader != NULL) {

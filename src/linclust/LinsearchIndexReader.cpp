@@ -15,6 +15,7 @@
 #define SIZE_T_MAX ((size_t) -1)
 #endif
 
+extern const char* index_version_compatible;
 
 template <int TYPE>
 size_t LinsearchIndexReader::pickCenterKmer(KmerPosition<short> *hashSeqPair, size_t splitKmerCount) {
@@ -241,7 +242,7 @@ bool LinsearchIndexReader::checkIfIndexFile(DBReader<unsigned int> *pReader) {
     if(version == NULL){
         return false;
     }
-    return (strncmp(version, PrefilteringIndexReader::CURRENT_VERSION, strlen(PrefilteringIndexReader::CURRENT_VERSION)) == 0 ) ? true : false;
+    return (strncmp(version, index_version_compatible, strlen(index_version_compatible)) == 0 ) ? true : false;
 }
 
 void LinsearchIndexReader::writeKmerIndexToDisk(std::string fileName, KmerPosition<short> *kmers, size_t kmerCnt){
@@ -261,7 +262,7 @@ std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned in
         return "maxSeqLen";
     if (meta.seqType != dbtype)
         return "seqType";
-    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES) == false && meta.alphabetSize != par.alphabetSize.aminoacids)
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES) == false && meta.alphabetSize != par.alphabetSize.values.aminoacid())
         return "alphabetSize";
     if (meta.kmerSize != par.kmerSize)
         return "kmerSize";
@@ -269,8 +270,8 @@ std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned in
         return "maskMode";
     if (meta.spacedKmer != par.spacedKmer)
         return "spacedKmer";
-    if (BaseMatrix::unserializeName(par.seedScoringMatrixFile.aminoacids)  != PrefilteringIndexReader::getSubstitutionMatrixName(&index) &&
-        BaseMatrix::unserializeName(par.seedScoringMatrixFile.nucleotides) != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
+    if (BaseMatrix::unserializeName(par.seedScoringMatrixFile.values.aminoacid().c_str()) != PrefilteringIndexReader::getSubstitutionMatrixName(&index) &&
+        BaseMatrix::unserializeName(par.seedScoringMatrixFile.values.nucleotide().c_str()) != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
         return "seedScoringMatrixFile";
     if (par.spacedKmerPattern != PrefilteringIndexReader::getSpacedPattern(&index))
         return "spacedKmerPattern";
@@ -280,6 +281,11 @@ std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned in
 std::string LinsearchIndexReader::searchForIndex(const std::string& dbName) {
     std::string outIndexName = dbName + ".linidx";
     if (FileUtil::fileExists((outIndexName + ".dbtype").c_str()) == true) {
+        const bool ignore = getenv("MMSEQS_IGNORE_INDEX") != NULL;
+        if (ignore) {
+            Debug(Debug::WARNING) << "Ignoring precomputed index, since environment variable MMSEQS_IGNORE_INDEX is set\n";
+            return "";
+        }
         return outIndexName;
     }
     return "";

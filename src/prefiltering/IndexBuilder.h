@@ -7,7 +7,7 @@ class IndexBuilder {
 public:
     static void fillDatabase(IndexTable *indexTable, SequenceLookup **maskedLookup, SequenceLookup **unmaskedLookup,
                              BaseMatrix &subMat, Sequence *seq,
-                             DBReader<unsigned int> *dbr, size_t dbFrom, size_t dbTo, int kmerThr, bool mask, bool maskLowerCaseMode);
+                             DBReader<unsigned int> *dbr, size_t dbFrom, size_t dbTo, int kmerThr, bool mask, bool maskLowerCaseMode, float maskProb);
 };
 
 #endif

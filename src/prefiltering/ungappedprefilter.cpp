@@ -35,15 +35,12 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         }
     }
     const int targetSeqType = tdbr->getDbtype();
-    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
-        querySeqType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
-    }
 
     BaseMatrix *subMat;
     EvalueComputation * evaluer;
     int8_t * tinySubMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, 0.0);
         evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), subMat);
         tinySubMat = new int8_t[subMat->alphabetSize*subMat->alphabetSize];
         for (int i = 0; i < subMat->alphabetSize; i++) {
@@ -51,20 +48,9 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
                 tinySubMat[i*subMat->alphabetSize + j] = subMat->subMatrix[i][j];
             }
         }
-    } else if(Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ) ){
-        SubstitutionMatrix sMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
-        evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), &sMat);
-        subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,
-                                                     sMat.subMatrixPseudoCounts, 2.0, 0.0, 219);
-        tinySubMat = new int8_t[sMat.alphabetSize*sMat.alphabetSize];
-        for (int i = 0; i < sMat.alphabetSize; i++) {
-            for (int j = 0; j < sMat.alphabetSize; j++) {
-                tinySubMat[i*sMat.alphabetSize + j] = sMat.subMatrix[i][j];
-            }
-        }
     } else {
         // keep score bias at 0.0 (improved ROC)
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
         evaluer = new EvalueComputation(tdbr->getAminoAcidDBSize(), subMat);
         tinySubMat = new int8_t[subMat->alphabetSize*subMat->alphabetSize];
         for (int i = 0; i < subMat->alphabetSize; i++) {
@@ -88,7 +74,8 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
         shortResults.reserve(std::max(static_cast<size_t >(1), tdbr->getSize()/5));
         Sequence qSeq(par.maxSeqLen, querySeqType, subMat, 0, false, par.compBiasCorrection);
         Sequence tSeq(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
-        SmithWaterman aligner(par.maxSeqLen, subMat->alphabetSize, par.compBiasCorrection);
+        SmithWaterman aligner(par.maxSeqLen, subMat->alphabetSize,
+                              par.compBiasCorrection, par.compBiasCorrectionScale, targetSeqType);
 
         std::string resultBuffer;
         resultBuffer.reserve(262144);
@@ -101,11 +88,10 @@ int doRescorealldiagonal(Parameters &par, DBReader<unsigned int> &qdbr, DBWriter
 
             qSeq.mapSequence(id, queryKey, querySeqData, querySeqLen);
 //            qSeq.printProfileStatePSSM();
-            if(Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE) ||
-               Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_PROFILE_STATE_PROFILE)){
-                aligner.ssw_init(&qSeq, qSeq.getAlignmentProfile(), subMat, 0);
+            if(Parameters::isEqualDbtype(qSeq.getSeqType(), Parameters::DBTYPE_HMM_PROFILE) ){
+                aligner.ssw_init(&qSeq, qSeq.getAlignmentProfile(), subMat);
             }else{
-                aligner.ssw_init(&qSeq, tinySubMat, subMat, 0);
+                aligner.ssw_init(&qSeq, tinySubMat, subMat);
             }
 
             for (size_t tId = 0; tId < tdbr->getSize(); tId++) {

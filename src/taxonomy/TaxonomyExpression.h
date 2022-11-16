@@ -20,6 +20,12 @@ public:
     };
 
     TaxonomyExpression(const std::string &expression, NcbiTaxonomy &taxonomy, CommaMeaning commaMeaning = COMMA_IS_OR) {
+        tc.t = &taxonomy;
+        if (Util::isNumber(expression)) {
+            shortcutAncestor = strtoull(expression.c_str(), NULL, 10);
+            parser = NULL;
+            return;
+        }
         std::string bracketExpression;
         bool inNumber = false;
         for (size_t i = 0; i < expression.size(); i++) {
@@ -50,7 +56,6 @@ public:
         if (inNumber == true) {
             bracketExpression.append(")");
         }
-        tc.t = &taxonomy;
         te_variable var;
         var.name = "a";
         // GCC 4.8 does not like casting functions to void*
@@ -66,13 +71,18 @@ public:
     }
 
     ~TaxonomyExpression() {
-        delete parser;
+        if (parser != NULL) { 
+            delete parser;
+        }
     }
 
     bool isAncestor(TaxID taxId) {
-        tc.taxId = taxId;
-        const double result = parser->evaluate();
-        return (result != 0);
+        if (parser != NULL) {
+            tc.taxId = taxId;
+            const double result = parser->evaluate();
+            return (result != 0);
+        }
+        return tc.t->IsAncestor(shortcutAncestor, taxId);
     }
 
 private:
@@ -83,6 +93,7 @@ private:
     TaxContext tc;
     ExpressionParser *parser;
     std::vector<te_variable> vars;
+    TaxID shortcutAncestor;
 
     static double acst(void *context, double a) {
         TaxContext *o = (TaxContext *) context;

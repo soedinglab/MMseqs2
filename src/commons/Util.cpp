@@ -80,65 +80,6 @@ void Util::decomposeDomain(size_t domain_size, size_t world_rank,
     }
 }
 
-
-// http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=8&algorithm=batcher&output=svg
-// sorting networks
-void Util::rankedDescSort8(short *val, unsigned int *index){
-#define SWAP(x,y){\
-if( val[x] < val[y] ){   \
-short tmp1 = val[x];    \
-val[x] = val[y];     \
-val[y] = tmp1;        \
-unsigned int tmp2 = index[x];      \
-index[x] = index[y]; \
-index[y] = tmp2;      \
-} \
-}
-    SWAP(0,4); SWAP(1,5); SWAP(2,6); SWAP(3,7);
-    SWAP(0,2); SWAP(1,3); SWAP(4,6); SWAP(5,7);
-    SWAP(2,4); SWAP(3,5); SWAP(0,1); SWAP(6,7);
-    SWAP(2,3); SWAP(4,5);
-    SWAP(1,4); SWAP(3,6);
-    SWAP(1,2); SWAP(3,4); SWAP(5,6);
-#undef SWAP
-}
-
-
-
-// http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=32&algorithm=batcher&output=svg
-// sorting networks
-void Util::rankedDescSort32(short *val, unsigned int *index){
-#define SWAP(x,y){\
-if( val[x] < val[y] ){   \
-short tmp1 = val[x];    \
-val[x] = val[y];     \
-val[y] = tmp1;        \
-unsigned int tmp2 = index[x];      \
-index[x] = index[y]; \
-index[y] = tmp2;      \
-} \
-}
-    SWAP(0,16);SWAP(1,17);SWAP(2,18);SWAP(3,19);SWAP(4,20);SWAP(5,21);SWAP(6,22);SWAP(7,23);SWAP(8,24);SWAP(9,25);SWAP(10,26);SWAP(11,27);
-    SWAP(12,28);SWAP(13,29);SWAP(14,30);SWAP(15,31);SWAP(0,8);SWAP(1,9);SWAP(2,10);SWAP(3,11);SWAP(4,12);SWAP(5,13);SWAP(6,14);SWAP(7,15);
-    SWAP(16,24);SWAP(17,25);SWAP(18,26);SWAP(19,27);SWAP(20,28);SWAP(21,29);SWAP(22,30);SWAP(23,31);SWAP(8,16);SWAP(9,17);SWAP(10,18);
-    SWAP(11,19);SWAP(12,20);SWAP(13,21);SWAP(14,22);SWAP(15,23);SWAP(0,4);SWAP(1,5);SWAP(2,6);SWAP(3,7);SWAP(24,28);SWAP(25,29);SWAP(26,30);
-    SWAP(27,31);SWAP(8,12);SWAP(9,13);SWAP(10,14);SWAP(11,15);SWAP(16,20);SWAP(17,21);SWAP(18,22);SWAP(19,23);SWAP(0,2);SWAP(1,3);SWAP(28,30);
-    SWAP(29,31);SWAP(4,16);SWAP(5,17);SWAP(6,18);SWAP(7,19);SWAP(12,24);SWAP(13,25);SWAP(14,26);SWAP(15,27);SWAP(0,1);SWAP(30,31);
-    SWAP(4,8);SWAP(5,9);SWAP(6,10);SWAP(7,11);SWAP(12,16);SWAP(13,17);SWAP(14,18);SWAP(15,19);SWAP(20,24);SWAP(21,25);SWAP(22,26);SWAP(23,27);
-    SWAP(4,6);SWAP(5,7);SWAP(8,10);SWAP(9,11);SWAP(12,14);SWAP(13,15);SWAP(16,18);SWAP(17,19);SWAP(20,22);SWAP(21,23);SWAP(24,26);SWAP(25,27);
-    SWAP(2,16);SWAP(3,17);SWAP(6,20);SWAP(7,21);SWAP(10,24);SWAP(11,25);SWAP(14,28);SWAP(15,29);
-    SWAP(2,8);SWAP(3,9);SWAP(6,12);SWAP(7,13);SWAP(10,16);SWAP(11,17);SWAP(14,20);SWAP(15,21);SWAP(18,24);SWAP(19,25);SWAP(22,28);SWAP(23,29);
-    SWAP(2,4);SWAP(3,5);SWAP(6,8);SWAP(7,9);SWAP(10,12);SWAP(11,13);SWAP(14,16);SWAP(15,17);SWAP(18,20);SWAP(19,21);SWAP(22,24);SWAP(23,25);
-    SWAP(26,28);SWAP(27,29);SWAP(2,3);SWAP(4,5);SWAP(6,7);SWAP(8,9);SWAP(10,11);SWAP(12,13);SWAP(14,15);SWAP(16,17);SWAP(18,19);SWAP(20,21);
-    SWAP(22,23);SWAP(24,25);SWAP(26,27);SWAP(28,29);SWAP(1,16);SWAP(3,18);SWAP(5,20);SWAP(7,22);SWAP(9,24);SWAP(11,26);SWAP(13,28);SWAP(15,30);
-    SWAP(1,8);SWAP(3,10);SWAP(5,12);SWAP(7,14);SWAP(9,16);SWAP(11,18);SWAP(13,20);SWAP(15,22);SWAP(17,24);SWAP(19,26);SWAP(21,28);SWAP(23,30);
-    SWAP(1,4);SWAP(3,6);SWAP(5,8);SWAP(7,10);SWAP(9,12);SWAP(11,14);SWAP(13,16);SWAP(15,18);SWAP(17,20);SWAP(19,22);SWAP(21,24);SWAP(23,26);
-    SWAP(25,28);SWAP(27,30);SWAP(1,2);SWAP(3,4);SWAP(5,6);SWAP(7,8);SWAP(9,10);SWAP(11,12);SWAP(13,14);SWAP(15,16);SWAP(17,18);SWAP(19,20);
-    SWAP(21,22);SWAP(23,24);SWAP(25,26);SWAP(27,28);SWAP(29,30);
-#undef SWAP
-}
-
-
 // http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=20&algorithm=batcher&output=svg
 // sorting networks
 void Util::rankedDescSort20(short *val, unsigned int *index){

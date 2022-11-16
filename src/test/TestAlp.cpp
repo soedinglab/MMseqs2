@@ -35,8 +35,8 @@ Contents: pairwise alignment algorithms
 
 
 #include <vector>
-#include<fstream>
-#include<string>
+#include <fstream>
+#include <string>
 #include <SubstitutionMatrix.h>
 #include <EvalueComputation.h>
 
@@ -119,7 +119,7 @@ int main(int, const char**) {
 
     Parameters& par = Parameters::getInstance();
     par.initMatrices();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
     long ** tmpMat = new long *[subMat.alphabetSize];
     long * tmpMatData = new long[subMat.alphabetSize*subMat.alphabetSize];
 

@@ -36,6 +36,7 @@ unsigned int CommandCaller::getCallDepth() {
     }
 
     char *rest;
+    errno = 0;
     int depth = strtol(currentCallDepth, &rest, 10);
     if (rest == currentCallDepth || errno == ERANGE) {
         Debug(Debug::ERROR) << "Invalid non-numeric value for environment variable MMSEQS_CALL_DEPTH!\n";

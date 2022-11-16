@@ -4,10 +4,12 @@
 #include "Util.h"
 #include "itoa.h"
 #include "Timer.h"
+#include "SequenceWeights.h"
 
 Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                        const std::string &alnDB, const std::string &alnDBIndex,
                        const std::string &outDB, const std::string &outDBIndex,
+                       const std::string &sequenceWeightFile,
                        unsigned int maxIteration, int similarityScoreType, int threads, int compressed) : maxIteration(maxIteration),
                                                                similarityScoreType(similarityScoreType),
                                                                threads(threads),
@@ -16,7 +18,23 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                                                                outDBIndex(outDBIndex) {
 
     seqDbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX);
-    seqDbr->open(DBReader<unsigned int>::SORT_BY_LENGTH);
+
+    if (!sequenceWeightFile.empty()) {
+
+        seqDbr->open(DBReader<unsigned int>::SORT_BY_ID);
+
+        SequenceWeights *sequenceWeights = new SequenceWeights(sequenceWeightFile.c_str());
+        float *localid2weight = new float[seqDbr->getSize()];
+        for (size_t id = 0; id < seqDbr->getSize(); id++) {
+            size_t key = seqDbr->getDbKey(id);
+            localid2weight[id] = sequenceWeights->getWeightById(key);
+        }
+        seqDbr->sortIndex(localid2weight);
+        delete[] localid2weight;
+        delete sequenceWeights;
+
+    } else
+        seqDbr->open(DBReader<unsigned int>::SORT_BY_LENGTH);
 
     alnDbr = new DBReader<unsigned int>(alnDB.c_str(), alnDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     alnDbr->open(DBReader<unsigned int>::NOSORT);

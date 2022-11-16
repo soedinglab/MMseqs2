@@ -27,6 +27,8 @@ MsaFilter::MsaFilter(int maxSeqLen, int maxSetSize, SubstitutionMatrix *m, int g
     this->ksort = (int*)malloc(maxSetSize * sizeof(int));
     this->display = (char*)malloc((maxSetSize + 2) * sizeof(char));
     this->keep = (char*)malloc(maxSetSize * sizeof(char));
+    this->X = (const char **) malloc(maxSetSize * sizeof(char **));
+    this->keep_local = (char **) malloc(maxSetSize * sizeof(char **));
 }
 
 MsaFilter::~MsaFilter() {
@@ -42,6 +44,8 @@ MsaFilter::~MsaFilter() {
     free(ksort);
     free(display);
     free(keep);
+    free(X);
+    free(keep_local);
 }
 
 void MsaFilter::increaseSetSize(int newSetSize) {
@@ -56,11 +60,13 @@ void MsaFilter::increaseSetSize(int newSetSize) {
         ksort = (int*)realloc(ksort, maxSetSize * sizeof(int));
         display = (char*)realloc(display, maxSetSize * sizeof(char));
         keep = (char*)realloc(keep, maxSetSize * sizeof(char));
+        X = (const char **) realloc(X, maxSetSize * sizeof(char **));
+        keep_local = (char **) realloc(keep_local, maxSetSize * sizeof(char **));
     }
 }
 
-size_t MsaFilter::filter(MultipleAlignment::MSAResult &msa, std::vector<Matcher::result_t> &alnResults, int coverage, int qid, float qsc, int max_seqid, int Ndiff) {
-    size_t filteredSize = filter(msa.setSize, msa.centerLength, coverage, qid, qsc, max_seqid, Ndiff, (const char **) msa.msaSequence, true);
+size_t MsaFilter::filter(MultipleAlignment::MSAResult &msa, std::vector<Matcher::result_t> &alnResults, int coverage, const std::vector<int> & qid_vec, float qsc, int max_seqid, int Ndiff, int filterMinEnable) {
+    size_t filteredSize = filter(msa.setSize, msa.centerLength, coverage, qid_vec, qsc, max_seqid, Ndiff, filterMinEnable, (const char **) msa.msaSequence, true);
     if (!alnResults.empty()) {
         // alignmentResults does not include the query
         for (size_t i = 0, j = 0; j < msa.setSize - 1; j++) {
@@ -76,254 +82,306 @@ size_t MsaFilter::filter(MultipleAlignment::MSAResult &msa, std::vector<Matcher:
     return filteredSize;
 }
 
-size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const int qid,
-                       const float qsc, const int max_seqid, int Ndiff, const char **X, const bool shuffleMsa) {
-    increaseSetSize(N_in);
+size_t MsaFilter::filter(const int N_in_total, const int L, const int coverage, const std::vector<int> & qid_vec,
+                         const float qsc, const int max_seqid, int Ndiff, int filterMinEnable, const char **X_in, const bool shuffleMsa) {
 
-    int seqid1 = 20;
-    // X[k][i] contains column i of sequence k in alignment (first seq=0, first char=1) (0-3: ARND ..., 20:X, 21:GAP)
-//    char** X = (char **) &msaSequence;
+    increaseSetSize(N_in_total);
+    memset(keep, 0, N_in_total*sizeof(char));
+    int N_keep_total = 0;
+    for (size_t qid_idx = 0; qid_idx < qid_vec.size(); qid_idx++) {
+        int n = 0;
+        int N_in_bucket = 0;
 
-    // In the beginnning, keep[k] is 1 for all regular amino acid sequences and 0 for all others (ss_conf, ss_pred,...)
-    // In the end, keep[k] will be 1 for all regular representative sequences kept in the alignment, 0 for all others
-    // Sequences with keep[k] = 2 will cannot be filtered out and will remain in the alignment.
-    // If a consensus sequence exists it has k = kfirst and keep[k] = 0, since it should not enter into the profile calculation.
-    const int WFIL = 25;            // see previous line
-
-    int diffNmax = Ndiff;    // current  maximum difference of Nmax[i] and Ndiff
-    int diffNmax_prev = 0;   // previous maximum difference of Nmax[i] and Ndiff
-    int seqid;  // current  maximum value for the position-dependent maximum-sequence-identity thresholds in idmax[]
-    int seqid_step = 0;         // previous increment of seqid
-
-    float diff_min_frac;  // minimum fraction of differing positions between sequence j and k needed to accept sequence k
-    float qdiff_max_frac = 0.9999 - 0.01 * qid;  // maximum allowable number of residues different from query sequence
-    int diff = 0;  // number of differing positions between sequences j and k (counted so far)
-    int diff_suff;  // number of differing positions between sequences j and k that would be sufficient
-    int qdiff_max;  // maximum number of residues required to be different from query
-    int cov_kj;  // upper limit of number of positions where both sequence k and j have a residue
-    int first_kj;             // first non-gap position in sequence j AND k
-    int last_kj;              // last  non-gap position in sequence j AND k
-    int kk, jj;               // indices for sequence from 1 to N_in
-    int k, j;                 // kk=ksort[k], jj=ksort[j]
-    int i;                    // counts residues
-    int n;                    // number of sequences accepted so far
-    int kfirst = 0;           // index of first real sequence
-
-    // map data to X
-    for (k = 0; k < N_in; ++k) {
-        // sequence 0 is the center (query)
-        keep[k] = (k == 0) ? 2 : 1;
-    }
-    // Initialize in[k]
-    for (n = k = 0; k < N_in; ++k) {
-        if (keep[k] == 2) {
-            in[k] = 2;
-            n++;
-        } else {
-            in[k] = 0;
-        }
-    }
-    // Determine first[k], last[k]?
-    for (k = 0; k < N_in; ++k)  // do this for ALL sequences, not only those with in[k]==1 (since in[k] may be display[k])
-    {
-        for (i = 0; i < L; ++i)
-            if (X[k][i] < MultipleAlignment::NAA)
+        int qid;
+        if(qid_vec.size() == 1){
+            if(N_in_total < filterMinEnable){
+                memset(keep, 1, N_in_total*sizeof(char));
+                keep[0] = 2;
+                N_keep_total = N_in_total - 1;
                 break;
-        first[k] = i;
-        for (i = (L - 1); i > 0; i--)
-            if (X[k][i] < MultipleAlignment::NAA)
+            }
+            qid = qid_vec[0];
+            N_in_bucket = N_in_total;
+            for (int k = 0; k < N_in_total; k++) {
+                X[k] = X_in[k];
+                keep_local[k] = &keep[k];
+            }
+        }else {
+            if (qid_idx == qid_vec.size() - 1) {
                 break;
-        last[k] = i;
-    }
-
-    // Determine number of residues nres[k]?
-    for (k = 0; k < N_in; ++k)  // do this for ALL sequences, not only those with in[k]==1 (since in[k] may be display[k])
-    {
-        int nr = 0;
-        for (i = first[k]; i <= last[k]; ++i)
-            if (X[k][i] < MultipleAlignment::NAA)
-                nr++;
-        this->nres[k] = nr;
-//        printf("%d nres=%3i  first=%3i  last=%3i\n",k,nr,first[k],last[k]);
-        if (nr == 0)
-            keep[k] = 0;
-    }
-
-    std::pair<int, int> * tmpSort = new std::pair<int, int>[N_in];
-    // create sorted index according to length (needed for the pairwise seq. id. comparision); afterwards, nres[ksort[kk]] is sorted by size
-    for (k = 0; k < N_in; ++k) {
-        tmpSort[k].first = nres[k];
-        tmpSort[k].second = k;
-    }
-    //Sort sequences after query (first sequence) in descending order
-    struct sortPairDesc {
-        bool operator()(const std::pair<int,int> &left, const std::pair<int,int> &right) const {
-            return left.first > right.first;
-        }
-    };
-    std::stable_sort(tmpSort + 1, tmpSort + N_in, sortPairDesc());
-    for (k = 0; k < N_in; ++k) {
-        ksort[k] =  tmpSort[k].second;
-    }
-    delete [] tmpSort;
-
-    for (kk = 0; kk < N_in; ++kk) {
-        inkk[kk] = in[ksort[kk]];
-    }
-
-    // Initialize N[i], idmax[i], idprev[i]
-    for (i = 0; i < first[kfirst]; ++i)
-        N[i] = 0;
-    for (i = first[kfirst]; i <= last[kfirst]; ++i)
-        N[i] = 1;
-    for (i = last[kfirst] + 1; i < L; ++i)
-        N[i] = 0;
-    for (i = 0; i < L; ++i) {
-        Nmax[i] = 0;
-        idmaxwin[i] = -1;
-    }
-    for (k = 0; k < N_in; ++k)
-        seqid_prev[k] = -1;
-    if (Ndiff <= 0 || Ndiff >= N_in) {
-        seqid1 = max_seqid;
-        Ndiff = N_in;
-        diffNmax = Ndiff;
-    }
-
-    // Check coverage and sim-to-query criteria for each sequence k
-    for (k = 0; k < N_in; ++k) {
-        if (keep[k] == 0 || keep[k] == 2)
-            continue;  // seq k not regular sequence OR is marked sequence
-        if (100 * nres[k] < coverage * L) {
-            keep[k] = 0;
-            continue;
-        }  // coverage too low? => reject once and for all
-
-        float qsc_sum = 0.0;
-
-        // Check if score-per-column with query is at least qsc
-        if (qsc > -10) {
-            float qsc_min = qsc * nres[k];  // minimum total score of seq k with query
-
-            int gapq = 0, gapk = 0;  // number of consecutive gaps in query or k'th sequence at position i
-            for (int i = first[k]; i <= last[k]; ++i) {
-                if (X[k][i] < 20) {
-                    gapk = 0;
-                    if (X[kfirst][i] < 20) {
-                        gapq = 0;
-                        qsc_sum += static_cast<float>(m->subMatrix[(int) X[kfirst][i]][(int) X[k][i]]);
-                    } else if (X[kfirst][i] == MultipleAlignment::ANY)
-                        // Treat score of X with other amino acid as 0.0
-                        continue;
-                    else if (gapq++)
-                        qsc_sum -= PLTY_GAPEXTD;
-                    else
-                        qsc_sum -= PLTY_GAPOPEN;
-                } else if (X[k][i] == MultipleAlignment::ANY)
-                    // Treat score of X with other amino acid as 0.0
-                    continue;
-                else if (X[kfirst][i] < 20) {
-                    gapq = 0;
-                    if (gapk++)
-                        qsc_sum -= PLTY_GAPEXTD;
-                    else
-                        qsc_sum -= PLTY_GAPOPEN;
+            }
+            qid = 0;
+            // add query
+            X[0] = X_in[0];
+            keep_local[0] = &keep[0];
+            const char * query = X_in[0];
+            N_in_bucket++;
+            for (int k = 1; k < N_in_total; k++) {
+                int nr = 0;
+                int nid = 0;
+                for (int i = 0; i < L; ++i) {
+                    nr += (X_in[k][i] < MultipleAlignment::NAA);
+                    nid += (X_in[k][i] == query[i] && X_in[k][i] < MultipleAlignment::NAA);
+                }
+                int seqid = static_cast<int>(100.0f * (static_cast<float>(nid) / static_cast<float>(nr)));
+                if (seqid > qid_vec[qid_idx] && seqid <= qid_vec[qid_idx + 1]) {
+                    X[N_in_bucket] = X_in[k];
+                    keep_local[N_in_bucket] = &keep[k];
+                    N_in_bucket++;
                 }
             }
-//        printf("k=%3i qsc=%6.2f\n",k,qsc_sum);
-            if (qsc_sum < qsc_min) {
-                keep[k] = 0;
+            if (N_in_bucket < filterMinEnable) {
+                for(int k = 1; k < N_in_bucket; k++){
+                    *keep_local[k] = 1;
+                }
+                *keep_local[0] = 2;
+                N_keep_total += N_in_bucket - 1;
                 continue;
-            }  // too different from query? => reject once and for all
-        }
-//                  printf("  diff=%4i\n",diff);
-        //Check if sequence similarity with query at least qid?
-        if (qdiff_max_frac < 0.999) {
-
-            qdiff_max = int(qdiff_max_frac * nres[k] + 0.9999);
-//                  printf("k=%-4i  nres=%-4i  qdiff_max=%-4i first=%-4i last=%-4i",k,nres[k],qdiff_max,first[k],last[k]);
-            diff = 0;
-            for (int i = first[k]; i <= last[k]; ++i)
-                // enough different residues to reject based on minimum qid with query? => break
-                if (X[k][i] < MultipleAlignment::NAA
-                    && X[k][i] != X[kfirst][i] && ++diff >= qdiff_max)
-                    break;
-//                  printf("  diff=%4i\n",diff);
-            if (diff >= qdiff_max) {
-                keep[k] = 0;
-                continue;
-            }  // too different from query? => reject once and for all
-        }
-        // printf("%d  qsc=%6.2f  %d  %d qid=%6.2f  \n",k,qsc_sum/nres[k],nres[k], diff, 100.0*(1.0-(float)(diff)/nres[k]));
-    }
-
-    // If no sequence left, issue warning and put back first real sequence into alignment
-    int nn=0;
-    for (k = 0; k < N_in; ++k) {
-        if (keep[k] > 0) {
-            nn++;
-        }
-    }
-
-    if (nn == 0) {
-        for (k = 0; k < N_in; k++) {
-            if (display[k] != 2) {
-                keep[k] = 1;
-                break;
             }
         }
-        if (keep[k] == 1) {
+        int N_in = N_in_bucket;
+        int seqid1 = 20;
+        // X[k][i] contains column i of sequence k in alignment (first seq=0, first char=1) (0-3: ARND ..., 20:X, 21:GAP)
+//    char** X = (char **) &msaSequence;
+
+        // In the beginnning, keep[k] is 1 for all regular amino acid sequences and 0 for all others (ss_conf, ss_pred,...)
+        // In the end, keep[k] will be 1 for all regular representative sequences kept in the alignment, 0 for all others
+        // Sequences with keep[k] = 2 will cannot be filtered out and will remain in the alignment.
+        // If a consensus sequence exists it has k = kfirst and keep[k] = 0, since it should not enter into the profile calculation.
+        const int WFIL = 25;            // see previous line
+
+        int diffNmax = Ndiff;    // current  maximum difference of Nmax[i] and Ndiff
+        int diffNmax_prev = 0;   // previous maximum difference of Nmax[i] and Ndiff
+        int seqid;  // current  maximum value for the position-dependent maximum-sequence-identity thresholds in idmax[]
+        int seqid_step = 0;         // previous increment of seqid
+
+        float diff_min_frac;  // minimum fraction of differing positions between sequence j and k needed to accept sequence k
+        float qdiff_max_frac = 0.9999 - 0.01 * qid;  // maximum allowable number of residues different from query sequence
+        int diff = 0;  // number of differing positions between sequences j and k (counted so far)
+        int diff_suff;  // number of differing positions between sequences j and k that would be sufficient
+        int qdiff_max;  // maximum number of residues required to be different from query
+        int cov_kj;  // upper limit of number of positions where both sequence k and j have a residue
+        int first_kj;             // first non-gap position in sequence j AND k
+        int last_kj;              // last  non-gap position in sequence j AND k
+        int kk, jj;               // indices for sequence from 1 to N_in
+        int k, j;                 // kk=ksort[k], jj=ksort[j]
+        int i;                    // counts residues
+        int kfirst = 0;           // index of first real sequence
+
+        // map data to X
+        for (k = 0; k < N_in; ++k) {
+            // sequence 0 is the center (query)
+            *keep_local[k] = (k == 0) ? 2 : 1;
+        }
+        // Initialize in[k]
+        for (n = k = 0; k < N_in; ++k) {
+            if (*keep_local[k] == 2) {
+                in[k] = 2;
+                n++;
+            } else {
+                in[k] = 0;
+            }
+        }
+        // Determine first[k], last[k]?
+        for (k = 0; k < N_in; ++k)  // do this for ALL sequences, not only those with in[k]==1 (since in[k] may be display[k])
+        {
+            for (i = 0; i < L; ++i)
+                if (X[k][i] < MultipleAlignment::NAA)
+                    break;
+            first[k] = i;
+            for (i = (L - 1); i > 0; i--)
+                if (X[k][i] < MultipleAlignment::NAA)
+                    break;
+            last[k] = i;
+        }
+
+        // Determine number of residues nres[k]?
+        for (k = 0;
+             k < N_in; ++k)  // do this for ALL sequences, not only those with in[k]==1 (since in[k] may be display[k])
+        {
+            int nr = 0;
+            for (i = first[k]; i <= last[k]; ++i)
+                if (X[k][i] < MultipleAlignment::NAA)
+                    nr++;
+            this->nres[k] = nr;
+//        printf("%d nres=%3i  first=%3i  last=%3i\n",k,nr,first[k],last[k]);
+            if (nr == 0)
+                *keep_local[k] = 0;
+        }
+
+        std::pair<int, int> *tmpSort = new std::pair<int, int>[N_in];
+        // create sorted index according to length (needed for the pairwise seq. id. comparision); afterwards, nres[ksort[kk]] is sorted by size
+        for (k = 0; k < N_in; ++k) {
+            tmpSort[k].first = nres[k];
+            tmpSort[k].second = k;
+        }
+        //Sort sequences after query (first sequence) in descending order
+        struct sortPairDesc {
+            bool operator()(const std::pair<int, int> &left, const std::pair<int, int> &right) const {
+                return left.first > right.first;
+            }
+        };
+        std::stable_sort(tmpSort + 1, tmpSort + N_in, sortPairDesc());
+        for (k = 0; k < N_in; ++k) {
+            ksort[k] = tmpSort[k].second;
+        }
+        delete[] tmpSort;
+
+        for (kk = 0; kk < N_in; ++kk) {
+            inkk[kk] = in[ksort[kk]];
+        }
+
+        // Initialize N[i], idmax[i], idprev[i]
+        for (i = 0; i < first[kfirst]; ++i)
+            N[i] = 0;
+        for (i = first[kfirst]; i <= last[kfirst]; ++i)
+            N[i] = 1;
+        for (i = last[kfirst] + 1; i < L; ++i)
+            N[i] = 0;
+        for (i = 0; i < L; ++i) {
+            Nmax[i] = 0;
+            idmaxwin[i] = -1;
+        }
+        for (k = 0; k < N_in; ++k)
+            seqid_prev[k] = -1;
+        if (Ndiff <= 0 || Ndiff >= N_in) {
+            seqid1 = max_seqid;
+            Ndiff = N_in;
+            diffNmax = Ndiff;
+        }
+
+        // Check coverage and sim-to-query criteria for each sequence k
+        for (k = 0; k < N_in; ++k) {
+            if (*keep_local[k] == 0 || *keep_local[k] == 2)
+                continue;  // seq k not regular sequence OR is marked sequence
+            if (100 * nres[k] < coverage * L) {
+                *keep_local[k] = 0;
+                continue;
+            }  // coverage too low? => reject once and for all
+
+            float qsc_sum = 0.0;
+
+            // Check if score-per-column with query is at least qsc
+            if (qsc > -10) {
+                float qsc_min = qsc * nres[k];  // minimum total score of seq k with query
+
+                int gapq = 0, gapk = 0;  // number of consecutive gaps in query or k'th sequence at position i
+                for (int i = first[k]; i <= last[k]; ++i) {
+                    if (X[k][i] < 20) {
+                        gapk = 0;
+                        if (X[kfirst][i] < 20) {
+                            gapq = 0;
+                            qsc_sum += static_cast<float>(m->subMatrix[(int) X[kfirst][i]][(int) X[k][i]]);
+                        } else if (X[kfirst][i] == MultipleAlignment::ANY)
+                            // Treat score of X with other amino acid as 0.0
+                            continue;
+                        else if (gapq++)
+                            qsc_sum -= PLTY_GAPEXTD;
+                        else
+                            qsc_sum -= PLTY_GAPOPEN;
+                    } else if (X[k][i] == MultipleAlignment::ANY)
+                        // Treat score of X with other amino acid as 0.0
+                        continue;
+                    else if (X[kfirst][i] < 20) {
+                        gapq = 0;
+                        if (gapk++)
+                            qsc_sum -= PLTY_GAPEXTD;
+                        else
+                            qsc_sum -= PLTY_GAPOPEN;
+                    }
+                }
+//        printf("k=%3i qsc=%6.2f\n",k,qsc_sum);
+                if (qsc_sum < qsc_min) {
+                    *keep_local[k] = 0;
+                    continue;
+                }  // too different from query? => reject once and for all
+            }
+//                  printf("  diff=%4i\n",diff);
+            //Check if sequence similarity with query at least qid?
+            if (qdiff_max_frac < 0.999) {
+
+                qdiff_max = int(qdiff_max_frac * nres[k] + 0.9999);
+//                  printf("k=%-4i  nres=%-4i  qdiff_max=%-4i first=%-4i last=%-4i",k,nres[k],qdiff_max,first[k],last[k]);
+                diff = 0;
+                for (int i = first[k]; i <= last[k]; ++i)
+                    // enough different residues to reject based on minimum qid with query? => break
+                    if (X[k][i] < MultipleAlignment::NAA
+                        && X[k][i] != X[kfirst][i] && ++diff >= qdiff_max)
+                        break;
+//                  printf("  diff=%4i\n",diff);
+                if (diff >= qdiff_max) {
+                    *keep_local[k] = 0;
+                    continue;
+                }  // too different from query? => reject once and for all
+            }
+            // printf("%d  qsc=%6.2f  %d  %d qid=%6.2f  \n",k,qsc_sum/nres[k],nres[k], diff, 100.0*(1.0-(float)(diff)/nres[k]));
+        }
+
+        // If no sequence left, issue warning and put back first real sequence into alignment
+        int nn = 0;
+        for (k = 0; k < N_in; ++k) {
+            if (*keep_local[k] > 0) {
+                nn++;
+            }
+        }
+
+        if (nn == 0) {
+            for (k = 0; k < N_in; k++) {
+                if (display[k] != 2) {
+                    *keep_local[k] = 1;
+                    break;
+                }
+            }
+            if (*keep_local[k] == 1) {
 //            Debug(Debug::WARNING) << "Warning in " << __FILE__ << ":" << __LINE__
 //            << ": " << __func__ << ":" << "\n";
 //            Debug(Debug::WARNING)
 //            << "\tFiltering removed all sequences in alignment. Inserting back first sequence.\n";
-            ;
-        } else if (display[kfirst] == 2) {  // the only sequence in the alignment is the consensus sequence :-(
+                ;
+            } else if (display[kfirst] == 2) {  // the only sequence in the alignment is the consensus sequence :-(
 //            Debug(Debug::WARNING) << "Warning in " << __FILE__ << ":" << __LINE__
 //            << ": " << __func__ << ":" << "\n";
 //            Debug(Debug::WARNING)
 //            << "\tAlignment contains no sequence except consensus sequence. Using consensus sequence for searching.\n";
-            ;
-        } else {
-            Debug(Debug::WARNING) << "The alingment %s does not contain any sequences.\n";
-        }
-    }
-
-    // If min required seqid larger than max required seqid, return here without doing pairwise seqid filtering
-    if (seqid1 > max_seqid) {
-        if (shuffleMsa) {
-            shuffleSequences(X, N_in);
-        }
-        return nn;
-    }
-
-    // Successively increment idmax[i] at positons where N[i]<Ndiff
-    seqid = seqid1;
-    while (seqid <= max_seqid) {
-        bool stop = true;
-        // Update Nmax[i]
-        diffNmax_prev = diffNmax;
-        diffNmax = 0;
-        for (i = 0; i < L; ++i) {
-            int max = 0;
-            for (j = std::max(0, std::min(L - 2 * WFIL + 1, i - WFIL));
-                 j < std::min(L, std::max(2 * WFIL, i + WFIL)); ++j)
-                if (N[j] > max)
-                    max = N[j];
-            if (Nmax[i] < max)
-                Nmax[i] = max;
-            if (Nmax[i] < Ndiff) {
-                stop = false;
-                idmaxwin[i] = seqid;
-                if (diffNmax < Ndiff - Nmax[i])
-                    diffNmax = Ndiff - Nmax[i];
+                ;
+            } else {
+                Debug(Debug::WARNING) << "The alingment %s does not contain any sequences.\n";
             }
         }
 
-//        printf("seqid=%3i  diffNmax_prev= %-4i   diffNmax= %-4i   n=%-5i  N_in-N_ss=%-5i\n",seqid,diffNmax_prev,diffNmax,n,N_in);
-        if (stop) {
-            break;
+        // If min required seqid larger than max required seqid, return here without doing pairwise seqid filtering
+        if (seqid1 > max_seqid) {
+            N_keep_total += nn;
+            continue;
         }
+
+        // Successively increment idmax[i] at positons where N[i]<Ndiff
+        seqid = seqid1;
+        while (seqid <= max_seqid) {
+            bool stop = true;
+            // Update Nmax[i]
+            diffNmax_prev = diffNmax;
+            diffNmax = 0;
+            for (i = 0; i < L; ++i) {
+                int max = 0;
+                for (j = std::max(0, std::min(L - 2 * WFIL + 1, i - WFIL));
+                     j < std::min(L, std::max(2 * WFIL, i + WFIL)); ++j)
+                    if (N[j] > max)
+                        max = N[j];
+                if (Nmax[i] < max)
+                    Nmax[i] = max;
+                if (Nmax[i] < Ndiff) {
+                    stop = false;
+                    idmaxwin[i] = seqid;
+                    if (diffNmax < Ndiff - Nmax[i])
+                        diffNmax = Ndiff - Nmax[i];
+                }
+            }
+
+//        printf("seqid=%3i  diffNmax_prev= %-4i   diffNmax= %-4i   n=%-5i  N_in-N_ss=%-5i\n",seqid,diffNmax_prev,diffNmax,n,N_in);
+            if (stop) {
+                break;
+            }
 
 //       // DEBUG
 //       printf("idmax    ");
@@ -336,38 +394,39 @@ size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const 
 //       for (i=1; i<=L; ++i) printf("%2i ",N[i]);
 //       printf("\n");
 
-        // Loop over all candidate sequences kk (-> k)
-        for (kk = 0; kk < N_in; ++kk) {
-            if (inkk[kk])
-                continue;   // seq k already accepted
-            k = ksort[kk];
-            if (!keep[k])
-                continue;  // seq k is not regular aa sequence or already suppressed by coverage or qid criterion
-            if (keep[k] == 2) {
-                inkk[kk] = 2;
-                continue;
-            }  // accept all marked sequences (no n++, since this has been done already)
-
-            // Calculate max-seq-id threshold seqidk for sequence k (as maximum over idmaxwin[i])
-            if (seqid >= 100) {
-                in[k] = inkk[kk] = 1;
-                n++;
-                continue;
-            }
-
-            float seqidk = seqid1;
-            for (i = first[k]; i <= last[k]; ++i)
-                if (idmaxwin[i] > seqidk)
-                    seqidk = idmaxwin[i];
-            if (seqid == seqid_prev[k])
-                continue;  // sequence has already been rejected at this seqid threshold => reject this time
-            seqid_prev[k] = seqid;
-            diff_min_frac = 0.9999 - 0.01 * seqidk;  // min fraction of differing positions between sequence j and k needed to accept sequence k
-            // Loop over already accepted sequences
-            for (jj = 0; jj < kk; ++jj) {
-                if (!inkk[jj])
+            // Loop over all candidate sequences kk (-> k)
+            for (kk = 0; kk < N_in; ++kk) {
+                if (inkk[kk])
+                    continue;   // seq k already accepted
+                k = ksort[kk];
+                if (!(*keep_local[k]))
+                    continue;  // seq k is not regular aa sequence or already suppressed by coverage or qid criterion
+                if (*keep_local[k] == 2) {
+                    inkk[kk] = 2;
                     continue;
-                j = ksort[jj];
+                }  // accept all marked sequences (no n++, since this has been done already)
+
+                // Calculate max-seq-id threshold seqidk for sequence k (as maximum over idmaxwin[i])
+                if (seqid >= 100) {
+                    in[k] = inkk[kk] = 1;
+                    n++;
+                    continue;
+                }
+
+                float seqidk = seqid1;
+                for (i = first[k]; i <= last[k]; ++i)
+                    if (idmaxwin[i] > seqidk)
+                        seqidk = idmaxwin[i];
+                if (seqid == seqid_prev[k])
+                    continue;  // sequence has already been rejected at this seqid threshold => reject this time
+                seqid_prev[k] = seqid;
+                diff_min_frac = 0.9999 - 0.01 *
+                                         seqidk;  // min fraction of differing positions between sequence j and k needed to accept sequence k
+                // Loop over already accepted sequences
+                for (jj = 0; jj < kk; ++jj) {
+                    if (!inkk[jj])
+                        continue;
+                    j = ksort[jj];
 //                for (int i = first[k]; i <= last[k]; ++i) {
 //                    printf("%02d", (int)X[k][i]);
 //                }
@@ -377,77 +436,78 @@ size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const 
 //                }
 //                std::cout << std::endl;
 
-                first_kj = std::max(first[k], first[j]);
-                last_kj = std::min(last[k], last[j]);
-                cov_kj = last_kj - first_kj + 1;
-                diff_suff = int(diff_min_frac * std::min(nres[k], cov_kj) + 0.999);  // nres[j]>nres[k] anyway because of sorting
-                diff = 0;
-                const simd_int * XK = (simd_int *) X[k];
-                const simd_int * XJ = (simd_int *) X[j];
-                const int first_kj_simd = first_kj / (VECSIZE_INT * 4);
-                const int last_kj_simd = last_kj / (VECSIZE_INT * 4) + 1;
-                // coverage correction for simd
-                // because we do not always hit the right start with simd.
-                // This works because all sequence vector are initialized with GAPs so the sequnces is surrounded by GAPs
-                const int first_diff_simd_scalar = std::abs(
-                        first_kj_simd * (VECSIZE_INT * 4) - first_kj);
-                const int last_diff_simd_scalar = std::abs(
-                        last_kj_simd * (VECSIZE_INT * 4) - (last_kj + 1));
+                    first_kj = std::max(first[k], first[j]);
+                    last_kj = std::min(last[k], last[j]);
+                    cov_kj = last_kj - first_kj + 1;
+                    diff_suff = int(diff_min_frac * std::min(nres[k], cov_kj) +
+                                    0.999);  // nres[j]>nres[k] anyway because of sorting
+                    diff = 0;
+                    const simd_int *XK = (simd_int *) X[k];
+                    const simd_int *XJ = (simd_int *) X[j];
+                    const int first_kj_simd = first_kj / (VECSIZE_INT * 4);
+                    const int last_kj_simd = last_kj / (VECSIZE_INT * 4) + 1;
+                    // coverage correction for simd
+                    // because we do not always hit the right start with simd.
+                    // This works because all sequence vector are initialized with GAPs so the sequnces is surrounded by GAPs
+                    const int first_diff_simd_scalar = std::abs(
+                            first_kj_simd * (VECSIZE_INT * 4) - first_kj);
+                    const int last_diff_simd_scalar = std::abs(
+                            last_kj_simd * (VECSIZE_INT * 4) - (last_kj + 1));
 
-                cov_kj += (first_diff_simd_scalar + last_diff_simd_scalar);
+                    cov_kj += (first_diff_simd_scalar + last_diff_simd_scalar);
 
-                // _mm_set1_epi8 pseudo-instruction is slow!
-                const simd_int NAAx16 = simdi8_set(MultipleAlignment::NAA - 1);
-                for (int i = first_kj_simd; i < last_kj_simd && diff < diff_suff; ++i) {
-                    // None SIMD function
-                    // enough different residues to accept? => break
-                    // if (X[k][i] >= NAA || X[j][i] >= NAA)
-                    //    cov_kj--;
-                    // else if (X[k][i] != X[j][i] && ++diff >= diff_suff)
-                    //    break; // accept (k,j)
+                    // _mm_set1_epi8 pseudo-instruction is slow!
+                    const simd_int NAAx16 = simdi8_set(MultipleAlignment::NAA - 1);
+                    for (int i = first_kj_simd; i < last_kj_simd && diff < diff_suff; ++i) {
+                        // None SIMD function
+                        // enough different residues to accept? => break
+                        // if (X[k][i] >= NAA || X[j][i] >= NAA)
+                        //    cov_kj--;
+                        // else if (X[k][i] != X[j][i] && ++diff >= diff_suff)
+                        //    break; // accept (k,j)
 
-                    const simd_int NO_AA_K = simdi8_gt(XK[i], NAAx16);  // pos without amino acid in seq k
-                    const simd_int NO_AA_J = simdi8_gt(XJ[i], NAAx16);  // pos without amino acid in seq j
+                        const simd_int NO_AA_K = simdi8_gt(XK[i], NAAx16);  // pos without amino acid in seq k
+                        const simd_int NO_AA_J = simdi8_gt(XJ[i], NAAx16);  // pos without amino acid in seq j
 
-                    // Compute 16 bits indicating positions with GAP, ANY or ENDGAP in seq k or j
-                    // int _mm_movemask_epi8(__m128i a) creates 16-bit mask from most significant bits of
-                    // the 16 signed or unsigned 8-bit integers in a and zero-extends the upper bits.
-                    int res = simdi8_movemask(simdi_or(NO_AA_K, NO_AA_J));
+                        // Compute 16 bits indicating positions with GAP, ANY or ENDGAP in seq k or j
+                        // int _mm_movemask_epi8(__m128i a) creates 16-bit mask from most significant bits of
+                        // the 16 signed or unsigned 8-bit integers in a and zero-extends the upper bits.
+                        int res = simdi8_movemask(simdi_or(NO_AA_K, NO_AA_J));
 //                    for (int u = 0; u < 32; ++u) {
 //                        printf("%02d:%02d ", (int) ((char*)&XK[i])[u], (int) ((char*)&XK[i])[u]);
 //                    }
 //                    std::cout << std::endl;
-                    cov_kj -= __builtin_popcount(res);  // subtract positions that should not contribute to coverage
+                        cov_kj -= __builtin_popcount(res);  // subtract positions that should not contribute to coverage
 
-                    // Compute 16 bit mask that indicates positions where k and j have identical residues
-                    int c = simdi8_movemask(simdi8_eq(XK[i], XJ[i]));
+                        // Compute 16 bit mask that indicates positions where k and j have identical residues
+                        int c = simdi8_movemask(simdi8_eq(XK[i], XJ[i]));
 
-                    // Count positions where  k and j have different amino acids, which is equal to 16 minus the
-                    //  number of positions for which either j and k are equal or which contain ANY, GAP, or ENDGAP
-                    diff += (VECSIZE_INT * 4) - __builtin_popcount(c | res);
-                }
+                        // Count positions where  k and j have different amino acids, which is equal to 16 minus the
+                        //  number of positions for which either j and k are equal or which contain ANY, GAP, or ENDGAP
+                        diff += (VECSIZE_INT * 4) - __builtin_popcount(c | res);
+                    }
 //            // DEBUG
 //            printf("%20.20s with %20.20s:  diff=%i  diff_min_frac*cov_kj=%f  diff_suff=%i  nres=%i  cov_kj=%i\n",sname[k],sname[j],diff,diff_min_frac*cov_kj,diff_suff,nres[k],cov_kj);
 //            printf("%s\n%s\n\n",seq[k],seq[j]);
-                if (diff < diff_suff && float(diff) <= diff_min_frac * cov_kj && cov_kj > 0)
-                    break;  //dissimilarity < acceptace threshold? Reject!
+                    if (diff < diff_suff && float(diff) <= diff_min_frac * cov_kj && cov_kj > 0)
+                        break;  //dissimilarity < acceptace threshold? Reject!
 
-            }
-            if (jj >= kk)  // did loop reach end? => accept k. Otherwise reject k (the shorter of the two)
-            {
-                in[k] = inkk[kk] = 1;
-                n++;
-                for (i = first[k]; i <= last[k]; ++i)
-                    N[i]++;  // update number of sequences at position i
+                }
+                if (jj >= kk)  // did loop reach end? => accept k. Otherwise reject k (the shorter of the two)
+                {
+                    in[k] = inkk[kk] = 1;
+                    n++;
+                    for (i = first[k]; i <= last[k]; ++i)
+                        N[i]++;  // update number of sequences at position i
 //            printf("%i %20.20s accepted\n",k,sname[k]);
-            }
+                }
 //        else
 //          {
 //            printf("%20.20s rejected: too similar with seq %20.20s  diff=%i  diff_min_frac*cov_kj=%f  diff_suff=%i  nres=%i  cov_kj=%i\n","blub","blub",diff,diff_min_frac*cov_kj,diff_suff,nres[k],cov_kj);
 //            printf("%s\n%s\n\n",msaSequence[k],msaSequence[j]);
 //          }
 
-        }  // End Loop over all candidate sequences kk
+            }  // End Loop over all candidate sequences kk
 
 //       // DEBUG
 //       printf("\n");
@@ -455,12 +515,12 @@ size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const 
 //       for (k=0; k<N_in; ++k) printf("%2i ",seqid_prev[k]);
 //       printf("\n");
 
-        // Increment seqid
-        seqid_step = std::max(
-                1, std::min(5, diffNmax / (diffNmax_prev - diffNmax + 1) * seqid_step / 2));
-        seqid += seqid_step;
+            // Increment seqid
+            seqid_step = std::max(
+                    1, std::min(5, diffNmax / (diffNmax_prev - diffNmax + 1) * seqid_step / 2));
+            seqid += seqid_step;
 
-    }  // End Loop over seqid
+        }  // End Loop over seqid
 
 //    Debug(Debug::WARNING) << n << " out of " << N_in << " sequences passed filter (";
 //    if (coverage) {
@@ -480,14 +540,18 @@ size_t MsaFilter::filter(const int N_in, const int L, const int coverage, const 
 //        Debug(Debug::WARNING) << seqid1 << "% max pairwise sequence identity)\n";
 //    }
 
-    for (k = 0; k < N_in; ++k) {
-        keep[k] = in[k];
-    }
+        for (k = 0; k < N_in; ++k) {
+            *keep_local[k] = in[k];
+        }
 
-    if (shuffleMsa) {
-        shuffleSequences(X, N_in);
+        // dont add per bucket query
+        N_keep_total += n - 1;
     }
-    return n;
+    if (shuffleMsa) {
+        shuffleSequences(X_in, N_in_total);
+    }
+    // add only first query back
+    return N_keep_total + 1;
 }
 
 void MsaFilter::shuffleSequences(const char ** X, size_t setSize) {

@@ -23,7 +23,7 @@ int main (int, const char**) {
 
     Parameters& par = Parameters::getInstance();
     par.initMatrices();
-    NucleotideMatrix subMat(par.scoringMatrixFile.nucleotides, 2.0, -0.0f);
+    NucleotideMatrix subMat(par.scoringMatrixFile.values.nucleotide().c_str(), 2.0, -0.0f);
 
     Indexer idx((size_t)subMat.alphabetSize, kmer_size);
     std::cout << "Sequence: ";

@@ -52,7 +52,7 @@ simde_mm_fmadd_pd (simde__m128d a, simde__m128d b, simde__m128d c) {
     #if defined(SIMDE_POWER_ALTIVEC_P7_NATIVE) || defined(SIMDE_ZARCH_ZVECTOR_13_NATIVE)
       r_.altivec_f64 = vec_madd(a_.altivec_f64, b_.altivec_f64, c_.altivec_f64);
     #elif defined(SIMDE_ARM_NEON_A64V8_NATIVE)
-      r_.neon_f64 = vmlaq_f64(c_.neon_f64, b_.neon_f64, a_.neon_f64);
+      r_.neon_f64 = vfmaq_f64(c_.neon_f64, b_.neon_f64, a_.neon_f64);
     #elif defined(simde_math_fma) && (defined(__FP_FAST_FMA) || defined(FP_FAST_FMA))
       SIMDE_VECTORIZE
       for (size_t i = 0 ; i < (sizeof(r_.f64) / sizeof(r_.f64[0])) ; i++) {
@@ -99,13 +99,11 @@ simde_mm_fmadd_ps (simde__m128 a, simde__m128 b, simde__m128 c) {
       c_ = simde__m128_to_private(c),
       r_;
 
-    #if SIMDE_NATURAL_VECTOR_SIZE_LE(128)
-      for (size_t i = 0 ; i < (sizeof(r_.f32) / sizeof(r_.f32[0])) ; i++) {
-        r_.f32[i] = simde_math_fmaf(a_.f32[i], b_.f32[i], c_.f32[i]);
-      }
-    #elif defined(SIMDE_POWER_ALTIVEC_P7_NATIVE)
+    #if defined(SIMDE_POWER_ALTIVEC_P7_NATIVE)
       r_.altivec_f32 = vec_madd(a_.altivec_f32, b_.altivec_f32, c_.altivec_f32);
-    #elif defined(SIMDE_ARM_NEON_A32V8_NATIVE)
+    #elif defined(SIMDE_ARM_NEON_A32V7_NATIVE) && defined(__ARM_FEATURE_FMA)
+      r_.neon_f32 = vfmaq_f32(c_.neon_f32, b_.neon_f32, a_.neon_f32);
+    #elif defined(SIMDE_ARM_NEON_A32V7_NATIVE)
       r_.neon_f32 = vmlaq_f32(c_.neon_f32, b_.neon_f32, a_.neon_f32);
     #elif defined(simde_math_fmaf) && (defined(__FP_FAST_FMAF) || defined(FP_FAST_FMAF))
       SIMDE_VECTORIZE
@@ -156,7 +154,7 @@ simde_mm256_fmadd_ps (simde__m256 a, simde__m256 b, simde__m256 c) {
 SIMDE_FUNCTION_ATTRIBUTES
 simde__m128d
 simde_mm_fmadd_sd (simde__m128d a, simde__m128d b, simde__m128d c) {
-  #if defined(SIMDE_X86_FMA_NATIVE)
+  #if defined(SIMDE_X86_FMA_NATIVE) && !defined(SIMDE_BUG_MCST_LCC_FMA_WRONG_RESULT)
     return _mm_fmadd_sd(a, b, c);
   #else
     return simde_mm_add_sd(simde_mm_mul_sd(a, b), c);
@@ -170,7 +168,7 @@ simde_mm_fmadd_sd (simde__m128d a, simde__m128d b, simde__m128d c) {
 SIMDE_FUNCTION_ATTRIBUTES
 simde__m128
 simde_mm_fmadd_ss (simde__m128 a, simde__m128 b, simde__m128 c) {
-  #if defined(SIMDE_X86_FMA_NATIVE)
+  #if defined(SIMDE_X86_FMA_NATIVE) && !defined(SIMDE_BUG_MCST_LCC_FMA_WRONG_RESULT)
     return _mm_fmadd_ss(a, b, c);
   #else
     return simde_mm_add_ss(simde_mm_mul_ss(a, b), c);
@@ -296,7 +294,7 @@ simde_mm256_fmsub_ps (simde__m256 a, simde__m256 b, simde__m256 c) {
 SIMDE_FUNCTION_ATTRIBUTES
 simde__m128d
 simde_mm_fmsub_sd (simde__m128d a, simde__m128d b, simde__m128d c) {
-  #if defined(SIMDE_X86_FMA_NATIVE)
+  #if defined(SIMDE_X86_FMA_NATIVE) && !defined(SIMDE_BUG_MCST_LCC_FMA_WRONG_RESULT)
     return _mm_fmsub_sd(a, b, c);
   #else
     return simde_mm_sub_sd(simde_mm_mul_sd(a, b), c);
@@ -310,7 +308,7 @@ simde_mm_fmsub_sd (simde__m128d a, simde__m128d b, simde__m128d c) {
 SIMDE_FUNCTION_ATTRIBUTES
 simde__m128
 simde_mm_fmsub_ss (simde__m128 a, simde__m128 b, simde__m128 c) {
-  #if defined(SIMDE_X86_FMA_NATIVE)
+  #if defined(SIMDE_X86_FMA_NATIVE) && !defined(SIMDE_BUG_MCST_LCC_FMA_WRONG_RESULT)
     return _mm_fmsub_ss(a, b, c);
   #else
     return simde_mm_sub_ss(simde_mm_mul_ss(a, b), c);
@@ -437,10 +435,14 @@ simde_mm_fnmadd_pd (simde__m128d a, simde__m128d b, simde__m128d c) {
       b_ = simde__m128d_to_private(b),
       c_ = simde__m128d_to_private(c);
 
-    SIMDE_VECTORIZE
-    for (size_t i = 0 ; i < (sizeof(r_.f64) / sizeof(r_.f64[0])) ; i++) {
-      r_.f64[i] = -(a_.f64[i] * b_.f64[i]) + c_.f64[i];
-    }
+    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE)
+      r_.neon_f64 = vfmsq_f64(c_.neon_f64, a_.neon_f64, b_.neon_f64);
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.f64) / sizeof(r_.f64[0])) ; i++) {
+        r_.f64[i] = -(a_.f64[i] * b_.f64[i]) + c_.f64[i];
+      }
+    #endif
 
     return simde__m128d_from_private(r_);
   #endif
@@ -487,10 +489,16 @@ simde_mm_fnmadd_ps (simde__m128 a, simde__m128 b, simde__m128 c) {
       b_ = simde__m128_to_private(b),
       c_ = simde__m128_to_private(c);
 
-    SIMDE_VECTORIZE
-    for (size_t i = 0 ; i < (sizeof(r_.f32) / sizeof(r_.f32[0])) ; i++) {
-      r_.f32[i] = -(a_.f32[i] * b_.f32[i]) + c_.f32[i];
-    }
+    #if defined(SIMDE_ARM_NEON_A32V7_NATIVE) && defined(__ARM_FEATURE_FMA)
+      r_.neon_f32 = vfmsq_f32(c_.neon_f32, a_.neon_f32, b_.neon_f32);
+    #elif defined(SIMDE_ARM_NEON_A32V7_NATIVE)
+      r_.neon_f32 = vmlsq_f32(c_.neon_f32, a_.neon_f32, b_.neon_f32);
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.f32) / sizeof(r_.f32[0])) ; i++) {
+        r_.f32[i] = -(a_.f32[i] * b_.f32[i]) + c_.f32[i];
+      }
+    #endif
 
     return simde__m128_from_private(r_);
   #endif
@@ -528,7 +536,7 @@ simde_mm256_fnmadd_ps (simde__m256 a, simde__m256 b, simde__m256 c) {
 SIMDE_FUNCTION_ATTRIBUTES
 simde__m128d
 simde_mm_fnmadd_sd (simde__m128d a, simde__m128d b, simde__m128d c) {
-  #if defined(SIMDE_X86_FMA_NATIVE)
+  #if defined(SIMDE_X86_FMA_NATIVE) && !defined(SIMDE_BUG_MCST_LCC_FMA_WRONG_RESULT)
     return _mm_fnmadd_sd(a, b, c);
   #else
     simde__m128d_private
@@ -551,7 +559,7 @@ simde_mm_fnmadd_sd (simde__m128d a, simde__m128d b, simde__m128d c) {
 SIMDE_FUNCTION_ATTRIBUTES
 simde__m128
 simde_mm_fnmadd_ss (simde__m128 a, simde__m128 b, simde__m128 c) {
-  #if defined(SIMDE_X86_FMA_NATIVE)
+  #if defined(SIMDE_X86_FMA_NATIVE) && !defined(SIMDE_BUG_MCST_LCC_FMA_WRONG_RESULT)
     return _mm_fnmadd_ss(a, b, c);
   #else
     simde__m128_private
@@ -674,7 +682,7 @@ simde_mm256_fnmsub_ps (simde__m256 a, simde__m256 b, simde__m256 c) {
 SIMDE_FUNCTION_ATTRIBUTES
 simde__m128d
 simde_mm_fnmsub_sd (simde__m128d a, simde__m128d b, simde__m128d c) {
-  #if defined(SIMDE_X86_FMA_NATIVE)
+  #if defined(SIMDE_X86_FMA_NATIVE) && !defined(SIMDE_BUG_MCST_LCC_FMA_WRONG_RESULT)
     return _mm_fnmsub_sd(a, b, c);
   #else
     simde__m128d_private
@@ -697,7 +705,7 @@ simde_mm_fnmsub_sd (simde__m128d a, simde__m128d b, simde__m128d c) {
 SIMDE_FUNCTION_ATTRIBUTES
 simde__m128
 simde_mm_fnmsub_ss (simde__m128 a, simde__m128 b, simde__m128 c) {
-  #if defined(SIMDE_X86_FMA_NATIVE)
+  #if defined(SIMDE_X86_FMA_NATIVE) && !defined(SIMDE_BUG_MCST_LCC_FMA_WRONG_RESULT)
     return _mm_fnmsub_ss(a, b, c);
   #else
     simde__m128_private

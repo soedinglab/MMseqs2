@@ -142,9 +142,10 @@ public:
         }
     };
 
-    Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m,
-            EvalueComputation * evaluer, bool aaBiasCorrection,
-            int gapOpen, int gapExtend, int zdrop = 40);
+    Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m,
+            EvalueComputation * evaluer, bool aaBiasCorrection, float aaBiasCorrectionScale,
+            int gapOpen, int gapExtend, float correlationScoreWeight,
+            int zdrop);
 
     ~Matcher();
 
@@ -229,6 +230,9 @@ private:
     // costs to extend a gap
     int gapExtend;
 
+    // weight for the correlation score, if set to 0.0 it is turned off
+    float correlationScoreWeight;
+
     // holds values of the current active query
     Sequence * currentQuery;
 
@@ -244,7 +248,6 @@ private:
     int8_t * tinySubMat;
     // set substituion matrix
     void setSubstitutionMatrix(BaseMatrix *m);
-
 };
 
 #endif

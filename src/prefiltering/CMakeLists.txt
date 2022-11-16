@@ -8,6 +8,7 @@ set(prefiltering_header_files
         prefiltering/Prefiltering.h
         prefiltering/PrefilteringIndexReader.h
         prefiltering/QueryMatcher.h
+        prefiltering/QueryMatcherTaxonomyHook.h
         prefiltering/ReducedMatrix.h
         prefiltering/SequenceLookup.h
         prefiltering/UngappedAlignment.h

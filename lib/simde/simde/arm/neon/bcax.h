@@ -21,7 +21,7 @@
  * SOFTWARE.
  *
  * Copyright:
- *   2021      Atharva Nimbalkar <atharva@gmail.com>
+ *   2021      Atharva Nimbalkar <atharvakn@gmail.com>
  */
 
 #if !defined(SIMDE_ARM_NEON_BCAX_H)

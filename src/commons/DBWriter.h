@@ -64,6 +64,8 @@ public:
     bool isClosed(){
         return closed;
     }
+
+    static void sortIndex(const char *inFileNameIndex, const char *outFileNameIndex, const bool lexicographicOrder);
 private:
     size_t addToThreadBuffer(const void *data, size_t itmesize, size_t nitems, int threadIdx);
     void writeThreadBuffer(unsigned int idx, size_t dataSize);
@@ -76,8 +78,6 @@ private:
                              bool lexicographicOrder = false, bool indexNeedsToBeSorted = true);
 
     static void mergeIndex(const char** indexFilenames, unsigned int fileCount, const std::vector<size_t> &dataSizes);
-
-    static void sortIndex(const char *inFileNameIndex, const char *outFileNameIndex, const bool lexicographicOrder);
 
     char* dataFileName;
     char* indexFileName;

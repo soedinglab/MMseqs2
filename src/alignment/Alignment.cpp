@@ -23,7 +23,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         covThr(par.covThr), canCovThr(par.covThr), covMode(par.covMode), seqIdMode(par.seqIdMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
         alnLenThr(par.alnLenThr), includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign), scoreBias(par.scoreBias), realignScoreBias(par.realignScoreBias), realignMaxSeqs(par.realignMaxSeqs),
         threads(static_cast<unsigned int>(par.threads)), compressed(par.compressed), outDB(outDB), outDBIndex(outDBIndex),
-        maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), alignmentOutputMode(par.alignmentOutputMode),
+        maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), compBiasCorrectionScale(par.compBiasCorrectionScale), altAlignment(par.altAlignment), alignmentOutputMode(par.alignmentOutputMode),
         maxAccept(static_cast<unsigned int>(par.maxAccept)), maxReject(static_cast<unsigned int>(par.maxRejected)), wrappedScoring(par.wrappedScoring),
         lcaAlign(lcaAlign), qdbr(NULL), qDbrIdx(NULL), tdbr(NULL), tDbrIdx(NULL) {
     unsigned int alignmentMode = par.alignmentMode;
@@ -55,8 +55,11 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         }
     }
 
+    uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(prefDB.c_str()));
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-    tDbrIdx = new IndexReader(targetSeqDB, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+    tDbrIdx = new IndexReader(targetSeqDB, par.threads,
+                              extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
+                              (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     tdbr = tDbrIdx->sequenceReader;
     targetSeqType = tdbr->getDbtype();
     sameQTDB = (targetSeqDB.compare(querySeqDB) == 0);
@@ -66,7 +69,9 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         querySeqType = targetSeqType;
     } else {
         // open the sequence, prefiltering and output databases
-        qDbrIdx = new IndexReader(par.db1, par.threads, IndexReader::SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0);
+        qDbrIdx = new IndexReader(par.db1, par.threads,
+                                  extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
+                                  (touch) ? IndexReader::PRELOAD_INDEX : 0);
         qdbr = qDbrIdx->sequenceReader;
         querySeqType = qdbr->getDbtype();
     }
@@ -127,16 +132,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_HMM_PROFILE)) {
-        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
-        EXIT(EXIT_FAILURE);
-    }
-    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) == false && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
-        Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
-        EXIT(EXIT_FAILURE);
-    } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) && Parameters::isEqualDbtype(targetSeqType, Parameters::DBTYPE_PROFILE_STATE_SEQ)) {
-        querySeqType = Parameters::DBTYPE_PROFILE_STATE_PROFILE;
-    }
+
     Debug(Debug::INFO) << "Query database size: "  << qdbr->getSize() << " type: " << Parameters::getDbTypeName(querySeqType) << "\n";
     Debug(Debug::INFO) << "Target database size: " << tdbr->getSize() << " type: " << Parameters::getDbTypeName(targetSeqType) << "\n";
 
@@ -144,29 +140,26 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     reversePrefilterResult = Parameters::isEqualDbtype(prefdbr->getDbtype(), Parameters::DBTYPE_PREFILTER_REV_RES);
 
+    correlationScoreWeight = par.correlationScoreWeight;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        m = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, scoreBias);
-        gapOpen = par.gapOpen.nucleotides;
-        gapExtend = par.gapExtend.nucleotides;
+        m = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, scoreBias);
+        gapOpen = par.gapOpen.values.nucleotide();
+        gapExtend = par.gapExtend.values.nucleotide();
         zdrop = par.zdrop;
-    } else if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_PROFILE_STATE_PROFILE)) {
-        SubstitutionMatrix s(par.scoringMatrixFile.aminoacids, 2.0, scoreBias);
-        m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 219);
-        gapOpen = par.gapOpen.aminoacids;
-        gapExtend = par.gapExtend.aminoacids;
     } else {
         // keep score bias at 0.0 (improved ROC)
-        m = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, scoreBias);
-        gapOpen = par.gapOpen.aminoacids;
-        gapExtend = par.gapExtend.aminoacids;
+        // this is where profile-profile alignment drops to
+        m = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, scoreBias);
+        gapOpen = par.gapOpen.values.aminoacid();
+        gapExtend = par.gapExtend.values.aminoacid();
     }
 
     realign_m = NULL;
     if (realign == true && realignScoreBias != 0.0f) {
         if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-            realign_m = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, scoreBias + realignScoreBias);
+            realign_m = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, scoreBias + realignScoreBias);
         } else {
-            realign_m = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, scoreBias + realignScoreBias);
+            realign_m = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, scoreBias + realignScoreBias);
         }
     }
 }
@@ -254,9 +247,10 @@ void Alignment::run() {
 
 void Alignment::run(const std::string &outDB, const std::string &outDBIndex, const size_t dbFrom, const size_t dbSize, bool merge) {
     int dbtype = Parameters::DBTYPE_ALIGNMENT_RES;
-    if(alignmentOutputMode == Parameters::ALIGNMENT_OUTPUT_CLUSTER){
-        dbtype =  Parameters::DBTYPE_CLUSTER_RES;
+    if (alignmentOutputMode == Parameters::ALIGNMENT_OUTPUT_CLUSTER) {
+        dbtype = Parameters::DBTYPE_CLUSTER_RES;
     }
+    dbtype = DBReader<unsigned int>::setExtendedDbtype(dbtype, DBReader<unsigned int>::getExtendedDbtype(prefdbr->getDbtype()));
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, dbtype);
     dbw.open();
 
@@ -293,14 +287,12 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
             char buffer[1024 + 32768*4];
             Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
             Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
-
-
             const size_t maxMatcherSeqLen = Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)
                                             ? maxSeqLen : std::max(tdbr->getMaxSeqLen(), qdbr->getMaxSeqLen());
 
             std::vector<Matcher::result_t> swResults;
             swResults.reserve(300);
-            Matcher matcher(querySeqType, maxMatcherSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
+            Matcher matcher(querySeqType, targetSeqType, maxMatcherSeqLen, m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, correlationScoreWeight, zdrop);
 
             std::vector<Matcher::result_t> swRealignResults;
             Matcher *realigner = NULL;
@@ -308,7 +300,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                 swRealignResults.reserve(300);
                 realigner = &matcher;
                 if (realign_m != NULL) {
-                    realigner = new Matcher(querySeqType, maxMatcherSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend, zdrop);
+                    realigner = new Matcher(querySeqType, targetSeqType, maxMatcherSeqLen, realign_m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, 0.0, zdrop);
                 }
             }
 
@@ -383,6 +375,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                     const bool isIdentity = (queryDbKey == dbKey && (includeIdentity || sameQTDB)) ? true : false;
 
                     // calculate Smith-Waterman alignment
+
                     Matcher::result_t res = matcher.getSWResult(&dbSeq, static_cast<int>(diagonal), isReverse, covMode, covThr, evalThr, swMode, seqIdMode, isIdentity, wrappedScoring);
                     alignmentsNum++;
 
@@ -412,7 +405,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                 }
 
                 std::vector<Matcher::result_t> *returnRes = &swResults;
-                if (realign == true) {
+                if (realign == true && *origData != '\0') {
                     realigner->initQuery(&qSeq);
                     int realignAccepted = 0;
                     for (size_t result = 0; result < swResults.size() && realignAccepted < realignMaxSeqs; result++) {

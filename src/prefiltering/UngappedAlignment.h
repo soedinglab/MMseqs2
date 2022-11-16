@@ -14,7 +14,7 @@ class UngappedAlignment {
 public:
 
     UngappedAlignment(const unsigned int maxSeqLen, BaseMatrix *substitutionMatrix,
-                    SequenceLookup *sequenceLookup);
+                      SequenceLookup *sequenceLookup);
 
     ~UngappedAlignment();
 
@@ -30,18 +30,33 @@ public:
                             unsigned short minDistToDiagonal);
 
     inline short getQueryBias() {
-        return bias;
+        return 0;
     }
+
+#ifdef AVX2
+    static __m256i Shuffle(const __m256i & value, const __m256i & shuffle)
+    {
+        const __m256i K0 = _mm256_setr_epi8(
+                (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70,
+                (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0);
+        const __m256i K1 = _mm256_setr_epi8(
+                (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0,
+                (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70);
+        return _mm256_or_si256(_mm256_shuffle_epi8(value, _mm256_add_epi8(shuffle, K0)),
+                               _mm256_shuffle_epi8(_mm256_permute4x64_epi64(value, 0x4E), _mm256_add_epi8(shuffle, K1)));
+    }
+#endif
 
 private:
     const static unsigned int DIAGONALCOUNT = 0xFFFF + 1;
-    const static unsigned int PROFILESIZE = 32;
-
+#ifdef AVX2
+    const static unsigned int DIAGONALBINSIZE = 8;
+#else
+    const static unsigned int DIAGONALBINSIZE = 4;
+#endif
     unsigned int *score_arr;
-    unsigned char *vectorSequence;
     char *queryProfile;
     unsigned int queryLen;
-    short bias;
     CounterResult ** diagonalMatches;
     unsigned char * diagonalCounter;
     char * aaCorrectionScore;
@@ -53,44 +68,41 @@ private:
     void computeScores(const char *queryProfile,
                        const unsigned int queryLen,
                        CounterResult * results,
-                       const size_t resultSize,
-                       const short bias);
+                       const size_t resultSize);
+
     // scores a single diagonal
     int scalarDiagonalScoring(const char *profile,
-                                    const int bias,
-                                    const unsigned int seqLen,
-                                    const unsigned char *dbSeq);
+                              const unsigned int seqLen,
+                              const unsigned char *dbSeq);
 
-    // scores the diagonal of  16/32 db sequences in parallel
-    simd_int vectorDiagonalScoring(const char *profile,
-                                         const char bias, const unsigned int seqLen, const unsigned char *dbSeq);
-
-    std::pair<unsigned char *, unsigned int> mapSequences(std::pair<unsigned char *, unsigned int> * seqs, unsigned int seqCount);
+    template <unsigned int T>
+    void unrolledDiagonalScoring(const char * profile,
+                                 const unsigned int * seqLen,
+                                 const unsigned char ** dbSeq,
+                                 unsigned int * max);
 
     // calles vectorDiagonalScoring or scalarDiagonalScoring depending on the hitSize
     // and updates diagonalScore of the hit_t objects
     void scoreDiagonalAndUpdateHits(const char *queryProfile, const unsigned int queryLen,
-                                    const short diagonal, CounterResult **hits, const unsigned int hitSize,
-                                    const short bias);
+                                    const short diagonal, CounterResult **hits, const unsigned int hitSize);
 
     unsigned short distanceFromDiagonal(const unsigned short diagonal);
 
     void extractScores(unsigned int *score_arr, simd_int score);
 
-    short createProfile(Sequence *seq, float *biasCorrection, short **subMat, int alphabetSize);
-
-    unsigned int diagonalLength(const short diagonal, const unsigned int len, const unsigned int second);
+    void createProfile(Sequence *seq, float *biasCorrection, short **subMat);
 
     int computeSingelSequenceScores(const char *queryProfile, const unsigned int queryLen,
                                     std::pair<const unsigned char *, const unsigned int> &dbSeq,
-                                    int diagonal, unsigned int minDistToDiagonal, short bias);
+                                    int diagonal, unsigned int minDistToDiagonal);
 
     int computeLongScore(const char * queryProfile, unsigned int queryLen,
                          std::pair<const unsigned char *, const unsigned int> &dbSeq,
-                         unsigned short diagonal, short bias);
+                         unsigned short diagonal);
 
 
 };
 
 
 #endif //MMSEQS_DIAGONALMATCHER_H
+

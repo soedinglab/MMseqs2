@@ -153,9 +153,9 @@ int kmersearch(int argc, const char **argv, const Command &command) {
         }
     }
     if(par.PARAM_ALPH_SIZE.wasSet){
-        if(data.alphabetSize != (Parameters::isEqualDbtype(data.seqType, Parameters::DBTYPE_AMINO_ACIDS)? par.alphabetSize.aminoacids:par.alphabetSize.nucleotides)){
-            Debug(Debug::ERROR) << "Index was created with --alph-size  " << data.alphabetSize << " but the prefilter was called with --alph-size " << MultiParam<int>::format(par.alphabetSize) << "!\n";
-            Debug(Debug::ERROR) << "createindex --alph-size " << MultiParam<int>::format(par.alphabetSize) << "\n";
+        if(data.alphabetSize != (Parameters::isEqualDbtype(data.seqType, Parameters::DBTYPE_AMINO_ACIDS)? par.alphabetSize.values.aminoacid():par.alphabetSize.values.nucleotide())){
+            Debug(Debug::ERROR) << "Index was created with --alph-size  " << data.alphabetSize << " but the prefilter was called with --alph-size " << MultiParam<NuclAA<int>>::format(par.alphabetSize) << "!\n";
+            Debug(Debug::ERROR) << "createindex --alph-size " << MultiParam<NuclAA<int>>::format(par.alphabetSize) << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -192,19 +192,19 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     size_t memoryLimit=Util::computeMemory(par.splitMemoryLimit);
 
     float kmersPerSequenceScale = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ?
-                                  par.kmersPerSequenceScale.nucleotides : par.kmersPerSequenceScale.aminoacids;
+                                  par.kmersPerSequenceScale.values.nucleotide() : par.kmersPerSequenceScale.values.aminoacid();
     size_t totalKmers = computeKmerCount(queryDbr, par.kmerSize, par.kmersPerSequence, kmersPerSequenceScale);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter<short>(totalKmers);
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.seedScoringMatrixFile.nucleotides, 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.seedScoringMatrixFile.values.nucleotide().c_str(), 1.0, 0.0);
     } else {
-        if (par.alphabetSize.aminoacids == 21) {
-            subMat = new SubstitutionMatrix(par.seedScoringMatrixFile.aminoacids, 8.0, -0.2);
+        if (par.alphabetSize.values.aminoacid() == 21) {
+            subMat = new SubstitutionMatrix(par.seedScoringMatrixFile.values.aminoacid().c_str(), 8.0, -0.2);
         } else {
-            SubstitutionMatrix sMat(par.seedScoringMatrixFile.aminoacids, 8.0, -0.2);
-            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize.aminoacids, 8.0);
+            SubstitutionMatrix sMat(par.seedScoringMatrixFile.values.aminoacid().c_str(), 8.0, -0.2);
+            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.aa2num, sMat.num2aa, sMat.alphabetSize, par.alphabetSize.values.aminoacid(), 8.0);
         }
     }
 
@@ -225,7 +225,7 @@ int kmersearch(int argc, const char **argv, const Command &command) {
         char *entriesOffsetsData = tidxdbr.getDataUncompressed(tidxdbr.getId(PrefilteringIndexReader::ENTRIESOFFSETS));
         int64_t entriesNum = *((int64_t *) tidxdbr.getDataUncompressed(tidxdbr.getId(PrefilteringIndexReader::ENTRIESNUM)));
         int64_t entriesGridSize = *((int64_t *) tidxdbr.getDataUncompressed(tidxdbr.getId(PrefilteringIndexReader::ENTRIESGRIDSIZE)));
-        int alphabetSize = (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) ? par.alphabetSize.nucleotides:par.alphabetSize.aminoacids;
+        int alphabetSize = (Parameters::isEqualDbtype(queryDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) ? par.alphabetSize.values.nucleotide(): par.alphabetSize.values.aminoacid();
         KmerIndex kmerIndex(alphabetSize, adjustedKmerSize, entriesData, entriesOffsetsData, entriesNum, entriesGridSize);
 //        kmerIndex.printIndex<Parameters::DBTYPE_NUCLEOTIDES>(subMat);
         std::pair<std::string, std::string> tmpFiles;

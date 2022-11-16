@@ -249,18 +249,18 @@ simde_x_permutex2var128 (const simde__m128i *a, const simde__m128i idx, const si
       break;
     }
 
-    v128_t r = wasm_v8x16_swizzle(simde__m128i_to_wasm_v128(a[0]), index);
+    v128_t r = wasm_i8x16_swizzle(simde__m128i_to_wasm_v128(a[0]), index);
 
     SIMDE_VECTORIZE
     for (int i = 1 ; i < (1 << log2_data_length) ; i++) {
       index = wasm_i8x16_sub(index, sixteen);
-      r = wasm_v128_or(r, wasm_v8x16_swizzle(simde__m128i_to_wasm_v128(a[i]), index));
+      r = wasm_v128_or(r, wasm_i8x16_swizzle(simde__m128i_to_wasm_v128(a[i]), index));
     }
 
     SIMDE_VECTORIZE
     for (int i = 0 ; i < (1 << log2_data_length) ; i++) {
       index = wasm_i8x16_sub(index, sixteen);
-      r = wasm_v128_or(r, wasm_v8x16_swizzle(simde__m128i_to_wasm_v128(b[i]), index));
+      r = wasm_v128_or(r, wasm_i8x16_swizzle(simde__m128i_to_wasm_v128(b[i]), index));
     }
 
     return simde__m128i_from_wasm_v128(r);
@@ -703,8 +703,8 @@ simde_mm256_permutex2var_epi16 (simde__m256i a, simde__m256i idx, simde__m256i b
                                                  _mm256_castsi256_ps(tb),
                                                  _mm256_castsi256_ps(select)));
 
-    lo = _mm256_blend_epi16(_mm256_slli_epi32(hilo2, 16), hilo, 0x55);
-    hi = _mm256_blend_epi16(hilo2, _mm256_srli_epi32(hilo, 16), 0x55);
+    lo = HEDLEY_REINTERPRET_CAST(__m256i, _mm256_blend_epi16(_mm256_slli_epi32(hilo2, 16), hilo, 0x55));
+    hi = HEDLEY_REINTERPRET_CAST(__m256i, _mm256_blend_epi16(hilo2, _mm256_srli_epi32(hilo, 16), 0x55));
 
     select = _mm256_cmpeq_epi16(_mm256_and_si256(idx, ones), ones);
     return _mm256_blendv_epi8(lo, hi, select);
@@ -1178,8 +1178,8 @@ simde_mm512_permutex2var_epi16 (simde__m512i a, simde__m512i idx, simde__m512i b
                                                      _mm256_castsi256_ps(hilo2),
                                                      _mm256_castsi256_ps(select)));
 
-        lo = _mm256_blend_epi16(_mm256_slli_epi32(hilo2, 16), hilo1, 0x55);
-        hi = _mm256_blend_epi16(hilo2, _mm256_srli_epi32(hilo1, 16), 0x55);
+        lo = HEDLEY_REINTERPRET_CAST(__m256i, _mm256_blend_epi16(_mm256_slli_epi32(hilo2, 16), hilo1, 0x55));
+        hi = HEDLEY_REINTERPRET_CAST(__m256i, _mm256_blend_epi16(hilo2, _mm256_srli_epi32(hilo1, 16), 0x55));
 
         select = _mm256_cmpeq_epi16(_mm256_and_si256(idx1, ones), ones);
         r_.m256i[i] = _mm256_blendv_epi8(lo, hi, select);

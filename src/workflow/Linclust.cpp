@@ -46,7 +46,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
 
     // save some values to restore them later
-    MultiParam<int>alphabetSize = par.alphabetSize;
+    MultiParam<NuclAA<int>>alphabetSize = par.alphabetSize;
     size_t kmerSize = par.kmerSize;
     // # 1. Finding exact $k$-mer matches.
     bool kmerSizeWasSet = false;
@@ -79,7 +79,7 @@ int linclust(int argc, const char **argv, const Command& command) {
         par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
     }
     if (alphabetSizeWasSet == false) {
-        par.alphabetSize = MultiParam<int>(Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE, 5);
+        par.alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE, 5));
     }
 
     const int dbType = FileUtil::parseDbType(par.db1.c_str());

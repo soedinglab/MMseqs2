@@ -19,7 +19,7 @@ const char* binary_name = "test_pssmprune";
 
 int main (int, const char**) {
     Parameters& par = Parameters::getInstance();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, -0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, -0.0);
     std::cout << "Subustitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
@@ -46,9 +46,8 @@ int main (int, const char**) {
     seqs[counter++] = "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ERTPLYCKGNEKGTHLNISFLKTIRHRRIHTGEYTCPECGKSF-SRSSNLVTHQRIHTGEKPYTCEFWSSSRHRCHPITEC--KRKYCFHGRSYKCVSERHEHLLGRPKIYRGREATQ-TCCGIYSSQLVTRIHTGERPYSCPKGFTSSSHLVTHRR----IHEGTRPYSCPE----------------CGKGFTSSSQLVSHGRIH------TGKKPY-TCQECGKNFRWSSHLIIHRKITGERPYCTEC--CGKSFIQSSLLNKHQRIHESGGPYRCTECGKDFIYSSQLVTHQRIHTGERPYTPECGKSFTRSFSLN------IHHRIHTEKPYTCHECGKSFIQRSELNKHQRVHTGERPYRCPE-CGKDF--IYSSQLVTHRRIHTG------PERYSCPVCGKSFSGSSQMI--------------THQSHRVGEAPYTCECGKSFSWHSNLITHQRIHTGEKHNQSTSRNTTGCFKHLSCPTPREKEHSCLIVETSRYEGKGSS--------------------------------------------";
     seqs[counter++] = "----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------TCNKQVCFNTHGLKRLQTLREGPVSHGCSCTQISRKLCEKTFEC----GEC----GKT-FWEK-SNLTQHQRTHTEKPYECTECCQKPHLTNHQRTHTGEKP-YECKQCGKTFCVKSNLTEHQRTHTGEKPYEC----------------NACGKSFCHRSALTVHQRTHKKGSNKSGNCVFFCC-----IVHQRTHTGE-----KP----YKCNECGKTFCEKSALTKHQRTHTGNACGKTFSQR----SVLTKHQRIHRLSKINEICPKERS-----VSCNRGIINITSETHTGERPY--------ECDECEKTFFHKSSLTVPQRLCECSSHQQFHELRNT---TTAQKCKGKGKCSSPVHKEHTLKCDYSHGQEESMKESCRVESTSLCTREYTQEKIYE---CSECRKMFS-GKSDLLNHQRTHTGEKSYECVCSQTEGFHKKTKTLRH-KLHIKPFECNKCGKAFCQKSQL-----------------------------------------";
     seqs[counter++] = "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------KCEFRHRGTHGHGLHQMIKSIY-ECGDCGKSFSYKSNLIEHQRVTRERP--YECGECRKSFRQSSSLFRHQRVHTGEKPYECESCGKTFRQIFNLIRHERVMSQECKLPHRIHSG-ERPYECNECGKSLIRHRVHTERPY-EVKCSCSGCFRKQHQRVHT---GERPYECGE-CGKSF--TRKSDLIQHQRIHTGTRECGRESSFSCQKHVRCIEERKGQSASLIQHQ------RVHTGEKPYE---CSECGKSFSQSSSLIQHQRGHT--GERPEYGKCNEPCFTHKSDLIQHQRVHT-----GREPYGRVTFEDVTVYFSSEEWDLLD----------------------------";
-    char ** seqsCpy = new char*[counter];
+    char ** seqsCpy = MultipleAlignment::initX(strlen(seqs[0]), counter);
     for (int k = 0; k < counter; ++k) {
-        seqsCpy[k] = MultipleAlignment::initX(strlen(seqs[0]));
         for (size_t pos = 0; pos < strlen(seqs[0]); ++pos) {
 //            seqs[k][pos] = (seqs[k][pos] == '-') ? MultipleAlignment::GAP : subMat.aa2num[(int) seqs[k][pos]];
             seqsCpy[k][pos] = (seqs[k][pos] == '-') ? MultipleAlignment::GAP : static_cast<int>(subMat.aa2num[(int) seqs[k][pos]]);
@@ -58,7 +57,7 @@ int main (int, const char**) {
     MultipleAlignment::MSAResult res(strlen(seqs[0]), strlen(seqs[0]), counter, seqsCpy);
     MultipleAlignment::print(res, &subMat);
 
-    MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    MsaFilter msaFilter(10000, counter, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     msaFilter.pruneAlignment((char**)res.msaSequence, res.setSize, res.centerLength);
 
     std::cout <<"Pruned MSA" << std::endl;
@@ -71,13 +70,15 @@ int main (int, const char**) {
         printf("\n");
     }
     std::vector<Matcher::result_t> empty;
-    size_t filterSetSize = msaFilter.filter(res, empty, 0, 0, -20.0f, 90, 100);
-    std::cout << "Filtered:" << filterSetSize << std::endl;
+    std::vector<int> qid;
+    qid.push_back(0);
+    size_t filteredSetSize = msaFilter.filter(res, empty, 0, qid, -20.0, 90, 100, 10000);
+    std::cout << "Filtered:" << filteredSetSize << std::endl;
 //    for(size_t k = 0; k < res.setSize; k++){
 //        std::cout << "k=" << k << "\t" << (int)filterResult.keep[k] << std::endl;
 //    }
     std::cout <<"Filtered MSA" << std::endl;
-    for(size_t k = 0; k < filterSetSize; k++){
+    for(size_t k = 0; k < filteredSetSize; k++){
         printf("k=%.3zu ", k);
         for (size_t pos = 0; pos < res.centerLength; pos++) {
             char aa = res.msaSequence[k][pos];
@@ -92,10 +93,7 @@ int main (int, const char**) {
 //    pssm.computePSSMFromMSA(filterResult.setSize, res.centerLength, filterResult.filteredMsaSequence, false);
 //    //pssm.printProfile(res.centerLength);
 //    pssm.printPSSM(res.centerLength);
-    for (int k = 0; k < counter; ++k) {
-        free(seqsCpy[k]);
-    }
-    delete [] seqsCpy;
+    MultipleAlignment::deleteMSA(&res);
     return 0;
 }
 

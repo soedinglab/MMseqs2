@@ -6,7 +6,7 @@
 #include "IndexBuilder.h"
 #include "Parameters.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION = "16";
+extern const char* index_version_compatible;
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
@@ -30,6 +30,8 @@ unsigned int PrefilteringIndexReader::HDR2INDEX = 20;
 unsigned int PrefilteringIndexReader::HDR2DATA = 21;
 unsigned int PrefilteringIndexReader::GENERATOR = 22;
 unsigned int PrefilteringIndexReader::SPACEDPATTERN = 23;
+unsigned int PrefilteringIndexReader::ALNINDEX = 24;
+unsigned int PrefilteringIndexReader::ALNDATA = 25;
 
 extern const char* version;
 
@@ -38,7 +40,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     if(version == NULL){
         return false;
     }
-    return (strncmp(version, CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
+    return (strncmp(version, index_version_compatible, strlen(index_version_compatible)) == 0 ) ? true : false;
 }
 
 std::string PrefilteringIndexReader::indexName(const std::string &outDB) {
@@ -50,10 +52,11 @@ std::string PrefilteringIndexReader::indexName(const std::string &outDB) {
 void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
                                               DBReader<unsigned int> *dbr1, DBReader<unsigned int> *dbr2,
                                               DBReader<unsigned int> *hdbr1, DBReader<unsigned int> *hdbr2,
+                                              DBReader<unsigned int> *alndbr,
                                               BaseMatrix *subMat, int maxSeqLen,
                                               bool hasSpacedKmer, const std::string &spacedKmerPattern,
-                                              bool compBiasCorrection, int alphabetSize, int kmerSize,
-                                              int maskMode, int maskLowerCase, int kmerThr, int splits) {
+                                              bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode,
+                                              int maskLowerCase, float maskProb, int kmerThr, int splits, int indexSubset) {
 
     const int SPLIT_META = splits > 1 ? 0 : 0;
     const int SPLIT_SEQS = splits > 1 ? 1 : 0;
@@ -63,7 +66,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     writer.open();
 
     Debug(Debug::INFO) << "Write VERSION (" << VERSION << ")\n";
-    writer.writeData((char *) CURRENT_VERSION, strlen(CURRENT_VERSION) * sizeof(char), VERSION, SPLIT_META);
+    writer.writeData((char *) index_version_compatible, strlen(index_version_compatible) * sizeof(char), VERSION, SPLIT_META);
     writer.alignToPageSize(SPLIT_META);
 
     Debug(Debug::INFO) << "Write META (" << META << ")\n";
@@ -79,8 +82,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     writer.writeData(metadataptr, sizeof(metadata), META, SPLIT_META);
     writer.alignToPageSize(SPLIT_META);
 
-    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) == false &&
-        Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_PROFILE_STATE_SEQ) == false) {
+    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) == false && indexSubset != Parameters::INDEX_SUBSET_NO_PREFILTER) {
         int alphabetSize = subMat->alphabetSize;
         subMat->alphabetSize = subMat->alphabetSize-1;
         ScoreMatrix s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
@@ -187,6 +189,20 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
         writer.alignToPageSize(SPLIT_SEQS);
         free(data);
     }
+    if (alndbr != NULL) {
+        Debug(Debug::INFO) << "Write ALNINDEX (" << ALNINDEX << ")\n";
+        data = DBReader<unsigned int>::serialize(*alndbr);
+        writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*alndbr), ALNINDEX, SPLIT_SEQS);
+        writer.alignToPageSize(SPLIT_SEQS);
+        Debug(Debug::INFO) << "Write ALNDATA (" << ALNDATA << ")\n";
+        writer.writeStart(SPLIT_SEQS);
+        for(size_t fileIdx = 0; fileIdx < alndbr->getDataFileCnt(); fileIdx++) {
+            writer.writeAdd(alndbr->getDataForFile(fileIdx), alndbr->getDataSizeForFile(fileIdx), SPLIT_SEQS);
+        }
+        writer.writeEnd(ALNDATA, SPLIT_SEQS);
+        writer.alignToPageSize(SPLIT_SEQS);
+        free(data);
+    }
 
     Sequence seq(maxSeqLen, seqType, subMat, kmerSize, hasSpacedKmer, compBiasCorrection, true, spacedKmerPattern);
     // remove x (not needed in index)
@@ -194,6 +210,9 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
             (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES) || Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_AMINO_ACIDS))
                 ? alphabetSize -1: alphabetSize;
 
+    if (indexSubset == Parameters::INDEX_SUBSET_NO_PREFILTER) {
+        splits = 0;
+    }
     for (int s = 0; s < splits; s++) {
         size_t dbFrom = 0;
         size_t dbSize = 0;
@@ -206,8 +225,8 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
         SequenceLookup *sequenceLookup = NULL;
         IndexBuilder::fillDatabase(&indexTable,
                                    (maskMode == 1 || maskLowerCase == 1) ? &sequenceLookup : NULL,
-                                   (maskMode == 0 ) ? &sequenceLookup : NULL,
-                                   *subMat, &seq, dbr1, dbFrom, dbFrom + dbSize, kmerThr, maskMode, maskLowerCase);
+                                   (maskMode == 0 && maskLowerCase == 0) ? &sequenceLookup : NULL,
+                                   *subMat, &seq, dbr1, dbFrom, dbFrom + dbSize, kmerThr, maskMode, maskLowerCase, maskProb);
         indexTable.printStatistics(subMat->num2aa);
 
         if (sequenceLookup == NULL) {
@@ -548,6 +567,11 @@ ScoreMatrix PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *
 std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB) {
     std::string outIndexName = pathToDB + ".idx";
     if (FileUtil::fileExists((outIndexName + ".dbtype").c_str()) == true) {
+        const bool ignore = getenv("MMSEQS_IGNORE_INDEX") != NULL;
+        if (ignore) {
+            Debug(Debug::WARNING) << "Ignoring precomputed index, since environment variable MMSEQS_IGNORE_INDEX is set\n";
+            return "";
+        }
         return outIndexName;
     }
     return "";

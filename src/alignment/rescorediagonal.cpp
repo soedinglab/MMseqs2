@@ -82,10 +82,10 @@ int doRescorediagonal(Parameters &par,
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        subMat = new NucleotideMatrix(par.scoringMatrixFile.nucleotides, 1.0, 0.0);
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, 0.0);
     } else {
         // keep score bias at 0.0 (improved ROC)
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.aminoacids, 2.0, 0.0);
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
     }
 
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
@@ -246,13 +246,13 @@ int doRescorediagonal(Parameters &par,
                         alnLen = diagonalLen;
                     } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION ||
                                par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
-                               par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+                               par.rescoreMode == Parameters::RESCORE_MODE_END_TO_END_ALIGNMENT ||
                                par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
                         evalue = evaluer.computeEvalue(distance, origQueryLen);
                         bitScore = static_cast<int>(evaluer.computeBitScore(distance) + 0.5);
 
-                        if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT||
-                            par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+                        if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
+                            par.rescoreMode == Parameters::RESCORE_MODE_END_TO_END_ALIGNMENT ||
                             par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
                             alnLen = (alignment.endPos - alignment.startPos) + 1;
                             int qStartPos, qEndPos, dbStartPos, dbEndPos;
@@ -312,8 +312,8 @@ int doRescorediagonal(Parameters &par,
                     // --filter-hits
                     bool hasToFilter = (par.filterHits == true && currScorePerCol >= scorePerColThr);
                     if (isIdentity || hasToFilter || (hasAlnLen && hasCov && hasSeqId && hasEvalue)) {
-                        if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT||
-                            par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+                        if (par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
+                            par.rescoreMode == Parameters::RESCORE_MODE_END_TO_END_ALIGNMENT ||
                             par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT) {
                             alnResults.emplace_back(result);
                         } else if (par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
@@ -383,16 +383,11 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    if (par.wrappedScoring && par.rescoreMode != Parameters::RESCORE_MODE_HAMMING) {
-        Debug(Debug::ERROR) << "ERROR: wrapped scoring is only allowed with RESCORE_MODE_HAMMING\n";
-        return EXIT_FAILURE;
-    }
-
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     int dbtype = resultReader.getDbtype(); // this is DBTYPE_PREFILTER_RES || DBTYPE_PREFILTER_REV_RES
     if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
-       par.rescoreMode == Parameters::RESCORE_MODE_GLOBAL_ALIGNMENT ||
+       par.rescoreMode == Parameters::RESCORE_MODE_END_TO_END_ALIGNMENT ||
        par.rescoreMode == Parameters::RESCORE_MODE_WINDOW_QUALITY_ALIGNMENT){
         dbtype = Parameters::DBTYPE_ALIGNMENT_RES;
     }

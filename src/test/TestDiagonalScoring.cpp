@@ -19,7 +19,7 @@ int main (int, const char**) {
     size_t kmer_size = 6;
     Parameters& par = Parameters::getInstance();
     par.initMatrices();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 8.0, -0.2);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 8.0, -0.2);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
 
     std::string S1 = "PQITLWQG";
@@ -94,7 +94,7 @@ int main (int, const char**) {
     CounterResult hits[32];
     UngappedAlignment matcher(10000, &subMat, &lookup);
 
-    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s5.numSequence, s5.L, compositionBias);
+    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s5.numSequence, s5.L, compositionBias, 1.0);
     memset(compositionBias, 0.0, sizeof(float)*s5.L);
 //    std::cout << compositionBias[74] << std::endl;
 //    std::cout << compositionBias[79] << std::endl;
@@ -116,7 +116,7 @@ int main (int, const char**) {
 
 
 
-    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.numSequence, s1.L, compositionBias);
+    SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.numSequence, s1.L, compositionBias, 1.0);
 
     hits[0].id = s1.getId();
     hits[0].diagonal = 0;

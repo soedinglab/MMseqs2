@@ -20,7 +20,6 @@ KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 
 void setMsa2ResultDefaults(Parameters *p) {
     p->msaType = 2;
-    p->pca = 0.0;
 }
 
 int msa2result(int argc, const char **argv, const Command &command) {
@@ -29,6 +28,14 @@ int msa2result(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setMsa2ResultDefaults(&par);
     par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_PROFILE);
+
+    std::vector<std::string> qid_str_vec = Util::split(par.qid, ",");
+    std::vector<int> qid_vec;
+    for (size_t qid_idx = 0; qid_idx < qid_str_vec.size(); qid_idx++) {
+        float qid_float = strtod(qid_str_vec[qid_idx].c_str(), NULL);
+        qid_vec.push_back(static_cast<int>(qid_float*100));
+    }
+    std::sort(qid_vec.begin(), qid_vec.end());
 
     std::string msaData = par.db1;
     std::string msaIndex = par.db1Index;
@@ -132,14 +139,14 @@ int msa2result(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     resultWriter.open();
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(subMat);
     // we need an evaluer to compute a normalized bitScore.
     // the validity of the evalue is questionable since we give the number of entries in the MSA db
     // and not the total number of residues
     // also, since not all against all comparisons were carried out, it is not straight-forward to
     // decide what to correct for.
-    EvalueComputation evaluer(msaReader.getSize(), &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+    EvalueComputation evaluer(msaReader.getSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
 
     Debug::Progress progress(msaReader.getSize());
 #pragma omp parallel
@@ -149,7 +156,9 @@ int msa2result(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pca, par.pcb);
+
+        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pcmode, par.pca, par.pcb,
+                                  par.gapOpen.values.aminoacid(), par.gapPseudoCount);
         Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
         char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * (maxSeqLength + 1) * maxSetSize);
@@ -168,7 +177,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
 
         const bool maskByFirst = par.matchMode == 0;
         const float matchRatio = par.matchRatio;
-        MsaFilter filter(maxSeqLength + 1, maxSetSize, &subMat, par.gapOpen.aminoacids, par.gapExtend.aminoacids);
+        MsaFilter filter(maxSeqLength + 1, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
 
         char buffer[1024 + 32768*4];
 
@@ -364,11 +373,11 @@ int msa2result(int argc, const char **argv, const Command &command) {
 
             unsigned int centerLength = centerLengthWithGaps - maskedCount;
             size_t filteredSetSize = setSize;
-            if (par.filterMsa == 1) {
+            if (par.filterMsa == 1)  {
                 filteredSetSize = filter.filter(setSize, centerLength, static_cast<int>(par.covMSAThr * 100),
-                              static_cast<int>(par.qid * 100), par.qsc,
-                              static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
-                              (const char **) msaSequences, true);
+                                                qid_vec, par.qsc,
+                                                static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable,
+                                                (const char **) msaSequences, true);
             }
             PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, centerLength, (const char **) msaSequences, par.wg);
 
@@ -442,7 +451,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
                 Matcher::result_t res(key, 0, 1.0, 1.0, seqId, 0, bt.length(), 0, consSeqNoGaps.size() - 1, consSeqNoGaps.size(), 0, currSeqNoGaps.size() - 1, currSeqNoGaps.size(), bt);
 
                 // and update them and compute the score
-                Matcher::updateResultByRescoringBacktrace(consSeqNoGaps.c_str(), currSeqNoGaps.c_str(), fastMatrix.matrix, evaluer, par.gapOpen.aminoacids, par.gapExtend.aminoacids, res);
+                Matcher::updateResultByRescoringBacktrace(consSeqNoGaps.c_str(), currSeqNoGaps.c_str(), fastMatrix.matrix, evaluer, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), res);
 
                 unsigned int len = Matcher::resultToBuffer(buffer, res, true, true);
                 resultWriter.writeAdd(buffer, len, thread_idx);

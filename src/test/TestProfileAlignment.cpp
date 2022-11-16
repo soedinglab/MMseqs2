@@ -25,8 +25,8 @@ int main (int, const char**) {
 
     Parameters& par = Parameters::getInstance();
     par.initMatrices();
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0, 0);
-    std::cout << "Subustitution matrix:";
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0);
+    std::cout << "Substitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.num2aa,subMat.alphabetSize);
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "";
@@ -754,7 +754,7 @@ int main (int, const char**) {
             "\x7f\x7d\x7d\x7d";
     std::cout << "Sequence (id 0):";
     //const char* sequence = read_seq;
-    PSSMCalculator pssmCalculator(&subMat, 10000, 10000, 1.4, 2.5);
+    PSSMCalculator pssmCalculator(&subMat, 10000, 10000, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
     const size_t setSize = 1;
     const char * msaSeq[setSize] = {"LFILNIISMNKQTKVKGYLLLLLVISSLFISLVGHGYTANKVSAPNPAKEYPQDNLSVIDMKNLPGTQIKSMVKDELQQFLEEQGFRRLKNKSLVDLRRIWLGFMYEDFFYTMHKKTDLPISVIYAFFIIEATNAGIESKLMAKALNPGGIKYRGTGKKMKAMDDCY",
                         };
@@ -788,15 +788,29 @@ int main (int, const char**) {
     const char* sequence2 = "LFILNIISMNKQTKVKGYLLLLLVISSLFISLVGHGYTANKVSAPNPAKEYPQDNLSVIDMKNLPGTQIKSMVKDELQQFLEEQGFRRLKNKSLVDLRRIWLGFMYEDFFYTMHKKTDLPISVIYAFFIIEATNAGIESKLMAKALNPGGIKYRGTGKKMKAMDDCY";
 
     dbSeq->mapSequence(1,1,sequence2, strlen(sequence2));
-    SmithWaterman aligner(15000, subMat.alphabetSize, false);
+    SmithWaterman aligner(15000, subMat.alphabetSize, false, 1.0, Parameters::DBTYPE_AMINO_ACIDS);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
-
-    aligner.ssw_init(s, s->getAlignmentProfile(), &subMat, 2);
+    aligner.ssw_init(s, s->getAlignmentProfile(), &subMat);
     int32_t maskLen = s->L / 2;
     int gap_open = 10;
     int gap_extend = 1;
     EvalueComputation evalueComputation(100000, &subMat, gap_open, gap_extend);
-    s_align alignment = aligner.ssw_align(dbSeq->numSequence, dbSeq->L, gap_open, gap_extend, 0, 10000, &evalueComputation, 0, 0.0, maskLen);
+    std::string backtrace;
+    s_align alignment = aligner.ssw_align(
+        dbSeq->numSequence,
+        dbSeq->numConsensusSequence,
+        dbSeq->getAlignmentProfile(),
+        dbSeq->L,
+        backtrace,
+        gap_open, gap_extend,
+        0,
+        10000,
+        &evalueComputation,
+        0, 0.0,
+        0.0,
+        maskLen,
+        dbSeq->getId()
+    );
     if(alignment.cigar){
         std::cout << "Cigar" << std::endl;
 

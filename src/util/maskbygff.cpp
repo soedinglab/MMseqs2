@@ -46,11 +46,13 @@ int maskbygff(int argc, const char **argv, const Command& command) {
         }
 
         char* rest;
+        errno = 0;
         size_t start = strtoull(fields[3].c_str(), &rest, 10);
         if ((rest != fields[3].c_str() && *rest != '\0') || errno == ERANGE) {
             Debug(Debug::WARNING) << "Invalid start position format in line " << entries_num << "!\n";
             continue;
         }
+        errno = 0;
         size_t end = strtoull(fields[4].c_str(), &rest, 10);
         if ((rest != fields[4].c_str() && *rest != '\0') || errno == ERANGE) {
             Debug(Debug::WARNING) << "Invalid end position format in line " << entries_num << "!\n";

@@ -7,6 +7,6 @@ set(GENERATED_RESOURCES
         resources/cs219.lib
         resources/krona_prelude.html
         resources/result_viz_prelude.html.zst
-
+        resources/K4000.crf
         PARENT_SCOPE
         )

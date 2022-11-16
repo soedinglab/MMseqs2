@@ -5,49 +5,46 @@
 #include "SubstitutionMatrix.h"
 #include "Util.h"
 
-MultipleAlignment::MultipleAlignment(size_t maxSeqLen, SubstitutionMatrix *subMat) {
-    this->maxSeqLen = maxSeqLen;
-    this->maxMsaSeqLen = maxSeqLen * 2;
-
-    this->subMat = subMat;
-    this->queryGaps = new unsigned int[maxMsaSeqLen];
-}
-
-char * MultipleAlignment::initX(int len) {
-    int seqSimdLength = (len) / (VECSIZE_INT * 4) + 2;
-    seqSimdLength *= (VECSIZE_INT * 4);
-    char * ptr = (char *) malloc_simd_int(seqSimdLength);
-    std::fill(ptr, ptr + seqSimdLength, MultipleAlignment::GAP);
-    return ptr;
-}
-
-void MultipleAlignment::deleteMSA(MultipleAlignment::MSAResult * res){
-    for(size_t i = 0; i < res->setSize; i++) {
-        free(res->msaSequence[i]);
-    }
-    delete [] res->msaSequence;
+MultipleAlignment::MultipleAlignment(size_t maxSeqLen, SubstitutionMatrix *subMat)
+    : subMat(subMat), maxSeqLen(maxSeqLen), maxMsaSeqLen(maxSeqLen * 2) {
+    queryGaps = new unsigned int[maxMsaSeqLen];
 }
 
 MultipleAlignment::~MultipleAlignment() {
-
-    delete [] queryGaps;
+    delete[] queryGaps;
 }
 
+char **MultipleAlignment::initX(size_t len, size_t setSize) {
+    size_t seqSimdLength = (len) / (VECSIZE_INT * 4) + 2;
+    seqSimdLength *= (VECSIZE_INT * 4);
+    char *ptr = (char *) malloc_simd_int(seqSimdLength * setSize);
+    memset(ptr, MultipleAlignment::GAP, (seqSimdLength * setSize));
+    char **arr = new char *[setSize];
+    for (size_t i = 0; i < setSize; ++i) {
+        arr[i] = ptr + (seqSimdLength * i);
+    }
+    return arr;
+}
+
+void MultipleAlignment::deleteMSA(MultipleAlignment::MSAResult *res) {
+    free(res->msaSequence[0]);
+    delete[] res->msaSequence;
+}
 
 void MultipleAlignment::print(MSAResult msaResult, SubstitutionMatrix * subMat){
     for(size_t i = 0; i < msaResult.setSize; i++) {
         for(size_t pos = 0; pos < msaResult.msaSequenceLength; pos++){
             char aa = msaResult.msaSequence[i][pos];
-            printf("%c", (aa < NAA) ? subMat->num2aa[(int)aa] : '-' );
+            printf("%c", (aa < GAP) ? subMat->num2aa[(int)aa] : '-' );
         }
         printf("\n");
     }
 }
 
-void MultipleAlignment::computeQueryGaps(unsigned int *queryGaps, Sequence *centerSeq, size_t edges, const std::vector<Matcher::result_t>& alignmentResults) {
+void MultipleAlignment::computeQueryGaps(unsigned int *queryGaps, Sequence *centerSeq, const std::vector<Matcher::result_t> &alignmentResults) {
     // init query gaps
     memset(queryGaps, 0, sizeof(unsigned int) * centerSeq->L);
-    for(size_t i = 0; i < edges; i++) {
+    for(size_t i = 0; i < alignmentResults.size(); i++) {
         const Matcher::result_t& alignment = alignmentResults[i];
         const std::string& bt = alignment.backtrace;
         size_t queryPos = 0;
@@ -134,7 +131,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
             }else{
                 // D state in target Sequence
                 if(bt.at(alnPos) == 'D'){
-                    while(bt.at(alnPos) == 'D' &&  alnPos < bt.size() ){
+                    while (alnPos < bt.size() && bt.at(alnPos) == 'D') {
                         if(noDeletionMSA == false) {
                             edgeSeqMSA[bufferPos] = subMat->num2aa[edgeSeq[targetPos]];
                             bufferPos++;
@@ -192,13 +189,8 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
         EXIT(EXIT_FAILURE);
     }
 
-    char ** msaSequence = new char *[edgeSeqs.size() + 1];
-    for(size_t i = 0; i <= edgeSeqs.size(); i++){
-        // FIXME: in deletion case, the msa could become even larger than maxSeqLen
-        msaSequence[i] = initX(noDeletionMSA ? centerSeq->L + 1: maxSeqLen + 1);
-    }
-
-    computeQueryGaps(queryGaps, centerSeq, edgeSeqs.size(), alignmentResults);
+    char ** msaSequence = initX(noDeletionMSA ? centerSeq->L + 1 : maxSeqLen + 1, edgeSeqs.size() + 1);
+    computeQueryGaps(queryGaps, centerSeq, alignmentResults);
     // process gaps in Query (update sequences)
     // and write query Alignment at position 0
 	
@@ -229,8 +221,7 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
 
 MultipleAlignment::MSAResult MultipleAlignment::singleSequenceMSA(Sequence *centerSeq) {
     size_t queryMSASize = 0;
-    char ** msaSequence = new char *[1];
-    msaSequence[0] = initX(centerSeq->L);
+    char** msaSequence = initX(centerSeq->L, 1);
     for(int queryPos = 0; queryPos < centerSeq->L; queryPos++) {
         if (queryMSASize >= maxMsaSeqLen) {
             Debug(Debug::ERROR) << "queryMSASize (" << queryMSASize << ") is >= maxMsaSeqLen (" << maxMsaSeqLen << ")" << "\n";

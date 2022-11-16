@@ -53,6 +53,7 @@ struct DbValidator {
     static std::vector<int> prefilterDb;
     static std::vector<int> clusterDb;
     static std::vector<int> resultDb;
+    static std::vector<int> ppResultDb;
     static std::vector<int> ca3mDb;
     static std::vector<int> msaDb;
     static std::vector<int> genericDb;
@@ -67,6 +68,7 @@ struct DbValidator {
     static std::vector<int> flatfile;
     static std::vector<int> flatfileAndStdin;
     static std::vector<int> flatfileStdinAndGeneric;
+    static std::vector<int> flatfileStdinGenericUri;
     static std::vector<int> empty;
 };
 

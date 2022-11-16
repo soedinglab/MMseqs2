@@ -24,7 +24,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, shouldCompress, dbType);
     writer.open();
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.aminoacids, 2.0f, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, 0.0);
 
     size_t entries = reader.getSize();
     Debug::Progress progress(entries);
