@@ -15,6 +15,8 @@
 enum {
     STAT_LINECOUNT,
     STAT_MEAN,
+    STAT_MAX,
+    STAT_MIN,
     STAT_SUM,
     STAT_DOOLITTLE,
     STAT_CHARGES,
@@ -30,6 +32,10 @@ int MapStatString(const std::string &str) {
         stat = STAT_LINECOUNT;
     } else if (str == "mean") {
         stat = STAT_MEAN;
+    } else if (str == "min") {
+        stat = STAT_MIN;
+    } else if (str == "max") {
+        stat = STAT_MAX;
     } else if (str == "sum") {
         stat = STAT_SUM;
     } else if (str == "doolittle") {
@@ -87,7 +93,11 @@ int StatsComputer::run() {
             return countNumberOfLines();
         case STAT_MEAN:
             return meanValue();
-        case STAT_SUM:
+	case STAT_MIN:
+	    return minValue();
+	case STAT_MAX:
+	    return maxValue();
+	case STAT_SUM:
             return sumValue();
         case STAT_DOOLITTLE:
             return sequenceWise<float>(&doolittle);
@@ -190,6 +200,83 @@ int StatsComputer::meanValue() {
     };
     return 0;
 }
+
+
+
+int StatsComputer::minValue() {
+    Debug::Progress progress(resultReader->getSize());
+
+#pragma omp parallel
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+#pragma omp for schedule(dynamic, 100)
+        for (size_t id = 0; id < resultReader->getSize(); id++) {
+            progress.updateProgress();
+            char *results = resultReader->getData(id, thread_idx);
+
+            double minVal =  std::numeric_limits<double>::max();
+            while (*results != '\0') {
+                char *rest;
+                errno = 0;
+                double value = strtod(results, &rest);
+                if (rest == results || errno != 0) {
+                    Debug(Debug::WARNING) << "Invalid value in entry " << id << "!\n";
+                    continue;
+                }
+
+                minVal = std::min(minVal,value);
+                results = Util::skipLine(results);
+            }
+
+            std::string minValString = SSTR(minVal);
+            minValString.append("\n");
+            statWriter->writeData(minValString.c_str(), minValString.length(), resultReader->getDbKey(id), thread_idx);
+        }
+    };
+    return 0;
+}
+
+
+int StatsComputer::maxValue() {
+    Debug::Progress progress(resultReader->getSize());
+
+#pragma omp parallel
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+#pragma omp for schedule(dynamic, 100)
+        for (size_t id = 0; id < resultReader->getSize(); id++) {
+            progress.updateProgress();
+            char *results = resultReader->getData(id, thread_idx);
+
+            double maxVal =  std::numeric_limits<double>::min();
+            while (*results != '\0') {
+                char *rest;
+                errno = 0;
+                double value = strtod(results, &rest);
+                if (rest == results || errno != 0) {
+                    Debug(Debug::WARNING) << "Invalid value in entry " << id << "!\n";
+                    continue;
+                }
+
+                maxVal = std::max(maxVal,value);
+                results = Util::skipLine(results);
+            }
+
+            std::string maxValString = SSTR(maxVal); 
+            maxValString.append("\n");
+            statWriter->writeData(maxValString.c_str(), maxValString.length(), resultReader->getDbKey(id), thread_idx);
+        }
+    };
+    return 0;
+}
+
+
 
 int StatsComputer::sumValue() {
     Debug::Progress progress(resultReader->getSize());

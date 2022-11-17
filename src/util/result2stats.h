@@ -39,6 +39,8 @@ private:
 
     int countNumberOfLines();
     int meanValue();
+    int minValue();
+    int maxValue();
     int sumValue();
 };
 
