@@ -42,6 +42,7 @@ set(util_source_files
         util/pairaln.cpp
         util/prefixid.cpp
         util/profile2pssm.cpp
+        util/profile2neff.cpp
         util/profile2seq.cpp
         util/result2dnamsa.cpp
         util/result2flat.cpp
