@@ -20,16 +20,14 @@ struct statistics_t{
     size_t querySeqLen;
     size_t diagonalOverflow;
     size_t resultsPassedPrefPerSeq;
-    size_t truncated;
-    statistics_t() : kmersPerPos(0.0) , dbMatches(0) , doubleMatches(0), querySeqLen(0), diagonalOverflow(0), resultsPassedPrefPerSeq(0), truncated(0) {};
+    statistics_t() : kmersPerPos(0.0) , dbMatches(0) , doubleMatches(0), querySeqLen(0), diagonalOverflow(0), resultsPassedPrefPerSeq(0) {};
     statistics_t(double kmersPerPos, size_t dbMatches,
-                 size_t doubleMatches, size_t querySeqLen, size_t diagonalOverflow, size_t resultsPassedPrefPerSeq, size_t truncated) : kmersPerPos(kmersPerPos),
+                 size_t doubleMatches, size_t querySeqLen, size_t diagonalOverflow, size_t resultsPassedPrefPerSeq) : kmersPerPos(kmersPerPos),
                                                                                                                       dbMatches(dbMatches),
                                                                                                                       doubleMatches(doubleMatches),
                                                                                                                       querySeqLen(querySeqLen),
                                                                                                                       diagonalOverflow(diagonalOverflow),
-                                                                                                                      resultsPassedPrefPerSeq(resultsPassedPrefPerSeq),
-                                                                                                                      truncated(truncated){};
+                                                                                                                      resultsPassedPrefPerSeq(resultsPassedPrefPerSeq){};
 };
 
 struct hit_t {

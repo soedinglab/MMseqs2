@@ -56,6 +56,13 @@ struct __attribute__((__packed__)) CounterResult {
         return false;
     }
 
+    static bool sortScore(const CounterResult &first, const CounterResult &second) {
+        if (first.count > second.count)
+            return true;
+        if (second.count > first.count)
+            return false;
+        return false;
+    }
 };
 
 template<unsigned int BINSIZE>
