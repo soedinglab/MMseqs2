@@ -757,7 +757,6 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
     size_t resSize = 0;
     size_t realResSize = 0;
     size_t diagonalOverflow = 0;
-    size_t trancatedCounter = 0;
     size_t totalQueryDBSize = querySize;
 
     size_t localThreads = 1;
@@ -809,7 +808,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
         std::string result;
         result.reserve(1000000);
 
-#pragma omp for schedule(dynamic, 1) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow, trancatedCounter)
+#pragma omp for schedule(dynamic, 1) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
         for (size_t id = queryFrom; id < queryFrom + querySize; id++) {
             progress.updateProgress();
             // get query sequence
@@ -875,7 +874,6 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                 doubleMatches += matcher.getStatistics()->doubleMatches;
                 querySeqLenSum += seq.L;
                 diagonalOverflow += matcher.getStatistics()->diagonalOverflow;
-                trancatedCounter += matcher.getStatistics()->truncated;
                 resSize += resultSize;
                 realResSize += std::min(resultSize, maxResListLen);
                 reslens[thread_idx]->emplace_back(resultSize);
@@ -888,7 +886,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                            dbMatches / totalQueryDBSize,
                            doubleMatches / totalQueryDBSize,
                            querySeqLenSum, diagonalOverflow,
-                           resSize / totalQueryDBSize, trancatedCounter);
+                           resSize / totalQueryDBSize);
 
         size_t empty = 0;
         for (size_t id = 0; id < querySize; id++) {
@@ -958,7 +956,6 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
     Debug(Debug::INFO) << "\n" << stats.kmersPerPos << " k-mers per position\n";
     Debug(Debug::INFO) << stats.dbMatches << " DB matches per sequence\n";
     Debug(Debug::INFO) << stats.diagonalOverflow << " overflows\n";
-    Debug(Debug::INFO) << stats.truncated << " queries produce too many hits (truncated result)\n";
     Debug(Debug::INFO) << stats.resultsPassedPrefPerSeq << " sequences passed prefiltering per query sequence";
     if (stats.resultsPassedPrefPerSeq > maxResults)
         Debug(Debug::WARNING) << " (ATTENTION: max. " << maxResults
@@ -1075,7 +1072,8 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
     // This memory is an approx. for Countint32Array and QueryTemplateLocalFast
     size_t threadSize = threads * (
             (dbSizeSplit * 2 * sizeof(IndexEntryLocal)) // databaseHits in QueryMatcher
-            + (dbSizeSplit * sizeof(CounterResult)) // databaseHits in QueryMatcher
+            + (dbSizeSplit * 1.5 * sizeof(CounterResult)) // databaseHits in QueryMatcher
+            // 1.5 is a security factor
             + (maxResListLen * sizeof(hit_t))
             + (dbSizeSplit * 2 * sizeof(CounterResult) * 2) // BINS * binSize, (binSize = dbSize * 2 / BINS)
               // 2 is a security factor the size can increase during run
