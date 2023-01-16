@@ -28,7 +28,7 @@ int profile2neff(int argc, const char **argv, const Command &command) {
 
     size_t entries = reader.getSize();
     Debug::Progress progress(entries);
-#pragma omp parallel default(none) shared(par, subMat, progress, entries, reader, isDbOutput, writer)
+#pragma omp parallel
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
