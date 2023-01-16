@@ -59,7 +59,7 @@ int profile2neff(int argc, const char **argv, const Command &command) {
             for(int j = 0; j < seq.L; ++j) {
                 // TODO(johannes): Here, the precision for the floating point conversion is not specified and set to 2
                 // digits. Consider setting the precision using a commandline parameter.
-                snprintf(buffer, sizeof(buffer), "%0.2f", seq.neffM[j]);
+                snprintf(buffer, sizeof(buffer), "%0.4f", seq.neffM[j]);
                 result.append(buffer);
                 if(j < (seq.L - 1)) result.push_back('\t');
             }
