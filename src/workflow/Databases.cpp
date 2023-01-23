@@ -124,7 +124,7 @@ std::vector<DatabaseDownload> downloads = {{
                                                    { }
                                            }, {
                                                    "VOGDB",
-                                                   "VOGDB is a continously updated resource of Virus Orthologous Groups",
+                                                   "VOGDB is a continuously updated resource of Virus Orthologous Groups",
                                                    "Marz et al: Challenges in RNA virus bioinformatics. Bioinformatics 30, 1793–9 (2014)",
                                                    "https://vogdb.org",
                                                    false, Parameters::DBTYPE_HMM_PROFILE, databases_sh, databases_sh_len,
