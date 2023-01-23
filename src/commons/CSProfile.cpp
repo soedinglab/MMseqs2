@@ -87,7 +87,7 @@ void ContextLibrary::readContextProfile(std::stringstream &in, LibraryReader &re
     size_t nalph = reader.ReadInt(line.c_str(), "ALPH", "Unable to parse CRF state 'ALPH'!");
     if (nalph != 20){
         Debug(Debug::ERROR) << "Alphabet size of serialized CRF state should be 20 "
-                "but is acutally" << nalph << "!\n";
+                "but is actually" << nalph << "!\n";
         EXIT(EXIT_FAILURE);
     }
     // If everything went fine we can resize our data memmbers
