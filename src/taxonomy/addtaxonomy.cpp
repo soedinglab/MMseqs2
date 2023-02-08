@@ -20,7 +20,7 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
+    bool isTaxresult = Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_TAXONOMICAL_RESULT);
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
 
@@ -66,7 +66,11 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
                 }
                 if (par.pickIdFrom == Parameters::EXTRACT_TARGET) {
                     unsigned int id = Util::fast_atoi<unsigned int>(entry[0]);
-                    taxon = mapping.lookup(id);
+                    if(isTaxresult){
+                        taxon = id;
+                    }else{
+                        taxon = mapping.lookup(id);
+                    }
                     if (taxon == 0) {
                         taxonNotFound++;
                         data = Util::skipLine(data);
