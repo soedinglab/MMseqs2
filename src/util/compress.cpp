@@ -12,7 +12,7 @@ int doCompression(int argc, const char **argv, const Command& command, bool shou
     par.parseParameters(argc, argv, command, true, 0, 0);
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::NOSORT);
+    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     if (shouldCompress == true && reader.isCompressed() == true) {
         Debug(Debug::INFO) << "Database is already compressed.\n";
         return EXIT_SUCCESS;
