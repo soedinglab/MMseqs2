@@ -228,28 +228,29 @@ int createdb(int argc, const char **argv, const Command& command) {
                     }
                     sampleCount++;
                 }
-                if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
-                    if (e.newlineCount != 1) {
-                        if (e.newlineCount == 0) {
-                            Debug(Debug::WARNING) << "Fasta entry " << entries_num << " has no newline character\n";
-                        } else if (e.newlineCount > 1) {
-                            Debug(Debug::WARNING) << "Multiline fasta can not be combined with --createdb-mode 0\n";
-                        }
-                        Debug(Debug::WARNING) << "We recompute with --createdb-mode 1\n";
-                        par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
-                        progress.reset(SIZE_MAX);
-                        hdrWriter.close();
-                        seqWriter.close();
-                        delete kseq;
-                        if (fclose(source) != 0) {
-                            Debug(Debug::ERROR) << "Cannot close file " << sourceFile << "\n";
-                            EXIT(EXIT_FAILURE);
-                        }
-                        for (size_t i = 0; i < shuffleSplits; ++i) {
-                            sourceLookup[i].clear();
-                        }
-                        goto redoComputation;
+            }
+
+            if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
+                if (e.newlineCount != 1) {
+                    if (e.newlineCount == 0) {
+                        Debug(Debug::WARNING) << "Fasta entry " << entries_num << " has no newline character\n";
+                    } else if (e.newlineCount > 1) {
+                        Debug(Debug::WARNING) << "Multiline fasta can not be combined with --createdb-mode 0\n";
                     }
+                    Debug(Debug::WARNING) << "We recompute with --createdb-mode 1\n";
+                    par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
+                    progress.reset(SIZE_MAX);
+                    hdrWriter.close();
+                    seqWriter.close();
+                    delete kseq;
+                    if (fclose(source) != 0) {
+                        Debug(Debug::ERROR) << "Cannot close file " << sourceFile << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    for (size_t i = 0; i < shuffleSplits; ++i) {
+                        sourceLookup[i].clear();
+                    }
+                    goto redoComputation;
                 }
             }
 
