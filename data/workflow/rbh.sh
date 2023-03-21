@@ -36,17 +36,10 @@ if [ ! -e "${TMP_PATH}/resBA.dbtype" ]; then
 fi
 
 
-# sort A->B by decreasing bitscores:
-if [ ! -e "${TMP_PATH}/resAB_sorted.dbtype" ]; then
-    # shellcheck disable=SC2086
-    "$MMSEQS" filterdb "${TMP_PATH}/resAB" "${TMP_PATH}/resAB_sorted" --sort-entries 2 --filter-column 2 ${THREADS_COMP_PAR} \
-        || fail "sort resAB by bitscore died"
-fi
-
 # extract a single best hit in A->B direction (used to take best bitscore for A):
 if [ ! -e "${TMP_PATH}/resA_best_B.dbtype" ]; then
     # shellcheck disable=SC2086
-    "$MMSEQS" filterdb "${TMP_PATH}/resAB_sorted" "${TMP_PATH}/resA_best_B" --extract-lines 1 ${THREADS_COMP_PAR} \
+    "$MMSEQS" filterdb "${TMP_PATH}/resAB" "${TMP_PATH}/resA_best_B" --extract-lines 1 ${THREADS_COMP_PAR} \
         || fail "extract A best B died"
 fi
 

@@ -51,8 +51,9 @@ int result2rbh(int argc, const char **argv, const Command &command) {
                 } else {
                     // this is a B->A line - the bitscore can only decrease:
                     if (bestAtoBbitScore < currAlnScore) {
-                        Debug(Debug::ERROR) << "The merged results are assumed to be sorted by decreasing bitscore.\n";
-                        EXIT(EXIT_FAILURE);
+                        //Debug(Debug::ERROR) << "The merged results are assumed to be sorted by decreasing bitscore.\n";
+                        //EXIT(EXIT_FAILURE);
+                        break;
                     }
                     if (currAlnScore < bestAtoBbitScore) {
                         // worse bitscore - no need to check anymore...
