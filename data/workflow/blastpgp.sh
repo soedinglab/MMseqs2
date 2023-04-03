@@ -25,12 +25,12 @@ TMP_PATH="$4"
 STEP=0
 # processing
 [ -z "$NUM_IT" ] && NUM_IT=3;
-while [ $STEP -lt "$NUM_IT" ]; do
+while [ "$STEP" -lt "$NUM_IT" ]; do
     # call prefilter module
     if notExists "$TMP_PATH/pref_tmp_${STEP}.done"; then
         PARAM="PREFILTER_PAR_$STEP"
         eval TMP="\$$PARAM"
-        if [ $STEP -eq 0 ]; then
+        if [ "$STEP" -eq 0 ]; then
             # shellcheck disable=SC2086
             $RUNNER "$MMSEQS" prefilter "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" ${TMP} \
                 || fail "Prefilter died"
@@ -42,7 +42,7 @@ while [ $STEP -lt "$NUM_IT" ]; do
         touch "$TMP_PATH/pref_tmp_${STEP}.done"
     fi
 
-    if [ $STEP -ge 1 ]; then
+    if [ "$STEP" -ge 1 ]; then
         if notExists "$TMP_PATH/pref_$STEP.done"; then
             STEPONE=$((STEP-1))
             # shellcheck disable=SC2086
@@ -58,7 +58,7 @@ while [ $STEP -lt "$NUM_IT" ]; do
 	    PARAM="ALIGNMENT_PAR_$STEP"
         eval TMP="\$$PARAM"
 
-        if [ $STEP -eq 0 ]; then
+        if [ "$STEP" -eq 0 ]; then
             # shellcheck disable=SC2086
             $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" ${TMP} \
                 || fail "Alignment died"
@@ -70,10 +70,10 @@ while [ $STEP -lt "$NUM_IT" ]; do
         touch "$TMP_PATH/aln_tmp_$STEP.done"
     fi
 
-    if [ $STEP -gt 0 ]; then
+    if [ "$STEP" -gt 0 ]; then
         if notExists "$TMP_PATH/aln_$STEP.done"; then
             STEPONE=$((STEP-1))
-            if [ $STEP -ne $((NUM_IT  - 1)) ]; then
+            if [ "$STEP" -ne "$((NUM_IT  - 1))" ]; then
                 "$MMSEQS" mergedbs "$QUERYDB" "$TMP_PATH/aln_$STEP" "$TMP_PATH/aln_$STEPONE" "$TMP_PATH/aln_tmp_$STEP" \
                     || fail "Alignment died"
             else
@@ -87,7 +87,7 @@ while [ $STEP -lt "$NUM_IT" ]; do
     fi
 
 # create profiles
-    if [ $STEP -ne $((NUM_IT  - 1)) ]; then
+    if [ "$STEP" -ne "$((NUM_IT  - 1))" ]; then
         if notExists "$TMP_PATH/profile_$STEP.dbtype"; then
             PARAM="PROFILE_PAR_$STEP"
             eval TMP="\$$PARAM"
@@ -103,7 +103,7 @@ done
 if [ -n "$REMOVE_TMP" ]; then
     STEP=0
     while [ "$STEP" -lt "$NUM_IT" ]; do
-        if [ $STEP -gt 0 ]; then
+        if [ "$STEP" -gt 0 ]; then
             rm -f -- "$TMP_PATH/aln_$STEP.done" "$TMP_PATH/pref_$STEP.done"
         fi
         rm -f -- "$TMP_PATH/aln_tmp_$STEP.done" "$TMP_PATH/pref_tmp_${STEP}.done"

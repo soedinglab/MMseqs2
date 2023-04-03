@@ -29,9 +29,9 @@ SEQDB="${2}_seq"
 TMP_PATH="$4"
 STEP=0
 
-while [ $STEP -lt "$NUM_IT" ]; do
+while [ "$STEP" -lt "$NUM_IT" ]; do
   # call slice search for the first iteration
-  if [ $STEP -eq 0 ]; then
+  if [ "$STEP" -eq 0 ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" search "$QUERYDB" "$TARGETDB" "$TMP_PATH/aln_$STEP" "$TMP_PATH" ${SEARCH_PAR} \
       || fail "Slicesearch died"
@@ -41,7 +41,7 @@ while [ $STEP -lt "$NUM_IT" ]; do
     TARGETDB="$2_consensus"
   fi
   # call prefilter module
-  if [ $STEP -gt 0 ]; then
+  if [ "$STEP" -gt 0 ]; then
     PARAM="PREFILTER_PAR_$STEP"
     eval TMP="\$$PARAM"
     # shellcheck disable=SC2086
@@ -66,7 +66,7 @@ while [ $STEP -lt "$NUM_IT" ]; do
     #"$MMSEQS" rmdb "$TMP_PATH/aln_tmp_$STEP"
   fi
   # expand alignment dbs
-  if [ $STEP -ne $((NUM_IT - 1)) ]; then
+  if [ "$STEP" -ne $((NUM_IT - 1)) ]; then
     # shellcheck disable=SC2086
       "$MMSEQS" expand2profile "$QUERYDB" "$SEQDB" "$TMP_PATH/aln_$STEP" "$ALNDB" "$TMP_PATH/profile_$STEP" $EXPANDPROFILE_PAR \
       || fail 'Expand2Profile died'
