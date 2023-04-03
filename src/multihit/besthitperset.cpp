@@ -101,7 +101,7 @@ public :
         for (size_t i = 0; i < bestEntry->size(); ++i) {
             if (i == 1) {
                 char tmpBuf[15];
-                sprintf(tmpBuf, "%.3E", logCorrectedPval);
+                snprintf(tmpBuf, sizeof(tmpBuf), "%.3E", logCorrectedPval);
                 buffer.append(tmpBuf);
             } else {
                 buffer.append(bestEntry->at(i));

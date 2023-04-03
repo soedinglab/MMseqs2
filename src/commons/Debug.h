@@ -149,10 +149,10 @@ public:
             }
             char fmtbuffer[32];
             if(exp < 3){
-                int fmtElm = sprintf(fmtbuffer, "%d",  static_cast<int>(id+1));
+                int fmtElm = snprintf(fmtbuffer, sizeof(fmtbuffer), "%d",  static_cast<int>(id+1));
                 line.append(fmtbuffer, fmtElm);
             }else{
-                int fmtElm = sprintf(fmtbuffer, "%.2f", static_cast<float>(id+1)/ static_cast<float>(base));
+                int fmtElm = snprintf(fmtbuffer, sizeof(fmtbuffer), "%.2f", static_cast<float>(id+1)/ static_cast<float>(base));
                 line.append(fmtbuffer, fmtElm);
                 line.push_back(appending);
             }
@@ -244,7 +244,7 @@ public:
                             }
                         }
                         char buffer[32];
-                        int n = sprintf(buffer, "%.2f", progress * 100.0f);
+                        int n = snprintf(buffer, sizeof(buffer), "%.2f", progress * 100.0f);
                         line.append("] ");
                         line.append(buffer, n);
                         line.append("% ");

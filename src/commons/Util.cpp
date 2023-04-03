@@ -654,13 +654,13 @@ std::string SSTR(unsigned long long x) {
 template<>
 std::string SSTR(double x) {
     char buffer[32];
-    int n = sprintf(buffer, "%.3E", x);
+    int n = snprintf(buffer, sizeof(buffer), "%.3E", x);
     return std::string(buffer, n);
 }
 
 template<>
 std::string SSTR(float x) {
     char buffer[32];
-    int n = sprintf(buffer, "%.3f", x);
+    int n = snprintf(buffer, sizeof(buffer), "%.3f", x);
     return std::string(buffer, n);
 }
