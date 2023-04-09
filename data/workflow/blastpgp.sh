@@ -25,7 +25,7 @@ TMP_PATH="$4"
 STEP=0
 # processing
 [ -z "$NUM_IT" ] && NUM_IT=3;
-while [ $STEP -lt $NUM_IT ]; do
+while [ $STEP -lt "$NUM_IT" ]; do
     # call prefilter module
     if notExists "$TMP_PATH/pref_tmp_${STEP}.done"; then
         PARAM="PREFILTER_PAR_$STEP"
