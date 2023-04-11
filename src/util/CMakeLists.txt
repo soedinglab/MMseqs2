@@ -27,6 +27,7 @@ set(util_source_files
         util/extractorfs.cpp
         util/orftocontig.cpp
         util/touchdb.cpp
+        util/filtera3m.cpp
         util/filterdb.cpp
         util/gff2db.cpp
         util/renamedbkeys.cpp

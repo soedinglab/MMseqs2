@@ -584,6 +584,19 @@ Parameters::Parameters():
     //result2msa.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
     result2dnamsa.push_back(&PARAM_V);
 
+
+    // filtera3m
+    filtera3m.push_back(&PARAM_SUB_MAT);
+    filtera3m.push_back(&PARAM_GAP_OPEN);
+    filtera3m.push_back(&PARAM_GAP_EXTEND);
+    filtera3m.push_back(&PARAM_FILTER_MIN_ENABLE);
+    filtera3m.push_back(&PARAM_FILTER_MAX_SEQ_ID);
+    filtera3m.push_back(&PARAM_FILTER_QID);
+    filtera3m.push_back(&PARAM_FILTER_QSC);
+    filtera3m.push_back(&PARAM_FILTER_COV);
+    filtera3m.push_back(&PARAM_FILTER_NDIFF);
+    filtera3m.push_back(&PARAM_V);
+
     // filterresult
     filterresult.push_back(&PARAM_SUB_MAT);
     filterresult.push_back(&PARAM_GAP_OPEN);

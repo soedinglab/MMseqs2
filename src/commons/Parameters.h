@@ -1039,6 +1039,7 @@ public:
     std::vector<MMseqsParameter*> result2profile;
     std::vector<MMseqsParameter*> result2msa;
     std::vector<MMseqsParameter*> result2dnamsa;
+    std::vector<MMseqsParameter*> filtera3m;
     std::vector<MMseqsParameter*> filterresult;
     std::vector<MMseqsParameter*> convertmsa;
     std::vector<MMseqsParameter*> msa2profile;
