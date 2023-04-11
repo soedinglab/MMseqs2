@@ -5,14 +5,11 @@
 #include "MsaFilter.h"
 #include "MultipleAlignment.h"
 
-MultipleAlignment::MSAResult readMSA(const std::string &a3mPath) {
+MultipleAlignment::MSAResult readMSA(const std::string &a3mPath, const SubstitutionMatrix &subMat) {
     KSeqWrapper* kseq = KSeqFactory(a3mPath.c_str());
     MultipleAlignment::MSAResult msa(0, 0, 0, NULL);
-    msa.msaSequenceLength = 0;
-    msa.centerLength = 0;
-    msa.setSize = 0;
-    std::vector<std::string> sequences;
     std::string seq;
+    std::vector<std::string> sequences;
     Debug::Progress progress;
     while (kseq->ReadEntry()) {
         progress.updateProgress();
@@ -24,18 +21,27 @@ MultipleAlignment::MSAResult readMSA(const std::string &a3mPath) {
         }
 
         for (size_t i = 0; i < e.sequence.l; i++) {
-            char c = e.sequence.s[i];
-            if (!(c >= 'a' && c <= 'z')) {
-                seq.push_back(c);
+            unsigned char c = e.sequence.s[i];
+            if (c >= 'a' && c <= 'z') {
+                continue;
             }
+            seq.push_back(c);
         }
         sequences.push_back(seq);
         seq.clear();
         msa.setSize++;
     }
-    msa.msaSequence = new char*[msa.setSize];
-    for (size_t i = 0; i < msa.setSize; i++) {
-        msa.msaSequence[i] = &(sequences[i])[0];
+    msa.msaSequence = MultipleAlignment::initX(msa.centerLength + 1, msa.setSize);
+    for (size_t k = 0; k < msa.setSize; ++k) {
+        for (size_t pos = 0; pos < msa.centerLength; ++pos) {
+            msa.msaSequence[k][pos] =
+                (sequences[k][pos] == '-') ? MultipleAlignment::GAP : static_cast<int>(subMat.aa2num[static_cast<int>(sequences[k][pos])]);
+        }
+        int startPos = msa.centerLength - 1;
+        int len = msa.centerLength + VECSIZE_INT*4;
+        for(int pos = startPos; pos < len; pos++){
+            msa.msaSequence[k][pos] = MultipleAlignment::GAP;
+        }
     }
     delete kseq;
     return msa;
@@ -53,10 +59,11 @@ int filtera3m(int argc, const char **argv, const Command& command) {
     }
     std::sort(qid_vec.begin(), qid_vec.end());
 
-    MultipleAlignment::MSAResult msa = readMSA(par.db1.c_str());
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, 0);
+
+    MultipleAlignment::MSAResult msa = readMSA(par.db1.c_str(), subMat);
     FILE* handle = FileUtil::openFileOrDie(par.db2.c_str(), "w", false);
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
     MsaFilter filter(msa.centerLength + 1, msa.setSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     filter.filter(
         msa.setSize,
@@ -91,14 +98,14 @@ int filtera3m(int argc, const char **argv, const Command& command) {
         fwrite("\n", sizeof(char), 1, handle);
         i++;
     }
+    delete kseq2;
+    delete[] kept;
+    delete[] msa.msaSequence;
+
     if (fclose(handle) != 0) {
         Debug(Debug::ERROR) << "Cannot close file " << par.db2 << "\n";
         return EXIT_FAILURE;
     }
-
-    delete kseq2;
-    delete[] kept;
-    delete[] msa.msaSequence;
 
     return EXIT_SUCCESS;
 }
