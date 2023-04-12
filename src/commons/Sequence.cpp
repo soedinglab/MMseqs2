@@ -69,7 +69,6 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
 #endif
         this->profile_score         = (short *)        mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(short));
         this->profile_index         = (unsigned int *) mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(int));
-        this->pseudocountsWeight    = (float *)        mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(float));
         this->profile_for_alignment = (int8_t *)       mem_align(ALIGN_INT, (maxLen + 1) * subMat->alphabetSize * sizeof(int8_t));
         // init profile
         memset(this->profile_for_alignment, 0, (maxLen + 1) * subMat->alphabetSize * sizeof(int8_t));
@@ -104,7 +103,6 @@ Sequence::~Sequence() {
         delete[] gIns;
 #endif
         delete[] pNullBuffer;
-        free(pseudocountsWeight);
         free(profile_score);
         free(profile_index);
         free(profile_for_alignment);

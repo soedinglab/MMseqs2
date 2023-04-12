@@ -455,7 +455,6 @@ public:
     uint8_t         *gDel;
     uint8_t         *gIns;
 #endif
-    float           *pseudocountsWeight;
     // const size_t PROFILE_ROW_SIZE = (((size_t) PROFILE_AA_SIZE / (VECSIZE_INT * 4)) + 1) * (VECSIZE_INT * 4);
     size_t profile_row_size;
     static const size_t PROFILE_AA_SIZE = 20;
