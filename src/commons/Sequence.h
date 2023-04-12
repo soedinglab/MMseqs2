@@ -451,16 +451,23 @@ public:
     short           *profile_score;
     unsigned int    *profile_index;
     float           *neffM;
+#ifdef GAP_POS_SCORING
     uint8_t         *gDel;
     uint8_t         *gIns;
+#endif
     float           *pseudocountsWeight;
     // const size_t PROFILE_ROW_SIZE = (((size_t) PROFILE_AA_SIZE / (VECSIZE_INT * 4)) + 1) * (VECSIZE_INT * 4);
     size_t profile_row_size;
     static const size_t PROFILE_AA_SIZE = 20;
     static const size_t PROFILE_CONSENSUS = 21;     // new
     static const size_t PROFILE_NEFF = 22;          // new
+#ifdef GAP_POS_SCORING
     static const size_t PROFILE_GAP_DEL = 23;       // new
     static const size_t PROFILE_GAP_INS = 24;       // new
+#else
+    static const size_t PROFILE_GAP_RESERVED1 = 23;
+    static const size_t PROFILE_GAP_RESERVED2 = 24;
+#endif
     // 20 AA, 1 query, 1 consensus, 1 Neff M, 2 gap penalties
     static const size_t PROFILE_READIN_SIZE = 25;
     ScoreMatrix **profile_matrix;

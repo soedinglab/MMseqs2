@@ -147,7 +147,13 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
+        PSSMCalculator calculator(
+            &subMat, maxSeqLength + 1, maxSetSize, par.pcmode, par.pca, par.pcb
+#ifdef GAP_POS_SCORING
+            , par.gapOpen.values.aminoacid()
+            , par.gapPseudoCount
+#endif
+        );
 
         Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
@@ -403,7 +409,11 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             PSSMCalculator::Profile pssmRes =
                     calculator.computePSSMFromMSA(filteredSetSize, msaResult.centerLength,
-                                                  (const char **) msaResult.msaSequence, alnResults, par.wg);
+                                                  (const char **) msaResult.msaSequence,
+#ifdef GAP_POS_SCORING
+                                                  alnResults,
+#endif
+                                                  par.wg);
             if (par.compBiasCorrection == true) {
                 SubstitutionMatrix::calcGlobalAaBiasCorrection(&subMat, pssmRes.pssm, pNullBuffer,
                                                                Sequence::PROFILE_AA_SIZE,

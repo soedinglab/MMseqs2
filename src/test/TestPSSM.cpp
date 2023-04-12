@@ -1604,7 +1604,13 @@ int main (int, const char**) {
     }
 
     //seqSet.push_back(s5);
-    PSSMCalculator pssm(&subMat, 122, counter, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
+    PSSMCalculator pssm(
+        &subMat, 122, counter, par.pcmode, par.pca, par.pcb
+#ifdef GAP_POS_SCORING
+        , par.gapOpen.values.aminoacid()
+        , par.gapPseudoCount
+#endif
+    );
     pssm.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char**) res.msaSequence, false);
     //pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);

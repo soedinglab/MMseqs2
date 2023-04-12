@@ -149,8 +149,13 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                         par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0, par.zdrop);
         PSSMMasker masker(maxSequenceLength, probMatrix, subMat);
         MultipleAlignment aligner(maxSequenceLength, &subMat);
-        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode,
-                                  par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
+        PSSMCalculator calculator(
+            &subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb
+#ifdef GAP_POS_SCORING
+            , par.gapOpen.values.aminoacid()
+            , par.gapPseudoCount
+#endif
+        );
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
         Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
         Sequence edgeSequence(maxSequenceLength, targetSeqType, &subMat, 0, false, false);
@@ -251,7 +256,11 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                 }
 
                 PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
-                                                                                (const char **) res.msaSequence, alnResults, par.wg);
+                                                                                (const char **) res.msaSequence,
+#ifdef GAP_POS_SCORING
+                                                                                alnResults,
+#endif
+                                                                                par.wg);
                 if (par.compBiasCorrection == true){
                     SubstitutionMatrix::calcGlobalAaBiasCorrection(&subMat, pssmRes.pssm, pNullBuffer,
                                                                    Sequence::PROFILE_AA_SIZE,

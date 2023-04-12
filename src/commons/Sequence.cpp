@@ -63,8 +63,10 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
         }
         this->pNullBuffer           = new float[maxLen + 1];
         this->neffM                 = new float[maxLen + 1];
+#ifdef GAP_POS_SCORING
         this->gDel                  = new uint8_t[maxLen + 1];
         this->gIns                  = new uint8_t[maxLen + 1];
+#endif
         this->profile_score         = (short *)        mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(short));
         this->profile_index         = (unsigned int *) mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(int));
         this->pseudocountsWeight    = (float *)        mem_align(ALIGN_INT, (maxLen + 1) * profile_row_size * sizeof(float));
@@ -97,8 +99,10 @@ Sequence::~Sequence() {
         }
         delete[] profile_matrix;
         delete[] neffM;
+#ifdef GAP_POS_SCORING
         delete[] gDel;
         delete[] gIns;
+#endif
         delete[] pNullBuffer;
         free(pseudocountsWeight);
         free(profile_score);
@@ -249,8 +253,10 @@ void Sequence::mapProfile(const char * profileData, unsigned int seqLen){
             numSequence[l] = queryLetter; // index 0 is the highst scoring one
             numConsensusSequence[l] = data[currPos + PROFILE_CONSENSUS];
             neffM[l] = MathUtil::convertNeffToFloat(data[currPos + PROFILE_NEFF]);
+#ifdef GAP_POS_SCORING
             gDel[l] = data[currPos + PROFILE_GAP_DEL];
             gIns[l] = data[currPos + PROFILE_GAP_INS];
+#endif
             l++;
             // go to begin of next entry 0, 20, 40, 60, ...
             currPos += PROFILE_READIN_SIZE;
@@ -335,13 +341,14 @@ void Sequence::printProfile() const {
     for (size_t aa = 0; aa < PROFILE_AA_SIZE; aa++) {
         printf("%6c ", subMat->num2aa[aa]);
     }
-    printf("gDO gDC gIn\n");
     for (int i = 0; i < this->L; i++){
         printf("%3d ", i);
         for (size_t aa = 0; aa < PROFILE_AA_SIZE; aa++){
             printf("%d ", profile_score[i * profile_row_size + profile_index[i * profile_row_size + aa]]);
         }
+#ifdef GAP_POS_SCORING
         printf("%3d %3d %3d\n", gDel[i] & 0xF, gDel[i] >> 4, gIns[i]);
+#endif
     }
 }
 

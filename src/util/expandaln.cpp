@@ -196,7 +196,13 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
 
         if (returnAlnRes == false) {
             // TODO: is this right?
-            calculator = new PSSMCalculator(&subMat, par.maxSeqLen, 300, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
+            calculator = new PSSMCalculator(
+                &subMat, par.maxSeqLen, 300, par.pcmode, par.pca, par.pcb
+#ifdef GAP_POS_SCORING
+                , par.gapOpen.values.aminoacid()
+                , par.gapPseudoCount
+#endif
+            );
             masker = new PSSMMasker(par.maxSeqLen, *probMatrix, subMat);
             result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE);
             seqSet.reserve(300);

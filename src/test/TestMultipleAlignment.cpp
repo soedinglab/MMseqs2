@@ -76,8 +76,20 @@ int main(int, const char**) {
     size_t filterSetSize = filter.filter(res, alnResults, 0, qid, -20.0, 50, 100, 10000);
     std::cout << "Filtered:" << filterSetSize << std::endl;
     MultipleAlignment::print(res, &subMat);
-    PSSMCalculator pssm(&subMat, 1000, 5, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
-    pssm.computePSSMFromMSA(filterSetSize, res.centerLength, (const char **) res.msaSequence, alnResults, false);
+    PSSMCalculator pssm(
+        &subMat, 1000, 5, par.pcmode, par.pca, par.pcb
+#ifdef GAP_POS_SCORING
+        , par.gapOpen.values.aminoacid()
+        , par.gapPseudoCount
+#endif
+    );
+    pssm.computePSSMFromMSA(
+        filterSetSize, res.centerLength, (const char **) res.msaSequence
+#ifdef GAP_POS_SCORING  
+        , alnResults
+#endif
+        , false
+    );
     pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);
     MultipleAlignment::deleteMSA(&res);

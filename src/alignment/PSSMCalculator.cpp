@@ -10,10 +10,18 @@
 #include "Debug.h"
 #include "MultipleAlignment.h"
 
-
 PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, int pcmode,
-                               MultiParam<PseudoCounts> pca, MultiParam<PseudoCounts> pcb, int gapOpen, int gapPseudoCount)
-    : subMat(subMat),  ps(NULL), maxSeqLength(maxSeqLength), gapOpen(gapOpen), gapPseudoCount(gapPseudoCount), pca(pca), pcb(pcb) {
+                               MultiParam<PseudoCounts> pca, MultiParam<PseudoCounts> pcb
+#ifdef GAP_POS_SCORING
+                               , int gapOpen
+                               , int gapPseudoCount
+#endif
+    ) : subMat(subMat),  ps(NULL), maxSeqLength(maxSeqLength)
+#ifdef GAP_POS_SCORING
+    , gapOpen(gapOpen)
+    , gapPseudoCount(gapPseudoCount)
+#endif
+    , pca(pca), pcb(pcb) {
 
     if (pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
         ps = new CSProfile(maxSeqLength + 1);
@@ -48,9 +56,11 @@ PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, 
     this->pcmode = pcmode;
     this->pca = pca;
     this->pcb = pcb;
+#ifdef GAP_POS_SCORING
     gDel = new uint8_t[(maxSeqLength + 1)];
     gIns = new uint8_t[(maxSeqLength + 1)];
     gapWeightsIns.reserve(maxSeqLength + 1);
+#endif
 }
 
 PSSMCalculator::~PSSMCalculator() {
@@ -73,8 +83,10 @@ PSSMCalculator::~PSSMCalculator() {
     free(n_backing);
     delete[] n;
     free(f);
+#ifdef GAP_POS_SCORING
     delete[] gDel;
     delete[] gIns;
+#endif
 }
 
 //    PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
@@ -124,12 +136,19 @@ PSSMCalculator::~PSSMCalculator() {
 //    }
 // this overload is only used in TestProfileAlignment.cpp and TestPSSM.cpp
 PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs, bool wg) {
+#ifdef GAP_POS_SCORING
     std::vector<Matcher::result_t> dummy;
     return computePSSMFromMSA(setSize, queryLength, msaSeqs, dummy, wg);
 }
+#endif
 
-PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs,
-                                                           const std::vector<Matcher::result_t> &alnResults, bool wg) {
+#ifdef GAP_POS_SCORING
+PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(
+    size_t setSize, size_t queryLength, const char **msaSeqs,
+    const std::vector<Matcher::result_t> &alnResults,
+    bool wg
+) {
+#endif
     increaseSetSize(setSize);
     // Quick and dirty calculation of the weight per sequence wg[k]
     computeSequenceWeights(seqWeight, queryLength, setSize, msaSeqs);
@@ -175,11 +194,14 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize, size_
 
     // create final Matrix
     computeLogPSSM(subMat, pssm, profile, 8.0, queryLength, 0.0);
-    computeGapPenalties(queryLength, setSize, msaSeqs, alnResults);
 //    PSSMCalculator::printProfile(queryLength);
-
 //    PSSMCalculator::printPSSM(queryLength);
+#ifdef GAP_POS_SCORING
+    computeGapPenalties(queryLength, setSize, msaSeqs, alnResults);
     return Profile(pssm, profile, Neff_M, gDel, gIns, consensusSequence);
+#else
+    return Profile(pssm, profile, Neff_M, consensusSequence);
+#endif
 }
 
 void PSSMCalculator::printProfile(size_t queryLength) {
@@ -187,13 +209,14 @@ void PSSMCalculator::printProfile(size_t queryLength) {
     for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
         printf(" %6c", subMat->num2aa[aa]);
     }
-    printf(" gDelOpn gDelCls gInsOpn\n");
     for (size_t i = 0; i < queryLength; i++) {
         printf("%3zu", i);
         for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
             printf(" %.4f", profile[i * Sequence::PROFILE_AA_SIZE + aa]);
         }
+#ifdef GAP_POS_SCORING
         printf(" %7d %7d %7d\n", gDel[i] & 0xF, gDel[i] >> 4, gIns[i]);
+#endif
     }
 }
 
@@ -546,6 +569,7 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
     }
 }
 
+#ifdef GAP_POS_SCORING
 void PSSMCalculator::computeGapPenalties(size_t queryLength, size_t setSize, const char **msaSeqs, const std::vector<Matcher::result_t> &alnResults) {
     gapWeightsIns.clear();
     const float pseudoCounts = gapPseudoCount / seqWeightTotal;
@@ -603,6 +627,7 @@ void PSSMCalculator::computeGapPenalties(size_t queryLength, size_t setSize, con
         --k;
     }
 }
+#endif
 
 
 void PSSMCalculator::computeConsensusSequence(unsigned char * consensusSeq, float *frequency, size_t queryLength, double *pBack, char *num2aa) {
@@ -633,8 +658,13 @@ void PSSMCalculator::Profile::toBuffer(const unsigned char* centerSequence, size
         result.push_back(static_cast<unsigned char>(centerSequence[pos]));
         result.push_back(static_cast<unsigned char>(subMat.aa2num[static_cast<int>(consensus[pos])]));
         result.push_back(static_cast<unsigned char>(MathUtil::convertNeffToChar(neffM[pos])));
+#ifdef GAP_POS_SCORING
         result.push_back(gDel[pos]);
         result.push_back(gIns[pos]);
+#else
+        result.push_back(static_cast<unsigned char>(0));
+        result.push_back(static_cast<unsigned char>(0));
+#endif
     }
 }
 

@@ -59,8 +59,11 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
             seq.mapSequence(id, queryKey, seqData, seqLen);
             float * profile = ps.computeSequenceCs(seq.numSequence, seq.L, par.tau);
             PSSMCalculator::computeLogPSSM(&subMat, pssm, profile, 8.0,  seq.L, 0.0);
-            // TODO: gDel, gIns left NULL
+#ifdef GAP_POS_SCORING
             PSSMCalculator::Profile pssmRes(pssm, profile, Neff_M, NULL, NULL, seq.numSequence);
+#else
+            PSSMCalculator::Profile pssmRes(pssm, profile, Neff_M, seq.numSequence);
+#endif
             if (par.maskProfile == true) {
                 masker.mask(seq, par.maskProb, pssmRes);
             }

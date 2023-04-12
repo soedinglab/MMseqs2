@@ -420,7 +420,9 @@ public:
     MultiParam<NuclAA<int>> gapOpen;             // gap open cost
     MultiParam<NuclAA<int>> gapExtend;           // gap extension cost
     float correlationScoreWeight; // correlation score weight
+#ifdef GAP_POS_SCORING
     int    gapPseudoCount;               // for calculation of position-specific gap opening penalties
+#endif
     int    zdrop;                        // zdrop
 
     // workflow
@@ -753,7 +755,9 @@ public:
     PARAMETER(PARAM_ALT_ALIGNMENT)
     PARAMETER(PARAM_GAP_OPEN)
     PARAMETER(PARAM_GAP_EXTEND)
+#ifdef GAP_POS_SCORING
     PARAMETER(PARAM_GAP_PSEUDOCOUNT)
+#endif
     PARAMETER(PARAM_ZDROP)
 
     // clustering

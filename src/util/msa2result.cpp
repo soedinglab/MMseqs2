@@ -157,8 +157,13 @@ int msa2result(int argc, const char **argv, const Command &command) {
 #endif
 
 
-        PSSMCalculator calculator(&subMat, maxSeqLength + 1, maxSetSize, par.pcmode, par.pca, par.pcb,
-                                  par.gapOpen.values.aminoacid(), par.gapPseudoCount);
+        PSSMCalculator calculator(
+            &subMat, maxSeqLength + 1, maxSetSize, par.pcmode, par.pca, par.pcb
+#ifdef GAP_POS_SCORING
+            , par.gapOpen.values.aminoacid()
+            , par.gapPseudoCount
+#endif
+        );
         Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
         char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * (maxSeqLength + 1) * maxSetSize);

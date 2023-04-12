@@ -85,7 +85,9 @@ Parameters::Parameters():
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID, "--alt-ali", "Alternative alignments", "Show up to this many alternative alignments", typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID, "--gap-open", "Gap open cost", "Gap open cost", typeid(MultiParam<NuclAA<int>>), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID, "--gap-extend", "Gap extension cost", "Gap extension cost", typeid(MultiParam<NuclAA<int>>), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
+#ifdef GAP_POS_SCORING
         PARAM_GAP_PSEUDOCOUNT(PARAM_GAP_PSEUDOCOUNT_ID, "--gap-pc", "Gap pseudo count", "Pseudo count for calculating position-specific gap opening penalties", typeid(int), &gapPseudoCount, "^[0-9]+$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
+#endif
         PARAM_ZDROP(PARAM_ZDROP_ID, "--zdrop", "Zdrop", "Maximal allowed difference between score values before alignment is truncated  (nucleotide alignment only)", typeid(int), (void*) &zdrop, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID, "--cluster-mode", "Cluster mode", "0: Set-Cover (greedy)\n1: Connected component (BLASTclust)\n2,3: Greedy clustering by sequence length (CDHIT)", typeid(int), (void *) &clusteringMode, "[0-3]{1}$", MMseqsParameter::COMMAND_CLUST),
@@ -519,7 +521,9 @@ Parameters::Parameters():
     result2profile.push_back(&PARAM_PRELOAD_MODE);
     result2profile.push_back(&PARAM_GAP_OPEN);
     result2profile.push_back(&PARAM_GAP_EXTEND);
+#ifdef GAP_POS_SCORING
     result2profile.push_back(&PARAM_GAP_PSEUDOCOUNT);
+#endif
     result2profile.push_back(&PARAM_THREADS);
     result2profile.push_back(&PARAM_COMPRESSED);
     result2profile.push_back(&PARAM_V);
@@ -642,7 +646,9 @@ Parameters::Parameters():
     msa2profile.push_back(&PARAM_GAP_OPEN);
     msa2profile.push_back(&PARAM_GAP_EXTEND);
     msa2profile.push_back(&PARAM_SKIP_QUERY);
+#ifdef GAP_POS_SCORING
     msa2profile.push_back(&PARAM_GAP_PSEUDOCOUNT);
+#endif
     msa2profile.push_back(&PARAM_THREADS);
     msa2profile.push_back(&PARAM_COMPRESSED);
     msa2profile.push_back(&PARAM_V);
@@ -1151,7 +1157,9 @@ Parameters::Parameters():
     expand2profile.push_back(&PARAM_SUB_MAT);
     expand2profile.push_back(&PARAM_GAP_OPEN);
     expand2profile.push_back(&PARAM_GAP_EXTEND);
+#ifdef GAP_POS_SCORING
     expand2profile.push_back(&PARAM_GAP_PSEUDOCOUNT);
+#endif
     expand2profile.push_back(&PARAM_MAX_SEQ_LEN);
     expand2profile.push_back(&PARAM_SCORE_BIAS);
     expand2profile.push_back(&PARAM_NO_COMP_BIAS_CORR);
@@ -2263,7 +2271,9 @@ void Parameters::setDefaults() {
     altAlignment = 0;
     gapOpen = MultiParam<NuclAA<int>>(NuclAA<int>(11, 5));
     gapExtend = MultiParam<NuclAA<int>>(NuclAA<int>(1, 2));
+#ifdef GAP_POS_SCORING
     gapPseudoCount = 10;
+#endif
     zdrop = 40;
     addBacktrace = false;
     realign = false;

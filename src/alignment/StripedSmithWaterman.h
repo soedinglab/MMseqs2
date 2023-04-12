@@ -82,6 +82,7 @@ public:
         simd_int* profile_word;	// 0: none
         simd_int* profile_rev_byte;	// 0: none
         simd_int* profile_rev_word;	// 0: none
+#ifdef GAP_POS_SCORING
         // gap penalties
         simd_int* profile_gDelOpen_byte;
         simd_int* profile_gDelOpen_word;
@@ -101,6 +102,7 @@ public:
         uint8_t* gDelOpen_rev;
         uint8_t* gDelClose_rev;
         uint8_t* gIns_rev;
+#endif
         // profile-profile
         simd_int* consens_byte;
         simd_int* consens_word;
@@ -331,9 +333,11 @@ private:
                                  const uint8_t gap_extend, /* will be used as - */
                                  const simd_int* query_profile_byte,
                                  const simd_int* query_consens_byte,
+#ifdef GAP_POS_SCORING
                                  const simd_int* gap_open_del,
                                  const simd_int* gap_close_del,
                                  const simd_int* gap_open_ins,
+#endif
                                  uint8_t terminate,	/* the best alignment score: used to terminate
                                                      the matrix calculation when locating the
                                                      alignment beginning point. If this score
@@ -351,10 +355,11 @@ private:
                                  const uint8_t gap_extend, /* will be used as - */
                                  const simd_int*query_profile_word,
                                  const simd_int* query_consens_word,
-//                                 const simd_int*query_profile_byte,
+#ifdef GAP_POS_SCORING
                                  const simd_int* gap_open_del,
                                  const simd_int* gap_close_del,
                                  const simd_int* gap_open_ins,
+#endif
                                  uint16_t terminate,
                                  uint16_t bias,
                                  int32_t maskLen);
@@ -363,9 +368,11 @@ private:
     SmithWaterman::cigar *banded_sw(const unsigned char *db_sequence, const int8_t *query_sequence,
                                     const int8_t *query_consens_sequence, const int8_t * compositionBias,
                                     int32_t db_length, int32_t query_length, int32_t queryStart, int32_t targetStart,
-                                    int32_t score, const uint32_t gap_open, const uint32_t gap_extend, uint8_t *gDelOpen,
-                                    uint8_t *gDelClose, uint8_t *gIns, int32_t band_width,
-                                    const int8_t *mat, const int8_t *target_mat, const int32_t qry_n, const int32_t tgt_n);
+                                    int32_t score, const uint32_t gap_open, const uint32_t gap_extend,
+#ifdef GAP_POS_SCORING
+                                    uint8_t *gDelOpen, uint8_t *gDelClose, uint8_t *gIns,
+#endif
+                                    int32_t band_width, const int8_t *mat, const int8_t *target_mat, const int32_t qry_n, const int32_t tgt_n);
 
 
     /*!	@function		Produce CIGAR 32-bit unsigned integer from CIGAR operation and CIGAR length

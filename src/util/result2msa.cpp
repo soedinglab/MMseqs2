@@ -168,7 +168,13 @@ int result2msa(int argc, const char **argv, const Command &command) {
         Matcher matcher(qDbr->getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection,
                         par.compBiasCorrectionScale, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0, par.zdrop);
         MultipleAlignment aligner(maxSequenceLength, &subMat);
-        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
+        PSSMCalculator calculator(
+            &subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb
+#ifdef GAP_POS_SCORING
+            , par.gapOpen.values.aminoacid()
+            , par.gapPseudoCount
+#endif
+        );
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
         UniprotHeaderSummarizer summarizer;
         Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
@@ -445,7 +451,12 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         }
                     }
 
-                    PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength, (const char **) res.msaSequence, alnResults, par.wg);
+                    PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(
+                        filteredSetSize, res.centerLength, (const char **) res.msaSequence,
+#ifdef GAP_POS_SCORING
+                        alnResults,
+#endif
+                        par.wg);
                     result.append(">consensus_");
                     result.append(centerSequenceHeader, centerHeaderLength);
                     for (int pos = 0; pos < centerSequence.L; pos++) {

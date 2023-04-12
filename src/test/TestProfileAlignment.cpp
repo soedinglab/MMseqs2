@@ -7,7 +7,7 @@
 #include <iostream>
 #include <string.h>
 #include <cmath>
-#include <PSSMCalculator.h>
+#include "PSSMCalculator.h"
 #include "Sequence.h"
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
@@ -754,7 +754,13 @@ int main (int, const char**) {
             "\x7f\x7d\x7d\x7d";
     std::cout << "Sequence (id 0):";
     //const char* sequence = read_seq;
-    PSSMCalculator pssmCalculator(&subMat, 10000, 10000, par.pcmode, par.pca, par.pcb, par.gapOpen.values.aminoacid(), par.gapPseudoCount);
+    PSSMCalculator pssmCalculator(
+        &subMat, 10000, 10000, par.pcmode, par.pca, par.pcb
+#ifdef GAP_POS_SCORING
+        , par.gapOpen.values.aminoacid()
+        , par.gapPseudoCount
+#endif
+    );
     const size_t setSize = 1;
     const char * msaSeq[setSize] = {"LFILNIISMNKQTKVKGYLLLLLVISSLFISLVGHGYTANKVSAPNPAKEYPQDNLSVIDMKNLPGTQIKSMVKDELQQFLEEQGFRRLKNKSLVDLRRIWLGFMYEDFFYTMHKKTDLPISVIYAFFIIEATNAGIESKLMAKALNPGGIKYRGTGKKMKAMDDCY",
                         };

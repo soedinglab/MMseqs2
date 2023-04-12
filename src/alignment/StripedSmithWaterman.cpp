@@ -59,6 +59,7 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
 	profile->profile_word = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
     profile->profile_rev_byte = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
     profile->profile_rev_word = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
+#ifdef GAP_POS_SCORING
     profile->profile_gDelOpen_byte = (simd_int*)mem_align(ALIGN_INT, segSize * sizeof(simd_int));
     profile->profile_gDelOpen_word = (simd_int*)mem_align(ALIGN_INT, segSize * sizeof(simd_int));
     profile->profile_gDelClose_byte = (simd_int*)mem_align(ALIGN_INT, segSize * sizeof(simd_int));
@@ -76,6 +77,7 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
     profile->gDelOpen_rev = new uint8_t[maxSequenceLength];
     profile->gDelClose_rev = new uint8_t[maxSequenceLength];
     profile->gIns_rev = new uint8_t[maxSequenceLength];
+#endif
     // query consensus profile
 	profile->consens_byte = (simd_int*)mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	profile->consens_word = (simd_int*)mem_align(ALIGN_INT, segSize * sizeof(simd_int));
@@ -120,6 +122,7 @@ SmithWaterman::~SmithWaterman(){
 	free(profile->consens_word);
 	free(profile->consens_rev_byte);
 	free(profile->consens_rev_word);
+#ifdef GAP_POS_SCORING
     free(profile->profile_gDelOpen_byte);
     free(profile->profile_gDelOpen_word);
     free(profile->profile_gDelClose_byte);
@@ -137,6 +140,7 @@ SmithWaterman::~SmithWaterman(){
     delete[] profile->gDelOpen_rev;
     delete[] profile->gDelClose_rev;
     delete[] profile->gIns_rev;
+#endif
 	delete [] profile->query_rev_sequence;
 	delete [] profile->query_sequence;
 	delete [] profile->query_consens_sequence;
@@ -250,6 +254,7 @@ void SmithWaterman::reverseMat(int8_t *mat_rev, const int8_t *mat, const int32_t
     }
 }
 
+#ifdef GAP_POS_SCORING
 template <typename T, size_t Elements>
 void createGapProfile(simd_int* profile_gDelOpen, simd_int* profile_gDelClose, simd_int* profile_gIns,
                       const uint8_t* gDelOpen, const uint8_t* gDelClose, const uint8_t* gIns,
@@ -268,6 +273,7 @@ void createGapProfile(simd_int* profile_gDelOpen, simd_int* profile_gDelClose, s
         }
     }
 }
+#endif
 
 s_align SmithWaterman::ssw_align (
         const unsigned char *db_num_sequence,
@@ -346,12 +352,18 @@ s_align SmithWaterman::ssw_align_private (
             createTargetProfile(db_profile_byte, db_mat, db_length, profile->alphabetSize - 1, profile->bias);
         }
         bests = sw_sse2_byte<type,posSpecificGaps>(db_sequence, db_profile_byte, 0, db_length, query_length, gap_open, gap_extend,
-                profile->profile_byte, profile->consens_byte, profile->profile_gDelOpen_byte, profile->profile_gDelClose_byte,
-                profile->profile_gIns_byte, UCHAR_MAX, profile->bias, maskLen);
+                profile->profile_byte, profile->consens_byte,
+#ifdef GAP_POS_SCORING
+				profile->profile_gDelOpen_byte, profile->profile_gDelClose_byte, profile->profile_gIns_byte,
+#endif
+				UCHAR_MAX, profile->bias, maskLen);
         if (bests.first.score == 255) {
             bests = sw_sse2_word<type,posSpecificGaps>(db_sequence, db_profile_byte, 0, db_length, query_length, gap_open, gap_extend,
-                    profile->profile_word, profile->consens_word, profile->profile_gDelOpen_word, profile->profile_gDelClose_word,
-                    profile->profile_gIns_word, USHRT_MAX, profile->bias, maskLen);
+                    profile->profile_word, profile->consens_word,
+#ifdef GAP_POS_SCORING
+					profile->profile_gDelOpen_word, profile->profile_gDelClose_word, profile->profile_gIns_word,
+#endif
+					USHRT_MAX, profile->bias, maskLen);
             word = 1;
         }
     } else {
@@ -389,8 +401,12 @@ s_align SmithWaterman::ssw_align_private (
 	    if (type == PROFILE_SEQ || type == PROFILE_PROFILE) {
 	        createQueryProfile<int8_t, VECSIZE_INT * 4, PROFILE>(profile->profile_rev_byte, profile->query_rev_sequence, NULL, profile->mat_rev,
                                                                      r.qEndPos1 + 1, profile->alphabetSize, profile->bias, queryOffset, profile->query_length);
-            createGapProfile<int8_t, VECSIZE_INT * 4>(profile->profile_gDelOpen_rev_byte, profile->profile_gDelClose_rev_byte, profile->profile_gIns_rev_byte,
-                                                      profile->gDelOpen_rev, profile->gDelClose_rev, profile->gIns_rev, profile->query_length, queryOffset);
+#ifdef GAP_POS_SCORING
+			if (posSpecificGaps) {
+				createGapProfile<int8_t, VECSIZE_INT * 4>(profile->profile_gDelOpen_rev_byte, profile->profile_gDelClose_rev_byte, profile->profile_gIns_rev_byte,
+														profile->gDelOpen_rev, profile->gDelClose_rev, profile->gIns_rev, profile->query_length, queryOffset);
+			}
+#endif
 	        if (type == PROFILE_PROFILE) {
                 createConsensProfile<int8_t, VECSIZE_INT * 4>(profile->consens_rev_byte, profile->query_consens_rev_sequence,
                                                               r.qEndPos1 + 1, queryOffset);
@@ -405,19 +421,25 @@ s_align SmithWaterman::ssw_align_private (
 	    }
         bests_reverse = sw_sse2_byte<type,posSpecificGaps>(db_sequence, db_profile_byte, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open,
                                            gap_extend, profile->profile_rev_byte, profile->consens_rev_byte,
-                                           profile->profile_gDelOpen_rev_byte, profile->profile_gDelClose_rev_byte,
-                                           profile->profile_gIns_rev_byte, r.score1, profile->bias, maskLen);
+#ifdef GAP_POS_SCORING
+                                           profile->profile_gDelOpen_rev_byte, profile->profile_gDelClose_rev_byte, profile->profile_gIns_rev_byte,
+#endif
+										   r.score1, profile->bias, maskLen);
 	} else {
         if (type == PROFILE_SEQ || type == PROFILE_PROFILE) {
             createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_rev_word,
                                                                   profile->query_rev_sequence, NULL, profile->mat_rev,
                                                                   r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset,
                                                                   profile->query_length);
-            createGapProfile<int16_t, VECSIZE_INT * 2>(profile->profile_gDelOpen_rev_word,
-                                                       profile->profile_gDelClose_rev_word,
-                                                       profile->profile_gIns_rev_word, profile->gDelOpen_rev,
-                                                       profile->gDelClose_rev, profile->gIns_rev,
-                                                       profile->query_length, queryOffset);
+#ifdef GAP_POS_SCORING
+			if (posSpecificGaps) {
+				createGapProfile<int16_t, VECSIZE_INT * 2>(profile->profile_gDelOpen_rev_word,
+														profile->profile_gDelClose_rev_word,
+														profile->profile_gIns_rev_word, profile->gDelOpen_rev,
+														profile->gDelClose_rev, profile->gIns_rev,
+														profile->query_length, queryOffset);
+			}
+#endif
             if (type == PROFILE_PROFILE) {
                 createConsensProfile<int16_t, VECSIZE_INT * 2>(profile->consens_rev_word,
                                                                profile->query_consens_rev_sequence,
@@ -434,8 +456,10 @@ s_align SmithWaterman::ssw_align_private (
         bests_reverse = sw_sse2_word<type,posSpecificGaps>(db_sequence, db_profile_byte, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open,
                                            gap_extend,
                                            profile->profile_rev_word, profile->consens_rev_word,
-                                           profile->profile_gDelOpen_rev_word, profile->profile_gDelClose_rev_word,
-                                           profile->profile_gIns_rev_word, r.score1, profile->bias, maskLen);
+#ifdef GAP_POS_SCORING
+                                           profile->profile_gDelOpen_rev_word, profile->profile_gDelClose_rev_word, profile->profile_gIns_rev_word,
+#endif
+										   r.score1, profile->bias, maskLen);
     }
 
 
@@ -474,21 +498,28 @@ s_align SmithWaterman::ssw_align_private (
 	// TODO: fix banded_sw
 	if (type == PROFILE_PROFILE) {
 	    path = banded_sw<type,posSpecificGaps>(db_consens_seq + r.dbStartPos1, profile->query_sequence + r.qStartPos1, profile->query_consens_sequence + r.qStartPos1, NULL, db_length,
-	            query_length, r.qStartPos1, r.dbStartPos1, r.score1, gap_open, gap_extend, profile->gDelOpen + r.qStartPos1,
-	            profile->gDelClose + r.qStartPos1, profile->gIns + r.qStartPos1, band_width, profile->mat, db_matrix,
-	            qry_n, db_n);
+	            query_length, r.qStartPos1, r.dbStartPos1, r.score1, gap_open, gap_extend,
+#ifdef GAP_POS_SCORING
+				profile->gDelOpen + r.qStartPos1, profile->gDelClose + r.qStartPos1, profile->gIns + r.qStartPos1,
+#endif
+				band_width, profile->mat, db_matrix, qry_n, db_n);
 	} else if (type == PROFILE_SEQ) {
         path = banded_sw<type,posSpecificGaps>(db_sequence + r.dbStartPos1, profile->query_sequence + r.qStartPos1, NULL, profile->composition_bias + r.qStartPos1, db_length,
-                query_length, r.qStartPos1, r.dbStartPos1, r.score1, gap_open, gap_extend, profile->gDelOpen + r.qStartPos1,
-                               profile->gDelClose + r.qStartPos1, profile->gIns + r.qStartPos1, band_width, profile->mat, NULL,
-                profile->query_length, 0);
+                query_length, r.qStartPos1, r.dbStartPos1, r.score1, gap_open, gap_extend,
+#ifdef GAP_POS_SCORING
+				profile->gDelOpen + r.qStartPos1, profile->gDelClose + r.qStartPos1, profile->gIns + r.qStartPos1,
+#endif
+				band_width, profile->mat, NULL, profile->query_length, 0);
 	} else {
         path = banded_sw<type,posSpecificGaps>(db_sequence + r.dbStartPos1, profile->query_sequence + r.qStartPos1, NULL, profile->composition_bias + r.qStartPos1, db_length,
-                query_length, r.qStartPos1, r.dbStartPos1, r.score1, gap_open, gap_extend, nullptr, nullptr, nullptr, band_width, profile->mat, NULL,
-                profile->alphabetSize, 0);
-	db_length = r.dbEndPos1 - r.dbStartPos1 + 1;
-	query_length = r.qEndPos1 - r.qStartPos1 + 1;
-	band_width = abs(db_length - query_length) + 1;
+                query_length, r.qStartPos1, r.dbStartPos1, r.score1, gap_open, gap_extend,
+#ifdef GAP_POS_SCORING
+				nullptr, nullptr, nullptr,
+#endif
+		band_width, profile->mat, NULL, profile->alphabetSize, 0);
+		db_length = r.dbEndPos1 - r.dbStartPos1 + 1;
+		query_length = r.qEndPos1 - r.qStartPos1 + 1;
+		band_width = abs(db_length - query_length) + 1;
 	}
 
     if (path != NULL) {
@@ -615,9 +646,11 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 														   const uint8_t gap_extend, /* will be used as - */
 														   const simd_int* query_profile_byte, /* profile_byte loaded in ssw_init */
 														   const simd_int* query_consens_byte, /* profile_consens_byte loaded in ssw_init */
+#ifdef GAP_POS_SCORING
                                                            const simd_int *gap_open_del,
                                                            const simd_int *gap_close_del,
                                                            const simd_int *gap_open_ins,
+#endif
 														   uint8_t terminate,	/* the best alignment score: used to terminate
                                                          the matrix calculation when locating the
                                                          alignment beginning point. If this score
@@ -649,11 +682,7 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 
 	int32_t i, j;
     /* 16 byte insertion begin vector */
-    // TODO: is this right?
-	simd_int vGapO;
-	if (posSpecificGaps == false) {
-	    vGapO = simdi8_set(gap_open);
-	}
+	simd_int vGapO = simdi8_set(gap_open);
 
     /* 16 byte insertion extension vector */
 	simd_int vGapE = simdi8_set(gap_extend);
@@ -740,24 +769,32 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
             /* Get max from vH, vE and vF. */
 			e = simdi_load(pvE + j);
             vH = simdui8_max(vH, e);
+#ifdef GAP_POS_SCORING
             if (posSpecificGaps) {
                 vH = simdui8_max(vH, simdui8_subs(vF, simdi_load(gap_close_del + j)));
             } else {
+#endif
                 vH = simdui8_max(vH, vF);
+#ifdef GAP_POS_SCORING
             }
+#endif
 			vMaxColumn = simdui8_max(vMaxColumn, vH);
 
 			/* Save vH values. */
 			simdi_store(pvHStore + j, vH);
 
 			/* Update vE value. */
+#ifdef GAP_POS_SCORING
             if (posSpecificGaps) {
                 // copy vH for update of vF
                 vTemp = vH;
                 vH = simdui8_subs(vH, simdi_load(gap_open_ins + j)); /* saturation arithmetic, result >= 0 */
             } else {
+#endif
                 vH = simdui8_subs(vH, vGapO); /* saturation arithmetic, result >= 0 */
+#ifdef GAP_POS_SCORING
             }
+#endif
 
 			e = simdui8_subs(e, vGapE);
 			e = simdui8_max(e, vH);
@@ -765,11 +802,15 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 
 			/* Update vF value. */
 			vF = simdui8_subs(vF, vGapE);
+#ifdef GAP_POS_SCORING
             if (posSpecificGaps) {
                 vF = simdui8_max(vF, simdui8_subs(vTemp, simdi_load(gap_open_del + j)));
             } else {
+#endif
                 vF = simdui8_max(vF, vH);
+#ifdef GAP_POS_SCORING
             }
+#endif
 
 			/* Load the next vH. */
 			vH = simdi_load(pvHLoad + j);
@@ -784,21 +825,29 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 		/*  we are at the end, we need to shift the vF value over */
 		/*  to the next column. */
 		vF = simdi8_shiftl (vF, 1);
+#ifdef GAP_POS_SCORING
         if (posSpecificGaps) {
             vTemp = simdui8_subs(vH, simdi_load(gap_open_del + j));
         } else {
+#endif
             vTemp = simdui8_subs(vH, vGapO);
+#ifdef GAP_POS_SCORING
         }
+#endif
 		vTemp = simdui8_subs (vF, vTemp);
 		vTemp = simdi8_eq (vTemp, vZero);
 		uint32_t cmp = simdi8_movemask (vTemp);
 		while (cmp != SIMD_MOVEMASK_MAX) {
+#ifdef GAP_POS_SCORING
             if (posSpecificGaps) {
                 vH = simdui8_max (vH, simdui8_subs(vF, simdi_load(gap_close_del + j)));
                 simdi_store(pvE + j, simdui8_max(simdi_load(pvE + j), simdui8_subs(vH, simdi_load(gap_open_ins + j))));
             } else {
+#endif
                 vH = simdui8_max (vH, vF);
+#ifdef GAP_POS_SCORING
             }
+#endif
 
 			vMaxColumn = simdui8_max(vMaxColumn, vH);
 			simdi_store (pvHStore + j, vH);
@@ -812,11 +861,15 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 			}
 			vH = simdi_load (pvHStore + j);
 
+#ifdef GAP_POS_SCORING
             if (posSpecificGaps) {
                 vTemp = simdui8_subs(vH, simdi_load(gap_open_del + j));
             } else {
+#endif
                 vTemp = simdui8_subs(vH, vGapO);
+#ifdef GAP_POS_SCORING
             }
+#endif
 			vTemp = simdui8_subs (vF, vTemp);
 			vTemp = simdi8_eq (vTemp, vZero);
 			cmp  = simdi8_movemask (vTemp);
@@ -906,9 +959,11 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 														   const uint8_t gap_extend, /* will be used as - */
 														   const simd_int* query_profile_word,
 														   const simd_int* query_consens_word,
+#ifdef GAP_POS_SCORING
                                                            const simd_int *gap_open_del,
                                                            const simd_int *gap_close_del,
                                                            const simd_int *gap_open_ins,
+#endif
 														   uint16_t terminate,
                                                            const uint16_t bias,
                                                            int32_t maskLen) {
@@ -938,10 +993,8 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 	int32_t i, j, k;
 
     /* 16 byte insertion begin vector */
-    simd_int vGapO;
-    if (posSpecificGaps == false) {
-        vGapO = simdi16_set(gap_open);
-    }
+    simd_int vGapO = simdi16_set(gap_open);
+
 	/* 16 byte insertion extension vector */
 	simd_int vGapE = simdi16_set(gap_extend);
 
@@ -1016,8 +1069,8 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 #endif
                 scoreLookup = simdi_and(scoreLookup, simdi16_set(0x00FF));
                 score = simdui16_avg(scoreLookup, simdi16_add(simdi_load(vP + j), vBias));
-		score = simdi16_sub(score, vBias);
-		//scoreLookup = simdi16_add(scoreLookup, vBias);
+				score = simdi16_sub(score, vBias);
+				//scoreLookup = simdi16_add(scoreLookup, vBias);
                 //score = simdi16_max(scoreLookup, simdi_load(vP + j));
 		    } else {
 		        score = simdi_load(vP + j);
@@ -1028,11 +1081,15 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 			/* Get max from vH, vE and vF. */
 			e = simdi_load(pvE + j);
             vH = simdi16_max(vH, e);
+#ifdef GAP_POS_SCORING
             if (posSpecificGaps) {
                 vH = simdi16_max(vH, simdui16_subs(vF, simdi_load(gap_close_del + j)));
             } else {
+#endif
                 vH = simdi16_max(vH, vF);
+#ifdef GAP_POS_SCORING
             }
+#endif
 
 			vMaxColumn = simdi16_max(vMaxColumn, vH);
 
@@ -1040,24 +1097,32 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 			simdi_store(pvHStore + j, vH);
 
 			/* Update vE value. */
+#ifdef GAP_POS_SCORING
             if (posSpecificGaps) {
                 // copy vH for update of vF
                 vTemp = vH;
                 vH = simdui16_subs(vH, simdi_load(gap_open_ins + j)); /* saturation arithmetic, result >= 0 */
             } else {
+#endif
                 vH = simdui16_subs(vH, vGapO); /* saturation arithmetic, result >= 0 */
+#ifdef GAP_POS_SCORING
             }
+#endif
 			e = simdui16_subs(e, vGapE);
 			e = simdi16_max(e, vH);
 			simdi_store(pvE + j, e);
 
 			/* Update vF value. */
 			vF = simdui16_subs(vF, vGapE);
+#ifdef GAP_POS_SCORING
             if (posSpecificGaps) {
                 vF = simdi16_max(vF, simdui16_subs(vTemp, simdi_load(gap_open_del + j)));
             } else {
+#endif
                 vF = simdi16_max(vF, vH);
+#ifdef GAP_POS_SCORING
             }
+#endif
 
 			/* Load the next vH. */
 			vH = simdi_load(pvHLoad + j);
@@ -1068,20 +1133,28 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 			vF = simdi8_shiftl (vF, 2);
 			for (j = 0; LIKELY(j < segLen); ++j) {
 				vH = simdi_load(pvHStore + j);
+#ifdef GAP_POS_SCORING
                 if (posSpecificGaps) {
                     vH = simdi16_max(vH, simdui16_subs(vF, simdi_load(gap_close_del + j)));
                     simdi_store(pvE + j, simdi16_max(simdi_load(pvE + j), simdui16_subs(vH, simdi_load(gap_open_ins + j))));
                 } else {
+#endif
                     vH = simdi16_max(vH, vF);
+#ifdef GAP_POS_SCORING
                 }
+#endif
 
 				vMaxColumn = simdi16_max(vMaxColumn, vH); //newly added line
 				simdi_store(pvHStore + j, vH);
+#ifdef GAP_POS_SCORING
                 if (posSpecificGaps) {
                     vH = simdui16_subs(vH, simdi_load(gap_open_del + j));
                 } else {
+#endif
                     vH = simdui16_subs(vH, vGapO);
+#ifdef GAP_POS_SCORING
                 }
+#endif
 				vF = simdui16_subs(vF, vGapE);
 				if (UNLIKELY(! simdi8_movemask(simdi16_gt(vF, vH)))) goto end;
 			}
@@ -1195,6 +1268,7 @@ void SmithWaterman::ssw_init(const Sequence* q,
 	}
 	// create gap-penalties profile
     if (isProfile) {
+#ifdef GAP_POS_SCORING
         profile->gIns = q->gIns;
         // insertion penalties are shifted by one position for the reverse direction (2nd to last becomes first)
         std::reverse_copy(q->gIns, q->gIns + q->L - 1, profile->gIns_rev);
@@ -1207,6 +1281,7 @@ void SmithWaterman::ssw_init(const Sequence* q,
         profile->gDelOpen_rev[0] = 0;
         std::reverse_copy(profile->gDelOpen + 1, profile->gDelOpen + q->L, profile->gDelClose_rev + 1);
         std::reverse_copy(profile->gDelClose + 1, profile->gDelClose + q->L, profile->gDelOpen_rev + 1);
+#endif
         for (int32_t i = 0; i < alphabetSize; i++) {
             const int8_t *startToRead = profile->mat + (i * q->L);
             int8_t *startToWrite      = profile->mat_rev + (i * q->L);
@@ -1233,14 +1308,18 @@ void SmithWaterman::ssw_init(const Sequence* q,
         createQueryProfile<int8_t, VECSIZE_INT * 4, PROFILE>(profile->profile_byte, profile->query_sequence, NULL,
                                                              profile->mat, q->L, alphabetSize, profile->bias, 0, q->L);
         createConsensProfile<int8_t, VECSIZE_INT * 4>(profile->consens_byte, profile->query_consens_sequence, q->L, 0);
+#ifdef GAP_POS_SCORING
         createGapProfile<int8_t, VECSIZE_INT * 4>(profile->profile_gDelOpen_byte, profile->profile_gDelClose_byte,
                                                   profile->profile_gIns_byte, profile->gDelOpen, profile->gDelClose, q->gIns, q->L, 0);
+#endif
         // create word version of profiles
         createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_word, profile->query_sequence, NULL,
                                                               profile->mat, q->L, alphabetSize, 0, 0, q->L);
         createConsensProfile<int16_t, VECSIZE_INT * 2>(profile->consens_word, profile->query_consens_sequence, q->L, 0);
+#ifdef GAP_POS_SCORING
         createGapProfile<int16_t, VECSIZE_INT * 2>(profile->profile_gDelOpen_word, profile->profile_gDelClose_word, profile->profile_gIns_word,
                                                    profile->gDelOpen, profile->gDelClose, q->gIns, q->L, 0);
+#endif
         // create linear version of word profile
         for (int32_t i = 0; i< alphabetSize; i++) {
             profile->profile_word_linear[i] = &profile_word_linear_data[i*q->L];
@@ -1286,8 +1365,11 @@ SmithWaterman::cigar * SmithWaterman::banded_sw(const unsigned char *db_sequence
                                                 const int8_t *query_consens_sequence, const int8_t * compositionBias,
 												int32_t db_length, int32_t query_length, int32_t queryStart,
 												int32_t targetStart, int32_t score, const uint32_t gap_open,
-												const uint32_t gap_extend, uint8_t *gDelOpen, uint8_t *gDelClose,
-												uint8_t *gIns, int32_t band_width, const int8_t *mat, const int8_t *db_mat,
+												const uint32_t gap_extend,
+#ifdef GAP_POS_SCORING
+												uint8_t *gDelOpen, uint8_t *gDelClose, uint8_t *gIns,
+#endif
+												int32_t band_width, const int8_t *mat, const int8_t *db_mat,
 												const int32_t qry_n, const int32_t tgt_n) {
 #define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
 
@@ -1353,32 +1435,44 @@ SmithWaterman::cigar * SmithWaterman::banded_sw(const unsigned char *db_sequence
 				set_d(df, band_width, i, j, 1);
 				set_d(dh, band_width, i, j, 2);
 
-                if (!posSpecificGaps) {
-                    temp1 = i == 0 ? -gap_open : h_b[e] - gap_open;
-                } else {
+#ifdef GAP_POS_SCORING
+                if (posSpecificGaps) {
                     temp1 = i == 0 ? -gap_open : h_b[e] - gDelOpen[i];
+                } else {
+#endif
+                    temp1 = i == 0 ? -gap_open : h_b[e] - gap_open;
+#ifdef GAP_POS_SCORING
                 }
+#endif
 
                 temp2 = i == 0 ? -gap_extend : e_b[e] - gap_extend;
 				e_b[u] = temp1 > temp2 ? temp1 : temp2;
 				direction_line[de] = temp1 > temp2 ? 3 : 2;
 
-                if (!posSpecificGaps) {
-                    temp1 = h_c[b] - gap_open;
-                } else {
+#ifdef GAP_POS_SCORING
+                if (posSpecificGaps) {
                     temp1 = h_c[b] - gIns[i];
+                } else {
+#endif
+                    temp1 = h_c[b] - gap_open;
+#ifdef GAP_POS_SCORING
                 }
+#endif
 
                 temp2 = f - gap_extend;
 				f = temp1 > temp2 ? temp1 : temp2;
 				direction_line[df] = temp1 > temp2 ? 5 : 4;
 
                 f1 = f > 0 ? f : 0;
-                if (!posSpecificGaps) {
-                    e1 = e_b[u] > 0 ? e_b[u] : 0;
-                } else {
+#ifdef GAP_POS_SCORING
+                if (posSpecificGaps) {
                     e1 = std::max(0, e_b[u] - gDelClose[i + 1]);
+                } else {
+#endif
+                    e1 = e_b[u] > 0 ? e_b[u] : 0;
+#ifdef GAP_POS_SCORING
                 }
+#endif
 
 				temp1 = e1 > f1 ? e1 : f1;
 
