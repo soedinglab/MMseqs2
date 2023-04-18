@@ -60,6 +60,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
 
     Debug::Progress progress(indexSizeA);
     // where the new key numbering of B should start
+    const bool writeNull = trimRight > 0;
     unsigned int maxKeyA = 0;
 #pragma omp parallel num_threads(threads)
     {
@@ -85,10 +86,10 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
                     size_t idB = dbB.getId(newKey);
                     size_t dataSizeB = std::max(dbB.getEntryLen(idB), trimRight) - trimRight;
                     if (dataSizeA >= dataSizeB) {
-                        concatWriter->writeData(data, dataSizeA, newKey, thread_idx);
+                        concatWriter->writeData(data, dataSizeA, newKey, thread_idx, writeNull);
                     }
                 } else {
-                    concatWriter->writeData(data, dataSizeA, newKey, thread_idx);
+                    concatWriter->writeData(data, dataSizeA, newKey, thread_idx, writeNull);
                 }
             }
 
@@ -124,10 +125,10 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
                     size_t idB = dbA.getId(newKey);
                     size_t dataSizeA = std::max(dbA.getEntryLen(idB), trimRight) - trimRight;
                     if (dataSizeB > dataSizeA) {
-                        concatWriter->writeData(data, dataSizeB, newKey, thread_idx);
+                        concatWriter->writeData(data, dataSizeB, newKey, thread_idx, writeNull);
                     }
                 } else {
-                    concatWriter->writeData(data, dataSizeB, newKey, thread_idx);
+                    concatWriter->writeData(data, dataSizeB, newKey, thread_idx, writeNull);
                 }
             }
 

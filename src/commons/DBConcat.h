@@ -9,7 +9,7 @@ public:
     DBConcat(const std::string &dataFileNameA, const std::string &indexFileNameA,
              const std::string &dataFileNameB, const std::string &indexFileNameB,
              const std::string &dataFileNameC, const std::string &indexFileNameC,
-             unsigned int threads, bool write = true, bool preserveKeysA = false, bool preserveKeysB = false, bool takeLargerEntry = false, size_t trimRight = 1);
+             unsigned int threads, bool write = true, bool preserveKeysA = false, bool preserveKeysB = false, bool takeLargerEntry = false, size_t trimRight = 0);
 
     ~DBConcat();
 
