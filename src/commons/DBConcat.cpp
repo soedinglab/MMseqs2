@@ -43,8 +43,8 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
     }
     DBReader<unsigned int> dbA(dataFileNameA.c_str(), indexFileNameA.c_str(), threads, mode);
     DBReader<unsigned int> dbB(dataFileNameB.c_str(), indexFileNameB.c_str(), threads, mode);
-    dbA.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-    dbB.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    dbA.open(DBReader<unsigned int>::NOSORT);
+    dbB.open(DBReader<unsigned int>::NOSORT);
     indexSizeA = dbA.getSize();
     indexSizeB = dbB.getSize();
 
