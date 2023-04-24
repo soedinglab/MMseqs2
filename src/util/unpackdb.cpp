@@ -16,6 +16,12 @@ int unpackdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
+    std::string lookupFile = par.db1 + ".lookup";
+    if (par.unpackNameMode == Parameters::UNPACK_NAME_ACCESSION && FileUtil::fileExists(lookupFile.c_str()) == false) {
+        Debug(Debug::INFO) << "No lookup file for " << FileUtil::baseName(par.db1) << " found, using key-based file naming\n";
+        par.unpackNameMode = Parameters::UNPACK_NAME_KEY;
+    }
+
     int mode = DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA;
     if (par.unpackNameMode == Parameters::UNPACK_NAME_ACCESSION) {
         mode |= DBReader<unsigned int>::USE_LOOKUP;
