@@ -4,6 +4,9 @@
 #include "Util.h"
 #include "FileUtil.h"
 #include "Debug.h"
+#ifdef HAVE_ZLIB
+#include <zlib.h>
+#endif
 
 #ifdef OPENMP
 #include <omp.h>
@@ -27,7 +30,6 @@ int unpackdb(int argc, const char **argv, const Command& command) {
 
     size_t entries = reader.getSize();
     Debug::Progress progress(entries);
-
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -50,9 +52,55 @@ int unpackdb(int argc, const char **argv, const Command& command) {
                 name.append(SSTR(key));
             }
             name.append(par.unpackSuffix);
-            FILE* handle = FileUtil::openAndDelete(name.c_str(), "w");
-            fwrite(reader.getData(i, thread_idx), sizeof(char), reader.getEntryLen(i) - 1, handle);
-            fclose(handle);
+
+            const char* cname = name.c_str();
+
+            if (FileUtil::fileExists(cname) == true) {
+                if (FileUtil::directoryExists(cname) == true) {
+                    Debug(Debug::ERROR) << "Cannot open directory " << name << " for writing\n";
+                    continue;
+                }
+                FileUtil::remove(cname);
+            }
+
+            if (Util::endsWith(".gz", name.c_str()) == true) {
+#ifdef HAVE_ZLIB
+                gzFile handle = gzopen(cname, "w");
+                if (handle == NULL) {
+                    Debug(Debug::ERROR) << "Cannot not open " << name << " for writing\n";
+                    continue;
+                }
+                size_t len = reader.getEntryLen(i) - 1;
+                int n = gzwrite(handle ,reader.getData(i, thread_idx), len * sizeof(char));
+                if ((size_t)n != len) {
+                    Debug(Debug::ERROR) << "Cannot not write " << name << "\n";
+                    continue;
+                }
+                if (gzclose(handle) != 0) {
+                    Debug(Debug::ERROR) << "Cannot not close " << name << "\n";
+                    continue;
+                }
+#else
+                Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Cannot write compressed output\n";
+                EXIT(EXIT_FAILURE);
+#endif
+            } else {
+                FILE* handle = fopen(cname, "w");
+                if (handle == NULL) {
+                    Debug(Debug::ERROR) << "Cannot not open " << name << " for writing\n";
+                    continue;
+                }
+                size_t len = reader.getEntryLen(i) - 1;
+                int n = fwrite(reader.getData(i, thread_idx), sizeof(char), len, handle);
+                if ((size_t)n != len) {
+                    Debug(Debug::ERROR) << "Cannot not write " << name << "\n";
+                    continue;
+                }
+                if (fclose(handle) != 0) {
+                    Debug(Debug::ERROR) << "Cannot not close " << name << "\n";
+                    continue;
+                }
+            }
         }
     }
     reader.close();
