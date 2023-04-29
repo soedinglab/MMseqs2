@@ -118,9 +118,9 @@ public:
     }
 
     DBReader<unsigned int> *sequenceReader;
+    DBReader<unsigned int> *index;
 
 private:
-    DBReader<unsigned int> *index;
     int seqType;
 };
 
