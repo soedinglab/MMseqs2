@@ -81,6 +81,10 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
     std::vector<hit_t> shortResults;
     shortResults.reserve(tdbr->getSize()/2);
 
+#ifdef OPENMP
+    omp_set_nested(1);
+#endif
+
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -162,6 +166,7 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
                 shortResults.clear();
                 progress.updateProgress();
             }
+#pragma omp barrier
         }
     }
 
