@@ -112,7 +112,7 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
             }else{
                 aligner.ssw_init(&qSeq, tinySubMat, subMat);
             }
-#pragma omp for schedule(dynamic, 1) nowait
+#pragma omp for schedule(static) nowait
             for (size_t tId = 0; tId < tdbr->getSize(); tId++) {
                 unsigned int targetKey = tdbr->getDbKey(tId);
                 const bool isIdentity = (queryKey == targetKey && (par.includeIdentity || sameDB))? true : false;
