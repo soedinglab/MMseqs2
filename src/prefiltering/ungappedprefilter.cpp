@@ -122,7 +122,7 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
                 unsigned int targetKey = tdbr->getDbKey(tId);
                 if(taxonomyHook != NULL){
                     TaxID currTax = taxonomyHook->taxonomyMapping->lookup(targetKey);
-                    if (taxonomyHook->expression->isAncestor(currTax)) {
+                    if (taxonomyHook->expression->isAncestor(currTax) == false) {
                         continue;
                     }
                 }
