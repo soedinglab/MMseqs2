@@ -430,6 +430,7 @@ Parameters::Parameters():
     ungappedprefilter.push_back(&PARAM_THREADS);
     ungappedprefilter.push_back(&PARAM_COMPRESSED);
     ungappedprefilter.push_back(&PARAM_V);
+    ungappedprefilter.push_back(&PARAM_TAXON_LIST);
 
     // clustering
     clust.push_back(&PARAM_CLUSTER_MODE);
