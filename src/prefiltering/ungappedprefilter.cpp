@@ -15,7 +15,7 @@
 #include "FastSort.h"
 #include "SubstitutionMatrixProfileStates.h"
 #include "IndexReader.h"
-
+#include "QueryMatcherTaxonomyHook.h"
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -77,6 +77,11 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
     }
 
 
+    QueryMatcherTaxonomyHook * taxonomyHook = NULL;
+    if(par.PARAM_TAXON_LIST.wasSet){
+        taxonomyHook = new QueryMatcherTaxonomyHook(par.db2, tdbr, par.taxonList);
+    }
+
     Debug::Progress progress(qdbr->getSize());
     std::vector<hit_t> shortResults;
     shortResults.reserve(tdbr->getSize()/2);
@@ -115,6 +120,13 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
 #pragma omp for schedule(static) nowait
             for (size_t tId = 0; tId < tdbr->getSize(); tId++) {
                 unsigned int targetKey = tdbr->getDbKey(tId);
+                if(taxonomyHook != NULL){
+                    TaxID currTax = taxonomyHook->taxonomyMapping->lookup(targetKey);
+                    if (taxonomyHook->expression->isAncestor(currTax)) {
+                        continue;
+                    }
+                }
+
                 const bool isIdentity = (queryKey == targetKey && (par.includeIdentity || sameDB))? true : false;
                 if(sequenceLookup == NULL){
                     char * targetSeq = tdbr->getData(tId, thread_idx);
@@ -171,6 +183,9 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
     }
 
 
+    if(taxonomyHook != NULL){
+        delete taxonomyHook;
+    }
 
     if(sameDB == false){
         delete qDbrIdx;
