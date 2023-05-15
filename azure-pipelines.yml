@@ -247,7 +247,7 @@ jobs:
     displayName: Upload Artifacts
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     pool:
-      vmImage: 'Ubuntu-20.04'
+      vmImage: 'ubuntu-latest'
     dependsOn:
       - build_ubuntu_userguide
       - build_macos
@@ -375,8 +375,29 @@ jobs:
       - script: |
           mkdir ~/.ssh && mv $DOWNLOADSECUREFILE_SECUREFILEPATH ~/.ssh/id_rsa
           chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -t rsa uniclust.mmseqs.com >> ~/.ssh/known_hosts
+          ssh-keygen -f ~/.ssh/id_rsa -y > ~/.ssh/id_rsa.pub
           cd "${BUILD_SOURCESDIRECTORY}"
-          ssh codeship@uniclust.mmseqs.com "mkdir -p \"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}\""
-          scp mmseqs/userguide.pdf mmseqs-osx-universal.tar.gz mmseqs-linux-sse2.tar.gz mmseqs-linux-sse41.tar.gz mmseqs-linux-avx2.tar.gz mmseqs-linux-arm64.tar.gz mmseqs-linux-ppc64le-power8.tar.gz mmseqs-linux-ppc64le-power9.tar.gz mmseqs-win64.zip codeship@uniclust.mmseqs.com:"/home/mirdita/repositories/mmseqs-webserver/archive/${BUILD_SOURCEVERSION}"
-          ssh codeship@uniclust.mmseqs.com "update-latest-mmseqs.sh \"${BUILD_SOURCEVERSION}\""
+          cp mmseqs/userguide.pdf userguide.pdf
+          ssh-keygen -Y sign -f ~/.ssh/id_rsa -n file \
+            userguide.pdf \
+            mmseqs-osx-universal.tar.gz \
+            mmseqs-linux-sse2.tar.gz \
+            mmseqs-linux-sse41.tar.gz \
+            mmseqs-linux-avx2.tar.gz \
+            mmseqs-linux-arm64.tar.gz \
+            mmseqs-linux-ppc64le-power8.tar.gz \
+            mmseqs-linux-ppc64le-power9.tar.gz \
+            mmseqs-win64.zip
+          curl --retry 5 --retry-all-errors -X POST \
+            -F file[]=@userguide.pdf -F signature[]=@userguide.pdf.sig \
+            -F file[]=@mmseqs-osx-universal.tar.gz -F signature[]=@mmseqs-osx-universal.tar.gz.sig \
+            -F file[]=@mmseqs-linux-sse2.tar.gz -F signature[]=@mmseqs-linux-sse2.tar.gz.sig \
+            -F file[]=@mmseqs-linux-sse41.tar.gz -F signature[]=@mmseqs-linux-sse41.tar.gz.sig \
+            -F file[]=@mmseqs-linux-avx2.tar.gz -F signature[]=@mmseqs-linux-avx2.tar.gz.sig \
+            -F file[]=@mmseqs-linux-arm64.tar.gz -F signature[]=@mmseqs-linux-arm64.tar.gz.sig \
+            -F file[]=@mmseqs-linux-ppc64le-power8.tar.gz -F signature[]=@mmseqs-linux-ppc64le-power8.tar.gz.sig \
+            -F file[]=@mmseqs-linux-ppc64le-power9.tar.gz -F signature[]=@mmseqs-linux-ppc64le-power9.tar.gz.sig \
+            -F file[]=@mmseqs-win64.zip  -F signature[]=@mmseqs-win64.zip.sig \
+            -F identifier="mmseqs" -F directory="${BUILD_SOURCEVERSION}" \
+              https://mmseqs.com/upload
+
