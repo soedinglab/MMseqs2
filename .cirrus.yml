@@ -21,8 +21,8 @@ task:
   matrix:
     - name: Clang-4
       install_script: |
-        echo "deb http://archive.debian.org/debian jessie main" > /etc/apt/sources.list
-        echo "deb http://security.debian.org/debian-security jessie/updates main" >> /etc/apt/sources.list
+        echo "deb [trusted=yes] http://archive.debian.org/debian jessie main" > /etc/apt/sources.list
+        echo "deb [trusted=yes] http://archive.debian.org/debian-security jessie/updates main" >> /etc/apt/sources.list
         apt-get update --yes --force-yes || true
         apt-get install cmake clang-4.0 libc++-dev make git ca-certificates --yes --force-yes --no-install-suggests --no-install-recommends
       env:
@@ -30,8 +30,8 @@ task:
         CXX: clang++-4.0
     - name: GCC-4.9
       install_script: |
-        echo "deb http://archive.debian.org/debian jessie main" > /etc/apt/sources.list
-        echo "deb http://security.debian.org/debian-security jessie/updates main" >> /etc/apt/sources.list
+        echo "deb [trusted=yes] http://archive.debian.org/debian jessie main" > /etc/apt/sources.list
+        echo "deb [trusted=yes] http://archive.debian.org/debian-security jessie/updates main" >> /etc/apt/sources.list
         apt-get update --yes --force-yes || true
         apt-get install cmake gcc-4.9 g++-4.9 make git ca-certificates --yes --force-yes --no-install-suggests --no-install-recommends
       env:
