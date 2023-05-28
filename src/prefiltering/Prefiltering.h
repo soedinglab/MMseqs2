@@ -95,6 +95,7 @@ private:
     MultiParam<NuclAA<std::string>> scoringMatrixFile;
     MultiParam<NuclAA<std::string>> seedScoringMatrixFile;
     int targetSeqType;
+    int targetSearchMode;
     bool takeOnlyBestKmer;
     size_t maxResListLen;
 

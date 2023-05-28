@@ -1,5 +1,6 @@
 #include "IndexBuilder.h"
 #include "tantan.h"
+#include "ExtendedSubstitutionMatrix.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -51,13 +52,14 @@ public:
 
 
 void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedLookup,
-                                SequenceLookup **unmaskedLookup,BaseMatrix &subMat, Sequence *seq,
+                                SequenceLookup **unmaskedLookup,BaseMatrix &subMat,
+                                ScoreMatrix & three, ScoreMatrix & two, Sequence *seq,
                                 DBReader<unsigned int> *dbr, size_t dbFrom, size_t dbTo, int kmerThr,
-                                bool mask, bool maskLowerCaseMode, float maskProb) {
+                                bool mask, bool maskLowerCaseMode, float maskProb, int targetSearchMode) {
     Debug(Debug::INFO) << "Index table: counting k-mers\n";
 
     const bool isProfile = Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_HMM_PROFILE);
-
+    const bool isTargetSimiliarKmerSearch = isProfile || targetSearchMode;
     dbTo = std::min(dbTo, dbr->getSize());
     size_t dbSize = dbTo - dbFrom;
     DbInfo* info = new DbInfo(dbFrom, dbTo, seq->getEffectiveKmerSize(), *dbr);
@@ -101,9 +103,13 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false, true, seq->getUserSpacedKmerPattern());
 
         KmerGenerator *generator = NULL;
-        if (isProfile) {
+        if (isTargetSimiliarKmerSearch) {
             generator = new KmerGenerator(seq->getKmerSize(), indexTable->getAlphabetSize(), kmerThr);
-            generator->setDivideStrategy(s.profile_matrix);
+            if(isProfile){
+                generator->setDivideStrategy(s.profile_matrix);
+            }else{
+                generator->setDivideStrategy(&three, &two);
+            }
         }
 
         unsigned int *buffer = static_cast<unsigned int*>(malloc(seq->getMaxLen() * sizeof(unsigned int)));
@@ -122,10 +128,15 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                 bufferSize = seq->getMaxLen();
             }
             // count similar or exact k-mers based on sequence type
-            if (isProfile) {
+            if (isTargetSimiliarKmerSearch) {
                 // Find out if we should also mask profiles
                 totalKmerCount += indexTable->addSimilarKmerCount(&s, generator);
-                (*unmaskedLookup)->addSequence(s.numConsensusSequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
+                unsigned char * seq = (isProfile) ? s.numConsensusSequence : s.numSequence;
+                if (unmaskedLookup != NULL) {
+                    (*unmaskedLookup)->addSequence(seq, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
+                } else if (maskedLookup != NULL) {
+                    (*maskedLookup)->addSequence(seq, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
+                }
             } else {
                 // Do not mask if column state sequences are used
                 if (unmaskedLookup != NULL) {
@@ -219,9 +230,13 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         IndexEntryLocalTmp *buffer = static_cast<IndexEntryLocalTmp *>(malloc( seq->getMaxLen() * sizeof(IndexEntryLocalTmp)));
         size_t bufferSize = seq->getMaxLen();
         KmerGenerator *generator = NULL;
-        if (isProfile) {
+        if (isTargetSimiliarKmerSearch) {
             generator = new KmerGenerator(seq->getKmerSize(), indexTable->getAlphabetSize(), kmerThr);
-            generator->setDivideStrategy(s.profile_matrix);
+            if(isProfile){
+                generator->setDivideStrategy(s.profile_matrix);
+            }else{
+                generator->setDivideStrategy(&three, &two);
+            }
         }
 
         #pragma omp for schedule(dynamic, 100)
@@ -230,7 +245,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
             progress2.updateProgress();
 
             unsigned int qKey = dbr->getDbKey(id);
-            if (isProfile) {
+            if (isTargetSimiliarKmerSearch) {
                 s.mapSequence(id - dbFrom, qKey, dbr->getData(id, thread_idx), dbr->getSeqLen(id));
                 indexTable->addSimilarSequence(&s, generator, &buffer, bufferSize, &idxer);
             } else {

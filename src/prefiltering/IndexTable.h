@@ -101,6 +101,9 @@ public:
         //idxer->reset();
         while(s->hasNextKmer()){
             const unsigned char * kmer = s->nextKmer();
+            if(s->kmerContainsX()){
+                continue;
+            }
             const std::pair<size_t *, size_t> kmerList = kmerGenerator->generateKmerList(kmer);
 
             //unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
@@ -302,6 +305,9 @@ public:
         size_t kmerPos = 0;
         while(s->hasNextKmer()){
             const unsigned char * kmer = s->nextKmer();
+            if(s->kmerContainsX()){
+                continue;
+            }
             std::pair<size_t *, size_t> scoreMatrix = kmerGenerator->generateKmerList(kmer);
             if(kmerPos+scoreMatrix.second >= bufferSize){
                 *buffer = static_cast<IndexEntryLocalTmp*>(realloc(*buffer, sizeof(IndexEntryLocalTmp) * bufferSize*2));

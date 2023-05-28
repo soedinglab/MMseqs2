@@ -37,6 +37,7 @@ Parameters::Parameters():
         alphabetSize(NuclAA<int>(INT_MAX,INT_MAX)),
         PARAM_S(PARAM_S_ID, "-s", "Sensitivity", "Sensitivity: 1.0 faster; 4.0 fast; 7.5 sensitive", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_K(PARAM_K_ID, "-k", "k-mer length", "k-mer length (0: automatically set to optimum)", typeid(int), (void *) &kmerSize, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_TARGET_SEARCH_MODE(PARAM_TARGET_SEARCH_MODE_ID, "--target-search-mode", "Target search mode", "target search mode (0: regular k-mer, 1: similar k-mer)", typeid(int), (void *) &targetSearchMode, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_THREADS(PARAM_THREADS_ID, "--threads", "Threads", "Number of CPU-cores used (all by default)", typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
         PARAM_COMPRESSED(PARAM_COMPRESSED_ID, "--compressed", "Compressed", "Write compressed output", typeid(int), (void *) &compressed, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
         PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID, "--alph-size", "Alphabet size", "Alphabet size (range 2-21)", typeid(MultiParam<NuclAA<int>>), (void *) &alphabetSize, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
@@ -392,6 +393,7 @@ Parameters::Parameters():
     prefilter.push_back(&PARAM_SEED_SUB_MAT);
     prefilter.push_back(&PARAM_S);
     prefilter.push_back(&PARAM_K);
+    prefilter.push_back(&PARAM_TARGET_SEARCH_MODE);
     prefilter.push_back(&PARAM_K_SCORE);
     prefilter.push_back(&PARAM_ALPH_SIZE);
     prefilter.push_back(&PARAM_MAX_SEQ_LEN);
@@ -2211,6 +2213,7 @@ void Parameters::setDefaults() {
     seedScoringMatrixFile = MultiParam<NuclAA<std::string>>(NuclAA<std::string>("VTML80.out", "nucleotide.out"));
 
     kmerSize =  0;
+    targetSearchMode = 0;
     kmerScore.values = INT_MAX;
     alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(21,5));
     maxSeqLen = MAX_SEQ_LEN; // 2^16

@@ -383,6 +383,7 @@ public:
     // PREFILTER
     float  sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
+    int targetSearchMode;                // target search mode
     MultiParam<SeqProf<int>> kmerScore;   // kmer score for the prefilter
     MultiParam<NuclAA<int>> alphabetSize; // alphabet size for the prefilter
     int    compBiasCorrection;           // Aminoacid composiont correction
@@ -716,6 +717,7 @@ public:
 
     PARAMETER(PARAM_S)
     PARAMETER(PARAM_K)
+    PARAMETER(PARAM_TARGET_SEARCH_MODE)
     PARAMETER(PARAM_THREADS)
     PARAMETER(PARAM_COMPRESSED)
     PARAMETER(PARAM_ALPH_SIZE)
