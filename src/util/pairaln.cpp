@@ -102,7 +102,7 @@ int pairaln(int argc, const char **argv, const Command& command) {
             // fill taxonToPair vector
             std::unordered_map<unsigned int, size_t>::iterator it;
             for (it = findPair.begin(); it != findPair.end(); ++it) {
-                int thresholdToPair = (par.pairmode == Parameters::PAIRALN_MODE_ALL_PER_SPECIES) ? 1 : fileToIds[fileNumber].size() - 1;
+                size_t thresholdToPair = (par.pairmode == Parameters::PAIRALN_MODE_ALL_PER_SPECIES) ? 1 : fileToIds[fileNumber].size() - 1;
                 if (it->second > thresholdToPair) {
                     taxonToPair.emplace_back(it->first);
                 }
