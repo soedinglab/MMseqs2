@@ -105,8 +105,9 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
         unsigned int queryPos = result.qStartPos;
         unsigned int targetPos = result.dbStartPos;
         // HACK: score was 0 and sequence was rejected, so we fill in an empty gap sequence
+        // Needed for pairaln with dummy sequences
         if(targetPos == UINT_MAX) {
-            Debug(Debug::WARNING) << "Edge sequence " << i << " was not aligned." << "\n";
+            //Debug(Debug::WARNING) << "Edge sequence " << i << " was not aligned." << "\n";
             // fill up with gaps
             for(size_t pos = 0; pos < centerSeqSize; pos++){
                 edgeSeqMSA[pos] = '-';

@@ -270,6 +270,9 @@ Parameters::Parameters():
         // aggregatetax
         PARAM_MAJORITY(PARAM_MAJORITY_ID, "--majority", "Majority threshold", "minimal fraction of agreement among taxonomically assigned sequences of a set", typeid(float), (void *) &majorityThr, "^0(\\.[0-9]+)?|^1(\\.0+)?$"),
         PARAM_VOTE_MODE(PARAM_VOTE_MODE_ID, "--vote-mode", "Vote mode", "Mode of assigning weights to compute majority. 0: uniform, 1: minus log E-value, 2: score", typeid(int), (void *) &voteMode, "^[0-2]{1}$"),
+        // pairaln
+        PARAM_PAIRING_DUMMY_MODE(PARAM_PAIRING_DUMMY_MODE_ID, "--pairing-dummy-mode", "Include dummy pairing", "0: dont include, 1: include - an entry that will cause result2msa to write a gap only line", typeid(int), (void *) &pairdummymode, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PAIRING_MODE(PARAM_PAIRING_MODE_ID, "--pairing-mode", "Pairing mode", "0: pair maximal per species, 1: pair only if all chains are covered per species", typeid(int), (void *) &pairmode, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // taxonomyreport
         PARAM_REPORT_MODE(PARAM_REPORT_MODE_ID, "--report-mode", "Report mode", "Taxonomy report mode 0: Kraken 1: Krona", typeid(int), (void *) &reportMode, "^[0-1]{1}$"),
         // createtaxdb
@@ -1191,6 +1194,8 @@ Parameters::Parameters():
     expand2profile.push_back(&PARAM_V);
 
     pairaln.push_back(&PARAM_PRELOAD_MODE);
+    pairaln.push_back(&PARAM_PAIRING_DUMMY_MODE);
+    pairaln.push_back(&PARAM_PAIRING_MODE);
     pairaln.push_back(&PARAM_COMPRESSED);
     pairaln.push_back(&PARAM_THREADS);
     pairaln.push_back(&PARAM_V);
@@ -2511,6 +2516,10 @@ void Parameters::setDefaults() {
     // aggregatetax
     majorityThr = 0.5;
     voteMode = AGG_TAX_MINUS_LOG_EVAL;
+
+    // pairaln
+    pairdummymode = PAIRALN_DUMMY_MODE_OFF;
+    pairmode = PAIRALN_MODE_ALL_PER_SPECIES;
 
     // taxonomyreport
     reportMode = 0;

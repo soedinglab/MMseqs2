@@ -324,9 +324,21 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         header = targetHeaderReader->getData(id, thread_idx);
                         length = targetHeaderReader->getEntryLen(id) - 1;
                     }
+                    bool isOnlyGap = true;
+                    for (size_t pos = 0; pos < res.centerLength; pos++) {
+                        char aa = res.msaSequence[i][pos];
+                        if (aa != MultipleAlignment::GAP) {
+                            isOnlyGap = false;
+                            break;
+                        }
+                    }
 
                     result.append(1, '>');
-                    result.append(header, length);
+                    if(isOnlyGap) {
+                        result.append("DUMMY\n");
+                    }else{
+                        result.append(header, length);
+                    }
                     // need to allow insertion in the centerSequence
                     for (size_t pos = 0; pos < res.centerLength; pos++) {
                         char aa = res.msaSequence[i][pos];
@@ -353,13 +365,31 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         continue;
                     }
 
-                    char *header;
+                    const char *header;
+                    bool isOnlyGap = true;
+                    for (size_t pos = 0; pos < res.centerLength; pos++) {
+                        char aa = res.msaSequence[i][pos];
+                        if (aa != MultipleAlignment::GAP) {
+                            isOnlyGap = false;
+                            break;
+                        }
+                    }
+
+
                     if (i == 0) {
-                        header = centerSequenceHeader;
+                        if(isOnlyGap) {
+                            header = "DUMMY";
+                        }else{
+                            header = centerSequenceHeader;
+                        }
                     } else {
-                        unsigned int key = seqKeys[i - 1];
-                        size_t id = targetHeaderReader->getId(key);
-                        header = targetHeaderReader->getData(id, thread_idx);
+                        if(isOnlyGap) {
+                            header = "DUMMY";
+                        }else {
+                            unsigned int key = seqKeys[i - 1];
+                            size_t id = targetHeaderReader->getId(key);
+                            header = targetHeaderReader->getData(id, thread_idx);
+                        }
                     }
                     accession = Util::parseFastaHeader(header);
 
@@ -386,12 +416,30 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     }
 
                     result.push_back('>');
+                    bool isOnlyGap = true;
+                    for (size_t pos = 0; pos < res.centerLength; pos++) {
+                        char aa = res.msaSequence[i][pos];
+                        if (aa != MultipleAlignment::GAP) {
+                            isOnlyGap = false;
+                            break;
+                        }
+                    }
+
+
                     if (i == 0) {
-                        result.append(Util::parseFastaHeader(centerSequenceHeader));
+                        if(isOnlyGap){
+                            result.append("DUMMY");
+                        }else{
+                            result.append(Util::parseFastaHeader(centerSequenceHeader));
+                        }
                     } else {
                         unsigned int key = seqKeys[i - 1];
                         size_t id = targetHeaderReader->getId(key);
-                        result.append(Util::parseFastaHeader(targetHeaderReader->getData(id, thread_idx)));
+                        if(isOnlyGap){
+                            result.append("DUMMY");
+                        }else {
+                            result.append(Util::parseFastaHeader(targetHeaderReader->getData(id, thread_idx)));
+                        }
                         if (par.msaFormatMode == Parameters::FORMAT_MSA_A3M_ALN_INFO) {
                             size_t len = Matcher::resultToBuffer(buffer, alnResults[i - 1], false);
                             char* data = buffer;

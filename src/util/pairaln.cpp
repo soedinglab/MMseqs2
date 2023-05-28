@@ -57,23 +57,30 @@ int pairaln(int argc, const char **argv, const Command& command) {
         std::vector<Matcher::result_t> result;
         result.reserve(100000);
         std::unordered_map<unsigned int, size_t> findPair;
+        std::vector<unsigned int> taxonToPair;
         std::string output;
         output.reserve(100000);
+        bool hasBacktrace = false;
 #pragma omp for schedule(dynamic, 1)
-	for (size_t fileNumber = 0; fileNumber < fileToIds.size(); fileNumber++) {
+        for (size_t fileNumber = 0; fileNumber < fileToIds.size(); fileNumber++) {
             char buffer[1024 + 32768 * 4];
             findPair.clear();
+            taxonToPair.clear();
             progress.updateProgress();
 
+            unsigned int minResultDbKey = UINT_MAX;
             // find intersection between all proteins
             for (size_t i = 0; i < fileToIds[fileNumber].size(); i++) {
                 result.clear();
                 size_t id = fileToIds[fileNumber][i];
                 Matcher::readAlignmentResults(result, alnDbr.getData(id, thread_idx), true);
+
                 for (size_t resIdx = 0; resIdx < result.size(); ++resIdx) {
+                    hasBacktrace = result[resIdx].backtrace.size() > 0;
                     unsigned int taxon = mapping->lookup(result[resIdx].dbKey);
                     // we don't want to introduce a new field, reuse existing unused field here
                     result[resIdx].dbOrfStartPos = taxon;
+                    minResultDbKey = std::min(result[resIdx].dbKey, minResultDbKey);
                 }
                 std::stable_sort(result.begin(), result.end(), compareByTaxId);
                 unsigned int prevTaxon = UINT_MAX;
@@ -92,6 +99,16 @@ int pairaln(int argc, const char **argv, const Command& command) {
                 }
             }
 
+            // fill taxonToPair vector
+            std::unordered_map<unsigned int, size_t>::iterator it;
+            for (it = findPair.begin(); it != findPair.end(); ++it) {
+                int thresholdToPair = (par.pairmode == Parameters::PAIRALN_MODE_ALL_PER_SPECIES) ? 1 : fileToIds[fileNumber].size() - 1;
+                if (it->second > thresholdToPair) {
+                    taxonToPair.emplace_back(it->first);
+                }
+            }
+            std::sort(taxonToPair.begin(), taxonToPair.end());
+
             for (size_t i = 0; i < fileToIds[fileNumber].size(); i++) {
                 result.clear();
                 output.clear();
@@ -103,21 +120,39 @@ int pairaln(int argc, const char **argv, const Command& command) {
                     // we don't want to introduce a new field, reuse existing unused field here
                     result[resIdx].dbOrfStartPos = taxon;
                 }
+
                 // stable sort is required to assure that best hit is first per taxon
                 std::stable_sort(result.begin(), result.end(), compareByTaxId);
                 unsigned int prevTaxon = UINT_MAX;
-                for (size_t resIdx = 0; resIdx < result.size(); ++resIdx) {
-                    unsigned int taxon = result[resIdx].dbOrfStartPos;
-                    // found pair!
-                    if (taxon != prevTaxon
-                        && findPair.find(taxon) != findPair.end()
-                        && findPair[taxon] == fileToIds[fileNumber].size()) {
-                        bool hasBacktrace = result[resIdx].backtrace.size() > 0;
-                        size_t len = Matcher::resultToBuffer(buffer, result[resIdx], hasBacktrace, false, false);
+                // iterate over taxonToPair
+                size_t resIdxStart = 0;
+                for(size_t taxonInList : taxonToPair) {
+                    bool taxonFound = false;
+                    for (size_t resIdx = resIdxStart; resIdx < result.size(); ++resIdx) {
+                        unsigned int taxon = result[resIdx].dbOrfStartPos;
+                        // check if this taxon has enough information to pair
+                        if(taxonInList != taxon){
+                            continue;
+                        }
+                        bool bestTaxonHit = (taxon != prevTaxon);
+                        taxonFound = true;
+                        if(bestTaxonHit){
+                            size_t len = Matcher::resultToBuffer(buffer, result[resIdx], hasBacktrace, false, false);
+                            output.append(buffer, len);
+                            resIdxStart = resIdx + 1;
+                            break;
+                        }
+                        prevTaxon = taxon;
+                    }
+                    if(taxonFound == false && par.pairdummymode == Parameters::PAIRALN_DUMMY_MODE_ON){ // par.addDummyPairedAlignment
+                        // write an Matcher::result_t with UINT_MAX as dbKey
+                        Matcher::result_t emptyResult(minResultDbKey, 1, 1, 0, 1, 0,
+                                                      0, UINT_MAX, 0, 0, UINT_MAX, 0, 0, "1M");
+                        size_t len = Matcher::resultToBuffer(buffer, emptyResult, hasBacktrace, false, false);
                         output.append(buffer, len);
                     }
-                    prevTaxon = taxon;
                 }
+
                 resultWriter.writeData(output.c_str(), output.length(), alnDbr.getDbKey(id), thread_idx);
             }
         }
