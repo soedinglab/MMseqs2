@@ -199,7 +199,7 @@ int gff2db(int argc, const char **argv, const Command &command) {
 
 #pragma omp task
                 {
-                    DBWriter::createRenumberedDB(outDb, outDbIndex, outDb, outDbIndex);
+                    DBWriter::createRenumberedDB(outDb, outDbIndex, outDb, outDbIndex, true);
                 }
             }
         }
