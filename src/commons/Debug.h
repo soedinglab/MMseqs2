@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <cstddef>
 #include <sys/stat.h>
+#include <cstdint>
 
 class TtyCheck {
 public:
