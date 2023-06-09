@@ -7,6 +7,7 @@
 #include <vector>
 #include <limits>
 #include <map>
+#include <cstdint>
 #include "MMseqsMPI.h"
 
 #ifndef EXIT

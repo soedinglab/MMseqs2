@@ -10,6 +10,7 @@
 #include <typeinfo>
 #include <cstddef>
 #include <utility>
+#include <cstdint>
 
 #include "Command.h"
 #include "MultiParam.h"
