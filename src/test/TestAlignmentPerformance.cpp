@@ -36,9 +36,8 @@ std::vector<std::string> readData(std::string fasta_filename){
     FILE* fasta_file = fopen(fasta_filename.c_str(), "r");
     if(fasta_file == NULL) {std::cout << "Could not open " << fasta_filename<<std::endl; EXIT(1); }
     seq = kseq_init(fileno(fasta_file));
-    int l;
     size_t entries_num = 0;
-    while ((l = kseq_read(seq)) >= 0) {
+    while (kseq_read(seq) >= 0) {
         if (entries_num > 1000)
             break;
         if (seq->seq.l > 500) {

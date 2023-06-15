@@ -31,6 +31,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #define KS_SEP_SPACE 0 // isspace(): \t, \n, \v, \f, \r
 #define KS_SEP_TAB   1 // isspace() && !' '
@@ -39,8 +40,9 @@
 
 #define __KS_TYPE(type_t)						\
 	typedef struct __kstream_t {				\
-		char *buf;						\
-		int begin, end, is_eof;					\
+		char *buf;								\
+		int64_t begin, end;						\
+		int is_eof;								\
 		size_t cur_buf_pos;                     \
 		size_t newline;                         \
 		type_t f;								\
@@ -94,13 +96,13 @@ typedef struct __kstring_t {
 #endif
 
 #define __KS_GETUNTIL(__read, __bufsize)								\
-	static int ks_getuntil2(kstream_t *ks, int delimiter, kstring_t *str, int *dret, int append) \
+	static int64_t ks_getuntil2(kstream_t *ks, int delimiter, kstring_t *str, int *dret, int append) \
 	{																	\
 		int gotany = 0;													\
 		if (dret) *dret = 0;											\
 		str->l = append? str->l : 0;									\
 		for (;;) {														\
-			int i;														\
+			int64_t i;													\
 			if (ks_err(ks)) return -3;									\
 			if (ks->begin >= ks->end) {									\
 				if (!ks->is_eof) {										\
@@ -146,7 +148,7 @@ typedef struct __kstring_t {
 		str->s[str->l] = '\0';											\
 		return str->l;													\
 	} \
-	static inline int ks_getuntil(kstream_t *ks, int delimiter, kstring_t *str, int *dret) \
+	static inline int64_t ks_getuntil(kstream_t *ks, int delimiter, kstring_t *str, int *dret) \
 	{ return ks_getuntil2(ks, delimiter, str, dret, 0); }
 
 #define KSTREAM_INIT(type_t, __read, __bufsize) \
@@ -182,9 +184,10 @@ typedef struct __kstring_t {
    -3   error reading stream
  */
 #define __KSEQ_READ(SCOPE) \
-	SCOPE int kseq_read(kseq_t *seq) \
+	SCOPE int64_t kseq_read(kseq_t *seq) \
 	{ \
-		int c,r; \
+		int c; \
+		int64_t r; \
 		kstream_t *ks = seq->f; \
 		ks->newline = 0; \
         if (seq->last_char == 0) { /* then jump to the next header line */ \
@@ -255,6 +258,6 @@ typedef struct __kstring_t {
 	__KSEQ_TYPE(type_t) \
 	extern kseq_t *kseq_init(type_t fd); \
 	void kseq_destroy(kseq_t *ks); \
-	int kseq_read(kseq_t *seq);
+	int64_t kseq_read(kseq_t *seq);
 
 #endif

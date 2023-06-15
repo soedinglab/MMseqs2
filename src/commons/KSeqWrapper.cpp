@@ -17,8 +17,7 @@ KSeqFile::KSeqFile(const char* fileName) {
 
 bool KSeqFile::ReadEntry() {
     KSEQFILE::kseq_t* s = (KSEQFILE::kseq_t*) seq;
-    int result = KSEQFILE::kseq_read(s);
-    if (result < 0)
+    if (KSEQFILE::kseq_read(s) < 0)
         return false;
     entry.headerOffset = s->headerOffset;
     entry.sequenceOffset = s->sequenceOffset;
@@ -51,8 +50,7 @@ KSeqStream::KSeqStream() {
 
 bool KSeqStream::ReadEntry() {
     KSEQSTREAM::kseq_t* s = (KSEQSTREAM::kseq_t*) seq;
-    int result = KSEQSTREAM::kseq_read(s);
-    if (result < 0)
+    if (KSEQSTREAM::kseq_read(s) < 0)
         return false;
 
     entry.name = s->name;
@@ -90,8 +88,7 @@ KSeqGzip::KSeqGzip(const char* fileName) {
 
 bool KSeqGzip::ReadEntry() {
     KSEQGZIP::kseq_t* s = (KSEQGZIP::kseq_t*) seq;
-    int result = KSEQGZIP::kseq_read(s);
-    if (result < 0)
+    if (KSEQGZIP::kseq_read(s) < 0)
         return false;
 
     entry.name = s->name;
@@ -135,8 +132,7 @@ KSeqBzip::KSeqBzip(const char* fileName) {
 
 bool KSeqBzip::ReadEntry() {
     KSEQBZIP::kseq_t* s = (KSEQBZIP::kseq_t*) seq;
-    int result = KSEQBZIP::kseq_read(s);
-    if (result < 0)
+    if (KSEQBZIP::kseq_read(s) < 0)
         return false;
 
     entry.name = s->name;
@@ -209,8 +205,7 @@ KSeqBuffer::KSeqBuffer(const char* buffer, size_t length) {
 
 bool KSeqBuffer::ReadEntry() {
     KSEQBUFFER::kseq_t* s = (KSEQBUFFER::kseq_t*) seq;
-    int result = KSEQBUFFER::kseq_read(s);
-    if (result < 0)
+    if (KSEQBUFFER::kseq_read(s) < 0)
         return false;
     entry.headerOffset = s->headerOffset;
     entry.sequenceOffset = s->sequenceOffset;
