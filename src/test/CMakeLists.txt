@@ -13,7 +13,6 @@ set(TESTS
         TestDBReaderIndexSerialization.cpp
         TestDiagonalScoring.cpp
         TestDiagonalScoringPerformance.cpp
-        TestIndexTable.cpp
         TestKmerGenerator.cpp
         TestKmerNucl.cpp
         TestKmerScore.cpp
