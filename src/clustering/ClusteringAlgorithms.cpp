@@ -269,66 +269,72 @@ void ClusteringAlgorithms::setCover(unsigned int **elementLookupTable, unsigned 
 }
 
 void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluster) {
-    // two step clustering
-    // 1.) we define the rep. sequences by minimizing the ids (smaller ID = longer sequence)
-    // 2.) we correct maybe wrong assigned sequence by checking if the assigned sequence is really a rep. seq.
-    //     if they are not make them rep. seq.
-#pragma omp parallel
-    {
-        int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = omp_get_thread_num();
-#endif
-#pragma omp for schedule(dynamic, 1000)
-        for(size_t i = 0; i < dbSize; i++) {
+
+    const long BUFFER_SIZE = 100000; // Set this to a suitable value.
+    const long numBuffers = (dbSize + BUFFER_SIZE - 1) / BUFFER_SIZE;
+
+    // Pre-allocate buffer outside the loop to reuse it
+    std::vector<std::pair<unsigned int, std::vector<unsigned int>>> buffer(BUFFER_SIZE);
+
+    for (long bufferIndex = 0; bufferIndex < numBuffers; bufferIndex++) {
+        long start = bufferIndex * BUFFER_SIZE;
+        long end = std::min(start + BUFFER_SIZE, static_cast<long>(dbSize));
+
+        // Clear the vectors within the buffer, but don't deallocate
+        for (std::pair<unsigned int, std::vector<unsigned int>>& entry : buffer) {
+            entry.second.clear();
+        }
+
+        // Parallel reading and parsing into buffer
+#pragma omp parallel for schedule(dynamic, 4)
+        for (long i = start; i < end; i++) {
             unsigned int clusterKey = seqDbr->getDbKey(i);
-            unsigned int clusterId = i;
-
-            // try to set your self as cluster centriod
-            // if some other cluster covered
-            unsigned int targetId;
-            __atomic_load(&assignedcluster[clusterId], &targetId ,__ATOMIC_RELAXED);
-            do {
-                if (targetId <= clusterId) break;
-            } while (!__atomic_compare_exchange(&assignedcluster[clusterId],  &targetId,  &clusterId , false,  __ATOMIC_RELAXED, __ATOMIC_RELAXED));
-
-
             const size_t alnId = alnDbr->getId(clusterKey);
-            char *data = alnDbr->getData(alnId, thread_idx);
+            char* data = alnDbr->getData(alnId, 0);
 
+            std::vector<unsigned int>& keys = buffer[i - start].second;
             while (*data != '\0') {
                 char dbKey[255 + 1];
                 Util::parseKey(data, dbKey);
-                const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-
-                unsigned int currElement = seqDbr->getId(key);
-                unsigned int targetId;
-
-                __atomic_load(&assignedcluster[currElement], &targetId ,__ATOMIC_RELAXED);
-                do {
-                    if (targetId <= clusterId) break;
-                } while (!__atomic_compare_exchange(&assignedcluster[currElement],  &targetId,  &clusterId , false,  __ATOMIC_RELAXED, __ATOMIC_RELAXED));
-
-                if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
-                    Debug(Debug::ERROR) << "Element " << dbKey
-                                        << " contained in some alignment list, but not contained in the sequence database!\n";
-                    EXIT(EXIT_FAILURE);
-                }
+                const unsigned int key = (unsigned int)strtoul(dbKey, NULL, 10);
+                keys.push_back(key);
                 data = Util::skipLine(data);
+            }
+
+            buffer[i - start].first = i;
+        }
+
+        // Sequential processing of the buffer
+        for (long j = 0; j < (end - start); j++) {
+            unsigned int clusterId = buffer[j].first;
+            const std::vector<unsigned int>& keys = buffer[j].second;
+
+            if (assignedcluster[clusterId] != UINT_MAX) {
+                continue;
+            }
+
+            if (keys.size() <= 1) {
+                continue;
+            }
+
+            for (unsigned int key : keys) {
+                unsigned int currElement = seqDbr->getId(key);
+
+                if (assignedcluster[currElement] == UINT_MAX) {
+                    assignedcluster[currElement] = clusterId;
+                }
             }
         }
     }
 
     // correct edges that are not assigned properly
     for (size_t id = 0; id < dbSize; ++id) {
-        unsigned int assignedClusterId = assignedcluster[id];
         // check if the assigned clusterid is a rep. sequence
         // if not, make it a rep. seq. again
-        if (assignedcluster[assignedClusterId] != assignedClusterId){
-            assignedcluster[assignedClusterId] = assignedClusterId;
+        if(assignedcluster[id] == UINT_MAX){
+            assignedcluster[id] = id;
         }
     }
-
 }
 
 void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
