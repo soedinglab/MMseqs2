@@ -182,6 +182,7 @@ public:
     static const int OUTFMT_TORFSTART = 37;
     static const int OUTFMT_TORFEND = 38;
     static const int OUTFMT_FIDENT = 39;
+    static const int OUTFMT_PPOS = 40;
 
     static const int INDEX_SUBSET_NORMAL = 0;
     static const int INDEX_SUBSET_NO_HEADERS = 1;
