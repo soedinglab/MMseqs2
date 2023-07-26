@@ -213,15 +213,23 @@ int doRescorediagonal(Parameters &par,
                     }
                     DistanceCalculator::LocalAlignment alignment;
                     if (par.wrappedScoring) {
+                        /*
                         if (dbLen > origQueryLen) {
-                            Debug(Debug::WARNING) << "WARNING: target sequence " << targetId
-                                                  << " is skipped, no valid wrapped scoring possible\n";
-                            continue;
-                        }
-
-                        alignment = DistanceCalculator::computeUngappedWrappedAlignment(
+                              Debug(Debug::WARNING) << "WARNING: target sequence " << targetId
+                                                    << " is skipped, no valid wrapped scoring possible\n";
+                              continue;
+                          }
+                        */
+                        if (dbLen <= origQueryLen) {
+                            alignment = DistanceCalculator::computeUngappedWrappedAlignment(
                                 querySeqToAlign, queryLen, targetSeq, targetLength,
                                 results[entryIdx].diagonal, fastMatrix.matrix, par.rescoreMode);
+                        }
+                        else{
+                            alignment = DistanceCalculator::computeUngappedAlignment(
+                                querySeqToAlign, origQueryLen, targetSeq, targetLength,
+                                results[entryIdx].diagonal, fastMatrix.matrix, par.rescoreMode);
+                        }
                     }
                     else {
                         alignment = DistanceCalculator::computeUngappedAlignment(

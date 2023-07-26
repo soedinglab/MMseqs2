@@ -98,10 +98,15 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj,
     int queryLen = querySeqObj->L;
     int origQueryLen = queryLen;
     if (wrappedScoring) {
-        alignment = DistanceCalculator::computeUngappedWrappedAlignment(
+        if (querySeqObj->L >= targetSeqObj->L * 2)
+            alignment = DistanceCalculator::computeUngappedWrappedAlignment(
                 queryCharSeqAlign, querySeqObj->L, targetSeqObj->getSeqData(), targetSeqObj->L,
                 diagonal, fastMatrix.matrix, Parameters::RESCORE_MODE_ALIGNMENT);
-        origQueryLen = queryLen/2;
+        else
+            alignment = DistanceCalculator::computeUngappedAlignment(
+                queryCharSeqAlign, querySeqObj->L / 2, targetSeqObj->getSeqData(), targetSeqObj->L,
+                diagonal, fastMatrix.matrix, Parameters::RESCORE_MODE_ALIGNMENT);
+        origQueryLen = queryLen / 2;
     }
     else {
         alignment = DistanceCalculator::computeUngappedAlignment(
