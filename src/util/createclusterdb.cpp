@@ -138,9 +138,8 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
     }
     for (size_t i = 0; i < ARRAY_SIZE(suffices); ++i) {
         std::string file = par.db3 + suffices[i].suffix;
-        std::string fileBasename = FileUtil::baseName(file);
         if (suffices[i].flag && FileUtil::fileExists(file.c_str())) {
-            DBReader<unsigned int>::aliasDb(fileBasename, par.db3 + "_seq" + suffices[i].suffix);
+            DBReader<unsigned int>::aliasDb(file, par.db3 + "_seq" + suffices[i].suffix);
         }
     }
     return EXIT_SUCCESS;
