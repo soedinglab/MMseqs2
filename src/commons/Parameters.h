@@ -565,6 +565,9 @@ public:
     // result2flat
     bool useHeader;
 
+    // createclusearchdb
+    std::string dbSuffixList;
+
     // gff2db
     std::string gffType;
 
@@ -906,6 +909,9 @@ public:
     PARAMETER(PARAM_SEQUENCE_SPLIT_MODE)
     PARAMETER(PARAM_HEADER_SPLIT_MODE)
 
+    // createclusearchdb
+    PARAMETER(PARAM_DB_SUFFIX_LIST)
+
     // gff2db
     PARAMETER(PARAM_GFF_TYPE)
 
@@ -1118,6 +1124,7 @@ public:
     std::vector<MMseqsParameter*> summarizeresult;
     std::vector<MMseqsParameter*> summarizetabs;
     std::vector<MMseqsParameter*> extractdomains;
+    std::vector<MMseqsParameter*> createclusearchdb;
     std::vector<MMseqsParameter*> extractalignedregion;
     std::vector<MMseqsParameter*> convertkb;
     std::vector<MMseqsParameter*> tsv2db;

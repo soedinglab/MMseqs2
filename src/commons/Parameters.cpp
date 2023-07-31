@@ -201,6 +201,8 @@ Parameters::Parameters():
         PARAM_SEQUENCE_OVERLAP(PARAM_SEQUENCE_OVERLAP_ID, "--sequence-overlap", "Overlap between sequences", "Overlap between sequences", typeid(int), (void *) &sequenceOverlap, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_SEQUENCE_SPLIT_MODE(PARAM_SEQUENCE_SPLIT_MODE_ID, "--sequence-split-mode", "Sequence split mode", "Sequence split mode 0: copy data, 1: soft link data and write new index,", typeid(int), (void *) &sequenceSplitMode, "^[0-1]{1}$"),
         PARAM_HEADER_SPLIT_MODE(PARAM_HEADER_SPLIT_MODE_ID, "--headers-split-mode", "Header split mode", "Header split mode: 0: split position, 1: original header", typeid(int), (void *) &headerSplitMode, "^[0-1]{1}$"),
+        // createclusearchdb
+        PARAM_DB_SUFFIX_LIST(PARAM_DB_SUFFIX_LIST_ID, "--db-suffix-list", "Database suffixes", "Suffixes for database to be split in rep/seq", typeid(std::string), (void *) &dbSuffixList, ""),
         // gff2db
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID, "--gff-type", "GFF type", "Comma separated list of feature types in the GFF file to select", typeid(std::string), (void *) &gffType, ""),
         // translatenucs
@@ -321,6 +323,12 @@ Parameters::Parameters():
     threadsandcompression.push_back(&PARAM_THREADS);
     threadsandcompression.push_back(&PARAM_COMPRESSED);
     threadsandcompression.push_back(&PARAM_V);
+
+    // createclusearchdb
+    createclusearchdb.push_back(&PARAM_THREADS);
+    createclusearchdb.push_back(&PARAM_COMPRESSED);
+    createclusearchdb.push_back(&PARAM_V);
+    createclusearchdb.push_back(&PARAM_DB_SUFFIX_LIST);
 
     // alignall
     alignall.push_back(&PARAM_SUB_MAT);

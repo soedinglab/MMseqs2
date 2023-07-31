@@ -36,7 +36,7 @@ set(util_source_files
         util/mergeclusters.cpp
         util/mergeresultsbyset.cpp
         util/mergedbs.cpp
-        util/mkrepseqdb.cpp
+        util/createclusterdb.cpp
         util/msa2profile.cpp
         util/msa2result.cpp
         util/nrtotaxmapping.cpp
