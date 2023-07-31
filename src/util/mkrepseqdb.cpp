@@ -100,36 +100,40 @@ int mkrepseqdb(int argc, const char **argv, const Command& command) {
     FileUtil::symlinkAlias(par.db3, seqsDbSeq + ".0" );
     FileUtil::move(seqsDbSeq.c_str(), (seqsDbSeq + ".1").c_str());
 
-    struct DBSuffix {
-        DBFiles::Files flag;
-        const char* suffix;
-    };
+    if(Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_AMINO_ACIDS) ||
+       Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_HMM_PROFILE) ||
+       Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
 
-    const DBSuffix suffices[] = {
-            { DBFiles::HEADER,        "_h"                },
-            { DBFiles::HEADER_INDEX,  "_h.index"          },
-            { DBFiles::HEADER_DBTYPE, "_h.dbtype"         },
-            { DBFiles::LOOKUP,        ".lookup"           },
-            { DBFiles::SOURCE,        ".source"           },
-            { DBFiles::TAX_MAPPING,   "_mapping"          },
-            { DBFiles::TAX_NAMES,     "_names.dmp"        },
-            { DBFiles::TAX_NODES,     "_nodes.dmp"        },
-            { DBFiles::TAX_MERGED,    "_merged.dmp"       },
-            { DBFiles::TAX_MERGED,    "_taxonomy"         },
-    };
+        struct DBSuffix {
+            DBFiles::Files flag;
+            const char *suffix;
+        };
 
-    for (size_t i = 0; i < ARRAY_SIZE(suffices); ++i) {
-        std::string file = par.db1 + suffices[i].suffix;
-        if (suffices[i].flag && FileUtil::fileExists(file.c_str())) {
-            DBReader<unsigned int>::copyDb(file, par.db3 + suffices[i].suffix);
+        const DBSuffix suffices[] = {
+                {DBFiles::HEADER,        "_h"},
+                {DBFiles::HEADER_INDEX,  "_h.index"},
+                {DBFiles::HEADER_DBTYPE, "_h.dbtype"},
+                {DBFiles::LOOKUP,        ".lookup"},
+                {DBFiles::SOURCE,        ".source"},
+                {DBFiles::TAX_MAPPING,   "_mapping"},
+                {DBFiles::TAX_NAMES,     "_names.dmp"},
+                {DBFiles::TAX_NODES,     "_nodes.dmp"},
+                {DBFiles::TAX_MERGED,    "_merged.dmp"},
+                {DBFiles::TAX_MERGED,    "_taxonomy"},
+        };
+
+        for (size_t i = 0; i < ARRAY_SIZE(suffices); ++i) {
+            std::string file = par.db1 + suffices[i].suffix;
+            if (suffices[i].flag && FileUtil::fileExists(file.c_str())) {
+                DBReader<unsigned int>::copyDb(file, par.db3 + suffices[i].suffix);
+            }
+        }
+        for (size_t i = 0; i < ARRAY_SIZE(suffices); ++i) {
+            std::string file = par.db3 + suffices[i].suffix;
+            if (suffices[i].flag && FileUtil::fileExists(file.c_str())) {
+                DBReader<unsigned int>::aliasDb(file, par.db3 + "_seq" + suffices[i].suffix);
+            }
         }
     }
-    for (size_t i = 0; i < ARRAY_SIZE(suffices); ++i) {
-        std::string file = par.db3 + suffices[i].suffix;
-        if (suffices[i].flag && FileUtil::fileExists(file.c_str())) {
-            DBReader<unsigned int>::aliasDb(file, par.db3 + "_seq" + suffices[i].suffix);
-        }
-    }
-
     return EXIT_SUCCESS;
 }
