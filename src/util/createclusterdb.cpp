@@ -121,8 +121,6 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
 
     const DBSuffix suffices[] = {
             {DBFiles::HEADER,        "_h"},
-            {DBFiles::HEADER_INDEX,  "_h.index"},
-            {DBFiles::HEADER_DBTYPE, "_h.dbtype"},
             {DBFiles::LOOKUP,        ".lookup"},
             {DBFiles::SOURCE,        ".source"},
             {DBFiles::TAX_MAPPING,   "_mapping"},
