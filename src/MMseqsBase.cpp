@@ -1245,9 +1245,14 @@ std::vector<Command> baseCommands = {
                 "Martin Steinegger <martin.steinegger@snu.ac.kr>",
                 "<i:sequenceDB> ",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb }}},
-
-
-
+        {"mkrepseqdb",           mkrepseqdb,             &par.threadsandcompression,            COMMAND_HIDDEN,
+                "Seperates a sequence DB into a representative and a non-representative DB",
+                NULL,
+                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:sequenceDB> <i:resultDB> <o:sequenceDB>",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                          {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
+                                          {"sequenceDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::sequenceDb }}},
         {"dbtype",              dbtype,                &par.empty,                COMMAND_HIDDEN,
                 "",
                 NULL,
