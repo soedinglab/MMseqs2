@@ -2458,6 +2458,9 @@ void Parameters::setDefaults() {
     overlap = 0.0f;
     msaType = 2;
 
+    // createclusterdb
+    dbSuffixList = "_h";
+
     // summarize header
     headerType = Parameters::HEADER_TYPE_UNICLUST;
 

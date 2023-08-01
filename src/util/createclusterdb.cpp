@@ -110,6 +110,7 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
         dbrRep.close();
         dbrSeq.close();
     }
+    clusterReader.close();
     DBReader<unsigned int>::copyDb(par.db2, par.db3 + "_clu");
 
     struct DBSuffix {
@@ -118,7 +119,6 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
     };
 
     const DBSuffix suffices[] = {
-            {DBFiles::HEADER,        "_h"},
             {DBFiles::LOOKUP,        ".lookup"},
             {DBFiles::SOURCE,        ".source"},
             {DBFiles::TAX_MAPPING,   "_mapping"},
@@ -128,41 +128,7 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
             {DBFiles::TAX_MERGED,    "_taxonomy"},
     };
 
-    Debug::Progress progress2(clusterReader.getSize());
-    DBReader<unsigned int> headerreader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads,
-                                  DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-    headerreader.open(DBReader<unsigned int>::NOSORT);
-    headerreader.readMmapedDataInMemory();
-
-    DBWriter dbwRep(par.hdr3.c_str(), par.hdr3Index.c_str(), static_cast<unsigned int>(par.threads), par.compressed,
-                    headerreader.getDbtype());
-    dbwRep.open();
-#pragma omp parallel
-    {
-        unsigned int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
-#endif
-#pragma omp for schedule(dynamic, 1)
-        for (size_t id = 0; id < clusterReader.getSize(); id++) {
-            progress2.updateProgress();
-            char *data = clusterReader.getData(id, thread_idx);
-            while (*data != '\0') {
-                // parse dbkey
-                size_t dbKey = Util::fast_atoi<unsigned int>(data);
-                size_t readerId = headerreader.getId(dbKey);
-                dbwRep.writeData(headerreader.getData(readerId, thread_idx),
-                                 headerreader.getEntryLen(readerId) - 1, dbKey, thread_idx);
-                data = Util::skipLine(data);
-            }
-        }
-    }
-    dbwRep.close(true);
-    headerreader.close();
-    clusterReader.close();
-
-    // dont copy header file
-    for (size_t i = 1; i < ARRAY_SIZE(suffices); ++i) {
+    for (size_t i = 0; i < ARRAY_SIZE(suffices); ++i) {
         std::string file = par.db1 + suffices[i].suffix;
         if (suffices[i].flag && FileUtil::fileExists(file.c_str())) {
             DBReader<unsigned int>::copyDb(file, par.db3 + suffices[i].suffix);
