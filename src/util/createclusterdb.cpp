@@ -43,8 +43,6 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
     #ifdef OPENMP
             thread_idx = static_cast<unsigned int>(omp_get_thread_num());
     #endif
-            std::string resultBuffer;
-            // write output file
     #pragma omp for schedule(dynamic, 1)
             for (size_t id = 0; id < clusterReader.getSize(); id++) {
                 progress.updateProgress();
@@ -65,7 +63,6 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
                                      reader.getEntryLen(readerId) - 1, dbKey, thread_idx);
                     data = Util::skipLine(data);
                 }
-                resultBuffer.clear();
             }
         }
         dbwRep.close(true);
@@ -76,20 +73,20 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
         DBReader<unsigned int> dbrRep(repDbSeq.c_str(), repDbSeqIdx.c_str(), par.threads,
                                       DBReader<unsigned int>::USE_INDEX);
         dbrRep.open(DBReader<unsigned int>::NOSORT);
-        DBReader<unsigned int> dbrClu(seqsDbSeq.c_str(), seqsDbSeqIdx.c_str(), par.threads,
+        DBReader<unsigned int> dbrSeq(seqsDbSeq.c_str(), seqsDbSeqIdx.c_str(), par.threads,
                                       DBReader<unsigned int>::USE_INDEX);
-        dbrClu.open(DBReader<unsigned int>::NOSORT);
+        dbrSeq.open(DBReader<unsigned int>::NOSORT);
         std::string seqsDbSeqIdxTmp = seqsDbSeqIdx + "_tmp";
 
         FILE *sIndex = FileUtil::openAndDelete(seqsDbSeqIdxTmp.c_str(), "w");
-        std::vector<DBReader<unsigned int>::Index> allIndex(dbrClu.getSize() + dbrRep.getSize());
+        std::vector<DBReader<unsigned int>::Index> allIndex(dbrSeq.getSize() + dbrRep.getSize());
         size_t dataSize = 0;
         for (size_t i = 0; i < dbrRep.getSize(); i++) {
             allIndex[i] = *dbrRep.getIndex(i);
             dataSize += allIndex[i].length;
         }
-        for (size_t i = 0; i < dbrClu.getSize(); i++) {
-            DBReader<unsigned int>::Index *index = dbrClu.getIndex(i);
+        for (size_t i = 0; i < dbrSeq.getSize(); i++) {
+            DBReader<unsigned int>::Index *index = dbrSeq.getIndex(i);
             index->offset += dataSize;
             allIndex[dbrRep.getSize() + i] = *index;
         }
@@ -110,8 +107,9 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
         FileUtil::move(seqsDbSeqIdxTmp.c_str(), seqsDbSeqIdx.c_str());
         FileUtil::symlinkAlias(repDbSeq, seqsDbSeq + ".0");
         FileUtil::move(seqsDbSeq.c_str(), (seqsDbSeq + ".1").c_str());
+        dbrRep.close();
+        dbrSeq.close();
     }
-    clusterReader.close();
     DBReader<unsigned int>::copyDb(par.db2, par.db3 + "_clu");
 
     struct DBSuffix {
@@ -130,7 +128,41 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
             {DBFiles::TAX_MERGED,    "_taxonomy"},
     };
 
-    for (size_t i = 0; i < ARRAY_SIZE(suffices); ++i) {
+    Debug::Progress progress2(clusterReader.getSize());
+    DBReader<unsigned int> headerreader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads,
+                                  DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
+    headerreader.open(DBReader<unsigned int>::NOSORT);
+    headerreader.readMmapedDataInMemory();
+
+    DBWriter dbwRep(par.hdr3.c_str(), par.hdr3Index.c_str(), static_cast<unsigned int>(par.threads), par.compressed,
+                    headerreader.getDbtype());
+    dbwRep.open();
+#pragma omp parallel
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+#pragma omp for schedule(dynamic, 1)
+        for (size_t id = 0; id < clusterReader.getSize(); id++) {
+            progress2.updateProgress();
+            char *data = clusterReader.getData(id, thread_idx);
+            while (*data != '\0') {
+                // parse dbkey
+                size_t dbKey = Util::fast_atoi<unsigned int>(data);
+                size_t readerId = headerreader.getId(dbKey);
+                dbwRep.writeData(headerreader.getData(readerId, thread_idx),
+                                 headerreader.getEntryLen(readerId) - 1, dbKey, thread_idx);
+                data = Util::skipLine(data);
+            }
+        }
+    }
+    dbwRep.close(true);
+    headerreader.close();
+    clusterReader.close();
+
+    // dont copy header file
+    for (size_t i = 1; i < ARRAY_SIZE(suffices); ++i) {
         std::string file = par.db1 + suffices[i].suffix;
         if (suffices[i].flag && FileUtil::fileExists(file.c_str())) {
             DBReader<unsigned int>::copyDb(file, par.db3 + suffices[i].suffix);
@@ -139,7 +171,11 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < ARRAY_SIZE(suffices); ++i) {
         std::string file = par.db3 + suffices[i].suffix;
         if (suffices[i].flag && FileUtil::fileExists(file.c_str())) {
-            DBReader<unsigned int>::aliasDb(file, par.db3 + "_seq" + suffices[i].suffix);
+            std::string fileToLinkTo = par.db3 + "_seq" + suffices[i].suffix;
+            if (FileUtil::fileExists(fileToLinkTo.c_str())){
+                DBReader<unsigned int>::removeDb(fileToLinkTo);
+            }
+            DBReader<unsigned int>::aliasDb(file, fileToLinkTo);
         }
     }
     return EXIT_SUCCESS;
