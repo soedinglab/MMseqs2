@@ -188,7 +188,7 @@ Parameters::Parameters():
         // indexdb
         PARAM_CHECK_COMPATIBLE(PARAM_CHECK_COMPATIBLE_ID, "--check-compatible", "Check compatible", "0: Always recreate index, 1: Check if recreating index is needed, 2: Fail if index is incompatible", typeid(int), (void *) &checkCompatible, "^[0-2]{1}$", MMseqsParameter::COMMAND_MISC),
         PARAM_SEARCH_TYPE(PARAM_SEARCH_TYPE_ID, "--search-type", "Search type", "Search type 0: auto 1: amino acid, 2: translated, 3: nucleotide, 4: translated nucleotide alignment", typeid(int), (void *) &searchType, "^[0-4]{1}"),
-        PARAM_INDEX_SUBSET(PARAM_INDEX_SUBSET_ID, "--index-subset", "Index subset", "Create specialized index with subset of entries 0: normal index 1: index without headers 1: index without prefiltering data", typeid(int), (void *) &indexSubset, "^[0-2]{1}", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_INDEX_SUBSET(PARAM_INDEX_SUBSET_ID, "--index-subset", "Index subset", "Create specialized index with subset of entries\n0: normal index\n1: index without headers\n2: index without prefiltering data\nFlags can be combined bit wise", typeid(int), (void *) &indexSubset, "^[0-3]{1}", MMseqsParameter::COMMAND_EXPERT),
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID, "--use-fasta-header", "Use fasta header", "Use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers", typeid(bool), (void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "Numeric ids in index file are offset by this value", typeid(int), (void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),

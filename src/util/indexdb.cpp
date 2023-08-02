@@ -135,15 +135,16 @@ int indexdb(int argc, const char **argv, const Command &command) {
         }
     }
 
+    const bool noHeaders = (par.indexSubset & Parameters::INDEX_SUBSET_NO_HEADERS) != 0;
     if (recreate) {
         DBReader<unsigned int> *hdbr1 = NULL;
-        if (par.indexSubset != Parameters::INDEX_SUBSET_NO_HEADERS) {
+        if (noHeaders == false) {
             hdbr1 = new DBReader<unsigned int>(hdr1.c_str(), hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
             hdbr1->open(DBReader<unsigned int>::NOSORT);
         }
 
         DBReader<unsigned int> *hdbr2 = NULL;
-        if (sameDB == false && ppDB == false && par.indexSubset != Parameters::INDEX_SUBSET_NO_HEADERS) {
+        if (sameDB == false && ppDB == false && noHeaders == false) {
             hdbr2 = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
             hdbr2->open(DBReader<unsigned int>::NOSORT);
         }

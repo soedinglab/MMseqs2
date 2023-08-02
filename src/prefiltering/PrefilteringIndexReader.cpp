@@ -190,13 +190,14 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
             (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES) || Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_AMINO_ACIDS))
                 ? alphabetSize -1: alphabetSize;
 
-    if (indexSubset == Parameters::INDEX_SUBSET_NO_PREFILTER) {
+    const bool noPrefilter = (indexSubset & Parameters::INDEX_SUBSET_NO_PREFILTER) != 0;
+    if (noPrefilter) {
         splits = 0;
     }
 
     ScoreMatrix s3;
     ScoreMatrix s2;
-    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) == false && indexSubset != Parameters::INDEX_SUBSET_NO_PREFILTER) {
+    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) == false && noPrefilter == false) {
         int alphabetSize = subMat->alphabetSize;
         subMat->alphabetSize = subMat->alphabetSize-1;
         s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
