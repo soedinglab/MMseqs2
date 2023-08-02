@@ -440,10 +440,11 @@ Parameters::Parameters():
     ungappedprefilter.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     ungappedprefilter.push_back(&PARAM_MIN_DIAG_SCORE);
     ungappedprefilter.push_back(&PARAM_MAX_SEQS);
+    ungappedprefilter.push_back(&PARAM_TAXON_LIST);
+    ungappedprefilter.push_back(&PARAM_PRELOAD_MODE);
     ungappedprefilter.push_back(&PARAM_THREADS);
     ungappedprefilter.push_back(&PARAM_COMPRESSED);
     ungappedprefilter.push_back(&PARAM_V);
-    ungappedprefilter.push_back(&PARAM_TAXON_LIST);
 
     // clustering
     clust.push_back(&PARAM_CLUSTER_MODE);
