@@ -51,17 +51,38 @@ int indexdb(int argc, const char **argv, const Command &command) {
 
     const bool sameDB = (par.db1 == par.db2);
     std::string alnDbtypeFile = par.db1 + "_aln.dbtype";
-    std::string seqDbtypeFile = par.db1 + "_seq.dbtype";
-    const bool ppDB = FileUtil::fileExists(alnDbtypeFile.c_str()) && FileUtil::fileExists(seqDbtypeFile.c_str());
+    std::string alnFile = par.db1 + "_aln";
+    std::string alnIndexFile = par.db1 + "_aln.index";
+    if(FileUtil::fileExists(alnDbtypeFile.c_str()) == false){
+        alnDbtypeFile =  par.db1 + "_clu.dbtype";
+        alnFile = par.db1 + "_clu";
+        alnIndexFile = par.db1 + "_clu.index";
+    }
 
-    std::string db2 = ppDB ? par.db1 + "_seq" : par.db2;
-    std::string db2Index = ppDB ? par.db1 + "_seq.index" : par.db2Index;
-
-    std::string hdr1 = ppDB ? par.db1 + "_seq_h" : par.hdr1;
-    std::string hdr1Index = ppDB ? par.db1 + "_seq_h.index" : par.hdr1Index;
 
     DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     dbr.open(DBReader<unsigned int>::NOSORT);
+
+    // remove par.indexDbsuffix from db1
+    std::string seqDb = par.db1 + "_seq";
+    std::string seqDbIndex = par.db1 + "_seq.index";
+    std::string seqDbtypeFile = par.db1 + "_seq.dbtype";
+    if (par.indexDbsuffix != "") {
+        std::string::size_type pos = par.db1.find(par.indexDbsuffix);
+        if (pos != std::string::npos) {
+            par.db1 = par.db1.substr(0, pos);
+        }
+        seqDb         = par.db1 + "_seq" + par.indexDbsuffix;
+        seqDbIndex    = par.db1 + "_seq" + par.indexDbsuffix + ".index";
+        seqDbtypeFile = par.db1 + "_seq" + par.indexDbsuffix + ".dbtype";
+    }
+    const bool ppDB = FileUtil::fileExists(alnDbtypeFile.c_str()) && FileUtil::fileExists(seqDbtypeFile.c_str());
+
+    std::string db2 = ppDB ? seqDb : par.db2;
+    std::string db2Index = ppDB ? seqDbIndex : par.db2Index;
+
+    std::string hdr1 = ppDB ? seqDb + "_h" : par.hdr1;
+    std::string hdr1Index = ppDB ?  seqDb + "_h.index" : par.hdr1Index;
 
     DBReader<unsigned int> *dbr2 = NULL;
     if ((sameDB == false) || ppDB) {
@@ -102,7 +123,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     // query seq type is actually unknown here, but if we pass DBTYPE_HMM_PROFILE then its +20 k-score
     int kmerScore = Prefiltering::getKmerThreshold(par.sensitivity, isProfileSearch, contextPseudoCnts, par.kmerScore.values, par.kmerSize);
 
-    const std::string& baseDB = ppDB ? par.db1 : par.db2;
+    const std::string& baseDB = ppDB ? par.db1 + par.indexDbsuffix : par.db2;
     std::string indexDB = PrefilteringIndexReader::indexName(baseDB);
 
     int status = EXIT_SUCCESS;
@@ -150,8 +171,10 @@ int indexdb(int argc, const char **argv, const Command &command) {
         }
 
         DBReader<unsigned int> *alndbr = NULL;
-        if (ppDB == true) {
-            alndbr = new DBReader<unsigned int>((par.db1 + "_aln").c_str(), (par.db1 + "_aln.index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        const bool noAlignment = (par.indexSubset & Parameters::INDEX_SUBSET_NO_ALIGNMENT) != 0;
+        if (ppDB == true && noAlignment == false) {
+            alndbr = new DBReader<unsigned int>(alnFile.c_str(), alnIndexFile.c_str(),
+                                                par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
             alndbr->open(DBReader<unsigned int>::NOSORT);
         }
 

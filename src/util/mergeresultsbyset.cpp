@@ -2,6 +2,7 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Util.h"
+#include "IndexReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -14,10 +15,26 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> setReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     setReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    resultReader.open(DBReader<unsigned int>::NOSORT);
+//    DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+//    resultReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter dbw(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, resultReader.getDbtype());
+
+    const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+    unsigned int databaseType = IndexReader::USER_SELECT;
+    int dbtype = FileUtil::parseDbType(par.db2.c_str());
+    if(Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_INDEX_DB)||
+       Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_AMINO_ACIDS)||
+       Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES)||
+       Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE)){
+        databaseType = IndexReader::ALIGNMENTS;
+    }
+    IndexReader resultReader(par.db2, par.threads,
+                              databaseType,
+                             (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+
+    int dbType = resultReader.sequenceReader->getDbtype();
+    dbType = DBReader<unsigned int>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
+    DBWriter dbw(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, dbType);
     dbw.open();
 #pragma omp parallel
     {
@@ -35,12 +52,12 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
             while (*data != '\0'){
                 Util::parseKey(data, dbKey);
                 unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
-                size_t id = resultReader.getId(key);
+                size_t id = resultReader.sequenceReader->getId(key);
                 if (id == UINT_MAX) {
                     Debug(Debug::ERROR) << "Invalid key " << key << " in entry " << i << ".\n";
                     EXIT(EXIT_FAILURE);
                 }
-                buffer.append(resultReader.getData(id, thread_idx));
+                buffer.append(resultReader.sequenceReader->getData(id, thread_idx));
                 data = Util::skipLine(data);
             }
             dbw.writeData(buffer.c_str(), buffer.length(), setReader.getDbKey(i), thread_idx);
@@ -48,7 +65,6 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
         }
     }
     dbw.close();
-    resultReader.close();
     setReader.close();
 
     return EXIT_SUCCESS;

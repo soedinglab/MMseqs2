@@ -186,6 +186,8 @@ public:
     static const int INDEX_SUBSET_NORMAL = 0;
     static const int INDEX_SUBSET_NO_HEADERS = 1;
     static const int INDEX_SUBSET_NO_PREFILTER = 2;
+    static const int INDEX_SUBSET_NO_ALIGNMENT = 4;
+
 
     static std::vector<int> getOutputFormat(int formatMode, const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
                                             bool &needLookup, bool &needSource, bool &needTaxonomyMapping, bool &needTaxonomy);
@@ -546,6 +548,7 @@ public:
     int checkCompatible;
     int searchType;
     int indexSubset;
+    std::string indexDbsuffix;
 
     // createdb
     int identifierOffset;
@@ -609,6 +612,9 @@ public:
     // summarizetabs
     float overlap;
     int msaType;
+
+    // setextendeddbtype
+    int extendedDbtype;
 
     // extractalignedregion
     int extractMode;
@@ -892,6 +898,7 @@ public:
     PARAMETER(PARAM_CHECK_COMPATIBLE)
     PARAMETER(PARAM_SEARCH_TYPE)
     PARAMETER(PARAM_INDEX_SUBSET)
+    PARAMETER(PARAM_INDEX_DBSUFFIX)
 
     // createdb
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
@@ -903,6 +910,9 @@ public:
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)
+
+    // setextendedbtype
+    PARAMETER(PARAM_EXTENDED_DBTYPE)
 
     // split sequence
     PARAMETER(PARAM_SEQUENCE_OVERLAP)
@@ -1116,6 +1126,7 @@ public:
     std::vector<MMseqsParameter*> offsetalignment;
     std::vector<MMseqsParameter*> proteinaln2nucl;
     std::vector<MMseqsParameter*> subtractdbs;
+    std::vector<MMseqsParameter*> extendeddbtype;
     std::vector<MMseqsParameter*> diff;
     std::vector<MMseqsParameter*> concatdbs;
     std::vector<MMseqsParameter*> mergedbs;

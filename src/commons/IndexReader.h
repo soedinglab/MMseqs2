@@ -74,8 +74,28 @@ public:
         }
 
         if (sequenceReader == NULL) {
-            if ((databaseType & USER_SELECT) == false && databaseType & (HEADERS | SRC_HEADERS)) {
-                failSuffix = "_h";
+            if((databaseType & USER_SELECT) == false && failSuffix == "" ){
+                if (databaseType & HEADERS) {
+                    failSuffix = "_h";
+                } else if (databaseType & SRC_HEADERS) {
+                    failSuffix = "_seq_h";
+                    if(FileUtil::fileExists((dataName + "_seq_h.dbtype").c_str())==false){
+                        failSuffix = "_h";
+                    }
+                } else if (databaseType & SRC_SEQUENCES) {
+                    failSuffix = "_seq";
+                    if(FileUtil::fileExists((dataName + "_seq.dbtype").c_str())==false){
+                        failSuffix = "";
+                    }
+                } else if (databaseType & SEQUENCES) {
+                    failSuffix = "";
+                } else if (databaseType & ALIGNMENTS) {
+                    if(FileUtil::fileExists((dataName + "_clu.dbtype").c_str())){
+                        failSuffix = "_clu";
+                    }else{
+                        failSuffix = "_aln";
+                    }
+                }
             }
             sequenceReader = new DBReader<unsigned int>(
                     (dataName + failSuffix).c_str(), (dataName + failSuffix + ".index").c_str(),
