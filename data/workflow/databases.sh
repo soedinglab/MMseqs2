@@ -373,7 +373,7 @@ case "${INPUT_TYPE}" in
         # shellcheck disable=SC2086
         "${MMSEQS}" tar2db "${TMP_PATH}/gtdb.tar.gz" "${TMP_PATH}/tardb" --tar-include 'faa.gz$' ${THREADS_PAR} \
             || fail "tar2db died"
-        sed 's|_protein\.faa||g' "${TMP_PATH}/tardb.lookup" > "${TMP_PATH}/tardb.lookup.tmp"
+        sed 's|_protein\.faa\.gz||g' "${TMP_PATH}/tardb.lookup" > "${TMP_PATH}/tardb.lookup.tmp"
         mv -f -- "${TMP_PATH}/tardb.lookup.tmp" "${TMP_PATH}/tardb.lookup"
         # shellcheck disable=SC2086
         "${MMSEQS}" createdb "${TMP_PATH}/tardb" "${OUTDB}" ${COMP_PAR} \
