@@ -136,7 +136,7 @@ case "${SELECTION}" in
     ;;
     "GTDB")
         if notExists "${TMP_PATH}/download.done"; then
-            downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/VERSION" "${TMP_PATH}/version"
+            downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/VERSION.txt" "${TMP_PATH}/version"
             downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/genomic_files_reps/gtdb_proteins_aa_reps.tar.gz" "${TMP_PATH}/gtdb.tar.gz"
             downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/bac120_taxonomy.tsv" "${TMP_PATH}/bac120_taxonomy.tsv"
             downloadFile "https://data.ace.uq.edu.au/public/gtdb/data/releases/latest/ar53_taxonomy.tsv" "${TMP_PATH}/ar53_taxonomy.tsv"
@@ -371,9 +371,9 @@ case "${INPUT_TYPE}" in
     ;;
     "GTDB")
         # shellcheck disable=SC2086
-        "${MMSEQS}" tar2db "${TMP_PATH}/gtdb.tar.gz" "${TMP_PATH}/tardb" --tar-include 'faa$' ${THREADS_PAR} \
+        "${MMSEQS}" tar2db "${TMP_PATH}/gtdb.tar.gz" "${TMP_PATH}/tardb" --tar-include 'faa.gz$' ${THREADS_PAR} \
             || fail "tar2db died"
-        sed 's|_protein\.faa||g' "${TMP_PATH}/tardb.lookup" > "${TMP_PATH}/tardb.lookup.tmp"
+        sed 's|_protein\.faa\.gz||g' "${TMP_PATH}/tardb.lookup" > "${TMP_PATH}/tardb.lookup.tmp"
         mv -f -- "${TMP_PATH}/tardb.lookup.tmp" "${TMP_PATH}/tardb.lookup"
         # shellcheck disable=SC2086
         "${MMSEQS}" createdb "${TMP_PATH}/tardb" "${OUTDB}" ${COMP_PAR} \
