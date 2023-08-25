@@ -75,7 +75,7 @@ int createdb(int argc, const char **argv, const Command& command) {
     const size_t testForNucSequence = 100;
     size_t isNuclCnt = 0;
     Debug::Progress progress;
-    std::vector<unsigned short>* sourceLookup = new std::vector<unsigned short>[shuffleSplits]();
+    std::vector<unsigned int>* sourceLookup = new std::vector<unsigned int>[shuffleSplits]();
     for (size_t i = 0; i < shuffleSplits; ++i) {
         sourceLookup[i].reserve(16384);
     }
