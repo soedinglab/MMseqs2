@@ -449,6 +449,23 @@ Parameters::Parameters():
     ungappedprefilter.push_back(&PARAM_COMPRESSED);
     ungappedprefilter.push_back(&PARAM_V);
 
+    // gappedprefilter
+    gappedprefilter.push_back(&PARAM_SUB_MAT);
+    gappedprefilter.push_back(&PARAM_GAP_OPEN);
+    gappedprefilter.push_back(&PARAM_GAP_EXTEND);
+    gappedprefilter.push_back(&PARAM_E);
+    gappedprefilter.push_back(&PARAM_C);
+    gappedprefilter.push_back(&PARAM_COV_MODE);
+    gappedprefilter.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    gappedprefilter.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
+    gappedprefilter.push_back(&PARAM_MIN_DIAG_SCORE);
+    gappedprefilter.push_back(&PARAM_MAX_SEQS);
+    gappedprefilter.push_back(&PARAM_TAXON_LIST);
+    gappedprefilter.push_back(&PARAM_PRELOAD_MODE);
+    gappedprefilter.push_back(&PARAM_THREADS);
+    gappedprefilter.push_back(&PARAM_COMPRESSED);
+    gappedprefilter.push_back(&PARAM_V);
+
     // clustering
     clust.push_back(&PARAM_CLUSTER_MODE);
     clust.push_back(&PARAM_MAXITERATIONS);

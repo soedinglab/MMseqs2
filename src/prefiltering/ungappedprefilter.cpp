@@ -20,8 +20,7 @@
 #include <omp.h>
 #endif
 
-
-int ungappedprefilter(int argc, const char **argv, const Command &command) {
+int prefilterInternal(int argc, const char **argv, const Command &command, int mode) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), 1, par.compressed, Parameters::DBTYPE_PREFILTER_RES);
@@ -141,7 +140,37 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
                     continue;
                 }
 
-                int score = aligner.ungapped_alignment(tSeq.numSequence, tSeq.L);
+                int score;
+                if (mode == 0) {
+                    score = aligner.ungapped_alignment(tSeq.numSequence, tSeq.L);
+                } else {
+                    std::string backtrace;
+                    s_align res;
+                    if (isIdentity) {
+                        res = aligner.scoreIdentical(
+                            tSeq.numSequence, tSeq.L, evaluer, Matcher::SCORE_ONLY, backtrace
+                        );
+                    } else {
+                        res = aligner.ssw_align(
+                            tSeq.numSequence,
+                            tSeq.numConsensusSequence,
+                            tSeq.getAlignmentProfile(),
+                            tSeq.L,
+                            backtrace,
+                            par.gapOpen.values.aminoacid(),
+                            par.gapExtend.values.aminoacid(),
+                            Matcher::SCORE_ONLY,
+                            par.evalThr,
+                            evaluer,
+                            par.covMode,
+                            par.covThr,
+                            par.correlationScoreWeight,
+                            qSeq.L / 2,
+                            tId
+                        );
+                    }
+                    score = res.score1;
+                }
                 bool hasDiagScore = (score > par.minDiagScoreThr);
                 double evalue = 0.0;
                 // check if evalThr != inf
@@ -199,4 +228,10 @@ int ungappedprefilter(int argc, const char **argv, const Command &command) {
     return 0;
 }
 
+int ungappedprefilter(int argc, const char **argv, const Command &command) {
+    return prefilterInternal(argc, argv, command, 0);
+}
 
+int gappedprefilter(int argc, const char **argv, const Command &command) {
+    return prefilterInternal(argc, argv, command, 1);
+}

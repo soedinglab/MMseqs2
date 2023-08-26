@@ -758,6 +758,7 @@ public:
     PARAMETER(PARAM_LOCAL_TMP)
     std::vector<MMseqsParameter*> prefilter;
     std::vector<MMseqsParameter*> ungappedprefilter;
+    std::vector<MMseqsParameter*> gappedprefilter;
 
     // alignment
     PARAMETER(PARAM_ALIGNMENT_MODE)
