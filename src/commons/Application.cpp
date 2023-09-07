@@ -27,9 +27,14 @@ Command *getCommandByName(const char *s) {
         if (!strcmp(s, p.cmd))
             return &p;
     }
+
+    // allow base commands also to be called with a prefix, e.g. "mmseqs base:createdb"
+    // this allows inheriting programs to find shadowed base modules
+    const char *prefix = "base:";
+    const char *check = strncmp(s, prefix, strlen(prefix)) == 0 ? s + strlen(prefix) : s;
     for (size_t i = 0; i < baseCommands.size(); i++) {
         Command &p = baseCommands[i];
-        if (!strcmp(s, p.cmd))
+        if (!strcmp(check, p.cmd))
             return &p;
     }
     return NULL;
