@@ -13,7 +13,7 @@ void setIndexDbDefaults(Parameters *p) {
     p->sensitivity = 5.7;
 }
 
-std::string findIncompatibleParameter(DBReader<unsigned int>& index, const Parameters& par, const int dbtype) {
+std::string findIncompatibleParameter(DBReader<unsigned int>& index, const Parameters& par, int kmerScore, const int dbtype) {
     PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
     if (meta.compBiasCorr != par.compBiasCorrection)
         return "compBiasCorrection";
@@ -27,13 +27,8 @@ std::string findIncompatibleParameter(DBReader<unsigned int>& index, const Param
         return "kmerSize";
     if (meta.mask != par.maskMode)
         return "maskMode";
-    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE)) {
-        if (meta.kmerThr != par.kmerScore.values.profile())
-            return "kmerScore";
-    } else {
-        if (meta.kmerThr != par.kmerScore.values.sequence())
-            return "kmerScore";
-    }
+    if (meta.kmerThr != kmerScore)
+        return "kmerScore";
     if (meta.spacedKmer != par.spacedKmer)
         return "spacedKmer";
     if (BaseMatrix::unserializeName(par.seedScoringMatrixFile.values.aminoacid().c_str()) != PrefilteringIndexReader::getSubstitutionMatrixName(&index) &&
@@ -139,7 +134,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
         }
 
         std::string check;
-        const bool compatible = PrefilteringIndexReader::checkIfIndexFile(&index) && (check = findIncompatibleParameter(index, par, dbr.getDbtype())) == "";
+        const bool compatible = PrefilteringIndexReader::checkIfIndexFile(&index) && (check = findIncompatibleParameter(index, par, kmerScore, dbr.getDbtype())) == "";
         index.close();
         if (compatible) {
             Debug(Debug::INFO) << "Index is up to date and compatible. Force recreation with --check-compatibility 0 parameter.\n";
