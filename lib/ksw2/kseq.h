@@ -115,7 +115,8 @@ typedef struct __kstring_t {
 			}															\
 			if (delimiter == KS_SEP_LINE) { 							\
 				unsigned char *sep = (unsigned char*)memchr(ks->buf + ks->begin, '\n', ks->end - ks->begin); \
-				i = sep != NULL ? sep - (unsigned char*)ks->buf : ks->end; 				\
+    			i = sep != NULL ? sep - (unsigned char*)ks->buf : ks->end; \
+    			ks->newline += (sep != NULL && append == 1); 				\
 			} else if (delimiter > KS_SEP_MAX) {						\
 				for (i = ks->begin; i < ks->end; ++i)					\
 					if (ks->buf[i] == delimiter) break;					\
