@@ -282,7 +282,7 @@ size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBac
     *(tmpBuff-1) = '\t';
     tmpBuff = Util::fastSeqIdToBuffer(result.seqId, tmpBuff);
     *(tmpBuff-1) = '\t';
-    tmpBuff += sprintf(tmpBuff,"%.3E",result.eval);
+    tmpBuff += snprintf(tmpBuff, 32, "%.3E", result.eval);
     tmpBuff++;
     *(tmpBuff-1) = '\t';
     tmpBuff = Itoa::i32toa_sse2(result.qStartPos, tmpBuff);

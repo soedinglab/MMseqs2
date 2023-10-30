@@ -135,12 +135,12 @@ void ContextLibrary::readContextProfile(std::stringstream &in, LibraryReader &re
     }
     // Calculate maximum of pseudocount weights
     double max = -DBL_MAX;
-    double mean = 0.0;
+    // double mean = 0.0;
     for (size_t a = 0; a < 20; ++a) {
-        mean += pc_weight[a];
+        // mean += pc_weight[a];
         if (pc_weight[a] > max) max = pc_weight[a];
     }
-    mean /= 20.0;
+    // mean /= 20.0;
 
     // Rescale pseudocount weights and calculate their sum in lin-space
     long double sum = 0.0;

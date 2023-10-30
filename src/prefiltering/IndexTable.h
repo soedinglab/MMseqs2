@@ -264,14 +264,14 @@ public:
 
         size_t entrySize = 0;
         size_t minKmer = 0;
-        size_t emptyKmer = 0;
+        // size_t emptyKmer = 0;
         for (size_t i = 0; i < tableSize; i++) {
             const ptrdiff_t size = offsets[i + 1] - offsets[i];
             minKmer = std::min(minKmer, (size_t) size);
             entrySize += size;
-            if (size == 0) {
-                emptyKmer++;
-            }
+            // if (size == 0) {
+            //     emptyKmer++;
+            // }
             if (((size_t) size) < topElements[top_N - 1].first)
                 continue;
             for (size_t j = 0; j < top_N; j++) {

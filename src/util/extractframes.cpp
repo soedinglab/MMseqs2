@@ -78,12 +78,12 @@ int extractframes(int argc, const char **argv, const Command& command) {
 
             if(reverseFrames != 0){
                 size_t sequenceLength =  dataLength -2;
-                bool hasWrongChar = false;
+                // bool hasWrongChar = false;
                 for(size_t pos = 0; pos < sequenceLength; ++pos) {
                     char reverseComplement = Orf::complement(data[sequenceLength - pos - 1]);
                     reverseComplement = (reverseComplement == '.') ? 'N' : reverseComplement;
                     reverseComplementStr.push_back(reverseComplement);
-                    hasWrongChar |= (reverseComplement == '.');
+                    // hasWrongChar |= (reverseComplement == '.');
                 }
 //                if(hasWrongChar == true){
 //                    continue;

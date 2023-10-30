@@ -25,7 +25,6 @@ size_t LinsearchIndexReader::pickCenterKmer(KmerPosition<short> *hashSeqPair, si
         prevHash = BIT_SET(prevHash, 63);
     }
     size_t prevHashStart = 0;
-    size_t prevSetSize = 0;
     for (size_t elementIdx = 0; elementIdx < splitKmerCount + 1; elementIdx++) {
         size_t currKmer = hashSeqPair[elementIdx].kmer;
         if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
@@ -52,7 +51,6 @@ size_t LinsearchIndexReader::pickCenterKmer(KmerPosition<short> *hashSeqPair, si
         if (hashSeqPair[elementIdx].kmer == SIZE_T_MAX) {
             break;
         }
-        prevSetSize++;
         prevHash = hashSeqPair[elementIdx].kmer;
         if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
             prevHash = BIT_SET(prevHash, 63);

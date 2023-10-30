@@ -135,7 +135,7 @@ int ProfileStates::readProfile(std::stringstream &in, float * profile,  float * 
         pos += Util::skipWhitespace(pos);
         pos += Util::skipNoneWhitespace(pos);
         pos += Util::skipWhitespace(pos);
-        float s = 0.0;
+        // float s = 0.0;
 
         // Store the probabilities
         for (int k = 0 ; k < nalph ; k++)
@@ -143,7 +143,7 @@ int ProfileStates::readProfile(std::stringstream &in, float * profile,  float * 
             float score = std::strtod(pos, NULL);
             float prob = MathUtil::fpow2(-score/kScale);
             profile[ProfileStates::hh2mmseqsAAorder(k)] = prob;// /background[k];
-            s+=prob;
+            // s+=prob;
             char* oldPos = pos;
             pos += Util::skipNoneWhitespace(pos);
             pos += Util::skipWhitespace(pos);

@@ -383,7 +383,6 @@ int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyRes
                 buffer.append("\n");
             } else {
                 // for every hit
-                int cnt = 0;
                 while (*results != '\0') {
                     Util::parseKey(results, dbKey);
                     char *rest;
@@ -402,7 +401,6 @@ int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyRes
                     buffer.append("\n");
 
                     results = Util::skipLine(results);
-                    cnt++;
                 }
             }
             statWriter->writeData(buffer.c_str(), buffer.length(), resultReader->getDbKey(id), thread_idx);

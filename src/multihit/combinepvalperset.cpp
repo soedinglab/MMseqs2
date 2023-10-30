@@ -105,13 +105,13 @@ public:
                 return buffer;
             }
 
-            size_t k = 0;
+            // size_t k = 0;
             double r = 0;
             const double logPvalThr = log(pvalThreshold);
             for (size_t i = 0; i < dataToAggregate.size(); ++i) {
                 double logPvalue = std::strtod(dataToAggregate[i][1].c_str(), NULL);
                 if (logPvalue < logPvalThr) {
-                    k++;
+                    // k++;
                     r -= logPvalue - logPvalThr;
                 }
             }

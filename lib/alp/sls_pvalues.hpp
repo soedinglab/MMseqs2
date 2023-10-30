@@ -258,7 +258,7 @@ namespace Sls {
 			return rand_C;	
 		};
 
-		static inline double standard_normal()//generates standard normal random value using the Box–Muller transform
+		static inline double standard_normal()//generates standard normal random value using the Box-Muller transform
 		{
 			double r1=0;
 			while(r1==0)

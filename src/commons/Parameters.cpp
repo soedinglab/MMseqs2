@@ -1631,7 +1631,6 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
         }
     }
 
-    size_t parametersFound = 0;
     for (int argIdx = 0; argIdx < argc; argIdx++) {
         // it is a parameter if it starts with - or --
         const bool longParameter = (pargv[argIdx][0] == '-' && pargv[argIdx][1] == '-');
@@ -1848,8 +1847,6 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
 
                 EXIT(EXIT_FAILURE);
             }
-
-            parametersFound++;
         } else {
             // parameter is actually a filename
 #ifdef __CYGWIN__
