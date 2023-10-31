@@ -33,7 +33,7 @@ int gff2db(int argc, const char **argv, const Command &command) {
     headerWriter.open();
     std::string outLookup = outDb + ".lookup";
     std::string outLookupIndex = outDb + ".lookup.index";
-    DBWriter lookupWriter(outLookup.c_str(), outLookupIndex.c_str(), par.threads, par.compressed, Parameters::DBTYPE_OMIT_FILE);
+    DBWriter lookupWriter(outLookup.c_str(), outLookupIndex.c_str(), par.threads, 0, Parameters::DBTYPE_OMIT_FILE);
     lookupWriter.open();
 
     FILE *source = FileUtil::openAndDelete((outDb + ".source").c_str(), "w");
