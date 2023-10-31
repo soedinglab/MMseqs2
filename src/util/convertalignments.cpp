@@ -636,6 +636,36 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                     case Parameters::OUTFMT_TORFEND:
                                         result.append(SSTR(res.dbOrfEndPos));
                                         break;
+                                    case Parameters::OUTFMT_PPOS: {
+                                        float pPositive = 0;
+                                        int matchCount = 0;
+                                        if (res.backtrace.empty() == false) {
+                                            int qPos = 0;
+                                            int tPos = 0;
+                                            for (size_t pos = 0; pos < res.backtrace.size(); pos++) {
+                                                switch (res.backtrace[pos]) {
+                                                    case 'M': {
+                                                        char qRes = queryProfile ? queryProfData[qPos] : querySeqData[qPos];
+                                                        char tRes = targetProfile ? targetProfData[tPos] : targetSeqData[tPos];
+                                                        pPositive += (subMat->subMatrix[subMat->aa2num[(int)qRes]][subMat->aa2num[(int)tRes]] > 0);
+                                                        matchCount += 1;
+                                                        qPos++;
+                                                        tPos++;
+                                                        break;
+                                                    }
+                                                    case 'D':
+                                                        qPos++;
+                                                        break;
+                                                    case 'I':
+                                                        tPos++;
+                                                        break;
+                                                }
+                                            }
+                                            pPositive /= matchCount;
+                                        }
+                                        result.append(SSTR(pPositive));
+                                        break;
+                                    }
                                 }
                                 if (i < outcodes.size() - 1) {
                                     result.push_back('\t');
