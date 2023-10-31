@@ -163,6 +163,7 @@ Parameters::Parameters():
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Search iterations", "Number of iterative profile search iterations", typeid(int), (void *) &numIterations, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_START_SENS(PARAM_START_SENS_ID, "--start-sens", "Start sensitivity", "Start sensitivity", typeid(float), (void *) &startSens, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_SENS_STEPS(PARAM_SENS_STEPS_ID, "--sens-steps", "Search steps", "Number of search steps performed from --start-sens to -s", typeid(int), (void *) &sensSteps, "^[1-9]{1}$"),
+        PARAM_PREF_MODE(PARAM_PREF_MODE_ID,"--prefilter-mode", "Prefilter mode", "prefilter mode: 0: kmer/ungapped 1: ungapped, 2: nofilter",typeid(int), (void *) &prefMode, "^[0-2]{1}$"),
         PARAM_EXHAUSTIVE_SEARCH(PARAM_EXHAUSTIVE_SEARCH_ID, "--exhaustive-search", "Exhaustive search mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results", typeid(bool), (void *) &exhaustiveSearch, "", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_EXHAUSTIVE_SEARCH_FILTER(PARAM_EXHAUSTIVE_SEARCH_FILTER_ID, "--exhaustive-search-filter", "Filter results during exhaustive search", "Filter result during search: 0: do not filter, 1: filter", typeid(int), (void *) &exhaustiveFilterMsa, "^[0-1]{1}$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
 
@@ -1253,6 +1254,7 @@ Parameters::Parameters():
     searchworkflow.push_back(&PARAM_NUM_ITERATIONS);
     searchworkflow.push_back(&PARAM_START_SENS);
     searchworkflow.push_back(&PARAM_SENS_STEPS);
+    searchworkflow.push_back(&PARAM_PREF_MODE);
     searchworkflow.push_back(&PARAM_EXHAUSTIVE_SEARCH);
     searchworkflow.push_back(&PARAM_EXHAUSTIVE_SEARCH_FILTER);
     searchworkflow.push_back(&PARAM_STRAND);
@@ -2260,6 +2262,7 @@ void Parameters::setDefaults() {
 
     // search workflow
     numIterations = 1;
+    prefMode = PREF_MODE_KMER;
     startSens = 4;
     sensSteps = 1;
     exhaustiveSearch = false;

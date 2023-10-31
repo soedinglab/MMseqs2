@@ -5,6 +5,33 @@ fail() {
     exit 1
 }
 
+abspath() {
+    if [ -d "$1" ]; then
+        (cd "$1"; pwd)
+    elif [ -f "$1" ]; then
+        if [ -z "${1##*/*}" ]; then
+            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
+        else
+            echo "$(pwd)/$1"
+        fi
+    elif [ -d "$(dirname "$1")" ]; then
+        echo "$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
+    fi
+}
+
+fake_pref() {
+    QDB="$1"
+    TDB="$2"
+    RES="$3"
+    # create link to data file which contains a list of all targets that should be aligned
+    ln -s "$(abspath "${TDB}.index")" "${RES}"
+    # create new index repeatedly pointing to same entry
+    INDEX_SIZE="$(wc -c < "${TDB}.index")"
+    awk -v size="$INDEX_SIZE" '{ print $1"\t0\t"size; }' "${QDB}.index" > "${RES}.index"
+    # create dbtype (7)
+    awk 'BEGIN { printf("%c%c%c%c",7,0,0,0); exit; }' > "${RES}.dbtype"
+}
+
 notExists() {
 	[ ! -f "$1" ]
 }
@@ -28,15 +55,26 @@ STEP=0
 while [ "$STEP" -lt "$NUM_IT" ]; do
     # call prefilter module
     if notExists "$TMP_PATH/pref_tmp_${STEP}.done"; then
-        PARAM="PREFILTER_PAR_$STEP"
-        eval TMP="\$$PARAM"
+        if [ "$PREFMODE" = "EXHAUSTIVE" ]; then
+            TMP=""
+            PREF="fake_pref"
+        elif [ "$PREFMODE" = "UNGAPPED" ]; then
+            PARAM="UNGAPPEDPREFILTER_PAR_$STEP"
+            eval TMP="\$$PARAM"
+            PREF="${MMSEQS} ungappedprefilter"
+        else
+            PARAM="PREFILTER_PAR_$STEP"
+            eval TMP="\$$PARAM"
+            PREF="${MMSEQS} prefilter"
+        fi
+
         if [ "$STEP" -eq 0 ]; then
             # shellcheck disable=SC2086
-            $RUNNER "$MMSEQS" prefilter "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" ${TMP} \
+            $RUNNER $PREF "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" ${TMP} \
                 || fail "Prefilter died"
         else
             # shellcheck disable=SC2086
-            $RUNNER "$MMSEQS" prefilter "$QUERYDB" "$2" "$TMP_PATH/pref_tmp_$STEP" ${TMP} \
+            $RUNNER $PREF "$QUERYDB" "$2" "$TMP_PATH/pref_tmp_$STEP" ${TMP} \
                 || fail "Prefilter died"
         fi
         touch "$TMP_PATH/pref_tmp_${STEP}.done"

@@ -306,6 +306,11 @@ public:
     static const int ID_MODE_KEYS = 0;
     static const int ID_MODE_LOOKUP = 1;
 
+    // prefilter mode
+    static const int PREF_MODE_KMER = 0;
+    static const int PREF_MODE_UNGAPPED = 1;
+    static const int PREF_MODE_EXHAUSTIVE = 2;
+
     // unpackdb
     static const int UNPACK_NAME_KEY = 0;
     static const int UNPACK_NAME_ACCESSION = 1;
@@ -450,6 +455,7 @@ public:
 
     // SEARCH WORKFLOW
     int numIterations;
+    int prefMode;
     float startSens;
     int sensSteps;
     bool exhaustiveSearch;
@@ -872,6 +878,7 @@ public:
     PARAMETER(PARAM_NUM_ITERATIONS)
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEPS)
+    PARAMETER(PARAM_PREF_MODE)
     PARAMETER(PARAM_EXHAUSTIVE_SEARCH)
     PARAMETER(PARAM_EXHAUSTIVE_SEARCH_FILTER)
     PARAMETER(PARAM_STRAND)
