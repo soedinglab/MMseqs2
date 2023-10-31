@@ -76,8 +76,8 @@ if (NOT EMSCRIPTEN)
 endif()
 
 if (ENABLE_WERROR)
-    append_target_property(mmseqs-framework COMPILE_FLAGS -Werror)
-    append_target_property(mmseqs-framework LINK_FLAGS -Werror)
+    append_target_property(mmseqs-framework COMPILE_FLAGS -Werror -Wno-unused-command-line-argument)
+    append_target_property(mmseqs-framework LINK_FLAGS -Werror -Wno-unused-command-line-argument)
 endif()
 
 # needed for concat.h

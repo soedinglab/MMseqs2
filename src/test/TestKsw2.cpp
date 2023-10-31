@@ -255,7 +255,7 @@ void align(const char * qSeqAscii, uint8_t *qseq, uint8_t *qseqrev, const int qL
     std::string middleAln;
     int queryPos = qStartPos;
     int targetPos = tStartPos;
-    int aaIds = 0;
+    // int aaIds = 0;
     for(int i = 0; i < ezAlign.n_cigar; i++){
         int len = ezAlign.cigar[i]>>4;
         switch("MID"[ezAlign.cigar[i]&0xf]){
@@ -264,7 +264,7 @@ void align(const char * qSeqAscii, uint8_t *qseq, uint8_t *qseqrev, const int qL
                 queryAln.push_back(qSeqAscii[queryPos]);
                 if (qSeqAscii[queryPos] == tSeqAscii[targetPos]) {
                     middleAln.push_back('|');
-                    aaIds++;
+                    // aaIds++;
                 } else {
                     middleAln.push_back('*');
                 }
