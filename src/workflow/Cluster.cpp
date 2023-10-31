@@ -94,7 +94,7 @@ void setClusterAutomagicParameters(Parameters& par) {
     }
     if (par.singleStepClustering == false && par.clusteringMode == Parameters::CONNECTED_COMPONENT) {
         Debug(Debug::WARNING) << "Connected component clustering produces less clusters in a single step clustering.\n"
-                              << "Please use --single-step-cluster";
+                              << "Please use --single-step-clustering";
     }
     if (par.PARAM_CLUSTER_STEPS.wasSet == false) {
         par.clusterSteps = setAutomaticIterations(par.sensitivity);
