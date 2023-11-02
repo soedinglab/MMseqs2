@@ -1,0 +1,10 @@
+/target
+Cargo.lock
+data/*
+!data/README.md
+!data/uc30_pairwise_aln.sh
+!data/uc30_0.95_pairwise_aln.sh
+c/a.out
+c/target
+vis/.ipynb_checkpoints
+vis/*.log
