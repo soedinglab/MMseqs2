@@ -37,19 +37,30 @@ make -j${CPUS}
 export LIBOMP_AMD64="$BUILD/build_libomp/openmp-11.0.0.src/build-amd64/runtime/src"
 
 mkdir -p "$BUILD/build_sse41" && cd "$BUILD/build_sse41"
-cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=0 -DHAVE_MPI=0 -DHAVE_SSE4_1=1 -DCMAKE_C_FLAGS="-arch x86_64" -DCMAKE_CXX_FLAGS="-arch x86_64" -DBUILD_SHARED_LIBS=OFF -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AMD64}" -DOpenMP_C_LIB_NAMES=omp -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AMD64}" -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=${LIBOMP_AMD64}/libomp.a "$REPO"
+cmake \
+    -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=0 -DHAVE_MPI=0 -DHAVE_SSE4_1=1 \
+    -DCMAKE_C_FLAGS="-arch x86_64" -DCMAKE_CXX_FLAGS="-arch x86_64" \
+    -DBUILD_SHARED_LIBS=OFF -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+    -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AMD64}" -DOpenMP_C_LIB_NAMES=omp -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AMD64}" -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=${LIBOMP_AMD64}/libomp.a \
+    -DRust_CARGO_TARGET=x86_64-apple-darwin \
+    "$REPO"
 make -j${CPUS}
 
-if [ "$(echo $(otool -L "src/${BINARY_NAME}" | wc -l))" != 5 ]; then
+if [ "$(otool -L "src/${BINARY_NAME}" | tail -n +2 | grep -v -E "lib(System\.B|z|bz2|c\+\+)\." )" != "" ]; then
     echo "Too many linked libraries found in ${BINARY_NAME} binary. Build is not static!"
     exit 1
 fi
 
 mkdir -p "$BUILD/build_avx2" && cd "$BUILD/build_avx2"
-cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=0 -DHAVE_MPI=0 -DHAVE_AVX2=1 -DCMAKE_C_FLAGS="-arch x86_64h" -DCMAKE_CXX_FLAGS="-arch x86_64h" -DBUILD_SHARED_LIBS=OFF -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AMD64}" -DOpenMP_C_LIB_NAMES=omp -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AMD64}" -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=${LIBOMP_AMD64}/libomp.a "$REPO"
+cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=0 -DHAVE_MPI=0 -DHAVE_AVX2=1 \
+    -DCMAKE_C_FLAGS="-arch x86_64h" -DCMAKE_CXX_FLAGS="-arch x86_64h" \
+    -DBUILD_SHARED_LIBS=OFF -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+    -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AMD64}" -DOpenMP_C_LIB_NAMES=omp -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AMD64}" -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=${LIBOMP_AMD64}/libomp.a \
+    -DRust_CARGO_TARGET=x86_64-apple-darwin \
+    "$REPO"
 make -j${CPUS}
 
-if [ "$(echo $(otool -L "src/${BINARY_NAME}" | wc -l))" != 5 ]; then
+if [ "$(otool -L "src/${BINARY_NAME}" | tail -n +2 | grep -v -E "lib(System\.B|z|bz2|c\+\+)\." )" != "" ]; then
     echo "Too many linked libraries found in ${BINARY_NAME} binary. Build is not static!"
     exit 1
 fi
@@ -62,11 +73,20 @@ make -j${CPUS}
 export LIBOMP_AARCH64="$BUILD/build_libomp/openmp-11.0.0.src/build-arm64/runtime/src"
 
 mkdir -p "$BUILD/build_arm64" && cd "$BUILD/build_arm64"
-cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=0 -DHAVE_MPI=0 -DHAVE_ARM8=1 -DCMAKE_C_FLAGS="-arch arm64" -DCMAKE_CXX_FLAGS="-arch arm64" -DBUILD_SHARED_LIBS=OFF -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AARCH64}" -DOpenMP_C_LIB_NAMES=omp -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AARCH64}" -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=${LIBOMP_AARCH64}/libomp.a "$REPO"
+cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=0 -DHAVE_MPI=0 -DHAVE_ARM8=1 \
+    -DCMAKE_C_FLAGS="-arch arm64" -DCMAKE_CXX_FLAGS="-arch arm64" \
+    -DBUILD_SHARED_LIBS=OFF -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AARCH64}" -DOpenMP_C_LIB_NAMES=omp -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AARCH64}" -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=${LIBOMP_AARCH64}/libomp.a \
+    -DRust_CARGO_TARGET=aarch64-apple-darwin \
+    "$REPO"
 make -j${CPUS}
-if [ "$(echo $(otool -L "src/${BINARY_NAME}" | wc -l))" != 5 ]; then
+if [ "$(otool -L "src/${BINARY_NAME}" | tail -n +2 | grep -v -E "lib(System\.B|z|bz2|c\+\+)\." )" != "" ]; then
     echo "Too many linked libraries found in ${BINARY_NAME} binary. Build is not static!"
     exit 1
 fi
 
-lipo -create -arch x86_64 "$BUILD/build_sse41/src/${BINARY_NAME}" -arch x86_64h "$BUILD/build_avx2/src/${BINARY_NAME}" -arch arm64 "$BUILD/build_arm64/src/${BINARY_NAME}" -output "$BUILD/${BINARY_NAME}"
+lipo \
+    -create \
+    -arch x86_64 "$BUILD/build_sse41/src/${BINARY_NAME}" \
+    -arch x86_64h "$BUILD/build_avx2/src/${BINARY_NAME}" \
+    -arch arm64 "$BUILD/build_arm64/src/${BINARY_NAME}" \
+    -output "$BUILD/${BINARY_NAME}"

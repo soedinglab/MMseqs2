@@ -36,7 +36,9 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
       make -j $(nproc --all); \
       mv src/${APP} /opt/build/${APP}_avx2; \
       touch /opt/build/${APP}_arch; \
-    fi
+    fi; \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+      sh -s -- --profile minimal --default-host ${ARCH}-unknown-linux-gnu -y
 
 FROM debian:stable-slim
 ARG TARGETARCH

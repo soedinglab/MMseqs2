@@ -37,28 +37,8 @@ jobs:
           targetPath: $(System.DefaultWorkingDirectory)/userguide.pdf
           artifactName: userguide
 
-  - job: build_macos
-    displayName: macOS
-    pool:
-      vmImage: 'macos-11'
-    steps:
-      - checkout: self
-        submodules: true
-      - script: |
-          cd ${BUILD_SOURCESDIRECTORY}
-          ./util/build_osx.sh . build
-        displayName: Build MMseqs2
-      - script: |
-          ${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/mmseqs ${BUILD_SOURCESDIRECTORY}/regression
-        displayName: Run Regression Suite
-        condition: eq(variables['regression'], 1)
-      - task: PublishPipelineArtifact@0
-        inputs:
-          targetPath: $(Build.SourcesDirectory)/build/mmseqs
-          artifactName: mmseqs-darwin-universal
-
   - job: build_ubuntu
-    displayName: Ubuntu MMseqs2
+    displayName: Ubuntu 2004
     pool:
       vmImage: 'Ubuntu-20.04'
     timeoutInMinutes: 120
@@ -89,16 +69,14 @@ jobs:
           STATIC: 0
           MPI: 0
           BUILD_TYPE: ASanOpt
-
     steps:
       - checkout: self
         submodules: true
       - script: |
-          #sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          #sudo apt-get update
-          sudo apt-get install -y g++-10
-        condition: eq(variables['BUILD_TYPE'], 'ASanOpt')
-        displayName: Install newer G++
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-11 g++-11 libgcc-11-dev rustc cargo build-essential
+        displayName: Install newer GCC
       - script: |
           sudo apt-get update
           sudo apt-get -y install mpi-default-dev mpi-default-bin
@@ -106,9 +84,7 @@ jobs:
         condition: eq(variables['MPI'], 1)
       - script: |
           mkdir build && cd build
-          if [ "${BUILD_TYPE}" = "ASanOpt" ]; then
-              export CC=gcc-10 ; export CXX=g++-10
-          fi
+          export CC=gcc-11 ; export CXX=g++-11
           if [ "${STATIC}" -eq "1" ]; then
               cmake -DHAVE_SANITIZER=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
                 -DBUILD_SHARED_LIBS=OFF \
@@ -156,7 +132,6 @@ jobs:
           SIMD: ARM8
           ARCH: arm64
           CPREF: aarch64
-
     steps:
       - script: |
           sudo dpkg --add-architecture $ARCH
@@ -172,6 +147,7 @@ jobs:
           HEREDOC
           sudo apt-get update
           sudo apt-get -y install -o APT::Immediate-Configure=false crossbuild-essential-$ARCH zlib1g-dev:$ARCH libbz2-dev:$ARCH
+          rustup target add ${CPREF}-unknown-linux-gnu
         displayName: Install Toolchain
       - script: |
           mkdir build && cd build
@@ -180,6 +156,7 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc \
             -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+            -DRust_CARGO_TARGET=${CPREF}-unknown-linux-gnu \
             -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 ..
           make -j $(nproc --all)
         displayName: Build MMseqs2
@@ -187,6 +164,32 @@ jobs:
         inputs:
           targetPath: $(Build.SourcesDirectory)/build/src/mmseqs
           artifactName: mmseqs-linux-$(SIMD)
+
+
+  - job: build_macos_11
+    displayName: macOS 11
+    pool:
+      vmImage: 'macos-11'
+    steps:
+      - checkout: self
+        submodules: true
+      - script: |
+          rustup update
+          rustup target install x86_64-apple-darwin
+          rustup target install aarch64-apple-darwin
+        displayName: Install Rust Toolchain
+      - script: |
+          cd ${BUILD_SOURCESDIRECTORY}
+          ./util/build_osx.sh . build
+        displayName: Build MMseqs2
+      - script: |
+          ${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/mmseqs ${BUILD_SOURCESDIRECTORY}/regression
+        displayName: Run Regression Suite
+        condition: eq(variables['regression'], 1)
+      - task: PublishPipelineArtifact@0
+        inputs:
+          targetPath: $(Build.SourcesDirectory)/build/mmseqs
+          artifactName: mmseqs-darwin-universal
 
   - job: build_windows
     displayName: Windows
