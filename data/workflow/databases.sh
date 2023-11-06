@@ -147,7 +147,7 @@ case "${SELECTION}" in
     "PDB")
         if notExists "${TMP_PATH}/pdb_seqres.txt.gz"; then
             date "+%s" > "${TMP_PATH}/version"
-            downloadFile "https://ftp.wwpdb.org/pub/pdb/derived_data/pdb_seqres.txt.gz" "${TMP_PATH}/pdb_seqres.txt.gz"
+            downloadFile "https://files.wwpdb.org/pub/pdb/derived_data/pdb_seqres.txt.gz" "${TMP_PATH}/pdb_seqres.txt.gz"
         fi
         push_back "${TMP_PATH}/pdb_seqres.txt.gz"
         INPUT_TYPE="FASTA_LIST"
