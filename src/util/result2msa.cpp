@@ -503,7 +503,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 #ifdef GAP_POS_SCORING
                         alnResults,
 #endif
-                        par.wg);
+                        par.wg, 0.0);
                     result.append(">consensus_");
                     result.append(centerSequenceHeader, centerHeaderLength);
                     for (int pos = 0; pos < centerSequence.L; pos++) {

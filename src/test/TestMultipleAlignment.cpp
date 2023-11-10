@@ -88,7 +88,7 @@ int main(int, const char**) {
 #ifdef GAP_POS_SCORING  
         , alnResults
 #endif
-        , false
+        , false, 0.0
     );
     pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);

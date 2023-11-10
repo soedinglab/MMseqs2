@@ -774,7 +774,7 @@ int main (int, const char**) {
                                   21 : subMat.aa2num[(int) msaSeq[k][pos]];
         }
     }
-    PSSMCalculator::Profile pssmRet = pssmCalculator.computePSSMFromMSA(setSize,centerSeqSize, (const char **) msaSequence, false);
+    PSSMCalculator::Profile pssmRet = pssmCalculator.computePSSMFromMSA(setSize,centerSeqSize, (const char **) msaSequence, false, 0.0);
     const char * sequence = pssmRet.pssm;
     char * data = new char[centerSeqSize*20+1];
     for (size_t i = 0; i < centerSeqSize*20; i++) {
