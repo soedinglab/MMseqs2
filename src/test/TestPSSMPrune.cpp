@@ -90,7 +90,7 @@ int main (int, const char**) {
 
     //seqSet.push_back(s5);
 //    PSSMCalculator pssm(&subMat, counter, 1.0, 1.5);
-//    pssm.computePSSMFromMSA(filterResult.setSize, res.centerLength, filterResult.filteredMsaSequence, false);
+//    pssm.computePSSMFromMSA(filterResult.setSize, res.centerLength, filterResult.filteredMsaSequence, false, 0.0);
 //    //pssm.printProfile(res.centerLength);
 //    pssm.printPSSM(res.centerLength);
     MultipleAlignment::deleteMSA(&res);
