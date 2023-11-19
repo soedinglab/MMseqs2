@@ -17,9 +17,9 @@
 #include "StripedSmithWaterman.h"
 #include "EvalueComputation.h"
 #include "BandedNucleotideAligner.h"
+#include "BlockAligner.h"
 
-class Matcher{
-
+class Matcher {
 public:
     static const unsigned int SCORE_ONLY = 0;
     static const unsigned int SCORE_COV = 1;
@@ -145,7 +145,7 @@ public:
     Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m,
             EvalueComputation * evaluer, bool aaBiasCorrection, float aaBiasCorrectionScale,
             int gapOpen, int gapExtend, float correlationScoreWeight,
-            int zdrop);
+            int zdrop, bool useBlockAligner = false);
 
     ~Matcher();
 
@@ -240,6 +240,9 @@ private:
     SmithWaterman * aligner;
     // aligner for nucl
     BandedNucleotideAligner * nuclaligner;
+    // block-aligner
+    BlockAligner * blockAligner;
+    bool useBlockAligner;
     // substitution matrix
     BaseMatrix* m;
     // evalue

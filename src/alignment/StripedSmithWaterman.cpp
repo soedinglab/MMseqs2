@@ -1615,46 +1615,6 @@ SmithWaterman::cigar * SmithWaterman::banded_sw(const unsigned char *db_sequence
 #undef set_d
 }
 
-uint32_t SmithWaterman::to_cigar_int (uint32_t length, char op_letter)
-{
-	uint32_t res;
-	uint8_t op_code;
-
-	switch (op_letter) {
-		case 'M': /* alignment match (can be a sequence match or mismatch */
-		default:
-			op_code = 0;
-			break;
-		case 'I': /* insertion to the reference */
-			op_code = 1;
-			break;
-		case 'D': /* deletion from the reference */
-			op_code = 2;
-			break;
-		case 'N': /* skipped region from the reference */
-			op_code = 3;
-			break;
-		case 'S': /* soft clipping (clipped sequences present in SEQ) */
-			op_code = 4;
-			break;
-		case 'H': /* hard clipping (clipped sequences NOT present in SEQ) */
-			op_code = 5;
-			break;
-		case 'P': /* padding (silent deletion from padded reference) */
-			op_code = 6;
-			break;
-		case '=': /* sequence match */
-			op_code = 7;
-			break;
-		case 'X': /* sequence mismatch */
-			op_code = 8;
-			break;
-	}
-
-	res = (length << 4) | op_code;
-	return res;
-}
-
 void SmithWaterman::printVector(__m128i v){
 	for (int i = 0; i < 8; i++)
 		printf("%d ", ((short) (sse2_extract_epi16(v, i)) + 32768));

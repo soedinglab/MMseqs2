@@ -292,7 +292,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
 
             std::vector<Matcher::result_t> swResults;
             swResults.reserve(300);
-            Matcher matcher(querySeqType, targetSeqType, maxMatcherSeqLen, m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, correlationScoreWeight, zdrop);
+            Matcher matcher(querySeqType, targetSeqType, maxMatcherSeqLen, m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, correlationScoreWeight, zdrop, true);
 
             std::vector<Matcher::result_t> swRealignResults;
             Matcher *realigner = NULL;

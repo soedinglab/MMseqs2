@@ -6,18 +6,27 @@
 #include "StripedSmithWaterman.h"
 
 
-Matcher::Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
-                 bool aaBiasCorrection, float aaBiasCorrectionScale, int gapOpen, int gapExtend, float correlationScoreWeight, int zdrop)
-                 : gapOpen(gapOpen), gapExtend(gapExtend), correlationScoreWeight(correlationScoreWeight), m(m), evaluer(evaluer), tinySubMat(NULL)  {
-    setSubstitutionMatrix(m);
-
-    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        nuclaligner = new BandedNucleotideAligner(m, maxSeqLen, gapOpen, gapExtend, zdrop);
+Matcher::Matcher(
+    int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
+    bool aaBiasCorrection, float aaBiasCorrectionScale, int gapOpen, int gapExtend, float correlationScoreWeight, int zdrop,
+    bool useBlockAligner
+) : gapOpen(gapOpen), gapExtend(gapExtend), correlationScoreWeight(correlationScoreWeight), useBlockAligner(useBlockAligner), m(m), evaluer(evaluer), tinySubMat(NULL) {
+    if (useBlockAligner) {
+        // FIXME
+        blockAligner = new BlockAligner(maxSeqLen, 32, 32, -gapOpen, -gapExtend, *m, querySeqType);
+        nuclaligner = NULL;
         aligner = NULL;
     } else {
-        nuclaligner = NULL;
-        aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection,
-                                    aaBiasCorrectionScale, targetSeqType);
+        if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
+            nuclaligner = new BandedNucleotideAligner(m, maxSeqLen, gapOpen, gapExtend, zdrop);
+            aligner = NULL;
+        } else {
+            nuclaligner = NULL;
+            aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection,
+                                        aaBiasCorrectionScale, targetSeqType);
+            setSubstitutionMatrix(m);
+        }
+        blockAligner = NULL;
     }
     //std::cout << "lambda=" << lambdaLog2 << " logKLog2=" << logKLog2 << std::endl;
 }
@@ -39,6 +48,9 @@ Matcher::~Matcher(){
     if(nuclaligner != NULL){
         delete nuclaligner;
     }
+    if(blockAligner != NULL){
+        delete blockAligner;
+    }
     if(tinySubMat != NULL){
         delete [] tinySubMat;
         tinySubMat = NULL;
@@ -47,12 +59,16 @@ Matcher::~Matcher(){
 
 void Matcher::initQuery(Sequence* query){
     currentQuery = query;
-    if(Parameters::isEqualDbtype(query->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
-        nuclaligner->initQuery(query);
-    }else if(Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_HMM_PROFILE)){
-        aligner->ssw_init(query, query->getAlignmentProfile(), this->m);
-    }else{
-        aligner->ssw_init(query, this->tinySubMat, this->m);
+    if (blockAligner != NULL) {
+        blockAligner->initQuery(query->getSeqData(), query->L, query->getSequenceType());
+    } else {
+        if(Parameters::isEqualDbtype(query->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
+            nuclaligner->initQuery(query);
+        }else if(Parameters::isEqualDbtype(query->getSeqType(), Parameters::DBTYPE_HMM_PROFILE)){
+            aligner->ssw_init(query, query->getAlignmentProfile(), this->m);
+        }else{
+            aligner->ssw_init(query, this->tinySubMat, this->m);
+        }
     }
 }
 
@@ -67,21 +83,27 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
     s_align alignment;
     // compute sequence identity
     std::string backtrace;
-    if(Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)){
-        if(diagonal==INT_MAX){
-            Debug(Debug::ERROR) << "Query sequence " << currentQuery->getDbKey() << " has a result with no diagonal information. Please check your database.\n";
-            EXIT(EXIT_FAILURE);
-        }
-        alignment = nuclaligner->align(dbSeq, diagonal, isReverse, backtrace, evaluer, wrappedScoring);
-        alignmentMode = Matcher::SCORE_COV_SEQID;
+    if (blockAligner != NULL) {
+        // FIXME
+        const int xdrop = 10;
+        alignment = blockAligner->align(dbSeq->getSeqData(), dbSeq->L, diagonal, backtrace, evaluer, xdrop);
     } else {
-        if (isIdentity == false) {
-            alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->numConsensusSequence,
-                                           dbSeq->getAlignmentProfile(), dbSeq->L, backtrace,
-                                           gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode,
-                                           covThr, correlationScoreWeight, maskLen, dbSeq->getId());
+        if (Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)) {
+            if (diagonal == INT_MAX) {
+                Debug(Debug::ERROR) << "Query sequence " << currentQuery->getDbKey() << " has a result with no diagonal information. Please check your database.\n";
+                EXIT(EXIT_FAILURE);
+            }
+            alignment = nuclaligner->align(dbSeq, diagonal, isReverse, backtrace, evaluer, wrappedScoring);
+            alignmentMode = Matcher::SCORE_COV_SEQID;
         } else {
-            alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode, backtrace);
+            if (isIdentity == false) {
+                alignment = aligner->ssw_align(dbSeq->numSequence, dbSeq->numConsensusSequence,
+                                            dbSeq->getAlignmentProfile(), dbSeq->L, backtrace,
+                                            gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode,
+                                            covThr, correlationScoreWeight, maskLen, dbSeq->getId());
+            } else {
+                alignment = aligner->scoreIdentical(dbSeq->numSequence, dbSeq->L, evaluer, alignmentMode, backtrace);
+            }
         }
     }
 
@@ -135,8 +157,9 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
         result = result_t(dbSeq->getDbKey(), bitScore, qcov, dbcov, seqId, evalue, alnLength, qStartPos, qEndPos, origQueryLen, dbStartPos, dbEndPos, dbSeq->L, backtrace);
     }
 
-
-    delete [] alignment.cigar;
+    if (blockAligner == NULL) {
+        delete[] alignment.cigar;
+    }
     return result;
 }
 

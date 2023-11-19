@@ -1,5 +1,6 @@
 set(alignment_header_files
         alignment/Alignment.h
+        alignment/BlockAligner.h
         alignment/CompressedA3M.h
         alignment/EvalueComputation.h
         alignment/Matcher.h
@@ -15,6 +16,7 @@ set(alignment_header_files
 
 set(alignment_source_files
         alignment/Alignment.cpp
+        alignment/BlockAligner.cpp
         alignment/CompressedA3M.cpp
         alignment/Main.cpp
         alignment/Matcher.cpp

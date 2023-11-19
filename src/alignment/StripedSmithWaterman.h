@@ -265,6 +265,49 @@ public:
     void computerBacktrace(s_profile * query, const unsigned char * db_sequence,
                            s_align & alignment, std::string & backtrace, uint32_t & aaIds, int8_t * scorePerCol, size_t & mStatesCnt);
 
+    /*!	@function		Produce CIGAR 32-bit unsigned integer from CIGAR operation and CIGAR length
+     @param	length		length of CIGAR
+     @param	op_letter	CIGAR operation character ('M', 'I', etc)
+     @return			32-bit unsigned integer, representing encoded CIGAR operation and length
+     */
+    static inline uint32_t to_cigar_int(uint32_t length, char op_letter) {
+        uint32_t res;
+        uint8_t op_code;
+
+        switch (op_letter) {
+            case 'M': /* alignment match (can be a sequence match or mismatch */
+            default:
+                op_code = 0;
+                break;
+            case 'I': /* insertion to the reference */
+                op_code = 1;
+                break;
+            case 'D': /* deletion from the reference */
+                op_code = 2;
+                break;
+            case 'N': /* skipped region from the reference */
+                op_code = 3;
+                break;
+            case 'S': /* soft clipping (clipped sequences present in SEQ) */
+                op_code = 4;
+                break;
+            case 'H': /* hard clipping (clipped sequences NOT present in SEQ) */
+                op_code = 5;
+                break;
+            case 'P': /* padding (silent deletion from padded reference) */
+                op_code = 6;
+                break;
+            case '=': /* sequence match */
+                op_code = 7;
+                break;
+            case 'X': /* sequence mismatch */
+                op_code = 8;
+                break;
+        }
+
+        res = (length << 4) | op_code;
+        return res;
+    }
 
     // ssw_init
     const static unsigned int SUBSTITUTIONMATRIX = 1;
@@ -373,14 +416,6 @@ private:
                                     uint8_t *gDelOpen, uint8_t *gDelClose, uint8_t *gIns,
 #endif
                                     int32_t band_width, const int8_t *mat, const int8_t *target_mat, const int32_t qry_n, const int32_t tgt_n);
-
-
-    /*!	@function		Produce CIGAR 32-bit unsigned integer from CIGAR operation and CIGAR length
-     @param	length		length of CIGAR
-     @param	op_letter	CIGAR operation character ('M', 'I', etc)
-     @return			32-bit unsigned integer, representing encoded CIGAR operation and length
-     */
-    inline uint32_t to_cigar_int (uint32_t length, char op_letter);
 
     s_profile* profile;
 
