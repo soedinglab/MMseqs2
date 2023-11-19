@@ -27,13 +27,16 @@ const Command* getCommandByName(const char *s) {
     const char *prefix = "base:";
     const char *check = strncmp(s, prefix, strlen(prefix)) == 0 ? s + strlen(prefix) : s;
 
-    for (size_t i = 0; i < commands.size(); i++) {
+    for (size_t i = commands.size() - 1; true; i--) {
         for (size_t j = 0; j < commands[i]->size(); j++) {
             const Command &p = (*commands[i])[j];
             if (!strcmp(s, p.cmd))
                 return &p;
             if (i == 0 && !strcmp(check, p.cmd))
                 return &p;
+        }
+        if (i == 0) {
+            break;
         }
     }
     return NULL;
@@ -60,13 +63,16 @@ void printUsage(bool showExtended) {
         if (hide_base_commands) {
             start = commands.size() - 1;
         }
-        for (size_t j = start; j < commands.size(); j++) {
+        for (size_t j = commands.size() - 1; j >= start; j--) {
             for (size_t k = 0; k < commands[j]->size(); k++) {
                 const Command &p = (*commands[j])[k];
                 if (p.mode & categories[i].mode) {
                     showCategoryHeader[i] = 1;
                     break;
                 }
+            }
+            if (j == 0) {
+                break;
             }
         }
     }
@@ -87,12 +93,12 @@ void printUsage(bool showExtended) {
         }
 
         usage << "\n" << std::setw(20) << categories[i].title << "\n";
-        for (size_t j = 0; j < commands.size(); j++) {
-            size_t start = 0;
-            if (hide_base_commands) {
-                start = commands.size() - 1;
-            }
-            for (size_t k = start; k < commands[j]->size(); k++) {
+        size_t start = 0;
+        if (hide_base_commands) {
+            start = commands.size() - 1;
+        }
+        for (size_t j = commands.size() - 1; j >= start; j--) {
+            for (size_t k = 0; k < commands[j]->size(); k++) {
                 const Command &p = (*commands[j])[k];
                 if (showExtended == false && (p.mode & COMMAND_EXPERT) != 0) {
                     continue;
@@ -100,6 +106,9 @@ void printUsage(bool showExtended) {
                 if (p.mode & categories[i].mode) {
                     usage << std::left << std::setw(20) << "  " + std::string(p.cmd) << "\t" << p.description << "\n";
                 }
+            }
+            if (j == 0) {
+                break;
             }
         }
     }
@@ -118,16 +127,19 @@ void printUsage(bool showExtended) {
 int shellcompletion(int argc, const char **argv) {
     // mmseqs programs
     if (argc == 0) {
-        for (size_t i = 0; i < commands.size(); i++) {
-            size_t start = 0;
-            if (hide_base_commands) {
-                start = commands.size() - 1;
-            }
-            for (size_t j = start; j < commands[i]->size(); j++) {
+        size_t start = 0;
+        if (hide_base_commands) {
+            start = commands.size() - 1;
+        }
+        for (size_t i = commands.size() - 1; i >= start; i--) {
+            for (size_t j = 0; j < commands[i]->size(); j++) {
                 const Command &p = (*commands[i])[j];
                 if (p.mode & COMMAND_HIDDEN)
                     continue;
                 Debug(Debug::INFO) << p.cmd << " ";
+            }
+            if (i == 0) {
+                break;
             }
         }
         Debug(Debug::INFO) << "\n";
@@ -135,12 +147,12 @@ int shellcompletion(int argc, const char **argv) {
 
     // mmseqs parameters for given program
     if (argc == 1) {
-        for (size_t i = 0; i < commands.size(); i++) {
-            size_t start = 0;
-            if (hide_base_commands) {
-                start = commands.size() - 1;
-            }
-            for (size_t j = start; j < commands[i]->size(); j++) {
+        size_t start = 0;
+        if (hide_base_commands) {
+            start = commands.size() - 1;
+        }
+        for (size_t i = commands.size() - 1; i >= start; i--) {
+            for (size_t j = 0; j < commands[i]->size(); j++) {
                 const Command &p = (*commands[i])[j];
                 if (strcmp(p.cmd, argv[0]) != 0) {
                     continue;
@@ -152,6 +164,9 @@ int shellcompletion(int argc, const char **argv) {
                     Debug(Debug::INFO) << (*it)->name << " ";
                 }
                 Debug(Debug::INFO) << "\n";
+                break;
+            }
+            if (i == 0) {
                 break;
             }
         }
@@ -194,12 +209,12 @@ int main(int argc, const char **argv) {
         size_t indexI = SIZE_MAX;
         size_t indexJ = SIZE_MAX;
         int maxDistance = 0;
-        for (size_t i = 0; i < commands.size(); i++) {
-            size_t start = 0;
-            if (hide_base_commands) {
-                start = commands.size() - 1;
-            }
-            for (size_t j = start; j < commands[i]->size(); j++) {
+        size_t start = 0;
+        if (hide_base_commands) {
+            start = commands.size() - 1;
+        }
+        for (size_t i = commands.size() - 1; i >= start; i--) {
+            for (size_t j = 0; j < commands[i]->size(); j++) {
                 const Command &p = (*commands[i])[j];
                 if (p.mode & COMMAND_HIDDEN) {
                     continue;
@@ -211,6 +226,9 @@ int main(int argc, const char **argv) {
                     indexI = i;
                     indexJ = j;
                 }
+            }
+            if (i == 0) {
+                break;
             }
         }
 
