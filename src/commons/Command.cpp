@@ -1,6 +1,11 @@
 #include "Command.h"
 #include "Parameters.h"
 
+std::vector<std::vector<Command>*> commands;
+void registerCommands(std::vector<Command>* cmd) {
+    commands.emplace_back(cmd);
+}
+
 std::vector<Categories> categories = {
         {"Easy workflows for plain text input/output",   COMMAND_EASY},
         {"Main workflows for database input/output",     COMMAND_MAIN},

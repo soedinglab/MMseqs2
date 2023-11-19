@@ -12,7 +12,13 @@ extern const char* MMSEQS_CURRENT_INDEX_VERSION;
 const char* index_version_compatible = MMSEQS_CURRENT_INDEX_VERSION;
 bool hide_base_commands = false;
 void (*validatorUpdate)(void) = 0;
-std::vector<Command> commands = {};
+
+extern std::vector<Command> baseCommands;
+void init() {
+    registerCommands(&baseCommands);
+}
+void (*initCommands)(void) = init;
+
 std::vector<DatabaseDownload> externalDownloads = {};
 std::vector<KmerThreshold> externalThreshold = {};
 
