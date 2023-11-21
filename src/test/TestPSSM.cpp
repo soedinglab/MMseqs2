@@ -15,7 +15,7 @@
 #include "MultipleAlignment.h"
 
 const char* binary_name = "test_pssm";
-DEFAULT_PARAMETER_SINGLETON_INIT;
+DEFAULT_PARAMETER_SINGLETON_INIT
 
 int main (int, const char**) {
     Parameters& par = Parameters::getInstance();

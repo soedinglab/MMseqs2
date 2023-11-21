@@ -20,7 +20,7 @@ void init() {
 }
 void (*initCommands)(void) = init;
 
-DEFAULT_PARAMETER_SINGLETON_INIT;
+DEFAULT_PARAMETER_SINGLETON_INIT
 
 std::vector<DatabaseDownload> externalDownloads = {};
 std::vector<KmerThreshold> externalThreshold = {};

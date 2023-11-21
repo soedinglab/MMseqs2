@@ -18,7 +18,7 @@
 #include "Parameters.h"
 
 const char* binary_name = "test_alignmenttraceback";
-DEFAULT_PARAMETER_SINGLETON_INIT;
+DEFAULT_PARAMETER_SINGLETON_INIT
 
 struct scores{
     short H;

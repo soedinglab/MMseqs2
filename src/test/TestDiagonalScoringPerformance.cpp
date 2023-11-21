@@ -20,7 +20,7 @@ KSEQ_INIT(int, read)
 #include "Parameters.h"
 
 const char* binary_name = "test_diagonalscoringperformance";
-DEFAULT_PARAMETER_SINGLETON_INIT;
+DEFAULT_PARAMETER_SINGLETON_INIT
 
 int main (int, const char**) {
     size_t kmer_size = 6;
