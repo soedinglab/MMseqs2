@@ -14,7 +14,6 @@
 #include "DBReader.h"
 #include "Sequence.h"
 #include "Indexer.h"
-#include "Parameters.h"
 
 const char* binary_name = "test_bestalphabet";
 

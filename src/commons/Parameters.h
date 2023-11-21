@@ -59,6 +59,8 @@ struct MMseqsParameter {
     }
 };
 
+void initParameterSingleton(void);
+#define DEFAULT_PARAMETER_SINGLETON_INIT void initParameterSingleton() { new Parameters; }
 
 class Parameters {
 public:
@@ -712,13 +714,11 @@ public:
     static Parameters& getInstance()
     {
         if (instance == NULL) {
-            initInstance();
+            initParameterSingleton();
         }
         return *instance;
     }
-    static void initInstance() {
-        new Parameters;
-    }
+    friend void initParameterSingleton(void);
 
     void setDefaults();
     void initMatrices();

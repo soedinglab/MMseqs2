@@ -1,6 +1,7 @@
 #include "Command.h"
 #include "DownloadDatabase.h"
 #include "Prefiltering.h"
+#include "Parameters.h"
 
 const char* binary_name = "mmseqs";
 const char* tool_name = "MMseqs2";
@@ -18,6 +19,8 @@ void init() {
     registerCommands(&baseCommands);
 }
 void (*initCommands)(void) = init;
+
+DEFAULT_PARAMETER_SINGLETON_INIT;
 
 std::vector<DatabaseDownload> externalDownloads = {};
 std::vector<KmerThreshold> externalThreshold = {};
