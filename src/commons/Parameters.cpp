@@ -2573,6 +2573,9 @@ void Parameters::setDefaults() {
     taxonomySearchMode = Parameters::TAXONOMY_APPROX_2BLCA;
     taxonomyOutputMode = Parameters::TAXONOMY_OUTPUT_LCA;
 
+    // help
+    help = 0;
+
     // substituion matrix
     substitutionMatrices = {
             {"nucleotide.out", nucleotide_out, nucleotide_out_len },
