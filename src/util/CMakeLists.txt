@@ -31,6 +31,7 @@ set(util_source_files
         util/filterdb.cpp
         util/gff2db.cpp
         util/renamedbkeys.cpp
+        util/makepaddedseqdb.cpp
         util/masksequence.cpp
         util/maskbygff.cpp
         util/mergeclusters.cpp
