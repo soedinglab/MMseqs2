@@ -157,8 +157,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
         Sequence sequence(maxSeqLength + 1, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
-        char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * (maxSeqLength + 1) * maxSetSize);
-
         float *seqWeight = new float[maxSetSize];
         float *pNullBuffer = new float[maxSeqLength + 1];
         bool *maskedColumns = new bool[maxSeqLength + 1];
@@ -168,7 +166,8 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         kseq_buffer_t d;
         kseq_t *seq = kseq_init(&d);
 
-        char **msaSequences = (char**) mem_align(ALIGN_INT, sizeof(char*) * maxSetSize);
+        char **msaSequences = MultipleAlignment::initX(maxSeqLength + 1, maxSetSize);
+
         std::vector<Matcher::result_t> alnResults;
         alnResults.reserve(maxSetSize);
 
@@ -181,8 +180,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             progress.updateProgress();
 
             unsigned int queryKey = qDbr.getDbKey(id);
-
-            size_t msaPos = 0;
 
             unsigned int setSize = 0;
             unsigned int centerLengthWithGaps = 0;
@@ -247,6 +244,8 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                     continue;
                 }
 
+                size_t msaPos = 0;
+
                 // first sequence is always the query
                 if (setSize == 0) {
                     centerLengthWithGaps = seq->seq.l;
@@ -273,7 +272,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 }
 
                 sequence.mapSequence(0, 0, seq->seq.s, seq->seq.l);
-                msaSequences[setSize] = msaContent + msaPos;
 
                 for (size_t i = 0; i < centerLengthWithGaps; ++i) {
                     if (maskByFirst == true && maskedColumns[i] == true) {
@@ -285,7 +283,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                         continue;
                     }
 
-                    msaContent[msaPos++] = (seq->seq.s[i] == '-') ? (int)MultipleAlignment::GAP : sequence.numSequence[i];
+                    msaSequences[setSize][msaPos++] = (seq->seq.s[i] == '-') ? (int)MultipleAlignment::GAP : sequence.numSequence[i];
                 }
 
                 // construct backtrace for all but the query sequence
@@ -314,7 +312,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 size_t rowSize = msaPos / (VECSIZE_INT*4);
                 rowSize = (rowSize+1) * (VECSIZE_INT*4);
                 while(msaPos < rowSize) {
-                    msaContent[msaPos++] = MultipleAlignment::GAP;
+                    msaSequences[setSize][msaPos++] = MultipleAlignment::GAP;
                 }
 
                 setSize++;
@@ -431,11 +429,11 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             result.clear();
         }
         kseq_destroy(seq);
-        free(msaSequences);
-        free(msaContent);
+        free(msaSequences[0]);
         delete[] pNullBuffer;
         delete[] maskedColumns;
         delete[] seqWeight;
+        delete[] msaSequences;
     }
     headerWriter.close(true);
     resultWriter.close(true);
