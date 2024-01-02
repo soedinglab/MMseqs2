@@ -12,6 +12,7 @@
 #include "Parameters.h"
 
 const char* binary_name = "test_reducematrix";
+DEFAULT_PARAMETER_SINGLETON_INIT
 
 int main (int, const char**) {
     const int reductionAlphabetSize = 17;

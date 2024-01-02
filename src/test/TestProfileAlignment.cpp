@@ -19,6 +19,7 @@
 #include "Parameters.h"
 
 const char* binary_name = "test_profilealignment";
+DEFAULT_PARAMETER_SINGLETON_INIT
 
 int main (int, const char**) {
     const size_t kmer_size=6;
@@ -774,7 +775,7 @@ int main (int, const char**) {
                                   21 : subMat.aa2num[(int) msaSeq[k][pos]];
         }
     }
-    PSSMCalculator::Profile pssmRet = pssmCalculator.computePSSMFromMSA(setSize,centerSeqSize, (const char **) msaSequence, false);
+    PSSMCalculator::Profile pssmRet = pssmCalculator.computePSSMFromMSA(setSize,centerSeqSize, (const char **) msaSequence, false, 0.0);
     const char * sequence = pssmRet.pssm;
     char * data = new char[centerSeqSize*20+1];
     for (size_t i = 0; i < centerSeqSize*20; i++) {

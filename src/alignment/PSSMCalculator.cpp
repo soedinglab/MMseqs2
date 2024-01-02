@@ -92,7 +92,7 @@ PSSMCalculator::~PSSMCalculator() {
 //    PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
 //                                                               size_t queryLength,
 //                                                               const char **msaSeqs,
-//                                                               bool wg) {
+//                                                               bool wg, 0.0) {
 //        increaseSetSize(setSize);
 //        // Quick and dirty calculation of the weight per sequence wg[k]
 //        computeSequenceWeights(seqWeight, queryLength, setSize, msaSeqs);
@@ -135,10 +135,10 @@ PSSMCalculator::~PSSMCalculator() {
 ////    PSSMCalculator::printPSSM(queryLength);
 //    }
 // this overload is only used in TestProfileAlignment.cpp and TestPSSM.cpp
-PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs, bool wg) {
+PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs, bool wg, float scoreBias) {
 #ifdef GAP_POS_SCORING
     std::vector<Matcher::result_t> dummy;
-    return computePSSMFromMSA(setSize, queryLength, msaSeqs, dummy, wg);
+    return computePSSMFromMSA(setSize, queryLength, msaSeqs, dummy, wg, scoreBias);
 }
 #endif
 
@@ -146,7 +146,8 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize, size_
 PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(
     size_t setSize, size_t queryLength, const char **msaSeqs,
     const std::vector<Matcher::result_t> &alnResults,
-    bool wg
+    bool wg,
+    float scoreBias
 ) {
 #endif
     increaseSetSize(setSize);
@@ -193,7 +194,7 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(
 //    PSSMCalculator::printPSSM(queryLength);
 
     // create final Matrix
-    computeLogPSSM(subMat, pssm, profile, 8.0, queryLength, 0.0);
+    computeLogPSSM(subMat, pssm, profile, 8.0, queryLength, scoreBias);
 //    PSSMCalculator::printProfile(queryLength);
 //    PSSMCalculator::printPSSM(queryLength);
 #ifdef GAP_POS_SCORING
@@ -244,7 +245,7 @@ void PSSMCalculator::computeLogPSSM(BaseMatrix *subMat, char *pssm, const float 
             const float aaProb = profile[pos * Sequence::PROFILE_AA_SIZE + aa];
             const unsigned int idx = pos * Sequence::PROFILE_AA_SIZE + aa;
             float logProb = MathUtil::flog2(aaProb / subMat->pBack[aa]);
-            float pssmVal = bitFactor * logProb  + scoreBias;
+            float pssmVal = bitFactor * logProb + bitFactor * scoreBias;
             pssmVal = static_cast<char>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
             float truncPssmVal =  std::min(pssmVal, 127.0f);
             truncPssmVal       =  std::max(-128.0f, truncPssmVal);

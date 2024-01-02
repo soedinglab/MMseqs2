@@ -1,6 +1,7 @@
 #include "Command.h"
 #include "DownloadDatabase.h"
 #include "Prefiltering.h"
+#include "Parameters.h"
 
 const char* binary_name = "mmseqs";
 const char* tool_name = "MMseqs2";
@@ -12,7 +13,15 @@ extern const char* MMSEQS_CURRENT_INDEX_VERSION;
 const char* index_version_compatible = MMSEQS_CURRENT_INDEX_VERSION;
 bool hide_base_commands = false;
 void (*validatorUpdate)(void) = 0;
-std::vector<Command> commands = {};
+
+extern std::vector<Command> baseCommands;
+void init() {
+    registerCommands(&baseCommands);
+}
+void (*initCommands)(void) = init;
+
+DEFAULT_PARAMETER_SINGLETON_INIT
+
 std::vector<DatabaseDownload> externalDownloads = {};
 std::vector<KmerThreshold> externalThreshold = {};
 

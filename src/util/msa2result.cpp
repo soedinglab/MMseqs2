@@ -384,7 +384,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
                                                 static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable,
                                                 (const char **) msaSequences, true);
             }
-            PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, centerLength, (const char **) msaSequences, par.wg);
+            PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, centerLength, (const char **) msaSequences, par.wg, 0.0);
 
             resultWriter.writeStart(thread_idx);
             for (size_t i = 0; i < setSize; ++i) {

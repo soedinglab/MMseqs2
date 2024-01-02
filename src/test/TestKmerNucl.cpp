@@ -6,6 +6,7 @@
 #include "Orf.h"
 
 const char* binary_name = "test_kmernucl";
+DEFAULT_PARAMETER_SINGLETON_INIT
 
 std::string kmerToSting(size_t idx, int size) {
     char output[32];

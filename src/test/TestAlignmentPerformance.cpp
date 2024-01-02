@@ -24,6 +24,7 @@
 #include "StripedSmithWaterman.h"
 
 const char* binary_name = "test_alignmentperformance";
+DEFAULT_PARAMETER_SINGLETON_INIT
 
 #define MAX_FILENAME_LIST_FILES 4096
 

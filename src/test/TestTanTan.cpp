@@ -11,6 +11,7 @@
 #include "Parameters.h"
 
 const char* binary_name = "test_tantan";
+DEFAULT_PARAMETER_SINGLETON_INIT
 
 int main (int, const char**) {
     const size_t kmer_size = 6;

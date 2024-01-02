@@ -5,6 +5,7 @@
 #include "Debug.h"
 
 const char* binary_name = "test_scorematrixserialization";
+DEFAULT_PARAMETER_SINGLETON_INIT
 
 int main (int, const char**) {
     Parameters& par = Parameters::getInstance();

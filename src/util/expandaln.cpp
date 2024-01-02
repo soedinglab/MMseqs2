@@ -393,7 +393,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                                                         (int)(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable,
                                                         (const char **) res.msaSequence, true)
                                          : res.setSize;
-                PSSMCalculator::Profile pssmRes = calculator->computePSSMFromMSA(filteredSetSize, aSeq.L, (const char **) res.msaSequence, par.wg);
+                PSSMCalculator::Profile pssmRes = calculator->computePSSMFromMSA(filteredSetSize, aSeq.L, (const char **) res.msaSequence, par.wg, 0.0);
                 if (par.maskProfile == true) {
                     masker->mask(aSeq, par.maskProb, pssmRes);
                 }

@@ -1,5 +1,4 @@
 #include "BacktraceTranslator.h"
-#include "Parameters.h"
 
 const char* binary_name = "test_backtracetranslator";
 

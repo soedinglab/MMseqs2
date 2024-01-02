@@ -8,7 +8,6 @@
 
 #include "SubstitutionMatrix.h"
 #include "Sequence.h"
-#include "Parameters.h"
 
 const char* binary_name = "test_kwaymerge";
 struct KmerEntry{

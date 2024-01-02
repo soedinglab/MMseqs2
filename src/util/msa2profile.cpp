@@ -413,7 +413,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 #ifdef GAP_POS_SCORING
                                                   alnResults,
 #endif
-                                                  par.wg);
+                                                  par.wg, 0.0);
             if (par.compBiasCorrection == true) {
                 SubstitutionMatrix::calcGlobalAaBiasCorrection(&subMat, pssmRes.pssm, pNullBuffer,
                                                                Sequence::PROFILE_AA_SIZE,

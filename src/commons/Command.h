@@ -108,4 +108,6 @@ struct Categories {
     CommandMode mode;
 };
 
+void registerCommands(std::vector<Command>* cmd);
+
 #endif

@@ -9,6 +9,7 @@
 #include "Parameters.h"
 
 const char* binary_name = "test_compositionbias";
+DEFAULT_PARAMETER_SINGLETON_INIT
 
 void calcLocalAaBiasCorrection(Sequence* seq, SubstitutionMatrix * m){
     const int windowSize = 40;
