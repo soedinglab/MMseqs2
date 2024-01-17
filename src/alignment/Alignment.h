@@ -106,6 +106,7 @@ private:
     int zdrop;
 
     bool lcaAlign;
+    bool useBlockAlign;
 
     // needed for realignment
     BaseMatrix *realign_m;

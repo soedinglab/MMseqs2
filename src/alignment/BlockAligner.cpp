@@ -20,7 +20,7 @@ BlockAligner::BlockAligner(
     dbtype(dbtype),
     fastMatrix(SubstitutionMatrix::createAsciiSubMat(subMat)) {
     a = block_new_padded_aa(maxSequenceLength, max);
-    if (dbtype == Parameters::DBTYPE_AMINO_ACIDS) {
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE) == false) {
         b = block_new_padded_aa(maxSequenceLength, max);
         matrix = block_new_simple_aamatrix(1, -1);
         for (int i = 0; i < subMat.alphabetSize; i++) {
@@ -47,7 +47,7 @@ BlockAligner::~BlockAligner() {
     block_free_aa_trace_xdrop(blockTrace);
     block_free_aa_xdrop(blockNoTrace);
     block_free_padded_aa(a);
-    if (dbtype == Parameters::DBTYPE_AMINO_ACIDS) {
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE) == false) {
         block_free_padded_aa(b);
         block_free_aamatrix(matrix);
     } else {

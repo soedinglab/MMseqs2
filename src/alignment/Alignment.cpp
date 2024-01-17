@@ -154,8 +154,9 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         gapExtend = par.gapExtend.values.aminoacid();
     }
 
+    useBlockAlign = false;
     realign_m = NULL;
-    if (realign == true && realignScoreBias != 0.0f) {
+    if (realign == true && (realignScoreBias != 0.0f || useBlockAlign)) {
         if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
             realign_m = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, scoreBias + realignScoreBias);
         } else {
@@ -292,7 +293,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
 
             std::vector<Matcher::result_t> swResults;
             swResults.reserve(300);
-            Matcher matcher(querySeqType, targetSeqType, maxMatcherSeqLen, m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, correlationScoreWeight, zdrop, true);
+            Matcher matcher(querySeqType, targetSeqType, maxMatcherSeqLen, m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, correlationScoreWeight, zdrop, useBlockAlign);
 
             std::vector<Matcher::result_t> swRealignResults;
             Matcher *realigner = NULL;
@@ -300,7 +301,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                 swRealignResults.reserve(300);
                 realigner = &matcher;
                 if (realign_m != NULL) {
-                    realigner = new Matcher(querySeqType, targetSeqType, maxMatcherSeqLen, realign_m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, 0.0, zdrop);
+                    realigner = new Matcher(querySeqType, targetSeqType, maxMatcherSeqLen, realign_m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, 0.0, zdrop, false);
                 }
             }
 
