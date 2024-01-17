@@ -28,7 +28,7 @@ public:
                                                         const int N,
                                                         size_t alphabetSize);
     static void calcProfileProfileLocalAaBiasCorrectionAln(int8_t *profileScores,
-                                                           int N,
+                                                           unsigned int N,
                                                            size_t alphabetSize,
                                                            BaseMatrix *subMat);
     static void calcGlobalAaBiasCorrection(const BaseMatrix * m,

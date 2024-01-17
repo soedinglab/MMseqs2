@@ -346,6 +346,8 @@ void Sequence::printProfile() const {
         }
 #ifdef GAP_POS_SCORING
         printf("%3d %3d %3d\n", gDel[i] & 0xF, gDel[i] >> 4, gIns[i]);
+else
+        printf("\n");
 #endif
     }
 }
