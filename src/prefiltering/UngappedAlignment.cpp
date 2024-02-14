@@ -22,13 +22,8 @@ UngappedAlignment::~UngappedAlignment() {
     delete [] score_arr;
 }
 
-void UngappedAlignment::processQuery(Sequence *seq,
-                                     float *biasCorrection,
-                                     CounterResult *results,
-                                     size_t resultSize) {
-    createProfile(seq, biasCorrection, subMatrix->subMatrix);
-    queryLen = seq->L;
-    computeScores(queryProfile, seq->L, results, resultSize);
+void UngappedAlignment::align(CounterResult *results, size_t resultSize) {
+    computeScores(queryProfile, queryLen, results, resultSize);
 }
 
 
@@ -290,7 +285,7 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
         // update score
         for(size_t hitIdx = 0; hitIdx < hitSize; hitIdx++){
             hits[seqs[hitIdx].id]->count = static_cast<unsigned char>(std::min(static_cast<unsigned int>(255),
-                                                                      score_arr[hitIdx]));
+                                                                               score_arr[hitIdx]));
             if(seqs[hitIdx].seqLen == 1){
                 std::pair<const unsigned char *, const unsigned int> dbSeq =  sequenceLookup->getSequence(hits[hitIdx]->id);
                 if(dbSeq.second >= 32768){
@@ -344,6 +339,10 @@ void UngappedAlignment::computeScores(const char *queryProfile,
 //            continue;
 //        }
         const unsigned short currDiag = results[i].diagonal;
+        // skip results that already have a diagonal score
+        if(results[i].count != 0){
+            continue;
+        }
         diagonalMatches[currDiag * DIAGONALBINSIZE + diagonalCounter[currDiag]] = &results[i];
         diagonalCounter[currDiag]++;
         if(diagonalCounter[currDiag] == DIAGONALBINSIZE) {
@@ -384,9 +383,8 @@ void UngappedAlignment::extractScores(unsigned int *score_arr, simd_int score) {
 
 
 void UngappedAlignment::createProfile(Sequence *seq,
-                                      float * biasCorrection,
-                                      short **subMat) {
-
+                                      float * biasCorrection) {
+    queryLen = seq->L;
     if(Parameters::isEqualDbtype(seq->getSequenceType(), Parameters::DBTYPE_HMM_PROFILE)) {
         memset(queryProfile, 0, (Sequence::PROFILE_AA_SIZE + 1) * seq->L);
     }else{
@@ -409,7 +407,7 @@ void UngappedAlignment::createProfile(Sequence *seq,
         for (int pos = 0; pos < seq->L; pos++) {
             unsigned int aaIdx = seq->numSequence[pos];
             for (int i = 0; i < subMatrix->alphabetSize; i++) {
-                queryProfile[pos * (Sequence::PROFILE_AA_SIZE + 1) + i] = (subMat[aaIdx][i] + aaCorrectionScore[pos]);
+                queryProfile[pos * (Sequence::PROFILE_AA_SIZE + 1) + i] = (subMatrix->subMatrix[aaIdx][i] + aaCorrectionScore[pos]);
             }
         }
     }

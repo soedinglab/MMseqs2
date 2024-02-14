@@ -18,10 +18,12 @@ public:
 
     ~UngappedAlignment();
 
+    void createProfile(Sequence *seq, float *biasCorrection);
+
     // This function computes the diagonal score for each CounterResult object
     // it assigns the diagonal score to the CounterResult object
-    void processQuery(Sequence *seq, float *compositionBias, CounterResult *results,
-                      size_t resultSize);
+    void align(CounterResult *results,
+               size_t resultSize);
 
     int scoreSingelSequenceByCounterResult(CounterResult &result);
 
@@ -89,8 +91,6 @@ private:
     unsigned short distanceFromDiagonal(const unsigned short diagonal);
 
     void extractScores(unsigned int *score_arr, simd_int score);
-
-    void createProfile(Sequence *seq, float *biasCorrection, short **subMat);
 
     int computeSingelSequenceScores(const char *queryProfile, const unsigned int queryLen,
                                     std::pair<const unsigned char *, const unsigned int> &dbSeq,

@@ -81,7 +81,7 @@ public:
     size_t mergeElementsByScore(CounterResult *inputOutputArray, const size_t N);
 
     // merge elements in CounterResult by diagonal, combines elements with same ids that occur after each other
-    size_t mergeElementsByDiagonal(CounterResult *inputOutputArray, const size_t N);
+    size_t mergeElementsByDiagonal(CounterResult *inputOutputArray, const size_t N, const bool keepScoredHits = false);
 
     size_t keepMaxScoreElementOnly(CounterResult *inputOutputArray, const size_t N);
 
@@ -123,6 +123,8 @@ private:
     size_t mergeScoreDuplicates(CounterResult *output);
 
     size_t mergeDiagonalDuplicates(CounterResult *output);
+
+    size_t mergeDiagonalKeepScoredHitsDuplicates(CounterResult *output);
 
     size_t keepMaxElement(CounterResult *output);
 };

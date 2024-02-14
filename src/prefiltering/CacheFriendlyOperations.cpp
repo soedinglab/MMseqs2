@@ -36,7 +36,7 @@ CacheFriendlyOperations<BINSIZE>::~CacheFriendlyOperations<BINSIZE>(){
 
 template<unsigned int BINSIZE>
 size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(IndexEntryLocal **input, CounterResult *output,
-        size_t outputSize, unsigned short indexFrom, unsigned short indexTo, bool computeTotalScore) {
+                                                        size_t outputSize, unsigned short indexFrom, unsigned short indexTo, bool computeTotalScore) {
     do {
         setupBinPointer();
         CounterResult *lastPosition = (binDataFrame + BINCOUNT * binSize) - 1;
@@ -58,12 +58,16 @@ size_t CacheFriendlyOperations<BINSIZE>::mergeElementsByScore(CounterResult *inp
 }
 
 template<unsigned int BINSIZE>
-size_t CacheFriendlyOperations<BINSIZE>::mergeElementsByDiagonal(CounterResult *inputOutputArray, const size_t N) {
+size_t CacheFriendlyOperations<BINSIZE>::mergeElementsByDiagonal(CounterResult *inputOutputArray, const size_t N, const bool keepScoredHits) {
     do {
         setupBinPointer();
         hashElements(inputOutputArray, N);
     } while(checkForOverflowAndResizeArray(false) == true); // overflowed occurred
-    return mergeDiagonalDuplicates(inputOutputArray);
+    if(keepScoredHits){
+        return mergeDiagonalKeepScoredHitsDuplicates(inputOutputArray);
+    }else{
+        return mergeDiagonalDuplicates(inputOutputArray);
+    }
 }
 
 template<unsigned int BINSIZE>
@@ -93,6 +97,7 @@ size_t CacheFriendlyOperations<BINSIZE>::mergeDiagonalDuplicates(CounterResult *
             --n;
         }
         // combine diagonals
+        // we keep only the last diagonal element
         for (size_t n = 0; n < currBinSize; n++) {
             const CounterResult &element = binStartPos[n];
             const unsigned int hashBinElement = element.id >> (MASK_0_5_BIT);
@@ -104,6 +109,40 @@ size_t CacheFriendlyOperations<BINSIZE>::mergeDiagonalDuplicates(CounterResult *
             doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(binStartPos[n].diagonal)) ? 1 : 0;
 
             duplicateBitArray[hashBinElement] = static_cast<unsigned char>(element.diagonal);
+        }
+    }
+    return doubleElementCount;
+}
+
+
+template<unsigned int BINSIZE>
+size_t CacheFriendlyOperations<BINSIZE>::mergeDiagonalKeepScoredHitsDuplicates(CounterResult *output) {
+    size_t doubleElementCount = 0;
+    const CounterResult *bin_ref_pointer = binDataFrame;
+    // duplicateBitArray is already zero'd from findDuplicates
+
+    for (size_t bin = 0; bin < BINCOUNT; bin++) {
+        const CounterResult *binStartPos = (bin_ref_pointer + bin * binSize);
+        const size_t currBinSize = (bins[bin] - binStartPos);
+        // write diagonals + 1 in reverse order in the byte array
+        for (size_t n = 0; n < currBinSize; n++) {
+            const unsigned int element = binStartPos[n].id >> (MASK_0_5_BIT);
+            duplicateBitArray[element] = static_cast<unsigned char>(binStartPos[n].diagonal) + 1;
+        }
+        // combine diagonals
+        // we keep only the last diagonal element
+        size_t n = currBinSize - 1;
+        while (n != static_cast<size_t>(-1)) {
+            const CounterResult &element = binStartPos[n];
+            const unsigned int hashBinElement = element.id >> (MASK_0_5_BIT);
+            output[doubleElementCount].id = element.id;
+            output[doubleElementCount].count = element.count;
+            output[doubleElementCount].diagonal = element.diagonal;
+//            std::cout << output[doubleElementCount].id << " " << (int)output[doubleElementCount].count << " " << (int)static_cast<unsigned char>(output[doubleElementCount].diagonal) << std::endl;
+            // memory overflow can not happen since input array = output array
+            doubleElementCount += (output[doubleElementCount].count != 0  || duplicateBitArray[hashBinElement] != static_cast<unsigned char>(binStartPos[n].diagonal)) ? 1 : 0;
+            duplicateBitArray[hashBinElement] = static_cast<unsigned char>(element.diagonal);
+            --n;
         }
     }
     return doubleElementCount;
@@ -211,12 +250,12 @@ size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(CounterResult *output, s
                 output[doubleElementCount].id    = element;
                 output[doubleElementCount].count = 0;
                 output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
-    //            const unsigned char diagonal = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
+                //            const unsigned char diagonal = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
                 // memory overflow can not happen since input array = output array
-    //            if(duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal){
-    //                std::cout << "seq="<< output[doubleElementCount].id << "\tDiag=" << (int) output[doubleElementCount].diagonal
-    //                << " dup.Array=" << (int)duplicateBitArray[hashBinElement] << " tmp.Arr="<< (int)tmpElementBuffer[n].diagonal << std::endl;
-    //            }
+                //            if(duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal){
+                //                std::cout << "seq="<< output[doubleElementCount].id << "\tDiag=" << (int) output[doubleElementCount].diagonal
+                //                << " dup.Array=" << (int)duplicateBitArray[hashBinElement] << " tmp.Arr="<< (int)tmpElementBuffer[n].diagonal << std::endl;
+                //            }
                 doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(tmpElementBuffer[n].diagonal)) ? 1 : 0;
                 duplicateBitArray[hashBinElement] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
             }
