@@ -892,6 +892,11 @@ Parameters::Parameters():
     combinepvalbyset.push_back(&PARAM_COMPRESSED);
     combinepvalbyset.push_back(&PARAM_V);
 
+    // mergeresultsbyset
+    mergeresultsbyset.push_back(&PARAM_PRELOAD_MODE);
+    mergeresultsbyset.push_back(&PARAM_THREADS);
+    mergeresultsbyset.push_back(&PARAM_COMPRESSED);
+    mergeresultsbyset.push_back(&PARAM_V);
 
     // offsetalignment
     offsetalignment.push_back(&PARAM_CHAIN_ALIGNMENT);

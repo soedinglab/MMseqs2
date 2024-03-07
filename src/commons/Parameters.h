@@ -1166,6 +1166,7 @@ public:
     std::vector<MMseqsParameter*> profile2seq;
     std::vector<MMseqsParameter*> besthitbyset;
     std::vector<MMseqsParameter*> combinepvalbyset;
+    std::vector<MMseqsParameter*> mergeresultsbyset;
     std::vector<MMseqsParameter*> multihitdb;
     std::vector<MMseqsParameter*> multihitsearch;
     std::vector<MMseqsParameter*> expandaln;

@@ -562,7 +562,7 @@ std::vector<Command> baseCommands = {
                                                            {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
                                                            {"pvalDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::resultDb },
                                                            {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
-        {"mergeresultsbyset",    mergeresultsbyset,    &par.threadsandcompression,COMMAND_MULTIHIT,
+        {"mergeresultsbyset",    mergeresultsbyset,    &par.mergeresultsbyset,    COMMAND_MULTIHIT,
                 "Merge results from multiple ORFs back to their respective contig",
                 NULL,
                 "Ruoshi Zhang, Clovis Norroy & Milot Mirdita <milot@mirdita.de>",
