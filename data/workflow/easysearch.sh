@@ -73,4 +73,5 @@ if [ -n "${REMOVE_TMP}" ]; then
     fi
     rm -rf "${TMP_PATH}/search_tmp"
     rm -f "${TMP_PATH}/easysearch.sh"
+    rm -rf "${TMP_PATH}"
 fi

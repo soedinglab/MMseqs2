@@ -55,4 +55,5 @@ if [ -n "${REMOVE_TMP}" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" rmdb "${TMP_PATH}/aln_swapped" ${VERBOSITY}
     rm -f "${TMP_PATH}/searchtargetprofile.sh"
+    rm -rf "${TMP_PATH}"
 fi
