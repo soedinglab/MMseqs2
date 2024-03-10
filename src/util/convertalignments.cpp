@@ -666,6 +666,26 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         result.append(SSTR(pPositive));
                                         break;
                                     }
+                                    case Parameters::OUTFMT_QFRAME: {
+                                        int frame;
+                                        if (res.qStartPos <= res.qEndPos) {
+                                            frame = (res.qStartPos - 1) % 3 + 1;
+                                        } else {
+                                            frame = -1 * ((res.qLen - res.qStartPos) % 3 + 1);
+                                        }
+                                        result.append(SSTR(frame));
+                                        break;
+                                    }
+                                    case Parameters::OUTFMT_TFRAME: {
+                                        int frame;
+                                        if (res.dbStartPos <= res.dbEndPos) {
+                                            frame = (res.dbStartPos - 1) % 3 + 1;
+                                        } else {
+                                            frame = -1 * ((res.dbLen - res.dbStartPos) % 3 + 1);
+                                        }
+                                        result.append(SSTR(frame));
+                                        break;
+                                    } 
                                 }
                                 if (i < outcodes.size() - 1) {
                                     result.push_back('\t');
