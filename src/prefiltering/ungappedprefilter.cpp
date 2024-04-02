@@ -77,8 +77,8 @@ int prefilterInternal(int argc, const char **argv, const Command &command, int m
 
 
     QueryMatcherTaxonomyHook * taxonomyHook = NULL;
-    if(par.PARAM_TAXON_LIST.wasSet){
-        taxonomyHook = new QueryMatcherTaxonomyHook(par.db2, tdbr, par.taxonList);
+    if (par.PARAM_TAXON_LIST.wasSet) {
+        taxonomyHook = new QueryMatcherTaxonomyHook(par.db2, tdbr, par.taxonList, par.threads);
     }
 
     Debug::Progress progress(qdbr->getSize());
@@ -121,7 +121,7 @@ int prefilterInternal(int argc, const char **argv, const Command &command, int m
                 unsigned int targetKey = tdbr->getDbKey(tId);
                 if(taxonomyHook != NULL){
                     TaxID currTax = taxonomyHook->taxonomyMapping->lookup(targetKey);
-                    if (taxonomyHook->expression->isAncestor(currTax) == false) {
+                    if (taxonomyHook->expression[thread_idx]->isAncestor(currTax) == false) {
                         continue;
                     }
                 }

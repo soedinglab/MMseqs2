@@ -226,7 +226,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
 
 
     if (par.taxonList.length() > 0) {
-        taxonomyHook = new QueryMatcherTaxonomyHook(targetDB, tdbr, par.taxonList);
+        taxonomyHook = new QueryMatcherTaxonomyHook(targetDB, tdbr, par.taxonList, par.threads);
     } else {
         taxonomyHook = NULL;
     }

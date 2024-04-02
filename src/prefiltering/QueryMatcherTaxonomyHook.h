@@ -7,20 +7,30 @@
 #include "DBReader.h"
 #include "TaxonomyExpression.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 class QueryMatcherTaxonomyHook : public QueryMatcherHook {
 public:
-    QueryMatcherTaxonomyHook(std::string targetPath, DBReader<unsigned int>* targetReader, const std::string& expressionString)
-        : targetReader(targetReader), dbFrom(0) {
+    QueryMatcherTaxonomyHook(std::string targetPath, DBReader<unsigned int>* targetReader, const std::string& expressionString, unsigned int threads)
+        : targetReader(targetReader), dbFrom(0), threads(threads) {
         std::string targetName = dbPathWithoutIndex(targetPath);
         taxonomy = NcbiTaxonomy::openTaxonomy(targetName);
         taxonomyMapping = new MappingReader(targetName);
-        expression = new TaxonomyExpression(expressionString, *taxonomy);
+        expression = new TaxonomyExpression*[threads];
+        for (unsigned int i = 0; i < threads; i++) {
+            expression[i] = new TaxonomyExpression(expressionString, *taxonomy);
+        }
     }
 
     ~QueryMatcherTaxonomyHook() {
         delete taxonomy;
         delete taxonomyMapping;
-        delete expression;
+        for (unsigned int i = 0; i < threads; i++) {
+            delete expression[i];
+        }
+        delete[] expression;
     }
 
     void setDbFrom(unsigned int from) {
@@ -28,12 +38,16 @@ public:
     }
 
     size_t afterDiagonalMatchingHook(QueryMatcher& matcher, size_t resultSize) {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
         size_t writePos = 0;
         for (size_t i = 0; i < resultSize; i++) {
             unsigned int currId = matcher.foundDiagonals[i].id;
             unsigned int key = targetReader->getDbKey(dbFrom + currId);
             TaxID currTax = taxonomyMapping->lookup(key);
-            if (expression->isAncestor(currTax)) {
+            if (expression[thread_idx]->isAncestor(currTax)) {
                 if (i != writePos) {
                     matcher.foundDiagonals[writePos] = matcher.foundDiagonals[i];
                 }
@@ -63,9 +77,10 @@ public:
     NcbiTaxonomy* taxonomy;
     MappingReader* taxonomyMapping;
     DBReader<unsigned int>* targetReader;
-    TaxonomyExpression* expression;
+    TaxonomyExpression** expression;
 
     unsigned int dbFrom;
+    unsigned int threads;
 };
 
 #endif
