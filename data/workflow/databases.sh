@@ -118,9 +118,9 @@ case "${SELECTION}" in
         if notExists "${TMP_PATH}/nr.gz"; then
             date "+%s" > "${TMP_PATH}/version"
             downloadFile "https://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz" "${TMP_PATH}/nr.gz"
-            downloadFile "https://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz" "${TMP_PATH}/prot.accession2taxid.gz"
+            downloadFile "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz" "${TMP_PATH}/prot.accession2taxid.gz"
             gunzip "${TMP_PATH}/prot.accession2taxid.gz"
-            downloadFile "https://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz" "${TMP_PATH}/pdb.accession2taxid.gz"
+            downloadFile "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz" "${TMP_PATH}/pdb.accession2taxid.gz"
             gunzip "${TMP_PATH}/pdb.accession2taxid.gz"
         fi
         push_back "${TMP_PATH}/nr.gz"
@@ -212,8 +212,8 @@ case "${SELECTION}" in
     ;;
     "CDD")
         if notExists "${TMP_PATH}/msa.msa.gz"; then
-            downloadFile "https://ftp.ncbi.nih.gov/pub/mmdb/cdd/cdd.info" "${TMP_PATH}/version"
-            downloadFile "https://ftp.ncbi.nih.gov/pub/mmdb/cdd/fasta.tar.gz" "${TMP_PATH}/msa.tar.gz"
+            downloadFile "https://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/cdd.info" "${TMP_PATH}/version"
+            downloadFile "https://ftp.ncbi.nlm.nih.gov/pub/mmdb/cdd/fasta.tar.gz" "${TMP_PATH}/msa.tar.gz"
         fi
         INPUT_TYPE="FASTA_MSA"
         SED_FIX_LOOKUP='s|\.FASTA||g'

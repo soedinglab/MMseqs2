@@ -59,7 +59,7 @@ if { [ "${DBMODE}" = "1" ] && notExists "${TAXDBNAME}_taxonomy"; } || { [ "${DBM
         # Download NCBI taxon information
         if notExists "${TMP_PATH}/ncbi_download.complete"; then
             echo "Download taxdump.tar.gz"
-            downloadFile "https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz" "${TMP_PATH}/taxdump.tar.gz"
+            downloadFile "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz" "${TMP_PATH}/taxdump.tar.gz"
             tar -C "${TMP_PATH}" -xzf "${TMP_PATH}/taxdump.tar.gz" names.dmp nodes.dmp merged.dmp delnodes.dmp
             touch "${TMP_PATH}/ncbi_download.complete"
             rm -f "${TMP_PATH}/taxdump.tar.gz"
