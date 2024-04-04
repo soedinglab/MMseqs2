@@ -81,7 +81,6 @@ int recoverlongestorf(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        char keyBuffer[1024];
         std::string resultBuffer;
         resultBuffer.reserve(1024 * 1024);
 
