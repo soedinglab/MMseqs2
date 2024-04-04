@@ -47,6 +47,7 @@ set(util_source_files
         util/profile2pssm.cpp
         util/profile2neff.cpp
         util/profile2seq.cpp
+        util/recoverlongestorf.cpp
         util/result2dnamsa.cpp
         util/result2flat.cpp
         util/result2msa.cpp

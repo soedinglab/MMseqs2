@@ -95,6 +95,7 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("THREADS_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
+    cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
     cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
 
     if (searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_TRANSLATED && !(searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_TRANSLATED)) {
