@@ -22,19 +22,19 @@ fi
 
 if notExists "${OUT}.dbtype"; then
   "$MMSEQS" tsv2db "${IN}.tsv" "${OUT}_tmp" --output-dbtype 0 ${VERBOSITY}
-  MMSEQS_FOCE_MERGE=1 "$MMSEQS" compress "${OUT}_tmp" "${OUT}" ${VERBOSITY}
+  MMSEQS_FORCE_MERGE=1 "$MMSEQS" compress "${OUT}_tmp" "${OUT}" ${VERBOSITY}
   "$MMSEQS" rmdb "${OUT}_tmp" ${VERBOSITY}
 fi
 
 if notExists "${OUT}_seq.dbtype"; then
   "$MMSEQS" tsv2db "${IN}_seq.tsv" "${OUT}_seq_tmp" --output-dbtype 0 ${VERBOSITY}
-  MMSEQS_FOCE_MERGE=1 "$MMSEQS" compress "${OUT}_seq_tmp" "${OUT}_seq" ${VERBOSITY}
+  MMSEQS_FORCE_MERGE=1 "$MMSEQS" compress "${OUT}_seq_tmp" "${OUT}_seq" ${VERBOSITY}
   "$MMSEQS" rmdb "${OUT}_seq_tmp" ${VERBOSITY}
 fi
 
 if notExists "${OUT}_aln.dbtype"; then
   "$MMSEQS" tsv2db "${IN}_aln.tsv" "${OUT}_aln_tmp" --output-dbtype 5 ${VERBOSITY}
-  MMSEQS_FOCE_MERGE=1 "$MMSEQS" compress "${OUT}_aln_tmp" "${OUT}_aln" ${VERBOSITY}
+  MMSEQS_FORCE_MERGE=1 "$MMSEQS" compress "${OUT}_aln_tmp" "${OUT}_aln" ${VERBOSITY}
   "$MMSEQS" rmdb "${OUT}_aln_tmp" ${VERBOSITY}
 fi
 
