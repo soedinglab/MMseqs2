@@ -84,7 +84,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
     std::string backtrace;
     if (blockAligner != NULL) {
         // FIXME
-        const int xdrop = 10;
+        const int xdrop = 40;
         alignment = blockAligner->align(dbSeq->getSeqData(), dbSeq->L, diagonal, backtrace, evaluer, xdrop);
     } else if (Parameters::isEqualDbtype(dbSeq->getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES)) {
         if (diagonal == INT_MAX) {

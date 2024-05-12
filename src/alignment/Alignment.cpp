@@ -154,7 +154,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         gapExtend = par.gapExtend.values.aminoacid();
     }
 
-    useBlockAlign = false;
+    useBlockAlign = true;
     realign_m = NULL;
     if (realign == true && (realignScoreBias != 0.0f || useBlockAlign)) {
         if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {

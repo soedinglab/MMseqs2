@@ -90,8 +90,8 @@ BlockAligner::LocalAln align_local(
     block_align_aa_xdrop(block_no_trace, a, b, matrix, gaps, range, x_drop);
     res = block_res_aa_xdrop(block_no_trace);
 
-    res_aln.a_end = a_idx + res.query_idx;
-    res_aln.b_end = b_idx + res.reference_idx;
+    res_aln.a_end = a_idx + res.query_idx - 1;
+    res_aln.b_end = b_idx + res.reference_idx - 1;
 
     // reversed alignment starting at the max score location from forwards alignment
     block_set_bytes_rev_padded_aa(a, (uint8_t*)a_str, res_aln.a_end, range.max);
@@ -211,7 +211,7 @@ BlockAligner::align(
 
     LocalAln local_aln;
     if (queryConsensus.length() == 0) {
-        local_aln = align_local(blockTrace, blockNoTrace, querySeq, queryLength, a, targetSeq, targetLength, b, matrix, gaps, pos.a_end, pos.b_end, cigar, range, xdrop);
+        local_aln = align_local(blockTrace, blockNoTrace, querySeq, queryLength, a, targetSeq, targetLength, b, matrix, gaps, pos.a_start, pos.b_start, cigar, range, xdrop);
     } else {
         // local_aln = align_local_profile(blockTrace, blockNoTrace, querySeq, queryLength, a, targetSeq, targetLength, bProfile, gaps, subMat, pos.a_end, pos.b_end, cigar, range, xdrop);
         local_aln = align_local_profile(blockTrace, blockNoTrace, targetSeq, targetLength, a, querySeq, queryLength, bProfile, gaps, subMat, pos.b_end, pos.a_end, cigar, range, xdrop);
