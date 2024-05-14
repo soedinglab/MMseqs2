@@ -454,6 +454,11 @@ int search(int argc, const char **argv, const Command& command) {
                 par.realign = true;
             }
 
+            // disable realign for iterative nucl search
+            if (searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE && searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_NUCLEOTIDE) {
+                par.realign = false;
+            }
+
             if (i > 0) {
 //                par.queryProfile = true;
                 par.realign = false;
