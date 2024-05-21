@@ -45,7 +45,11 @@ if [ -n "${ORF_FILTER}" ]; then
     fi
 
     if notExists "${TMP_PATH}/orfs_aln.list"; then
-        awk '$3 > 1 { print $1 }' "${TMP_PATH}/orfs_aln.index" > "${TMP_PATH}/orfs_aln.list"
+        # shellcheck disable=SC2086
+        "$MMSEQS" recoverlongestorf "${ORFS_DB}" "${TMP_PATH}/orfs_aln" "${TMP_PATH}/orfs_aln_recovered.list" ${THREADS_PAR} \
+            || fail "recoverlongestorf died"
+        awk '$3 > 1 { print $1 }' "${TMP_PATH}/orfs_aln.index" > "${TMP_PATH}/orfs_aln_remain.list"
+        cat  "${TMP_PATH}/orfs_aln_recovered.list" "${TMP_PATH}/orfs_aln_remain.list" > "${TMP_PATH}/orfs_aln.list"
     fi
 
     if notExists "${TMP_PATH}/orfs_filter.dbtype"; then
