@@ -40,13 +40,22 @@ downloadFile() {
         ARIA)
             FILENAME=$(basename "${OUTPUT}")
             DIR=$(dirname "${OUTPUT}")
-            aria2c --max-connection-per-server="$ARIA_NUM_CONN" --allow-overwrite=true -o "$FILENAME" -d "$DIR" "$URL" && return 0
+            if aria2c -c --max-connection-per-server="$ARIA_NUM_CONN" --allow-overwrite=true -o "${FILENAME}.aria2" -d "$DIR" "$URL"; then
+                mv -f -- "${OUTPUT}.aria2" "${OUTPUT}"
+                return 0
+            fi
             ;;
         CURL)
-            curl -o "$OUTPUT" "$URL" && return 0
+            if curl -L -C - -o "${OUTPUT}.curl" "$URL"; then
+                mv -f -- "${OUTPUT}.curl" "${OUTPUT}"
+                return 0
+            fi
             ;;
         WGET)
-            wget -O "$OUTPUT" "$URL" && return 0
+            if wget -O "${OUTPUT}.wget" -c "$URL"; then
+                mv -f -- "${OUTPUT}.wget" "${OUTPUT}"
+                return 0
+            fi
             ;;
         esac
     done
