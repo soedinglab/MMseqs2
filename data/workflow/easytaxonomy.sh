@@ -82,4 +82,5 @@ if [ -n "${REMOVE_TMP}" ]; then
 
     rm -rf "${TMP_PATH}/taxonomy_tmp"
     rm -f "${TMP_PATH}/easytaxonomy.sh"
+    rm -rf "${TMP_PATH}"
 fi

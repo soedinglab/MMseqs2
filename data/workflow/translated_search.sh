@@ -89,4 +89,5 @@ if [ -n "$REMOVE_TMP" ]; then
         rm -f "${TMP_PATH}/q_orfs_aa_filter.list"
     fi
     rm -f "${TMP_PATH}/translated_search.sh"
+    rm -rf "${TMP_PATH}"
 fi
