@@ -27,7 +27,7 @@ CacheFriendlyOperations<BINSIZE>::CacheFriendlyOperations(size_t maxElement, siz
 }
 
 template<unsigned int BINSIZE>
-CacheFriendlyOperations<BINSIZE>::~CacheFriendlyOperations<BINSIZE>(){
+CacheFriendlyOperations<BINSIZE>::~CacheFriendlyOperations(){
     delete[] duplicateBitArray;
     delete[] binDataFrame;
     delete[] tmpElementBuffer;

@@ -23,21 +23,21 @@ public:
     T first;
     T second;
 
-    NuclAA<T>(const NuclAA<T> &value) {
+    NuclAA(const NuclAA<T> &value) {
         this->first = value.first;
         this->second = value.second;
     }
 
     static const T max;
 
-    NuclAA<T>() {}
+    NuclAA() {}
 
-    NuclAA<T>(T first) {
+    NuclAA(T first) {
         this->first = first;
         this->second = first;
     }
 
-    NuclAA<T>(T first, T second) {
+    NuclAA(T first, T second) {
         this->first = first;
         this->second = second;
     }
@@ -88,21 +88,21 @@ public:
     T first;
     T second;
 
-    SeqProf<T>(const SeqProf<T> &value) {
+    SeqProf(const SeqProf<T> &value) {
         this->first = value.first;
         this->second = value.second;
     }
 
     static const T max;
 
-    SeqProf<T>() {}
+    SeqProf() {}
 
-    SeqProf<T>(T first) {
+    SeqProf(T first) {
         this->first = first;
         this->second = first;
     }
 
-    SeqProf<T>(T first, T second) {
+    SeqProf(T first, T second) {
         this->first = first;
         this->second = second;
     }
