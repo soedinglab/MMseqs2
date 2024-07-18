@@ -15,6 +15,12 @@ void setIndexDbDefaults(Parameters *p) {
 
 std::string findIncompatibleParameter(DBReader<unsigned int>& index, const Parameters& par, int kmerScore, const int dbtype) {
     PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
+    int spacedKmer = 0;
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES)) {
+        spacedKmer = par.spacedKmer.values.nucleotide();
+    } else {
+        spacedKmer = par.spacedKmer.values.aminoacid();
+    }
     if (meta.compBiasCorr != par.compBiasCorrection)
         return "compBiasCorrection";
     if (meta.maxSeqLength != static_cast<int>(par.maxSeqLen))
@@ -29,7 +35,7 @@ std::string findIncompatibleParameter(DBReader<unsigned int>& index, const Param
         return "maskMode";
     if (meta.kmerThr != kmerScore)
         return "kmerScore";
-    if (meta.spacedKmer != par.spacedKmer)
+    if (meta.spacedKmer != spacedKmer)
         return "spacedKmer";
     if (BaseMatrix::unserializeName(par.seedScoringMatrixFile.values.aminoacid().c_str()) != PrefilteringIndexReader::getSubstitutionMatrixName(&index) &&
         BaseMatrix::unserializeName(par.seedScoringMatrixFile.values.nucleotide().c_str()) != PrefilteringIndexReader::getSubstitutionMatrixName(&index))
@@ -174,8 +180,14 @@ int indexdb(int argc, const char **argv, const Command &command) {
         }
 
         DBReader<unsigned int>::removeDb(indexDB);
+        int spacedKmer = 0;
+        if (db1IsNucl) {
+            spacedKmer = par.spacedKmer.values.nucleotide();
+        } else {
+            spacedKmer = par.spacedKmer.values.aminoacid();
+        }
         PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, hdbr1, hdbr2, alndbr, seedSubMat, par.maxSeqLen,
-                                                 par.spacedKmer, par.spacedKmerPattern, par.compBiasCorrection,
+                                                 spacedKmer, par.spacedKmerPattern, par.compBiasCorrection,
                                                  seedSubMat->alphabetSize, par.kmerSize, par.maskMode, par.maskLowerCaseMode,
                                                  par.maskProb, kmerScore, par.targetSearchMode, par.split, par.indexSubset);
 
