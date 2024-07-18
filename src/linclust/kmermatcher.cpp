@@ -103,9 +103,14 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
 #endif
         unsigned short * scoreDist= new unsigned short[65536];
         unsigned int * hierarchicalScoreDist= new unsigned int[128];
-
+        int spacedKmer = 0;
+        if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
+            spacedKmer = par.spacedKmer.values.nucleotide();
+        } else {
+            spacedKmer = par.spacedKmer.values.aminoacid();
+        }
         const int adjustedKmerSize = (par.adjustKmerLength) ? std::min( par.kmerSize+5, 23) :   par.kmerSize;
-        Sequence seq(par.maxSeqLen, querySeqType, subMat, adjustedKmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
+        Sequence seq(par.maxSeqLen, querySeqType, subMat, adjustedKmerSize, spacedKmer, false, true, par.spacedKmerPattern);
         KmerGenerator* generator;
         if (TYPE == Parameters::DBTYPE_HMM_PROFILE) {
             generator = new KmerGenerator( par.kmerSize, subMat->alphabetSize, 150);
@@ -648,7 +653,7 @@ template size_t assignGroup<1, int>(KmerPosition<int> *kmers, size_t splitKmerCo
 void setLinearFilterDefault(Parameters *p) {
     p->covThr = 0.8;
     p->maskMode = 0;
-    p->spacedKmer = 0;
+    p->spacedKmer = false;
     p->kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
     p->alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE, 5));
     p->kmersPerSequence = Parameters::CLUST_LINEAR_KMER_PER_SEQ;

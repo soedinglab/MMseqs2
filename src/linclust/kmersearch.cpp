@@ -160,16 +160,22 @@ int kmersearch(int argc, const char **argv, const Command &command) {
         }
     }
     if(par.PARAM_SPACED_KMER_MODE.wasSet){
-        if(data.spacedKmer != par.spacedKmer){
-            Debug(Debug::ERROR) << "Index was created with --spaced-kmer-mode " << data.spacedKmer << " but the prefilter was called with --spaced-kmer-mode " << par.spacedKmer << "!\n";
-            Debug(Debug::ERROR) << "createindex --spaced-kmer-mode " << par.spacedKmer << "\n";
+        bool isSpaced = false;
+        if (Parameters::isEqualDbtype(data.seqType, Parameters::DBTYPE_NUCLEOTIDES)) {
+            isSpaced = par.spacedKmer.values.nucleotide();
+        } else {
+            isSpaced = par.spacedKmer.values.aminoacid();
+        }
+        if(data.spacedKmer != isSpaced){
+            Debug(Debug::ERROR) << "Index was created with --spaced-kmer-mode " << data.spacedKmer << " but the prefilter was called with --spaced-kmer-mode " << isSpaced << "!\n";
+            Debug(Debug::ERROR) << "createindex --spaced-kmer-mode " << isSpaced << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
     par.kmerSize = data.kmerSize;
     par.alphabetSize = data.alphabetSize;
     targetSeqType = data.seqType;
-    par.spacedKmer = (data.spacedKmer == 1) ? true : false;
+    par.spacedKmer = data.spacedKmer;
     par.maxSeqLen = data.maxSeqLength;
     // Reuse the compBiasCorr field to store the adjustedKmerSize, It is not needed in the linsearch
     adjustedKmerSize = data.compBiasCorr;

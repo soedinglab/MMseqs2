@@ -12,7 +12,7 @@
 #include <cassert>
 
 void setWorkflowDefaults(Parameters *p) {
-    p->spacedKmer = true;
+    p->spacedKmer = MultiParam<NuclAA<int>>(NuclAA<int>(1, 0));
     p->covThr = 0.8;
     p->evalThr = 0.001;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;

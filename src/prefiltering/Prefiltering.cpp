@@ -33,7 +33,6 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         kmerSize(par.kmerSize),
         spacedKmerPattern(par.spacedKmerPattern),
         localTmp(par.localTmp),
-        spacedKmer(par.spacedKmer != 0),
         maskMode(par.maskMode),
         maskLowerCaseMode(par.maskLowerCaseMode),
         maskProb(par.maskProb),
@@ -77,6 +76,12 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         default:
             Debug(Debug::ERROR) << "Query sequence type not implemented!\n";
             EXIT(EXIT_FAILURE);
+    }
+
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
+        spacedKmer = par.spacedKmer.values.nucleotide();
+    } else {
+        spacedKmer = par.spacedKmer.values.aminoacid();
     }
 
     if (Parameters::isEqualDbtype(FileUtil::parseDbType(targetDB.c_str()), Parameters::DBTYPE_INDEX_DB)) {
@@ -135,7 +140,6 @@ Prefiltering::Prefiltering(const std::string &queryDB,
             kmerSize = data.kmerSize;
             alphabetSize = data.alphabetSize;
             targetSeqType = data.seqType;
-            spacedKmer = data.spacedKmer == 1 ? true : false;
             // the query database could have longer sequences than the target database, do not cut them short
             maxSeqLen = std::max(maxSeqLen, (size_t)data.maxSeqLength);
             aaBiasCorrection = data.compBiasCorr;
