@@ -653,7 +653,7 @@ template size_t assignGroup<1, int>(KmerPosition<int> *kmers, size_t splitKmerCo
 void setLinearFilterDefault(Parameters *p) {
     p->covThr = 0.8;
     p->maskMode = 0;
-    p->spacedKmer = false;
+    p->spacedKmer = MultiParam<NuclAA<int>>(NuclAA<int>(0, 0));
     p->kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
     p->alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE, 5));
     p->kmersPerSequence = Parameters::CLUST_LINEAR_KMER_PER_SEQ;
