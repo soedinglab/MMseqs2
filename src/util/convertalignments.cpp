@@ -651,7 +651,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                                     case 'M': {
                                                         char qRes = queryProfile ? queryProfData[qPos] : querySeqData[qPos];
                                                         char tRes = targetProfile ? targetProfData[tPos] : targetSeqData[tPos];
-                                                        std::cout << qRes << " " << tRes << std::endl;
                                                         pPositive += (subMat->subMatrix[subMat->aa2num[(int)qRes]][subMat->aa2num[(int)tRes]] > 0);
                                                         matchCount += 1;
                                                         qPos++;
@@ -666,7 +665,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                                         break;
                                                 }
                                             }
-                                            std::cout << res.backtrace << " " << pPositive << " " << matchCount << std::endl;
                                             pPositive /= static_cast<float>(matchCount);
                                         }
                                         result.append(SSTR(pPositive));
