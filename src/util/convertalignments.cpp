@@ -643,13 +643,15 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         float pPositive = 0;
                                         int matchCount = 0;
                                         if (res.backtrace.empty() == false) {
-                                            int qPos = 0;
-                                            int tPos = 0;
-                                            for (size_t pos = 0; pos < res.backtrace.size(); pos++) {
-                                                switch (res.backtrace[pos]) {
+                                            int qPos = res.qStartPos;
+                                            int tPos = res.dbStartPos;
+                                            std::string unpackedBt = Matcher::uncompressAlignment(res.backtrace);
+                                            for (size_t pos = 0; pos < unpackedBt.size(); pos++) {
+                                                switch (unpackedBt[pos]) {
                                                     case 'M': {
                                                         char qRes = queryProfile ? queryProfData[qPos] : querySeqData[qPos];
                                                         char tRes = targetProfile ? targetProfData[tPos] : targetSeqData[tPos];
+                                                        std::cout << qRes << " " << tRes << std::endl;
                                                         pPositive += (subMat->subMatrix[subMat->aa2num[(int)qRes]][subMat->aa2num[(int)tRes]] > 0);
                                                         matchCount += 1;
                                                         qPos++;
@@ -657,14 +659,15 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                                         break;
                                                     }
                                                     case 'D':
-                                                        qPos++;
+                                                        tPos++;
                                                         break;
                                                     case 'I':
-                                                        tPos++;
+                                                        qPos++;
                                                         break;
                                                 }
                                             }
-                                            pPositive /= matchCount;
+                                            std::cout << res.backtrace << " " << pPositive << " " << matchCount << std::endl;
+                                            pPositive /= static_cast<float>(matchCount);
                                         }
                                         result.append(SSTR(pPositive));
                                         break;
