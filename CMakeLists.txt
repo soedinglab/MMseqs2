@@ -117,6 +117,7 @@ if (NATIVE_ARCH AND (MMSEQS_ARCH STREQUAL ""))
         set(MMSEQS_ARCH "-march=native")
     endif ()
 endif ()
+set(MMSEQS_ARCH ${MMSEQS_ARCH} CACHE INTERNAL "")
 
 if (NOT (MMSEQS_ARCH STREQUAL ""))
     set(MMSEQS_CXX_FLAGS "${MMSEQS_CXX_FLAGS} ${MMSEQS_ARCH}")
