@@ -16,7 +16,7 @@ namespace Linsearch {
 #include <cassert>
 
 void setLinsearchDefaults(Parameters *p) {
-    p->spacedKmer = false;
+    p->spacedKmer = MultiParam<NuclAA<int>>(NuclAA<int>(0, 0));
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
     p->sensitivity = 5.7;
     p->evalThr = 0.001;

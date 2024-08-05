@@ -11,7 +11,7 @@
 extern int computeSearchMode(int queryDbType, int targetDbType, int targetSrcDbType, int searchType);
 
 void setTaxonomyDefaults(Parameters *p) {
-    p->spacedKmer = true;
+    p->spacedKmer = MultiParam<NuclAA<int>>(NuclAA<int>(1, 0));
     p->sensitivity = 2;
     p->evalThr = 1;
     p->maxAccept = 30;
