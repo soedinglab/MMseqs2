@@ -276,7 +276,7 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
             unsigned int minSeqLen = std::min(targetMaxLen - minDistToDiagonal, queryLen);
             for(size_t i = 0; i < DIAGONALBINSIZE; i++) {
                 tmpSeqs[i] = seqs[i].seq + minDistToDiagonal;
-                seqLength[i] = (seqs[i].seqLen == 0) ? 0 : std::min(seqs[i].seqLen - minDistToDiagonal, minSeqLen);
+                seqLength[i] = (seqs[i].seqLen > minDistToDiagonal) ? std::min(seqs[i].seqLen - minDistToDiagonal, minSeqLen) : 0;
             }
             unrolledDiagonalScoring<Sequence::PROFILE_AA_SIZE + 1>(queryProfile, seqLength,
                                                                    tmpSeqs, score_arr);
