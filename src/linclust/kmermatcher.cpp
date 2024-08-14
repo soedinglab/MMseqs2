@@ -729,21 +729,21 @@ size_t assignGroup(KmerPosition<T> *hashSeqPair, size_t splitKmerCount, bool inc
     // mark the end index of the valid information as SIZE_T_MAX 
     hashSeqPair[writePos].kmer = SIZE_T_MAX;
 
-    Debug(Debug::INFO) << "\n" << "Total kmers per split: " << splitKmerCount << "\n";
-    Debug(Debug::INFO) << "Number of connections: " << writePos;
-    if (splitKmerCount != 0) {
-        double pos = std::round((static_cast<double>(writePos - writeTmp) / splitKmerCount) * 100.0 * 100.0) / 100.0;
-        double tmp = std::round((static_cast<double>(writeTmp) / (splitKmerCount * (hashSeqBuffer - 1))) * 100.0 * 100.0) / 100.0;
+    // Debug(Debug::INFO) << "\n" << "Total kmers per split: " << splitKmerCount << "\n";
+    // Debug(Debug::INFO) << "Number of connections: " << writePos;
+    // if (splitKmerCount != 0) {
+    //     double pos = std::round((static_cast<double>(writePos - writeTmp) / splitKmerCount) * 100.0 * 100.0) / 100.0;
+    //     double tmp = std::round((static_cast<double>(writeTmp) / (splitKmerCount * (hashSeqBuffer - 1))) * 100.0 * 100.0) / 100.0;
     
-        std::ostringstream posStream;
-        std::ostringstream tmpStream;
+    //     std::ostringstream posStream;
+    //     std::ostringstream tmpStream;
 
-        posStream << std::defaultfloat << pos;
-        tmpStream << std::defaultfloat << tmp;
+    //     posStream << std::defaultfloat << pos;
+    //     tmpStream << std::defaultfloat << tmp;
 
-        Debug(Debug::INFO) << " (default:" << posStream.str() << "%/buffer:" << tmpStream.str() << "%)";
-    }
-    Debug(Debug::INFO) << "\n\n";
+    //     Debug(Debug::INFO) << " (default:" << posStream.str() << "%/buffer:" << tmpStream.str() << "%)";
+    // }
+    // Debug(Debug::INFO) << "\n\n";
     return writePos;
 }
 
