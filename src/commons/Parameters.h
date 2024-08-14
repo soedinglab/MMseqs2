@@ -552,6 +552,7 @@ public:
     int resultDirection;
     float weightThr;
     std::string weightFile;
+    float hashSeqBuffer;
 
     // indexdb
     int checkCompatible;

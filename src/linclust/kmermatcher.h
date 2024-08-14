@@ -52,6 +52,7 @@ struct __attribute__((__packed__))KmerPosition {
     unsigned int id;
     T seqLen;
     T pos;
+    unsigned char adjacentSeq[6];
 
     static bool compareRepSequenceAndIdAndPos(const KmerPosition<T> &first, const KmerPosition<T> &second){
         if(first.kmer < second.kmer )

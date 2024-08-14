@@ -2513,6 +2513,7 @@ void Parameters::setDefaults() {
     resultDirection = Parameters::PARAM_RESULT_DIRECTION_TARGET;
     weightThr = 0.9;
     weightFile = "";
+    hashSeqBuffer = 1.05;
 
     // result2stats
     stat = "";
