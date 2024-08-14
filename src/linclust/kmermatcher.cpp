@@ -98,6 +98,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
+        const unsigned char xIndex = subMat->aa2num[static_cast<int>('X')];
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
@@ -244,14 +245,8 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                     threadKmerBuffer[bufferPos].id = seqId;
                     threadKmerBuffer[bufferPos].pos = 0;
                     threadKmerBuffer[bufferPos].seqLen = seq.L;
-                    const unsigned char nIndex = subMat->aa2num[static_cast<int>('N')];
-                    const unsigned char xIndex = subMat->aa2num[static_cast<int>('X')];
                     for (size_t i = 0; i < 6; i++) {
-                        if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                            threadKmerBuffer[bufferPos].adjacentSeq[i] = nIndex;
-                        }else {
-                            threadKmerBuffer[bufferPos].adjacentSeq[i] = xIndex;
-                        }    
+                        threadKmerBuffer[bufferPos].adjacentSeq[i] = xIndex;
                     }
                     if(hashDistribution != NULL){
                         __sync_fetch_and_add(&hashDistribution[static_cast<unsigned short>(seqHash)], 1);
@@ -333,14 +328,8 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                             // store adjacent seq information
                             unsigned int startPos = (kmers + kmerIdx)->pos;
                             unsigned int endPos = (kmers + kmerIdx)->pos + adjustedKmerSize - 1;
-                            const unsigned char nIndex = subMat->aa2num[static_cast<int>('N')];
-                            const unsigned char xIndex = subMat->aa2num[static_cast<int>('X')];
                             for (size_t i = 0; i < 6; i++) {
-                                if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                                    threadKmerBuffer[bufferPos].adjacentSeq[i] = nIndex;
-                                }else {
-                                    threadKmerBuffer[bufferPos].adjacentSeq[i] = xIndex;
-                                }                            
+                                threadKmerBuffer[bufferPos].adjacentSeq[i] = xIndex;
                             }
                             if (startPos >= 3) {
                                 threadKmerBuffer[bufferPos].adjacentSeq[0] = seq.numSequence[startPos - 3];
