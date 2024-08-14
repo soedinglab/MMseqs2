@@ -244,11 +244,13 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                     threadKmerBuffer[bufferPos].id = seqId;
                     threadKmerBuffer[bufferPos].pos = 0;
                     threadKmerBuffer[bufferPos].seqLen = seq.L;
+                    const unsigned char nIndex = subMat->aa2num[static_cast<int>('N')];
+                    const unsigned char xIndex = subMat->aa2num[static_cast<int>('X')];
                     for (size_t i = 0; i < 6; i++) {
                         if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                            threadKmerBuffer[bufferPos].adjacentSeq[i] = static_cast<unsigned char>(4);
+                            threadKmerBuffer[bufferPos].adjacentSeq[i] = nIndex;
                         }else {
-                            threadKmerBuffer[bufferPos].adjacentSeq[i] = static_cast<unsigned char>(12);
+                            threadKmerBuffer[bufferPos].adjacentSeq[i] = xIndex;
                         }    
                     }
                     if(hashDistribution != NULL){
@@ -331,11 +333,13 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                             // store adjacent seq information
                             unsigned int startPos = (kmers + kmerIdx)->pos;
                             unsigned int endPos = (kmers + kmerIdx)->pos + adjustedKmerSize - 1;
+                            const unsigned char nIndex = subMat->aa2num[static_cast<int>('N')];
+                            const unsigned char xIndex = subMat->aa2num[static_cast<int>('X')];
                             for (size_t i = 0; i < 6; i++) {
                                 if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                                    threadKmerBuffer[bufferPos].adjacentSeq[i] = static_cast<unsigned char>(4);
+                                    threadKmerBuffer[bufferPos].adjacentSeq[i] = nIndex;
                                 }else {
-                                    threadKmerBuffer[bufferPos].adjacentSeq[i] = static_cast<unsigned char>(12);
+                                    threadKmerBuffer[bufferPos].adjacentSeq[i] = xIndex;
                                 }                            
                             }
                             if (startPos >= 3) {
@@ -988,17 +992,28 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
 
     float hashSeqBuffer;
+    bool firstIt = true;
     do {
-        DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads,
-                                      DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+        // FIXME: currently have to reopen DB every iteration due to DBReader<T>::unmapData()
+        DBReader<unsigned int> seqDbr(
+            par.db1.c_str(),
+            par.db1Index.c_str(),
+            par.threads,
+            DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA
+        );
         seqDbr.open(DBReader<unsigned int>::NOSORT);
         int querySeqType = seqDbr.getDbtype();
 
-        setKmerLengthAndAlphabet(par, seqDbr.getAminoAcidDBSize(), querySeqType);
-        std::vector<MMseqsParameter *> *params = command.params;
-        par.printParameters(command.cmd, argc, argv, *params);
-        Debug(Debug::INFO) << "Database size: " << seqDbr.getSize() << " type: " << seqDbr.getDbTypeName() << "\n";
+        // print is executed only once
+        if (firstIt) {
+            firstIt = false;
+            setKmerLengthAndAlphabet(par, seqDbr.getAminoAcidDBSize(), querySeqType);
+            std::vector<MMseqsParameter *> *params = command.params;
+            par.printParameters(command.cmd, argc, argv, *params);
+            Debug(Debug::INFO) << "Database size: " << seqDbr.getSize() << " type: " << seqDbr.getDbTypeName() << "\n";
+        }
         
+        // if the buffer size is insufficient, par.hashSeqBuffer is changed and repeat split again
         hashSeqBuffer = par.hashSeqBuffer;
         if (seqDbr.getMaxSeqLen() < SHRT_MAX) {
             kmermatcherInner<short>(par, seqDbr);
