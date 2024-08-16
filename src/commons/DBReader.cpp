@@ -112,6 +112,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
         totalDataSize = 0;
         dataFileCnt = dataFileNames.size();
+
         dataSizeOffset = new size_t[dataFileNames.size() + 1];
         dataFiles = new char*[dataFileNames.size()];
         for(size_t fileIdx = 0; fileIdx < dataFileNames.size(); fileIdx++){
@@ -136,6 +137,8 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
     }
     if (dataMode & USE_LOOKUP || dataMode & USE_LOOKUP_REV) {
+        Debug(Debug::INFO) << "ReadLookup file: " << dataFileName << "\n"; //gyuri
+
         std::string lookupFilename = (std::string(dataFileName) + ".lookup");
         MemoryMapped lookupData(lookupFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
         if (lookupData.isValid() == false) {
@@ -144,7 +147,9 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
         char* lookupDataChar = (char *) lookupData.getData();
         size_t lookupDataSize = lookupData.size();
+        Debug(Debug::INFO) << "Lookup Data size is " << lookupDataSize << "\n"; //gyuri
         lookupSize = Util::ompCountLines(lookupDataChar, lookupDataSize, threads);
+        Debug(Debug::INFO) << "Lookup size is " << lookupSize << "\n"; //gyuri
         lookup = new(std::nothrow) LookupEntry[this->lookupSize];
         incrementMemory(sizeof(LookupEntry) * this->lookupSize);
         readLookup(lookupDataChar, lookupDataSize, lookup);
@@ -155,6 +160,22 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
         lookupData.close();
     }
+    if (dataMode & USE_SOURCE){
+        std::string sourceFilename = (std::string(dataFileName) + ".source");
+        MemoryMapped sourceData(sourceFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+        if (sourceData.isValid() == false) {
+            Debug(Debug::ERROR) << "Cannot open source file " << sourceFilename << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        char* sourceDataChar = (char *) sourceData.getData();
+        size_t sourceDataSize = sourceData.size();
+        sourceSize = Util::ompCountLines(sourceDataChar, sourceDataSize, threads);
+        source = new(std::nothrow) SourceEntry[this->sourceSize];
+        incrementMemory(sizeof(SourceEntry) * this->sourceSize);
+        readSource(sourceDataChar, sourceDataSize, source);
+
+    }
+
     bool isSortedById = false;
     if (externalData == false) {
         MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
@@ -707,6 +728,15 @@ template <typename T> unsigned int DBReader<T>::getLookupFileNumber(size_t id){
     return lookup[id].fileNumber;
 }
 
+template <typename T> std::string DBReader<T>::getSourceFileName (size_t id){
+    if (id >= sourceSize){
+        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << dataFileName << ".source\n";
+        Debug(Debug::ERROR) << "getSourceFileName: local id (" << id << ") >= db size (" << sourceSize << ")\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return source[id].fileName;
+}
+
 template<>
 void DBReader<unsigned int>::lookupEntryToBuffer(std::string& buffer, const LookupEntry& entry) {
     buffer.append(SSTR(entry.id));
@@ -996,6 +1026,19 @@ size_t DBReader<T>::getOffset(size_t id) {
 }
 
 template<typename T>
+size_t DBReader<T>::getIndexLen(size_t id) {
+    if (id >= size){
+        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
+        Debug(Debug::ERROR) << "getOffset: local id (" << id << ") >= db size (" << size << ")\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (local2id != NULL) {
+        id = local2id[id];
+    }
+    return index[id].length;
+}
+
+template<typename T>
 size_t DBReader<T>::findNextOffsetid(size_t id) {
     size_t idOffset = getOffset(id);
     size_t nextOffset = SIZE_MAX;
@@ -1046,6 +1089,36 @@ void DBReader<T>::readLookup(char *data, size_t dataSize, DBReader::LookupEntry 
         lookupData = Util::skipLine(lookupData);
 
         currPos = lookupData - (char *) data;
+
+        i++;
+
+        
+    }
+}
+
+template <typename T>
+void DBReader<T>::readSource(char *data, size_t dataSize, DBReader::SourceEntry *source) {
+    size_t i=0;
+    size_t currPos = 0;
+    char* sourceData = (char *) data;
+    const char * cols[3];
+    while (currPos < dataSize){
+        if (i >= this->sourceSize) {
+            Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        Util::getFieldsOfLine(sourceData, cols, 3);
+        source[i].id = Util::fast_atoi<size_t>(cols[0]);
+        std::string fileName = std::string(cols[1], (cols[2] - cols[1]));
+        size_t lastDotPosition = fileName.rfind('.');
+
+        if (lastDotPosition != std::string::npos) {
+            fileName = fileName.substr(0, lastDotPosition);
+        }
+        source[i].fileName = fileName;
+        sourceData = Util::skipLine(sourceData);
+
+        currPos = sourceData - (char *) data;
 
         i++;
     }

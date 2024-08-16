@@ -86,6 +86,8 @@ Parameters::Parameters():
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID, "--alt-ali", "Alternative alignments", "Show up to this many alternative alignments", typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID, "--gap-open", "Gap open cost", "Gap open cost", typeid(MultiParam<NuclAA<int>>), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID, "--gap-extend", "Gap extension cost", "Gap extension cost", typeid(MultiParam<NuclAA<int>>), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PROTEOME_SIMILARITY(PARAM_PROTEOME_SIMILARITY_ID, "--proteome-similarity", "Proteome similarity", "Proteome similarity threshold", typeid(float), (void *) &proteomeSimThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
+
 #ifdef GAP_POS_SCORING
         PARAM_GAP_PSEUDOCOUNT(PARAM_GAP_PSEUDOCOUNT_ID, "--gap-pc", "Gap pseudo count", "Pseudo count for calculating position-specific gap opening penalties", typeid(int), &gapPseudoCount, "^[0-9]+$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
 #endif
@@ -338,6 +340,7 @@ Parameters::Parameters():
     alignall.push_back(&PARAM_SUB_MAT);
     alignall.push_back(&PARAM_ADD_BACKTRACE);
     alignall.push_back(&PARAM_ALIGNMENT_MODE);
+    alignall.push_back(&PARAM_REALIGN_SCORE_BIAS); //gyuri
 //    alignall.push_back(&PARAM_WRAPPED_SCORING);
     alignall.push_back(&PARAM_E);
     alignall.push_back(&PARAM_MIN_SEQ_ID);
@@ -350,7 +353,7 @@ Parameters::Parameters():
     alignall.push_back(&PARAM_NO_COMP_BIAS_CORR);
     alignall.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
 
-//    alignall.push_back(&PARAM_REALIGN);
+    alignall.push_back(&PARAM_REALIGN);
 //    alignall.push_back(&PARAM_MAX_REJECTED);
 //    alignall.push_back(&PARAM_MAX_ACCEPT);
     alignall.push_back(&PARAM_INCLUDE_IDENTITY);
@@ -364,6 +367,41 @@ Parameters::Parameters():
     alignall.push_back(&PARAM_THREADS);
     alignall.push_back(&PARAM_COMPRESSED);
     alignall.push_back(&PARAM_V);
+
+    //alignproteome
+        // alignproteome
+    alignproteome.push_back(&PARAM_SUB_MAT);
+    alignproteome.push_back(&PARAM_ADD_BACKTRACE);
+    alignproteome.push_back(&PARAM_ALIGNMENT_MODE);
+    alignproteome.push_back(&PARAM_REALIGN_SCORE_BIAS); //gyuri
+//    alignproteome.push_back(&PARAM_WRAPPED_SCORING);
+    alignproteome.push_back(&PARAM_E);
+    alignproteome.push_back(&PARAM_MIN_SEQ_ID);
+    alignproteome.push_back(&PARAM_MIN_ALN_LEN);
+    alignproteome.push_back(&PARAM_SEQ_ID_MODE);
+//    alignproteome.push_back(&PARAM_ALT_ALIGNMENT);
+    alignproteome.push_back(&PARAM_C);
+    alignproteome.push_back(&PARAM_COV_MODE);
+    alignproteome.push_back(&PARAM_MAX_SEQ_LEN);
+    alignproteome.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    alignproteome.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
+    alignproteome.push_back(&PARAM_PROTEOME_SIMILARITY);
+
+    alignproteome.push_back(&PARAM_REALIGN);
+//    alignproteome.push_back(&PARAM_MAX_REJECTED);
+//    alignproteome.push_back(&PARAM_MAX_ACCEPT);
+    alignproteome.push_back(&PARAM_INCLUDE_IDENTITY);
+    alignproteome.push_back(&PARAM_PRELOAD_MODE);
+    alignproteome.push_back(&PARAM_PCA);
+    alignproteome.push_back(&PARAM_PCB);
+    alignproteome.push_back(&PARAM_SCORE_BIAS);
+    alignproteome.push_back(&PARAM_GAP_OPEN);
+    alignproteome.push_back(&PARAM_GAP_EXTEND);
+    alignproteome.push_back(&PARAM_ZDROP);
+    alignproteome.push_back(&PARAM_THREADS);
+    alignproteome.push_back(&PARAM_COMPRESSED);
+    alignproteome.push_back(&PARAM_V);
+    
 
     // alignment
     align.push_back(&PARAM_SUB_MAT);
@@ -2315,6 +2353,7 @@ void Parameters::setDefaults() {
     maxRejected = INT_MAX;
     maxAccept   = INT_MAX;
     seqIdThr = 0.0;
+    proteomeSimThr = 0.0;
     alnLenThr = 0;
     altAlignment = 0;
     gapOpen = MultiParam<NuclAA<int>>(NuclAA<int>(11, 5));

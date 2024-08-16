@@ -434,6 +434,7 @@ public:
     int    maxAccept;                    // after n accepted sequences stop
     int    altAlignment;                 // show up to this many alternative alignments
     float  seqIdThr;                     // sequence identity threshold for acceptance
+    float  proteomeSimThr;
     int    alnLenThr;                    // min. alignment length
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
@@ -787,6 +788,7 @@ public:
     PARAMETER(PARAM_ALT_ALIGNMENT)
     PARAMETER(PARAM_GAP_OPEN)
     PARAMETER(PARAM_GAP_EXTEND)
+    PARAMETER(PARAM_PROTEOME_SIMILARITY)
 #ifdef GAP_POS_SCORING
     PARAMETER(PARAM_GAP_PSEUDOCOUNT)
 #endif
@@ -1078,6 +1080,7 @@ public:
     std::vector<MMseqsParameter*> threadsandcompression;
 
     std::vector<MMseqsParameter*> alignall;
+    std::vector<MMseqsParameter*> alignproteome;
     std::vector<MMseqsParameter*> align;
     std::vector<MMseqsParameter*> rescorediagonal;
     std::vector<MMseqsParameter*> alignbykmer;
