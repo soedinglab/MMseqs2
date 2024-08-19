@@ -44,6 +44,7 @@ extern int diffseqdbs(int argc, const char **argv, const Command& command);
 extern int easycluster(int argc, const char **argv, const Command& command);
 extern int easyrbh(int argc, const char **argv, const Command& command);
 extern int easylinclust(int argc, const char **argv, const Command& command);
+extern int easyalignproteome(int argc, const char **argv, const Command& command);
 extern int easysearch(int argc, const char **argv, const Command& command);
 extern int easylinsearch(int argc, const char **argv, const Command& command);
 extern int tsv2exprofiledb(int argc, const char **argv, const Command& command);

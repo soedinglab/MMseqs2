@@ -137,8 +137,6 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
     }
     if (dataMode & USE_LOOKUP || dataMode & USE_LOOKUP_REV) {
-        Debug(Debug::INFO) << "ReadLookup file: " << dataFileName << "\n"; //gyuri
-
         std::string lookupFilename = (std::string(dataFileName) + ".lookup");
         MemoryMapped lookupData(lookupFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
         if (lookupData.isValid() == false) {
@@ -147,9 +145,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
         char* lookupDataChar = (char *) lookupData.getData();
         size_t lookupDataSize = lookupData.size();
-        Debug(Debug::INFO) << "Lookup Data size is " << lookupDataSize << "\n"; //gyuri
         lookupSize = Util::ompCountLines(lookupDataChar, lookupDataSize, threads);
-        Debug(Debug::INFO) << "Lookup size is " << lookupSize << "\n"; //gyuri
         lookup = new(std::nothrow) LookupEntry[this->lookupSize];
         incrementMemory(sizeof(LookupEntry) * this->lookupSize);
         readLookup(lookupDataChar, lookupDataSize, lookup);
@@ -1023,19 +1019,6 @@ size_t DBReader<T>::getOffset(size_t id) {
         id = local2id[id];
     }
     return index[id].offset;
-}
-
-template<typename T>
-size_t DBReader<T>::getIndexLen(size_t id) {
-    if (id >= size){
-        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
-        Debug(Debug::ERROR) << "getOffset: local id (" << id << ") >= db size (" << size << ")\n";
-        EXIT(EXIT_FAILURE);
-    }
-    if (local2id != NULL) {
-        id = local2id[id];
-    }
-    return index[id].length;
 }
 
 template<typename T>

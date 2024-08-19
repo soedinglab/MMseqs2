@@ -1349,6 +1349,10 @@ Parameters::Parameters():
     // easylinclustworkflow
     easylinclustworkflow = combineList(linclustworkflow, createdb);
 
+    // easyalignproteomeworkflow
+    easyalignproteome = combineList(easylinclustworkflow, alignproteome);
+
+
     // clustering workflow
     clusterworkflow = combineList(prefilter, align);
     clusterworkflow = combineList(clusterworkflow, rescorediagonal);
@@ -2353,7 +2357,7 @@ void Parameters::setDefaults() {
     maxRejected = INT_MAX;
     maxAccept   = INT_MAX;
     seqIdThr = 0.0;
-    proteomeSimThr = 0.0;
+    proteomeSimThr = 0.9;
     alnLenThr = 0;
     altAlignment = 0;
     gapOpen = MultiParam<NuclAA<int>>(NuclAA<int>(11, 5));

@@ -8,7 +8,6 @@ set(commons_header_files
         commons/Command.h
         commons/CommandCaller.h
         commons/Concat.h
-        # commons/ClusterSpecies.h
         commons/DBConcat.h
         commons/DBReader.h
         commons/DBWriter.h
@@ -53,7 +52,6 @@ set(commons_source_files
         commons/BaseMatrix.cpp
         commons/Command.cpp
         commons/CommandCaller.cpp
-        # commons/ClusterSpecies.cpp
         commons/DBConcat.cpp
         commons/DBReader.cpp
         commons/DBWriter.cpp

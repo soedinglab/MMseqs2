@@ -187,7 +187,7 @@ public:
 
     size_t getSize() const;
 
-    unsigned int getProteomeTotalLen(size_t id); //gyuri
+    unsigned int getProteomeTotalLen(size_t id); 
 
     unsigned int getMaxSeqLen(){ 
             return (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE ) ) ?
@@ -445,8 +445,6 @@ public:
     size_t getOffset(size_t id);
 
     size_t findNextOffsetid(size_t id);
-
-    size_t getIndexLen(size_t id);
 
     int isCompressed(){
         return isCompressed(dbtype);

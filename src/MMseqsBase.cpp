@@ -79,6 +79,12 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
                                                             {"clusterPrefix", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                                             {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
+        {"easy-alignproteome", easyalignproteome, &par.easyalignproteome, COMMAND_EASY,
+                "Proteome clustering and alignemnt",
+                "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]>"
+                // CITATION_MMSEQS2,
+        
+        },
         {"easy-taxonomy",        easytaxonomy,         &par.easytaxonomy,         COMMAND_EASY,
                 "Taxonomic classification",
                 "# Assign taxonomic labels to FASTA sequences\n"
@@ -633,9 +639,9 @@ std::vector<Command> baseCommands = {
                                                            {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
                                                            {"alignmentDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb }}},
         {"alignproteome",             alignproteome,             &par.alignproteome,             COMMAND_ALIGNMENT,
-                "Within-result all-vs-all gapped local alignment",
+                "Proteome clustering and alignment",
                 NULL,
-                "Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "Martin Steinegger <martin.steinegger@snu.ac.kr> & Gyuri Kim <gyuribio@snu.ac.kr>",
                 "<i:sequenceDB> <i:resultDB> <o:alignmentDB>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                                            {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },

@@ -1118,6 +1118,7 @@ public:
     std::vector<MMseqsParameter*> kmersearch;
     std::vector<MMseqsParameter*> countkmer;
     std::vector<MMseqsParameter*> easylinclustworkflow;
+    std::vector<MMseqsParameter*> easyalignproteome;
     std::vector<MMseqsParameter*> linclustworkflow;
     std::vector<MMseqsParameter*> easysearchworkflow;
     std::vector<MMseqsParameter*> searchworkflow;

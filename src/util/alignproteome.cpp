@@ -50,7 +50,7 @@ struct __attribute__((__packed__)) ProteomeEntry{
         totalSeqId += seqId;
     }
 
-    void addSeqLength(unsigned int seqLength) {
+    void addSeqLen(unsigned int seqLength) {
         proteomeAALen += seqLength;
     }
 
@@ -64,14 +64,14 @@ struct __attribute__((__packed__)) ProteomeEntry{
     }
 };
 
-struct __attribute__((__packed__)) memberProteinEntry{
+struct __attribute__((__packed__)) MemberProteinEntry{
     unsigned int proteomeKey;
     unsigned int proteinKey;
 };
 
 struct ClusterEntry {
     bool isAvailable;
-    std::vector<memberProteinEntry> memberProteins;
+    std::vector<MemberProteinEntry> memberProteins;
 
     ClusterEntry() : isAvailable(false) {}
 
@@ -89,7 +89,7 @@ void calculateProteomeLength(std::vector<ProteomeEntry>& ProteomeList, DBReader<
     for (size_t i = 0; i < lookupSize; i++) {
         const unsigned int ProteomeId = lookup[i].fileNumber;
         const unsigned int ProteinId = lookup[i].id;
-        ProteomeList[ProteomeId].addSeqLength(tProteinDB.getIndexLen(ProteinId) - 2);
+        ProteomeList[ProteomeId].addSeqLen(tProteinDB.getSeqLen(ProteinId));
     }
 }
 
@@ -110,7 +110,7 @@ void initLocalClusterReps(size_t& id, std::vector<ClusterEntry>& localClusterRep
         for (auto& eachMemberKey : memberKeys){
             const unsigned int proteinId = tProteinDB.getId(eachMemberKey);
             const unsigned int proteomeKey = tProteinDB.getLookupFileNumber(proteinId);
-            memberProteinEntry mem;
+            MemberProteinEntry mem;
             mem.proteomeKey = proteomeKey;
             mem.proteinKey = proteinId;
             eachClusterRep.memberProteins.push_back(mem);

@@ -27,7 +27,6 @@ int alignall(int argc, const char **argv, const Command &command) {
     }
     unsigned int swMode = Alignment::initSWMode(par.alignmentMode, par.covThr, par.seqIdThr);
 
-    // DBReader<unsigned int> tdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     DBReader<unsigned int> tdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_LOOKUP);
 
     tdbr.open(DBReader<unsigned int>::NOSORT);
@@ -58,7 +57,6 @@ int alignall(int argc, const char **argv, const Command &command) {
     EvalueComputation evaluer(tdbr.getAminoAcidDBSize(), subMat, gapOpen, gapExtend);
     const size_t flushSize = 100000000;
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbr_res.getSize()) / static_cast<double>(flushSize)));
-    Debug(Debug::INFO) << "Number of iterations: " << iterations << " Size of linclust dbr_res : " <<  dbr_res.getSize() <<  '\n';
 
     for (size_t i = 0; i < iterations; i++) {
         size_t start = (i * flushSize);
