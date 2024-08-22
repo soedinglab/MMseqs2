@@ -43,7 +43,7 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
     #ifdef OPENMP
             thread_idx = static_cast<unsigned int>(omp_get_thread_num());
     #endif
-    #pragma omp for schedule(dynamic, 1)
+    #pragma omp for schedule(static)
             for (size_t id = 0; id < clusterReader.getSize(); id++) {
                 progress.updateProgress();
                 char *data = clusterReader.getData(id, thread_idx);
