@@ -1150,7 +1150,7 @@ std::vector<Command> baseCommands = {
                 "<i:hhsuiteHHMDB> <o:profileDB>",
                 CITATION_MMSEQS2,{{"",DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, NULL}}},
 
-        {"tsv2exprofiledb",      tsv2exprofiledb,      &par.onlyverbosity,        COMMAND_PROFILE_PROFILE,
+        {"tsv2exprofiledb",      tsv2exprofiledb,      &par.verbandcompression,   COMMAND_PROFILE_PROFILE,
                 "Create a expandable profile db from TSV files",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",
