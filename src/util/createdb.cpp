@@ -19,9 +19,9 @@ int createdb(int argc, const char **argv, const Command& command) {
     std::vector<std::string> filenames(par.filenames);
     std::string dataFile = filenames.back();
     filenames.pop_back();
-    if (Util::endsWith(".txt", filenames[0])) {
+    if (Util::endsWith(".tsv", filenames[0])) {
 	    if (filenames.size() > 1) {
-		    Debug(Debug::ERROR) << "Only one txt file can be given\n";
+		    Debug(Debug::ERROR) << "Only one tsv file can be given\n";
 		    EXIT(EXIT_FAILURE);
 	    }
 	    std::string tsv = filenames.back();
