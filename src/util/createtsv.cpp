@@ -18,18 +18,34 @@
 int createtsv(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
+    const bool hasTargetDB = par.filenames.size() > 3;
+    DBReader<unsigned int> *reader;
+    if (hasTargetDB) {
+        reader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    } else {
+        reader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    }
+    reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    const bool useSourceIdentifier = DBReader<unsigned int>::getExtendedDbtype(reader->getDbtype()) & Parameters::DBTYPE_EXTENDED_SRC_IDENTIFIER;
 
     bool queryNucs = Parameters::isEqualDbtype(FileUtil::parseDbType(par.db1.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
     bool targetNucs = Parameters::isEqualDbtype(FileUtil::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
     const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-    int queryHeaderType = (queryNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS;
+    int queryHeaderType = (useSourceIdentifier) ? IndexReader::SOURCE : 
+                        (queryNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS;
     queryHeaderType = (par.idxSeqSrc == 0) ? queryHeaderType :  (par.idxSeqSrc == 1) ?  IndexReader::HEADERS : IndexReader::SRC_HEADERS;
-    IndexReader qDbrHeader(par.db1, par.threads, queryHeaderType, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+    unsigned int preloadMode = (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0;
+    unsigned int dataMode = (useSourceIdentifier)
+        ? (DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_SOURCE)
+        : (DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
+    IndexReader qDbrHeader(par.db1, par.threads, queryHeaderType, preloadMode, dataMode);
+
+    // IndexReader qDbrHeader(par.db1, par.threads, queryHeaderType, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     IndexReader * tDbrHeader=NULL;
     DBReader<unsigned int> * queryDB = qDbrHeader.sequenceReader;
     DBReader<unsigned int> * targetDB = NULL;
     bool sameDB = (par.db2.compare(par.db1) == 0);
-    const bool hasTargetDB = par.filenames.size() > 3;
+    
     DBReader<unsigned int>::Index * qHeaderIndex = qDbrHeader.sequenceReader->getIndex();
     DBReader<unsigned int>::Index * tHeaderIndex = NULL;
 
@@ -49,23 +65,13 @@ int createtsv(int argc, const char **argv, const Command &command) {
         }
     }
 
-    DBReader<unsigned int> *reader;
-    if (hasTargetDB) {
-
-        reader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    } else {
-
-        reader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    }
-    reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
     const std::string& dataFile = hasTargetDB ? par.db4 : par.db3;
     const std::string& indexFile = hasTargetDB ? par.db4Index : par.db3Index;
     const bool shouldCompress = par.dbOut == true && par.compressed == true;
     const int dbType = par.dbOut == true ? Parameters::DBTYPE_GENERIC_DB : Parameters::DBTYPE_OMIT_FILE;
     DBWriter writer(dataFile.c_str(), indexFile.c_str(), par.threads, shouldCompress, dbType);
     writer.open();
-
+    
     const size_t targetColumn = (par.targetTsvColumn == 0) ? SIZE_T_MAX :  par.targetTsvColumn - 1;
 #pragma omp parallel
     {
@@ -84,6 +90,10 @@ int createtsv(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < reader->getSize(); ++i) {
             unsigned int queryKey = reader->getDbKey(i);
             size_t queryIndex = queryDB->getId(queryKey);
+            size_t querySourceIndex = SIZE_T_MAX;
+            if (useSourceIdentifier){
+                querySourceIndex = queryDB->getSourceKey(queryKey);
+            }
 
             char *headerData = queryDB->getData(queryIndex, thread_idx);
             if (headerData == NULL) {
@@ -92,7 +102,10 @@ int createtsv(int argc, const char **argv, const Command &command) {
             }
 
             std::string queryHeader;
-            if (par.fullHeader) {
+            if (useSourceIdentifier){
+                queryHeader = queryDB->getSourceFileName(querySourceIndex);
+            }
+            else if (par.fullHeader) {
                 queryHeader = "\"";
                 queryHeader.append(headerData, qHeaderIndex[queryIndex].length - 2);
                 queryHeader.append("\"");
@@ -118,12 +131,19 @@ int createtsv(int argc, const char **argv, const Command &command) {
                 } else if (hasTargetDB) {
                     unsigned int targetKey = (unsigned int) strtoul(dbKey, NULL, 10);
                     size_t targetIndex = targetDB->getId(targetKey);
+                    size_t targetSourceIdex = SIZE_T_MAX;
+                    if (useSourceIdentifier){
+                        targetSourceIdex = targetDB->getSourceKey(targetKey);
+                    }
                     char *targetData = targetDB->getData(targetIndex, thread_idx);
                     if (targetData == NULL) {
                         Debug(Debug::WARNING) << "Invalid header entry in query " << queryKey << " and target " << targetKey << "!\n";
                         continue;
                     }
-                    if (par.fullHeader) {
+                    if (useSourceIdentifier){
+                        targetAccession = targetDB->getSourceFileName(targetSourceIdex);
+                    }
+                    else if (par.fullHeader) {
                         targetAccession = "\"";
                         targetAccession.append(targetData, tHeaderIndex[targetIndex].length - 2);
                         targetAccession.append("\"");
