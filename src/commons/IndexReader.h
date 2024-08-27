@@ -22,7 +22,7 @@ public:
     ) : sequenceReader(NULL), index(NULL) {
         int targetDbtype = FileUtil::parseDbType(dataName.c_str());
         if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
-            index = new DBReader<unsigned int>(dataName.c_str(), (dataName + ".index").c_str(), 1, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
+            new DBReader<unsigned int>(dataName.c_str(), (dataName + ".index").c_str(), 1, dataMode);
             index->open(DBReader<unsigned int>::NOSORT);
             if (PrefilteringIndexReader::checkIfIndexFile(index)) {
                 PrefilteringIndexReader::printSummary(index);
@@ -95,6 +95,8 @@ public:
                     }else{
                         failSuffix = "_aln";
                     }
+                } else if (databaseType & SOURCE) {
+                    failSuffix = "";
                 }
             }
             sequenceReader = new DBReader<unsigned int>(
@@ -115,6 +117,7 @@ public:
     static const unsigned int SRC_HEADERS = 4;
     static const unsigned int SRC_SEQUENCES =  8;
     static const unsigned int ALIGNMENTS = 16;
+    static const unsigned int SOURCE = 32;
     static const unsigned int USER_SELECT = 1 << 31;
 
     static unsigned int makeUserDatabaseType(unsigned int baseKey) {
