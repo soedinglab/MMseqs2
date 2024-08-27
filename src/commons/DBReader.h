@@ -187,8 +187,6 @@ public:
 
     size_t getSize() const;
 
-    unsigned int getProteomeTotalLen(size_t id); 
-
     unsigned int getMaxSeqLen(){ 
             return (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_HMM_PROFILE ) ) ?
                     (std::max(maxSeqLen, 1u)) / Sequence::PROFILE_READIN_SIZE :
@@ -254,6 +252,7 @@ public:
     LookupEntry* getLookup() { return lookup; };
 
     std::string getSourceFileName(size_t id);
+    T getSourceKey(size_t id);
     static const int NOSORT = 0;
     static const int SORT_BY_LENGTH = 1;
     static const int LINEAR_ACCCESS = 2;

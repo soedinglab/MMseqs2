@@ -90,6 +90,7 @@ public:
     static const unsigned int DBTYPE_EXTENDED_COMPRESSED = 1;
     static const unsigned int DBTYPE_EXTENDED_INDEX_NEED_SRC = 2;
     static const unsigned int DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS = 4;
+    static const unsigned int DBTYPE_EXTENDED_SRC_IDENTIFIER = 8;
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
@@ -434,7 +435,7 @@ public:
     int    maxAccept;                    // after n accepted sequences stop
     int    altAlignment;                 // show up to this many alternative alignments
     float  seqIdThr;                     // sequence identity threshold for acceptance
-    float  proteomeSimThr;
+    float  proteomeSimThr;              // proteome similarity threshold for acceptance
     int    alnLenThr;                    // min. alignment length
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
@@ -1080,7 +1081,7 @@ public:
     std::vector<MMseqsParameter*> threadsandcompression;
 
     std::vector<MMseqsParameter*> alignall;
-    std::vector<MMseqsParameter*> alignproteome;
+    std::vector<MMseqsParameter*> proteomecluster;
     std::vector<MMseqsParameter*> align;
     std::vector<MMseqsParameter*> rescorediagonal;
     std::vector<MMseqsParameter*> alignbykmer;
@@ -1118,7 +1119,7 @@ public:
     std::vector<MMseqsParameter*> kmersearch;
     std::vector<MMseqsParameter*> countkmer;
     std::vector<MMseqsParameter*> easylinclustworkflow;
-    std::vector<MMseqsParameter*> easyalignproteome;
+    std::vector<MMseqsParameter*> easyproteomeclusterworkflow;
     std::vector<MMseqsParameter*> linclustworkflow;
     std::vector<MMseqsParameter*> easysearchworkflow;
     std::vector<MMseqsParameter*> searchworkflow;

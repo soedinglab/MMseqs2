@@ -340,7 +340,7 @@ Parameters::Parameters():
     alignall.push_back(&PARAM_SUB_MAT);
     alignall.push_back(&PARAM_ADD_BACKTRACE);
     alignall.push_back(&PARAM_ALIGNMENT_MODE);
-    alignall.push_back(&PARAM_REALIGN_SCORE_BIAS); //gyuri
+    alignall.push_back(&PARAM_REALIGN_SCORE_BIAS);
 //    alignall.push_back(&PARAM_WRAPPED_SCORING);
     alignall.push_back(&PARAM_E);
     alignall.push_back(&PARAM_MIN_SEQ_ID);
@@ -368,39 +368,38 @@ Parameters::Parameters():
     alignall.push_back(&PARAM_COMPRESSED);
     alignall.push_back(&PARAM_V);
 
-    //alignproteome
-        // alignproteome
-    alignproteome.push_back(&PARAM_SUB_MAT);
-    alignproteome.push_back(&PARAM_ADD_BACKTRACE);
-    alignproteome.push_back(&PARAM_ALIGNMENT_MODE);
-    alignproteome.push_back(&PARAM_REALIGN_SCORE_BIAS); //gyuri
-//    alignproteome.push_back(&PARAM_WRAPPED_SCORING);
-    alignproteome.push_back(&PARAM_E);
-    alignproteome.push_back(&PARAM_MIN_SEQ_ID);
-    alignproteome.push_back(&PARAM_MIN_ALN_LEN);
-    alignproteome.push_back(&PARAM_SEQ_ID_MODE);
-//    alignproteome.push_back(&PARAM_ALT_ALIGNMENT);
-    alignproteome.push_back(&PARAM_C);
-    alignproteome.push_back(&PARAM_COV_MODE);
-    alignproteome.push_back(&PARAM_MAX_SEQ_LEN);
-    alignproteome.push_back(&PARAM_NO_COMP_BIAS_CORR);
-    alignproteome.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
-    alignproteome.push_back(&PARAM_PROTEOME_SIMILARITY);
+    //proteomecluster
+    proteomecluster.push_back(&PARAM_SUB_MAT);
+    proteomecluster.push_back(&PARAM_ADD_BACKTRACE);
+    proteomecluster.push_back(&PARAM_ALIGNMENT_MODE);
+    proteomecluster.push_back(&PARAM_REALIGN_SCORE_BIAS); 
+//    proteomecluster.push_back(&PARAM_WRAPPED_SCORING);
+    proteomecluster.push_back(&PARAM_E);
+    proteomecluster.push_back(&PARAM_MIN_SEQ_ID);
+    proteomecluster.push_back(&PARAM_MIN_ALN_LEN);
+    proteomecluster.push_back(&PARAM_SEQ_ID_MODE);
+//    proteomecluster.push_back(&PARAM_ALT_ALIGNMENT);
+    proteomecluster.push_back(&PARAM_C);
+    proteomecluster.push_back(&PARAM_COV_MODE);
+    proteomecluster.push_back(&PARAM_MAX_SEQ_LEN);
+    proteomecluster.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    proteomecluster.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
+    proteomecluster.push_back(&PARAM_PROTEOME_SIMILARITY);
 
-    alignproteome.push_back(&PARAM_REALIGN);
-//    alignproteome.push_back(&PARAM_MAX_REJECTED);
-//    alignproteome.push_back(&PARAM_MAX_ACCEPT);
-    alignproteome.push_back(&PARAM_INCLUDE_IDENTITY);
-    alignproteome.push_back(&PARAM_PRELOAD_MODE);
-    alignproteome.push_back(&PARAM_PCA);
-    alignproteome.push_back(&PARAM_PCB);
-    alignproteome.push_back(&PARAM_SCORE_BIAS);
-    alignproteome.push_back(&PARAM_GAP_OPEN);
-    alignproteome.push_back(&PARAM_GAP_EXTEND);
-    alignproteome.push_back(&PARAM_ZDROP);
-    alignproteome.push_back(&PARAM_THREADS);
-    alignproteome.push_back(&PARAM_COMPRESSED);
-    alignproteome.push_back(&PARAM_V);
+    proteomecluster.push_back(&PARAM_REALIGN);
+//    proteomecluster.push_back(&PARAM_MAX_REJECTED);
+//    proteomecluster.push_back(&PARAM_MAX_ACCEPT);
+    proteomecluster.push_back(&PARAM_INCLUDE_IDENTITY);
+    proteomecluster.push_back(&PARAM_PRELOAD_MODE);
+    proteomecluster.push_back(&PARAM_PCA);
+    proteomecluster.push_back(&PARAM_PCB);
+    proteomecluster.push_back(&PARAM_SCORE_BIAS);
+    proteomecluster.push_back(&PARAM_GAP_OPEN);
+    proteomecluster.push_back(&PARAM_GAP_EXTEND);
+    proteomecluster.push_back(&PARAM_ZDROP);
+    proteomecluster.push_back(&PARAM_THREADS);
+    proteomecluster.push_back(&PARAM_COMPRESSED);
+    proteomecluster.push_back(&PARAM_V);
     
 
     // alignment
@@ -1349,8 +1348,8 @@ Parameters::Parameters():
     // easylinclustworkflow
     easylinclustworkflow = combineList(linclustworkflow, createdb);
 
-    // easyalignproteomeworkflow
-    easyalignproteome = combineList(easylinclustworkflow, alignproteome);
+    // easyproteomeclusterworkflow
+    easyproteomeclusterworkflow = combineList(easylinclustworkflow, proteomecluster);
 
 
     // clustering workflow
