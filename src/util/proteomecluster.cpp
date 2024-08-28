@@ -14,7 +14,7 @@
 #include <omp.h>
 #endif
 
-struct __attribute__((__packed__)) ProteomeEntry{
+struct ProteomeEntry{
     int proteomeKey;
     unsigned int proteomeAALen;
     int repProtKey;
