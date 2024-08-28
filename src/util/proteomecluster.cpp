@@ -24,12 +24,6 @@ struct __attribute__((__packed__)) ProteomeEntry{
     ProteomeEntry(unsigned int proteomeKey = -1, unsigned int pLength = 0, int repKey = -1, float simScore = 0.0f, unsigned int memCount = 0, float seqId = 0.0f)
         : proteomeKey(proteomeKey), proteomeAALen(pLength), repProtKey(repKey), protSimScore(simScore), memCount(memCount), totalSeqId(seqId) {}
 
-    void incrementMemCount(unsigned int count) {
-        memCount += count;
-    }
-    void decrementmemCount() {
-        memCount--;
-    }
     int getRepProtKey() {
         return repProtKey;
     }
@@ -113,7 +107,7 @@ void initLocalClusterReps(size_t& id, std::vector<ClusterEntry>& localClusterRep
     std::vector<unsigned int> memberKeys;
     memberKeys.reserve(50); // store key for every protein in a cluster
 
-    std::vector<bool> isProteomeInCluster(localMemCount.size(), false);
+    std::vector<uint8_t> isProteomeInCluster(localMemCount.size(), 0);
     char buffer[1024 + 32768*4];
     char *clustData = linResDB.getData(id, thread_idx);
     
@@ -133,7 +127,9 @@ void initLocalClusterReps(size_t& id, std::vector<ClusterEntry>& localClusterRep
             mem.proteomeKey = proteomeKey;
             mem.proteinKey = proteinId;
             eachClusterRep.memberProteins.push_back(mem);
-            isProteomeInCluster[proteomeKey] = true;
+            if (isProteomeInCluster[proteomeKey] == 0) {
+                isProteomeInCluster[proteomeKey] = 1;
+            }
         }
         localClusterReps.push_back(eachClusterRep);
     }
@@ -151,7 +147,7 @@ bool FindNextRepProteome(std::vector<ProteomeEntry>& proteomeList, unsigned int&
     unsigned int maxMemberCount = 0;
     unsigned int notCoveredProtCount = 0;
 
-    for (size_t idx = 0; idx < proteomeList.size(); idx++){
+    for (size_t idx = 0; idx < proteomeList.size(); idx++) {
         if (proteomeList[idx].isCovered()) {
             continue;
         }else{
@@ -268,7 +264,7 @@ bool updateproteomeList(std::vector<ProteomeEntry>& proteomeList, const unsigned
 }
 
 void updateClusterReps(ClusterEntry& clusterRep, std::vector<ProteomeEntry>& proteomeList, std::vector<unsigned int>& localMemCount){
-    std::vector<bool> isProteomeInCluster(localMemCount.size(), false);
+    std::vector<uint8_t> isProteomeInCluster(localMemCount.size(), 0);
     if (clusterRep.isAvailable) {
         bool isAllMemberCovered = true;
         unsigned int notCoveredCount = 0;
@@ -279,14 +275,16 @@ void updateClusterReps(ClusterEntry& clusterRep, std::vector<ProteomeEntry>& pro
                 notCoveredCount++;
                 lastProteomeKey = eachMember.proteomeKey;
                 isAllMemberCovered = false;
-                isProteomeInCluster[eachMember.proteomeKey] = true;
+                if (isProteomeInCluster[eachMember.proteomeKey] == 0) {
+                    isProteomeInCluster[eachMember.proteomeKey] = 1;
+                }
             }
         }
         if (isAllMemberCovered) {
             clusterRep.resetClusterInfo(); //set clusterRep.isAvailable = false;
         }
         if (notCoveredCount == 1) { //singleton Cluster
-            isProteomeInCluster[lastProteomeKey] = false;
+            isProteomeInCluster[lastProteomeKey] = 0;
             clusterRep.resetClusterInfo(); //set clusterRep.isAvailable = false;
         }
     }
@@ -392,7 +390,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
 
     int gapOpen, gapExtend;
     BaseMatrix *subMat;
-    subMat = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
     gapOpen = par.gapOpen.values.aminoacid();
     gapExtend = par.gapExtend.values.aminoacid();
     EvalueComputation evaluer(tProteinDB.getAminoAcidDBSize(), subMat, gapOpen, gapExtend);
@@ -412,11 +410,12 @@ int proteomecluster(int argc, const char **argv, const Command &command){
             initLocalClusterReps(id, localClusterReps, localMemCount, tProteinDB, linResDB, thread_idx);
         }
 
+        for (size_t idx = 0; idx < localMemCount.size(); idx++) {
+        __sync_fetch_and_add(&proteomeList[idx].memCount, localMemCount[idx]);
+        }
+
         #pragma omp critical
         {
-            for (size_t idx=0; idx < localMemCount.size(); idx++){
-                proteomeList[idx].incrementMemCount(localMemCount[idx]);
-            }
             clusterReps.insert(clusterReps.end(),
                                std::make_move_iterator(localClusterReps.begin()),
                                std::make_move_iterator(localClusterReps.end()));
@@ -466,15 +465,12 @@ int proteomecluster(int argc, const char **argv, const Command &command){
         {
             std::vector<unsigned int> localMemCount(proteomeList.size(), 0);
             #pragma omp for schedule(dynamic, 1)
-            for (size_t i = 0; i < clusterReps.size(); i++){
+            for (size_t i = 0; i < clusterReps.size(); i++) {
                 updateClusterReps(clusterReps[i], proteomeList, localMemCount);
             }
-            
-            #pragma omp critical
-            {
-                for (size_t i = 0; i < proteomeList.size(); i++) {
-                    proteomeList[i].incrementMemCount(localMemCount[i]);
-                }
+
+            for (size_t i = 0; i < proteomeList.size(); i++) {
+                __sync_fetch_and_add(&proteomeList[i].memCount, localMemCount[i]);
             }
         }
     }
@@ -487,7 +483,6 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     proteomeClustWriter.close();
     proteinClustWriter.close();
     tProteinDB.close();
-    delete subMat;
     linResDB.close();
     return EXIT_SUCCESS;
 }
