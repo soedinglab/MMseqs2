@@ -22,7 +22,7 @@ public:
     ) : sequenceReader(NULL), index(NULL) {
         int targetDbtype = FileUtil::parseDbType(dataName.c_str());
         if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
-            new DBReader<unsigned int>(dataName.c_str(), (dataName + ".index").c_str(), 1, dataMode);
+            index = new DBReader<unsigned int>(dataName.c_str(), (dataName + ".index").c_str(), 1, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
             index->open(DBReader<unsigned int>::NOSORT);
             if (PrefilteringIndexReader::checkIfIndexFile(index)) {
                 PrefilteringIndexReader::printSummary(index);
