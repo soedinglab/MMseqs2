@@ -17,25 +17,37 @@ OUT="$2"
 [ -d "${OUT}.tsv" ] && echo "${OUT} is a directory!" && exit 1;
 
 if notExists "${OUT}_h.dbtype"; then
-  "$MMSEQS" tsv2db "${IN}_h.tsv" "${OUT}_h" --output-dbtype 12 ${VERBOSITY}
+  MMSEQS_FORCE_MERGE=1 "$MMSEQS" tsv2db "${IN}_h.tsv" "${OUT}_h" --output-dbtype 12 ${VERBOSITY}
 fi
 
 if notExists "${OUT}.dbtype"; then
-  "$MMSEQS" tsv2db "${IN}.tsv" "${OUT}_tmp" --output-dbtype 0 ${VERBOSITY}
-  MMSEQS_FORCE_MERGE=1 "$MMSEQS" compress "${OUT}_tmp" "${OUT}" ${VERBOSITY}
-  "$MMSEQS" rmdb "${OUT}_tmp" ${VERBOSITY}
+  if [ -n "${COMPRESSED}" ]; then
+    "$MMSEQS" tsv2db "${IN}.tsv" "${OUT}_tmp" --output-dbtype 0 ${VERBOSITY}
+    MMSEQS_FORCE_MERGE=1 "$MMSEQS" compress "${OUT}_tmp" "${OUT}" ${VERBOSITY}
+    "$MMSEQS" rmdb "${OUT}_tmp" ${VERBOSITY}
+  else
+    MMSEQS_FORCE_MERGE=1 "$MMSEQS" tsv2db "${IN}.tsv" "${OUT}" --output-dbtype 0 ${VERBOSITY}
+  fi
 fi
 
 if notExists "${OUT}_seq.dbtype"; then
-  "$MMSEQS" tsv2db "${IN}_seq.tsv" "${OUT}_seq_tmp" --output-dbtype 0 ${VERBOSITY}
-  MMSEQS_FORCE_MERGE=1 "$MMSEQS" compress "${OUT}_seq_tmp" "${OUT}_seq" ${VERBOSITY}
-  "$MMSEQS" rmdb "${OUT}_seq_tmp" ${VERBOSITY}
+  if [ -n "${COMPRESSED}" ]; then
+    "$MMSEQS" tsv2db "${IN}_seq.tsv" "${OUT}_seq_tmp" --output-dbtype 0 ${VERBOSITY}
+    MMSEQS_FORCE_MERGE=1 "$MMSEQS" compress "${OUT}_seq_tmp" "${OUT}_seq" ${VERBOSITY}
+    "$MMSEQS" rmdb "${OUT}_seq_tmp" ${VERBOSITY}
+  else
+    "$MMSEQS" tsv2db "${IN}_seq.tsv" "${OUT}_seq" --output-dbtype 0 ${VERBOSITY}
+  fi
 fi
 
 if notExists "${OUT}_aln.dbtype"; then
-  "$MMSEQS" tsv2db "${IN}_aln.tsv" "${OUT}_aln_tmp" --output-dbtype 5 ${VERBOSITY}
-  MMSEQS_FORCE_MERGE=1 "$MMSEQS" compress "${OUT}_aln_tmp" "${OUT}_aln" ${VERBOSITY}
-  "$MMSEQS" rmdb "${OUT}_aln_tmp" ${VERBOSITY}
+  if [ -n "${COMPRESSED}" ]; then
+    "$MMSEQS" tsv2db "${IN}_aln.tsv" "${OUT}_aln_tmp" --output-dbtype 5 ${VERBOSITY}
+    MMSEQS_FORCE_MERGE=1 "$MMSEQS" compress "${OUT}_aln_tmp" "${OUT}_aln" ${VERBOSITY}
+    "$MMSEQS" rmdb "${OUT}_aln_tmp" ${VERBOSITY}
+  else
+    MMSEQS_FORCE_MERGE=1 "$MMSEQS" tsv2db "${IN}_aln.tsv" "${OUT}_aln" --output-dbtype 5 ${VERBOSITY}
+  fi
 fi
 
 if notExists "${OUT}_seq_h.dbtype"; then

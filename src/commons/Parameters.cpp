@@ -1910,7 +1910,7 @@ void Parameters::parseParameters(int argc, const char *pargv[], const Command &c
                     EXIT(EXIT_FAILURE);
                 }
                 filenames.emplace_back(posix);
-                delete posix;
+                delete[] posix;
             }
 #else
             filenames.emplace_back(pargv[argIdx]);

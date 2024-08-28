@@ -249,7 +249,7 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
                 // hack to avoid too long sequences
                 // this sequences will be processed by computeLongScore later
                 seqs[seqIdx].seq = (unsigned char *) tmp.first;
-                seqs[seqIdx].seqLen = 1;
+                seqs[seqIdx].seqLen = 0;
                 seqs[seqIdx].id = seqIdx;
             }else{
                 seqs[seqIdx].seq = (unsigned char *) tmp.first;
@@ -276,7 +276,7 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
             unsigned int minSeqLen = std::min(targetMaxLen - minDistToDiagonal, queryLen);
             for(size_t i = 0; i < DIAGONALBINSIZE; i++) {
                 tmpSeqs[i] = seqs[i].seq + minDistToDiagonal;
-                seqLength[i] = std::min(seqs[i].seqLen - minDistToDiagonal, minSeqLen);
+                seqLength[i] = (seqs[i].seqLen > minDistToDiagonal) ? std::min(seqs[i].seqLen - minDistToDiagonal, minSeqLen) : 0;
             }
             unrolledDiagonalScoring<Sequence::PROFILE_AA_SIZE + 1>(queryProfile, seqLength,
                                                                    tmpSeqs, score_arr);
@@ -286,7 +286,7 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
         for(size_t hitIdx = 0; hitIdx < hitSize; hitIdx++){
             hits[seqs[hitIdx].id]->count = static_cast<unsigned char>(std::min(static_cast<unsigned int>(255),
                                                                                score_arr[hitIdx]));
-            if(seqs[hitIdx].seqLen == 1){
+            if(seqs[hitIdx].seqLen == 0){
                 std::pair<const unsigned char *, const unsigned int> dbSeq =  sequenceLookup->getSequence(hits[hitIdx]->id);
                 if(dbSeq.second >= 32768){
                     int max = computeLongScore(queryProfile, queryLen, dbSeq, diagonal);

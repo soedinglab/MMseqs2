@@ -40,7 +40,7 @@ jobs:
   - job: build_macos
     displayName: macOS
     pool:
-      vmImage: 'macos-11'
+      vmImage: 'macos-12'
     steps:
       - checkout: self
         submodules: true

@@ -11,6 +11,10 @@ std::vector<Command> baseCommands = {
                 "Sensitive homology search",
                 "# Search multiple FASTA against FASTA (like BLASTP, TBLASTN, BLASTX, BLASTN --search-type 3, TBLASTX --search-type 2)\n"
                 "mmseqs easy-search examples/QUERY.fasta examples/QUERY.fasta examples/DB.fasta result.m8 tmp\n\n"
+                "# Search multiple query fasta files against target fasta files using a tsv file containing filepaths\n"
+                "echo -e \"dir1/QUERY1.fasta\\ndir2/QUERY2.fasta\" > examples/queries.tsv\n"
+                "echo -e \"dir3/TARGET1.fasta\\ndir4/TARGET2.fasta\" > examples/targets.tsv\n"
+                "mmseqs easy-search examples/queries.tsv examples/targets.tsv result.m8 tmp\n\n"
                 "# Iterative profile search from stdin (like PSI-BLAST)\n"
                 "cat examples/QUERY.fasta | mmseqs easy-search stdin examples/DB.fasta result.m8 tmp --num-iterations 2\n\n"
                 "# Profile search against small databases (e.g. PFAM, eggNOG)\n"
@@ -138,7 +142,10 @@ std::vector<Command> baseCommands = {
                 "# Create a seqDB from stdin\n"
                 "cat seq.fasta | mmseqs createdb stdin sequenceDB\n\n"
                 "# Create a seqDB by indexing existing FASTA/Q (for single line fasta entries only)\n"
-                "mmseqs createdb seq.fasta sequenceDB --createdb-mode 1\n",
+                "mmseqs createdb seq.fasta sequenceDB --createdb-mode 1\n\n"
+                "# Create a seqDB from a tsv file containing filepaths of multiple FASTA files in each line\n"
+                "echo -e \"dir1/bacteria.fasta\\ndir2/archea.fasta.gz\" > filepaths.tsv\n"
+                "mmseqs createdb filepaths.tsv sequenceDB\n",
                 "Martin Steinegger <martin.steinegger@snu.ac.kr>",
                 "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]>|<i:stdin> <o:sequenceDB>",
                 CITATION_MMSEQS2, {{"fast[a|q]File[.gz|bz2]|stdin", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfileStdinAndGeneric },
@@ -1173,7 +1180,7 @@ std::vector<Command> baseCommands = {
                 "<i:hhsuiteHHMDB> <o:profileDB>",
                 CITATION_MMSEQS2,{{"",DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, NULL}}},
 
-        {"tsv2exprofiledb",      tsv2exprofiledb,      &par.onlyverbosity,        COMMAND_PROFILE_PROFILE,
+        {"tsv2exprofiledb",      tsv2exprofiledb,      &par.verbandcompression,   COMMAND_PROFILE_PROFILE,
                 "Create a expandable profile db from TSV files",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",
