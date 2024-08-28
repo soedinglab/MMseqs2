@@ -243,7 +243,6 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
 bool updateproteomeList(std::vector<ProteomeEntry>& proteomeList, const unsigned int& RepProteomeId){
     bool isRepSingleton = true;
 
-    // #pragma omp for schedule(dynamic, 1)
     for (size_t i = 0; i < proteomeList.size(); i++) {
         if (proteomeList[i].isCovered() == false) {
             if (i == RepProteomeId){
@@ -389,11 +388,11 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     std::vector<ClusterEntry> clusterReps; 
 
     int gapOpen, gapExtend;
-    BaseMatrix *subMat;
+    // BaseMatrix *subMat;
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
     gapOpen = par.gapOpen.values.aminoacid();
     gapExtend = par.gapExtend.values.aminoacid();
-    EvalueComputation evaluer(tProteinDB.getAminoAcidDBSize(), subMat, gapOpen, gapExtend);
+    EvalueComputation evaluer(tProteinDB.getAminoAcidDBSize(), &subMat, gapOpen, gapExtend);
 
     // Debug(Debug::INFO) << "Start Initialization\n";
     #pragma omp parallel
@@ -433,9 +432,9 @@ int proteomecluster(int argc, const char **argv, const Command &command){
         #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
         #endif  
-            Matcher matcher(tProteinSeqType, tProteinSeqType, par.maxSeqLen, subMat, &evaluer, par.compBiasCorrection, par.compBiasCorrectionScale, gapOpen, gapExtend, 0.0, par.zdrop);
-            Sequence query(par.maxSeqLen, tProteinSeqType, subMat, 0, false, par.compBiasCorrection);
-            Sequence target(par.maxSeqLen, tProteinSeqType, subMat, 0, false, par.compBiasCorrection);
+            Matcher matcher(tProteinSeqType, tProteinSeqType, par.maxSeqLen, &subMat, &evaluer, par.compBiasCorrection, par.compBiasCorrectionScale, gapOpen, gapExtend, 0.0, par.zdrop);
+            Sequence query(par.maxSeqLen, tProteinSeqType, &subMat, 0, false, par.compBiasCorrection);
+            Sequence target(par.maxSeqLen, tProteinSeqType, &subMat, 0, false, par.compBiasCorrection);
             std::vector <float> localSeqIds(proteomeList.size(), 0.0f);
             #pragma omp for schedule(dynamic, 1)
             for (size_t i = 0; i < clusterReps.size(); i++) {
