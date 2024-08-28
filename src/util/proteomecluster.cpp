@@ -8,6 +8,7 @@
 #include "SubstitutionMatrix.h"
 #include "Alignment.h"
 #include "itoa.h"
+#include "Timer.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -393,7 +394,8 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     gapOpen = par.gapOpen.values.aminoacid();
     gapExtend = par.gapExtend.values.aminoacid();
     EvalueComputation evaluer(tProteinDB.getAminoAcidDBSize(), &subMat, gapOpen, gapExtend);
-
+    Debug(Debug::INFO) << "Initilize ";
+    Timer timer;
     // Debug(Debug::INFO) << "Start Initialization\n";
     #pragma omp parallel
     {
@@ -421,10 +423,12 @@ int proteomecluster(int argc, const char **argv, const Command &command){
         }
 
     }
+    Debug(Debug::INFO) << timer.lap() << "\n";
 
     unsigned int RepProteomeId = -1;
     // Debug(Debug::INFO) << "Run Alignment\n";
-
+    Debug(Debug::INFO) << "Proteome Clustering ";
+    timer.reset();
     while (FindNextRepProteome(proteomeList, RepProteomeId)) {
         #pragma omp parallel
         {
@@ -473,6 +477,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
             }
         }
     }
+    Debug(Debug::INFO) << timer.lap() << "\n";
     //sort proteomeList by repProtKey
     SORT_PARALLEL(proteomeList.begin(), proteomeList.end(), ProteomeEntry::compareByKey);
 
