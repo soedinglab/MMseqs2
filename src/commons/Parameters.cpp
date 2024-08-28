@@ -353,7 +353,7 @@ Parameters::Parameters():
     alignall.push_back(&PARAM_NO_COMP_BIAS_CORR);
     alignall.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
 
-    alignall.push_back(&PARAM_REALIGN);
+//    alignall.push_back(&PARAM_REALIGN);
 //    alignall.push_back(&PARAM_MAX_REJECTED);
 //    alignall.push_back(&PARAM_MAX_ACCEPT);
     alignall.push_back(&PARAM_INCLUDE_IDENTITY);
@@ -1350,7 +1350,6 @@ Parameters::Parameters():
 
     // easyproteomeclusterworkflow
     easyproteomeclusterworkflow = combineList(easylinclustworkflow, proteomecluster);
-
 
     // clustering workflow
     clusterworkflow = combineList(prefilter, align);

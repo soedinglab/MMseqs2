@@ -21,16 +21,16 @@ if notExists "${TMP_PATH}/clu.dbtype"; then
         || fail "Search died"
 fi
 
-if notExists "${TMP_PATH}/aln.dbtype"; then
-    # shellcheck disable=SC2086
-    "$MMSEQS" proteomecluster "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/aln_protein" "${TMP_PATH}/aln_proteome" ${PROTEOMECLUSTER_PAR} \
-        || fail "Convert Alignments died"
-fi
-
 if notExists "${RESULTS}_protein_cluster.tsv"; then
     # shellcheck disable=SC2086
     "$MMSEQS" createtsv "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/clu" "${RESULTS}_protein_cluster.tsv" ${THREADS_PAR} \
             || fail "createtsv protein cluster died"
+fi
+
+if notExists "${TMP_PATH}/aln.dbtype"; then
+    # shellcheck disable=SC2086
+    "$MMSEQS" proteomecluster "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/aln_protein" "${TMP_PATH}/aln_proteome" ${PROTEOMECLUSTER_PAR} \
+        || fail "Convert Alignments died"
 fi
 
 if notExists "${RESULTS}_protein_align.tsv"; then

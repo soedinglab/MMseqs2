@@ -79,12 +79,19 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
                                                             {"clusterPrefix", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                                             {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
-        {"easy-alignproteome", easyalignproteome, &par.easyalignproteome, COMMAND_EASY,
-                "Proteome clustering and alignemnt",
-                "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]>"
-                // CITATION_MMSEQS2,
-        
-        },
+        {"easy-proteomecluster", easyproteomecluster, &par.easyproteomeclusterworkflow, COMMAND_EASY,
+                "Proteome clustering and alignment",
+                "mmseqs easy-proteomecluster examples/DB.fasta result tmp\n\n"
+                "# ProteomeCluster output\n"
+                "#  - protein_cluster.tsv:  Protein linclust result\n"
+                "#  - proteome_cluster.tsv: Proteome redundancy clustering result\n"
+                "#  - protein_align.tsv: Protein alignment list\n"
+                "mmseqs easy-proteomecluster examples/DB.fasta result tmp --proteome-similarity 0.9\n",
+                "Martin Steinegger <martin.steinegger@snu.ac.kr> & Gyuri Kim <gyuribio@snu.ac.kr>",
+                "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]> <o:clusterPrefix> <tmpDir>",
+                CITATION_MMSEQS2, {{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
+                                        {"outputReports", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                        {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"easy-taxonomy",        easytaxonomy,         &par.easytaxonomy,         COMMAND_EASY,
                 "Taxonomic classification",
                 "# Assign taxonomic labels to FASTA sequences\n"
@@ -638,15 +645,15 @@ std::vector<Command> baseCommands = {
                                                            {"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                                            {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
                                                            {"alignmentDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb }}},
-        {"alignproteome",             alignproteome,             &par.alignproteome,             COMMAND_ALIGNMENT,
+        {"proteomecluster",             proteomecluster,             &par.proteomecluster,             COMMAND_ALIGNMENT,
                 "Proteome clustering and alignment",
                 NULL,
                 "Martin Steinegger <martin.steinegger@snu.ac.kr> & Gyuri Kim <gyuribio@snu.ac.kr>",
-                "<i:sequenceDB> <i:resultDB> <o:alignmentDB>",
+                "<i:sequenceDB> <i:clustresultDB> <o:proteinAlignmentDB> <o:proteomeAlignmentDB>",
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
-                                                           {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
-                                                           {"alignmentDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb },
-                                                           {"alignmentDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb }}},
+                                                           {"clustresultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
+                                                           {"proteinAlignmentDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb},
+                                                           {"proteomeAlignmentDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb }}},
         {"alignall",             alignall,             &par.alignall,             COMMAND_ALIGNMENT,
                 "Within-result all-vs-all gapped local alignment",
                 NULL,
@@ -1314,5 +1321,6 @@ std::vector<Command> baseCommands = {
                 NULL,
                 "",
                 "",
-                CITATION_MMSEQS2, {{"",DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, NULL}}}
+                CITATION_MMSEQS2, {{"",DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, NULL}}},
+        
 };
