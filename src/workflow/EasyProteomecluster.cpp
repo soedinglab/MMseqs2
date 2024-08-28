@@ -9,11 +9,13 @@
 #include "easyproteomecluster.sh.h"
 
 void setEasyproteomeclusterDefaults(Parameters *p) {
+    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     p->proteomeSimThr = 0.9;
 }
 
 void setEasyproteomeclusterMustPassAlong(Parameters *p){
     p->PARAM_REMOVE_TMP_FILES.wasSet = true;
+    p->PARAM_ALIGNMENT_MODE.wasSet = true;
 
 }
 
