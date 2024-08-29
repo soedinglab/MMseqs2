@@ -4,6 +4,7 @@
 #include "DBWriter.h"
 #include "Parameters.h"
 #include "BaseMatrix.h"
+#include "SequenceWeights.h"
 
 #include <queue>
 
@@ -194,7 +195,8 @@ public:
 
 
 template  <int TYPE, typename T>
-size_t assignGroup(KmerPosition<T> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr);
+size_t assignGroup(KmerPosition<T> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr,
+                   SequenceWeights * sequenceWeights, float weightThr, BaseMatrix *subMat, float &hashSeqBuffer);
 
 template <int TYPE, typename T>
 void mergeKmerFilesAndOutput(DBWriter & dbw, std::vector<std::string> tmpFiles, std::vector<char> &repSequence);
@@ -215,7 +217,7 @@ void writeKmerMatcherResult(DBWriter & dbw, KmerPosition<T> *hashSeqPair, size_t
 
 
 template <typename T>
-KmerPosition<T> * doComputation(size_t totalKmers, size_t split, size_t splits, std::string splitFile,
+KmerPosition<T> * doComputation(size_t &totalKmers, size_t split, size_t splits, std::string splitFile,
                                 DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat,
                                 size_t KMER_SIZE, size_t chooseTopKmer, float chooseTopKmerScale = 0.0);
 template <typename T>
