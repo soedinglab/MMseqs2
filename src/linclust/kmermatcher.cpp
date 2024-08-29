@@ -482,7 +482,7 @@ KmerPosition<T, IncludeAdjacentSeq> * doComputation(size_t &totalKmers, size_t h
         par.kmerSize = ret.second;
         Debug(Debug::INFO) << "\nAdjusted k-mer length " << par.kmerSize << "\n";
     }else{
-        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, T>(hashSeqPair, totalKmers, seqDbr, par, subMat, true, hashStartRange, hashEndRange, NULL);
+        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, T, IncludeAdjacentSeq>(hashSeqPair, totalKmers, seqDbr, par, subMat, true, hashStartRange, hashEndRange, NULL);
         elementsToSort = ret.first;
     }
     if(hashEndRange == SIZE_T_MAX){
@@ -1581,29 +1581,29 @@ void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTy
     }
 }
 
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, false>(KmerPosition<short, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template std::pair<size_t, size_t> fillKmerPositionArray<0, short, false>(KmerPosition<short, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                                            Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, false>(KmerPosition<short, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template std::pair<size_t, size_t> fillKmerPositionArray<1, short, false>(KmerPosition<short, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                                            Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, false>(KmerPosition<short, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template std::pair<size_t, size_t> fillKmerPositionArray<2, short, false>(KmerPosition<short, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                                            Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, int, false>(KmerPosition<int, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template std::pair<size_t, size_t> fillKmerPositionArray<0, int, false>(KmerPosition<int, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                                          Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, int, false>(KmerPosition <int, false>* kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template std::pair<size_t, size_t> fillKmerPositionArray<1, int, false>(KmerPosition <int, false>* kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                                          Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, int, false>(KmerPosition< int, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template std::pair<size_t, size_t> fillKmerPositionArray<2, int, false>(KmerPosition< int, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                                          Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, true>(KmerPosition<short, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template std::pair<size_t, size_t> fillKmerPositionArray<0, short, true>(KmerPosition<short, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                                           Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, true>(KmerPosition<short, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template std::pair<size_t, size_t> fillKmerPositionArray<1, short, true>(KmerPosition<short, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                                           Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, true>(KmerPosition<short, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template std::pair<size_t, size_t> fillKmerPositionArray<2, short, true>(KmerPosition<short, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                                           Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, int, true>(KmerPosition<int, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template std::pair<size_t, size_t> fillKmerPositionArray<0, int, true>(KmerPosition<int, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                                         Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, int, true>(KmerPosition <int, true>* kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template std::pair<size_t, size_t> fillKmerPositionArray<1, int, true>(KmerPosition <int, true>* kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                                         Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, int, true>(KmerPosition< int, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template std::pair<size_t, size_t> fillKmerPositionArray<2, int, true>(KmerPosition< int, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                                         Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
 
 template KmerPosition<short, false> *initKmerPositionMemory(size_t size);

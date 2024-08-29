@@ -62,9 +62,7 @@ struct AdjacentSeqArray {
 // save memory when adjacent sequence is unused
 template <>
 struct AdjacentSeqArray<false> {
-    void setAdjacentSeq(const int, const unsigned char) {
-        Debug(Debug::ERROR) << "Invalid write attempt at adjacent sequence array";
-    };
+    void setAdjacentSeq(const int, const unsigned char) {};
     unsigned char getAdjacentSeq(int) {
         Debug(Debug::ERROR) << "Invalid read attempt at adjacent sequence array";
         return '\0';
