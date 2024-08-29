@@ -47,13 +47,36 @@ struct SequencePosition{
     }
 };
 
-template <typename T>
-struct __attribute__((__packed__))KmerPosition {
+template <bool Include>
+struct AdjacentSeqArray {
+    void setAdjacentSeq(int index, const unsigned char val) {
+        _adjacentSeq[index] = val;
+    }
+    unsigned char getAdjacentSeq(int index) {
+        return _adjacentSeq[index];
+    }
+
+    unsigned char _adjacentSeq[6];
+};
+
+// save memory when adjacent sequence is unused
+template <>
+struct AdjacentSeqArray<false> {
+    void setAdjacentSeq(const int index, const unsigned char val) {
+        Debug(Debug::ERROR) << "Invalid write attempt at adjacent sequence array";
+    };
+    unsigned char getAdjacentSeq(int index) {
+        Debug(Debug::ERROR) << "Invalid read attempt at adjacent sequence array";
+        return '\0';
+    }
+};
+
+template <typename T, bool IncludeAdjacentSeq>
+struct __attribute__((__packed__))KmerPosition : public AdjacentSeqArray<IncludeAdjacentSeq> {
     size_t kmer;
     unsigned int id;
     T seqLen;
     T pos;
-    unsigned char adjacentSeq[6];
 
     static bool compareRepSequenceAndIdAndPos(const KmerPosition<T> &first, const KmerPosition<T> &second){
         if(first.kmer < second.kmer )
