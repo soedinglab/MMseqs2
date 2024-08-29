@@ -556,7 +556,7 @@ KmerPosition<T, IncludeAdjacentSeq> * doComputation(size_t &totalKmers, size_t h
 
 template <int TYPE, typename T>
 size_t assignGroup(KmerPosition<T, false> *hashSeqPair, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr,
-                   SequenceWeights *sequenceWeights, float weightThr, BaseMatrix *subMat, float &hashSeqBuffer) {
+                   SequenceWeights *sequenceWeights, float weightThr, BaseMatrix *, float &) {
 
     size_t writePos=0;
     size_t prevHash = hashSeqPair[0].kmer;
