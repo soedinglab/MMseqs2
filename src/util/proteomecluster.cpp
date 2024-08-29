@@ -210,9 +210,9 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
             if (eachTargetMember.proteomeKey == RepProteomeId) {
                 continue;
             }
-            // if query Proteome's length < target Proteome's length * 0.9, skip
+            // if query Proteome's length < target Proteome's length * proteomeSimThr, skip
             const unsigned int targetProteomeLength = proteomeList[eachTargetMember.proteomeKey].proteomeAALen;
-            if (queryProteomeLength < targetProteomeLength * 0.9) {
+            if (queryProteomeLength < targetProteomeLength * par.proteomeSimThr) {
                 continue;
             }
             const unsigned int targetId = eachTargetMember.proteinKey;
@@ -241,7 +241,7 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
     }
 }
 
-bool updateproteomeList(std::vector<ProteomeEntry>& proteomeList, const unsigned int& RepProteomeId){
+bool updateproteomeList(std::vector<ProteomeEntry>& proteomeList, const unsigned int& RepProteomeId, Parameters& par) {
     bool isRepSingleton = true;
 
     for (size_t i = 0; i < proteomeList.size(); i++) {
@@ -251,7 +251,7 @@ bool updateproteomeList(std::vector<ProteomeEntry>& proteomeList, const unsigned
                 proteomeList[i].protSimScore = 1.0;
             }else{
                 proteomeList[i].computeRedundancy();
-                if (proteomeList[i].getProtSimScore() >= 0.9) {
+                if (proteomeList[i].getProtSimScore() >= par.proteomeSimThr) {
                     proteomeList[i].repProtKey = RepProteomeId;
                     isRepSingleton = false;
                 }else{
@@ -456,7 +456,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
         }
 
         // Debug(Debug::INFO) << "2. Update ProteomeDB. Calculate the similarity score and check redundancy | Rep Proteome id : " << RepProteomeId << "\n";
-        bool isRepSingleton = updateproteomeList(proteomeList, RepProteomeId);
+        bool isRepSingleton = updateproteomeList(proteomeList, RepProteomeId, par);
 
         if (isRepSingleton) {
             proteomeList[RepProteomeId].repProtKey = RepProteomeId;
