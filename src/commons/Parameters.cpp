@@ -985,6 +985,7 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_V);
     kmermatcher.push_back(&PARAM_WEIGHT_FILE);
     kmermatcher.push_back(&PARAM_WEIGHT_THR);
+    kmermatcher.push_back(&PARAM_MATCH_ADJACENT_SEQ);
 
     // kmermatcher
     kmersearch.push_back(&PARAM_SEED_SUB_MAT);
