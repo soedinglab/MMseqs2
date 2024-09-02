@@ -94,6 +94,7 @@ int summarizeresult(int argc, const char **argv, const Command &command) {
         }
     }
     writer.close(merge);
+    reader.close();
 
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
