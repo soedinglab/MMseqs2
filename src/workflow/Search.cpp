@@ -208,6 +208,9 @@ int search(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < par.extractorfs.size(); i++) {
         par.extractorfs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
+    for (size_t i = 0; i < par.extractframes.size(); i++) {
+        par.extractframes[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
+    }
     for (size_t i = 0; i < par.translatenucs.size(); i++) {
         par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
@@ -541,9 +544,16 @@ int search(int argc, const char **argv, const Command& command) {
         par.subDbMode = 1;
         cmd.addVariable("CREATESUBDB_PAR", par.createParameterString(par.createsubdb).c_str());
         par.translate = 1;
-        cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());
         cmd.addVariable("SEARCH", program.c_str());
+        if (par.orfSkip) {
+            cmd.addVariable("ORF_SKIP", "TRUE");
+            cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
+            cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
+        }
+        else{
+            cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
+        }
         program = std::string(tmpDir + "/translated_search.sh");
     }else if(searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE &&
             searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_NUCLEOTIDE){
