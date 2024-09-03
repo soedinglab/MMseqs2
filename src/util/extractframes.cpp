@@ -31,8 +31,9 @@ int extractframes(int argc, const char **argv, const Command& command) {
 
     unsigned int forwardFrames = Orf::getFrames(par.forwardFrames);
     unsigned int reverseFrames = Orf::getFrames(par.reverseFrames);
-    Debug::Progress progress(reader.getSize());
+    unsigned int totalFrames = __builtin_popcount(forwardFrames) + __builtin_popcount(reverseFrames);
 
+    Debug::Progress progress(reader.getSize());
 #pragma omp parallel
     {
         int thread_idx = 0;
@@ -52,28 +53,29 @@ int extractframes(int argc, const char **argv, const Command& command) {
         for (unsigned int i = queryFrom; i < (queryFrom + querySize); ++i){
             progress.updateProgress();
 
-            unsigned int key = reader.getDbKey(i);
+            unsigned int key = reader.getDbKey(i) * totalFrames;
             const char* data = reader.getData(i, thread_idx);
             size_t dataLength = reader.getEntryLen(i);
 
             size_t bufferLen;
-            switch (forwardFrames){
-                case Orf::FRAME_1:
-                    // -1 to ignore the null byte copy the new line
-                    sequenceWriter.writeData(data, dataLength - 1, key, thread_idx);
-                    bufferLen = Orf::writeOrfHeader(buffer, key, static_cast<size_t >(0), dataLength - 3, 0, 0);
-                    headerWriter.writeData(buffer, bufferLen, key, thread_idx);
-                    break;
-                case Orf::FRAME_2:
-                    sequenceWriter.writeData(data + 1, dataLength - 2, key, thread_idx);
-                    bufferLen = Orf::writeOrfHeader(buffer, key, static_cast<size_t >(1), dataLength - 4, 0, 0);
-                    headerWriter.writeData(buffer, bufferLen, key, thread_idx);
-                    break;
-                case Orf::FRAME_3:
-                    sequenceWriter.writeData(data + 2, dataLength - 3, key, thread_idx);
-                    bufferLen = Orf::writeOrfHeader(buffer, key, static_cast<size_t >(2), dataLength - 5, 0, 0);
-                    headerWriter.writeData(buffer, bufferLen, key, thread_idx);
-                    break;
+            if (forwardFrames & Orf::FRAME_1) {
+                unsigned int curKey = key++;
+                // -1 to ignore the null byte copy the new line
+                sequenceWriter.writeData(data, dataLength - 1, curKey, thread_idx);
+                bufferLen = Orf::writeOrfHeader(buffer, curKey, static_cast<size_t >(0), dataLength - 3, 0, 0);
+                headerWriter.writeData(buffer, bufferLen, curKey, thread_idx);
+            }
+            if (forwardFrames & Orf::FRAME_2) {
+                unsigned int curKey = key++;
+                sequenceWriter.writeData(data + 1, dataLength - 2, curKey, thread_idx);
+                bufferLen = Orf::writeOrfHeader(buffer, curKey, static_cast<size_t >(1), dataLength - 4, 0, 0);
+                headerWriter.writeData(buffer, bufferLen, curKey, thread_idx);
+            }
+            if (forwardFrames & Orf::FRAME_3) {
+                unsigned int curKey = key++;
+                sequenceWriter.writeData(data + 2, dataLength - 3, curKey, thread_idx);
+                bufferLen = Orf::writeOrfHeader(buffer, curKey, static_cast<size_t >(2), dataLength - 5, 0, 0);
+                headerWriter.writeData(buffer, bufferLen, curKey, thread_idx);
             }
 
             if(reverseFrames != 0){
@@ -91,23 +93,27 @@ int extractframes(int argc, const char **argv, const Command& command) {
                 reverseComplementStr.push_back('\n');
             }
 
-            switch (reverseFrames){
-                case Orf::FRAME_1:
-                    sequenceWriter.writeData(reverseComplementStr.c_str(), reverseComplementStr.size(), key, thread_idx);
-                    bufferLen = Orf::writeOrfHeader(buffer, key, reverseComplementStr.size() - 2, static_cast<size_t >(0), 0, 0);
-                    headerWriter.writeData(buffer, bufferLen, key, thread_idx);
-                    break;
-                case Orf::FRAME_2:
-                    sequenceWriter.writeData(reverseComplementStr.c_str()+1, reverseComplementStr.size()-1, key, thread_idx);
-                    bufferLen = Orf::writeOrfHeader(buffer, key, reverseComplementStr.size() - 3, static_cast<size_t >(1), 0, 0);
-                    headerWriter.writeData(buffer, bufferLen, key, thread_idx);
-                    break;
-                case Orf::FRAME_3:
-                    sequenceWriter.writeData(reverseComplementStr.c_str()+2, reverseComplementStr.size()-2, key, thread_idx);
-                    bufferLen = Orf::writeOrfHeader(buffer, key, reverseComplementStr.size() - 4, static_cast<size_t >(2), 0, 0);
-                    headerWriter.writeData(buffer, bufferLen, key, thread_idx);
-                    break;
+            if (reverseFrames & Orf::FRAME_1) {
+                unsigned int curKey = key++;
+                sequenceWriter.writeData(reverseComplementStr.c_str(), reverseComplementStr.size(), curKey, thread_idx);
+                bufferLen = Orf::writeOrfHeader(buffer, curKey, reverseComplementStr.size() - 2, static_cast<size_t >(0), 0, 0);
+                headerWriter.writeData(buffer, bufferLen, curKey, thread_idx);
             }
+                
+            if (reverseFrames & Orf::FRAME_2) {
+                unsigned int curKey = key++;
+                sequenceWriter.writeData(reverseComplementStr.c_str()+1, reverseComplementStr.size()-1, curKey, thread_idx);
+                bufferLen = Orf::writeOrfHeader(buffer, curKey, reverseComplementStr.size() - 3, static_cast<size_t >(1), 0, 0);
+                headerWriter.writeData(buffer, bufferLen, curKey, thread_idx);
+            }
+                
+            if (reverseFrames & Orf::FRAME_3) {
+                unsigned int curKey = key++;
+                sequenceWriter.writeData(reverseComplementStr.c_str()+2, reverseComplementStr.size()-2, curKey, thread_idx);
+                bufferLen = Orf::writeOrfHeader(buffer, curKey, reverseComplementStr.size() - 4, static_cast<size_t >(2), 0, 0);
+                headerWriter.writeData(buffer, bufferLen, curKey, thread_idx);
+            }
+
             reverseComplementStr.clear();
         }
     }
