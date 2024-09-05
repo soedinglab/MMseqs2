@@ -21,8 +21,7 @@ TMP_PATH="$4"
 QUERY="$1"
 QUERY_ORF="$1"
 if [ -n "$QUERY_NUCL" ]; then
-    # introduce EXTRACT_FRAMES_PAR, TRANSLATE_PAR, ORF_SKIP to Search.cpp and to Parameters::Parameters
-    if [ "$ORF_SKIP" ]; then
+    if [ "$ORF_SKIP" = "TRUE" ]; then
         if notExists "${TMP_PATH}/q_orfs_aa.dbtype"; then
             # shellcheck disable=SC2086
             "$MMSEQS" extractframes "$1" "${TMP_PATH}/q_orfs_nucl" ${EXTRACT_FRAMES_PAR} \
@@ -31,7 +30,7 @@ if [ -n "$QUERY_NUCL" ]; then
             # shellcheck disable=SC2086
             "$MMSEQS" translatenucs "${TMP_PATH}/q_orfs_nucl" "${TMP_PATH}/q_orfs_aa" ${TRANSLATE_PAR} \
                 || fail  "translatenucs died"
-            "$MMSEQS" rmdb "${TMP_PATH}/q_orfs_nucl"
+            "$MMSEQS" rmdb "${TMP_PATH}/q_orfs_nucl"  ${VERBOSITY}
         fi
     else
         if notExists "${TMP_PATH}/q_orfs_aa.dbtype"; then
@@ -51,13 +50,13 @@ if [ -n "$NO_TARGET_INDEX" ]; then
     if [ "$ORF_SKIP" ]; then
         if notExists "${TMP_PATH}/t_orfs_aa.dbtype"; then
             # shellcheck disable=SC2086
-            "$MMSEQS" extractframes "$1" "${TMP_PATH}/t_orfs_nucl" ${EXTRACT_FRAMES_PAR} \
+            "$MMSEQS" extractframes "$2" "${TMP_PATH}/t_orfs_nucl" ${EXTRACT_FRAMES_PAR} \
                 || fail  "extractframes died"
             # we want to avoid this \/
             # shellcheck disable=SC2086
             "$MMSEQS" translatenucs "${TMP_PATH}/t_orfs_nucl" "${TMP_PATH}/t_orfs_aa" ${TRANSLATE_PAR} \
                 || fail  "translatenucs died"
-            "$MMSEQS" rmdb "${TMP_PATH}/t_orfs_nucl"
+            "$MMSEQS" rmdb "${TMP_PATH}/t_orfs_nucl" ${VERBOSITY}
         fi
     else
         if notExists "${TMP_PATH}/t_orfs_aa.dbtype"; then
@@ -67,8 +66,8 @@ if [ -n "$NO_TARGET_INDEX" ]; then
                 || fail  "extract target orfs step died"
         fi
     fi
-        TARGET="${TMP_PATH}/t_orfs_aa"
-        TARGET_ORF="${TMP_PATH}/t_orfs_aa"
+    TARGET="${TMP_PATH}/t_orfs_aa"
+    TARGET_ORF="${TMP_PATH}/t_orfs_aa"
 fi
 fi
 

@@ -550,8 +550,7 @@ int search(int argc, const char **argv, const Command& command) {
             cmd.addVariable("ORF_SKIP", "TRUE");
             cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
             cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
-        }
-        else{
+        } else {
             cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
         }
         program = std::string(tmpDir + "/translated_search.sh");
