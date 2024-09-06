@@ -4,6 +4,7 @@
 #include "DBWriter.h"
 #include "Matcher.h"
 #include "Util.h"
+#include "TranslateNucl.h"
 #include "itoa.h"
 
 #include "Orf.h"
@@ -23,7 +24,11 @@ int extractframes(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, reader.getDbtype());
+    int outputDbtype = reader.getDbtype();
+    if(par.translate) {
+        outputDbtype = Parameters::DBTYPE_AMINO_ACIDS;
+    }
+    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, outputDbtype);
     sequenceWriter.open();
 
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, false, Parameters::DBTYPE_GENERIC_DB);
@@ -33,6 +38,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
     unsigned int reverseFrames = Orf::getFrames(par.reverseFrames);
 
     Debug::Progress progress(reader.getSize());
+    TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
 #pragma omp parallel
     {
         int thread_idx = 0;
@@ -46,6 +52,7 @@ int extractframes(int argc, const char **argv, const Command& command) {
             queryFrom = 0;
         }
 
+        char* aa = new char[par.maxSeqLen + 3 + 1];
         char buffer[1024];
         std::string reverseComplementStr;
         reverseComplementStr.reserve(32000);
@@ -58,21 +65,90 @@ int extractframes(int argc, const char **argv, const Command& command) {
 
             size_t bufferLen;
             if (forwardFrames & Orf::FRAME_1) {
-                // -1 to ignore the null byte copy the new line
-                sequenceWriter.writeData(data, dataLength - 1, key, thread_idx);
+                size_t cur_dataLength = dataLength-1;
+                const char* cur_data = data;
+
+                sequenceWriter.writeStart(thread_idx);
+                if(par.translate){
+                    if ((cur_data[cur_dataLength] != '\n' && cur_dataLength % 3 != 0) && (cur_data[cur_dataLength - 1] == '\n' && (cur_dataLength - 1) % 3 != 0)) {
+                        cur_dataLength = cur_dataLength - (cur_dataLength % 3);
+                    }
+
+                    if (cur_dataLength < 3) {
+                        continue;
+                    }
+
+                    if (cur_dataLength > (3 * par.maxSeqLen)) {
+                        cur_dataLength = (3 * par.maxSeqLen);
+                    }
+                    translateNucl.translate(aa, cur_data, cur_dataLength);
+                    sequenceWriter.writeAdd(aa, (cur_dataLength / 3), thread_idx);
+
+                }else{
+                    sequenceWriter.writeAdd(cur_data, cur_dataLength, thread_idx);
+                }
+                sequenceWriter.writeEnd(key, thread_idx);
+
                 bufferLen = Orf::writeOrfHeader(buffer, key, static_cast<size_t >(0), dataLength - 3, 0, 0);
                 headerWriter.writeData(buffer, bufferLen, key, thread_idx);
             }
             if (forwardFrames & Orf::FRAME_2) {
-                sequenceWriter.writeData(data + 1, dataLength - 2, key, thread_idx);
+                size_t cur_dataLength = dataLength - 2;
+                const char* cur_data = data + 1;
+                
+                sequenceWriter.writeStart(thread_idx);
+                if(par.translate){
+                    if ((cur_data[cur_dataLength] != '\n' && cur_dataLength % 3 != 0) && (cur_data[cur_dataLength - 1] == '\n' && (cur_dataLength - 1) % 3 != 0)) {
+                        cur_dataLength = cur_dataLength - (cur_dataLength % 3);
+                    }
+
+                    if (cur_dataLength < 3) {
+                        continue;
+                    }
+
+                    if (cur_dataLength > (3 * par.maxSeqLen)) {
+                        cur_dataLength = (3 * par.maxSeqLen);
+                    }
+                    translateNucl.translate(aa, cur_data, cur_dataLength);
+                    sequenceWriter.writeAdd(aa, (cur_dataLength / 3), thread_idx);
+
+                }else{
+                    sequenceWriter.writeAdd(cur_data, cur_dataLength, thread_idx);
+                }
+                sequenceWriter.writeEnd(key, thread_idx);
+
                 bufferLen = Orf::writeOrfHeader(buffer, key, static_cast<size_t >(1), dataLength - 4, 0, 0);
                 headerWriter.writeData(buffer, bufferLen, key, thread_idx);
             }
             if (forwardFrames & Orf::FRAME_3) {
-                sequenceWriter.writeData(data + 2, dataLength - 3, key, thread_idx);
+                size_t cur_dataLength = dataLength - 3;
+                const char* cur_data = data + 2;
+                
+                sequenceWriter.writeStart(thread_idx);
+                if(par.translate){
+                    if ((cur_data[cur_dataLength] != '\n' && cur_dataLength % 3 != 0) && (cur_data[cur_dataLength - 1] == '\n' && (cur_dataLength - 1) % 3 != 0)) {
+                        cur_dataLength = cur_dataLength - (cur_dataLength % 3);
+                    }
+
+                    if (cur_dataLength < 3) {
+                        continue;
+                    }
+
+                    if (cur_dataLength > (3 * par.maxSeqLen)) {
+                        cur_dataLength = (3 * par.maxSeqLen);
+                    }
+                    translateNucl.translate(aa, cur_data, cur_dataLength);
+                    sequenceWriter.writeAdd(aa, (cur_dataLength / 3), thread_idx);
+
+                }else{
+                    sequenceWriter.writeAdd(cur_data, cur_dataLength, thread_idx);
+                }
+                sequenceWriter.writeEnd(key, thread_idx);
+
                 bufferLen = Orf::writeOrfHeader(buffer, key, static_cast<size_t >(2), dataLength - 5, 0, 0);
                 headerWriter.writeData(buffer, bufferLen, key, thread_idx);
             }
+
 
             if(reverseFrames != 0){
                 size_t sequenceLength =  dataLength -2;
@@ -90,25 +166,94 @@ int extractframes(int argc, const char **argv, const Command& command) {
             }
 
             if (reverseFrames & Orf::FRAME_1) {
-                sequenceWriter.writeData(reverseComplementStr.c_str(), reverseComplementStr.size(), key, thread_idx);
+                size_t cur_dataLength = reverseComplementStr.size();
+                const char* cur_data = reverseComplementStr.c_str();
+                
+                sequenceWriter.writeStart(thread_idx);
+                if(par.translate){
+                    if ((cur_data[cur_dataLength] != '\n' && cur_dataLength % 3 != 0) && (cur_data[cur_dataLength - 1] == '\n' && (cur_dataLength - 1) % 3 != 0)) {
+                        cur_dataLength = cur_dataLength - (cur_dataLength % 3);
+                    }
+
+                    if (cur_dataLength < 3) {
+                        continue;
+                    }
+
+                    if (cur_dataLength > (3 * par.maxSeqLen)) {
+                        cur_dataLength = (3 * par.maxSeqLen);
+                    }
+                    translateNucl.translate(aa, cur_data, cur_dataLength);
+                    sequenceWriter.writeAdd(aa, (cur_dataLength / 3), thread_idx);
+
+                }else{
+                    sequenceWriter.writeAdd(cur_data, cur_dataLength, thread_idx);
+                }
+                sequenceWriter.writeEnd(key, thread_idx);
+
                 bufferLen = Orf::writeOrfHeader(buffer, key, reverseComplementStr.size() - 2, static_cast<size_t >(0), 0, 0);
                 headerWriter.writeData(buffer, bufferLen, key, thread_idx);
             }
                 
             if (reverseFrames & Orf::FRAME_2) {
-                sequenceWriter.writeData(reverseComplementStr.c_str()+1, reverseComplementStr.size()-1, key, thread_idx);
+                size_t cur_dataLength = reverseComplementStr.size() - 1;
+                const char* cur_data = reverseComplementStr.c_str() + 1;
+                
+                sequenceWriter.writeStart(thread_idx);
+                if(par.translate){
+                    if ((cur_data[cur_dataLength] != '\n' && cur_dataLength % 3 != 0) && (cur_data[cur_dataLength - 1] == '\n' && (cur_dataLength - 1) % 3 != 0)) {
+                        cur_dataLength = cur_dataLength - (cur_dataLength % 3);
+                    }
+
+                    if (cur_dataLength < 3) {
+                        continue;
+                    }
+
+                    if (cur_dataLength > (3 * par.maxSeqLen)) {
+                        cur_dataLength = (3 * par.maxSeqLen);
+                    }
+                    translateNucl.translate(aa, cur_data, cur_dataLength);
+                    sequenceWriter.writeAdd(aa, (cur_dataLength / 3), thread_idx);
+
+                }else{
+                    sequenceWriter.writeAdd(cur_data, cur_dataLength, thread_idx);
+                }
+                sequenceWriter.writeEnd(key, thread_idx);
+
                 bufferLen = Orf::writeOrfHeader(buffer, key, reverseComplementStr.size() - 3, static_cast<size_t >(1), 0, 0);
                 headerWriter.writeData(buffer, bufferLen, key, thread_idx);
             }
                 
             if (reverseFrames & Orf::FRAME_3) {
-                sequenceWriter.writeData(reverseComplementStr.c_str()+2, reverseComplementStr.size()-2, key, thread_idx);
+                size_t cur_dataLength = reverseComplementStr.size() - 2;
+                const char* cur_data = reverseComplementStr.c_str() + 2;
+                
+                sequenceWriter.writeStart(thread_idx);
+                if(par.translate){
+                    if ((cur_data[cur_dataLength] != '\n' && cur_dataLength % 3 != 0) && (cur_data[cur_dataLength - 1] == '\n' && (cur_dataLength - 1) % 3 != 0)) {
+                        cur_dataLength = cur_dataLength - (cur_dataLength % 3);
+                    }
+
+                    if (cur_dataLength < 3) {
+                        continue;
+                    }
+
+                    if (cur_dataLength > (3 * par.maxSeqLen)) {
+                        cur_dataLength = (3 * par.maxSeqLen);
+                    }
+                    translateNucl.translate(aa, cur_data, cur_dataLength);
+                    sequenceWriter.writeAdd(aa, (cur_dataLength / 3), thread_idx);
+
+                }else{
+                    sequenceWriter.writeAdd(cur_data, cur_dataLength, thread_idx);
+                }
+                sequenceWriter.writeEnd(key, thread_idx);
+
                 bufferLen = Orf::writeOrfHeader(buffer, key, reverseComplementStr.size() - 4, static_cast<size_t >(2), 0, 0);
                 headerWriter.writeData(buffer, bufferLen, key, thread_idx);
             }
-
             reverseComplementStr.clear();
         }
+        delete[] aa;
     }
     headerWriter.close(true);
     sequenceWriter.close(true);
