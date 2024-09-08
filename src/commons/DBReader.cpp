@@ -735,7 +735,7 @@ template <typename T> std::string DBReader<T>::getSourceFileName (size_t id){
 
 template <typename T> T DBReader<T>::getSourceKey(size_t id){
     if (id >= sourceSize){
-        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << dataFileName << ".lookup\n";
+        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << dataFileName << ".source\n";
         Debug(Debug::ERROR) << "getSource id: local id (" << id << ") >= db size (" << sourceSize << ")\n";
         EXIT(EXIT_FAILURE);
     }

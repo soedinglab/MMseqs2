@@ -19,13 +19,13 @@ struct ProteomeEntry{
     unsigned int proteomeAALen;
     int repProtKey;
     float protSimScore;
-    unsigned int memCount;
+    unsigned int clusterCount;
     float totalSeqId;
-    unsigned int reciprocalMemCount;
+    unsigned int reciprocalClusterCount;
     float jaccardIndex;
 
-    ProteomeEntry(unsigned int proteomeKey = -1, unsigned int pLength = 0, int repKey = -1, float simScore = 0.0f, unsigned int memCount = 0, float seqId = 0.0f, unsigned int reciprocalMemCount = 0, float jaccardIndex = 0.0f)
-        : proteomeKey(proteomeKey), proteomeAALen(pLength), repProtKey(repKey), protSimScore(simScore), memCount(memCount), totalSeqId(seqId) , reciprocalMemCount(reciprocalMemCount), jaccardIndex(jaccardIndex) {}
+    ProteomeEntry(unsigned int proteomeKey = -1, unsigned int pLength = 0, int repKey = -1, float simScore = 0.0f, unsigned int clusterCount = 0, float seqId = 0.0f, unsigned int reciprocalClusterCount = 0, float jaccardIndex = 0.0f)
+        : proteomeKey(proteomeKey), proteomeAALen(pLength), repProtKey(repKey), protSimScore(simScore), clusterCount(clusterCount), totalSeqId(seqId) , reciprocalClusterCount(reciprocalClusterCount), jaccardIndex(jaccardIndex) {}
 
     int getRepProtKey() {
         return repProtKey;
@@ -39,9 +39,9 @@ struct ProteomeEntry{
         }
         return true;
     }
-    void computeRedundancy(unsigned int repProteomeMemCount) {
+    void computeRedundancy(unsigned int repProteomeclusterCount) {
         protSimScore = totalSeqId / proteomeAALen;
-        jaccardIndex = reciprocalMemCount / (memCount + repProteomeMemCount - reciprocalMemCount);
+        jaccardIndex = reciprocalClusterCount / (clusterCount + repProteomeclusterCount - reciprocalClusterCount);
     }
     void addSeqId(float seqId) {
         totalSeqId += seqId;
@@ -50,9 +50,9 @@ struct ProteomeEntry{
         proteomeAALen += seqLength;
     }
     void resetProteomeInfo(){
-        memCount = 0;
+        clusterCount = 0;
         totalSeqId = 0.0f;
-        reciprocalMemCount = 0;
+        reciprocalClusterCount = 0;
         jaccardIndex = 0.0f;
     }
     float getProtSimScore() {
@@ -114,13 +114,14 @@ void calculateProteomeLength(std::vector<ProteomeEntry>& proteomeList, DBReader<
     }
 }
 
-void initLocalClusterReps(size_t& id, std::vector<ClusterEntry>& localClusterReps, std::vector<unsigned int>& localMemCount, DBReader<unsigned int>& tProteinDB, DBReader<unsigned int>& linResDB, unsigned int thread_idx){
+void initLocalClusterReps(size_t& id, std::vector<ClusterEntry>& localClusterReps, std::vector<unsigned int>& localProteomeCount, DBReader<unsigned int>& tProteinDB, DBReader<unsigned int>& linResDB, unsigned int thread_idx){
     std::vector<unsigned int> memberKeys;
     memberKeys.reserve(50); // store key for every protein in a cluster
 
-    std::vector<uint8_t> isProteomeInCluster(localMemCount.size(), 0);
+    std::vector<uint8_t> isProteomeInCluster(localProteomeCount.size(), 0);
     char buffer[1024 + 32768*4];
     char *clustData = linResDB.getData(id, thread_idx);
+    
     
     while (*clustData != '\0') {
         Util::parseKey(clustData, buffer);
@@ -128,62 +129,74 @@ void initLocalClusterReps(size_t& id, std::vector<ClusterEntry>& localClusterRep
         memberKeys.push_back(key);
         clustData = Util::skipLine(clustData);
     }
-    if (memberKeys.size() > 1) { //If not a singleton cluster
-        ClusterEntry eachClusterRep(memberKeys.size());
-        //init MemberProteinEntry and add it to memberProteins vector
-        for (auto& eachMemberKey : memberKeys) {
-            const unsigned int proteinId = tProteinDB.getId(eachMemberKey);
-            const unsigned int proteomeKey = tProteinDB.getLookupFileNumber(proteinId);
-            MemberProteinEntry mem;
-            mem.proteomeKey = proteomeKey;
-            mem.proteinKey = proteinId;
-            eachClusterRep.memberProteins.push_back(mem);
-            if (isProteomeInCluster[proteomeKey] == 0) {
-                isProteomeInCluster[proteomeKey] = 1;
-            }
-        }
-        localClusterReps.push_back(eachClusterRep);
+
+    if (memberKeys.size() <= 1) {
+        return; //singleton cluster (1 member only)
     }
 
-    for (size_t i = 0; i < localMemCount.size(); i++) {
+    ClusterEntry eachClusterRep(memberKeys.size());
+    int uniqueProteomeCount = 0;
+    //init MemberProteinEntry and add it to memberProteins vector
+    for (auto& eachMemberKey : memberKeys) {
+        const unsigned int proteinId = tProteinDB.getId(eachMemberKey);
+        const unsigned int proteomeKey = tProteinDB.getLookupFileNumber(proteinId);
+        MemberProteinEntry mem;
+        mem.proteomeKey = proteomeKey;
+        mem.proteinKey = proteinId;
+        eachClusterRep.memberProteins.push_back(mem);
+        if (isProteomeInCluster[proteomeKey] == 0) { //If gene is from new proteome(source)
+            isProteomeInCluster[proteomeKey] = 1;
+            uniqueProteomeCount++;
+        }
+    }
+
+    if (uniqueProteomeCount <= 1) {
+        return; //singleton cluster (geneDuplication_1 proteome only with multiple members)
+    }
+
+    localClusterReps.push_back(eachClusterRep);
+    for (size_t i = 0; i < localProteomeCount.size(); i++) {
         if (isProteomeInCluster[i]) {
-            localMemCount[i]++;
+            localProteomeCount[i]++;
         }
     }
 }
 
 bool FindNextRepProteome(std::vector<ProteomeEntry>& proteomeList, unsigned int& RepProteomeId) {
-    bool isAllCovered = true;
+    bool isAllProteomeRedundancyCovered = true;
     
     unsigned int maxMemberCount = 0;
-    unsigned int notCoveredProtCount = 0;
+    unsigned int remainingProteomeCount = 0;
+    unsigned int lastProteomeKey = -1;
 
     for (size_t idx = 0; idx < proteomeList.size(); idx++) {
         if (proteomeList[idx].isCovered()) {
             continue;
         }else{
-            isAllCovered = false;
-            notCoveredProtCount++;
-            if (proteomeList[idx].memCount > maxMemberCount) {
-                maxMemberCount = proteomeList[idx].memCount;
+            isAllProteomeRedundancyCovered = false;
+            remainingProteomeCount++;
+            lastProteomeKey = idx;
+            if (proteomeList[idx].clusterCount > maxMemberCount) {
+                maxMemberCount = proteomeList[idx].clusterCount;
                 RepProteomeId = idx;
             }
         }
     }
 
-    if (isAllCovered){
+    if (isAllProteomeRedundancyCovered){
         return false;
-    }else if (notCoveredProtCount == 1) {
-        //last one and it is singleton
-        proteomeList[RepProteomeId].repProtKey = RepProteomeId;
-        proteomeList[RepProteomeId].protSimScore = 1.0;
+    }else if (remainingProteomeCount == 1) {
+        //Only proteome is left. It isn't redundant with any other proteome
+        proteomeList[lastProteomeKey].repProtKey = proteomeList[lastProteomeKey].proteomeKey;
+        proteomeList[lastProteomeKey].protSimScore = 1.0;
+        proteomeList[lastProteomeKey].jaccardIndex = 1.0;
         return false;
     }else{
         return true;
     }
 }
 
-void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProteomeId, DBReader<unsigned int>& tProteinDB, Matcher& matcher, Sequence& query, Sequence& target, std::vector<ProteomeEntry>& proteomeList, Parameters& par, unsigned int thread_idx, int swMode, std::vector<float>& localSeqIds, DBWriter& proteinClustWriter) {
+void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProteomeId, DBReader<unsigned int>& tProteinDB, Matcher& matcher, Sequence& query, Sequence& target, std::vector<ProteomeEntry>& proteomeList, Parameters& par, unsigned int thread_idx, int swMode, std::vector<float>& localSeqIds, DBWriter& proteinClustWriter, std::vector<unsigned int>& localProteomeCount) {
     char buffer[1024]; 
     bool isRepFound = false;
     unsigned int lastqLen = 0;
@@ -202,6 +215,7 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
         }
     }
     if (isRepFound){
+        std::vector<uint8_t> isProteomeInCluster(localProteomeCount.size(), 0);
         proteinClustWriter.writeStart(thread_idx);
         const unsigned int queryId = qproteinKey;
         const unsigned int queryKey = tProteinDB.getDbKey(queryId);
@@ -244,7 +258,15 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
                     size_t len = Matcher::resultToBuffer(buffer, result, par.addBacktrace);
                     proteinClustWriter.writeAdd(buffer, len, thread_idx);
                     localSeqIds[tproteomeKey] += result.getSeqId()*target.L;
+                    if (isProteomeInCluster[tproteomeKey] == 0) {
+                        isProteomeInCluster[tproteomeKey] = 1;
+                    }
                 }
+            }
+        }
+        for (size_t i = 0; i < localProteomeCount.size(); i++) {
+            if (isProteomeInCluster[i]) {
+                localProteomeCount[i]++;
             }
         }
         proteinClustWriter.writeEnd(queryKey, thread_idx);
@@ -252,19 +274,17 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
 }
 
 void updateProteomeRedundancyInfo(std::vector<ProteomeEntry>& proteomeList, const unsigned int& RepProteomeId, Parameters& par) {
-    const unsigned int& repProteomeMemCount = proteomeList[RepProteomeId].memCount;
-    Debug(Debug::INFO) << "Rep Proteome " << RepProteomeId << " has " << repProteomeMemCount << " members\n";
+    const unsigned int& repProteomeclusterCount = proteomeList[RepProteomeId].clusterCount;
     for (size_t i = 0; i < proteomeList.size(); i++) {
         if (proteomeList[i].isCovered() == false) {
             if (i == RepProteomeId){
                 proteomeList[i].repProtKey = RepProteomeId;
                 proteomeList[i].protSimScore = 1.0;
+                proteomeList[i].jaccardIndex = 1.0;
             }else{
-                proteomeList[i].computeRedundancy(repProteomeMemCount);
+                proteomeList[i].computeRedundancy(repProteomeclusterCount);
                 if (proteomeList[i].getProtSimScore() >= par.proteomeSimThr) {
                     proteomeList[i].repProtKey = RepProteomeId;
-                    
-                    Debug(Debug::INFO) << "Proteome " << i << " is covered by " << RepProteomeId << " with ReciprocalMem: " << proteomeList[i].reciprocalMemCount << " with jaccard " << proteomeList[i].getJaccardIndex() << "\n";
                 }else{
                     proteomeList[i].resetProteomeInfo();
                 }
@@ -274,37 +294,37 @@ void updateProteomeRedundancyInfo(std::vector<ProteomeEntry>& proteomeList, cons
     
 }
 
-void updateClusterReps(ClusterEntry& clusterRep, std::vector<ProteomeEntry>& proteomeList, std::vector<unsigned int>& localMemCount){
-    std::vector<uint8_t> isProteomeInCluster(localMemCount.size(), 0);
+void updateClusterReps(ClusterEntry& clusterRep, std::vector<ProteomeEntry>& proteomeList, std::vector<unsigned int>& localProteomeCount){
+    std::vector<uint8_t> isProteomeInCluster(localProteomeCount.size(), 0);
     if (clusterRep.isAvailable) {
-        bool isAllMemberCovered = true;
-        unsigned int notCoveredCount = 0;
-        unsigned int lastProteomeKey = 0;
+        unsigned int notCoveredMemberCount = 0;
+        // unsigned int lastProteomeKey = 0; //gg : unused
+        unsigned int uniqueProteomeCount = 0;
         //update cluster member info
         for (auto& eachMember : clusterRep.memberProteins) {
             if (proteomeList[eachMember.proteomeKey].isCovered() == false) {
-                notCoveredCount++;
-                lastProteomeKey = eachMember.proteomeKey;
-                isAllMemberCovered = false;
+                notCoveredMemberCount++; 
+                // lastProteomeKey = eachMember.proteomeKey;// gg : unused
                 if (isProteomeInCluster[eachMember.proteomeKey] == 0) {
                     isProteomeInCluster[eachMember.proteomeKey] = 1;
+                    uniqueProteomeCount++;
                 }
             }
         }
-        if (isAllMemberCovered) {
+        if (notCoveredMemberCount <= 1 || uniqueProteomeCount <= 1 ) { 
+            //notCoveredMemberCount : All members(genes)' proteome are covere(0) or only one member(gene) is not covered(1)
+            //uniqueProteomeCount : Remaining members(genes) are from same(one) proteome
             clusterRep.resetClusterInfo(); //set clusterRep.isAvailable = false;
+            return;
         }
-        if (notCoveredCount == 1) { //singleton Cluster
-            isProteomeInCluster[lastProteomeKey] = 0;
-            clusterRep.resetClusterInfo(); //set clusterRep.isAvailable = false;
-        }
+        
     }
 
-    //update localMemCount
+    //update localProteomeCount
     if (clusterRep.isAvailable) {
-        for (size_t i=0; i < localMemCount.size(); i++) {
+        for (size_t i=0; i < localProteomeCount.size(); i++) {
             if (isProteomeInCluster[i]) {
-                localMemCount[i]++;
+                localProteomeCount[i]++;
             }
         }
     }
@@ -326,9 +346,6 @@ void writeProteomeClusters(DBWriter &proteomeClustWriter, std::vector<ProteomeEn
                 char *tmpProteomeBuffer = Itoa::i32toa_sse2(proteomeList[eachIdx].getProteomeKey(), proteomeBuffer);
                 *(tmpProteomeBuffer - 1) = '\t';
                 tmpProteomeBuffer = Util::fastSeqIdToBuffer(proteomeList[eachIdx].getProtSimScore(), tmpProteomeBuffer);
-                //jaccard
-                *(tmpProteomeBuffer - 1) = '\t';
-                tmpProteomeBuffer = Util::fastSeqIdToBuffer(proteomeList[eachIdx].getJaccardIndex(), tmpProteomeBuffer);
                 *(tmpProteomeBuffer - 1) = '\n';
                 proteomeClustWriter.writeAdd(proteomeBuffer, tmpProteomeBuffer - basePos);
                 
@@ -409,7 +426,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     gapOpen = par.gapOpen.values.aminoacid();
     gapExtend = par.gapExtend.values.aminoacid();
     EvalueComputation evaluer(tProteinDB.getAminoAcidDBSize(), &subMat, gapOpen, gapExtend);
-    Debug(Debug::INFO) << "Initilize ";
+    Debug(Debug::INFO) << "Initialization\n";
     Timer timer;
     // Debug(Debug::INFO) << "Start Initialization\n";
     #pragma omp parallel
@@ -419,15 +436,15 @@ int proteomecluster(int argc, const char **argv, const Command &command){
         thread_idx = (unsigned int) omp_get_thread_num();
     #endif    
         std::vector<ClusterEntry> localClusterReps;
-        std::vector<unsigned int> localMemCount(proteomeList.size(), 0);
+        std::vector<unsigned int> localProteomeCount(proteomeList.size(), 0);
 
         #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < linResDB.getSize(); id++) {
-            initLocalClusterReps(id, localClusterReps, localMemCount, tProteinDB, linResDB, thread_idx);
+            initLocalClusterReps(id, localClusterReps, localProteomeCount, tProteinDB, linResDB, thread_idx);
         }
 
-        for (size_t idx = 0; idx < localMemCount.size(); idx++) {
-        __sync_fetch_and_add(&proteomeList[idx].memCount, localMemCount[idx]);
+        for (size_t idx = 0; idx < localProteomeCount.size(); idx++) {
+        __sync_fetch_and_add(&proteomeList[idx].clusterCount, localProteomeCount[idx]);
         }
 
         #pragma omp critical
@@ -440,11 +457,16 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     }
     Debug(Debug::INFO) << timer.lap() << "\n";
 
+    // //for debug gg
+    // for (size_t i = 0; i < proteomeList.size(); i++) {
+    //     Debug(Debug::INFO) << "Proteome " << i << " has " << proteomeList[i].clusterCount << " members\n";
+    // }
     unsigned int RepProteomeId = -1;
     // Debug(Debug::INFO) << "Run Alignment\n";
     Debug(Debug::INFO) << "Proteome Clustering ";
     timer.reset();
     while (FindNextRepProteome(proteomeList, RepProteomeId)) {
+        Debug(Debug::INFO) << " | Rep Proteome id : " << RepProteomeId << "\n";
         #pragma omp parallel
         {
             unsigned int thread_idx = 0;
@@ -455,21 +477,20 @@ int proteomecluster(int argc, const char **argv, const Command &command){
             Sequence query(par.maxSeqLen, tProteinSeqType, &subMat, 0, false, par.compBiasCorrection);
             Sequence target(par.maxSeqLen, tProteinSeqType, &subMat, 0, false, par.compBiasCorrection);
             std::vector <float> localSeqIds(proteomeList.size(), 0.0f);
+            std::vector <unsigned int> localClusterCount(proteomeList.size(), 0);
             #pragma omp for schedule(dynamic, 1)
             for (size_t i = 0; i < clusterReps.size(); i++) {
                 if (clusterReps[i].isAvailable) {
-                    runAlignmentForCluster(clusterReps[i], RepProteomeId, tProteinDB, matcher, query, target, proteomeList, par, thread_idx, swMode, localSeqIds, proteinClustWriter);
+                    runAlignmentForCluster(clusterReps[i], RepProteomeId, tProteinDB, matcher, query, target, proteomeList, par, thread_idx, swMode, localSeqIds, proteinClustWriter, localClusterCount);
                 }
                 
             }
             #pragma omp critical
             {
                 for (size_t idx = 0; idx < proteomeList.size(); idx++) {
-                    if (localSeqIds[idx] > 0.0f) {
+                    if (proteomeList[idx].isCovered() == false) {
                         proteomeList[idx].addSeqId(localSeqIds[idx]);
-                        if (idx != RepProteomeId) {
-                            proteomeList[idx].reciprocalMemCount++;
-                        }
+                        proteomeList[idx].reciprocalClusterCount += localClusterCount[idx];
                     }
                 }
             }
@@ -481,21 +502,21 @@ int proteomecluster(int argc, const char **argv, const Command &command){
         // Debug(Debug::INFO) << "3. Re-Setup Proteome and ClusterReps\n";
         #pragma omp parallel
         {
-            std::vector<unsigned int> localMemCount(proteomeList.size(), 0);
+            std::vector<unsigned int> localProteomeCount(proteomeList.size(), 0);
             #pragma omp for schedule(dynamic, 1)
             for (size_t i = 0; i < clusterReps.size(); i++) {
-                updateClusterReps(clusterReps[i], proteomeList, localMemCount);
+                updateClusterReps(clusterReps[i], proteomeList, localProteomeCount);
             }
 
             for (size_t i = 0; i < proteomeList.size(); i++) {
-                __sync_fetch_and_add(&proteomeList[i].memCount, localMemCount[i]);
+                __sync_fetch_and_add(&proteomeList[i].clusterCount, localProteomeCount[i]);
             }
         }
     }
     Debug(Debug::INFO) << timer.lap() << "\n";
     //sort proteomeList by repProtKey
     SORT_PARALLEL(proteomeList.begin(), proteomeList.end(), ProteomeEntry::compareByKey);
-
+    
     //write result of proteome clustering
     writeProteomeClusters(proteomeClustWriter, proteomeList);
 
