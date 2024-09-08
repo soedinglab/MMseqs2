@@ -151,6 +151,12 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         int pathScore;
     };
 
+    int spacedKmer = 0;
+    if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
+        spacedKmer = par.spacedKmer.values.nucleotide();
+    } else {
+        spacedKmer = par.spacedKmer.values.aminoacid();
+    }
 
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 100000000;
@@ -165,8 +171,8 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
 #pragma omp parallel
         {
-            Sequence query(par.maxSeqLen, querySeqType, subMat, par.kmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
-            Sequence target(par.maxSeqLen, targetSeqType, subMat, par.kmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
+            Sequence query(par.maxSeqLen, querySeqType, subMat, par.kmerSize, spacedKmer, false, true, par.spacedKmerPattern);
+            Sequence target(par.maxSeqLen, targetSeqType, subMat, par.kmerSize, spacedKmer, false, true, par.spacedKmerPattern);
             KmerGenerator kmerGenerator(par.kmerSize, subMat->alphabetSize, 70.0);
             kmerGenerator.setDivideStrategy(NULL, &_2merSubMatrix);
             size_t lookupSize = MathUtil::ipow<size_t>(subMat->alphabetSize, par.kmerSize);

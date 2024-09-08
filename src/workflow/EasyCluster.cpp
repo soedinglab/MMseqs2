@@ -10,7 +10,7 @@
 
 
 void setEasyClusterDefaults(Parameters *p) {
-    p->spacedKmer = true;
+    p->spacedKmer = MultiParam<NuclAA<int>>(NuclAA<int>(1, 0));
     p->removeTmpFiles = true;
     p->covThr = 0.8;
     p->evalThr = 0.001;

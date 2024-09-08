@@ -26,6 +26,12 @@ int countkmer(int argc, const char **argv, const Command& command) {
     int seqType = reader.sequenceReader->getDbtype();
     BaseMatrix * subMat;
     size_t isNucl=Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES);
+    int spacedKmer = 0;
+    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES)) {
+        spacedKmer = par.spacedKmer.values.nucleotide();
+    } else {
+        spacedKmer = par.spacedKmer.values.aminoacid();
+    }
     if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, 0.0);
     } else {
@@ -41,8 +47,7 @@ int countkmer(int argc, const char **argv, const Command& command) {
 #pragma omp parallel
     {
         Indexer idx(subMat->alphabetSize-1, par.kmerSize);
-        Sequence s(maxLen, seqType, subMat,
-                          par.kmerSize, par.spacedKmer, false);
+        Sequence s(maxLen, seqType, subMat, par.kmerSize, spacedKmer, false);
 
 #pragma omp for schedule(dynamic, 1)
         for (size_t i = 0; i < reader.sequenceReader->getSize(); i++) {
