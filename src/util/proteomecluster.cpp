@@ -68,6 +68,9 @@ struct ProteomeEntry{
         if (a.proteomeKey != a.repProtKey && b.proteomeKey == b.repProtKey){
             return false;
         }
+        if (a.proteomeKey != a.repProtKey && b.proteomeKey != b.repProtKey) {
+            return a.protSimScore > b.protSimScore;
+        }
         return false;
     }
 };
