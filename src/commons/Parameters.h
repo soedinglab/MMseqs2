@@ -552,6 +552,8 @@ public:
     int resultDirection;
     float weightThr;
     std::string weightFile;
+    bool matchAdjacentSeq;
+    float hashSeqBuffer;
 
     // indexdb
     int checkCompatible;
@@ -865,6 +867,7 @@ public:
     PARAMETER(PARAM_IGNORE_MULTI_KMER)
     PARAMETER(PARAM_HASH_SHIFT)
     PARAMETER(PARAM_PICK_N_SIMILAR)
+    PARAMETER(PARAM_MATCH_ADJACENT_SEQ)
     PARAMETER(PARAM_ADJUST_KMER_LEN)
     PARAMETER(PARAM_RESULT_DIRECTION)
     PARAMETER(PARAM_WEIGHT_FILE)
