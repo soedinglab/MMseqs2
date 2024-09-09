@@ -436,6 +436,7 @@ public:
     int    altAlignment;                 // show up to this many alternative alignments
     float  seqIdThr;                     // sequence identity threshold for acceptance
     float  proteomeSimThr;              // proteome similarity threshold for acceptance
+    float proteomeNormalizedSimThr;     // proteome similarity threshold normalized by proteome size for acceptance
     int    alnLenThr;                    // min. alignment length
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
@@ -790,6 +791,7 @@ public:
     PARAMETER(PARAM_GAP_OPEN)
     PARAMETER(PARAM_GAP_EXTEND)
     PARAMETER(PARAM_PROTEOME_SIMILARITY)
+    PARAMETER(PARAM_PROTEOME_RELATIVE_SIMILARITY)
 #ifdef GAP_POS_SCORING
     PARAMETER(PARAM_GAP_PSEUDOCOUNT)
 #endif

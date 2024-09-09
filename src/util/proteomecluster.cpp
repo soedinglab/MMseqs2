@@ -21,7 +21,7 @@ struct ProteomeEntry{
     float protSimScore;
     unsigned int clusterCount;
     float totalSeqId;
-    float normalizedSimScore;
+    float relativeSimScore;
 
     ProteomeEntry(unsigned int proteomeKey = -1, unsigned int pLength = 0, int repKey = -1, float simScore = 0.0f, unsigned int clusterCount = 0, float seqId = 0.0f)
         : proteomeKey(proteomeKey), proteomeAALen(pLength), repProtKey(repKey), protSimScore(simScore), clusterCount(clusterCount), totalSeqId(seqId) {}
@@ -40,9 +40,9 @@ struct ProteomeEntry{
     }
     void computeRedundancy(unsigned int repProteomeSize) {
         protSimScore = totalSeqId / proteomeAALen;
-        normalizedSimScore = (totalSeqId * 2)/ (repProteomeSize + proteomeAALen);
-        if (normalizedSimScore >= 1.0) {
-            normalizedSimScore = 1.0;
+        relativeSimScore = (totalSeqId * 2)/ (repProteomeSize + proteomeAALen);
+        if (relativeSimScore >= 1.0) {
+            relativeSimScore = 1.0;
         }
     }
     void addSeqId(float seqId) {
@@ -54,14 +54,14 @@ struct ProteomeEntry{
     void resetProteomeInfo(){
         clusterCount = 0;
         totalSeqId = 0.0f;
-        normalizedSimScore = 0.0f;
+        relativeSimScore = 0.0f;
         protSimScore = 0.0f;
     }
     float getProtSimScore() {
         return protSimScore;
     }
-    float getNormalizedSimScore() {
-        return normalizedSimScore;
+    float getrelativeSimScore() {
+        return relativeSimScore;
     }
 
     static bool compareByKey(const ProteomeEntry& a, const ProteomeEntry& b) {
@@ -192,7 +192,7 @@ bool FindNextRepProteome(std::vector<ProteomeEntry>& proteomeList, unsigned int&
         //Only proteome is left. It isn't redundant with any other proteome
         proteomeList[lastProteomeKey].repProtKey = proteomeList[lastProteomeKey].proteomeKey;
         proteomeList[lastProteomeKey].protSimScore = 1.0;
-        proteomeList[lastProteomeKey].normalizedSimScore = 1.0;
+        proteomeList[lastProteomeKey].relativeSimScore = 1.0;
         return false;
     }else{
         return true;
@@ -274,10 +274,10 @@ void updateProteomeRedundancyInfo(std::vector<ProteomeEntry>& proteomeList, cons
             if (i == RepProteomeId){
                 proteomeList[i].repProtKey = RepProteomeId;
                 proteomeList[i].protSimScore = 1.0;
-                proteomeList[i].normalizedSimScore = 1.0;
+                proteomeList[i].relativeSimScore = 1.0;
             }else{
                 proteomeList[i].computeRedundancy(repProteomeAASize);
-                if (proteomeList[i].getProtSimScore() >= par.proteomeSimThr) {
+                if (proteomeList[i].getProtSimScore() >= par.proteomeSimThr && proteomeList[i].getrelativeSimScore() >= par.proteomeNormalizedSimThr){
                     proteomeList[i].repProtKey = RepProteomeId;
                 }else{
                     proteomeList[i].resetProteomeInfo();
@@ -342,7 +342,7 @@ void writeProteomeClusters(DBWriter &proteomeClustWriter, std::vector<ProteomeEn
                 tmpProteomeBuffer = Util::fastSeqIdToBuffer(proteomeList[eachIdx].getProtSimScore(), tmpProteomeBuffer);
                 //gg
                 *(tmpProteomeBuffer - 1) = '\t';
-                tmpProteomeBuffer = Util::fastSeqIdToBuffer(proteomeList[eachIdx].getNormalizedSimScore(), tmpProteomeBuffer);
+                tmpProteomeBuffer = Util::fastSeqIdToBuffer(proteomeList[eachIdx].getrelativeSimScore(), tmpProteomeBuffer);
                 *(tmpProteomeBuffer - 1) = '\n';
                 proteomeClustWriter.writeAdd(proteomeBuffer, tmpProteomeBuffer - basePos);
                 
@@ -363,6 +363,8 @@ void writeProteomeClusters(DBWriter &proteomeClustWriter, std::vector<ProteomeEn
                 char *tmpProteomeBuffer = Itoa::i32toa_sse2(proteomeList[eachIdx].getProteomeKey(), proteomeBuffer);
                 *(tmpProteomeBuffer - 1) = '\t';
                 tmpProteomeBuffer = Util::fastSeqIdToBuffer(proteomeList[eachIdx].getProtSimScore(), tmpProteomeBuffer);
+                *(tmpProteomeBuffer - 1) = '\t';
+                tmpProteomeBuffer = Util::fastSeqIdToBuffer(proteomeList[eachIdx].getrelativeSimScore(), tmpProteomeBuffer);
                 *(tmpProteomeBuffer - 1) = '\n';
                 proteomeClustWriter.writeAdd(proteomeBuffer, tmpProteomeBuffer - basePos);
             }
@@ -423,9 +425,8 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     gapOpen = par.gapOpen.values.aminoacid();
     gapExtend = par.gapExtend.values.aminoacid();
     EvalueComputation evaluer(tProteinDB.getAminoAcidDBSize(), &subMat, gapOpen, gapExtend);
-    Debug(Debug::INFO) << "Initialization\n";
+    Debug(Debug::INFO) << "Initialization";
     Timer timer;
-    // Debug(Debug::INFO) << "Start Initialization\n";
     #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -512,7 +513,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     SORT_PARALLEL(proteomeList.begin(), proteomeList.end(), ProteomeEntry::compareByKey);
     //debug
     // for (size_t i = 0; i < proteomeList.size(); i++) {
-    //     Debug(Debug::INFO) << "Proteome " << proteomeList[i].proteomeKey << " RepKey " << proteomeList[i].repProtKey << " normalizedscore: " << proteomeList[i].normalizedSimScore << " members\n";
+    //     Debug(Debug::INFO) << "Proteome " << proteomeList[i].proteomeKey << " RepKey " << proteomeList[i].repProtKey << " normalizedscore: " << proteomeList[i].relativeSimScore << " members\n";
     // }
     //write result of proteome clustering
     writeProteomeClusters(proteomeClustWriter, proteomeList);

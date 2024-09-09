@@ -90,7 +90,7 @@ std::vector<Command> baseCommands = {
                 "#  - protein_cluster.tsv:  Protein linclust result\n"
                 "#  - proteome_cluster.tsv: Proteome redundancy clustering result\n"
                 "#  - protein_align.tsv: Protein alignment list\n"
-                "mmseqs easy-proteomecluster examples/DB.fasta result tmp --proteome-similarity 0.9\n",
+                "mmseqs easy-proteomecluster examples/DB.fasta result tmp --proteome-similarity 0.9 --proteome-relative-similarity 0.9\n",
                 "Martin Steinegger <martin.steinegger@snu.ac.kr> & Gyuri Kim <gyuribio@snu.ac.kr>",
                 "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]> <o:clusterPrefix> <tmpDir>",
                 CITATION_MMSEQS2, {{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
