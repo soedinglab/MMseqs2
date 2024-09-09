@@ -21,9 +21,10 @@ struct ProteomeEntry{
     float protSimScore;
     unsigned int memCount;
     float totalSeqId;
+    unsigned int reciprocalMemCount;
 
-    ProteomeEntry(unsigned int proteomeKey = -1, unsigned int pLength = 0, int repKey = -1, float simScore = 0.0f, unsigned int memCount = 0, float seqId = 0.0f)
-        : proteomeKey(proteomeKey), proteomeAALen(pLength), repProtKey(repKey), protSimScore(simScore), memCount(memCount), totalSeqId(seqId) {}
+    ProteomeEntry(unsigned int proteomeKey = -1, unsigned int pLength = 0, int repKey = -1, float simScore = 0.0f, unsigned int memCount = 0, float seqId = 0.0f, unsigned int reciprocalMemCount = 0)
+        : proteomeKey(proteomeKey), proteomeAALen(pLength), repProtKey(repKey), protSimScore(simScore), memCount(memCount), totalSeqId(seqId) , reciprocalMemCount(reciprocalMemCount) {}
 
     int getRepProtKey() {
         return repProtKey;
@@ -50,6 +51,7 @@ struct ProteomeEntry{
     void resetProteomeInfo(){
         memCount = 0;
         totalSeqId = 0.0f;
+        reciprocalMemCount = 0;
     }
     float getProtSimScore() {
         return protSimScore;
@@ -244,9 +246,7 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
     }
 }
 
-bool updateproteomeList(std::vector<ProteomeEntry>& proteomeList, const unsigned int& RepProteomeId, Parameters& par) {
-    bool isRepSingleton = true;
-
+void updateProteomeRedundancyInfo(std::vector<ProteomeEntry>& proteomeList, const unsigned int& RepProteomeId, Parameters& par) {
     for (size_t i = 0; i < proteomeList.size(); i++) {
         if (proteomeList[i].isCovered() == false) {
             if (i == RepProteomeId){
@@ -256,14 +256,13 @@ bool updateproteomeList(std::vector<ProteomeEntry>& proteomeList, const unsigned
                 proteomeList[i].computeRedundancy();
                 if (proteomeList[i].getProtSimScore() >= par.proteomeSimThr) {
                     proteomeList[i].repProtKey = RepProteomeId;
-                    isRepSingleton = false;
                 }else{
                     proteomeList[i].resetProteomeInfo();
                 }
             }
         }
     }
-    return isRepSingleton;
+    
 }
 
 void updateClusterReps(ClusterEntry& clusterRep, std::vector<ProteomeEntry>& proteomeList, std::vector<unsigned int>& localMemCount){
@@ -453,18 +452,18 @@ int proteomecluster(int argc, const char **argv, const Command &command){
             #pragma omp critical
             {
                 for (size_t idx = 0; idx < proteomeList.size(); idx++) {
-                    proteomeList[idx].addSeqId(localSeqIds[idx]);
+                    if (localSeqIds[idx] > 0.0f) {
+                        proteomeList[idx].addSeqId(localSeqIds[idx]);
+                        if (idx != RepProteomeId) {
+                            proteomeList[idx].reciprocalMemCount++;
+                        }
+                    }
                 }
             }
         }
 
         // Debug(Debug::INFO) << "2. Update ProteomeDB. Calculate the similarity score and check redundancy | Rep Proteome id : " << RepProteomeId << "\n";
-        bool isRepSingleton = updateproteomeList(proteomeList, RepProteomeId, par);
-
-        if (isRepSingleton) {
-            proteomeList[RepProteomeId].repProtKey = RepProteomeId;
-            proteomeList[RepProteomeId].protSimScore = 1.0;
-        }
+        updateProteomeRedundancyInfo(proteomeList, RepProteomeId, par);
 
         // Debug(Debug::INFO) << "3. Re-Setup Proteome and ClusterReps\n";
         #pragma omp parallel
