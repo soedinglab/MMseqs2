@@ -425,7 +425,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     gapOpen = par.gapOpen.values.aminoacid();
     gapExtend = par.gapExtend.values.aminoacid();
     EvalueComputation evaluer(tProteinDB.getAminoAcidDBSize(), &subMat, gapOpen, gapExtend);
-    Debug(Debug::INFO) << "Initialization";
+    Debug(Debug::INFO) << "Initialization ";
     Timer timer;
     #pragma omp parallel
     {

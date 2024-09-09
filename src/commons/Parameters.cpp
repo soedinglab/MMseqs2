@@ -87,7 +87,7 @@ Parameters::Parameters():
         PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID, "--gap-open", "Gap open cost", "Gap open cost", typeid(MultiParam<NuclAA<int>>), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID, "--gap-extend", "Gap extension cost", "Gap extension cost", typeid(MultiParam<NuclAA<int>>), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_PROTEOME_SIMILARITY(PARAM_PROTEOME_SIMILARITY_ID, "--proteome-similarity", "Proteome similarity", "Proteome similarity threshold", typeid(float), (void *) &proteomeSimThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
-        PARAM_PROTEOME_RELATIVE_SIMILARITY(PARAM_PROTEOME_RELATIVE_SIMILARITY_ID, "--proteome-normalized-similarity", "Proteome normalized similarity", "Proteome similarity threshold normalized by proteome size", typeid(float), (void *) &proteomeNormalizedSimThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_PROTEOME_RELATIVE_SIMILARITY(PARAM_PROTEOME_RELATIVE_SIMILARITY_ID, "--proteome-relative-similarity", "Proteome relative similarity", "Proteome relative similarity threshold normalized by proteome size", typeid(float), (void *) &proteomeNormalizedSimThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
 #ifdef GAP_POS_SCORING
         PARAM_GAP_PSEUDOCOUNT(PARAM_GAP_PSEUDOCOUNT_ID, "--gap-pc", "Gap pseudo count", "Pseudo count for calculating position-specific gap opening penalties", typeid(int), &gapPseudoCount, "^[0-9]+$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
 #endif
