@@ -65,7 +65,6 @@ struct ProteomeEntry{
     }
 
     static bool compareByKey(const ProteomeEntry& a, const ProteomeEntry& b) {
-        
         if (a.repProtKey < b.repProtKey){
             return true;
         }
@@ -134,7 +133,7 @@ void initLocalClusterReps(size_t& id, std::vector<ClusterEntry>& localClusterRep
     }
 
     if (memberKeys.size() <= 1) {
-        return; //singleton cluster (1 member only)
+        return; //singleton protein member cluster (1 member only)
     }
 
     ClusterEntry eachClusterRep(memberKeys.size());
@@ -154,7 +153,7 @@ void initLocalClusterReps(size_t& id, std::vector<ClusterEntry>& localClusterRep
     }
 
     if (uniqueProteomeCount <= 1) {
-        return; //singleton cluster (geneDuplication_1 proteome only with multiple members)
+        return; //singleton proteome cluster (geneDuplication_1 proteome only with multiple members, exclude cloud genome)
     }
 
     localClusterReps.push_back(eachClusterRep);
@@ -205,12 +204,12 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
     unsigned int lastqLen = 0;
     unsigned int qproteinKey = 0;
     unsigned int qproteomeKey =0;
-    //find Rep
+    //find representative query protein which has the longest sequence length
     for (auto& eachMember : clusterRep.memberProteins){
         if (eachMember.proteomeKey == RepProteomeId) {
             isRepFound = true;
             const unsigned int queryId = eachMember.proteinKey;
-            if( lastqLen < tProteinDB.getSeqLen(queryId)){
+            if( lastqLen < tProteinDB.getSeqLen(queryId)) {
                 lastqLen = tProteinDB.getSeqLen(queryId);
                 qproteinKey = eachMember.proteinKey;
                 qproteomeKey = eachMember.proteomeKey;
@@ -226,12 +225,13 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
         matcher.initQuery(&query);
         const unsigned int queryProteomeLength = proteomeList[qproteomeKey].proteomeAALen;
 
-        // representative protein :same query and target (for createtsv)
+        // Alignment by representative protein itself : same query and target (for createtsv)
         Matcher::result_t rep_reult = matcher.getSWResult(&query, INT_MAX, false, par.covMode, par.covThr, par.evalThr, swMode, par.seqIdMode, true);
         size_t rep_len = Matcher::resultToBuffer(buffer, rep_reult, par.addBacktrace);
         proteinClustWriter.writeAdd(buffer, rep_len, thread_idx);
         localSeqIds[qproteomeKey] += rep_reult.getSeqId()*query.L;
 
+        //Alignment by representative protein and other proteins in the cluster
         for (auto& eachTargetMember : clusterRep.memberProteins){
             if (eachTargetMember.proteomeKey == RepProteomeId) {
                 continue;
@@ -256,7 +256,7 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
             Matcher::result_t result = matcher.getSWResult(&target, INT_MAX, false, par.covMode, par.covThr, par.evalThr, swMode, par.seqIdMode, isIdentity);
 
             if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr)) {
-                if (query.L >= target.L*0.9){
+                if (query.L >= target.L*0.9){ // -s2 lenght difference parameter in cd-hit-2d
                     size_t len = Matcher::resultToBuffer(buffer, result, par.addBacktrace);
                     proteinClustWriter.writeAdd(buffer, len, thread_idx);
                     localSeqIds[tproteomeKey] += result.getSeqId()*target.L;
@@ -292,13 +292,11 @@ void updateClusterReps(ClusterEntry& clusterRep, std::vector<ProteomeEntry>& pro
     std::vector<uint8_t> isProteomeInCluster(localProteomeCount.size(), 0);
     if (clusterRep.isAvailable) {
         unsigned int notCoveredMemberCount = 0;
-        // unsigned int lastProteomeKey = 0; //gg : unused
         unsigned int uniqueProteomeCount = 0;
         //update cluster member info
         for (auto& eachMember : clusterRep.memberProteins) {
             if (proteomeList[eachMember.proteomeKey].isCovered() == false) {
                 notCoveredMemberCount++; 
-                // lastProteomeKey = eachMember.proteomeKey;// gg : unused
                 if (isProteomeInCluster[eachMember.proteomeKey] == 0) {
                     isProteomeInCluster[eachMember.proteomeKey] = 1;
                     uniqueProteomeCount++;
@@ -314,7 +312,7 @@ void updateClusterReps(ClusterEntry& clusterRep, std::vector<ProteomeEntry>& pro
         
     }
 
-    //update localProteomeCount
+    //update localProteomeCount -> update clusterCount for next repProteome finding
     if (clusterRep.isAvailable) {
         for (size_t i=0; i < localProteomeCount.size(); i++) {
             if (isProteomeInCluster[i]) {
@@ -340,7 +338,6 @@ void writeProteomeClusters(DBWriter &proteomeClustWriter, std::vector<ProteomeEn
                 char *tmpProteomeBuffer = Itoa::i32toa_sse2(proteomeList[eachIdx].getProteomeKey(), proteomeBuffer);
                 *(tmpProteomeBuffer - 1) = '\t';
                 tmpProteomeBuffer = Util::fastSeqIdToBuffer(proteomeList[eachIdx].getProtSimScore(), tmpProteomeBuffer);
-                //gg
                 *(tmpProteomeBuffer - 1) = '\t';
                 tmpProteomeBuffer = Util::fastSeqIdToBuffer(proteomeList[eachIdx].getrelativeSimScore(), tmpProteomeBuffer);
                 *(tmpProteomeBuffer - 1) = '\n';
@@ -455,12 +452,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     }
     Debug(Debug::INFO) << timer.lap() << "\n";
 
-    // //for debug gg
-    // for (size_t i = 0; i < proteomeList.size(); i++) {
-    //     Debug(Debug::INFO) << "Proteome " << i << " has " << proteomeList[i].clusterCount << " members\n";
-    // }
     unsigned int RepProteomeId = -1;
-    // Debug(Debug::INFO) << "Run Alignment\n";
     Debug(Debug::INFO) << "Proteome Clustering ";
     timer.reset();
     while (FindNextRepProteome(proteomeList, RepProteomeId)) {
@@ -511,11 +503,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     Debug(Debug::INFO) << timer.lap() << "\n";
     //sort proteomeList by repProtKey
     SORT_PARALLEL(proteomeList.begin(), proteomeList.end(), ProteomeEntry::compareByKey);
-    //debug
-    // for (size_t i = 0; i < proteomeList.size(); i++) {
-    //     Debug(Debug::INFO) << "Proteome " << proteomeList[i].proteomeKey << " RepKey " << proteomeList[i].repProtKey << " normalizedscore: " << proteomeList[i].relativeSimScore << " members\n";
-    // }
-    //write result of proteome clustering
+    //write _proteome_cluster
     writeProteomeClusters(proteomeClustWriter, proteomeList);
 
     proteomeClustWriter.close();
