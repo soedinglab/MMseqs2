@@ -22,9 +22,10 @@ struct ProteomeEntry{
     unsigned int memCount;
     float totalSeqId;
     unsigned int reciprocalMemCount;
+    float jaccardIndex;
 
-    ProteomeEntry(unsigned int proteomeKey = -1, unsigned int pLength = 0, int repKey = -1, float simScore = 0.0f, unsigned int memCount = 0, float seqId = 0.0f, unsigned int reciprocalMemCount = 0)
-        : proteomeKey(proteomeKey), proteomeAALen(pLength), repProtKey(repKey), protSimScore(simScore), memCount(memCount), totalSeqId(seqId) , reciprocalMemCount(reciprocalMemCount) {}
+    ProteomeEntry(unsigned int proteomeKey = -1, unsigned int pLength = 0, int repKey = -1, float simScore = 0.0f, unsigned int memCount = 0, float seqId = 0.0f, unsigned int reciprocalMemCount = 0, float jaccardIndex = 0.0f)
+        : proteomeKey(proteomeKey), proteomeAALen(pLength), repProtKey(repKey), protSimScore(simScore), memCount(memCount), totalSeqId(seqId) , reciprocalMemCount(reciprocalMemCount), jaccardIndex(jaccardIndex) {}
 
     int getRepProtKey() {
         return repProtKey;
@@ -38,9 +39,9 @@ struct ProteomeEntry{
         }
         return true;
     }
-    void computeRedundancy() {
+    void computeRedundancy(unsigned int repProteomeMemCount) {
         protSimScore = totalSeqId / proteomeAALen;
-
+        jaccardIndex = reciprocalMemCount / (memCount + repProteomeMemCount - reciprocalMemCount);
     }
     void addSeqId(float seqId) {
         totalSeqId += seqId;
@@ -52,9 +53,13 @@ struct ProteomeEntry{
         memCount = 0;
         totalSeqId = 0.0f;
         reciprocalMemCount = 0;
+        jaccardIndex = 0.0f;
     }
     float getProtSimScore() {
         return protSimScore;
+    }
+    float getJaccardIndex() {
+        return jaccardIndex;
     }
     static bool compareByKey(const ProteomeEntry& a, const ProteomeEntry& b) {
         
@@ -247,15 +252,19 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
 }
 
 void updateProteomeRedundancyInfo(std::vector<ProteomeEntry>& proteomeList, const unsigned int& RepProteomeId, Parameters& par) {
+    const unsigned int& repProteomeMemCount = proteomeList[RepProteomeId].memCount;
+    Debug(Debug::INFO) << "Rep Proteome " << RepProteomeId << " has " << repProteomeMemCount << " members\n";
     for (size_t i = 0; i < proteomeList.size(); i++) {
         if (proteomeList[i].isCovered() == false) {
             if (i == RepProteomeId){
                 proteomeList[i].repProtKey = RepProteomeId;
                 proteomeList[i].protSimScore = 1.0;
             }else{
-                proteomeList[i].computeRedundancy();
+                proteomeList[i].computeRedundancy(repProteomeMemCount);
                 if (proteomeList[i].getProtSimScore() >= par.proteomeSimThr) {
                     proteomeList[i].repProtKey = RepProteomeId;
+                    
+                    Debug(Debug::INFO) << "Proteome " << i << " is covered by " << RepProteomeId << " with ReciprocalMem: " << proteomeList[i].reciprocalMemCount << " with jaccard " << proteomeList[i].getJaccardIndex() << "\n";
                 }else{
                     proteomeList[i].resetProteomeInfo();
                 }
@@ -317,8 +326,12 @@ void writeProteomeClusters(DBWriter &proteomeClustWriter, std::vector<ProteomeEn
                 char *tmpProteomeBuffer = Itoa::i32toa_sse2(proteomeList[eachIdx].getProteomeKey(), proteomeBuffer);
                 *(tmpProteomeBuffer - 1) = '\t';
                 tmpProteomeBuffer = Util::fastSeqIdToBuffer(proteomeList[eachIdx].getProtSimScore(), tmpProteomeBuffer);
+                //jaccard
+                *(tmpProteomeBuffer - 1) = '\t';
+                tmpProteomeBuffer = Util::fastSeqIdToBuffer(proteomeList[eachIdx].getJaccardIndex(), tmpProteomeBuffer);
                 *(tmpProteomeBuffer - 1) = '\n';
                 proteomeClustWriter.writeAdd(proteomeBuffer, tmpProteomeBuffer - basePos);
+                
             }
             proteomeClustWriter.writeEnd(repProtIdCluster);
             // Reset
