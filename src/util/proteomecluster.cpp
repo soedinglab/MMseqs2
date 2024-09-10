@@ -513,11 +513,6 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     }
     Debug(Debug::INFO) << timer.lap() << "\n";
 
-
-    for (size_t i=0; i < proteomeList.size(); i++) {
-        Debug(Debug::INFO) << "Proteome: " << proteomeList[i].proteomeKey << " relativeScore " << proteomeList[i].relativeSimScore << "\n";
-    }
-
     //sort proteomeList by repProtKey
     SORT_PARALLEL(proteomeList.begin(), proteomeList.end(), ProteomeEntry::compareByKey);
     //write _proteome_cluster
