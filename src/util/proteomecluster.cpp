@@ -42,7 +42,6 @@ struct ProteomeEntry{
     void computeRedundancy(unsigned int repProteomeSize) {
         protSimScore = totalSeqId / proteomeAALen;
         relativeSimScore = static_cast<float> (AAMatchCount * 2) / static_cast<float> (repProteomeSize + proteomeAALen);
-        relativeSimScore = (totalSeqId * 2)/ (repProteomeSize + proteomeAALen);
         if (relativeSimScore >= 1.0) {
             relativeSimScore = 1.0;
         }
