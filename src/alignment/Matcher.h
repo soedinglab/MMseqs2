@@ -144,6 +144,9 @@ public:
         float getSeqId(){
             return seqId;
         }
+        unsigned int getAlnLength(){
+            return alnLength;
+        }
     };
 
     Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m,

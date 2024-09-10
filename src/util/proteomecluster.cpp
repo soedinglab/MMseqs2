@@ -21,10 +21,11 @@ struct ProteomeEntry{
     float protSimScore;
     unsigned int clusterCount;
     float totalSeqId;
+    unsigned int AAMatchCount;
     float relativeSimScore;
 
-    ProteomeEntry(unsigned int proteomeKey = -1, unsigned int pLength = 0, int repKey = -1, float simScore = 0.0f, unsigned int clusterCount = 0, float seqId = 0.0f)
-        : proteomeKey(proteomeKey), proteomeAALen(pLength), repProtKey(repKey), protSimScore(simScore), clusterCount(clusterCount), totalSeqId(seqId) {}
+    ProteomeEntry(unsigned int proteomeKey = -1, unsigned int pLength = 0, int repKey = -1, float simScore = 0.0f, unsigned int clusterCount = 0, float seqId = 0.0f, unsigned int matchCount = 0, float relSimScore = 0.0f)
+        : proteomeKey(proteomeKey), proteomeAALen(pLength), repProtKey(repKey), protSimScore(simScore), clusterCount(clusterCount), totalSeqId(seqId), AAMatchCount(matchCount), relativeSimScore(relSimScore) {}
 
     int getRepProtKey() {
         return repProtKey;
@@ -40,6 +41,7 @@ struct ProteomeEntry{
     }
     void computeRedundancy(unsigned int repProteomeSize) {
         protSimScore = totalSeqId / proteomeAALen;
+        relativeSimScore = static_cast<float> (AAMatchCount * 2) / static_cast<float> (repProteomeSize + proteomeAALen);
         relativeSimScore = (totalSeqId * 2)/ (repProteomeSize + proteomeAALen);
         if (relativeSimScore >= 1.0) {
             relativeSimScore = 1.0;
@@ -56,6 +58,7 @@ struct ProteomeEntry{
         totalSeqId = 0.0f;
         relativeSimScore = 0.0f;
         protSimScore = 0.0f;
+        AAMatchCount = 0;
     }
     float getProtSimScore() {
         return protSimScore;
@@ -198,7 +201,7 @@ bool FindNextRepProteome(std::vector<ProteomeEntry>& proteomeList, unsigned int&
     }
 }
 
-void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProteomeId, DBReader<unsigned int>& tProteinDB, Matcher& matcher, Sequence& query, Sequence& target, std::vector<ProteomeEntry>& proteomeList, Parameters& par, unsigned int thread_idx, int swMode, std::vector<float>& localSeqIds, DBWriter& proteinClustWriter) {
+void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProteomeId, DBReader<unsigned int>& tProteinDB, Matcher& matcher, Sequence& query, Sequence& target, std::vector<ProteomeEntry>& proteomeList, Parameters& par, unsigned int thread_idx, int swMode, std::vector<float>& localSeqIds, std::vector<unsigned int>& localMatchCount, DBWriter& proteinClustWriter) {
     char buffer[1024]; 
     bool isRepFound = false;
     unsigned int lastqLen = 0;
@@ -226,10 +229,12 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
         const unsigned int queryProteomeLength = proteomeList[qproteomeKey].proteomeAALen;
 
         // Alignment by representative protein itself : same query and target (for createtsv)
-        Matcher::result_t rep_reult = matcher.getSWResult(&query, INT_MAX, false, par.covMode, par.covThr, par.evalThr, swMode, par.seqIdMode, true);
-        size_t rep_len = Matcher::resultToBuffer(buffer, rep_reult, par.addBacktrace);
+        Matcher::result_t rep_result = matcher.getSWResult(&query, INT_MAX, false, par.covMode, par.covThr, par.evalThr, swMode, par.seqIdMode, true);
+        size_t rep_len = Matcher::resultToBuffer(buffer, rep_result, par.addBacktrace);
         proteinClustWriter.writeAdd(buffer, rep_len, thread_idx);
-        localSeqIds[qproteomeKey] += rep_reult.getSeqId()*query.L;
+        localSeqIds[qproteomeKey] += rep_result.getSeqId()*query.L;
+        localMatchCount[qproteomeKey] += static_cast<unsigned int> (rep_result.getSeqId() * static_cast<float> (rep_result.getAlnLength()) + 0.5);
+
 
         //Alignment by representative protein and other proteins in the cluster
         for (auto& eachTargetMember : clusterRep.memberProteins){
@@ -259,7 +264,11 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
                 if (query.L >= target.L*0.9){ // -s2 lenght difference parameter in cd-hit-2d
                     size_t len = Matcher::resultToBuffer(buffer, result, par.addBacktrace);
                     proteinClustWriter.writeAdd(buffer, len, thread_idx);
-                    localSeqIds[tproteomeKey] += result.getSeqId()*target.L;
+                    // localSeqIds[tproteomeKey] += result.getSeqId()*target.L;
+                    localSeqIds[tproteomeKey] += result.getSeqId() * target.L;
+                    // localMatchCount[tproteomeKey] += static_cast<unsigned int> ((result.getSeqId() * static_cast<float> (result.getAlnLength())) + 0.5);
+                    unsigned int matchCount = static_cast<unsigned int> ((result.getSeqId() * static_cast<float> (result.getAlnLength())) + 0.5);
+                    localMatchCount[tproteomeKey] += matchCount;
                 }
             }
         }
@@ -277,7 +286,7 @@ void updateProteomeRedundancyInfo(std::vector<ProteomeEntry>& proteomeList, cons
                 proteomeList[i].relativeSimScore = 1.0;
             }else{
                 proteomeList[i].computeRedundancy(repProteomeAASize);
-                if (proteomeList[i].getProtSimScore() >= par.proteomeSimThr && proteomeList[i].getrelativeSimScore() >= par.proteomeNormalizedSimThr){
+                if (proteomeList[i].getProtSimScore() >= par.proteomeSimThr && proteomeList[i].getrelativeSimScore() >= par.proteomeRelativeSimThr){
                     proteomeList[i].repProtKey = RepProteomeId;
                 }else{
                     proteomeList[i].resetProteomeInfo();
@@ -466,10 +475,11 @@ int proteomecluster(int argc, const char **argv, const Command &command){
             Sequence query(par.maxSeqLen, tProteinSeqType, &subMat, 0, false, par.compBiasCorrection);
             Sequence target(par.maxSeqLen, tProteinSeqType, &subMat, 0, false, par.compBiasCorrection);
             std::vector <float> localSeqIds(proteomeList.size(), 0.0f);
+            std::vector <unsigned int> localMatchCount(proteomeList.size(), 0);
             #pragma omp for schedule(dynamic, 1)
             for (size_t i = 0; i < clusterReps.size(); i++) {
                 if (clusterReps[i].isAvailable) {
-                    runAlignmentForCluster(clusterReps[i], RepProteomeId, tProteinDB, matcher, query, target, proteomeList, par, thread_idx, swMode, localSeqIds, proteinClustWriter);
+                    runAlignmentForCluster(clusterReps[i], RepProteomeId, tProteinDB, matcher, query, target, proteomeList, par, thread_idx, swMode, localSeqIds, localMatchCount, proteinClustWriter);
                 }
                 
             }
@@ -478,6 +488,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
                 for (size_t idx = 0; idx < proteomeList.size(); idx++) {
                     if (proteomeList[idx].isCovered() == false) {
                         proteomeList[idx].addSeqId(localSeqIds[idx]);
+                        proteomeList[idx].AAMatchCount += localMatchCount[idx];
                     }
                 }
             }
@@ -501,6 +512,12 @@ int proteomecluster(int argc, const char **argv, const Command &command){
         }
     }
     Debug(Debug::INFO) << timer.lap() << "\n";
+
+
+    for (size_t i=0; i < proteomeList.size(); i++) {
+        Debug(Debug::INFO) << "Proteome: " << proteomeList[i].proteomeKey << " relativeScore " << proteomeList[i].relativeSimScore << "\n";
+    }
+
     //sort proteomeList by repProtKey
     SORT_PARALLEL(proteomeList.begin(), proteomeList.end(), ProteomeEntry::compareByKey);
     //write _proteome_cluster

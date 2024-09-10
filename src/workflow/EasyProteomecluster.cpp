@@ -11,7 +11,7 @@
 void setEasyproteomeclusterDefaults(Parameters *p) {
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     p->proteomeSimThr = 0.9;
-    p->proteomeNormalizedSimThr = 0.0;
+    p->proteomeRelativeSimThr = 0.0;
 }
 
 void setEasyproteomeclusterMustPassAlong(Parameters *p){
