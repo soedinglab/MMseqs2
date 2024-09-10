@@ -66,7 +66,6 @@ struct ProteomeEntry{
     float getrelativeSimScore() {
         return relativeSimScore;
     }
-
     static bool compareByKey(const ProteomeEntry& a, const ProteomeEntry& b) {
         if (a.repProtKey < b.repProtKey){
             return true;
@@ -212,7 +211,7 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
         if (eachMember.proteomeKey == RepProteomeId) {
             isRepFound = true;
             const unsigned int queryId = eachMember.proteinKey;
-            if( lastqLen < tProteinDB.getSeqLen(queryId)) {
+            if (lastqLen < tProteinDB.getSeqLen(queryId)) {
                 lastqLen = tProteinDB.getSeqLen(queryId);
                 qproteinKey = eachMember.proteinKey;
                 qproteomeKey = eachMember.proteomeKey;
@@ -261,12 +260,10 @@ void runAlignmentForCluster(const ClusterEntry& clusterRep, unsigned int RepProt
             Matcher::result_t result = matcher.getSWResult(&target, INT_MAX, false, par.covMode, par.covThr, par.evalThr, swMode, par.seqIdMode, isIdentity);
 
             if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr)) {
-                if (query.L >= target.L*0.9){ // -s2 lenght difference parameter in cd-hit-2d
+                if (query.L >= target.L*0.9) { // -s2 lenght difference parameter in cd-hit-2d
                     size_t len = Matcher::resultToBuffer(buffer, result, par.addBacktrace);
                     proteinClustWriter.writeAdd(buffer, len, thread_idx);
-                    // localSeqIds[tproteomeKey] += result.getSeqId()*target.L;
                     localSeqIds[tproteomeKey] += result.getSeqId() * target.L;
-                    // localMatchCount[tproteomeKey] += static_cast<unsigned int> ((result.getSeqId() * static_cast<float> (result.getAlnLength())) + 0.5);
                     unsigned int matchCount = static_cast<unsigned int> ((result.getSeqId() * static_cast<float> (result.getAlnLength())) + 0.5);
                     localMatchCount[tproteomeKey] += matchCount;
                 }
@@ -351,7 +348,6 @@ void writeProteomeClusters(DBWriter &proteomeClustWriter, std::vector<ProteomeEn
                 tmpProteomeBuffer = Util::fastSeqIdToBuffer(proteomeList[eachIdx].getrelativeSimScore(), tmpProteomeBuffer);
                 *(tmpProteomeBuffer - 1) = '\n';
                 proteomeClustWriter.writeAdd(proteomeBuffer, tmpProteomeBuffer - basePos);
-                
             }
             proteomeClustWriter.writeEnd(repProtIdCluster);
             // Reset
