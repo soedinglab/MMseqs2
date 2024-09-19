@@ -29,7 +29,7 @@ fi
 
 if notExists "${TMP_PATH}/aln.dbtype"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" proteomecluster "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/aln_protein" "${TMP_PATH}/aln_proteome" ${PROTEOMECLUSTER_PAR} \
+    "$MMSEQS" proteomecluster "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/aln_protein" "${TMP_PATH}/aln_proteome" "${TMP_PATH}/cluster_count" ${PROTEOMECLUSTER_PAR} \
         || fail "Convert Alignments died"
 fi
 
@@ -43,6 +43,12 @@ if notExists "${RESULTS}_proteome_cluster.tsv"; then
     # shellcheck disable=SC2086
     "$MMSEQS" createtsv "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/aln_proteome" "${RESULTS}_proteome_cluster.tsv" ${THREADS_PAR} \
             || fail "createtsv proteome cluster died"
+fi
+
+if notExists "${RESULTS}_cluster_count.tsv"; then
+    # shellcheck disable=SC2086
+    "$MMSEQS" createtsv "${TMP_PATH}/input" "${TMP_PATH}/cluster_count" "${RESULTS}_cluster_count.tsv" ${THREADS_PAR} \
+            || fail "createtsv proteome cluster count report died"
 fi
 
 

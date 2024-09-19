@@ -117,7 +117,7 @@ void calculateProteomeLength(std::vector<ProteomeEntry>& proteomeList, DBReader<
     }
 }
 
-void initLocalClusterReps(size_t& id, std::vector<ClusterEntry>& localClusterReps, std::vector<unsigned int>& localProteomeCount, DBReader<unsigned int>& tProteinDB, DBReader<unsigned int>& linResDB, unsigned int thread_idx){
+void initLocalClusterReps(size_t& id, std::vector<ClusterEntry>& localClusterReps, std::vector<unsigned int>& localProteomeCount, DBReader<unsigned int>& tProteinDB, DBReader<unsigned int>& linResDB, unsigned int thread_idx) {
     std::vector<unsigned int> memberKeys;
     memberKeys.reserve(50); // store key for every protein in a cluster
 
@@ -375,6 +375,23 @@ void writeProteomeClusters(DBWriter &proteomeClustWriter, std::vector<ProteomeEn
     }
 }
 
+static char* fastfloatToBuffer(float value, char* buffer) {
+    value *= 100;
+    int integerPart = (int)value;  
+    buffer = Itoa::i32toa_sse2(integerPart, buffer);  
+    *(buffer-1) = '.';
+    float fractionalPart = (value - integerPart) * 100;
+    int fractionalInt = (int)fractionalPart;  
+    if (fractionalInt < 10) {
+        *(buffer) = '0'; 
+        buffer++;
+    }
+    buffer = Itoa::i32toa_sse2(fractionalInt, buffer);  
+
+    *(buffer-1) = '%';
+    buffer++;
+    return buffer;
+}
 
 int proteomecluster(int argc, const char **argv, const Command &command){
     //Initialize parameters
@@ -417,6 +434,8 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     int proteomeDBType = DBReader<unsigned int>::setExtendedDbtype(Parameters::DBTYPE_GENERIC_DB, Parameters::DBTYPE_EXTENDED_SRC_IDENTIFIER);
     DBWriter proteomeClustWriter(par.db4.c_str(), par.db4Index.c_str(), 1, par.compressed, proteomeDBType);
     proteomeClustWriter.open();
+    DBWriter clusterCountWriter(par.db5.c_str(), par.db5Index.c_str(), 1, par.compressed, proteomeDBType);
+    clusterCountWriter.open();
 
     std::vector<ClusterEntry> clusterReps; 
 
@@ -428,6 +447,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     EvalueComputation evaluer(tProteinDB.getAminoAcidDBSize(), &subMat, gapOpen, gapExtend);
     Debug(Debug::INFO) << "Initialization ";
     Timer timer;
+
     #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -436,7 +456,6 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     #endif    
         std::vector<ClusterEntry> localClusterReps;
         std::vector<unsigned int> localProteomeCount(proteomeList.size(), 0);
-
         #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < linResDB.getSize(); id++) {
             initLocalClusterReps(id, localClusterReps, localProteomeCount, tProteinDB, linResDB, thread_idx);
@@ -452,9 +471,25 @@ int proteomecluster(int argc, const char **argv, const Command &command){
                                std::make_move_iterator(localClusterReps.begin()),
                                std::make_move_iterator(localClusterReps.end()));
         }
-
+        
     }
     Debug(Debug::INFO) << timer.lap() << "\n";
+
+    unsigned int totalClusterCount = clusterReps.size();
+    Debug(Debug::INFO) << "Total Cluster Count : " << totalClusterCount << "\n";
+    for (size_t idx=0; idx < proteomeList.size(); idx++){
+        float clusterCountRatio = static_cast<float> (proteomeList[idx].clusterCount) / static_cast<float> (totalClusterCount);
+
+        char proteomeBuffer[1024];
+        clusterCountWriter.writeStart();
+        char *basePos = proteomeBuffer;
+        char *tmpProteomeBuffer = Itoa::i32toa_sse2(proteomeList[idx].clusterCount, proteomeBuffer);
+        *(tmpProteomeBuffer - 1) = '\t';
+        tmpProteomeBuffer = fastfloatToBuffer(clusterCountRatio, tmpProteomeBuffer);
+        *(tmpProteomeBuffer - 1) = '\n';
+        clusterCountWriter.writeAdd(proteomeBuffer, tmpProteomeBuffer - basePos);
+        clusterCountWriter.writeEnd(proteomeList[idx].proteomeKey);
+    }
 
     unsigned int RepProteomeId = -1;
     Debug(Debug::INFO) << "Proteome Clustering ";
@@ -515,6 +550,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
 
     proteomeClustWriter.close();
     proteinClustWriter.close();
+    clusterCountWriter.close();
     tProteinDB.close();
     linResDB.close();
     return EXIT_SUCCESS;
