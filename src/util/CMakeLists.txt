@@ -80,5 +80,6 @@ set(util_source_files
         util/proteinaln2nucl.cpp
         util/versionstring.cpp
         util/diskspaceavail.cpp
+        util/proteomecluster.cpp
         PARENT_SCOPE
         )

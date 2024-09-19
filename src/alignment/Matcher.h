@@ -140,6 +140,13 @@ public:
                 }
             }
         }
+
+        float getSeqId(){
+            return seqId;
+        }
+        unsigned int getAlnLength(){
+            return alnLength;
+        }
     };
 
     Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix *m,
@@ -217,7 +224,6 @@ public:
 
 
     static size_t resultToBuffer(char * buffer, const result_t &result, bool addBacktrace, bool compress  = true, bool addOrfPosition = false);
-
     static int computeAlnLength(int anEnd, int start, int dbEnd, int dbStart);
 
     static void updateResultByRescoringBacktrace(const char *querySeq, const char *targetSeq, const char **subMat, EvalueComputation &evaluer,

@@ -66,6 +66,7 @@ public:
     }
 
     static void sortIndex(const char *inFileNameIndex, const char *outFileNameIndex, const bool lexicographicOrder);
+    
 private:
     size_t addToThreadBuffer(const void *data, size_t itmesize, size_t nitems, int threadIdx);
     void writeThreadBuffer(unsigned int idx, size_t dataSize);

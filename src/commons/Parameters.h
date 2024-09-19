@@ -90,6 +90,7 @@ public:
     static const unsigned int DBTYPE_EXTENDED_COMPRESSED = 1;
     static const unsigned int DBTYPE_EXTENDED_INDEX_NEED_SRC = 2;
     static const unsigned int DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS = 4;
+    static const unsigned int DBTYPE_EXTENDED_SRC_IDENTIFIER = 8;
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
@@ -434,6 +435,8 @@ public:
     int    maxAccept;                    // after n accepted sequences stop
     int    altAlignment;                 // show up to this many alternative alignments
     float  seqIdThr;                     // sequence identity threshold for acceptance
+    float  proteomeSimThr;              // proteome similarity threshold for acceptance
+    float proteomeRelativeSimThr;     // proteome similarity threshold normalized by proteome size for acceptance
     int    alnLenThr;                    // min. alignment length
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
@@ -787,6 +790,8 @@ public:
     PARAMETER(PARAM_ALT_ALIGNMENT)
     PARAMETER(PARAM_GAP_OPEN)
     PARAMETER(PARAM_GAP_EXTEND)
+    PARAMETER(PARAM_PROTEOME_SIMILARITY)
+    PARAMETER(PARAM_PROTEOME_RELATIVE_SIMILARITY)
 #ifdef GAP_POS_SCORING
     PARAMETER(PARAM_GAP_PSEUDOCOUNT)
 #endif
@@ -1078,6 +1083,7 @@ public:
     std::vector<MMseqsParameter*> threadsandcompression;
 
     std::vector<MMseqsParameter*> alignall;
+    std::vector<MMseqsParameter*> proteomecluster;
     std::vector<MMseqsParameter*> align;
     std::vector<MMseqsParameter*> rescorediagonal;
     std::vector<MMseqsParameter*> alignbykmer;
@@ -1115,6 +1121,7 @@ public:
     std::vector<MMseqsParameter*> kmersearch;
     std::vector<MMseqsParameter*> countkmer;
     std::vector<MMseqsParameter*> easylinclustworkflow;
+    std::vector<MMseqsParameter*> easyproteomeclusterworkflow;
     std::vector<MMseqsParameter*> linclustworkflow;
     std::vector<MMseqsParameter*> easysearchworkflow;
     std::vector<MMseqsParameter*> searchworkflow;

@@ -28,7 +28,6 @@ void setEasyLinclustMustPassAlong(Parameters *p) {
     p->PARAM_REMOVE_TMP_FILES.wasSet = true;
     p->PARAM_C.wasSet = true;
     p->PARAM_E.wasSet = true;
-    //p->PARAM_ALIGNMENT_MODE.wasSet = true;
     p->PARAM_ORF_START_MODE.wasSet = true;
     p->PARAM_ORF_MIN_LENGTH.wasSet = true;
     p->PARAM_ORF_MAX_LENGTH.wasSet = true;
