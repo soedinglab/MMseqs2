@@ -42,8 +42,12 @@ int createindex(Parameters &par, const Command &command, const std::string &inde
     cmd.addVariable("INDEXER", indexerModule.c_str());
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     par.translate = 1;
-    cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
-    cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
+    cmd.addVariable("ORF_SKIP", par.translationMode == Parameters::PARAM_TRANSLATION_MODE_FRAME ? "TRUE" : NULL);
+    if (par.translationMode == Parameters::PARAM_TRANSLATION_MODE_FRAME) {
+        cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
+    } else {
+        cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
+    }
     cmd.addVariable("SPLIT_SEQ_PAR", par.createParameterString(par.splitsequence).c_str());
     if(indexerModule == "kmerindexdb"){
         cmd.addVariable("INDEX_PAR", par.createParameterString(par.kmerindexdb).c_str());

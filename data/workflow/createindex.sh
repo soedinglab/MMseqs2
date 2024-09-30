@@ -18,9 +18,15 @@ INPUT="$1"
 if [ -n "$TRANSLATED" ]; then
     # 1. extract orf
     if notExists "$2/orfs_aa.dbtype"; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" extractorfs "$INPUT" "$2/orfs_aa" ${ORF_PAR} \
-            || fail "extractorfs died"
+        if [ -n "$ORF_SKIP" ]; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" extractframes "$INPUT" "$2/orfs_aa" ${EXTRACT_FRAMES_PAR} \
+                || fail  "extractframes died"
+        else
+            # shellcheck disable=SC2086
+            "$MMSEQS" extractorfs "$INPUT" "$2/orfs_aa" ${ORF_PAR} \
+                || fail "extractorfs died"
+        fi
     fi
 
     # shellcheck disable=SC2086
@@ -33,7 +39,7 @@ if [ -n "$TRANSLATED" ]; then
         rm -f "$2/createindex.sh"
     fi
 elif [ -n "$LIN_NUCL" ] || [ -n "$NUCL" ]; then
-      # 1. extract orf
+    # 1. extract orf
     if notExists "$2/nucl_split_seq.dbtype"; then
         # shellcheck disable=SC2086
         "$MMSEQS" splitsequence "$INPUT" "$2/nucl_split_seq" ${SPLIT_SEQ_PAR} \
