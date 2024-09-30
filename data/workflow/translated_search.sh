@@ -21,7 +21,7 @@ TMP_PATH="$4"
 QUERY="$1"
 QUERY_ORF="$1"
 if [ -n "$QUERY_NUCL" ]; then
-    if [ "$ORF_SKIP" = "TRUE" ]; then
+    if [ -n "$ORF_SKIP" ]; then
         if notExists "${TMP_PATH}/q_orfs_aa.dbtype"; then
             # shellcheck disable=SC2086
             "$MMSEQS" extractframes "$1" "${TMP_PATH}/q_orfs_aa" ${EXTRACT_FRAMES_PAR} \
@@ -42,7 +42,7 @@ TARGET="$2"
 TARGET_ORF="$2"
 if [ -n "$TARGET_NUCL" ]; then
 if [ -n "$NO_TARGET_INDEX" ]; then
-    if [ "$ORF_SKIP" = "TRUE" ]; then
+    if [ -n "$ORF_SKIP" ]; then
         if notExists "${TMP_PATH}/t_orfs_aa.dbtype"; then
             # shellcheck disable=SC2086
             "$MMSEQS" extractframes "$2" "${TMP_PATH}/t_orfs_aa" ${EXTRACT_FRAMES_PAR} \

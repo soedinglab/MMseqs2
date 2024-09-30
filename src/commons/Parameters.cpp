@@ -172,7 +172,7 @@ Parameters::Parameters():
         PARAM_ORF_FILTER_S(PARAM_ORF_FILTER_S_ID, "--orf-filter-s", "ORF filter sensitivity", "Sensitivity used for query ORF prefiltering", typeid(float), (void *) &orfFilterSens, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_ORF_FILTER_E(PARAM_ORF_FILTER_E_ID, "--orf-filter-e", "ORF filter e-value", "E-value threshold used for query ORF prefiltering", typeid(double), (void *) &orfFilterEval, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$"),
         PARAM_LCA_SEARCH(PARAM_LCA_SEARCH_ID, "--lca-search", "LCA search mode", "Efficient search for LCA candidates", typeid(bool), (void *) &lcaSearch, "", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_ORF_SKIP(PARAM_ORF_SKIP_ID, "--orf-skip", "ORF skip mode", "???", typeid(bool), (void *) &orfSkip, ""),
+        PARAM_TRANSLATION_MODE(PARAM_TRANSLATION_MODE_ID, "--translation-mode", "Translation mode", "Translation AA seq from nucleotide by 0: ORFs, 1: full reading frames", typeid(int), (void *) &translationMode, "^[0-1]{1}$"),
         // easysearch
         PARAM_GREEDY_BEST_HITS(PARAM_GREEDY_BEST_HITS_ID, "--greedy-best-hits", "Greedy best hits", "Choose the best hits greedily to cover the query", typeid(bool), (void *) &greedyBestHits, ""),
         // extractorfs
@@ -1271,7 +1271,7 @@ Parameters::Parameters():
     searchworkflow.push_back(&PARAM_RUNNER);
     searchworkflow.push_back(&PARAM_REUSELATEST);
     searchworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
-    searchworkflow.push_back(&PARAM_ORF_SKIP);
+    searchworkflow.push_back(&PARAM_TRANSLATION_MODE);
 
     linsearchworkflow = combineList(align, kmersearch);
     linsearchworkflow = combineList(linsearchworkflow, swapresult);
@@ -1294,8 +1294,9 @@ Parameters::Parameters():
 
     // createindex workflow
     createindex = combineList(indexdb, extractorfs);
-    createindex = combineList(createindex, translatenucs);
+    createindex = combineList(createindex, extractframes);
     createindex = combineList(createindex, splitsequence);
+    createindex.push_back(&PARAM_TRANSLATION_MODE);
     createindex.push_back(&PARAM_STRAND);
     createindex.push_back(&PARAM_REMOVE_TMP_FILES);
 
@@ -2281,7 +2282,7 @@ void Parameters::setDefaults() {
     orfFilterSens = 2.0;
     orfFilterEval = 100;
     lcaSearch = false;
-    orfSkip = false;
+    translationMode = PARAM_TRANSLATION_MODE_ORF;
 
     greedyBestHits = false;
 
