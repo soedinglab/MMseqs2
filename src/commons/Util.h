@@ -365,5 +365,19 @@ public:
     }
 
     static size_t computeMemory(size_t limit);
+
+    template<typename T>
+    static inline bool tupleCompare(const T& x, const T& y) {
+        (void)x; (void)y; // silence unused warning
+        return false;
+    }
+    // return whether x is lexicographically smaller than y, evaluating each accessor in the order they are passed
+    template<typename T, typename A, typename ...Ts>
+    static inline bool tupleCompare(const T& x, const T& y, A T::* accessor,Ts... accessors) {
+        if (x.*accessor < y.*accessor) return true;
+        if (y.*accessor < x.*accessor) return false;
+        return tupleCompare(x,y,std::forward<Ts>(accessors)...);
+}
+
 };
 #endif

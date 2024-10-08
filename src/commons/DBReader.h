@@ -13,6 +13,7 @@
 #include "Sequence.h"
 #include "Parameters.h"
 #include "FileUtil.h"
+#include "Util.h"
 #include "Debug.h"
 
 #define ZSTD_STATIC_LINKING_ONLY // ZSTD_findDecompressedSize
@@ -67,35 +68,11 @@ public:
         }
 
         static bool compareById(const Index &x, const Index &y) {
-            if (x.id < y.id)
-                return true;
-            if (y.id < x.id)
-                return false;
-            if (x.offset < y.offset)
-                return true;
-            if (y.offset < x.offset)
-                return false;
-            if (x.length < y.length)
-                return true;
-            if (y.length < x.length)
-                return false;
-            return false;
+            return Util::tupleCompare(x,y,&Index::id,&Index::offset,&Index::length);
         }
 
         static bool compareByOffset(const Index &x, const Index &y) {
-            if (x.offset < y.offset)
-                return true;
-            if (y.offset < x.offset)
-                return false;
-            if (x.id < y.id)
-                return true;
-            if (y.id < x.id)
-                return false;
-            if (x.length < y.length)
-                return true;
-            if (y.length < x.length)
-                return false;
-            return false;
+            return Util::tupleCompare(x,y,&Index::offset,&Index::id,&Index::length);
         }
     };
 
@@ -111,19 +88,7 @@ public:
         }
 
         static bool compareById(const LookupEntry& x, const LookupEntry& y) {
-            if (x.id < y.id)
-                return true;
-            if (y.id < x.id)
-                return false;
-            if (x.entryName < y.entryName)
-                return true;
-            if (y.entryName < x.entryName)
-                return false;
-            if (x.fileNumber < y.fileNumber)
-                return true;
-            if (y.fileNumber < x.fileNumber)
-                return false;
-            return false;
+            return Util::tupleCompare(x,y,&LookupEntry::id,&LookupEntry::entryName,&LookupEntry::fileNumber);
         }
 
         static bool compareByAccessionOnly(const LookupEntry& x, const LookupEntry& y){
@@ -131,19 +96,7 @@ public:
         }
 
         static bool compareByAccession(const LookupEntry& x, const LookupEntry& y) {
-            if (x.entryName < y.entryName)
-                return true;
-            if (y.entryName < x.entryName)
-                return false;
-            if (x.id < y.id)
-                return true;
-            if (y.id < x.id)
-                return false;
-            if (x.fileNumber < y.fileNumber)
-                return true;
-            if (y.fileNumber < x.fileNumber)
-                return false;
-            return false;
+            return Util::tupleCompare(x,y,&LookupEntry::entryName,&LookupEntry::id,&LookupEntry::fileNumber);
         }
     };
 
