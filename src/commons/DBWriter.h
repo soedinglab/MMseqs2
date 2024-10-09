@@ -105,7 +105,7 @@ private:
 
     const unsigned int threads;
     const size_t mode;
-    int dbtype;
+    const int dbtype;
 
     bool closed;
 
