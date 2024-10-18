@@ -43,7 +43,7 @@ int masksequence(int argc, const char **argv, const Command& command) {
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-        char *charSequence = new char[maxSeqLen + 1];
+        unsigned char *charSequence = new unsigned char[maxSeqLen + 1];
 
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < reader.getSize(); ++id) {
@@ -68,7 +68,7 @@ int masksequence(int argc, const char **argv, const Command& command) {
                 char aa = seqData[pos];
                 charSequence[pos] = (charSequence[pos] == probMatrix.hardMaskTable[0]) ? tolower(aa) : toupper(aa);
             }
-            writer.writeData(charSequence, seqLen, reader.getDbKey(id), thread_idx);
+            writer.writeData((char*)charSequence, seqLen, reader.getDbKey(id), thread_idx);
         }
         delete[] charSequence;
     }

@@ -205,6 +205,10 @@ add_subdirectory(lib/tinyexpr EXCLUDE_FROM_ALL)
 include_directories(lib/microtar)
 add_subdirectory(lib/microtar)
 
+# tantan
+include_directories(lib/tantan)
+add_subdirectory(lib/tantan)
+
 # simde
 include_directories(lib/simde)
 

@@ -56,8 +56,8 @@ KmerPosition<T> *initKmerPositionMemory(size_t size) {
 
 void maskSequence(int maskMode, int maskLowerCase, float maskProb, Sequence &seq, int maskLetter, ProbabilityMatrix * probMatrix){
     if (maskMode == 1) {
-        tantan::maskSequences((char*)seq.numSequence,
-                              (char*)(seq.numSequence + seq.L),
+        tantan::maskSequences((unsigned char*)seq.numSequence,
+                              (unsigned char*)(seq.numSequence + seq.L),
                               50 /*options.maxCycleLength*/,
                               probMatrix->probMatrixPointers,
                               0.005 /*options.repeatProb*/,

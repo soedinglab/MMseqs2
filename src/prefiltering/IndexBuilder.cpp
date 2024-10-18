@@ -144,8 +144,9 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                 }
                 if (mask == true) {
                     // s.print();
-                    maskedResidues += tantan::maskSequences((char*)s.numSequence,
-                                                            (char*)(s.numSequence + s.L),
+                    //TODO maskedResidues =;
+                    tantan::maskSequences((unsigned char*)s.numSequence,
+                                                            (unsigned char*)(s.numSequence + s.L),
                                                             50 /*options.maxCycleLength*/,
                                                             probMatrix->probMatrixPointers,
                                                             0.005 /*options.repeatProb*/,

@@ -9,7 +9,7 @@
 class PSSMMasker {
 public:
     PSSMMasker(size_t maxSeqLen, ProbabilityMatrix& probMatrix, BaseMatrix& subMat) : maxSeqLen(maxSeqLen), probMatrix(probMatrix), xAmioAcid(subMat.aa2num[static_cast<int>('X')]) {
-        charSequence = (char*)malloc(sizeof(char) * maxSeqLen);
+        charSequence = (unsigned char*)malloc(sizeof(char) * maxSeqLen);
     }
 
     ~PSSMMasker() {
@@ -19,7 +19,7 @@ public:
     void mask(Sequence& centerSequence, float maskProb, PSSMCalculator::Profile& pssmRes) {
         if ((size_t)centerSequence.L > maxSeqLen) {
             maxSeqLen = sizeof(char) * centerSequence.L * 1.5;
-            charSequence = (char*)realloc(charSequence, maxSeqLen);
+            charSequence = (unsigned char*)realloc(charSequence, maxSeqLen);
         }
         memcpy(charSequence, centerSequence.numSequence, sizeof(unsigned char) * centerSequence.L);
         tantan::maskSequences(charSequence, charSequence + centerSequence.L,
@@ -43,7 +43,7 @@ public:
         }
     }
 private:
-    char *charSequence;
+    unsigned char *charSequence;
     size_t maxSeqLen;
     ProbabilityMatrix& probMatrix;
     const int xAmioAcid;

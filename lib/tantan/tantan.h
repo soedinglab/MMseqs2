@@ -1,16 +1,6 @@
-// Copyright 2010 Martin C. Frith
-// tantan is distributed under the GNU General Public License, either
-//        version 3 of the License, or (at your option) any later version.  For
-//        details, see COPYING.txt.
-//
-// If you use tantan in your research, please cite:
-// "A new repeat-masking method enables specific detection of homologous
-// sequences", MC Frith, Nucleic Acids Research 2011 39(4):e23.
-//
-// tantan's website is: http://www.cbrc.jp/tantan/
-//
-// If you have any questions, comments, or problems concerning tantan,
-// please email: tantan (ATmark) cbrc (dot) jp.
+// Author: Martin C. Frith 2010
+// SPDX-License-Identifier: MPL-2.0
+
 // These are routines for masking simple regions (low-complexity and
 // short-period tandem repeats) in biological sequences.  To
 // understand them in detail, see the published article (in
@@ -64,10 +54,11 @@
 
 namespace tantan {
 
+typedef unsigned char uchar;
 typedef const double *const_double_ptr;
 
-int maskSequences(char *seqBeg,
-                   char *seqEnd,
+void maskSequences(uchar *seqBeg,
+                   uchar *seqEnd,
                    int maxRepeatOffset,
                    const const_double_ptr *likelihoodRatioMatrix,
                    double repeatProb,
@@ -76,14 +67,14 @@ int maskSequences(char *seqBeg,
                    double firstGapProb,
                    double otherGapProb,
                    double minMaskProb,
-                   const char *maskTable);
+                   const uchar *maskTable);
 
 // The following routine gets the posterior probability that each
 // letter is repetitive.  It stores the results in "probabilities",
 // which must point to enough pre-allocated space to fit the results.
 
-void getProbabilities(const char *seqBeg,
-                      const char *seqEnd,
+void getProbabilities(const uchar *seqBeg,
+                      const uchar *seqEnd,
                       int maxRepeatOffset,
                       const const_double_ptr *likelihoodRatioMatrix,
                       double repeatProb,
@@ -96,11 +87,34 @@ void getProbabilities(const char *seqBeg,
 // The following routine masks each letter whose corresponding entry
 // in "probabilities" is >= minMaskProb.
 
-int maskProbableLetters(char *seqBeg,
-                         char *seqEnd,
+void maskProbableLetters(uchar *seqBeg,
+                         uchar *seqEnd,
                          const float *probabilities,
                          double minMaskProb,
-                         const char *maskTable);
+                         const uchar *maskTable);
+
+// The following routine counts the expected number of transitions
+// from the background (non-repeat) state to other states.  It adds
+// the results to "transitionCounts", which must point to
+// pre-initialized space for (maxRepeatOffset+1) items.  The
+// background->background transition count is stored in
+// transitionCounts[0].  The background->(period-i repeat) transition
+// count is stored in transitionCounts[i].
+
+// (In this routine, the HMM begin and end states are counted as
+// background states.  Thus, begin->X is added to background->X, and
+// X->end is added to X->background.)
+
+void countTransitions(const uchar *seqBeg,
+                      const uchar *seqEnd,
+                      int maxRepeatOffset,
+                      const const_double_ptr *likelihoodRatioMatrix,
+                      double repeatProb,
+                      double repeatEndProb,
+                      double repeatOffsetProbDecay,
+                      double firstGapProb,
+                      double otherGapProb,
+                      double *transitionCounts);
 
 }
 
