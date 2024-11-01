@@ -86,6 +86,8 @@ Parameters::Parameters():
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID, "--alt-ali", "Alternative alignments", "Show up to this many alternative alignments", typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_GAP_OPEN(PARAM_GAP_OPEN_ID, "--gap-open", "Gap open cost", "Gap open cost", typeid(MultiParam<NuclAA<int>>), (void *) &gapOpen, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
         PARAM_GAP_EXTEND(PARAM_GAP_EXTEND_ID, "--gap-extend", "Gap extension cost", "Gap extension cost", typeid(MultiParam<NuclAA<int>>), (void *) &gapExtend, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PROTEOME_SIMILARITY(PARAM_PROTEOME_SIMILARITY_ID, "--proteome-similarity", "Proteome similarity", "Proteome similarity threshold", typeid(float), (void *) &proteomeSimThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_PROTEOME_RELATIVE_SIMILARITY(PARAM_PROTEOME_RELATIVE_SIMILARITY_ID, "--proteome-relative-similarity", "Proteome relative similarity", "Proteome relative similarity threshold normalized by proteome size", typeid(float), (void *) &proteomeRelativeSimThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
 #ifdef GAP_POS_SCORING
         PARAM_GAP_PSEUDOCOUNT(PARAM_GAP_PSEUDOCOUNT_ID, "--gap-pc", "Gap pseudo count", "Pseudo count for calculating position-specific gap opening penalties", typeid(int), &gapPseudoCount, "^[0-9]+$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
 #endif
@@ -338,6 +340,7 @@ Parameters::Parameters():
     alignall.push_back(&PARAM_SUB_MAT);
     alignall.push_back(&PARAM_ADD_BACKTRACE);
     alignall.push_back(&PARAM_ALIGNMENT_MODE);
+    alignall.push_back(&PARAM_REALIGN_SCORE_BIAS);
 //    alignall.push_back(&PARAM_WRAPPED_SCORING);
     alignall.push_back(&PARAM_E);
     alignall.push_back(&PARAM_MIN_SEQ_ID);
@@ -364,6 +367,41 @@ Parameters::Parameters():
     alignall.push_back(&PARAM_THREADS);
     alignall.push_back(&PARAM_COMPRESSED);
     alignall.push_back(&PARAM_V);
+
+    //proteomecluster
+    proteomecluster.push_back(&PARAM_SUB_MAT);
+    proteomecluster.push_back(&PARAM_ADD_BACKTRACE);
+    proteomecluster.push_back(&PARAM_ALIGNMENT_MODE);
+    proteomecluster.push_back(&PARAM_REALIGN_SCORE_BIAS); 
+//    proteomecluster.push_back(&PARAM_WRAPPED_SCORING);
+    proteomecluster.push_back(&PARAM_E);
+    proteomecluster.push_back(&PARAM_MIN_SEQ_ID);
+    proteomecluster.push_back(&PARAM_MIN_ALN_LEN);
+    proteomecluster.push_back(&PARAM_SEQ_ID_MODE);
+//    proteomecluster.push_back(&PARAM_ALT_ALIGNMENT);
+    proteomecluster.push_back(&PARAM_C);
+    proteomecluster.push_back(&PARAM_COV_MODE);
+    proteomecluster.push_back(&PARAM_MAX_SEQ_LEN);
+    proteomecluster.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    proteomecluster.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
+    proteomecluster.push_back(&PARAM_PROTEOME_SIMILARITY);
+    proteomecluster.push_back(&PARAM_PROTEOME_RELATIVE_SIMILARITY);
+
+    proteomecluster.push_back(&PARAM_REALIGN);
+//    proteomecluster.push_back(&PARAM_MAX_REJECTED);
+//    proteomecluster.push_back(&PARAM_MAX_ACCEPT);
+    proteomecluster.push_back(&PARAM_INCLUDE_IDENTITY);
+    proteomecluster.push_back(&PARAM_PRELOAD_MODE);
+    proteomecluster.push_back(&PARAM_PCA);
+    proteomecluster.push_back(&PARAM_PCB);
+    proteomecluster.push_back(&PARAM_SCORE_BIAS);
+    proteomecluster.push_back(&PARAM_GAP_OPEN);
+    proteomecluster.push_back(&PARAM_GAP_EXTEND);
+    proteomecluster.push_back(&PARAM_ZDROP);
+    proteomecluster.push_back(&PARAM_THREADS);
+    proteomecluster.push_back(&PARAM_COMPRESSED);
+    proteomecluster.push_back(&PARAM_V);
+    
 
     // alignment
     align.push_back(&PARAM_SUB_MAT);
@@ -1311,6 +1349,9 @@ Parameters::Parameters():
 
     // easylinclustworkflow
     easylinclustworkflow = combineList(linclustworkflow, createdb);
+
+    // easyproteomeclusterworkflow
+    easyproteomeclusterworkflow = combineList(easylinclustworkflow, proteomecluster);
 
     // clustering workflow
     clusterworkflow = combineList(prefilter, align);
@@ -2316,6 +2357,8 @@ void Parameters::setDefaults() {
     maxRejected = INT_MAX;
     maxAccept   = INT_MAX;
     seqIdThr = 0.0;
+    proteomeSimThr = 0.9;
+    proteomeRelativeSimThr = 0.9;
     alnLenThr = 0;
     altAlignment = 0;
     gapOpen = MultiParam<NuclAA<int>>(NuclAA<int>(11, 5));

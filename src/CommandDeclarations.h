@@ -4,6 +4,7 @@
 
 extern int align(int argc, const char **argv, const Command& command);
 extern int alignall(int argc, const char **argv, const Command& command);
+extern int proteomecluster(int argc, const char **argv, const Command& command);
 extern int alignbykmer(int argc, const char **argv, const Command& command);
 extern int appenddbtoindex(int argc, const char **argv, const Command& command);
 extern int apply(int argc, const char **argv, const Command& command);
@@ -43,6 +44,7 @@ extern int diffseqdbs(int argc, const char **argv, const Command& command);
 extern int easycluster(int argc, const char **argv, const Command& command);
 extern int easyrbh(int argc, const char **argv, const Command& command);
 extern int easylinclust(int argc, const char **argv, const Command& command);
+extern int easyproteomecluster(int argc, const char **argv, const Command& command);
 extern int easysearch(int argc, const char **argv, const Command& command);
 extern int easylinsearch(int argc, const char **argv, const Command& command);
 extern int tsv2exprofiledb(int argc, const char **argv, const Command& command);
