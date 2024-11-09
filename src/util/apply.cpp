@@ -23,99 +23,84 @@ int apply(int, const char **, const Command&) {
 #include <omp.h>
 #endif
 
-
-int pipe2_wrap(int fd[2], int flag) {
-    int ret = pipe(fd);
-    if (ret) {
-        return ret;
-    }
-    if (flag & O_CLOEXEC) {
-        if (    fcntl(fd[0], F_SETFD, FD_CLOEXEC) == -1
-             || fcntl(fd[1], F_SETFD, FD_CLOEXEC) == -1)
-        {
-            return -1;
-        }
-    }
-    if (flag & O_NONBLOCK) {
-        if (    fcntl(fd[0], F_SETFL, O_NONBLOCK) == -1
-             || fcntl(fd[1], F_SETFL, O_NONBLOCK) == -1)
-        {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-// Analogous to gnulib implementation
-// https://www.gnu.org/software/gnulib/
-// Licensed under GPLv3
-pid_t create_pipe(const char *prog_path, char **prog_argv, char **environ, int fd[2]) {
-    int ifd[2];
-    int ofd[2];
-
-    int err;
-    if ((err = pipe2_wrap(ifd, O_CLOEXEC)) != 0) {
-        perror("pipe ifd");
-        errno = err;
+pid_t create_pipe(
+    const char* prog_path,
+    char** prog_argv,
+    char** local_environ,
+    int fd[2]) {
+    if (prog_path == NULL) {
         return -1;
     }
-    if ((err = pipe2_wrap(ofd, O_CLOEXEC)) != 0) {
-        perror("pipe ofd");
-        errno = err;
+    if (prog_argv == NULL) {
         return -1;
     }
 
+    int pipe1Ids[2];
+    int res = pipe(pipe1Ids);
+    if (res != 0) {
+        perror("pipe failed");
+        return -1;
+    }
 
-    int actions_allocated = 0;
-    int attrs_allocated = 0;
+    if (fcntl(pipe1Ids[0], F_SETFD, FD_CLOEXEC) == -1 || fcntl(pipe1Ids[1], F_SETFD, FD_CLOEXEC) == -1) {
+        perror("fcntl failed");
+        close(pipe1Ids[0]);
+        close(pipe1Ids[1]);
+        return -1;
+    }
+
+    int pipe2Ids[2];
+    res = pipe(pipe2Ids);
+    if (res != 0) {
+        perror("pipe failed");
+        close(pipe1Ids[0]);
+        close(pipe1Ids[1]);
+        return -1;
+    }
+
+    if (fcntl(pipe2Ids[0], F_SETFD, FD_CLOEXEC) == -1 || fcntl(pipe2Ids[1], F_SETFD, FD_CLOEXEC) == -1) {
+        perror("fcntl failed");
+        close(pipe1Ids[0]);
+        close(pipe1Ids[1]);
+        close(pipe2Ids[0]);
+        close(pipe2Ids[1]);
+        return -1;
+    }
 
     posix_spawn_file_actions_t actions;
-    posix_spawnattr_t attrs;
-    pid_t child;
+    posix_spawn_file_actions_init(&actions);
+    if (posix_spawn_file_actions_adddup2(&actions, pipe2Ids[0], STDIN_FILENO) != 0
+     || posix_spawn_file_actions_adddup2(&actions, pipe1Ids[1], STDOUT_FILENO) != 0) {
+        perror("posix_spawn_file_actions failed");
+        posix_spawn_file_actions_destroy(&actions);
+        close(pipe1Ids[0]);
+        close(pipe1Ids[1]);
+        close(pipe2Ids[0]);
+        close(pipe2Ids[1]);
+        return -1;
+     }
 
-    if ((err = posix_spawn_file_actions_init(&actions)) != 0
-        || (actions_allocated = 1,
-               (err = posix_spawn_file_actions_adddup2 (&actions, ofd[0], STDIN_FILENO))  != 0
-            || (err = posix_spawn_file_actions_adddup2 (&actions, ifd[1], STDOUT_FILENO)) != 0
-            #ifdef POSIX_SPAWN_USEVFORK
-            || ((err = posix_spawnattr_init(&attrs)) != 0
-                || (attrs_allocated = 1,
-                   (err = posix_spawnattr_setflags(&attrs, POSIX_SPAWN_USEVFORK)) != 0))
-            #endif
-            || (err = posix_spawnp(&child, prog_path, &actions, attrs_allocated ? &attrs : NULL, prog_argv, environ)) != 0))
-    {
-        perror("fail");
-        errno = err;
-
-        if (actions_allocated) {
-            posix_spawn_file_actions_destroy(&actions);
-        }
-        if (attrs_allocated) {
-            posix_spawnattr_destroy(&attrs);
-        }
-
-        close(ifd[0]);
-        close(ifd[1]);
-        close(ofd[0]);
-        close(ofd[1]);
-
+    int pid;
+    res = posix_spawnp(&pid, prog_path, &actions, NULL, prog_argv, local_environ);
+    if (res != 0) {
+        perror("posix_spawn failed");
+        close(pipe1Ids[0]);
+        close(pipe1Ids[1]);
+        close(pipe2Ids[0]);
+        close(pipe2Ids[1]);
         return -1;
     }
-
     posix_spawn_file_actions_destroy(&actions);
-    if (attrs_allocated) {
-        posix_spawnattr_destroy(&attrs);
-    }
 
-    if ((err = close(ofd[0])) == -1 || (err = close(ifd[1])) == -1) {
+    if (close(pipe2Ids[0]) != 0 || close(pipe1Ids[1]) != 0) {
         perror("close");
-        errno = err;
         return -1;
     }
 
-    fd[0] = ifd[0];
-    fd[1] = ofd[1];
-    return child;
+    fd[0] = pipe1Ids[0];
+    fd[1] = pipe2Ids[1];
+
+    return pid;
 }
 
 int apply_by_entry(char* data, size_t size, unsigned int key, DBWriter& writer,
@@ -132,10 +117,8 @@ int apply_by_entry(char* data, size_t size, unsigned int key, DBWriter& writer,
         return -1;
     }
 
-    // Analogous to gnulib implementation
     size_t written = 0;
     int error = 0;
-
     char buffer[PIPE_BUF];
     writer.writeStart(proc_idx);
     struct pollfd plist[2];
