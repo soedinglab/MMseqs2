@@ -2,33 +2,18 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
+#include "GzReader.h"
 
-#include <fstream>
 #include <algorithm>
 #include <map>
 
-#ifdef HAVE_ZLIB
-#include "gzstream.h"
-#endif
 
 int convertmsa(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    std::istream *in;
-    if (Util::endsWith(".gz", par.db1)) {
-#ifdef HAVE_ZLIB
-        in = new igzstream(par.db1.c_str());
-#else
-        Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Can not read compressed input!\n";
-        return EXIT_FAILURE;
-#endif
-    } else {
-        in = new std::ifstream(par.db1);
-    }
-
-
-    if (in->fail()) {
+    GzReader in(par.db1);
+    if (in.fail()) {
         Debug(Debug::ERROR) << "File " << par.db1 << " not found!\n";
         return EXIT_FAILURE;
     }
@@ -47,7 +32,7 @@ int convertmsa(int argc, const char **argv, const Command &command) {
     result.reserve(10 * 1024 * 1024);
 
     Debug::Progress progress;
-    while (std::getline(*in, line)) {
+    while (in.getline(line)) {
         size_t lineLength = line.length();
         if (lineLength < 1) {
             continue;
@@ -135,6 +120,5 @@ int convertmsa(int argc, const char **argv, const Command &command) {
     }
     writer.close();
 
-    delete in;
     return EXIT_SUCCESS;
 }

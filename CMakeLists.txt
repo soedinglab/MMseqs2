@@ -214,7 +214,6 @@ include_directories(lib/simde)
 
 include_directories(lib)
 include_directories(lib/simd)
-include_directories(lib/gzstream)
 include_directories(lib/alp)
 include_directories(lib/cacode)
 include_directories(lib/ksw2)
