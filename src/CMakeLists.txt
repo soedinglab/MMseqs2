@@ -21,7 +21,6 @@ add_subdirectory(workflow)
 add_library(mmseqs-framework
         $<TARGET_OBJECTS:alp>
         $<TARGET_OBJECTS:ksw2>
-        $<TARGET_OBJECTS:cacode>
         ${alignment_header_files}
         ${alignment_source_files}
         ${clustering_header_files}
