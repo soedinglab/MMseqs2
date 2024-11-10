@@ -49,9 +49,9 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
     unsigned int seqKey = 0;
 
     size_t charSeqBufferSize = par.maxSeqLen + 1;
-    char *charSequence = NULL;
+    unsigned char *charSequence = NULL;
     if (par.maskMode) {
-        charSequence = (char*)malloc(charSeqBufferSize * sizeof(char));
+        charSequence = (unsigned char*)malloc(charSeqBufferSize * sizeof(char));
     }
 
 #pragma omp for schedule(static)
@@ -71,7 +71,7 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
         if (charSequence != NULL) {
             if ((size_t)seq.L >= charSeqBufferSize) {
                 charSeqBufferSize = seq.L * 1.5;
-                charSequence = (char*)realloc(charSequence, charSeqBufferSize * sizeof(char));
+                charSequence = (unsigned char*)realloc(charSequence, charSeqBufferSize * sizeof(char));
             }
             memcpy(charSequence, seq.numSequence, seq.L);
             tantan::maskSequences(
