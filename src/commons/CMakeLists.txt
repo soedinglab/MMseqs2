@@ -16,6 +16,7 @@ set(commons_header_files
         commons/Domain.h
         commons/ExpressionParser.h
         commons/FileUtil.h
+        commons/GpuUtil.h
         commons/HeaderSummarizer.h
         commons/IndexReader.h
         commons/itoa.h

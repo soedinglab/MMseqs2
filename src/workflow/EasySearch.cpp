@@ -131,7 +131,11 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
 
+    bool origShuffle = par.shuffleDatabase;
+    // don't need to shuffle query, only relevant for prefilter target database order
+    par.shuffleDatabase = false;
     cmd.addVariable("CREATEDB_QUERY_PAR", par.createParameterString(par.createdb).c_str());
+    par.shuffleDatabase = origShuffle;
     par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
     cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb).c_str());
     cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());

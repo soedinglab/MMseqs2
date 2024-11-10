@@ -206,7 +206,12 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence, 
     this->dbKey = dbKey;
     this->seqData = sequence;
     if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_AMINO_ACIDS) || Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        mapSequence(sequence, seqLen);
+        // check for padded database
+        if(seqLen >= 1 && sequence[0] >= 0 && sequence[0] <= 52){
+            mapSequence(id, dbKey, std::make_pair((const unsigned char *)sequence, seqLen));
+        }else{
+            mapSequence(sequence, seqLen);
+        }
     } else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_HMM_PROFILE)) {
         mapProfile(sequence, seqLen);
     } else {
@@ -220,6 +225,7 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence, 
 void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *,const unsigned int> data){
     this->id = id;
     this->dbKey = dbKey;
+    const int alphabetSize = subMat->alphabetSize;
     if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_AMINO_ACIDS)
         || Parameters::isEqualDbtype( this->seqType,Parameters::DBTYPE_NUCLEOTIDES)){
         this->L = data.second;
@@ -227,7 +233,11 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
             numSequence = static_cast<unsigned char *>(realloc(numSequence, this->L+1));
             maxLen = this->L;
         }
-        memcpy(this->numSequence, data.first, this->L);
+        // map softmasked sequences to regular sequences
+        // softmasked character start at 32
+        for(int i = 0; i < this->L; i++){
+            this->numSequence[i] = ( data.first[i] >= 32) ? data.first[i] - 32 : data.first[i];
+        }
     } else {
         Debug(Debug::ERROR) << "Invalid sequence type!\n";
         EXIT(EXIT_FAILURE);

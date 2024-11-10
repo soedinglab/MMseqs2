@@ -276,7 +276,8 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                             EXIT(EXIT_FAILURE);
                         }
                         if (k == 0) {
-                            unsigned int bSeqKey = resultAb.dbKey;
+                            // unsigned int bSeqKey = resultAb.dbKey;
+                            unsigned int bSeqKey = resultBc.dbKey;
                             size_t bSeqId = cReader->getId(bSeqKey);
                             bSeq->mapSequence(bSeqId, bSeqKey, cReader->getData(bSeqId, thread_idx), cReader->getSeqLen(bSeqId));
                         } else {

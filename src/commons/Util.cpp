@@ -21,6 +21,9 @@
 #include <sys/mman.h>
 #include <fstream>      // std::ifstream
 
+#define FMT_HEADER_ONLY 1
+#include <fmt/fmt/core.h>
+
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -653,14 +656,10 @@ std::string SSTR(unsigned long long x) {
 
 template<>
 std::string SSTR(double x) {
-    char buffer[32];
-    int n = snprintf(buffer, sizeof(buffer), "%.3E", x);
-    return std::string(buffer, n);
+    return fmt::format("{:.3E}", x);
 }
 
 template<>
 std::string SSTR(float x) {
-    char buffer[32];
-    int n = snprintf(buffer, sizeof(buffer), "%.3f", x);
-    return std::string(buffer, n);
+    return fmt::format("{:.3f}", x);
 }

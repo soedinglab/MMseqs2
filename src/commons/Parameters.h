@@ -312,6 +312,7 @@ public:
     static const int PREF_MODE_KMER = 0;
     static const int PREF_MODE_UNGAPPED = 1;
     static const int PREF_MODE_EXHAUSTIVE = 2;
+    static const int PREF_MODE_UNGAPPED_AND_GAPPED = 3;
 
     // unpackdb
     static const int UNPACK_NAME_KEY = 0;
@@ -386,6 +387,8 @@ public:
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
     int    verbosity;                    // log level
+    int    gpu;                          // use GPU
+    int    gpuServer;                    // use the gpu server
     int    threads;                      // Amounts of threads
     int    compressed;                   // compressed writer
     bool   removeTmpFiles;               // Do not delete temp files
@@ -805,7 +808,9 @@ public:
     // logging
     PARAMETER(PARAM_V)
     std::vector<MMseqsParameter*> clust;
-
+    // gpu
+    PARAMETER(PARAM_GPU)
+    PARAMETER(PARAM_GPU_SERVER)
     // format alignment
     PARAMETER(PARAM_FORMAT_MODE)
     PARAMETER(PARAM_FORMAT_OUTPUT)
@@ -1106,6 +1111,7 @@ public:
     std::vector<MMseqsParameter*> createlinindex;
     std::vector<MMseqsParameter*> convertalignments;
     std::vector<MMseqsParameter*> createdb;
+    std::vector<MMseqsParameter*> makepaddedseqdb;
     std::vector<MMseqsParameter*> convert2fasta;
     std::vector<MMseqsParameter*> result2flat;
     std::vector<MMseqsParameter*> result2repseq;
@@ -1178,6 +1184,9 @@ public:
     std::vector<MMseqsParameter*> tar2db;
     std::vector<MMseqsParameter*> unpackdbs;
     std::vector<MMseqsParameter*> appenddbtoindex;
+    std::vector<MMseqsParameter*> touchdb;
+    std::vector<MMseqsParameter*> gpuserver;
+    std::vector<MMseqsParameter*> tsv2exprofiledb;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);

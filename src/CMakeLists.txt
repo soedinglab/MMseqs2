@@ -239,6 +239,13 @@ if (HAVE_GPROF)
     endif ()
 endif ()
 
+if (ENABLE_CUDA)
+    find_package(CUDAToolkit REQUIRED)
+    target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_CUDA=1)
+    target_link_libraries(mmseqs-framework marv)
+    target_link_libraries(mmseqs-framework CUDA::cudart_static)
+endif ()
+
 if (NOT FRAMEWORK_ONLY)
     include(MMseqsSetupDerivedTarget)
     add_subdirectory(version)

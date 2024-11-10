@@ -319,12 +319,24 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("ALIGN_MODULE", "align");
     }
 
+    // GPU can only use the ungapped prefilter
+    if(par.gpu == 1 && par.PARAM_PREF_MODE.wasSet == false){
+        if( par.numIterations > 1){
+            par.prefMode = Parameters::PREF_MODE_UNGAPPED;
+        }else {
+            par.prefMode = Parameters::PREF_MODE_UNGAPPED_AND_GAPPED;
+        }
+    }
+
     switch(par.prefMode){
         case Parameters::PREF_MODE_KMER:
             cmd.addVariable("PREFMODE", "KMER");
             break;
         case Parameters::PREF_MODE_UNGAPPED:
             cmd.addVariable("PREFMODE", "UNGAPPED");
+            break;
+        case Parameters::PREF_MODE_UNGAPPED_AND_GAPPED:
+            cmd.addVariable("PREFMODE", "UNGAPPED_AND_GAPPED");
             break;
         case Parameters::PREF_MODE_EXHAUSTIVE:
             cmd.addVariable("PREFMODE", "EXHAUSTIVE");
@@ -351,7 +363,7 @@ int search(int argc, const char **argv, const Command& command) {
         par.maxResListLen = std::max((size_t)300, queryDbSize);
         if(par.prefMode == Parameters::PREF_MODE_KMER){
             cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
-        } else if (par.prefMode == Parameters::PREF_MODE_UNGAPPED) {
+        } else if (par.prefMode == Parameters::PREF_MODE_UNGAPPED || par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) {
             cmd.addVariable("UNGAPPEDPREFILTER_PAR", par.createParameterString(par.ungappedprefilter).c_str());
         }
         par.maxResListLen = maxResListLen;
@@ -407,7 +419,8 @@ int search(int argc, const char **argv, const Command& command) {
             if (par.prefMode == Parameters::PREF_MODE_KMER) {
                 cmd.addVariable(std::string("PREFILTER_PAR_" + SSTR(i)).c_str(),
                                 par.createParameterString(par.prefilter).c_str());
-            } else if (par.prefMode == Parameters::PREF_MODE_UNGAPPED) {
+            } else if (par.prefMode == Parameters::PREF_MODE_UNGAPPED ||
+                       par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) {
                 cmd.addVariable(std::string("UNGAPPEDPREFILTER_PAR_" + SSTR(i)).c_str(),
                                 par.createParameterString(par.ungappedprefilter).c_str());
             }
@@ -518,7 +531,8 @@ int search(int argc, const char **argv, const Command& command) {
         }
         if (par.prefMode == Parameters::PREF_MODE_KMER) {
             cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilterWithoutS).c_str());
-        } else if (par.prefMode == Parameters::PREF_MODE_UNGAPPED) {
+        } else if (par.prefMode == Parameters::PREF_MODE_UNGAPPED ||
+                   par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) {
             cmd.addVariable("UNGAPPEDPREFILTER_PAR", par.createParameterString(par.ungappedprefilter).c_str());
         }
         if (isUngappedMode) {

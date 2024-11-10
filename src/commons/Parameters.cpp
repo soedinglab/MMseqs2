@@ -100,6 +100,9 @@ Parameters::Parameters():
         PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID, "--similarity-type", "Similarity type", "Type of score used for clustering. 1: alignment score 2: sequence identity", typeid(int), (void *) &similarityScoreType, "^[1-2]{1}$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
         // logging
         PARAM_V(PARAM_V_ID, "-v", "Verbosity", "Verbosity level: 0: quiet, 1: +errors, 2: +warnings, 3: +info", typeid(int), (void *) &verbosity, "^[0-3]{1}$", MMseqsParameter::COMMAND_COMMON),
+        // gpu
+        PARAM_GPU(PARAM_GPU_ID, "--gpu", "Use GPU", "Use GPU (CUDA) if possible", typeid(int), (void *) &gpu, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
+        PARAM_GPU_SERVER(PARAM_GPU_SERVER_ID, "--gpu-server", "Use GPU server", "Use GPU server", typeid(int), (void *) &gpuServer, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
         // convertalignments
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID, "--format-mode", "Alignment format", "Output format:\n0: BLAST-TAB\n1: SAM\n2: BLAST-TAB + query/db length\n3: Pretty HTML\n4: BLAST-TAB + column headers\nBLAST-TAB (0) and BLAST-TAB + column headers (4) support custom output formats (--format-output)", typeid(int), (void *) &formatAlignmentMode, "^[0-4]{1}$"),
         PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID, "--format-output", "Format alignment output", "Choose comma separated list of output columns from: query,target,evalue,gapopen,pident,fident,nident,qstart,qend,qlen\ntstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov\nqset,qsetid,tset,tsetid,taxid,taxname,taxlineage,qorfstart,qorfend,torfstart,torfend,ppos", typeid(std::string), (void *) &outfmt, ""),
@@ -163,7 +166,7 @@ Parameters::Parameters():
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Search iterations", "Number of iterative profile search iterations", typeid(int), (void *) &numIterations, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_START_SENS(PARAM_START_SENS_ID, "--start-sens", "Start sensitivity", "Start sensitivity", typeid(float), (void *) &startSens, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_SENS_STEPS(PARAM_SENS_STEPS_ID, "--sens-steps", "Search steps", "Number of search steps performed from --start-sens to -s", typeid(int), (void *) &sensSteps, "^[1-9]{1}$"),
-        PARAM_PREF_MODE(PARAM_PREF_MODE_ID,"--prefilter-mode", "Prefilter mode", "prefilter mode: 0: kmer/ungapped 1: ungapped, 2: nofilter",typeid(int), (void *) &prefMode, "^[0-2]{1}$"),
+        PARAM_PREF_MODE(PARAM_PREF_MODE_ID,"--prefilter-mode", "Prefilter mode", "prefilter mode: 0: kmer/ungapped 1: ungapped, 2: nofilter, 3: ungapped&gapped",typeid(int), (void *) &prefMode, "^[0-3]{1}$"),
         PARAM_EXHAUSTIVE_SEARCH(PARAM_EXHAUSTIVE_SEARCH_ID, "--exhaustive-search", "Exhaustive search mode", "For bigger profile DB, run iteratively the search by greedily swapping the search results", typeid(bool), (void *) &exhaustiveSearch, "", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_EXHAUSTIVE_SEARCH_FILTER(PARAM_EXHAUSTIVE_SEARCH_FILTER_ID, "--exhaustive-search-filter", "Filter results during exhaustive search", "Filter result during search: 0: do not filter, 1: filter", typeid(int), (void *) &exhaustiveFilterMsa, "^[0-1]{1}$", MMseqsParameter::COMMAND_ALIGN | MMseqsParameter::COMMAND_EXPERT),
 
@@ -446,6 +449,9 @@ Parameters::Parameters():
     ungappedprefilter.push_back(&PARAM_MAX_SEQS);
     ungappedprefilter.push_back(&PARAM_TAXON_LIST);
     ungappedprefilter.push_back(&PARAM_PRELOAD_MODE);
+    ungappedprefilter.push_back(&PARAM_GPU);
+    ungappedprefilter.push_back(&PARAM_GPU_SERVER);
+    ungappedprefilter.push_back(&PARAM_PREF_MODE);
     ungappedprefilter.push_back(&PARAM_THREADS);
     ungappedprefilter.push_back(&PARAM_COMPRESSED);
     ungappedprefilter.push_back(&PARAM_V);
@@ -819,6 +825,15 @@ Parameters::Parameters():
     createdb.push_back(&PARAM_ID_OFFSET);
     createdb.push_back(&PARAM_COMPRESSED);
     createdb.push_back(&PARAM_V);
+
+    // makepaddedseqdb
+    makepaddedseqdb.push_back(&PARAM_SUB_MAT);
+    makepaddedseqdb.push_back(&PARAM_SCORE_BIAS);
+    makepaddedseqdb.push_back(&PARAM_MASK_RESIDUES);
+    makepaddedseqdb.push_back(&PARAM_MASK_PROBABILTY);
+    makepaddedseqdb.push_back(&PARAM_WRITE_LOOKUP);
+    makepaddedseqdb.push_back(&PARAM_THREADS);
+    makepaddedseqdb.push_back(&PARAM_V);
 
     // convert2fasta
     convert2fasta.push_back(&PARAM_USE_HEADER_FILE);
@@ -1249,6 +1264,7 @@ Parameters::Parameters():
 
     // WORKFLOWS
     searchworkflow = combineList(align, prefilter);
+    searchworkflow = combineList(searchworkflow, ungappedprefilter);
     searchworkflow = combineList(searchworkflow, rescorediagonal);
     searchworkflow = combineList(searchworkflow, result2profile);
     searchworkflow = combineList(searchworkflow, extractorfs);
@@ -1260,7 +1276,6 @@ Parameters::Parameters():
     searchworkflow.push_back(&PARAM_NUM_ITERATIONS);
     searchworkflow.push_back(&PARAM_START_SENS);
     searchworkflow.push_back(&PARAM_SENS_STEPS);
-    searchworkflow.push_back(&PARAM_PREF_MODE);
     searchworkflow.push_back(&PARAM_EXHAUSTIVE_SEARCH);
     searchworkflow.push_back(&PARAM_EXHAUSTIVE_SEARCH_FILTER);
     searchworkflow.push_back(&PARAM_STRAND);
@@ -1406,6 +1421,22 @@ Parameters::Parameters():
     // appenddbtoindex
     appenddbtoindex.push_back(&PARAM_ID_LIST);
     appenddbtoindex.push_back(&PARAM_V);
+
+    // touchdb
+    touchdb.push_back(&PARAM_THREADS);
+    touchdb.push_back(&PARAM_V);
+
+    // gpu server
+    gpuserver.push_back(&PARAM_GPU);
+    gpuserver.push_back(&PARAM_MAX_SEQS);
+    gpuserver.push_back(&PARAM_PRELOAD_MODE);
+    gpuserver.push_back(&PARAM_PREF_MODE);
+
+    // tsv2exprofiledb
+    tsv2exprofiledb.push_back(&PARAM_GPU);
+    tsv2exprofiledb.push_back(&PARAM_THREADS);
+    tsv2exprofiledb.push_back(&PARAM_COMPRESSED);
+    tsv2exprofiledb.push_back(&PARAM_V);
 
     //checkSaneEnvironment();
     setDefaults();
@@ -2401,6 +2432,21 @@ void Parameters::setDefaults() {
     // logging
     verbosity = Debug::INFO;
 
+    // gpu
+    gpu = 0;
+#ifdef HAVE_CUDA
+    char* gpuEnv = getenv("MMSEQS_FORCE_GPU");
+    if (gpuEnv != NULL) {
+        gpu = 1;
+    }
+#endif
+    gpuServer = 0;
+#ifdef HAVE_CUDA
+    char* gpuServerEnv = getenv("MMSEQS_FORCE_GPUSERVER");
+    if (gpuServerEnv != NULL) {
+        gpuServer = 1;
+    }
+#endif
     //extractorfs
     orfMinLength = 30;
     orfMaxLength = 32734;
