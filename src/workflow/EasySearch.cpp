@@ -138,6 +138,8 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     par.shuffleDatabase = origShuffle;
     par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
     cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb).c_str());
+    cmd.addVariable("GPU", par.gpu ? "TRUE" : NULL);
+    cmd.addVariable("MAKEPADDEDSEQDB_PAR", par.createParameterString(par.makepaddedseqdb).c_str());
     cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());
     cmd.addVariable("SUMMARIZE_PAR", par.createParameterString(par.summarizeresult).c_str());
 
