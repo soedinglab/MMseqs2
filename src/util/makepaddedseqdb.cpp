@@ -23,9 +23,10 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
 
-    DBWriter dbsw(par.db2.c_str(), par.db2Index.c_str(), par.threads, false, dbr.getDbtype());
+    int dbType = DBReader<unsigned int>::setExtendedDbtype(dbr.getDbtype(), Parameters::DBTYPE_EXTENDED_GPU);
+    DBWriter dbsw(par.db2.c_str(), par.db2Index.c_str(), par.threads, false, dbType);
     dbsw.open();
-    DBWriter dbhw(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, false, dbr.getDbtype());
+    DBWriter dbhw(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, false, Parameters::DBTYPE_GENERIC_DB);
     dbhw.open();
 
     // need to prune low scoring k-mers through masking

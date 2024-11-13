@@ -29,6 +29,12 @@ int gpuserver(int argc, const char **argv, const Command& command) {
     IndexReader dbrIdx(par.db1, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     DBReader<unsigned int>* dbr = dbrIdx.sequenceReader;
 
+    const bool isGpuDb = DBReader<unsigned int>::getExtendedDbtype(dbr->getDbtype()) & Parameters::DBTYPE_EXTENDED_GPU;
+    if (isGpuDb == false) {
+        Debug(Debug::ERROR) << "Database " << FileUtil::baseName(par.db1) << " is not a valid GPU database\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     std::vector<size_t> offsets;
     offsets.reserve(dbr->getSize() + 1);
 

@@ -391,6 +391,15 @@ int prefilterInternal(int argc, const char **argv, const Command &command, int m
     IndexReader * qDbrIdx = NULL;
     DBReader<unsigned int> * qdbr = NULL;
     DBReader<unsigned int> * tdbr = tDbrIdx.sequenceReader;
+
+    if (par.gpu == true) {
+        const bool isGpuDb = DBReader<unsigned int>::getExtendedDbtype(tdbr->getDbtype()) & Parameters::DBTYPE_EXTENDED_GPU;
+        if (isGpuDb == false) {
+            Debug(Debug::ERROR) << "Database " << FileUtil::baseName(par.db2) << " is not a valid GPU database\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+
     const int targetSeqType = tdbr->getDbtype();
     int querySeqType;
     if (sameDB == true) {
