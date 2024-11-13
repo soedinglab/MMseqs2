@@ -7,7 +7,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(LIBRARY_ONLY 0 CACHE BOOL "Do not build executables")
 
 set(NVCC_FLAGS)
-list(APPEND NVCC_FLAGS -arch=native)
 list(APPEND NVCC_FLAGS --extended-lambda)
 list(APPEND NVCC_FLAGS --expt-relaxed-constexpr)
 list(APPEND NVCC_FLAGS -rdc=true)
