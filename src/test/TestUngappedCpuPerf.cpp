@@ -41,7 +41,6 @@ int main (int, const char**) {
         }
     }
 
-    size_t seqLen = 32;
     size_t targets = 5000000;
 
     std::vector<int> benchSizes = {

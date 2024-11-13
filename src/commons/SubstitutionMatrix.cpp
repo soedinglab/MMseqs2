@@ -57,8 +57,12 @@ SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, fl
 }
 
 
-bool SubstitutionMatrix::estimateLambdaAndBackground(const double **scoreMatrix,
-                                                     int alphabetSize, double *pBack, double &lambda) {
+bool SubstitutionMatrix::estimateLambdaAndBackground(
+        const double** MAYBE_UNUSED(scoreMatrix),
+        int MAYBE_UNUSED(alphabetSize),
+        double* MAYBE_UNUSED(pBack),
+        double& MAYBE_UNUSED(lambda)
+    ) {
     Debug(Debug::ERROR) << "Custom Substitution Matrix not supported in the release. Please use previous release\n";
     return false;
     // We need to pass the parameters as 1-based pointers, hence the +1s and -1s.

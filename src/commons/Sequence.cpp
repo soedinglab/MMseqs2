@@ -225,7 +225,6 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence, 
 void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *,const unsigned int> data){
     this->id = id;
     this->dbKey = dbKey;
-    const int alphabetSize = subMat->alphabetSize;
     if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_AMINO_ACIDS)
         || Parameters::isEqualDbtype( this->seqType,Parameters::DBTYPE_NUCLEOTIDES)){
         this->L = data.second;
