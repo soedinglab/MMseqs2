@@ -1,5 +1,5 @@
 # MMseqs2: ultra fast and sensitive sequence search and clustering suite
-MMseqs2 (Many-against-Many sequence searching) is a software suite to search and cluster huge protein and nucleotide sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux, MacOS, and (as beta version, via cygwin) Windows. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 can run 10000 times faster than BLAST. At 100 times its speed it achieves almost the same sensitivity. It can perform profile searches with the same sensitivity as PSI-BLAST at over 400 times its speed.
+MMseqs2 (Many-against-Many sequence searching) is a software suite to search and cluster huge protein and nucleotide sequence sets. MMseqs2 is free and open source software implemented in C++ for Linux, MacOS, and (as beta version, via cygwin) Windows. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 can run 10000 times faster than BLAST. At 100 times its speed it achieves almost the same sensitivity. It can perform profile searches with the same sensitivity as PSI-BLAST at over 400 times its speed.
 
 ##  Publications
 
@@ -17,11 +17,11 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 
 
 ## Documentation
-The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). The wiki also contains [tutorials](https://github.com/soedinglab/MMseqs2/wiki/Tutorials) to learn how to use MMseqs2 with real data. For questions please open an issue on [GitHub](https://github.com/soedinglab/MMseqs2/issues) or ask in our [chat](https://chat.mmseqs.com). 
+The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). The wiki also contains [tutorials](https://github.com/soedinglab/MMseqs2/wiki/Tutorials) to learn how to use MMseqs2 with real data. For questions please open an issue on [GitHub](https://github.com/soedinglab/MMseqs2/issues).
 Keep posted about MMseqs2/Linclust updates by following Martin on [Twitter](https://twitter.com/thesteinegger).
 
 ## Installation
-MMseqs2 can be used by [compiling from source](https://github.com/soedinglab/MMseqs2/wiki#installation), downloading a statically compiled binary, using [Homebrew](https://github.com/Homebrew/brew), [conda](https://github.com/conda/conda) or [Docker](https://github.com/moby/moby).
+MMseqs2 can be used by [compiling from source](https://github.com/soedinglab/MMseqs2/wiki#installation), downloading a statically compiled binary at [mmseqs.com/latest](https://mmseqs.com/latest), using [Homebrew](https://github.com/Homebrew/brew), [conda](https://github.com/conda/conda) or [Docker](https://github.com/moby/moby).
      
     # install by brew
     brew install mmseqs2
@@ -36,13 +36,13 @@ MMseqs2 can be used by [compiling from source](https://github.com/soedinglab/MMs
     # static build with SSE2 (slowest, for very old systems)
     wget https://mmseqs.com/latest/mmseqs-linux-sse2.tar.gz; tar xvfz mmseqs-linux-sse2.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
 
-MMseqs2 requires an AMD or Intel 64-bit system (check with `uname -a | grep x86_64`). We recommend using a system with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux or `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS). The AVX2 version is faster than SSE4.1, check if AVX2 is supported by executing `cat /proc/cpuinfo | grep avx2` on Linux and `sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2` on MacOS). A SSE2 version is also available for very old systems.
+MMseqs2 requires an AMD or Intel 64-bit system (check with `uname -a | grep x86_64`). We recommend using a system with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux or `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS). The AVX2 version is faster than SSE4.1, check if AVX2 is supported by executing `cat /proc/cpuinfo | grep avx2` on Linux and `sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2` on MacOS. A SSE2 version is also available for very old systems. MMseqs2 also works on ARM64 systems and on PPC64LE systems with POWER8 ISA or newer.
 
-MMseqs2 also works on ARM64 systems and on PPC64LE systems with POWER8 ISA or newer.
+> [!NOTE]
+> We recently added support for GPU-accelerated protein sequence and profile searches. This requires an NVIDIA GPU of the Ampere generation or newer for full speed, however, also works at reduced speed for Tesla-generation GPUs.
+> Check the [wiki](https://github.com/soedinglab/MMseqs2/wiki#compile-from-source-for-linux-with-gpu-support) for instructions on how to get started.
 
-We provide static binaries for all supported platforms at [mmseqs.com/latest](https://mmseqs.com/latest).
-
-MMseqs2 comes with a bash command and parameter auto completion, which can be activated by adding the following lines to your $HOME/.bash_profile:
+MMseqs2 comes with a bash command and parameter auto completion, which can be activated by adding the following to your $HOME/.bash_profile:
 
 <pre>
 if [ -f /<b>Path to MMseqs2</b>/util/bash-completion.sh ]; then
