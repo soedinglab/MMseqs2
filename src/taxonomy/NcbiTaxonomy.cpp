@@ -207,12 +207,12 @@ void NcbiTaxonomy::computeSparseTable() {
     size_t N = maxNodes * 2; // TO DO - I think this can actually be changed to maxNodes!!!
     // Debug(Debug::INFO) << "N: " << N << "\n";
 
-    size_t helperCount = 0;
+    // size_t helperCount = 0;
 
     // initialize all rows for column 0
     for (size_t row_ind = 0; row_ind < N; row_ind++) {
         M[row_ind][0] = row_ind;
-        helperCount++;
+        // helperCount++;
     }
 
     // fill in column after column
@@ -227,10 +227,10 @@ void NcbiTaxonomy::computeSparseTable() {
             int min_ind_second_half = M[row_ind + exp_prev_col_ind][col_ind - 1];
             if (L[min_ind_first_half] < L[min_ind_second_half]) {
                 M[row_ind][col_ind] = min_ind_first_half;
-                helperCount++;
+                // helperCount++;
             } else {
                 M[row_ind][col_ind] = min_ind_second_half;
-                helperCount++;
+                // helperCount++;
             }
             // increase row_ind
             row_ind = row_ind + 1;
