@@ -60,25 +60,26 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         memset(compositionBias, 0, compBufferSize);
     }
 
-    size_t* offsetData;
-    int32_t* lengthData;
     // hash the realpath of par.db2
     std::string tdbrName = par.db2;
     std::string tdbrRelPath = FileUtil::getRealPathFromSymLink(PrefilteringIndexReader::dbPathWithoutIndex(tdbrName));
     size_t hash = Util::hash(tdbrRelPath.c_str(), tdbrRelPath.length());
     std::string shmFileInFile = (par.gpuServer == 0) ? "" : "/dev/shm/" + SSTR(hash);
-    if(shmFileInFile != "" && FileUtil::fileExists(shmFileInFile.c_str()) == false){
+    if (shmFileInFile != "" && FileUtil::fileExists(shmFileInFile.c_str()) == false) {
         Debug(Debug::ERROR) << "--gpu-server " << shmFileInFile << " does not exist";
         EXIT(EXIT_FAILURE);
     }
+
+    size_t* offsetData = NULL;
+    int32_t* lengthData = NULL;
     std::vector<size_t> offsets;
     std::vector<int32_t> lengths;
-    GPUSharedMemory* layout;
+    GPUSharedMemory* layout = NULL;
     pid_t pid = 0;  // current process ID, only for server
     if (FileUtil::fileExists(shmFileInFile.c_str()) == false) {
         offsets.reserve(tdbr->getSize() + 1);
         lengths.reserve(tdbr->getSize());
-        for(size_t id = 0; id < tdbr->getSize(); id++){
+        for (size_t id = 0; id < tdbr->getSize(); id++) {
             offsets.emplace_back(tdbr->getIndex()[id].offset);
             lengths.emplace_back(tdbr->getIndex()[id].length - 2);
         }
@@ -90,17 +91,25 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         layout = GPUSharedMemory::openSharedMemory(SSTR(hash));
     }
 
-    Marv * marv;
-    if(par.gpuServer == 0) {
+    const bool serverMode = par.gpuServer;
+    Marv* marv = NULL;
+    if (serverMode == 0) {
+       if (offsetData == NULL || lengthData == NULL) {
+           Debug(Debug::ERROR) << "Invalid GPU database\n";
+           EXIT(EXIT_FAILURE);
+       }
         int32_t maxTargetLength = lengths.back();
-        Marv::AlignmentType type =  (par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) ?
+        Marv::AlignmentType type = (par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) ?
                 Marv::AlignmentType::GAPLESS_SMITH_WATERMAN : Marv::AlignmentType::GAPLESS;
         marv = new Marv(tdbr->getSize(), subMat->alphabetSize, maxTargetLength,
                         par.maxResListLen, type);
         void* h = marv->loadDb(
-                tdbr->getDataForFile(0), offsetData, lengthData, tdbr->getDataSizeForFile(0)
+            tdbr->getDataForFile(0), offsetData, lengthData, tdbr->getDataSizeForFile(0)
         );
         marv->setDb(h);
+    } else if (layout == NULL) {
+       Debug(Debug::ERROR) << "No GPU server shared memory connection\n";
+       EXIT(EXIT_FAILURE);
     }
 
     // marv.prefetch();
@@ -135,9 +144,9 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
             }
         }
         Marv::Stats stats;
-        if(par.gpuServer == 0) {
+        if (serverMode == 0) {
             stats = marv->scan(reinterpret_cast<const char *>(qSeq.numSequence), qSeq.L, profile, results.data());
-        }else{
+        } else {
             while(layout->trySetServerReady(pid)==false) {
                 std::this_thread::yield();
             }
@@ -222,9 +231,9 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         resultsAln.clear();
         progress.updateProgress();
     }
-    if(par.gpuServer == 0) {
+    if (marv != NULL) {
         delete marv;
-    }else{
+    } else {
         GPUSharedMemory::unmap(layout);
     }
 
