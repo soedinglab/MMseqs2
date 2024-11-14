@@ -200,6 +200,11 @@ namespace hardcodedzero{
         __grid_constant__ const SequenceLengthT queryLength,
         __grid_constant__ const PSSM_2D_View<ScoreType> strided_PSSM
     ) {
+        if constexpr (std::is_same_v<ScoreType, short2>) {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 900
+            return;
+            #endif
+        }
         static_assert(numRegs % 4 == 0);
         static_assert(blocksize % group_size == 0);
         __builtin_assume(blockDim.x == blocksize);
@@ -604,6 +609,11 @@ namespace hardcodedzero{
         __grid_constant__ float2* const multiTileTempStorage,
         __grid_constant__ const size_t tempStorageElementsPerGroup
     ) {
+        if constexpr (std::is_same_v<ScoreType, short2>) {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 900
+            return;
+            #endif
+        }
         static_assert(numRegs % 4 == 0);
         static_assert(blocksize % group_size == 0);
         __builtin_assume(blockDim.x == blocksize);
@@ -1293,6 +1303,11 @@ namespace kernelparamzero{
         __grid_constant__ const PSSM_2D_View<ScoreType> strided_PSSM,
         __grid_constant__ const ScoreType zero
     ) {
+        if constexpr (std::is_same_v<ScoreType, short2>) {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 900
+            return;
+            #endif
+        }
         static_assert(numRegs % 4 == 0);
         static_assert(blocksize % group_size == 0);
         __builtin_assume(blockDim.x == blocksize);
@@ -1677,6 +1692,11 @@ namespace kernelparamzero{
         __grid_constant__ const size_t tempStorageElementsPerGroup,
         __grid_constant__ const ScoreType zero
     ) {
+        if constexpr (std::is_same_v<ScoreType, short2>) {
+            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 900
+            return;
+            #endif
+        }
         static_assert(numRegs % 4 == 0);
         static_assert(blocksize % group_size == 0);
         __builtin_assume(blockDim.x == blocksize);
