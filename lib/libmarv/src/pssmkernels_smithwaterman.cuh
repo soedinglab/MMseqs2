@@ -74,6 +74,11 @@ void amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_singletile(
     __grid_constant__ const ScoreType gapopenscore, 
     __grid_constant__ const ScoreType gapextendscore
 ){
+    if constexpr (std::is_same_v<ScoreType, int>) {
+        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 900
+        return;
+        #endif
+    }
     static_assert(std::is_same_v<ScoreType, float> || std::is_same_v<ScoreType, int>);
 
     static_assert(groupsize >= 4);
@@ -811,6 +816,11 @@ void amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile(
     __grid_constant__ char* const tempStorage,
     __grid_constant__ const size_t tempBytesPerGroup
 ){
+    if constexpr (std::is_same_v<ScoreType, int>) {
+        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 900
+        return;
+        #endif
+    }
     static_assert(std::is_same_v<ScoreType, float> || std::is_same_v<ScoreType, int>);
 
     static_assert(groupsize >= 4);
