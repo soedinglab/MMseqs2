@@ -3588,9 +3588,7 @@ template <typename T, typename UC>
 from_chars_result_t<UC> FASTFLOAT_CONSTEXPR14 parse_infnan(UC const *first,
                                                            UC const *last,
                                                            T &value) noexcept {
-  from_chars_result_t<UC> answer{};
-  answer.ptr = first;
-  answer.ec = std::errc(); // be optimistic
+  from_chars_result_t<UC> answer{first, std::errc()}; // be optimistic
   bool minusSign = false;
   if (*first ==
       UC('-')) { // assume first < last, so dereference without checks;
