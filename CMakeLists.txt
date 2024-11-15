@@ -21,6 +21,11 @@ set(USE_SYSTEM_ZSTD 0 CACHE BOOL "Use zstd provided by system instead of bundled
 
 set(ENABLE_CUDA 0 CACHE BOOL "Enable CUDA")
 
+set(PREFER_STATIC 0 CACHE BOOL "Prefer finding .a libs")
+if (PREFER_STATIC)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".so")
+endif()
+
 if (HAVE_SANITIZER)
     include(FindUBSan)
     include(FindASan)
