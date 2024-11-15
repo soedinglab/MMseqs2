@@ -29,6 +29,8 @@ MMseqs2 can be used by [compiling from source](https://github.com/soedinglab/MMs
     conda install -c conda-forge -c bioconda mmseqs2
     # install docker
     docker pull ghcr.io/soedinglab/mmseqs2
+    # MMseqs2-GPU mostly-static AVX2 build requiring glibc >= 2.29 and nvidia driver >=525.60.13 (see below)
+    wget https://mmseqs.com/latest/mmseqs-linux-gpu.tar.gz; tar xvfz mmseqs-linux-gpu.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
     # static build with AVX2 (fastest)
     wget https://mmseqs.com/latest/mmseqs-linux-avx2.tar.gz; tar xvfz mmseqs-linux-avx2.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
     # static build with SSE4.1
