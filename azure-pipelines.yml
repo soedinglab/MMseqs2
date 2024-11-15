@@ -159,7 +159,7 @@ jobs:
           mkdir build && cd build
           export CC=gcc-10 ; export CXX=g++-10; export CUDAHOSTCXX=$CXX; export CUDACXX=/usr/local/cuda/bin/nvcc;
           /usr/local/bin/cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_AVX2=1 \
-            -PREFER_STATIC=1 -DCMAKE_LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/10 -DBUILD_SHARED_LIBS=OFF \
+            -DPREFER_STATIC=1 -DCMAKE_LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/10 -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
             -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..
           cmake --build . -j$(nproc --all)
@@ -359,7 +359,7 @@ jobs:
       - task: ArchiveFiles@2
         inputs:
           rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
-          archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-cuda12-libc.tar.gz
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-gpu.tar.gz
           includeRootFolder: true
           archiveType: tar
       - task: DownloadPipelineArtifact@1
