@@ -30,6 +30,7 @@
 src/workflow/time_test
 
 build/
+build-*/
 .idea/
 cmake-build-*/
 BenchmarkingDatas/
