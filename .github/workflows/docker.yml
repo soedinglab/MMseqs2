@@ -119,8 +119,8 @@ jobs:
         env:
           FULL_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.tag }}-cuda12
           LATEST_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-cuda12
-          TAG: ${{ github.event.inputs.tag }}-cuda12
-          LATEST: ${{ github.event.inputs.latest }}-cuda12
+          TAG: ${{ github.event.inputs.tag }}
+          LATEST: ${{ github.event.inputs.latest }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
