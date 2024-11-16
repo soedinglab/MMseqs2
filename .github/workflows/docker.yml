@@ -106,6 +106,8 @@ jobs:
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavour: |
+            suffix=-cuda12,onlatest=true
 
       - name: Tag for workflow_dispatch
         id: dispatch_tag
@@ -117,8 +119,8 @@ jobs:
             echo "::set-output name=latest::${LATEST_TAG}"
           fi
         env:
-          FULL_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.tag }}-cuda12
-          LATEST_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-cuda12
+          FULL_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.tag }}
+          LATEST_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           TAG: ${{ github.event.inputs.tag }}
           LATEST: ${{ github.event.inputs.latest }}
 
