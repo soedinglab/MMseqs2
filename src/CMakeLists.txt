@@ -251,6 +251,10 @@ if (ENABLE_CUDA)
     find_package(CUDAToolkit REQUIRED)
     target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_CUDA=1)
     target_link_libraries(mmseqs-framework marv)
+    if (PREFER_STATIC)
+        # link to rt explicitly so it doesn't get statically compiled and adds GLIBC_PRIVATE symbols
+        target_link_libraries(mmseqs-framework rt)
+    endif ()
     target_link_libraries(mmseqs-framework CUDA::cudart_static)
 endif ()
 
