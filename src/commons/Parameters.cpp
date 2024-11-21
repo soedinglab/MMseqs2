@@ -1338,6 +1338,8 @@ Parameters::Parameters():
     clusterworkflow.push_back(&PARAM_REUSELATEST);
     clusterworkflow.push_back(&PARAM_RUNNER);
     clusterworkflow = combineList(clusterworkflow, linclustworkflow);
+    clusterworkflow = removeParameter(clusterworkflow, PARAM_GPU);
+    clusterworkflow = removeParameter(clusterworkflow, PARAM_GPU_SERVER);
 
     // easyclusterworkflow
     easyclusterworkflow = combineList(clusterworkflow, createdb);
@@ -1379,6 +1381,8 @@ Parameters::Parameters():
     clusterUpdate.push_back(&PARAM_REUSELATEST);
     clusterUpdate.push_back(&PARAM_USESEQID);
     clusterUpdate.push_back(&PARAM_RECOVER_DELETED);
+    clusterUpdate = removeParameter(clusterUpdate, PARAM_GPU);
+    clusterUpdate = removeParameter(clusterUpdate, PARAM_GPU_SERVER);
 
     mapworkflow = combineList(prefilter, rescorediagonal);
     mapworkflow = combineList(mapworkflow, extractorfs);
@@ -1388,12 +1392,16 @@ Parameters::Parameters():
     mapworkflow.push_back(&PARAM_RUNNER);
     mapworkflow.push_back(&PARAM_REUSELATEST);
     mapworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
+    mapworkflow = removeParameter(mapworkflow, PARAM_GPU);
+    mapworkflow = removeParameter(mapworkflow, PARAM_GPU_SERVER);
 
     enrichworkflow = combineList(searchworkflow, prefilter);
     enrichworkflow = combineList(enrichworkflow, subtractdbs);
     enrichworkflow = combineList(enrichworkflow, align);
     enrichworkflow = combineList(enrichworkflow, expandaln);
     enrichworkflow = combineList(enrichworkflow, result2profile);
+    enrichworkflow = removeParameter(enrichworkflow, PARAM_GPU);
+    enrichworkflow = removeParameter(enrichworkflow, PARAM_GPU_SERVER);
 
     databases.push_back(&PARAM_HELP);
     databases.push_back(&PARAM_HELP_LONG);
