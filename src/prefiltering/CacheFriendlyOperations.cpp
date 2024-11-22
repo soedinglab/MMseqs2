@@ -40,7 +40,7 @@ size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(IndexEntryLocal **input,
     do {
         setupBinPointer();
         CounterResult *lastPosition = (binDataFrame + BINCOUNT * binSize) - 1;
-        for (unsigned int i = indexFrom; i < indexTo; ++i) {
+        for (unsigned int i = indexFrom; i <= indexTo; ++i) {
             const size_t N = input[i + 1] - input[i];
             hashIndexEntry(i, input[i], N, lastPosition);
         }
