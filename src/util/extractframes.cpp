@@ -125,7 +125,6 @@ int extractframes(int argc, const char **argv, const Command& command) {
                 //     continue;
                 // }
                 reverseComplementStr.push_back('\n');
-                seqLen = reverseComplementStr.size() - 1;
                 data = reverseComplementStr.c_str();
             }
 
