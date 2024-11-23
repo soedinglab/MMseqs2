@@ -15,7 +15,7 @@ jobs:
 
       - name: Dependencies
         run: |
-          brew install -f cmake libomp rust
+          brew install -f --overwrite cmake libomp rust
 
       - name: Build
         run: |
