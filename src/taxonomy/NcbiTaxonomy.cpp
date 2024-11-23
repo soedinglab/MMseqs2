@@ -1,7 +1,3 @@
-// Ported from blast2lca
-// https://github.com/emepyc/Blast2lca
-// Originally licensed under GPLv2 or later
-
 #include "NcbiTaxonomy.h"
 #include "FileUtil.h"
 #include "MathUtil.h"
@@ -69,7 +65,7 @@ NcbiTaxonomy::NcbiTaxonomy(const std::string &namesFile, const std::string &node
     std::copy(tmpL.begin(), tmpL.end(), L);
 
     M = makeMatrix(maxNodes);
-    InitRangeMinimumQuery();
+    computeSparseTable();
 
     mmapData = NULL;
     mmapSize = 0;
@@ -203,24 +199,51 @@ void NcbiTaxonomy::elh(std::vector<std::vector<TaxID>> const & children, TaxID t
     tmpL.emplace_back(level - 1);
 }
 
-void NcbiTaxonomy::InitRangeMinimumQuery() {
-    Debug(Debug::INFO) << "Init RMQ ...";
+void NcbiTaxonomy::computeSparseTable() {
+    Debug(Debug::INFO) << "Init computeSparseTable ...";
+    // sparse table M has N rows and log(N) columns.
+    // M[i][j] refers to the subarray L[i..2^j]
+    // M[i][j] holds the index of the minimal value in the subarray
+    size_t N = maxNodes * 2; // TO DO - I think this can actually be changed to maxNodes!!!
+    // Debug(Debug::INFO) << "N: " << N << "\n";
 
-    for (unsigned int i = 0; i < (maxNodes * 2); ++i) {
-        M[i][0] = i;
+    // size_t helperCount = 0;
+
+    // initialize all rows for column 0
+    for (size_t row_ind = 0; row_ind < N; row_ind++) {
+        M[row_ind][0] = row_ind;
+        // helperCount++;
     }
 
-    for (unsigned int j = 1; (1ul << j) <= (maxNodes * 2); ++j) {
-        for (unsigned int i = 0; (i + (1ul << j) - 1) < (maxNodes * 2); ++i) {
-            int A = M[i][j - 1];
-            int B = M[i + (1ul << (j - 1))][j - 1];
-            if (L[A] < L[B]) {
-                M[i][j] = A;
+    // fill in column after column
+    size_t col_ind = 1;
+    size_t exp_prev_col_ind = 1ul; // 2 ^ 0
+    size_t exp_col_ind = (1ul << col_ind);
+
+    while (exp_col_ind <= N) {   
+        size_t row_ind = 0;
+        while (row_ind + exp_col_ind - 1 < N) {
+            int min_ind_first_half = M[row_ind][col_ind - 1];
+            int min_ind_second_half = M[row_ind + exp_prev_col_ind][col_ind - 1];
+            if (L[min_ind_first_half] < L[min_ind_second_half]) {
+                M[row_ind][col_ind] = min_ind_first_half;
+                // helperCount++;
             } else {
-                M[i][j] = B;
+                M[row_ind][col_ind] = min_ind_second_half;
+                // helperCount++;
             }
+            // increase row_ind
+            row_ind = row_ind + 1;
         }
+        // increase col_ind
+        col_ind = col_ind + 1;
+        exp_prev_col_ind = exp_col_ind;
+        exp_col_ind = (1ul << col_ind);
     }
+    // Debug(Debug::INFO) << "updated cells of M: " << helperCount << "\n";
+    // Debug(Debug::INFO) << "last used exponent: " << exp_prev_col_ind << "\n";
+    // Debug(Debug::INFO) << "last unused exponent: " << exp_col_ind << "\n";
+    // Debug(Debug::INFO) << "col_ind: " << col_ind << "\n";
     Debug(Debug::INFO) << "Done\n";
 }
 

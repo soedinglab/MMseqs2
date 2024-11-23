@@ -19,6 +19,13 @@ set(HAVE_S390X 0 CACHE BOOL "Have s390x architecture")
 set(NATIVE_ARCH 1 CACHE BOOL "Assume native architecture for SIMD. Use one of the HAVE_* options or set CMAKE_CXX_FLAGS to the appropriate flags if you disable this.")
 set(USE_SYSTEM_ZSTD 0 CACHE BOOL "Use zstd provided by system instead of bundled version")
 
+set(ENABLE_CUDA 0 CACHE BOOL "Enable CUDA")
+
+set(PREFER_STATIC 0 CACHE BOOL "Prefer finding .a libs")
+if (PREFER_STATIC)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".so")
+endif()
+
 if (HAVE_SANITIZER)
     include(FindUBSan)
     include(FindASan)
@@ -214,16 +221,20 @@ include_directories(lib/simde)
 
 include_directories(lib)
 include_directories(lib/simd)
-include_directories(lib/gzstream)
 include_directories(lib/alp)
-include_directories(lib/cacode)
 include_directories(lib/ksw2)
 include_directories(lib/xxhash)
 if (NOT DISABLE_IPS4O)
     include_directories(lib/ips4o)
 endif ()
 
-add_subdirectory(lib/cacode)
+# libmarv
+if (ENABLE_CUDA)
+    set(LIBRARY_ONLY 1 CACHE INTERNAL "" FORCE)
+    include_directories(lib/libmarv/src)
+    add_subdirectory(lib/libmarv/src EXCLUDE_FROM_ALL)
+endif ()
+
 add_subdirectory(lib/alp)
 add_subdirectory(lib/ksw2)
 add_subdirectory(data)

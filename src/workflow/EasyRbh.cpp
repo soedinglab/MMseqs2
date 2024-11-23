@@ -75,6 +75,7 @@ int easyrbh(int argc, const char **argv, const Command &command) {
     CommandCaller cmd;
     cmd.addVariable("TMP_PATH", tmpDir.c_str());
     cmd.addVariable("RESULTS", par.filenames.back().c_str());
+    cmd.addVariable("MAKEPADDEDSEQDB_PAR", par.createParameterString(par.makepaddedseqdb).c_str());
     par.filenames.pop_back();
     std::string target = par.filenames.back().c_str();
     cmd.addVariable("TARGET", target.c_str());

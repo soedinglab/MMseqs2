@@ -15,6 +15,15 @@ if notExists "${TMP_PATH}/query.dbtype"; then
     QUERY="${TMP_PATH}/query"
 fi
 
+if [ -n "${GPU}" ]; then
+    if notExists "${TMP_PATH}/query_pad"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" makepaddedseqdb "${TMP_PATH}/query" "${TMP_PATH}/query_pad" ${MAKEPADDEDSEQDB_PAR} \
+            || fail "makepaddedseqdb died"
+    fi
+    QUERY="${TMP_PATH}/query_pad"
+fi
+
 if notExists "${TARGET}.dbtype"; then
     if notExists "${TMP_PATH}/target"; then
         # shellcheck disable=SC2086
@@ -22,6 +31,15 @@ if notExists "${TARGET}.dbtype"; then
             || fail "target createdb died"
     fi
     TARGET="${TMP_PATH}/target"
+
+    if [ -n "${GPU}" ]; then
+        if notExists "${TMP_PATH}/target_pad"; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" makepaddedseqdb "${TMP_PATH}/target" "${TMP_PATH}/target_pad" ${MAKEPADDEDSEQDB_PAR} \
+                || fail "makepaddedseqdb died"
+        fi
+        TARGET="${TMP_PATH}/target_pad"
+    fi
 fi
 
 if notExists "${INTERMEDIATE}.dbtype"; then
@@ -46,10 +64,22 @@ if [ -n "${REMOVE_TMP}" ]; then
             # shellcheck disable=SC2086
             "$MMSEQS" rmdb "${TMP_PATH}/target_h" ${VERBOSITY}
         fi
+        if [ -f "${TMP_PATH}/target_pad" ]; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/target_pad" ${VERBOSITY}
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/target_pad_h" ${VERBOSITY}
+        fi
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/query" ${VERBOSITY}
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/query_h" ${VERBOSITY}
+        if [ -f "${TMP_PATH}/query_pad" ]; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/query_pad" ${VERBOSITY}
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/query_pad_h" ${VERBOSITY}
+        fi
     fi
     rm -rf "${TMP_PATH}/rbh_tmp"
     rm -f "${TMP_PATH}/easyrbh.sh"

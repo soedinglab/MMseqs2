@@ -90,6 +90,7 @@ public:
     static const unsigned int DBTYPE_EXTENDED_COMPRESSED = 1;
     static const unsigned int DBTYPE_EXTENDED_INDEX_NEED_SRC = 2;
     static const unsigned int DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS = 4;
+    static const unsigned int DBTYPE_EXTENDED_GPU = 8;
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
@@ -312,6 +313,7 @@ public:
     static const int PREF_MODE_KMER = 0;
     static const int PREF_MODE_UNGAPPED = 1;
     static const int PREF_MODE_EXHAUSTIVE = 2;
+    static const int PREF_MODE_UNGAPPED_AND_GAPPED = 3;
 
     // unpackdb
     static const int UNPACK_NAME_KEY = 0;
@@ -320,6 +322,10 @@ public:
     // result direction
     static const int PARAM_RESULT_DIRECTION_QUERY  = 0;
     static const int PARAM_RESULT_DIRECTION_TARGET = 1;
+
+    // translation mode
+    static const int PARAM_TRANSLATION_MODE_ORF = 0;
+    static const int PARAM_TRANSLATION_MODE_FRAME = 1;
 
     // path to databases
     std::string db1;
@@ -386,6 +392,8 @@ public:
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
     int    verbosity;                    // log level
+    int    gpu;                          // use GPU
+    int    gpuServer;                    // use the gpu server
     int    threads;                      // Amounts of threads
     int    compressed;                   // compressed writer
     bool   removeTmpFiles;               // Do not delete temp files
@@ -467,6 +475,7 @@ public:
     float orfFilterSens;
     double orfFilterEval;
     bool lcaSearch;
+    int translationMode;
 
     // easysearch
     bool greedyBestHits;
@@ -805,7 +814,9 @@ public:
     // logging
     PARAMETER(PARAM_V)
     std::vector<MMseqsParameter*> clust;
-
+    // gpu
+    PARAMETER(PARAM_GPU)
+    PARAMETER(PARAM_GPU_SERVER)
     // format alignment
     PARAMETER(PARAM_FORMAT_MODE)
     PARAMETER(PARAM_FORMAT_OUTPUT)
@@ -886,6 +897,7 @@ public:
     PARAMETER(PARAM_ORF_FILTER_S)
     PARAMETER(PARAM_ORF_FILTER_E)
     PARAMETER(PARAM_LCA_SEARCH)
+    PARAMETER(PARAM_TRANSLATION_MODE)
 
     // easysearch
     PARAMETER(PARAM_GREEDY_BEST_HITS)
@@ -1106,6 +1118,7 @@ public:
     std::vector<MMseqsParameter*> createlinindex;
     std::vector<MMseqsParameter*> convertalignments;
     std::vector<MMseqsParameter*> createdb;
+    std::vector<MMseqsParameter*> makepaddedseqdb;
     std::vector<MMseqsParameter*> convert2fasta;
     std::vector<MMseqsParameter*> result2flat;
     std::vector<MMseqsParameter*> result2repseq;
@@ -1178,6 +1191,9 @@ public:
     std::vector<MMseqsParameter*> tar2db;
     std::vector<MMseqsParameter*> unpackdbs;
     std::vector<MMseqsParameter*> appenddbtoindex;
+    std::vector<MMseqsParameter*> touchdb;
+    std::vector<MMseqsParameter*> gpuserver;
+    std::vector<MMseqsParameter*> tsv2exprofiledb;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);

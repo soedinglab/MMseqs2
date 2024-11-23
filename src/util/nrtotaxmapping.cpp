@@ -6,11 +6,7 @@
 #include "NcbiTaxonomy.h"
 #include "FastSort.h"
 #include "MemoryMapped.h"
-
-#ifdef HAVE_ZLIB
-#include "gzstream.h"
-#endif
-#include <fstream>
+#include "GzReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -65,26 +61,15 @@ int nrtotaxmapping(int argc, const char **argv, const Command& command) {
 
     std::vector<std::pair<std::string, TaxID>> accessionMapping;
     for (size_t i = 0; i < par.filenames.size(); i++) {
-        std::istream *kbIn;
-        if (Util::endsWith(".gz", par.filenames[i])) {
-#ifdef HAVE_ZLIB
-            kbIn = new igzstream(par.filenames[i].c_str());
-#else
-            Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Cannot read compressed input\n";
-            EXIT(EXIT_FAILURE);
-#endif
-        } else {
-            kbIn = new std::ifstream(par.filenames[i]);
-        }
-
-        if (kbIn->fail()) {
+        GzReader kbIn(par.filenames[i]);
+        if (kbIn.fail()) {
             Debug(Debug::ERROR) << "File " << par.filenames[i] << " not found\n";
             EXIT(EXIT_FAILURE);
         }
 
         std::string line;
         const char *entry[255];
-        while (std::getline(*kbIn, line)) {
+        while (kbIn.getline(line)) {
             progress.updateProgress();
             const size_t columns = Util::getWordsOfLine(line.c_str(), entry, 255);
             if (columns < 4) {

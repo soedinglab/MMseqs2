@@ -26,7 +26,7 @@ int main (int, const char**) {
     Sequence refSeq(10000, 0, &subMat, kmer_size, false, true);
     refSeq.mapSequence(0, 0, ref, strlen(ref));
 
-    char hardMaskTable[256];
+    unsigned char hardMaskTable[256];
     std::fill_n(hardMaskTable, 256, subMat.aa2num[(int) 'X']);
     double probMatrix[21][21];
 
@@ -40,12 +40,11 @@ int main (int, const char**) {
         }
         //std::cout << std::endl;
     }
-    char  refInt[100000];
 
-
+    unsigned char refInt[100000];
     for(size_t i = 0; i < 100000; i++){
         for(int i = 0; i < refSeq.L; i++){
-            refInt[i] = (char) refSeq.numSequence[i];
+            refInt[i] = (unsigned char) refSeq.numSequence[i];
         }
         tantan::maskSequences(refInt, refInt+len, 50 /*options.maxCycleLength*/,
                               probMatrixPointers,

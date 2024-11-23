@@ -4,10 +4,7 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "UniprotKB.h"
-
-#ifdef HAVE_ZLIB
-#include "gzstream.h"
-#endif
+#include "GzReader.h"
 
 #include <fstream>
 #include <set>
@@ -102,19 +99,8 @@ int convertkb(int argc, const char **argv, const Command &command) {
 
     Debug::Progress progress;
     for (std::vector<std::string>::const_iterator it = par.filenames.begin(); it != par.filenames.end(); ++it) {
-        std::istream *kbIn;
-        if (Util::endsWith(".gz", *it)) {
-#ifdef HAVE_ZLIB
-            kbIn = new igzstream((*it).c_str());
-#else
-            Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Can not read compressed input\n";
-            EXIT(EXIT_FAILURE);
-#endif
-        } else {
-            kbIn = new std::ifstream(*it);
-        }
-
-        if (kbIn->fail()) {
+        GzReader kbIn(*it);
+        if (kbIn.fail()) {
             Debug(Debug::ERROR) << "File " << (*it) << " not found\n";
             EXIT(EXIT_FAILURE);
         }
@@ -122,7 +108,7 @@ int convertkb(int argc, const char **argv, const Command &command) {
         Debug(Debug::INFO) << "Extracting data from " << (*it) << "\n";
         std::string line;
         unsigned int i = 0;
-        while (std::getline(*kbIn, line)) {
+        while (kbIn.getline(line)) {
             if (line.length() < 2) {
                 Debug(Debug::WARNING) << "Invalid entry\n";
                 continue;
@@ -156,7 +142,6 @@ int convertkb(int argc, const char **argv, const Command &command) {
                 i++;
             }
         }
-        delete kbIn;
     }
 
     for (std::vector<unsigned int>::const_iterator it = enabledColumns.begin(); it != enabledColumns.end(); ++it) {

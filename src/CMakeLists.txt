@@ -21,7 +21,6 @@ add_subdirectory(workflow)
 add_library(mmseqs-framework
         $<TARGET_OBJECTS:alp>
         $<TARGET_OBJECTS:ksw2>
-        $<TARGET_OBJECTS:cacode>
         ${alignment_header_files}
         ${alignment_source_files}
         ${clustering_header_files}
@@ -216,12 +215,20 @@ find_package(OpenMP QUIET)
 if (OPENMP_FOUND)
     message("-- Found OpenMP")
     target_compile_definitions(mmseqs-framework PUBLIC -DOPENMP=1)
-    # For GCC we dont want to do this since it breaks macOS static builds
-    # It will link libgomp.a internally (through -fopenmp I guess)
-    # and also link libgomp.dylib thus breaking static builds
-    if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
-    endif()
+    # Try to get "nearly" static builds working with everything except libc static
+    if (PREFER_STATIC)
+        set(FILTERED_LIBRARIES "")
+        foreach(LIB ${OpenMP_CXX_LIBRARIES})
+            if (NOT LIB MATCHES "pthread")
+                list(APPEND FILTERED_LIBRARIES ${LIB})
+            endif ()
+        endforeach()
+        set(OpenMP_CXX_LIBRARIES ${FILTERED_LIBRARIES})
+    endif ()
+    target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
+    if (PREFER_STATIC)
+        target_link_libraries(mmseqs-framework dl)
+    endif ()
     target_include_directories(mmseqs-framework PUBLIC ${OpenMP_CXX_INCLUDE_DIRS})
     append_target_property(mmseqs-framework COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
     append_target_property(mmseqs-framework LINK_FLAGS ${OpenMP_CXX_FLAGS})
@@ -238,6 +245,17 @@ if (HAVE_GPROF)
     else ()
         message(FATAL_ERROR "-- Could not find GPROF")
     endif ()
+endif ()
+
+if (ENABLE_CUDA)
+    find_package(CUDAToolkit REQUIRED)
+    target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_CUDA=1)
+    target_link_libraries(mmseqs-framework marv)
+    if (PREFER_STATIC)
+        # link to rt explicitly so it doesn't get statically compiled and adds GLIBC_PRIVATE symbols
+        target_link_libraries(mmseqs-framework rt)
+    endif ()
+    target_link_libraries(mmseqs-framework CUDA::cudart_static)
 endif ()
 
 if (NOT FRAMEWORK_ONLY)
