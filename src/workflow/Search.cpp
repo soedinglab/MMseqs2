@@ -320,10 +320,16 @@ int search(int argc, const char **argv, const Command& command) {
     }
 
     // GPU can only use the ungapped prefilter
-    if(par.gpu == 1 && par.PARAM_PREF_MODE.wasSet == false){
-        if( par.numIterations > 1){
+    if (par.gpu == 1 && par.PARAM_PREF_MODE.wasSet == false) {
+        if (par.numIterations > 1
+            || par.alignmentMode != Parameters::ALIGNMENT_MODE_SCORE_ONLY
+            || par.altAlignment > 0
+            || par.scoreBias != 0.0
+            || par.realign == true
+            || par.addBacktrace == true
+            ) {
             par.prefMode = Parameters::PREF_MODE_UNGAPPED;
-        }else {
+        } else {
             par.prefMode = Parameters::PREF_MODE_UNGAPPED_AND_GAPPED;
         }
     }
