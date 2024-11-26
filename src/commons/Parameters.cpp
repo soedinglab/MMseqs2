@@ -1292,7 +1292,6 @@ Parameters::Parameters():
     linsearchworkflow = combineList(align, kmersearch);
     linsearchworkflow = combineList(linsearchworkflow, swapresult);
     linsearchworkflow = combineList(linsearchworkflow, extractorfs);
-    linsearchworkflow = combineList(linsearchworkflow, translatenucs);
     linsearchworkflow = combineList(linsearchworkflow, offsetalignment);
     linsearchworkflow.push_back(&PARAM_RUNNER);
     linsearchworkflow.push_back(&PARAM_REUSELATEST);
@@ -1392,7 +1391,6 @@ Parameters::Parameters():
 
     mapworkflow = combineList(prefilter, rescorediagonal);
     mapworkflow = combineList(mapworkflow, extractorfs);
-    mapworkflow = combineList(mapworkflow, translatenucs);
     mapworkflow.push_back(&PARAM_START_SENS);
     mapworkflow.push_back(&PARAM_SENS_STEPS);
     mapworkflow.push_back(&PARAM_RUNNER);
