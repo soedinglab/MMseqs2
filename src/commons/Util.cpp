@@ -660,6 +660,16 @@ std::string SSTR(double x) {
 }
 
 template<>
+std::string SSTR(double x, int precision) {
+    return fmt::format("{:.{}E}", x, precision);
+}
+
+template<>
 std::string SSTR(float x) {
     return fmt::format("{:.3f}", x);
+}
+
+template<>
+std::string SSTR(float x, int precision) {
+    return fmt::format("{:.{}f}", x, precision);
 }

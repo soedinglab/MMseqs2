@@ -54,6 +54,7 @@ public:
 
     void printProfile(size_t queryLength);
     void printPSSM(size_t queryLength);
+    void profileToString(std::string& result, size_t queryLength);
 
     // prepare pseudocounts
     static void preparePseudoCounts(float *frequency, float *frequency_with_pseudocounts, size_t entrySize, size_t queryLength, const float **R);
