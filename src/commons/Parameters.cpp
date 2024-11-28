@@ -137,6 +137,7 @@ Parameters::Parameters():
         PARAM_PC_MODE(PARAM_PC_MODE_ID, "--pseudo-cnt-mode", "Pseudo count mode", "use 0: substitution-matrix or 1: context-specific pseudocounts", typeid(int), (void *) &pcmode, "^[0-1]{1}$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "Pseudo count admixture strength", typeid(MultiParam<PseudoCounts>), (void *) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "Pseudo counts: Neff at half of maximum admixture (range 0.0-inf)", typeid(MultiParam<PseudoCounts>), (void *) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PROFILE_OUTPUT_MODE(PARAM_PROFILE_OUTPUT_MODE_ID, "--profile-output-mode", "Profile output mode", "Profile output mode: 0: binary log-odds 1: human-readable frequencies", typeid(int), (void *) &profileOutputMode, "^[0-1]{1}$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         // sequence2profile
         PARAM_NEFF(PARAM_NEFF_ID, "--neff", "Neff", "Neff included into context state profile (1.0,20.0)", typeid(float), (void *) &neff, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_TAU(PARAM_TAU_ID, "--tau", "Tau", "Tau: context state pseudo count mixture (0.0,1.0)", typeid(float), (void *) &tau, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
@@ -570,6 +571,7 @@ Parameters::Parameters():
     result2profile.push_back(&PARAM_THREADS);
     result2profile.push_back(&PARAM_COMPRESSED);
     result2profile.push_back(&PARAM_V);
+    result2profile.push_back(&PARAM_PROFILE_OUTPUT_MODE);
 
     // createtsv
     createtsv.push_back(&PARAM_FIRST_SEQ_REP_SEQ);
@@ -2437,6 +2439,7 @@ void Parameters::setDefaults() {
     pcmode = PCMODE_SUBSTITUTION_SCORE;
     pca = MultiParam<PseudoCounts>(PseudoCounts(1.1, 1.4));
     pcb = MultiParam<PseudoCounts>(PseudoCounts(4.1, 5.8));
+    profileOutputMode = 0;
 
     // sequence2profile
     neff = 1.0;

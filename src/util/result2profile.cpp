@@ -104,7 +104,11 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     }
 
     int type = Parameters::DBTYPE_HMM_PROFILE;
-    if (returnAlnRes) {
+    const int writePlain = par.profileOutputMode == 1;
+    if (par.profileOutputMode == 1) {
+        type = Parameters::DBTYPE_OMIT_FILE;
+        par.compressed = false;
+    } else if (returnAlnRes) {
         type = Parameters::DBTYPE_ALIGNMENT_RES;
         if (needSrcIndex) {
             type = DBReader<unsigned int>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
@@ -261,18 +265,25 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                                                                                 alnResults,
 #endif
                                                                                 par.wg, 0.0);
-                if (par.compBiasCorrection == true){
-                    SubstitutionMatrix::calcGlobalAaBiasCorrection(&subMat, pssmRes.pssm, pNullBuffer,
-                                                                   Sequence::PROFILE_AA_SIZE,
-                                                                   res.centerLength);
-                }
-
-                if (par.maskProfile == true) {
-                    masker.mask(centerSequence, par.maskProb, pssmRes);
-                }
-                pssmRes.toBuffer(centerSequence, subMat, result);
+                if (writePlain) {
+                    result.clear();
+                    result.append("Query profile of sequence ");
+                    result.append(SSTR(queryKey));
+                    result.push_back('\n');
+                    calculator.profileToString(result, res.centerLength);
+                } else {                                                                
+                    if (par.compBiasCorrection == true){
+                        SubstitutionMatrix::calcGlobalAaBiasCorrection(&subMat, pssmRes.pssm, pNullBuffer,
+                                                                    Sequence::PROFILE_AA_SIZE,
+                                                                    res.centerLength);
+                    }
+                    if (par.maskProfile == true) {
+                        masker.mask(centerSequence, par.maskProb, pssmRes);
+                    }
+                    pssmRes.toBuffer(centerSequence, subMat, result);
+                } 
             }
-            resultWriter.writeData(result.c_str(), result.length(), queryKey, thread_idx);
+            resultWriter.writeData(result.c_str(), result.length(), queryKey, thread_idx, writePlain == false);
             result.clear();
             alnResults.clear();
 
@@ -281,7 +292,10 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
         }
         delete[] pNullBuffer;
     }
-    resultWriter.close(returnAlnRes == false);
+    resultWriter.close(returnAlnRes == false || writePlain == true);
+    if (writePlain) {
+        FileUtil::remove(par.db4Index.c_str());
+    }
     resultReader.close();
 
     if (!sameDatabase) {

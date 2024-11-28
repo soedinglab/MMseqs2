@@ -536,6 +536,7 @@ public:
     int pcmode;
     MultiParam<PseudoCounts> pca;
     MultiParam<PseudoCounts> pcb;
+    int profileOutputMode;
 
     // sequence2profile
     float neff;
@@ -855,6 +856,7 @@ public:
     PARAMETER(PARAM_PC_MODE)
     PARAMETER(PARAM_PCA)
     PARAMETER(PARAM_PCB)
+    PARAMETER(PARAM_PROFILE_OUTPUT_MODE)
 
     // sequence2profile
     PARAMETER(PARAM_NEFF)
