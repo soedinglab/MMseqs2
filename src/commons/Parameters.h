@@ -415,7 +415,7 @@ public:
     int    maskLowerCaseMode;            // mask lowercase letters in prefilter and kmermatchers
 
     int    minDiagScoreThr;              // min diagonal score
-    int    spacedKmer;                   // Spaced Kmers
+    MultiParam<NuclAA<int>> spacedKmer;  // Spaced Kmers
     int    split;                        // Split database in n equal chunks
     int    splitMode;                    // Split by query or target DB
     size_t splitMemoryLimit;             // Maximum memory in bytes a split can use

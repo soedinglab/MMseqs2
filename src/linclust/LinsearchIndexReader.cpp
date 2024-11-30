@@ -256,6 +256,12 @@ void LinsearchIndexReader::writeKmerIndexToDisk(std::string fileName, KmerPositi
 
 std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned int> & index, Parameters &par, int dbtype) {
     PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
+    int spacedKmer = 0;
+    if (Parameters::isEqualDbtype(dbtype, Parameters::DBTYPE_NUCLEOTIDES)) {
+        spacedKmer = par.spacedKmer.values.nucleotide();
+    } else {
+        spacedKmer = par.spacedKmer.values.aminoacid();
+    }
     if (meta.maxSeqLength != static_cast<int>(par.maxSeqLen))
         return "maxSeqLen";
     if (meta.seqType != dbtype)
@@ -266,7 +272,7 @@ std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned in
         return "kmerSize";
     if (meta.mask != (par.maskMode > 0))
         return "maskMode";
-    if (meta.spacedKmer != par.spacedKmer)
+    if (meta.spacedKmer != spacedKmer)
         return "spacedKmer";
     if (BaseMatrix::unserializeName(par.seedScoringMatrixFile.values.aminoacid().c_str()) != PrefilteringIndexReader::getSubstitutionMatrixName(&index) &&
         BaseMatrix::unserializeName(par.seedScoringMatrixFile.values.nucleotide().c_str()) != PrefilteringIndexReader::getSubstitutionMatrixName(&index))

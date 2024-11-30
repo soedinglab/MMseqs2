@@ -175,7 +175,12 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
 
         Debug(Debug::INFO) << "Write META (" << PrefilteringIndexReader::META << ")\n";
         const int mask = par.maskMode > 0;
-        const int spacedKmer = (par.spacedKmer) ? 1 : 0;
+        int spacedKmer = 0;
+        if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
+            spacedKmer = par.spacedKmer.values.nucleotide();
+        } else {
+            spacedKmer = par.spacedKmer.values.aminoacid();
+        }
         const bool sameDB = (par.db1 == par.db2);
         const int headers1 =  1;
         const int headers2 = (sameDB) ? 1 : 0;
