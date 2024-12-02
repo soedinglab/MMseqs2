@@ -2884,27 +2884,29 @@ namespace cudasw4{
                 cudaSetDevice(deviceIds[gpu]); CUERR;
                 auto& ws = *workingSets[gpu];
 
-                if(!batchPlansDstInfoVec[gpu][0].isUploaded){
-                    //all batches for cached db are now resident in gpu memory. update the flags
-                    if(ws.getNumBatchesInCachedDB() > 0){
-                        markCachedDBBatchesAsUploaded(gpu);
+                if(batchPlansDstInfoVec[gpu].size() > 0){
+                    if(!batchPlansDstInfoVec[gpu][0].isUploaded){
+                        //all batches for cached db are now resident in gpu memory. update the flags
+                        if(ws.getNumBatchesInCachedDB() > 0){
+                            markCachedDBBatchesAsUploaded(gpu);
 
-                        // current offsets in cached db store the offsets for each batch, i.e. for each batch the offsets will start again at 0
-                        // compute prefix sum to obtain the single-batch offsets
-            
-                        cudaMemsetAsync(ws.d_cacheddb->getOffsetData(), 0, sizeof(size_t), ws.workStreamForTempUsage); CUERR;
-            
-                        auto d_paddedLengths = thrust::make_transform_iterator(
-                            ws.d_cacheddb->getLengthData(),
-                            RoundToNextMultiple<size_t, 4>{}
-                        );
-            
-                        thrust::inclusive_scan(
-                            thrust::cuda::par_nosync(thrust_async_allocator<char>(ws.workStreamForTempUsage)).on(ws.workStreamForTempUsage),
-                            d_paddedLengths,
-                            d_paddedLengths + ws.getNumSequencesInCachedDB(),
-                            ws.d_cacheddb->getOffsetData() + 1
-                        );
+                            // current offsets in cached db store the offsets for each batch, i.e. for each batch the offsets will start again at 0
+                            // compute prefix sum to obtain the single-batch offsets
+                
+                            cudaMemsetAsync(ws.d_cacheddb->getOffsetData(), 0, sizeof(size_t), ws.workStreamForTempUsage); CUERR;
+                
+                            auto d_paddedLengths = thrust::make_transform_iterator(
+                                ws.d_cacheddb->getLengthData(),
+                                RoundToNextMultiple<size_t, 4>{}
+                            );
+                
+                            thrust::inclusive_scan(
+                                thrust::cuda::par_nosync(thrust_async_allocator<char>(ws.workStreamForTempUsage)).on(ws.workStreamForTempUsage),
+                                d_paddedLengths,
+                                d_paddedLengths + ws.getNumSequencesInCachedDB(),
+                                ws.d_cacheddb->getOffsetData() + 1
+                            );
+                        }
                     }
                 }
             }
