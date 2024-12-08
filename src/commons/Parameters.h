@@ -413,6 +413,7 @@ public:
     int    maskMode;                     // mask low complex areas
     float  maskProb;                     // mask probability
     int    maskLowerCaseMode;            // mask lowercase letters in prefilter and kmermatchers
+    int    maskNrepeats;                 // mask letters that occur at least N times in a row
 
     int    minDiagScoreThr;              // min diagonal score
     int    spacedKmer;                   // Spaced Kmers
@@ -754,6 +755,7 @@ public:
     PARAMETER(PARAM_MASK_RESIDUES)
     PARAMETER(PARAM_MASK_PROBABILTY)
     PARAMETER(PARAM_MASK_LOWER_CASE)
+    PARAMETER(PARAM_MASK_N_REPEAT)
 
     PARAMETER(PARAM_MIN_DIAG_SCORE)
     PARAMETER(PARAM_K_SCORE)

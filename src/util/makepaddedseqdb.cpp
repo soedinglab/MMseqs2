@@ -5,6 +5,7 @@
 #include "Util.h"
 #include "SubstitutionMatrix.h"
 #include "tantan.h"
+#include "Masker.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -30,7 +31,7 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
     dbhw.open();
 
     // need to prune low scoring k-mers through masking
-    ProbabilityMatrix probMatrix(subMat);
+    Masker masker(subMat);
 
     Debug::Progress progress(dbr.getSize());
 #pragma omp parallel
@@ -75,20 +76,9 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
                 charSequence = (unsigned char*)realloc(charSequence, charSeqBufferSize * sizeof(char));
             }
             memcpy(charSequence, seq.numSequence, seq.L);
-            tantan::maskSequences(
-                charSequence,
-                charSequence + seq.L,
-                50 /*options.maxCycleLength*/,
-                probMatrix.probMatrixPointers,
-                0.005 /*options.repeatProb*/,
-                0.05 /*options.repeatEndProb*/,
-                0.9 /*options.repeatOffsetProbDecay*/,
-                0, 0,
-                par.maskProb /*options.minMaskProb*/,
-                probMatrix.hardMaskTable
-            );
+            masker.maskSequence(seq, par.maskMode, par.maskProb, par.maskLowerCaseMode, par.maskNrepeats);
             for (int i = 0; i < seq.L; i++) {
-                result.append(1, (charSequence[i] == probMatrix.hardMaskTable[0]) ? seq.numSequence[i] + 32 : seq.numSequence[i]);
+                result.append(1, (seq.numSequence[i] == masker.maskLetterNum) ? charSequence[i] + 32 : charSequence[i]);
             }
         } else {
             for (int i = 0; i < seq.L; i++) {

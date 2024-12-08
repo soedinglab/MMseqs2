@@ -1,7 +1,6 @@
 #include "MsaFilter.h"
 #include "Parameters.h"
 #include "PSSMCalculator.h"
-#include "PSSMMasker.h"
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
@@ -9,6 +8,7 @@
 #include "FileUtil.h"
 #include "tantan.h"
 #include "IndexReader.h"
+#include "Masker.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -124,7 +124,6 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 
     // adjust score of each match state by -0.2 to trim alignment
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
-    ProbabilityMatrix probMatrix(subMat);
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
 
     if (qDbr->getDbtype() == -1 || targetSeqType == -1) {
@@ -151,7 +150,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
         Matcher matcher(qDbr->getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation,
                         par.compBiasCorrection, par.compBiasCorrectionScale,
                         par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0, par.zdrop);
-        PSSMMasker masker(maxSequenceLength, probMatrix, subMat);
+        Masker masker(subMat);
         MultipleAlignment aligner(maxSequenceLength, &subMat);
         PSSMCalculator calculator(
             &subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb
@@ -278,7 +277,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                                                                     res.centerLength);
                     }
                     if (par.maskProfile == true) {
-                        masker.mask(centerSequence, par.maskProb, pssmRes);
+                        masker.maskPssm(centerSequence, par.maskProb, pssmRes);
                     }
                     pssmRes.toBuffer(centerSequence, subMat, result);
                 } 

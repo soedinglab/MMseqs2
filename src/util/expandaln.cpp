@@ -12,10 +12,10 @@
 #include "MultipleAlignment.h"
 #include "MsaFilter.h"
 #include "PSSMCalculator.h"
-#include "PSSMMasker.h"
 #include "FastSort.h"
 #include "IntervalArray.h"
 #include "IndexReader.h"
+#include "Masker.h"
 
 #include <stack>
 #include <map>
@@ -181,7 +181,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         MultipleAlignment *aligner = NULL;
         MsaFilter *filter = NULL;
         PSSMCalculator *calculator = NULL;
-        PSSMMasker *masker = NULL;
+        Masker *masker = NULL;
         std::vector<std::vector<unsigned char>> seqSet;
         std::vector<std::vector<unsigned char>> subSeqSet;
         std::string result;
@@ -203,7 +203,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 , par.gapPseudoCount
 #endif
             );
-            masker = new PSSMMasker(par.maxSeqLen, *probMatrix, subMat);
+            masker = new Masker(subMat);
             result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE);
             seqSet.reserve(300);
         }
@@ -396,7 +396,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                                          : res.setSize;
                 PSSMCalculator::Profile pssmRes = calculator->computePSSMFromMSA(filteredSetSize, aSeq.L, (const char **) res.msaSequence, par.wg, 0.0);
                 if (par.maskProfile == true) {
-                    masker->mask(aSeq, par.maskProb, pssmRes);
+                    masker->maskPssm(aSeq, par.maskProb, pssmRes);
                 }
                 pssmRes.toBuffer(aSeq, subMat, result);
                 writer.writeData(result.c_str(), result.length(), queryKey, thread_idx);

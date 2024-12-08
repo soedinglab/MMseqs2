@@ -57,7 +57,7 @@ namespace tantan {
 typedef unsigned char uchar;
 typedef const double *const_double_ptr;
 
-void maskSequences(uchar *seqBeg,
+int maskSequences(uchar *seqBeg,
                    uchar *seqEnd,
                    int maxRepeatOffset,
                    const const_double_ptr *likelihoodRatioMatrix,
@@ -87,7 +87,7 @@ void getProbabilities(const uchar *seqBeg,
 // The following routine masks each letter whose corresponding entry
 // in "probabilities" is >= minMaskProb.
 
-void maskProbableLetters(uchar *seqBeg,
+int maskProbableLetters(uchar *seqBeg,
                          uchar *seqEnd,
                          const float *probabilities,
                          double minMaskProb,

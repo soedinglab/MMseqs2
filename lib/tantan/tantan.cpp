@@ -479,7 +479,7 @@ struct Tantan {
   }
 };
 
-void maskSequences(uchar *seqBeg,
+int maskSequences(uchar *seqBeg,
                    uchar *seqEnd,
                    int maxRepeatOffset,
                    const const_double_ptr *likelihoodRatioMatrix,
@@ -498,7 +498,7 @@ void maskSequences(uchar *seqBeg,
                    repeatOffsetProbDecay, firstGapProb, otherGapProb,
                    probabilities);
 
-  maskProbableLetters(seqBeg, seqEnd, probabilities, minMaskProb, maskTable);
+  return maskProbableLetters(seqBeg, seqEnd, probabilities, minMaskProb, maskTable);
 }
 
 void getProbabilities(const uchar *seqBeg,
@@ -517,17 +517,21 @@ void getProbabilities(const uchar *seqBeg,
   tantan.calcRepeatProbs(probabilities);
 }
 
-void maskProbableLetters(uchar *seqBeg,
+int maskProbableLetters(uchar *seqBeg,
                          uchar *seqEnd,
                          const float *probabilities,
                          double minMaskProb,
                          const uchar *maskTable) {
+  int masked = 0;
   while (seqBeg < seqEnd) {
-    if (*probabilities >= minMaskProb)
-      *seqBeg = maskTable[*seqBeg];
+    if (*probabilities >= minMaskProb) {
+        *seqBeg = maskTable[*seqBeg];
+        masked++;
+    }
     ++probabilities;
     ++seqBeg;
   }
+  return masked;
 }
 
 void countTransitions(const uchar *seqBeg,

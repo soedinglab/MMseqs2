@@ -37,6 +37,7 @@ Prefiltering::Prefiltering(const std::string &queryDB,
         maskMode(par.maskMode),
         maskLowerCaseMode(par.maskLowerCaseMode),
         maskProb(par.maskProb),
+        maskNrepeats(par.maskNrepeats),
         splitMode(par.splitMode),
         scoringMatrixFile(par.scoringMatrixFile),
         seedScoringMatrixFile(par.seedScoringMatrixFile),
@@ -537,7 +538,8 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
         IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *kmerSubMat,
                                    _3merSubMatrix, _2merSubMatrix,
                                    &tseq, tdbr, dbFrom, dbFrom + dbSize,
-                                   localKmerThr, maskMode, maskLowerCaseMode, maskProb, targetSearchMode);
+                                   localKmerThr, maskMode, maskLowerCaseMode,
+                                   maskProb, maskNrepeats, targetSearchMode);
 
         // sequenceLookup has to be temporarily present to speed up masking
         // afterwards its not needed anymore without diagonal scoring
@@ -762,7 +764,6 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
     size_t doubleMatches = 0;
     size_t querySeqLenSum = 0;
     size_t resSize = 0;
-    size_t realResSize = 0;
     size_t diagonalOverflow = 0;
     size_t totalQueryDBSize = querySize;
 
@@ -882,7 +883,6 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                 querySeqLenSum += seq.L;
                 diagonalOverflow += matcher.getStatistics()->diagonalOverflow;
                 resSize += resultSize;
-                realResSize += std::min(resultSize, maxResListLen);
                 reslens[thread_idx]->emplace_back(resultSize);
             }
         } // step end

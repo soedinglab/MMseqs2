@@ -1,6 +1,7 @@
 #include "IndexBuilder.h"
 #include "tantan.h"
 #include "ExtendedSubstitutionMatrix.h"
+#include "Masker.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -55,7 +56,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                                 SequenceLookup **unmaskedLookup,BaseMatrix &subMat,
                                 ScoreMatrix & three, ScoreMatrix & two, Sequence *seq,
                                 DBReader<unsigned int> *dbr, size_t dbFrom, size_t dbTo, int kmerThr,
-                                bool mask, bool maskLowerCaseMode, float maskProb, int targetSearchMode) {
+                                bool mask, bool maskLowerCaseMode, float maskProb, int maskNrepeats, int targetSearchMode) {
     Debug(Debug::INFO) << "Index table: counting k-mers\n";
 
     const bool isProfile = Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_HMM_PROFILE);
@@ -81,9 +82,9 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     }
 
     // need to prune low scoring k-mers through masking
-    ProbabilityMatrix *probMatrix = NULL;
+    Masker *masker = NULL;
     if (maskedLookup != NULL) {
-        probMatrix = new ProbabilityMatrix(subMat);
+        masker = new Masker(subMat);
     }
 
     // identical scores for memory reduction code
@@ -142,31 +143,9 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                 if (unmaskedLookup != NULL) {
                     (*unmaskedLookup)->addSequence(s.numSequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
                 }
-                if (mask == true) {
-                    // s.print();
-                    //TODO maskedResidues =;
-                    tantan::maskSequences((unsigned char*)s.numSequence,
-                                                            (unsigned char*)(s.numSequence + s.L),
-                                                            50 /*options.maxCycleLength*/,
-                                                            probMatrix->probMatrixPointers,
-                                                            0.005 /*options.repeatProb*/,
-                                                            0.05 /*options.repeatEndProb*/,
-                                                            0.9 /*options.repeatOffsetProbDecay*/,
-                                                            0, 0,
-                                                            maskProb /*options.minMaskProb*/,
-                                                            probMatrix->hardMaskTable);
-                }
 
-                if(maskLowerCaseMode == true && (Parameters::isEqualDbtype(s.getSequenceType(), Parameters::DBTYPE_AMINO_ACIDS) ||
-                                                  Parameters::isEqualDbtype(s.getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES))) {
-                    const char * charSeq = s.getSeqData();
-                    unsigned char maskLetter = subMat.aa2num[static_cast<int>('X')];
-                    for (int i = 0; i < s.L; i++) {
-                        bool isLowerCase = (islower(charSeq[i]));
-                        maskedResidues += isLowerCase;
-                        s.numSequence[i] = isLowerCase ? maskLetter : s.numSequence[i];
-                    }
-                }
+                maskedResidues += masker->maskSequence(s, mask, maskProb, maskLowerCaseMode, maskNrepeats);
+
                 if(maskedLookup != NULL){
                     (*maskedLookup)->addSequence(s.numSequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
                 }
@@ -182,8 +161,8 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         }
     }
 
-    if(probMatrix != NULL) {
-        delete probMatrix;
+    if(masker != NULL) {
+        delete masker;
     }
 
     Debug(Debug::INFO) << "Index table: Masked residues: " << maskedResidues << "\n";

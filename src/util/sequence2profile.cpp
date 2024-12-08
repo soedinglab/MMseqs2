@@ -7,9 +7,9 @@
 #include "DBReader.h"
 #include "Parameters.h"
 #include "DBWriter.h"
+#include "Masker.h"
 
 #include <string>
-#include <PSSMMasker.h>
 
 
 #ifdef OPENMP
@@ -37,8 +37,7 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
     {
         Sequence seq(par.maxSeqLen, sequenceDb.getDbtype(), &subMat, 0, false, false);
         CSProfile ps(par.maxSeqLen);
-        ProbabilityMatrix probMatrix(subMat);
-        PSSMMasker masker(sequenceDb.getMaxSeqLen(), probMatrix, subMat);
+        Masker masker(subMat);
         char * pssm = (char * )mem_align(16, Sequence::PROFILE_AA_SIZE * sequenceDb.getMaxSeqLen() * sizeof(char));
         float * Neff_M = new float[sequenceDb.getMaxSeqLen()];
         std::fill(Neff_M, Neff_M + sequenceDb.getMaxSeqLen(), 1.0f);
@@ -65,7 +64,7 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
             PSSMCalculator::Profile pssmRes(pssm, profile, Neff_M, seq.numSequence);
 #endif
             if (par.maskProfile == true) {
-                masker.mask(seq, par.maskProb, pssmRes);
+                masker.maskPssm(seq, par.maskProb, pssmRes);
             }
             pssmRes.toBuffer(seq, subMat, result);
 

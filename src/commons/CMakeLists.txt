@@ -22,6 +22,7 @@ set(commons_header_files
         commons/itoa.h
         commons/KSeqBufferReader.h
         commons/KSeqWrapper.h
+        commons/Masker.h
         commons/MathUtil.h
         commons/MemoryMapped.h
         commons/MemoryTracker.h
@@ -60,6 +61,7 @@ set(commons_source_files
         commons/FileUtil.cpp
         commons/HeaderSummarizer.cpp
         commons/KSeqWrapper.cpp
+        commons/Masker.cpp
         commons/MemoryMapped.cpp
         commons/MemoryTracker.cpp
         commons/MMseqsMPI.cpp
