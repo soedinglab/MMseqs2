@@ -81,11 +81,6 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         EXIT(EXIT_FAILURE);
     }
 
-    // need to prune low scoring k-mers through masking
-    Masker *masker = NULL;
-    if (maskedLookup != NULL) {
-        masker = new Masker(subMat);
-    }
 
     // identical scores for memory reduction code
     char *idScoreLookup = getScoreLookup(subMat);
@@ -99,6 +94,12 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
+        // need to prune low scoring k-mers through masking
+        Masker *masker = NULL;
+        if (maskedLookup != NULL) {
+            masker = new Masker(subMat);
+        }
+
 
         Indexer idxer(static_cast<unsigned int>(indexTable->getAlphabetSize()), seq->getKmerSize());
         Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false, true, seq->getUserSpacedKmerPattern());
@@ -159,11 +160,12 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         if (generator != NULL) {
             delete generator;
         }
+        if(masker != NULL) {
+            delete masker;
+        }
     }
 
-    if(masker != NULL) {
-        delete masker;
-    }
+
 
     Debug(Debug::INFO) << "Index table: Masked residues: " << maskedResidues << "\n";
     if(totalKmerCount == 0) {

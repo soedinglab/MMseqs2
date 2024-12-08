@@ -31,7 +31,6 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
     dbhw.open();
 
     // need to prune low scoring k-mers through masking
-    Masker masker(subMat);
 
     Debug::Progress progress(dbr.getSize());
 #pragma omp parallel
@@ -40,7 +39,7 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
     thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-
+    Masker masker(subMat);
     std::string result;
     result.reserve(par.maxSeqLen);
 

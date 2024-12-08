@@ -29,7 +29,6 @@ int masksequence(int argc, const char **argv, const Command& command) {
     }
 
     // need to prune low scoring k-mers through masking
-    Masker masker(*subMat);
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
@@ -40,6 +39,7 @@ int masksequence(int argc, const char **argv, const Command& command) {
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
+        Masker masker(*subMat);
         unsigned char *charSequence = new unsigned char[reader.getMaxSeqLen() + 1];
         Sequence seq(reader.getMaxSeqLen(), reader.getDbtype(), subMat,  0, false, false);
 #pragma omp for schedule(dynamic, 1)

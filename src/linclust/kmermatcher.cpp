@@ -63,10 +63,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
     size_t offset = 0;
     int querySeqType  =  seqDbr.getDbtype();
     size_t longestKmer = par.kmerSize;
-    Masker *masker = NULL;
-    if (par.maskMode == 1) {
-        masker = new Masker(*subMat);
-    }
+
 
     ScoreMatrix two;
     ScoreMatrix three;
@@ -85,6 +82,10 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
         unsigned short * scoreDist= new unsigned short[65536];
         unsigned int * hierarchicalScoreDist= new unsigned int[128];
 
+        Masker *masker = NULL;
+        if (par.maskMode == 1) {
+            masker = new Masker(*subMat);
+        }
         const int adjustedKmerSize = (par.adjustKmerLength) ? std::min( par.kmerSize+5, 23) :   par.kmerSize;
         Sequence seq(par.maxSeqLen, querySeqType, subMat, adjustedKmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
         KmerGenerator* generator;
@@ -335,6 +336,9 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
 #endif
             if (thread_idx == 0) {
                 seqDbr.remapData();
+            }
+            if (masker != NULL) {
+                delete masker;
             }
 #pragma omp barrier
         }
