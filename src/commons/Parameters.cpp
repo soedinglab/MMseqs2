@@ -768,6 +768,7 @@ Parameters::Parameters():
 
     // mask sequence
     masksequence.push_back(&PARAM_MASK_PROBABILTY);
+    masksequence.push_back(&PARAM_MASK_N_REPEAT);
     masksequence.push_back(&PARAM_THREADS);
     masksequence.push_back(&PARAM_COMPRESSED);
     masksequence.push_back(&PARAM_V);

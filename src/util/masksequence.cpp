@@ -46,8 +46,10 @@ int masksequence(int argc, const char **argv, const Command& command) {
         for (size_t id = 0; id < reader.getSize(); ++id) {
             seq.mapSequence(id, reader.getDbKey(id), reader.getData(id, thread_idx), reader.getSeqLen(id));
             masker.maskSequence(seq, true, par.maskProb, par.maskLowerCaseMode, par.maskNrepeats);
+            memcpy(charSequence, seq.getSeqData(), seq.L * sizeof(char));
             masker.applySoftmasking(charSequence, seq.numSequence, seq.L);
-            writer.writeData((char*)charSequence, seq.L,  thread_idx);
+            charSequence[seq.L] = '\n';
+            writer.writeData((const char *)charSequence, seq.L + 1,  seq.getDbKey(), thread_idx);
         }
         delete[] charSequence;
     }

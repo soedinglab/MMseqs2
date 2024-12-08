@@ -20,7 +20,7 @@ int Masker::maskSequence(Sequence & seq, bool maskTantan, double maskProb,
     if(maskTantan){
         // 1. Apply tantan masking without influencing by repeat mask
         maskedResidues += tantan::maskSequences(seq.numSequence,
-                                            (seq.numSequence + seq.L),
+                                            seq.numSequence + seq.L,
                                             50 /*maxCycleLength*/,
                                             probMatrix.probMatrixPointers,
                                             0.005 /*repeatProb*/,
