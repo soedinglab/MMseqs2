@@ -707,6 +707,9 @@ WeightedTaxResult NcbiTaxonomy::weightedMajorityLCA(const std::vector<WeightedTa
             continue;
         }
         TaxonNode const *node = taxonNode(currTaxId, false);
+        if (node == NULL) {
+            continue;
+        }
 
         // iterate all ancestors up to the root
         TaxID currParentTaxId = node->parentTaxId;
