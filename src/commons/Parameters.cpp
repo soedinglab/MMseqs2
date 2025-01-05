@@ -1327,7 +1327,6 @@ Parameters::Parameters():
 
     // createindex workflow
     createlinindex = combineList(kmerindexdb, extractorfs);
-    createlinindex = combineList(createlinindex, translatenucs);
     createlinindex.push_back(&PARAM_REMOVE_TMP_FILES);
 
     // linclust workflow
