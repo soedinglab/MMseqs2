@@ -84,7 +84,11 @@ elseif (HAVE_S390X)
     set(ZARCH 1 CACHE INTERNAL "")
 endif ()
 
-if (NATIVE_ARCH AND (MMSEQS_ARCH STREQUAL ""))
+if (MMSEQS_ARCH)
+    set(NATIVE_ARCH 0 CACHE INTERNAL "")
+endif ()
+
+if (NATIVE_ARCH)
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*|aarch64.*|AARCH64.*)")
         set(ARM 1 CACHE INTERNAL "")
     elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "PPC64*|ppc64*|powerpc64*")
