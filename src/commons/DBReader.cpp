@@ -185,7 +185,9 @@ template <typename T> bool DBReader<T>::open(int accessType){
     }
 
     compression = isCompressed(dbtype);
-    if(compression == COMPRESSED){
+    padded = (getExtendedDbtype(dbtype) & Parameters::DBTYPE_EXTENDED_GPU);
+
+    if(compression == COMPRESSED || padded){
         compressedBufferSizes = new size_t[threads];
         compressedBuffers = new char*[threads];
         dstream = new ZSTD_DStream*[threads];
@@ -530,6 +532,29 @@ template <typename T> size_t DBReader<T>::bsearch(const Index * index, size_t N,
     return std::upper_bound(index, index + N, val, Index::compareByIdOnly) - index;
 }
 
+
+template <typename T> char* DBReader<T>::getUnpadded(size_t id, int thrIdx) {
+    char *data = getDataUncompressed(id);
+    size_t seqLen = getSeqLen(id);
+
+    static const char CODE_TO_CHAR[21] = {
+            'A', /*  0 */ 'C', /*  1 */ 'D', /*  2 */
+            'E', /*  3 */ 'F', /*  4 */ 'G', /*  5 */
+            'H', /*  6 */ 'I', /*  7 */ 'K', /*  8 */
+            'L', /*  9 */ 'M', /* 10 */ 'N', /* 11 */
+            'P', /* 12 */ 'Q', /* 13 */ 'R', /* 14 */
+            'S', /* 15 */ 'T', /* 16 */ 'V', /* 17 */
+            'W', /* 18 */ 'Y', /* 19 */ 'X'  /* 20 */
+    };
+
+    for(size_t i = 0; i < seqLen; i++){
+        unsigned char code = static_cast<unsigned char>(data[i]);
+        unsigned char baseCode = (code >= 32) ? code - 32 : code;
+        compressedBuffers[thrIdx][i] = CODE_TO_CHAR[baseCode];
+    }
+    return compressedBuffers[thrIdx];
+}
+
 template <typename T> char* DBReader<T>::getDataCompressed(size_t id, int thrIdx) {
     char *data = getDataUncompressed(id);
 
@@ -573,7 +598,9 @@ template <typename T> size_t DBReader<T>::getAminoAcidDBSize() {
 template <typename T> char* DBReader<T>::getData(size_t id, int thrIdx){
     if(compression == COMPRESSED){
         return getDataCompressed(id, thrIdx);
-    }else{
+    }else if (padded) {
+        return getUnpadded(id, thrIdx);
+    } else {
         return getDataUncompressed(id);
     }
 }
@@ -628,7 +655,9 @@ template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey, int thrIdx) {
     size_t id = getId(dbKey);
     if(compression == COMPRESSED ){
         return (id != UINT_MAX) ? getDataCompressed(id, thrIdx) : NULL;
-    }else{
+    } if(padded) {
+        return (id != UINT_MAX) ? getUnpadded(id, thrIdx) : NULL;
+    } else{
         return (id != UINT_MAX) ? getDataByOffset(index[id].offset) : NULL;
     }
 }
@@ -1015,6 +1044,7 @@ template<typename T>
 int DBReader<T>::isCompressed(int dbtype) {
     return (dbtype & (1 << 31)) ? COMPRESSED : UNCOMPRESSED;
 }
+
 
 template<typename T>
 void DBReader<T>::setSequentialAdvice() {
