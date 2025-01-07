@@ -152,19 +152,18 @@ jobs:
           export CC=gcc-10 ; export CXX=g++-10; export CUDAHOSTCXX=$CXX; export CUDACXX=/usr/local/cuda/bin/nvcc;
           LIBGOMP=/usr/lib/gcc/x86_64-linux-gnu/10;
           /usr/local/bin/cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_AVX2=1 \
+            -DOpenMP_C_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY=${LIBGOMP}/libgomp.a \
             -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..
-          cmake --build . -j$(nproc --all)
+          cmake --build . -j$(nproc --all) -v
           # fail if GLIBC_PRIVATE or too new GLIBC is present
+          readelf -Ws src/mmseqs
+          readelf -V src/mmseqs
           if readelf -Ws src/mmseqs | grep -q GLIBC_PRIVATE; then
-            readelf -Ws src/mmseqs
-            readelf -V src/mmseqs
-            # exit 1
+            exit 1
           fi
           LIBC_V=$(readelf -V src/mmseqs | awk '$3 ~ /^GLIBC_/ { print $3 }' | sort -V | tail -n1)
           if [[ "$LIBC_V" > "GLIBC_2.29" ]]; then
-            readelf -Ws src/mmseqs
-            readelf -V src/mmseqs
-            # exit 1
+            exit 1
           fi
         displayName: Build MMseqs2
       - task: PublishPipelineArtifact@0
