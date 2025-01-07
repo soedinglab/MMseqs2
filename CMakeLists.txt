@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 cmake_policy(SET CMP0060 OLD)
 cmake_policy(SET CMP0074 NEW)
 project(MMseqs CXX C)
