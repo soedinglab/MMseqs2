@@ -2340,12 +2340,7 @@ void Parameters::setDefaults() {
     if (threadEnv != NULL) {
         threads = (int) Util::fast_atoi<unsigned int>(threadEnv);
     } else {
-        #ifdef _SC_NPROCESSORS_ONLN
-            threads = sysconf(_SC_NPROCESSORS_ONLN);
-        #endif
-        if(threads <= 1){
-            threads = Util::omp_thread_count();
-        }
+        threads = Util::omp_thread_count();
     }
 
 #endif
