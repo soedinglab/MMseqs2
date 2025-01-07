@@ -68,22 +68,22 @@ jobs:
           SIMD: 'AVX2'
           STATIC: 1
           MPI: 0
-          BUILD_TYPE: RelWithDebInfo
+          BUILD_TYPE: Release
         sse41:
           SIMD: 'SSE4_1'
           STATIC: 1
           MPI: 0
-          BUILD_TYPE: RelWithDebInfo
+          BUILD_TYPE: Release
         sse2:
           SIMD: 'SSE2'
           STATIC: 1
           MPI: 0
-          BUILD_TYPE: RelWithDebInfo
+          BUILD_TYPE: Release
         avx2_mpi:
           SIMD: 'AVX2'
           STATIC: 0
           MPI: 1
-          BUILD_TYPE: RelWithDebInfo
+          BUILD_TYPE: Release
         asan:
           SIMD: 'AVX2'
           STATIC: 0
@@ -94,10 +94,9 @@ jobs:
       - checkout: self
         submodules: true
       - script: |
-          #sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          #sudo apt-get update
-          sudo apt-get install -y g++-10
-        condition: eq(variables['BUILD_TYPE'], 'ASanOpt')
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-11 g++-11 libgcc-11-dev build-essential
         displayName: Install newer G++
       - script: |
           sudo apt-get update
@@ -106,28 +105,21 @@ jobs:
         condition: eq(variables['MPI'], 1)
       - script: |
           mkdir build && cd build
-          if [ "${BUILD_TYPE}" = "ASanOpt" ]; then
-              export CC=gcc-10 ; export CXX=g++-10
-          fi
+          export CC=gcc-11 ; export CXX=g++-11
           if [ "${STATIC}" -eq "1" ]; then
-              cmake -DHAVE_SANITIZER=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
-                -DBUILD_SHARED_LIBS=OFF \
-                -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc \
-                -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
-                -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
+            LIBGOMP=/usr/lib/gcc/x86_64-linux-gnu/11
+            cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DFORCE_STATIC_DEPS=1 -DHAVE_TESTS=1 \
+              -DOpenMP_C_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY=${LIBGOMP}/libgomp.a \
+              -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           else
-              cmake -DHAVE_SANITIZER=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
-                -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
+            cmake -DHAVE_SANITIZER=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
+              -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           fi
 
-          make -j $(nproc --all)
+          make -j $(nproc --all) VERBOSE=1
         displayName: Build MMseqs2
       - script: |
           export TTY=0
-          if [ "${BUILD_TYPE}" = "ASan" ]; then
-            echo "leak:libgomp1" > ${BUILD_SOURCESDIRECTORY}/ASan.supp
-            export ASAN_OPTIONS=suppressions=${BUILD_SOURCESDIRECTORY}/ASan.supp
-          fi
           ${BUILD_SOURCESDIRECTORY}/util/regression/run_regression.sh ${BUILD_SOURCESDIRECTORY}/build/src/mmseqs ${BUILD_SOURCESDIRECTORY}/regression
         displayName: Run Regression Suite
         condition: eq(variables['regression'], 1)
@@ -149,7 +141,7 @@ jobs:
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt-get update
-          sudo apt-get install -y gcc-10 g++-10 cuda-nvcc-12-6 build-essential libgcc-10-dev ninja-build
+          sudo apt-get install -y gcc-10 g++-10 cuda-nvcc-12-6 cuda-cudart-dev-12-6 build-essential libgcc-10-dev ninja-build
           sudo apt-get purge -y cmake
           wget https://github.com/Kitware/CMake/releases/download/v3.31.0/cmake-3.31.0-linux-x86_64.sh
           chmod +x cmake-3.31.0-linux-x86_64.sh
@@ -158,16 +150,15 @@ jobs:
       - script: |
           mkdir build && cd build
           export CC=gcc-10 ; export CXX=g++-10; export CUDAHOSTCXX=$CXX; export CUDACXX=/usr/local/cuda/bin/nvcc;
+          LIBGOMP=/usr/lib/gcc/x86_64-linux-gnu/10;
           /usr/local/bin/cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_AVX2=1 \
-            -DPREFER_STATIC=1 -DCMAKE_LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/10 -DBUILD_SHARED_LIBS=OFF \
-            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
-            -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..
+            -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..
           cmake --build . -j$(nproc --all)
           # fail if GLIBC_PRIVATE or too new GLIBC is present
-          if readelf -Ws mmseqs | grep -q GLIBC_PRIVATE; then
+          if readelf -Ws src/mmseqs | grep -q GLIBC_PRIVATE; then
             exit 1
           fi
-          LIBC_V=$(readelf -V mmseqs | awk '$3 ~ /^GLIBC_/ { print $3 }' | sort -V | tail -n1)
+          LIBC_V=$(readelf -V src/mmseqs | awk '$3 ~ /^GLIBC_/ { print $3 }' | sort -V | tail -n1)
           if [[ "$LIBC_V" > "GLIBC_2.29" ]]; then
               exit 1
           fi
@@ -184,10 +175,10 @@ jobs:
     timeoutInMinutes: 120
     strategy:
       matrix:
-        power8:
-          SIMD: POWER8
-          ARCH: ppc64el
-          CPREF: powerpc64le
+        # power8:
+        #   SIMD: POWER8
+        #   ARCH: ppc64el
+        #   CPREF: powerpc64le
         power9:
           SIMD: POWER9
           ARCH: ppc64el
@@ -215,11 +206,14 @@ jobs:
         displayName: Install Toolchain
       - script: |
           mkdir build && cd build
+          if [ "${ARCH}" = "ppc64el" ]; then
+            LIBGOMP=/usr/lib/gcc-cross/powerpc64-linux-gnu/9;
+          else
+            LIBGOMP=/usr/lib/gcc-cross/${CPREF}-linux-gnu/9;
+          fi
           CC=${CPREF}-linux-gnu-gcc CXX=${CPREF}-linux-gnu-g++ \
-           cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc \
-            -static-libstdc++" -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+           cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 -DFORCE_STATIC_DEPS=1 \
+            -DOpenMP_C_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY=${LIBGOMP}/libgomp.a \
             -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 ..
           make -j $(nproc --all)
         displayName: Build MMseqs2
@@ -382,18 +376,18 @@ jobs:
           archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-ppc64le-power9.tar.gz
           includeRootFolder: true
           archiveType: tar
-      - task: DownloadPipelineArtifact@1
-        inputs:
-          artifactName: mmseqs-linux-POWER8
-          targetPath: $(Build.SourcesDirectory)/mmseqs/bin
-      - script:
-          chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
-      - task: ArchiveFiles@2
-        inputs:
-          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
-          archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-ppc64le-power8.tar.gz
-          includeRootFolder: true
-          archiveType: tar
+      # - task: DownloadPipelineArtifact@1
+      #   inputs:
+      #     artifactName: mmseqs-linux-POWER8
+      #     targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      # - script:
+      #     chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
+      # - task: ArchiveFiles@2
+      #   inputs:
+      #     rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+      #     archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-ppc64le-power8.tar.gz
+      #     includeRootFolder: true
+      #     archiveType: tar
       - task: DownloadPipelineArtifact@1
         inputs:
           artifactName: mmseqs-linux-ARM8
@@ -431,6 +425,8 @@ jobs:
           ssh-keygen -f ~/.ssh/id_rsa -y > ~/.ssh/id_rsa.pub
           cd "${BUILD_SOURCESDIRECTORY}"
           cp mmseqs/userguide.pdf userguide.pdf
+          # disabled: mmseqs-linux-ppc64le-power8.tar.gz
+          # -F file[]=@mmseqs-linux-ppc64le-power8.tar.gz -F signature[]=@mmseqs-linux-ppc64le-power8.tar.gz.sig
           ssh-keygen -Y sign -f ~/.ssh/id_rsa -n file \
             userguide.pdf \
             mmseqs-osx-universal.tar.gz \
@@ -439,7 +435,6 @@ jobs:
             mmseqs-linux-avx2.tar.gz \
             mmseqs-linux-gpu.tar.gz \
             mmseqs-linux-arm64.tar.gz \
-            mmseqs-linux-ppc64le-power8.tar.gz \
             mmseqs-linux-ppc64le-power9.tar.gz \
             mmseqs-win64.zip
           curl --retry 5 --retry-all-errors -X POST \
@@ -450,7 +445,6 @@ jobs:
             -F file[]=@mmseqs-linux-avx2.tar.gz -F signature[]=@mmseqs-linux-avx2.tar.gz.sig \
             -F file[]=@mmseqs-linux-gpu.tar.gz -F signature[]=@mmseqs-linux-gpu.tar.gz.sig \
             -F file[]=@mmseqs-linux-arm64.tar.gz -F signature[]=@mmseqs-linux-arm64.tar.gz.sig \
-            -F file[]=@mmseqs-linux-ppc64le-power8.tar.gz -F signature[]=@mmseqs-linux-ppc64le-power8.tar.gz.sig \
             -F file[]=@mmseqs-linux-ppc64le-power9.tar.gz -F signature[]=@mmseqs-linux-ppc64le-power9.tar.gz.sig \
             -F file[]=@mmseqs-win64.zip  -F signature[]=@mmseqs-win64.zip.sig \
             -F identifier="mmseqs" -F directory="${BUILD_SOURCEVERSION}" \
