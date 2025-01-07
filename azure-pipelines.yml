@@ -206,11 +206,7 @@ jobs:
         displayName: Install Toolchain
       - script: |
           mkdir build && cd build
-          if [ "${ARCH}" = "ppc64el" ]; then
-            LIBGOMP=/usr/lib/gcc-cross/powerpc64-linux-gnu/9;
-          else
-            LIBGOMP=/usr/lib/gcc-cross/${CPREF}-linux-gnu/9;
-          fi
+          LIBGOMP=/usr/lib/gcc-cross/${CPREF}-linux-gnu/9;
           CC=${CPREF}-linux-gnu-gcc CXX=${CPREF}-linux-gnu-g++ \
            cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 -DFORCE_STATIC_DEPS=1 \
             -DOpenMP_C_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY=${LIBGOMP}/libgomp.a \
