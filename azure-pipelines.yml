@@ -145,15 +145,13 @@ jobs:
           tags: |
             manylinux-latest:latest
           buildContext: '$(Build.SourcesDirectory)'
-      - script: mkdir -p ${BUILD_SOURCESDIRECTORY}/output
-      - task: Docker@2
-        displayName: Run Build in Docker
-        inputs:
-          command: run
-          imageName: 'manylinux-latest:latest'
-          options: > 
-            -v $(Build.SourcesDirectory)/output:/output
-          arguments: /bin/bash -c "cp /work/build/src/mmseqs /output/"
+      - script: |
+          mkdir -p ${BUILD_SOURCESDIRECTORY}/output
+          docker run --rm \
+            -v ${BUILD_SOURCESDIRECTORY}/output:/output \
+            manylinux-latest:latest \
+            /bin/bash -c "cp /work/build/src/mmseqs /output/"
+        displayName: Run Docker Container and Copy Binary
       - task: PublishPipelineArtifact@1
         inputs:
           targetPath: $(Build.SourcesDirectory)/output/mmseqs
