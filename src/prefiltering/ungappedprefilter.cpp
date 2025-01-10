@@ -405,7 +405,7 @@ int prefilterInternal(int argc, const char **argv, const Command &command, int m
         const bool isGpuDb = DBReader<unsigned int>::getExtendedDbtype(tdbr->getDbtype()) & Parameters::DBTYPE_EXTENDED_GPU;
         if (isGpuDb == false) {
             Debug(Debug::ERROR) << "Database " << FileUtil::baseName(par.db2) << " is not a valid GPU database\n" 
-              << "Please call: makepaddedseqdb " << FileUtil::baseName(par.db2) << " " << FileUtil::baseName(par.db2) "_pad\n";
+                                << "Please call: makepaddedseqdb " << FileUtil::baseName(par.db2) << " " << FileUtil::baseName(par.db2) << "_pad\n";
             EXIT(EXIT_FAILURE);
         }
     }
