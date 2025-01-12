@@ -265,13 +265,14 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
             writer.writeData(entriesNumPtr, 1 * sizeof(uint64_t), (keyOffset + ENTRIESNUM), SPLIT_INDX + s);
             writer.alignToPageSize(SPLIT_INDX + s);
 
-            // SEQCOUNT
-            Debug(Debug::INFO) << "Write SEQCOUNT (" << (keyOffset + SEQCOUNT) << ")\n";
-            size_t tablesize = indexTable->getSize();
-            char *tablesizePtr = (char *) &tablesize;
-            writer.writeData(tablesizePtr, 1 * sizeof(size_t), (keyOffset + SEQCOUNT), SPLIT_INDX + s);
-            writer.alignToPageSize(SPLIT_INDX + s);
         }
+        // SEQCOUNT
+        Debug(Debug::INFO) << "Write SEQCOUNT (" << (keyOffset + SEQCOUNT) << ")\n";
+        size_t tablesize = sequenceLookup->getSequenceCount();
+        char *tablesizePtr = (char *) &tablesize;
+        writer.writeData(tablesizePtr, 1 * sizeof(size_t), (keyOffset + SEQCOUNT), SPLIT_INDX + s);
+        writer.alignToPageSize(SPLIT_INDX + s);
+
         Debug(Debug::INFO) << "Write SEQINDEXDATASIZE (" << (keyOffset + SEQINDEXDATASIZE) << ")\n";
         int64_t seqindexDataSize = sequenceLookup->getDataSize();
         char *seqindexDataSizePtr = (char *) &seqindexDataSize;
