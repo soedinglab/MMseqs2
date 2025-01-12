@@ -180,55 +180,54 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup ** extern
     }
 
     delete info;
-    Debug::Progress progress2(dbTo-dbFrom);
-
-    Debug(Debug::INFO) << "Index table: fill\n";
-    #pragma omp parallel
-    {
-        unsigned int thread_idx = 0;
+    if(indexTable != NULL) {
+        Debug::Progress progress2(dbTo - dbFrom);
+        Debug(Debug::INFO) << "Index table: fill\n";
+#pragma omp parallel
+        {
+            unsigned int thread_idx = 0;
 #ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false, true, seq->getUserSpacedKmerPattern());
-        unsigned int alphabetSize = (indexTable != NULL) ? static_cast<unsigned int>(indexTable->getAlphabetSize())
-                                                         : static_cast<unsigned int>(subMat.alphabetSize);
-        Indexer idxer(alphabetSize, seq->getKmerSize());
-        IndexEntryLocalTmp *buffer = static_cast<IndexEntryLocalTmp *>(malloc( seq->getMaxLen() * sizeof(IndexEntryLocalTmp)));
-        size_t bufferSize = seq->getMaxLen();
-        KmerGenerator *generator = NULL;
-        if (isTargetSimiliarKmerSearch) {
-            generator = new KmerGenerator(seq->getKmerSize(), indexTable->getAlphabetSize(), kmerThr);
-            if(isProfile){
-                generator->setDivideStrategy(s.profile_matrix);
-            }else{
-                generator->setDivideStrategy(&three, &two);
-            }
-        }
-
-        #pragma omp for schedule(dynamic, 100)
-        for (size_t id = dbFrom; id < dbTo; id++) {
-            s.resetCurrPos();
-            progress2.updateProgress();
-
-            unsigned int qKey = dbr->getDbKey(id);
+            Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false, true,
+                       seq->getUserSpacedKmerPattern());
+            unsigned int alphabetSize = (indexTable != NULL) ? static_cast<unsigned int>(indexTable->getAlphabetSize())
+                                                             : static_cast<unsigned int>(subMat.alphabetSize);
+            Indexer idxer(alphabetSize, seq->getKmerSize());
+            IndexEntryLocalTmp *buffer = static_cast<IndexEntryLocalTmp *>(malloc(
+                    seq->getMaxLen() * sizeof(IndexEntryLocalTmp)));
+            size_t bufferSize = seq->getMaxLen();
+            KmerGenerator *generator = NULL;
             if (isTargetSimiliarKmerSearch) {
-                s.mapSequence(id - dbFrom, qKey, dbr->getData(id, thread_idx), dbr->getSeqLen(id));
-                if(indexTable != NULL) {
-                    indexTable->addSimilarSequence(&s, generator, &buffer, bufferSize, &idxer);
+                generator = new KmerGenerator(seq->getKmerSize(), indexTable->getAlphabetSize(), kmerThr);
+                if (isProfile) {
+                    generator->setDivideStrategy(s.profile_matrix);
+                } else {
+                    generator->setDivideStrategy(&three, &two);
                 }
-            } else {
-                s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id - dbFrom));
-                if(indexTable != NULL) {
+            }
+
+#pragma omp for schedule(dynamic, 100)
+            for (size_t id = dbFrom; id < dbTo; id++) {
+                s.resetCurrPos();
+                progress2.updateProgress();
+
+                unsigned int qKey = dbr->getDbKey(id);
+                if (isTargetSimiliarKmerSearch) {
+                    s.mapSequence(id - dbFrom, qKey, dbr->getData(id, thread_idx), dbr->getSeqLen(id));
+                    indexTable->addSimilarSequence(&s, generator, &buffer, bufferSize, &idxer);
+                } else {
+                    s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id - dbFrom));
                     indexTable->addSequence(&s, &idxer, &buffer, bufferSize, kmerThr, idScoreLookup);
                 }
             }
-        }
 
-        if (generator != NULL) {
-            delete generator;
-        }
+            if (generator != NULL) {
+                delete generator;
+            }
 
-        free(buffer);
+            free(buffer);
+        }
     }
     if(idScoreLookup!=NULL){
         delete[] idScoreLookup;
