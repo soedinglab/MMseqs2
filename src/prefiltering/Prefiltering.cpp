@@ -531,11 +531,9 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
                                   Parameters::isEqualDbtype(targetSeqType,Parameters::DBTYPE_AMINO_ACIDS))
                                  ? alphabetSize -1 : alphabetSize;
         indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
-        SequenceLookup **unmaskedLookup = maskMode == 0 && maskLowerCaseMode == 0 ? &sequenceLookup : NULL;
-        SequenceLookup **maskedLookup   = maskMode == 1 || maskLowerCaseMode == 1 ? &sequenceLookup : NULL;
 
         Debug(Debug::INFO) << "Index table k-mer threshold: " << localKmerThr << " at k-mer size " << kmerSize << " \n";
-        IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *kmerSubMat,
+        IndexBuilder::fillDatabase(indexTable, &sequenceLookup, *kmerSubMat,
                                    _3merSubMatrix, _2merSubMatrix,
                                    &tseq, tdbr, dbFrom, dbFrom + dbSize,
                                    localKmerThr, maskMode, maskLowerCaseMode,
