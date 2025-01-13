@@ -58,6 +58,10 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
                                               bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode,
                                               int maskLowerCase, float maskProb, int maskNrepeats, int kmerThr, int targetSearchMode, int splits,
                                               int indexSubset) {
+    const bool noKmerIndex = (indexSubset & Parameters::INDEX_SUBSET_NO_PREFILTER) != 0;
+    if (noKmerIndex) {
+        splits = 1;
+    }
 
     const int SPLIT_META = splits > 1 ? 0 : 0;
     const int SPLIT_SEQS = splits > 1 ? 1 : 0;
@@ -189,11 +193,6 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     const int adjustAlphabetSize =
             (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_NUCLEOTIDES) || Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_AMINO_ACIDS))
                 ? alphabetSize -1: alphabetSize;
-
-    const bool noKmerIndex = (indexSubset & Parameters::INDEX_SUBSET_NO_PREFILTER) != 0;
-    if (noKmerIndex) {
-        splits = 1;
-    }
 
     ScoreMatrix s3;
     ScoreMatrix s2;
