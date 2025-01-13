@@ -289,6 +289,9 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
         writer.writeData(sequenceLookup->getData(), (sequenceLookup->getDataSize() + 1) * sizeof(char), (keyOffset + SEQINDEXDATA), SPLIT_INDX + s);
         writer.alignToPageSize(SPLIT_INDX + s);
         delete sequenceLookup;
+        if(indexTable != NULL){
+            delete indexTable;
+        }
     }
 
     if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) == false && indexSubset != Parameters::INDEX_SUBSET_NO_PREFILTER) {
