@@ -767,7 +767,9 @@ Parameters::Parameters():
     splitsequence.push_back(&PARAM_V);
 
     // mask sequence
+    masksequence.push_back(&PARAM_MASK_RESIDUES);
     masksequence.push_back(&PARAM_MASK_PROBABILTY);
+    masksequence.push_back(&PARAM_MASK_LOWER_CASE);
     masksequence.push_back(&PARAM_MASK_N_REPEAT);
     masksequence.push_back(&PARAM_THREADS);
     masksequence.push_back(&PARAM_COMPRESSED);
@@ -841,6 +843,8 @@ Parameters::Parameters():
     makepaddedseqdb.push_back(&PARAM_SCORE_BIAS);
     makepaddedseqdb.push_back(&PARAM_MASK_RESIDUES);
     makepaddedseqdb.push_back(&PARAM_MASK_PROBABILTY);
+    makepaddedseqdb.push_back(&PARAM_MASK_LOWER_CASE);
+    makepaddedseqdb.push_back(&PARAM_MASK_N_REPEAT);
     makepaddedseqdb.push_back(&PARAM_WRITE_LOOKUP);
     makepaddedseqdb.push_back(&PARAM_THREADS);
     makepaddedseqdb.push_back(&PARAM_V);
