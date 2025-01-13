@@ -45,7 +45,7 @@ int masksequence(int argc, const char **argv, const Command& command) {
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < reader.getSize(); ++id) {
             seq.mapSequence(id, reader.getDbKey(id), reader.getData(id, thread_idx), reader.getSeqLen(id));
-            masker.maskSequence(seq, par.mask, par.maskProb, par.maskLowerCaseMode, par.maskNrepeats);
+            masker.maskSequence(seq, par.maskMode, par.maskProb, par.maskLowerCaseMode, par.maskNrepeats);
             memcpy(charSequence, seq.getSeqData(), seq.L * sizeof(char));
             masker.applySoftmasking(charSequence, seq.numSequence, seq.L);
             charSequence[seq.L] = '\n';
