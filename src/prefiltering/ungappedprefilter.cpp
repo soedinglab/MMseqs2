@@ -474,9 +474,12 @@ int prefilterInternal(int argc, const char **argv, const Command &command, int m
 
     resultWriter.close();
 
-
     if(taxonomyHook != NULL){
         delete taxonomyHook;
+    }
+
+    if (sequenceLookup != NULL) {
+        delete sequenceLookup;
     }
 
     if(sameDB == false){
