@@ -457,8 +457,9 @@ size_t NcbiTaxonomy::loadMerged(const std::string &mergedFile) {
         EXIT(EXIT_FAILURE);
     }
 
+    std::unordered_map<TaxID, TaxID> mergedMap;
+    TaxID localMaxTaxID = maxTaxID;
     std::string line;
-    size_t count = 0;
     while (std::getline(ss, line)) {
         std::vector<std::string> result = splitByDelimiter(line, "\t|\t", 2);
         if (result.size() != 2) {
@@ -466,12 +467,35 @@ size_t NcbiTaxonomy::loadMerged(const std::string &mergedFile) {
             EXIT(EXIT_FAILURE);
         }
 
-        unsigned int oldId = (unsigned int)strtoul(result[0].c_str(), NULL, 10);
-        unsigned int mergedId = (unsigned int)strtoul(result[1].c_str(), NULL, 10);
+        TaxID oldId = (TaxID) strtoul(result[0].c_str(), NULL, 10);
+        TaxID mergedId = (TaxID) strtoul(result[1].c_str(), NULL, 10);
+
+        // Only update if the oldId doesn't exist yet AND the mergedId does exist
         if (!nodeExists(oldId) && nodeExists(mergedId)) {
-            D[oldId] = D[mergedId];
-            ++count;
+            if (oldId > localMaxTaxID) {
+                localMaxTaxID = oldId;
+            }
+            if (mergedId > localMaxTaxID) {
+                localMaxTaxID = mergedId;
+            }
+            mergedMap[oldId] = mergedId;
         }
+    }
+
+    // realloc D if we find a higher maxTaxID
+    if (localMaxTaxID > maxTaxID) {
+        int* newD = new int[localMaxTaxID + 1];
+        std::copy(D, D + maxTaxID + 1, newD);
+        std::fill(newD + maxTaxID + 1, newD + (localMaxTaxID + 1), -1);
+        delete[] D;
+        D = newD;
+        maxTaxID = localMaxTaxID;
+    }
+
+    size_t count = 0;
+    for (std::unordered_map<TaxID, TaxID>::iterator it = mergedMap.begin(); it != mergedMap.end(); ++it) {
+        D[it->first] = D[it->second];
+        ++count;
     }
     Debug(Debug::INFO) << " Done, added " << count << " merged nodes.\n";
     return count;
