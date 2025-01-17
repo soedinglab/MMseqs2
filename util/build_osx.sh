@@ -62,6 +62,13 @@ if [ "$(otool -L "src/${BINARY_NAME}" | tail -n +2 | grep -v -E "${ALLOWED_DL_LI
     exit 1
 fi
 
+if ! vtool -show "src/${BINARY_NAME}" | tee | grep minos | \
+     awk -v version="${MACOSX_DEPLOYMENT_TARGET}" '$2 > version { exit 1 }'
+then
+    echo "macOS deployment target was not set correctly"
+    exit 1
+fi
+
 export MACOSX_DEPLOYMENT_TARGET=11.0
 
 mkdir -p "$BUILD/build_libomp/openmp-${OMPVERSION}.src/build-arm64" && cd "$BUILD/build_libomp/openmp-${OMPVERSION}.src/build-arm64"
@@ -91,6 +98,13 @@ make -j${CPUS}
 otool -L "src/${BINARY_NAME}"
 if [ "$(otool -L "src/${BINARY_NAME}" | tail -n +2 | grep -v -E "${ALLOWED_DL_LIBS}" )" != "" ]; then
     echo "Too many linked libraries found in ${BINARY_NAME} binary. Build is not static!"
+    exit 1
+fi
+
+if ! vtool -show "src/${BINARY_NAME}" | tee | grep minos | \
+     awk -v version="${MACOSX_DEPLOYMENT_TARGET}" '$2 > version { exit 1 }'
+then
+    echo "macOS deployment target was not set correctly"
     exit 1
 fi
 
