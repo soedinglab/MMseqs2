@@ -7,7 +7,6 @@
 #include "MathUtil.h"
 #include "SubstitutionMatrixProfileStates.h"
 #include "PSSMCalculator.h"
-
 #include <climits> // short_max
 #include <cstddef>
 
@@ -206,12 +205,7 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence, 
     this->dbKey = dbKey;
     this->seqData = sequence;
     if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_AMINO_ACIDS) || Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_NUCLEOTIDES)) {
-        // check for padded database
-        if(seqLen >= 1 && sequence[0] >= 0 && sequence[0] <= 52){
-            mapSequence(id, dbKey, std::make_pair((const unsigned char *)sequence, seqLen));
-        }else{
-            mapSequence(sequence, seqLen);
-        }
+        mapSequence(sequence, seqLen);
     } else if (Parameters::isEqualDbtype(this->seqType, Parameters::DBTYPE_HMM_PROFILE)) {
         mapProfile(sequence, seqLen);
     } else {
