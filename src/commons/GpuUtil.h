@@ -41,6 +41,10 @@ struct GPUSharedMemory {
 
     static std::string getShmHash(const std::string& db) {
         std::string dbpath = FileUtil::getRealPathFromSymLink(PrefilteringIndexReader::dbPathWithoutIndex(db));
+        char* visibleDevices = getenv("CUDA_VISIBLE_DEVICES");
+        if (visibleDevices) {
+            dbpath.append(visibleDevices);
+        }
         size_t hash = Util::hash(dbpath.c_str(), dbpath.length());
         return SSTR(hash);
     }
