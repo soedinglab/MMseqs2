@@ -2,6 +2,8 @@
 #define GPUUTIL_H
 
 #include "Debug.h"
+#include "FileUtil.h"
+#include "PrefilteringIndexReader.h"
 #include "marv.h"
 #include <atomic>
 #include <cstring>
@@ -35,6 +37,12 @@ struct GPUSharedMemory {
                sizeof(char) * maxSeqLen +                              // Size for query data
                sizeof(Marv::Result) * maxResListLen +  // Size for results data
                sizeof(int8_t) * 20 * maxSeqLen;                        // Size for profile data
+    }
+
+    static std::string getShmHash(const std::string& db) {
+        std::string dbpath = FileUtil::getRealPathFromSymLink(PrefilteringIndexReader::dbPathWithoutIndex(db));
+        size_t hash = Util::hash(dbpath.c_str(), dbpath.length());
+        return SSTR(hash);
     }
 
     // Allocate and initialize shared memory

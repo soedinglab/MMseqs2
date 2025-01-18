@@ -593,7 +593,7 @@ std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB)
     return "";
 }
 
-std::string PrefilteringIndexReader::dbPathWithoutIndex(std::string & dbname) {
+std::string PrefilteringIndexReader::dbPathWithoutIndex(const std::string& dbname) {
     std::string rawname = dbname;
     // check for .idx
     size_t idxlastpos = dbname.rfind(".idx");

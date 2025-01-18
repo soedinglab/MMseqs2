@@ -18,6 +18,8 @@
 
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <chrono>
+#include <thread>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -60,14 +62,48 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         memset(compositionBias, 0, compBufferSize);
     }
 
-    // hash the realpath of par.db2
-    std::string tdbrName = par.db2;
-    std::string tdbrRelPath = FileUtil::getRealPathFromSymLink(PrefilteringIndexReader::dbPathWithoutIndex(tdbrName));
-    size_t hash = Util::hash(tdbrRelPath.c_str(), tdbrRelPath.length());
-    std::string shmFileInFile = (par.gpuServer == 0) ? "" : "/dev/shm/" + SSTR(hash);
-    if (shmFileInFile != "" && FileUtil::fileExists(shmFileInFile.c_str()) == false) {
-        Debug(Debug::ERROR) << "--gpu-server " << shmFileInFile << " does not exist";
-        EXIT(EXIT_FAILURE);
+    std::string hash = "";
+    if (par.gpuServer != 0) {
+        hash = GPUSharedMemory::getShmHash(par.db2);
+        std::string path = "/dev/shm/" + hash;
+        int waitTimeout = par.gpuServerWaitTimeout;
+        std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+        bool statusPrinted = false;
+        while (true) {
+            size_t shmSize = FileUtil::getFileSize(path);
+            // server is ready once the shm file exists and is not 0 byte large
+            if (shmSize != (size_t)-1 && shmSize > 0) {
+                break;
+            }
+
+            if (waitTimeout == 0) {
+                Debug(Debug::ERROR) 
+                    << "gpuserver for database " << par.db2 << " not found.\n"
+                    << "Please start gpuserver with the same CUDA_VISIBLE_DEVICES\n";
+                EXIT(EXIT_FAILURE);
+            }
+
+            if (waitTimeout > 0) {
+                if (statusPrinted == false) {
+                    Debug(Debug::INFO) << "Waiting for `gpuserver`";
+                    statusPrinted = true;
+                } else {
+                    Debug(Debug::INFO) << ".";
+                }
+                std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count();
+                if (elapsed >= waitTimeout) {
+                    Debug(Debug::ERROR)
+                        << "gpuserver for database " << par.db2 << " not found after " << elapsed <<  "seconds.\n"
+                        << "Please start gpuserver with the same CUDA_VISIBLE_DEVICES\n";
+                    EXIT(EXIT_FAILURE);
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+        if (waitTimeout > 0 && statusPrinted) {
+            Debug(Debug::INFO) << "\n";
+        }
     }
 
     size_t* offsetData = NULL;
@@ -76,7 +112,7 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
     std::vector<int32_t> lengths;
     GPUSharedMemory* layout = NULL;
     pid_t pid = 0;  // current process ID, only for server
-    if (FileUtil::fileExists(shmFileInFile.c_str()) == false) {
+    if (hash.empty()) {
         offsets.reserve(tdbr->getSize() + 1);
         lengths.reserve(tdbr->getSize());
         for (size_t id = 0; id < tdbr->getSize(); id++) {
@@ -88,7 +124,7 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         lengthData = lengths.data();
     } else {
         pid = getpid();
-        layout = GPUSharedMemory::openSharedMemory(SSTR(hash));
+        layout = GPUSharedMemory::openSharedMemory(hash);
     }
 
     const bool serverMode = par.gpuServer;

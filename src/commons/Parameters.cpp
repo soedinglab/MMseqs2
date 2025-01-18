@@ -104,6 +104,7 @@ Parameters::Parameters():
         // gpu
         PARAM_GPU(PARAM_GPU_ID, "--gpu", "Use GPU", "Use GPU (CUDA) if possible", typeid(int), (void *) &gpu, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
         PARAM_GPU_SERVER(PARAM_GPU_SERVER_ID, "--gpu-server", "Use GPU server", "Use GPU server", typeid(int), (void *) &gpuServer, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
+        PARAM_GPU_SERVER_WAIT_TIMEOUT(PARAM_GPU_SERVER_WAIT_TIMEOUT_ID, "--gpu-server-wait-timeout", "Wait for GPU server", "Wait for GPU server for 0: don't wait -1: no wait limit: >0 this many seconds", typeid(int), (void *) &gpuServerWaitTimeout, "^-?[0-9]+", MMseqsParameter::COMMAND_COMMON),
         // convertalignments
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID, "--format-mode", "Alignment format", "Output format:\n0: BLAST-TAB\n1: SAM\n2: BLAST-TAB + query/db length\n3: Pretty HTML\n4: BLAST-TAB + column headers\nBLAST-TAB (0) and BLAST-TAB + column headers (4) support custom output formats (--format-output)", typeid(int), (void *) &formatAlignmentMode, "^[0-4]{1}$"),
         PARAM_FORMAT_OUTPUT(PARAM_FORMAT_OUTPUT_ID, "--format-output", "Format alignment output", "Choose comma separated list of output columns from: query,target,evalue,gapopen,pident,fident,nident,qstart,qend,qlen\ntstart,tend,tlen,alnlen,raw,bits,cigar,qseq,tseq,qheader,theader,qaln,taln,qframe,tframe,mismatch,qcov,tcov\nqset,qsetid,tset,tsetid,taxid,taxname,taxlineage,qorfstart,qorfend,torfstart,torfend,ppos", typeid(std::string), (void *) &outfmt, ""),
@@ -455,6 +456,7 @@ Parameters::Parameters():
     ungappedprefilter.push_back(&PARAM_PRELOAD_MODE);
     ungappedprefilter.push_back(&PARAM_GPU);
     ungappedprefilter.push_back(&PARAM_GPU_SERVER);
+    ungappedprefilter.push_back(&PARAM_GPU_SERVER_WAIT_TIMEOUT);
     ungappedprefilter.push_back(&PARAM_PREF_MODE);
     ungappedprefilter.push_back(&PARAM_THREADS);
     ungappedprefilter.push_back(&PARAM_COMPRESSED);
@@ -1357,6 +1359,7 @@ Parameters::Parameters():
     clusterworkflow = combineList(clusterworkflow, linclustworkflow);
     clusterworkflow = removeParameter(clusterworkflow, PARAM_GPU);
     clusterworkflow = removeParameter(clusterworkflow, PARAM_GPU_SERVER);
+    clusterworkflow = removeParameter(clusterworkflow, PARAM_GPU_SERVER_WAIT_TIMEOUT);
 
     // easyclusterworkflow
     easyclusterworkflow = combineList(clusterworkflow, createdb);
@@ -1400,6 +1403,7 @@ Parameters::Parameters():
     clusterUpdate.push_back(&PARAM_RECOVER_DELETED);
     clusterUpdate = removeParameter(clusterUpdate, PARAM_GPU);
     clusterUpdate = removeParameter(clusterUpdate, PARAM_GPU_SERVER);
+    clusterUpdate = removeParameter(clusterUpdate, PARAM_GPU_SERVER_WAIT_TIMEOUT);
 
     mapworkflow = combineList(prefilter, rescorediagonal);
     mapworkflow = combineList(mapworkflow, extractorfs);
@@ -1410,6 +1414,7 @@ Parameters::Parameters():
     mapworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
     mapworkflow = removeParameter(mapworkflow, PARAM_GPU);
     mapworkflow = removeParameter(mapworkflow, PARAM_GPU_SERVER);
+    mapworkflow = removeParameter(mapworkflow, PARAM_GPU_SERVER_WAIT_TIMEOUT);
 
     enrichworkflow = combineList(searchworkflow, prefilter);
     enrichworkflow = combineList(enrichworkflow, subtractdbs);
@@ -1418,6 +1423,7 @@ Parameters::Parameters():
     enrichworkflow = combineList(enrichworkflow, result2profile);
     enrichworkflow = removeParameter(enrichworkflow, PARAM_GPU);
     enrichworkflow = removeParameter(enrichworkflow, PARAM_GPU_SERVER);
+    enrichworkflow = removeParameter(enrichworkflow, PARAM_GPU_SERVER_WAIT_TIMEOUT);
 
     databases.push_back(&PARAM_HELP);
     databases.push_back(&PARAM_HELP_LONG);
@@ -2468,6 +2474,7 @@ void Parameters::setDefaults() {
     }
 #endif
     gpuServer = 0;
+    gpuServerWaitTimeout = 10 * 60;
 #ifdef HAVE_CUDA
     char* gpuServerEnv = getenv("MMSEQS_FORCE_GPUSERVER");
     if (gpuServerEnv != NULL) {

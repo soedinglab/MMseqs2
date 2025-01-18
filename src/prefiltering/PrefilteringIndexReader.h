@@ -86,7 +86,7 @@ public:
 
     static std::string searchForIndex(const std::string &pathToDB);
 
-    static std::string dbPathWithoutIndex(std::string &dbname);
+    static std::string dbPathWithoutIndex(const std::string &dbname);
 
 private:
     static void printMeta(int *meta);
