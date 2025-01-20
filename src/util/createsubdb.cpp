@@ -47,6 +47,7 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     std::vector<std::string> arr;
     while (getline(&line, &len, orderFile) != -1) {
         Util::parseKey(line, dbKey);
+        arr = Util::split(line, "\t");
         unsigned int key;
         if (lookupMode) {
             size_t lookupId = reader.getLookupIdByAccession(dbKey);
@@ -66,60 +67,49 @@ int createsubdb(int argc, const char **argv, const Command& command) {
             Debug(Debug::WARNING) << "Key " << dbKey << " not found in database\n";
             continue;
         }
-        if (isIndex == true) { 
-            if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
-                writer.writeIndexEntry(key, reader.getOffset(id), reader.getEntryLen(id), 0);
-            } else {
-                char* data = reader.getDataUncompressed(id);
-                size_t originalLength = reader.getEntryLen(id);
-                size_t entryLength = std::max(originalLength, static_cast<size_t>(1)) - 1;
+        if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
+            writer.writeIndexEntry(key, reader.getOffset(id), reader.getEntryLen(id), 0);
+        } else if (isIndex == true || arr.size() == 1) { 
+            char* data = reader.getDataUncompressed(id);
+            size_t originalLength = reader.getEntryLen(id);
+            size_t entryLength = std::max(originalLength, static_cast<size_t>(1)) - 1;
 
-                if (isCompressed) {
-                    // copy also the null byte since it contains the information if compressed or not
-                    entryLength = *(reinterpret_cast<unsigned int *>(data)) + sizeof(unsigned int) + 1;
-                    writer.writeData(data, entryLength, key, 0, false, false);
-                } else {
-                    writer.writeData(data, entryLength, key, 0, true, false);
-                }
-                // do not write null byte since
-                writer.writeIndexEntry(key, writer.getStart(0), originalLength, 0);
+            if (isCompressed) {
+                // copy also the null byte since it contains the information if compressed or not
+                entryLength = *(reinterpret_cast<unsigned int *>(data)) + sizeof(unsigned int) + 1;
+                writer.writeData(data, entryLength, key, 0, false, false);
+            } else {
+                writer.writeData(data, entryLength, key, 0, true, false);
             }
+            // do not write null byte since
+            writer.writeIndexEntry(key, writer.getStart(0), originalLength, 0);
         } else {
-            arr = Util::split(line, "\t");
             char* data = reader.getDataUncompressed(id);
             size_t originalLength = reader.getEntryLen(id);
             size_t entryLength = std::max(originalLength, static_cast<size_t>(1)) - 1;
             int totalLength = 0;
-            if (arr.size() == 1) {
-                if (isCompressed) {
-                    // copy also the null byte since it contains the information if compressed or not
-                    entryLength = *(reinterpret_cast<unsigned int *>(data)) + sizeof(unsigned int) + 1;
-                    writer.writeData(data, entryLength, key, 0, false, false);
-                } else {
-                    writer.writeData(data, entryLength, key, 0, true, false);
-                }
-                // do not write null byte since
-                writer.writeIndexEntry(key, writer.getStart(0), originalLength, 0);
-            } else if (arr.size()%2 == 0) {
+            if (isCompressed) {
+                entryLength = *(reinterpret_cast<unsigned int *>(data)) + sizeof(unsigned int) + 1;
+            }
+            if (arr.size()%2 == 0) {
                 Debug(Debug::ERROR) << "Input list not in format\n";
             } else {
                 result = new char[entryLength];
                 for (int ord = 0 ; ord < int((arr.size()-1)/2); ord ++) {
-                    if (isCompressed) {
-                        //TODO. erase line below
-                        totalLength+=1;
-                    } else {
-                        int currLength = std::stoi(arr[ord * 2 + 2])  - std::stoi(arr[ord * 2 + 1]) + 1;
-                        strncpy(result + totalLength, data + std::stoi(arr[ord * 2 + 1]), currLength);
-                        totalLength += currLength;
-                    }
+                    int currLength = std::stoi(arr[ord * 2 + 2])  - std::stoi(arr[ord * 2 + 1]) + 1;
+                    strncpy(result + totalLength, data + std::stoi(arr[ord * 2 + 1]), currLength);
+                    totalLength += currLength;
                 }
-                writer.writeData(result, totalLength, key, 0, false, false);
+                if (isCompressed) {
+                    //TODO
+                } else {
+                    writer.writeData(result, totalLength, key, 0, false, false);
+                }
                 writer.writeAdd(&newLine, 1, 0);
+                writer.writeIndexEntry(key, writer.getStart(0), totalLength + 2, 0);
                 delete [] result;
                 result = nullptr;
             }
-            writer.writeIndexEntry(key, writer.getStart(0), totalLength + 2, 0);
         }
     }
     // merge any kind of sequence database
