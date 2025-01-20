@@ -554,6 +554,7 @@ public:
     std::string weightFile;
     bool matchAdjacentSeq;
     float hashSeqBuffer;
+    int numDiskBuffer;
 
     // indexdb
     int checkCompatible;
