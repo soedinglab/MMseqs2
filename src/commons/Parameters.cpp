@@ -2515,9 +2515,9 @@ void Parameters::setDefaults() {
     resultDirection = Parameters::PARAM_RESULT_DIRECTION_TARGET;
     weightThr = 0.9;
     weightFile = "";
-    // TODO: change to true after fixing regression tests
-    matchAdjacentSeq = false;
+    matchAdjacentSeq = true;
     hashSeqBuffer = 1.05;
+    numDiskBuffer = 0;
 
     // result2stats
     stat = "";

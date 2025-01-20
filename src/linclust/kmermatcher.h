@@ -217,10 +217,10 @@ public:
 
 template  <int TYPE, typename T>
 size_t assignGroup(KmerPosition<T, false> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr,
-                   SequenceWeights * sequenceWeights, float weightThr, BaseMatrix *subMat, float &hashSeqBuffer);
+                   SequenceWeights * sequenceWeights, float weightThr, BaseMatrix *subMat, float &hashSeqBuffer, std::string tmpFile, int &numDiskBuffer);
 template  <int TYPE, typename T>
 size_t assignGroup(KmerPosition<T, true> *kmers, size_t splitKmerCount, bool includeOnlyExtendable, int covMode, float covThr,
-                   SequenceWeights * sequenceWeights, float weightThr, BaseMatrix *subMat, float &hashSeqBuffer);
+                   SequenceWeights * sequenceWeights, float weightThr, BaseMatrix *subMat, float &hashSeqBuffer, std::string tmpFile, int &numDiskBuffer);
 
 template <int TYPE, typename T>
 void mergeKmerFilesAndOutput(DBWriter & dbw, std::vector<std::string> tmpFiles, std::vector<char> &repSequence);
@@ -239,11 +239,13 @@ template <int TYPE, typename T, bool IncludeAdjacentSeq>
 void writeKmerMatcherResult(DBWriter & dbw, KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, size_t totalKmers,
                             std::vector<char> &repSequence, size_t threads);
 
-
+template <typename T, bool IncludeAdjacentSeq>
+void resizeBuffer(size_t totalKmers, size_t hashStartRange, size_t hashEndRange, DBReader<unsigned int> & seqDbr, 
+                   Parameters & par, BaseMatrix * subMat);
 template <typename T, bool IncludeAdjacentSeq>
 KmerPosition<T, IncludeAdjacentSeq> * doComputation(size_t &totalKmers, size_t split, size_t splits, std::string splitFile,
-                                DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat,
-                                size_t KMER_SIZE, size_t chooseTopKmer, float chooseTopKmerScale = 0.0);
+                                                    DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix * subMat,
+                                                    size_t KMER_SIZE, size_t chooseTopKmer, float chooseTopKmerScale = 0.0);
 template <typename T, bool IncludeAdjacentSeq = false>
 KmerPosition<T, IncludeAdjacentSeq> *initKmerPositionMemory(size_t size);
 
