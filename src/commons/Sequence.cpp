@@ -7,7 +7,6 @@
 #include "MathUtil.h"
 #include "SubstitutionMatrixProfileStates.h"
 #include "PSSMCalculator.h"
-
 #include <climits> // short_max
 #include <cstddef>
 
@@ -227,7 +226,11 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
             numSequence = static_cast<unsigned char *>(realloc(numSequence, this->L+1));
             maxLen = this->L;
         }
-        memcpy(this->numSequence, data.first, this->L);
+        // map softmasked sequences to regular sequences
+        // softmasked character start at 32
+        for(int i = 0; i < this->L; i++){
+            this->numSequence[i] = ( data.first[i] >= 32) ? data.first[i] - 32 : data.first[i];
+        }
     } else {
         Debug(Debug::ERROR) << "Invalid sequence type!\n";
         EXIT(EXIT_FAILURE);

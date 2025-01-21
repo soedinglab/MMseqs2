@@ -21,6 +21,15 @@ if notExists "${TARGET}.dbtype"; then
             || fail "target createdb died"
     fi
     TARGET="${TMP_PATH}/target"
+
+    if [ -n "${GPU}" ]; then
+        if notExists "${TMP_PATH}/target_pad"; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" makepaddedseqdb "${TMP_PATH}/target" "${TMP_PATH}/target_pad" ${MAKEPADDEDSEQDB_PAR} \
+                || fail "makepaddedseqdb died"
+        fi
+        TARGET="${TMP_PATH}/target_pad"
+    fi
 fi
 
 if [ -n "${LINSEARCH}" ] && notExists "${TARGET}.linidx"; then
@@ -66,6 +75,14 @@ if [ -n "${REMOVE_TMP}" ]; then
             # shellcheck disable=SC2086
             "$MMSEQS" rmdb "${TMP_PATH}/target_h" ${VERBOSITY}
         fi
+
+        if [ -f "${TMP_PATH}/target_pad" ]; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/target_pad" ${VERBOSITY}
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/target_pad_h" ${VERBOSITY}
+        fi
+        
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/query" ${VERBOSITY}
         # shellcheck disable=SC2086

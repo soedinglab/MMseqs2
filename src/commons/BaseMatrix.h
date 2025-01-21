@@ -102,7 +102,7 @@ public:
         delete[] probMatrixPointers;
     }
 
-    char hardMaskTable[256];
+    unsigned char hardMaskTable[256];
     const double **probMatrixPointers;
 
 private:

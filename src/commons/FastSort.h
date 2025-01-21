@@ -1,4 +1,5 @@
 #include <algorithm>
+
 #ifdef ENABLE_IPS4O
 # include "simde/hedley.h"
 # if defined(HEDLEY_GCC_VERSION) && HEDLEY_GCC_VERSION_CHECK(0,0,0) && !HEDLEY_GCC_VERSION_CHECK(5,1,0) && defined(__cplusplus)
@@ -14,14 +15,6 @@
 # endif
 # define SORT_SERIAL std::sort
 #else
-# ifdef OPENMP
-#  include <omptl/omptl_algorithm>
-#  define SORT_PARALLEL omptl::sort
-# else
-#  define SORT_PARALLEL std::sort
-# endif
+# define SORT_PARALLEL std::sort
 # define SORT_SERIAL std::sort
 #endif
-
-
-

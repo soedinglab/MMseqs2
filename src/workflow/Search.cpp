@@ -208,8 +208,8 @@ int search(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < par.extractorfs.size(); i++) {
         par.extractorfs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
-    for (size_t i = 0; i < par.translatenucs.size(); i++) {
-        par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
+    for (size_t i = 0; i < par.extractframes.size(); i++) {
+        par.extractframes[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
     for (size_t i = 0; i < par.splitsequence.size(); i++) {
         par.splitsequence[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
@@ -319,12 +319,30 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("ALIGN_MODULE", "align");
     }
 
+    // GPU can only use the ungapped prefilter
+    if (par.gpu == 1 && par.PARAM_PREF_MODE.wasSet == false) {
+        if (par.numIterations > 1
+            || par.alignmentMode != Parameters::ALIGNMENT_MODE_SCORE_ONLY
+            || par.altAlignment > 0
+            || par.scoreBias != 0.0
+            || par.realign == true
+            || par.addBacktrace == true
+            ) {
+            par.prefMode = Parameters::PREF_MODE_UNGAPPED;
+        } else {
+            par.prefMode = Parameters::PREF_MODE_UNGAPPED_AND_GAPPED;
+        }
+    }
+
     switch(par.prefMode){
         case Parameters::PREF_MODE_KMER:
             cmd.addVariable("PREFMODE", "KMER");
             break;
         case Parameters::PREF_MODE_UNGAPPED:
             cmd.addVariable("PREFMODE", "UNGAPPED");
+            break;
+        case Parameters::PREF_MODE_UNGAPPED_AND_GAPPED:
+            cmd.addVariable("PREFMODE", "UNGAPPED_AND_GAPPED");
             break;
         case Parameters::PREF_MODE_EXHAUSTIVE:
             cmd.addVariable("PREFMODE", "EXHAUSTIVE");
@@ -337,6 +355,10 @@ int search(int argc, const char **argv, const Command& command) {
 //    cmd.addVariable("ALIGNMENT_DB_EXT", Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_PROFILE_STATE_SEQ) ? ".255" : "");
     par.filenames[1] = targetDB;
     if (par.exhaustiveSearch == true) {
+        if (par.gpu != 0) {
+            Debug(Debug::ERROR) << "No GPU support in exhaustive search\n";
+            EXIT(EXIT_FAILURE);
+        }
         // By default (0), diskSpaceLimit (in bytes) will be set in the workflow to use as much as possible
         cmd.addVariable("AVAIL_DISK", SSTR(static_cast<size_t>(par.diskSpaceLimit)).c_str());
 
@@ -351,7 +373,7 @@ int search(int argc, const char **argv, const Command& command) {
         par.maxResListLen = std::max((size_t)300, queryDbSize);
         if(par.prefMode == Parameters::PREF_MODE_KMER){
             cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
-        } else if (par.prefMode == Parameters::PREF_MODE_UNGAPPED) {
+        } else if (par.prefMode == Parameters::PREF_MODE_UNGAPPED || par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) {
             cmd.addVariable("UNGAPPEDPREFILTER_PAR", par.createParameterString(par.ungappedprefilter).c_str());
         }
         par.maxResListLen = maxResListLen;
@@ -377,6 +399,10 @@ int search(int argc, const char **argv, const Command& command) {
         FileUtil::writeFile(program, searchslicedtargetprofile_sh, searchslicedtargetprofile_sh_len);
     } else if (((searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_PROFILE) && (searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_AMINOACID))
         && par.PARAM_NUM_ITERATIONS.wasSet){
+        if (par.gpu != 0) {
+            Debug(Debug::ERROR) << "No GPU support in profile-profile search\n";
+            EXIT(EXIT_FAILURE);
+        }
         par.exhaustiveSearch = true;
         par.addBacktrace = true;
         int originalNumIterations = par.numIterations;
@@ -407,7 +433,8 @@ int search(int argc, const char **argv, const Command& command) {
             if (par.prefMode == Parameters::PREF_MODE_KMER) {
                 cmd.addVariable(std::string("PREFILTER_PAR_" + SSTR(i)).c_str(),
                                 par.createParameterString(par.prefilter).c_str());
-            } else if (par.prefMode == Parameters::PREF_MODE_UNGAPPED) {
+            } else if (par.prefMode == Parameters::PREF_MODE_UNGAPPED ||
+                       par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) {
                 cmd.addVariable(std::string("UNGAPPEDPREFILTER_PAR_" + SSTR(i)).c_str(),
                                 par.createParameterString(par.ungappedprefilter).c_str());
             }
@@ -424,6 +451,10 @@ int search(int argc, const char **argv, const Command& command) {
         FileUtil::writeFile(tmpDir + "/iterativepp.sh", iterativepp_sh, iterativepp_sh_len);
         program = std::string(tmpDir + "/iterativepp.sh");
     } else if (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_PROFILE) {
+        if (par.gpu != 0) {
+            Debug(Debug::ERROR) << "No GPU support in target-side k-mer search\n";
+            EXIT(EXIT_FAILURE);
+        }
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         // we need to align all hits in case of target Profile hits
         size_t maxResListLen = par.maxResListLen;
@@ -487,8 +518,12 @@ int search(int argc, const char **argv, const Command& command) {
         program = std::string(tmpDir + "/blastpgp.sh");
     } else {
         if (par.sensSteps > 1) {
+            if (par.gpu != 0) {
+                Debug(Debug::ERROR) << "No GPU support in increasing sensitivity search\n";
+                EXIT(EXIT_FAILURE);
+            }
             if (par.startSens > par.sensitivity) {
-                Debug(Debug::ERROR) << "--start-sens should not be greater -s.\n";
+                Debug(Debug::ERROR) << "--start-sens can not be greater than -s\n";
                 EXIT(EXIT_FAILURE);
             }
             cmd.addVariable("SENSE_0", SSTR(par.startSens).c_str());
@@ -518,7 +553,8 @@ int search(int argc, const char **argv, const Command& command) {
         }
         if (par.prefMode == Parameters::PREF_MODE_KMER) {
             cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilterWithoutS).c_str());
-        } else if (par.prefMode == Parameters::PREF_MODE_UNGAPPED) {
+        } else if (par.prefMode == Parameters::PREF_MODE_UNGAPPED ||
+                   par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) {
             cmd.addVariable("UNGAPPEDPREFILTER_PAR", par.createParameterString(par.ungappedprefilter).c_str());
         }
         if (isUngappedMode) {
@@ -534,19 +570,28 @@ int search(int argc, const char **argv, const Command& command) {
 
     if (searchMode & (Parameters::SEARCH_MODE_FLAG_QUERY_TRANSLATED|Parameters::SEARCH_MODE_FLAG_TARGET_TRANSLATED)) {
         cmd.addVariable("NO_TARGET_INDEX", (indexStr == "") ? "TRUE" : NULL);
-        FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
         cmd.addVariable("QUERY_NUCL", (searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_TRANSLATED) ? "TRUE" : NULL);
-        cmd.addVariable("TARGET_NUCL", (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_TRANSLATED)  ? "TRUE" : NULL);
+        cmd.addVariable("TARGET_NUCL", (searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_TRANSLATED) ? "TRUE" : NULL);
         cmd.addVariable("THREAD_COMP_PAR", par.createParameterString(par.threadsandcompression).c_str());
         par.subDbMode = 1;
         cmd.addVariable("CREATESUBDB_PAR", par.createParameterString(par.createsubdb).c_str());
         par.translate = 1;
-        cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());
+        cmd.addVariable("ORF_SKIP", par.translationMode == Parameters::PARAM_TRANSLATION_MODE_FRAME ? "TRUE" : NULL);
+        if (par.translationMode == Parameters::PARAM_TRANSLATION_MODE_FRAME) {
+            cmd.addVariable("EXTRACT_FRAMES_PAR", par.createParameterString(par.extractframes).c_str());
+        } else {
+            cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
+        }
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");
+        FileUtil::writeFile(program.c_str(), translated_search_sh, translated_search_sh_len);
     }else if(searchMode & Parameters::SEARCH_MODE_FLAG_QUERY_NUCLEOTIDE &&
             searchMode & Parameters::SEARCH_MODE_FLAG_TARGET_NUCLEOTIDE){
+        if (par.gpu != 0) {
+            Debug(Debug::ERROR) << "No GPU support in nucleotide search\n";
+            EXIT(EXIT_FAILURE);
+        }
         FileUtil::writeFile(tmpDir + "/blastn.sh", blastn_sh, blastn_sh_len);
         //  0: reverse, 1: forward, 2: both
         switch (par.strand){

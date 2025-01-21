@@ -239,6 +239,23 @@ void PSSMCalculator::printPSSM(size_t queryLength){
     }
 }
 
+void PSSMCalculator::profileToString(std::string& result, size_t queryLength){
+    result.append(5, ' ');
+    for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+        result.append(SSTR(subMat->num2aa[aa]));
+        result.append(6, ' ');
+    }
+    result.append(1, '\n');
+    for (size_t i = 0; i < queryLength; i++) {
+        for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+            result.append(SSTR(profile[i * Sequence::PROFILE_AA_SIZE + aa], 4));
+            result.append(1, ' ');
+        }
+        result.append(1, '\n');
+    }
+    result.append(1, '\n');
+}
+
 void PSSMCalculator::computeLogPSSM(BaseMatrix *subMat, char *pssm, const float *profile, float bitFactor, size_t queryLength, float scoreBias) {
     for(size_t pos = 0; pos < queryLength; pos++) {
         for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
