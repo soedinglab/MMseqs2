@@ -1039,6 +1039,7 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
     }
     MPI_Barrier(MPI_COMM_WORLD);
     if(mpiRank == 0){
+        std::string splitBufferName;
         for(size_t split = 0; split < splits; split++) {
             std::string splitFileName = par.db2 + "_split_" +SSTR(split);
             splitFiles.push_back(splitFileName);
