@@ -1,0 +1,77 @@
+FROM quay.io/pypa/manylinux2014_x86_64
+ARG VER="12-6"
+ARG ARCH="x86_64"
+
+# CUDA
+RUN yum install -y yum-utils
+RUN yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo
+# libcublas-devel-${VER}.${ARCH}
+RUN yum -y install cuda-nvcc-${VER}.${ARCH} cuda-cudart-devel-${VER}.${ARCH}
+RUN echo "/usr/local/cuda/lib64" >> /etc/ld.so.conf.d/999_nvidia_cuda.conf
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+ENV CUDA_HOME=/usr/local/cuda
+ENV CUDA_ROOT=/usr/local/cuda
+ENV CUDA_PATH=/usr/local/cuda
+ENV CUDADIR=/usr/local/cuda
+
+# Build system
+RUN yum install -y git wget vim zlib-devel bzip2-devel ninja-build centos-release-scl
+RUN mv /etc/yum.repos.d/CentOS-SCLo-scl.repo /etc/yum.repos.d/CentOS-SCLo-scl.repo.disabled
+RUN yum install -y devtoolset-11-gcc devtoolset-11-gcc-c++ devtoolset-11-libatomic-devel
+ENV CC=/opt/rh/devtoolset-11/root/bin/gcc
+ENV CXX=/opt/rh/devtoolset-11/root/bin/g++
+ENV CUDAHOSTCXX=/opt/rh/devtoolset-11/root/bin/g++
+ENV CUDACXX=/usr/local/cuda/bin/nvcc
+ENV LIBGCC=/opt/rh/devtoolset-11/root/usr/lib/gcc/x86_64-redhat-linux/11
+
+# cmake
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.31.0/cmake-3.31.0-linux-x86_64.sh; \
+    chmod +x cmake-3.31.0-linux-x86_64.sh; \
+    ./cmake-3.31.0-linux-x86_64.sh --skip-license --prefix=/usr/local;
+
+RUN mkdir /deps; \
+    cd /deps; \
+    wget https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz; \
+    tar xzvf bzip2-1.0.8.tar.gz; \
+    cd bzip2-1.0.8; \
+    make install PREFIX=/deps;
+
+RUN cd /deps; \
+    wget https://www.zlib.net/zlib-1.3.1.tar.gz; \
+    tar xzvf zlib-1.3.1.tar.gz; \
+    cd zlib-1.3.1; \
+    ./configure --prefix=/deps --static; \
+    make install;
+
+# compile
+WORKDIR /work
+ADD . .
+RUN mkdir -p /work/build && cd /work/build; \
+    if [ -e "${LIBGCC}/libgomp.so" ]; then \
+        mv -f -- "${LIBGCC}/libgomp.so" "${LIBGCC}/libgomp.so.disabled"; \
+    fi; \
+    /usr/local/bin/cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_AVX2=1 \
+        -DOpenMP_C_FLAGS="-fopenmp -I${LIBGCC} -L${LIBGCC}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGCC} -L${LIBGCC}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY="${LIBGCC}/libgomp.a" \
+        -DATOMIC_LIB_OVERRIDE="${LIBGCC}/libatomic.a" \
+        -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
+        -DZLIB_ROOT=/deps -DBZIP2_ROOT=/deps \
+        -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..; \
+    cmake --build . -j$(nproc --all) -v;
+
+RUN if ldd /work/build/src/mmseqs | grep -P -v "linux-vdso.so|/lib64/(ld-linux-x86-64|libc|libm|libdl|librt|libpthread).so" | grep -q .; then \
+        echo "Error: unwanted libraries found"; \
+        ldd /work/build/src/mmseqs; \
+        exit 1; \
+    fi; \
+    if readelf -Ws /work/build/src/mmseqs | grep -q GLIBC_PRIVATE; then \
+        echo "Error: binary contains private glibc symbols"; \
+        readelf -Ws /work/build/src/mmseqs; \
+        exit 1; \
+    fi; \
+    LIBC_V=$(readelf -V /work/build/src/mmseqs | awk '$3 ~ /^GLIBC_/ { print $3 }' | sort -V | tail -n1); \
+    if [[ "$LIBC_V" > "GLIBC_2.17" ]]; then \
+        echo "Error: glibc too new"; \
+        readelf -V /work/build/src/mmseqs; \
+        exit 1; \
+    fi;

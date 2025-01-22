@@ -9,6 +9,7 @@
 #include <fstream>
 #include <random>
 #include <iostream>
+#include <unordered_map>
 
 #include <regex.h>
 
@@ -51,6 +52,8 @@ ComparisonOperator mapOperator(const std::string& op) {
 #define INCREASING 1
 #define DECREASING 2
 #define SHUFFLE    3
+#define PRIORITY   4
+
 
 struct compareString {
     bool operator() (const std::string& lhs, const std::string& rhs) const{
@@ -84,6 +87,8 @@ struct compareFirstEntryDecreasing {
 
 int filterdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
+    par.PARAM_WEIGHT_FILE.replaceCategory(MMseqsParameter::COMMAND_MISC);
+
     par.parseParameters(argc, argv, command, true, 0, 0);
 
     const size_t column = static_cast<size_t>(par.filterColumn);
@@ -108,7 +113,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
 
     // JOIN_DB
     DBReader<unsigned int>* helper = NULL;
-
+    std::unordered_map<unsigned int, float> weights;
     // REGEX_FILTERING
     regex_t regex;
     std::random_device rng;
@@ -117,6 +122,32 @@ int filterdb(int argc, const char **argv, const Command &command) {
     if (par.sortEntries != 0) {
         mode = SORT_ENTRIES;
         Debug(Debug::INFO) << "Filtering by sorting entries\n";
+        if (par.sortEntries == PRIORITY) {
+            if (par.weightFile.empty()) {
+                Debug(Debug::ERROR) << "Weights file (--weights) must be specified for priority sorting.\n";
+                EXIT(EXIT_FAILURE);
+            }
+            Debug(Debug::INFO) << "Sorting entries by priority\n";
+            // Read the weights
+            std::ifstream weightsFile(par.weightFile);
+            if (!weightsFile) {
+                Debug(Debug::ERROR) << "Cannot open weights file " << par.weightFile << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+
+            std::string line;
+            while (std::getline(weightsFile, line)) {
+                std::istringstream iss(line);
+                unsigned int key;
+                float weight;
+                if (!(iss >> key >> weight)) {
+                    Debug(Debug::WARNING) << "Invalid line in weights file: " << line << "\n";
+                    continue;
+                }
+                weights[key] = weight;
+            }
+            weightsFile.close();
+        }
     } else if (par.filteringFile.empty() == false) {
         mode = FILE_FILTERING;
         Debug(Debug::INFO) << "Filtering using file(s)\n";
@@ -453,8 +484,19 @@ int filterdb(int argc, const char **argv, const Command &command) {
                         memcpy(lineBuffer, newLineBuffer, newLineBufferIndex + 1);
                     }
                 } else if (mode == SORT_ENTRIES) {
-                    toSort.emplace_back(std::strtod(columnValue, NULL), lineBuffer);
-                    // do not put anything in the output buffer
+                    if (par.sortEntries == PRIORITY) {
+                        unsigned int key = static_cast<unsigned int>(strtoul(columnPointer[column - 1], NULL, 10));
+                        float weight = 0.0f;
+                        auto it = weights.find(key);
+                        if (it != weights.end()) {
+                            weight = it->second;
+                        }
+                        toSort.emplace_back(weight, std::string(lineBuffer));
+                    } else {
+                        // Existing code
+                        toSort.emplace_back(std::strtod(columnValue, NULL), lineBuffer);
+                    }
+                    // Do not put anything in the output buffer
                     nomatch = 1;
                 } else {
                     // Unknown filtering mode, keep all entries
@@ -482,7 +524,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
             if (mode == SORT_ENTRIES) {
                 if (par.sortEntries == INCREASING) {
                     std::stable_sort(toSort.begin(), toSort.end(), compareFirstEntry());
-                } else if (par.sortEntries == DECREASING) {
+                } else if (par.sortEntries == DECREASING || par.sortEntries == PRIORITY) {
                     std::stable_sort(toSort.begin(), toSort.end(), compareFirstEntryDecreasing());
                 } else if (par.sortEntries == SHUFFLE) {
                     std::shuffle(toSort.begin(), toSort.end(), urng);

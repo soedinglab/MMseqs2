@@ -1,56 +1,18 @@
 #!/usr/bin/env perl
-#
-# xxdi.pl - perl implementation of 'xxd -i' mode
-#
-# Copyright 2013 Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-# Copyright 2013 Linux Foundation
-#
-# Released under the GPLv2.
-#
-# Implements the "basic" functionality of 'xxd -i' in perl to keep build
-# systems from having to build/install/rely on vim-core, which not all
-# distros want to do.  But everyone has perl, so use it instead.
-#
 
 use strict;
 use warnings;
-sub slurp {
-    my $file = shift;
-    open my $fh, '<', $file or die;
-    local $/ = undef;
-    my $cont = <$fh>;
-    close $fh;
-    return $cont;
-}
-my $indata = slurp(@ARGV ? $ARGV[0] : \*STDIN);
-my $len_data = length($indata);
-my $num_digits_per_line = 12;
-my $var_name;
-my $outdata;
 
-# Use the variable name of the file we read from, converting '/' and '.
-# to '_', or, if this is stdin, just use "stdin" as the name.
-if (@ARGV) {
-	$var_name = $ARGV[0];
-	$var_name =~ s/\//_/g;
-	$var_name =~ s/\./_/g;
-} else {
-	$var_name = "stdin";
-}
+my $file = shift;
+open my $input, '<', $file or die "Can't open file for read: $file $!";
+my $text = do { local $/; <$input> };
+close $input;
 
-$outdata .= "unsigned char $var_name\[] = {";
+my @hex_values = map { "0x$_" } unpack("(H2)*", $text);
+my $hex_data = join(",", map { ($_ % 16 == 0 ? "\n\t" : "") . $hex_values[$_] } 0 .. $#hex_values);
+my $len_data = length($text);
 
-# trailing ',' is acceptable, so instead of duplicating the logic for
-# just the last character, live with the extra ','.
-for (my $key= 0; $key < $len_data; $key++) {
-	if ($key % $num_digits_per_line == 0) {
-		$outdata .= "\n\t";
-	}
-	$outdata .= sprintf("0x%.2x, ", ord(substr($indata, $key, 1)));
-}
-
-$outdata .= "\n};\nunsigned int $var_name\_len = $len_data;\n";
-
-binmode STDOUT;
-print {*STDOUT} $outdata;
-
+my $varname = $file;
+$varname =~ s/[\/.]/_/g;
+print "unsigned char $varname\[\] = { $hex_data \n};\n";
+print "unsigned int ${varname}_len = $len_data;\n";

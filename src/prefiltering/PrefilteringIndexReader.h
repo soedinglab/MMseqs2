@@ -60,7 +60,7 @@ public:
                                 DBReader<unsigned int> *alndbr,
                                 BaseMatrix *seedSubMat, int maxSeqLen, bool spacedKmer, const std::string &spacedKmerPattern,
                                 bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode,
-                                int maskLowerCase, float maskProb, int kmerThr, int targetSearchMode, int splits, int indexSubset = 0);
+                                int maskLowerCase, float maskProb, int maskNrepeats, int kmerThr, int targetSearchMode, int splits, int indexSubset = 0);
 
     static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads, bool touchIndex, bool touchData);
 
@@ -86,7 +86,7 @@ public:
 
     static std::string searchForIndex(const std::string &pathToDB);
 
-    static std::string dbPathWithoutIndex(std::string &dbname);
+    static std::string dbPathWithoutIndex(const std::string &dbname);
 
 private:
     static void printMeta(int *meta);

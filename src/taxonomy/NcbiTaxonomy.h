@@ -1,8 +1,3 @@
-// Ported from blast2lca
-// Copyright: 2010 Miguel Pignatelli
-// License: GPLv2 or later
-// https://github.com/emepyc/Blast2lca
-
 #ifndef MMSEQS_NCBITAXONOMY_H
 #define MMSEQS_NCBITAXONOMY_H
 
@@ -128,7 +123,7 @@ private:
     size_t loadMerged(const std::string &mergedFile);
     void loadNames(std::vector<TaxonNode> &tmpNodes, const std::string &namesFile);
     void elh(std::vector<std::vector<TaxID>> const & children, int node, int level, std::vector<int> &tmpE, std::vector<int> &tmpL);
-    void InitRangeMinimumQuery();
+    void computeSparseTable();
     int nodeId(TaxID taxId) const;
 
     int RangeMinimumQuery(int i, int j) const;

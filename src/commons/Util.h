@@ -28,6 +28,12 @@ std::string SSTR(T) {
     return "";
 }
 
+template<typename T>
+std::string SSTR(T, int) {
+    static_assert(assert_false<T>::value , "Not implemented for requested type");
+    return "";
+}
+
 template<> std::string SSTR(const char*);
 template<> std::string SSTR(char*);
 template<> std::string SSTR(bool);
@@ -45,6 +51,8 @@ template<> std::string SSTR(long long);
 template<> std::string SSTR(unsigned long long);
 template<> std::string SSTR(double);
 template<> std::string SSTR(float);
+template<> std::string SSTR(double, int precision);
+template<> std::string SSTR(float, int precision);
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 

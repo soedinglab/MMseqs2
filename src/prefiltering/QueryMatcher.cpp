@@ -323,11 +323,14 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     outer:
     indexPointer[indexTo + 1] = databaseHits + numMatches;
     // fill the output
-    size_t hitCount = findDuplicates(indexPointer, foundDiagonals + overflowHitCount,
+    size_t hitCount = 0;
+    if(numMatches > 0){
+        hitCount = findDuplicates(indexPointer, foundDiagonals + overflowHitCount,
                                      foundDiagonalsSize - overflowHitCount, indexStart, indexTo, (diagonalScoring == false));
-    if (overflowHitCount != 0) {
-        // overflow occurred
-        hitCount = mergeElements(foundDiagonals, overflowHitCount + hitCount);
+        if (overflowHitCount != 0) {
+            // overflow occurred
+            hitCount = mergeElements(foundDiagonals, overflowHitCount + hitCount);
+        }
     }
     stats->doubleMatches = 0;
     if (diagonalScoring == false) {

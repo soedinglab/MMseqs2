@@ -174,6 +174,8 @@ public:
 
     char* getDataCompressed(size_t id, int thrIdx);
 
+    char* getUnpadded(size_t id, int thrIdx);
+
     char* getDataUncompressed(size_t id);
 
     void touchData(size_t id);
@@ -479,6 +481,7 @@ private:
     // stores the dbtype (if dbtype file exists)
     int dbtype;
     int compression;
+    int padded;
     char ** compressedBuffers;
     size_t * compressedBufferSizes;
     ZSTD_DStream ** dstream;

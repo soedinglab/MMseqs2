@@ -90,6 +90,7 @@ private:
     int maskMode;
     int maskLowerCaseMode;
     float maskProb;
+    int maskNrepeats;
     int splitMode;
     int kmerThr;
     MultiParam<NuclAA<std::string>> scoringMatrixFile;

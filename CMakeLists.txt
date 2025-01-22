@@ -18,16 +18,31 @@ set(HAVE_ARM8 0 CACHE BOOL "Have ARMv8 CPU")
 set(HAVE_S390X 0 CACHE BOOL "Have s390x architecture")
 set(NATIVE_ARCH 1 CACHE BOOL "Assume native architecture for SIMD. Use one of the HAVE_* options or set CMAKE_CXX_FLAGS to the appropriate flags if you disable this.")
 set(USE_SYSTEM_ZSTD 0 CACHE BOOL "Use zstd provided by system instead of bundled version")
+set(ENABLE_CUDA 0 CACHE BOOL "Enable CUDA")
+set(FORCE_STATIC_DEPS 0 CACHE BOOL "Force static linking of deps")
+
+if(FORCE_STATIC_DEPS)
+    if(ENABLE_CUDA)
+        set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so CACHE INTERNAL "" FORCE)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    else()
+        set(CMAKE_FIND_LIBRARY_SUFFIXES .a CACHE INTERNAL "" FORCE)
+        set(CMAKE_LINK_SEARCH_START_STATIC ON CACHE INTERNAL "" FORCE)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
+    endif()
+    set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "" FORCE)
+endif()
+
+if(NOT XCODE AND NOT MSVC AND NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
 
 if (HAVE_SANITIZER)
     include(FindUBSan)
     include(FindASan)
     include(FindMSan)
     include(FindTSan)
-endif ()
-
-if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
 endif ()
 
 # find compiler
@@ -77,7 +92,11 @@ elseif (HAVE_S390X)
     set(ZARCH 1 CACHE INTERNAL "")
 endif ()
 
-if (NATIVE_ARCH AND (MMSEQS_ARCH STREQUAL ""))
+if (MMSEQS_ARCH)
+    set(NATIVE_ARCH 0 CACHE INTERNAL "")
+endif ()
+
+if (NATIVE_ARCH)
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*|aarch64.*|AARCH64.*)")
         set(ARM 1 CACHE INTERNAL "")
     elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "PPC64*|ppc64*|powerpc64*")
@@ -205,21 +224,29 @@ add_subdirectory(lib/tinyexpr EXCLUDE_FROM_ALL)
 include_directories(lib/microtar)
 add_subdirectory(lib/microtar)
 
+# tantan
+include_directories(lib/tantan)
+add_subdirectory(lib/tantan)
+
 # simde
 include_directories(lib/simde)
 
 include_directories(lib)
 include_directories(lib/simd)
-include_directories(lib/gzstream)
 include_directories(lib/alp)
-include_directories(lib/cacode)
 include_directories(lib/ksw2)
 include_directories(lib/xxhash)
 if (NOT DISABLE_IPS4O)
     include_directories(lib/ips4o)
 endif ()
 
-add_subdirectory(lib/cacode)
+# libmarv
+if (ENABLE_CUDA)
+    set(LIBRARY_ONLY 1 CACHE INTERNAL "" FORCE)
+    include_directories(lib/libmarv/src)
+    add_subdirectory(lib/libmarv/src EXCLUDE_FROM_ALL)
+endif ()
+
 add_subdirectory(lib/alp)
 add_subdirectory(lib/ksw2)
 add_subdirectory(data)

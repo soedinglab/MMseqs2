@@ -30,6 +30,7 @@ set(util_source_files
         util/filtera3m.cpp
         util/filterdb.cpp
         util/gff2db.cpp
+        util/gpuserver.cpp
         util/renamedbkeys.cpp
         util/makepaddedseqdb.cpp
         util/masksequence.cpp
