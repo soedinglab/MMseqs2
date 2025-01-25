@@ -134,13 +134,21 @@ jobs:
     pool:
       vmImage: 'Ubuntu-20.04'
     timeoutInMinutes: 120
+    strategy:
+      matrix:
+        x86_64:
+          ARCH: x86_64
+          DOCKER: .github/workflows/Dockerfile.GPU-manylinux2014
+        aarch64:
+          ARCH: aarch64
+          DOCKER: .github/workflows/Dockerfile.GPU-buster-cross-sbsa
     steps:
       - checkout: self
         submodules: false
       - script: |
           mkdir -p ${BUILD_SOURCESDIRECTORY}/output
           docker build -t manylinux-builder \
-            -f .github/workflows/Dockerfile.GPU-manylinux2014 .
+            -f ${DOCKER} .
           docker run --rm \
             -v ${BUILD_SOURCESDIRECTORY}/output:/output \
             manylinux-builder \
@@ -149,7 +157,7 @@ jobs:
       - task: PublishPipelineArtifact@0
         inputs:
           targetPath: $(Build.SourcesDirectory)/output/mmseqs
-          artifactName: mmseqs-linux-gpu
+          artifactName: mmseqs-linux-gpu-$(ARCH)
 
   - job: build_ubuntu_cross
     displayName: Ubuntu Cross-Compile
@@ -333,7 +341,7 @@ jobs:
           archiveType: tar
       - task: DownloadPipelineArtifact@1
         inputs:
-          artifactName: mmseqs-linux-gpu
+          artifactName: mmseqs-linux-gpu-x86_64
           targetPath: $(Build.SourcesDirectory)/mmseqs/bin
       - script:
           chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
@@ -341,6 +349,18 @@ jobs:
         inputs:
           rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
           archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-gpu.tar.gz
+          includeRootFolder: true
+          archiveType: tar
+      - task: DownloadPipelineArtifact@1
+        inputs:
+          artifactName: mmseqs-linux-gpu-aarch64
+          targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - script:
+          chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-gpu-arm64.tar.gz
           includeRootFolder: true
           archiveType: tar
       - task: DownloadPipelineArtifact@1
@@ -413,6 +433,7 @@ jobs:
             mmseqs-linux-sse41.tar.gz \
             mmseqs-linux-avx2.tar.gz \
             mmseqs-linux-gpu.tar.gz \
+            mmseqs-linux-gpu-arm64.tar.gz \
             mmseqs-linux-arm64.tar.gz \
             mmseqs-linux-ppc64le-power9.tar.gz \
             mmseqs-win64.zip
@@ -423,6 +444,7 @@ jobs:
             -F file[]=@mmseqs-linux-sse41.tar.gz -F signature[]=@mmseqs-linux-sse41.tar.gz.sig \
             -F file[]=@mmseqs-linux-avx2.tar.gz -F signature[]=@mmseqs-linux-avx2.tar.gz.sig \
             -F file[]=@mmseqs-linux-gpu.tar.gz -F signature[]=@mmseqs-linux-gpu.tar.gz.sig \
+            -F file[]=@mmseqs-linux-gpu-arm64.tar.gz -F signature[]=@mmseqs-linux-gpu-arm64.tar.gz.sig \
             -F file[]=@mmseqs-linux-arm64.tar.gz -F signature[]=@mmseqs-linux-arm64.tar.gz.sig \
             -F file[]=@mmseqs-linux-ppc64le-power9.tar.gz -F signature[]=@mmseqs-linux-ppc64le-power9.tar.gz.sig \
             -F file[]=@mmseqs-win64.zip  -F signature[]=@mmseqs-win64.zip.sig \
