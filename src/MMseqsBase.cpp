@@ -572,7 +572,15 @@ std::vector<Command> baseCommands = {
                                                            {"DB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
 
 
-
+        {"pickconsensusrep", pickconsensusrep,            &par.verbandcompression,            COMMAND_CLUSTER,
+                "Select new representatives for each cluster based on consensus",
+                NULL,
+                "Martin Steinegger <martin.steinegger@snu.ac.kr> & Maria Hauser",
+                "<i:seqDb> <i:clusterDB> <o:clusterDB> <tmpDir>",
+                CITATION_MMSEQS2, {{"seqDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                          {"clusterDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::clusterDb },
+                                          {"clusterDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::clusterDb },
+                                          {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"prefilter",            prefilter,            &par.prefilter,            COMMAND_PREFILTER,
                 "Double consecutive diagonal k-mer search",
                 NULL,
