@@ -716,7 +716,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         uint32_t mapq = -4.343 * log(exp(static_cast<double>(-rawScore)));
                         mapq = (uint32_t) (mapq + 4.99);
                         mapq = mapq < 254 ? mapq : 254;
-                        int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t",  queryId.c_str(), (forward) ? 0 : 16, targetId.c_str(), res.dbStartPos + 1, mapq);
+                        int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t",  queryId.c_str(), (forward) ? 0 : 16, targetId.c_str(), std::min(res.dbStartPos + 1, res.dbEndPos + 1), mapq);
                         if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
                             Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
                             continue;
