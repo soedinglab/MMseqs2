@@ -2362,7 +2362,7 @@ namespace cudasw4{
             const int numGpus = deviceIds.size();
             const bool useExtraThreadForBatchTransfer = numGpus > 1;
         
-            size_t totalNumberOfSequencesToProcess = std::reduce(numSequencesPerGpu.begin(), numSequencesPerGpu.end());
+            size_t totalNumberOfSequencesToProcess = std::accumulate(numSequencesPerGpu.begin(), numSequencesPerGpu.end(), 0u);
             
             size_t totalNumberOfProcessedSequences = 0;
         
