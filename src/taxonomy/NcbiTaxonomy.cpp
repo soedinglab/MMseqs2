@@ -486,7 +486,7 @@ size_t NcbiTaxonomy::loadMerged(const std::string &mergedFile) {
     if (localMaxTaxID > maxTaxID) {
         int* newD = new int[localMaxTaxID + 1];
         std::copy(D, D + maxTaxID + 1, newD);
-        std::fill(newD + maxTaxID + 1, newD + (localMaxTaxID + 1), -1);
+        std::fill_n(newD + maxTaxID + 1, localMaxTaxID - maxTaxID, -1);
         delete[] D;
         D = newD;
         maxTaxID = localMaxTaxID;
@@ -501,8 +501,7 @@ size_t NcbiTaxonomy::loadMerged(const std::string &mergedFile) {
     return count;
 }
 
-std::unordered_map<TaxID, TaxonCounts> NcbiTaxonomy::getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts) const {
-    Debug(Debug::INFO) << "Calculating clade counts ... ";
+std::unordered_map<TaxID, TaxonCounts> NcbiTaxonomy::getCladeCounts(const std::unordered_map<TaxID, unsigned int>& taxonCounts) const {
     std::unordered_map<TaxID, TaxonCounts> cladeCounts;
 
     for (std::unordered_map<TaxID, unsigned int>::const_iterator it = taxonCounts.begin(); it != taxonCounts.end(); ++it) {
@@ -525,7 +524,6 @@ std::unordered_map<TaxID, TaxonCounts> NcbiTaxonomy::getCladeCounts(std::unorder
         }
     }
 
-    Debug(Debug::INFO) << " Done\n";
     return cladeCounts;
 }
 
