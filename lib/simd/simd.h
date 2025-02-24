@@ -163,8 +163,18 @@ typedef __m512i simd_int;
 #define SIMD_INT
 #define ALIGN_INT           AVX2_ALIGN_INT
 #define VECSIZE_INT         AVX2_VECSIZE_INT
+uint32_t simd_hmax32_sse(const __m128i buffer);
 uint16_t simd_hmax16_sse(const __m128i buffer);
 uint8_t simd_hmax8_sse(const __m128i buffer);
+
+inline uint32_t simd_hmax32_avx(const __m256i buffer) {
+    const __m128i abcd = _mm256_castsi256_si128(buffer);
+    const uint32_t first = simd_hmax32_sse(abcd);
+    const __m128i efgh = _mm256_extracti128_si256(buffer, 1);
+    const uint32_t second = simd_hmax32_sse(efgh);
+    return std::max(first, second);
+}
+
 inline uint16_t simd_hmax16_avx(const __m256i buffer) {
     const __m128i abcd = _mm256_castsi256_si128(buffer);
     const uint16_t first = simd_hmax16_sse(abcd);
@@ -227,17 +237,21 @@ typedef __m256i simd_int;
 #define simdi16_sub(x,y)    _mm256_sub_epi16(x,y)
 #define simdui8_adds(x,y)   _mm256_adds_epu8(x,y)
 #define simdi32_sub(x,y)    _mm256_sub_epi32(x,y)
+#define simdui32_subs(x,y)  _mm256_max_epi32(_mm256_sub_epi32(x,y), _mm256_setzero_si256())
 #define simdui16_subs(x,y)  _mm256_subs_epu16(x,y)
 #define simdui8_subs(x,y)   _mm256_subs_epu8(x,y)
 #define simdi32_mul(x,y)    _mm256_mullo_epi32(x,y)
 #define simdi32_max(x,y)    _mm256_max_epi32(x,y)
 #define simdi16_max(x,y)    _mm256_max_epi16(x,y)
+#define simdi16_min(x,y)    _mm256_min_epi16(x,y)
 #define simdi32_insert(x,y,z) _mm256_insert_epi32(x,y,z)
 #define simdi32_extract(x,y) _mm256_extract_epi32(x,y)
+#define simdi32_hmax(x)     simd_hmax32_avx(x)
 #define simdi16_hmax(x)     simd_hmax16_avx(x)
 #define simdui8_max(x,y)    _mm256_max_epu8(x,y)
 #define simdi8_hmax(x)      simd_hmax8_avx(x)
 #define simdi_load(x)       _mm256_load_si256(x)
+#define simdf_load(x)       _mm256_load_ps(x)
 #define simdui8_avg(x,y)    _mm256_avg_epu8(x,y)
 #define simdui16_avg(x,y)   _mm256_avg_epu16(x,y)
 #define simdi_loadu(x)       _mm256_loadu_si256(x)
@@ -314,11 +328,13 @@ typedef __m256 simd_float;
 #define simdf32_sub(x,y)    _mm256_sub_ps(x,y)
 #define simdf32_mul(x,y)    _mm256_mul_ps(x,y)
 #define simdf32_div(x,y)    _mm256_div_ps(x,y)
+#define simdf32_sqrt(x)     _mm256_sqrt_ps(x)
 #define simdf32_rcp(x)      _mm256_rcp_ps(x)
 #define simdf32_max(x,y)    _mm256_max_ps(x,y)
 #define simdf32_min(x,y)    _mm256_min_ps(x,y)
 #define simdf32_load(x)     _mm256_load_ps(x)
 #define simdf32_store(x,y)  _mm256_store_ps(x,y)
+#define simdf32_storeu(x,y)   _mm256_storeu_ps(x,y)
 #define simdf32_set(x)      _mm256_set1_ps(x)
 #define simdf32_setzero(x)  _mm256_setzero_ps()
 #define simdf32_gt(x,y)     _mm256_cmp_ps(x,y,_CMP_GT_OS)
@@ -334,6 +350,15 @@ typedef __m256 simd_float;
 #endif
 
 #include <simde/x86/sse4.1.h>
+// see https://stackoverflow.com/questions/6996764/fastest-way-to-do-horizontal-sse-vector-sum-or-other-reduction
+inline uint32_t simd_hmax32_sse(const __m128i buffer) {
+    __m128i hi64  = _mm_shuffle_epi32(buffer, _MM_SHUFFLE(1, 0, 3, 2));
+    __m128i max64 = _mm_max_epi32(hi64, buffer);
+    __m128i hi32  = _mm_shufflelo_epi16(max64, _MM_SHUFFLE(1, 0, 3, 2)); // Swap the low two elements
+    __m128i max32 = _mm_max_epi32(max64, hi32);
+    return _mm_cvtsi128_si32(max32); // SSE2 movd
+}
+
 inline uint16_t simd_hmax16_sse(const __m128i buffer) {
     __m128i tmp1 = _mm_subs_epu16(_mm_set1_epi16((short)65535), buffer);
     __m128i tmp3 = _mm_minpos_epu16(tmp1);
@@ -433,13 +458,16 @@ typedef __m128i simd_int;
 #define simdi16_adds(x,y)   _mm_adds_epi16(x,y)
 #define simdui8_adds(x,y)   _mm_adds_epu8(x,y)
 #define simdi32_sub(x,y)    _mm_sub_epi32(x,y)
+#define simdui32_subs(x,y)  _mm_max_epi32(_mm_sub_epi32(x,y), _mm_setzero_si128())
 #define simdui16_subs(x,y)  _mm_subs_epu16(x,y)
 #define simdui8_subs(x,y)   _mm_subs_epu8(x,y)
 #define simdi32_mul(x,y)    _mm_mullo_epi32(x,y) // SSE4.1
 #define simdi32_max(x,y)    _mm_max_epi32(x,y) // SSE4.1
 #define simdi16_max(x,y)    _mm_max_epi16(x,y)
+#define simdi16_min(x,y)    _mm_min_epi16(x,y)
 #define simdi32_insert(x,y,z) _mm_insert_epi32(x,y,z)
 #define simdi32_extract(x,y) _mm_extract_epi32(x,y)
+#define simdi32_hmax(x)     simd_hmax32_sse(x)
 #define simdi16_hmax(x)     simd_hmax16_sse(x)
 #define simdui8_max(x,y)    _mm_max_epu8(x,y)
 #define simdi8_hmax(x)      simd_hmax8_sse(x)
