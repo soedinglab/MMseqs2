@@ -288,7 +288,7 @@ Parameters::Parameters():
         PARAM_PAIRING_DUMMY_MODE(PARAM_PAIRING_DUMMY_MODE_ID, "--pairing-dummy-mode", "Include dummy pairing", "0: dont include, 1: include - an entry that will cause result2msa to write a gap only line", typeid(int), (void *) &pairdummymode, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_PAIRING_MODE(PARAM_PAIRING_MODE_ID, "--pairing-mode", "Pairing mode", "0: pair maximal per species, 1: pair only if all chains are covered per species", typeid(int), (void *) &pairmode, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // taxonomyreport
-        PARAM_REPORT_MODE(PARAM_REPORT_MODE_ID, "--report-mode", "Report mode", "Taxonomy report mode 0: Kraken 1: Krona 2: Kraken per query database", typeid(int), (void *) &reportMode, "^[0-2]{1}$"),
+        PARAM_REPORT_MODE(PARAM_REPORT_MODE_ID, "--report-mode", "Report mode", "Taxonomy report mode\n0: Kraken\n1: Krona\n2: do not create a report (for workflows only)\n3: Kraken per query database", typeid(int), (void *) &reportMode, "^[0-3]{1}$"),
         // createtaxdb
         PARAM_NCBI_TAX_DUMP(PARAM_NCBI_TAX_DUMP_ID, "--ncbi-tax-dump", "NCBI tax dump directory", "NCBI tax dump directory. The tax dump can be downloaded here \"ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz\"", typeid(std::string), (void *) &ncbiTaxDump, ""),
         PARAM_TAX_MAPPING_FILE(PARAM_TAX_MAPPING_FILE_ID, "--tax-mapping-file", "Taxonomy mapping file", "File to map sequence identifier to taxonomical identifier", typeid(std::string), (void *) &taxMappingFile, ""),

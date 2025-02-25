@@ -158,13 +158,17 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    NcbiTaxonomy *taxDB = NcbiTaxonomy::openTaxonomy(par.db1);
+    if (par.reportMode == Parameters::REPORT_MODE_SKIP) {
+        Debug(Debug::ERROR) << "Report mode " << Parameters::REPORT_MODE_SKIP << " can only be use in workflows\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     // allow reading any kind of sequence database
     const int readerDbType = FileUtil::parseDbType(par.db2.c_str());
     const bool isSequenceDB = Parameters::isEqualDbtype(readerDbType, Parameters::DBTYPE_HMM_PROFILE)
                              || Parameters::isEqualDbtype(readerDbType, Parameters::DBTYPE_AMINO_ACIDS)
                              || Parameters::isEqualDbtype(readerDbType, Parameters::DBTYPE_NUCLEOTIDES);
-    if (par.reportMode == 2 && isSequenceDB == true) {
+    if (par.reportMode == Parameters::REPORT_MODE_KRAKENDB && isSequenceDB == true) {
         Debug(Debug::ERROR) << "Cannot use Kraken DB report mode with sequence db input\n";
         EXIT(EXIT_FAILURE);
     }
@@ -184,7 +188,7 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
 
     int mode = Parameters::DBTYPE_OMIT_FILE;
     unsigned int localThreads = 1;
-    if (par.reportMode == 2) {
+    if (par.reportMode == Parameters::REPORT_MODE_KRAKENDB) {
         mode = Parameters::DBTYPE_GENERIC_DB;
         localThreads = 1;
 #ifdef OPENMP
@@ -234,7 +238,7 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
                 entryCount++;
                 data = Util::skipLine(data);
             }
-            if (par.reportMode == 2) {
+            if (par.reportMode == Parameters::REPORT_MODE_KRAKENDB) {
                 std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB->getCladeCounts(localTaxCounts, parentToChildren);
                 writer.writeStart(thread_idx);
                 taxReport(writer, thread_idx, *taxDB, cladeCounts, entryCount);
@@ -242,14 +246,16 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
                 localTaxCounts.clear();
             }
         }
-        if (par.reportMode != 2) {
+        if (par.reportMode != Parameters::REPORT_MODE_KRAKENDB) {
 #pragma omp critical
 {
             mergeMaps(taxCounts, localTaxCounts);
 }
         }
     }
-    if (par.reportMode == 2) {
+
+    int status = EXIT_SUCCESS;
+    if (par.reportMode == Parameters::REPORT_MODE_KRAKENDB) {
         reader.close();
         writer.close(true);
     } else {
@@ -262,11 +268,11 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
         Debug(Debug::INFO) << "Calculating clade counts ... ";
         std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB->getCladeCounts(taxCounts, parentToChildren);
         Debug(Debug::INFO) << " Done\n";
-        if (par.reportMode == 0) {
+        if (par.reportMode == Parameters::REPORT_MODE_KRAKEN) {
             writer.writeStart(0);
             taxReport(writer, 0, *taxDB, cladeCounts, entryCount);
             writer.writeEnd(0, 0, false, false);
-        } else {
+        } else if (par.reportMode == Parameters::REPORT_MODE_KRONA) {
             writer.writeStart(0);
             writer.writeAdd(reinterpret_cast<const char*>(krona_prelude_html), krona_prelude_html_len, 0);
             char buffer[1024];
@@ -276,11 +282,14 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
             len = snprintf(buffer, sizeof(buffer), "</node></krona></div></body></html>");
             writer.writeAdd(buffer, static_cast<size_t>(len), 0);
             writer.writeEnd(0, 0, false, false);
+        } else {
+            Debug(Debug::ERROR) << "Invalid report mode " << par.reportMode << "\n";
+            status = EXIT_FAILURE;
         }
         writer.close(true);
         FileUtil::remove(writer.getIndexFileName());
     }
     delete taxDB;
-    return EXIT_SUCCESS;
+    return status;
 }
 
