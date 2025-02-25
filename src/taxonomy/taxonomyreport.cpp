@@ -181,6 +181,7 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
 
     // support reading both LCA databases and result databases (e.g. alignment)
     const bool isTaxonomyInput = Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_TAXONOMICAL_RESULT);
+    NcbiTaxonomy *taxDB = NcbiTaxonomy::openTaxonomy(par.db1);
     MappingReader* mapping = NULL;
     if (isTaxonomyInput == false) {
         mapping = new MappingReader(par.db1);
