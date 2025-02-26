@@ -20,10 +20,10 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 
 ## Documentation
 The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). The wiki also contains [tutorials](https://github.com/soedinglab/MMseqs2/wiki/Tutorials) to learn how to use MMseqs2 with real data. For questions please open an issue on [GitHub](https://github.com/soedinglab/MMseqs2/issues).
-Keep posted about MMseqs2/Linclust updates by following Martin on [Twitter](https://twitter.com/thesteinegger).
+Keep posted about MMseqs2 updates by following [Martin](https://bsky.app/profile/martinsteinegger.bsky.social) and [Milot](https://bsky.app/profile/milot.bsky.social).
 
 ## Installation
-MMseqs2 can be used by [compiling from source](https://github.com/soedinglab/MMseqs2/wiki#installation), downloading a statically compiled binary at [mmseqs.com/latest](https://mmseqs.com/latest), using [Homebrew](https://github.com/Homebrew/brew), [conda](https://github.com/conda/conda) or [Docker](https://github.com/moby/moby).
+MMseqs2 can be used by [compiling from source](https://github.com/soedinglab/MMseqs2/wiki#installation), downloading a statically compiled binary at [mmseqs.com/latest](https://mmseqs.com/latest), using [Homebrew](https://github.com/Homebrew/brew), [conda](https://github.com/conda-forge/miniforge) or [Docker](https://github.com/moby/moby).
      
     # install by brew
     brew install mmseqs2
@@ -39,6 +39,8 @@ MMseqs2 can be used by [compiling from source](https://github.com/soedinglab/MMs
     wget https://mmseqs.com/latest/mmseqs-linux-sse41.tar.gz; tar xvfz mmseqs-linux-sse41.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
     # static build with SSE2 (slowest, for very old systems)
     wget https://mmseqs.com/latest/mmseqs-linux-sse2.tar.gz; tar xvfz mmseqs-linux-sse2.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
+    # macOS (universal, works on Apple Silicon and Intel Macs)
+    wget https://mmseqs.com/latest/mmseqs-osx-universal.tar.gz; tar xvfz mmseqs-osx-universal.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
 
 MMseqs2 requires an AMD or Intel 64-bit system (check with `uname -a | grep x86_64`). We recommend using a system with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux or `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS). The AVX2 version is faster than SSE4.1, check if AVX2 is supported by executing `cat /proc/cpuinfo | grep avx2` on Linux and `sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2` on MacOS. A SSE2 version is also available for very old systems. MMseqs2 also works on ARM64 systems and on PPC64LE systems with POWER8 ISA or newer.
 
