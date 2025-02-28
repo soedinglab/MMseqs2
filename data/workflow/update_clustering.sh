@@ -96,7 +96,7 @@ if [ -s "${TMP_PATH}/removedSeqs" ]; then
     else
         if notExists "${TMP_PATH}/REMOVEDMEMBERS.dbtype"; then
             # shellcheck disable=SC2086
-            "$MMSEQS" createsubdb "${TMP_PATH}/removedSeqs" "${OLDCLUST}" "${TMP_PATH}/REMOVEDMEMBERS" --subdb-mode 0 ${VERBOSITY} \
+            "$MMSEQS" createsubdb "${TMP_PATH}/removedSeqs" "${OLDCLUST}" "${TMP_PATH}/REMOVEDMEMBERS" --subdb-mode 0 ${NOWARNINGS_PAR} \
                 || fail "createsubdb died"
         fi
 
@@ -115,7 +115,7 @@ if [ -s "${TMP_PATH}/removedSeqs" ]; then
 
         if notExists "${TMP_PATH}/OLCLUST.withoutDeletedKeys.dbtype"; then
             # shellcheck disable=SC2086
-            "$MMSEQS" createsubdb "${TMP_PATH}/mappingSeqs" "${OLDCLUST}" "${TMP_PATH}/OLCLUST.withoutDeletedKeys" --subdb-mode 1 ${VERBOSITY} \
+            "$MMSEQS" createsubdb "${TMP_PATH}/mappingSeqs" "${OLDCLUST}" "${TMP_PATH}/OLCLUST.withoutDeletedKeys" --subdb-mode 1 ${NOWARNINGS_PAR} \
                 || fail "createsubdb died"
         fi
 
