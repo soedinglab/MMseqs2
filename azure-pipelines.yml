@@ -97,11 +97,13 @@ jobs:
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test
           sudo apt-get update
           sudo apt-get install -y gcc-11 g++-11 libgcc-11-dev build-essential
+        retryCountOnTaskFailure: "2"
         displayName: Install newer G++
       - script: |
           sudo apt-get update
           sudo apt-get -y install mpi-default-dev mpi-default-bin
         displayName: Install Dependencies
+        retryCountOnTaskFailure: "2"
         condition: eq(variables['MPI'], 1)
       - script: |
           mkdir build && cd build
@@ -194,6 +196,7 @@ jobs:
           HEREDOC
           sudo apt-get update
           sudo apt-get -y install -o APT::Immediate-Configure=false crossbuild-essential-$ARCH zlib1g-dev:$ARCH libbz2-dev:$ARCH
+        retryCountOnTaskFailure: "2"
         displayName: Install Toolchain
       - script: |
           mkdir build && cd build
