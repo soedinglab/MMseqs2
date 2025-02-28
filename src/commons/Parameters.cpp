@@ -1397,10 +1397,10 @@ Parameters::Parameters():
 
     clusterUpdateSearch = removeParameter(searchworkflow, PARAM_MAX_SEQS);
     clusterUpdateClust = removeParameter(clusterworkflow, PARAM_MAX_SEQS);
-    clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
     clusterUpdate.push_back(&PARAM_REUSELATEST);
     clusterUpdate.push_back(&PARAM_USESEQID);
     clusterUpdate.push_back(&PARAM_RECOVER_DELETED);
+    clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
     clusterUpdate = removeParameter(clusterUpdate, PARAM_GPU);
     clusterUpdate = removeParameter(clusterUpdate, PARAM_GPU_SERVER);
     clusterUpdate = removeParameter(clusterUpdate, PARAM_GPU_SERVER_WAIT_TIMEOUT);
