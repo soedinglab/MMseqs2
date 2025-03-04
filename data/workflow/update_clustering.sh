@@ -131,7 +131,7 @@ fi
 if notExists "${TMP_PATH}/newMappingSeqs"; then
     log "=== Update new sequences with old keys"
     MAXID="$(awk '$1 > max { max = $1 } END { print max }' "${OLDDB}.index" "${NEWDB}.index")"
-    awk -v highest="$MAXID" 'BEGIN { start=highest+1 } { print $1"\t"start; start=start+1; }' \
+    awk -v highest="$MAXID" 'BEGIN { start=highest+1 } { printf("%s\t%.0f\n", $1, start); start=start+1; }' \
         "${TMP_PATH}/newSeqs" > "${TMP_PATH}/newSeqs.mapped"
     awk '{ print $2"\t"$1 }' "${TMP_PATH}/mappingSeqs" > "${TMP_PATH}/mappingSeqs.reverse"
     cat "${TMP_PATH}/mappingSeqs.reverse" "${TMP_PATH}/newSeqs.mapped" > "${TMP_PATH}/newMappingSeqs"
