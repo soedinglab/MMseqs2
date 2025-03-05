@@ -40,13 +40,22 @@ downloadFile() {
         ARIA)
             FILENAME=$(basename "${OUTPUT}")
             DIR=$(dirname "${OUTPUT}")
-            aria2c --max-connection-per-server="$ARIA_NUM_CONN" --allow-overwrite=true -o "$FILENAME" -d "$DIR" "$URL" && return 0
+            if aria2c -c --max-connection-per-server="$ARIA_NUM_CONN" --allow-overwrite=true -o "${FILENAME}.aria2" -d "$DIR" "$URL"; then
+                mv -f -- "${OUTPUT}.aria2" "${OUTPUT}"
+                return 0
+            fi
             ;;
         CURL)
-            curl -o "$OUTPUT" "$URL" && return 0
+            if curl -L -C - -o "${OUTPUT}.curl" "$URL"; then
+                mv -f -- "${OUTPUT}.curl" "${OUTPUT}"
+                return 0
+            fi
             ;;
         WGET)
-            wget -O "$OUTPUT" "$URL" && return 0
+            if wget -O "${OUTPUT}.wget" -c "$URL"; then
+                mv -f -- "${OUTPUT}.wget" "${OUTPUT}"
+                return 0
+            fi
             ;;
         esac
     done
@@ -59,7 +68,7 @@ if { [ "${DBMODE}" = "1" ] && notExists "${TAXDBNAME}_taxonomy"; } || { [ "${DBM
         # Download NCBI taxon information
         if notExists "${TMP_PATH}/ncbi_download.complete"; then
             echo "Download taxdump.tar.gz"
-            downloadFile "https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz" "${TMP_PATH}/taxdump.tar.gz"
+            downloadFile "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz" "${TMP_PATH}/taxdump.tar.gz"
             tar -C "${TMP_PATH}" -xzf "${TMP_PATH}/taxdump.tar.gz" names.dmp nodes.dmp merged.dmp delnodes.dmp
             touch "${TMP_PATH}/ncbi_download.complete"
             rm -f "${TMP_PATH}/taxdump.tar.gz"

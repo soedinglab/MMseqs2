@@ -178,8 +178,13 @@ public:
             prevPrintedId = 0;
         }
 
-        void updateProgress(){
-            size_t id = __sync_fetch_and_add(&currentPos, 1);
+        void updateProgress(size_t pos = SIZE_MAX){
+            size_t id;
+            if (pos == SIZE_MAX) {
+                id = __sync_fetch_and_add(&currentPos, 1);
+            } else {
+                id = pos;
+            }
             // if no active terminal exists write dots
             if(interactive == false){
                 if(totalEntries==SIZE_MAX) {

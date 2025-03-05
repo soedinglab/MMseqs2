@@ -2,9 +2,9 @@ env:
   CIRRUS_CLONE_SUBMODULES: true
 
 task:
-  name: FreeBSD-13
+  name: FreeBSD
   freebsd_instance:
-    image_family: freebsd-13-2-snap
+    image_family: freebsd-14-2-snap
   install_script: pkg install -y cmake git samtools
   compile_script: |
     mkdir build && cd build
@@ -39,7 +39,7 @@ task:
         CXX: g++-4.9
   compile_script: |
     mkdir build && cd build
-    cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_SSE4_1=1 -DREQUIRE_OPENMP=0 ..
+    cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=0 -DHAVE_SSE4_1=1 -DREQUIRE_OPENMP=0 ..
     make -j $(nproc --all)
   test_script: MMSEQS_NUM_THREADS=4 ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH SEARCH
 

@@ -38,35 +38,20 @@ int result2msa(int argc, const char **argv, const Command &command) {
     IndexReader *targetHeaderReaderIdx = NULL;
     const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
 
-    if (Parameters::isEqualDbtype(FileUtil::parseDbType(par.db2.c_str()), Parameters::DBTYPE_INDEX_DB)) {
-        if (isCA3M == true) {
-            Debug(Debug::ERROR) << "Cannot use result2msa with indexed target database for CA3M output\n";
-            return EXIT_FAILURE;
-        }
-        uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
-        bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-        tDbrIdx = new IndexReader(par.db2, par.threads,
-                                  extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
-                                  (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
-        tDbr = tDbrIdx->sequenceReader;
-        targetHeaderReaderIdx = new IndexReader(par.db2, par.threads,
-                                                extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_HEADERS : IndexReader::HEADERS,
-                                                (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
-        targetHeaderReader = targetHeaderReaderIdx->sequenceReader;
-    } else {
-        tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        tDbr->open(DBReader<unsigned int>::NOSORT);
-        if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-            tDbr->readMmapedDataInMemory();
-        }
-        if (isCA3M == false || sameDatabase) {
-            targetHeaderReader = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-            targetHeaderReader->open(DBReader<unsigned int>::NOSORT);
-            if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
-                targetHeaderReader->readMmapedDataInMemory();
-            }
-        }
+    if (isCA3M == true) {
+        Debug(Debug::ERROR) << "Cannot use result2msa with indexed target database for CA3M output\n";
+        return EXIT_FAILURE;
     }
+    uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
+    bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+    tDbrIdx = new IndexReader(par.db2, par.threads,
+                              extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
+                              (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+    tDbr = tDbrIdx->sequenceReader;
+    targetHeaderReaderIdx = new IndexReader(par.db2, par.threads,
+                                            extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_HEADERS : IndexReader::HEADERS,
+                                            (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+    targetHeaderReader = targetHeaderReaderIdx->sequenceReader;
 
     DBReader<unsigned int> *qDbr = NULL;
     DBReader<unsigned int> *queryHeaderReader = NULL;

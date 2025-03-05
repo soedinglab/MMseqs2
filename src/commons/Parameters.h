@@ -90,6 +90,7 @@ public:
     static const unsigned int DBTYPE_EXTENDED_COMPRESSED = 1;
     static const unsigned int DBTYPE_EXTENDED_INDEX_NEED_SRC = 2;
     static const unsigned int DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS = 4;
+    static const unsigned int DBTYPE_EXTENDED_GPU = 8;
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
@@ -312,6 +313,7 @@ public:
     static const int PREF_MODE_KMER = 0;
     static const int PREF_MODE_UNGAPPED = 1;
     static const int PREF_MODE_EXHAUSTIVE = 2;
+    static const int PREF_MODE_UNGAPPED_AND_GAPPED = 3;
 
     // unpackdb
     static const int UNPACK_NAME_KEY = 0;
@@ -320,6 +322,16 @@ public:
     // result direction
     static const int PARAM_RESULT_DIRECTION_QUERY  = 0;
     static const int PARAM_RESULT_DIRECTION_TARGET = 1;
+
+    // translation mode
+    static const int PARAM_TRANSLATION_MODE_ORF = 0;
+    static const int PARAM_TRANSLATION_MODE_FRAME = 1;
+
+    // report mode
+    static const int REPORT_MODE_KRAKEN = 0;
+    static const int REPORT_MODE_KRONA = 1;
+    static const int REPORT_MODE_SKIP = 2; // for workflows only
+    static const int REPORT_MODE_KRAKENDB = 3;
 
     // path to databases
     std::string db1;
@@ -386,6 +398,9 @@ public:
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
     int    verbosity;                    // log level
+    int    gpu;                          // use GPU
+    int    gpuServer;                    // use the gpu server
+    int    gpuServerWaitTimeout;         // wait for this many seconds until GPU server is ready
     int    threads;                      // Amounts of threads
     int    compressed;                   // compressed writer
     bool   removeTmpFiles;               // Do not delete temp files
@@ -405,6 +420,7 @@ public:
     int    maskMode;                     // mask low complex areas
     float  maskProb;                     // mask probability
     int    maskLowerCaseMode;            // mask lowercase letters in prefilter and kmermatchers
+    int    maskNrepeats;                 // mask letters that occur at least N times in a row
 
     int    minDiagScoreThr;              // min diagonal score
     int    spacedKmer;                   // Spaced Kmers
@@ -467,6 +483,7 @@ public:
     float orfFilterSens;
     double orfFilterEval;
     bool lcaSearch;
+    int translationMode;
 
     // easysearch
     bool greedyBestHits;
@@ -527,6 +544,7 @@ public:
     int pcmode;
     MultiParam<PseudoCounts> pca;
     MultiParam<PseudoCounts> pcb;
+    int profileOutputMode;
 
     // sequence2profile
     float neff;
@@ -744,6 +762,7 @@ public:
     PARAMETER(PARAM_MASK_RESIDUES)
     PARAMETER(PARAM_MASK_PROBABILTY)
     PARAMETER(PARAM_MASK_LOWER_CASE)
+    PARAMETER(PARAM_MASK_N_REPEAT)
 
     PARAMETER(PARAM_MIN_DIAG_SCORE)
     PARAMETER(PARAM_K_SCORE)
@@ -805,7 +824,10 @@ public:
     // logging
     PARAMETER(PARAM_V)
     std::vector<MMseqsParameter*> clust;
-
+    // gpu
+    PARAMETER(PARAM_GPU)
+    PARAMETER(PARAM_GPU_SERVER)
+    PARAMETER(PARAM_GPU_SERVER_WAIT_TIMEOUT)
     // format alignment
     PARAMETER(PARAM_FORMAT_MODE)
     PARAMETER(PARAM_FORMAT_OUTPUT)
@@ -844,6 +866,7 @@ public:
     PARAMETER(PARAM_PC_MODE)
     PARAMETER(PARAM_PCA)
     PARAMETER(PARAM_PCB)
+    PARAMETER(PARAM_PROFILE_OUTPUT_MODE)
 
     // sequence2profile
     PARAMETER(PARAM_NEFF)
@@ -886,6 +909,7 @@ public:
     PARAMETER(PARAM_ORF_FILTER_S)
     PARAMETER(PARAM_ORF_FILTER_E)
     PARAMETER(PARAM_LCA_SEARCH)
+    PARAMETER(PARAM_TRANSLATION_MODE)
 
     // easysearch
     PARAMETER(PARAM_GREEDY_BEST_HITS)
@@ -1106,6 +1130,7 @@ public:
     std::vector<MMseqsParameter*> createlinindex;
     std::vector<MMseqsParameter*> convertalignments;
     std::vector<MMseqsParameter*> createdb;
+    std::vector<MMseqsParameter*> makepaddedseqdb;
     std::vector<MMseqsParameter*> convert2fasta;
     std::vector<MMseqsParameter*> result2flat;
     std::vector<MMseqsParameter*> result2repseq;
@@ -1166,6 +1191,7 @@ public:
     std::vector<MMseqsParameter*> profile2seq;
     std::vector<MMseqsParameter*> besthitbyset;
     std::vector<MMseqsParameter*> combinepvalbyset;
+    std::vector<MMseqsParameter*> mergeresultsbyset;
     std::vector<MMseqsParameter*> multihitdb;
     std::vector<MMseqsParameter*> multihitsearch;
     std::vector<MMseqsParameter*> expandaln;
@@ -1177,6 +1203,9 @@ public:
     std::vector<MMseqsParameter*> tar2db;
     std::vector<MMseqsParameter*> unpackdbs;
     std::vector<MMseqsParameter*> appenddbtoindex;
+    std::vector<MMseqsParameter*> touchdb;
+    std::vector<MMseqsParameter*> gpuserver;
+    std::vector<MMseqsParameter*> tsv2exprofiledb;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);

@@ -35,9 +35,6 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < par.extractorfs.size(); i++) {
         par.extractorfs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
-    for (size_t i = 0; i < par.translatenucs.size(); i++) {
-        par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
-    }
     for (size_t i = 0; i < par.splitsequence.size(); i++) {
         par.splitsequence[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
@@ -59,6 +56,12 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("DIFF_PAR", par.createParameterString(par.diff).c_str());
     cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
+
+    int oldVerbosity = par.verbosity;
+    par.verbosity = std::min(par.verbosity, 1);
+    cmd.addVariable("NOWARNINGS_PAR", par.createParameterString(par.onlyverbosity).c_str());
+    par.verbosity = oldVerbosity;
+
     cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
     cmd.addVariable("RESULT2REPSEQ_PAR", par.createParameterString(par.result2repseq).c_str());
 

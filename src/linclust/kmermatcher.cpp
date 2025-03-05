@@ -16,6 +16,7 @@
 #include "FileUtil.h"
 #include "FastSort.h"
 #include "SequenceWeights.h"
+#include "Masker.h"
 
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -54,26 +55,6 @@ KmerPosition<T> *initKmerPositionMemory(size_t size) {
     return hashSeqPair;
 }
 
-void maskSequence(int maskMode, int maskLowerCase, float maskProb, Sequence &seq, int maskLetter, ProbabilityMatrix * probMatrix){
-    if (maskMode == 1) {
-        tantan::maskSequences((char*)seq.numSequence,
-                              (char*)(seq.numSequence + seq.L),
-                              50 /*options.maxCycleLength*/,
-                              probMatrix->probMatrixPointers,
-                              0.005 /*options.repeatProb*/,
-                              0.05 /*options.repeatEndProb*/,
-                              0.5 /*options.repeatOffsetProbDecay*/,
-                              0, 0,
-                              maskProb /*options.minMaskProb*/, probMatrix->hardMaskTable);
-    }
-    if(maskLowerCase == 1 && (Parameters::isEqualDbtype(seq.getSequenceType(), Parameters::DBTYPE_AMINO_ACIDS) ||
-                                      Parameters::isEqualDbtype(seq.getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES))) {
-        const char * charSeq = seq.getSeqData();
-        for (int i = 0; i < seq.L; i++) {
-            seq.numSequence[i] = (islower(charSeq[i])) ? maskLetter : seq.numSequence[i];
-        }
-    }
-}
 
 template <int TYPE, typename T>
 std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
@@ -82,10 +63,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
     size_t offset = 0;
     int querySeqType  =  seqDbr.getDbtype();
     size_t longestKmer = par.kmerSize;
-    ProbabilityMatrix *probMatrix = NULL;
-    if (par.maskMode == 1) {
-        probMatrix = new ProbabilityMatrix(*subMat);
-    }
+
 
     ScoreMatrix two;
     ScoreMatrix three;
@@ -104,6 +82,10 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
         unsigned short * scoreDist= new unsigned short[65536];
         unsigned int * hierarchicalScoreDist= new unsigned int[128];
 
+        Masker *masker = NULL;
+        if (par.maskMode == 1) {
+            masker = new Masker(*subMat);
+        }
         const int adjustedKmerSize = (par.adjustKmerLength) ? std::min( par.kmerSize+5, 23) :   par.kmerSize;
         Sequence seq(par.maxSeqLen, querySeqType, subMat, adjustedKmerSize, par.spacedKmer, false, true, par.spacedKmerPattern);
         KmerGenerator* generator;
@@ -137,9 +119,9 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
                     seqHash = Util::hash(seq.numSequence, seq.L);
                     seqHash = hashUInt64(seqHash, par.hashShift);
                 }
-
-                maskSequence(par.maskMode, par.maskLowerCaseMode, par.maskProb, seq, subMat->aa2num[static_cast<int>('X')], probMatrix);
-
+                if(masker != NULL){
+                    masker->maskSequence(seq, par.maskMode,  par.maskProb, par.maskLowerCaseMode, par.maskNrepeats);
+                }
                 size_t seqKmerCount = 0;
                 unsigned int seqId = seq.getDbKey();
                 while (seq.hasNextKmer()) {
@@ -355,6 +337,9 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
             if (thread_idx == 0) {
                 seqDbr.remapData();
             }
+            if (masker != NULL) {
+                delete masker;
+            }
 #pragma omp barrier
         }
 
@@ -379,9 +364,6 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
         ExtendedSubstitutionMatrix::freeScoreMatrix(two);
     }
 
-    if (probMatrix != NULL) {
-        delete probMatrix;
-    }
     return std::make_pair(offset, longestKmer);
 }
 

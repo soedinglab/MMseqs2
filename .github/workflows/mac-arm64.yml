@@ -7,11 +7,15 @@ on:
 
 jobs:
   build:
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
+
+      - name: Dependencies
+        run: |
+          brew install -f --overwrite cmake libomp
 
       - name: Build
         run: |

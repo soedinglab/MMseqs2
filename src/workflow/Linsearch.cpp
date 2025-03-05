@@ -40,9 +40,6 @@ int linsearch(int argc, const char **argv, const Command &command) {
     for (size_t i = 0; i < par.extractorfs.size(); i++) {
         par.extractorfs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
-    for (size_t i = 0; i < par.translatenucs.size(); i++) {
-        par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
-    }
     par.PARAM_COMPRESSED.removeCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_THREADS.removeCategory(MMseqsParameter::COMMAND_EXPERT);
     par.PARAM_V.removeCategory(MMseqsParameter::COMMAND_EXPERT);
@@ -143,7 +140,6 @@ int linsearch(int argc, const char **argv, const Command &command) {
         par.translate = 1;
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
         cmd.addVariable("OFFSETALIGNMENT_PAR", par.createParameterString(par.offsetalignment).c_str());
-        cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
         cmd.addVariable("SEARCH", program.c_str());
         program = std::string(tmpDir + "/translated_search.sh");
         FileUtil::writeFile(program, Linsearch::translated_search_sh, Linsearch::translated_search_sh_len);

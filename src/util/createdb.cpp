@@ -46,20 +46,20 @@ int createdb(int argc, const char **argv, const Command& command) {
 
     std::string indexFile = dataFile + ".index";
     if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.shuffleDatabase) {
-        Debug(Debug::WARNING) << "Shuffle database cannot be combined with --createdb-mode 0\n";
+        Debug(Debug::WARNING) << "Shuffle database cannot be combined with --createdb-mode " << Parameters::SEQUENCE_SPLIT_MODE_SOFT << "\n";
         Debug(Debug::WARNING) << "We recompute with --shuffle 0\n";
         par.shuffleDatabase = false;
     }
 
     if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.filenames[0] == "stdin") {
-        Debug(Debug::WARNING) << "Stdin input cannot be combined with --createdb-mode 0\n";
+        Debug(Debug::WARNING) << "Stdin input cannot be combined with --createdb-mode " << Parameters::SEQUENCE_SPLIT_MODE_SOFT << "\n";
         Debug(Debug::WARNING) << "We recompute with --createdb-mode 1\n";
         par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
     }
 
     const unsigned int shuffleSplits = par.shuffleDatabase ? 32 : 1;
     if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.compressed) {
-        Debug(Debug::WARNING) << "Compressed database cannot be combined with --createdb-mode 0\n";
+        Debug(Debug::WARNING) << "Compressed database cannot be combined with --createdb-mode " << Parameters::SEQUENCE_SPLIT_MODE_SOFT << "\n";
         Debug(Debug::WARNING) << "We recompute with --compressed 0\n";
         par.compressed = 0;
     }

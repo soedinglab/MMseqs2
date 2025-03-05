@@ -193,7 +193,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         dstream = new ZSTD_DStream*[threads];
         for(int i = 0; i < threads; i++){
             // allocated buffer
-            compressedBufferSizes[i] = std::max(maxSeqLen+1, 1024u);
+            compressedBufferSizes[i] = std::max(maxSeqLen+2, 1024u);
             compressedBuffers[i] = (char*) malloc(compressedBufferSizes[i]);
             incrementMemory(compressedBufferSizes[i]);
             if(compressedBuffers[i]==NULL){
@@ -552,6 +552,8 @@ template <typename T> char* DBReader<T>::getUnpadded(size_t id, int thrIdx) {
         unsigned char baseCode = (code >= 32) ? code - 32 : code;
         compressedBuffers[thrIdx][i] = CODE_TO_CHAR[baseCode];
     }
+    compressedBuffers[thrIdx][seqLen + 0] = '\n';
+    compressedBuffers[thrIdx][seqLen + 1] = '\0';
     return compressedBuffers[thrIdx];
 }
 

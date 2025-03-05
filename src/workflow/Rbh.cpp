@@ -27,9 +27,6 @@ int rbh(int argc, const char **argv, const Command &command) {
     for (size_t i = 0; i < par.extractorfs.size(); i++){
         par.extractorfs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
-    for (size_t i = 0; i < par.translatenucs.size(); i++){
-        par.translatenucs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
-    }
     for (size_t i = 0; i < par.splitsequence.size(); i++) {
         par.splitsequence[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }

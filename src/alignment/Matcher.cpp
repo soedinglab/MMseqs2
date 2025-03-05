@@ -4,6 +4,7 @@
 #include "Util.h"
 #include "Parameters.h"
 #include "StripedSmithWaterman.h"
+#include <fast_float/fast_float.h>
 
 
 Matcher::Matcher(
@@ -234,8 +235,10 @@ Matcher::result_t Matcher::parseAlignmentRecord(const char *data, bool readCompr
 
     unsigned int targetId = Util::fast_atoi<unsigned int>(key);
     int score = Util::fast_atoi<int>(entry[1]);
-    double seqId = strtod(entry[2],NULL);
-    double eval = strtod(entry[3],NULL);
+    double seqId;
+    fast_float::from_chars(entry[2], entry[3] - 1, seqId);
+    double eval;
+    fast_float::from_chars(entry[3], entry[4] - 1, eval);
 
     int qStart =  Util::fast_atoi<int>(entry[4]);
     int qEnd = Util::fast_atoi<int>(entry[5]);

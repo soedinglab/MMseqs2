@@ -346,6 +346,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         std::string newBacktrace;
         newBacktrace.reserve(1024);
 
+        std::string complementBuffer;
+        complementBuffer.reserve(1024);
+
         const TaxonNode * taxonNode = NULL;
 
 #pragma omp  for schedule(dynamic, 10)
@@ -633,10 +636,11 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                         float pPositive = 0;
                                         int matchCount = 0;
                                         if (res.backtrace.empty() == false) {
-                                            int qPos = 0;
-                                            int tPos = 0;
-                                            for (size_t pos = 0; pos < res.backtrace.size(); pos++) {
-                                                switch (res.backtrace[pos]) {
+                                            int qPos = res.qStartPos;
+                                            int tPos = res.dbStartPos;
+                                            std::string unpackedBt = Matcher::uncompressAlignment(res.backtrace);
+                                            for (size_t pos = 0; pos < unpackedBt.size(); pos++) {
+                                                switch (unpackedBt[pos]) {
                                                     case 'M': {
                                                         char qRes = queryProfile ? queryProfData[qPos] : querySeqData[qPos];
                                                         char tRes = targetProfile ? targetProfData[tPos] : targetSeqData[tPos];
@@ -647,18 +651,38 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                                         break;
                                                     }
                                                     case 'D':
-                                                        qPos++;
+                                                        tPos++;
                                                         break;
                                                     case 'I':
-                                                        tPos++;
+                                                        qPos++;
                                                         break;
                                                 }
                                             }
-                                            pPositive /= matchCount;
+                                            pPositive /= static_cast<float>(matchCount);
                                         }
                                         result.append(SSTR(pPositive));
                                         break;
                                     }
+                                    case Parameters::OUTFMT_QFRAME: {
+                                        int frame;
+                                        if (res.qStartPos <= res.qEndPos) {
+                                            frame = (res.qStartPos - 1) % 3 + 1;
+                                        } else {
+                                            frame = -1 * ((res.qLen - res.qStartPos) % 3 + 1);
+                                        }
+                                        result.append(SSTR(frame));
+                                        break;
+                                    }
+                                    case Parameters::OUTFMT_TFRAME: {
+                                        int frame;
+                                        if (res.dbStartPos <= res.dbEndPos) {
+                                            frame = (res.dbStartPos - 1) % 3 + 1;
+                                        } else {
+                                            frame = -1 * ((res.dbLen - res.dbStartPos) % 3 + 1);
+                                        }
+                                        result.append(SSTR(frame));
+                                        break;
+                                    } 
                                 }
                                 if (i < outcodes.size() - 1) {
                                     result.push_back('\t');
@@ -687,32 +711,45 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         break;
                     }
                     case Parameters::FORMAT_ALIGNMENT_SAM: {
-                        bool strand = res.qEndPos > res.qStartPos;
+                        bool forward = res.qEndPos > res.qStartPos;
                         int rawScore = static_cast<int>(evaluer->computeRawScoreFromBitScore(res.score) + 0.5);
                         uint32_t mapq = -4.343 * log(exp(static_cast<double>(-rawScore)));
                         mapq = (uint32_t) (mapq + 4.99);
                         mapq = mapq < 254 ? mapq : 254;
-                        int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t",  queryId.c_str(), (strand) ? 16: 0, targetId.c_str(), res.dbStartPos + 1, mapq);
+                        int count = snprintf(buffer, sizeof(buffer), "%s\t%d\t%s\t%d\t%d\t",  queryId.c_str(), (forward) ? 0 : 16, targetId.c_str(), std::min(res.dbStartPos + 1, res.dbEndPos + 1), mapq);
                         if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
                             Debug(Debug::WARNING) << "Truncated line in entry" << i << "!\n";
                             continue;
                         }
                         result.append(buffer, count);
-                        if (isTranslatedSearch == true && targetNucs == true && queryNucs == true) {
+                        if (isTranslatedSearch == true && queryNucs == true) {
                             Matcher::result_t::protein2nucl(res.backtrace, newBacktrace);
                             result.append(newBacktrace);
                             newBacktrace.clear();
-
                         } else {
                             result.append(res.backtrace);
                         }
                         result.append("\t*\t0\t0\t");
                         int start = std::min(res.qStartPos, res.qEndPos);
                         int end   = std::max(res.qStartPos, res.qEndPos);
-                        if (queryProfile) {
-                            result.append(queryProfData.c_str() + start, (end + 1) - start);
+                        if (forward == false && queryNucs == true) {
+                            if (queryProfile) {
+                                complementBuffer.assign(queryProfData.c_str() + start, (end + 1) - start);
+                            } else {
+                                complementBuffer.assign(querySeqData + start, (end + 1) - start);
+                            }
+                            std::reverse(complementBuffer.begin(), complementBuffer.end());
+                            for (size_t i = 0; i < complementBuffer.size(); i++) {
+                                complementBuffer[i] = Orf::complement(complementBuffer[i]);
+                            }
+                            result.append(complementBuffer);
+                            complementBuffer.clear();
                         } else {
-                            result.append(querySeqData + start, (end + 1) - start);
+                            if (queryProfile) {
+                                result.append(queryProfData.c_str() + start, (end + 1) - start);
+                            } else {
+                                result.append(querySeqData + start, (end + 1) - start);
+                            }
                         }
                         count = snprintf(buffer, sizeof(buffer), "\t*\tAS:i:%d\tNM:i:%d\n", rawScore, missMatchCount);
                         if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {

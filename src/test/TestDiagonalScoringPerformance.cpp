@@ -92,17 +92,17 @@ int main (int, const char**) {
     SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s1.numSequence, s1.L, compositionBias, 1.0);
 
 
-
-    matcher.processQuery(&s1,compositionBias, hits, 16);
+    matcher.createProfile(&s1, compositionBias);
+    matcher.align(hits, 16);
     std::cout << (int)hits[0].count << " ";
     std::cout << (int)hits[1].count << " ";
     std::cout << (int)hits[2].count << " ";
     std::cout << (int)hits[3].count << std::endl;
 
-    matcher.processQuery(&s1, compositionBias, hits, 1);
-    matcher.processQuery(&s1, compositionBias, hits + 1, 1);
-    matcher.processQuery(&s1, compositionBias, hits + 2, 1);
-    matcher.processQuery(&s1, compositionBias, hits + 3, 1);
+    matcher.align(hits, 1);
+    matcher.align(hits + 1, 1);
+    matcher.align(hits + 2, 1);
+    matcher.align(hits + 3, 1);
 
     std::cout << (int)hits[0].count<< " ";
     std::cout << (int)hits[1].count<< " ";
@@ -114,7 +114,7 @@ int main (int, const char**) {
             hits[j].diagonal =  rand()%s1.L;
         }
         //   std::reverse(hits, hits+1000);
-        matcher.processQuery(&s1, compositionBias, hits, 16000);
+        matcher.align(hits, 16000);
     }
 //    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.sequence, s1.sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].diagonalScore <<  std::endl;
 //    std::cout << (int)hits[0].diagonalScore <<  std::endl;

@@ -1,6 +1,7 @@
 #include "IndexBuilder.h"
 #include "tantan.h"
 #include "ExtendedSubstitutionMatrix.h"
+#include "Masker.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -51,11 +52,10 @@ public:
 };
 
 
-void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedLookup,
-                                SequenceLookup **unmaskedLookup,BaseMatrix &subMat,
+void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup ** externalLookup, BaseMatrix &subMat,
                                 ScoreMatrix & three, ScoreMatrix & two, Sequence *seq,
                                 DBReader<unsigned int> *dbr, size_t dbFrom, size_t dbTo, int kmerThr,
-                                bool mask, bool maskLowerCaseMode, float maskProb, int targetSearchMode) {
+                                bool mask, bool maskLowerCaseMode, float maskProb, int maskNrepeats, int targetSearchMode) {
     Debug(Debug::INFO) << "Index table: counting k-mers\n";
 
     const bool isProfile = Parameters::isEqualDbtype(seq->getSeqType(), Parameters::DBTYPE_HMM_PROFILE);
@@ -64,32 +64,14 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     size_t dbSize = dbTo - dbFrom;
     DbInfo* info = new DbInfo(dbFrom, dbTo, seq->getEffectiveKmerSize(), *dbr);
 
-    SequenceLookup *sequenceLookup;
-    if (unmaskedLookup != NULL && maskedLookup == NULL) {
-        *unmaskedLookup = new SequenceLookup(dbSize, info->aaDbSize);
-        sequenceLookup = *unmaskedLookup;
-    } else if (unmaskedLookup == NULL && maskedLookup != NULL) {
-        *maskedLookup = new SequenceLookup(dbSize, info->aaDbSize);
-        sequenceLookup = *maskedLookup;
-    } else if (unmaskedLookup != NULL && maskedLookup != NULL) {
-        *unmaskedLookup = new SequenceLookup(dbSize, info->aaDbSize);
-        *maskedLookup = new SequenceLookup(dbSize, info->aaDbSize);
-        sequenceLookup = *maskedLookup;
-    } else{
-        Debug(Debug::ERROR) << "This should not happen\n";
-        EXIT(EXIT_FAILURE);
-    }
+    *externalLookup = new SequenceLookup(dbSize, info->aaDbSize);
+    SequenceLookup *sequenceLookup = *externalLookup;
 
-    // need to prune low scoring k-mers through masking
-    ProbabilityMatrix *probMatrix = NULL;
-    if (maskedLookup != NULL) {
-        probMatrix = new ProbabilityMatrix(subMat);
-    }
 
     // identical scores for memory reduction code
     char *idScoreLookup = getScoreLookup(subMat);
     Debug::Progress progress(dbTo-dbFrom);
-
+    bool needMasking = (mask == 1 || maskNrepeats > 0  || maskLowerCaseMode == 1);
     size_t maskedResidues = 0;
     size_t totalKmerCount = 0;
     #pragma omp parallel
@@ -98,12 +80,19 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
+        // need to prune low scoring k-mers through masking
+        Masker *masker = NULL;
+        if (needMasking) {
+            masker = new Masker(subMat);
+        }
 
-        Indexer idxer(static_cast<unsigned int>(indexTable->getAlphabetSize()), seq->getKmerSize());
+        unsigned int alphabetSize = (indexTable != NULL) ? static_cast<unsigned int>(indexTable->getAlphabetSize())
+                                                         : static_cast<unsigned int>(subMat.alphabetSize);
+        Indexer idxer(alphabetSize, seq->getKmerSize());
         Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false, true, seq->getUserSpacedKmerPattern());
 
         KmerGenerator *generator = NULL;
-        if (isTargetSimiliarKmerSearch) {
+        if (isTargetSimiliarKmerSearch && indexTable != NULL) {
             generator = new KmerGenerator(seq->getKmerSize(), indexTable->getAlphabetSize(), kmerThr);
             if(isProfile){
                 generator->setDivideStrategy(s.profile_matrix);
@@ -130,47 +119,21 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
             // count similar or exact k-mers based on sequence type
             if (isTargetSimiliarKmerSearch) {
                 // Find out if we should also mask profiles
-                totalKmerCount += indexTable->addSimilarKmerCount(&s, generator);
-                unsigned char * seq = (isProfile) ? s.numConsensusSequence : s.numSequence;
-                if (unmaskedLookup != NULL) {
-                    (*unmaskedLookup)->addSequence(seq, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
-                } else if (maskedLookup != NULL) {
-                    (*maskedLookup)->addSequence(seq, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
+                if(indexTable != NULL){
+                    totalKmerCount += indexTable->addSimilarKmerCount(&s, generator);
                 }
+                unsigned char * seq = (isProfile) ? s.numConsensusSequence : s.numSequence;
+
+                sequenceLookup->addSequence(seq, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
+
             } else {
                 // Do not mask if column state sequences are used
-                if (unmaskedLookup != NULL) {
-                    (*unmaskedLookup)->addSequence(s.numSequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
-                }
-                if (mask == true) {
-                    // s.print();
-                    maskedResidues += tantan::maskSequences((char*)s.numSequence,
-                                                            (char*)(s.numSequence + s.L),
-                                                            50 /*options.maxCycleLength*/,
-                                                            probMatrix->probMatrixPointers,
-                                                            0.005 /*options.repeatProb*/,
-                                                            0.05 /*options.repeatEndProb*/,
-                                                            0.9 /*options.repeatOffsetProbDecay*/,
-                                                            0, 0,
-                                                            maskProb /*options.minMaskProb*/,
-                                                            probMatrix->hardMaskTable);
-                }
+                maskedResidues += masker->maskSequence(s, mask, maskProb, maskLowerCaseMode, maskNrepeats);
+                sequenceLookup->addSequence(s.numSequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
 
-                if(maskLowerCaseMode == true && (Parameters::isEqualDbtype(s.getSequenceType(), Parameters::DBTYPE_AMINO_ACIDS) ||
-                                                  Parameters::isEqualDbtype(s.getSequenceType(), Parameters::DBTYPE_NUCLEOTIDES))) {
-                    const char * charSeq = s.getSeqData();
-                    unsigned char maskLetter = subMat.aa2num[static_cast<int>('X')];
-                    for (int i = 0; i < s.L; i++) {
-                        bool isLowerCase = (islower(charSeq[i]));
-                        maskedResidues += isLowerCase;
-                        s.numSequence[i] = isLowerCase ? maskLetter : s.numSequence[i];
-                    }
+                if(indexTable != NULL){
+                    totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
                 }
-                if(maskedLookup != NULL){
-                    (*maskedLookup)->addSequence(s.numSequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
-                }
-
-                totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
             }
         }
 
@@ -179,21 +142,21 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
         if (generator != NULL) {
             delete generator;
         }
+        if(masker != NULL) {
+            delete masker;
+        }
     }
 
-    if(probMatrix != NULL) {
-        delete probMatrix;
-    }
+
 
     Debug(Debug::INFO) << "Index table: Masked residues: " << maskedResidues << "\n";
-    if(totalKmerCount == 0) {
-        Debug(Debug::ERROR) << "No k-mer could be extracted for the database " << dbr->getDataFileName() << ".\n"
+    if(indexTable != NULL && totalKmerCount == 0) {
+        Debug(Debug::WARNING) << "No k-mer could be extracted for the database " << dbr->getDataFileName() << ".\n"
                             << "Maybe the sequences length is less than 14 residues.\n";
         if (maskedResidues == true){
-            Debug(Debug::ERROR) << " or contains only low complexity regions.";
-            Debug(Debug::ERROR) << "Use --mask 0 to deactivate the low complexity filter.\n";
+            Debug(Debug::WARNING) << " or contains only low complexity regions.";
+            Debug(Debug::WARNING) << "Use --mask 0 to deactivate the low complexity filter.\n";
         }
-        EXIT(EXIT_FAILURE);
     }
 
     dbr->remapData();
@@ -211,58 +174,66 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 //    }
 //    Debug(Debug::INFO) << "Index table: Remove "<< lowSelectiveResidues <<" none selective residues\n";
 //    Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
-
-    indexTable->initMemory(info->tableSize);
-    indexTable->init();
+    if(indexTable != NULL){
+        indexTable->initMemory(info->tableSize);
+        indexTable->init();
+    }
 
     delete info;
-    Debug::Progress progress2(dbTo-dbFrom);
-
-    Debug(Debug::INFO) << "Index table: fill\n";
-    #pragma omp parallel
-    {
-        unsigned int thread_idx = 0;
+    if(indexTable != NULL) {
+        Debug::Progress progress2(dbTo - dbFrom);
+        Debug(Debug::INFO) << "Index table: fill\n";
+#pragma omp parallel
+        {
+            unsigned int thread_idx = 0;
 #ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false, true, seq->getUserSpacedKmerPattern());
-        Indexer idxer(static_cast<unsigned int>(indexTable->getAlphabetSize()), seq->getKmerSize());
-        IndexEntryLocalTmp *buffer = static_cast<IndexEntryLocalTmp *>(malloc( seq->getMaxLen() * sizeof(IndexEntryLocalTmp)));
-        size_t bufferSize = seq->getMaxLen();
-        KmerGenerator *generator = NULL;
-        if (isTargetSimiliarKmerSearch) {
-            generator = new KmerGenerator(seq->getKmerSize(), indexTable->getAlphabetSize(), kmerThr);
-            if(isProfile){
-                generator->setDivideStrategy(s.profile_matrix);
-            }else{
-                generator->setDivideStrategy(&three, &two);
-            }
-        }
-
-        #pragma omp for schedule(dynamic, 100)
-        for (size_t id = dbFrom; id < dbTo; id++) {
-            s.resetCurrPos();
-            progress2.updateProgress();
-
-            unsigned int qKey = dbr->getDbKey(id);
+            Sequence s(seq->getMaxLen(), seq->getSeqType(), &subMat, seq->getKmerSize(), seq->isSpaced(), false, true,
+                       seq->getUserSpacedKmerPattern());
+            unsigned int alphabetSize = (indexTable != NULL) ? static_cast<unsigned int>(indexTable->getAlphabetSize())
+                                                             : static_cast<unsigned int>(subMat.alphabetSize);
+            Indexer idxer(alphabetSize, seq->getKmerSize());
+            IndexEntryLocalTmp *buffer = static_cast<IndexEntryLocalTmp *>(malloc(
+                    seq->getMaxLen() * sizeof(IndexEntryLocalTmp)));
+            size_t bufferSize = seq->getMaxLen();
+            KmerGenerator *generator = NULL;
             if (isTargetSimiliarKmerSearch) {
-                s.mapSequence(id - dbFrom, qKey, dbr->getData(id, thread_idx), dbr->getSeqLen(id));
-                indexTable->addSimilarSequence(&s, generator, &buffer, bufferSize, &idxer);
-            } else {
-                s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id - dbFrom));
-                indexTable->addSequence(&s, &idxer, &buffer, bufferSize, kmerThr, idScoreLookup);
+                generator = new KmerGenerator(seq->getKmerSize(), indexTable->getAlphabetSize(), kmerThr);
+                if (isProfile) {
+                    generator->setDivideStrategy(s.profile_matrix);
+                } else {
+                    generator->setDivideStrategy(&three, &two);
+                }
             }
-        }
 
-        if (generator != NULL) {
-            delete generator;
-        }
+#pragma omp for schedule(dynamic, 100)
+            for (size_t id = dbFrom; id < dbTo; id++) {
+                s.resetCurrPos();
+                progress2.updateProgress();
 
-        free(buffer);
+                unsigned int qKey = dbr->getDbKey(id);
+                if (isTargetSimiliarKmerSearch) {
+                    s.mapSequence(id - dbFrom, qKey, dbr->getData(id, thread_idx), dbr->getSeqLen(id));
+                    indexTable->addSimilarSequence(&s, generator, &buffer, bufferSize, &idxer);
+                } else {
+                    s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id - dbFrom));
+                    indexTable->addSequence(&s, &idxer, &buffer, bufferSize, kmerThr, idScoreLookup);
+                }
+            }
+
+            if (generator != NULL) {
+                delete generator;
+            }
+
+            free(buffer);
+        }
     }
     if(idScoreLookup!=NULL){
         delete[] idScoreLookup;
     }
-    indexTable->revertPointer();
-    indexTable->sortDBSeqLists();
+    if(indexTable != NULL){
+        indexTable->revertPointer();
+        indexTable->sortDBSeqLists();
+    }
 }
