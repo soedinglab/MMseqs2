@@ -9,7 +9,6 @@
 // #define HAVE_CUDA 1
 #ifdef HAVE_CUDA
 #include "GpuUtil.h"
-#include "marv.h"
 #endif
 
 #include <random>
