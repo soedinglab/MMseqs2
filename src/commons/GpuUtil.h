@@ -16,10 +16,17 @@
 #include <thread>
 
 struct GPUSharedMemory {
+    enum State {
+        IDLE,
+        RESERVED,
+        READY,
+        DONE
+    };
+
     unsigned int maxSeqLen;                   // Maximum length of the sequence
     unsigned int maxResListLen;               // Maximum length of the results list
-    std::atomic<unsigned int> serverReady{0}; // Server status indicator
-    std::atomic<unsigned int> clientReady{0}; // Client readiness indicator
+    std::atomic<int>  state{IDLE};            // State of the shared memory
+    std::atomic<bool> serverExit{false};      // Has server exited
     unsigned int queryOffset;                 // Offset to the query data
     unsigned int queryLen;                    // Length of the query sequence
     unsigned int resultsOffset;               // Offset to the results data
@@ -36,7 +43,7 @@ struct GPUSharedMemory {
         return sizeof(GPUSharedMemory) +
                sizeof(char) * maxSeqLen +                              // Size for query data
                sizeof(Marv::Result) * maxResListLen +  // Size for results data
-               sizeof(int8_t) * 20 * maxSeqLen;                        // Size for profile data
+               sizeof(int8_t) * 21 * maxSeqLen;        // Size for profile data
     }
 
     static std::string getShmHash(const std::string& db) {
@@ -134,15 +141,6 @@ struct GPUSharedMemory {
         return reinterpret_cast<GPUSharedMemory*>(ptr);
     }
 
-    bool trySetServerReady(unsigned int pid) {
-        unsigned int expected = 0;
-        return serverReady.compare_exchange_strong(expected, pid, std::memory_order_release, std::memory_order_relaxed);
-    }
-
-    void resetServerAndClientReady() {
-        serverReady.store(0, std::memory_order_release);
-        clientReady.store(0, std::memory_order_release);
-    }
 };
 
 #endif
