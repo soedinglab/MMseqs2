@@ -1457,7 +1457,6 @@ Parameters::Parameters():
     touchdb.push_back(&PARAM_V);
 
     // gpu server
-    gpuserver.push_back(&PARAM_GPU);
     gpuserver.push_back(&PARAM_MAX_SEQS);
     gpuserver.push_back(&PARAM_PRELOAD_MODE);
     gpuserver.push_back(&PARAM_PREF_MODE);
