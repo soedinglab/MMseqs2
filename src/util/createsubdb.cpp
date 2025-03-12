@@ -71,11 +71,10 @@ int createsubdb(int argc, const char **argv, const Command& command) {
         }
         if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
             writer.writeIndexEntry(key, reader.getOffset(id), reader.getEntryLen(id), thread_idx);
-        } else if (isIndex == true || arr.size() == 1) { 
+        } else if (isIndex == true || arr.size() == 1 || par.inputmode == 0) { 
             char* data = reader.getDataUncompressed(id);
             size_t originalLength = reader.getEntryLen(id);
             size_t entryLength = std::max(originalLength, static_cast<size_t>(1)) - 1;
-
             if (isCompressed) {
                 // copy also the null byte since it contains the information if compressed or not
                 entryLength = *(reinterpret_cast<unsigned int *>(data)) + sizeof(unsigned int) + 1;
