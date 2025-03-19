@@ -140,6 +140,11 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         return EXIT_FAILURE;
     }
 
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, resultAbReader->getSize()), (size_t)1);
+#endif
+
     int dbType = Parameters::DBTYPE_ALIGNMENT_RES;
     if (returnAlnRes == false) {
         dbType = Parameters::DBTYPE_HMM_PROFILE;
@@ -149,7 +154,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     } else {
         dbType = DBReader<unsigned int>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
     }
-    DBWriter writer(par.db5.c_str(), par.db5Index.c_str(), par.threads, par.compressed, dbType);
+    DBWriter writer(par.db5.c_str(), par.db5Index.c_str(), localThreads, par.compressed, dbType);
     writer.open();
 
     BacktraceTranslator translator;
@@ -164,7 +169,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         evaluer = new EvalueComputation(cReader->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     }
     Debug::Progress progress(resultAbReader->getSize());
-#pragma omp parallel
+#pragma omp parallel num_threads(localThreads)
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
