@@ -1,0 +1,22 @@
+name: Test GPU
+on:
+  push:
+    branches:
+        - master
+jobs:
+  test_gpu:
+    runs-on: [ self-hosted, slurm, gpu ]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Test GPU
+        run: |
+          source /home/cirunner/miniforge3/etc/profile.d/conda.sh
+          conda activate nvcc
+          mkdir build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="native" ..
+          make -j$(nproc --all)
+      - name: Regression
+        run: |
+          ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH

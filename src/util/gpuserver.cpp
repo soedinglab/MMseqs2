@@ -6,9 +6,9 @@
 #include "SubstitutionMatrix.h"
 #include "NucleotideMatrix.h"
 
+// #define HAVE_CUDA 1
 #ifdef HAVE_CUDA
 #include "GpuUtil.h"
-#include "marv.h"
 #endif
 
 #include <random>
@@ -76,24 +76,24 @@ int gpuserver(int argc, const char **argv, const Command& command) {
     GPUSharedMemory* layout = GPUSharedMemory::alloc(shmFile, par.maxSeqLen, par.maxResListLen);
     Debug(Debug::WARNING) << shmFile << "\n";
     while (keepRunning) {
-        while (layout->serverReady.load(std::memory_order_acquire) == 0 || layout->clientReady.load(std::memory_order_acquire) == 0) {
+        if (layout->state.load(std::memory_order_acquire) == GPUSharedMemory::READY) {
+            std::atomic_thread_fence(std::memory_order_acquire);
+
+            Marv::Stats stats = marv.scan(reinterpret_cast<const char *>(layout->getQueryPtr()), layout->queryLen, layout->getProfilePtr(), layout->getResultsPtr());
+            layout->resultLen = stats.results;
+
+            std::atomic_thread_fence(std::memory_order_release);
+            // Debug(Debug::ERROR) << "switch to done\n";
+            layout->state.store(GPUSharedMemory::DONE, std::memory_order_release);
+        } else {
             std::this_thread::yield();
-            if (keepRunning == false) {
-                break;
-            }
         }
-        if (keepRunning == false) {
-            break;
-        }
-        Marv::Stats stats = marv.scan(reinterpret_cast<const char *>(layout->getQueryPtr()), layout->queryLen, layout->getProfilePtr(), layout->getResultsPtr());
-        layout->resultLen = stats.results;
-        layout->serverReady.store(UINT_MAX, std::memory_order_release);
-        while (layout->clientReady.load(std::memory_order_acquire) != 0) {
-            std::this_thread::yield();  // Wait for client to finish
-        }
-        layout->resetServerAndClientReady();
     }
 
+    // server shutdown
+    // Debug(Debug::ERROR) << "switch to exit\n";
+    layout->serverExit.store(true, std::memory_order_release);
+    std::atomic_thread_fence(std::memory_order_release);
     GPUSharedMemory::dealloc(layout, shmFile);
 #endif
     return EXIT_SUCCESS;
