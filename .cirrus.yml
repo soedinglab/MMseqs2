@@ -39,9 +39,11 @@ task:
         CXX: g++-4.9
   compile_script: |
     mkdir -p /opt/cmake-3.31.0
-    wget --no-check-certificate -qO- https://github.com/Kitware/CMake/releases/download/v3.31.0/cmake-3.31.0-linux-x86_64.sh | bash -s -- --skip-license --prefix=/opt/cmake-3.31.0
+    wget https://cmake.org/files/v3.31/cmake-3.31.0-linux-x86_64.sh
+    chmod +x cmake-3.31.0-linux-x86_64.sh
+    ./cmake-3.31.0-linux-x86_64.sh --skip-license --prefix=/opt/cmake-3.31.0
     mkdir build && cd build
-    cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=0 -DHAVE_SSE4_1=1 -DREQUIRE_OPENMP=0 ..
+    /opt/cmake-3.31.0/bin/cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=0 -DHAVE_SSE4_1=1 -DREQUIRE_OPENMP=0 ..
     make -j $(nproc --all)
   test_script: MMSEQS_NUM_THREADS=4 ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH SEARCH
 
