@@ -32,7 +32,7 @@ int gpuserver(int argc, const char **argv, const Command& command) {
     const bool isGpuDb = DBReader<unsigned int>::getExtendedDbtype(dbr->getDbtype()) & Parameters::DBTYPE_EXTENDED_GPU;
     if (isGpuDb == false) {
         Debug(Debug::ERROR) << "Database " << FileUtil::baseName(par.db1) << " is not a valid GPU database\n"
-                            << "Please call: makepaddedseqdb " << FileUtil::baseName(par.db2) << " " << FileUtil::baseName(par.db2) << "_pad\n";
+                            << "Please call: makepaddedseqdb " << FileUtil::baseName(par.db1) << " " << FileUtil::baseName(par.db1) << "_pad\n";
         EXIT(EXIT_FAILURE);
     }
 
