@@ -1,6 +1,5 @@
-cmake_minimum_required(VERSION 2.8.12)
-
-project(tinyexpr)
+cmake_minimum_required(VERSION 3.15)
+project(tinyexpr C)
 
 option(TE_POW_FROM_RIGHT "Evaluate exponents from right to left." OFF)
 option(TE_NAT_LOG "Define the log function as natural logarithm." OFF)
