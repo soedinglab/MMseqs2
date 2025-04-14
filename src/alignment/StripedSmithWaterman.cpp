@@ -1806,23 +1806,28 @@ inline F simd_hmax(const F * in, unsigned int n) {
 }
 
 #ifdef AVX512BW
-	template<int N> // https://stackoverflow.com/questions/58322652/emulating-shifts-on-64-bytes-with-avx-512
-	__m512i shift_right(__m512i a, __m512i carry = _mm512_setzero_si512()) {
-		static_assert(0 <= N && N <= 64);
-		if constexpr(N == 0) return a;
-		if constexpr(N == 64) return carry;
-		if constexpr(N % 4 == 0) return _mm512_alignr_epi32(carry, a, N / 4);
-		else {
-			__m512i a0 = shift_right<(N / 16 + 1) * 16>(a, carry);  // 16, 32, 48, 64
-			__m512i a1 = shift_right<(N / 16) * 16>(a, carry);      // 0, 16, 32, 48
-			return _mm512_alignr_epi8(a0, a1, N % 16);
-		}
+	__m512i shift_right_1_byte(__m512i a) {
+		__m128i zero = _mm_setzero_si128();
+		__m128i lane0 = _mm512_extracti32x4_epi32(a, 0);
+		__m128i lane1 = _mm512_extracti32x4_epi32(a, 1);
+		__m128i lane2 = _mm512_extracti32x4_epi32(a, 2);
+		__m128i lane3 = _mm512_extracti32x4_epi32(a, 3);
+	
+		// For lane0: result[0]=0, result[1..15]=lane0[0..14]
+		__m128i res0 = _mm_alignr_epi8(lane0, zero, 15);
+		// For lane1: result[0]=lane0[15], result[1..15]=lane1[0..14]
+		__m128i res1 = _mm_alignr_epi8(lane1, lane0, 15);
+		// For lane2: result[0]=lane1[15], result[1..15]=lane2[0..14]
+		__m128i res2 = _mm_alignr_epi8(lane2, lane1, 15);
+		// For lane3: result[0]=lane2[15], result[1..15]=lane3[0..14]
+		__m128i res3 = _mm_alignr_epi8(lane3, lane2, 15);
+	
+		__m512i result = _mm512_castsi128_si512(res0);
+		result = _mm512_inserti32x4(result, res1, 1);
+		result = _mm512_inserti32x4(result, res2, 2);
+		result = _mm512_inserti32x4(result, res3, 3);
+		return result;
 	}
-
-	template<int N>
-__m512i shift_right_AVX512(__m512i a, __m512i carry = _mm512_setzero_si512()) {
-    return shift_right<64 - N>(carry, a);
-}
 
 	int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t db_length) {
 		#define SWAP(tmp, arg1, arg2) tmp = arg1; arg1 = arg2; arg2 = tmp;
@@ -1858,7 +1863,7 @@ __m512i shift_right_AVX512(__m512i a, __m512i carry = _mm512_setzero_si512()) {
 	
 			// Load the next S value
 			S = _mm512_load_si512(s_curr + W - 1);
-			S = shift_right_AVX512<1>(S);
+			S = shift_right_1_byte(S);
 	
 			// Swap s_prev and s_curr, smax_prev and smax_curr
 			SWAP(p, s_prev, s_curr);
