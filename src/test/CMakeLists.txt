@@ -17,6 +17,7 @@ set(TESTS
         TestKmerNucl.cpp
         TestKmerScore.cpp
         TestKwayMerge.cpp
+        TestLambdaCalculator.cpp
         TestMultipleAlignment.cpp
         TestProfileAlignment.cpp
         TestPSSM.cpp

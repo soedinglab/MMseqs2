@@ -1,7 +1,7 @@
 #include "SubstitutionMatrix.h"
 #include "Util.h"
 #include "Debug.h"
-// #include "lambda_calculator.h"
+#include "LambdaCalculation.h"
 
 #include <cstring>
 #include <algorithm>
@@ -58,39 +58,21 @@ SubstitutionMatrix::SubstitutionMatrix(const char *filename, float bitFactor, fl
 
 
 bool SubstitutionMatrix::estimateLambdaAndBackground(
-        const double** MAYBE_UNUSED(scoreMatrix),
-        int MAYBE_UNUSED(alphabetSize),
-        double* MAYBE_UNUSED(pBack),
-        double& MAYBE_UNUSED(lambda)
-    ) {
-    Debug(Debug::ERROR) << "Custom Substitution Matrix not supported in the release. Please use previous release\n";
-    return false;
-    // We need to pass the parameters as 1-based pointers, hence the +1s and -1s.
-    // std::vector<double> cells(alphabetSize * (alphabetSize + 1));
-    // std::vector<const double *> pointers(alphabetSize + 1);
-
-    // for (int i = 0; i < alphabetSize; ++i) {
-    //     pointers[i + 1] = &cells[i * alphabetSize];
-    //     for (int j = 0; j < alphabetSize; ++j) {
-    //         cells[i * alphabetSize + j + 1] = scoreMatrix[i][j];
-    //     }
-    // }
-
-    // std::vector<double> letterProbs1(alphabetSize, 0);
-    // std::vector<double> letterProbs2(alphabetSize, 0);
-
-    // lambda = calculate_lambda(&pointers[0], alphabetSize,
-    //                           &letterProbs1[0] - 1,
-    //                           &letterProbs2[0] - 1);
-
-    // for (int i = 0; i < alphabetSize; i++) {
-    //     pBack[i] = letterProbs1[i];
-    // }
-
-    // if (lambda < 0)
-    //     return false; //bad
-    // else
-    //     return true; //good
+    const double** scoreMatrix,
+    int alphabetSize,
+    double* pBack,
+    double& lambda
+) {
+    std::vector<double> letterProbs1(alphabetSize, 0);
+    std::vector<double> letterProbs2(alphabetSize, 0);
+    lambda = calculate_lambda(scoreMatrix, alphabetSize, letterProbs1, letterProbs2);
+    for (int i = 0; i < alphabetSize; i++) {
+        pBack[i] = letterProbs1[i];
+    }
+    if (lambda < 0)
+        return false; //bad
+    else
+        return true; //good
 }
 
 
@@ -407,6 +389,14 @@ void SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const boo
             Debug(Debug::ERROR) << "Computing inverse of substitution matrix failed\n";
             EXIT(EXIT_FAILURE);
         }
+
+        Debug(Debug::INFO) << "# Background (precomputed optional):";
+        for (int i = 0; i < alphabetSize; ++i) {
+            Debug(Debug::INFO) << " " << pBack[i];
+        }
+        Debug(Debug::INFO) << "\n";
+        Debug(Debug::INFO) << "# Lambda     (precomputed optional): " << lambda << "\n";
+
         pBack[static_cast<int>(aa2num[static_cast<int>('X')])]=ANY_BACK;
     }
     if(xIsPositive == false){

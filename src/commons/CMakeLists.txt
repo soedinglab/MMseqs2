@@ -22,6 +22,7 @@ set(commons_header_files
         commons/itoa.h
         commons/KSeqBufferReader.h
         commons/KSeqWrapper.h
+        commons/LambdaCalculation.h
         commons/Masker.h
         commons/MathUtil.h
         commons/MemoryMapped.h
@@ -62,6 +63,7 @@ set(commons_source_files
         commons/GpuUtil.cpp
         commons/HeaderSummarizer.cpp
         commons/KSeqWrapper.cpp
+        commons/LambdaCalculation.cpp
         commons/Masker.cpp
         commons/MemoryMapped.cpp
         commons/MemoryTracker.cpp
