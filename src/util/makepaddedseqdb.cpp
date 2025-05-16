@@ -109,6 +109,7 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
 }
     dbsw.close(true, false);
     dbhw.close(true, false);
+    dbhr.close();
     if (par.writeLookup == true) {
         DBReader<unsigned int> readerHeader(par.hdr2.c_str(), par.hdr2Index.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
         readerHeader.open(DBReader<unsigned int>::NOSORT);
