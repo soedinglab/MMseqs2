@@ -42,8 +42,11 @@ task:
     wget https://cmake.org/files/v3.31/cmake-3.31.0-linux-x86_64.sh
     chmod +x cmake-3.31.0-linux-x86_64.sh
     ./cmake-3.31.0-linux-x86_64.sh --skip-license --prefix=/opt/cmake-3.31.0
+    export PATH=/opt/cmake-3.31.0/bin/:$PATH
     mkdir build && cd build
-    /opt/cmake-3.31.0/bin/cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=0 -DHAVE_SSE4_1=1 -DREQUIRE_OPENMP=0 ..
+    cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=0 -DHAVE_SSE4_1=1 -DREQUIRE_OPENMP=0 ..
     make -j $(nproc --all)
-  test_script: MMSEQS_NUM_THREADS=4 ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH SEARCH
+  test_script: |
+    export PATH=/opt/cmake-3.31.0/bin/:$PATH
+    MMSEQS_NUM_THREADS=4 ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH SEARCH
 
