@@ -15,15 +15,15 @@ jobs:
       - checkout: "none"
       - task: Cache@2
         inputs:
-          key: '"tectonic" | "$(Agent.OS)"'
+          key: '"tectonic-0.15.0" | "$(Agent.OS)"'
           restoreKeys: |
-            "tectonic" | "$(Agent.OS)"
-            "tectonic"
+            "tectonic-0.15.0" | "$(Agent.OS)"
+            "tectonic-0.15.0"
           path: $(Pipeline.Workspace)/tectonic-cache/
         displayName: Cache Tectonic
       - script: |
-          wget -qO- https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.8.0/tectonic-0.8.0-x86_64-unknown-linux-gnu.tar.gz | tar xzvf - tectonic
-          wget -qO- https://github.com/jgm/pandoc/releases/download/2.11.3.2/pandoc-2.11.3.2-linux-amd64.tar.gz | tar --strip-components=2 -xzvf - pandoc-2.11.3.2/bin/pandoc
+          wget -qO- https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.15.0/tectonic-0.15.0-x86_64-unknown-linux-gnu.tar.gz | tar xzvf - tectonic
+          wget -qO- https://github.com/jgm/pandoc/releases/download/3.7/pandoc-3.7-linux-amd64.tar.gz | tar --strip-components=2 -xzvf - pandoc-3.7/bin/pandoc
           sudo mv -f pandoc tectonic /usr/local/bin
         displayName: Install Dependencies
       - script: |
