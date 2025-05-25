@@ -1825,7 +1825,6 @@ int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t 
     #ifdef AVX512BW
 		int element_count = AVX512_VECSIZE_INT * 4;
 		const int W = (profile->query_length + (element_count - 1)) / element_count;
-        __m512i *p;
         __m512i S, Smax = _mm512_setzero_si512();
 		__m512i *s_prev = (__m512i*) mem_align(AVX512_ALIGN_INT, segSize * sizeof(__m512i));
 		__m512i *s_curr = (__m512i*) mem_align(AVX512_ALIGN_INT, segSize * sizeof(__m512i));
@@ -1837,7 +1836,6 @@ int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t 
     #else // AVX2 or SSE2
 		int element_count = VECSIZE_INT * 4;
 		const int W = (profile->query_length + (element_count - 1)) / element_count;
-        simd_int *p;
         simd_int S, Smax = simdi_setzero();
         simd_int *s_prev = vHLoad, *s_curr = vHStore;
 		memset(vHLoad, 0, W * sizeof(simd_int));
