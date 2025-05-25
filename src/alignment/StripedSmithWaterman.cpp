@@ -1884,7 +1884,10 @@ int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t 
 
     int score = simd_hmax((unsigned char*)&Smax, element_count);
 
-	free(s_curr); free(s_prev);
+
+	#ifdef AVX512BW
+		free(s_curr); free(s_prev);
+	#endif
 
     return score;
 }
