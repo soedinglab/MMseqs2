@@ -22,6 +22,10 @@
 /*
    Written by Michael Farrar, 2006 (alignment), Mengyao Zhao (SSW Library) and Martin Steinegger (change structure add aa composition, profile and AVX2 support).
    Please send bug reports and/or suggestions to martin.steinegger@snu.ac.kr.
+   
+   AVX512BW support
+   Modified Copyright (C) 2025 Intel Corporation
+   Contacts: Ghanshyam Chandra <ghanshyam.chandra@intel.com> 
 */
 #include "Parameters.h"
 #include "StripedSmithWaterman.h"
@@ -42,10 +46,6 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
     segSize = segmentSize;
 	vHStore = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	vHLoad  = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
-#ifdef AVX512BW
-	vHStoreBW = (__m512i*) mem_align(AVX512_ALIGN_INT, segSize * sizeof(__m512i));
-	vHLoadBW  = (__m512i*) mem_align(AVX512_ALIGN_INT, segSize * sizeof(__m512i));
-#endif
 	vE      = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	vHmax   = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 
@@ -118,10 +118,6 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
 SmithWaterman::~SmithWaterman(){
 	free(vHStore);
 	free(vHLoad);
-#ifdef AVX512BW
-	free(vHStoreBW);
-	free(vHLoadBW);
-#endif
 	free(vE);
 	free(vHmax);
 	free(target_profile_byte);
@@ -1806,145 +1802,89 @@ inline F simd_hmax(const F * in, unsigned int n) {
 }
 
 #ifdef AVX512BW
-	__m512i shift_right_1_byte(__m512i a) {
-		__m128i zero = _mm_setzero_si128();
-		__m128i lane0 = _mm512_extracti32x4_epi32(a, 0);
-		__m128i lane1 = _mm512_extracti32x4_epi32(a, 1);
-		__m128i lane2 = _mm512_extracti32x4_epi32(a, 2);
-		__m128i lane3 = _mm512_extracti32x4_epi32(a, 3);
-	
-		// For lane0: result[0]=0, result[1..15]=lane0[0..14]
-		__m128i res0 = _mm_alignr_epi8(lane0, zero, 15);
-		// For lane1: result[0]=lane0[15], result[1..15]=lane1[0..14]
-		__m128i res1 = _mm_alignr_epi8(lane1, lane0, 15);
-		// For lane2: result[0]=lane1[15], result[1..15]=lane2[0..14]
-		__m128i res2 = _mm_alignr_epi8(lane2, lane1, 15);
-		// For lane3: result[0]=lane2[15], result[1..15]=lane3[0..14]
-		__m128i res3 = _mm_alignr_epi8(lane3, lane2, 15);
-	
-		__m512i result = _mm512_castsi128_si512(res0);
-		result = _mm512_inserti32x4(result, res1, 1);
-		result = _mm512_inserti32x4(result, res2, 2);
-		result = _mm512_inserti32x4(result, res3, 3);
-		return result;
-	}
-
-	int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t db_length) {
-		#define SWAP(tmp, arg1, arg2) tmp = arg1; arg1 = arg2; arg2 = tmp;
-		
-		int i; // position in query bands (0,..,W-1)
-		int j; // position in db sequence (0,..,dbseq_length-1)
-		int element_count = (AVX512_VECSIZE_INT * 4); // 8 bit datatype
-		const int W = (profile->query_length + (element_count - 1)) /
-					element_count; // width of bands in query and score matrix = hochgerundetes LQ/16
-	
-		// simd_int *p;
-		__m512i *p;
-		__m512i S;              // 16 unsigned bytes holding S(b*W+i,j) (b=0,..,15)
-		__m512i Smax = _mm512_setzero_si512();
-		__m512i Soffset; // all scores in query profile are shifted up by Soffset to obtain pos values
-		__m512i *s_prev, *s_curr; // pointers to Score(i-1,j-1) and Score(i,j), resp.
-		__m512i *qji;             // query profile score in row j (for residue x_j)
-		__m512i *s_prev_it, *s_curr_it;
-		__m512i *query_profile_it = (__m512i *) profile->profile_byteBW;
-	
-		// Load the score offset to all 16 unsigned byte elements of Soffset
-		Soffset = _mm512_set1_epi8(profile->bias);
-		s_curr = vHStoreBW;
-		s_prev = vHLoadBW;
-	
-		memset(vHStoreBW, 0, W * sizeof(__m512i));
-		memset(vHLoadBW, 0, W * sizeof(__m512i));
-	
-		for (j = 0; j < db_length; ++j) // loop over db sequence positions
-		{
-			// Get address of query scores for row j
-			qji = query_profile_it + db_sequence[j] * W;
-	
-			// Load the next S value
-			S = _mm512_load_si512(s_curr + W - 1);
-			S = shift_right_1_byte(S);
-	
-			// Swap s_prev and s_curr, smax_prev and smax_curr
-			SWAP(p, s_prev, s_curr);
-	
-			s_curr_it = s_curr;
-			s_prev_it = s_prev;
-	
-			for (i = 0; i < W; ++i) // loop over query band positions
-			{
-				S = _mm512_adds_epu8(S, *(qji++));
-				S = _mm512_subs_epu8(S, Soffset);
-				_mm512_store_si512(s_curr_it++, S);
-				Smax = _mm512_max_epu8(Smax, S);
-
-				S = _mm512_load_si512(s_prev_it++);
-			}
-		}
-		int score = simd_hmax((unsigned char *) &Smax, element_count); // done
-
-		return score;
-	#undef SWAP
-	}
-#else
-	int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t db_length) {
-		#define SWAP(tmp, arg1, arg2) tmp = arg1; arg1 = arg2; arg2 = tmp;
-		
-		int i; // position in query bands (0,..,W-1)
-		int j; // position in db sequence (0,..,dbseq_length-1)
-		int element_count = (VECSIZE_INT * 4);
-		const int W = (profile->query_length + (element_count - 1)) /
-					element_count; // width of bands in query and score matrix = hochgerundetes LQ/16
-	
-		simd_int *p;
-		simd_int S;              // 16 unsigned bytes holding S(b*W+i,j) (b=0,..,15)
-		simd_int Smax = simdi_setzero();
-		simd_int Soffset; // all scores in query profile are shifted up by Soffset to obtain pos values
-		simd_int *s_prev, *s_curr; // pointers to Score(i-1,j-1) and Score(i,j), resp.
-		simd_int *qji;             // query profile score in row j (for residue x_j)
-		simd_int *s_prev_it, *s_curr_it;
-		simd_int *query_profile_it = (simd_int *) profile->profile_byte;
-	
-		// Load the score offset to all 16 unsigned byte elements of Soffset
-		Soffset = simdi8_set(profile->bias);
-		s_curr = vHStore;
-		s_prev = vHLoad;
-	
-		memset(vHStore, 0, W * sizeof(simd_int));
-		memset(vHStore, 0, W * sizeof(simd_int));
-	
-		for (j = 0; j < db_length; ++j) // loop over db sequence positions
-		{
-	
-			// Get address of query scores for row j
-			qji = query_profile_it + db_sequence[j] * W;
-	
-			// Load the next S value
-			S = simdi_load(s_curr + W - 1);
-			S = simdi8_shiftl(S, 1);
-	
-			// Swap s_prev and s_curr, smax_prev and smax_curr
-			SWAP(p, s_prev, s_curr);
-	
-			s_curr_it = s_curr;
-			s_prev_it = s_prev;
-	
-			for (i = 0; i < W; ++i) // loop over query band positions
-			{
-				// Saturated addition and subtraction to score S(i,j)
-				S = simdui8_adds(S, *(qji++)); // S(i,j) = S(i-1,j-1) + (q(i,x_j) + Soffset)
-				S = simdui8_subs(S, Soffset);       // S(i,j) = max(0, S(i,j) - Soffset)
-				simdi_store(s_curr_it++, S);       // store S to s_curr[i]
-				Smax = simdui8_max(Smax, S);       // Smax(i,j) = max(Smax(i,j), S(i,j))
-	
-				// Load the next S and Smax values
-				S = simdi_load(s_prev_it++);
-			}
-		}
-		int score = simd_hmax((unsigned char *) &Smax, element_count); // done
-	
-		/* return largest score */
-		return score;
-	#undef SWAP
-	}
+template<int N>
+__m512i shift_right(__m512i a, __m512i carry = _mm512_setzero_si512()) {
+    static_assert(0 <= N && N <= 64);
+    if constexpr (N == 0) return a;
+    if constexpr (N == 64) return carry;
+    if constexpr (N % 4 == 0) return _mm512_alignr_epi32(carry, a, N / 4);
+    else {
+        __m512i a0 = shift_right<(N / 16 + 1) * 16>(a, carry);
+        __m512i a1 = shift_right<(N / 16) * 16>(a, carry);
+        return _mm512_alignr_epi8(a0, a1, N % 16);
+    }
+}
+template<int N>
+__m512i shift_right_AVX512(__m512i a, __m512i carry = _mm512_setzero_si512()) {
+    return shift_right<64 - N>(carry, a);
+}
 #endif
+
+int SmithWaterman::ungapped_alignment(const unsigned char *db_sequence, int32_t db_length) {
+    // AVX512BW
+    #ifdef AVX512BW
+		int element_count = AVX512_VECSIZE_INT * 4;
+		const int W = (profile->query_length + (element_count - 1)) / element_count;
+        __m512i *p;
+        __m512i S, Smax = _mm512_setzero_si512();
+		__m512i *s_prev = (__m512i*) mem_align(AVX512_ALIGN_INT, segSize * sizeof(__m512i));
+		__m512i *s_curr = (__m512i*) mem_align(AVX512_ALIGN_INT, segSize * sizeof(__m512i));
+		memset(s_prev, 0, W * sizeof(__m512i));
+		memset(s_curr, 0, W * sizeof(__m512i));
+        __m512i *qji, *s_prev_it, *s_curr_it;
+        __m512i *query_profile_it = (__m512i*)profile->profile_byteBW;
+		__m512i Soffset = _mm512_set1_epi8(profile->bias);
+    #else // AVX2 or SSE2
+		int element_count = VECSIZE_INT * 4;
+		const int W = (profile->query_length + (element_count - 1)) / element_count;
+        simd_int *p;
+        simd_int S, Smax = simdi_setzero();
+        simd_int *s_prev = vHLoad, *s_curr = vHStore;
+		memset(vHLoad, 0, W * sizeof(simd_int));
+		memset(vHStore, 0, W * sizeof(simd_int));
+        simd_int *qji, *s_prev_it, *s_curr_it;
+        simd_int *query_profile_it = (simd_int*)profile->profile_byte;
+		simd_int Soffset = simdi8_set(profile->bias);
+    #endif
+
+    // main Smith-Waterman loop
+    for (int j = 0; j < db_length; ++j) {
+        qji = query_profile_it + db_sequence[j] * W;
+
+        #ifdef AVX512BW
+            S = _mm512_load_si512(s_curr + W - 1);
+            S = shift_right_AVX512<1>(S);
+        #else
+            S = simdi_load(s_curr + W - 1);
+            S = simdi8_shiftl(S, 1);
+        #endif
+
+        // swap the buffers
+		std::swap(s_prev, s_curr);
+
+        s_curr_it = s_curr;
+        s_prev_it = s_prev;
+
+        for (int i = 0; i < W; ++i) {
+            #ifdef AVX512BW
+                S = _mm512_adds_epu8(S, *qji++);
+                S = _mm512_subs_epu8(S, Soffset);
+                _mm512_store_si512(s_curr_it++, S);
+                Smax = _mm512_max_epu8(Smax, S);
+                S = _mm512_load_si512(s_prev_it++);
+            #else
+                S = simdui8_adds(S, *qji++);
+                S = simdui8_subs(S, Soffset);
+                simdi_store(s_curr_it++, S);
+                Smax = simdui8_max(Smax, S);
+                S = simdi_load(s_prev_it++);
+            #endif
+        }
+    }
+
+    int score = simd_hmax((unsigned char*)&Smax, element_count);
+
+	free(s_curr); free(s_prev);
+
+    return score;
+}
