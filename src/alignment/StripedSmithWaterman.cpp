@@ -657,7 +657,6 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
                                                          is set to 0, it will not be used */
 														   uint8_t bias,  /* Shift 0 point to a positive value. */
 														   int32_t maskLen) {
-#define max16(m, vm) ((m) = simdi8_hmax((vm)));
 
 	uint8_t max = 0;		                     /* the max alignment score */
 	int32_t end_query = query_length - 1;
@@ -835,9 +834,7 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
         }
 #endif
 		vTemp = simdui8_subs (vF, vTemp);
-		vTemp = simdi8_eq (vTemp, vZero);
-		uint32_t cmp = simdi8_movemask (vTemp);
-		while (cmp != SIMD_MOVEMASK_MAX) {
+		while (simd_any(vTemp)) {
 #ifdef GAP_POS_SCORING
             if (posSpecificGaps) {
                 vH = simdui8_max (vH, simdui8_subs(vF, simdi_load(gap_close_del + j)));
@@ -871,19 +868,13 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
             }
 #endif
 			vTemp = simdui8_subs (vF, vTemp);
-			vTemp = simdi8_eq (vTemp, vZero);
-			cmp  = simdi8_movemask (vTemp);
 		}
 
 		vMaxScore = simdui8_max(vMaxScore, vMaxColumn);
-		vTemp = simdi8_eq(vMaxMark, vMaxScore);
-		cmp = simdi8_movemask(vTemp);
-		if (cmp != SIMD_MOVEMASK_MAX) {
+		if (!simd_eq_all(vMaxMark, vMaxScore)) {
 			uint8_t temp;
 			vMaxMark = vMaxScore;
-			max16(temp, vMaxScore);
-			vMaxScore = vMaxMark;
-
+			temp = simdi8_hmax(vMaxScore);
 
 			if (LIKELY(temp > max)) {
 			    max = temp;
@@ -904,7 +895,7 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
         //fprintf(stderr, "\n");
 
 		/* Record the max score of current column. */
-		max16(maxColumn[i], vMaxColumn);
+		maxColumn[i] = simdi8_hmax(vMaxColumn);
 		//		fprintf(stderr, "maxColumn[%d]: %d\n", i, maxColumn[i]);
 		if (maxColumn[i] == terminate) break;
 	}
@@ -946,7 +937,6 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 		}
 	}
 	return std::make_pair(best0, best1);
-#undef max16
 }
 
 template <const unsigned int type, const bool posSpecificGaps>
@@ -967,8 +957,6 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 														   uint16_t terminate,
                                                            const uint16_t bias,
                                                            int32_t maskLen) {
-
-#define max8(m, vm) ((m) = simdi16_hmax((vm)));
 
 	uint16_t max = 0;		                     /* the max alignment score */
 	int32_t end_read = query_length - 1;
@@ -1003,7 +991,6 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 	//simd_int vBias = simdi16_set(-bias);    // set as a negative value for simd use
 	simd_int vMaxScore = vZero; /* Trace the highest score of the whole SW matrix. */
 	simd_int vMaxMark = vZero; /* Trace the highest score till the previous column. */
-	simd_int vTemp;
 	int32_t edge, begin = 0, end = db_length, step = 1;
 
     //fprintf(stderr, "start alignment of length %d [%d]\n", query_length, segLen * SIMD_SIZE);
@@ -1098,6 +1085,7 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 
 			/* Update vE value. */
 #ifdef GAP_POS_SCORING
+            simd_int vTemp;
             if (posSpecificGaps) {
                 // copy vH for update of vF
                 vTemp = vH;
@@ -1156,19 +1144,16 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
                 }
 #endif
 				vF = simdui16_subs(vF, vGapE);
-				if (UNLIKELY(! simdi8_movemask(simdi16_gt(vF, vH)))) goto end;
+				if (UNLIKELY(!simd_any(simdi16_gt(vF, vH)))) goto end;
 			}
 		}
 
 		end:
 		vMaxScore = simdi16_max(vMaxScore, vMaxColumn);
-		vTemp = simdi16_eq(vMaxMark, vMaxScore);
-		uint32_t cmp = simdi8_movemask(vTemp);
-		if (cmp != SIMD_MOVEMASK_MAX) {
+		if (!simd_eq_all(vMaxMark, vMaxScore)) {
 			uint16_t temp;
 			vMaxMark = vMaxScore;
-			max8(temp, vMaxScore);
-			vMaxScore = vMaxMark;
+			temp = simdi16_hmax(vMaxScore);
 
 			if (LIKELY(temp > max)) {
 				max = temp;
@@ -1184,7 +1169,7 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
         //fprintf(stderr, "\n");
 
 		/* Record the max score of current column. */
-		max8(maxColumn[i], vMaxColumn);
+		maxColumn[i] = simdi16_hmax(vMaxColumn);
 		if (maxColumn[i] == terminate) break;
 	}
 
@@ -1226,7 +1211,6 @@ std::pair<SmithWaterman::alignment_end, SmithWaterman::alignment_end> SmithWater
 	}
 
 	return std::make_pair(best0, best1);
-#undef max8
 }
 
 void SmithWaterman::ssw_init(const Sequence* q,
