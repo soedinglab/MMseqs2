@@ -229,10 +229,18 @@ int mergeSequentialByJointIndex(
     const char pad_buffer[4] = {20, 20, 20, 20}; // pre-filled buffer
     for(size_t i = 0; i < joint.size(); i++){
         JointEntry qe = joint[i];
-        fread(scratch.data(), 1, qe.length, inFileSeq[qe.fileIdx]);
-        fwrite(scratch.data(), 1, qe.length, fout);
+        size_t read = fread(scratch.data(), 1, qe.length, inFileSeq[qe.fileIdx]);
+        if (UNLIKELY(read != static_cast<size_t>(qe.length))) {
+            Debug(Debug::ERROR) << "Can not read to data file " << dataFiles[qe.fileIdx] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        size_t written = fwrite(scratch.data(), 1, qe.length, fout);
         const size_t sequencepadding = (qe.length % ALIGN == 0) ? 0 : ALIGN - qe.length % ALIGN;
-        fwrite(pad_buffer, 1, sequencepadding, fout);
+        written +=  fwrite(pad_buffer, 1, sequencepadding, fout);
+        if (UNLIKELY(written != qe.length + sequencepadding)) {
+            Debug(Debug::ERROR) << "Can not write to data file " << outDataFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
 
         writeHeaderBuf.clear();
         char ch;
@@ -252,8 +260,16 @@ int mergeSequentialByJointIndex(
         lookupEntry.fileNumber = sourceLookup[qe.fileIdx][(qe.id - qe.fileIdx) / 32];
         lookupBuffer.clear();
         DBReader<unsigned int>::lookupEntryToBuffer(lookupBuffer, lookupEntry);
-        fwrite(lookupBuffer.data(), 1, lookupBuffer.size(), foutLookup);
-        fwrite(writeHeaderBuf.data(), 1, writeHeaderBuf.size(), foutHeader);
+        written = fwrite(lookupBuffer.data(), 1, lookupBuffer.size(), foutLookup);
+        if (UNLIKELY(written != lookupBuffer.size())) {
+            Debug(Debug::ERROR) << "Can not write to lookup file " << outLookupFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        written = fwrite(writeHeaderBuf.data(), 1, writeHeaderBuf.size(), foutHeader);
+        if (UNLIKELY(written != writeHeaderBuf.size())) {
+            Debug(Debug::ERROR) << "Can not write to header file " << outHeaderDataFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
 
         entry.offset = mergedOffset;
         // + 2 is needed for newline and null character
