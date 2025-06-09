@@ -284,6 +284,7 @@ public:
     // seq. split mode
     static const int SEQUENCE_SPLIT_MODE_HARD = 0;
     static const int SEQUENCE_SPLIT_MODE_SOFT = 1;
+    static const int SEQUENCE_SPLIT_MODE_GPU = 2;
 
     // rescorediagonal
     static const int RESCORE_MODE_HAMMING = 0;

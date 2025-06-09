@@ -97,6 +97,19 @@ public:
                 return false;
             return false;
         }
+
+        // strict-weak ordering by length, then offset, then id
+        static bool compareByLength(const Index &x, const Index &y) {
+            if (x.length < y.length)
+                return true;
+            if (y.length < x.length)
+                return false;
+            if (x.offset < y.offset)
+                return true;
+            if (y.offset < x.offset)
+                return false;
+            return x.id < y.id;
+        }
     };
 
     struct LookupEntry {
@@ -247,7 +260,6 @@ public:
     T getLookupKey(size_t id);
     std::string getLookupEntryName(size_t id);
     unsigned int getLookupFileNumber(size_t id);
-    void lookupEntryToBuffer(std::string& buffer, const LookupEntry& entry);
     LookupEntry* getLookup() { return lookup; };
 
     static const int NOSORT = 0;
@@ -300,6 +312,7 @@ public:
 
     static void removeDb(const std::string &databaseName);
 
+    static void lookupEntryToBuffer(std::string& buffer, const LookupEntry& entry);
 
     static void aliasDb(const std::string &databaseName, const std::string &alias, DBFiles::Files dbFilesFlags = DBFiles::ALL);
     static void softlinkDb(const std::string &databaseName, const std::string &outDb, DBFiles::Files dbFilesFlags = DBFiles::ALL);
