@@ -13,6 +13,10 @@
 #include "FastSort.h"
 #include "Masker.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 // Sort the data file in-place using your index array
 int sortWithIndex(const char *dataFileSeq,
                   const char *indexFileSeq,
