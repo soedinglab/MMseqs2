@@ -620,7 +620,7 @@ int createdb(int argc, const char **argv, const Command& command) {
                 // +2 to emulate the \n\0
                 hdrWriter.writeIndexEntry(id, headerFileOffset + e.headerOffset, (e.sequenceOffset-e.headerOffset)+1, 0);
                 seqWriter.writeIndexEntry(id, seqFileOffset + e.sequenceOffset, e.sequence.l+2, 0);
-            } if(par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_HARD) {
+            } else if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_HARD) {
                 hdrWriter.writeData(header.c_str(), header.length(), id, splitIdx);
                 seqWriter.writeStart(splitIdx);
                 seqWriter.writeAdd(e.sequence.s, e.sequence.l, splitIdx);
