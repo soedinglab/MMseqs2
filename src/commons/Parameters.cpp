@@ -305,7 +305,6 @@ Parameters::Parameters():
         PARAM_ID_MODE(PARAM_ID_MODE_ID, "--id-mode", "Database ID mode", "Select DB entries based on 0: database keys, 1: FASTA identifiers (.lookup)", typeid(int), (void *) &dbIdMode, "^[0-1]{1}$"),
         PARAM_TAR_INCLUDE(PARAM_TAR_INCLUDE_ID, "--tar-include", "Tar Inclusion Regex", "Include file names based on this regex", typeid(std::string), (void *) &tarInclude, "^.*$"),
         PARAM_TAR_EXCLUDE(PARAM_TAR_EXCLUDE_ID, "--tar-exclude", "Tar Exclusion Regex", "Exclude file names based on this regex", typeid(std::string), (void *) &tarExclude, "^.*$"),
-        PARAM_INPUT_MODE(PARAM_INPUT_MODE_ID, "--input-mode", "Input list mode", "0: only index, 1: index and range", typeid(int), (void *) &inputmode, "^[0-1]{1}$"),
         // unpackdb
         PARAM_UNPACK_SUFFIX(PARAM_UNPACK_SUFFIX_ID, "--unpack-suffix", "Unpack suffix", "File suffix for unpacked files.\nAdd .gz suffix to write compressed files.", typeid(std::string), (void *) &unpackSuffix, "^.*$"),
         PARAM_UNPACK_NAME_MODE(PARAM_UNPACK_NAME_MODE_ID, "--unpack-name-mode", "Unpack name mode", "Name unpacked files by 0: DB key, 1: accession (through .lookup)", typeid(int), (void *) &unpackNameMode, "^[0-1]{1}$"),
@@ -1170,7 +1169,6 @@ Parameters::Parameters():
     createsubdb.push_back(&PARAM_SUBDB_MODE);
     createsubdb.push_back(&PARAM_ID_MODE);
     createsubdb.push_back(&PARAM_V);
-    createsubdb.push_back(&PARAM_INPUT_MODE);
 
     // renamedbkeys
     renamedbkeys.push_back(&PARAM_SUBDB_MODE);
@@ -2625,7 +2623,6 @@ void Parameters::setDefaults() {
     // createsubdb
     subDbMode = Parameters::SUBDB_MODE_HARD;
     dbIdMode = Parameters::ID_MODE_KEYS;
-    inputmode = 0;
 
     // tar2db
     tarInclude = ".*";

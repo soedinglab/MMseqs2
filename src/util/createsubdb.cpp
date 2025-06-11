@@ -11,11 +11,9 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    bool isIndex = false;
     FILE *orderFile = NULL;
     if (FileUtil::fileExists(par.db1Index.c_str())) {
         orderFile = fopen(par.db1Index.c_str(), "r");
-        isIndex = true;
     } else {
         if(FileUtil::fileExists(par.db1.c_str())){
             orderFile = fopen(par.db1.c_str(), "r");
@@ -24,8 +22,7 @@ int createsubdb(int argc, const char **argv, const Command& command) {
             EXIT(EXIT_FAILURE);
         }
     }
-    //no multithreading
-    unsigned int thread_idx = 0;
+
     const bool lookupMode = par.dbIdMode == Parameters::ID_MODE_LOOKUP;
     int dbMode = DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA;
     if (lookupMode) {
@@ -35,7 +32,7 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     reader.open(DBReader<unsigned int>::NOSORT);
     const bool isCompressed = reader.isCompressed();
 
-    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, isCompressed, Parameters::DBTYPE_OMIT_FILE);
+    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, 0, Parameters::DBTYPE_OMIT_FILE);
     writer.open();
     // getline reallocs automatic
     char *line = NULL;
@@ -43,13 +40,8 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     char dbKey[256];
     unsigned int prevKey = 0;
     bool isOrdered = true;
-    char* result;
-    char newLine = '\n';
-    char nullByte = '\0';
-    std::vector<std::string> arr;
     while (getline(&line, &len, orderFile) != -1) {
         Util::parseKey(line, dbKey);
-        arr = Util::split(line, "\t");
         unsigned int key;
         if (lookupMode) {
             size_t lookupId = reader.getLookupIdByAccession(dbKey);
@@ -70,51 +62,21 @@ int createsubdb(int argc, const char **argv, const Command& command) {
             continue;
         }
         if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
-            writer.writeIndexEntry(key, reader.getOffset(id), reader.getEntryLen(id), thread_idx);
-        } else if (isIndex == true || arr.size() == 1 || par.inputmode == 0) { 
+            writer.writeIndexEntry(key, reader.getOffset(id), reader.getEntryLen(id), 0);
+        } else {
             char* data = reader.getDataUncompressed(id);
             size_t originalLength = reader.getEntryLen(id);
             size_t entryLength = std::max(originalLength, static_cast<size_t>(1)) - 1;
+
             if (isCompressed) {
                 // copy also the null byte since it contains the information if compressed or not
                 entryLength = *(reinterpret_cast<unsigned int *>(data)) + sizeof(unsigned int) + 1;
-                writer.writeData(data, entryLength, key, thread_idx, false, false);
+                writer.writeData(data, entryLength, key, 0, false, false);
             } else {
-                writer.writeData(data, entryLength, key, thread_idx, true, false);
+                writer.writeData(data, entryLength, key, 0, true, false);
             }
             // do not write null byte since
-            writer.writeIndexEntry(key, writer.getStart(0), originalLength, thread_idx);
-        } else {
-            if (arr.size()%2 == 0) {
-                Debug(Debug::ERROR) << "Input list not in format\n";
-            } else {
-                char* data;
-                if (isCompressed) {
-                    data = reader.getDataCompressed(id, thread_idx);
-                } else {
-                    data = reader.getDataUncompressed(id);
-                }
-                size_t entryLength = std::max(reader.getEntryLen(id), static_cast<size_t>(1));
-                int totalLength = 0;
-                result = new char[entryLength];
-                for (int ord = 0 ; ord < int((arr.size()-1)/2); ord ++) {
-                    int currLength = std::stoi(arr[ord * 2 + 2])  - std::stoi(arr[ord * 2 + 1]) + 1;
-                    strncpy(result + totalLength, data + std::stoi(arr[ord * 2 + 1]), currLength);
-                    totalLength += currLength;
-                }
-                result[totalLength] = newLine;
-                if (isCompressed) {
-                    writer.writeData(result, totalLength + 1, key, thread_idx, true, false);
-                } else {
-                    writer.writeData(result, totalLength, key, thread_idx, false, false);
-                    writer.writeAdd(&newLine, sizeof(char), thread_idx);
-                    writer.writeAdd(&nullByte, sizeof(char), thread_idx);
-                }
-                delete [] result;
-                result = nullptr;
-                
-                writer.writeIndexEntry(key, writer.getStart(0), totalLength + 2, thread_idx);   
-            }
+            writer.writeIndexEntry(key, writer.getStart(0), originalLength, 0);
         }
     }
     // merge any kind of sequence database
@@ -127,6 +89,7 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     }
     DBWriter::writeDbtypeFile(par.db3.c_str(), reader.getDbtype(), isCompressed);
     DBReader<unsigned int>::softlinkDb(par.db2, par.db3, DBFiles::SEQUENCE_ANCILLARY);
+
     free(line);
     reader.close();
     if (fclose(orderFile) != 0) {
