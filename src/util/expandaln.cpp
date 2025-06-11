@@ -268,11 +268,11 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
 
                 unsigned int bResKey = resultAb.dbKey;
                 size_t bResId = resultBcReader->getId(bResKey);
-//                if (isCa3m) {
-//                    unsigned int key;
-//                    CompressedA3M::extractMatcherResults(key, resultsBc, resultBcReader.getData(bResId, thread_idx), resultBcReader.getEntryLen(bResId), *cReader, false);
+                if (bResId == UINT_MAX) {
+                    Debug(Debug::WARNING) << "Missing alignments for sequence " << bResKey << "\n";
+                    continue;
+                }
                 Matcher::readAlignmentResults(resultsBc, resultBcReader->getData(bResId, thread_idx), false);
-
                 if (filterBc) {
                     bool hasRep = false;
                     for (size_t k = 0; k < resultsBc.size(); ++k) {
