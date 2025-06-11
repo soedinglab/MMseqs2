@@ -788,7 +788,7 @@ std::vector<Command> baseCommands = {
 //                "If exist, the auxillary files: _mapping, source and lookup are also concatenated after IDs update of the 2nd DB",
                 "# Download two sequences databases and concat them\n"
                 "mmseqs databases PDB pdbDB tmp\n"
-                "mmseqs UniProtKB/Swiss-Prot swissprotDB tmp\n"
+                "mmseqs databases UniProtKB/Swiss-Prot swissprotDB tmp\n"
                 "# Works only single threaded since seq. and header DB need the same ordering\n"
                 "mmseqs concatdbs pdbDB swissprotDB pdbAndSwissprotDB --threads 1\n"
                 "mmseqs concatdbs pdbDB_h swissprotDB_h pdbAndSwissprotDB_h --threads 1\n",
