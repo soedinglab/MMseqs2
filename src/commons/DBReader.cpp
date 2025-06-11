@@ -155,6 +155,21 @@ template <typename T> bool DBReader<T>::open(int accessType){
         }
         lookupData.close();
     }
+    if (dataMode & USE_SOURCE) {
+        std::string sourceFilename = (std::string(dataFileName) + ".source");
+        MemoryMapped sourceData(sourceFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+        if (sourceData.isValid() == false) {
+            Debug(Debug::ERROR) << "Cannot open source file " << sourceFilename << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        char* sourceDataChar = (char *) sourceData.getData();
+        size_t sourceDataSize = sourceData.size();
+        sourceSize = Util::ompCountLines(sourceDataChar, sourceDataSize, threads);
+        source = new(std::nothrow) LookupEntry[this->sourceSize];
+        incrementMemory(sizeof(LookupEntry) * this->sourceSize);
+        readSource(sourceDataChar, sourceDataSize, source);
+        sourceData.close();
+    }
     bool isSortedById = false;
     if (externalData == false) {
         MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
@@ -1083,6 +1098,26 @@ void DBReader<T>::readLookup(char *data, size_t dataSize, DBReader::LookupEntry 
     }
 }
 
+template<typename T>
+void DBReader<T>::readSource(char *data, size_t dataSize, DBReader::LookupEntry *source) {
+    size_t i = 0;
+    size_t currPos = 0;
+    char* sourceData = (char *) data;
+    const char * cols[3];
+    while (currPos < dataSize){
+        if (i >= this->sourceSize) {
+            Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        Util::getWordsOfLine(sourceData, cols, 3);
+        source[i].id = Util::fast_atoi<size_t>(cols[0]);
+        source[i].entryName = std::string(cols[1], (cols[2] - cols[1]));
+        sourceData = Util::skipLine(sourceData);
+        currPos = sourceData - (char *) data;
+        i++;
+    }
+}
+
 // TODO: Move to DbUtils?
 
 template<typename T>
@@ -1257,6 +1292,22 @@ void DBReader<T>::decomposeDomainByAminoAcid(size_t worldRank, size_t worldSize,
         *startEntry += entriesPerWorker[j];
     }
     free(entriesPerWorker);
+}
+
+template<typename T>
+std::map<unsigned int, std::string> DBReader<T>::readSetToSource() {
+    std::map<unsigned int, std::string> mapping;
+    for (size_t i = 0; i < this->sourceSize; ++i) {
+        LookupEntry& entry = source[i];
+        unsigned int idint;
+        if constexpr (std::is_same<T, std::string>::value) {
+            idint = static_cast<unsigned int>(std::stoul(entry.id));
+            } else {
+                idint = static_cast<unsigned int>(entry.id);
+            }
+        mapping[idint] = entry.entryName;
+    }
+    return mapping;
 }
 
 template class DBReader<unsigned int>;

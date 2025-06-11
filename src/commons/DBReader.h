@@ -268,6 +268,7 @@ public:
     static const unsigned int USE_FREAD      = 4;
     static const unsigned int USE_LOOKUP     = 8;
     static const unsigned int USE_LOOKUP_REV = 16;
+    static const unsigned int USE_SOURCE = 32;
 
 
     // compressed
@@ -310,6 +311,8 @@ public:
     bool readIndex(char *data, size_t indexDataSize, Index *index, size_t & dataSize);
 
     void readLookup(char *data, size_t dataSize, LookupEntry *lookup);
+    
+    void readSource(char *data, size_t dataSize, LookupEntry *source);
 
     void readIndexId(T* id, char * line, const char** cols);
 
@@ -449,6 +452,8 @@ public:
 
     void decomposeDomainByAminoAcid(size_t worldRank, size_t worldSize, size_t *startEntry, size_t *numEntries);
 
+    std::map<unsigned int, std::string> readSetToSource();
+
 private:
     void checkClosed() const;
 
@@ -488,7 +493,9 @@ private:
 
     Index * index;
     size_t lookupSize;
+    size_t sourceSize;
     LookupEntry * lookup;
+    LookupEntry * source;
     bool sortedByOffset;
 
     unsigned int * id2local;
