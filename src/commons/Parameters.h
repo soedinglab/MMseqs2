@@ -285,6 +285,7 @@ public:
     // seq. split mode
     static const int SEQUENCE_SPLIT_MODE_HARD = 0;
     static const int SEQUENCE_SPLIT_MODE_SOFT = 1;
+    static const int SEQUENCE_SPLIT_MODE_GPU = 2;
 
     // rescorediagonal
     static const int RESCORE_MODE_HAMMING = 0;
@@ -327,6 +328,12 @@ public:
     // translation mode
     static const int PARAM_TRANSLATION_MODE_ORF = 0;
     static const int PARAM_TRANSLATION_MODE_FRAME = 1;
+
+    // report mode
+    static const int REPORT_MODE_KRAKEN = 0;
+    static const int REPORT_MODE_KRONA = 1;
+    static const int REPORT_MODE_SKIP = 2; // for workflows only
+    static const int REPORT_MODE_KRAKENDB = 3;
 
     // path to databases
     std::string db1;

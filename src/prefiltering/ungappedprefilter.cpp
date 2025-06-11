@@ -28,10 +28,16 @@
 #ifdef HAVE_CUDA
 #include "GpuUtil.h"
 #include "Alignment.h"
-
+#include <signal.h>
 #endif
 
 #ifdef HAVE_CUDA
+
+volatile sig_atomic_t keepRunningClient = 1;
+void intHandlerClient(int) {
+    keepRunningClient = 0;
+}
+
 void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
                     DBReader<unsigned int> * qdbr, DBReader<unsigned int> * tdbr,
                     bool sameDB, DBWriter & resultWriter, EvalueComputation * evaluer,
@@ -66,6 +72,7 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
     if (par.gpuServer != 0) {
         hash = GPUSharedMemory::getShmHash(par.db2);
         std::string path = "/dev/shm/" + hash;
+        // Debug(Debug::WARNING) << path << "\n";
         int waitTimeout = par.gpuServerWaitTimeout;
         std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
         bool statusPrinted = false;
@@ -85,16 +92,16 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
 
             if (waitTimeout > 0) {
                 if (statusPrinted == false) {
-                    Debug(Debug::INFO) << "Waiting for `gpuserver`";
+                    Debug(Debug::WARNING) << "Waiting for `gpuserver`\n";
                     statusPrinted = true;
                 } else {
-                    Debug(Debug::INFO) << ".";
+                    Debug(Debug::WARNING) << ".";
                 }
                 std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
                 auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count();
                 if (elapsed >= waitTimeout) {
                     Debug(Debug::ERROR)
-                        << "gpuserver for database " << par.db2 << " not found after " << elapsed <<  "seconds.\n"
+                        << "\ngpuserver for database " << par.db2 << " not found after " << elapsed <<  "seconds.\n"
                         << "Please start gpuserver with the same CUDA_VISIBLE_DEVICES\n";
                     EXIT(EXIT_FAILURE);
                 }
@@ -111,7 +118,6 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
     std::vector<size_t> offsets;
     std::vector<int32_t> lengths;
     GPUSharedMemory* layout = NULL;
-    pid_t pid = 0;  // current process ID, only for server
     if (hash.empty()) {
         offsets.reserve(tdbr->getSize() + 1);
         lengths.reserve(tdbr->getSize());
@@ -123,7 +129,6 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         offsetData = offsets.data();
         lengthData = lengths.data();
     } else {
-        pid = getpid();
         layout = GPUSharedMemory::openSharedMemory(hash);
     }
 
@@ -146,10 +151,20 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
     } else if (layout == NULL) {
        Debug(Debug::ERROR) << "No GPU server shared memory connection\n";
        EXIT(EXIT_FAILURE);
+    } else {
+        struct sigaction act;
+        // Set up the handler for SIGINT and SIGTERM
+        memset(&act, 0, sizeof(act));
+        act.sa_handler = intHandlerClient;
+        sigaction(SIGINT, &act, NULL);
+        sigaction(SIGTERM, &act, NULL);
     }
 
     // marv.prefetch();
     for (size_t id = 0; id < qdbr->getSize(); id++) {
+        if (!keepRunningClient) {
+            break;
+        }
         size_t queryKey = qdbr->getDbKey(id);
         unsigned int querySeqLen = qdbr->getSeqLen(id);
         char *querySeqData = qdbr->getData(id, 0);
@@ -183,19 +198,57 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         if (serverMode == 0) {
             stats = marv->scan(reinterpret_cast<const char *>(qSeq.numSequence), qSeq.L, profile, results.data());
         } else {
-            while(layout->trySetServerReady(pid)==false) {
-                std::this_thread::yield();
+            bool claimed = false;
+            while (!claimed) {
+                if (layout->serverExit.load(std::memory_order_acquire) == true) {
+                    // server has shut down
+                    Debug(Debug::ERROR) << "GPU server has unexpectedly shut down\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                if (keepRunningClient == false) {
+                    EXIT(EXIT_FAILURE);
+                }
+
+                int expected = GPUSharedMemory::IDLE;
+                int desired = GPUSharedMemory::RESERVED;
+                if (layout->state.compare_exchange_strong(expected, desired, std::memory_order_acq_rel)) {
+                    // Debug(Debug::ERROR) << "switch to reserved\n";
+                    claimed = true;
+                    memcpy(layout->getQueryPtr(), qSeq.numSequence, qSeq.L);
+                    memcpy(layout->getProfilePtr(), profile, subMat->alphabetSize * qSeq.L);
+                    layout->queryLen = qSeq.L;
+                    std::atomic_thread_fence(std::memory_order_release);
+                    // Debug(Debug::ERROR) << "switch to ready\n";
+                    layout->state.store(GPUSharedMemory::READY, std::memory_order_release);
+
+                    while (true) {
+                        if (layout->serverExit.load(std::memory_order_acquire) == true) {
+                            Debug(Debug::ERROR) << "GPU server has unexpectedly shut down\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+
+                        if (layout->state.load(std::memory_order_acquire) == GPUSharedMemory::DONE) {
+                            break;
+                        } else {
+                            std::this_thread::yield();
+                        }
+                    }
+
+                    std::atomic_thread_fence(std::memory_order_acquire);
+                    memcpy(results.data(), layout->getResultsPtr(), layout->resultLen * sizeof(Marv::Result));
+                    stats.results = layout->resultLen;
+                    // Debug(Debug::ERROR) << "switch to idle\n";
+                    layout->state.store(GPUSharedMemory::IDLE, std::memory_order_release);
+                    if (keepRunningClient == false) {
+                        EXIT(EXIT_FAILURE);
+                    }
+                } else {
+                    std::this_thread::yield();
+                }
             }
-            memcpy(layout->getQueryPtr(), qSeq.numSequence, qSeq.L);
-            memcpy(layout->getProfilePtr(), profile, subMat->alphabetSize * qSeq.L);
-            layout->queryLen = qSeq.L;
-            layout->clientReady.store(1, std::memory_order_release);
-            while(layout->serverReady.load(std::memory_order_acquire) != UINT_MAX) {
-                std::this_thread::yield();
-            }
-            memcpy(results.data(), layout->getResultsPtr(), layout->resultLen * sizeof(Marv::Result));
-            stats.results = layout->resultLen;
-            layout->resetServerAndClientReady();
+        }
+        if (keepRunningClient == false) {
+            EXIT(EXIT_FAILURE);
         }
 
         for(size_t i = 0; i < stats.results; i++){

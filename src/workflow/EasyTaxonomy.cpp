@@ -62,7 +62,7 @@ int easytaxonomy(int argc, const char **argv, const Command& command) {
     par.taxonomyOutputMode = Parameters::TAXONOMY_OUTPUT_BOTH;
     par.PARAM_TAX_OUTPUT_MODE.wasSet = true;
     cmd.addVariable("TAXONOMY_PAR", par.createParameterString(par.taxonomy, true).c_str());
-    cmd.addVariable("CREATEDB_QUERY_PAR", par.createParameterString(par.createdb).c_str());
+    cmd.addVariable("CREATEDB_QUERY_PAR", par.createParameterString(par.createdb,true).c_str());
     cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
     cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());
     cmd.addVariable("TAXONOMYREPORT_PAR", par.createParameterString(par.taxonomyreport).c_str());

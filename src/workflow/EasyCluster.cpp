@@ -22,6 +22,8 @@ void setEasyClusterDefaults(Parameters *p) {
 void setEasyClusterMustPassAlong(Parameters *p) {
     p->PARAM_SPACED_KMER_MODE.wasSet = true;
     p->PARAM_REMOVE_TMP_FILES.wasSet = true;
+    p->PARAM_CREATEDB_MODE.wasSet = true;
+    p->PARAM_WRITE_LOOKUP.wasSet = true;
     p->PARAM_C.wasSet = true;
     p->PARAM_E.wasSet = true;
     p->PARAM_ALIGNMENT_MODE.wasSet = true;
@@ -66,7 +68,7 @@ int easycluster(int argc, const char **argv, const Command &command) {
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
 
     cmd.addVariable("RUNNER", par.runner.c_str());
-    cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb).c_str());
+    cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb, true).c_str());
     cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clusterworkflow, true).c_str());
     cmd.addVariable("CLUSTER_MODULE", "cluster");
     cmd.addVariable("RESULT2REPSEQ_PAR", par.createParameterString(par.result2repseq).c_str());

@@ -20,6 +20,8 @@
 #ifdef _MSC_VER
 // Windows
 #include <windows.h>
+
+#define MM_INVALID_FILE NULL
 #else
 // Linux
 // enable large file support on 32 bit systems
@@ -37,6 +39,7 @@
 #include <errno.h>
 #include <unistd.h>
 
+#define MM_INVALID_FILE -1
 #endif
 
 
@@ -46,7 +49,7 @@ MemoryMapped::MemoryMapped()
           _filesize   (0),
           _hint       (Normal),
           _mappedBytes(0),
-          _file       (0),
+          _file       (MM_INVALID_FILE),
 #ifdef _MSC_VER
         _mappedFile (NULL),
 #endif
@@ -60,7 +63,7 @@ MemoryMapped::MemoryMapped(const std::string& filename, size_t mappedBytes, Cach
           _filesize   (0),
           _hint       (hint),
           _mappedBytes(mappedBytes),
-          _file       (0),
+          _file       (MM_INVALID_FILE),
 #ifdef _MSC_VER
         _mappedFile (NULL),
 #endif
@@ -84,7 +87,7 @@ bool MemoryMapped::open(const std::string& filename, size_t mappedBytes, CacheHi
     if (isValid())
         return false;
 
-    _file       = 0;
+    _file       = MM_INVALID_FILE;
     _filesize   = 0;
     _hint       = hint;
 #ifdef _MSC_VER
@@ -106,7 +109,7 @@ bool MemoryMapped::open(const std::string& filename, size_t mappedBytes, CacheHi
 
   // open file
   _file = ::CreateFileA(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, winHint, NULL);
-  if (!_file)
+  if (_file == MM_INVALID_FILE)
     return false;
 
   // file size
@@ -127,9 +130,8 @@ bool MemoryMapped::open(const std::string& filename, size_t mappedBytes, CacheHi
     // open file
 
     _file = ::open(filename.c_str(), O_RDONLY);
-    if (_file == -1)
+    if (_file == MM_INVALID_FILE)
     {
-        _file = 0;
         return false;
     }
 
@@ -176,14 +178,14 @@ void MemoryMapped::close()
 #endif
 
     // close underlying file
-    if (_file)
+    if (_file != MM_INVALID_FILE)
     {
 #ifdef _MSC_VER
         ::CloseHandle(_file);
 #else
         ::close(_file);
 #endif
-        _file = 0;
+        _file = MM_INVALID_FILE;
     }
 
     _filesize = 0;
@@ -240,7 +242,7 @@ size_t MemoryMapped::mappedSize() const
 /// replace mapping by a new one of the same file, offset MUST be a multiple of the page size
 bool MemoryMapped::remap(uint64_t offset, size_t mappedBytes)
 {
-    if (!_file)
+    if (_file == MM_INVALID_FILE)
         return false;
 
     if (mappedBytes == WholeFile)

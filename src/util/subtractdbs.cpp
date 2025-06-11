@@ -13,23 +13,27 @@
 
 int subtractdbs(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, true, 0, 0);
+    par.parseParameters(argc, argv, command, false, 0, 0);
     par.evalProfile = (par.evalThr < par.evalProfile) ? par.evalThr : par.evalProfile;
     par.printParameters(command.cmd, argc, argv, *command.params);
     const double evalThreshold = par.evalProfile;
 
-    Debug(Debug::INFO) << "Remove " << par.db2 << " ids from " << par.db1 << "\n";
     DBReader<unsigned int> leftDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     leftDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     DBReader<unsigned int> rightDbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     rightDbr.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, leftDbr.getDbtype());
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, leftDbr.getSize()), (size_t)1);
+#endif
+
+    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), localThreads, par.compressed, leftDbr.getDbtype());
     writer.open();
 
     Debug::Progress progress(leftDbr.getSize());
-#pragma omp parallel
+#pragma omp parallel num_threads(localThreads)
     {
         int thread_idx = 0;
 #ifdef OPENMP

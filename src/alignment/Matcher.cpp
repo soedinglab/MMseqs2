@@ -255,7 +255,7 @@ Matcher::result_t Matcher::parseAlignmentRecord(const char *data, bool readCompr
                                      alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
                                      dbLen, Util::fast_atoi<int>(entry[10]), Util::fast_atoi<int>(entry[11]),
                                      Util::fast_atoi<int>(entry[12]), Util::fast_atoi<int>(entry[13]), "");
-        // 13 without backtrace but qOrfStart dbOrfStart
+        // 13 with backtrace and qOrfStart dbOrfStart
         case ALN_RES_WITH_ORF_AND_BT_COL_CNT:
             if (readCompressed) {
                 return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,

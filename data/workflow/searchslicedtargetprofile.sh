@@ -118,7 +118,7 @@ while [ "${FIRST_INDEX_LINE}" -le "${TOTAL_NUM_PROFILES}" ]; do
             || fail "result2stats died"
     fi
     # update the starting point for the next step and the total number of pref results
-    NUM_PREF_RESULTS_IN_STEP=$(awk '{sum+=$1;} END{print sum;}' "${TMP_PATH}/pref_count.tsv")
+    NUM_PREF_RESULTS_IN_STEP=$(awk '{sum+=$1;} END { printf("%.0f\n", sum); }' "${TMP_PATH}/pref_count.tsv")
     rm -f "${TMP_PATH}/pref_count.tsv"
 
     NUM_PREF_RESULTS_IN_ALL_PREV_STEPS="$((NUM_PREF_RESULTS_IN_ALL_PREV_STEPS+NUM_PREF_RESULTS_IN_STEP))"

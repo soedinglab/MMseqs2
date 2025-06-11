@@ -11,7 +11,7 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 
 [Mirdita M, Steinegger M, Breitwieser F, Soding J, Levy Karin E: Fast and sensitive taxonomic assignment to metagenomic contigs. Bioinformatics, doi: 10.1093/bioinformatics/btab184 (2021)](https://doi.org/10.1093/bioinformatics/btab184).
 
-[Kallenborn F, Chacon A, Hundt C, Sirelkhatim H, Didi K, Dallago C, Mirdita M, Schmidt B, Steinegger M: GPU-accelerated homology search with MMseqs2. bioRxiv, doi: 10.1101/2024.11.13.623350 (2024)](https://www.biorxiv.org/content/10.1101/2024.11.13.623350v1)
+[Kallenborn F, Chacon A, Hundt C, Sirelkhatim H, Didi K, Cha S, Dallago C, Mirdita M, Schmidt B, Steinegger M: GPU-accelerated homology search with MMseqs2. bioRxiv, doi: 10.1101/2024.11.13.623350 (2024)](https://www.biorxiv.org/content/10.1101/2024.11.13.623350v1)
 
 [![BioConda Install](https://img.shields.io/conda/dn/bioconda/mmseqs2.svg?style=flag&label=BioConda%20install)](https://anaconda.org/bioconda/mmseqs2) [![Github All Releases](https://img.shields.io/github/downloads/soedinglab/mmseqs2/total.svg)](https://github.com/soedinglab/mmseqs2/releases/latest) [![Biocontainer Pulls](https://img.shields.io/endpoint?url=https%3A%2F%2Fmmseqs.com%2Fbiocontainer.php%3Fcontainer%3Dmmseqs2)](https://biocontainers.pro/#/tools/mmseqs2) [![Build Status](https://dev.azure.com/themartinsteinegger/mmseqs2/_apis/build/status/soedinglab.MMseqs2?branchName=master)](https://dev.azure.com/themartinsteinegger/mmseqs2/_build/latest?definitionId=2&branchName=master)
 
@@ -20,10 +20,10 @@ MMseqs2 (Many-against-Many sequence searching) is a software suite to search and
 
 ## Documentation
 The MMseqs2 user guide is available in our [GitHub Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as a [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!). The wiki also contains [tutorials](https://github.com/soedinglab/MMseqs2/wiki/Tutorials) to learn how to use MMseqs2 with real data. For questions please open an issue on [GitHub](https://github.com/soedinglab/MMseqs2/issues).
-Keep posted about MMseqs2/Linclust updates by following Martin on [Twitter](https://twitter.com/thesteinegger).
+Keep posted about MMseqs2 updates by following [Martin](https://bsky.app/profile/martinsteinegger.bsky.social) and [Milot](https://bsky.app/profile/milot.bsky.social).
 
 ## Installation
-MMseqs2 can be used by [compiling from source](https://github.com/soedinglab/MMseqs2/wiki#installation), downloading a statically compiled binary at [mmseqs.com/latest](https://mmseqs.com/latest), using [Homebrew](https://github.com/Homebrew/brew), [conda](https://github.com/conda/conda) or [Docker](https://github.com/moby/moby).
+MMseqs2 can be used by [compiling from source](https://github.com/soedinglab/MMseqs2/wiki#installation), downloading a statically compiled binary at [mmseqs.com/latest](https://mmseqs.com/latest), using [Homebrew](https://github.com/Homebrew/brew), [conda](https://github.com/conda-forge/miniforge) or [Docker](https://github.com/moby/moby).
      
     # install by brew
     brew install mmseqs2
@@ -39,11 +39,13 @@ MMseqs2 can be used by [compiling from source](https://github.com/soedinglab/MMs
     wget https://mmseqs.com/latest/mmseqs-linux-sse41.tar.gz; tar xvfz mmseqs-linux-sse41.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
     # static build with SSE2 (slowest, for very old systems)
     wget https://mmseqs.com/latest/mmseqs-linux-sse2.tar.gz; tar xvfz mmseqs-linux-sse2.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
+    # macOS (universal, works on Apple Silicon and Intel Macs)
+    wget https://mmseqs.com/latest/mmseqs-osx-universal.tar.gz; tar xvfz mmseqs-osx-universal.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
 
-MMseqs2 requires an AMD or Intel 64-bit system (check with `uname -a | grep x86_64`). We recommend using a system with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux or `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS). The AVX2 version is faster than SSE4.1, check if AVX2 is supported by executing `cat /proc/cpuinfo | grep avx2` on Linux and `sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2` on MacOS. A SSE2 version is also available for very old systems. MMseqs2 also works on ARM64 systems and on PPC64LE systems with POWER8 ISA or newer.
+MMseqs2 requires an AMD or Intel 64-bit system (check with `uname -a | grep x86_64`). We recommend using a system with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux or `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS). The AVX2 version is faster than SSE4.1, check if AVX2 is supported by executing `cat /proc/cpuinfo | grep avx2` on Linux and `sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2` on MacOS. A SSE2 version is also available for very old systems. MMseqs2 also works on ARM64 systems and on PPC64LE systems with POWER8 ISA or newer. MMseqs2-GPU requires the support of CUDA-enabled GPUs of the Turing generation or newer.
 
 > [!NOTE]
-> We recently added support for GPU-accelerated protein sequence and profile searches. This requires an NVIDIA GPU of the Ampere generation or newer for full speed, however, also works at reduced speed for Tesla-generation GPUs.
+> We recently added support for GPU-accelerated protein sequence and profile searches. This requires an NVIDIA GPU of the Ampere generation or newer for full speed, however, also works at reduced speed for Turing-generation GPUs. The bioconda- and precompiled binaries will not work on older GPU generations (e.g. Volta or Pascal).
 > Check the [wiki](https://github.com/soedinglab/MMseqs2/wiki#compile-from-source-for-linux-with-gpu-support) for instructions on how to get started.
 
 MMseqs2 comes with a bash command and parameter auto completion, which can be activated by adding the following to your $HOME/.bash_profile:
@@ -78,12 +80,19 @@ Please adjust the [clustering criteria](https://github.com/soedinglab/MMseqs2/wi
 The `easy-search` workflow searches directly with a FASTA/FASTQ files against either another FASTA/FASTQ file or an already existing MMseqs2 database.
         
     mmseqs easy-search examples/QUERY.fasta examples/DB.fasta alnRes.m8 tmp
+
  
 It is also possible to pre-compute the index for the target database. This reduces overhead when searching repeatedly against the same database.
 
     mmseqs createdb examples/DB.fasta targetDB
     mmseqs createindex targetDB tmp
     mmseqs easy-search examples/QUERY.fasta targetDB alnRes.m8 tmp
+
+To perform searches using GPU acceleration, you can add the `--gpu` flag to `easy-search` (see [GPU-accelerated search](https://github.com/soedinglab/MMseqs2/wiki#gpu-accelerated-search)). For frequently searched databases, you can precompute a GPU-compatible database using makepaddedseqdb, which can also be used for CPU-based searches. By default, MMseqs2 uses all visible GPUs; you can adjust this behavior using the `CUDA_VISIBLE_DEVICES` environment variable.
+
+    mmseqs createdb examples/DB.fasta targetDB
+    mmseqs makepaddedseqdb targetDB targetDB_padded
+    mmseqs easy-search examples/QUERY.fasta targetDB_padded alnRes.m8 tmp --gpu 1
         
 The `databases` workflow provides download and setup procedures for many public reference databases, such as the Uniref, NR, NT, PFAM and many more (see [Downloading databases](https://github.com/soedinglab/mmseqs2/wiki#downloading-databases)). For example, to download and search against a database containing the Swiss-Prot reference proteins run: 
 

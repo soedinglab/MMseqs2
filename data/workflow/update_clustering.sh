@@ -69,7 +69,7 @@ if [ -s "${TMP_PATH}/removedSeqs" ]; then
         log "=== Recover removed sequences"
         if notExists "${TMP_PATH}/OLDDB.removedMapping"; then
             HIGHESTID="$(awk '$1 > max { max = $1 } END { print max }' "${NEWDB}.index")"
-            awk -v highest="$HIGHESTID" 'BEGIN { start=highest+1 } { print $1"\t"start; start=start+1; }' \
+            awk -v highest="$HIGHESTID" 'BEGIN { start=highest+1 } { printf("%s\t%.0f\n", $1, start); start=start+1; }' \
                 "${TMP_PATH}/removedSeqs" > "${TMP_PATH}/OLDDB.removedMapping"
             cat "${TMP_PATH}/OLDDB.removedMapping" >> "${TMP_PATH}/mappingSeqs"
         fi
@@ -94,11 +94,31 @@ if [ -s "${TMP_PATH}/removedSeqs" ]; then
             "$MMSEQS" rmdb "${TMP_PATH}/OLDDB.removedDb" ${VERBOSITY}
         fi
     else
-        if notExists "${TMP_PATH}/OLCLUST.withoutDeletedKeys.dbtype"; then
+        if notExists "${TMP_PATH}/REMOVEDMEMBERS.dbtype"; then
             # shellcheck disable=SC2086
-            "$MMSEQS" createsubdb "${TMP_PATH}/mappingSeqs" "${OLDCLUST}" "${TMP_PATH}/OLCLUST.withoutDeletedKeys" --subdb-mode 1 ${VERBOSITY} \
+            "$MMSEQS" createsubdb "${TMP_PATH}/removedSeqs" "${OLDCLUST}" "${TMP_PATH}/REMOVEDMEMBERS" --subdb-mode 0 ${NOWARNINGS_PAR} \
                 || fail "createsubdb died"
         fi
+
+        if notExists "${TMP_PATH}/REMOVEDMEMBERS.withoutDeleted.dbtype"; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" filterdb "${TMP_PATH}/REMOVEDMEMBERS" "${TMP_PATH}/REMOVEDMEMBERS.withoutDeleted" --filter-file "${TMP_PATH}/removedSeqs" --positive-filter ${THREADS_PAR} \
+                || fail "filterdb died"
+        fi
+
+        if notExists "${TMP_PATH}/REMOVEDMEMBERS.tsv"; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" prefixid "${TMP_PATH}/REMOVEDMEMBERS.withoutDeleted" "${TMP_PATH}/REMOVEDMEMBERS.withoutDeleted.tsv" --tsv ${VERBOSITY} \
+                || fail "prefixid died"
+            awk '{ print $2; }' "${TMP_PATH}/REMOVEDMEMBERS.withoutDeleted.tsv" > "${TMP_PATH}/REMOVEDMEMBERS.tsv"
+        fi
+
+        if notExists "${TMP_PATH}/OLCLUST.withoutDeletedKeys.dbtype"; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" createsubdb "${TMP_PATH}/mappingSeqs" "${OLDCLUST}" "${TMP_PATH}/OLCLUST.withoutDeletedKeys" --subdb-mode 1 ${NOWARNINGS_PAR} \
+                || fail "createsubdb died"
+        fi
+
         if notExists "${TMP_PATH}/OLCLUST.withoutDeleted.dbtype"; then
             # shellcheck disable=SC2086
             "$MMSEQS" filterdb "${TMP_PATH}/OLCLUST.withoutDeletedKeys" "${TMP_PATH}/OLCLUST.withoutDeleted" --filter-file "${TMP_PATH}/removedSeqs" --positive-filter ${THREADS_PAR} \
@@ -111,7 +131,7 @@ fi
 if notExists "${TMP_PATH}/newMappingSeqs"; then
     log "=== Update new sequences with old keys"
     MAXID="$(awk '$1 > max { max = $1 } END { print max }' "${OLDDB}.index" "${NEWDB}.index")"
-    awk -v highest="$MAXID" 'BEGIN { start=highest+1 } { print $1"\t"start; start=start+1; }' \
+    awk -v highest="$MAXID" 'BEGIN { start=highest+1 } { printf("%s\t%.0f\n", $1, start); start=start+1; }' \
         "${TMP_PATH}/newSeqs" > "${TMP_PATH}/newSeqs.mapped"
     awk '{ print $2"\t"$1 }' "${TMP_PATH}/mappingSeqs" > "${TMP_PATH}/mappingSeqs.reverse"
     cat "${TMP_PATH}/mappingSeqs.reverse" "${TMP_PATH}/newSeqs.mapped" > "${TMP_PATH}/newMappingSeqs"
@@ -125,10 +145,16 @@ if notExists "${NEWMAPDB}.dbtype"; then
 fi
 NEWDB="${NEWMAPDB}"
 
+NEWSEQ="${TMP_PATH}/newSeqs"
+if [ -s "${TMP_PATH}/removedSeqs" ] && [ -z "${RECOVER_DELETED}" ]; then
+    cat "${TMP_PATH}/REMOVEDMEMBERS.tsv" "${TMP_PATH}/newSeqs" > "${TMP_PATH}/newSeqs.withMembers"
+    NEWSEQ="${TMP_PATH}/newSeqs.withMembers"
+fi
+
 if notExists "${TMP_PATH}/NEWDB.newSeqs.dbtype"; then
     log "=== Filter out new from old sequences"
     # shellcheck disable=SC2086
-    "$MMSEQS" createsubdb "${TMP_PATH}/newSeqs" "$NEWDB" "${TMP_PATH}/NEWDB.newSeqs" ${VERBOSITY} --subdb-mode 1 \
+    "$MMSEQS" createsubdb "${NEWSEQ}" "$NEWDB" "${TMP_PATH}/NEWDB.newSeqs" ${VERBOSITY} --subdb-mode 1 \
         || fail "createsubdb died"
 fi
 

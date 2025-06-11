@@ -34,9 +34,14 @@ int unpackdb(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, reader.getSize()), (size_t)1);
+#endif
+
     size_t entries = reader.getSize();
     Debug::Progress progress(entries);
-#pragma omp parallel
+#pragma omp parallel num_threads(localThreads)
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP

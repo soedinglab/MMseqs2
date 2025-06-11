@@ -63,7 +63,6 @@ set(util_source_files
         util/setextendeddbtype.cpp
         util/sortresult.cpp
         util/splitdb.cpp
-        util/setextendeddbtype.cpp
         util/splitsequence.cpp
         util/subtractdbs.cpp
         util/summarizealis.cpp
