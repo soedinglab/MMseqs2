@@ -91,6 +91,7 @@ public:
     static const unsigned int DBTYPE_EXTENDED_INDEX_NEED_SRC = 2;
     static const unsigned int DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS = 4;
     static const unsigned int DBTYPE_EXTENDED_GPU = 8;
+    static const unsigned int DBTYPE_EXTENDED_SET = 16;
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 

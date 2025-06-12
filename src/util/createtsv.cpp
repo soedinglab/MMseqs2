@@ -19,6 +19,21 @@ int createtsv(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);
 
+    const bool hasTargetDB = par.filenames.size() > 3;
+    DBReader<unsigned int> *reader;
+    if (hasTargetDB) {
+        reader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    } else {
+        reader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    }
+    reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+
+    uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(reader->getDbtype());
+    bool needSET = false;
+    if (extended & Parameters::DBTYPE_EXTENDED_SET) {
+        needSET = true;
+    }
+
     bool queryNucs = Parameters::isEqualDbtype(FileUtil::parseDbType(par.db1.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
     bool targetNucs = Parameters::isEqualDbtype(FileUtil::parseDbType(par.db2.c_str()), Parameters::DBTYPE_NUCLEOTIDES);
     const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
@@ -26,13 +41,17 @@ int createtsv(int argc, const char **argv, const Command &command) {
     queryHeaderType = (par.idxSeqSrc == 0) ? queryHeaderType :  (par.idxSeqSrc == 1) ?  IndexReader::HEADERS : IndexReader::SRC_HEADERS;
     IndexReader qDbrHeader(par.db1, par.threads, queryHeaderType, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     IndexReader * tDbrHeader=NULL;
-    DBReader<unsigned int> * queryDB = qDbrHeader.sequenceReader;
+    DBReader<unsigned int> * queryDB = NULL;
+    if(needSET == true) {
+        queryDB = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_SOURCE|DBReader<unsigned int>::USE_DATA);
+    } else {
+        queryDB = qDbrHeader.sequenceReader;
+    }
     DBReader<unsigned int> * targetDB = NULL;
     bool sameDB = (par.db2.compare(par.db1) == 0);
-    const bool hasTargetDB = par.filenames.size() > 3;
+    
     DBReader<unsigned int>::Index * qHeaderIndex = qDbrHeader.sequenceReader->getIndex();
     DBReader<unsigned int>::Index * tHeaderIndex = NULL;
-
     if (hasTargetDB) {
         if (sameDB) {
             tDbrHeader = &qDbrHeader;
@@ -45,19 +64,21 @@ int createtsv(int argc, const char **argv, const Command &command) {
 
             tDbrHeader = new IndexReader(par.db2, par.threads, targetHeaderType, touch);
             tHeaderIndex = tDbrHeader->sequenceReader->getIndex();
-            targetDB = tDbrHeader->sequenceReader;
+            if(needSET == true) {
+                targetDB = new DBReader<unsigned int>(par.db2.c_str(), (par.db2 + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_SOURCE|DBReader<unsigned int>::USE_DATA);
+            } else {
+                targetDB = tDbrHeader->sequenceReader;
+            }
         }
     }
 
-    DBReader<unsigned int> *reader;
-    if (hasTargetDB) {
-
-        reader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    } else {
-
-        reader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    std::map<unsigned int, std::string> qSetToSource, tSetToSource;
+    if(needSET == true) {
+        queryDB->open(DBReader<unsigned int>::NOSORT);
+        targetDB->open(DBReader<unsigned int>::NOSORT);
+        qSetToSource = queryDB->readSetToSource();
+        tSetToSource = targetDB->readSetToSource();
     }
-    reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     const std::string& dataFile = hasTargetDB ? par.db4 : par.db3;
     const std::string& indexFile = hasTargetDB ? par.db4Index : par.db3Index;
@@ -84,7 +105,6 @@ int createtsv(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < reader->getSize(); ++i) {
             unsigned int queryKey = reader->getDbKey(i);
             size_t queryIndex = queryDB->getId(queryKey);
-
             char *headerData = queryDB->getData(queryIndex, thread_idx);
             if (headerData == NULL) {
                 Debug(Debug::WARNING) << "Invalid header entry in query " << queryKey << "!\n";
@@ -92,7 +112,9 @@ int createtsv(int argc, const char **argv, const Command &command) {
             }
 
             std::string queryHeader;
-            if (par.fullHeader) {
+            if (needSET == true) {
+                queryHeader = qSetToSource[queryKey];
+            } else if (par.fullHeader) {
                 queryHeader = "\"";
                 queryHeader.append(headerData, qHeaderIndex[queryIndex].length - 2);
                 queryHeader.append("\"");
@@ -123,7 +145,9 @@ int createtsv(int argc, const char **argv, const Command &command) {
                         Debug(Debug::WARNING) << "Invalid header entry in query " << queryKey << " and target " << targetKey << "!\n";
                         continue;
                     }
-                    if (par.fullHeader) {
+                    if(needSET == true) {
+                        targetAccession = tSetToSource[targetKey];
+                    } else if (par.fullHeader) {
                         targetAccession = "\"";
                         targetAccession.append(targetData, tHeaderIndex[targetIndex].length - 2);
                         targetAccession.append("\"");
@@ -133,7 +157,6 @@ int createtsv(int argc, const char **argv, const Command &command) {
                 } else {
                     targetAccession = dbKey;
                 }
-
                 if (par.firstSeqRepr && !entryIndex) {
                     queryHeader = targetAccession;
                 }
@@ -173,9 +196,19 @@ int createtsv(int argc, const char **argv, const Command &command) {
 
     reader->close();
     delete reader;
+    qSetToSource.clear();
+    tSetToSource.clear();
+    if(needSET == true) {
+        queryDB->close();
+        delete queryDB;
+    }
     if (hasTargetDB) {
         if (sameDB == false) {
+            targetDB->close();
             delete tDbrHeader;
+            if(needSET == true) {
+                delete targetDB;
+            }
         }
     }
 

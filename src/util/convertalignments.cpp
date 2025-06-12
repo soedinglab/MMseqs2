@@ -117,31 +117,6 @@ std::map<unsigned int, unsigned int> readKeyToSet(const std::string& file) {
     return mapping;
 }
 
-
-std::map<unsigned int, std::string> readSetToSource(const std::string& file) {
-    std::map<unsigned int, std::string> mapping;
-    if (file.length() == 0) {
-        return mapping;
-    }
-
-    MemoryMapped source(file, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
-    char* data = (char *) source.getData();
-    char* end = data + source.mappedSize();
-    const char* entry[255];
-    while (data < end && *data != '\0') {
-        const size_t columns = Util::getWordsOfLine(data, entry, 255);
-        if (columns < 2) {
-            Debug(Debug::WARNING) << "Not enough columns in lookup file " << file << "\n";
-            continue;
-        }
-        data = Util::skipLine(data);
-        std::string source(entry[1], data - entry[1] - 1);
-        mapping.emplace(Util::fast_atoi<unsigned int>(entry[0]), source);
-    }
-    source.close();
-    return mapping;
-}
-
 int convertalignments(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
@@ -192,10 +167,23 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     std::map<unsigned int, std::string> qSetToSource;
     std::map<unsigned int, std::string> tSetToSource;
     if (needSource) {
-        std::string file1 = par.db1 + ".source";
-        std::string file2 = par.db2 + ".source";
-        qSetToSource = readSetToSource(file1);
-        tSetToSource = readSetToSource(file2);
+        DBReader<unsigned int> * queryDB = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_SOURCE);
+        DBReader<unsigned int> * targetDB;
+        if (sameDB) {
+            targetDB = queryDB;
+        } else {
+            targetDB = new DBReader<unsigned int>(par.db2.c_str(), (par.db2 + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_SOURCE);
+        }
+        queryDB->open(DBReader<unsigned int>::NOSORT);
+        targetDB->open(DBReader<unsigned int>::NOSORT);
+        qSetToSource = queryDB->readSetToSource();
+        tSetToSource = targetDB->readSetToSource();
+        queryDB->close();
+        delete queryDB;
+        if (sameDB) {
+            targetDB->close();
+            delete targetDB;
+        }
     }
 
     IndexReader qDbr(par.db1, par.threads,  IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0, dbaccessMode);
