@@ -276,6 +276,7 @@ public:
                 continue;
             for (size_t j = 0; j < top_N; j++) {
                 if (topElements[j].first < ((size_t) size)) {
+                    std::move_backward(topElements+j, topElements+top_N-1, topElements+top_N);
                     topElements[j].first = static_cast<unsigned long>(size);
                     topElements[j].second = i;
                     break;
