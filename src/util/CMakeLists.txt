@@ -3,6 +3,7 @@ set(util_source_files
         util/alignbykmer.cpp
         util/appenddbtoindex.cpp
         util/apply.cpp
+        util/calculatelambda.cpp
         util/clusthash.cpp
         util/compress.cpp
         util/convert2fasta.cpp

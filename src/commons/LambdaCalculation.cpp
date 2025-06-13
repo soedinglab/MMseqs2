@@ -3,8 +3,42 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <numeric>
+#include <set> // TODO: might try using an unordered set. We don't need repeated values, we do one insertion per iteration, and we do one full search per iteration.
 
-#define LambdaCalculation_DEBUG false
+// #define LambdaCalculation_DEBUG 1
+
+struct Probs {
+    int alphabet_size;
+    std::vector<double> values;
+    Probs(const int alphabet_size, bool uniform_init = false, bool random_init = false) : alphabet_size(alphabet_size), values(alphabet_size, 0.0){
+        if (uniform_init){
+            for (auto& val : values){
+                val = 1.0 / static_cast<double>(alphabet_size);
+            }
+        }
+        else if (random_init){
+            double sum = 0.0;
+            for (auto& val : values){
+                val = static_cast<double>(std::rand() % 100);
+                sum += static_cast<double>(val);
+            }
+            for (auto& val : values){
+                val = val / sum;
+            }
+            
+        }
+    }
+    double& operator[](int i) {
+        return values[i];
+    }
+
+    const double& operator[](int i) const {
+        return values[i];
+    }
+};
+
+
 
 // A struct to represent a matrix using a 1-D vector,
 // which provides a nice interface and better memory access pattern
@@ -60,6 +94,28 @@ struct Matrix {
         return std::none_of(values.begin(), values.end(), 
                            [](double v) { return std::isnan(v) || std::isinf(v); });
     }
+
+    void set_uniform() {
+        int divisor = this->col_dim * this->row_dim;
+        double val = 1.0 / static_cast<double>(divisor);
+        for (int i = 0; i < this->row_dim; ++i){
+            for (int j = 0; j < this->col_dim; ++j){
+                this->at(i, j) = val;
+            }
+        }
+    }
+
+    void print_to_err(){
+        for (int i = 0; i < this->row_dim; ++i){
+            for (int j = 0; j < this->col_dim; ++j){
+                Debug(Debug::ERROR) << this->at(i, j);
+                if (j < this->col_dim -1){
+                    Debug(Debug::ERROR) << "\t";
+                }
+            }
+            Debug(Debug::ERROR) << "\n";
+        }
+    }
 };
 
 // Helper struct to compute Karlin-Altschul's Lambda,
@@ -70,28 +126,69 @@ struct Matrix {
 // then pinned using Newton's method. Newton's method is quadratic, which is why
 // we first use bisection.
 struct Lambda {
-    double lower_bound = 0.0;
+    double lower_bound = 1e-10;
     double upper_bound = -1.0;
     double value = -1.0;
-    double epsilon = 1e-3;
-    std::vector<double> convergence_history;
+    double epsilon = 1e-121;
+    int min_iters = 1;
+    int max_iters = 100;
+    bool converged = false;
+    std::set<double> convergence_history;
 
-    void bisection_search(const Matrix& score_matrix, Matrix& A_matrix);
-    void newton_refine(const Matrix& score_matrix, Matrix& A_matrix);
-
-    void record_iteration(double det) {
-        convergence_history.push_back(std::abs(det));
-    }
-    
-    bool is_converging() const {
-        if (convergence_history.size() < 3) {
-            return true;
-        }
-        return convergence_history.back() < convergence_history[convergence_history.size()-2];
-    }
+    void bisection_search(const Matrix& score_matrix, const Probs p, const Probs q);
+    void newton_refine(const Matrix& score_matrix,
+                                const Probs p,
+                                const Probs q);
 };
 
-bool matrix_solvable_for_lambda(const Matrix& mat_b, Lambda& lambda) {
+inline void swap(double& a, double& b){
+    double tmp = a;
+    a = b;
+    b = tmp;
+}
+
+inline double restriction_value(const Probs p,
+                            const Probs q,
+                            const double lambda,
+                            const Matrix score_matrix){
+    double sum = 0.0;
+    for (int i = 0; i < score_matrix.row_dim; ++i){
+        for (int j = 0; j < score_matrix.col_dim; ++j){
+            // TODO: precompute p * q, though one extra mult probably isn't killing us.
+            sum += p[i] * q[j] * exp(lambda * score_matrix.at(i, j));
+        }
+    }
+    return sum - 1.0;
+}
+
+inline double restriction_value_first_derivative(const Probs p,
+                                            const Probs q,
+                                            const double lambda,
+                                            const Matrix score_matrix){
+    double sum = 0.0;
+    for (int i = 0; i < score_matrix.row_dim; ++i){
+        for (int j = 0; j < score_matrix.col_dim; ++j){
+            // TODO: precompute p * q
+            sum += p[i] * q[j] * score_matrix.at(i,j) * exp(lambda * score_matrix.at(i, j));
+        }
+    }
+    return sum - 1.0;
+}
+
+inline bool sign_change(const double a, const double b){
+    /**
+     * Checks if a and b have different sign by multiplying
+     * them and checking if the product is less than 0.
+     */
+    return a * b < 0.0;
+}
+
+template <typename T>
+inline int signer(T val) {
+    return (T(0) < val) - (val < T(0));
+}
+
+bool matrix_solvable_for_lambda(const Matrix& mat_b, double& lambda_upper_bound) {
     #ifdef LambdaCalculation_DEBUG
     // Print matrix values
     Debug(Debug::ERROR) << "Matrix values:" << "\n";
@@ -101,6 +198,7 @@ bool matrix_solvable_for_lambda(const Matrix& mat_b, Lambda& lambda) {
         }
         Debug(Debug::ERROR) << "\n";
     }
+    Debug(Debug::ERROR) << "\n";
     Debug(Debug::ERROR) << "\n";
     #endif
     
@@ -128,8 +226,12 @@ bool matrix_solvable_for_lambda(const Matrix& mat_b, Lambda& lambda) {
     std::vector<bool> col_neg(mat_b.col_dim, false);
     std::vector<double> row_max_pos(mat_b.row_dim, -1.0);
     std::vector<double> col_max_pos(mat_b.col_dim, -1.0);
+
+    // We must find the smallest maximum positive score in a row and column
+    std::vector<double> row_maxes (mat_b.row_dim, 0);
+    std::vector<double> col_maxes (mat_b.col_dim, 0);
     
-    // First pass: check row conditions and find row maximums
+    // Check row/col conditions and find row maximums
     for (int i = 0; i < mat_b.row_dim; ++i) {
         bool row_pos = false;
         bool row_neg = false;
@@ -139,11 +241,9 @@ bool matrix_solvable_for_lambda(const Matrix& mat_b, Lambda& lambda) {
             row_neg = row_neg | (val < 0.0);
             col_pos[j] = col_pos[j] || (val > 0.0);
             col_neg[j] = col_neg[j] || (val < 0.0);
-            
-            // Track maximum positive values
-            if (val > 0.0) {
-                row_max_pos[i] = (row_max_pos[i] < 0.0) ? val : std::min(val, row_max_pos[i]);
-                col_max_pos[j] = (col_max_pos[j] < 0.0) ? val : std::min(val, col_max_pos[j]);
+            if (val > 0.0){
+                row_maxes[i] = std::max(row_maxes[i], val);
+                col_maxes[j] = std::max(col_maxes[j], val);
             }
         }
         if (!(row_pos && row_neg)) {
@@ -158,20 +258,12 @@ bool matrix_solvable_for_lambda(const Matrix& mat_b, Lambda& lambda) {
         Debug(Debug::ERROR) << "Failed: Not all columns have both positive and negative values\n";
         return false;
     }
-    
-    // Find the largest positive value as the upper bound
-    lambda.upper_bound = -1.0;
-    double sum_positive = 0.0;
-    int count_positive = 0;
-    for (int i = 0; i < mat_b.row_dim; ++i) {
-        for (int j = 0; j < mat_b.col_dim; ++j) {
-            double val = mat_b.at(i, j);
-            if (val > 0.0) {
-                sum_positive += val;
-                count_positive++;
-            }
-        }
-    }
+    // Take the minimum of the maxes, across both rows and columns, as the lambda upper bound.
+    lambda_upper_bound = std::min(
+        *(std::min_element(row_maxes.begin(), row_maxes.end())),
+        *(std::min_element(col_maxes.begin(), col_maxes.end()))
+    );
+
     
     if (count_positive > 0) {
         // Use the average positive score to estimate a reasonable upper bound
@@ -182,12 +274,15 @@ bool matrix_solvable_for_lambda(const Matrix& mat_b, Lambda& lambda) {
     }
     
     #ifdef LambdaCalculation_DEBUG
-    Debug(Debug::ERROR) << "Matrix is solvable. Upper bound: " << lambda.upper_bound << "\n";
+    Debug(Debug::ERROR) << "Matrix is solvable. Upper bound: " << lambda_upper_bound << "\n";
     #endif
     return true;
 }
 
 void exponentiate_matrix(const Matrix& score_matrix, const double lambda, Matrix& result) {
+    #ifdef LambdaCalculation_DEBUG
+    Debug(Debug::ERROR) << "Computing with lambda = " << lambda << "\n";
+    #endif
     for (int i = 0; i < score_matrix.row_dim; ++i) {
         for (int j = 0; j < score_matrix.col_dim; ++j) {
             result.at(i, j) = std::exp(lambda * score_matrix.at(i, j));
@@ -199,77 +294,81 @@ double compute_determinant(const Matrix& mat) {
     if (mat.row_dim != mat.col_dim) {
         return 0.0;
     }
-
-    // Create a copy for LU decomposition
-    Matrix work_matrix(mat.row_dim, mat.col_dim);
-    std::copy(mat.values.begin(), mat.values.end(), work_matrix.values.begin());
-
-    double determinant = 1.0;
     
-    // Add scaling factor for better numerical stability
-    double scale = 0.0;
-    for (const double& val : mat.values) {
-        scale = std::max(scale, std::abs(val));
+    // Base cases for 1x1 and 2x2 matrices
+    if (mat.row_dim == 1) {
+        return mat.at(0, 0);
     }
-    if (scale > 0.0) {
-        for (double& val : work_matrix.values) {
-            val /= scale;
-        }
-        // Adjust determinant for scaling
-        determinant = std::pow(scale, mat.row_dim);
+    if (mat.row_dim == 2) {
+        return mat.at(0, 0) * mat.at(1, 1) - mat.at(0, 1) * mat.at(1, 0);
     }
 
-    // Perform LU decomposition with partial pivoting
+    // Create working copy of matrix
+    Matrix lu(mat.row_dim, mat.col_dim);
+    std::copy(mat.values.begin(), mat.values.end(), lu.values.begin());
+
+    // Track row permutations
     std::vector<int> pivot_indices(mat.row_dim);
     for (int i = 0; i < mat.row_dim; i++) {
         pivot_indices[i] = i;
     }
 
-    for (int i = 0; i < mat.row_dim; i++) {
+    double det = 1.0;
+    int sign = 1;
+
+    // LU decomposition with partial pivoting
+    for (int k = 0; k < mat.row_dim - 1; k++) {
         // Find pivot
-        double pivot = work_matrix.at(i, i);
-        int pivot_row = i;
+        double max_val = std::abs(lu.at(k, k));
+        int pivot_row = k;
         
-        for (int j = i + 1; j < mat.row_dim; j++) {
-            if (std::abs(work_matrix.at(j, i)) > std::abs(pivot)) {
-                pivot = work_matrix.at(j, i);
-                pivot_row = j;
+        for (int i = k + 1; i < mat.row_dim; i++) {
+            double val = std::abs(lu.at(i, k));
+            if (val > max_val) {
+                max_val = val;
+                pivot_row = i;
             }
         }
 
-        if (std::abs(pivot) < 1e-10) {
+        // Check for singularity
+        if (max_val < 1e-10) {
             return 0.0;
         }
 
         // Swap rows if necessary
-        if (pivot_row != i) {
-            for (int j = 0; j < mat.row_dim; j++) {
-                std::swap(work_matrix.at(i, j), work_matrix.at(pivot_row, j));
+        if (pivot_row != k) {
+            for (int j = 0; j < mat.col_dim; j++) {
+                std::swap(lu.at(k, j), lu.at(pivot_row, j));
             }
-            std::swap(pivot_indices[i], pivot_indices[pivot_row]);
-            determinant *= -1.0;
+            std::swap(pivot_indices[k], pivot_indices[pivot_row]);
+            sign *= -1;
         }
 
-        determinant *= work_matrix.at(i, i);
-
         // Eliminate below
-        for (int j = i + 1; j < mat.row_dim; j++) {
-            double factor = work_matrix.at(j, i) / work_matrix.at(i, i);
-            work_matrix.at(j, i) = factor;  // Store the multiplier
-            for (int k = i + 1; k < mat.row_dim; k++) {
-                work_matrix.at(j, k) -= factor * work_matrix.at(i, k);
+        for (int i = k + 1; i < mat.row_dim; i++) {
+            double factor = lu.at(i, k) / lu.at(k, k);
+            lu.at(i, k) = factor;  // Store the multiplier
+            
+            for (int j = k + 1; j < mat.col_dim; j++) {
+                lu.at(i, j) -= factor * lu.at(k, j);
             }
         }
     }
 
-    return determinant;
+    // Compute determinant from diagonal elements
+    for (int i = 0; i < mat.row_dim; i++) {
+        det *= lu.at(i, i);
+    }
+
+    return det * sign;
 }
 
 void compute_joint_probabilities(
     const Matrix& score_matrix, 
     double lambda,
-    Matrix& joint_prob_matrix) {
-    // Protect from overflow by scaling the matrix to log space
+    Matrix& joint_prob_matrix,
+    bool use_log_space = false) {
+    // Protect from overflow by scaling the matrix
     const double max_exp = 700.0;  // log(DBL_MAX) ≈ 709
     double max_score = 0.0;
     for (const double& val : score_matrix.values) {
@@ -281,28 +380,44 @@ void compute_joint_probabilities(
         lambda = max_exp / max_score; 
     }
     
-    // Compute in log space first
-    double max_val = -std::numeric_limits<double>::infinity();
-    for (int i = 0; i < score_matrix.row_dim; ++i) {
-        for (int j = 0; j < score_matrix.col_dim; ++j) {
-            double log_val = lambda * score_matrix.at(i,j);
-            max_val = std::max(max_val, log_val);
-            joint_prob_matrix.at(i,j) = log_val;
+    if (use_log_space) {
+        // Compute in log space first
+        double max_val = -std::numeric_limits<double>::infinity();
+        for (int i = 0; i < score_matrix.row_dim; ++i) {
+            for (int j = 0; j < score_matrix.col_dim; ++j) {
+                double log_val = lambda * score_matrix.at(i,j);
+                max_val = std::max(max_val, log_val);
+                joint_prob_matrix.at(i,j) = log_val;
+            }
         }
-    }
-    
-    // Shift and exponentiate
-    double Z = 0.0;
-    for (int i = 0; i < score_matrix.row_dim; ++i) {
-        for (int j = 0; j < score_matrix.col_dim; ++j) {
-            joint_prob_matrix.at(i,j) = std::exp(joint_prob_matrix.at(i,j) - max_val);
-            Z += joint_prob_matrix.at(i,j);
+        
+        // Shift and exponentiate
+        double Z = 0.0;
+        for (int i = 0; i < score_matrix.row_dim; ++i) {
+            for (int j = 0; j < score_matrix.col_dim; ++j) {
+                joint_prob_matrix.at(i,j) = std::exp(joint_prob_matrix.at(i,j) - max_val);
+                Z += joint_prob_matrix.at(i,j);
+            }
         }
-    }
-    
-    // Normalize
-    for (double& val : joint_prob_matrix.values) {
-        val /= Z;
+        
+        // Normalize
+        for (double& val : joint_prob_matrix.values) {
+            val /= Z;
+        }
+    } else {
+        // Compute exponential values directly
+        double Z = 0.0;
+        for (int i = 0; i < score_matrix.row_dim; ++i) {
+            for (int j = 0; j < score_matrix.col_dim; ++j) {
+                joint_prob_matrix.at(i,j) = std::exp(lambda * score_matrix.at(i,j));
+                Z += joint_prob_matrix.at(i,j);
+            }
+        }
+        
+        // Normalize
+        for (double& val : joint_prob_matrix.values) {
+            val /= Z;
+        }
     }
 }
 
@@ -330,59 +445,37 @@ double calculate_lambda(
         return -1.0;
     }
     
-    // Convert input matrix to our Matrix class
-    Matrix score_matrix(alpha_size, alpha_size);
-    score_matrix.copy_from(raw_mat_b);
-    
-    // Initialize background probabilities to uniform
-    p.resize(alpha_size, 1.0 / alpha_size);
-    q.resize(alpha_size, 1.0 / alpha_size);
-    
-    // Initialize lambda bounds
-    double lambda_low = 0.0;
-    double lambda_high = 1.0;  // Start with a reasonable upper bound
-    double lambda = 0.5;  // Initial guess
-    
-    const double epsilon = 1e-6;
-    const int max_iterations = 100;
-    int iteration = 0;
-    
-    while (iteration < max_iterations) {
-        // Calculate sum(p_i * p_j * exp(lambda * s_ij))
-        double sum = 0.0;
-        for (int i = 0; i < alpha_size; ++i) {
-            for (int j = 0; j < alpha_size; ++j) {
-                sum += p[i] * q[j] * std::exp(lambda * score_matrix.at(i, j));
-            }
+    // error: cannot use 'try' with exceptions disabled
+    // try {
+        // Convert input matrix to our Matrix class
+        Matrix score_matrix(alpha_size, alpha_size);
+        score_matrix.copy_from(raw_mat_b);
+        
+        
+        // Check solvability and get upper bound
+        double lambda_upper_bound = 0.0;
+        if (!matrix_solvable_for_lambda(score_matrix, lambda_upper_bound)) {
+            return -1.0;
         }
         
-        // Check if we've found the solution
-        if (std::abs(sum - 1.0) < epsilon) {
-            break;
-        }
+        // Initialize lambda to midpoint
+        Lambda lambda_calc;
+        lambda_calc.upper_bound = lambda_upper_bound;
+        lambda_calc.value = lambda_calc.upper_bound / 2.0;
         
-        // Update bounds based on whether sum is too high or too low
-        if (sum > 1.0) {
-            lambda_high = lambda;
-        } else {
-            lambda_low = lambda;
-        }
+
+        // Initialize probabilities
+        Probs local_p(alpha_size, false, true);
+        Probs local_q(alpha_size, false, true);
+
+        // Find lambda using bisection search and refine using Newton's method
+        lambda_calc.bisection_search(score_matrix, local_p, local_q);
+        lambda_calc.newton_refine(score_matrix, local_p, local_q);
+        Matrix joint_probs(alpha_size, alpha_size);
         
-        // Update lambda using bisection
-        lambda = (lambda_low + lambda_high) / 2.0;
-        
-        // Update background probabilities
-        std::vector<double> new_p(alpha_size, 0.0);
-        std::vector<double> new_q(alpha_size, 0.0);
-        
-        // Calculate new background probabilities
-        for (int i = 0; i < alpha_size; ++i) {
-            for (int j = 0; j < alpha_size; ++j) {
-                double term = p[i] * q[j] * std::exp(lambda * score_matrix.at(i, j));
-                new_p[i] += term;
-                new_q[j] += term;
-            }
-        }
+        // Compute final probabilities
+        compute_joint_probabilities(score_matrix, lambda_calc.value, joint_probs);
+        compute_background_probabilities(joint_probs, p, q);
         
         // Normalize probabilities
         double sum_p = 0.0, sum_q = 0.0;
@@ -598,179 +691,77 @@ double calculate_lambda_direct(
     return lambda;
 }
 
-void Lambda::bisection_search(const Matrix& score_matrix, Matrix& A_matrix) {
-    // Check both bounds to ensure proper bracketing
-    exponentiate_matrix(score_matrix, lower_bound, A_matrix);
-    double det_low = compute_determinant(A_matrix);
-    
-    exponentiate_matrix(score_matrix, upper_bound, A_matrix);
-    double det_high = compute_determinant(A_matrix);
-    
-    // Verify opposite signs
-    if (det_low * det_high >= 0.0) {
-        // No root bracketed, try to adjust bounds
-        if (std::abs(det_low) < std::abs(det_high)) {
-            upper_bound = (upper_bound + lower_bound) / 2.0;
-        } else {
-            lower_bound = (upper_bound + lower_bound) / 2.0;
-        }
-        
-        // Recompute determinants with adjusted bounds
-        exponentiate_matrix(score_matrix, lower_bound, A_matrix);
-        det_low = compute_determinant(A_matrix);
-        
-        exponentiate_matrix(score_matrix, upper_bound, A_matrix);
-        det_high = compute_determinant(A_matrix);
-        
-        // If still no sign change, try a more aggressive approach
-        if (det_low * det_high >= 0.0) {
-            // Try a wider range
-            upper_bound *= 2.0;
-            exponentiate_matrix(score_matrix, upper_bound, A_matrix);
-            det_high = compute_determinant(A_matrix);
-            
-            if (det_low * det_high >= 0.0) {
-                // If still no sign change, try a different approach
-                // Use a fixed upper bound based on the maximum score
-                double max_score = 0.0;
-                for (const double& val : score_matrix.values) {
-                    max_score = std::max(max_score, std::abs(val));
-                }
-                upper_bound = 1.0 / max_score;  // A reasonable starting point
-                
-                exponentiate_matrix(score_matrix, upper_bound, A_matrix);
-                det_high = compute_determinant(A_matrix);
-            }
-        }
+void Lambda::bisection_search(const Matrix& score_matrix,
+                                const Probs p,
+                                const Probs q) {
+    if (upper_bound < 0.0){
+        value = -1.0;
+        return;
     }
-    
-    value = (lower_bound + upper_bound) / 2.0;
-    exponentiate_matrix(score_matrix, value, A_matrix);
-    double prev_det = compute_determinant(A_matrix);
-    
-    // We'll use a slightly larger epsilon for bisection
-    const double bisection_epsilon = epsilon * 10.0;
-    
-    // Add early convergence check
-    if (std::abs(prev_det) < bisection_epsilon) {
-        return;  // Already close enough to zero
-    }
-    
-    int max_iterations = 100;  // Prevent infinite loops
-    int iteration = 0;
-    
-    while ((upper_bound - lower_bound) > bisection_epsilon && iteration < max_iterations) {
-        // Compute A(λ) = exp(λsij)
-        exponentiate_matrix(score_matrix, value, A_matrix);
-        
-        // Compute determinant
-        double det = compute_determinant(A_matrix);
-        
-        // Record for convergence tracking
-        record_iteration(det);
-        
-        // Update bounds based on determinant sign change
-        if (det * prev_det < 0.0) {
-            // Sign change detected - we've bracketed the root
-            upper_bound = value;
-        } else {
+    // Initialize to the ~middle of the interval
+    value = upper_bound / 2.0;
+    for (int iters = 0; iters < max_iters; ++iters){
+        #ifdef LambdaCalculation_DEBUG
+        Debug(Debug::ERROR) << "iters: " << iters + 1 << " LB: " << lower_bound << " Val: " << value << " UB: " << upper_bound << "\n";
+        #endif
+
+        // Calculate the value of the restriction condition.
+        // TODO: we can short-circuit this by just checking UB, then sign, then and only then checking sum(lb)
+        double val_sum = restriction_value(p, q, value, score_matrix);
+
+        if (iters > min_iters && val_sum - 1.0 < epsilon){
+            break;
+        }
+        double ub_sum = restriction_value(p, q, upper_bound, score_matrix);
+        double lb_sum = restriction_value(p, q, lower_bound, score_matrix);
+
+        if (sign_change(val_sum, ub_sum)){
             lower_bound = value;
         }
-        
-        prev_det = det;
-        value = (lower_bound + upper_bound) / 2.0;
-        
-        // Check for convergence
-        if (std::abs(det) < bisection_epsilon) {
-            break;
+        if (sign_change(val_sum, lb_sum)){
+            upper_bound = value;
         }
-        
-        iteration++;
+        value = (lower_bound + upper_bound) / 2.0;
     }
+    #ifdef LambdaCalculation_DEBUG
+    Debug(Debug::ERROR) << "initial value by bisection: " << value << "\n";
+    #endif
 }
 
-void Lambda::newton_refine(const Matrix& score_matrix, Matrix& A_matrix) {
-    const int max_iterations = 30;  // Increased from 20
-    const double newton_epsilon = epsilon;  // Tighter tolerance for final refinement
-    Matrix A_prime(score_matrix.row_dim, score_matrix.col_dim);  // For derivative
-    
-    // Record initial value for convergence tracking
-    double initial_value = value;
-    
-    for (int iter = 0; iter < max_iterations; ++iter) {
-        // Compute A(λ) and A'(λ)
-        for (int i = 0; i < score_matrix.row_dim; ++i) {
-            for (int j = 0; j < score_matrix.col_dim; ++j) {
-                double exp_term = std::exp(value * score_matrix.at(i, j));
-                A_matrix.at(i, j) = exp_term;
-                A_prime.at(i, j) = score_matrix.at(i, j) * exp_term;
-            }
-        }
-        
-        // Compute determinant
-        double det = compute_determinant(A_matrix);
-        
-        // Record for convergence tracking
-        record_iteration(det);
-        
-        // Check if we've converged
-        if (std::abs(det) < newton_epsilon) {
+void Lambda::newton_refine(const Matrix& score_matrix,
+                                const Probs p,
+                                const Probs q) {
+    #ifdef LambdaCalculation_DEBUG
+    Debug(Debug::ERROR) << "Running Newton Refinment.\n";
+    #endif
+    for (int iters = 0; iters < max_iters; ++iters){
+        double f_lambda = restriction_value(p, q, value, score_matrix);
+        double f_prime_lambda = restriction_value_first_derivative(p, q, value, score_matrix);
+        #ifdef LambdaCalculation_DEBUG
+        Debug(Debug::ERROR) << "iters: " << iters + 1 << " LB: " << lower_bound << " Val: " << value << " UB: " << upper_bound <<  " F " << f_lambda << " F' " << f_prime_lambda << "\n";
+        #endif
+
+        if (std::fabs(f_lambda) < epsilon){
+            converged = true;
+            #ifdef LambdaCalculation_DEBUG
+            Debug(Debug::ERROR) << "converged.\n"; 
+            #endif
             break;
         }
-        
-        // Compute derivative analytically:
-        // f'(λ) = sum(sij * exp(λsij)) * det(A(λ))
-        double trace_term = 0.0;
-        for (int i = 0; i < score_matrix.row_dim; ++i) {
-            for (int j = 0; j < score_matrix.col_dim; ++j) {
-                trace_term += score_matrix.at(i,j) * A_matrix.at(i,j);
-            }
-        }
-        double derivative = trace_term * det;
-        
-        // Check for near-zero derivative
-        if (std::abs(derivative) < 1e-10) {
-            // Derivative too small, use a small step in the right direction
-            derivative = (det > 0) ? 1e-10 : -1e-10;
-        }
-        
-        // Newton step
-        double delta = det / derivative;
-        
-        // Limit step size to prevent overshooting
-        double max_step = (upper_bound - lower_bound) * 0.1;
-        if (std::abs(delta) > max_step) {
-            delta = (delta > 0 ? max_step : -max_step);
-        }
-        
-        // Update lambda
-        double new_value = value - delta;
-        
-        // Keep lambda within bounds
-        new_value = std::max(lower_bound, std::min(upper_bound, new_value));
-        
-        // Check for convergence
-        if (std::abs(new_value - value) < newton_epsilon) {
-            value = new_value;
+        if (std::find(convergence_history.begin(), convergence_history.end(), value) != convergence_history.end()){
+            converged = true;
+            #ifdef LambdaCalculation_DEBUG
+            Debug(Debug::ERROR) << "converged by oscillation.\n";
+            #endif
             break;
         }
-        
-        // Check if we're oscillating
-        if (iter > 5 && !is_converging()) {
-            // If not converging, try a different approach
-            // Use a fixed step size in the direction of the root
-            double step = (det > 0) ? -0.01 : 0.01;
-            new_value = value + step;
-            
-            // Keep within bounds
-            new_value = std::max(lower_bound, std::min(upper_bound, new_value));
-        }
-        
-        value = new_value;
+        convergence_history.insert(value);
+        // Protect from big oscillations by capping the convergence rate.
+        double step = f_lambda / f_prime_lambda;
+        step = signer(step) * std::min(std::fabs(f_lambda / f_prime_lambda), 0.01);
+        value = value - step;
     }
-    
-    // If we've moved too far from the initial value, revert
-    if (std::abs(value - initial_value) > 0.5) {
-        value = initial_value;
-    }
+    #ifdef LambdaCalculation_DEBUG
+    Debug(Debug::ERROR) << "final value: " << value << "\n";
+    #endif
 }

@@ -390,14 +390,14 @@ void SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const boo
             EXIT(EXIT_FAILURE);
         }
 
+        pBack[static_cast<int>(aa2num[static_cast<int>('X')])] = ANY_BACK;
+
         Debug(Debug::INFO) << "# Background (precomputed optional):";
         for (int i = 0; i < alphabetSize; ++i) {
             Debug(Debug::INFO) << " " << pBack[i];
         }
         Debug(Debug::INFO) << "\n";
         Debug(Debug::INFO) << "# Lambda     (precomputed optional): " << lambda << "\n";
-
-        pBack[static_cast<int>(aa2num[static_cast<int>('X')])]=ANY_BACK;
     }
     if(xIsPositive == false){
         for (int i = 0; i < alphabetSize - 1; i++) {
