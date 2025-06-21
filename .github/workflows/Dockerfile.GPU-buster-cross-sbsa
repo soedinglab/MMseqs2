@@ -5,13 +5,6 @@ RUN apt-get update
 RUN apt-get -y install -o APT::Immediate-Configure=false \
         git wget vim ninja-build crossbuild-essential-arm64 zlib1g-dev:arm64 libbz2-dev:arm64 software-properties-common
 
-ENV CC=/usr/bin/aarch64-linux-gnu-gcc
-ENV CXX=/usr/bin/aarch64-linux-gnu-g++
-ENV CUDAHOSTCXX=/usr/bin/aarch64-linux-gnu-g++
-ENV CUDACXX=/usr/local/cuda/bin/nvcc
-ENV LIBGCC=/usr/lib/gcc-cross/aarch64-linux-gnu/8
-ENV CUDAFLAGS="-t 0 --split-compile=0"
-
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.31.0/cmake-3.31.0-linux-x86_64.sh; \
     chmod +x cmake-3.31.0-linux-x86_64.sh; \
     ./cmake-3.31.0-linux-x86_64.sh --skip-license --prefix=/usr/local;
@@ -23,20 +16,26 @@ RUN apt-get update
 RUN apt-get install -y cuda-nvcc-${VER} cuda-nvcc-cross-sbsa-${VER} cuda-cudart-cross-sbsa-${VER}
 
 WORKDIR /work
+RUN wget https://apt.llvm.org/llvm.sh
+RUN chmod +x llvm.sh
+RUN ./llvm.sh 20
 ADD . .
 RUN echo "set(CMAKE_SYSTEM_NAME Linux)" > /work/toolchain.cmake; \
     echo "set(CMAKE_SYSTEM_PROCESSOR aarch64)" >> /work/toolchain.cmake; \
-    echo "set(CMAKE_C_COMPILER /usr/bin/aarch64-linux-gnu-gcc)" >> /work/toolchain.cmake; \
-    echo "set(CMAKE_CXX_COMPILER /usr/bin/aarch64-linux-gnu-g++)" >> /work/toolchain.cmake;
+    echo "set(CMAKE_C_COMPILER /work/clang-aarch64)" >> /work/toolchain.cmake; \
+    echo "set(CMAKE_CXX_COMPILER /work/clang++-aarch64)" >> /work/toolchain.cmake; \
+    echo 'set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})' >> /work/toolchain.cmake; \
+    echo "set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)" >> /work/toolchain.cmake; \
+    echo 'set(CMAKE_CUDA_FLAGS "-t 0 --split-compile=0 -allow-unsupported-compiler")' >> /work/toolchain.cmake; \
+    echo 'set(CMAKE_CUDA_LINK_FLAGS "-t 0 --split-compile=0 -allow-unsupported-compiler")' >> /work/toolchain.cmake; \
+    echo -e '#!/bin/sh\n/usr/bin/clang-20 --target=aarch64-linux-gnu "${@}"\n' > /work/clang-aarch64; \
+    echo -e '#!/bin/sh\n/usr/bin/clang++-20 --target=aarch64-linux-gnu "${@}"\n' > /work/clang++-aarch64; \
+    chmod +x /work/clang-aarch64 /work/clang++-aarch64;
 
+#-DOpenMP_C_FLAGS="-fopenmp -I${LIBGCC} -L${LIBGCC}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGCC} -L${LIBGCC}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY="${LIBGCC}/libgomp.a" \
 RUN mkdir -p /work/build && cd /work/build; \
-    if [ -e "${LIBGCC}/libgomp.so" ]; then \
-        mv -f -- "${LIBGCC}/libgomp.so" "${LIBGCC}/libgomp.so.disabled"; \
-    fi; \
     /usr/local/bin/cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_ARM8=1 \
         -DCMAKE_TOOLCHAIN_FILE=/work/toolchain.cmake \
-        -DOpenMP_C_FLAGS="-fopenmp -I${LIBGCC} -L${LIBGCC}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGCC} -L${LIBGCC}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY="${LIBGCC}/libgomp.a" \
-        -DATOMIC_LIB_OVERRIDE="${LIBGCC}/libatomic.a" \
         -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
         -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..; \
     cmake --build . -j$(nproc --all) -v;
