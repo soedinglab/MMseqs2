@@ -136,6 +136,12 @@ if (NATIVE_ARCH)
         set(MMSEQS_ARCH "-march=native")
     endif ()
 endif ()
+
+if (ARM AND CMAKE_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 20.1.5)
+    message("-- Setting -DAVX2 ON ARM")
+    set(MMSEQS_ARCH "${MMSEQS_ARCH} -DAVX2")
+endif ()
+
 set(MMSEQS_ARCH ${MMSEQS_ARCH} CACHE INTERNAL "")
 
 if (NOT (MMSEQS_ARCH STREQUAL ""))
