@@ -78,6 +78,7 @@ void gapless_search(){
     }
 
     helpers::PeerAccess peerAccess(deviceIds, false);
+    peerAccess.enableAllPeerAccesses();
  
     using MemoryConfig = cudasw4::MemoryConfig;
     using ScanResult = cudasw4::ScanResult;
@@ -272,7 +273,8 @@ void sw_search(){
     }
 
     helpers::PeerAccess peerAccess(deviceIds, false);
- 
+    peerAccess.enableAllPeerAccesses();
+
     using MemoryConfig = cudasw4::MemoryConfig;
     using ScanResult = cudasw4::ScanResult;
 

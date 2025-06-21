@@ -364,7 +364,7 @@ namespace cudasw4{
         
                
 
-                if(memoryRequiredForFullDB <= gpumemlimit){
+                if(usedGpuMem + memoryRequiredForFullDB <= gpumemlimit){
                     numBatchesInCachedDB = dbBatches.size();
                     charsOfBatches = numSubjectBytes;
                     subjectsOfBatches = numSubjects;
@@ -383,9 +383,9 @@ namespace cudasw4{
                 }else{
                     //allocate a double buffer for batch transfering
                     size_t memoryRequiredForBatchedProcessing = 0;
-                    memoryRequiredForBatchedProcessing += maxBatchBytes * 2; // d_chardata_vec
-                    memoryRequiredForBatchedProcessing += sizeof(SequenceLengthT) * maxBatchSequences * 2; //d_lengthdata_vec
-                    memoryRequiredForBatchedProcessing += sizeof(size_t) * (maxBatchSequences+1) * 2; //d_offsetdata_vec
+                    memoryRequiredForBatchedProcessing += maxBatchBytes * numCopyBuffers; // d_chardata_vec
+                    memoryRequiredForBatchedProcessing += sizeof(SequenceLengthT) * maxBatchSequences * numCopyBuffers; //d_lengthdata_vec
+                    memoryRequiredForBatchedProcessing += sizeof(size_t) * (maxBatchSequences+1) * numCopyBuffers; //d_offsetdata_vec
                     usedGpuMem += memoryRequiredForBatchedProcessing;
                     if(usedGpuMem > gpumemlimit){
                         throw std::runtime_error("Out of memory working set");
@@ -519,9 +519,9 @@ namespace cudasw4{
                 }else{
                     //allocate a double buffer for batch transfering
                     size_t memoryRequiredForBatchedProcessing = 0;
-                    memoryRequiredForBatchedProcessing += maxBatchBytes * 2; // d_chardata_vec
-                    memoryRequiredForBatchedProcessing += sizeof(SequenceLengthT) * maxBatchSequences * 2; //d_lengthdata_vec
-                    memoryRequiredForBatchedProcessing += sizeof(size_t) * (maxBatchSequences+1) * 2; //d_offsetdata_vec
+                    memoryRequiredForBatchedProcessing += maxBatchBytes * numCopyBuffers; // d_chardata_vec
+                    memoryRequiredForBatchedProcessing += sizeof(SequenceLengthT) * maxBatchSequences * numCopyBuffers; //d_lengthdata_vec
+                    memoryRequiredForBatchedProcessing += sizeof(size_t) * (maxBatchSequences+1) * numCopyBuffers; //d_offsetdata_vec
                     usedGpuMem += memoryRequiredForBatchedProcessing;
 
                     //std::cout << "usedGpuMem " << usedGpuMem << ", gpumemlimit " << gpumemlimit << "\n";
@@ -1930,9 +1930,9 @@ namespace cudasw4{
                         }
                         constexpr int accessSize = 16; //kernel uses float4 for pssm access
                         if(!config.dpx){
-                            ws.gpuPermutedPSSMforGapless.fromGpuPSSMView<half, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
+                            ws.gpuPermutedPSSMforGapless.template fromGpuPSSMView<half, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
                         }else{
-                            ws.gpuPermutedPSSMforGapless.fromGpuPSSMView<short, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
+                            ws.gpuPermutedPSSMforGapless.template fromGpuPSSMView<short, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
                         }
                     }else{
                         auto config = getMultiTileGroupRegConfigForPSSM_Gapless(currentQueryLength);
@@ -1943,9 +1943,9 @@ namespace cudasw4{
                         }
                         constexpr int accessSize = 16; //kernel uses float4 for pssm access
                         if(!config.dpx){
-                            ws.gpuPermutedPSSMforGapless.fromGpuPSSMView<half, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
+                            ws.gpuPermutedPSSMforGapless.template fromGpuPSSMView<half, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
                         }else{
-                            ws.gpuPermutedPSSMforGapless.fromGpuPSSMView<short, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
+                            ws.gpuPermutedPSSMforGapless.template fromGpuPSSMView<short, accessSize>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
                         }
                     }
                 };
@@ -1960,9 +1960,9 @@ namespace cudasw4{
                         }
                         constexpr int accessSize = 16; //kernel uses float4 for pssm access                        
                         if(!config.dpx){
-                            ws.gpuPermutedPSSMforSW.fromGpuPSSMView<accessSize, float>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
+                            ws.gpuPermutedPSSMforSW.template fromGpuPSSMView<accessSize, float>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
                         }else{
-                            ws.gpuPermutedPSSMforSW.fromGpuPSSMView<accessSize, int>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
+                            ws.gpuPermutedPSSMforSW.template fromGpuPSSMView<accessSize, int>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
                         }
                     }else{
                         auto config = getMultiTileGroupRegConfigForPSSM_SW(currentQueryLength);
@@ -1973,9 +1973,9 @@ namespace cudasw4{
                         }
                         constexpr int accessSize = 16; //kernel uses float4 for pssm access                        
                         if(!config.dpx){
-                            ws.gpuPermutedPSSMforSW.fromGpuPSSMView<accessSize, float>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
+                            ws.gpuPermutedPSSMforSW.template fromGpuPSSMView<accessSize, float>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
                         }else{
-                            ws.gpuPermutedPSSMforSW.fromGpuPSSMView<accessSize, int>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
+                            ws.gpuPermutedPSSMforSW.template fromGpuPSSMView<accessSize, int>(ws.gpuFullQueryPSSM.makeView(), config.groupsize, config.numRegs, gpuStreams[gpu]);
                         }
                     }
                 };
