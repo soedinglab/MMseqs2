@@ -306,7 +306,7 @@ case "${INPUT_TYPE}" in
     "FASTA_LIST")
         eval "set -- $ARR"
         # shellcheck disable=SC2086
-        "${MMSEQS}" createdb "${@}" "${OUTDB}" ${COMP_PAR} \
+        "${MMSEQS}" createdb "${@}" "${OUTDB}" ${COMP_PAR} --gpu 1 \
             || fail "createdb died"
         for i in "${@}"; do
             rm -f -- "$i"
@@ -314,7 +314,7 @@ case "${INPUT_TYPE}" in
     ;;
     "FSA")
         # shellcheck disable=SC2086
-        "${MMSEQS}" createdb "${TMP_PATH}/"*.fsa "${OUTDB}" ${COMP_PAR} \
+        "${MMSEQS}" createdb "${TMP_PATH}/"*.fsa "${OUTDB}" ${COMP_PAR} --gpu 1 \
             || fail "createdb died"
         rm -f -- "${TMP_PATH}/"*.fsa
     ;;
@@ -385,7 +385,7 @@ case "${INPUT_TYPE}" in
         sed 's|_protein\.faa\.gz||g' "${TMP_PATH}/tardb.lookup" > "${TMP_PATH}/tardb.lookup.tmp"
         mv -f -- "${TMP_PATH}/tardb.lookup.tmp" "${TMP_PATH}/tardb.lookup"
         # shellcheck disable=SC2086
-        "${MMSEQS}" createdb "${TMP_PATH}/tardb" "${OUTDB}" ${COMP_PAR} \
+        "${MMSEQS}" createdb "${TMP_PATH}/tardb" "${OUTDB}" ${COMP_PAR} --gpu 1 \
             || fail "createdb died"
         if [ -n "${REMOVE_TMP}" ]; then
             # shellcheck disable=SC2086

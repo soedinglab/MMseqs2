@@ -52,9 +52,6 @@ int sortWithIndex(const char *dataFileSeq,
     setvbuf(seqOut, NULL, _IOFBF, 1024*1024*50);
     size_t offset = 0;
     for (size_t i = 0; i < reader.getSize(); i++) {
-        if(index[i].length == 28){
-            std::cout << "Warning: Sequence with length 28 found in " << dataFileSeq << ". This is likely a bug in the database creation.\n";
-        }
         size_t written = fwrite(buf + index[i].offset, 1, index[i].length, seqOut);
         if (written != static_cast<size_t>(index[i].length)) {
             Debug(Debug::ERROR) << "Can not write to data file " << dataFileSeq << "\n";
