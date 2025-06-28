@@ -1,0 +1,80 @@
+name: Test Corrosion using prebuilt legacy generator
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      rust:
+        required: false
+        type: string
+        default: 1.46.0
+      target_arch:
+        required: false
+        type: string
+        default: x86_64
+      generator:
+        required: false
+        type: string
+        default : ninja
+
+jobs:
+  test_legacy:
+    name: Test (${{inputs.os}})
+    runs-on: ${{ inputs.os }}
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache Legacy Generator
+        id: cache_generator
+        uses: actions/cache@v3
+        with:
+          path: ${{github.workspace}}/corrosion-prebuilt-generator
+          key: ${{ runner.os }}-generator-${{ hashFiles('generator/src/**', 'generator/Cargo.toml', 'generator/Cargo.lock') }}
+      - name: Setup Environment and Configure CMake
+        uses: "./.github/actions/setup_test"
+        with:
+          target_arch: x86_64
+          cmake: 3.15.7
+          rust: ${{inputs.rust}}
+          generator: ninja
+          build_dir: build
+          install_path: ${{github.workspace}}/corrosion-prebuilt-generator
+          configure_params: "-DCMAKE_BUILD_TYPE=Release"
+        if: steps.cache_generator.outputs.cache-hit != 'true'
+      - name: Build corrosion
+        run: cmake --build build --config Release
+        if: steps.cache_generator.outputs.cache-hit != 'true'
+      - name: Install corrosion
+        run: cmake --install build --config Release
+        if: steps.cache_generator.outputs.cache-hit != 'true'
+      - name: Determine Corrosion Generator path
+        id: cor_gen
+        shell: bash
+        run: |
+          export base_generator_bin="${{github.workspace}}/corrosion-prebuilt-generator/libexec/corrosion-generator"
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            echo "generator_bin=${base_generator_bin}.exe" >> $GITHUB_OUTPUT
+          else
+            echo "generator_bin=${base_generator_bin}" >> $GITHUB_OUTPUT
+            chmod +x "${base_generator_bin}"
+          fi
+      - name: Setup Environment and Configure CMake
+        uses: "./.github/actions/setup_test"
+        with:
+          target_arch: ${{inputs.target_arch}}
+          cmake: 3.15.7
+          rust: ${{inputs.rust}}
+          generator: ${{inputs.generator}}
+          build_dir: build
+          configure_params: "-DCORROSION_GENERATOR_EXECUTABLE=${{steps.cor_gen.outputs.generator_bin}}"
+      - name: Run Tests
+        id: run_tests
+        working-directory: build
+        run: ctest --build-config Debug -j 3
+      - name: Rerun failed tests verbose
+        working-directory: build
+        run: ctest --rerun-failed --verbose --build-config Debug
+        if: ${{ failure() && steps.run_tests.conclusion == 'failure' }}
