@@ -7,8 +7,7 @@
 SIMD-accelerated library for computing global and X-drop affine gap penalty sequence-to-sequence or
 sequence-to-profile alignments using an adaptive block-based algorithm.
 
-See the Bioinformatics paper [here](https://doi.org/10.1093/bioinformatics/btad487) for more info on the
-algorithm and how it compares with other algorithms.
+Preprint paper available [here](https://www.biorxiv.org/content/10.1101/2021.11.08.467651).
 
 <p align = "center">
 <img src = "vis/block_img1.png" width = "300px">
@@ -78,7 +77,6 @@ of ~10% sequence length performs well (tested with reads up to ~50kbps).
 For proteins, a min block size of 32 and a max block size of 256 performs well.
 Using a minimum block size that is at least 32 is recommended for most applications.
 Using a maximum block size greater than `2^14 = 16384` is not recommended.
-The library contains a `percent_len` function that computes a percentage of the sequence length with these recommendations.
 If the alignment scores are saturating (score too large), then use a smaller block size.
 Let me know how block aligner performs on your data!
 
@@ -90,7 +88,7 @@ and benchmarks need to run on Linux or MacOS.
 To use this as a crate in your Rust project, add the following to your `Cargo.toml`:
 ```
 [dependencies]
-block-aligner = { version = "0.5", features = ["simd_avx2"] }
+block-aligner = { version = "0.4", features = ["simd_avx2"] }
 ```
 Use the `simd_sse2`, `simd_neon`, or `simd_wasm` feature flag for x86 SSE2, ARM Neon, or WASM SIMD support, respectively.
 It is your responsibility to ensure the correct feature to be enabled and supported by the
@@ -100,9 +98,9 @@ with the same dependency [here](https://doc.rust-lang.org/cargo/reference/specif
 Here's a simple example:
 ```
 [target.'cfg(target_arch = "x86_64")'.dependencies]
-block-aligner = { version = "0.5", features = ["simd_avx2"] }
+block-aligner = { version = "0.4", features = ["simd_avx2"] }
 [target.'cfg(target_arch = "aarch64")'.dependencies]
-block-aligner = { version = "0.5", features = ["simd_neon"] }
+block-aligner = { version = "0.4", features = ["simd_neon"] }
 ```
 
 For developing, testing, or using the C API, you should clone this repo
@@ -138,20 +136,7 @@ the [C readme](c/README.md).
 See the `3di` branch for an example of using block aligner to do local alignment in C,
 along with block aligner modifications to support aligning with amino acid 3D interaction (3Di) information.
 
-## Improving Block Aligner
-During alignment, three decisions need to be made at each step (using heuristics):
-* Whether to grow the block size
-* Whether to shrink the block size
-* Whether to shift right or down
-
-Block aligner uses simple greedy heuristics that are cheap to evaluate for making these decisions.
-There is probably a lot of room to improve here! Maybe seeds? Neural network models?
-
-To try your ideas, take a look at the code after the comment `// TODO: better heuristics?` in `src/scan_block.rs`
-(depending on your changes, you may need to modify other parts of the code too). Let me know if you
-are working on new ideas!
-
-**Most of the instructions below are for benchmarking and testing block aligner.**
+Most of the instructions below are for benchmarking and testing block aligner.
 
 ## Data
 Some Illumina/Nanopore (DNA), Uniclust30 (protein), and SCOP (protein profile) data are used in some tests and benchmarks.
@@ -172,13 +157,11 @@ Run `scripts/doc_avx2.sh` or `scripts/doc_wasm.sh` to build the docs locally.
 
 ## Benchmark
 Run `scripts/bench_avx2.sh` or `scripts/bench_wasm.sh` for basic benchmarks.
-See the `scripts` directory for runnable benchmark scripts on real data.
-Most of the actual implementations of the benchmarks are in the `examples` directory.
+See the `scripts` directory for more benchmark scripts on real data.
 
 ## Data analysis and visualizations
 Use the Jupyter notebook in the `vis/` directory to gather data and plot them. An easier way
-to run the whole notebook is to run the `vis/run_vis.sh` script. This reproduces the
-experiments in the manuscript.
+to run the whole notebook is to run the `vis/run_vis.sh` script.
 
 ## Profiling with MacOS Instruments
 Use

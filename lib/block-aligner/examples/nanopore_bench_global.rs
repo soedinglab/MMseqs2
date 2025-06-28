@@ -13,7 +13,6 @@ use ksw2_sys::*;
 use block_aligner::percent_len;
 use block_aligner::scan_block::*;
 use block_aligner::scores::*;
-use block_aligner::cigar::*;
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -62,13 +61,12 @@ fn bench_parasailors(file: &str) -> f64 {
 fn bench_wfa2(file: &str, use_heuristic: bool) -> f64 {
     let data = get_data(file);
 
-    let mut wfa = WFAlignerGapAffine::new(4, 4, 2, AlignmentScope::Alignment, MemoryModel::MemoryHigh);
-
     let mut total_time = 0f64;
     let mut temp = 0i32;
     for (q, r) in &data {
+        let mut wfa = WFAlignerGapAffine::new(4, 4, 2, AlignmentScope::Score, MemoryModel::MemoryHigh);
         if use_heuristic {
-            wfa.set_heuristic(Heuristic::WFadaptive(10, percent_len(q.len().max(r.len()), 0.01) as i32, 1));
+            wfa.set_heuristic(Heuristic::WFadaptive(10, 50, 1));
         } else {
             wfa.set_heuristic(Heuristic::None);
         }
@@ -76,7 +74,6 @@ fn bench_wfa2(file: &str, use_heuristic: bool) -> f64 {
         wfa.align_end_to_end(&q, &r);
         total_time += start.elapsed().as_secs_f64();
         temp = temp.wrapping_add(wfa.score());
-        temp = temp.wrapping_add(wfa.cigar().len() as i32);
     }
     black_box(temp);
     total_time
@@ -89,13 +86,10 @@ fn bench_edlib(file: &str) -> f64 {
     let mut total_time = 0f64;
     let mut temp = 0i32;
     for (q, r) in &data {
-        let mut config = EdlibAlignConfigRs::default();
-        config.task = EdlibAlignTaskRs::EDLIB_TASK_PATH;
         let start = Instant::now();
-        let res = edlibAlignRs(&q, &r, &config);
+        let res = edlibAlignRs(&q, &r, &EdlibAlignConfigRs::default());
         total_time += start.elapsed().as_secs_f64();
         temp = temp.wrapping_add(res.editDistance);
-        temp = temp.wrapping_add(res.alignment.unwrap().len() as i32);
     }
     black_box(temp);
     total_time
@@ -131,11 +125,10 @@ fn bench_ksw2(file: &str, band_width_percent: f32) -> f64 {
         let band_width = percent_len(q.len().max(r.len()), band_width_percent) as i32;
         let start = Instant::now();
         unsafe {
-            ksw_extz2_sse(std::ptr::null_mut(), q.len() as i32, q.as_ptr(), r.len() as i32, r.as_ptr(), 5, matrix.as_ptr(), 4, 2, band_width, -1, 0, 0 /* score only = 1 */, &mut res);
+            ksw_extz2_sse(std::ptr::null_mut(), q.len() as i32, q.as_ptr(), r.len() as i32, r.as_ptr(), 5, matrix.as_ptr(), 4, 2, band_width, -1, 0, 1, &mut res);
         }
         total_time += start.elapsed().as_secs_f64();
         temp = temp.wrapping_add(res.score);
-        temp = temp.wrapping_add(res.n_cigar);
     }
     black_box(temp);
     total_time
@@ -158,13 +151,10 @@ fn bench_ours(file: &str, trace: bool, max_size: usize, block_grow: bool) -> f64
 
         if trace {
             let mut a = Block::<true, false>::new(q.len(), r.len(), max_size);
-            let mut cigar = Cigar::new(q.len(), r.len());
             let start = Instant::now();
             a.align(&q, &r, &matrix, bench_gaps, percent_len(max_len, 0.01)..=percent_len(max_len, max_percent), 0);
-            a.trace().cigar(a.res().query_idx, a.res().reference_idx, &mut cigar);
             total_time += start.elapsed().as_secs_f64();
             temp = temp.wrapping_add(a.res().score); // prevent optimizations
-            temp = temp.wrapping_add(cigar.len() as i32); // prevent optimizations
         } else {
             let mut a = Block::<false, false>::new(q.len(), r.len(), max_size);
             let start = Instant::now();
@@ -189,7 +179,7 @@ fn main() {
 
     for (((file, name), max_size), &run_parasail) in files.iter().zip(&names).zip(&max_sizes).zip(&run_parasail_arr) {
         for (&s, &g) in max_size.iter().zip(&[false, true]) {
-            let t = bench_ours(file, true, s, g);
+            let t = bench_ours(file, false, s, g);
             println!("{}, ours ({}), {}", name, if g { "1%-10%" } else { "1%-1%" }, t);
         }
 

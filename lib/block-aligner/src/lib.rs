@@ -95,7 +95,7 @@ pub mod scores;
 #[cfg(any(feature = "simd_sse2", feature = "simd_avx2", feature = "simd_wasm", feature = "simd_neon"))]
 pub mod cigar;
 
-#[cfg(any(feature = "simd_sse2", feature = "simd_avx2", feature = "simd_wasm", feature = "simd_neon"))]
+#[cfg(any(feature = "simd_sse2", feature = "simd_avx2", feature = "simd_neon"))]
 #[doc(hidden)]
 pub mod ffi;
 
@@ -105,7 +105,7 @@ compile_error!("No SIMD feature flag specified! Specify \"no_simd\" to disable a
 /// Calculate the percentage of a length, rounded to the next power of two.
 ///
 /// This is useful for computing the min and max block sizes for sequences of a certain
-/// length by using percentages. The returned value is at least 32 and at most 16384.
+/// length by using percentages. The returned value is at least 32.
 pub fn percent_len(len: usize, p: f32) -> usize {
-    ((p * (len as f32)).round() as usize).max(32).next_power_of_two().min(1 << 14)
+    ((p * (len as f32)).round() as usize).max(32).next_power_of_two()
 }

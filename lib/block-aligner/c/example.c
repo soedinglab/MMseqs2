@@ -59,10 +59,10 @@ void example2(void) {
             res.reference_idx);
 
     Cigar* cigar = block_new_cigar(res.query_idx, res.reference_idx);
-    block_cigar_aa_trace(block, res.query_idx, res.reference_idx, cigar);
+    block_cigar_eq_aa_trace(block, a, b, res.query_idx, res.reference_idx, cigar);
     size_t cigar_len = block_len_cigar(cigar);
     // Note: 'M' signals either a match or mismatch
-    char ops_char[] = {' ', 'M', 'I', 'D'};
+    char ops_char[] = {' ', 'M', '=', 'X', 'I', 'D'};
     for (int i = 0; i < cigar_len; i++) {
         OpLen o = block_get_cigar(cigar, i);
         printf("%lu%c", o.len, ops_char[o.op]);

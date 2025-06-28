@@ -6,5 +6,8 @@ data/*
 !data/uc30_0.95_pairwise_aln.sh
 c/a.out
 c/target
+c/example
+c/align_prefix
+c/align_local
 vis/.ipynb_checkpoints
 vis/*.log

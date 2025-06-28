@@ -23,6 +23,8 @@ pub trait Matrix {
     fn new() -> Self;
     /// Set the score for a pair of bytes.
     fn set(&mut self, a: u8, b: u8, score: i8);
+
+    fn set_num(&mut self, a: u8, b: u8, score: i8);
     /// Get the score for a pair of bytes.
     fn get(&self, a: u8, b: u8) -> i8;
     /// Get the pointer for a specific index.
@@ -97,6 +99,13 @@ impl Matrix for AAMatrix {
         self.scores[idx] = score;
     }
 
+    fn set_num(&mut self, a: u8, b: u8, score: i8) {
+        let idx = (a as usize)* 32 + (b as usize);
+        self.scores[idx] = score;
+        let idx = (b as usize)* 32 + (a as usize);
+        self.scores[idx] = score;
+    }
+
     fn get(&self, a: u8, b: u8) -> i8 {
         let a = a.to_ascii_uppercase();
         let b = b.to_ascii_uppercase();
@@ -137,6 +146,8 @@ impl Matrix for AAMatrix {
 /// Nucleotide scoring matrix.
 ///
 /// Supports characters `A`, `C`, `G`, `N`, and `T`. Lowercase characters are uppercased.
+///
+/// If a larger alphabet is needed (for example, with IUPAC characters), use `AAMatrix` instead.
 #[repr(C, align(32))]
 #[derive(Clone, PartialEq, Debug)]
 pub struct NucMatrix {
@@ -178,6 +189,10 @@ impl Matrix for NucMatrix {
         self.scores[idx] = score;
         let idx = ((b & 0b111) as usize) * 16 + ((a & 0b1111) as usize);
         self.scores[idx] = score;
+    }
+
+    fn set_num(&mut self, _a: u8, _b: u8, _score: i8) {
+        unimplemented!();
     }
 
     fn get(&self, a: u8, b: u8) -> i8 {
@@ -248,6 +263,10 @@ impl Matrix for ByteMatrix {
         if a == b { self.match_score } else { self.mismatch_score }
     }
 
+    fn set_num(&mut self, _a: u8, _b: u8, _score: i8) {
+        unimplemented!();
+    }
+    
     #[inline]
     fn as_ptr(&self, _i: usize) -> *const i8 {
         unimplemented!()
@@ -410,11 +429,12 @@ pub trait Profile {
     fn set_all_gap_close_C(&mut self, gap: i8);
     /// Set the gap open cost for all row transitions.
     fn set_all_gap_open_R(&mut self, gap: i8);
-
+    
     /// Get the score for a position and byte.
     fn get(&self, i: usize, b: u8) -> i8;
     /// Get the gap extend cost.
     fn get_gap_extend(&self) -> i8;
+    fn get_curr_len(&self) -> usize;
     /// Get the pointer for a specific index.
     fn as_ptr_pos(&self, i: usize) -> *const i8;
     /// Get the pointer for a specific amino acid.
@@ -551,16 +571,16 @@ impl Profile for AAProfile {
 
     fn set_all_gap_open_C(&mut self, gap: i8) {
         assert!(gap < 0, "Gap open cost must be negative!");
-        self.pos_gap_open_C[..self.str_len + 1].fill(gap as i16);
+        self.pos_gap_open_C[..self.curr_len].fill(gap as i16);
     }
 
     fn set_all_gap_close_C(&mut self, gap: i8) {
-        self.pos_gap_close_C[..self.str_len + 1].fill(gap as i16);
+        self.pos_gap_close_C[..self.curr_len].fill(gap as i16);
     }
 
     fn set_all_gap_open_R(&mut self, gap: i8) {
         assert!(gap < 0, "Gap open cost must be negative!");
-        self.pos_gap_open_R[..self.str_len + 1].fill(gap as i16);
+        self.pos_gap_open_R[..self.curr_len].fill(gap as i16);
     }
 
     fn get(&self, i: usize, b: u8) -> i8 {
@@ -572,6 +592,10 @@ impl Profile for AAProfile {
 
     fn get_gap_extend(&self) -> i8 {
         self.gap_extend
+    }
+
+    fn get_curr_len(&self) -> usize {
+        self.curr_len
     }
 
     #[inline]
@@ -671,6 +695,47 @@ impl Profile for AAProfile {
     }
 }
 
+/// Positional score bias for scores.
+#[derive(Clone, PartialEq, Debug)]
+pub struct PosBias {
+    bias: Vec<i16>,
+    len: usize,
+}
+
+impl PosBias {
+    /// Create a new positional score bias vector of some maximum length and initialized to zeros.
+    pub fn new(len: usize, block_size: usize) -> Self {
+        Self {
+            bias: vec![0i16; len + block_size + 1],
+            len
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn set_biases(&mut self, b: &[i16]) {
+        self.bias.fill(0i16);
+        self.bias[1..b.len() + 1].copy_from_slice(b);
+        self.len = b.len();
+    }
+
+    #[inline]
+    pub unsafe fn get(&self, i: usize) -> i16 {
+        *self.bias.as_ptr().add(i)
+    }
+
+    #[cfg_attr(feature = "simd_sse2", target_feature(enable = "sse2"))]
+    #[cfg_attr(feature = "simd_avx2", target_feature(enable = "avx2"))]
+    #[cfg_attr(feature = "simd_wasm", target_feature(enable = "simd128"))]
+    #[cfg_attr(feature = "simd_neon", target_feature(enable = "neon"))]
+    #[inline]
+    pub unsafe fn get_biases(&self, i: usize) -> Simd {
+        simd_loadu(self.bias.as_ptr().add(i) as *const Simd)
+    }
+}
+
 impl AAProfile {
     fn set_all_core<const REV: bool>(&mut self, order: &[u8], scores: &[i8], left_shift: usize, right_shift: usize) {
         #[repr(align(32))]
@@ -709,5 +774,13 @@ impl AAProfile {
                 i += 1;
             }
         }
+    }
+
+    pub fn pos_aa_mut_ptr(&mut self) -> *mut i8 {
+        self.pos_aa.as_mut_ptr()
+    }
+    
+    pub fn aa_pos_mut_ptr(&mut self) -> *mut i16 {
+        self.aa_pos.as_mut_ptr()
     }
 }

@@ -2,7 +2,7 @@
 fn main() {}
 
 #[cfg(feature = "simd_avx2")]
-fn test(file_name: &str, max_size: usize, name: &str, verbose: bool, writer: &mut impl std::io::Write) -> (usize, usize, usize, f64, usize, f64, f64, usize, usize) {
+fn test(file_name: &str, max_size: usize, name: &str, verbose: bool, writer: &mut impl std::io::Write) -> (usize, usize, usize, f64, usize, f64) {
     use parasailors::{Matrix, *};
 
     use rust_wfa2::aligner::*;
@@ -22,9 +22,6 @@ fn test(file_name: &str, max_size: usize, name: &str, verbose: bool, writer: &mu
     let mut wrong_avg = 0f64;
     let mut count = 0usize;
     let mut seq_id_avg = 0f64;
-    let mut largest_gap_avg = 0f64;
-    let mut largest_gap_max = 0usize;
-    let mut largest_gap_max_correct = 0usize;
     let reader = BufReader::new(File::open(file_name).unwrap());
     let all_lines = reader.lines().collect::<Vec<_>>();
 
@@ -64,6 +61,16 @@ fn test(file_name: &str, max_size: usize, name: &str, verbose: bool, writer: &mu
         block_aligner.align(&q_padded, &r_padded, &matrix, run_gaps, percent_len(max_len, 0.01)..=percent_len(max_len, 0.1), 0);
         let scan_score = block_aligner.res().score;
 
+        write!(
+            writer,
+            "{}, {}, {}, {}, {}\n",
+            name,
+            q.len(),
+            r.len(),
+            scan_score,
+            correct_score
+        ).unwrap();
+
         if correct_score != scan_score {
             wrong += 1;
             wrong_avg += ((correct_score - scan_score) as f64) / (correct_score as f64);
@@ -91,11 +98,10 @@ fn test(file_name: &str, max_size: usize, name: &str, verbose: bool, writer: &mu
 
         let wfa_adaptive_score = {
             let mut wfa = WFAlignerGapAffine::new(4, 4, 2, AlignmentScope::Score, MemoryModel::MemoryHigh);
-            wfa.set_heuristic(Heuristic::WFadaptive(10, percent_len(q.len().max(r.len()), 0.01) as i32, 1));
+            wfa.set_heuristic(Heuristic::WFadaptive(10, 50, 1));
             wfa.align_end_to_end(q.as_bytes(), r.as_bytes());
             wfa.score()
         };
-        let largest_gap;
         let wfa_score = {
             let mut wfa = WFAlignerGapAffine::new(4, 4, 2, AlignmentScope::Alignment, MemoryModel::MemoryHigh);
             wfa.set_heuristic(Heuristic::None);
@@ -104,54 +110,16 @@ fn test(file_name: &str, max_size: usize, name: &str, verbose: bool, writer: &mu
             let matches = cigar.bytes().filter(|&c| c == b'M').count();
             let seq_id = (matches as f64) / (cigar.len() as f64);
             seq_id_avg += seq_id;
-            largest_gap = get_largest_gap(cigar.as_bytes());
-            largest_gap_avg += largest_gap as f64;
-            largest_gap_max = largest_gap_max.max(largest_gap);
-            if scan_score == correct_score {
-                largest_gap_max_correct = largest_gap_max_correct.max(largest_gap);
-            }
             wfa.score()
         };
         if wfa_adaptive_score != wfa_score {
             wfa_wrong += 1;
         }
 
-        write!(
-            writer,
-            "{}, {}, {}, {}, {}, {}\n",
-            name,
-            q.len(),
-            r.len(),
-            largest_gap,
-            scan_score,
-            correct_score
-        ).unwrap();
-
         count += 1;
     }
 
-    (wrong, min_size_wrong, wfa_wrong, wrong_avg / (wrong as f64), count, seq_id_avg / (count as f64), largest_gap_avg / (count as f64), largest_gap_max, largest_gap_max_correct)
-}
-
-#[cfg(feature = "simd_avx2")]
-fn get_largest_gap(cigar: &[u8]) -> usize {
-    let mut prev = b'?';
-    let mut curr = 0;
-    let mut max = 0;
-
-    for &op in cigar {
-        if op != prev {
-            prev = op;
-            curr = 0;
-        }
-
-        if op == b'I' || op == b'D' {
-            curr += 1;
-            max = max.max(curr);
-        }
-    }
-
-    max
+    (wrong, min_size_wrong, wfa_wrong, wrong_avg / (wrong as f64), count, seq_id_avg / (count as f64))
 }
 
 #[cfg(feature = "simd_avx2")]
@@ -168,15 +136,14 @@ fn main() {
 
     let out_file_name = "data/nanopore_accuracy.csv";
     let mut writer = BufWriter::new(File::create(out_file_name).unwrap());
-    write!(writer, "dataset, query len, reference len, largest gap, pred score, true score\n").unwrap();
+    write!(writer, "dataset, query len, reference len, pred score, true score\n").unwrap();
 
     println!("\ndataset, total, wrong, wrong % error, min size wrong, wfa wrong");
 
     for ((path, name), &max_size) in paths.iter().zip(&names).zip(&max_size) {
-        let (wrong, min_size_wrong, wfa_wrong, wrong_avg, count, seq_id_avg, largest_gap_avg, largest_gap_max, largest_gap_max_correct) = test(path, max_size, name, verbose, &mut writer);
+        let (wrong, min_size_wrong, wfa_wrong, wrong_avg, count, seq_id_avg) = test(path, max_size, name, verbose, &mut writer);
         println!("\n{}, {}, {}, {}, {}, {}", name, count, wrong, wrong_avg, min_size_wrong, wfa_wrong);
         println!("# {} seq id avg: {}", name, seq_id_avg);
-        println!("# {} largest gap avg: {}, largest gap max: {}, largest gap max for correct: {}", name, largest_gap_avg, largest_gap_max, largest_gap_max_correct);
     }
 
     println!("# Done!");

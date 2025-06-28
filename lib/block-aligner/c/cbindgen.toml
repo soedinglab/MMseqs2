@@ -9,4 +9,4 @@ after_includes = "#define ALIGNED(n) __attribute__ ((aligned(n)))"
 aligned_n = "ALIGNED"
 
 [parse]
-expand = ["block-aligner-c"]
+expand = ["block_aligner_c"]

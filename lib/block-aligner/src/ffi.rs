@@ -41,6 +41,13 @@ pub unsafe extern fn block_set_aamatrix(matrix: *mut AAMatrix, a: u8, b: u8, sco
     matrix.set(a, b, score);
 }
 
+/// Set an entry in the AAMatrix.
+#[no_mangle]
+pub unsafe extern fn block_set_aamatrix_num(matrix: *mut AAMatrix, a: u8, b: u8, score: i8) {
+    let matrix = &mut *matrix;
+    matrix.set_num(a, b, score);
+}
+
 /// Frees an AAMatrix.
 #[no_mangle]
 pub unsafe extern fn block_free_aamatrix(matrix: *mut AAMatrix) {
@@ -70,7 +77,7 @@ pub unsafe extern fn block_len_aaprofile(profile: *const AAProfile) -> usize {
     profile.len()
 }
 
-/// Clear the profile so it can be reused for profile lengths less than or equal
+/// Clear the profile so it can be used for profile lengths less than or equal
 /// to the length this struct was created with.
 #[no_mangle]
 pub unsafe extern fn block_clear_aaprofile(profile: *mut AAProfile, str_len: usize, block_size: usize) {
@@ -80,8 +87,6 @@ pub unsafe extern fn block_clear_aaprofile(profile: *mut AAProfile, str_len: usi
 
 /// Set the score for a position and byte.
 ///
-/// The profile should be first `clear`ed before it is reused with different lengths.
-///
 /// The first column (`i = 0`) should be padded with large negative values.
 /// Therefore, set values starting from `i = 1`.
 #[no_mangle]
@@ -89,6 +94,7 @@ pub unsafe extern fn block_set_aaprofile(profile: *mut AAProfile, i: usize, b: u
     let profile = &mut *profile;
     profile.set(i, b, score);
 }
+
 
 /// Set the scores for all positions in the position specific scoring matrix.
 ///
@@ -118,6 +124,18 @@ pub unsafe extern fn block_set_all_rev_aaprofile(profile: *mut AAProfile, order:
     let order = std::slice::from_raw_parts(order, order_len);
     let scores = std::slice::from_raw_parts(scores, scores_len);
     profile.set_all_rev(order, scores, left_shift, right_shift);
+}
+
+#[no_mangle]
+pub unsafe fn aaprofile_pos_aa(profile: *mut AAProfile) -> *mut i8 {
+    let profile = &mut *profile;
+    profile.pos_aa_mut_ptr()
+}
+
+#[no_mangle]
+pub unsafe fn aaprofile_aa_pos(profile: &mut AAProfile) -> *mut i16 {
+    let profile = &mut *profile;
+    profile.aa_pos_mut_ptr()
 }
 
 /// Set the gap open cost for a column.
@@ -188,6 +206,11 @@ pub unsafe extern fn block_get_gap_extend_aaprofile(profile: *const AAProfile) -
     profile.get_gap_extend()
 }
 
+#[no_mangle]
+pub unsafe extern fn block_get_curr_len_aaprofile(profile: *const AAProfile) -> usize {
+    let profile = &*profile;
+    profile.get_curr_len()
+}
 /// Frees an AAProfile.
 #[no_mangle]
 pub unsafe extern fn block_free_aaprofile(profile: *mut AAProfile) {
@@ -242,12 +265,12 @@ pub unsafe extern fn block_set_bytes_padded_aa(padded: *mut PaddedBytes, s: *con
     padded_bytes.set_bytes::<AAMatrix>(bytes, max_size);
 }
 
-/// Write to a padded amino acid string, in reverse.
+/// Write to a padded amino acid string.
 #[no_mangle]
-pub unsafe extern fn block_set_bytes_rev_padded_aa(padded: *mut PaddedBytes, s: *const u8, len: usize, max_size: usize) {
+pub unsafe extern fn block_set_bytes_padded_aa_numsequence(padded: *mut PaddedBytes, s: *const u8, len: usize, max_size: usize) {
     let bytes = std::slice::from_raw_parts(s, len);
     let padded_bytes = &mut *padded;
-    padded_bytes.set_bytes_rev::<AAMatrix>(bytes, max_size);
+    padded_bytes.set_bytes_num::<AAMatrix>(bytes, max_size);
 }
 
 /// Frees a padded amino acid string.
@@ -257,12 +280,38 @@ pub unsafe extern fn block_free_padded_aa(padded: *mut PaddedBytes) {
 }
 
 
+// PosBias
+
+/// Create a new zero initialized positional score bias vector.
+#[no_mangle]
+pub unsafe extern fn block_new_pos_bias(len: usize, max_size: usize) -> *mut PosBias {
+    let pos_bias = Box::new(PosBias::new(len, max_size));
+    Box::into_raw(pos_bias)
+}
+
+/// Write to the positional score bias vector.
+#[no_mangle]
+pub unsafe extern fn block_set_pos_bias(bias: *mut PosBias, b: *const i16, len: usize) {
+    let biases = std::slice::from_raw_parts(b, len);
+    let pos_bias = &mut *bias;
+    pos_bias.set_biases(biases);
+}
+
+/// Frees the positional score bias vector.
+#[no_mangle]
+pub unsafe extern fn block_free_pos_bias(bias: *mut PosBias) {
+    drop(Box::from_raw(bias));
+}
+
+
 // Block
 
 macro_rules! gen_functions {
     ($new_name:ident, $new_doc:expr,
      $align_name:ident, $align_doc:expr,
      $align_profile_name:ident, $align_profile_doc:expr,
+     $align_aa_name:ident, $align_aa_doc:expr,
+     $align_3di_name:ident, $align_3di_doc:expr,
      $res_name:ident, $res_doc:expr,
      $trace_name:ident, $trace_doc:expr,
      $trace_eq_name:ident, $trace_eq_doc:expr,
@@ -301,6 +350,40 @@ macro_rules! gen_functions {
             aligner.align_profile(&*q, &*r, s.min..=s.max, x);
         }
 
+        #[doc = $align_aa_doc]
+        #[no_mangle]
+        pub unsafe extern fn $align_aa_name(b: BlockHandle,
+                                             q: *const PaddedBytes,
+                                             q_bias: *const PosBias,
+                                             r: *const PaddedBytes,
+                                             r_bias: *const PosBias,
+                                             m: *const $matrix,
+                                             g: Gaps,
+                                             s: SizeRange,
+                                             x: i32) {
+            let aligner = &mut *(b as *mut Block<$trace, $x_drop>);
+            aligner.align_aa(&*q, &*q_bias, &*r, &*r_bias, &*m, g, s.min..=s.max, x);
+        }
+
+
+        #[doc = $align_3di_doc]
+        #[no_mangle]
+        pub unsafe extern fn $align_3di_name(b: BlockHandle,
+                                             q: *const PaddedBytes,
+                                             q_3di: *const PaddedBytes,
+                                             q_bias: *const PosBias,
+                                             r: *const PaddedBytes,
+                                             r_3di: *const PaddedBytes,
+                                             r_bias: *const PosBias,
+                                             m: *const $matrix,
+                                             m_3di: *const $matrix,
+                                             g: Gaps,
+                                             s: SizeRange,
+                                             x: i32) {
+            let aligner = &mut *(b as *mut Block<$trace, $x_drop>);
+            aligner.align_3di(&*q, &*q_3di, &*q_bias, &*r, &*r_3di, &*r_bias, &*m, &*m_3di, g, s.min..=s.max, x);
+        }
+
         #[doc = $res_doc]
         #[no_mangle]
         pub unsafe extern fn $res_name(b: BlockHandle) -> AlignResult {
@@ -337,6 +420,10 @@ gen_functions!(
     "Global alignment of two amino acid strings (no traceback).",
     block_align_profile_aa,
     "Global alignment of an amino acid sequence to a profile (no traceback).",
+    block_align_aa_posbias,
+    "Global alignment of two amino acid strings with posbias (no traceback).",
+    block_align_3di_aa,
+    "Global alignment of two amino acid strings with 3di (no traceback).",
     block_res_aa,
     "Retrieves the result of global alignment of two amino acid strings (no traceback).",
     _block_cigar_aa,
@@ -355,6 +442,10 @@ gen_functions!(
     "X-drop alignment of two amino acid strings (no traceback).",
     block_align_profile_aa_xdrop,
     "X-drop alignment of an amino acid sequence to a profile (no traceback).",
+    block_align_aa_xdrop_posbias,
+    "X-drop alignment of two amino acid strings with posbias (no traceback).",
+    block_align_3di_aa_xdrop,
+    "X-drop alignment of two amino acid strings with 3di (no traceback).",
     block_res_aa_xdrop,
     "Retrieves the result of X-drop alignment of two amino acid strings (no traceback).",
     _block_cigar_aa_xdrop,
@@ -373,6 +464,10 @@ gen_functions!(
     "Global alignment of two amino acid strings, with traceback.",
     block_align_profile_aa_trace,
     "Global alignment of an amino acid sequence to a profile, with traceback.",
+    block_align_aa_trace_posbias,
+    "Global alignment of two amino acid strings, with traceback.",
+    block_align_3di_aa_trace,
+    "Global alignment of two amino acid strings with 3di, with traceback.",
     block_res_aa_trace,
     "Retrieves the result of global alignment of two amino acid strings, with traceback.",
     block_cigar_aa_trace,
@@ -391,6 +486,10 @@ gen_functions!(
     "X-drop alignment of two amino acid strings, with traceback.",
     block_align_profile_aa_trace_xdrop,
     "X-drop alignment of an amino acid sequence to a profile, with traceback.",
+    block_align_aa_trace_xdrop_posbias,
+    "X-drop alignment of two amino acid strings with traceback with posbias.",
+    block_align_3di_aa_trace_xdrop,
+    "X-drop alignment of two amino acid strings with 3di, with traceback.",
     block_res_aa_trace_xdrop,
     "Retrieves the result of X-drop alignment of two amino acid strings, with traceback.",
     block_cigar_aa_trace_xdrop,

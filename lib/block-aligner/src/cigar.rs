@@ -78,11 +78,6 @@ impl Cigar {
         (*self.s.as_mut_ptr().add(self.idx - 1)).len += 1;
     }
 
-    /// Reverse the CIGAR string in place.
-    pub fn reverse(&mut self) {
-        self.s[1..self.idx].reverse();
-    }
-
     /// Length of the CIGAR string, not including the first sentinel.
     pub fn len(&self) -> usize {
         self.idx - 1
