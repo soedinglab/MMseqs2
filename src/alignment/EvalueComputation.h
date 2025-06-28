@@ -60,7 +60,12 @@ private:
                                                        5.0543294182155085, 15.130999712620039,
                                                        5.0543294182155085, 15.130999712620039,
                                                        5.0543962679167036, 15.129930117400917}},
-
+                {"nucleotide.out", 5, 2, true, {0.62092274139392822363, 0.35177597988201619872,
+                                                       0.74528059208662511548, -0.71027220445456995535,
+                                                       0.74528059208662511548, -0.71027220445456995535,
+                                                       1.0135243407674570104, -2.5226486486783059604,
+                                                       1.0135243407674570104, -2.5226486486783059604,
+                                                       1.0031949332622873694, -2.3780369436059309862 }},
                 {"blosum62.out", 11, 1, true,  {0.27359865037097330642, 0.044620920658722244834,
                                                        1.5938724404943873658, -19.959867650284412122,
                                                        1.5938724404943873658, -19.959867650284412122,
@@ -107,39 +112,38 @@ private:
                         gapOpen, gapExtend, gapOpen, gapExtend,
                         false, lambdaTolerance, kTolerance,
                         maxSeconds, maxMegabytes, randomSeed);
-//                std::cout << std::setprecision(20) <<
-//                          evaluer.parameters().lambda <<"\t" <<
-//                          evaluer.parameters().K <<"\t" <<
-//                          evaluer.parameters().a_J<<"\t" <<
-//                          evaluer.parameters().b_J<<"\t" <<
-//                          evaluer.parameters().a_I<<"\t" <<
-//                          evaluer.parameters().b_I<<"\t" <<
-//                          evaluer.parameters().alpha_J<<"\t" <<
-//                          evaluer.parameters().beta_J<<"\t" <<
-//                          evaluer.parameters().alpha_I<<"\t" <<
-//                          evaluer.parameters().beta_I<<"\t" <<
-//                          evaluer.parameters().sigma<<"\t" <<
-//                          evaluer.parameters().tau<<"\t" << std::endl;
+                // std::cerr << "{\"\", " << gapOpen << ", " << gapExtend << ", " << "true, {" << std::setprecision(20) <<
+                //         evaluer.parameters().lambda << ", " <<
+                //         evaluer.parameters().K << ",\n" <<
+                //         evaluer.parameters().a_J << ", " <<
+                //         evaluer.parameters().b_J << ",\n" <<
+                //         evaluer.parameters().a_I << ", " <<
+                //         evaluer.parameters().b_I << ",\n" <<
+                //         evaluer.parameters().alpha_J << ", " <<
+                //         evaluer.parameters().beta_J << ",\n" <<
+                //         evaluer.parameters().alpha_I << ", " <<
+                //         evaluer.parameters().beta_I << ",\n" <<
+                //         evaluer.parameters().sigma << ", " <<
+                //         evaluer.parameters().tau << " }}," << std::endl;
             }else{
                 //subMat->alphabetSize-1
                 evaluer.initGapless(
                         subMat->alphabetSize-1, (const long *const *)tmpMat,
                         subMat->pBack, subMat->pBack,
                         maxSeconds);
-//                std::cout << std::setprecision(20) <<
-//                          evaluer.parameters().lambda <<"\t" <<
-//                          evaluer.parameters().K <<"\t" <<
-//                          evaluer.parameters().a_J<<"\t" <<
-//                          evaluer.parameters().b_J<<"\t" <<
-//                          evaluer.parameters().a_I<<"\t" <<
-//                          evaluer.parameters().b_I<<"\t" <<
-//                          evaluer.parameters().alpha_J<<"\t" <<
-//                          evaluer.parameters().beta_J<<"\t" <<
-//                          evaluer.parameters().alpha_I<<"\t" <<
-//                          evaluer.parameters().beta_I<<"\t" <<
-//                          evaluer.parameters().sigma<<"\t" <<
-//                          evaluer.parameters().tau<<"\t" << std::endl;
-
+                // std::cerr << "{\"\", " << gapOpen << ", " << gapExtend << ", " << "false, {" << std::setprecision(20) <<
+                //         evaluer.parameters().lambda << ", " <<
+                //         evaluer.parameters().K << ",\n" <<
+                //         evaluer.parameters().a_J << ", " <<
+                //         evaluer.parameters().b_J << ",\n" <<
+                //         evaluer.parameters().a_I << ", " <<
+                //         evaluer.parameters().b_I << ",\n" <<
+                //         evaluer.parameters().alpha_J << ", " <<
+                //         evaluer.parameters().beta_J << ",\n" <<
+                //         evaluer.parameters().alpha_I << ", " <<
+                //         evaluer.parameters().beta_I << ",\n" <<
+                //         evaluer.parameters().sigma << ", " <<
+                //         evaluer.parameters().tau << " }}," << std::endl;
             }
             delete [] tmpMatData;
             delete [] tmpMat;
