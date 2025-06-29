@@ -947,9 +947,7 @@ size_t DBReader<unsigned int>::indexMemorySize(const DBReader<unsigned int> &idx
             // maxSeqLen + lastKey + dbtype
             + 3 * sizeof(unsigned int)
             // index
-            + idx.size * sizeof(DBReader<unsigned int>::Index)
-            // seqLens
-            + idx.size * sizeof(unsigned int);
+            + idx.size * sizeof(DBReader<unsigned int>::Index);
 
     return memSize;
 }
