@@ -131,12 +131,15 @@ int mergeSequentialByJointIndex(
         char * outHeaderIndexFile,
         const char * outLookupFile,
         std::vector<unsigned int>* sourceLookup,
-        size_t totalEntries
+        size_t totalEntries,
+        size_t shuffleSplits
 ) {
     struct JointEntry {
         unsigned int fileIdx;
         unsigned int  id;
         unsigned   length;
+        JointEntry(unsigned int fileIdx, unsigned int id, unsigned length) : fileIdx(fileIdx), id(id), length(length) {};
+
         bool operator<(JointEntry const &o) const {
             if (length != o.length){
                 return length < o.length;
@@ -145,11 +148,10 @@ int mergeSequentialByJointIndex(
         }
     };
 
-    size_t k = 32;
-    std::vector<JointEntry> joint(totalEntries);
+    std::vector<JointEntry> joint;
+    joint.reserve(totalEntries);
     size_t maxLen = 0;
-    size_t pos = 0;
-    for (size_t i = 0; i < k; i++) {
+    for (size_t i = 0; i < shuffleSplits; i++) {
         DBReader<unsigned int> reader(
                 dataFiles[i],
                 indexFiles[i],
@@ -157,10 +159,10 @@ int mergeSequentialByJointIndex(
                 DBReader<uint32_t>::USE_INDEX
         );
         reader.open(DBReader<uint32_t>::HARDNOSORT);
+        DBReader<unsigned int>::Index* index = reader.getIndex();
         for(size_t j = 0; j < reader.getSize(); j++){
-            joint[pos] = { (unsigned int)i, reader.getIndex()[j].id, reader.getIndex()[j].length };
-            maxLen = std::max(maxLen, static_cast<size_t>(reader.getIndex()[j].length));
-            pos++;
+            joint.emplace_back((unsigned int)i, index[j].id, index[j].length);
+            maxLen = std::max(maxLen, static_cast<size_t>(index[j].length));
         }
         reader.close();
     }
@@ -168,15 +170,15 @@ int mergeSequentialByJointIndex(
     SORT_PARALLEL(joint.begin(), joint.end());
 
     // 4) Open each data file once (no fseek later)
-    std::vector<FILE*> inFileSeq(k);
-    std::vector<FILE*> inFileHeader(k);
+    std::vector<FILE*> inFileSeq(shuffleSplits);
+    std::vector<FILE*> inFileHeader(shuffleSplits);
 
-    for (size_t i = 0; i < k; i++) {
+    for (size_t i = 0; i < shuffleSplits; i++) {
         inFileSeq[i] = FileUtil::openFileOrDie(
-                dataFiles[i], "rb", true
+            dataFiles[i], "rb", true
         );
         inFileHeader[i] = FileUtil::openFileOrDie(
-                dataFilesHeader[i], "rb", true
+            dataFilesHeader[i], "rb", true
         );
     }
 
@@ -214,8 +216,8 @@ int mergeSequentialByJointIndex(
     // Create buffers for each header file
     std::vector<FileBuffer> headerBuffers;
     std::vector<char> writeHeaderBuf;
-    headerBuffers.reserve(k);
-    for (size_t i = 0; i < k; i++) {
+    headerBuffers.reserve(shuffleSplits);
+    for (size_t i = 0; i < shuffleSplits; i++) {
         headerBuffers.emplace_back(inFileHeader[i]);
     }
     size_t mergedOffset = 0;
@@ -646,7 +648,7 @@ int createdb(int argc, const char **argv, const Command& command) {
                         }
                     }
                     processSeqBatch(par, seqWriter, hdrWriter, subMat, dbType, masker, seqs,
-                                    id - batchPos, batchEntries, batchPos, shuffleSplits);
+                                    id - (batchPos - 1), batchEntries, batchPos, shuffleSplits);
                     batchPos = 0;
                 }
             }
@@ -667,7 +669,7 @@ int createdb(int argc, const char **argv, const Command& command) {
                 }
             }
             processSeqBatch(par, seqWriter, hdrWriter, subMat, dbType, masker, seqs,
-                            (par.identifierOffset + entries_num) - batchPos, batchEntries, batchPos, shuffleSplits);
+                            (par.identifierOffset + entries_num) - (batchPos - 1), batchEntries, batchPos, shuffleSplits);
         }
 
         if (numEntriesInCurrFile == 0) {
@@ -706,7 +708,7 @@ int createdb(int argc, const char **argv, const Command& command) {
                                     hdrWriter.getDataFileNames(), hdrWriter.getIndexFileNames(),
                                     seqWriter.getDataFileName(), seqWriter.getIndexFileName(),
                                     hdrWriter.getDataFileName(), hdrWriter.getIndexFileName(),
-                                    lookupFile.c_str(), sourceLookup, entries_num);
+                                    lookupFile.c_str(), sourceLookup, entries_num, shuffleSplits);
         Debug(Debug::INFO) << "Merge all files " << timer.lap() << "\n";
         hdrWriter.clearMemory();
         seqWriter.clearMemory();
