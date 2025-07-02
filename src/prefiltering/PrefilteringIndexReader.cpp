@@ -407,6 +407,11 @@ IndexTable *PrefilteringIndexReader::getIndexTable(unsigned int split, DBReader<
 
     unsigned int splitOffset = split * 1000;
     size_t entriesNumId = dbr->getId(splitOffset + ENTRIESNUM);
+    if (entriesNumId == UINT_MAX) {
+        Debug(Debug::ERROR) << "Index was not built with `prefilter` support. Please rebuild the index with:\n\tcreateindex --index-subset 0\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     int64_t entriesNum = *((int64_t *)dbr->getDataUncompressed(entriesNumId));
     size_t sequenceCountId = dbr->getId(splitOffset +SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getDataUncompressed(sequenceCountId));
