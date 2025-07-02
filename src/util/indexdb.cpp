@@ -94,7 +94,13 @@ int indexdb(int argc, const char **argv, const Command &command) {
 
     int splitMode = Parameters::TARGET_DB_SPLIT;
     par.maxResListLen = std::min(dbr.getSize(), par.maxResListLen);
-    Prefiltering::setupSplit(dbr, seedSubMat->alphabetSize - 1, dbr.getDbtype(), par.threads, false, memoryLimit, 1, par.maxResListLen, par.kmerSize, par.split, splitMode);
+    const bool noKmerIndex = (par.indexSubset & Parameters::INDEX_SUBSET_NO_PREFILTER) != 0;
+    if (noKmerIndex) {
+        par.kmerSize = 0;
+        par.split = 1;
+    } else {
+        Prefiltering::setupSplit(dbr, seedSubMat->alphabetSize - 1, dbr.getDbtype(), par.threads, false, memoryLimit, 1, par.maxResListLen, par.kmerSize, par.split, splitMode);
+    }
 
     bool kScoreSet = false;
     for (size_t i = 0; i < par.indexdb.size(); i++) {
