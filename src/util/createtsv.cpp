@@ -58,7 +58,6 @@ int createtsv(int argc, const char **argv, const Command &command) {
             tHeaderIndex = qHeaderIndex;
             targetDB = queryDB;
         } else {
-
             int targetHeaderType = (targetNucs) ? IndexReader::SRC_HEADERS : IndexReader::HEADERS;
             targetHeaderType = (par.idxSeqSrc == 0) ? targetHeaderType :  (par.idxSeqSrc == 1) ?  IndexReader::HEADERS : IndexReader::SRC_HEADERS;
 
@@ -204,9 +203,9 @@ int createtsv(int argc, const char **argv, const Command &command) {
     }
     if (hasTargetDB) {
         if (sameDB == false) {
-            targetDB->close();
             delete tDbrHeader;
             if(needSET == true) {
+                targetDB->close();
                 delete targetDB;
             }
         }
