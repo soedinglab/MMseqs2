@@ -131,12 +131,15 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     bool origShuffle = par.shuffleDatabase;
     // don't need to shuffle query, only relevant for prefilter target database order
     par.shuffleDatabase = false;
-    cmd.addVariable("CREATEDB_QUERY_PAR", par.createParameterString(par.createdb).c_str());
+    par.PARAM_GPU.wasSet = false;
+    cmd.addVariable("CREATEDB_QUERY_PAR", par.createParameterString(par.createdb, true).c_str());
     par.shuffleDatabase = origShuffle;
     par.createdbMode = Parameters::SEQUENCE_SPLIT_MODE_HARD;
-    cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb).c_str());
+    par.PARAM_GPU.wasSet = true;
+    par.PARAM_WRITE_LOOKUP.wasSet = true;
+    par.writeLookup = false;
+    cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb,true).c_str());
     cmd.addVariable("GPU", par.gpu ? "TRUE" : NULL);
-    cmd.addVariable("MAKEPADDEDSEQDB_PAR", par.createParameterString(par.makepaddedseqdb).c_str());
     cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());
     cmd.addVariable("SUMMARIZE_PAR", par.createParameterString(par.summarizeresult).c_str());
 

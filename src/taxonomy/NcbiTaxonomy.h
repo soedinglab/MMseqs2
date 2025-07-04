@@ -107,7 +107,8 @@ public:
     TaxonNode const* taxonNode(TaxID taxonId, bool fail = true) const;
     bool nodeExists(TaxID taxId) const;
 
-    std::unordered_map<TaxID, TaxonCounts> getCladeCounts(std::unordered_map<TaxID, unsigned int>& taxonCounts) const;
+    std::unordered_map<TaxID, std::vector<TaxID>> getParentToChildren() const;
+    std::unordered_map<TaxID, TaxonCounts> getCladeCounts(const std::unordered_map<TaxID, unsigned int>& taxonCounts, const std::unordered_map<TaxID, std::vector<TaxID>>& parentToChildren) const;
 
     WeightedTaxResult weightedMajorityLCA(const std::vector<WeightedTaxHit> &setTaxa, const float majorityCutoff);
 

@@ -58,7 +58,7 @@ if [ -n "$ALIGNMENT_MODE_NOT_SET" ]; then
 
     if notExists "${TMP_PATH}/pref_subtract.dbtype"; then
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" subtractdbs "${TMP_PATH}/pref" "${TMP_PATH}/aln_ungapped" "${TMP_PATH}/pref_subtract" ${THREADSANDCOMPRESS_PAR}  \
+        "$MMSEQS" subtractdbs "${TMP_PATH}/pref" "${TMP_PATH}/aln_ungapped" "${TMP_PATH}/pref_subtract" ${THREADSANDCOMPRESS_PAR}  \
              || fail "Alignment step died"
     fi
 

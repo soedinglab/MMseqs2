@@ -159,8 +159,8 @@ if [ -n "$REASSIGN" ]; then
         if notExists "${TMP_PATH}/seq_wrong_assigned_pref.dbtype"; then
             if notExists "${TMP_PATH}/seq_seeds.merged.dbtype"; then
                 # combine seq dbs
-                MAXOFFSET=$(awk '($2+$3) > max{max=$2+$3}END{print max}' "${TMP_PATH}/seq_seeds.index")
-                awk -v OFFSET="${MAXOFFSET}" 'FNR==NR{print $0; next}{print $1"\t"$2+OFFSET"\t"$3}' "${TMP_PATH}/seq_seeds.index" \
+                MAXOFFSET=$(awk '($2+$3) > max { max = $2+$3 } END { printf("%.0f\n", max); }' "${TMP_PATH}/seq_seeds.index")
+                awk -v OFFSET="${MAXOFFSET}" 'FNR == NR { print $0; next } { printf("%s\t%.0f\t%s\n", $1, $2+OFFSET, $3); }' "${TMP_PATH}/seq_seeds.index" \
                      "${TMP_PATH}/seq_wrong_assigned.index" > "${TMP_PATH}/seq_seeds.merged.index"
                 ln -s "$(abspath "${TMP_PATH}/seq_seeds")" "${TMP_PATH}/seq_seeds.merged.0"
                 ln -s "$(abspath "${TMP_PATH}/seq_wrong_assigned")" "${TMP_PATH}/seq_seeds.merged.1"

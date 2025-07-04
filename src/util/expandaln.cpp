@@ -140,6 +140,11 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         return EXIT_FAILURE;
     }
 
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, resultAbReader->getSize()), (size_t)1);
+#endif
+
     int dbType = Parameters::DBTYPE_ALIGNMENT_RES;
     if (returnAlnRes == false) {
         dbType = Parameters::DBTYPE_HMM_PROFILE;
@@ -149,7 +154,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     } else {
         dbType = DBReader<unsigned int>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
     }
-    DBWriter writer(par.db5.c_str(), par.db5Index.c_str(), par.threads, par.compressed, dbType);
+    DBWriter writer(par.db5.c_str(), par.db5Index.c_str(), localThreads, par.compressed, dbType);
     writer.open();
 
     BacktraceTranslator translator;
@@ -164,7 +169,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         evaluer = new EvalueComputation(cReader->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
     }
     Debug::Progress progress(resultAbReader->getSize());
-#pragma omp parallel
+#pragma omp parallel num_threads(localThreads)
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
@@ -269,17 +274,18 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 Matcher::readAlignmentResults(resultsBc, resultBcReader->getData(bResId, thread_idx), false);
 
                 if (filterBc) {
+                    bool hasRep = false;
                     for (size_t k = 0; k < resultsBc.size(); ++k) {
                         Matcher::result_t &resultBc = resultsBc[k];
                         if (resultBc.backtrace.size() == 0) {
                             Debug(Debug::ERROR) << "Alignment must contain a backtrace\n";
                             EXIT(EXIT_FAILURE);
                         }
-                        if (k == 0) {
-                            // unsigned int bSeqKey = resultAb.dbKey;
+                        if (hasRep == false && resultBc.seqId == 1.0 && resultBc.qcov == 1.0) {
                             unsigned int bSeqKey = resultBc.dbKey;
                             size_t bSeqId = cReader->getId(bSeqKey);
                             bSeq->mapSequence(bSeqId, bSeqKey, cReader->getData(bSeqId, thread_idx), cReader->getSeqLen(bSeqId));
+                            hasRep = true;
                         } else {
                             unsigned int cSeqKey = resultBc.dbKey;
                             size_t cSeqId = cReader->getId(cSeqKey);
@@ -287,12 +293,16 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                             subSeqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
                         }
                     }
-                    Matcher::result_t query = *(resultsBc.begin());
-                    resultsBc.erase(resultsBc.begin());
-                    MultipleAlignment::MSAResult res = aligner->computeMSA(bSeq, subSeqSet, resultsBc, true);
-                    filter->filter(res, resultsBc, (int)(par.covMSAThr * 100), qid_vec, par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable);
-                    resultsBc.insert(resultsBc.begin(), query);
-                    MultipleAlignment::deleteMSA(&res);
+                    if (hasRep == true) {
+                        Matcher::result_t query = *(resultsBc.begin());
+                        resultsBc.erase(resultsBc.begin());
+                        MultipleAlignment::MSAResult res = aligner->computeMSA(bSeq, subSeqSet, resultsBc, true);
+                        filter->filter(res, resultsBc, (int)(par.covMSAThr * 100), qid_vec, par.qsc, (int)(par.filterMaxSeqId * 100), par.Ndiff, par.filterMinEnable);
+                        resultsBc.insert(resultsBc.begin(), query);
+                        MultipleAlignment::deleteMSA(&res);
+                    } else {
+                        Debug(Debug::WARNING) << "Could not find representative sequence for filtering for cluster " << bResKey << "\n";
+                    }
                     subSeqSet.clear();
                 }
                 //std::stable_sort(resultsBc.begin(), resultsBc.end(), compareHitsByKeyScore);

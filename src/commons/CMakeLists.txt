@@ -59,6 +59,7 @@ set(commons_source_files
         commons/Debug.cpp
         commons/ExpressionParser.cpp
         commons/FileUtil.cpp
+        commons/GpuUtil.cpp
         commons/HeaderSummarizer.cpp
         commons/KSeqWrapper.cpp
         commons/Masker.cpp

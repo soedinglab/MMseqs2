@@ -21,9 +21,17 @@ public:
 
     void close(bool merge = false, bool needsSort = true);
 
+    void closeFiles();
+
+    void clearMemory();
+
     char* getDataFileName() { return dataFileName; }
 
     char* getIndexFileName() { return indexFileName; }
+
+    char** getDataFileNames() { return dataFileNames; }
+
+    char** getIndexFileNames() { return indexFileNames; }
 
     void writeStart(unsigned int thrIdx = 0);
     size_t writeAdd(const char* data, size_t dataSize, unsigned int thrIdx = 0);
@@ -81,14 +89,15 @@ private:
 
     char* dataFileName;
     char* indexFileName;
+    char** dataFileNames;
+    char** indexFileNames;
 
     FILE** dataFiles;
     char** dataFilesBuffer;
     size_t bufferSize;
     FILE** indexFiles;
 
-    char** dataFileNames;
-    char** indexFileNames;
+
     char** compressedBuffers;
     size_t * compressedBufferSizes;
     char** threadBuffer;

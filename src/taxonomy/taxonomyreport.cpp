@@ -15,18 +15,8 @@
 #include <omp.h>
 #endif
 
-template<typename K, typename V>
-V at(const std::unordered_map<K, V> &map, K key, V default_value = V()) {
-    typename std::unordered_map<K, V>::const_iterator it = map.find(key);
-    if (it == map.end()) {
-        return default_value;
-    } else {
-        return it->second;
-    }
-}
-
 unsigned int cladeCountVal(const std::unordered_map<TaxID, TaxonCounts> &map, TaxID key) {
-    typename std::unordered_map<TaxID, TaxonCounts>::const_iterator it = map.find(key);
+    std::unordered_map<TaxID, TaxonCounts>::const_iterator it = map.find(key);
     if (it == map.end()) {
         return 0;
     } else {
@@ -34,31 +24,48 @@ unsigned int cladeCountVal(const std::unordered_map<TaxID, TaxonCounts> &map, Ta
     }
 }
 
-void taxReport(FILE *FP, const NcbiTaxonomy &taxDB, const std::unordered_map<TaxID, TaxonCounts> &cladeCounts, unsigned long totalReads, TaxID taxID = 0, int depth = 0) {
+void taxReport(
+    DBWriter& writer,
+    unsigned int thread_idx,
+    const NcbiTaxonomy &taxDB,
+    const std::unordered_map<TaxID, TaxonCounts> &cladeCounts,
+    unsigned long totalReads,
+    TaxID taxID = 0,
+    int depth = 0
+) {
     std::unordered_map<TaxID, TaxonCounts>::const_iterator it = cladeCounts.find(taxID);
     unsigned int cladeCount = it == cladeCounts.end() ? 0 : it->second.cladeCount;
     unsigned int taxCount = it == cladeCounts.end() ? 0 : it->second.taxCount;
+    char buffer[4096];
+    int len = 0;
     if (taxID == 0) {
         if (cladeCount > 0) {
-            fprintf(FP, "%.4f\t%i\t%i\tno rank\t0\tunclassified\n",
-                    100 * cladeCount / double(totalReads),
-                    cladeCount, taxCount);
+            len = snprintf(buffer, sizeof(buffer), "%.4f\t%i\t%i\tno rank\t0\tunclassified\n",
+                           100 * cladeCount / double(totalReads),
+                           cladeCount, taxCount);
+            writer.writeAdd(buffer, static_cast<size_t>(len), thread_idx);
         }
-        taxReport(FP, taxDB, cladeCounts, totalReads, 1);
+        taxReport(writer, thread_idx, taxDB, cladeCounts, totalReads, 1);
     } else {
         if (cladeCount == 0) {
             return;
         }
         const TaxonNode *taxon = taxDB.taxonNode(taxID);
-        fprintf(FP, "%.4f\t%i\t%i\t%s\t%i\t%s%s\n",
-                100 * cladeCount / double(totalReads), cladeCount, taxCount,
-                taxDB.getString(taxon->rankIdx), taxID, std::string(2 * depth, ' ').c_str(), taxDB.getString(taxon->nameIdx));
+        std::string indent = std::string(2 * depth, ' ');
+        len = snprintf(buffer, sizeof(buffer), "%.4f\t%i\t%i\t%s\t%i\t%s%s\n",
+                       100 * cladeCount / double(totalReads),
+                       cladeCount, taxCount,
+                       taxDB.getString(taxon->rankIdx),
+                       taxID,
+                       indent.c_str(),
+                       taxDB.getString(taxon->nameIdx));
+        writer.writeAdd(buffer, static_cast<size_t>(len), thread_idx);
         std::vector<TaxID> children = it->second.children;
         SORT_SERIAL(children.begin(), children.end(), [&](int a, int b) { return cladeCountVal(cladeCounts, a) > cladeCountVal(cladeCounts, b); });
         for (size_t i = 0; i < children.size(); ++i) {
             TaxID childTaxId = children[i];
             if (cladeCounts.count(childTaxId)) {
-                taxReport(FP, taxDB, cladeCounts, totalReads, childTaxId, depth + 1);
+                taxReport(writer, thread_idx, taxDB, cladeCounts, totalReads, childTaxId, depth + 1);
             } else {
                 break;
             }
@@ -94,32 +101,56 @@ std::string escapeAttribute(const std::string &data) {
     return buffer;
 }
 
-void kronaReport(FILE *FP, const NcbiTaxonomy &taxDB, const std::unordered_map<TaxID, TaxonCounts> &cladeCounts, unsigned long totalReads, TaxID taxID = 0, int depth = 0) {
+void kronaReport(
+    DBWriter& writer,
+    unsigned int thread_idx,
+    const NcbiTaxonomy &taxDB,
+    const std::unordered_map<TaxID, TaxonCounts> &cladeCounts,
+    unsigned long totalReads,
+    TaxID taxID = 0,
+    int depth = 0
+) {
     std::unordered_map<TaxID, TaxonCounts>::const_iterator it = cladeCounts.find(taxID);
     unsigned int cladeCount = it == cladeCounts.end() ? 0 : it->second.cladeCount;
+    char buffer[1024];
+    int len = 0;
     if (taxID == 0) {
         if (cladeCount > 0) {
-            fprintf(FP, "<node name=\"unclassified\"><magnitude><val>%d</val></magnitude></node>", cladeCount);
+            len = snprintf(buffer, sizeof(buffer), "<node name=\"unclassified\"><magnitude><val>%d</val></magnitude></node>", cladeCount);
+            writer.writeAdd(buffer, static_cast<size_t>(len), thread_idx);
         }
-        kronaReport(FP, taxDB, cladeCounts, totalReads, 1);
+        kronaReport(writer, thread_idx, taxDB, cladeCounts, totalReads, 1);
     } else {
         if (cladeCount == 0) {
             return;
         }
         const TaxonNode *taxon = taxDB.taxonNode(taxID);
         std::string escapedName = escapeAttribute(taxDB.getString(taxon->nameIdx));
-        fprintf(FP, "<node name=\"%s\"><magnitude><val>%d</val></magnitude>", escapedName.c_str(), cladeCount);
+        len = snprintf(buffer, sizeof(buffer), "<node name=\"%s\"><magnitude><val>%d</val></magnitude>", escapedName.c_str(), cladeCount);
+        writer.writeAdd(buffer, static_cast<size_t>(len), thread_idx);
         std::vector<TaxID> children = it->second.children;
         SORT_SERIAL(children.begin(), children.end(), [&](int a, int b) { return cladeCountVal(cladeCounts, a) > cladeCountVal(cladeCounts, b); });
         for (size_t i = 0; i < children.size(); ++i) {
             TaxID childTaxId = children[i];
             if (cladeCounts.count(childTaxId)) {
-                kronaReport(FP, taxDB, cladeCounts, totalReads, childTaxId, depth + 1);
+                kronaReport(writer, thread_idx, taxDB, cladeCounts, totalReads, childTaxId, depth + 1);
             } else {
                 break;
             }
         }
-        fprintf(FP, "</node>");
+        len = snprintf(buffer, sizeof(buffer), "</node>");
+        writer.writeAdd(buffer, static_cast<size_t>(len), thread_idx);
+    }
+}
+
+void mergeMaps(std::unordered_map<TaxID, unsigned int>& target, const std::unordered_map<TaxID, unsigned int>& source) {
+    for (std::unordered_map<TaxID, unsigned int>::const_iterator it = source.cbegin(); it != source.cend(); ++it) {
+        std::unordered_map<TaxID, unsigned int>::iterator found = target.find(it->first);
+        if (found != target.end()) {
+            found->second += it->second;
+        } else {
+            target.emplace(it->first, it->second);
+        }
     }
 }
 
@@ -127,12 +158,20 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    NcbiTaxonomy *taxDB = NcbiTaxonomy::openTaxonomy(par.db1);
+    if (par.reportMode == Parameters::REPORT_MODE_SKIP) {
+        Debug(Debug::ERROR) << "Report mode " << Parameters::REPORT_MODE_SKIP << " can only be use in workflows\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     // allow reading any kind of sequence database
     const int readerDbType = FileUtil::parseDbType(par.db2.c_str());
     const bool isSequenceDB = Parameters::isEqualDbtype(readerDbType, Parameters::DBTYPE_HMM_PROFILE)
                              || Parameters::isEqualDbtype(readerDbType, Parameters::DBTYPE_AMINO_ACIDS)
                              || Parameters::isEqualDbtype(readerDbType, Parameters::DBTYPE_NUCLEOTIDES);
+    if (par.reportMode == Parameters::REPORT_MODE_KRAKENDB && isSequenceDB == true) {
+        Debug(Debug::ERROR) << "Cannot use Kraken DB report mode with sequence db input\n";
+        EXIT(EXIT_FAILURE);
+    }
     int dataMode = DBReader<unsigned int>::USE_INDEX;
     if (isSequenceDB == false) {
         dataMode |= DBReader<unsigned int>::USE_DATA;
@@ -142,16 +181,29 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
 
     // support reading both LCA databases and result databases (e.g. alignment)
     const bool isTaxonomyInput = Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_TAXONOMICAL_RESULT);
+    NcbiTaxonomy *taxDB = NcbiTaxonomy::openTaxonomy(par.db1);
     MappingReader* mapping = NULL;
     if (isTaxonomyInput == false) {
         mapping = new MappingReader(par.db1);
     }
 
-    FILE *resultFP = FileUtil::openAndDelete(par.db3.c_str(), "w");
+    int mode = Parameters::DBTYPE_OMIT_FILE;
+    unsigned int localThreads = 1;
+    if (par.reportMode == Parameters::REPORT_MODE_KRAKENDB) {
+        mode = Parameters::DBTYPE_GENERIC_DB;
+        localThreads = 1;
+#ifdef OPENMP
+        localThreads = std::max(std::min((size_t)par.threads, reader.getSize()), (size_t)1);
+#endif
+    }
+    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), localThreads, false, mode);
+    writer.open();
+
+    std::unordered_map<TaxID, std::vector<TaxID>> parentToChildren = taxDB->getParentToChildren();
 
     std::unordered_map<TaxID, unsigned int> taxCounts;
     Debug::Progress progress(reader.getSize());
-#pragma omp parallel
+#pragma omp parallel num_threads(localThreads)
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
@@ -172,6 +224,7 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
             }
 
             char *data = reader.getData(i, thread_idx);
+            size_t entryCount = 0;
             while (*data != '\0') {
                 if (isTaxonomyInput) {
                     TaxID taxon = Util::fast_atoi<int>(data);
@@ -183,40 +236,61 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
                         ++localTaxCounts[taxon];
                     }
                 }
+                entryCount++;
                 data = Util::skipLine(data);
             }
-        }
-
-        // merge maps again
-#pragma omp critical
-        for (std::unordered_map<TaxID, unsigned int>::const_iterator it = localTaxCounts.cbegin(); it != localTaxCounts.cend(); ++it) {
-            if (taxCounts[it->first]) {
-                taxCounts[it->first] += it->second;
-            } else {
-                taxCounts[it->first] = it->second;
+            if (par.reportMode == Parameters::REPORT_MODE_KRAKENDB) {
+                std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB->getCladeCounts(localTaxCounts, parentToChildren);
+                writer.writeStart(thread_idx);
+                taxReport(writer, thread_idx, *taxDB, cladeCounts, entryCount);
+                writer.writeEnd(reader.getDbKey(i), thread_idx);
+                localTaxCounts.clear();
             }
         }
+        if (par.reportMode != Parameters::REPORT_MODE_KRAKENDB) {
+#pragma omp critical
+{
+            mergeMaps(taxCounts, localTaxCounts);
+}
+        }
     }
-    Debug(Debug::INFO) << "Found " << taxCounts.size() << " different taxa for " << reader.getSize() << " different reads\n";
-    unsigned int unknownCnt = (taxCounts.find(0) != taxCounts.end()) ? taxCounts.at(0) : 0;
-    Debug(Debug::INFO) << unknownCnt << " reads are unclassified\n";
-    const size_t entryCount = reader.getSize();
-    reader.close();
 
-    std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB->getCladeCounts(taxCounts);
-    if (par.reportMode == 0) {
-        taxReport(resultFP, *taxDB, cladeCounts, entryCount);
+    int status = EXIT_SUCCESS;
+    if (par.reportMode == Parameters::REPORT_MODE_KRAKENDB) {
+        reader.close();
+        writer.close(true);
     } else {
-        fwrite(krona_prelude_html, krona_prelude_html_len, sizeof(char), resultFP);
-        fprintf(resultFP, "<node name=\"all\"><magnitude><val>%zu</val></magnitude>", entryCount);
-        kronaReport(resultFP, *taxDB, cladeCounts, entryCount);
-        fprintf(resultFP, "</node></krona></div></body></html>");
+        Debug(Debug::INFO) << "Found " << taxCounts.size() << " different taxa for " << reader.getSize() << " different reads\n";
+        unsigned int unknownCnt = (taxCounts.find(0) != taxCounts.end()) ? taxCounts.at(0) : 0;
+        Debug(Debug::INFO) << unknownCnt << " reads are unclassified\n";
+        const size_t entryCount = reader.getSize();
+        reader.close();
+
+        Debug(Debug::INFO) << "Calculating clade counts ... ";
+        std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB->getCladeCounts(taxCounts, parentToChildren);
+        Debug(Debug::INFO) << " Done\n";
+        if (par.reportMode == Parameters::REPORT_MODE_KRAKEN) {
+            writer.writeStart(0);
+            taxReport(writer, 0, *taxDB, cladeCounts, entryCount);
+            writer.writeEnd(0, 0, false, false);
+        } else if (par.reportMode == Parameters::REPORT_MODE_KRONA) {
+            writer.writeStart(0);
+            writer.writeAdd(reinterpret_cast<const char*>(krona_prelude_html), krona_prelude_html_len, 0);
+            char buffer[1024];
+            int len = snprintf(buffer, sizeof(buffer), "<node name=\"all\"><magnitude><val>%zu</val></magnitude>", entryCount);
+            writer.writeAdd(buffer, static_cast<size_t>(len), 0);
+            kronaReport(writer, 0, *taxDB, cladeCounts, entryCount);
+            len = snprintf(buffer, sizeof(buffer), "</node></krona></div></body></html>");
+            writer.writeAdd(buffer, static_cast<size_t>(len), 0);
+            writer.writeEnd(0, 0, false, false);
+        } else {
+            Debug(Debug::ERROR) << "Invalid report mode " << par.reportMode << "\n";
+            status = EXIT_FAILURE;
+        }
+        writer.close(true);
+        FileUtil::remove(writer.getIndexFileName());
     }
     delete taxDB;
-    if (fclose(resultFP) != 0) {
-        Debug(Debug::ERROR) << "Cannot close file " << par.db3 << "\n";
-        return EXIT_FAILURE;
-    }
-    return EXIT_SUCCESS;
+    return status;
 }
 

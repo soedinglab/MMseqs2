@@ -212,20 +212,36 @@ void DBWriter::writeDbtypeFile(const char* path, int dbtype, bool isCompressed) 
     }
 }
 
+void DBWriter::closeFiles(){
+    if(closed == false){
+        // close all datafiles
+        for (unsigned int i = 0; i < threads; i++) {
+            if (fclose(dataFiles[i]) != 0) {
+                Debug(Debug::ERROR) << "Cannot close data file " << dataFileNames[i] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            if (fclose(indexFiles[i]) != 0) {
+                Debug(Debug::ERROR) << "Cannot close index file " << indexFileNames[i] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+        }
+        closed = true;
+    }
+}
 
 void DBWriter::close(bool merge, bool needsSort) {
-    // close all datafiles
-    for (unsigned int i = 0; i < threads; i++) {
-        if (fclose(dataFiles[i]) != 0) {
-            Debug(Debug::ERROR) << "Cannot close data file " << dataFileNames[i] << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        if (fclose(indexFiles[i]) != 0) {
-            Debug(Debug::ERROR) << "Cannot close index file " << indexFileNames[i] << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
+    closeFiles();
 
+    merge = getenv("MMSEQS_FORCE_MERGE") != NULL ? true : merge;
+    mergeResults(dataFileName, indexFileName, (const char **) dataFileNames, (const char **) indexFileNames,
+                 threads, merge, ((mode & Parameters::WRITER_LEXICOGRAPHIC_MODE) != 0), needsSort);
+
+    writeDbtypeFile(dataFileName, dbtype, (mode & Parameters::WRITER_COMPRESSED_MODE) != 0);
+    clearMemory();
+    closed = true;
+}
+
+void DBWriter::clearMemory(){
     if(compressedBuffers){
         for (unsigned int i = 0; i < threads; i++) {
             free(compressedBuffers[i]);
@@ -236,19 +252,12 @@ void DBWriter::close(bool merge, bool needsSort) {
         }
     }
 
-    merge = getenv("MMSEQS_FORCE_MERGE") != NULL ? true : merge;
-    mergeResults(dataFileName, indexFileName, (const char **) dataFileNames, (const char **) indexFileNames,
-                 threads, merge, ((mode & Parameters::WRITER_LEXICOGRAPHIC_MODE) != 0), needsSort);
-
-    writeDbtypeFile(dataFileName, dbtype, (mode & Parameters::WRITER_COMPRESSED_MODE) != 0);
-
     for (unsigned int i = 0; i < threads; i++) {
         delete [] dataFilesBuffer[i];
         decrementMemory(bufferSize);
         free(dataFileNames[i]);
         free(indexFileNames[i]);
     }
-    closed = true;
 }
 
 void DBWriter::writeStart(unsigned int thrIdx) {

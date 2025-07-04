@@ -44,11 +44,16 @@ int pairaln(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, alnDbr.getDbtype());
+    size_t localThreads = 1;
+#ifdef OPENMP
+    localThreads = std::max(std::min((size_t)par.threads, fileToIds.size()), (size_t)1);
+#endif
+
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), localThreads, par.compressed, alnDbr.getDbtype());
     resultWriter.open();
 
     Debug::Progress progress(fileToIds.size());
-#pragma omp parallel
+#pragma omp parallel num_threads(localThreads)
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
