@@ -1294,17 +1294,22 @@ void DBReader<T>::decomposeDomainByAminoAcid(size_t worldRank, size_t worldSize,
     free(entriesPerWorker);
 }
 
+inline size_t parseId(const std::string& s) {
+    return std::stoull(s);
+}
+
+inline size_t parseId(unsigned int id) {
+    return static_cast<size_t>(id);
+}
+
 template<typename T>
 std::map<unsigned int, std::string> DBReader<T>::readSetToSource() {
     std::map<unsigned int, std::string> mapping;
     for (size_t i = 0; i < this->sourceSize; ++i) {
         LookupEntry& entry = source[i];
-        unsigned int idint;
-        if constexpr (std::is_same<T, std::string>::value) {
-            idint = static_cast<unsigned int>(std::stoul(entry.id));
-            } else {
-                idint = static_cast<unsigned int>(entry.id);
-            }
+        unsigned int idint = parseId(entry.id);
+        // size_t idint = static_cast<unsigned int>(entry.id);
+        // size_t idint = std::stoul(entry.id);
         mapping[idint] = entry.entryName;
     }
     return mapping;
