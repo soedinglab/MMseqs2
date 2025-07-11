@@ -723,7 +723,14 @@ public:
     // unpackdb
     std::string unpackSuffix;
     int unpackNameMode;
-
+    
+    // fwbw
+    float mact;
+    float fwbwGapopen;
+    float fwbwGapextend;
+    float temperature;
+    int blocklen;
+    int fwbwBacktraceMode;
     // for modules that should handle -h themselves
     bool help;
 
@@ -1080,7 +1087,14 @@ public:
     // unpackdb
     PARAMETER(PARAM_UNPACK_SUFFIX)
     PARAMETER(PARAM_UNPACK_NAME_MODE)
-
+    
+    // fwbw
+    PARAMETER(PARAM_MACT)
+    PARAMETER(PARAM_FWBW_GAPOPEN)
+    PARAMETER(PARAM_FWBW_GAPEXTEND)
+    PARAMETER(PARAM_TEMPERATURE)
+    PARAMETER(PARAM_BLOCKLEN)
+    PARAMETER(PARAM_FWBW_BACKTRACE_MODE)
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
     PARAMETER(PARAM_HELP_LONG)
@@ -1207,6 +1221,7 @@ public:
     std::vector<MMseqsParameter*> touchdb;
     std::vector<MMseqsParameter*> gpuserver;
     std::vector<MMseqsParameter*> tsv2exprofiledb;
+    std::vector<MMseqsParameter*> fwbw;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);
