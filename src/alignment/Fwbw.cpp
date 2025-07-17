@@ -892,20 +892,6 @@ void FwBwAligner::runFwBw<false, 3>() {
     computeBacktrace<3>();
 }
 
-template void FwBwAligner::runFwBw<true, 0>(); // Use query profile & No backtrace
-template void FwBwAligner::runFwBw<false, 0>(); // Use query*target matrix & No backtrace
-
-template void FwBwAligner::runFwBw<true, 1>(); // Use query profile & local alignment traceback  // General
-template void FwBwAligner::runFwBw<false, 1>(); // Use query*target matrix & local alignment traceback
-
-template void FwBwAligner::runFwBw<true, 2>(); // Use query profile & semi-global alignment traceback 
-template void FwBwAligner::runFwBw<false, 2>(); // Use query*target matrix & semi-global alignment traceback
-
-template void FwBwAligner::runFwBw<true, 3>(); // Use query profile & global alignment traceback 
-template void FwBwAligner::runFwBw<false, 3>(); // Use query*target matrix & global alignment traceback
-
-
-
 template<bool profile>
 void FwBwAligner::computeProbabilityMatrix() {
     float logsumexp_zm = max_zm + log(sum_exp);
