@@ -552,7 +552,7 @@ typedef __m128  simd_float;
 #define simdf32_xor(x,y)    _mm_xor_ps(x,y)
 #define simdf32_f2i(x) 	    _mm_cvtps_epi32(x)  // convert s.p. float to integer
 #define simdf_f2icast(x)    _mm_castps_si128(x) // compile time cast
-#define simdf32_round(x)    _mm_round_ps(x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC) // SSE4.1
+#define simdf32_round(x)    _mm_round_ps(x, SIMDE_MM_FROUND_TO_NEAREST_INT | SIMDE_MM_FROUND_NO_EXC) // SSE4.1
 #define simdf32_blendv_ps(x,y,z) _mm_blendv_ps(x,y,z)
 #define simdf32_movemask_ps(x) _mm_movemask_ps(x)
 #define simdf32_hmax(x)    simdf32_hmax_sse(x)
