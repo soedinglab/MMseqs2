@@ -104,7 +104,7 @@ typedef __m512  simd_float;
 #define simdf32_xor(x,y)    _mm512_xor_si512(x,y)
 #define simdf32_f2i(x) 	    _mm512_cvtps_epi32(x)  // convert s.p. float to integer
 #define simdf_f2icast(x)    _mm512_castps_si512(x)
-#define simdf32_round(x)    _mm512_roundscale_ps(x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC)
+#define simdf32_round(x)    _mm512_roundscale_ps(x, SIMDE_MM_FROUND_TO_NEAREST_INT | SIMDE_MM_FROUND_NO_EXC)
 #define simdf32_blendv_ps(x,y,z) _mm512_mask_blend_ps(z,x,y)
 #define simdf32_reverse(x) simdf32_reverse_avx512(x) //_mm512_permute_ps(_mm512_shuffle_f32x4(x, x, _MM_SHUFFLE(0, 1, 2, 3)), _MM_SHUFFLE(0, 1, 2, 3))
 #define simdf32_fmadd(x,y,z) _mm512_fmadd_ps(x,y,z)
@@ -166,6 +166,7 @@ typedef __m512i simd_int;
 
 #ifdef AVX2
 #include <simde/x86/avx2.h>
+#include <simde/x86/fma.h>
 // integer support  (usable with AVX2)
 #ifndef SIMD_INT
 #define SIMD_INT
@@ -409,7 +410,7 @@ typedef __m256 simd_float;
 #define simdf32_xor(x,y)    _mm256_xor_ps(x,y)
 #define simdf32_f2i(x) 	    _mm256_cvtps_epi32(x)  // convert s.p. float to integer
 #define simdf_f2icast(x)    _mm256_castps_si256(x) // compile time cast
-#define simdf32_round(x)    _mm256_round_ps(x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC)
+#define simdf32_round(x)    _mm256_round_ps(x, SIMDE_MM_FROUND_TO_NEAREST_INT | SIMDE_MM_FROUND_NO_EXC)
 #define simdf32_blendv_ps(x,y,z) _mm256_blendv_ps(x,y,z)
 #define simdf32_movemask_ps(x) _mm256_movemask_ps(x)
 #define simdf32_hmax(x)     simdf32_hmax_avx(x)

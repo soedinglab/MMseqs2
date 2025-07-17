@@ -1,8 +1,10 @@
 FROM debian:buster
 ARG VER="12-6"
 RUN dpkg --add-architecture arm64
-RUN apt-get update
-RUN apt-get -y install -o APT::Immediate-Configure=false \
+RUN sed -i s/deb.debian.org/archive.debian.org/g /etc/apt/sources.list; \
+    sed -i s/security.debian.org/archive.debian.org/g /etc/apt/sources.list; \
+    apt-get update; \
+    apt-get -y install -o APT::Immediate-Configure=false \
         git wget vim ninja-build crossbuild-essential-arm64 zlib1g-dev:arm64 libbz2-dev:arm64 software-properties-common
 
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.31.0/cmake-3.31.0-linux-x86_64.sh; \
