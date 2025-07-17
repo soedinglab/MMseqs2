@@ -1,9 +1,9 @@
 #include "MultipleAlignment.h"
-
 #include "Debug.h"
 #include "Sequence.h"
 #include "SubstitutionMatrix.h"
 #include "Util.h"
+#include "Orf.h"
 
 MultipleAlignment::MultipleAlignment(size_t maxSeqLen, SubstitutionMatrix *subMat)
     : subMat(subMat), maxSeqLen(maxSeqLen), maxMsaSeqLen(maxSeqLen * 2) {
@@ -91,17 +91,29 @@ size_t MultipleAlignment::updateGapsInCenterSequence(char **msaSequence, Sequenc
     }
     return centerSeqPos;
 }
-
 void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t centerSeqSize, const std::vector<std::vector<unsigned char>> &seqs,
                                                 const std::vector<Matcher::result_t> &alignmentResults, unsigned int *queryGaps,
                                                 bool noDeletionMSA) {
     for(size_t i = 0; i < seqs.size(); i++) {
         const Matcher::result_t& result = alignmentResults[i];
-        const std::string& bt = result.backtrace;
+        unsigned int queryPos = result.qStartPos;
+        unsigned int queryEndPos = result.qEndPos;
+        unsigned int targetPos = result.dbStartPos;
+        unsigned int targetEndPos = result.dbEndPos;
+        std::string bt = result.backtrace;
+        bool reverse = false;
+        if (queryPos > queryEndPos){
+            // swap start and end position of query and db
+            std::swap(queryPos, queryEndPos);
+            std::swap(targetPos, targetEndPos);
+            // flip backtrace
+            std::reverse(bt.begin(), bt.end());
+            reverse = true;
+        }
+
         char *edgeSeqMSA = msaSequence[i+1];
         const std::vector<unsigned char> &edgeSeq = seqs[i];
-        unsigned int queryPos = result.qStartPos;
-        unsigned int targetPos = result.dbStartPos;
+
         // HACK: score was 0 and sequence was rejected, so we fill in an empty gap sequence
         // Needed for pairaln with dummy sequences
         if(targetPos == UINT_MAX) {
@@ -114,7 +126,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
         }
         size_t bufferPos = 0;
         // fill initial positions with gaps (local alignment)
-        for(int pos = 0; pos < result.qStartPos; pos++){
+        for(unsigned int pos = 0; pos < queryPos; pos++){
             edgeSeqMSA[bufferPos] = '-';
             bufferPos++;
         }
@@ -132,10 +144,12 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
                 if(bt.at(alnPos) == 'D'){
                     while (alnPos < bt.size() && bt.at(alnPos) == 'D') {
                         if(noDeletionMSA == false) {
-                            edgeSeqMSA[bufferPos] = subMat->num2aa[edgeSeq[targetPos]];
+                            unsigned char letter = (reverse == true) ? Orf::complement(subMat->num2aa[edgeSeq[targetPos]]) :
+                                                                        subMat->num2aa[edgeSeq[targetPos]];
+                            edgeSeqMSA[bufferPos] = letter;
                             bufferPos++;
                         }
-                        targetPos++;
+                        targetPos += (reverse == true) ? -1 : 1;
                         alnPos++;
                     }
                     if(alnPos >= bt.size()){
@@ -145,10 +159,12 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
                         bufferPos++;
                         queryPos++;
                     } else if(bt.at(alnPos) == 'M'){
-                        edgeSeqMSA[bufferPos] = subMat->num2aa[edgeSeq[targetPos]];
+                        unsigned char letter = (reverse == true) ? Orf::complement(subMat->num2aa[edgeSeq[targetPos]]) :
+                                                subMat->num2aa[edgeSeq[targetPos]];
+                        edgeSeqMSA[bufferPos] = letter;
                         bufferPos++;
                         queryPos++;
-                        targetPos++;
+                        targetPos += (reverse == true) ? -1 : 1;
                     }
                     continue;
                 }else if(bt.at(alnPos) == 'M'){
@@ -161,11 +177,13 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
                         }
                     }
                     // M state
-                    edgeSeqMSA[bufferPos] = subMat->num2aa[edgeSeq[targetPos]];
+                    unsigned char letter = (reverse == true) ? Orf::complement(subMat->num2aa[edgeSeq[targetPos]]) :
+                                           subMat->num2aa[edgeSeq[targetPos]];
+                    edgeSeqMSA[bufferPos] = letter;
 
                     bufferPos++;
                     queryPos++;
-                    targetPos++;
+                    targetPos += (reverse == true) ? -1 : 1;
                 }
             }
         }
