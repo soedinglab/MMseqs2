@@ -66,7 +66,6 @@ FwBwAligner::FwBwAligner(SubstitutionMatrix &subMat, float gapOpen, float gapExt
     zmBlockPrev = (float *) malloc_simd_float((length+1) * sizeof(float));
     zmBlockCurr = (float *) malloc_simd_float((length+1) * sizeof(float));
     zeBlock = (float *) malloc_simd_float((length+1) * sizeof(float));
-    ((length+1) * sizeof(float));
     zfBlock = (float *) malloc_simd_float((length+1) * sizeof(float));
     // zInit forward & backward
     zInit = malloc_matrix<float>(3, rowsCapacity);
@@ -316,12 +315,6 @@ void FwBwAligner::resizeMatrix<false,false>(size_t newRowLen, size_t newColLen) 
     //profile
     free(scoreForward); scoreForward = malloc_matrix<float>(rowsCapacity, colsCapacity);
 }
-
-
-template void FwBwAligner::resizeMatrix<true, true>(size_t newRowLen, size_t newColLen); 
-template void FwBwAligner::resizeMatrix<true, false>(size_t newRowLen, size_t newColLen);
-template void FwBwAligner::resizeMatrix<false, true>(size_t newRowLen, size_t newColLen);
-template void FwBwAligner::resizeMatrix<false, false>(size_t newRowLen, size_t newColLen); 
 
 void FwBwAligner::resetParams(float newGapOpen, float newGapExtend, float newTemperature) {
     gapOpen = newGapOpen;
@@ -1060,11 +1053,6 @@ void FwBwAligner::computeBacktrace() {
 FwBwAligner::s_align FwBwAligner::getFwbwAlnResult() {
     return alignResult;
 }
-
-template void FwBwAligner::runFwBw<1, 1>();
-template void FwBwAligner::runFwBw<1, 0>();
-template void FwBwAligner::runFwBw<0, 1>();
-template void FwBwAligner::runFwBw<0, 0>();
 
 int fwbw(int argc, const char **argv, const Command &command) {
     //Prepare the parameters & DB
