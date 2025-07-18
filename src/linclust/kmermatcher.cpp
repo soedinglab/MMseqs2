@@ -222,27 +222,29 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
 
                 // add k-mer to represent the identity
                 if (static_cast<unsigned short>(seqHash) >= hashStartRange && static_cast<unsigned short>(seqHash) <= hashEndRange) {
-                    threadKmerBuffer[bufferPos].kmer = seqHash;
-                    threadKmerBuffer[bufferPos].id = seqId;
-                    threadKmerBuffer[bufferPos].pos = 0;
-                    threadKmerBuffer[bufferPos].seqLen = seq.L;
                     if(hashDistribution != NULL){
                         __sync_fetch_and_add(&hashDistribution[static_cast<unsigned short>(seqHash)], 1);
                     }
-                    bufferPos++;
-                    if (bufferPos >= BUFFER_SIZE) {
-                        size_t writeOffset = __sync_fetch_and_add(&offset, bufferPos);
-                        if(writeOffset + bufferPos < kmerArraySize){
-                            if(kmerArray!=NULL){
-                                memcpy(kmerArray + writeOffset, threadKmerBuffer, sizeof(KmerPosition<T>) * bufferPos);
+                    else{
+                        threadKmerBuffer[bufferPos].kmer = seqHash;
+                        threadKmerBuffer[bufferPos].id = seqId;
+                        threadKmerBuffer[bufferPos].pos = 0;
+                        threadKmerBuffer[bufferPos].seqLen = seq.L;
+                        bufferPos++;
+                        if (bufferPos >= BUFFER_SIZE) {
+                            size_t writeOffset = __sync_fetch_and_add(&offset, bufferPos);
+                            if(writeOffset + bufferPos < kmerArraySize){
+                                if(kmerArray!=NULL){
+                                    memcpy(kmerArray + writeOffset, threadKmerBuffer, sizeof(KmerPosition<T>) * bufferPos);
+                                }
+                            } else{
+                                Debug(Debug::ERROR) << "Kmer array overflow. currKmerArrayOffset="<< writeOffset
+                                                    << ", kmerBufferPos=" << bufferPos
+                                                    << ", kmerArraySize=" << kmerArraySize <<".\n";
+                                EXIT(EXIT_FAILURE);
                             }
-                        } else{
-                            Debug(Debug::ERROR) << "Kmer array overflow. currKmerArrayOffset="<< writeOffset
-                                                << ", kmerBufferPos=" << bufferPos
-                                                << ", kmerArraySize=" << kmerArraySize <<".\n";
-                            EXIT(EXIT_FAILURE);
+                            bufferPos = 0;
                         }
-                        bufferPos = 0;
                     }
                 }
 
@@ -299,14 +301,15 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T> * kmerArray, siz
 //                                tmpKmerIdx=BIT_CLEAR(tmpKmerIdx, 63);
 //                                std::cout << seqId << "\t" << (kmers + kmerIdx)->score << "\t" << tmpKmerIdx << std::endl;
 //                            }
+                            if(hashDistribution != NULL){
+                                __sync_fetch_and_add(&hashDistribution[(kmers + kmerIdx)->score], 1);
+                                continue;
+                            }
                             threadKmerBuffer[bufferPos].kmer = (kmers + kmerIdx)->kmer;
                             threadKmerBuffer[bufferPos].id = seqId;
                             threadKmerBuffer[bufferPos].pos = (kmers + kmerIdx)->pos;
                             threadKmerBuffer[bufferPos].seqLen = seq.L;
                             bufferPos++;
-                            if(hashDistribution != NULL){
-                                __sync_fetch_and_add(&hashDistribution[(kmers + kmerIdx)->score], 1);
-                            }
 
                             if (bufferPos >= BUFFER_SIZE) {
                                 size_t writeOffset = __sync_fetch_and_add(&offset, bufferPos);
