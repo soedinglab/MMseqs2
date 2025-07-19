@@ -228,7 +228,6 @@ public:
     // pairaln mode
     static const int PAIRALN_MODE_ALL_PER_SPECIES = 0;
     static const int PAIRALN_MODE_COVER_ALL_CHAINS = 1;
-    static const int PAIRALN_MODE_PROXIMITY = 2;
 
     // pairaln filter
     static const int PAIRALN_FILTER_TOP_HIT = 0;

@@ -16,34 +16,39 @@
 #include <omp.h>
 #endif
 
+#ifndef SIZE_T_MAX
+#define SIZE_T_MAX ((size_t) -1)
+#endif
+
+
 #define ABS_DIFF(a, b)  ( ((a) > (b)) ? ((a) - (b)) : ((b) - (a)) )
 
 class UniProtConverter {
 public:
-    size_t to_structured_number(std::string &uniprot_id) const {
-        if (uniprot_id.find('-') != std::string::npos) {
-            uniprot_id = uniprot_id.substr(0, uniprot_id.find('-'));
+    size_t toStructuredNumber(std::string &uniprotId) const {
+        if (uniprotId.find('-') != std::string::npos) {
+            uniprotId = uniprotId.substr(0, uniprotId.find('-'));
         }
 
-        if (uniprot_id.empty()) return 0;
+        if (uniprotId.empty()) return 0;
 
-        const size_t len = uniprot_id.length();
-        const char first_char = static_cast<char>(std::toupper(uniprot_id[0]));
+        const size_t len = uniprotId.length();
+        const char firstChar = static_cast<char>(std::toupper(uniprotId[0]));
 
-        if (len == 6 && (first_char == 'O' || first_char == 'P' || first_char == 'Q')) {
-            return convertOpqPattern(uniprot_id);
+        if (len == 6 && (firstChar == 'O' || firstChar == 'P' || firstChar == 'Q')) {
+            return convertOpqPattern(uniprotId);
         }
 
         if ((len == 6 || len == 10)) {
-            return convertAnrzPattern(uniprot_id);
+            return convertAnrzPattern(uniprotId);
         }
 
-        if (uniprot_id[0]=='U' && uniprot_id[1]=='P' && uniprot_id[2] =='I') {
-            std::string hex_part(uniprot_id.substr(3));
+        if (uniprotId[0] == 'U' && uniprotId[1] == 'P' && uniprotId[2] == 'I') {
+            std::string hex_part(uniprotId.substr(3));
             return std::stoll(hex_part, nullptr, 16);
         }
 
-        return 0; // Invalid length or pattern
+        return 0;
     }
 
 private:
@@ -52,16 +57,18 @@ private:
         size_t multiplier = 1;
 
         for (int i = 5; i >= 0; --i) {
-            const char current_char = static_cast<char>(std::toupper(id[i]));
-            int char_val = -1;
+            const char currentChar = static_cast<char>(std::toupper(id[i]));
+            int charVal = -1;
             int radix = 0;
             switch (i) {
-                case 0: char_val = getOpqValue(current_char); radix = 3; break;
-                case 1: case 5: char_val = getDigitValue(current_char); radix = 10; break;
-                case 2: case 3: case 4: char_val = getAlphanumValue(current_char); radix = 36; break;
+                case 0: charVal = getOpqValue(currentChar); radix = 3; break;
+                case 1: case 5: charVal = getDigitValue(currentChar); radix = 10; break;
+                case 2: case 3: case 4: charVal = getAlphanumValue(currentChar); radix = 36; break;
             }
-            if (char_val == -1) return 0;
-            number += static_cast<size_t>(char_val) * multiplier;
+            if (charVal == -1) {
+                return 0;
+            }
+            number += static_cast<size_t>(charVal) * multiplier;
             multiplier *= radix;
         }
         return number;
@@ -73,30 +80,30 @@ private:
         size_t len = id.length();
 
         for (int i = len - 1; i >= 0; --i) {
-            const char current_char = static_cast<char>(std::toupper(id[i]));
-            int char_val = -1;
+            const char currentChar = static_cast<char>(std::toupper(id[i]));
+            int charVal = -1;
             int radix = 0;
 
             // --- Logic using a switch statement ---
             switch (i) {
                 case 0:
-                    char_val = getAnrzValue(current_char); radix = 23;
+                    charVal = getAnrzValue(currentChar); radix = 23;
                     break;
                 case 1: case 5: case 9:
-                    char_val = getDigitValue(current_char); radix = 10;
+                    charVal = getDigitValue(currentChar); radix = 10;
                     break;
                 case 2: case 6:
-                    char_val = getAlphaValue(current_char); radix = 26;
+                    charVal = getAlphaValue(currentChar); radix = 26;
                     break;
                 case 3: case 4: case 7: case 8:
-                    char_val = getAlphanumValue(current_char); radix = 36;
+                    charVal = getAlphanumValue(currentChar); radix = 36;
                     break;
                 default:
                     return 0;
             }
-            if (char_val == -1) return 0;
+            if (charVal == -1) return 0;
 
-            number += static_cast<size_t>(char_val) * multiplier;
+            number += static_cast<size_t>(charVal) * multiplier;
             multiplier *= radix;
         }
         return number;
@@ -127,34 +134,22 @@ struct CompareByTaxon {
 size_t findNearestPartner(
         const unsigned int taxon_id, const Matcher::result_t& query, const std::vector<Matcher::result_t>& results2)
 {
-    // Use a typedef to simplify the long iterator type name, a common C++98 practice.
     typedef std::vector<Matcher::result_t>::const_iterator ResultConstIterator;
-
-    // 1. Find the sub-range for the given taxon in both vectors.
     std::pair<ResultConstIterator, ResultConstIterator> range;
     range = std::equal_range(results2.begin(), results2.end(), taxon_id, CompareByTaxon());
 
-    // If the taxon isn't in both lists, no pair is possible.
     if (range.first == range.second) {
-        // Use std::make_pair instead of modern brace initialization.
         return SIZE_T_MAX;
     }
 
     size_t bestIdx = SIZE_T_MAX;
     size_t min_dist = SIZE_T_MAX;
 
-
-    // 2. For each result in the first taxon range...
-    uint64_t query_uniprot_num = CompareUniProt::getUniProtNumber(query);
-
-    // 3. ...find the closest partner in the second taxon range using binary search.
+    size_t query_uniprot_num = CompareUniProt::getUniProtNumber(query);
     ResultConstIterator it2 = std::lower_bound(range.first, range.second, query_uniprot_num, CompareUniProt());
-
-    // 4. Check the element at the found position.
     if (it2 != range.second) {
-        uint64_t target_uniprot_num = CompareUniProt::getUniProtNumber(*it2);
-        // Calculate absolute difference for unsigned integers without using std::abs on signed types.
-        uint64_t dist = ABS_DIFF(target_uniprot_num, query_uniprot_num);
+        size_t target_uniprot_num = CompareUniProt::getUniProtNumber(*it2);
+        size_t dist = ABS_DIFF(target_uniprot_num, query_uniprot_num);
 
         if (dist < min_dist) {
             min_dist = dist;
@@ -162,13 +157,13 @@ size_t findNearestPartner(
         }
     }
 
-    // 5. Check the element just before the found position.
+    // Check the element just before the found position.
     if (it2 != range.first) {
         ResultConstIterator prev_it2 = it2;
         --prev_it2; // Use pre-decrement to get the previous iterator.
 
-        uint64_t target_uniprot_num = CompareUniProt::getUniProtNumber(*prev_it2);
-        uint64_t dist = ABS_DIFF(query_uniprot_num, target_uniprot_num);
+        size_t target_uniprot_num = CompareUniProt::getUniProtNumber(*prev_it2);
+        size_t dist = ABS_DIFF(query_uniprot_num, target_uniprot_num);
 
         if (dist < min_dist) {
             bestIdx = std::distance(results2.begin(), prev_it2);
@@ -177,18 +172,15 @@ size_t findNearestPartner(
     return bestIdx;
 }
 
-// need for sorting the results
 static bool compareByTaxId(const Matcher::result_t &first, const Matcher::result_t &second) {
     return (first.dbOrfStartPos < second.dbOrfStartPos);
 }
 
 static bool compareByTaxIdAndUniProtNum(const Matcher::result_t &first, const Matcher::result_t &second) {
-    // 1. Primary Sort Key: Compare the taxon ID.
     if (first.dbOrfStartPos != second.dbOrfStartPos) {
         return first.dbOrfStartPos < second.dbOrfStartPos;
     }
 
-    // 2. Secondary Sort Key: Compare the 64-bit UniProt number.
     if (first.queryOrfStartPos != second.queryOrfStartPos) {
         return first.queryOrfStartPos < second.queryOrfStartPos;
     }
@@ -212,12 +204,14 @@ int pairaln(int argc, const char **argv, const Command& command) {
         fileToIds[lookup[i].fileNumber].push_back(lookup[i].id);
     }
     IndexReader *targetHeaderReaderIdx = NULL;
-    uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
-    bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
-    targetHeaderReaderIdx = new IndexReader(par.db2, par.threads,
-                                            extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_HEADERS : IndexReader::HEADERS,
-                                            (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
-
+    if(par.pairfilter == Parameters::PAIRALN_FILTER_PROXIMITY) {
+        uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
+        bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+        targetHeaderReaderIdx = new IndexReader(par.db2, par.threads,
+                                                extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC
+                                                ? IndexReader::SRC_HEADERS : IndexReader::HEADERS,
+                                                (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+    }
 
     std::string db2NoIndexName = PrefilteringIndexReader::dbPathWithoutIndex(par.db2);
     MappingReader* mapping = new MappingReader(db2NoIndexName);
@@ -315,11 +309,10 @@ int pairaln(int argc, const char **argv, const Command& command) {
                         unsigned int taxon = mapping->lookup(resultPerId[i][resIdx].dbKey);
                         // we don't want to introduce a new field, reuse existing unused field here
                         resultPerId[i][resIdx].dbOrfStartPos = taxon;
-
                         size_t headerId = targetHeaderReaderIdx->sequenceReader->getId(resultPerId[i][resIdx].dbKey);
                         char *headerData = targetHeaderReaderIdx->sequenceReader->getData(headerId, thread_idx);
                         std::string targetAccession = Util::parseFastaHeader(headerData);
-                        size_t uniProtNumber = converter.to_structured_number(targetAccession);
+                        size_t uniProtNumber = converter.toStructuredNumber(targetAccession);
                         resultPerId[i][resIdx].queryOrfStartPos = static_cast<int>(uniProtNumber >> 32);
                         resultPerId[i][resIdx].queryOrfEndPos = static_cast<int>(uniProtNumber & 0xFFFFFFFF);
                     }
@@ -417,7 +410,6 @@ int pairaln(int argc, const char **argv, const Command& command) {
 
 
                     unsigned int prevTaxon = UINT_MAX;
-                    // iterate over taxonToPair
                     size_t resIdxStart = 0;
                     for (size_t taxonInList: taxonToPair) {
                         bool taxonFound = false;
@@ -453,10 +445,14 @@ int pairaln(int argc, const char **argv, const Command& command) {
     }
     resultWriter.close();
     qdbr.close();
-// clean up
+    // clean up
     delete mapping;
-    delete targetHeaderReaderIdx;
+    if(par.pairfilter == Parameters::PAIRALN_FILTER_PROXIMITY) {
+        delete targetHeaderReaderIdx;
+    }
     alnDbr.close();
     return EXIT_SUCCESS;
 }
 
+#undef ABS_DIFF
+#undef SIZE_T_MAX
