@@ -8,17 +8,191 @@
 #include "MemoryMapped.h"
 #include "NcbiTaxonomy.h"
 #include "MappingReader.h"
-
+#include "algorithm"
+#include <iterator>
 #include <map>
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
+#define ABS_DIFF(a, b)  ( ((a) > (b)) ? ((a) - (b)) : ((b) - (a)) )
+
+class UniProtConverter {
+public:
+    size_t to_structured_number(std::string &uniprot_id) const {
+        if (uniprot_id.find('-') != std::string::npos) {
+            uniprot_id = uniprot_id.substr(0, uniprot_id.find('-'));
+        }
+
+        if (uniprot_id.empty()) return 0;
+
+        const size_t len = uniprot_id.length();
+        const char first_char = static_cast<char>(std::toupper(uniprot_id[0]));
+
+        if (len == 6 && (first_char == 'O' || first_char == 'P' || first_char == 'Q')) {
+            return convertOpqPattern(uniprot_id);
+        }
+
+        if ((len == 6 || len == 10)) {
+            return convertAnrzPattern(uniprot_id);
+        }
+
+        if (uniprot_id[0]=='U' && uniprot_id[1]=='P' && uniprot_id[2] =='I') {
+            std::string hex_part(uniprot_id.substr(3));
+            return std::stoll(hex_part, nullptr, 16);
+        }
+
+        return 0; // Invalid length or pattern
+    }
+
+private:
+    size_t convertOpqPattern(const std::string & id) const {
+        size_t number = 0;
+        size_t multiplier = 1;
+
+        for (int i = 5; i >= 0; --i) {
+            const char current_char = static_cast<char>(std::toupper(id[i]));
+            int char_val = -1;
+            int radix = 0;
+            switch (i) {
+                case 0: char_val = getOpqValue(current_char); radix = 3; break;
+                case 1: case 5: char_val = getDigitValue(current_char); radix = 10; break;
+                case 2: case 3: case 4: char_val = getAlphanumValue(current_char); radix = 36; break;
+            }
+            if (char_val == -1) return 0;
+            number += static_cast<size_t>(char_val) * multiplier;
+            multiplier *= radix;
+        }
+        return number;
+    }
+
+    size_t convertAnrzPattern(const std::string & id) const {
+        size_t number = 0;
+        size_t multiplier = 1;
+        size_t len = id.length();
+
+        for (int i = len - 1; i >= 0; --i) {
+            const char current_char = static_cast<char>(std::toupper(id[i]));
+            int char_val = -1;
+            int radix = 0;
+
+            // --- Logic using a switch statement ---
+            switch (i) {
+                case 0:
+                    char_val = getAnrzValue(current_char); radix = 23;
+                    break;
+                case 1: case 5: case 9:
+                    char_val = getDigitValue(current_char); radix = 10;
+                    break;
+                case 2: case 6:
+                    char_val = getAlphaValue(current_char); radix = 26;
+                    break;
+                case 3: case 4: case 7: case 8:
+                    char_val = getAlphanumValue(current_char); radix = 36;
+                    break;
+                default:
+                    return 0;
+            }
+            if (char_val == -1) return 0;
+
+            number += static_cast<size_t>(char_val) * multiplier;
+            multiplier *= radix;
+        }
+        return number;
+    }
+
+    // --- Static Character-to-Value Helpers ---
+    static int getAlphanumValue(char c) { if (c >= '0' && c <= '9') return c - '0'; if (c >= 'A' && c <= 'Z') return c - 'A' + 10; return -1; }
+    static int getAlphaValue(char c) { if (c >= 'A' && c <= 'Z') return c - 'A'; return -1; }
+    static int getDigitValue(char c) { if (c >= '0' && c <= '9') return c - '0'; return -1; }
+    static int getOpqValue(char c) { if (c == 'O') return 0; if (c == 'P') return 1; if (c == 'Q') return 2; return -1; }
+    static int getAnrzValue(char c) { if (c >= 'A' && c <= 'N') return c - 'A'; if (c >= 'R' && c <= 'Z') return c - 'A' - 3; return -1; }
+};
+
+struct CompareUniProt {
+    bool operator()(const Matcher::result_t& res, uint64_t num) const {
+        return getUniProtNumber(res) < num;
+    }
+    static size_t getUniProtNumber(const Matcher::result_t& res){
+        return (static_cast<uint64_t>(res.queryOrfStartPos) << 32) | static_cast<uint32_t>(res.queryOrfEndPos);
+    };
+};
+
+struct CompareByTaxon {
+    bool operator()(const Matcher::result_t& res, int tax) const { return res.dbOrfStartPos < tax; }
+    bool operator()(int tax, const Matcher::result_t& res) const { return tax < res.dbOrfStartPos; }
+};
+
+size_t findNearestPartner(
+        const unsigned int taxon_id, const Matcher::result_t& query, const std::vector<Matcher::result_t>& results2)
+{
+    // Use a typedef to simplify the long iterator type name, a common C++98 practice.
+    typedef std::vector<Matcher::result_t>::const_iterator ResultConstIterator;
+
+    // 1. Find the sub-range for the given taxon in both vectors.
+    std::pair<ResultConstIterator, ResultConstIterator> range;
+    range = std::equal_range(results2.begin(), results2.end(), taxon_id, CompareByTaxon());
+
+    // If the taxon isn't in both lists, no pair is possible.
+    if (range.first == range.second) {
+        // Use std::make_pair instead of modern brace initialization.
+        return SIZE_T_MAX;
+    }
+
+    size_t bestIdx = SIZE_T_MAX;
+    size_t min_dist = SIZE_T_MAX;
+
+
+    // 2. For each result in the first taxon range...
+    uint64_t query_uniprot_num = CompareUniProt::getUniProtNumber(query);
+
+    // 3. ...find the closest partner in the second taxon range using binary search.
+    ResultConstIterator it2 = std::lower_bound(range.first, range.second, query_uniprot_num, CompareUniProt());
+
+    // 4. Check the element at the found position.
+    if (it2 != range.second) {
+        uint64_t target_uniprot_num = CompareUniProt::getUniProtNumber(*it2);
+        // Calculate absolute difference for unsigned integers without using std::abs on signed types.
+        uint64_t dist = ABS_DIFF(target_uniprot_num, query_uniprot_num);
+
+        if (dist < min_dist) {
+            min_dist = dist;
+            bestIdx = std::distance(results2.begin(), it2);
+        }
+    }
+
+    // 5. Check the element just before the found position.
+    if (it2 != range.first) {
+        ResultConstIterator prev_it2 = it2;
+        --prev_it2; // Use pre-decrement to get the previous iterator.
+
+        uint64_t target_uniprot_num = CompareUniProt::getUniProtNumber(*prev_it2);
+        uint64_t dist = ABS_DIFF(query_uniprot_num, target_uniprot_num);
+
+        if (dist < min_dist) {
+            bestIdx = std::distance(results2.begin(), prev_it2);
+        }
+    }
+    return bestIdx;
+}
 
 // need for sorting the results
 static bool compareByTaxId(const Matcher::result_t &first, const Matcher::result_t &second) {
     return (first.dbOrfStartPos < second.dbOrfStartPos);
+}
+
+static bool compareByTaxIdAndUniProtNum(const Matcher::result_t &first, const Matcher::result_t &second) {
+    // 1. Primary Sort Key: Compare the taxon ID.
+    if (first.dbOrfStartPos != second.dbOrfStartPos) {
+        return first.dbOrfStartPos < second.dbOrfStartPos;
+    }
+
+    // 2. Secondary Sort Key: Compare the 64-bit UniProt number.
+    if (first.queryOrfStartPos != second.queryOrfStartPos) {
+        return first.queryOrfStartPos < second.queryOrfStartPos;
+    }
+    return static_cast<unsigned int>(first.queryOrfEndPos) < static_cast<unsigned int>(second.queryOrfEndPos);
 }
 
 int pairaln(int argc, const char **argv, const Command& command) {
@@ -37,6 +211,13 @@ int pairaln(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < qdbr.getLookupSize(); ++i) {
         fileToIds[lookup[i].fileNumber].push_back(lookup[i].id);
     }
+    IndexReader *targetHeaderReaderIdx = NULL;
+    uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
+    bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
+    targetHeaderReaderIdx = new IndexReader(par.db2, par.threads,
+                                            extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_HEADERS : IndexReader::HEADERS,
+                                            (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
+
 
     std::string db2NoIndexName = PrefilteringIndexReader::dbPathWithoutIndex(par.db2);
     MappingReader* mapping = new MappingReader(db2NoIndexName);
@@ -60,12 +241,18 @@ int pairaln(int argc, const char **argv, const Command& command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
         std::vector<Matcher::result_t> result;
+        std::vector<Matcher::result_t> compatible;
+        std::vector<Matcher::result_t> bestCompatible;
+
         result.reserve(100000);
         std::unordered_map<unsigned int, size_t> findPair;
         std::vector<unsigned int> taxonToPair;
         std::string output;
         output.reserve(100000);
         bool hasBacktrace = false;
+        UniProtConverter converter;
+        Matcher::result_t emptyResult(UINT_MAX, 0, 0, 0, 0, 0,
+                                      0, UINT_MAX, 0, 0, UINT_MAX, 0, 0, "");
 #pragma omp for schedule(dynamic, 1)
         for (size_t fileNumber = 0; fileNumber < fileToIds.size(); fileNumber++) {
             char buffer[1024 + 32768 * 4];
@@ -79,19 +266,20 @@ int pairaln(int argc, const char **argv, const Command& command) {
                 result.clear();
                 size_t id = fileToIds[fileNumber][i];
                 Matcher::readAlignmentResults(result, alnDbr.getData(id, thread_idx), true);
-
                 for (size_t resIdx = 0; resIdx < result.size(); ++resIdx) {
                     hasBacktrace = result[resIdx].backtrace.size() > 0;
                     unsigned int taxon = mapping->lookup(result[resIdx].dbKey);
                     // we don't want to introduce a new field, reuse existing unused field here
                     result[resIdx].dbOrfStartPos = taxon;
+
                     minResultDbKey = std::min(result[resIdx].dbKey, minResultDbKey);
                 }
                 std::stable_sort(result.begin(), result.end(), compareByTaxId);
                 unsigned int prevTaxon = UINT_MAX;
                 // find pairs
                 for (size_t resIdx = 0; resIdx < result.size(); ++resIdx) {
-                    unsigned int taxon = mapping->lookup(result[resIdx].dbKey);
+                    //  dbOrfStartPos is the taxon here, see above.
+                    unsigned int taxon = result[resIdx].dbOrfStartPos;
                     if (taxon == prevTaxon) {
                         continue;
                     }
@@ -113,59 +301,161 @@ int pairaln(int argc, const char **argv, const Command& command) {
                 }
             }
             std::sort(taxonToPair.begin(), taxonToPair.end());
+            if(par.pairfilter == Parameters::PAIRALN_FILTER_PROXIMITY){
+                std::vector<std::vector<Matcher::result_t>> resultPerId(fileToIds[fileNumber].size());
+                std::vector<std::string> outputs(fileToIds[fileNumber].size());
+                std::vector<size_t> foundIds;
 
-            for (size_t i = 0; i < fileToIds[fileNumber].size(); i++) {
-                result.clear();
-                output.clear();
-                size_t id = fileToIds[fileNumber][i];
-                Matcher::readAlignmentResults(result, alnDbr.getData(id, thread_idx), true);
-                // find pairs
-                for (size_t resIdx = 0; resIdx < result.size(); ++resIdx) {
-                    unsigned int taxon = mapping->lookup(result[resIdx].dbKey);
-                    // we don't want to introduce a new field, reuse existing unused field here
-                    result[resIdx].dbOrfStartPos = taxon;
+                for (size_t i = 0; i < fileToIds[fileNumber].size(); i++) {
+                    resultPerId[i].clear();
+                    size_t id = fileToIds[fileNumber][i];
+                    Matcher::readAlignmentResults(resultPerId[i], alnDbr.getData(id, thread_idx), true);
+                    // find pairs
+                    for (size_t resIdx = 0; resIdx < resultPerId[i].size(); ++resIdx) {
+                        unsigned int taxon = mapping->lookup(resultPerId[i][resIdx].dbKey);
+                        // we don't want to introduce a new field, reuse existing unused field here
+                        resultPerId[i][resIdx].dbOrfStartPos = taxon;
+
+                        size_t headerId = targetHeaderReaderIdx->sequenceReader->getId(resultPerId[i][resIdx].dbKey);
+                        char *headerData = targetHeaderReaderIdx->sequenceReader->getData(headerId, thread_idx);
+                        std::string targetAccession = Util::parseFastaHeader(headerData);
+                        size_t uniProtNumber = converter.to_structured_number(targetAccession);
+                        resultPerId[i][resIdx].queryOrfStartPos = static_cast<int>(uniProtNumber >> 32);
+                        resultPerId[i][resIdx].queryOrfEndPos = static_cast<int>(uniProtNumber & 0xFFFFFFFF);
+                    }
+                    std::stable_sort(resultPerId[i].begin(), resultPerId[i].end(), compareByTaxIdAndUniProtNum);
+                }
+                outputs.resize(resultPerId.size());
+                for(size_t i = 0; i < resultPerId.size(); i++) {
+                    outputs[i].clear();
                 }
 
-                // stable sort is required to assure that best hit is first per taxon
-                std::stable_sort(result.begin(), result.end(), compareByTaxId);
-                unsigned int prevTaxon = UINT_MAX;
                 // iterate over taxonToPair
-                size_t resIdxStart = 0;
-                for(size_t taxonInList : taxonToPair) {
-                    bool taxonFound = false;
-                    for (size_t resIdx = resIdxStart; resIdx < result.size(); ++resIdx) {
-                        unsigned int taxon = result[resIdx].dbOrfStartPos;
-                        // check if this taxon has enough information to pair
-                        if(taxonInList != taxon){
+                for (size_t taxonInList: taxonToPair) {
+                    bestCompatible.clear();
+                    bestCompatible.resize(resultPerId.size(), Matcher::result_t());
+                    int bestCompatibleSize = 0;
+                    typedef std::vector<Matcher::result_t>::const_iterator ResultIterator;
+                    std::pair<ResultIterator, ResultIterator> range;
+                    range = std::equal_range(resultPerId[0].cbegin(), resultPerId[0].cend(), taxonInList, CompareByTaxon());
+                    size_t startIndex = std::distance(resultPerId[0].cbegin(), range.first);
+                    size_t endIndex = std::distance(resultPerId[0].cbegin(), range.second);
+                    for(size_t resIdx = startIndex; resIdx < endIndex; ++resIdx) {
+                        // check if pairable
+                        compatible.clear();
+                        compatible.resize(resultPerId.size(), Matcher::result_t());
+                        compatible[0] = resultPerId[0][resIdx];
+                        int compatibleSize = 1;
+                        for (size_t i = 1; i < resultPerId.size(); ++i) {
+                            size_t partnerIdx = findNearestPartner(taxonInList,
+                                                                   compatible[0],
+                                                                   resultPerId[i]);
+                            if (partnerIdx == SIZE_T_MAX) { // no partner found
+                                if (par.pairdummymode == Parameters::PAIRALN_DUMMY_MODE_ON) {
+                                    compatible[i] = emptyResult;
+                                }
+                                continue;
+                            }
+
+                            size_t currNum = CompareUniProt::getUniProtNumber(resultPerId[i][partnerIdx]);
+                            bool isCompatible = false;
+
+                            for (size_t j = 0; j < compatible.size(); ++j) {
+                                if (compatible[j].dbKey == UINT_MAX) continue;   // not set yet
+                                size_t prevNum = CompareUniProt::getUniProtNumber(compatible[j]);
+                                size_t diff = ABS_DIFF(currNum, prevNum);
+                                //TODO par.minPairDistance
+                                if (diff <= 20) {          // #4  adjust comparison as needed
+                                    isCompatible = true;
+                                    break;
+                                }
+                            }
+
+                            if (isCompatible) {
+                                compatible[i] = resultPerId[i][partnerIdx];
+                                compatibleSize++;
+                            } else {
+                                compatible[i] = emptyResult;
+                            }
+                        }
+
+                        if(compatibleSize > bestCompatibleSize) {
+                            bestCompatible = compatible;
+                            bestCompatibleSize = compatibleSize;
+                        }
+                    }
+                    for (size_t i = 0; i < bestCompatible.size(); i++) {
+                        if (bestCompatible[i].dbKey == UINT_MAX &&
+                            par.pairdummymode != Parameters::PAIRALN_DUMMY_MODE_ON) {
                             continue;
                         }
-                        bool bestTaxonHit = (taxon != prevTaxon);
-                        taxonFound = true;
-                        if(bestTaxonHit){
-                            size_t len = Matcher::resultToBuffer(buffer, result[resIdx], hasBacktrace, false, false);
-                            output.append(buffer, len);
-                            resIdxStart = resIdx + 1;
-                            break;
-                        }
-                        prevTaxon = taxon;
-                    }
-                    if(taxonFound == false && par.pairdummymode == Parameters::PAIRALN_DUMMY_MODE_ON){ // par.addDummyPairedAlignment
-                        // write an Matcher::result_t with UINT_MAX as dbKey
-                        Matcher::result_t emptyResult(minResultDbKey, 1, 1, 0, 1, 0,
-                                                      0, UINT_MAX, 0, 0, UINT_MAX, 0, 0, "1M");
-                        size_t len = Matcher::resultToBuffer(buffer, emptyResult, hasBacktrace, false, false);
-                        output.append(buffer, len);
+                        size_t len = Matcher::resultToBuffer(buffer, bestCompatible[i], hasBacktrace, false,
+                                                             false);
+                        outputs[i].append(buffer, len);
                     }
                 }
+                for(size_t i = 0; i < resultPerId.size(); i++) {
+                    resultWriter.writeData(outputs[i].c_str(), outputs[i].length(),
+                                           alnDbr.getDbKey(fileToIds[fileNumber][i]), thread_idx);
+                }
+            } else {
+                for (size_t i = 0; i < fileToIds[fileNumber].size(); i++) {
+                    result.clear();
+                    output.clear();
+                    size_t id = fileToIds[fileNumber][i];
+                    Matcher::readAlignmentResults(result, alnDbr.getData(id, thread_idx), true);
+                    // find pairs
+                    for (size_t resIdx = 0; resIdx < result.size(); ++resIdx) {
+                        unsigned int taxon = mapping->lookup(result[resIdx].dbKey);
+                        // we don't want to introduce a new field, reuse existing unused field here
+                        result[resIdx].dbOrfStartPos = taxon;
+                    }
 
-                resultWriter.writeData(output.c_str(), output.length(), alnDbr.getDbKey(id), thread_idx);
+                    // stable sort is required to assure that best hit is first per taxon
+                    std::stable_sort(result.begin(), result.end(), compareByTaxId);
+                    // find hit in proximity based on uniProtNumber within a taxon and sort by compareByTaxId + closest pairs first.
+
+
+                    unsigned int prevTaxon = UINT_MAX;
+                    // iterate over taxonToPair
+                    size_t resIdxStart = 0;
+                    for (size_t taxonInList: taxonToPair) {
+                        bool taxonFound = false;
+                        for (size_t resIdx = resIdxStart; resIdx < result.size(); ++resIdx) {
+                            unsigned int taxon = result[resIdx].dbOrfStartPos;
+                            // check if this taxon has enough information to pair
+                            if (taxonInList != taxon) {
+                                continue;
+                            }
+                            bool bestTaxonHit = (taxon != prevTaxon);
+                            taxonFound = true;
+                            if (bestTaxonHit) {
+                                size_t len = Matcher::resultToBuffer(buffer, result[resIdx], hasBacktrace, false,
+                                                                     false);
+                                output.append(buffer, len);
+                                resIdxStart = resIdx + 1;
+                                break;
+                            }
+                            prevTaxon = taxon;
+                        }
+                        if (taxonFound == false &&
+                            par.pairdummymode == Parameters::PAIRALN_DUMMY_MODE_ON) { // par.addDummyPairedAlignment
+                            // write an Matcher::result_t with UINT_MAX as dbKey
+                            size_t len = Matcher::resultToBuffer(buffer, emptyResult, hasBacktrace, false, false);
+                            output.append(buffer, len);
+                        }
+                    }
+
+                    resultWriter.writeData(output.c_str(), output.length(), alnDbr.getDbKey(id), thread_idx);
+                }
             }
         }
     }
     resultWriter.close();
     qdbr.close();
-    // clean up
+// clean up
     delete mapping;
+    delete targetHeaderReaderIdx;
     alnDbr.close();
     return EXIT_SUCCESS;
 }

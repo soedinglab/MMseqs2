@@ -228,6 +228,11 @@ public:
     // pairaln mode
     static const int PAIRALN_MODE_ALL_PER_SPECIES = 0;
     static const int PAIRALN_MODE_COVER_ALL_CHAINS = 1;
+    static const int PAIRALN_MODE_PROXIMITY = 2;
+
+    // pairaln filter
+    static const int PAIRALN_FILTER_TOP_HIT = 0;
+    static const int PAIRALN_FILTER_PROXIMITY = 1;
 
     // taxonomy search strategy
     static const int TAXONOMY_SINGLE_SEARCH = 1;
@@ -695,6 +700,7 @@ public:
     // pairaln
     int pairdummymode;
     int pairmode;
+    int pairfilter;
 
     // taxonomyreport
     int reportMode;
@@ -1059,6 +1065,7 @@ public:
     // pairaln
     PARAMETER(PARAM_PAIRING_DUMMY_MODE)
     PARAMETER(PARAM_PAIRING_MODE)
+    PARAMETER(PARAM_PAIRING_FILTER)
     
     // taxonomyreport
     PARAMETER(PARAM_REPORT_MODE)

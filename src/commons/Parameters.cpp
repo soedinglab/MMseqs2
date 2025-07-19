@@ -287,6 +287,7 @@ Parameters::Parameters():
         // pairaln
         PARAM_PAIRING_DUMMY_MODE(PARAM_PAIRING_DUMMY_MODE_ID, "--pairing-dummy-mode", "Include dummy pairing", "0: dont include, 1: include - an entry that will cause result2msa to write a gap only line", typeid(int), (void *) &pairdummymode, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_PAIRING_MODE(PARAM_PAIRING_MODE_ID, "--pairing-mode", "Pairing mode", "0: pair maximal per species, 1: pair only if all chains are covered per species", typeid(int), (void *) &pairmode, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PAIRING_FILTER(PARAM_PAIRING_FILTER_ID, "--pairing-filter", "Pairing filter", "Filter hits by 0: top hit, 1: pair by proximity of IDs", typeid(int), (void *) &pairfilter, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         // taxonomyreport
         PARAM_REPORT_MODE(PARAM_REPORT_MODE_ID, "--report-mode", "Report mode", "Taxonomy report mode\n0: Kraken\n1: Krona\n2: do not create a report (for workflows only)\n3: Kraken per query database", typeid(int), (void *) &reportMode, "^[0-3]{1}$"),
         // createtaxdb
@@ -1285,6 +1286,7 @@ Parameters::Parameters():
     pairaln.push_back(&PARAM_PRELOAD_MODE);
     pairaln.push_back(&PARAM_PAIRING_DUMMY_MODE);
     pairaln.push_back(&PARAM_PAIRING_MODE);
+    pairaln.push_back(&PARAM_PAIRING_FILTER);
     pairaln.push_back(&PARAM_COMPRESSED);
     pairaln.push_back(&PARAM_THREADS);
     pairaln.push_back(&PARAM_V);
@@ -2678,7 +2680,7 @@ void Parameters::setDefaults() {
     // pairaln
     pairdummymode = PAIRALN_DUMMY_MODE_OFF;
     pairmode = PAIRALN_MODE_ALL_PER_SPECIES;
-
+    pairfilter = PAIRALN_FILTER_TOP_HIT;
     // taxonomyreport
     reportMode = 0;
 
