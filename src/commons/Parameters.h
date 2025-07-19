@@ -700,6 +700,7 @@ public:
     int pairdummymode;
     int pairmode;
     int pairfilter;
+    int pairProximityDistance;
 
     // taxonomyreport
     int reportMode;
@@ -1065,6 +1066,7 @@ public:
     PARAMETER(PARAM_PAIRING_DUMMY_MODE)
     PARAMETER(PARAM_PAIRING_MODE)
     PARAMETER(PARAM_PAIRING_FILTER)
+    PARAMETER(PARAM_PAIRING_PROX_DISTANCE)
     
     // taxonomyreport
     PARAMETER(PARAM_REPORT_MODE)

@@ -357,8 +357,7 @@ int pairaln(int argc, const char **argv, const Command& command) {
                                 if (compatible[j].dbKey == UINT_MAX) continue;   // not set yet
                                 size_t prevNum = CompareUniProt::getUniProtNumber(compatible[j]);
                                 size_t diff = ABS_DIFF(currNum, prevNum);
-                                //TODO par.minPairDistance
-                                if (diff <= 20) {          // #4  adjust comparison as needed
+                                if (static_cast<int>(diff) <= par.pairProximityDistance) {
                                     isCompatible = true;
                                     break;
                                 }
@@ -376,6 +375,10 @@ int pairaln(int argc, const char **argv, const Command& command) {
                             bestCompatible = compatible;
                             bestCompatibleSize = compatibleSize;
                         }
+                    }
+                    if(par.pairmode == Parameters::PAIRALN_MODE_COVER_ALL_CHAINS &&
+                            bestCompatibleSize != static_cast<int>(resultPerId.size())) {
+                        continue;
                     }
                     for (size_t i = 0; i < bestCompatible.size(); i++) {
                         if (bestCompatible[i].dbKey == UINT_MAX &&
