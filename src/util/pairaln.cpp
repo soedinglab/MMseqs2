@@ -26,6 +26,12 @@
 class UniProtConverter {
 public:
     size_t toStructuredNumber(std::string &uniprotId) const {
+        if (uniprotId.compare(0, 6,  "UniRef") == 0) {
+            std::vector<std::string> parts = Util::split(uniprotId, "_");
+            if (parts.size() > 1) {
+                uniprotId = parts[1];
+            }
+        }
         if (uniprotId.find('-') != std::string::npos) {
             uniprotId = uniprotId.substr(0, uniprotId.find('-'));
         }
