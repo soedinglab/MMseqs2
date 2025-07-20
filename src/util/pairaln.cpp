@@ -245,8 +245,9 @@ int pairaln(int argc, const char **argv, const Command& command) {
         output.reserve(100000);
         bool hasBacktrace = false;
         UniProtConverter converter;
+        unsigned int minResultDbKey = UINT_MAX;
         Matcher::result_t emptyResult(UINT_MAX, 0, 0, 0, 0, 0,
-                                      0, UINT_MAX, 0, 0, UINT_MAX, 0, 0, "");
+                                      0, UINT_MAX, 0, 0, UINT_MAX, 0, 0, "1M");
 #pragma omp for schedule(dynamic, 1)
         for (size_t fileNumber = 0; fileNumber < fileToIds.size(); fileNumber++) {
             char buffer[1024 + 32768 * 4];
@@ -254,7 +255,6 @@ int pairaln(int argc, const char **argv, const Command& command) {
             taxonToPair.clear();
             progress.updateProgress();
 
-            unsigned int minResultDbKey = UINT_MAX;
             // find intersection between all proteins
             for (size_t i = 0; i < fileToIds[fileNumber].size(); i++) {
                 result.clear();
@@ -285,7 +285,7 @@ int pairaln(int argc, const char **argv, const Command& command) {
                     prevTaxon = taxon;
                 }
             }
-
+            emptyResult.dbKey = minResultDbKey;
             // fill taxonToPair vector
             std::unordered_map<unsigned int, size_t>::iterator it;
             for (it = findPair.begin(); it != findPair.end(); ++it) {
