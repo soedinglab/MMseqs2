@@ -50,10 +50,11 @@ public:
         }
 
         if (uniprotId[0] == 'U' && uniprotId[1] == 'P' && uniprotId[2] == 'I') {
+            static constexpr size_t UPI_OFFSET = 1000000000000000ULL;
             std::string hex_part(uniprotId.substr(3));
-            return std::stoll(hex_part, nullptr, 16);
+            return UPI_OFFSET + std::stoll(hex_part, nullptr, 16);
         }
-
+        //TODO need to do this better
         return 0;
     }
 
@@ -137,23 +138,22 @@ struct CompareByTaxon {
     bool operator()(int tax, const Matcher::result_t& res) const { return tax < res.dbOrfStartPos; }
 };
 
-size_t findNearestPartner(
-        const unsigned int taxon_id, const Matcher::result_t& query, const std::vector<Matcher::result_t>& results2)
+size_t findNearestPartner(const Matcher::result_t& query, const std::vector<Matcher::result_t>& results2)
 {
     typedef std::vector<Matcher::result_t>::const_iterator ResultConstIterator;
-    std::pair<ResultConstIterator, ResultConstIterator> range;
-    range = std::equal_range(results2.begin(), results2.end(), taxon_id, CompareByTaxon());
-
-    if (range.first == range.second) {
-        return SIZE_T_MAX;
-    }
+//    std::pair<ResultConstIterator, ResultConstIterator> range;
+//    range = std::equal_range(results2.begin(), results2.end(), taxon_id, CompareByTaxon());
+//
+//    if (range.first == range.second) {
+//        return SIZE_T_MAX;
+//    }
 
     size_t bestIdx = SIZE_T_MAX;
     size_t min_dist = SIZE_T_MAX;
 
     size_t query_uniprot_num = CompareUniProt::getUniProtNumber(query);
-    ResultConstIterator it2 = std::lower_bound(range.first, range.second, query_uniprot_num, CompareUniProt());
-    if (it2 != range.second) {
+    ResultConstIterator it2 = std::lower_bound(results2.begin(), results2.end(), query_uniprot_num, CompareUniProt());
+    if (it2 != results2.end()) {
         size_t target_uniprot_num = CompareUniProt::getUniProtNumber(*it2);
         size_t dist = ABS_DIFF(target_uniprot_num, query_uniprot_num);
 
@@ -164,7 +164,7 @@ size_t findNearestPartner(
     }
 
     // Check the element just before the found position.
-    if (it2 != range.first) {
+    if (it2 != results2.begin()) {
         ResultConstIterator prev_it2 = it2;
         --prev_it2; // Use pre-decrement to get the previous iterator.
 
@@ -183,9 +183,9 @@ static bool compareByTaxId(const Matcher::result_t &first, const Matcher::result
 }
 
 static bool compareByTaxIdAndUniProtNum(const Matcher::result_t &first, const Matcher::result_t &second) {
-    if (first.dbOrfStartPos != second.dbOrfStartPos) {
-        return first.dbOrfStartPos < second.dbOrfStartPos;
-    }
+//    if (first.dbOrfStartPos != second.dbOrfStartPos) {
+//        return first.dbOrfStartPos < second.dbOrfStartPos;
+//    }
 
     if (first.queryOrfStartPos != second.queryOrfStartPos) {
         return first.queryOrfStartPos < second.queryOrfStartPos;
@@ -242,7 +242,7 @@ int pairaln(int argc, const char **argv, const Command& command) {
 #endif
         std::vector<Matcher::result_t> result;
         std::vector<Matcher::result_t> compatible;
-        std::vector<Matcher::result_t> bestCompatible;
+//        std::vector<Matcher::result_t> bestCompatible;
 
         result.reserve(100000);
         std::unordered_map<unsigned int, size_t> findPair;
@@ -330,24 +330,23 @@ int pairaln(int argc, const char **argv, const Command& command) {
                 }
 
                 // iterate over taxonToPair
-                for (size_t taxonInList: taxonToPair) {
-                    bestCompatible.clear();
-                    bestCompatible.resize(resultPerId.size(), Matcher::result_t());
-                    int bestCompatibleSize = 0;
-                    typedef std::vector<Matcher::result_t>::const_iterator ResultIterator;
-                    std::pair<ResultIterator, ResultIterator> range;
-                    range = std::equal_range(resultPerId[0].cbegin(), resultPerId[0].cend(), taxonInList, CompareByTaxon());
-                    size_t startIndex = std::distance(resultPerId[0].cbegin(), range.first);
-                    size_t endIndex = std::distance(resultPerId[0].cbegin(), range.second);
-                    for(size_t resIdx = startIndex; resIdx < endIndex; ++resIdx) {
+//                for (size_t taxonInList: taxonToPair) {
+                    //bestCompatible.clear();
+                    //bestCompatible.resize(resultPerId.size(), Matcher::result_t());
+//                    int bestCompatibleSize = 0;
+//                    typedef std::vector<Matcher::result_t>::const_iterator ResultIterator;
+//                    std::pair<ResultIterator, ResultIterator> range;
+//                    range = std::equal_range(resultPerId[0].cbegin(), resultPerId[0].cend(), taxonInList, CompareByTaxon());
+//                    size_t startIndex = std::distance(resultPerId[0].cbegin(), range.first);
+//                    size_t endIndex = std::distance(resultPerId[0].cbegin(), range.second);
+                    for(size_t resIdx = 0; resIdx < resultPerId[0].size(); ++resIdx) {
                         // check if pairable
                         compatible.clear();
                         compatible.resize(resultPerId.size(), Matcher::result_t());
                         compatible[0] = resultPerId[0][resIdx];
                         int compatibleSize = 1;
                         for (size_t i = 1; i < resultPerId.size(); ++i) {
-                            size_t partnerIdx = findNearestPartner(taxonInList,
-                                                                   compatible[0],
+                            size_t partnerIdx = findNearestPartner(compatible[0],
                                                                    resultPerId[i]);
                             if (partnerIdx == SIZE_T_MAX) { // no partner found
                                 if (par.pairdummymode == Parameters::PAIRALN_DUMMY_MODE_ON) {
@@ -363,7 +362,7 @@ int pairaln(int argc, const char **argv, const Command& command) {
                                 if (compatible[j].dbKey == UINT_MAX) continue;   // not set yet
                                 size_t prevNum = CompareUniProt::getUniProtNumber(compatible[j]);
                                 size_t diff = ABS_DIFF(currNum, prevNum);
-                                if (static_cast<int>(diff) <= par.pairProximityDistance) {
+                                if (diff <= static_cast<size_t>(par.pairProximityDistance)) {
                                     isCompatible = true;
                                     break;
                                 }
@@ -377,25 +376,23 @@ int pairaln(int argc, const char **argv, const Command& command) {
                             }
                         }
 
-                        if(compatibleSize > bestCompatibleSize) {
-                            bestCompatible = compatible;
-                            bestCompatibleSize = compatibleSize;
-                        }
-                    }
-                    if(par.pairmode == Parameters::PAIRALN_MODE_COVER_ALL_CHAINS &&
-                            bestCompatibleSize != static_cast<int>(resultPerId.size())) {
-                        continue;
-                    }
-                    for (size_t i = 0; i < bestCompatible.size(); i++) {
-                        if (bestCompatible[i].dbKey == UINT_MAX &&
-                            par.pairdummymode != Parameters::PAIRALN_DUMMY_MODE_ON) {
+                        if((par.pairmode == Parameters::PAIRALN_MODE_COVER_ALL_CHAINS && compatibleSize != static_cast<int>(resultPerId.size()))
+                            || compatibleSize == 1) {
                             continue;
                         }
-                        size_t len = Matcher::resultToBuffer(buffer, bestCompatible[i], hasBacktrace, false,
-                                                             false);
-                        outputs[i].append(buffer, len);
+
+                        for (size_t i = 0; i < compatible.size(); i++) {
+                            if (compatible[i].dbKey == UINT_MAX &&
+                                par.pairdummymode != Parameters::PAIRALN_DUMMY_MODE_ON) {
+                                continue;
+                            }
+                            size_t len = Matcher::resultToBuffer(buffer, compatible[i], hasBacktrace, false,
+                                                                 false);
+                            outputs[i].append(buffer, len);
+                        }
                     }
-                }
+
+//                }
                 for(size_t i = 0; i < resultPerId.size(); i++) {
                     resultWriter.writeData(outputs[i].c_str(), outputs[i].length(),
                                            alnDbr.getDbKey(fileToIds[fileNumber][i]), thread_idx);
