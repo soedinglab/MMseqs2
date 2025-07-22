@@ -44,13 +44,26 @@ inline void calculate_max4(float& max, float& term1, float& term2, float& term3,
 }
 
 inline simd_float simdf32_prefixsum(simd_float a) {
-    a = simdf32_add(a, simdi_i2fcast(simdi8_shiftl(simdf_f2icast(a), 4)));
-    a = simdf32_add(a, simdi_i2fcast(simdi8_shiftl(simdf_f2icast(a), 8)));
+//     a = simdf32_add(a, simdi_i2fcast(simdi8_shiftl(simdf_f2icast(a), 4)));
+//     a = simdf32_add(a, simdi_i2fcast(simdi8_shiftl(simdf_f2icast(a), 8)));
+// #ifdef AVX2
+//     a = simdf32_add(a, simdi_i2fcast(simdi8_shiftl(simdf_f2icast(a), 16)));
+// #endif
+//     return a;
+    float buf[8];
+    simdf32_storeu(buf, a);
 
+    buf[1] += buf[0];
+    buf[2] += buf[1];
+    buf[3] += buf[2];
 #ifdef AVX2
-    a = simdf32_add(a, simdi_i2fcast(simdi8_shiftl(simdf_f2icast(a), 16)));
+    buf[4] += buf[3];
+    buf[5] += buf[4];
+    buf[6] += buf[5];
+    buf[7] += buf[6];
 #endif
-    return a;
+
+    return simdf32_loadu(buf);
 }
 
 // FwBwAligner Constructor for general case: use profile scoring matrix
