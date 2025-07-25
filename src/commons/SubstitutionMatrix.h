@@ -71,6 +71,8 @@ public:
                           asciiStart);
     }
 
+    // hack to support calculatelambda
+    static bool printLambdaAndBackground;
 private:
     int parseAlphabet(char * word, char * num2aa, int * aa2num);
 

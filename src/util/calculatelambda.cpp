@@ -19,7 +19,9 @@ int calculatelambda(int argc, const char **argv, const Command &command) {
     size_t len = 0;
     ssize_t read;
     while ((read = getline(&line, &len, infile)) != -1) {
-        if (read > 0 && line[0] == '#') continue;
+        if (read > 0 && line[0] == '#') {
+            continue;
+        }
         if (read > 0 && line[read - 1] == '\n') {
             line[read - 1] = '\0';
         }
@@ -47,6 +49,7 @@ int calculatelambda(int argc, const char **argv, const Command &command) {
     }
     fflush(tmpfile);
 
+    SubstitutionMatrix::printLambdaAndBackground = true;
     SubstitutionMatrix mat(tmpname, 2.0f, 0.0f);
 
     if (!filtered_content.empty()) {

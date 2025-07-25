@@ -323,6 +323,7 @@ int SubstitutionMatrix::parseAlphabet(char *word, char *num2aa, int *aa2num) {
     return minAAInt;
 }
 
+bool SubstitutionMatrix::printLambdaAndBackground = false;
 void SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const bool containsX) {
     std::stringstream in(matrixData);
     std::string line;
@@ -392,12 +393,14 @@ void SubstitutionMatrix::readProbMatrix(const std::string &matrixData, const boo
 
         pBack[static_cast<int>(aa2num[static_cast<int>('X')])] = ANY_BACK;
 
-        Debug(Debug::INFO) << "# Background (precomputed optional):";
-        for (int i = 0; i < alphabetSize; ++i) {
-            Debug(Debug::INFO) << " " << pBack[i];
+        if (printLambdaAndBackground) {
+            Debug(Debug::INFO) << "# Background (precomputed optional):";
+            for (int i = 0; i < alphabetSize; ++i) {
+                Debug(Debug::INFO) << " " << SSTR((float)pBack[i], 5);
+            }
+            Debug(Debug::INFO) << "\n";
+            Debug(Debug::INFO) << "# Lambda     (precomputed optional): " << SSTR((float)lambda, 5) << "\n";
         }
-        Debug(Debug::INFO) << "\n";
-        Debug(Debug::INFO) << "# Lambda     (precomputed optional): " << lambda << "\n";
     }
     if(xIsPositive == false){
         for (int i = 0; i < alphabetSize - 1; i++) {
