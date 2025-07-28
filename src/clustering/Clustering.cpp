@@ -22,7 +22,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
     alnDbr = new DBReader<unsigned int>(alnDB.c_str(), alnDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     alnDbr->open(DBReader<unsigned int>::NOSORT);
     uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(alnDbr->getDbtype());
-    
+    needSET = false;
     if (extended & Parameters::DBTYPE_EXTENDED_SET) {
         needSET = true;
     }
