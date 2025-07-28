@@ -363,10 +363,8 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     // set element edge pointers by using the offset table
     AlignmentSymmetry::setupPointers<unsigned int>(elements, elementLookupTable, elementOffsets, dbSize,
                                                    totalElementCount);
-    std::cout<<"hi3"<<std::endl;
     // fill elements
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, NULL, 0, elementOffsets);
-    std::cout<<"hi4"<<std::endl;
     Debug(Debug::INFO) << "Sort entries\n";
     AlignmentSymmetry::sortElements(elementLookupTable, elementOffsets, dbSize);
     Debug(Debug::INFO) << "Find missing connections\n";

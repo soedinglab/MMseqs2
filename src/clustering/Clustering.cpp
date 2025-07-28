@@ -22,7 +22,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
     alnDbr = new DBReader<unsigned int>(alnDB.c_str(), alnDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
     alnDbr->open(DBReader<unsigned int>::NOSORT);
     uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(alnDbr->getDbtype());
-    bool needSET = false;
+    
     if (extended & Parameters::DBTYPE_EXTENDED_SET) {
         needSET = true;
     }
@@ -69,8 +69,9 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                 sizeof(unsigned int) +
                 sizeof(int) +
                 sizeof(unsigned int) +
-                sizeof(DBReader<unsigned int>::Index *) * sourceLen
+                sizeof(DBReader<unsigned int>::Index) * sourceLen
             );
+
             
             std::vector<std::pair<unsigned int, unsigned int>> setToLengthVec(setToLength.begin(), setToLength.end());
             std::sort(setToLengthVec.begin(), setToLengthVec.end(), [](auto& a, auto& b) {
@@ -80,7 +81,8 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
 
             for (size_t i = 0; i < sourceLen; ++i) {
                 indexStorage[i] = new DBReader<unsigned int>::Index;
-                indexStorage[i]->id = setToLengthVec[i].first;
+                // indexStorage[i]->id = setToLengthVec[i].first;
+                indexStorage[i]->id = i;
                 indexStorage[i]->length = setToLengthVec[i].second;
                 indexStorage[i]->offset = 0;
             }
@@ -97,20 +99,18 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             *((unsigned int*)p) = indexStorage[0]->length;
             p += sizeof(unsigned int);
             for (size_t i = 0; i < sourceLen; ++i) {
-                std::memcpy(
-                    p + i * sizeof(DBReader<unsigned int>::Index*),
+                memcpy(
+                    p + i * sizeof(DBReader<unsigned int>::Index),
                     indexStorage[i],
-                    sizeof(DBReader<unsigned int>::Index*)
+                    sizeof(DBReader<unsigned int>::Index)
                 );
             }
-            p += sizeof(DBReader<unsigned int>::Index*) * sourceLen;
+            p += sizeof(DBReader<unsigned int>::Index) * sourceLen;
             seqDbr = DBReader<unsigned int>::unserialize(data, threads);
             seqDbr->open(DBReader<unsigned int>::NOSORT);
             for (auto* ptr : indexStorage) {
                 delete ptr;
             }
-            std::cout<<"HAHA\t"<<seqDbr->getId(6)<<std::endl;
-            //TODO: shuold I delete things?
         }
     }
 
@@ -125,7 +125,15 @@ Clustering::~Clustering() {
 
 void Clustering::run(int mode) {
     Timer timer;
-    DBWriter *dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1, compressed, Parameters::DBTYPE_CLUSTER_RES);
+    
+    unsigned int dbType = Parameters::DBTYPE_CLUSTER_RES;
+    unsigned int dbTypeSet = DBReader<unsigned int>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_SET);
+    DBWriter *dbw;
+    if(needSET) {
+        dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1, compressed, dbTypeSet);
+    } else {
+        dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1, compressed, dbType);
+    }
     dbw->open();
 
     std::pair<unsigned int, unsigned int> * ret;
