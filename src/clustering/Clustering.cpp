@@ -72,19 +72,15 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                 sizeof(DBReader<unsigned int>::Index) * sourceLen
             );
 
-            
-            std::vector<std::pair<unsigned int, unsigned int>> setToLengthVec(setToLength.begin(), setToLength.end());
-            std::sort(setToLengthVec.begin(), setToLengthVec.end(), [](auto& a, auto& b) {
-                return a.second > b.second;
-            });
             std::vector<DBReader<unsigned int>::Index*> indexStorage(sourceLen);
 
-            for (size_t i = 0; i < sourceLen; ++i) {
-                indexStorage[i] = new DBReader<unsigned int>::Index;
-                // indexStorage[i]->id = setToLengthVec[i].first;
-                indexStorage[i]->id = i;
-                indexStorage[i]->length = setToLengthVec[i].second;
-                indexStorage[i]->offset = 0;
+            size_t n = 0;
+            for (const auto& [id, length] : setToLength) {
+                indexStorage[n] = new DBReader<unsigned int>::Index;
+                indexStorage[n]->id = id;
+                indexStorage[n]->length = length;
+                indexStorage[n]->offset = 0;
+                n++;
             }
 
             char* p = data;
@@ -107,7 +103,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             }
             p += sizeof(DBReader<unsigned int>::Index) * sourceLen;
             seqDbr = DBReader<unsigned int>::unserialize(data, threads);
-            seqDbr->open(DBReader<unsigned int>::NOSORT);
+            seqDbr->open(DBReader<unsigned int>::SORT_BY_LENGTH);
             for (auto* ptr : indexStorage) {
                 delete ptr;
             }
