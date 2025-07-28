@@ -75,7 +75,6 @@ std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) 
         std::fill_n(bestscore, dbSize, SHRT_MIN);
 
         readInClusterData(elementLookupTable, elements, scoreLookupTable, score, elementOffsets, elementCount);
-        std::cout<<"hi5"<<std::endl;
         ClusteringAlgorithms::initClustersizes();
         if (mode == 1) {
             setCover(elementLookupTable, scoreLookupTable, assignedcluster, bestscore, elementOffsets);
