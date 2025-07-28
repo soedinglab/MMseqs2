@@ -75,10 +75,10 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             std::vector<DBReader<unsigned int>::Index*> indexStorage(sourceLen);
 
             size_t n = 0;
-            for (const auto& [id, length] : setToLength) {
+            for (const auto& pairs : setToLength) {
                 indexStorage[n] = new DBReader<unsigned int>::Index;
-                indexStorage[n]->id = id;
-                indexStorage[n]->length = length;
+                indexStorage[n]->id = pairs.first;
+                indexStorage[n]->length = pairs.second;
                 indexStorage[n]->offset = 0;
                 n++;
             }
