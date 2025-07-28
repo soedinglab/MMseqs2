@@ -24,7 +24,6 @@ int createdmptaxonomy(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, false, 0, 0);
     NcbiTaxonomy* taxonomy = NcbiTaxonomy::openTaxonomy(par.db1);
 
-
     std::string nodesPath = par.db2 + "_nodes.dmp";
     FILE *nodesFp = FileUtil::openAndDelete(nodesPath.c_str(), "w");
     if (!nodesFp) {
@@ -39,25 +38,50 @@ int createdmptaxonomy(int argc, const char **argv, const Command &command) {
         EXIT(EXIT_FAILURE);
     }
 
-    for (size_t i = 0; i < taxonomy->maxNodes; ++i) {
-        const TaxonNode &tn = taxonomy->taxonNodes[i];
+    std::string mergedPath = par.db2 + "_merged.dmp";
+    FILE *mergedFP = FileUtil::openAndDelete(mergedPath.c_str(), "w");
+    if (!mergedFP) {
+        Debug(Debug::ERROR) << "Could not open " << mergedPath << " for writing\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i <= taxonomy->maxTaxID; ++i) {
+        TaxonNode const* tn = taxonomy->taxonNode(i, false);
+        if (tn == NULL) {
+            continue;
+        }
+
+        if (i != tn->taxId) {
+            int res = fprintf(
+                mergedFP,
+                "%d\t|\t%d\t|\n",
+                i,
+                tn->taxId
+            );
+            if (res < 0) {
+                Debug(Debug::ERROR) << "Write error while writing " << nodesPath << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            continue;
+        }
+
         int res = fprintf(
             nodesFp,
             "%d\t|\t%d\t|\t%s\t|\t\n",
-            tn.taxId,
-            tn.parentTaxId,
-            taxonomy->getString(tn.rankIdx)
+            tn->taxId,
+            tn->parentTaxId,
+            taxonomy->getString(tn->rankIdx)
         );
         if (res < 0) {
             Debug(Debug::ERROR) << "Write error while writing " << nodesPath << "\n";
             EXIT(EXIT_FAILURE);
         }
 
-        const char *name = taxonomy->getString(tn.nameIdx);
+        const char *name = taxonomy->getString(tn->nameIdx);
         res = fprintf(
             namesFp,
             "%d\t|\t%s\t|\t\t|\tscientific name\t|\n",
-            tn.taxId,
+            tn->taxId,
             name
         );
         if (res < 0) {
@@ -66,6 +90,12 @@ int createdmptaxonomy(int argc, const char **argv, const Command &command) {
         }
     }
 
+    if (fclose(mergedFP) != 0) {
+        Debug(Debug::ERROR) << "Could not close " << mergedPath << "\n";
+        fclose(nodesFp);
+        fclose(namesFp);
+        EXIT(EXIT_FAILURE);
+    }
     if (fclose(nodesFp) != 0) {
         Debug(Debug::ERROR) << "Could not close " << nodesPath << "\n";
         fclose(namesFp);
