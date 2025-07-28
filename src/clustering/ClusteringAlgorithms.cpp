@@ -75,6 +75,7 @@ std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) 
         std::fill_n(bestscore, dbSize, SHRT_MIN);
 
         readInClusterData(elementLookupTable, elements, scoreLookupTable, score, elementOffsets, elementCount);
+        std::cout<<"hi5"<<std::endl;
         ClusteringAlgorithms::initClustersizes();
         if (mode == 1) {
             setCover(elementLookupTable, scoreLookupTable, assignedcluster, bestscore, elementOffsets);
@@ -362,8 +363,10 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     // set element edge pointers by using the offset table
     AlignmentSymmetry::setupPointers<unsigned int>(elements, elementLookupTable, elementOffsets, dbSize,
                                                    totalElementCount);
+    std::cout<<"hi3"<<std::endl;
     // fill elements
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, NULL, 0, elementOffsets);
+    std::cout<<"hi4"<<std::endl;
     Debug(Debug::INFO) << "Sort entries\n";
     AlignmentSymmetry::sortElements(elementLookupTable, elementOffsets, dbSize);
     Debug(Debug::INFO) << "Find missing connections\n";

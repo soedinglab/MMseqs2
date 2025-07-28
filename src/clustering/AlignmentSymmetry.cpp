@@ -36,6 +36,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
 #endif
 #pragma omp for schedule(dynamic, 100)
             for (size_t i = start; i < (start + bucketSize); i++) {
+                std::cout<< seqDbr->getId(0)<<"\t"<< seqDbr->getId(1)<<"\t"<< seqDbr->getId(6)<<std::endl;
                 progress.updateProgress();
                 // seqDbr is descending sorted by length
                 // the assumption is that clustering is B -> B (not A -> B)
