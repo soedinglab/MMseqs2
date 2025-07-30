@@ -26,6 +26,7 @@ private:
     DBReader<unsigned int> *seqDbr;
     DBReader<unsigned int> *alnDbr;
 
+    bool needSET;
     //values for affinity clustering
     unsigned int maxIteration;
     int similarityScoreType;
