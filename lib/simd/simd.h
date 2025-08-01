@@ -46,7 +46,11 @@
 //#define AVX512
 //#endif
 
-#if defined(AVX512) || defined(SIMDE_X86_AVX2_NATIVE)
+#if defined(SIMDE_X86_AVX512BW_NATIVE)
+#define AVX512BW
+#endif
+
+#if defined(SIMDE_X86_AVX512BW_NATIVE) || defined(AVX512) || defined(SIMDE_X86_AVX2_NATIVE)
 #define AVX2
 #endif
 
