@@ -12,7 +12,7 @@ public:
                const std::string &alnResultsDB, const std::string &alnResultsDBIndex,
                const std::string &outDB, const std::string &outDBIndex,
                const std::string &weightFileName,
-               unsigned int maxIteration, int similarityScoreType, int threads, int compressed);
+               unsigned int maxIteration, int similarityScoreType, int threads, int compressed, bool needSET);
 
     void run(int mode);
 
@@ -27,6 +27,12 @@ private:
     DBReader<unsigned int> *alnDbr;
 
     bool needSET;
+    unsigned int sourceLen;
+    unsigned int *keyToSet;
+    size_t *sourceOffsets;
+    unsigned int **sourceLookupTable;
+    unsigned int *sourceList;
+
     //values for affinity clustering
     unsigned int maxIteration;
     int similarityScoreType;
@@ -35,6 +41,7 @@ private:
     int compressed;
     std::string outDB;
     std::string outDBIndex;
+    std::vector<unsigned int> sourceKeyVec;
 };
 
 #endif

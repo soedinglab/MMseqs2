@@ -96,6 +96,8 @@ Parameters::Parameters():
         PARAM_CLUSTER_STEPS(PARAM_CLUSTER_STEPS_ID, "--cluster-steps", "Cascaded clustering steps", "Cascaded clustering steps from 1 to -s", typeid(int), (void *) &clusterSteps, "^[1-9]{1}$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
         PARAM_CASCADED(PARAM_CASCADED_ID, "--single-step-clustering", "Single step clustering", "Switch from cascaded to simple clustering workflow", typeid(bool), (void *) &singleStepClustering, "", MMseqsParameter::COMMAND_CLUST),
         PARAM_CLUSTER_REASSIGN(PARAM_CLUSTER_REASSIGN_ID, "--cluster-reassign", "Cluster reassign", "Cascaded clustering can cluster sequence that do not fulfill the clustering criteria.\nCluster reassignment corrects these errors", typeid(bool), (void *) &clusterReassignment, "", MMseqsParameter::COMMAND_CLUST),
+        PARAM_CLUSTER_SET_MODE(PARAM_CLUSTER_SET_MODE_ID, "--set-mode", "Set mode", "0: Cluster by each entry\n1: Cluster by set", typeid(bool), (void *) &clusteringSetMode, "[0-1]{1}$", MMseqsParameter::COMMAND_CLUST),
+
         // affinity clustering
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID, "--max-iterations", "Max connected component depth", "Maximum depth of breadth first search in connected component clustering", typeid(int), (void *) &maxIteration, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
         PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID, "--similarity-type", "Similarity type", "Type of score used for clustering. 1: alignment score 2: sequence identity", typeid(int), (void *) &similarityScoreType, "^[1-2]{1}$", MMseqsParameter::COMMAND_CLUST | MMseqsParameter::COMMAND_EXPERT),
@@ -488,6 +490,7 @@ Parameters::Parameters():
     clust.push_back(&PARAM_V);
     clust.push_back(&PARAM_WEIGHT_FILE);
     clust.push_back(&PARAM_WEIGHT_THR);
+    clust.push_back(&PARAM_CLUSTER_SET_MODE);
 
     // rescorediagonal
     rescorediagonal.push_back(&PARAM_SUB_MAT);
@@ -2403,6 +2406,7 @@ void Parameters::setDefaults() {
     realignScoreBias = -0.2f;
     realignMaxSeqs = INT_MAX;
     correlationScoreWeight = 0.0;
+    clusteringSetMode = 0;
 
     // affinity clustering
     maxIteration=1000;
