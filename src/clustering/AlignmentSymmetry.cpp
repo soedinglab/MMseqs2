@@ -148,64 +148,59 @@ void AlignmentSymmetry::readInDataSet(DBReader<unsigned int>*alnDbr, DBReader<un
                 size_t end = sourceOffsets[i+1];
                 size_t len = end - start;
                 size_t isnull = 0;
-                std::vector<bool> bitFlags(dbSize, false);
+                size_t writePos = 0;
                 for (size_t j = 0; j < len; ++j) {
                     unsigned int value = sourceLookupTable[i][j];
                     const size_t alnId = alnDbr->getId(value);
                     char *data = alnDbr->getData(alnId, thread_idx);
-
                     if (*data == '\0') { // check if file contains entry
                         isnull++;
                         continue;
                     }
-                    size_t writePos = 0;
                     while (*data != '\0') {
                         char similarity[255 + 1];
                         char dbKey[255 + 1];
                         Util::parseKey(data, dbKey);
                         const unsigned int key = keyToSet[(unsigned int) strtoul(dbKey, NULL, 10)];
-                        const size_t currElement = seqDbr->getId(key);
-                        if (bitFlags[key] == 0) {
-                            if (elementScoreTable != NULL) {
-                                if (Parameters::isEqualDbtype(alnType,Parameters::DBTYPE_ALIGNMENT_RES)) {
-                                    if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
-                                        //column 1 = alignment score
-                                        Util::parseByColumnNumber(data, similarity, 1);
-                                        elementScoreTable[i][writePos] = (unsigned short) (atof(similarity));
-                                    } else {
-                                        //column 2 = sequence identity [0-1]
-                                        Util::parseByColumnNumber(data, similarity, 2);
-                                        elementScoreTable[i][writePos] = (unsigned short) (atof(similarity) * 1000.0f);
-                                    }
-                                }
-                                else if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_RES) ||
-                                        Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_REV_RES)) {
-                                    //column 1 = alignment score or sequence identity [0-100]
+                        //Hmm.. 
+                        const size_t currElement = keyToSet[seqDbr->getId(key)];
+                        if (elementScoreTable != NULL) {
+                            if (Parameters::isEqualDbtype(alnType,Parameters::DBTYPE_ALIGNMENT_RES)) {
+                                if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
+                                    //column 1 = alignment score
                                     Util::parseByColumnNumber(data, similarity, 1);
-                                    short sim = atoi(similarity);
-                                    elementScoreTable[i][writePos] = (unsigned short) (sim >0 ? sim : -sim);
-                                }
-                                else if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_CLUSTER_RES)) {
-                                    elementScoreTable[i][writePos] = (unsigned short) (USHRT_MAX);
-                                }
-                                else {
-                                    Debug(Debug::ERROR) << "Alignment format is not supported!\n";
-                                    EXIT(EXIT_FAILURE);
+                                    elementScoreTable[i][writePos] = (unsigned short) (atof(similarity));
+                                } else {
+                                    //column 2 = sequence identity [0-1]
+                                    Util::parseByColumnNumber(data, similarity, 2);
+                                    elementScoreTable[i][writePos] = (unsigned short) (atof(similarity) * 1000.0f);
                                 }
                             }
-                            if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
-                                Debug(Debug::ERROR) << "Element " << dbKey
-                                                    << " contained in some alignment list, but not contained in the sequence database!\n";
+                            else if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_RES) ||
+                                    Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_REV_RES)) {
+                                //column 1 = alignment score or sequence identity [0-100]
+                                Util::parseByColumnNumber(data, similarity, 1);
+                                short sim = atoi(similarity);
+                                elementScoreTable[i][writePos] = (unsigned short) (sim >0 ? sim : -sim);
+                            }
+                            else if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_CLUSTER_RES)) {
+                                elementScoreTable[i][writePos] = (unsigned short) (USHRT_MAX);
+                            }
+                            else {
+                                Debug(Debug::ERROR) << "Alignment format is not supported!\n";
                                 EXIT(EXIT_FAILURE);
                             }
-                            elementLookupTable[i][writePos] = currElement;
-                            bitFlags[key] = true;
-                            writePos++;
-                            data = Util::skipLine(data);
                         }
+                        if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
+                            Debug(Debug::ERROR) << "Element " << dbKey
+                                                << " contained in some alignment list, but not contained in the sequence database!\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                        elementLookupTable[i][writePos] = currElement;
+                        writePos++;
+                        data = Util::skipLine(data);
                     }
                 }
-                bitFlags.clear();
                 if (isnull == len) {
                     elementLookupTable[i][0] = seqDbr->getId(clusterId);
                     if (elementScoreTable != NULL) {

@@ -24,6 +24,7 @@ ClusteringAlgorithms::ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBRea
     }
     this->alnDbr=alnDbr;
     this->dbSize=alnDbr->getSize();
+    this->alnDbrSize=alnDbr->getSize();
     this->threads=threads;
     this->scoretype=scoretype;
     this->maxiterations=maxiterations;
@@ -63,7 +64,7 @@ std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) 
             thread_idx = omp_get_thread_num();
 #endif
 #pragma omp for schedule(dynamic, 10)
-            for (size_t i = 0; i < dbSize; i++) {
+            for (size_t i = 0; i < alnDbrSize; i++) {
                 const char *data = alnDbr->getData(i, thread_idx);
                 const size_t dataSize = alnDbr->getEntryLen(i);
                 elementCount += (*data == '\0') ? 1 : Util::countLines(data, dataSize);

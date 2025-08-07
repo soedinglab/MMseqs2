@@ -17,7 +17,8 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                                                                threads(threads),
                                                                compressed(compressed),
                                                                outDB(outDB),
-                                                               outDBIndex(outDBIndex) {
+                                                               outDBIndex(outDBIndex), 
+                                                               needSET(needSET) {
 
     seqDbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX);
     alnDbr = new DBReader<unsigned int>(alnDB.c_str(), alnDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
@@ -56,10 +57,8 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             for (size_t id = 0; id < originalseqDbr->getSize(); id++) {
                 setToLength[keyToSet[seqIndex[id].id]] += seqIndex[id].length;
             }
-            
             sourceLen = setToLength.size();
-            
-            sourceList = NULL;
+            sourceList = new(std::nothrow) unsigned int[lastKey];
             sourceOffsets = new(std::nothrow) size_t[sourceLen + 1];
             sourceLookupTable = new(std::nothrow) unsigned int *[sourceLen];
 
@@ -79,15 +78,13 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                     sourceOffsets[setId] = n;
                     setId ++;
                     prevsetkey = setkey;
-                    lookupOrder = 0;
                 }
-                sourceLookupTable[setId][lookupOrder] = key;
+                sourceList[lookupOrder] = key;
                 n++;
                 lookupOrder++;
             }
+            sourceOffsets[setId] = n;
             AlignmentSymmetry::setupPointers<unsigned int>(sourceList, sourceLookupTable, sourceOffsets, sourceLen, lastKey);
-
-
             char* data = (char*)malloc(
                 sizeof(size_t) +
                 sizeof(size_t) +
@@ -144,9 +141,6 @@ Clustering::~Clustering() {
     delete keyToSet;
     delete sourceOffsets;
     delete sourceList;
-    for (size_t i = 0; i < sourceLen; ++i) {
-        delete sourceLookupTable[i];
-    }
     delete[] sourceLookupTable;
 }
 
@@ -191,7 +185,7 @@ void Clustering::run(int mode) {
     size_t dbSize = alnDbr->getSize();
     size_t seqDbSize = seqDbr->getSize();
     size_t cluNum = (dbSize > 0) ? 1 : 0;
-    for(size_t i = 1; i < dbSize; i++){
+    for(size_t i = 1; i < seqDbSize; i++){
         cluNum += (ret[i].first != ret[i-1].first);
     }
     Debug(Debug::INFO) << "Total time: " << timer.lap() << "\n";
@@ -204,7 +198,6 @@ void Clustering::run(int mode) {
     Debug(Debug::INFO) << timerWrite.lap() << "\n";
     delete [] ret;
     delete algorithm;
-
     dbw->close(false, false);
     seqDbr->close();
     alnDbr->close();
