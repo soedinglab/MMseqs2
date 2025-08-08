@@ -103,7 +103,6 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                             Debug(Debug::ERROR) << "Alignment format is not supported!\n";
                             EXIT(EXIT_FAILURE);
                         }
-
                     }
                     if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
                         Debug(Debug::ERROR) << "Element " << dbKey
@@ -113,6 +112,130 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                     elementLookupTable[i][writePos] = currElement;
                     writePos++;
                     data = Util::skipLine(data);
+                }
+            }
+        }
+        alnDbr->remapData();
+    }
+}
+
+void AlignmentSymmetry::readInDataSet(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr,
+                                   unsigned int **elementLookupTable, unsigned short **elementScoreTable,
+                                   int scoretype, size_t *offsets, size_t *sourceOffsets, unsigned int **sourceLookupTable,  unsigned int *keyToSet) {
+    const int alnType = alnDbr->getDbtype();
+    const size_t dbSize = seqDbr->getSize();
+    const size_t flushSize = 1000000;
+    Debug::Progress progress(dbSize);
+    size_t iterations = static_cast<int>(ceil(static_cast<double>(dbSize)/static_cast<double>(flushSize)));
+    for(size_t it = 0; it < iterations; it++) {
+        size_t start = it * flushSize;
+        size_t bucketSize = std::min(dbSize - (it * flushSize), flushSize);
+#pragma omp parallel
+        {
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+#pragma omp for schedule(dynamic, 100)
+
+            for (size_t i = start; i < (start + bucketSize); i++) {
+                progress.updateProgress();
+                // seqDbr is descending sorted by length
+                // the assumption is that clustering is B -> B (not A -> B)
+                const unsigned int clusterId = seqDbr->getDbKey(i);
+                size_t start1 = sourceOffsets[clusterId];
+                size_t end1 = sourceOffsets[clusterId+1];
+                size_t len = end1 - start1;
+                size_t isnull = 0;
+
+                size_t setSize = LEN(offsets, i);
+                size_t writePos = 0;
+                std::vector<bool> bitFlags(dbSize, false);
+                for (size_t j = 0; j < len; ++j) {
+                    unsigned int value = sourceLookupTable[clusterId][j];
+                    if (value != UINT_MAX) {
+                        const size_t alnId = alnDbr->getId(value);
+                        char *data = alnDbr->getData(alnId, thread_idx);
+                        if (*data == '\0') { // check if file contains entry
+                            isnull++;
+                            continue;
+                        }
+                        while (*data != '\0') {
+                            if (writePos >= setSize) {
+                                Debug(Debug::ERROR) << "Set " << i
+                                                    << " has more elements than allocated (" << setSize
+                                                    << ")!\n";
+                                continue;
+                            }
+                            char similarity[255 + 1];
+                            char dbKey[255 + 1];
+                            Util::parseKey(data, dbKey);
+                            const unsigned int key = seqDbr->getId(keyToSet[(unsigned int) strtoul(dbKey, NULL, 10)]);
+                            const size_t currElement = key;
+                            if(bitFlags[currElement]==0){
+                                if (elementScoreTable != NULL) {
+                                    if (Parameters::isEqualDbtype(alnType,Parameters::DBTYPE_ALIGNMENT_RES)) {
+                                        if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
+                                            //column 1 = alignment score
+                                            Util::parseByColumnNumber(data, similarity, 1);
+                                            elementScoreTable[i][writePos] = (unsigned short) (atof(similarity));
+                                        } else {
+                                            //column 2 = sequence identity [0-1]
+                                            Util::parseByColumnNumber(data, similarity, 2);
+                                            elementScoreTable[i][writePos] = (unsigned short) (atof(similarity) * 1000.0f);
+                                        }
+                                    }
+                                    else if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_RES) ||
+                                            Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_REV_RES)) {
+                                        //column 1 = alignment score or sequence identity [0-100]
+                                        Util::parseByColumnNumber(data, similarity, 1);
+                                        short sim = atoi(similarity);
+                                        elementScoreTable[i][writePos] = (unsigned short) (sim >0 ? sim : -sim);
+                                    }
+                                    else if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_CLUSTER_RES)) {
+                                        elementScoreTable[i][writePos] = (unsigned short) (USHRT_MAX);
+                                    }
+                                    else {
+                                        Debug(Debug::ERROR) << "Alignment format is not supported!\n";
+                                        EXIT(EXIT_FAILURE);
+                                    }
+                                }
+                                if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
+                                    Debug(Debug::ERROR) << "Element " << dbKey
+                                                        << " contained in some alignment list, but not contained in the sequence database!\n";
+                                    EXIT(EXIT_FAILURE);
+                                }
+                                elementLookupTable[i][writePos] = currElement;
+                                bitFlags[currElement] = 1;
+                            } else {
+                                elementLookupTable[i][writePos] = UINT_MAX;
+                            }
+                            data = Util::skipLine(data);
+                            writePos++;
+                        }
+                    }
+                }
+                if (isnull == len) {
+                    elementLookupTable[i][0] = seqDbr->getId(clusterId);
+                    if (elementScoreTable != NULL) {
+                        if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_ALIGNMENT_RES)) {
+                            if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
+                                //column 1 = alignment score
+                                elementScoreTable[i][0] = (unsigned short) (USHRT_MAX);
+                            } else {
+                                //column 2 = sequence identity [0-1]
+                                elementScoreTable[i][0] = (unsigned short) (1.0 * 1000.0f);
+                            }
+                        } else if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_RES) ||
+                                Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_PREFILTER_REV_RES)) {
+                            //column 1 = alignment score or sequence identity [0-100]
+                            elementScoreTable[i][0] = (unsigned short) (USHRT_MAX);
+                        } else if (Parameters::isEqualDbtype(alnType, Parameters::DBTYPE_CLUSTER_RES)) {
+                            elementScoreTable[i][0] = (unsigned short) (USHRT_MAX);
+                        }
+                    }
+                    isnull = 0;
+                    continue;
                 }
             }
         }
@@ -136,13 +259,15 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
             const size_t elementSize = LEN(offsetTable, setId);
             for (size_t elementId = 0; elementId < elementSize; elementId++) {
                 const unsigned int currElm = elementLookupTable[setId][elementId];
-                const unsigned int currElementSize = LEN(offsetTable, currElm);
-                const bool elementFound = std::binary_search(elementLookupTable[currElm],
-                                                             elementLookupTable[currElm] + currElementSize, setId);
-                // this is a new connection since setId is not contained in currentElementSet
-                if (elementFound == false) {
-                    tmpSize[static_cast<size_t>(currElm) * static_cast<size_t>(threads) +
-                            static_cast<size_t>(thread_idx)] += 1;
+                if (currElm != UINT_MAX) {
+                    const unsigned int currElementSize = LEN(offsetTable, currElm);
+                    const bool elementFound = std::binary_search(elementLookupTable[currElm],
+                                                                elementLookupTable[currElm] + currElementSize, setId);
+                    // this is a new connection since setId is not contained in currentElementSet
+                    if (elementFound == false) {
+                        tmpSize[static_cast<size_t>(currElm) * static_cast<size_t>(threads) +
+                                static_cast<size_t>(thread_idx)] += 1;
+                    }
                 }
             }
         }
@@ -165,7 +290,7 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
 }
 
 void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
-                                        size_t * offsetTableWithOutNewLinks, size_t * offsetTableWithNewLinks, size_t dbSize, unsigned short **elementScoreTable) {
+                                        size_t * offsetTableWithOutNewLinks, size_t * offsetTableWithNewLinks, size_t dbSize, unsigned short **elementScoreTable, bool needSET) {
 
     // iterate over all connections and check if it exists in the corresponding set
     // if not add it
@@ -183,7 +308,9 @@ void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
         }
         for(size_t elementId = 0; elementId < oldElementSize; elementId++) {
             const unsigned int currElm = elementLookupTable[setId][elementId];
-            if(currElm == UINT_MAX || currElm > dbSize){
+            if(currElm == UINT_MAX && needSET) {
+                continue;
+            } else if(currElm == UINT_MAX || currElm > dbSize){
                 Debug(Debug::ERROR) << "currElm > dbSize in element list (addMissingLinks). This should not happen.\n";
                 EXIT(EXIT_FAILURE);
             }

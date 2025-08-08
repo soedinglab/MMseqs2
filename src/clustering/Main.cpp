@@ -7,7 +7,7 @@ int clust(int argc, const char **argv, const Command& command) {
 
     Clustering clu(par.db1, par.db1Index, par.db2, par.db2Index,
                    par.db3, par.db3Index, par.weightFile, par.maxIteration,
-                   par.similarityScoreType, par.threads, par.compressed);
+                   par.similarityScoreType, par.threads, par.compressed, par.clusteringSetMode);
     clu.run(par.clusteringMode);
     return EXIT_SUCCESS;
 }
