@@ -359,7 +359,7 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, int8_t * tinySubMat,
         Sequence qSeq(par.maxSeqLen, querySeqType, subMat, 0, false, par.compBiasCorrection);
         Sequence tSeq(par.maxSeqLen, targetSeqType, subMat, 0, false, par.compBiasCorrection);
         SmithWaterman aligner(par.maxSeqLen, subMat->alphabetSize,
-                              par.compBiasCorrection, par.compBiasCorrectionScale, targetSeqType);
+                              par.compBiasCorrection, par.compBiasCorrectionScale, NULL);
 
         std::string resultBuffer;
         resultBuffer.reserve(262144);

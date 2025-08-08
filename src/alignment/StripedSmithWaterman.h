@@ -45,13 +45,14 @@
 
 #include "Sequence.h"
 #include "EvalueComputation.h"
+#include "block_aligner.h"
+
 typedef struct {
     short qStartPos;
     short dbStartPos;
     short qEndPos;
     short dbEndPos;
 } aln_t;
-
 
 typedef struct {
     uint32_t score1;
@@ -67,54 +68,32 @@ typedef struct {
     int32_t cigarLen;
     double evalue;
     uint32_t identicalAACnt;
+    int word;
 } s_align;
 
 class SmithWaterman{
 public:
 
     SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection,
-                  float aaBiasCorrectionScale, int targetSeqType);
+                  float aaBiasCorrectionScale, SubstitutionMatrix * subMat);
     ~SmithWaterman();
 
     // TODO: private or public?
     struct s_profile{
         simd_int* profile_byte;	// 0: none
         simd_int* profile_word;	// 0: none
+        simd_int* profile_int;
         simd_int* profile_rev_byte;	// 0: none
         simd_int* profile_rev_word;	// 0: none
-#ifdef GAP_POS_SCORING
-        // gap penalties
-        simd_int* profile_gDelOpen_byte;
-        simd_int* profile_gDelOpen_word;
-        simd_int* profile_gDelClose_byte;
-        simd_int* profile_gDelClose_word;
-        simd_int* profile_gIns_byte;
-        simd_int* profile_gIns_word;
-        simd_int* profile_gDelOpen_rev_byte;
-        simd_int* profile_gDelOpen_rev_word;
-        simd_int* profile_gDelClose_rev_byte;
-        simd_int* profile_gDelClose_rev_word;
-        simd_int* profile_gIns_rev_byte;
-        simd_int* profile_gIns_rev_word;
-        uint8_t* gDelOpen;
-        uint8_t* gDelClose;
-        uint8_t* gIns;
-        uint8_t* gDelOpen_rev;
-        uint8_t* gDelClose_rev;
-        uint8_t* gIns_rev;
-#endif
-        // profile-profile
-        simd_int* consens_byte;
-        simd_int* consens_word;
-        simd_int* consens_rev_byte;
-        simd_int* consens_rev_word;
+        simd_int* profile_rev_int;
         int8_t* query_sequence;
         int8_t* query_rev_sequence;
-        int8_t* query_consens_sequence;
-        int8_t* query_consens_rev_sequence;
         int8_t* composition_bias;
         int8_t* composition_bias_rev;
+        int8_t* composition_bias_target;
+        int8_t* composition_bias_target_rev;
         int8_t* mat;
+        bool isProfile;
         // Memory layout of if mat + queryProfile is qL * AA
         //    Query length
         // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
@@ -128,12 +107,22 @@ public:
         // ...
         // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
         int8_t* mat_rev; // needed for queryProfile
+        int8_t* pos_aa_rev;
         int32_t query_length;
-        int32_t sequence_type;
+        // int32_t sequence_type;
         int32_t alphabetSize;
         uint8_t bias;
         short ** profile_word_linear;
+        int32_t ** profile_int_linear;
         simd_int *target_profile_byte;
+    };
+
+    struct s_block{
+        PaddedBytes* query;
+        PosBias* query_bias;
+        AAMatrix* mat_aa;
+        BlockHandle block_trace;
+        int16_t* query_bias_arr;
     };
 
     // prints a __m128 vector containing 8 signed shorts
@@ -192,6 +181,39 @@ public:
      while bit 8 is not, the function will return cigar only when both criteria are fulfilled. All returned positions are
      0-based coordinate.
      */
+    template <unsigned int type>
+    s_align alignScoreEndPos (
+		const unsigned char *db_sequence,
+		int32_t db_length,
+		const uint8_t gap_open,
+		const uint8_t gap_extend,
+		const int32_t maskLen);
+
+    template <unsigned int type>
+    s_align alignStartPosBacktrace (
+        const unsigned char *db_sequence,
+        int32_t db_length,
+
+        const uint8_t gap_open,
+        const uint8_t gap_extend,
+        const uint8_t alignmentMode,
+        std::string & backtrace,
+        s_align r,
+        EvalueComputation * evaluer,
+        const int covMode,
+        const float covThr,
+        const float correlationScoreWeight,
+        const int32_t maskLen);
+
+    template <unsigned int type>
+    s_align alignStartPosBacktraceBlock(
+        const unsigned char *db_sequence,
+        int32_t db_length,
+        const uint8_t gap_open,
+        const uint8_t gap_extend,
+        std::string & backtrace,
+        s_align r);
+
     s_align  ssw_align (const unsigned char *db_num_sequence,
                         const unsigned char *db_consens_sequence,
                         const int8_t *db_profile,
@@ -236,7 +258,7 @@ public:
    mat is the pointer to the array {2, -2, -2, -2, -2, 2, -2, -2, -2, -2, 2, -2, -2, -2, -2, 2}
    */
     void ssw_init(const Sequence *q, const int8_t *mat, const BaseMatrix *m);
-
+    void ssw_initTarget(const Sequence *q, const int8_t *mat, const BaseMatrix *m);
 
     static char cigar_int_to_op (uint32_t cigar_int);
 
@@ -245,6 +267,9 @@ public:
 
     static float computeCov(unsigned int startPos, unsigned int endPos, unsigned int len);
 
+    int isProfileSearch(){
+        return profile->isProfile;
+    }
     s_align scoreIdentical(unsigned char *dbSeq, int L, EvalueComputation * evaluer, int alignmentMode, std::string &backtrace);
 
     static void seq_reverse(int8_t * reverse, const int8_t* seq, int32_t end)	/* end is 0-based alignment ending position */
@@ -261,19 +286,17 @@ public:
 
     static int computeCorrelationScore(int8_t * scorePreCol, size_t length);
 
-    template <const unsigned int type>
     void computerBacktrace(s_profile * query, const unsigned char * db_sequence,
                            s_align & alignment, std::string & backtrace, uint32_t & aaIds, int8_t * scorePerCol, size_t & mStatesCnt);
 
+    static uint32_t to_cigar_int (uint32_t length, char op_letter);
 
     // ssw_init
     const static unsigned int SUBSTITUTIONMATRIX = 1;
     const static unsigned int PROFILE = 2;
     // ssw_align
     const static unsigned int SEQ_SEQ = 3;
-    const static unsigned int SEQ_PROFILE = 4;
-    const static unsigned int PROFILE_SEQ = 5;
-    const static unsigned int PROFILE_PROFILE = 6;
+    const static unsigned int PROFILE_SEQ = 4;
 
 private:
 
@@ -285,10 +308,9 @@ private:
 
     // target variables
     simd_int* target_profile_byte;
-    int segSize;
 
     // needed for type checking query and target databases
-    bool isTargetProfile, isQueryProfile;
+    bool isQueryProfile;
 
     typedef struct {
         uint16_t score;
@@ -303,7 +325,7 @@ private:
     } cigar;
 
 
-    template <const unsigned int type, const bool posSpecificGaps>
+    template <unsigned int type>
     s_align ssw_align_private (const unsigned char*db_sequence,
                         const int8_t *db_profile,
                         int32_t db_length,
@@ -314,7 +336,7 @@ private:
                         const double filters,
                         EvalueComputation * filterd,
                         const int covMode, const float covThr, const float correlationScoreWeight,
-                        const int32_t maskLen, const size_t id);
+                        const int32_t maskLen);
 
     /* Striped Smith-Waterman
      Record the highest score of each reference position.
@@ -323,21 +345,14 @@ private:
      wight_match > 0, all other weights < 0.
      The returned positions are 0-based.
      */
-    template <const unsigned int type, const bool posSpecificGaps>
+    template <unsigned int type>
     std::pair<alignment_end, alignment_end> sw_sse2_byte(const unsigned char *db_sequence,
-                                 const simd_int* db_profile_byte,
                                  int8_t ref_dir,	// 0: forward ref; 1: reverse ref
                                  int32_t db_length,
                                  int32_t query_length,
                                  const uint8_t gap_open, /* will be used as - */
                                  const uint8_t gap_extend, /* will be used as - */
                                  const simd_int* query_profile_byte,
-                                 const simd_int* query_consens_byte,
-#ifdef GAP_POS_SCORING
-                                 const simd_int* gap_open_del,
-                                 const simd_int* gap_close_del,
-                                 const simd_int* gap_open_ins,
-#endif
                                  uint8_t terminate,	/* the best alignment score: used to terminate
                                                      the matrix calculation when locating the
                                                      alignment beginning point. If this score
@@ -345,34 +360,34 @@ private:
                                  uint8_t bias,  /* Shift 0 point to a positive value. */
                                  int32_t maskLen);
 
-    template <const unsigned int type, const bool posSpecificGaps>
+    template <unsigned int type>
     std::pair<alignment_end, alignment_end> sw_sse2_word (const unsigned char* db_sequence,
-                                 const simd_int* db_profile_byte,
                                  int8_t ref_dir,	// 0: forward ref; 1: reverse ref
                                  int32_t db_length,
                                  int32_t query_length,
                                  const uint8_t gap_open, /* will be used as - */
                                  const uint8_t gap_extend, /* will be used as - */
-                                 const simd_int*query_profile_word,
-                                 const simd_int* query_consens_word,
-#ifdef GAP_POS_SCORING
-                                 const simd_int* gap_open_del,
-                                 const simd_int* gap_close_del,
-                                 const simd_int* gap_open_ins,
-#endif
+                                 const simd_int* query_profile_word,
                                  uint16_t terminate,
-                                 uint16_t bias,
                                  int32_t maskLen);
 
-    template <const unsigned int type, const bool posSpecificGaps>
+    template <unsigned int type>
+    std::pair<alignment_end, alignment_end> sw_sse2_int (const unsigned char* db_sequence,
+                                int8_t ref_dir,	// 0: forward ref; 1: reverse ref
+                                int32_t db_length,
+                                int32_t query_length,
+                                const uint8_t gap_open, /* will be used as - */
+                                const uint8_t gap_extend, /* will be used as - */
+                                const simd_int* query_profile_int,
+                                uint32_t terminate,
+                                int32_t maskLen);
+
+    template <unsigned int type>
     SmithWaterman::cigar *banded_sw(const unsigned char *db_sequence, const int8_t *query_sequence,
-                                    const int8_t *query_consens_sequence, const int8_t * compositionBias,
-                                    int32_t db_length, int32_t query_length, int32_t queryStart, int32_t targetStart,
+                                    const int8_t * compositionBias,
+                                    int32_t db_length, int32_t query_length, int32_t queryStart,
                                     int32_t score, const uint32_t gap_open, const uint32_t gap_extend,
-#ifdef GAP_POS_SCORING
-                                    uint8_t *gDelOpen, uint8_t *gDelClose, uint8_t *gIns,
-#endif
-                                    int32_t band_width, const int8_t *mat, const int8_t *target_mat, const int32_t qry_n, const int32_t tgt_n);
+                                    int32_t band_width, const int8_t *mat, const int32_t qry_n);
 
 
     /*!	@function		Produce CIGAR 32-bit unsigned integer from CIGAR operation and CIGAR length
@@ -380,13 +395,9 @@ private:
      @param	op_letter	CIGAR operation character ('M', 'I', etc)
      @return			32-bit unsigned integer, representing encoded CIGAR operation and length
      */
-    inline uint32_t to_cigar_int (uint32_t length, char op_letter);
 
     s_profile* profile;
-
-    size_t query_id;
-    size_t target_id;
-
+    s_block* block;
 
     template <typename T, size_t Elements, const unsigned int type>
     void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias,
@@ -395,13 +406,11 @@ private:
     float *tmp_composition_bias;
     int8_t * scorePerCol;
     short * profile_word_linear_data;
+    int32_t * profile_int_linear_data;
+
     bool aaBiasCorrection;
     float aaBiasCorrectionScale;
-
-    template <typename T, size_t Elements>
-    void createConsensProfile(simd_int *profile, const int8_t *consens_sequence, const int32_t query_length, const int32_t offset);
-
-    void createTargetProfile(simd_int *profile, const int8_t *mat, const int target_length, const int32_t aaSize, uint8_t bias);
+    SubstitutionMatrix * subMat;
 
     template <typename T, size_t Elements>
     void updateQueryProfile(simd_int *profile, const int32_t query_length, const int32_t aaSize, uint8_t shift);

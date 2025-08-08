@@ -15,7 +15,9 @@ RUN dpkg --add-architecture $TARGETARCH \
       dpkg -i cuda-keyring_1.1-1_all.deb; \
       apt-get update && apt-get install -y cuda-nvcc-12-6 cuda-cudart-dev-12-6 ninja-build; \
     fi; \
-    rm -rf /var/lib/apt/lists/*;
+    rm -rf /var/lib/apt/lists/*; \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+      sh -s -- --profile minimal --default-host ${ARCH}-unknown-linux-gnu -y
 
 WORKDIR /opt/build
 ADD . .
