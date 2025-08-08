@@ -1,0 +1,59 @@
+[package]
+name = "block-aligner"
+version = "0.4.0"
+authors = ["c0deb0t <daniel.liu02@gmail.com>"]
+edition = "2018"
+license = "MIT"
+description = "SIMD-accelerated library for computing global and X-drop affine gap penalty sequence-to-sequence or sequence-to-profile alignments using an adaptive block-based algorithm."
+homepage = "https://github.com/Daniel-Liu-c0deb0t/block-aligner"
+repository = "https://github.com/Daniel-Liu-c0deb0t/block-aligner"
+readme = "README.md"
+keywords = ["SIMD", "string-distance", "alignment", "biology", "edit-distance"]
+categories = ["algorithms", "hardware-support", "science", "text-processing"]
+exclude = ["vis/*", "!vis/block_img1.png"]
+
+[package.metadata.docs.rs]
+features = ["simd_avx2"]
+
+[features]
+# Enable SSE2
+simd_sse2 = []
+# Enable AVX2
+simd_avx2 = []
+# Enable WASM SIMD
+simd_wasm = []
+# Enable Neon
+simd_neon = []
+
+# No SIMD
+no_simd = []
+
+# Print lots of debug information
+debug = ["debug_size"]
+# Print only the final block sizes
+debug_size = []
+# Prepare code for analysis by llvm-mca
+mca = []
+
+[profile.release]
+debug-assertions = false
+lto = "thin"
+panic = "abort"
+
+[profile.bench]
+debug-assertions = false
+lto = "thin"
+
+[dev-dependencies]
+bio = "^0.33"
+simulate-seqs = { git = "https://github.com/Daniel-Liu-c0deb0t/simulate-seqs" }
+
+[target.'cfg(not(any(target_arch = "wasm32", target_arch = "aarch64")))'.dev-dependencies]
+parasailors = { git = "https://github.com/Daniel-Liu-c0deb0t/parasailors-new" }
+image = "^0.23.14"
+imageproc = "^0.22.0"
+# Includes small changes that ensures wfa2 code autovectorizes and other updates
+rust-wfa2 = { git = "https://github.com/pairwise-alignment/rust-wfa2" }
+# Removed logging and extra dependencies
+edlib_rs = { git = "https://github.com/Daniel-Liu-c0deb0t/edlib-rs" }
+ksw2-sys = { git = "https://github.com/pairwise-alignment/ksw2-sys" }
