@@ -1,0 +1,5 @@
+[workspace]
+members=["member1", "member2", "member3"]
+
+[workspace.package]
+version = "0.1.0"
