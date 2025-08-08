@@ -26,7 +26,7 @@ public:
         }
     }
     static size_t findMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize, int threads);
-    static void addMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t * newOffset, size_t dbSize,unsigned short**elementScoreTable);
+    static void addMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t * newOffset, size_t dbSize,unsigned short**elementScoreTable, bool needSET);
     static void sortElements(unsigned int **elementLookupTable, size_t *offsets, size_t dbSize);
 
     template <typename T>

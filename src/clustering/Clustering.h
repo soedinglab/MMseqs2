@@ -27,7 +27,7 @@ private:
     DBReader<unsigned int> *alnDbr;
 
     bool needSET;
-    unsigned int sourceLen;
+    unsigned int seqnum;
     unsigned int *keyToSet;
     size_t *sourceOffsets;
     unsigned int **sourceLookupTable;

@@ -107,14 +107,15 @@ std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) 
                         size_t elementSize = (elementOffsets[currentid + 1] - elementOffsets[currentid]);
                         for (size_t elementId = 0; elementId < elementSize; elementId++) {
                             unsigned int elementtodelete = elementLookupTable[currentid][elementId];
-                            if (assignedcluster[elementtodelete] == UINT_MAX && iterationcutoff < maxiterations) {
-                                myqueue.push(elementtodelete);
-                                iterationcutoffs.push((iterationcutoff + 1));
+                            if(elementtodelete != UINT_MAX){
+                                if (assignedcluster[elementtodelete] == UINT_MAX && iterationcutoff < maxiterations) {
+                                    myqueue.push(elementtodelete);
+                                    iterationcutoffs.push((iterationcutoff + 1));
+                                }
+                                assignedcluster[elementtodelete] = representative;
                             }
-                            assignedcluster[elementtodelete] = representative;
                         }
                     }
-
                 }
             }
         }
@@ -213,6 +214,7 @@ void ClusteringAlgorithms::decreaseClustersize(unsigned int clusterid){
 void ClusteringAlgorithms::setCover(unsigned int **elementLookupTable, unsigned short ** elementScoreLookupTable,
                                     unsigned int *assignedcluster, short *bestscore, size_t *newElementOffsets) {
     for (int64_t cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
+        
         const unsigned int representative = sorted_clustersizes[cl_size];
         if (representative == UINT_MAX) {
             continue;
@@ -224,54 +226,60 @@ void ClusteringAlgorithms::setCover(unsigned int **elementLookupTable, unsigned 
         size_t elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
         for (size_t elementId = 0; elementId < elementSize; elementId++) {
             const unsigned int elementtodelete = elementLookupTable[representative][elementId];
-            // float seqId = elementScoreTable[representative][elementId];
-            const short seqId = elementScoreLookupTable[representative][elementId];
-            //  Debug(Debug::INFO)<<seqId<<"\t"<<bestscore[elementtodelete]<<"\n";
-            // becareful of this criteria
-            if (seqId > bestscore[elementtodelete]) {
-                assignedcluster[elementtodelete] = representative;
-                bestscore[elementtodelete] = seqId;
+            if (elementtodelete != UINT_MAX) {
+                // float seqId = elementScoreTable[representative][elementId];
+                const short seqId = elementScoreLookupTable[representative][elementId];
+                //  Debug(Debug::INFO)<<seqId<<"\t"<<bestscore[elementtodelete]<<"\n";
+                // becareful of this criteria
+                if (seqId > bestscore[elementtodelete]) {
+                    assignedcluster[elementtodelete] = representative;
+                    bestscore[elementtodelete] = seqId;
+                }
+                //Debug(Debug::INFO)<<bestscore[elementtodelete]<<"\n";
+                if (elementtodelete == representative) {
+                    continue;
+                }
+                if (clustersizes[elementtodelete] < 1) {
+                    continue;
+                }
+                removeClustersize(elementtodelete);
             }
-            //Debug(Debug::INFO)<<bestscore[elementtodelete]<<"\n";
-            if (elementtodelete == representative) {
-                continue;
-            }
-            if (clustersizes[elementtodelete] < 1) {
-                continue;
-            }
-            removeClustersize(elementtodelete);
         }
 
         for (size_t elementId = 0; elementId < elementSize; elementId++) {
             bool representativefound = false;
             const unsigned int elementtodelete = elementLookupTable[representative][elementId];
-            const unsigned int currElementSize = (newElementOffsets[elementtodelete + 1] -
-                                                  newElementOffsets[elementtodelete]);
-            if (elementtodelete == representative) {
+            if (elementtodelete != UINT_MAX){
+                const unsigned int currElementSize = (newElementOffsets[elementtodelete + 1] -
+                                                    newElementOffsets[elementtodelete]);
+                if (elementtodelete == representative) {
+                    clustersizes[elementtodelete] = -1;
+                    continue;
+                }
+                if (clustersizes[elementtodelete] < 0) {
+                    continue;
+                }
                 clustersizes[elementtodelete] = -1;
-                continue;
-            }
-            if (clustersizes[elementtodelete] < 0) {
-                continue;
-            }
-            clustersizes[elementtodelete] = -1;
-            //decrease clustersize of sets that contain the element
-            for (size_t elementId2 = 0; elementId2 < currElementSize; elementId2++) {
-                const unsigned int elementtodecrease = elementLookupTable[elementtodelete][elementId2];
-                if (representative == elementtodecrease) {
-                    representativefound = true;
+                //decrease clustersize of sets that contain the element
+                for (size_t elementId2 = 0; elementId2 < currElementSize; elementId2++) {
+                    const unsigned int elementtodecrease = elementLookupTable[elementtodelete][elementId2];
+                    if (elementtodecrease != UINT_MAX){
+                        if (representative == elementtodecrease) {
+                            representativefound = true;
+                        }
+                        if (clustersizes[elementtodecrease] == 1) {
+                            Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(elementtodelete) <<
+                                                " deleted from " << seqDbr->getDbKey(elementtodecrease) <<
+                                                " that now is empty, but not assigned to a cluster\n";
+                        } else if (clustersizes[elementtodecrease] > 0) {
+                            decreaseClustersize(elementtodecrease);
+                        }
+                    }
                 }
-                if (clustersizes[elementtodecrease] == 1) {
-                    Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(elementtodelete) <<
-                                        " deleted from " << seqDbr->getDbKey(elementtodecrease) <<
-                                        " that now is empty, but not assigned to a cluster\n";
-                } else if (clustersizes[elementtodecrease] > 0) {
-                    decreaseClustersize(elementtodecrease);
+                if (!representativefound) {
+                    Debug(Debug::ERROR) << "error with cluster:\t" << seqDbr->getDbKey(representative) <<
+                                        "\tis not contained in set:\t" << seqDbr->getDbKey(elementtodelete) << ".\n";
                 }
-            }
-            if (!representativefound) {
-                Debug(Debug::ERROR) << "error with cluster:\t" << seqDbr->getDbKey(representative) <<
-                                    "\tis not contained in set:\t" << seqDbr->getDbKey(elementtodelete) << ".\n";
             }
         }
     }
@@ -300,19 +308,21 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
             unsigned int clusterKey = seqDbr->getDbKey(i);
             std::vector<unsigned int>& keys = buffer[i - start].second;
             if(needSET) {
-                size_t start1 = sourceOffsets[i];
-                size_t end1 = sourceOffsets[i+1];
+                size_t start1 = sourceOffsets[clusterKey];
+                size_t end1 = sourceOffsets[clusterKey+1];
                 size_t len = end1 - start1;
                 for (size_t j = 0; j < len; ++j) {
-                    unsigned int value = sourceLookupTable[i][j];
-                    const size_t alnId = alnDbr->getId(value);
-                    char *data = alnDbr->getData(alnId, 0);
-                    while (*data != '\0') {
-                        char dbKey[255 + 1];
-                        Util::parseKey(data, dbKey);
-                        const unsigned int key = keyToSet[(unsigned int)strtoul(dbKey, NULL, 10)];
-                        keys.push_back(key);
-                        data = Util::skipLine(data);
+                    unsigned int value = sourceLookupTable[clusterKey][j];
+                    if (value != UINT_MAX) {
+                        const size_t alnId = alnDbr->getId(value);
+                        char *data = alnDbr->getData(alnId, 0);
+                        while (*data != '\0') {
+                            char dbKey[255 + 1];
+                            Util::parseKey(data, dbKey);
+                            const unsigned int key = keyToSet[(unsigned int)strtoul(dbKey, NULL, 10)];
+                            keys.push_back(key);
+                            data = Util::skipLine(data);
+                        }
                     }
                 }
             } else {
@@ -376,17 +386,19 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
         for (size_t i = 0; i < seqDbr->getSize(); i++) {
             const unsigned int clusterId = seqDbr->getDbKey(i);
             if(needSET) {
-                size_t start = sourceOffsets[i];
-                size_t end = sourceOffsets[i+1];
+                size_t start = sourceOffsets[clusterId];
+                size_t end = sourceOffsets[clusterId+1];
                 size_t len = end - start;
                 size_t lineCounts = 0;
                 for (size_t j = 0; j < len; ++j) {
-                    unsigned int value = sourceLookupTable[i][j];
-                    const size_t alnId = alnDbr->getId(value);
-                    const char *data = alnDbr->getData(alnId, thread_idx);
-                    const size_t dataSize = alnDbr->getEntryLen(alnId);
-                    size_t lineCount = (*data == '\0') ? 1 : Util::countLines(data, dataSize);
-                    lineCounts += lineCount;
+                    unsigned int value = sourceLookupTable[clusterId][j];
+                    if (value != UINT_MAX) {
+                        const size_t alnId = alnDbr->getId(value);
+                        const char *data = alnDbr->getData(alnId, thread_idx);
+                        const size_t dataSize = alnDbr->getEntryLen(alnId);
+                        size_t lineCount = (*data == '\0') ? 1 : Util::countLines(data, dataSize);
+                        lineCounts += lineCount;
+                    }
                 }
                 elementOffsets[i] = lineCounts;
             } else {
@@ -397,7 +409,6 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
             }
         }
     }
-    
     // make offset table
     AlignmentSymmetry::computeOffsetFromCounts(elementOffsets, dbSize);
     // set element edge pointers by using the offset table
@@ -442,7 +453,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     }
     alnDbr->remapData(); // need to free memory
     Debug(Debug::INFO) << "Add missing connections\n";
-    AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, newElementOffsets, dbSize, scoreLookupTable);
+    AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, newElementOffsets, dbSize, scoreLookupTable, needSET);
     maxClustersize = 0;
     for (size_t i = 0; i < dbSize; i++) {
         size_t elementCount = newElementOffsets[i + 1] - newElementOffsets[i];

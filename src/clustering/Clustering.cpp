@@ -12,13 +12,13 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                        const std::string &alnDB, const std::string &alnDBIndex,
                        const std::string &outDB, const std::string &outDBIndex,
                        const std::string &sequenceWeightFile,
-                       unsigned int maxIteration, int similarityScoreType, int threads, int compressed, bool needSET) : maxIteration(maxIteration),
+                       unsigned int maxIteration, int similarityScoreType, int threads, int compressed, bool needSET) : needSET(needSET),
+                                                               maxIteration(maxIteration),
                                                                similarityScoreType(similarityScoreType),
                                                                threads(threads),
                                                                compressed(compressed),
                                                                outDB(outDB),
-                                                               outDBIndex(outDBIndex), 
-                                                               needSET(needSET) {
+                                                               outDBIndex(outDBIndex) {
 
     seqDbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str(), threads, DBReader<unsigned int>::USE_INDEX);
     alnDbr = new DBReader<unsigned int>(alnDB.c_str(), alnDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
@@ -43,21 +43,34 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             originalseqDbr->open(DBReader<unsigned int>::NOSORT);
             DBReader<unsigned int>::Index * seqIndex = originalseqDbr->getIndex();
             
-            unsigned int lastKey = originalseqDbr->getLastKey();
-            keyToSet = new unsigned int[lastKey];
-            std::map<unsigned int, unsigned int> setToLength;
             std::ifstream mappingStream(seqDB + ".lookup");
             std::string line;
+            unsigned int lastKey = 0;
             while (std::getline(mappingStream, line)) {
                 std::vector<std::string> split = Util::split(line, "\t");
                 unsigned int key = strtoul(split[0].c_str(), NULL, 10);
-                unsigned int setkey = strtoul(split[2].c_str(), NULL, 10);
+                lastKey = key;
+            }
+
+            keyToSet = new unsigned int[lastKey+1];
+            std::vector<bool> keysInSeq(lastKey+1, false);
+            std::map<unsigned int, unsigned int> setToLength;
+            
+            mappingStream.close();
+            mappingStream.open(seqDB + ".lookup");
+            unsigned int setkey;
+            while (std::getline(mappingStream, line)) {
+                std::vector<std::string> split = Util::split(line, "\t");
+                unsigned int key = strtoul(split[0].c_str(), NULL, 10);
+                setkey = strtoul(split[2].c_str(), NULL, 10);
                 keyToSet[key] = setkey;
             }
             for (size_t id = 0; id < originalseqDbr->getSize(); id++) {
                 setToLength[keyToSet[seqIndex[id].id]] += seqIndex[id].length;
+                keysInSeq[seqIndex[id].id] = 1;
             }
-            sourceLen = setToLength.size();
+            unsigned int sourceLen = setkey + 1;
+            seqnum = setToLength.size();
             sourceList = new(std::nothrow) unsigned int[lastKey];
             sourceOffsets = new(std::nothrow) size_t[sourceLen + 1];
             sourceLookupTable = new(std::nothrow) unsigned int *[sourceLen];
@@ -65,21 +78,28 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             mappingStream.close();
             mappingStream.open(seqDB + ".lookup");
             line = "";
-            unsigned int prevsetkey = -1;
+            unsigned int prevsetkey = UINT_MAX;
             size_t n = 0;
             size_t setId = 0;
             size_t lookupOrder = 0;
+            unsigned int key;
             while (std::getline(mappingStream, line)) {
                 std::vector<std::string> split = Util::split(line, "\t");
-                unsigned int key = strtoul(split[0].c_str(), NULL, 10);
+                key = strtoul(split[0].c_str(), NULL, 10);
                 unsigned int setkey = strtoul(split[2].c_str(), NULL, 10);
                 if(setkey != prevsetkey) {
-                    sourceKeyVec.emplace_back(setkey);
                     sourceOffsets[setId] = n;
                     setId ++;
                     prevsetkey = setkey;
+                    if(keysInSeq[key] == 1) {
+                        sourceKeyVec.emplace_back(setkey);
+                    }
                 }
-                sourceList[lookupOrder] = key;
+                if(keysInSeq[key] == 1) {
+                    sourceList[lookupOrder] = key;
+                } else {
+                    sourceList[lookupOrder] = UINT_MAX;
+                }
                 n++;
                 lookupOrder++;
             }
@@ -91,10 +111,10 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                 sizeof(unsigned int) +
                 sizeof(int) +
                 sizeof(unsigned int) +
-                sizeof(DBReader<unsigned int>::Index) * sourceLen
+                sizeof(DBReader<unsigned int>::Index) * seqnum
             );
 
-            std::vector<DBReader<unsigned int>::Index*> indexStorage(sourceLen);
+            std::vector<DBReader<unsigned int>::Index*> indexStorage(seqnum);
 
             n = 0;
             for (const auto& pairs : setToLength) {
@@ -106,24 +126,24 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             }
 
             char* p = data;
-            *((size_t*)p) = sourceLen;
+            *((size_t*)p) = seqnum;
             p += sizeof(size_t);
             *((size_t*)p) = 0;
             p += sizeof(size_t);
-            *((unsigned int*)p) = indexStorage[sourceLen-1]->id;
+            *((unsigned int*)p) = indexStorage[seqnum-1]->id;
             p += sizeof(unsigned int);
             *((int*)p) = originalseqDbr->getDbtype();
             p += sizeof(int);
             *((unsigned int*)p) = indexStorage[0]->length;
             p += sizeof(unsigned int);
-            for (size_t i = 0; i < sourceLen; ++i) {
+            for (size_t i = 0; i < seqnum; ++i) {
                 memcpy(
                     p + i * sizeof(DBReader<unsigned int>::Index),
                     indexStorage[i],
                     sizeof(DBReader<unsigned int>::Index)
                 );
             }
-            p += sizeof(DBReader<unsigned int>::Index) * sourceLen;
+            p += sizeof(DBReader<unsigned int>::Index) * seqnum;
             seqDbr = DBReader<unsigned int>::unserialize(data, threads);
             seqDbr->open(DBReader<unsigned int>::SORT_BY_LENGTH);
             for (auto* ptr : indexStorage) {
@@ -161,7 +181,7 @@ void Clustering::run(int mode) {
     std::pair<unsigned int, unsigned int> * ret;
     ClusteringAlgorithms *algorithm = new ClusteringAlgorithms(seqDbr, alnDbr,
                                                                threads, similarityScoreType,
-                                                               maxIteration, keyToSet, sourceOffsets, sourceLookupTable, sourceList, sourceLen, needSET);
+                                                               maxIteration, keyToSet, sourceOffsets, sourceLookupTable, sourceList, seqnum, needSET);
 
     if (mode == Parameters::GREEDY) {
         Debug(Debug::INFO) << "Clustering mode: Greedy\n";
