@@ -18,7 +18,8 @@ Matcher::Matcher(int querySeqType, int targetSeqType, int maxSeqLen, BaseMatrix 
     } else {
         nuclaligner = NULL;
         aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection,
-                                    aaBiasCorrectionScale, targetSeqType);
+                                    aaBiasCorrectionScale, (SubstitutionMatrix*) m);
+        setSubstitutionMatrix(m);
     }
     //std::cout << "lambda=" << lambdaLog2 << " logKLog2=" << logKLog2 << std::endl;
 }
@@ -106,7 +107,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, bool
     // try to estimate sequence id
     if(alignmentMode == Matcher::SCORE_COV_SEQID){
         // compute sequence id
-        if(alignment.cigar){
+        if (backtrace.size() > 0) {
             // OVERWRITE alnLength with gapped value
             alnLength = backtrace.size();
         }
