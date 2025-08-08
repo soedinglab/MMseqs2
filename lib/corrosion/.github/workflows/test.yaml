@@ -1,0 +1,356 @@
+name: Tests
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - 'master'
+      - 'stable/**'
+jobs:
+
+  test_legacy_linux:
+    name: Test Corrosion (CMake 3.15)
+    uses: ./.github/workflows/test_legacy.yaml
+    with :
+      os: ubuntu-20.04
+      rust: 1.46.0
+  test_legacy_mac:
+    name: Test Corrosion (CMake 3.15)
+    uses: ./.github/workflows/test_legacy.yaml
+    with:
+      os: macos-12
+      rust: 1.54.0
+  test_legacy_windows:
+    name: Test Corrosion (CMake 3.15)
+    uses: ./.github/workflows/test_legacy.yaml
+    with:
+      os: windows-2019
+      rust: 1.46.0
+
+  test_legacy_stable:
+    name: Legacy CMake + stable Rust
+    uses: ./.github/workflows/test_legacy.yaml
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2019 # windows-latest is currently not having a supported MSVC compiler
+          - ubuntu-20.04
+          - macos-12
+    with:
+      os: ${{ matrix.os }}
+      rust: stable
+
+  test_legacy_nightly:
+    name: Legacy CMake + nightly Rust
+    uses: ./.github/workflows/test_legacy.yaml
+    with:
+      os: ubuntu-20.04
+      rust: nightly
+
+  test_legacy_new_lockfile_msrv:
+    name: Test MSRV of the new lockfile
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        id: install_rust
+        uses: dtolnay/rust-toolchain@1.56
+      - name: Test Generator build with MSRV
+        run: cargo build
+        working-directory: generator
+
+  test:
+    name: Test Corrosion
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.rust == 'nightly' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2019 # windows-latest is currently not having a supported MSVC compiler
+          - ubuntu-latest
+          - macos-12
+        arch:
+          - x86_64
+          - i686
+          - aarch64
+          - powerpc64le
+        abi:
+          - gnu
+          - darwin
+          - msvc
+        cmake:
+          - 3.19.0
+        rust:
+          # Our MSRV is already tested with the legacy generator, so just test the current stable rust here.
+          - stable
+        generator:
+          - default # This is just whatever the platform default is
+          - ninja
+        compiler: [default]
+        include:
+          - rust: nightly
+            cmake: 3.19.0
+            generator: ninja
+            arch: x86_64
+            abi: msvc
+            os: windows-2019
+          - rust: nightly
+            cmake: 3.19.0
+            generator: ninja
+            arch: x86_64
+            abi: gnu
+            os: ubuntu-latest
+          - rust: nightly
+            cmake: 3.19.0
+            generator: ninja
+            arch: x86_64
+            abi: darwin
+            os: macos-12
+          - rust: 1.54
+            cmake: 3.19.0
+            generator: ninja
+            arch: x86_64
+            abi: msvc
+            os: windows-2019
+            compiler: clang
+          - os: ubuntu-latest
+            arch: x86_64
+            abi: gnu
+            cmake: 3.20.0
+            rust: 1.54
+            generator: ninja-multiconfig
+
+        exclude:
+
+          # We have a separate test Matrix for the Visual Studio Generator
+          - os: windows-2019
+            generator: default # Default generator is Visual Studio
+
+          # ARCH
+          - os: windows-2019
+            arch: i686
+            abi: gnu
+          - os: windows-2019
+            arch: aarch64
+            abi: gnu
+          - os: windows-2019
+            arch: i686
+            generator: ninja
+          - os: windows-2019
+            arch: aarch64
+            generator: ninja
+          - os: windows-2019
+            arch: powerpc64le
+          - os: macos-12
+            arch: i686
+          - os: macos-12
+            arch: aarch64
+          - os: macos-12
+            arch: powerpc64le
+
+          # ABI
+          - os: ubuntu-latest
+            abi: msvc
+          - os: ubuntu-latest
+            abi: darwin
+          - os: windows-2019
+            abi: darwin
+          - os: macos-12
+            abi: msvc
+          - os: macos-12
+            abi: gnu
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Environment and Configure CMake
+        uses: "./.github/actions/setup_test"
+        with:
+          target_arch: ${{matrix.arch}}
+          abi: ${{matrix.abi}}
+          cmake: ${{matrix.cmake}}
+          rust: ${{matrix.rust}}
+          generator: ${{matrix.generator}}
+          build_dir: build
+          compiler: ${{matrix.compiler}}
+      - name: Run Tests
+        id: run_tests
+        working-directory: build
+        run: ctest --output-on-failure --build-config Debug -j 3
+
+  test_msvc:
+    name: Test MSVC Generator
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2019
+          - windows-2022
+        arch:
+          - x86_64
+          - i686
+          - aarch64
+        include:
+          - rust: 1.54.0
+          # Override rust version for x86_64
+          - arch: x86_64
+            rust: 1.46.0
+          - os: windows-2019
+            cmake: 3.20.6  # Multi-config Generators require at least CMake 3.20
+          - os: windows-2022
+            cmake: 3.21.5 # VS on windows-2022 requires at least CMake 3.21
+
+    steps:
+      - uses: actions/checkout@v4
+      # The initial configure for MSVC is quite slow, so we cache the build directory
+      # (including the build directories of the tests) since reconfiguring is
+      # significantly faster.
+      - name: Cache MSVC build directory
+        id: cache-msvc-builddir
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: ${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.rust }}-msvc-build
+      - name: Setup Environment and Configure CMake
+        uses: "./.github/actions/setup_test"
+        with:
+          target_arch: ${{matrix.arch}}
+          abi: msvc
+          cmake: ${{matrix.cmake}}
+          rust: ${{matrix.rust}}
+          generator: default
+          build_dir: build
+          configure_params: "-DCORROSION_TESTS_KEEP_BUILDDIRS=ON"
+      - name: Run Tests
+        working-directory: build
+        run: ctest --output-on-failure --build-config Debug -j 3
+
+  test_cxxbridge:
+    name: Test cxxbridge integration
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2019
+          - ubuntu-latest
+          - macos-12
+        include:
+          - abi: default
+        #  - os: windows-2019
+        #    abi: gnu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        id: cache_cxxbridge
+        with:
+          path: "~/.cargo/bin/cxxbridge*"
+          key: ${{ runner.os }}-cxxbridge_1_0_86
+      - name: Install cxxbridge
+        if: steps.cache_cxxbridge.outputs.cache-hit != 'true'
+        run: cargo install cxxbridge-cmd@1.0.86
+      - name: Install lld
+        run: sudo apt update && sudo apt install -y lld
+        if: ${{ 'Linux' == runner.os }}
+      - name: Setup Environment and Configure CMake
+        uses: "./.github/actions/setup_test"
+        with:
+          target_arch: x86_64
+          cmake: 3.15.7
+          rust: stable minus 2 releases
+          abi: ${{ matrix.abi }}
+          generator: ninja
+          build_dir: build
+          configure_params: -DCORROSION_TESTS_CXXBRIDGE=ON
+      - name: Run Tests
+        working-directory: build
+        run: ctest --output-on-failure --build-config Debug -j 3 -R "^cxxbridge"
+  install:
+    name: Test Corrosion as a Library
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2019
+          - ubuntu-latest
+          - macos-12
+        include:
+          - rust: 1.46.0
+          - os: macos-12
+            rust: 1.54.0  # On MacOS-12 linking fails before Rust 1.54
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup MSVC Development Environment
+        uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Install CMake
+        uses: lukka/get-cmake@519de0c7b4812477d74976b2523a9417f552d126
+        with:
+          cmakeVersion: "~3.18.0"
+          ninjaVersion: "~1.10.0"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{matrix.rust}}
+      - name: CMake Version
+        run: cmake --version
+      - name: Rust Version
+        run: rustc --version
+      - name: Test Corrosion as subdirectory
+        run: >
+          cmake
+          -S.
+          -Bbuild
+          -GNinja
+          -DCORROSION_VERBOSE_OUTPUT=ON
+          -DCORROSION_TESTS_INSTALL_CORROSION=OFF
+          &&
+          cd build
+          &&
+          ctest --output-on-failure -C Debug -j 3
+      - name: Test Corrosion as installed module
+        run: >
+          cmake -E remove_directory build
+          &&
+          cmake
+          -S.
+          -Bbuild
+          -GNinja
+          -DCORROSION_VERBOSE_OUTPUT=ON
+          -DCMAKE_BUILD_TYPE=Release
+          -DCORROSION_TESTS_INSTALL_CORROSION=ON
+          &&
+          cd build
+          &&
+          ctest --output-on-failure -C Release -j 3
+  # We need some "accumulation" job here because bors fails (timeouts) to
+  # listen on matrix builds.
+  # Hence, we have some kind of dummy here that bors can listen on
+  ci-success:
+    name: bors-ci-status
+    if: ${{ always() }}
+    needs:
+      - test_legacy_linux
+      - test_legacy_mac
+      - test_legacy_windows
+      - test_legacy_stable
+      - test_legacy_new_lockfile_msrv
+      - test
+      - test_msvc
+      - test_cxxbridge
+      - install
+    runs-on: ubuntu-latest
+    # Step copied from: https://github.com/cross-rs/cross/blob/80c9f9109a719ffb0f694060ddc6e371d5b3a540/.github/workflows/ci.yml#L361
+    steps:
+      - name: Result
+        run: |
+          jq -C <<< "${needs}"
+          # Check if all needs were successful or skipped.
+          "$(jq -r 'all(.result as $result | (["success", "skipped"] | contains([$result])))' <<< "${needs}")"
+        env:
+          needs: ${{ toJson(needs) }}
+
