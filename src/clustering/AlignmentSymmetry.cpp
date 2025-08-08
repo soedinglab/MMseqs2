@@ -147,6 +147,8 @@ void AlignmentSymmetry::readInDataSet(DBReader<unsigned int>*alnDbr, DBReader<un
                 size_t end1 = sourceOffsets[clusterId+1];
                 size_t len = end1 - start1;
                 size_t isnull = 0;
+
+                size_t setSize = LEN(offsets, i);
                 size_t writePos = 0;
                 std::vector<bool> bitFlags(dbSize, false);
                 for (size_t j = 0; j < len; ++j) {
@@ -159,6 +161,12 @@ void AlignmentSymmetry::readInDataSet(DBReader<unsigned int>*alnDbr, DBReader<un
                             continue;
                         }
                         while (*data != '\0') {
+                            if (writePos >= setSize) {
+                                Debug(Debug::ERROR) << "Set " << i
+                                                    << " has more elements than allocated (" << setSize
+                                                    << ")!\n";
+                                continue;
+                            }
                             char similarity[255 + 1];
                             char dbKey[255 + 1];
                             Util::parseKey(data, dbKey);

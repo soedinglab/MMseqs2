@@ -58,7 +58,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             
             mappingStream.close();
             mappingStream.open(seqDB + ".lookup");
-            unsigned int setkey;
+            unsigned int setkey = 0;
             while (std::getline(mappingStream, line)) {
                 std::vector<std::string> split = Util::split(line, "\t");
                 unsigned int key = strtoul(split[0].c_str(), NULL, 10);
