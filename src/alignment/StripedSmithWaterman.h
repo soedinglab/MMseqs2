@@ -79,6 +79,9 @@ public:
     // TODO: private or public?
     struct s_profile{
         simd_int* profile_byte;	// 0: none
+    #ifdef AVX512BW
+        __m512i* profile_byteBW;	// 0: none
+    #endif
         simd_int* profile_word;	// 0: none
         simd_int* profile_rev_byte;	// 0: none
         simd_int* profile_rev_word;	// 0: none
@@ -279,6 +282,10 @@ private:
 
     simd_int* vHStore;
     simd_int* vHLoad;
+#ifdef AVX512BW
+    __m512i* vHStoreBW;
+    __m512i* vHLoadBW;
+#endif
     simd_int* vE;
     simd_int* vHmax;
     uint8_t * maxColumn;
@@ -387,6 +394,11 @@ private:
     size_t query_id;
     size_t target_id;
 
+    #ifdef AVX512BW
+        template <typename T, size_t Elements, const unsigned int type>
+        void createQueryProfile_AVX512BW(__m512i *profile, const int8_t *query_sequence, const int8_t * composition_bias, const int8_t *mat,
+            const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
+    #endif
 
     template <typename T, size_t Elements, const unsigned int type>
     void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias,
@@ -402,6 +414,11 @@ private:
     void createConsensProfile(simd_int *profile, const int8_t *consens_sequence, const int32_t query_length, const int32_t offset);
 
     void createTargetProfile(simd_int *profile, const int8_t *mat, const int target_length, const int32_t aaSize, uint8_t bias);
+
+#ifdef AVX512BW
+    template <typename T, size_t Elements>
+    void updateQueryProfile_AVX512BW(__m512i *profile, const int32_t query_length, const int32_t aaSize, uint8_t shift);
+#endif
 
     template <typename T, size_t Elements>
     void updateQueryProfile(simd_int *profile, const int32_t query_length, const int32_t aaSize, uint8_t shift);
