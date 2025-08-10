@@ -229,6 +229,10 @@ public:
     static const int PAIRALN_MODE_ALL_PER_SPECIES = 0;
     static const int PAIRALN_MODE_COVER_ALL_CHAINS = 1;
 
+    // pairaln filter
+    static const int PAIRALN_FILTER_TOP_HIT = 0;
+    static const int PAIRALN_FILTER_PROXIMITY = 1;
+
     // taxonomy search strategy
     static const int TAXONOMY_SINGLE_SEARCH = 1;
     static const int TAXONOMY_2BLCA = 2;
@@ -696,6 +700,8 @@ public:
     // pairaln
     int pairdummymode;
     int pairmode;
+    int pairfilter;
+    int pairProximityDistance;
 
     // taxonomyreport
     int reportMode;
@@ -725,7 +731,14 @@ public:
     // unpackdb
     std::string unpackSuffix;
     int unpackNameMode;
-
+    
+    // fwbw
+    float mact;
+    float fwbwGapopen;
+    float fwbwGapextend;
+    float temperature;
+    int blocklen;
+    int fwbwBacktraceMode;
     // for modules that should handle -h themselves
     bool help;
 
@@ -1054,6 +1067,8 @@ public:
     // pairaln
     PARAMETER(PARAM_PAIRING_DUMMY_MODE)
     PARAMETER(PARAM_PAIRING_MODE)
+    PARAMETER(PARAM_PAIRING_FILTER)
+    PARAMETER(PARAM_PAIRING_PROX_DIST)
     
     // taxonomyreport
     PARAMETER(PARAM_REPORT_MODE)
@@ -1083,7 +1098,14 @@ public:
     // unpackdb
     PARAMETER(PARAM_UNPACK_SUFFIX)
     PARAMETER(PARAM_UNPACK_NAME_MODE)
-
+    
+    // fwbw
+    PARAMETER(PARAM_MACT)
+    PARAMETER(PARAM_FWBW_GAPOPEN)
+    PARAMETER(PARAM_FWBW_GAPEXTEND)
+    PARAMETER(PARAM_TEMPERATURE)
+    PARAMETER(PARAM_BLOCKLEN)
+    PARAMETER(PARAM_FWBW_BACKTRACE_MODE)
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
     PARAMETER(PARAM_HELP_LONG)
@@ -1210,6 +1232,7 @@ public:
     std::vector<MMseqsParameter*> touchdb;
     std::vector<MMseqsParameter*> gpuserver;
     std::vector<MMseqsParameter*> tsv2exprofiledb;
+    std::vector<MMseqsParameter*> fwbw;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);

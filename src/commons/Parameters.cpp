@@ -289,6 +289,8 @@ Parameters::Parameters():
         // pairaln
         PARAM_PAIRING_DUMMY_MODE(PARAM_PAIRING_DUMMY_MODE_ID, "--pairing-dummy-mode", "Include dummy pairing", "0: dont include, 1: include - an entry that will cause result2msa to write a gap only line", typeid(int), (void *) &pairdummymode, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_PAIRING_MODE(PARAM_PAIRING_MODE_ID, "--pairing-mode", "Pairing mode", "0: pair maximal per species, 1: pair only if all chains are covered per species", typeid(int), (void *) &pairmode, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PAIRING_FILTER(PARAM_PAIRING_FILTER_ID, "--pairing-filter", "Pairing filter", "filter hits by 0: top hit, 1: pair by proximity of IDs", typeid(int), (void *) &pairfilter, "^[0-1]{1}$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PAIRING_PROX_DIST(PARAM_PAIRING_PROX_DIST_ID, "--pairing-prox-dist", "Proximity distance threshold", "adjust the distance threshold for pairing (--pairing-filter 1)", typeid(int), (void *) &pairProximityDistance, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_EXPERT),
         // taxonomyreport
         PARAM_REPORT_MODE(PARAM_REPORT_MODE_ID, "--report-mode", "Report mode", "Taxonomy report mode\n0: Kraken\n1: Krona\n2: do not create a report (for workflows only)\n3: Kraken per query database", typeid(int), (void *) &reportMode, "^[0-3]{1}$"),
         // createtaxdb
@@ -310,6 +312,13 @@ Parameters::Parameters():
         // unpackdb
         PARAM_UNPACK_SUFFIX(PARAM_UNPACK_SUFFIX_ID, "--unpack-suffix", "Unpack suffix", "File suffix for unpacked files.\nAdd .gz suffix to write compressed files.", typeid(std::string), (void *) &unpackSuffix, "^.*$"),
         PARAM_UNPACK_NAME_MODE(PARAM_UNPACK_NAME_MODE_ID, "--unpack-name-mode", "Unpack name mode", "Name unpacked files by 0: DB key, 1: accession (through .lookup)", typeid(int), (void *) &unpackNameMode, "^[0-1]{1}$"),
+        // fwbw
+        PARAM_MACT(PARAM_MACT_ID, "--mact", "MAC threshold", "Maximum accuracy threshold", typeid(float), (void *) &mact, "^0(\\.[0-9]+)?|^1(\\.0+)?$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_FWBW_GAPOPEN(PARAM_FWBW_GAPOPEN_ID, "--fwbw-gapopen", "fwbw-gapopen", "Gap open penalty for fwbw", typeid(float), (void *) &fwbwGapopen, "^([0-9]+(\\.[0-9]+)?)|(\\.[0-9]+)$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_FWBW_GAPEXTEND(PARAM_FWBW_GAPEXTEND_ID, "--fwbw-gapextend", "fwbw-gapextend", "Gap extension penalty for fwbw", typeid(float), (void *) &fwbwGapextend, "^([0-9]+(\\.[0-9]+)?)|(\\.[0-9]+)$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_TEMPERATURE(PARAM_TEMPERATURE_ID, "--temperature", "Temperature", "Temperature for forward-backward", typeid(float), (void *) &temperature, "^(0\\.[0-9]+|[1-9][0-9]*\\.?[0-9]*)$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_BLOCKLEN(PARAM_BLOCKLEN_ID, "--blocklen", "Block length", "Block length for forward-backward", typeid(int), (void *) &blocklen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_FWBW_BACKTRACE_MODE(PARAM_FWBW_BACKTRACE_MODE_ID, "--fwbw-backtrace-mode", "Backtrace mode", "Backtrace mode 0: no backtrace, 1: local", typeid(int), (void *) &fwbwBacktraceMode, "^[01]$", MMseqsParameter::COMMAND_EXPERT),
         // for modules that should handle -h themselves
         PARAM_HELP(PARAM_HELP_ID, "-h", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_HELP_LONG(PARAM_HELP_LONG_ID, "--help", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN)
@@ -586,6 +595,7 @@ Parameters::Parameters():
     createtsv.push_back(&PARAM_FULL_HEADER);
     createtsv.push_back(&PARAM_IDX_SEQ_SRC);
     createtsv.push_back(&PARAM_DB_OUTPUT);
+    createtsv.push_back(&PARAM_PRELOAD_MODE);
     createtsv.push_back(&PARAM_THREADS);
     createtsv.push_back(&PARAM_COMPRESSED);
     createtsv.push_back(&PARAM_V);
@@ -1281,6 +1291,8 @@ Parameters::Parameters():
     pairaln.push_back(&PARAM_PRELOAD_MODE);
     pairaln.push_back(&PARAM_PAIRING_DUMMY_MODE);
     pairaln.push_back(&PARAM_PAIRING_MODE);
+    pairaln.push_back(&PARAM_PAIRING_FILTER);
+    pairaln.push_back(&PARAM_PAIRING_PROX_DIST);
     pairaln.push_back(&PARAM_COMPRESSED);
     pairaln.push_back(&PARAM_THREADS);
     pairaln.push_back(&PARAM_V);
@@ -1288,6 +1300,24 @@ Parameters::Parameters():
     sortresult.push_back(&PARAM_COMPRESSED);
     sortresult.push_back(&PARAM_THREADS);
     sortresult.push_back(&PARAM_V);
+
+    // fwbw
+    fwbw.push_back(&PARAM_SUB_MAT);
+    fwbw.push_back(&PARAM_MACT);
+    fwbw.push_back(&PARAM_FWBW_GAPOPEN);
+    fwbw.push_back(&PARAM_FWBW_GAPEXTEND);
+    fwbw.push_back(&PARAM_TEMPERATURE);
+    fwbw.push_back(&PARAM_BLOCKLEN);
+    fwbw.push_back(&PARAM_FWBW_BACKTRACE_MODE);
+    fwbw.push_back(&PARAM_E);
+    fwbw.push_back(&PARAM_MIN_SEQ_ID);
+    fwbw.push_back(&PARAM_MIN_ALN_LEN);
+    fwbw.push_back(&PARAM_SEQ_ID_MODE);
+    fwbw.push_back(&PARAM_C);
+    fwbw.push_back(&PARAM_COV_MODE);
+    fwbw.push_back(&PARAM_THREADS);
+    fwbw.push_back(&PARAM_COMPRESSED);
+    fwbw.push_back(&PARAM_V);
 
     // WORKFLOWS
     searchworkflow = combineList(align, prefilter);
@@ -1331,6 +1361,7 @@ Parameters::Parameters():
     easysearchworkflow = combineList(easysearchworkflow, createdb);
     easysearchworkflow = combineList(easysearchworkflow, makepaddedseqdb);
     easysearchworkflow.push_back(&PARAM_GREEDY_BEST_HITS);
+
 
     // createindex workflow
     createindex = combineList(indexdb, extractorfs);
@@ -2656,7 +2687,8 @@ void Parameters::setDefaults() {
     // pairaln
     pairdummymode = PAIRALN_DUMMY_MODE_OFF;
     pairmode = PAIRALN_MODE_ALL_PER_SPECIES;
-
+    pairfilter = PAIRALN_FILTER_TOP_HIT;
+    pairProximityDistance = 20;
     // taxonomyreport
     reportMode = 0;
 
@@ -2667,7 +2699,14 @@ void Parameters::setDefaults() {
     // taxonomy
     taxonomySearchMode = Parameters::TAXONOMY_APPROX_2BLCA;
     taxonomyOutputMode = Parameters::TAXONOMY_OUTPUT_LCA;
-
+    
+    // fwbw
+    mact = 0.035;
+    fwbwGapopen = 10;
+    fwbwGapextend = 2;
+    temperature = 1;
+    blocklen = 16;
+    fwbwBacktraceMode = 1;
     // help
     help = 0;
 

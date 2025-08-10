@@ -141,7 +141,6 @@ int createtsv(int argc, const char **argv, const Command &command) {
                             continue;
                         }
                     }
-                    
                     if(needSET == true) {
                         targetAccession = tSetToSource[targetKey];
                     } else if (par.fullHeader) {

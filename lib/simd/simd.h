@@ -96,13 +96,20 @@ typedef __m512  simd_float;
 #define simdf32_gt(x,y)     _mm512_cmpnle_ps_mask(x,y)
 #define simdf32_eq(x,y)     _mm512_cmpeq_ps_mask(x,y)
 #define simdf32_lt(x,y)     _mm512_cmplt_ps_mask(x,y)
+#define simdf32_le(x,y)     _mm512_cmple_ps_mask(x,y)
+#define simdf32_cmp(x,y,z) _mm512_cmp_ps_mask(x,y,z)
 #define simdf32_or(x,y)     _mm512_or_si512(x,y)
 #define simdf32_and(x,y)    _mm512_and_si512(x,y)
 #define simdf32_andnot(x,y) _mm512_andnot_si512(x,y)
 #define simdf32_xor(x,y)    _mm512_xor_si512(x,y)
 #define simdf32_f2i(x) 	    _mm512_cvtps_epi32(x)  // convert s.p. float to integer
 #define simdf_f2icast(x)    _mm512_castps_si512(x)
+#define simdf32_round(x)    _mm512_roundscale_ps(x, SIMDE_MM_FROUND_TO_NEAREST_INT | SIMDE_MM_FROUND_NO_EXC)
+#define simdf32_blendv_ps(x,y,z) _mm512_mask_blend_ps(z,x,y)
+#define simdf32_reverse(x) simdf32_reverse_avx512(x) //_mm512_permute_ps(_mm512_shuffle_f32x4(x, x, _MM_SHUFFLE(0, 1, 2, 3)), _MM_SHUFFLE(0, 1, 2, 3))
+#define simdf32_fmadd(x,y,z) _mm512_fmadd_ps(x,y,z)
 #endif //SIMD_FLOAT
+
 // integer support 
 #ifndef SIMD_INT
 #define SIMD_INT
@@ -150,6 +157,7 @@ typedef __m512i simd_int;
 #define simdi16_srli(x,y)	_mm512_srli_epi16(x,y) // shift integers in a right by y
 #define simdi32_slli(x,y)	_mm512_slli_epi32(x,y) // shift integers in a left by y
 #define simdi32_srli(x,y)	_mm512_srli_epi32(x,y) // shift integers in a right by y
+#define simdi32_srai(x,y)	_mm512_srai_epi32(x,y)
 #define simdi32_i2f(x) 	    _mm512_cvtepi32_ps(x)  // convert integer to s.p. float
 #define simdi_i2fcast(x)    _mm512_castsi512_ps(x)
 #endif //SIMD_INT
@@ -158,6 +166,7 @@ typedef __m512i simd_int;
 
 #ifdef AVX2
 #include <simde/x86/avx2.h>
+#include <simde/x86/fma.h>
 // integer support  (usable with AVX2)
 #ifndef SIMD_INT
 #define SIMD_INT
@@ -219,6 +228,26 @@ inline bool simd_eq_all_avx(const __m256i a, const __m256i b) {
     return (bit_mask == 0xffffffff);
 #endif
 }
+
+float simdf32_hmax_sse(const __m128 buffer);
+
+inline float simdf32_hmax_avx(const __m256 buffer) {
+    const __m128 lower = _mm256_castps256_ps128(buffer); // Lower 128 bits
+    const __m128 upper = _mm256_extractf128_ps(buffer, 1); // Upper 128 bits
+    const float lower_max = simdf32_hmax_sse(lower);
+    const float upper_max = simdf32_hmax_sse(upper);
+    return std::max(lower_max, upper_max);
+}
+__m128 simdf32_reverse_sse(const __m128 buffer);
+
+inline __m256 simdf32_reverse_avx256(const __m256 buffer) {
+    const __m128 lower = _mm256_castps256_ps128(buffer); // Lower 128 bits
+    const __m128 upper = _mm256_extractf128_ps(buffer, 1); // Upper 128 bits
+    const __m128 lower_rev = simdf32_reverse_sse(lower);
+    const __m128 upper_rev = simdf32_reverse_sse(upper);
+    return _mm256_insertf128_ps(_mm256_castps128_ps256(upper_rev), lower_rev, 0x1);
+}
+
 
 inline float simdf32_hadd(const __m256 x) {
     /* ( x3+x7, x2+x6, x1+x5, x0+x4 ) */
@@ -322,6 +351,7 @@ typedef __m256i simd_int;
 #define simdi16_srli(x,y)	_mm256_srli_epi16(x,y) // shift integers in a right by y
 #define simdi32_slli(x,y)   _mm256_slli_epi32(x,y) // shift integers in a left by y
 #define simdi32_srli(x,y)   _mm256_srli_epi32(x,y) // shift integers in a right by y
+#define simdi32_srai(x,y)   _mm256_srai_epi32(x,y)
 #define simdi32_i2f(x) 	    _mm256_cvtepi32_ps(x)  // convert integer to s.p. float
 #define simdi_i2fcast(x)    _mm256_castsi256_ps(x)
 #endif
@@ -365,18 +395,27 @@ typedef __m256 simd_float;
 #define simdf32_min(x,y)    _mm256_min_ps(x,y)
 #define simdf32_load(x)     _mm256_load_ps(x)
 #define simdf32_store(x,y)  _mm256_store_ps(x,y)
-#define simdf32_storeu(x,y)   _mm256_storeu_ps(x,y)
+#define simdf32_loadu(x)    _mm256_loadu_ps(x)
+#define simdf32_storeu(x,y) _mm256_storeu_ps(x,y)
 #define simdf32_set(x)      _mm256_set1_ps(x)
 #define simdf32_setzero(x)  _mm256_setzero_ps()
 #define simdf32_gt(x,y)     _mm256_cmp_ps(x,y,_CMP_GT_OS)
 #define simdf32_eq(x,y)     _mm256_cmp_ps(x,y,_CMP_EQ_OS)
 #define simdf32_lt(x,y)     _mm256_cmp_ps(x,y,_CMP_LT_OS)
+#define simdf32_le(x,y)     _mm256_cmp_ps(x,y,_CMP_LE_OQ) // OQ or OS?
+#define simdf32_cmp(x,y,z) _mm256_cmp_ps(x,y,z)
 #define simdf32_or(x,y)     _mm256_or_ps(x,y)
 #define simdf32_and(x,y)    _mm256_and_ps(x,y)
 #define simdf32_andnot(x,y) _mm256_andnot_ps(x,y)
 #define simdf32_xor(x,y)    _mm256_xor_ps(x,y)
 #define simdf32_f2i(x) 	    _mm256_cvtps_epi32(x)  // convert s.p. float to integer
 #define simdf_f2icast(x)    _mm256_castps_si256(x) // compile time cast
+#define simdf32_round(x)    _mm256_round_ps(x, SIMDE_MM_FROUND_TO_NEAREST_INT | SIMDE_MM_FROUND_NO_EXC)
+#define simdf32_blendv_ps(x,y,z) _mm256_blendv_ps(x,y,z)
+#define simdf32_movemask_ps(x) _mm256_movemask_ps(x)
+#define simdf32_hmax(x)     simdf32_hmax_avx(x)
+#define simdf32_reverse(x)  simdf32_reverse_avx256(x)
+#define simdf32_fmadd(x,y,z) _mm256_fmadd_ps(x,y,z)
 #endif
 #endif
 
@@ -415,6 +454,16 @@ inline uint8_t simd_hmax8_sse(const __m128i buffer) {
 #endif
 }
 
+inline float simdf32_hmax_sse(const __m128 buffer) {
+    __m128 temp = _mm_shuffle_ps(buffer, buffer, _MM_SHUFFLE(2, 3, 0, 1)); // Swap adjacent elements
+    __m128 max1 = _mm_max_ps(buffer, temp);
+
+    temp = _mm_shuffle_ps(max1, max1, _MM_SHUFFLE(1, 0, 3, 2)); // Compare across the remaining pairs
+    __m128 max2 = _mm_max_ps(max1, temp);
+
+    return _mm_cvtss_f32(max2);
+}
+
 inline bool simd_any_sse(const __m128i buffer) {
 #if defined(SIMDE_ARM_NEON_A64V8_NATIVE)
     const uint32_t non_zero = vmaxvq_u32(vreinterpretq_u32_s64(buffer));
@@ -436,6 +485,10 @@ inline bool simd_eq_all_sse(const __m128i a, const __m128i b) {
     const uint32_t bit_mask = _mm_movemask_epi8(vector_mask);
     return (bit_mask == 0xffff);
 #endif
+}
+
+inline __m128 simdf32_reverse_sse(const __m128 buffer) {
+    return _mm_shuffle_ps(buffer, buffer, _MM_SHUFFLE(0, 1, 2, 3));
 }
 
 // see https://stackoverflow.com/questions/6996764/fastest-way-to-do-horizontal-sse-vector-sum-or-other-reduction
@@ -485,17 +538,27 @@ typedef __m128  simd_float;
 #define simdf32_min(x,y)    _mm_min_ps(x,y)
 #define simdf32_load(x)     _mm_load_ps(x)
 #define simdf32_store(x,y)  _mm_store_ps(x,y)
+#define simdf32_loadu(x)    _mm_loadu_ps(x)
+#define simdf32_storeu(x,y) _mm_storeu_ps(x,y)
 #define simdf32_set(x)      _mm_set1_ps(x)
 #define simdf32_setzero(x)  _mm_setzero_ps()
 #define simdf32_gt(x,y)     _mm_cmpgt_ps(x,y)
 #define simdf32_eq(x,y)     _mm_cmpeq_ps(x,y)
 #define simdf32_lt(x,y)     _mm_cmplt_ps(x,y)
+#define simdf32_le(x,y)     _mm_cmple_ps(x,y)
+#define simdf32_cmp(x,y,z)  _mm_cmpunord_ps(x,y)
 #define simdf32_or(x,y)     _mm_or_ps(x,y)
 #define simdf32_and(x,y)    _mm_and_ps(x,y)
 #define simdf32_andnot(x,y) _mm_andnot_ps(x,y)
 #define simdf32_xor(x,y)    _mm_xor_ps(x,y)
 #define simdf32_f2i(x) 	    _mm_cvtps_epi32(x)  // convert s.p. float to integer
 #define simdf_f2icast(x)    _mm_castps_si128(x) // compile time cast
+#define simdf32_round(x)    _mm_round_ps(x, SIMDE_MM_FROUND_TO_NEAREST_INT | SIMDE_MM_FROUND_NO_EXC) // SSE4.1
+#define simdf32_blendv_ps(x,y,z) _mm_blendv_ps(x,y,z)
+#define simdf32_movemask_ps(x) _mm_movemask_ps(x)
+#define simdf32_hmax(x)    simdf32_hmax_sse(x)
+#define simdf32_reverse(x) simdf32_reverse_sse(x) //_mm_shuffle_ps(x, x, _MM_SHUFFLE(0, 1, 2, 3))
+#define simdf32_fmadd(x,y,z) _mm_add_ps(_mm_mul_ps(x,y),z)
 #endif //SIMD_FLOAT
 
 // integer support
@@ -578,6 +641,7 @@ typedef __m128i simd_int;
 #define simdi16_srli(x,y)	_mm_srli_epi16(x,y) // shift integers in a right by y
 #define simdi32_slli(x,y)	_mm_slli_epi32(x,y) // shift integers in a left by y
 #define simdi32_srli(x,y)	_mm_srli_epi32(x,y) // shift integers in a right by y
+#define simdi32_srai(x,y)   _mm_srai_epi32(x,y)
 #define simdi32_i2f(x) 	    _mm_cvtepi32_ps(x)  // convert integer to s.p. float
 #define simdi_i2fcast(x)    _mm_castsi128_ps(x)
 #endif //SIMD_INT
@@ -699,7 +763,140 @@ inline simd_float simdf32_fpow2(simd_float X) {
     return result;
 }
 
+static inline simd_float polynomial_5 (simd_float x, simd_float c0, simd_float c1, simd_float c2, simd_float c3, simd_float c4, simd_float c5) {
+    simd_float x2 = simdf32_mul(x, x);
+    simd_float x4 = simdf32_mul(x2, x2);
+    return simdf32_fmadd(simdf32_fmadd(c3, x, c2), x2, simdf32_fmadd(simdf32_fmadd(c5, x, c4), x4, simdf32_fmadd(c1, x, c0)));
+}
 
+static inline simd_float polynomial_8(simd_float x, simd_float c0, simd_float c1, simd_float c2, simd_float c3, simd_float c4, simd_float c5, simd_float c6, simd_float c7, simd_float c8) {
+    simd_float x2 = simdf32_mul(x, x);
+    simd_float x4 = simdf32_mul(x2, x2);
+    simd_float x8 = simdf32_mul(x4, x4);
+
+    return simdf32_fmadd(simdf32_fmadd(simdf32_fmadd(c7, x, c6), x2, simdf32_fmadd(c5, x, c4)), x4,
+        simdf32_fmadd(simdf32_fmadd(c3, x, c2), x2, simdf32_fmadd(c1, x, c0) + simdf32_mul(x8, c8)));
+}
+
+static inline simd_float simdf32_pow2n(simd_float n) {
+    simd_float a = simdf32_add(n, simdf32_set(127.0f + 8388608.0f));
+    simd_int b = simdf_f2icast(a);
+    simd_int c = simdi32_slli(b, 23);
+    return simdi_i2fcast(c);
+}
+
+static inline simd_float simdf32_abs(simd_float a){
+    const simd_float mask = simdi_i2fcast(simdi32_set(0x7FFFFFFF));
+    return simdf32_and(a, mask);
+}
+
+static inline simd_int simdi32_is_finite(simd_float a) {
+    simd_int t1 = simdf_f2icast(a);
+    simd_int t2 = simdi32_slli(t1, 1);
+
+    simd_int exponent_mask = simdi32_set(0xFF000000);
+    simd_int t3 = simdi_and(t2, exponent_mask);
+
+    simd_int all_ones = simdi32_set(0xFF000000);
+    simd_int is_not_inf_or_nan = simdi32_eq(t3, all_ones);
+    simd_int result = simdi_xor(is_not_inf_or_nan, simdi32_set(-1)); 
+
+    return result;
+}
+
+static inline simd_float simdf32_exp(simd_float x_init) {
+    const simd_float P0 = simdf32_set(1.0f / 2.0f);
+    const simd_float P1 = simdf32_set(1.0f / 6.0f);
+    const simd_float P2 = simdf32_set(1.0f / 24.0f);
+    const simd_float P3 = simdf32_set(1.0f / 120.0f);
+    const simd_float P4 = simdf32_set(1.0f / 720.0f);
+    const simd_float P5 = simdf32_set(1.0f / 5040.0f);
+
+    const simd_float negLN2_HI = simdf32_set(-0.693359375f);
+    const simd_float negLN2_LO = simdf32_set(2.12194440e-4f);
+    const simd_float VM_LOG2E = simdf32_set(1.44269504088896340736);
+
+    simd_float x = x_init;
+    simd_float r = simdf32_round(simdf32_mul(x_init, VM_LOG2E));
+    x = simdf32_fmadd(r, negLN2_HI, x);
+    x = simdf32_fmadd(r, negLN2_LO, x);
+    simd_float x2 = simdf32_mul(x, x);
+    simd_float z = polynomial_5(x, P0, P1, P2, P3, P4, P5);
+    z = simdf32_fmadd(z, x2, x);
+    simd_float n2 = simdf32_pow2n(r);
+    z = simdf32_fmadd(z, n2, n2);
+
+    //special cases
+    const simd_float MAX_X = simdf32_set(87.3f);
+    simd_float inrange = simdf32_lt(simdf32_abs(x_init), MAX_X);
+    const simd_float InfVec = simdf32_set(std::numeric_limits<float>::infinity());
+    simd_float signBit = simdi_i2fcast(simdi32_srai(simdf_f2icast(x_init), 31));
+    simd_float isNan = simdf32_cmp(x_init, x_init, 3);
+    
+    r = simdf32_blendv_ps(InfVec, simdf32_set(0.0f), signBit); // value in case of -
+    z = simdf32_blendv_ps(r, z, inrange);     // +/- underflow
+    z = simdf32_blendv_ps(z, x_init, isNan); // NAN goes through
+    return z;
+}
+
+static inline simd_float simdf32_log(simd_float x_init) {
+    // Constants
+    const simd_float LN2f_HI = simdf32_set(0.693359375f);
+    const simd_float LN2f_LO = simdf32_set(-2.12194440e-4f);
+    const simd_float P0LOGF  = simdf32_set(3.3333331174E-1f);
+    const simd_float P1LOGF  = simdf32_set(-2.4999993993E-1f);
+    const simd_float P2LOGF  = simdf32_set(2.0000714765E-1f);
+    const simd_float P3LOGF  = simdf32_set(-1.6668057665E-1f);
+    const simd_float P4LOGF  = simdf32_set(1.4249322787E-1f);
+    const simd_float P5LOGF  = simdf32_set(-1.2420140846E-1f);
+    const simd_float P6LOGF  = simdf32_set(1.1676998740E-1f);
+    const simd_float P7LOGF  = simdf32_set(-1.1514610310E-1f);
+    const simd_float P8LOGF  = simdf32_set(7.0376836292E-2f);
+    const simd_float SQRT2_threshold   = simdf32_set(1.41421356237309504880*0.5);
+    const simd_float one = simdf32_set(1.0f);
+
+    // separate mantissa from exponent
+    simd_int xi = simdf_f2icast(x_init);
+    simd_int mi = simdi_or(simdi_and(xi, simdi32_set(0x007FFFFF)), simdi32_set(0x3F000000));
+    simd_float m = simdi_i2fcast(mi);
+
+    simd_int ei = simdi32_sub(simdi32_srli(simdi32_slli(xi, 1), 24), simdi32_set(0x7F));
+    simd_float e = simdi32_i2f(ei);
+    simd_float blend_mask = simdf32_gt(m, SQRT2_threshold);
+    simd_float not_blend_mask = simdf32_le(m, SQRT2_threshold);
+    simd_float m_2 = simdf32_add(m, m);
+
+    m = simdf32_blendv_ps(m, m_2, not_blend_mask);
+    m = simdf32_sub(m, one);
+
+    simd_float e_1 = simdf32_add(e, one);
+    e = simdf32_blendv_ps(e, e_1, blend_mask);
+
+    simd_float res = polynomial_8(m, P0LOGF, P1LOGF, P2LOGF, P3LOGF, P4LOGF, P5LOGF, P6LOGF, P7LOGF, P8LOGF);
+    simd_float m2 = simdf32_mul(m, m);
+    res = simdf32_mul(res, simdf32_mul(m2, m));
+
+    res = simdf32_fmadd(e, LN2f_LO, res);
+    res = simdf32_add(res, simdf32_sub(m, simdf32_mul(m2, simdf32_set(0.5f))));
+    res = simdf32_fmadd(e, LN2f_HI, res);
+
+    // Special cases
+    const simd_float VM_SMALLEST_NORMALF = simdf32_set(1.17549435e-38f);
+    simd_float overflow = simdi_i2fcast(simdi_xor(simdi32_is_finite(x_init), simdi32_set(-1)));
+    simd_float underflow = simdf32_lt(x_init, VM_SMALLEST_NORMALF);
+
+    const simd_float negNanVec = simdf32_set(-std::numeric_limits<float>::quiet_NaN());
+    const simd_float negInfVec = simdf32_set(-std::numeric_limits<float>::infinity());
+    // if overflow(+- INF or NaN) gives x_init
+    res = simdf32_blendv_ps(res, x_init, overflow);
+    // if underflow(<1.17549435e-38f) gives -NAN
+    res = simdf32_blendv_ps(res, negNanVec, underflow);
+    simd_int x_exponent = simdi_and(xi, simdi32_set(0x7F800000));
+    // if x == 0 or subnormal gives -INF
+    simd_float maskZeroOrSubnormal = simdi_i2fcast(simdi32_eq(x_exponent, simdi32_set(0))); // x == 0 or subnormal
+    res = simdf32_blendv_ps(res, negInfVec, maskZeroOrSubnormal);
+    return res;
+}
 
 inline float ScalarProd20(const float* qi, const float* tj) {
 //#ifdef AVX

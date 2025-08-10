@@ -1,58 +1,10 @@
-FROM debian:buster
-ARG VER="12-6"
-RUN dpkg --add-architecture arm64
-RUN apt-get update
-RUN apt-get -y install -o APT::Immediate-Configure=false \
-        git wget vim ninja-build crossbuild-essential-arm64 zlib1g-dev:arm64 libbz2-dev:arm64 software-properties-common
-
-RUN wget https://github.com/Kitware/CMake/releases/download/v3.31.0/cmake-3.31.0-linux-x86_64.sh; \
-    chmod +x cmake-3.31.0-linux-x86_64.sh; \
-    ./cmake-3.31.0-linux-x86_64.sh --skip-license --prefix=/usr/local;
-
-RUN wget -O cuda-x64.deb  https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.1-1_all.deb
-RUN wget -O cuda-sbsa.deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/cross-linux-sbsa/cuda-keyring_1.1-1_all.deb
-RUN dpkg -i cuda-x64.deb && dpkg -i cuda-sbsa.deb
-RUN apt-get update
-RUN apt-get install -y cuda-nvcc-${VER} cuda-nvcc-cross-sbsa-${VER} cuda-cudart-cross-sbsa-${VER}
-
+FROM ghcr.io/steineggerlab/build-containers:main-sbsa
 WORKDIR /work
-RUN wget https://apt.llvm.org/llvm.sh
-RUN chmod +x llvm.sh
-RUN ./llvm.sh 20
-RUN echo "set(CMAKE_SYSTEM_NAME Linux)" > /work/toolchain.cmake; \
-    echo "set(CMAKE_SYSTEM_PROCESSOR aarch64)" >> /work/toolchain.cmake; \
-    echo "set(CMAKE_C_COMPILER /work/clang-aarch64)" >> /work/toolchain.cmake; \
-    echo "set(CMAKE_CXX_COMPILER /work/clang++-aarch64)" >> /work/toolchain.cmake; \
-    echo 'set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})' >> /work/toolchain.cmake; \
-    echo "set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)" >> /work/toolchain.cmake; \
-    echo 'set(CMAKE_CUDA_FLAGS "-t 0 --split-compile=0 -allow-unsupported-compiler")' >> /work/toolchain.cmake; \
-    echo 'set(CMAKE_CUDA_LINK_FLAGS "-t 0 --split-compile=0 -allow-unsupported-compiler")' >> /work/toolchain.cmake; \
-    echo '#!/bin/sh\n/usr/bin/clang-20 --target=aarch64-linux-gnu "${@}"\n' > /work/clang-aarch64; \
-    echo '#!/bin/sh\n/usr/bin/clang++-20 --target=aarch64-linux-gnu "${@}"\n' > /work/clang++-aarch64; \
-    chmod +x /work/clang-aarch64 /work/clang++-aarch64; \
-    cat /work/clang-aarch64 /work/clang++-aarch64;
-
-ENV OMPVERSION=20.1.7
-ENV LIBOMP_AARCH64="/work/build_libomp/openmp-${OMPVERSION}.src/build-arm64/runtime/src"
-RUN mkdir -p build_libomp && cd build_libomp; \
-    wget -qO- https://github.com/llvm/llvm-project/releases/download/llvmorg-${OMPVERSION}/cmake-${OMPVERSION}.src.tar.xz | tar xJvf -; \
-    wget -qO- https://github.com/llvm/llvm-project/releases/download/llvmorg-${OMPVERSION}/openmp-${OMPVERSION}.src.tar.xz | tar xJvf -; \
-    mv cmake-${OMPVERSION}.src cmake; \
-    cd openmp-${OMPVERSION}.src; \
-    mkdir -p build-arm64 && cd build-arm64; \
-    cmake \
-        -GNinja \
-        -DLIBOMP_ENABLE_SHARED=OFF \
-        -DLIBOMP_INSTALL_ALIASES=OFF \
-        -DLIBOMP_ARCH=aarch64 \
-        -DCMAKE_TOOLCHAIN_FILE=/work/toolchain.cmake \
-        ..; \
-    cmake --build . -j$(nproc --all) -v;
 ADD . .
 
 RUN mkdir -p /work/build && cd /work/build; \
     /usr/local/bin/cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_ARM8=1 \
-        -DCMAKE_TOOLCHAIN_FILE=/work/toolchain.cmake \
+        -DCMAKE_TOOLCHAIN_FILE=/opt/toolchain.cmake \
         -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AARCH64}" -DOpenMP_C_LIB_NAMES=omp -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AARCH64}" -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=${LIBOMP_AARCH64}/libomp.a \
         -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
         -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..; \

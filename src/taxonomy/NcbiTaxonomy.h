@@ -119,6 +119,7 @@ public:
 
     TaxonNode* taxonNodes;
     size_t maxNodes;
+    int maxTaxID;
 private:
     size_t loadNodes(std::vector<TaxonNode> &tmpNodes, const std::string &nodesFile);
     size_t loadMerged(const std::string &mergedFile);
@@ -132,7 +133,6 @@ private:
 
     NcbiTaxonomy(TaxonNode* taxonNodes, size_t maxNodes, int maxTaxID, int *D, int *E, int *L, int *H, int **M, StringBlock<unsigned int> *block)
         : taxonNodes(taxonNodes), maxNodes(maxNodes), maxTaxID(maxTaxID), D(D), E(E), L(L), H(H), M(M), block(block), externalData(true), mmapData(NULL), mmapSize(0) {};
-    int maxTaxID;
     int *D; // maps from taxID to node ID in taxonNodes
     int *E; // for Euler tour sequence (size 2N-1)
     int *L; // Level of nodes in tour sequence (size 2N-1)
