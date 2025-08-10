@@ -416,7 +416,8 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
                                                    totalElementCount);
     // fill elements
     if(needSET) {
-        AlignmentSymmetry::readInDataSet(alnDbr, seqDbr, elementLookupTable, NULL, 0, elementOffsets, sourceOffsets, sourceLookupTable, keyToSet);
+        AlignmentSymmetry::readInDataSet(alnDbr, seqDbr, elementLookupTable, NULL, 0, elementOffsets, sourceOffsets, sourceLookupTable, keyToSet, 1);
+        AlignmentSymmetry::computeOffsetFromCounts(elementOffsets, dbSize);
     } else {
         AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, NULL, 0, elementOffsets);
     }
@@ -426,7 +427,6 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
 
     size_t *newElementOffsets = new size_t[dbSize + 1];
     memcpy(newElementOffsets, elementOffsets, sizeof(size_t) * (dbSize + 1));
-
     // findMissingLinks detects new possible connections and updates the elementOffsets with new sizes
     const size_t symmetricElementCount = AlignmentSymmetry::findMissingLinks(elementLookupTable,
                                                                              newElementOffsets, dbSize,
@@ -440,14 +440,16 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     scores = new(std::nothrow) unsigned short[symmetricElementCount];
     Util::checkAllocation(scores, "Can not allocate scores memory in readInClusterData");
     std::fill_n(scores, symmetricElementCount, 0);
-    Debug(Debug::INFO) << "Found " << symmetricElementCount - totalElementCount << " new connections.\n";
+    if(needSET == false){
+        Debug(Debug::INFO) << "Found " << symmetricElementCount - totalElementCount << " new connections.\n";
+    }
     AlignmentSymmetry::setupPointers<unsigned int>  (elements, elementLookupTable, newElementOffsets, dbSize, symmetricElementCount);
     AlignmentSymmetry::setupPointers<unsigned short>(scores, scoreLookupTable, newElementOffsets, dbSize, symmetricElementCount);
     //time
     Debug(Debug::INFO) << "Reconstruct initial order\n";
     alnDbr->remapData(); // need to free memory
     if(needSET) {
-        AlignmentSymmetry::readInDataSet(alnDbr, seqDbr, elementLookupTable, scoreLookupTable, scoretype, elementOffsets, sourceOffsets, sourceLookupTable, keyToSet);
+        AlignmentSymmetry::readInDataSet(alnDbr, seqDbr, elementLookupTable, scoreLookupTable, scoretype, elementOffsets, sourceOffsets, sourceLookupTable, keyToSet, 0);
     } else {
         AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, scoreLookupTable, scoretype, elementOffsets);
     }

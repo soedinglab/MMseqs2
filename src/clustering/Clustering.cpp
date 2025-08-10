@@ -43,21 +43,13 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             originalseqDbr->open(DBReader<unsigned int>::NOSORT);
             DBReader<unsigned int>::Index * seqIndex = originalseqDbr->getIndex();
             
-            std::ifstream mappingStream(seqDB + ".lookup");
-            std::string line;
-            unsigned int lastKey = 0;
-            while (std::getline(mappingStream, line)) {
-                std::vector<std::string> split = Util::split(line, "\t");
-                unsigned int key = strtoul(split[0].c_str(), NULL, 10);
-                lastKey = key;
-            }
-
+            unsigned int lastKey = originalseqDbr->getLastKey();
             keyToSet = new unsigned int[lastKey+1];
             std::vector<bool> keysInSeq(lastKey+1, false);
             std::map<unsigned int, unsigned int> setToLength;
             
-            mappingStream.close();
-            mappingStream.open(seqDB + ".lookup");
+            std::ifstream mappingStream(seqDB + ".lookup");
+            std::string line;
             unsigned int setkey = 0;
             while (std::getline(mappingStream, line)) {
                 std::vector<std::string> split = Util::split(line, "\t");
@@ -80,20 +72,24 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             line = "";
             unsigned int prevsetkey = UINT_MAX;
             size_t n = 0;
-            size_t setId = 0;
             size_t lookupOrder = 0;
-            unsigned int key;
+            setkey = UINT_MAX;
             while (std::getline(mappingStream, line)) {
                 std::vector<std::string> split = Util::split(line, "\t");
-                key = strtoul(split[0].c_str(), NULL, 10);
-                unsigned int setkey = strtoul(split[2].c_str(), NULL, 10);
+                unsigned int key = strtoul(split[0].c_str(), NULL, 10);
+                setkey = strtoul(split[2].c_str(), NULL, 10);
                 if(setkey != prevsetkey) {
-                    sourceOffsets[setId] = n;
-                    setId ++;
+                    if (prevsetkey != UINT_MAX){
+                        sourceOffsets[prevsetkey] = n;
+                        for (size_t k = prevsetkey+1; k<setkey; k++) {
+                            sourceOffsets[k] = 0;
+                        }
+                    }
                     prevsetkey = setkey;
                     if(keysInSeq[key] == 1) {
                         sourceKeyVec.emplace_back(setkey);
                     }
+                    n = 0;
                 }
                 if(keysInSeq[key] == 1) {
                     sourceList[lookupOrder] = key;
@@ -103,8 +99,10 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                 n++;
                 lookupOrder++;
             }
-            sourceOffsets[setId] = n;
+            sourceOffsets[prevsetkey] = n;
+            AlignmentSymmetry::computeOffsetFromCounts(sourceOffsets, sourceLen);
             AlignmentSymmetry::setupPointers<unsigned int>(sourceList, sourceLookupTable, sourceOffsets, sourceLen, lastKey);
+            
             char* data = (char*)malloc(
                 sizeof(size_t) +
                 sizeof(size_t) +
@@ -158,10 +156,12 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
 Clustering::~Clustering() {
     delete seqDbr;
     delete alnDbr;
-    delete keyToSet;
-    delete sourceOffsets;
-    delete sourceList;
-    delete[] sourceLookupTable;
+    if(needSET){
+        delete keyToSet;
+        delete sourceOffsets;
+        delete sourceList;
+        delete[] sourceLookupTable;
+    }
 }
 
 
