@@ -131,24 +131,23 @@ int createtsv(int argc, const char **argv, const Command &command) {
                     targetAccession = "";
                 } else if (hasTargetDB) {
                     unsigned int targetKey = (unsigned int) strtoul(dbKey, NULL, 10);
-                    size_t targetIndex;
+                    size_t targetIndex = targetDB->getId(targetKey);
                     char *targetData;
                     if(needSET == false) {
-                        targetIndex = targetDB->getId(targetKey);
                         targetData = targetDB->getData(targetIndex, thread_idx);
                         if (targetData == NULL) {
                             Debug(Debug::WARNING) << "Invalid header entry in query " << queryKey << " and target " << targetKey << "!\n";
                             continue;
                         }
-                    }
-                    if(needSET == true) {
-                        targetAccession = tSetToSource[targetKey];
-                    } else if (par.fullHeader) {
-                        targetAccession = "\"";
-                        targetAccession.append(targetData, tHeaderIndex[targetIndex].length - 2);
-                        targetAccession.append("\"");
+                        if (par.fullHeader) {
+                            targetAccession = "\"";
+                            targetAccession.append(targetData, tHeaderIndex[targetIndex].length - 2);
+                            targetAccession.append("\"");
+                        } else {
+                            targetAccession = Util::parseFastaHeader(targetData);
+                        }
                     } else {
-                        targetAccession = Util::parseFastaHeader(targetData);
+                        targetAccession = tSetToSource[targetKey];
                     }
                 } else {
                     targetAccession = dbKey;
