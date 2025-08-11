@@ -284,7 +284,7 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
 }
 
 void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
-                                        size_t * offsetTableWithOutNewLinks, size_t * offsetTableWithNewLinks, size_t dbSize, unsigned short **elementScoreTable, bool needSET) {
+                                        size_t * offsetTableWithOutNewLinks, size_t * offsetTableWithNewLinks, size_t dbSize, unsigned short **elementScoreTable) {
 
     // iterate over all connections and check if it exists in the corresponding set
     // if not add it

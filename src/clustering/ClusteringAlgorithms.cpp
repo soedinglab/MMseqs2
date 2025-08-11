@@ -27,7 +27,7 @@ ClusteringAlgorithms::ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBRea
     this->alnDbrSize=alnDbr->getSize();
     this->threads=threads;
     this->scoretype=scoretype;
-    this->maxiterations=maxiterations;
+    this->maxiterations=maxiteration;
     this->keyToSet=keyToSet;
     this->sourceOffsets=sourceOffsets;
     this->sourceLookupTable=sourceLookupTable;
@@ -447,7 +447,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     }
     alnDbr->remapData(); // need to free memory
     Debug(Debug::INFO) << "Add missing connections\n";
-    AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, newElementOffsets, dbSize, scoreLookupTable, needSET);
+    AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, newElementOffsets, dbSize, scoreLookupTable);
     maxClustersize = 0;
     for (size_t i = 0; i < dbSize; i++) {
         size_t elementCount = newElementOffsets[i + 1] - newElementOffsets[i];
