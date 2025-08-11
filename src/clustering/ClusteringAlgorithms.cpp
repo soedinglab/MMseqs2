@@ -107,13 +107,11 @@ std::pair<unsigned int, unsigned int> * ClusteringAlgorithms::execute(int mode) 
                         size_t elementSize = (elementOffsets[currentid + 1] - elementOffsets[currentid]);
                         for (size_t elementId = 0; elementId < elementSize; elementId++) {
                             unsigned int elementtodelete = elementLookupTable[currentid][elementId];
-                            if(elementtodelete != UINT_MAX){
-                                if (assignedcluster[elementtodelete] == UINT_MAX && iterationcutoff < maxiterations) {
-                                    myqueue.push(elementtodelete);
-                                    iterationcutoffs.push((iterationcutoff + 1));
-                                }
-                                assignedcluster[elementtodelete] = representative;
+                            if (assignedcluster[elementtodelete] == UINT_MAX && iterationcutoff < maxiterations) {
+                                myqueue.push(elementtodelete);
+                                iterationcutoffs.push((iterationcutoff + 1));
                             }
+                            assignedcluster[elementtodelete] = representative;
                         }
                     }
                 }
@@ -226,60 +224,54 @@ void ClusteringAlgorithms::setCover(unsigned int **elementLookupTable, unsigned 
         size_t elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
         for (size_t elementId = 0; elementId < elementSize; elementId++) {
             const unsigned int elementtodelete = elementLookupTable[representative][elementId];
-            if (elementtodelete != UINT_MAX) {
-                // float seqId = elementScoreTable[representative][elementId];
-                const short seqId = elementScoreLookupTable[representative][elementId];
-                //  Debug(Debug::INFO)<<seqId<<"\t"<<bestscore[elementtodelete]<<"\n";
-                // becareful of this criteria
-                if (seqId > bestscore[elementtodelete]) {
-                    assignedcluster[elementtodelete] = representative;
-                    bestscore[elementtodelete] = seqId;
-                }
-                //Debug(Debug::INFO)<<bestscore[elementtodelete]<<"\n";
-                if (elementtodelete == representative) {
-                    continue;
-                }
-                if (clustersizes[elementtodelete] < 1) {
-                    continue;
-                }
-                removeClustersize(elementtodelete);
+            // float seqId = elementScoreTable[representative][elementId];
+            const short seqId = elementScoreLookupTable[representative][elementId];
+            //  Debug(Debug::INFO)<<seqId<<"\t"<<bestscore[elementtodelete]<<"\n";
+            // becareful of this criteria
+            if (seqId > bestscore[elementtodelete]) {
+                assignedcluster[elementtodelete] = representative;
+                bestscore[elementtodelete] = seqId;
             }
+            //Debug(Debug::INFO)<<bestscore[elementtodelete]<<"\n";
+            if (elementtodelete == representative) {
+                continue;
+            }
+            if (clustersizes[elementtodelete] < 1) {
+                continue;
+            }
+            removeClustersize(elementtodelete);
         }
 
         for (size_t elementId = 0; elementId < elementSize; elementId++) {
             bool representativefound = false;
             const unsigned int elementtodelete = elementLookupTable[representative][elementId];
-            if (elementtodelete != UINT_MAX){
-                const unsigned int currElementSize = (newElementOffsets[elementtodelete + 1] -
-                                                    newElementOffsets[elementtodelete]);
-                if (elementtodelete == representative) {
-                    clustersizes[elementtodelete] = -1;
-                    continue;
-                }
-                if (clustersizes[elementtodelete] < 0) {
-                    continue;
-                }
+            const unsigned int currElementSize = (newElementOffsets[elementtodelete + 1] -
+                                                newElementOffsets[elementtodelete]);
+            if (elementtodelete == representative) {
                 clustersizes[elementtodelete] = -1;
-                //decrease clustersize of sets that contain the element
-                for (size_t elementId2 = 0; elementId2 < currElementSize; elementId2++) {
-                    const unsigned int elementtodecrease = elementLookupTable[elementtodelete][elementId2];
-                    if (elementtodecrease != UINT_MAX){
-                        if (representative == elementtodecrease) {
-                            representativefound = true;
-                        }
-                        if (clustersizes[elementtodecrease] == 1) {
-                            Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(elementtodelete) <<
-                                                " deleted from " << seqDbr->getDbKey(elementtodecrease) <<
-                                                " that now is empty, but not assigned to a cluster\n";
-                        } else if (clustersizes[elementtodecrease] > 0) {
-                            decreaseClustersize(elementtodecrease);
-                        }
-                    }
+                continue;
+            }
+            if (clustersizes[elementtodelete] < 0) {
+                continue;
+            }
+            clustersizes[elementtodelete] = -1;
+            //decrease clustersize of sets that contain the element
+            for (size_t elementId2 = 0; elementId2 < currElementSize; elementId2++) {
+                const unsigned int elementtodecrease = elementLookupTable[elementtodelete][elementId2];
+                if (representative == elementtodecrease) {
+                    representativefound = true;
                 }
-                if (!representativefound) {
-                    Debug(Debug::ERROR) << "error with cluster:\t" << seqDbr->getDbKey(representative) <<
-                                        "\tis not contained in set:\t" << seqDbr->getDbKey(elementtodelete) << ".\n";
+                if (clustersizes[elementtodecrease] == 1) {
+                    Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(elementtodelete) <<
+                                        " deleted from " << seqDbr->getDbKey(elementtodecrease) <<
+                                        " that now is empty, but not assigned to a cluster\n";
+                } else if (clustersizes[elementtodecrease] > 0) {
+                    decreaseClustersize(elementtodecrease);
                 }
+            }
+            if (!representativefound) {
+                Debug(Debug::ERROR) << "error with cluster:\t" << seqDbr->getDbKey(representative) <<
+                                    "\tis not contained in set:\t" << seqDbr->getDbKey(elementtodelete) << ".\n";
             }
         }
     }

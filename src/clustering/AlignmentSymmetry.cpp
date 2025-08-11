@@ -153,7 +153,6 @@ void AlignmentSymmetry::readInDataSet(DBReader<unsigned int>*alnDbr, DBReader<un
                 for (size_t j = 0; j < len; ++j) {
                     unsigned int value = sourceLookupTable[clusterId][j];
                     if (value != UINT_MAX) {
-                            
                         const size_t alnId = alnDbr->getId(value);
                         char *data = alnDbr->getData(alnId, thread_idx);
                         if (*data == '\0') { // check if file contains entry
@@ -256,15 +255,13 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
             const size_t elementSize = LEN(offsetTable, setId);
             for (size_t elementId = 0; elementId < elementSize; elementId++) {
                 const unsigned int currElm = elementLookupTable[setId][elementId];
-                if (currElm != UINT_MAX) {
-                    const unsigned int currElementSize = LEN(offsetTable, currElm);
-                    const bool elementFound = std::binary_search(elementLookupTable[currElm],
-                                                                elementLookupTable[currElm] + currElementSize, setId);
-                    // this is a new connection since setId is not contained in currentElementSet
-                    if (elementFound == false) {                        
-                        tmpSize[static_cast<size_t>(currElm) * static_cast<size_t>(threads) +
-                                static_cast<size_t>(thread_idx)] += 1;
-                    }
+                const unsigned int currElementSize = LEN(offsetTable, currElm);
+                const bool elementFound = std::binary_search(elementLookupTable[currElm],
+                                                            elementLookupTable[currElm] + currElementSize, setId);
+                // this is a new connection since setId is not contained in currentElementSet
+                if (elementFound == false) {                        
+                    tmpSize[static_cast<size_t>(currElm) * static_cast<size_t>(threads) +
+                            static_cast<size_t>(thread_idx)] += 1;
                 }
             }
         }
@@ -305,9 +302,7 @@ void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
         }
         for(size_t elementId = 0; elementId < oldElementSize; elementId++) {
             const unsigned int currElm = elementLookupTable[setId][elementId];
-            if(currElm == UINT_MAX && needSET) {
-                continue;
-            } else if(currElm == UINT_MAX || currElm > dbSize){
+            if(currElm == UINT_MAX || currElm > dbSize){
                 Debug(Debug::ERROR) << "currElm > dbSize in element list (addMissingLinks). This should not happen.\n";
                 EXIT(EXIT_FAILURE);
             }
