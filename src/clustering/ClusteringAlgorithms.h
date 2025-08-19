@@ -28,7 +28,6 @@ private:
 //datastructures
     unsigned int maxClustersize;
     unsigned int dbSize;
-    unsigned int alnDbrSize;
     int * clustersizes;
     unsigned int* sorted_clustersizes;
     unsigned int* clusterid_to_arrayposition;
