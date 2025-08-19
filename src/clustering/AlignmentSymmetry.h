@@ -14,6 +14,7 @@
 class AlignmentSymmetry {
 public:
     static void readInData(DBReader<unsigned int>*pReader, DBReader<unsigned int>*pDBReader, unsigned int **pInt,unsigned short**elementScoreTable, int scoretype, size_t *offsets);
+    static void readInDataSet(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr, unsigned int **elementLookupTable, unsigned short **elementScoreTable, int scoretype, size_t *offsets, size_t *sourceOffsets, unsigned int **sourceLookupTable,  unsigned int *keyToSet, bool isfirst);
     template<typename T>
     static void computeOffsetFromCounts(T* elementSizes, size_t dbSize)  {
         size_t prevElementLength = elementSizes[0];
