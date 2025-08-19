@@ -81,14 +81,8 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                 std::vector<std::string> split = Util::split(line, "\t");
                 unsigned int key = strtoul(split[0].c_str(), NULL, 10);
                 setkey = strtoul(split[2].c_str(), NULL, 10);
-                // if(keysInSeq[key] == 1) {
-                //     sourceList[lookupOrder] = key;
-                // } else {
-                //     sourceList[lookupOrder] = UINT_MAX;
-                // }
                 sourceOffsets[setkey]++;
                 sourceOffsetsDecrease[setkey]++;
-                // lookupOrder++;
             }
             AlignmentSymmetry::computeOffsetFromCounts(sourceOffsets, sourceLen);
             AlignmentSymmetry::setupPointers<unsigned int>(sourceList, sourceLookupTable, sourceOffsets, sourceLen, lastKey);
