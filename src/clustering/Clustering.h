@@ -41,7 +41,6 @@ private:
     int compressed;
     std::string outDB;
     std::string outDBIndex;
-    std::vector<unsigned int> sourceKeyVec;
 };
 
 #endif
