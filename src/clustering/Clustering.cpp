@@ -43,24 +43,35 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             originalseqDbr->open(DBReader<unsigned int>::NOSORT);
             DBReader<unsigned int>::Index * seqIndex = originalseqDbr->getIndex();
             
-            unsigned int lastKey = originalseqDbr->getLastKey();
-            keyToSet = new unsigned int[lastKey+1];
-            std::vector<bool> keysInSeq(lastKey+1, false);
-            std::map<unsigned int, unsigned int> setToLength;
-            
             std::ifstream mappingStream(seqDB + ".lookup");
             std::string line;
             unsigned int setkey = 0;
             unsigned int maxsetkey = 0;
+            unsigned int maxkey = 0;
+            while (std::getline(mappingStream, line)) {
+                std::vector<std::string> split = Util::split(line, "\t");
+                unsigned int key = strtoul(split[0].c_str(), NULL, 10);
+                setkey = strtoul(split[2].c_str(), NULL, 10);
+                if (maxsetkey < setkey) {
+                    maxsetkey = setkey;
+                }
+                maxkey = key;
+            }
+            unsigned int lastKey = maxkey;
+            keyToSet = new unsigned int[lastKey+1];
+            std::vector<bool> keysInSeq(lastKey+1, false);
+            std::map<unsigned int, unsigned int> setToLength;
+
+            mappingStream.close();
+            mappingStream.open(seqDB + ".lookup");
+            line = "";
             while (std::getline(mappingStream, line)) {
                 std::vector<std::string> split = Util::split(line, "\t");
                 unsigned int key = strtoul(split[0].c_str(), NULL, 10);
                 setkey = strtoul(split[2].c_str(), NULL, 10);
                 keyToSet[key] = setkey;
-                if (maxsetkey < setkey) {
-                    maxsetkey = setkey;
-                }
             }
+
             for (size_t id = 0; id < originalseqDbr->getSize(); id++) {
                 setToLength[keyToSet[seqIndex[id].id]] += seqIndex[id].length;
                 keysInSeq[seqIndex[id].id] = 1;
