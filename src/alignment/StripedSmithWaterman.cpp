@@ -42,8 +42,8 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
     this->aaBiasCorrectionScale = aaBiasCorrectionScale;
 	this->aaBiasCorrection = aaBiasCorrection;
 
-	int segSize = (maxSequenceLength+7)/8;
-    segSize = segSize;
+	int segmentSize = (maxSequenceLength+7)/8;
+    segSize = segmentSize;
 	vHStore = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	vHLoad  = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	vE      = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
@@ -201,8 +201,6 @@ void SmithWaterman::reverseMat(int8_t *mat_rev, const int8_t *mat, const int32_t
 
 s_align SmithWaterman::ssw_align (
         const unsigned char *db_num_sequence,
-        const unsigned char *db_consens_sequence,
-        const int8_t *db_mat,
         int32_t db_length,
         std::string & backtrace,
         const uint8_t gap_open,
@@ -211,14 +209,14 @@ s_align SmithWaterman::ssw_align (
         const double  evalueThr,
         EvalueComputation * evaluer,
         const int covMode, const float covThr, const float correlationScoreWeight,
-        const int32_t maskLen, const size_t id) {
+        const int32_t maskLen) {
     s_align alignment;
     // check if both query and target are profiles
 	if (profile->isProfile) {
-        alignment = ssw_align_private<SmithWaterman::PROFILE_SEQ>(db_num_sequence, db_mat, db_length, backtrace, gap_open,
+        alignment = ssw_align_private<SmithWaterman::PROFILE_SEQ>(db_num_sequence, db_length, backtrace, gap_open,
                                                                   gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, correlationScoreWeight, maskLen);
     } else {
-        alignment = ssw_align_private<SmithWaterman::SEQ_SEQ>(db_num_sequence, db_mat, db_length, backtrace, gap_open,
+        alignment = ssw_align_private<SmithWaterman::SEQ_SEQ>(db_num_sequence, db_length, backtrace, gap_open,
                                                               gap_extend, alignmentMode, evalueThr, evaluer, covMode, covThr, correlationScoreWeight, maskLen);
     }
     return alignment;
@@ -228,7 +226,6 @@ s_align SmithWaterman::ssw_align (
 template <unsigned int type>
 s_align SmithWaterman::ssw_align_private (
 	const unsigned char *db_sequence,
-	const int8_t *db_mat,
 	int32_t db_length,
 	std::string & backtrace,
 	const uint8_t gap_open,
@@ -653,9 +650,9 @@ s_align SmithWaterman::alignStartPosBacktrace (
 }
 
 template
-s_align SmithWaterman::ssw_align_private<SmithWaterman::SEQ_SEQ>(const unsigned char*, const int8_t*, int32_t, std::string&, const uint8_t, const uint8_t, const uint8_t, const double, EvalueComputation*, const int, const float, const float, const int32_t);
+s_align SmithWaterman::ssw_align_private<SmithWaterman::SEQ_SEQ>(const unsigned char*, int32_t, std::string&, const uint8_t, const uint8_t, const uint8_t, const double, EvalueComputation*, const int, const float, const float, const int32_t);
 template
-s_align SmithWaterman::ssw_align_private<SmithWaterman::PROFILE_SEQ>(const unsigned char*, const int8_t*, int32_t, std::string&, const uint8_t, const uint8_t, const uint8_t, const double, EvalueComputation*, const int, const float, const float, const int32_t);
+s_align SmithWaterman::ssw_align_private<SmithWaterman::PROFILE_SEQ>(const unsigned char*, int32_t, std::string&, const uint8_t, const uint8_t, const uint8_t, const double, EvalueComputation*, const int, const float, const float, const int32_t);
 
 template
 s_align SmithWaterman::alignScoreEndPos<SmithWaterman::SEQ_SEQ>(const unsigned char*, int32_t, const uint8_t, const uint8_t, const int32_t);

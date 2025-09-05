@@ -61,7 +61,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
             // TODO: is this right? targetSeqType defined as -1 temporarily
-            Matcher matcher(querySeqType, -1, par.maxSeqLen, subMat, &evaluer,
+            Matcher matcher(querySeqType, par.maxSeqLen, subMat, &evaluer,
                             par.compBiasCorrection, par.compBiasCorrectionScale, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0, par.zdrop);
 
 //            Sequence query(par.maxSeqLen, targetSeqType, subMat, par.kmerSize, par.spacedKmer, par.compBiasCorrection);

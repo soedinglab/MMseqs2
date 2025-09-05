@@ -10,7 +10,7 @@ RUN mkdir -p /work/build && cd /work/build; \
         -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..; \
     cmake --build . -j$(nproc --all) -v;
 
-RUN if readelf -a /work/build/src/mmseqs | grep -i "Shared library" | grep -P -v "(linux-vdso|ld-linux-aarch64|libc|libm|libdl|librt|libpthread).so" | grep -q .; then \
+RUN if readelf -a /work/build/src/mmseqs | grep -i "Shared library" | grep -P -v "(linux-vdso|ld-linux-aarch64|libc|libm|libdl|librt|libpthread|libutil).so" | grep -q .; then \
         echo "Error: unwanted libraries found"; \
         readelf -a /work/build/src/mmseqs | grep -i "Shared library"; \
         exit 1; \

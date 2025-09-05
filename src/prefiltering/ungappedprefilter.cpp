@@ -418,8 +418,6 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, int8_t * tinySubMat,
                     } else {
                         res = aligner.ssw_align(
                                 tSeq.numSequence,
-                                tSeq.numConsensusSequence,
-                                tSeq.getAlignmentProfile(),
                                 tSeq.L,
                                 backtrace,
                                 par.gapOpen.values.aminoacid(),
@@ -430,8 +428,7 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, int8_t * tinySubMat,
                                 par.covMode,
                                 par.covThr,
                                 par.correlationScoreWeight,
-                                qSeq.L / 2,
-                                tId
+                                qSeq.L / 2
                         );
                     }
                     score = res.score1;

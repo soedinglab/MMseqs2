@@ -215,8 +215,6 @@ public:
         s_align r);
 
     s_align  ssw_align (const unsigned char *db_num_sequence,
-                        const unsigned char *db_consens_sequence,
-                        const int8_t *db_profile,
                         int32_t db_length,
                         std::string &backtrace,
                         const uint8_t gap_open,
@@ -225,7 +223,7 @@ public:
                         const double filters,
                         EvalueComputation * filterd,
                         const int covMode, const float covThr, const float correlationScoreWeight,
-                        const int32_t maskLen, const size_t id);
+                        const int32_t maskLen);
 
 
     /*!	@function computed ungapped alignment score
@@ -308,6 +306,7 @@ private:
 
     // target variables
     simd_int* target_profile_byte;
+    int segSize;
 
     // needed for type checking query and target databases
     bool isQueryProfile;
@@ -327,7 +326,6 @@ private:
 
     template <unsigned int type>
     s_align ssw_align_private (const unsigned char*db_sequence,
-                        const int8_t *db_profile,
                         int32_t db_length,
                         std::string &backtrace,
                         const uint8_t gap_open,
