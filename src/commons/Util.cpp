@@ -452,7 +452,7 @@ std::map<unsigned int, std::string> Util::readLookup(const std::string& file, co
         std::string line;
         while (std::getline(mappingStream, line)) {
             std::vector<std::string> split = Util::split(line, "\t");
-            unsigned int id = strtoul(split[0].c_str(), NULL, 10);
+            KeyType id = strtoul(split[0].c_str(), NULL, 10);
 
             std::string& name = split[1];
 

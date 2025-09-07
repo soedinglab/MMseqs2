@@ -59,7 +59,7 @@ int createseqfiledb(int argc, const char **argv, const Command &command) {
                 Util::parseKey(data, dbKey);
                 data = Util::skipLine(data);
 
-                const unsigned int memberKey = (unsigned int) strtoul(dbKey, NULL, 10);
+                const KeyType memberKey = (KeyType) strtoul(dbKey, NULL, 10);
                 KeyType headerId = headerDb.getId(memberKey);
                 if (headerId == UINT_MAX) {
                     Debug(Debug::ERROR) << "Entry " << key << " does not contain a sequence!" << "\n";

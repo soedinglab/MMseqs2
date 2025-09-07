@@ -130,7 +130,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
                 if(targetColumn == SIZE_T_MAX){
                     targetAccession = "";
                 } else if (hasTargetDB) {
-                    unsigned int targetKey = (unsigned int) strtoul(dbKey, NULL, 10);
+                    KeyType targetKey = (KeyType) strtoul(dbKey, NULL, 10);
                     KeyType targetIndex = targetDB->getId(targetKey);
                     char *targetData;
                     if(needSET == false) {

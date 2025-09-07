@@ -87,7 +87,7 @@ int alignall(int argc, const char **argv, const Command &command) {
                 results.clear();
                 while (*data != '\0') {
                     Util::parseKey(data, buffer);
-                    const unsigned int key = (unsigned int) strtoul(buffer, NULL, 10);
+                    const KeyType key = (KeyType) strtoul(buffer, NULL, 10);
                     results.push_back(key);
                     data = Util::skipLine(data);
                 }

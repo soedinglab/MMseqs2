@@ -1130,7 +1130,7 @@ int fwbw(int argc, const char **argv, const Command &command) {
 
                 while (*alnData != '\0'){
                     Util::parseKey(alnData, entrybuffer);
-                    unsigned int targetKey = (unsigned int) strtoul(entrybuffer, NULL, 10);
+                    KeyType targetKey = (KeyType) strtoul(entrybuffer, NULL, 10);
                     const KeyType targetId = tdbr.getId(targetKey);
                     const char* targetSeq = tdbr.getData(targetId, thread_idx);
                     size_t targetLen = tdbr.getSeqLen(targetId);

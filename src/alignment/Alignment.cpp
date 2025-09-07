@@ -345,7 +345,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                 unsigned int rejected = 0;
                 while (*data != '\0' && passedNum < maxAccept && rejected < maxReject) {
                     Util::parseKey(data, buffer);
-                    const unsigned int dbKey = (unsigned int) strtoul(buffer, NULL, 10);
+                    const KeyType dbKey = (KeyType) strtoul(buffer, NULL, 10);
                     size_t elements = Util::getWordsOfLine(data, words, 10);
 
                     short diagonal = 0;
@@ -460,7 +460,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                     unsigned int rejected = 0;
                     while (*data != '\0' && rejected < maxReject) {
                         Util::parseKey(data, buffer);
-                        const unsigned int dbKey = (unsigned int) strtoul(buffer, NULL, 10);
+                        const KeyType dbKey = (KeyType) strtoul(buffer, NULL, 10);
 //                        size_t elements = Util::getWordsOfLine(data, words, 10);
 //                        short diagonal = 0;
 //                        bool isReverse = false;

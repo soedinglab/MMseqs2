@@ -42,7 +42,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
     BaseMatrix *subMat = NULL;
     EvalueComputation *evaluer = NULL;
     size_t aaResSize = 0;
-    unsigned int maxTargetId = 0;
+    KeyType maxTargetId = 0;
     char *targetElementExists = NULL;
     if (isGeneralMode) {
         DBReader<KeyType> resultReader(parResultDb, parResultDbIndex, par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
@@ -63,7 +63,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
                 char *data = resultReader.getData(i, thread_idx);
                 while (*data != '\0') {
                     Util::parseKey(data, key);
-                    unsigned int dbKey = std::strtoul(key, NULL, 10);
+                    KeyType dbKey = std::strtoul(key, NULL, 10);
                     maxTargetId = std::max(maxTargetId, dbKey);
                     data = Util::skipLine(data);
                 }
@@ -128,7 +128,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
                 while (*data != '\0') {
                     Util::parseKey(data, dbKeyBuffer);
                     size_t targetKeyLen = strlen(dbKeyBuffer);
-                    const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                    const KeyType dbKey = (KeyType) strtoul(dbKeyBuffer, NULL, 10);
                     char *nextLine = Util::skipLine(data);
                     size_t lineLen = nextLine - data;
                     lineLen -= targetKeyLen;
@@ -196,7 +196,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
                     size_t newLineLen = oldLineLen;
                     newLineLen -= targetKeyLen;
                     newLineLen += queryKeyLen;
-                    const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                    const KeyType dbKey = (KeyType) strtoul(dbKeyBuffer, NULL, 10);
                     // update offset but do not copy memory
                     size_t offset = __sync_fetch_and_add(&(targetElementSize[dbKey]), newLineLen) - prevBytesToWrite;
                     if(dbKey >= prevDbKeyToWrite && dbKey <=  dbKeyToWrite){

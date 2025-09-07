@@ -216,7 +216,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                 while (*data != '\0') {
                     // DB key of the db sequence
                     Util::parseKey(data, dbKeyBuffer);
-                    const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                    const KeyType dbKey = (KeyType) strtoul(dbKeyBuffer, NULL, 10);
                     KeyType targetId = tdbr->getId(dbKey);
                     char *targetSeq = tdbr->getData(targetId, thread_idx);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB)) ? true : false;

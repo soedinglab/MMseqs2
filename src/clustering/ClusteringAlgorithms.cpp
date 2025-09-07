@@ -313,7 +313,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem(KeyType *assignedcluster) {
                         while (*data != '\0') {
                             char dbKey[255 + 1];
                             Util::parseKey(data, dbKey);
-                            const KeyType key = keyToSet[(unsigned int)strtoul(dbKey, NULL, 10)];
+                            const KeyType key = keyToSet[(KeyType)strtoul(dbKey, NULL, 10)];
                             keys.push_back(key);
                             data = Util::skipLine(data);
                         }

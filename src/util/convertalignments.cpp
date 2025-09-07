@@ -282,7 +282,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             while (*data != '\0') {
                 char dbKeyBuffer[255 + 1];
                 Util::parseKey(data, dbKeyBuffer);
-                const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                const KeyType dbKey = (KeyType) strtoul(dbKeyBuffer, NULL, 10);
                 if (headerWritten[dbKey] == false) {
                     headerWritten[dbKey] = true;
                     KeyType tId = tDbr->sequenceReader->getId(dbKey);

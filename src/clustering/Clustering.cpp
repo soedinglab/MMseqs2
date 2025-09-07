@@ -102,7 +102,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             line = "";
             while (std::getline(mappingStream, line)) {
                 std::vector<std::string> split = Util::split(line, "\t");
-                unsigned int key = strtoul(split[0].c_str(), NULL, 10);
+                KeyType key = strtoul(split[0].c_str(), NULL, 10);
                 setkey = strtoul(split[2].c_str(), NULL, 10);
                 size_t order = sourceOffsets[setkey + 1] - sourceOffsetsDecrease[setkey];
                 if(keysInSeq[key] == 1) {

@@ -19,7 +19,7 @@ int appenddbtoindex(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < ids.size(); ++i) {
             char *rest;
             errno = 0;
-            unsigned int key = strtoul(ids[i].c_str(), &rest, 10);
+            KeyType key = strtoul(ids[i].c_str(), &rest, 10);
             if ((rest != ids[i].c_str() && *rest != '\0') || errno == ERANGE) {
                 Debug(Debug::ERROR) << "Could not read key " << ids[i] << "\n";
                 return EXIT_FAILURE;

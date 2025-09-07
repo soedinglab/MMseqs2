@@ -193,7 +193,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
             char *data = resultReader.getData(id, thread_idx);
             while (*data != '\0') {
                 Util::parseKey(data, dbKey);
-                const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                const KeyType key = (KeyType) strtoul(dbKey, NULL, 10);
                 // in the same database case, we have the query repeated
                 if (key == queryKey && sameDatabase == true) {
                     if(returnAlnRes && par.includeIdentity){

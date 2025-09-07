@@ -298,7 +298,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
             while (*data != '\0') {
                 if (shouldAddSelfMatch) {
                     Util::parseKey(data, dbKeyBuffer);
-                    const unsigned int curKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                    const KeyType curKey = (KeyType) strtoul(dbKeyBuffer, NULL, 10);
                     addSelfMatch = (queryKey == curKey);
                 }
 
@@ -373,7 +373,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
                 } else if (mode == REGEX_FILTERING) {
                     nomatch = regexec(&regex, columnValue, 0, NULL, 0);
                 } else if (mode == JOIN_DB) {
-                    KeyType newId = helper->getId(static_cast<unsigned int>(strtoul(columnValue, NULL, 10)));
+                    KeyType newId = helper->getId(static_cast<KeyType>(strtoul(columnValue, NULL, 10)));
                     if (newId != UINT_MAX) {
                         size_t originalLength = strlen(lineBuffer);
                         // Continue the string by replacing the null byte
@@ -485,7 +485,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
                     }
                 } else if (mode == SORT_ENTRIES) {
                     if (par.sortEntries == PRIORITY) {
-                        unsigned int key = static_cast<unsigned int>(strtoul(columnPointer[column - 1], NULL, 10));
+                        KeyType key = static_cast<KeyType>(strtoul(columnPointer[column - 1], NULL, 10));
                         float weight = 0.0f;
                         auto it = weights.find(key);
                         if (it != weights.end()) {

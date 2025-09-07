@@ -196,7 +196,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
             while (*data != '\0') {
                 Util::parseKey(data, dbKeyBuffer);
                 size_t targetKeyLen = strlen(dbKeyBuffer);
-                const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                const KeyType dbKey = (KeyType) strtoul(dbKeyBuffer, NULL, 10);
                 char *nextLine = Util::skipLine(data);
                 size_t lineLen = nextLine - data;
                 lineLen -= (targetKeyLen + 1);
@@ -210,7 +210,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     size_t memoryLimit=Util::computeMemory(par.splitMemoryLimit);
 
     // compute splits
-    std::vector<std::pair<unsigned int, size_t > > splits;
+    std::vector<std::pair<KeyType, size_t > > splits;
     std::vector<std::pair<std::string , std::string > > splitFileNames;
     size_t bytesToWrite = 0;
     for (size_t i = 0; i <= maxTargetId; i++) {
@@ -226,10 +226,10 @@ int transitivealign(int argc, const char **argv, const Command &command) {
     std::string parOutDbStr(par.db3);
     std::string parOutDbIndexStr(par.db3Index);
 
-    unsigned int prevDbKeyToWrite = 0;
+    KeyType prevDbKeyToWrite = 0;
     size_t prevBytesToWrite = 0;
     for (size_t split = 0; split < splits.size(); split++) {
-        unsigned int dbKeyToWrite = splits[split].first;
+        KeyType dbKeyToWrite = splits[split].first;
         size_t bytesToWrite = splits[split].second;
         char *tmpData = new(std::nothrow) char[bytesToWrite];
         Util::checkAllocation(tmpData, "Cannot allocate tmpData memory");
@@ -258,7 +258,7 @@ int transitivealign(int argc, const char **argv, const Command &command) {
                     size_t newLineLen = oldLineLen;
                     newLineLen -= (targetKeyLen + 1);
                     //newLineLen += queryKeyLen;
-                    const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                    const KeyType dbKey = (KeyType) strtoul(dbKeyBuffer, NULL, 10);
                     // update offset but do not copy memory
                     size_t offset = __sync_fetch_and_add(&(targetElementSize[dbKey]), newLineLen) - prevBytesToWrite;
                     if (dbKey >= prevDbKeyToWrite && dbKey <= dbKeyToWrite) {

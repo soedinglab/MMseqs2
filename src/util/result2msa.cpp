@@ -227,7 +227,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
             while (*data != '\0') {
                 Util::parseKey(data, dbKey);
 
-                const KeyType key = (unsigned int) strtoul(dbKey, NULL, 10);
+                const KeyType key = (KeyType) strtoul(dbKey, NULL, 10);
                 // in the same database case, we have the query repeated
                 if (key == queryKey && sameDatabase == true) {
                     data = Util::skipLine(data);

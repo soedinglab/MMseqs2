@@ -164,7 +164,7 @@ void AlignmentSymmetry::readInDataSet(DBReader<KeyType> * alnDbr, DBReader<KeyTy
                             char similarity[255 + 1];
                             char dbKey[255 + 1];
                             Util::parseKey(data, dbKey);
-                            const KeyType currElement = seqDbr->getId(keyToSet[(unsigned int) strtoul(dbKey, NULL, 10)]);
+                            const KeyType currElement = seqDbr->getId(keyToSet[(KeyType) strtoul(dbKey, NULL, 10)]);
                             if(bitFlags[currElement]==0){
                                 if (elementScoreTable != NULL) {
                                     if (Parameters::isEqualDbtype(alnType,Parameters::DBTYPE_ALIGNMENT_RES)) {

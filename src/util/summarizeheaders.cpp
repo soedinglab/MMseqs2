@@ -58,11 +58,11 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
             while (std::getline(inStream, line)) {
                 char *header;
                 if (entry == 0) {
-                    header = queryReader.getDataByDBKey((unsigned int) strtoul(line.c_str(), NULL, 10), thread_idx);
+                    header = queryReader.getDataByDBKey((KeyType) strtoul(line.c_str(), NULL, 10), thread_idx);
 
                     representative = line;
                 } else {
-                    header = targetReader.getDataByDBKey((unsigned int) strtoul(line.c_str(), NULL, 10), thread_idx);
+                    header = targetReader.getDataByDBKey((KeyType) strtoul(line.c_str(), NULL, 10), thread_idx);
                 }
                 headers.emplace_back(header);
                 entry++;
