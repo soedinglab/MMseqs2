@@ -22,12 +22,12 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0.0);
 
-    DBReader<unsigned int> sequenceDb(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    sequenceDb.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> sequenceDb(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    sequenceDb.open(DBReader<IdType>::NOSORT);
 
     int type = Parameters::DBTYPE_HMM_PROFILE;
     if (par.pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
-        type = DBReader<unsigned int>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
+        type = DBReader<IdType>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
     }
     DBWriter resultDbw(par.db2.c_str(), par.db2Index.c_str(), par.threads,  par.compressed, type);
     resultDbw.open();
@@ -52,7 +52,7 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
         for (size_t id = 0; id < sequenceDb.getSize(); id++) {
             progress.updateProgress();
             char *seqData     = sequenceDb.getData(id, thread_idx);
-            unsigned int queryKey = sequenceDb.getDbKey(id);
+            IdType queryKey = sequenceDb.getDbKey(id);
             unsigned int seqLen = sequenceDb.getSeqLen(id);
 
             seq.mapSequence(id, queryKey, seqData, seqLen);

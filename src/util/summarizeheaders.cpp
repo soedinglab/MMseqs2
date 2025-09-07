@@ -13,14 +13,14 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    queryReader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> queryReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    queryReader.open(DBReader<IdType>::NOSORT);
 
-    DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    targetReader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> targetReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    targetReader.open(DBReader<IdType>::NOSORT);
 
-    DBReader<unsigned int> reader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> reader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    reader.open(DBReader<IdType>::NOSORT);
 
     DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     writer.open();
@@ -46,7 +46,7 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
         for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
 
-            unsigned int id = reader.getDbKey(i);
+            IdType id = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
 
             std::vector<std::string> headers;

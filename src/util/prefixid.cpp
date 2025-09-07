@@ -11,8 +11,8 @@
 
 int addid(const std::string &db1, const std::string &db1Index, const std::string &db2, const std::string &db2Index,
 const bool tsvOut, const std::string &mappingFile, const std::string &userStrToAdd, const bool isPrefix, const int threads, const int compressed) {
-    DBReader<unsigned int> reader(db1.c_str(), db1Index.c_str(), threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> reader(db1.c_str(), db1Index.c_str(), threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     const bool shouldCompress = tsvOut == false && compressed == true;
     // TODO: does generic db make more sense than copying db type here?
@@ -24,9 +24,9 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
     size_t entries = reader.getSize();
     Debug::Progress progress(entries);
     bool doMapping = false;
-    DBReader<unsigned int> * lookupReader=NULL;
+    DBReader<IdType> * lookupReader=NULL;
     if(mappingFile.size() > 0){
-        lookupReader = new DBReader<unsigned int>(mappingFile.c_str(), mappingFile.c_str(), 1, DBReader<unsigned int>::USE_LOOKUP);
+        lookupReader = new DBReader<IdType>(mappingFile.c_str(), mappingFile.c_str(), 1, DBReader<IdType>::USE_LOOKUP);
         doMapping = true;
     }
 
@@ -41,7 +41,7 @@ const bool tsvOut, const std::string &mappingFile, const std::string &userStrToA
         for (size_t i = 0; i < entries; ++i) {
             progress.updateProgress();
 
-            unsigned int key = reader.getDbKey(i);
+            IdType key = reader.getDbKey(i);
             std::istringstream data(reader.getData(i, thread_idx));
             std::ostringstream ss;
 

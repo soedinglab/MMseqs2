@@ -17,7 +17,7 @@
 
 #define LEN(x, y) (x[y+1] - x[y])
 
-void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr,
+void AlignmentSymmetry::readInData(DBReader<IdType>*alnDbr, DBReader<IdType>*seqDbr,
                                    unsigned int **elementLookupTable, unsigned short **elementScoreTable,
                                    int scoretype, size_t *offsets) {
     const int alnType = alnDbr->getDbtype();
@@ -39,7 +39,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                 progress.updateProgress();
                 // seqDbr is descending sorted by length
                 // the assumption is that clustering is B -> B (not A -> B)
-                const unsigned int clusterId = seqDbr->getDbKey(i);
+                const IdType clusterId = seqDbr->getDbKey(i);
                 char *data = alnDbr->getDataByDBKey(clusterId, thread_idx);
 
                 if (*data == '\0') { // check if file contains entry
@@ -76,7 +76,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                     char dbKey[255 + 1];
                     Util::parseKey(data, dbKey);
                     const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-                    const size_t currElement = seqDbr->getId(key);
+                    const IdType currElement = seqDbr->getId(key);
                     if (elementScoreTable != NULL) {
                         if (Parameters::isEqualDbtype(alnType,Parameters::DBTYPE_ALIGNMENT_RES)) {
                             if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
@@ -119,7 +119,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
     }
 }
 
-void AlignmentSymmetry::readInDataSet(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr,
+void AlignmentSymmetry::readInDataSet(DBReader<IdType>*alnDbr, DBReader<IdType>*seqDbr,
                                    unsigned int **elementLookupTable, unsigned short **elementScoreTable,
                                    int scoretype, size_t *offsets, size_t *sourceOffsets, unsigned int **sourceLookupTable,  unsigned int *keyToSet, bool isfirst) {
     const int alnType = alnDbr->getDbtype();
@@ -142,7 +142,7 @@ void AlignmentSymmetry::readInDataSet(DBReader<unsigned int>*alnDbr, DBReader<un
                 progress.updateProgress();
                 // seqDbr is descending sorted by length
                 // the assumption is that clustering is B -> B (not A -> B)
-                const unsigned int clusterId = seqDbr->getDbKey(i);
+                const IdType clusterId = seqDbr->getDbKey(i);
                 size_t start1 = sourceOffsets[clusterId];
                 size_t end1 = sourceOffsets[clusterId+1];
                 size_t len = end1 - start1;
@@ -153,7 +153,7 @@ void AlignmentSymmetry::readInDataSet(DBReader<unsigned int>*alnDbr, DBReader<un
                 for (size_t j = 0; j < len; ++j) {
                     unsigned int value = sourceLookupTable[clusterId][j];
                     if (value != UINT_MAX) {
-                        const size_t alnId = alnDbr->getId(value);
+                        const IdType alnId = alnDbr->getId(value);
                         char *data = alnDbr->getData(alnId, thread_idx);
                         if (*data == '\0') { // check if file contains entry
                             isnull++;
@@ -163,7 +163,7 @@ void AlignmentSymmetry::readInDataSet(DBReader<unsigned int>*alnDbr, DBReader<un
                             char similarity[255 + 1];
                             char dbKey[255 + 1];
                             Util::parseKey(data, dbKey);
-                            const size_t currElement = seqDbr->getId(keyToSet[(unsigned int) strtoul(dbKey, NULL, 10)]);
+                            const IdType currElement = seqDbr->getId(keyToSet[(unsigned int) strtoul(dbKey, NULL, 10)]);
                             if(bitFlags[currElement]==0){
                                 if (elementScoreTable != NULL) {
                                     if (Parameters::isEqualDbtype(alnType,Parameters::DBTYPE_ALIGNMENT_RES)) {

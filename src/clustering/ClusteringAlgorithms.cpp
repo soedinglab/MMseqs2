@@ -14,7 +14,7 @@
 #include <omp.h>
 #endif
 
-ClusteringAlgorithms::ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBReader<unsigned int>* alnDbr,
+ClusteringAlgorithms::ClusteringAlgorithms(DBReader<IdType>* seqDbr, DBReader<IdType>* alnDbr,
                                            int threads, int scoretype, int maxiterations,
                                            unsigned int *keyToSet, size_t *sourceOffsets, unsigned int **sourceLookupTable, unsigned int *sourceList, unsigned int sourceLen, bool needSET){
     this->seqDbr=seqDbr;
@@ -297,7 +297,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
         // Parallel reading and parsing into buffer
 #pragma omp parallel for schedule(dynamic, 4)
         for (long i = start; i < end; i++) {
-            unsigned int clusterKey = seqDbr->getDbKey(i);
+            IdType clusterKey = seqDbr->getDbKey(i);
             std::vector<unsigned int>& keys = buffer[i - start].second;
             if(needSET) {
                 size_t start1 = sourceOffsets[clusterKey];
@@ -306,7 +306,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
                 for (size_t j = 0; j < len; ++j) {
                     unsigned int value = sourceLookupTable[clusterKey][j];
                     if (value != UINT_MAX) {
-                        const size_t alnId = alnDbr->getId(value);
+                        const IdType alnId = alnDbr->getId(value);
                         char *data = alnDbr->getData(alnId, 0);
                         while (*data != '\0') {
                             char dbKey[255 + 1];
@@ -318,7 +318,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
                     }
                 }
             } else {
-                const size_t alnId = alnDbr->getId(clusterKey);
+                const IdType alnId = alnDbr->getId(clusterKey);
                 char* data = alnDbr->getData(alnId, 0);
                 while (*data != '\0') {
                     char dbKey[255 + 1];
@@ -345,8 +345,8 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
                 continue;
             }
 
-            for (unsigned int key : keys) {
-                unsigned int currElement = seqDbr->getId(key);
+            for (IdType key : keys) {
+                IdType currElement = seqDbr->getId(key);
 
                 if (assignedcluster[currElement] == UINT_MAX) {
                     assignedcluster[currElement] = clusterId;
@@ -377,7 +377,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
 #endif
 #pragma omp for schedule(dynamic, 1000)
         for (size_t i = 0; i < seqDbr->getSize(); i++) {
-            const unsigned int clusterId = seqDbr->getDbKey(i);
+            const IdType clusterId = seqDbr->getDbKey(i);
             if(needSET) {
                 size_t start = sourceOffsets[clusterId];
                 size_t end = sourceOffsets[clusterId+1];
@@ -386,7 +386,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
                 for (size_t j = 0; j < len; ++j) {
                     unsigned int value = sourceLookupTable[clusterId][j];
                     if (value != UINT_MAX) {
-                        const size_t alnId = alnDbr->getId(value);
+                        const IdType alnId = alnDbr->getId(value);
                         const char *data = alnDbr->getData(alnId, thread_idx);
                         const size_t dataSize = alnDbr->getEntryLen(alnId);
                         size_t lineCount = (*data == '\0') ? 1 : Util::countLines(data, dataSize);
@@ -395,7 +395,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
                 }
                 elementOffsets[i] = lineCounts;
             } else {
-                const size_t alnId = alnDbr->getId(clusterId);
+                const IdType alnId = alnDbr->getId(clusterId);
                 const char *data = alnDbr->getData(alnId, thread_idx);
                 const size_t dataSize = alnDbr->getEntryLen(alnId);
                 elementOffsets[i] = (*data == '\0') ? 1 : Util::countLines(data, dataSize);

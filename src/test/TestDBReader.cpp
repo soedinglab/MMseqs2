@@ -11,7 +11,7 @@ const char* binary_name = "test_dbreader";
 
 int main (int, const char**) {
     // DBReader test
-    DBReader<unsigned int> reader("dataLinear", "dataLinear.index", 1, 0);
+    DBReader<IdType> reader("dataLinear", "dataLinear.index", 1, 0);
     reader.open(0);
     reader.readMmapedDataInMemory();
     reader.printMagicNumber();
@@ -21,7 +21,7 @@ int main (int, const char**) {
         std::cout << reader.getData(i, 0) << std::endl;
     }
     reader.close();
-    DBReader<unsigned int> reader2("dataGap", "dataGap.index", 1, 0);
+    DBReader<IdType> reader2("dataGap", "dataGap.index", 1, 0);
     reader2.open(0);
     std::cout << reader2.getSize() << std::endl;
     for(size_t i = 0; i < reader2.getSize(); i++){
@@ -42,10 +42,10 @@ int main (int, const char**) {
     std::cout << "Check length: " << (reader2.getSeqLen(reader2.getId(12)) == 10) << std::endl;
     reader2.close();
     // test sort mode
-    DBReader<unsigned int> reader3("dataGap", "dataGap.index", 1, 0);
-    reader3.open(DBReader<unsigned int>::SORT_BY_LENGTH);
+    DBReader<IdType> reader3("dataGap", "dataGap.index", 1, 0);
+    reader3.open(DBReader<IdType>::SORT_BY_LENGTH);
     for(size_t i = 0; i < reader3.getSize(); i++){
-        size_t id =  reader3.getDbKey(i);
+        IdType id =  reader3.getDbKey(i);
         std::cout << id <<  "\t" << reader3.getSeqLen(i) << "\t" << reader3.getData(i, 0) ;
     }
     std::cout << reader3.getId(111) << "\t" << reader3.getDataByDBKey(111,0);

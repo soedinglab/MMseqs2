@@ -235,7 +235,7 @@ std::string LinsearchIndexReader::indexName(std::string baseName) {
     return result;
 }
 
-bool LinsearchIndexReader::checkIfIndexFile(DBReader<unsigned int> *pReader) {
+bool LinsearchIndexReader::checkIfIndexFile(DBReader<IdType> *pReader) {
     char * version = pReader->getDataByDBKey(PrefilteringIndexReader::VERSION, 0);
     if(version == NULL){
         return false;
@@ -254,7 +254,7 @@ void LinsearchIndexReader::writeKmerIndexToDisk(std::string fileName, KmerPositi
 }
 
 
-std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<unsigned int> & index, Parameters &par, int dbtype) {
+std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<IdType> & index, Parameters &par, int dbtype) {
     PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
     if (meta.maxSeqLength != static_cast<int>(par.maxSeqLen))
         return "maxSeqLen";

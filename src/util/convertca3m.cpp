@@ -15,11 +15,11 @@ int convertca3m(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, true, 0, 0);
 
 
-    DBReader<std::string> reader((par.db1 + "_ca3m.ffdata").c_str(), (par.db1 + "_ca3m.ffindex").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    DBReader<std::string> reader((par.db1 + "_ca3m.ffdata").c_str(), (par.db1 + "_ca3m.ffindex").c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
     reader.open(DBReader<std::string>::NOSORT);
 
-    DBReader<unsigned int> sequences((par.db1 + "_sequence.ffdata").c_str(), (par.db1 + "_sequence.ffindex").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    sequences.open(DBReader<unsigned int>::SORT_BY_LINE);
+    DBReader<IdType> sequences((par.db1 + "_sequence.ffdata").c_str(), (par.db1 + "_sequence.ffindex").c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    sequences.open(DBReader<IdType>::SORT_BY_LINE);
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_CA3M_DB);
     writer.open();

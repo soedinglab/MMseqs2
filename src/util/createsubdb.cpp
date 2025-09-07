@@ -24,12 +24,12 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     }
 
     const bool lookupMode = par.dbIdMode == Parameters::ID_MODE_LOOKUP;
-    int dbMode = DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA;
+    int dbMode = DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA;
     if (lookupMode) {
-        dbMode |= DBReader<unsigned int>::USE_LOOKUP_REV;
+        dbMode |= DBReader<IdType>::USE_LOOKUP_REV;
     }
-    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), 1, dbMode);
-    reader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> reader(par.db2.c_str(), par.db2Index.c_str(), 1, dbMode);
+    reader.open(DBReader<IdType>::NOSORT);
     const bool isCompressed = reader.isCompressed();
 
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, 0, Parameters::DBTYPE_OMIT_FILE);
@@ -56,7 +56,7 @@ int createsubdb(int argc, const char **argv, const Command& command) {
 
         isOrdered &= (prevKey <= key);
         prevKey = key;
-        const size_t id = reader.getId(key);
+        const IdType id = reader.getId(key);
         if (id >= UINT_MAX) {
             Debug(Debug::WARNING) << "Key " << dbKey << " not found in database\n";
             continue;
@@ -85,10 +85,10 @@ int createsubdb(int argc, const char **argv, const Command& command) {
                              || Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
     writer.close(shouldMerge, !isOrdered);
     if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
-        DBReader<unsigned int>::softlinkDb(par.db2, par.db3, DBFiles::DATA);
+        DBReader<IdType>::softlinkDb(par.db2, par.db3, DBFiles::DATA);
     }
     DBWriter::writeDbtypeFile(par.db3.c_str(), reader.getDbtype(), isCompressed);
-    DBReader<unsigned int>::softlinkDb(par.db2, par.db3, DBFiles::SEQUENCE_ANCILLARY);
+    DBReader<IdType>::softlinkDb(par.db2, par.db3, DBFiles::SEQUENCE_ANCILLARY);
 
     free(line);
     reader.close();

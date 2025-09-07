@@ -20,7 +20,7 @@
 #define SIZE_T_MAX ((size_t) -1)
 #endif
 
-KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t totalKmers, size_t hashStartRange, size_t hashEndRange, DBReader<unsigned int> & seqDbr,
+KmerSearch::ExtractKmerAndSortResult KmerSearch::extractKmerAndSort(size_t totalKmers, size_t hashStartRange, size_t hashEndRange, DBReader<IdType> & seqDbr,
                                                                     Parameters & par, BaseMatrix  * subMat) {
 
     KmerPosition<short> * hashSeqPair = initKmerPositionMemory<short>(totalKmers);
@@ -142,8 +142,8 @@ int kmersearch(int argc, const char **argv, const Command &command) {
         EXIT(EXIT_FAILURE);
     }
 
-    DBReader<unsigned int> tidxdbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    tidxdbr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> tidxdbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    tidxdbr.open(DBReader<IdType>::NOSORT);
     PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&tidxdbr);
     if(par.PARAM_K.wasSet){
         if(par.kmerSize != 0 && data.kmerSize != par.kmerSize){
@@ -174,8 +174,8 @@ int kmersearch(int argc, const char **argv, const Command &command) {
     // Reuse the compBiasCorr field to store the adjustedKmerSize, It is not needed in the linsearch
     adjustedKmerSize = data.compBiasCorr;
 
-    DBReader<unsigned int> queryDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    queryDbr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> queryDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    queryDbr.open(DBReader<IdType>::NOSORT);
     int querySeqType = queryDbr.getDbtype();
     if (Parameters::isEqualDbtype(querySeqType, targetSeqType) == false) {
         Debug(Debug::ERROR) << "Dbtype of query and target database do not match !\n";

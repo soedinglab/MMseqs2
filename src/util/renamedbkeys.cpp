@@ -12,8 +12,8 @@ static bool compareToFirst(const std::pair<unsigned int, unsigned int>& lhs, con
     return (lhs.first <= rhs.first);
 }
 
-void copyEntry(unsigned int oldKey, unsigned int newKey, DBReader<unsigned int>& reader, DBWriter& writer, bool isCompressed, int subDbMode) {
-    const size_t id = reader.getId(oldKey);
+void copyEntry(IdType oldKey, IdType newKey, DBReader<IdType>& reader, DBWriter& writer, bool isCompressed, int subDbMode) {
+    const IdType id = reader.getId(oldKey);
     if (id >= UINT_MAX) {
         Debug(Debug::ERROR) << "Key " << oldKey << " not found in database\n";
         EXIT(EXIT_FAILURE);
@@ -50,13 +50,13 @@ int renamedbkeys(int argc, const char **argv, const Command &command) {
     }
 
     FILE* newLookupFile = NULL;
-    unsigned int mode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
+    unsigned int mode = DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA;
     if (FileUtil::fileExists((par.db2 + ".lookup").c_str())) {
-        mode |= DBReader<unsigned int>::USE_LOOKUP;
+        mode |= DBReader<IdType>::USE_LOOKUP;
         newLookupFile = FileUtil::openAndDelete((par.db3 + ".lookup").c_str(), "w");
     }
-    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), 1, mode);
-    reader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> reader(par.db2.c_str(), par.db2Index.c_str(), 1, mode);
+    reader.open(DBReader<IdType>::NOSORT);
     const bool isCompressed = reader.isCompressed();
 
     FILE* newMappingFile = NULL;
@@ -73,10 +73,10 @@ int renamedbkeys(int argc, const char **argv, const Command &command) {
     }
 
     bool isHeaderCompressed = false;
-    DBReader<unsigned int>* headerReader = NULL;
+    DBReader<IdType>* headerReader = NULL;
     if (FileUtil::fileExists(par.hdr2dbtype.c_str())) {
-        headerReader = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        headerReader->open(DBReader<unsigned int>::NOSORT);
+        headerReader = new DBReader<IdType>(par.hdr2.c_str(), par.hdr2Index.c_str(), 1, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
+        headerReader->open(DBReader<IdType>::NOSORT);
         isHeaderCompressed = headerReader->isCompressed();
     }
 
@@ -89,8 +89,8 @@ int renamedbkeys(int argc, const char **argv, const Command &command) {
         headerWriter->open();
     }
 
-    DBReader<unsigned int>::LookupEntry* lookup = NULL;
-    std::vector<DBReader<unsigned int>::LookupEntry> newLookup;
+    DBReader<IdType>::LookupEntry* lookup = NULL;
+    std::vector<DBReader<IdType>::LookupEntry> newLookup;
     if (newLookupFile != NULL) {
         lookup = reader.getLookup();
         newLookup.reserve(reader.getLookupSize());
@@ -112,7 +112,7 @@ int renamedbkeys(int argc, const char **argv, const Command &command) {
         copyEntry(oldKey, newKey, reader, writer, isCompressed, par.subDbMode);
         if (lookup != NULL) {
             unsigned int lookupId = reader.getLookupIdByKey(oldKey);
-            DBReader<unsigned int>::LookupEntry entry = lookup[lookupId];
+            DBReader<IdType>::LookupEntry entry = lookup[lookupId];
             entry.id = newKey;
             newLookup.emplace_back(entry);
         }
@@ -137,7 +137,7 @@ int renamedbkeys(int argc, const char **argv, const Command &command) {
     writer.close(headerWriter != NULL);
     DBWriter::writeDbtypeFile(par.db3.c_str(), reader.getDbtype(), isCompressed);
     if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
-        DBReader<unsigned int>::softlinkDb(par.db2, par.db3, DBFiles::DATA);
+        DBReader<IdType>::softlinkDb(par.db2, par.db3, DBFiles::DATA);
     }
     if (newMappingFile != NULL) {
         SORT_PARALLEL(newMapping.begin(), newMapping.end(), compareToFirst);
@@ -154,7 +154,7 @@ int renamedbkeys(int argc, const char **argv, const Command &command) {
     }
 
     if (newLookupFile != NULL) {
-        SORT_PARALLEL(newLookup.begin(), newLookup.end(), DBReader<unsigned int>::LookupEntry::compareById);
+        SORT_PARALLEL(newLookup.begin(), newLookup.end(), DBReader<IdType>::LookupEntry::compareById);
         std::string lookupBuffer;
         lookupBuffer.reserve(2048);
         for (size_t i = 0; i < newLookup.size(); ++i) {
@@ -170,13 +170,13 @@ int renamedbkeys(int argc, const char **argv, const Command &command) {
         delete headerWriter;
         DBWriter::writeDbtypeFile(par.hdr3.c_str(), headerReader->getDbtype(), isHeaderCompressed);
         if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
-            DBReader<unsigned int>::softlinkDb(par.db2, par.db3, DBFiles::HEADER);
+            DBReader<IdType>::softlinkDb(par.db2, par.db3, DBFiles::HEADER);
         }
     }
     if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
-        DBReader<unsigned int>::softlinkDb(par.db2, par.db3, (DBFiles::Files) (DBFiles::SOURCE | DBFiles::TAX_MERGED | DBFiles::TAX_NAMES | DBFiles::TAX_NODES | DBFiles::TAX_BINARY));
+        DBReader<IdType>::softlinkDb(par.db2, par.db3, (DBFiles::Files) (DBFiles::SOURCE | DBFiles::TAX_MERGED | DBFiles::TAX_NAMES | DBFiles::TAX_NODES | DBFiles::TAX_BINARY));
     } else {
-        DBReader<unsigned int>::copyDb(par.db2, par.db3, (DBFiles::Files) (DBFiles::SOURCE | DBFiles::TAX_MERGED | DBFiles::TAX_NAMES | DBFiles::TAX_NODES | DBFiles::TAX_BINARY));
+        DBReader<IdType>::copyDb(par.db2, par.db3, (DBFiles::Files) (DBFiles::SOURCE | DBFiles::TAX_MERGED | DBFiles::TAX_NAMES | DBFiles::TAX_NODES | DBFiles::TAX_BINARY));
     }
 
     free(line);

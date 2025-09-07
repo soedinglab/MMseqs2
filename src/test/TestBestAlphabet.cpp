@@ -73,8 +73,8 @@ int main (int, const char**) {
 
     std::string dbPath = "seqDB";
     std::string dbIndexPath = "seqDB.index";
-    DBReader<unsigned int> seqDb(dbPath.c_str(), dbIndexPath.c_str(), 1, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    seqDb.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> seqDb(dbPath.c_str(), dbIndexPath.c_str(), 1, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+    seqDb.open(DBReader<IdType>::NOSORT);
 
     Sequence rseqKmer(65536, Parameters::DBTYPE_AMINO_ACIDS, &subMat, kmerSize, false, false);
     Indexer indexer(subMat.alphabetSize-1, kmerSize);
@@ -86,7 +86,7 @@ int main (int, const char**) {
 
     for (size_t id = 0; id < seqDb.getSize(); id++) {
         char *seqData = seqDb.getData(id,0);
-        unsigned int dbKey = seqDb.getDbKey(id);
+        IdType dbKey = seqDb.getDbKey(id);
         rseqKmer.mapSequence(id, dbKey, seqData, seqDb.getSeqLen(id));
         while (rseqKmer.hasNextKmer() && sumKmerCnts < 20000*numKmers) {
             const unsigned char* kmer = rseqKmer.nextKmer();

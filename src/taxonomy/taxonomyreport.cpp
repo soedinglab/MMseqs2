@@ -172,12 +172,12 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
         Debug(Debug::ERROR) << "Cannot use Kraken DB report mode with sequence db input\n";
         EXIT(EXIT_FAILURE);
     }
-    int dataMode = DBReader<unsigned int>::USE_INDEX;
+    int dataMode = DBReader<IdType>::USE_INDEX;
     if (isSequenceDB == false) {
-        dataMode |= DBReader<unsigned int>::USE_DATA;
+        dataMode |= DBReader<IdType>::USE_DATA;
     }
-    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, dataMode);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, dataMode);
+    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     // support reading both LCA databases and result databases (e.g. alignment)
     const bool isTaxonomyInput = Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_TAXONOMICAL_RESULT);
@@ -216,7 +216,7 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
             progress.updateProgress();
 
             if (isSequenceDB == true) {
-                unsigned int taxon = mapping->lookup(reader.getDbKey(i));
+                IdType taxon = mapping->lookup(reader.getDbKey(i));
                 if (taxon != 0) {
                     ++localTaxCounts[taxon];
                 }

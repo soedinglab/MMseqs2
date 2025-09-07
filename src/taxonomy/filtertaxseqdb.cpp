@@ -19,8 +19,8 @@ int filtertaxseqdb(int argc, const char **argv, const Command& command) {
     NcbiTaxonomy * t = NcbiTaxonomy::openTaxonomy(par.db1);
     MappingReader mapping(par.db1);
     
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
     const bool isCompressed = reader.isCompressed();
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, 0, Parameters::DBTYPE_OMIT_FILE);
@@ -43,7 +43,7 @@ int filtertaxseqdb(int argc, const char **argv, const Command& command) {
         for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
 
-            unsigned int key = reader.getDbKey(i);
+            IdType key = reader.getDbKey(i);
             size_t offset = reader.getOffset(i);
             size_t length = reader.getEntryLen(i);
 
@@ -77,10 +77,10 @@ int filtertaxseqdb(int argc, const char **argv, const Command& command) {
 
     writer.close(true);
     if (par.subDbMode == Parameters::SUBDB_MODE_SOFT) {
-        DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_NO_DATA_INDEX);
+        DBReader<IdType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_NO_DATA_INDEX);
     } else {
         DBWriter::writeDbtypeFile(par.db2.c_str(), reader.getDbtype(), isCompressed);
-        DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
+        DBReader<IdType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
     }
 
     reader.close();

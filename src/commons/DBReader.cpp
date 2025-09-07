@@ -240,13 +240,13 @@ void DBReader<std::string>::sortIndex(bool isSortedById) {
 }
 
 template<>
-void DBReader<unsigned int>::sortIndex(float *weights) {
+void DBReader<IdType>::sortIndex(float *weights) {
 
     this->accessType=DBReader::SORT_BY_WEIGHTS;
-    std::pair<unsigned int, float> *sortForMapping = new std::pair<unsigned int, float>[size];
-    id2local = new unsigned int[size];
-    local2id = new unsigned int[size];
-    incrementMemory(sizeof(unsigned int) * 2 * size);
+    std::pair<IdType, float> *sortForMapping = new std::pair<IdType, float>[size];
+    id2local = new IdType[size];
+    local2id = new IdType[size];
+    incrementMemory(sizeof(IdType) * 2 * size);
     for (size_t i = 0; i < size; i++) {
         id2local[i] = i;
         local2id[i] = i;
@@ -262,7 +262,7 @@ void DBReader<unsigned int>::sortIndex(float *weights) {
 }
 
 template<>
-void DBReader<unsigned int>::sortIndex(bool isSortedById) {
+void DBReader<IdType>::sortIndex(bool isSortedById) {
 
     // First, we sort the index by IDs and we keep track of the original
     // ordering in mappingToOriginalIndex array
@@ -273,8 +273,8 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
     
     if ((isSortedById == false) && (accessType != HARDNOSORT) && (accessType != SORT_BY_OFFSET)) {
         // create an array of the joint original indeces --> this will be sorted:
-        unsigned int *sortedIndices = new unsigned int[size];
-        for (unsigned int i = 0; i < size; ++i) {
+        IdType *sortedIndices = new IdType[size];
+        for (IdType i = 0; i < size; ++i) {
             sortedIndices[i] = i;
         }
         // sort sortedIndices based on index.id:
@@ -291,16 +291,16 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
         // based on: https://stackoverflow.com/questions/7365814/in-place-array-reordering
         Index indexAndOffsetBuff;
 
-        for (unsigned int i = 0; i < size; i++) {
+        for (IdType i = 0; i < size; i++) {
             // fill buffers with what will be overwritten:
             indexAndOffsetBuff.id = index[i].id;
             indexAndOffsetBuff.offset = index[i].offset;
             indexAndOffsetBuff.length = index[i].length;
 
-            unsigned int j = i;
+            IdType j = i;
             while (1) {
                 // The inner loop won't re-process already processed elements
-                unsigned int k = sortedIndices[j];
+                IdType k = sortedIndices[j];
                 sortedIndices[j] = j; // mutating sortedIndices in the process
                 if (k == i) {
                     break;
@@ -324,10 +324,10 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
     }
     if (accessType == SORT_BY_LENGTH) {
         // sort the entries by the length of the sequences
-        std::pair<unsigned int, unsigned int> *sortForMapping = new std::pair<unsigned int, unsigned int>[size];
-        id2local = new unsigned int[size];
-        local2id = new unsigned int[size];
-        incrementMemory(sizeof(unsigned int) * 2 * size);
+        std::pair<IdType, IdType> *sortForMapping = new std::pair<IdType, IdType>[size];
+        id2local = new IdType[size];
+        local2id = new IdType[size];
+        incrementMemory(sizeof(IdType) * 2 * size);
         for (size_t i = 0; i < size; i++) {
             id2local[i] = i;
             local2id[i] = i;
@@ -341,7 +341,7 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
         }
         delete[] sortForMapping;
     } else if (accessType == SHUFFLE) {
-        size_t *tmpIndex = new size_t[size];
+        IdType *tmpIndex = new IdType[size];
         for (size_t i = 0; i < size; i++) {
             tmpIndex[i] = i;
         }
@@ -349,9 +349,9 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
         std::mt19937 rnd(0);
         std::shuffle(tmpIndex, tmpIndex + size, rnd);
 
-        id2local = new unsigned int[size];
-        local2id = new unsigned int[size];
-        incrementMemory(sizeof(unsigned int) * 2 * size);
+        id2local = new IdType[size];
+        local2id = new IdType[size];
+        incrementMemory(sizeof(IdType) * 2 * size);
 
         for (size_t i = 0; i < size; i++) {
             id2local[tmpIndex[i]] = i;
@@ -373,10 +373,10 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
         }
 
         // sort the entries by the offset of the sequences
-        std::pair<unsigned int, size_t> *sortForMapping = new std::pair<unsigned int, size_t>[size];
-        id2local = new unsigned int[size];
-        local2id = new unsigned int[size];
-        incrementMemory(sizeof(unsigned int) * 2 * size);
+        std::pair<IdType, size_t> *sortForMapping = new std::pair<IdType, size_t>[size];
+        id2local = new IdType[size];
+        local2id = new IdType[size];
+        incrementMemory(sizeof(IdType) * 2 * size);
 
         for (size_t i = 0; i < size; i++) {
             id2local[i] = i;
@@ -391,10 +391,10 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
         delete[] sortForMapping;
     } else if (accessType == SORT_BY_ID_OFFSET) {
         // sort the entries by the offset of the sequences
-        std::pair<unsigned int, Index> *sortForMapping = new std::pair<unsigned int, Index>[size];
-        id2local = new unsigned int[size];
-        local2id = new unsigned int[size];
-        incrementMemory(sizeof(unsigned int) * 2 * size);
+        std::pair<IdType, Index> *sortForMapping = new std::pair<IdType, Index>[size];
+        id2local = new IdType[size];
+        local2id = new IdType[size];
+        incrementMemory(sizeof(IdType) * 2 * size);
 
         for (size_t i = 0; i < size; i++) {
             id2local[i] = i;
@@ -409,9 +409,9 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
         delete[] sortForMapping;
     } else if (accessType == SORT_BY_LINE) {
         // sort the entries by the original line number in the index file
-        id2local = new unsigned int[size];
-        local2id = new unsigned int[size];
-        incrementMemory(sizeof(unsigned int) * 2 * size);
+        id2local = new IdType[size];
+        local2id = new IdType[size];
+        incrementMemory(sizeof(IdType) * 2 * size);
 
         for (size_t i = 0; i < size; i++) {
             id2local[i] = mappingToOriginalIndex[i];
@@ -500,11 +500,12 @@ template <typename T> void DBReader<T>::close(){
 
     if (id2local != NULL) {
         delete[] id2local;
-        decrementMemory(size*sizeof(unsigned int));
+        decrementMemory(size*sizeof(IdType));
     }
     if (local2id != NULL) {
         delete[] local2id;
-        decrementMemory(size*sizeof(unsigned int));
+        decrementMemory(size*sizeof(IdType
+        ));
     }
 
     if(compressedBuffers){
@@ -654,7 +655,7 @@ void DBReader<T>::touchData(size_t id) {
 }
 
 template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey, int thrIdx) {
-    size_t id = getId(dbKey);
+    IdType id = getId(dbKey);
     if(compression == COMPRESSED ){
         return (id != UINT_MAX) ? getDataCompressed(id, thrIdx) : NULL;
     } if(padded) {
@@ -729,7 +730,7 @@ template <typename T> std::string DBReader<T>::getLookupEntryName (size_t id){
     return lookup[id].entryName;
 }
 
-template <typename T> unsigned int DBReader<T>::getLookupFileNumber(size_t id){
+template <typename T> IdType DBReader<T>::getLookupFileNumber(size_t id){
     if (id >= lookupSize){
         Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << dataFileName << ".lookup\n";
         Debug(Debug::ERROR) << "getLookupFileNumber: local id (" << id << ") >= db size (" << lookupSize << ")\n";
@@ -739,7 +740,7 @@ template <typename T> unsigned int DBReader<T>::getLookupFileNumber(size_t id){
 }
 
 template<>
-void DBReader<unsigned int>::lookupEntryToBuffer(std::string& buffer, const LookupEntry& entry) {
+void DBReader<IdType>::lookupEntryToBuffer(std::string& buffer, const LookupEntry& entry) {
     buffer.append(SSTR(entry.id));
     buffer.append(1, '\t');
     buffer.append(entry.entryName);
@@ -758,7 +759,7 @@ void DBReader<std::string>::lookupEntryToBuffer(std::string& buffer, const Looku
     buffer.append(1, '\n');
 }
 
-template <typename T> size_t DBReader<T>::getId (T dbKey){
+template <typename T> IdType DBReader<T>::getId (T dbKey){
     size_t id = bsearch(index, size, dbKey);
     if (id2local != NULL) {
         return (id < size && index[id].id == dbKey) ? id2local[id] : UINT_MAX;
@@ -838,7 +839,7 @@ bool DBReader<T>::readIndex(char *data, size_t indexDataSize, Index *index, size
     unsigned int localMaxSeqLen = 0;
     size_t localDataSize = 0;
 
-    unsigned int localLastKey = 0;
+    IdType localLastKey = 0;
     const unsigned int BATCH_SIZE = 1048576;
 #pragma omp parallel num_threads(threadCnt) reduction(max: localMaxSeqLen, localLastKey) reduction(+: localDataSize) reduction(min:isSortedById)
     {
@@ -896,16 +897,16 @@ void DBReader<std::string>::readIndexId(std::string* id, char* line, const char*
     id->assign(line, keySize);
 }
 template<>
-void DBReader<unsigned int>::readIndexId(unsigned int* id, char*, const char** cols) {
-    *id = Util::fast_atoi<unsigned int>(cols[0]);
+void DBReader<IdType>::readIndexId(IdType * id, char*, const char** cols) {
+    *id = Util::fast_atoi<IdType>(cols[0]);
 }
 
 template<>
-unsigned int DBReader<std::string>::indexIdToNum(std::string * id){
+IdType DBReader<std::string>::indexIdToNum(std::string * id){
     return id->size();
 }
 template<>
-unsigned int DBReader<unsigned int>::indexIdToNum(unsigned int * id) {
+IdType DBReader<IdType>::indexIdToNum(IdType * id) {
     return *id;
 }
 
@@ -941,53 +942,57 @@ template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
 }
 
 template <>
-size_t DBReader<unsigned int>::indexMemorySize(const DBReader<unsigned int> &idx) {
+size_t DBReader<IdType>::indexMemorySize(const DBReader<IdType> &idx) {
     size_t memSize = // size + dataSize
             2 * sizeof(size_t)
-            // maxSeqLen + lastKey + dbtype
-            + 3 * sizeof(unsigned int)
+            // maxSeqLen
+            + sizeof(unsigned int)
+            // lastKey
+            + sizeof(IdType)
+            // dbtype
+            + sizeof(unsigned int)
             // index
-            + idx.size * sizeof(DBReader<unsigned int>::Index);
+            + idx.size * sizeof(DBReader<IdType>::Index);
 
     return memSize;
 }
 
 template <>
-char* DBReader<unsigned int>::serialize(const DBReader<unsigned int> &idx) {
+char* DBReader<IdType>::serialize(const DBReader<IdType> &idx) {
     char* data = (char*) malloc(indexMemorySize(idx));
     char* p = data;
     memcpy(p, &idx.size, sizeof(size_t));
     p += sizeof(size_t);
     memcpy(p, &idx.dataSize, sizeof(size_t));
     p += sizeof(size_t);
-    memcpy(p, &idx.lastKey, sizeof(unsigned int));
-    p += sizeof(unsigned int);
+    memcpy(p, &idx.lastKey, sizeof(IdType));
+    p += sizeof(IdType);
     memcpy(p, &idx.dbtype, sizeof(int));
     p += sizeof(unsigned int);
     memcpy(p, &idx.maxSeqLen, sizeof(unsigned int));
     p += sizeof(unsigned int);
-    memcpy(p, idx.index, idx.size * sizeof(DBReader<unsigned int>::Index));
-    p += idx.size * sizeof(DBReader<unsigned int>::Index);
+    memcpy(p, idx.index, idx.size * sizeof(DBReader<IdType>::Index));
+    p += idx.size * sizeof(DBReader<IdType>::Index);
     return data;
 }
 
 template <>
-DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data, int threads) {
+DBReader<IdType> *DBReader<IdType>::unserialize(const char* data, int threads) {
     const char* p = data;
     size_t size = *((size_t*)p);
     p += sizeof(size_t);
     size_t dataSize = *((size_t*)p);
     p += sizeof(size_t);
-    unsigned int lastKey = *((unsigned int*)p);
-    p += sizeof(unsigned int);
+    IdType lastKey = *((IdType*)p);
+    p += sizeof(IdType);
     int dbType = *((int*)p);
     p += sizeof(int);
     unsigned int maxSeqLen = *((unsigned int*)p);
     p += sizeof(unsigned int);
-    DBReader<unsigned int>::Index *idx = (DBReader<unsigned int>::Index *)p;
-    p += size * sizeof(DBReader<unsigned int>::Index);
+    DBReader<IdType>::Index *idx = (DBReader<IdType>::Index *)p;
+    p += size * sizeof(DBReader<IdType>::Index);
 
-    return new DBReader<unsigned int>(idx, size, dataSize, lastKey, dbType, maxSeqLen, threads);
+    return new DBReader<IdType>(idx, size, dataSize, lastKey, dbType, maxSeqLen, threads);
 }
 
 template<typename T>
@@ -1257,5 +1262,5 @@ void DBReader<T>::decomposeDomainByAminoAcid(size_t worldRank, size_t worldSize,
     free(entriesPerWorker);
 }
 
-template class DBReader<unsigned int>;
+template class DBReader<IdType>;
 template class DBReader<std::string>;

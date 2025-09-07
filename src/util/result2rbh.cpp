@@ -11,8 +11,8 @@ int result2rbh(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> resultReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> resultReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    resultReader.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, resultReader.getDbtype());
     dbw.open();
@@ -32,7 +32,7 @@ int result2rbh(int argc, const char **argv, const Command &command) {
         for (size_t id = 0; id < resultReader.getSize(); id++) {
             progress.updateProgress();
 
-            unsigned int AdbID = resultReader.getDbKey(id);
+            IdType AdbID = resultReader.getDbKey(id);
             char *results = resultReader.getData(id, thread_idx);
             int bestAtoBbitScore = 0; // initialize - no match of current A to any B
 

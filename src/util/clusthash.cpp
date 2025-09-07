@@ -19,8 +19,8 @@ int clusthash(int argc, const char **argv, const Command &command) {
     par.seqIdThr = (float)Parameters::CLUST_HASH_DEFAULT_MIN_SEQ_ID/100.0f;
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX);
+    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         reader.readMmapedDataInMemory();
     }
@@ -127,7 +127,7 @@ int clusthash(int argc, const char **argv, const Command &command) {
                 pos++;
             }
             for (size_t i = 0; i < setIds.size(); i++) {
-                unsigned int queryKey = reader.getDbKey(setIds[i]);
+                IdType queryKey = reader.getDbKey(setIds[i]);
                 unsigned int queryLength = reader.getSeqLen(setIds[i]);
                 const char *querySeq = reader.getData(setIds[i], thread_idx);
                 result.append(SSTR(queryKey));

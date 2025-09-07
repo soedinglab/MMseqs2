@@ -19,10 +19,10 @@ int gff2db(int argc, const char **argv, const Command &command) {
     std::string seqDb = par.filenames.back();
     par.filenames.pop_back();
 
-    DBReader<unsigned int> reader(seqDb.c_str(), (seqDb + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_LOOKUP_REV);
-    reader.open(DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int> headerReader((seqDb + "_h").c_str(), (seqDb + "_h.index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    headerReader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> reader(seqDb.c_str(), (seqDb + ".index").c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_LOOKUP_REV);
+    reader.open(DBReader<IdType>::NOSORT);
+    DBReader<IdType> headerReader((seqDb + "_h").c_str(), (seqDb + "_h.index").c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
+    headerReader.open(DBReader<IdType>::NOSORT);
 
     std::string outDbIndex = outDb + ".index";
     DBWriter writer(outDb.c_str(), outDbIndex.c_str(), par.threads, par.compressed, Parameters::DBTYPE_NUCLEOTIDES);
@@ -128,7 +128,7 @@ int gff2db(int argc, const char **argv, const Command &command) {
                     EXIT(EXIT_FAILURE);
                 }
                 unsigned int lookupKey = reader.getLookupKey(lookupId);
-                size_t seqId = reader.getId(lookupKey);
+                IdType seqId = reader.getId(lookupKey);
                 if (seqId == UINT_MAX) {
                     Debug(Debug::ERROR) << "GFF entry not found in sequence database: " << name << "\n";
                     EXIT(EXIT_FAILURE);

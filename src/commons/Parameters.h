@@ -18,6 +18,8 @@
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
 
+typedef unsigned int IdType;
+
 struct MMseqsParameter {
     const char *name;
     const char *display;

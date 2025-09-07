@@ -110,13 +110,13 @@ private:
     // needed for realignment
     BaseMatrix *realign_m;
 
-    DBReader<unsigned int> *qdbr;
+    DBReader<IdType> *qdbr;
     IndexReader * qDbrIdx;
 
-    DBReader<unsigned int> *tdbr;
+    DBReader<IdType> *tdbr;
     IndexReader * tDbrIdx;
 
-    DBReader<unsigned int> *prefdbr;
+    DBReader<IdType> *prefdbr;
 
     bool reversePrefilterResult;
 

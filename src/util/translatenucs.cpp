@@ -15,14 +15,14 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     bool addOrfStop = par.addOrfStop;
-    DBReader<unsigned int> *header = NULL;
+    DBReader<IdType> *header = NULL;
     if (addOrfStop == true) {
-        header = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        header->open(DBReader<unsigned int>::NOSORT);
+        header = new DBReader<IdType>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+        header->open(DBReader<IdType>::NOSORT);
     }
 
     size_t entries = reader.getSize();
@@ -48,7 +48,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         for (size_t i = 0; i < entries; ++i) {
             progress.updateProgress();
 
-            unsigned int key = reader.getDbKey(i);
+            IdType key = reader.getDbKey(i);
             char* data = reader.getData(i, thread_idx);
             if (*data == '\0') {
                 continue;
@@ -104,7 +104,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         delete[] aa;
     }
     writer.close(true);
-    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
+    DBReader<IdType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
 
     if (addOrfStop == true) {
         header->close();

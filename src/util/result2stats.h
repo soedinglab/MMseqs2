@@ -24,7 +24,7 @@ private:
 
     const bool tsvOut;
 
-    DBReader<unsigned int> *resultReader;
+    DBReader<IdType> *resultReader;
     DBWriter *statWriter;
 
     int threads;

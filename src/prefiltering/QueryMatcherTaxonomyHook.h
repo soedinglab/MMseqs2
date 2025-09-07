@@ -13,7 +13,7 @@
 
 class QueryMatcherTaxonomyHook : public QueryMatcherHook {
 public:
-    QueryMatcherTaxonomyHook(std::string targetPath, DBReader<unsigned int>* targetReader, const std::string& expressionString, unsigned int threads)
+    QueryMatcherTaxonomyHook(std::string targetPath, DBReader<IdType>* targetReader, const std::string& expressionString, unsigned int threads)
         : targetReader(targetReader), dbFrom(0), threads(threads) {
         std::string targetName = dbPathWithoutIndex(targetPath);
         taxonomy = NcbiTaxonomy::openTaxonomy(targetName);
@@ -45,7 +45,7 @@ public:
         size_t writePos = 0;
         for (size_t i = 0; i < resultSize; i++) {
             unsigned int currId = matcher.foundDiagonals[i].id;
-            unsigned int key = targetReader->getDbKey(dbFrom + currId);
+            IdType key = targetReader->getDbKey(dbFrom + currId);
             TaxID currTax = taxonomyMapping->lookup(key);
             if (expression[thread_idx]->isAncestor(currTax)) {
                 if (i != writePos) {
@@ -76,7 +76,7 @@ public:
 
     NcbiTaxonomy* taxonomy;
     MappingReader* taxonomyMapping;
-    DBReader<unsigned int>* targetReader;
+    DBReader<IdType>* targetReader;
     TaxonomyExpression** expression;
 
     unsigned int dbFrom;

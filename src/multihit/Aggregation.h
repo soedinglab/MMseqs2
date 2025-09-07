@@ -21,7 +21,7 @@ public:
 protected:
     std::string resultDbName;
     std::string outputDbName;
-    DBReader<unsigned int> *targetSetReader;
+    DBReader<IdType> *targetSetReader;
     unsigned int threads;
     unsigned int compressed;
 

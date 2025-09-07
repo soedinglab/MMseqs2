@@ -215,13 +215,13 @@ void writeKmerMatcherResult(DBWriter & dbw, KmerPosition<T> *hashSeqPair, size_t
 
 template <typename T>
 KmerPosition<T> * doComputation(size_t totalKmers, size_t split, size_t splits, std::string splitFile,
-                                DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat,
+                                DBReader<IdType> & seqDbr, Parameters & par, BaseMatrix  * subMat,
                                 size_t KMER_SIZE, size_t chooseTopKmer, float chooseTopKmerScale = 0.0);
 template <typename T>
 KmerPosition<T> *initKmerPositionMemory(size_t size);
 
 template <int TYPE, typename T>
-std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition<T> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition<T> * kmerArray, size_t kmerArraySize, DBReader<IdType> &seqDbr,
                                                  Parameters & par, BaseMatrix * subMat, bool hashWholeSequence,
                                                  size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
 
@@ -233,9 +233,9 @@ template <typename T>
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);
 
 template <typename T>
-std::vector<std::pair<size_t, size_t>> setupKmerSplits(Parameters &par, BaseMatrix * subMat, DBReader<unsigned int> &seqDbr, size_t totalKmers, size_t splits);
+std::vector<std::pair<size_t, size_t>> setupKmerSplits(Parameters &par, BaseMatrix * subMat, DBReader<IdType> &seqDbr, size_t totalKmers, size_t splits);
 
-size_t computeKmerCount(DBReader<unsigned int> &reader, size_t KMER_SIZE, size_t chooseTopKmer,
+size_t computeKmerCount(DBReader<IdType> &reader, size_t KMER_SIZE, size_t chooseTopKmer,
                         float chooseTopKmerScale = 0.0);
 
 void setLinearFilterDefault(Parameters *p);

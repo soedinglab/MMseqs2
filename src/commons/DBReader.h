@@ -251,7 +251,7 @@ public:
 
     // does a binary search in the index and returns index of the entry with dbKey
     // returns UINT_MAX if the key is not contained in index
-    size_t getId (T dbKey);
+    IdType getId (T dbKey);
 
     // does a binary search in the lookup and returns index of the entry
     size_t getLookupSize() const;
@@ -357,11 +357,11 @@ public:
 
     T getLastKey();
 
-    static size_t indexMemorySize(const DBReader<unsigned int> &idx);
+    static size_t indexMemorySize(const DBReader<IdType> &idx);
 
-    static char* serialize(const DBReader<unsigned int> &idx);
+    static char* serialize(const DBReader<IdType> &idx);
 
-    static DBReader<unsigned int> *unserialize(const char* data, int threads);
+    static DBReader<IdType> *unserialize(const char* data, int threads);
 
     int getDbtype() const {
         return dbtype;
@@ -504,8 +504,8 @@ private:
     LookupEntry * lookup;
     bool sortedByOffset;
 
-    unsigned int * id2local;
-    unsigned int * local2id;
+    IdType * id2local;
+    IdType * local2id;
 
     bool dataMapped;
     int accessType;

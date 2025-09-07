@@ -15,8 +15,8 @@ int splitdb(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
-    DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    dbr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> dbr(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
+    dbr.open(DBReader<IdType>::NOSORT);
 
 
     if ((size_t) par.split > dbr.getSize()) {
@@ -38,12 +38,12 @@ int splitdb(int argc, const char **argv, const Command& command) {
         }
 
         for (size_t i = startIndex; i < (startIndex + domainSize); i++) {
-            unsigned int outerKey = dbr.getDbKey(i);
+            IdType outerKey = dbr.getDbKey(i);
             char *data = dbr.getData(i, 0);
             writer.writeData(data, dbr.getEntryLen(i) - 1, outerKey);
         }
         writer.close();
-        DBReader<unsigned int>::softlinkDb(par.db1, outDb, DBFiles::SEQUENCE_ANCILLARY);
+        DBReader<IdType>::softlinkDb(par.db1, outDb, DBFiles::SEQUENCE_ANCILLARY);
     }
 
     dbr.close();

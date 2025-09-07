@@ -36,8 +36,8 @@ void readU32(const char **ptr, uint32_t &result) {
 }
 
 std::string CompressedA3M::extractA3M(const char *data, size_t data_size,
-                                      DBReader<unsigned int>& sequenceReader,
-                                      DBReader<unsigned int>& headerReader, int thread_idx) {
+                                      DBReader<IdType>& sequenceReader,
+                                      DBReader<IdType>& headerReader, int thread_idx) {
     std::ostringstream output;
 
     //read stuff till compressed part
@@ -147,7 +147,7 @@ std::string CompressedA3M::extractA3M(const char *data, size_t data_size,
 }
 
 void CompressedA3M::extractMatcherResults(unsigned int &key, std::vector<Matcher::result_t> &results,
-        const char *data, size_t dataSize, DBReader<unsigned int> &sequenceReader, bool skipFirst) {
+        const char *data, size_t dataSize, DBReader<IdType> &sequenceReader, bool skipFirst) {
     //read stuff till compressed part
     char lastChar = '\0';
     size_t index = 0;

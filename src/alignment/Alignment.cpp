@@ -55,13 +55,13 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
         }
     }
 
-    uint16_t extended = DBReader<unsigned int>::getExtendedDbtype(FileUtil::parseDbType(prefDB.c_str()));
+    uint16_t extended = DBReader<IdType>::getExtendedDbtype(FileUtil::parseDbType(prefDB.c_str()));
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     tDbrIdx = new IndexReader(targetSeqDB, par.threads,
                               extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
                               (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     tdbr = tDbrIdx->sequenceReader;
-    targetSeqType = tdbr->getDbtype();
+    targetSeqType = tdbr->getDbtype();  
     sameQTDB = (targetSeqDB.compare(querySeqDB) == 0);
     if (sameQTDB == true) {
         qDbrIdx = tDbrIdx;
@@ -136,8 +136,8 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &targetSeq
     Debug(Debug::INFO) << "Query database size: "  << qdbr->getSize() << " type: " << Parameters::getDbTypeName(querySeqType) << "\n";
     Debug(Debug::INFO) << "Target database size: " << tdbr->getSize() << " type: " << Parameters::getDbTypeName(targetSeqType) << "\n";
 
-    prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    prefdbr = new DBReader<IdType>(prefDB.c_str(), prefDBIndex.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+    prefdbr->open(DBReader<IdType>::LINEAR_ACCCESS);
     reversePrefilterResult = Parameters::isEqualDbtype(prefdbr->getDbtype(), Parameters::DBTYPE_PREFILTER_REV_RES);
 
     correlationScoreWeight = par.correlationScoreWeight;
@@ -250,7 +250,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
     if (alignmentOutputMode == Parameters::ALIGNMENT_OUTPUT_CLUSTER) {
         dbtype = Parameters::DBTYPE_CLUSTER_RES;
     }
-    dbtype = DBReader<unsigned int>::setExtendedDbtype(dbtype, DBReader<unsigned int>::getExtendedDbtype(prefdbr->getDbtype()));
+    dbtype = DBReader<IdType>::setExtendedDbtype(dbtype, DBReader<IdType>::getExtendedDbtype(prefdbr->getDbtype()));
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads, compressed, dbtype);
     dbw.open();
 
@@ -316,11 +316,11 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                 // get the prefiltering list
                 char *data, *origData;
                 data = origData = prefdbr->getData(id, thread_idx);
-                unsigned int queryDbKey = prefdbr->getDbKey(id);
+                IdType queryDbKey = prefdbr->getDbKey(id);
                 size_t origQueryLen = 0;
                 // only load query data if data != \0
                 if (*data != '\0') {
-                    size_t qId = qdbr->getId(queryDbKey);
+                    IdType qId = qdbr->getId(queryDbKey);
                     char *querySeqData = qdbr->getData(qId, thread_idx);
                     if (querySeqData == NULL) {
                         Debug(Debug::ERROR) << "Query sequence " << queryDbKey
@@ -358,7 +358,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                     }
                     data = Util::skipLine(data);
 
-                    size_t dbId = tdbr->getId(dbKey);
+                    IdType dbId = tdbr->getId(dbKey);
                     char *dbSeqData = tdbr->getData(dbId, thread_idx);
                     if (dbSeqData == NULL) {
                         Debug(Debug::ERROR) << "Sequence " << dbKey << " is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
@@ -409,7 +409,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                     realigner->initQuery(&qSeq);
                     int realignAccepted = 0;
                     for (size_t result = 0; result < swResults.size() && realignAccepted < realignMaxSeqs; result++) {
-                        size_t dbId = tdbr->getId(swResults[result].dbKey);
+                        IdType dbId = tdbr->getId(swResults[result].dbKey);
                         char *dbSeqData = tdbr->getData(dbId, thread_idx);
                         if (dbSeqData == NULL) {
                             Debug(Debug::ERROR) << "Sequence " << swResults[result].dbKey <<" is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
@@ -444,7 +444,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                 if (lcaAlign == true && swRealignResults.size() > 0) {
                     Matcher::result_t& topHit = swRealignResults[0];
                     const unsigned int topHitKey = topHit.dbKey;
-                    size_t dbId = tdbr->getId(topHitKey);
+                    IdType dbId = tdbr->getId(topHitKey);
                     char *qSeqData = tdbr->getData(dbId, thread_idx);
                     if (qSeqData == NULL) {
                         Debug(Debug::ERROR) << "Sequence " << topHitKey << " is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";
@@ -575,7 +575,7 @@ void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &d
         if (isIdentity == true) {
             continue;
         }
-        size_t dbId = tdbr->getId(swResults[i].dbKey);
+        IdType dbId = tdbr->getId(swResults[i].dbKey);
         char *dbSeqData = tdbr->getData(dbId, thread_idx);
         if (dbSeqData == NULL) {
             Debug(Debug::ERROR) << "Sequence " << swResults[i].dbKey << " is required in the prefiltering, but is not contained in the target sequence database!\nPlease check your database.\n";

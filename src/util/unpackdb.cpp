@@ -22,12 +22,12 @@ int unpackdb(int argc, const char **argv, const Command& command) {
         par.unpackNameMode = Parameters::UNPACK_NAME_KEY;
     }
 
-    int mode = DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA;
+    int mode = DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA;
     if (par.unpackNameMode == Parameters::UNPACK_NAME_ACCESSION) {
-        mode |= DBReader<unsigned int>::USE_LOOKUP;
+        mode |= DBReader<IdType>::USE_LOOKUP;
     }
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, mode);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, mode);
+    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     if (FileUtil::directoryExists(par.db2.c_str()) == false && FileUtil::makeDir(par.db2.c_str()) == false) {
         Debug(Debug::ERROR) << "Cannot create output folder " << par.db2 << "\n";
@@ -51,7 +51,7 @@ int unpackdb(int argc, const char **argv, const Command& command) {
 #pragma omp for schedule(dynamic, 100)
         for (size_t i = 0; i < entries; ++i) {
             progress.updateProgress();
-            unsigned int key = reader.getDbKey(i);
+            IdType key = reader.getDbKey(i);
             std::string name = par.db2;
             if (name.back() != '/') {
                 name.append(1, '/');

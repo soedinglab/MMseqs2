@@ -99,8 +99,8 @@ int filterdb(int argc, const char **argv, const Command &command) {
     const bool shouldAddSelfMatch = par.includeIdentity;
     const ComparisonOperator compOperator = mapOperator(par.compOperator);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
+    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
@@ -112,7 +112,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
     std::vector<std::pair<std::string, std::string>> mapping;
 
     // JOIN_DB
-    DBReader<unsigned int>* helper = NULL;
+    DBReader<IdType>* helper = NULL;
     std::unordered_map<unsigned int, float> weights;
     // REGEX_FILTERING
     regex_t regex;
@@ -226,8 +226,8 @@ int filterdb(int argc, const char **argv, const Command &command) {
     } else if (par.joinDB.empty() == false) {
         mode = JOIN_DB;
         std::string joinIndex = par.joinDB + ".index";
-        helper = new DBReader<unsigned int>(par.joinDB.c_str(), joinIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-        helper->open(DBReader<unsigned int>::NOSORT);
+        helper = new DBReader<IdType>(par.joinDB.c_str(), joinIndex.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
+        helper->open(DBReader<IdType>::NOSORT);
         Debug(Debug::INFO) << "Joining databases by column value\n";
     } else if (par.beatsFirst == true) {
         mode = BEATS_FIRST;
@@ -289,7 +289,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
             progress.updateProgress();
 
             char *data = reader.getData(id, thread_idx);
-            unsigned int queryKey = reader.getDbKey(id);
+            IdType queryKey = reader.getDbKey(id);
             size_t dataLength = reader.getEntryLen(id);
             int counter = 0;
 
@@ -373,7 +373,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
                 } else if (mode == REGEX_FILTERING) {
                     nomatch = regexec(&regex, columnValue, 0, NULL, 0);
                 } else if (mode == JOIN_DB) {
-                    size_t newId = helper->getId(static_cast<unsigned int>(strtoul(columnValue, NULL, 10)));
+                    IdType newId = helper->getId(static_cast<unsigned int>(strtoul(columnValue, NULL, 10)));
                     if (newId != UINT_MAX) {
                         size_t originalLength = strlen(lineBuffer);
                         // Continue the string by replacing the null byte

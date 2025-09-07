@@ -127,7 +127,7 @@ int main (int, const char**) {
 
     writer.writeData((char*)data,strlen(data), 1,0);
     writer.close();
-    DBReader<unsigned int> reader("dataLinear", "dataLinear.index", 1, 0);
+    DBReader<IdType> reader("dataLinear", "dataLinear.index", 1, 0);
     reader.open(0);
     reader.readMmapedDataInMemory();
     reader.printMagicNumber();

@@ -1071,12 +1071,12 @@ int fwbw(int argc, const char **argv, const Command &command) {
     //Prepare the parameters & DB
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_ALIGN);
-    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-    qdbr.open(DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int> tdbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-    tdbr.open(DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int> alnRes (par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-    alnRes.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX);
+    qdbr.open(DBReader<IdType>::NOSORT);
+    DBReader<IdType> tdbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX);
+    tdbr.open(DBReader<IdType>::NOSORT);
+    DBReader<IdType> alnRes (par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX);
+    alnRes.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     DBWriter fwbwAlnWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     fwbwAlnWriter.open();
@@ -1116,8 +1116,8 @@ int fwbw(int argc, const char **argv, const Command &command) {
 #pragma omp for schedule(dynamic,1)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
-                unsigned int key = alnRes.getDbKey(id);
-                const size_t queryId = qdbr.getId(key);
+                IdType key = alnRes.getDbKey(id);
+                const IdType queryId = qdbr.getId(key);
                 char *alnData = alnRes.getData(id, thread_idx);
                 localFwbwResults.clear();
 
@@ -1131,7 +1131,7 @@ int fwbw(int argc, const char **argv, const Command &command) {
                 while (*alnData != '\0'){
                     Util::parseKey(alnData, entrybuffer);
                     unsigned int targetKey = (unsigned int) strtoul(entrybuffer, NULL, 10);
-                    const size_t targetId = tdbr.getId(targetKey);
+                    const IdType targetId = tdbr.getId(targetKey);
                     const char* targetSeq = tdbr.getData(targetId, thread_idx);
                     size_t targetLen = tdbr.getSeqLen(targetId);
 

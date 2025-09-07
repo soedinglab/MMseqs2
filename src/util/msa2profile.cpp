@@ -42,7 +42,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
     std::string msaData = par.db1;
     std::string msaIndex = par.db1Index;
-    DBReader<unsigned int> *headerReader = NULL, *sequenceReader = NULL;
+    DBReader<IdType> *headerReader = NULL, *sequenceReader = NULL;
     if (par.msaType == 0) {
         msaData = par.db1 + "_ca3m.ffdata";
         msaIndex = par.db1 + "_ca3m.ffindex";
@@ -52,20 +52,20 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         std::string msaSequenceData = par.db1 + "_sequence.ffdata";
         std::string msaSequenceIndex = par.db1 + "_sequence.ffindex";
 
-        headerReader = new DBReader<unsigned int>(msaHeaderData.c_str(), msaHeaderIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        headerReader->open(DBReader<unsigned int>::SORT_BY_LINE);
+        headerReader = new DBReader<IdType>(msaHeaderData.c_str(), msaHeaderIndex.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+        headerReader->open(DBReader<IdType>::SORT_BY_LINE);
 
-        sequenceReader = new DBReader<unsigned int>(msaSequenceData.c_str(), msaSequenceIndex.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        sequenceReader->open(DBReader<unsigned int>::SORT_BY_LINE);
+        sequenceReader = new DBReader<IdType>(msaSequenceData.c_str(), msaSequenceIndex.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+        sequenceReader->open(DBReader<IdType>::SORT_BY_LINE);
     }
 
-    unsigned int mode = DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA;
+    unsigned int mode = DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA;
     std::string lookupFile = msaData + ".lookup";
     if (FileUtil::fileExists(lookupFile.c_str())) {
-        mode |= DBReader<unsigned int>::USE_LOOKUP;
+        mode |= DBReader<IdType>::USE_LOOKUP;
     }
-    DBReader<unsigned int> qDbr(msaData.c_str(), msaIndex.c_str(), par.threads, mode);
-    qDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> qDbr(msaData.c_str(), msaIndex.c_str(), par.threads, mode);
+    qDbr.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     Debug(Debug::INFO) << "Finding maximum sequence length and set size.\n";
     unsigned int maxSeqLength = 0;
@@ -129,7 +129,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     unsigned int threads = (unsigned int) par.threads;
     int type = Parameters::DBTYPE_HMM_PROFILE;
     if (par.pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
-        type = DBReader<unsigned int>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
+        type = DBReader<IdType>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
     }
     DBWriter resultWriter(par.db2.c_str(), par.db2Index.c_str(), threads, par.compressed, type);
     resultWriter.open();
@@ -180,7 +180,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         for (size_t id = 0; id < qDbr.getSize(); ++id) {
             progress.updateProgress();
 
-            unsigned int queryKey = qDbr.getDbKey(id);
+            IdType queryKey = qDbr.getDbKey(id);
 
             size_t msaPos = 0;
 
@@ -261,7 +261,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                             }
                         }
                     }
-                    if ((mode & DBReader<unsigned int>::USE_LOOKUP) == 0) {
+                    if ((mode & DBReader<IdType>::USE_LOOKUP) == 0) {
                         std::string header(seq->name.s);
                         if (seq->comment.l > 0) {
                             header.append(" ");
@@ -421,7 +421,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             }
             pssmRes.toBuffer((const unsigned char*)msaSequences[0], centerLength, subMat, result);
 
-            if (mode & DBReader<unsigned int>::USE_LOOKUP) {
+            if (mode & DBReader<IdType>::USE_LOOKUP) {
                 size_t lookupId = qDbr.getLookupIdByKey(queryKey);
                 std::string header = qDbr.getLookupEntryName(lookupId);
                 header.append(1, '\n');
@@ -441,7 +441,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     resultWriter.close(true);
     qDbr.close();
 
-    DBReader<unsigned int>::copyDb(par.db1, par.db2, (DBFiles::Files)(DBFiles::LOOKUP | DBFiles::SOURCE));
+    DBReader<IdType>::copyDb(par.db1, par.db2, (DBFiles::Files)(DBFiles::LOOKUP | DBFiles::SOURCE));
 
     if (sequenceReader != NULL) {
         sequenceReader->close();

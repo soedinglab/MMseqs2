@@ -21,12 +21,12 @@ int splitsequence(int argc, const char **argv, const Command& command) {
     par.maxSeqLen = 10000;
     par.sequenceOverlap = 300;
     par.parseParameters(argc, argv, command, true, 0, 0);
-    int mode = DBReader<unsigned int>::USE_INDEX;
+    int mode = DBReader<IdType>::USE_INDEX;
     if (par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_HARD) {
-        mode |= DBReader<unsigned int>::USE_DATA;
+        mode |= DBReader<IdType>::USE_DATA;
     }
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, mode);
-    reader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, mode);
+    reader.open(DBReader<IdType>::NOSORT);
     bool sizeLarger = false;
     for (size_t i = 0; i < reader.getSize(); i++) {
         sizeLarger |= (reader.getSeqLen(i) > par.maxSeqLen);
@@ -34,13 +34,13 @@ int splitsequence(int argc, const char **argv, const Command& command) {
 
     // if no sequence needs to be splitted
     if (sizeLarger == false) {
-        DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_DB);
+        DBReader<IdType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_DB);
         reader.close();
         return EXIT_SUCCESS;
     }
 
-    DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    headerReader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    headerReader.open(DBReader<IdType>::NOSORT);
 
     if (par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT && par.compressed == true) {
         Debug(Debug::WARNING) << "Sequence split mode (--sequence-split-mode 0) and compressed (--compressed 1) can not be combined.\nTurn compressed to 0";
@@ -72,7 +72,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
         for (unsigned int i = queryFrom; i < (queryFrom + querySize); ++i) {
             progress.updateProgress();
 
-            unsigned int key = reader.getDbKey(i);
+            IdType key = reader.getDbKey(i);
             const char* data=NULL;
             if (par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_HARD) {
                 data = reader.getData(i, thread_idx);
@@ -129,7 +129,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
     headerReader.close();
     reader.close();
     if (par.sequenceSplitMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
-        DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::DATA);
+        DBReader<IdType>::softlinkDb(par.db1, par.db2, DBFiles::DATA);
     }
     // make identifiers stable
 #pragma omp parallel
@@ -147,7 +147,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
             }
         }
     }
-    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SOURCE);
+    DBReader<IdType>::softlinkDb(par.db1, par.db2, DBFiles::SOURCE);
 
     return EXIT_SUCCESS;
 }

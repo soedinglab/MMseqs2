@@ -69,7 +69,7 @@ int maskbygff(int argc, const char **argv, const Command& command) {
         start -= 1;
         end -= 1;
 
-        size_t id = reader.getId(name);
+        IdType id = reader.getId(name);
         if(id == UINT_MAX) {
             Debug(Debug::ERROR) << "GFF entry not found in input database: " << name << "!\n";
             return EXIT_FAILURE;
@@ -87,7 +87,7 @@ int maskbygff(int argc, const char **argv, const Command& command) {
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, par.compressed, reader.getDbtype());
     writer.open();
 
-    DBReader<std::string> headerReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
+    DBReader<std::string> headerReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
     headerReader.open(DBReader<std::string>::NOSORT);
 
     DBWriter headerWriter(par.hdr3.c_str(), par.hdr3Index.c_str(), 1, par.compressed, Parameters::DBTYPE_GENERIC_DB);

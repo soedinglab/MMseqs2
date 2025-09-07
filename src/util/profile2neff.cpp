@@ -15,8 +15,8 @@ int profile2neff(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_PROFILE);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
+    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     const bool isDbOutput = par.dbOut;
     const bool shouldCompress = isDbOutput == true && par.compressed == true;
@@ -45,7 +45,7 @@ int profile2neff(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < entries; ++i) {
             progress.updateProgress();
 
-            unsigned int key = reader.getDbKey(i);
+            IdType key = reader.getDbKey(i);
             seq.mapSequence(i, key, reader.getData(i, thread_idx), reader.getSeqLen(i));
 
             if (isDbOutput == false) {

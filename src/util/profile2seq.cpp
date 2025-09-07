@@ -14,8 +14,8 @@ int profile2seq(int argc, const char **argv, const Command &command, bool consen
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_PROFILE);
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
+    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_AMINO_ACIDS);
     writer.open();
@@ -48,7 +48,7 @@ int profile2seq(int argc, const char **argv, const Command &command, bool consen
     }
     writer.close(true);
     reader.close();
-    DBReader<unsigned int>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
+    DBReader<IdType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
 
     return EXIT_SUCCESS;
 }

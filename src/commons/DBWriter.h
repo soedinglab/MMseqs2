@@ -43,7 +43,7 @@ public:
 
     void alignToPageSize(int thrIdx = 0);
 
-    void sortDatafileByIdOrder(DBReader<unsigned int>& qdbr);
+    void sortDatafileByIdOrder(DBReader<IdType>& qdbr);
 
     static void mergeResults(const std::string &outFileName, const std::string &outFileNameIndex,
                              const std::vector<std::pair<std::string, std::string>> &files,
@@ -67,7 +67,7 @@ public:
     template <typename T>
     static void writeIndexEntryToFile(FILE *outFile, char *buff1, T &index);
 
-    static void createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& origData, const std::string& origIndex, int sortMode = DBReader<unsigned int>::SORT_BY_ID_OFFSET);
+    static void createRenumberedDB(const std::string& dataFile, const std::string& indexFile, const std::string& origData, const std::string& origIndex, int sortMode = DBReader<IdType>::SORT_BY_ID_OFFSET);
 
     bool isClosed(){
         return closed;

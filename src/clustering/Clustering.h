@@ -23,8 +23,8 @@ private:
 
     void writeData(DBWriter *dbw, const std::pair<unsigned int, unsigned int> * ret, size_t dbSize);
 
-    DBReader<unsigned int> *seqDbr;
-    DBReader<unsigned int> *alnDbr;
+    DBReader<IdType> *seqDbr;
+    DBReader<IdType> *alnDbr;
 
     bool needSET;
     unsigned int seqnum;

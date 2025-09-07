@@ -11,8 +11,8 @@ Aggregation::Aggregation(const std::string &targetDbName, const std::string &res
         : resultDbName(resultDbName), outputDbName(outputDbName), threads(threads), compressed(compressed) {
     std::string sizeDbName = targetDbName + "_member_to_set";
     std::string sizeDbIndex = targetDbName + "_member_to_set.index";
-    targetSetReader = new DBReader<unsigned int>(sizeDbName.c_str(), sizeDbIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    targetSetReader->open(DBReader<unsigned int>::NOSORT);
+    targetSetReader = new DBReader<IdType>(sizeDbName.c_str(), sizeDbIndex.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+    targetSetReader->open(DBReader<IdType>::NOSORT);
 }
 
 Aggregation::~Aggregation() {
@@ -33,7 +33,7 @@ void Aggregation::buildMap(char *data, int thread_idx, std::map<unsigned int, st
 
         std::vector<std::string> columns = Util::split(line, "\t");
         unsigned int targetKey = Util::fast_atoi<unsigned int>(columns[0].c_str());
-        size_t setId = targetSetReader->getId(targetKey);
+        IdType setId = targetSetReader->getId(targetKey);
         if (setId == UINT_MAX) {
             Debug(Debug::ERROR) << "Invalid target database key " << columns[0] << ".\n";
             EXIT(EXIT_FAILURE);
@@ -46,8 +46,8 @@ void Aggregation::buildMap(char *data, int thread_idx, std::map<unsigned int, st
 
 int Aggregation::run() {
     std::string inputDBIndex = resultDbName + ".index";
-    DBReader<unsigned int> reader(resultDbName.c_str(), inputDBIndex.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> reader(resultDbName.c_str(), inputDBIndex.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     std::string outputDBIndex = outputDbName + ".index";
     DBWriter writer(outputDbName.c_str(), outputDBIndex.c_str(), threads, compressed, Parameters::DBTYPE_ALIGNMENT_RES);
@@ -69,7 +69,7 @@ int Aggregation::run() {
             progress.updateProgress();
             dataToMerge.clear();
 
-            unsigned int key = reader.getDbKey(i);
+            IdType key = reader.getDbKey(i);
             buildMap(reader.getData(i, thread_idx), thread_idx, dataToMerge);
             prepareInput(key, thread_idx);
             

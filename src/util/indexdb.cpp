@@ -13,7 +13,7 @@ void setIndexDbDefaults(Parameters *p) {
     p->sensitivity = 5.7;
 }
 
-std::string findIncompatibleParameter(DBReader<unsigned int>& index, const Parameters& par, int kmerScore, const int dbtype) {
+std::string findIncompatibleParameter(DBReader<IdType>& index, const Parameters& par, int kmerScore, const int dbtype) {
     PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
     if (meta.compBiasCorr != par.compBiasCorrection)
         return "compBiasCorrection";
@@ -55,8 +55,8 @@ int indexdb(int argc, const char **argv, const Command &command) {
     }
 
 
-    DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    dbr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    dbr.open(DBReader<IdType>::NOSORT);
 
     // remove par.indexDbsuffix from db1
     std::string seqDb = par.db1 + "_seq";
@@ -79,10 +79,10 @@ int indexdb(int argc, const char **argv, const Command &command) {
     std::string hdr1 = ppDB ? seqDb + "_h" : par.hdr1;
     std::string hdr1Index = ppDB ?  seqDb + "_h.index" : par.hdr1Index;
 
-    DBReader<unsigned int> *dbr2 = NULL;
+    DBReader<IdType> *dbr2 = NULL;
     if ((sameDB == false) || ppDB) {
-        dbr2 = new DBReader<unsigned int>(db2.c_str(), db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        dbr2->open(DBReader<unsigned int>::NOSORT);
+        dbr2 = new DBReader<IdType>(db2.c_str(), db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+        dbr2->open(DBReader<IdType>::NOSORT);
     }
 
     const bool db1IsNucl = Parameters::isEqualDbtype(dbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
@@ -107,7 +107,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
         par.kmerScore.values = 0;
     }
 
-    const bool contextPseudoCnts = DBReader<unsigned int>::getExtendedDbtype(dbr.getDbtype()) & Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS;
+    const bool contextPseudoCnts = DBReader<IdType>::getExtendedDbtype(dbr.getDbtype()) & Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS;
 
     // TODO: investigate if it makes sense to mask the profile consensus sequence
     if (isProfileSearch) {
@@ -132,8 +132,8 @@ int indexdb(int argc, const char **argv, const Command &command) {
     std::string indexDbType = indexDB + ".dbtype";
     if (par.checkCompatible > 0 && FileUtil::fileExists(indexDbType.c_str())) {
         Debug(Debug::INFO) << "Check index " << indexDB << "\n";
-        DBReader<unsigned int> index(indexDB.c_str(), (indexDB + ".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        index.open(DBReader<unsigned int>::NOSORT);
+        DBReader<IdType> index(indexDB.c_str(), (indexDB + ".index").c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+        index.open(DBReader<IdType>::NOSORT);
 
         if (Parameters::isEqualDbtype(dbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES) && par.searchType == Parameters::SEARCH_TYPE_NUCLEOTIDES && par.PARAM_ALPH_SIZE.wasSet) {
             Debug(Debug::WARNING) << "Alphabet size is not taken into account for compatibility check in nucleotide search.\n";
@@ -159,27 +159,27 @@ int indexdb(int argc, const char **argv, const Command &command) {
 
     const bool noHeaders = (par.indexSubset & Parameters::INDEX_SUBSET_NO_HEADERS) != 0;
     if (recreate) {
-        DBReader<unsigned int> *hdbr1 = NULL;
+        DBReader<IdType> *hdbr1 = NULL;
         if (noHeaders == false) {
-            hdbr1 = new DBReader<unsigned int>(hdr1.c_str(), hdr1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-            hdbr1->open(DBReader<unsigned int>::NOSORT);
+            hdbr1 = new DBReader<IdType>(hdr1.c_str(), hdr1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
+            hdbr1->open(DBReader<IdType>::NOSORT);
         }
 
-        DBReader<unsigned int> *hdbr2 = NULL;
+        DBReader<IdType> *hdbr2 = NULL;
         if (sameDB == false && ppDB == false && noHeaders == false) {
-            hdbr2 = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-            hdbr2->open(DBReader<unsigned int>::NOSORT);
+            hdbr2 = new DBReader<IdType>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
+            hdbr2->open(DBReader<IdType>::NOSORT);
         }
 
-        DBReader<unsigned int> *alndbr = NULL;
+        DBReader<IdType> *alndbr = NULL;
         const bool noAlignment = (par.indexSubset & Parameters::INDEX_SUBSET_NO_ALIGNMENT) != 0;
         if (ppDB == true && noAlignment == false) {
-            alndbr = new DBReader<unsigned int>(alnFile.c_str(), alnIndexFile.c_str(),
-                                                par.threads, DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-            alndbr->open(DBReader<unsigned int>::NOSORT);
+            alndbr = new DBReader<IdType>(alnFile.c_str(), alnIndexFile.c_str(),
+                                                par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
+            alndbr->open(DBReader<IdType>::NOSORT);
         }
 
-        DBReader<unsigned int>::removeDb(indexDB);
+        DBReader<IdType>::removeDb(indexDB);
         PrefilteringIndexReader::createIndexFile(indexDB, &dbr, dbr2, hdbr1, hdbr2, alndbr, seedSubMat, par.maxSeqLen,
                                                  par.spacedKmer, par.spacedKmerPattern, par.compBiasCorrection,
                                                  seedSubMat->alphabetSize, par.kmerSize, par.maskMode, par.maskLowerCaseMode,

@@ -27,8 +27,8 @@ int alignall(int argc, const char **argv, const Command &command) {
     }
     unsigned int swMode = Alignment::initSWMode(par.alignmentMode, par.covThr, par.seqIdThr);
 
-    DBReader<unsigned int> tdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    tdbr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> tdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+    tdbr.open(DBReader<IdType>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         tdbr.readMmapedDataInMemory();
     }
@@ -47,8 +47,8 @@ int alignall(int argc, const char **argv, const Command &command) {
         gapExtend = par.gapExtend.values.aminoacid();
     }
 
-    DBReader<unsigned int> dbr_res(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-    dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> dbr_res(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+    dbr_res.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     resultWriter.open();
@@ -81,7 +81,7 @@ int alignall(int argc, const char **argv, const Command &command) {
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
 
-                const unsigned int key = dbr_res.getDbKey(id);
+                const IdType key = dbr_res.getDbKey(id);
                 char *data = dbr_res.getData(id, thread_idx);
 
                 results.clear();
@@ -94,8 +94,8 @@ int alignall(int argc, const char **argv, const Command &command) {
 
                 resultWriter.writeStart(thread_idx);
                 for (size_t entryIdx1 = 0; entryIdx1 < results.size(); entryIdx1++) {
-                    const unsigned int queryId = tdbr.getId(results[entryIdx1]);
-                    const unsigned int queryKey = tdbr.getDbKey(queryId);
+                    const IdType queryId = tdbr.getId(results[entryIdx1]);
+                    const IdType queryKey = tdbr.getDbKey(queryId);
                     char *querySeq = tdbr.getData(queryId, thread_idx);
                     query.mapSequence(queryId, queryKey, querySeq, tdbr.getSeqLen(queryId));
                     matcher.initQuery(&query);
@@ -105,8 +105,8 @@ int alignall(int argc, const char **argv, const Command &command) {
                     const unsigned int queryIdLen = tmpBuff - buffer;
 
                     for (size_t entryIdx = 0; entryIdx < results.size(); entryIdx++) {
-                        const unsigned int targetId = tdbr.getId(results[entryIdx]);
-                        const unsigned int targetKey = tdbr.getDbKey(targetId);
+                        const IdType targetId = tdbr.getId(results[entryIdx]);
+                        const IdType targetKey = tdbr.getDbKey(targetId);
                         char *targetSeq = tdbr.getData(targetId, thread_idx);
                         target.mapSequence(id, targetKey, targetSeq, tdbr.getSeqLen(targetId));
 

@@ -60,18 +60,18 @@ public:
             : Aggregation(targetDbName, resultDbName, outputDbName, threads, compressed), alpha(alpha), shortOutput(shortOutput) {
         std::string data = queryDbName + "_set_size";
         std::string index = queryDbName + "_set_size.index";
-        querySizeReader = new DBReader<unsigned int>(data.c_str(), index.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-        querySizeReader->open(DBReader<unsigned int>::NOSORT);
+        querySizeReader = new DBReader<IdType>(data.c_str(), index.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+        querySizeReader->open(DBReader<IdType>::NOSORT);
 
         data = targetDbName + "_set_size";
         index = targetDbName + "_set_size.index";
-        targetSizeReader = new DBReader<unsigned int>(data.c_str(), index.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-        targetSizeReader->open(DBReader<unsigned int>::NOSORT);
+        targetSizeReader = new DBReader<IdType>(data.c_str(), index.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+        targetSizeReader->open(DBReader<IdType>::NOSORT);
 
         data = targetDbName + "_nucl";
         index = targetDbName + "_nucl.index";
-        targetSourceReader = new DBReader<unsigned int>(data.c_str(), index.c_str(), threads, DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX);
-        targetSourceReader->open(DBReader<unsigned int>::USE_INDEX);
+        targetSourceReader = new DBReader<IdType>(data.c_str(), index.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+        targetSourceReader->open(DBReader<IdType>::USE_INDEX);
     }
 
     ~SetSummaryAggregator() {
@@ -205,9 +205,9 @@ public:
     }
 
 private:
-    DBReader<unsigned int> *querySizeReader;
-    DBReader<unsigned int> *targetSourceReader;
-    DBReader<unsigned int> *targetSizeReader;
+    DBReader<IdType> *querySizeReader;
+    DBReader<IdType> *targetSourceReader;
+    DBReader<IdType> *targetSizeReader;
     float alpha;
     bool shortOutput;
 };

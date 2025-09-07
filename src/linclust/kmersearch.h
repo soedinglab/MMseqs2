@@ -26,7 +26,7 @@ public:
         size_t adjustedKmer;
     };
     static ExtractKmerAndSortResult extractKmerAndSort(size_t splitKmerCount, size_t split, size_t splits,
-                                                       DBReader<unsigned int> &seqDbr, Parameters &par, BaseMatrix *subMat);
+                                                       DBReader<IdType> &seqDbr, Parameters &par, BaseMatrix *subMat);
 };
 
 

@@ -424,7 +424,7 @@ public:
 
     int getCurrentPosition() { return currItPos; }
 
-    unsigned int getDbKey() { return dbKey; }
+    IdType getDbKey() { return dbKey; }
 
     int getSeqType() { return seqType; }
 

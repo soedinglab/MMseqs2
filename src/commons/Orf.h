@@ -90,7 +90,7 @@ public:
 
     std::pair<const char *, size_t> getSequence(const SequenceLocation &location);
 
-    static Matcher::result_t getFromDatabase(const size_t id, DBReader<unsigned int> & contigsReader, DBReader<unsigned int> & orfHeadersReader, int thread_idx);
+    static Matcher::result_t getFromDatabase(const size_t id, DBReader<IdType> & contigsReader, DBReader<IdType> & orfHeadersReader, int thread_idx);
 
     static SequenceLocation parseOrfHeader(const char *data);
 

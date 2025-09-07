@@ -125,7 +125,7 @@ std::vector<Domain> getEntries(unsigned int queryId, char *data, size_t length, 
     return result;
 }
 
-int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
+int doAnnotate(Parameters &par, DBReader<IdType> &blastTabReader,
                const std::pair<std::string, std::string>& resultdb,
                const size_t dbFrom, const size_t dbSize, bool merge) {
     DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads), par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
@@ -144,7 +144,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
 #pragma omp for schedule(dynamic, 100)
         for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
             progress.updateProgress();
-            unsigned int id = blastTabReader.getDbKey(i);
+            IdType id = blastTabReader.getDbKey(i);
 
             char *tabData = blastTabReader.getData(i, thread_idx);
             size_t tabLength = blastTabReader.getEntryLen(i) - 1;
@@ -180,8 +180,8 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
 }
 
 int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
@@ -208,8 +208,8 @@ int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int m
 }
 
 int doAnnotate(Parameters &par) {
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
     size_t resultSize = reader.getSize();
     int status = doAnnotate(par, reader, std::make_pair(par.db3, par.db3Index), 0, resultSize, false);
     reader.close();

@@ -227,8 +227,8 @@ int search(int argc, const char **argv, const Command& command) {
     int targetSrcDbType = -1;
     if(indexStr != "" || Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB)){
         indexStr = par.db2;
-        DBReader<unsigned int> dbr(targetDB.c_str(), (targetDB+".index").c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
-        dbr.open(DBReader<unsigned int>::NOSORT);
+        DBReader<IdType> dbr(targetDB.c_str(), (targetDB+".index").c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+        dbr.open(DBReader<IdType>::NOSORT);
         PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&dbr);
         targetSrcDbType = data.srcSeqType;
         targetDbType = data.seqType;

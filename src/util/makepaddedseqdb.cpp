@@ -15,16 +15,16 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    const int mode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
-    DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, mode);
-    dbr.open(DBReader<unsigned int>::SORT_BY_LENGTH);
+    const int mode = DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA;
+    DBReader<IdType> dbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, mode);
+    dbr.open(DBReader<IdType>::SORT_BY_LENGTH);
 
-    DBReader<unsigned int> dbhr(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, mode);
-    dbhr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<IdType> dbhr(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, mode);
+    dbhr.open(DBReader<IdType>::NOSORT);
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, par.scoreBias);
 
-    int dbType = DBReader<unsigned int>::setExtendedDbtype(dbr.getDbtype(), Parameters::DBTYPE_EXTENDED_GPU);
+    int dbType = DBReader<IdType>::setExtendedDbtype(dbr.getDbtype(), Parameters::DBTYPE_EXTENDED_GPU);
     DBWriter dbsw(par.db2.c_str(), par.db2Index.c_str(), par.threads, false, dbType);
     dbsw.open();
     DBWriter dbhw(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, false, Parameters::DBTYPE_GENERIC_DB);
@@ -64,7 +64,7 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
         }
 
         size_t id = dbr.getSize() - 1 - i;
-        unsigned int key = dbr.getDbKey(id);
+        IdType key = dbr.getDbKey(id);
         char *data = dbr.getData(id, thread_idx);
         size_t seqLen = dbr.getSeqLen(id);
         seq.mapSequence(id, key, data, seqLen);
@@ -97,7 +97,7 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
         }
         dbsw.writeIndexEntry(firstIt + seqKey, start, seq.L + 2, thread_idx);
 
-        unsigned int headerId = dbhr.getId(key);
+        IdType headerId = dbhr.getId(key);
         dbhw.writeData(dbhr.getData(headerId, thread_idx), dbhr.getEntryLen(headerId), firstIt + seqKey, thread_idx, false);
 
         seqKey++;
@@ -111,14 +111,14 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
     dbhw.close(true, false);
     dbhr.close();
     if (par.writeLookup == true) {
-        DBReader<unsigned int> readerHeader(par.hdr2.c_str(), par.hdr2Index.c_str(), 1, DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX);
-        readerHeader.open(DBReader<unsigned int>::NOSORT);
+        DBReader<IdType> readerHeader(par.hdr2.c_str(), par.hdr2Index.c_str(), 1, DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX);
+        readerHeader.open(DBReader<IdType>::NOSORT);
         // create lookup file
         std::string lookupFile = par.db2 + ".lookup";
         FILE* file = FileUtil::openAndDelete(lookupFile.c_str(), "w");
         std::string buffer;
         buffer.reserve(2048);
-        DBReader<unsigned int>::LookupEntry entry;
+        DBReader<IdType>::LookupEntry entry;
         size_t totalSize = dbr.getSize();
         for (unsigned int id = 0; id < readerHeader.getSize(); id++) {
             char *header = readerHeader.getData(id, 0);

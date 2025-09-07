@@ -27,9 +27,9 @@ int gpuserver(int argc, const char **argv, const Command& command) {
 #ifdef HAVE_CUDA
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     IndexReader dbrIdx(par.db1, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
-    DBReader<unsigned int>* dbr = dbrIdx.sequenceReader;
+    DBReader<IdType>* dbr = dbrIdx.sequenceReader;
 
-    const bool isGpuDb = DBReader<unsigned int>::getExtendedDbtype(dbr->getDbtype()) & Parameters::DBTYPE_EXTENDED_GPU;
+    const bool isGpuDb = DBReader<IdType>::getExtendedDbtype(dbr->getDbtype()) & Parameters::DBTYPE_EXTENDED_GPU;
     if (isGpuDb == false) {
         Debug(Debug::ERROR) << "Database " << FileUtil::baseName(par.db1) << " is not a valid GPU database\n"
                             << "Please call: makepaddedseqdb " << FileUtil::baseName(par.db1) << " " << FileUtil::baseName(par.db1) << "_pad\n";
