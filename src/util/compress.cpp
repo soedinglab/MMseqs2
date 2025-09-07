@@ -38,7 +38,7 @@ int doCompression(int argc, const char **argv, const Command& command, bool shou
 #pragma omp for schedule(static)
         for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
-            writer.writeData(reader.getData(i, thread_idx), std::max(static_cast<IdType>(reader.getEntryLen(i)), 1u) - 1u, reader.getDbKey(i), thread_idx);
+            writer.writeData(reader.getData(i, thread_idx), std::max(static_cast<unsigned int>(reader.getEntryLen(i)), 1u) - 1u, reader.getDbKey(i), thread_idx);
         }
     }
     writer.close();

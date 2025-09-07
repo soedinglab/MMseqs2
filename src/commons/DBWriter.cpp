@@ -409,7 +409,7 @@ void DBWriter::writeIndexEntry(unsigned int key, size_t offset, size_t length, u
 }
 
 
-void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, unsigned int thrIdx, bool addNullByte, bool addIndexEntry) {
+void DBWriter::writeData(const char *data, size_t dataSize, IdType key, unsigned int thrIdx, bool addNullByte, bool addIndexEntry) {
     writeStart(thrIdx);
     writeAdd(data, dataSize, thrIdx);
     writeEnd(key, thrIdx, addNullByte, addIndexEntry);

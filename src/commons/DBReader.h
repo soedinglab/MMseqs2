@@ -259,7 +259,7 @@ public:
     size_t getLookupIdByAccession(const std::string& accession);
     T getLookupKey(size_t id);
     std::string getLookupEntryName(size_t id);
-    unsigned int getLookupFileNumber(size_t id);
+    IdType getLookupFileNumber(size_t id);
     LookupEntry* getLookup() { return lookup; };
 
     static const int NOSORT = 0;
@@ -326,7 +326,7 @@ public:
 
     void readIndexId(T* id, char * line, const char** cols);
 
-    unsigned int indexIdToNum(T* id);
+    IdType indexIdToNum(T* id);
 
     void readMmapedDataInMemory();
 

@@ -62,9 +62,9 @@ public:
                                 bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode,
                                 int maskLowerCase, float maskProb, int maskNrepeats, int kmerThr, int targetSearchMode, int splits, int indexSubset = 0);
 
-    static DBReader<IdType> *openNewHeaderReader(DBReader<IdType>*dbr, unsigned int dataIdx, unsigned int indexIdx, int threads, bool touchIndex, bool touchData);
+    static DBReader<IdType> *openNewHeaderReader(DBReader<IdType>*dbr, IdType dataIdx, IdType indexIdx, int threads, bool touchIndex, bool touchData);
 
-    static DBReader<IdType> *openNewReader(DBReader<IdType> *dbr, unsigned int dataIdx, unsigned int indexIdx, bool includeData, int threads, bool touchIndex, bool touchData);
+    static DBReader<IdType> *openNewReader(DBReader<IdType> *dbr, IdType dataIdx, IdType indexIdx, bool includeData, int threads, bool touchIndex, bool touchData);
 
     static SequenceLookup *getSequenceLookup(unsigned int split, DBReader<IdType> *dbr, int preloadMode);
 
