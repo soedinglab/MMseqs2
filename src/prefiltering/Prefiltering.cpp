@@ -405,7 +405,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
             // add length for file1 and file2 and subtract -1 for one null byte
             size_t seqLen = index1[id].length + index2[id].length - 1;
             totalSize += index2[id].length - 1;
-            index1[id].length = seqLen;
+            index1[id].length = static_cast<unsigned int>(seqLen);
             index1[id].offset = currOffset;
             currOffset += seqLen;
         }
@@ -465,7 +465,7 @@ void Prefiltering::mergeTargetSplits(const std::string &outDB, const std::string
                 SORT_SERIAL(hits.begin(), hits.end(), hit_t::compareHitsByScoreAndId);
             }
             for (size_t i = 0; i < hits.size(); ++i) {
-                int len = QueryMatcher::prefilterHitToBuffer(buffer, hits[i]);
+                size_t len = QueryMatcher::prefilterHitToBuffer(buffer, hits[i]);
                 result.append(buffer, len);
             }
             writer.writeData(result.c_str(), result.size(), reader1.getDbKey(currentId), thread_idx);
@@ -685,7 +685,7 @@ int Prefiltering::runSplits(const std::string &resultDB, const std::string &resu
         // splits template database into x sequence steps
         std::vector<std::pair<std::string, std::string> > splitFiles;
         for (size_t i = fromSplit; i < (fromSplit + splitProcessCount); i++) {
-            std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(resultDB, resultDBIndex, i);
+            std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(resultDB, resultDBIndex, static_cast<int>(i));
             if (runSplit(filenamePair.first.c_str(), filenamePair.second.c_str(), i, merge)) {
                 splitFiles.push_back(filenamePair);
 
@@ -747,7 +747,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
             sequenceLookup = NULL;
         }
 
-        getIndexTable(split, dbFrom, dbSize);
+        getIndexTable(static_cast<int>(split), dbFrom, dbSize);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
         qdbr->decomposeDomainByAminoAcid(split, splits, &queryFrom, &querySize);
         if (querySize == 0) {
@@ -863,7 +863,7 @@ bool Prefiltering::runSplit(const std::string &resultDB, const std::string &resu
                 }
 
                 // write prefiltering results to a string
-                int len = QueryMatcher::prefilterHitToBuffer(buffer, *res);
+                size_t len = QueryMatcher::prefilterHitToBuffer(buffer, *res);
                 result.append(buffer, len);
             }
             tmpDbw.writeData(result.c_str(), result.length(), qKey, thread_idx);

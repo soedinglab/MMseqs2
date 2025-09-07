@@ -75,7 +75,7 @@ void AlignmentSymmetry::readInData(DBReader<KeyType>*alnDbr, DBReader<KeyType>*s
                     char similarity[255 + 1];
                     char dbKey[255 + 1];
                     Util::parseKey(data, dbKey);
-                    const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                    const KeyType key = (KeyType) strtoul(dbKey, NULL, 10);
                     const KeyType currElement = seqDbr->getId(key);
                     if (elementScoreTable != NULL) {
                         if (Parameters::isEqualDbtype(alnType,Parameters::DBTYPE_ALIGNMENT_RES)) {
@@ -104,7 +104,7 @@ void AlignmentSymmetry::readInData(DBReader<KeyType>*alnDbr, DBReader<KeyType>*s
                             EXIT(EXIT_FAILURE);
                         }
                     }
-                    if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
+                    if (currElement == KEY_MAX || currElement > seqDbr->getSize()) {
                         Debug(Debug::ERROR) << "Element " << dbKey
                                             << " contained in some alignment list, but not contained in the sequence database!\n";
                         EXIT(EXIT_FAILURE);
@@ -153,7 +153,7 @@ void AlignmentSymmetry::readInDataSet(DBReader<KeyType> * alnDbr, DBReader<KeyTy
                 std::vector<bool> bitFlags(dbSize, false);
                 for (size_t j = 0; j < len; ++j) {
                     KeyType value = sourceLookupTable[clusterId][j];
-                    if (value != UINT_MAX) {
+                    if (value != KEY_MAX) {
                         const KeyType alnId = alnDbr->getId(value);
                         char *data = alnDbr->getData(alnId, thread_idx);
                         if (*data == '\0') { // check if file contains entry
@@ -193,7 +193,7 @@ void AlignmentSymmetry::readInDataSet(DBReader<KeyType> * alnDbr, DBReader<KeyTy
                                         EXIT(EXIT_FAILURE);
                                     }
                                 }
-                                if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
+                                if (currElement == KEY_MAX || currElement > seqDbr->getSize()) {
                                     Debug(Debug::ERROR) << "Element " << dbKey
                                                         << " contained in some alignment list, but not contained in the sequence database!\n";
                                     EXIT(EXIT_FAILURE);
@@ -303,7 +303,7 @@ void AlignmentSymmetry::addMissingLinks(KeyType **elementLookupTable,
         }
         for(size_t elementId = 0; elementId < oldElementSize; elementId++) {
             const KeyType currElm = elementLookupTable[setId][elementId];
-            if(currElm == UINT_MAX || currElm > dbSize){
+            if(currElm == KEY_MAX || currElm > dbSize){
                 Debug(Debug::ERROR) << "currElm > dbSize in element list (addMissingLinks). This should not happen.\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -318,7 +318,7 @@ void AlignmentSymmetry::addMissingLinks(KeyType **elementLookupTable,
             if(found == false){ // add connection if it could not be found
                 // find pos to write
                 size_t pos = oldCurrElementSize;
-                while( pos < newCurrElementSize && elementLookupTable[currElm][pos] != UINT_MAX ){
+                while( pos < newCurrElementSize && elementLookupTable[currElm][pos] != KEY_MAX ){
                     pos++;
                 }
                 if(pos >= newCurrElementSize){

@@ -437,7 +437,7 @@ Orf::SequenceLocation Orf::parseOrfHeader(const char *data) {
     return loc;
 }
 
-size_t Orf::writeOrfHeader(char *buffer, unsigned int key, size_t fromPos, size_t toPos,
+size_t Orf::writeOrfHeader(char *buffer, KeyType key, size_t fromPos, size_t toPos,
                            bool hasIncompleteStart, bool hasIncompleteEnd) {
     char * basePos = buffer;
     char * tmpBuff = Itoa::u32toa_sse2((uint32_t) key, buffer);

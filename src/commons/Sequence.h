@@ -539,7 +539,7 @@ private:
     void nextProfileKmer();
 
     KeyType id;
-    unsigned int dbKey;
+    KeyType dbKey;
     const char *seqData;
 
     // current iterator position

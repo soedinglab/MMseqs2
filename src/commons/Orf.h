@@ -101,7 +101,7 @@ public:
         return iupacReverseComplementTable[static_cast<unsigned char>(c)];
     }
 
-    static size_t writeOrfHeader(char *buffer, unsigned int key, size_t fromPos, size_t toPos, bool hasIncompleteStart,
+    static size_t writeOrfHeader(char *buffer, KeyType key, size_t fromPos, size_t toPos, bool hasIncompleteStart,
                                bool hasIncompleteEnd);
 
 private:

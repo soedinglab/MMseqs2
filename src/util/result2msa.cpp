@@ -227,7 +227,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
             while (*data != '\0') {
                 Util::parseKey(data, dbKey);
 
-                const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                const KeyType key = (unsigned int) strtoul(dbKey, NULL, 10);
                 // in the same database case, we have the query repeated
                 if (key == queryKey && sameDatabase == true) {
                     data = Util::skipLine(data);
@@ -271,7 +271,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         if (i == 0) {
                             headers.emplace_back(centerSequenceHeader, centerHeaderLength);
                         } else if (kept[i] == true) {
-                            unsigned int key = seqKeys[i - 1];
+                            KeyType key = seqKeys[i - 1];
                             KeyType id = targetHeaderReader->getId(key);
                             char *header = targetHeaderReader->getData(id, thread_idx);
                             size_t length = targetHeaderReader->getEntryLen(id) - 1;
@@ -303,7 +303,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         header = centerSequenceHeader;
                         length = centerHeaderLength;
                     } else {
-                        unsigned int key = seqKeys[i - 1];
+                        KeyType key = seqKeys[i - 1];
                         KeyType id = targetHeaderReader->getId(key);
                         header = targetHeaderReader->getData(id, thread_idx);
                         length = targetHeaderReader->getEntryLen(id) - 1;
@@ -370,7 +370,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         if(isOnlyGap) {
                             header = "DUMMY";
                         }else {
-                            unsigned int key = seqKeys[i - 1];
+                            KeyType key = seqKeys[i - 1];
                             KeyType id = targetHeaderReader->getId(key);
                             header = targetHeaderReader->getData(id, thread_idx);
                         }
@@ -417,7 +417,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                             result.append(Util::parseFastaHeader(centerSequenceHeader));
                         }
                     } else {
-                        unsigned int key = seqKeys[i - 1];
+                        KeyType key = seqKeys[i - 1];
                         KeyType id = targetHeaderReader->getId(key);
                         if(isOnlyGap){
                             result.append("DUMMY");
@@ -511,8 +511,8 @@ int result2msa(int argc, const char **argv, const Command &command) {
                 queryAln.backtrace = std::string(centerSequence.L, 'M'); // only matches
                 CompressedA3M::hitToBuffer(refReader->getId(newQueryKey), queryAln, result);
                 for (size_t i = 0; i < alnResults.size(); ++i) {
-                    unsigned int key = alnResults[i].dbKey;
-                    unsigned int targetKey = seqConcat->dbBKeyMap(key);
+                    KeyType key = alnResults[i].dbKey;
+                    KeyType targetKey = seqConcat->dbBKeyMap(key);
                     KeyType targetId = refReader->getId(targetKey);
                     CompressedA3M::hitToBuffer(targetId, alnResults[i], result);
                 }

@@ -31,14 +31,14 @@ public:
             count = (dataSize - magicLen) / sizeof(Pair);
             return;
         }
-        std::vector<std::pair<unsigned int, unsigned int>> mapping;
+        std::vector<std::pair<KeyType , unsigned int>> mapping;
         size_t currPos = 0;
         const char *cols[3];
         size_t isSorted = true;
-        unsigned int prevId = 0;
+        KeyType prevId = 0;
         while (currPos < dataSize) {
             Util::getWordsOfLine(data, cols, 2);
-            unsigned int id = Util::fast_atoi<size_t>(cols[0]);
+            KeyType id = Util::fast_atoi<KeyType>(cols[0]);
             isSorted *= (id >= prevId);
             unsigned int taxid = Util::fast_atoi<size_t>(cols[1]);
             data = Util::skipLine(data);
@@ -74,7 +74,7 @@ public:
         }
     }
 
-    unsigned int lookup(unsigned int key) {
+    KeyType lookup(KeyType key) {
         unsigned int taxon = 0;
         // match dbKey to its taxon based on mapping
         Pair val;
@@ -92,7 +92,7 @@ public:
 private:
     MemoryMapped* file;
     struct __attribute__((__packed__)) Pair{
-        unsigned int dbkey;
+        KeyType dbkey;
         unsigned int taxon;
     };
     Pair* entries;

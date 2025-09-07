@@ -82,10 +82,10 @@ QueryMatcher::~QueryMatcher(){
     delete kmerGenerator;
 }
 
-std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, unsigned int identityId, bool isNucleotide) {
+std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, size_t identityId, bool isNucleotide) {
     querySeq->resetCurrPos();
 //    std::cout << "Id: " << querySeq->getId() << std::endl;
-    memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
+    memset(scoreSizes, 0, SCORE_RANGE *  sizeof(unsigned int));
 
     // bias correction
     if(aaBiasCorrection == true){
@@ -186,7 +186,7 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, unsigned 
         unsigned int thr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         thr = std::max(minDiagScoreThr, thr);
         if(resultSize < foundDiagonalsSize / 2) {
-            int elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, thr, foundDiagonals, resultSize);
+            size_t elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, thr, foundDiagonals, resultSize);
             queryResult = getResult<KMER_SCORE>(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, identityId, thr, ungappedAlignment, false);
         }else{
             size_t resultPos = 0;
@@ -363,7 +363,7 @@ void QueryMatcher::updateScoreBins(CounterResult *result, size_t elementCount) {
 template <int TYPE>
 std::pair<hit_t*, size_t> QueryMatcher::getResult(CounterResult * results,
                                                   size_t resultSize,
-                                                  const unsigned int id,
+                                                  const size_t id,
                                                   const unsigned short thr,
                                                   UngappedAlignment *align,
                                                   const int rescaleScore) {
@@ -419,7 +419,7 @@ std::pair<hit_t*, size_t> QueryMatcher::getResult(CounterResult * results,
     return std::make_pair(resList, currentHits);
 }
 
-void QueryMatcher::initDiagonalMatcher(size_t dbsize, unsigned int maxDbMatches) {
+void QueryMatcher::initDiagonalMatcher(size_t dbsize, size_t maxDbMatches) {
     uint64_t l2CacheSize = Util::getL2CacheSize();
 #define INIT(x) cachedOperation##x = new CacheFriendlyOperations<x>(dbsize, maxDbMatches/x); \
                 activeCounter = x;
@@ -544,10 +544,10 @@ std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, u
 }
 
 template std::pair<hit_t *, size_t>  QueryMatcher::getResult<0>(CounterResult * results, size_t resultSize,
-                                                                const unsigned int id, const unsigned short thr,
+                                                                const size_t id, const unsigned short thr,
                                                                 UngappedAlignment * align, const int rescaleScore);
 template std::pair<hit_t *, size_t>  QueryMatcher::getResult<1>(CounterResult * results, size_t resultSize,
-                                                                const unsigned int id, const unsigned short thr,
+                                                                const size_t id, const unsigned short thr,
                                                                 UngappedAlignment * align, const int rescaleScore);
 
 #undef FOR_EACH

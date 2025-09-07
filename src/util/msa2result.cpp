@@ -67,7 +67,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
     size_t maxMsaArea = 0;
     unsigned int maxSetSize = 0;
     unsigned int maxSeqLength = 0;
-    unsigned int* setSizes = (unsigned int*)calloc((msaReader.getSize() + 1), sizeof(unsigned int));
+    KeyType * setSizes = (KeyType*)calloc((msaReader.getSize() + 1), sizeof(KeyType));
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -238,7 +238,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
                 kseq_read(seq);
             }
 
-            unsigned int startKey = setSizes[id];
+            KeyType startKey = setSizes[id];
             while (kseq_read(seq) >= 0) {
                 if (seq->name.l == 0 || seq->seq.l == 0) {
                     Debug(Debug::WARNING) << "Invalid fasta sequence " << setSize << " in entry " << queryKey << "\n";
@@ -451,7 +451,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
 
                 float seqId = (float)numIdentical / bt.length();
 
-                unsigned int key = setSizes[id] + i;
+                KeyType key = setSizes[id] + i;
                 // initialize res with some values
                 Matcher::result_t res(key, 0, 1.0, 1.0, seqId, 0, bt.length(), 0, consSeqNoGaps.size() - 1, consSeqNoGaps.size(), 0, currSeqNoGaps.size() - 1, currSeqNoGaps.size(), bt);
 

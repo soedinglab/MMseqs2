@@ -57,7 +57,7 @@ int subtractdbs(int argc, const char **argv, const Command& command) {
                 char *data = (char *) leftData;
                 while (*data != '\0') {
                     Util::parseKey(data, key);
-                    unsigned int dbKey = std::strtoul(key, NULL, 10);
+                    KeyType dbKey = std::strtoul(key, NULL, 10);
                     double evalue = 0.0;
                     const size_t columns = Util::getWordsOfLine(data, entry, 255);
                     // its an aln result (parse e-value)
@@ -77,7 +77,7 @@ int subtractdbs(int argc, const char **argv, const Command& command) {
             if (data != NULL) {
                 while (*data != '\0') {
                     Util::parseKey(data, key);
-                    unsigned int element = std::strtoul(key, NULL, 10);
+                    KeyType element = std::strtoul(key, NULL, 10);
                     double evalue = 0.0;
                     const size_t columns = Util::getWordsOfLine(data, entry, 255);
                     if (columns >= Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
@@ -96,7 +96,7 @@ int subtractdbs(int argc, const char **argv, const Command& command) {
                     char *start = data;
                     data = Util::skipLine(data);
                     Util::parseKey(start, key);
-                    unsigned int elementIdx = std::strtoul(key, NULL, 10);
+                    KeyType elementIdx = std::strtoul(key, NULL, 10);
                     if (elementLookup[elementIdx]) {
                         result.append(start, data - start);
                     }

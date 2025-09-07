@@ -251,8 +251,8 @@ int pairaln(int argc, const char **argv, const Command& command) {
         output.reserve(100000);
         bool hasBacktrace = false;
         UniProtConverter converter;
-        unsigned int minResultDbKey = UINT_MAX;
-        Matcher::result_t emptyResult(UINT_MAX, 0, 0, 0, 0, 0,
+        KeyType minResultDbKey = KEY_MAX;
+        Matcher::result_t emptyResult(KEY_MAX, 0, 0, 0, 0, 0,
                                       0, UINT_MAX, 0, 0, UINT_MAX, 0, 0, "1M");
 #pragma omp for schedule(dynamic, 1)
         for (size_t fileNumber = 0; fileNumber < fileToIds.size(); fileNumber++) {
@@ -359,7 +359,7 @@ int pairaln(int argc, const char **argv, const Command& command) {
                             bool isCompatible = false;
 
                             for (size_t j = 0; j < compatible.size(); ++j) {
-                                if (compatible[j].dbKey == UINT_MAX) continue;   // not set yet
+                                if (compatible[j].dbKey == KEY_MAX) continue;   // not set yet
                                 size_t prevNum = CompareUniProt::getUniProtNumber(compatible[j]);
                                 size_t diff = ABS_DIFF(currNum, prevNum);
                                 if (diff <= static_cast<size_t>(par.pairProximityDistance)) {
@@ -382,7 +382,7 @@ int pairaln(int argc, const char **argv, const Command& command) {
                         }
 
                         for (size_t i = 0; i < compatible.size(); i++) {
-                            if (compatible[i].dbKey == UINT_MAX &&
+                            if (compatible[i].dbKey == KEY_MAX &&
                                 par.pairdummymode != Parameters::PAIRALN_DUMMY_MODE_ON) {
                                 continue;
                             }

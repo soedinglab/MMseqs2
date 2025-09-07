@@ -51,7 +51,7 @@ std::pair<KeyType, KeyType> * ClusteringAlgorithms::execute(int mode) {
     }
     KeyType *assignedcluster = new(std::nothrow) KeyType[dbSize];
     Util::checkAllocation(assignedcluster, "Can not allocate assignedcluster memory in ClusteringAlgorithms::execute");
-    std::fill_n(assignedcluster, dbSize, UINT_MAX);
+    std::fill_n(assignedcluster, dbSize, KEY_MAX);
 
     //time
     if (mode==4 || mode==2) {
@@ -141,7 +141,7 @@ std::pair<KeyType, KeyType> * ClusteringAlgorithms::execute(int mode) {
 
 #pragma omp for schedule(static)
         for (size_t i = 0; i < dbSize; i++) {
-            if (assignedcluster[i] == UINT_MAX) {
+            if (assignedcluster[i] == KEY_MAX) {
                 Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(i) << "\t" << i <<
                                     "\tis not assigned to a cluster\n";
                 continue;
@@ -193,15 +193,15 @@ void ClusteringAlgorithms::initClustersizes(){
 
 void ClusteringAlgorithms::removeClustersize(KeyType clusterid){
     clustersizes[clusterid]=0;
-    sorted_clustersizes[clusterid_to_arrayposition[clusterid]] = UINT_MAX;
-    clusterid_to_arrayposition[clusterid]=UINT_MAX;
+    sorted_clustersizes[clusterid_to_arrayposition[clusterid]] = KEY_MAX;
+    clusterid_to_arrayposition[clusterid]=KEY_MAX;
 }
 
 void ClusteringAlgorithms::decreaseClustersize(KeyType clusterid){
     const KeyType oldposition=clusterid_to_arrayposition[clusterid];
     const KeyType newposition=borders_of_set[clustersizes[clusterid]];
     const KeyType swapid=sorted_clustersizes[newposition];
-    if(swapid != UINT_MAX){
+    if(swapid != KEY_MAX){
         clusterid_to_arrayposition[swapid]=oldposition;
     }
     sorted_clustersizes[oldposition]=swapid;
@@ -216,7 +216,7 @@ void ClusteringAlgorithms::setCover(KeyType **elementLookupTable, unsigned short
                                     KeyType *assignedcluster, short *bestscore, size_t *newElementOffsets) {
     for (int64_t cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
         const KeyType representative = sorted_clustersizes[cl_size];
-        if (representative == UINT_MAX) {
+        if (representative == KEY_MAX) {
             continue;
         }
 //          Debug(Debug::INFO)<<alnDbr->getDbKey(representative)<<"\n";
@@ -307,7 +307,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem(KeyType *assignedcluster) {
                 size_t len = end1 - start1;
                 for (size_t j = 0; j < len; ++j) {
                     KeyType value = sourceLookupTable[clusterKey][j];
-                    if (value != UINT_MAX) {
+                    if (value != KEY_MAX) {
                         const KeyType alnId = alnDbr->getId(value);
                         char *data = alnDbr->getData(alnId, 0);
                         while (*data != '\0') {
@@ -325,7 +325,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem(KeyType *assignedcluster) {
                 while (*data != '\0') {
                     char dbKey[255 + 1];
                     Util::parseKey(data, dbKey);
-                    const unsigned int key = (unsigned int)strtoul(dbKey, NULL, 10);
+                    const KeyType key = (KeyType)strtoul(dbKey, NULL, 10);
                     keys.push_back(key);
                     data = Util::skipLine(data);
                 }
@@ -339,7 +339,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem(KeyType *assignedcluster) {
             KeyType clusterId = buffer[j].first;
             const std::vector<KeyType>& keys = buffer[j].second;
 
-            if (assignedcluster[clusterId] != UINT_MAX) {
+            if (assignedcluster[clusterId] != KEY_MAX) {
                 continue;
             }
 
@@ -350,7 +350,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem(KeyType *assignedcluster) {
             for (KeyType key : keys) {
                 KeyType currElement = seqDbr->getId(key);
 
-                if (assignedcluster[currElement] == UINT_MAX) {
+                if (assignedcluster[currElement] == KEY_MAX) {
                     assignedcluster[currElement] = clusterId;
                 }
             }
@@ -361,7 +361,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem(KeyType *assignedcluster) {
     for (size_t id = 0; id < dbSize; ++id) {
         // check if the assigned clusterid is a rep. sequence
         // if not, make it a rep. seq. again
-        if(assignedcluster[id] == UINT_MAX){
+        if(assignedcluster[id] == KEY_MAX){
             assignedcluster[id] = id;
         }
     }
@@ -387,7 +387,7 @@ void ClusteringAlgorithms::readInClusterData(KeyType **elementLookupTable, KeyTy
                 size_t lineCounts = 0;
                 for (size_t j = 0; j < len; ++j) {
                     KeyType value = sourceLookupTable[clusterId][j];
-                    if (value != UINT_MAX) {
+                    if (value != KEY_MAX) {
                         const KeyType alnId = alnDbr->getId(value);
                         const char *data = alnDbr->getData(alnId, thread_idx);
                         const size_t dataSize = alnDbr->getEntryLen(alnId);
@@ -432,7 +432,7 @@ void ClusteringAlgorithms::readInClusterData(KeyType **elementLookupTable, KeyTy
     delete[] elements;
     elements = new(std::nothrow) KeyType[symmetricElementCount];
     Util::checkAllocation(elements, "Can not allocate elements memory in readInClusterData");
-    std::fill_n(elements, symmetricElementCount, UINT_MAX);
+    std::fill_n(elements, symmetricElementCount, KEY_MAX);
     // init score vector
     scores = new(std::nothrow) unsigned short[symmetricElementCount];
     Util::checkAllocation(scores, "Can not allocate scores memory in readInClusterData");

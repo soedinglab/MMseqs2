@@ -270,7 +270,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     if (format == Parameters::FORMAT_ALIGNMENT_SAM) {
         char buffer[1024];
-        unsigned int lastKey = tDbr->sequenceReader->getLastKey();
+        KeyType lastKey = tDbr->sequenceReader->getLastKey();
         bool *headerWritten = new bool[lastKey + 1];
         memset(headerWritten, 0, sizeof(bool) * (lastKey + 1));
         resultWriter.writeStart(0);

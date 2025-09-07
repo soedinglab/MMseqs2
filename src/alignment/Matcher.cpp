@@ -213,7 +213,7 @@ Matcher::result_t Matcher::parseAlignmentRecord(const char *data, bool readCompr
     strncpy(key, data, keySize);
     key[keySize] = '\0';
 
-    unsigned int targetId = Util::fast_atoi<unsigned int>(key);
+    KeyType targetId = Util::fast_atoi<KeyType>(key);
     int score = Util::fast_atoi<int>(entry[1]);
     double seqId;
     fast_float::from_chars(entry[2], entry[3] - 1, seqId);

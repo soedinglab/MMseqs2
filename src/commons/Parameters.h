@@ -4,6 +4,7 @@
 //
 #ifndef MMSEQS_PARAMETERS
 #define MMSEQS_PARAMETERS
+#include "MMseqsTypes.h"
 #include <string>
 #include <vector>
 #include <map>
@@ -18,11 +19,6 @@
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
 
-typedef size_t KeyType;
-#define KEY_MAX SIZE_MAX
-//
-//typedef unsigned int KeyType;
-//#define KEY_MAX UINT_MAX
 
 
 struct MMseqsParameter {

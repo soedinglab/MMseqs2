@@ -6,6 +6,10 @@
 #define MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
 
 #include <cstdlib>
+#include <type_traits>
+#include <cstdint>
+#include <cstddef>
+
 #include "itoa.h"
 #include "EvalueComputation.h"
 #include "CacheFriendlyOperations.h"
@@ -61,7 +65,7 @@ public:
 
     // returns result for the sequence
     // identityId is the id of the identitical sequence in the target database if there is any, UINT_MAX otherwise
-    std::pair<hit_t*, size_t> matchQuery(Sequence *querySeq, unsigned int identityId,  bool isNucleotide);
+    std::pair<hit_t*, size_t> matchQuery(Sequence *querySeq, size_t identityId,  bool isNucleotide);
 
     void setQueryMatcherHook(QueryMatcherHook* hook) {
         this->hook = hook;
@@ -117,7 +121,11 @@ public:
 
     static size_t prefilterHitToBuffer(char *buff1, hit_t &h) {
         char * basePos = buff1;
-        char * tmpBuff = Itoa::u32toa_sse2((uint32_t) h.seqId, buff1);
+        char * tmpBuff;
+        constexpr bool keyIsU32 = std::is_same<KeyType, unsigned int>::value;
+        tmpBuff = keyIsU32
+                  ? Itoa::u32toa_sse2(static_cast<std::uint32_t>(h.seqId), buff1)
+                  : Itoa::u64toa_sse2(static_cast<std::uint64_t>(h.seqId), buff1);
         *(tmpBuff-1) = '\t';
         int score = static_cast<int>(h.prefScore);
         tmpBuff = Itoa::i32toa_sse2(score, tmpBuff);
@@ -222,7 +230,7 @@ protected:
     template <int TYPE>
     std::pair<hit_t *, size_t> getResult(CounterResult * results,
                                          size_t resultSize,
-                                         const unsigned int id,
+                                         const size_t id,
                                          const unsigned short thr,
                                          UngappedAlignment *ungappedAlignment,
                                          const int rescale);
@@ -250,7 +258,7 @@ protected:
     CacheFriendlyOperations(2048);
 #undef CacheFriendlyOperations
 
-    void initDiagonalMatcher(size_t dbsize, unsigned int maxDbMatches);
+    void initDiagonalMatcher(size_t dbsize, size_t maxDbMatches);
 
     void deleteDiagonalMatcher(unsigned int activeCounter);
 
