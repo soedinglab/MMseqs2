@@ -1,6 +1,7 @@
+
 #ifndef DBCONCAT_H
 #define DBCONCAT_H
-
+#include "MMseqsTypes.h"
 #include <string>
 #include <utility>
 
@@ -13,26 +14,26 @@ public:
 
     ~DBConcat();
 
-    unsigned int dbAKeyMap(unsigned int);
-    unsigned int dbBKeyMap(unsigned int);
+    KeyType dbAKeyMap(KeyType);
+    KeyType dbBKeyMap(KeyType);
 
 private:
     size_t indexSizeA;
     size_t indexSizeB;
 
-    std::pair<unsigned int, unsigned int> *keysA, *keysB;
+    std::pair<KeyType, KeyType> *keysA, *keysB;
 
     bool sameDatabase;
 
     struct compareFirstEntry {
-        bool operator()(const std::pair<unsigned int, unsigned int> &lhs,
-                        const std::pair<unsigned int, unsigned int> &rhs) const {
+        bool operator()(const std::pair<KeyType, KeyType> &lhs,
+                        const std::pair<KeyType, KeyType> &rhs) const {
             return (lhs.first < rhs.first);
         }
     };
 
     struct compareKeyToFirstEntry {
-        bool operator()(const unsigned int &lhs, const std::pair<unsigned int, unsigned int> &rhs) const {
+        bool operator()(const KeyType &lhs, const std::pair<KeyType, KeyType> &rhs) const {
             return (lhs <= rhs.first);
         }
     };

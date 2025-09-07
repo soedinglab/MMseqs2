@@ -8,7 +8,7 @@
 
 #include <climits>
 
-static bool compareToFirst(const std::pair<unsigned int, unsigned int>& lhs, const std::pair<unsigned int, unsigned int>& rhs){
+static bool compareToFirst(const std::pair<KeyType, unsigned int>& lhs, const std::pair<KeyType, unsigned int>& rhs){
     return (lhs.first <= rhs.first);
 }
 
@@ -60,8 +60,8 @@ int renamedbkeys(int argc, const char **argv, const Command &command) {
     const bool isCompressed = reader.isCompressed();
 
     FILE* newMappingFile = NULL;
-    std::vector<std::pair<unsigned int, unsigned int>> mapping;
-    std::vector<std::pair<unsigned int, unsigned int>> newMapping;
+    std::vector<std::pair<KeyType, unsigned int>> mapping;
+    std::vector<std::pair<KeyType, unsigned int>> newMapping;
     if (FileUtil::fileExists((par.db2 + "_mapping").c_str())) {
         mapping.reserve(reader.getSize());
         newMapping.reserve(reader.getSize());
@@ -106,21 +106,21 @@ int renamedbkeys(int argc, const char **argv, const Command &command) {
             Debug(Debug::WARNING) << "Not enough columns in mapping file\n";
             continue;
         }
-        const unsigned int oldKey = Util::fast_atoi<unsigned int>(fields[0]);
-        const unsigned int newKey = Util::fast_atoi<unsigned int>(fields[1]);
+        const KeyType oldKey = Util::fast_atoi<KeyType>(fields[0]);
+        const KeyType newKey = Util::fast_atoi<KeyType>(fields[1]);
 
         copyEntry(oldKey, newKey, reader, writer, isCompressed, par.subDbMode);
         if (lookup != NULL) {
-            unsigned int lookupId = reader.getLookupIdByKey(oldKey);
+            KeyType lookupId = reader.getLookupIdByKey(oldKey);
             DBReader<KeyType>::LookupEntry entry = lookup[lookupId];
             entry.id = newKey;
             newLookup.emplace_back(entry);
         }
 
         if (mapping.size() > 0) {
-            std::pair<unsigned int, unsigned int> val;
+            std::pair<KeyType, unsigned int> val;
             val.first = oldKey;
-            std::vector<std::pair<unsigned int, unsigned int>>::iterator mappingIt;
+            std::vector<std::pair<KeyType, unsigned int>>::iterator mappingIt;
             mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirst);
             if (mappingIt != mapping.end() && mappingIt->first == val.first) {
                 val.first = newKey;

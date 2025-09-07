@@ -49,8 +49,8 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
     indexSizeB = dbB.getSize();
 
     // keys paris are like : (key,i) where key is the ith key in the database
-    keysA = new std::pair<unsigned int, unsigned int>[indexSizeA];
-    keysB = new std::pair<unsigned int, unsigned int>[indexSizeB];
+    keysA = new std::pair<KeyType, KeyType>[indexSizeA];
+    keysB = new std::pair<KeyType, KeyType>[indexSizeB];
 
     DBWriter* concatWriter = NULL;
     if (write == true) {
@@ -61,7 +61,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
     Debug::Progress progress(indexSizeA);
     // where the new key numbering of B should start
     const bool writeNull = trimRight > 0;
-    unsigned int maxKeyA = 0;
+    KeyType maxKeyA = 0;
 #pragma omp parallel num_threads(threads)
     {
         unsigned int thread_idx = 0;
@@ -72,11 +72,11 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
         for (size_t id = 0; id < indexSizeA; id++) {
             progress.updateProgress();
 
-            unsigned int newKey;
+            KeyType newKey;
             if (preserveKeysA) {
                 newKey = dbA.getDbKey(id);
             } else {
-                newKey = static_cast<unsigned int>(id);
+                newKey = static_cast<KeyType>(id);
             }
 
             if (write) {
@@ -111,11 +111,11 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
         for (size_t id = 0; id < indexSizeB; id++) {
             progress.updateProgress();
 
-            unsigned int newKey;
+            KeyType newKey;
             if (preserveKeysB) {
                 newKey = dbB.getDbKey(id);
             } else {
-                newKey = static_cast<unsigned int>(id) + maxKeyA;
+                newKey = static_cast<KeyType>(id) + maxKeyA;
             }
 
             if (write) {
@@ -151,46 +151,53 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
     // handle mapping
     if (shouldConcatMapping) {
         char buffer[1024];
-        std::vector<std::pair<unsigned int, unsigned int>> mappingA;
+        std::vector<std::pair<KeyType, unsigned int>> mappingA;
         Util::readMapping((dataFileNameA + "_mapping"), mappingA);
-        std::vector<std::pair<unsigned int, unsigned int>> mappingB;
+        std::vector<std::pair<KeyType, unsigned int>> mappingB;
         Util::readMapping((dataFileNameB + "_mapping"), mappingB);
 
         FILE* mappingFilePtr = fopen((dataFileNameC + "_mapping").c_str(), "w");
 
         for(size_t i = 0; i < mappingA.size(); ++i) {
-            unsigned int prevKeyA = mappingA[i].first;
+            KeyType prevKeyA = mappingA[i].first;
             unsigned int taxidA = mappingA[i].second;
-            unsigned int newKeyA = dbAKeyMap(prevKeyA);
+            KeyType newKeyA = dbAKeyMap(prevKeyA);
 
             char * basePos = buffer;
-            char * tmpBuff = Itoa::u32toa_sse2(static_cast<uint32_t>(newKeyA), buffer);
+            constexpr bool keyIsU32 = std::is_same<KeyType, unsigned int>::value;
+            char * tmpBuff = keyIsU32
+                             ? Itoa::u32toa_sse2(newKeyA, buffer)
+                             : Itoa::u64toa_sse2(newKeyA, buffer);
+
             *(tmpBuff-1) = '\t';
-            tmpBuff = Itoa::u32toa_sse2(static_cast<uint64_t>(taxidA), tmpBuff);;
+            tmpBuff = Itoa::u32toa_sse2(taxidA, tmpBuff);;
             *(tmpBuff-1) = '\n';
             size_t length = tmpBuff - basePos;
 
-            int written = fwrite(buffer, sizeof(char), length, mappingFilePtr);
-            if (written != (int) length) {
+            size_t written = fwrite(buffer, sizeof(char), length, mappingFilePtr);
+            if (written != length) {
                 Debug(Debug::ERROR) << "Cannot write to data file " << dataFileNameC << "_mapping\n";
                 EXIT(EXIT_FAILURE);
             }
         }
 
         for(size_t i = 0; i < mappingB.size(); ++i) {
-            unsigned int prevKeyB = mappingB[i].first;
+            KeyType prevKeyB = mappingB[i].first;
             unsigned int taxidB = mappingB[i].second;
-            unsigned int newKeyB = dbBKeyMap(prevKeyB);
+            KeyType newKeyB = dbBKeyMap(prevKeyB);
 
             char * basePos = buffer;
-            char * tmpBuff = Itoa::u32toa_sse2(static_cast<uint32_t>(newKeyB), buffer);
+            constexpr bool keyIsU32 = std::is_same<KeyType, unsigned int>::value;
+            char * tmpBuff = keyIsU32
+                             ? Itoa::u32toa_sse2(static_cast<uint64_t>(newKeyB), buffer)
+                             : Itoa::u64toa_sse2(static_cast<uint64_t>(newKeyB), buffer);
             *(tmpBuff-1) = '\t';
-            tmpBuff = Itoa::u32toa_sse2(static_cast<uint64_t>(taxidB), tmpBuff);;
+            tmpBuff = Itoa::u32toa_sse2(taxidB, tmpBuff);
             *(tmpBuff-1) = '\n';
             size_t length = tmpBuff - basePos;
 
-            int written = fwrite(buffer, sizeof(char), length, mappingFilePtr);
-            if (written != (int) length) {
+            size_t written = fwrite(buffer, sizeof(char), length, mappingFilePtr);
+            if (written != length) {
                 Debug(Debug::ERROR) << "Cannot write to data file " << dataFileNameC << "_mapping\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -201,7 +208,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
         }
     }
 
-    unsigned int maxSetIdA = 0;
+    KeyType maxSetIdA = 0;
     // handle lookup
     if (shouldConcatLookup) {
         DBReader<KeyType> lookupReaderA(dataFileNameA.c_str(), indexFileNameA.c_str(), 1, DBReader<KeyType>::USE_LOOKUP);
@@ -214,26 +221,31 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
         std::string line;
 
         for (size_t i = 0; i < lookupReaderA.getLookupSize(); ++i) {
-            unsigned int prevKeyA = lookupA[i].id;
+            KeyType prevKeyA = lookupA[i].id;
             std::string accA = lookupA[i].entryName;
-            unsigned int setIdA = lookupA[i].fileNumber;
+            KeyType setIdA = lookupA[i].fileNumber;
             if (setIdA > maxSetIdA) {
                 maxSetIdA = setIdA;
             }
 
-            unsigned int newKeyA = dbAKeyMap(prevKeyA);
+            KeyType newKeyA = dbAKeyMap(prevKeyA);
+            constexpr bool keyIsU32 = std::is_same<KeyType, unsigned int>::value;
+            char * tmpBuff = keyIsU32
+                             ? Itoa::u32toa_sse2(newKeyA, buffer)
+                             : Itoa::u64toa_sse2(newKeyA, buffer);
 
-            char *tmpBuff = Itoa::u32toa_sse2(static_cast<uint32_t>(newKeyA), buffer);
             line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\t');
             line.append(accA);
             line.append(1, '\t');
-            tmpBuff = Itoa::u32toa_sse2(static_cast<uint64_t>(setIdA), buffer);
+            tmpBuff = keyIsU32
+                      ? Itoa::u32toa_sse2(setIdA, buffer)
+                      : Itoa::u64toa_sse2(setIdA, buffer);
             line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\n');
-            
-            int written = fwrite(line.c_str(), sizeof(char), line.size(), lookupFilePtr);
-            if (written != (int) line.size()) {
+
+            size_t written = fwrite(line.c_str(), sizeof(char), line.size(), lookupFilePtr);
+            if (written != line.size()) {
                 Debug(Debug::ERROR) << "Cannot write to data file " << dataFileNameC << ".lookup\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -246,24 +258,30 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
         lookupReaderB.open(DBReader<KeyType>::NOSORT);
         DBReader<KeyType>::LookupEntry* lookupB = lookupReaderB.getLookup();
         for (size_t i = 0; i < lookupReaderB.getLookupSize(); ++i) {
-            unsigned int prevKeyB = lookupB[i].id;
+            KeyType prevKeyB = lookupB[i].id;
             std::string accB = lookupB[i].entryName;
-            unsigned int setIdB = lookupB[i].fileNumber;
-            
-            unsigned int newKeyB = dbBKeyMap(prevKeyB);
-            unsigned int newSetIdB = maxSetIdA + 1 + setIdB;
+            KeyType setIdB = lookupB[i].fileNumber;
 
-            char *tmpBuff = Itoa::u32toa_sse2(static_cast<uint32_t>(newKeyB), buffer);
+            KeyType newKeyB = dbBKeyMap(prevKeyB);
+            KeyType newSetIdB = maxSetIdA + 1 + setIdB;
+
+            constexpr bool keyIsU32 = std::is_same<KeyType, unsigned int>::value;
+            char * tmpBuff = keyIsU32
+                             ? Itoa::u32toa_sse2(newKeyB, buffer)
+                             : Itoa::u64toa_sse2(newKeyB, buffer);
+
             line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\t');
             line.append(accB);
             line.append(1, '\t');
-            tmpBuff = Itoa::u32toa_sse2(static_cast<uint64_t>(newSetIdB), buffer);
+            tmpBuff =  keyIsU32
+                       ? Itoa::u32toa_sse2(newSetIdB, buffer)
+                       : Itoa::u64toa_sse2(newSetIdB, buffer);
             line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\n');
-            
-            int written = fwrite(line.c_str(), sizeof(char), line.size(), lookupFilePtr);
-            if (written != (int) line.size()) {
+
+            size_t written = fwrite(line.c_str(), sizeof(char), line.size(), lookupFilePtr);
+            if (written != line.size()) {
                 Debug(Debug::ERROR) << "Cannot write to data file " << dataFileNameC << ".lookup\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -279,58 +297,65 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
 
     // handle source
     if (shouldConcatSource) {
-        unsigned int sourceMaxSetIdA = 0;
-        std::map<unsigned int, std::string> sourceMapA = Util::readLookup((dataFileNameA + ".source"), false);
-        std::map<unsigned int, std::string>::iterator itA;
-        
+        KeyType sourceMaxSetIdA = 0;
+        std::map<KeyType, std::string> sourceMapA = Util::readLookup((dataFileNameA + ".source"), false);
+        std::map<KeyType, std::string>::iterator itA;
+
         char buffer[1024];
         std::string line;
 
         FILE* sourceFilePtr = fopen((dataFileNameC + ".source").c_str(), "w");
         for (itA = sourceMapA.begin(); itA != sourceMapA.end(); itA++) {
-            unsigned int setIdA = itA->first;
+            KeyType setIdA = itA->first;
             std::string fileNameA = itA->second;
             if (setIdA > sourceMaxSetIdA) {
                 sourceMaxSetIdA = setIdA;
             }
 
-            char *tmpBuff = Itoa::u32toa_sse2(static_cast<uint64_t>(setIdA), buffer);
+            constexpr bool keyIsU32 = std::is_same<KeyType, unsigned int>::value;
+            char * tmpBuff = keyIsU32
+                             ? Itoa::u32toa_sse2(setIdA, buffer)
+                             : Itoa::u64toa_sse2(setIdA, buffer);
             line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\t');
             line.append(fileNameA);
             line.append(1, '\n');
 
-            int written = fwrite(line.c_str(), sizeof(char), line.size(), sourceFilePtr);
-            if (written != (int) line.size()) {
+            size_t written = fwrite(line.c_str(), sizeof(char), line.size(), sourceFilePtr);
+            if (written != line.size()) {
                 Debug(Debug::ERROR) << "Cannot write to data file " << dataFileNameC << ".source\n";
                 EXIT(EXIT_FAILURE);
             }
             line.clear();
         }
-        
+
         // if lookup was concatenated - make sure maxSetId there is consistent with sourceMaxSetIdA
         if (shouldConcatLookup && (sourceMaxSetIdA != maxSetIdA)) {
             Debug(Debug::ERROR) << "The maxSetId in " << dataFileNameA << ".lookup is " << maxSetIdA << " and in " << dataFileNameA << ".source is " << sourceMaxSetIdA << "\n";
             EXIT(EXIT_FAILURE);
         }
 
-        std::map<unsigned int, std::string> sourceMapB = Util::readLookup((dataFileNameB + ".source"), false);
-        std::map<unsigned int, std::string>::iterator itB;
+        std::map<KeyType, std::string> sourceMapB = Util::readLookup((dataFileNameB + ".source"), false);
+        std::map<KeyType, std::string>::iterator itB;
 
         for (itB = sourceMapB.begin(); itB != sourceMapB.end(); itB++) {
-            unsigned int setIdB = itB->first;
+            KeyType setIdB = itB->first;
             std::string fileNameB = itB->second;
 
-            unsigned int newSetIdB = sourceMaxSetIdA + 1 + setIdB;
+            KeyType newSetIdB = sourceMaxSetIdA + 1 + setIdB;
 
-            char *tmpBuff = Itoa::u32toa_sse2(static_cast<uint64_t>(newSetIdB), buffer);
+            constexpr bool keyIsU32 = std::is_same<KeyType, unsigned int>::value;
+            char * tmpBuff = keyIsU32
+                             ? Itoa::u32toa_sse2(newSetIdB, buffer)
+                             : Itoa::u64toa_sse2(newSetIdB, buffer);
+
             line.append(buffer, tmpBuff - buffer - 1);
             line.append(1, '\t');
             line.append(fileNameB);
             line.append(1, '\n');
 
-            int written = fwrite(line.c_str(), sizeof(char), line.size(), sourceFilePtr);
-            if (written != (int) line.size()) {
+            size_t written = fwrite(line.c_str(), sizeof(char), line.size(), sourceFilePtr);
+            if (written != line.size()) {
                 Debug(Debug::ERROR) << "Cannot write to data file " << dataFileNameC << ".source\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -343,19 +368,19 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
     }
 }
 
-unsigned int DBConcat::dbAKeyMap(unsigned int key) {
+KeyType DBConcat::dbAKeyMap(KeyType key) {
     if (sameDatabase)
         return key;
 
-    std::pair<unsigned int, unsigned int> *originalMap = std::upper_bound(keysA, keysA + indexSizeA, key, compareKeyToFirstEntry());
+    std::pair<KeyType, KeyType> *originalMap = std::upper_bound(keysA, keysA + indexSizeA, key, compareKeyToFirstEntry());
     return originalMap->second;
 }
 
-unsigned int DBConcat::dbBKeyMap(unsigned int key) {
+KeyType DBConcat::dbBKeyMap(KeyType key) {
     if (sameDatabase)
         return key;
 
-    std::pair<unsigned int, unsigned int> *originalMap = std::upper_bound(keysB, keysB + indexSizeB, key, compareKeyToFirstEntry());
+    std::pair<KeyType, KeyType> *originalMap = std::upper_bound(keysB, keysB + indexSizeB, key, compareKeyToFirstEntry());
     return originalMap->second;
 }
 

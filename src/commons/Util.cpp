@@ -28,7 +28,7 @@
 #include <omp.h>
 #endif
 
-int Util::readMapping(std::string mappingFilename, std::vector<std::pair<unsigned int, unsigned int>> & mapping){
+int Util::readMapping(std::string mappingFilename, std::vector<std::pair<KeyType, unsigned int>> & mapping){
     MemoryMapped indexData(mappingFilename, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
     if (!indexData.isValid()){
         Debug(Debug::ERROR) << "Could not open index file " << mappingFilename << "\n";
@@ -440,8 +440,8 @@ int Util::omp_thread_count() {
     return n;
 }
 
-std::map<unsigned int, std::string> Util::readLookup(const std::string& file, const bool removeSplit) {
-    std::map<unsigned int, std::string> mapping;
+std::map<KeyType, std::string> Util::readLookup(const std::string& file, const bool removeSplit) {
+    std::map<KeyType, std::string> mapping;
     if (file.length() > 0) {
         std::ifstream mappingStream(file);
         if (mappingStream.fail()) {
