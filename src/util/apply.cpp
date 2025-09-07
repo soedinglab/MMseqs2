@@ -270,8 +270,8 @@ int apply(int argc, const char **argv, const Command& command) {
     omp_set_num_threads(1);
 #endif
 
-    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
-    reader.open(DBReader<IdType>::SORT_BY_LENGTH);
+    DBReader<KeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX);
+    reader.open(DBReader<KeyType>::SORT_BY_LENGTH);
 
     Debug::Progress progress(reader.getSize());
 
@@ -328,7 +328,7 @@ int apply(int argc, const char **argv, const Command& command) {
                         continue;
                     }
 
-                    IdType key = reader.getDbKey(i);
+                    KeyType key = reader.getDbKey(i);
                     char *data = reader.getData(i, thread);
                     if (*data == '\0') {
                         writer.writeData(NULL, 0, key, 0);

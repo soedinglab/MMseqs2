@@ -34,7 +34,7 @@ SequenceWeights::SequenceWeights(const char* dataFileName) {
         char *current = (char *) line.c_str();
         Util::parseKey(current, keyData);
         const std::string key(keyData);
-        unsigned int keyId = strtoull(key.c_str(), NULL, 10);
+        KeyType keyId = strtoull(key.c_str(), NULL, 10);
 
         char *restStart = current + key.length();
         restStart = restStart + Util::skipWhitespace(restStart);
@@ -45,7 +45,7 @@ SequenceWeights::SequenceWeights(const char* dataFileName) {
     }
 }
 
-float SequenceWeights::getWeightById(unsigned int id) {
+float SequenceWeights::getWeightById(KeyType id) {
 
     WeightIndexEntry val;
     val.id = id;

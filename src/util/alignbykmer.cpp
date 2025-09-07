@@ -27,8 +27,8 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     IndexReader * qDbrIdx = NULL;
     int querySeqType = 0;
-    DBReader<IdType> * qdbr = NULL;
-    DBReader<IdType> * tdbr = tDbrIdx->sequenceReader;
+    DBReader<KeyType> * qdbr = NULL;
+    DBReader<KeyType> * tdbr = tDbrIdx->sequenceReader;
     int targetSeqType = tDbrIdx->getDbtype();
     bool sameDB = (par.db2.compare(par.db1) == 0);
     if (sameDB == true) {
@@ -63,8 +63,8 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     }
     par.printParameters(command.cmd, argc, argv, *command.params);
 
-    DBReader<IdType> dbr_res(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    dbr_res.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> dbr_res(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    dbr_res.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     if(dbr_res.isSortedByOffset() && qdbr->isSortedByOffset()){
         qdbr->setSequentialAdvice();
@@ -193,7 +193,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                 progress.updateProgress();
 
                 char *data = dbr_res.getData(id, thread_idx);
-                IdType queryId = qdbr->getId(dbr_res.getDbKey(id));
+                KeyType queryId = qdbr->getId(dbr_res.getDbKey(id));
                 char *querySeq = qdbr->getData(queryId, thread_idx);
                 query.mapSequence(id, queryId, querySeq, qdbr->getSeqLen(id));
 
@@ -217,7 +217,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                     // DB key of the db sequence
                     Util::parseKey(data, dbKeyBuffer);
                     const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
-                    IdType targetId = tdbr->getId(dbKey);
+                    KeyType targetId = tdbr->getId(dbKey);
                     char *targetSeq = tdbr->getData(targetId, thread_idx);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB)) ? true : false;
                     target.mapSequence(targetId, dbKey, targetSeq, tdbr->getSeqLen(targetId));

@@ -197,9 +197,9 @@ int pairaln(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<IdType> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_LOOKUP_REV);
-    qdbr.open(DBReader<IdType>::NOSORT);
-    DBReader<IdType>::LookupEntry* lookup = qdbr.getLookup();
+    DBReader<KeyType> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_LOOKUP_REV);
+    qdbr.open(DBReader<KeyType>::NOSORT);
+    DBReader<KeyType>::LookupEntry* lookup = qdbr.getLookup();
     unsigned int maxFileNumber = 0;
     for (unsigned int i = 0; i < qdbr.getLookupSize(); i++) {
         maxFileNumber = std::max(maxFileNumber, lookup[i].fileNumber);
@@ -211,7 +211,7 @@ int pairaln(int argc, const char **argv, const Command& command) {
     }
     IndexReader *targetHeaderReaderIdx = NULL;
     if(par.pairfilter == Parameters::PAIRALN_FILTER_PROXIMITY) {
-        uint16_t extended = DBReader<IdType>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
+        uint16_t extended = DBReader<KeyType>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
         bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
         targetHeaderReaderIdx = new IndexReader(par.db2, par.threads,
                                                 extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC
@@ -222,8 +222,8 @@ int pairaln(int argc, const char **argv, const Command& command) {
     std::string db2NoIndexName = PrefilteringIndexReader::dbPathWithoutIndex(par.db2);
     MappingReader* mapping = new MappingReader(db2NoIndexName);
 
-    DBReader<IdType> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    alnDbr.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    alnDbr.open(DBReader<KeyType>::NOSORT);
 
     size_t localThreads = 1;
 #ifdef OPENMP
@@ -315,7 +315,7 @@ int pairaln(int argc, const char **argv, const Command& command) {
                         unsigned int taxon = mapping->lookup(resultPerId[i][resIdx].dbKey);
                         // we don't want to introduce a new field, reuse existing unused field here
                         resultPerId[i][resIdx].dbOrfStartPos = taxon;
-                        IdType headerId = targetHeaderReaderIdx->sequenceReader->getId(resultPerId[i][resIdx].dbKey);
+                        KeyType headerId = targetHeaderReaderIdx->sequenceReader->getId(resultPerId[i][resIdx].dbKey);
                         char *headerData = targetHeaderReaderIdx->sequenceReader->getData(headerId, thread_idx);
                         std::string targetAccession = Util::parseFastaHeader(headerData);
                         size_t uniProtNumber = converter.toStructuredNumber(targetAccession);

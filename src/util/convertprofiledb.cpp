@@ -137,12 +137,12 @@ int convertprofiledb(int argc, const char **argv, const Command &command) {
         data = par.db1 + ".ffdata";
         index = par.db1 + ".ffindex";
     }
-    DBReader<std::string> reader(data.c_str(), index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
+    DBReader<std::string> reader(data.c_str(), index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
     reader.open(DBReader<std::string>::NOSORT);
 
     int type = Parameters::DBTYPE_HMM_PROFILE;
     if (par.pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
-        type = DBReader<IdType>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
+        type = DBReader<KeyType>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
     }
     DBWriter profileWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, type);
     profileWriter.open();

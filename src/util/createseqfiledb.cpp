@@ -12,20 +12,20 @@ int createseqfiledb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<IdType> headerDb(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-    headerDb.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> headerDb(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    headerDb.open(DBReader<KeyType>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         headerDb.readMmapedDataInMemory();
     }
 
-    DBReader<IdType> seqDb(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-    seqDb.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> seqDb(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    seqDb.open(DBReader<KeyType>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         seqDb.readMmapedDataInMemory();
     }
 
-    DBReader<IdType> resultDb(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-    resultDb.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> resultDb(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    resultDb.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), static_cast<unsigned int>(par.threads), par.compressed, Parameters::DBTYPE_GENERIC_DB);
     writer.open();
@@ -45,7 +45,7 @@ int createseqfiledb(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < resultDb.getSize(); ++i) {
             progress.updateProgress();
 
-            IdType key = resultDb.getDbKey(i);
+            KeyType key = resultDb.getDbKey(i);
             char *data = resultDb.getData(i, thread_idx);
 
             size_t entries = Util::countLines(data, resultDb.getEntryLen(i) - 1);
@@ -60,12 +60,12 @@ int createseqfiledb(int argc, const char **argv, const Command &command) {
                 data = Util::skipLine(data);
 
                 const unsigned int memberKey = (unsigned int) strtoul(dbKey, NULL, 10);
-                IdType headerId = headerDb.getId(memberKey);
+                KeyType headerId = headerDb.getId(memberKey);
                 if (headerId == UINT_MAX) {
                     Debug(Debug::ERROR) << "Entry " << key << " does not contain a sequence!" << "\n";
                     EXIT(EXIT_FAILURE);
                 }
-                IdType seqId = seqDb.getId(memberKey);
+                KeyType seqId = seqDb.getId(memberKey);
                 if (seqId == UINT_MAX) {
                     Debug(Debug::ERROR) << "Entry " << key << " does not contain a sequence!" << "\n";
                     EXIT(EXIT_FAILURE);

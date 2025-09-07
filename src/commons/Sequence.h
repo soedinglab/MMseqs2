@@ -80,13 +80,13 @@ public:
     ~Sequence();
 
     // Map char -> int
-    void mapSequence(size_t id, unsigned int dbKey, const char *seq, unsigned int seqLen);
+    void mapSequence(KeyType id, KeyType dbKey, const char *seq, size_t seqLen);
 
     // map sequence from SequenceLookup
-    void mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *, const unsigned int> data);
+    void mapSequence(KeyType id, KeyType dbKey, std::pair<const unsigned char *, const unsigned int> data);
 
     // map profile HMM, *data points to start position of Profile
-    void mapProfile(const char *profileData, unsigned int seqLen);
+    void mapProfile(const char *profileData, size_t seqLen);
 
     // checks if there is still a k-mer left
     bool hasNextKmer() {
@@ -420,11 +420,11 @@ public:
     static void extractProfileSequence(const char* data, size_t dataSize, const BaseMatrix &submat, std::string &result);
     static void extractProfileConsensus(const char* data, size_t dataSize, const BaseMatrix &submat, std::string &result);
 
-    int getId() const { return id; }
+    KeyType getId() const { return id; }
 
     int getCurrentPosition() { return currItPos; }
 
-    IdType getDbKey() { return dbKey; }
+    KeyType getDbKey() { return dbKey; }
 
     int getSeqType() { return seqType; }
 
@@ -538,7 +538,7 @@ private:
     // read next kmer profile in profile_matrix
     void nextProfileKmer();
 
-    size_t id;
+    KeyType id;
     unsigned int dbKey;
     const char *seqData;
 

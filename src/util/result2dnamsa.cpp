@@ -20,27 +20,27 @@ int result2dnamsa(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<IdType> qDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    qDbr.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> qDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    qDbr.open(DBReader<KeyType>::NOSORT);
 
-    DBReader<IdType> queryHeaderReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
+    DBReader<KeyType> queryHeaderReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
     // NOSORT because the index should be in the same order as resultReader
-    queryHeaderReader.open(DBReader<IdType>::NOSORT);
+    queryHeaderReader.open(DBReader<KeyType>::NOSORT);
 
-    DBReader<IdType> *tDbr = &qDbr;
-    DBReader<IdType> *tempateHeaderReader = &queryHeaderReader;
+    DBReader<KeyType> *tDbr = &qDbr;
+    DBReader<KeyType> *tempateHeaderReader = &queryHeaderReader;
 
     const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
     if (!sameDatabase) {
-        tDbr = new DBReader<IdType>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-        tDbr->open(DBReader<IdType>::NOSORT);
+        tDbr = new DBReader<KeyType>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        tDbr->open(DBReader<KeyType>::NOSORT);
 
-        tempateHeaderReader = new DBReader<IdType>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-        tempateHeaderReader->open(DBReader<IdType>::NOSORT);
+        tempateHeaderReader = new DBReader<KeyType>(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        tempateHeaderReader->open(DBReader<KeyType>::NOSORT);
     }
 
-    DBReader<IdType> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    resultReader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    resultReader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_MSA_DB);
     resultWriter.open();
@@ -64,8 +64,8 @@ int result2dnamsa(int argc, const char **argv, const Command &command) {
             progress.updateProgress();
             alnResults.clear();
             // Get the sequence from the queryDB
-            IdType queryKey = resultReader.getDbKey(id);
-            IdType queryId = qDbr.getId(queryKey);
+            KeyType queryKey = resultReader.getDbKey(id);
+            KeyType queryId = qDbr.getId(queryKey);
             resultWriter.writeStart(thread_idx);
 
             if (par.skipQuery == false) {
@@ -79,7 +79,7 @@ int result2dnamsa(int argc, const char **argv, const Command &command) {
             for (size_t i = 0; i < alnResults.size(); i++) {
                 Matcher::result_t res = alnResults[i];
                 bool queryIsReversed = (res.qStartPos > res.qEndPos);
-                const IdType targetId = tDbr->getId(res.dbKey);
+                const KeyType targetId = tDbr->getId(res.dbKey);
                 out.clear();
                 char *templateHeader = tempateHeaderReader->getData(targetId, thread_idx);
                 resultWriter.writeAdd(">", 1, thread_idx);

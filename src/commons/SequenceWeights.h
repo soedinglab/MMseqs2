@@ -4,11 +4,12 @@
 
 #ifndef MMSEQS_SEQUENCEWEIGHTS_H
 #define MMSEQS_SEQUENCEWEIGHTS_H
+#include "Parameters.h"
 
 class SequenceWeights{
 public:
     struct WeightIndexEntry {
-        unsigned int id;
+        KeyType id;
         float weight;
 
         static bool compareByIdOnly(const WeightIndexEntry &x, const WeightIndexEntry &y) {
@@ -23,7 +24,7 @@ public:
 
     ~SequenceWeights();
 
-    float getWeightById(unsigned int id);
+    float getWeightById(KeyType id);
 };
 
 

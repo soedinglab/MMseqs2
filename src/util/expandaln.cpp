@@ -97,19 +97,19 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     }
     std::sort(qid_vec.begin(), qid_vec.end());
 
-    DBReader<IdType> aReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-    aReader.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> aReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    aReader.open(DBReader<KeyType>::NOSORT);
     const int aSeqDbType = aReader.getDbtype();
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         aReader.readMmapedDataInMemory();
     }
 
-    DBReader<IdType> *resultAbReader = new DBReader<IdType>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-    resultAbReader->open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> *resultAbReader = new DBReader<KeyType>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    resultAbReader->open(DBReader<KeyType>::LINEAR_ACCCESS);
 
-    DBReader<IdType> *cReader = NULL;
+    DBReader<KeyType> *cReader = NULL;
     IndexReader *cReaderIdx = NULL;
-    DBReader<IdType> *resultBcReader = NULL;
+    DBReader<KeyType> *resultBcReader = NULL;
     IndexReader *resultBcReaderIdx = NULL;
     if (Parameters::isEqualDbtype(FileUtil::parseDbType(par.db2.c_str()), Parameters::DBTYPE_INDEX_DB)) {
         bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
@@ -122,14 +122,14 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                                             (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
         resultBcReader = resultBcReaderIdx->sequenceReader;
     } else {
-        cReader = new DBReader<IdType>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-        cReader->open(DBReader<IdType>::NOSORT);
+        cReader = new DBReader<KeyType>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        cReader->open(DBReader<KeyType>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             cReader->readMmapedDataInMemory();
         }
 
-        resultBcReader = new DBReader<IdType>(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-        resultBcReader->open(DBReader<IdType>::NOSORT);
+        resultBcReader = new DBReader<KeyType>(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        resultBcReader->open(DBReader<KeyType>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             resultBcReader->readMmapedDataInMemory();
         }
@@ -149,10 +149,10 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
     if (returnAlnRes == false) {
         dbType = Parameters::DBTYPE_HMM_PROFILE;
         if (par.pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
-            dbType = DBReader<IdType>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
+            dbType = DBReader<KeyType>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
         }
     } else {
-        dbType = DBReader<IdType>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
+        dbType = DBReader<KeyType>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
     }
     DBWriter writer(par.db5.c_str(), par.db5Index.c_str(), localThreads, par.compressed, dbType);
     writer.open();
@@ -236,9 +236,9 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
         for (size_t i = 0; i < resultAbReader->getSize(); ++i) {
             progress.updateProgress();
 
-            IdType queryKey = resultAbReader->getDbKey(i);
+            KeyType queryKey = resultAbReader->getDbKey(i);
 
-            IdType aSeqId = aReader.getId(queryKey);
+            KeyType aSeqId = aReader.getId(queryKey);
             if (returnAlnRes == false || par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE) {
                 aSeq.mapSequence(aSeqId, queryKey, aReader.getData(aSeqId, thread_idx), aReader.getSeqLen(aSeqId));
             }
@@ -267,7 +267,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                 }
 
                 unsigned int bResKey = resultAb.dbKey;
-                IdType bResId = resultBcReader->getId(bResKey);
+                KeyType bResId = resultBcReader->getId(bResKey);
                 if (bResId == UINT_MAX) {
                     Debug(Debug::WARNING) << "Missing alignments for sequence " << bResKey << "\n";
                     continue;
@@ -283,12 +283,12 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                         }
                         if (hasRep == false && resultBc.seqId == 1.0 && resultBc.qcov == 1.0) {
                             unsigned int bSeqKey = resultBc.dbKey;
-                            IdType bSeqId = cReader->getId(bSeqKey);
+                            KeyType bSeqId = cReader->getId(bSeqKey);
                             bSeq->mapSequence(bSeqId, bSeqKey, cReader->getData(bSeqId, thread_idx), cReader->getSeqLen(bSeqId));
                             hasRep = true;
                         } else {
                             unsigned int cSeqKey = resultBc.dbKey;
-                            IdType cSeqId = cReader->getId(cSeqKey);
+                            KeyType cSeqId = cReader->getId(cSeqKey);
                             cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
                             subSeqSet.emplace_back(cSeq.numSequence, cSeq.numSequence + cSeq.L);
                         }
@@ -333,7 +333,7 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                         }
                     } else {
                         if (returnAlnRes == false || par.expansionMode == Parameters::EXPAND_RESCORE_BACKTRACE) {
-                            IdType cSeqId = cReader->getId(cSeqKey);
+                            KeyType cSeqId = cReader->getId(cSeqKey);
                             cSeq.mapSequence(cSeqId, cSeqKey, cReader->getData(cSeqId, thread_idx), cReader->getSeqLen(cSeqId));
                         }
                         //rescoreResultByBacktrace(resultAc, aSeq, cSeq, subMat, compositionBias, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());

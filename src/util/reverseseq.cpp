@@ -13,8 +13,8 @@ int reverseseq(int argn, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argn, argv, command, true, true, 0);
 
-    DBReader<IdType> seqReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    seqReader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> seqReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    seqReader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     DBWriter revSeqWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed, seqReader.getDbtype());
     revSeqWriter.open();
@@ -34,7 +34,7 @@ int reverseseq(int argn, const char **argv, const Command& command) {
 #pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < seqReader.getSize(); id++) {
             progress.updateProgress();
-            IdType seqKey = seqReader.getDbKey(id);
+            KeyType seqKey = seqReader.getDbKey(id);
             char *seq = seqReader.getData(id, thread_idx);
             size_t lenSeq = seqReader.getSeqLen(id);
 
@@ -58,7 +58,7 @@ int reverseseq(int argn, const char **argv, const Command& command) {
     }
     revSeqWriter.close(true);
     seqReader.close();
-    DBReader<IdType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
+    DBReader<KeyType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
 
     return EXIT_SUCCESS;
 }

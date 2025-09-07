@@ -20,8 +20,8 @@ int prefilter(int argc, const char **argv, const Command& command) {
     int queryDbType = FileUtil::parseDbType(par.db1.c_str());
     int targetDbType = FileUtil::parseDbType(par.db2.c_str());
     if(Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB) == true) {
-        DBReader<IdType> dbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-        dbr.open(DBReader<IdType>::NOSORT);
+        DBReader<KeyType> dbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        dbr.open(DBReader<KeyType>::NOSORT);
         PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&dbr);
         targetDbType = data.seqType;
         dbr.close();

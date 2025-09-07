@@ -18,7 +18,7 @@ static int file_gzread(mtar_t *tar, void *data, size_t size) {
 }
 
 static int file_gzseek(mtar_t *tar, long offset, int whence) {
-    int res = gzseek((gzFile)tar->stream, offset, whence);
+    long res = gzseek((gzFile)tar->stream, offset, whence);
     return (res != -1) ? MTAR_ESUCCESS : MTAR_ESEEKFAIL;
 }
 
@@ -89,8 +89,8 @@ int tar2db(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < filenames.size(); i++) {
         char buffer[4096];
         size_t len = snprintf(buffer, sizeof(buffer), "%zu\t%s\n", i, FileUtil::baseName(filenames[i]).c_str());
-        int written = fwrite(buffer, sizeof(char), len, source);
-        if (written != (int) len) {
+        size_t written = fwrite(buffer, sizeof(char), len, source);
+        if (written != len) {
             Debug(Debug::ERROR) << "Cannot write to source file " << sourceFile << "\n";
             EXIT(EXIT_FAILURE);
         }
@@ -244,11 +244,11 @@ int tar2db(int argc, const char **argv, const Command& command) {
 #endif
                     } else if (Util::endsWith(".bz2", name)) {
 #ifdef HAVE_BZLIB
-                        unsigned int entrySize = inflateSize;
+                        unsigned int entrySize = static_cast<unsigned int>(inflateSize);
                         int err;
                         while ((err = BZ2_bzBuffToBuffDecompress(inflateBuffer, &entrySize, dataBuffer, header.size, 0,
                                                                  0) == BZ_OUTBUFF_FULL)) {
-                            entrySize = inflateSize = inflateSize * 1.5;
+                            entrySize = static_cast<unsigned int>(inflateSize = inflateSize * 1.5);
                             inflateBuffer = (char *) realloc(inflateBuffer, inflateSize);
                         }
                         if (err != BZ_OK) {

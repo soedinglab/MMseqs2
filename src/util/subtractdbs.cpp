@@ -18,11 +18,11 @@ int subtractdbs(int argc, const char **argv, const Command& command) {
     par.printParameters(command.cmd, argc, argv, *command.params);
     const double evalThreshold = par.evalProfile;
 
-    DBReader<IdType> leftDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-    leftDbr.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> leftDbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    leftDbr.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
-    DBReader<IdType> rightDbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-    rightDbr.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> rightDbr(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    rightDbr.open(DBReader<KeyType>::NOSORT);
 
     size_t localThreads = 1;
 #ifdef OPENMP
@@ -50,7 +50,7 @@ int subtractdbs(int argc, const char **argv, const Command& command) {
             progress.updateProgress();
             std::map<unsigned int, bool> elementLookup;
             const char *leftData = leftDbr.getData(id, thread_idx);
-            IdType leftDbKey = leftDbr.getDbKey(id);
+            KeyType leftDbKey = leftDbr.getDbKey(id);
 
             // fill element id look up with left side elementLookup
             {

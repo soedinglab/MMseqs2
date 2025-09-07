@@ -44,13 +44,13 @@ float parsePrecisionLib(const std::string &scoreFile, double targetSeqid, double
 
 int doRescorediagonal(Parameters &par,
                       DBWriter &resultWriter,
-                      DBReader<IdType> &resultReader,
+                      DBReader<KeyType> &resultReader,
               const size_t dbFrom, const size_t dbSize) {
 
 
     IndexReader * qDbrIdx = NULL;
-    DBReader<IdType> * qdbr = NULL;
-    DBReader<IdType> * tdbr = NULL;
+    DBReader<KeyType> * qdbr = NULL;
+    DBReader<KeyType> * tdbr = NULL;
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     IndexReader * tDbrIdx = new IndexReader(par.db2, par.threads, IndexReader::SEQUENCES,   (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     int querySeqType = 0;
@@ -147,7 +147,7 @@ int doRescorediagonal(Parameters &par,
                 progress.updateProgress();
 
                 char *data = resultReader.getData(id, thread_idx);
-                IdType queryKey = resultReader.getDbKey(id);
+                KeyType queryKey = resultReader.getDbKey(id);
 
                 char *querySeq = NULL;
                 std::string queryToWrap; // needed only for wrapped end-start scoring
@@ -201,7 +201,7 @@ int doRescorediagonal(Parameters &par,
                         }
                     }
 
-                    IdType targetId = tdbr->getId(results[entryIdx].seqId);
+                    KeyType targetId = tdbr->getId(results[entryIdx].seqId);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameQTDB)) ? true : false;
                     char *targetSeq = tdbr->getData(targetId, thread_idx);
                     int dbLen = static_cast<int>(tdbr->getSeqLen(targetId));
@@ -391,8 +391,8 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<IdType> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    resultReader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    resultReader.open(DBReader<KeyType>::LINEAR_ACCCESS);
     int dbtype = resultReader.getDbtype(); // this is DBTYPE_PREFILTER_RES || DBTYPE_PREFILTER_REV_RES
     if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT ||
        par.rescoreMode == Parameters::RESCORE_MODE_END_TO_END_ALIGNMENT ||

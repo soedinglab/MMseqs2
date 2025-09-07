@@ -10,16 +10,16 @@ int result2flat(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<IdType> querydb_header(par.hdr1.c_str(), par.hdr1Index.c_str(), 1, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    querydb_header.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> querydb_header(par.hdr1.c_str(), par.hdr1Index.c_str(), 1, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    querydb_header.open(DBReader<KeyType>::NOSORT);
     querydb_header.readMmapedDataInMemory();
 
-    DBReader<IdType> targetdb_header(par.hdr2.c_str(), par.hdr2Index.c_str(), 1, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    targetdb_header.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> targetdb_header(par.hdr2.c_str(), par.hdr2Index.c_str(), 1, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    targetdb_header.open(DBReader<KeyType>::NOSORT);
     targetdb_header.readMmapedDataInMemory();
 
-    DBReader<IdType> dbr_data(par.db3.c_str(), par.db3Index.c_str(),  1, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    dbr_data.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> dbr_data(par.db3.c_str(), par.db3Index.c_str(), 1, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    dbr_data.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     FILE *fastaFP = fopen(par.db4.c_str(), "w");
 
@@ -30,7 +30,7 @@ int result2flat(int argc, const char **argv, const Command &command) {
 
         // Write the header, taken from the original queryDB
         fwrite(header_start, sizeof(char), 1, fastaFP);
-        IdType key = dbr_data.getDbKey(i);
+        KeyType key = dbr_data.getDbKey(i);
         char *header_data = querydb_header.getDataByDBKey(key, 0);
 
         std::string headerStr;

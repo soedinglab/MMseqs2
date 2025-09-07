@@ -13,8 +13,9 @@
 
 class AlignmentSymmetry {
 public:
-    static void readInData(DBReader<IdType>*pReader, DBReader<IdType>*pDBReader, unsigned int **pInt,unsigned short**elementScoreTable, int scoretype, size_t *offsets);
-    static void readInDataSet(DBReader<IdType>*alnDbr, DBReader<IdType>*seqDbr, unsigned int **elementLookupTable, unsigned short **elementScoreTable, int scoretype, size_t *offsets, size_t *sourceOffsets, unsigned int **sourceLookupTable,  unsigned int *keyToSet, bool isfirst);
+    static void readInData(DBReader<KeyType>*pReader, DBReader<KeyType>*pDBReader, KeyType**pInt, unsigned short**elementScoreTable, int scoretype, size_t *offsets);
+    static void readInDataSet(DBReader<KeyType>*alnDbr, DBReader<KeyType>*seqDbr, KeyType **elementLookupTable,
+                              unsigned short **elementScoreTable, int scoretype, size_t *offsets, size_t *sourceOffsets, KeyType **sourceLookupTable, KeyType *keyToSet, bool isfirst);
     template<typename T>
     static void computeOffsetFromCounts(T* elementSizes, size_t dbSize)  {
         size_t prevElementLength = elementSizes[0];
@@ -25,13 +26,13 @@ public:
             prevElementLength = currElementLength;
         }
     }
-    static size_t findMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize, int threads);
-    static void addMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t * newOffset, size_t dbSize,unsigned short**elementScoreTable);
-    static void sortElements(unsigned int **elementLookupTable, size_t *offsets, size_t dbSize);
+    static size_t findMissingLinks(KeyType **elementLookupTable, size_t *offsetTable, size_t dbSize, int threads);
+    static void addMissingLinks(KeyType **elementLookupTable, size_t *offsetTable, size_t * newOffset, size_t dbSize,unsigned short**elementScoreTable);
+    static void sortElements(KeyType **elementLookupTable, size_t *offsets, size_t dbSize);
 
     template <typename T>
     static void setupPointers(T *elements, T **elementLookupTable, size_t *elementOffset,
-                                 unsigned int dbSize, size_t totalElementCount) {
+                              KeyType dbSize, size_t totalElementCount) {
         for(size_t i = 0; i < dbSize; i++) {
             if(totalElementCount < elementOffset[i]){
                 Debug(Debug::ERROR) << "Error in setupPointers. totalElementCount "

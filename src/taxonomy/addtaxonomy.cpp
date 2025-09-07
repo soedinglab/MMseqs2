@@ -18,8 +18,8 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
     MappingReader mapping(par.db1);
     std::vector<std::string> ranks = NcbiTaxonomy::parseRanks(par.lcaRanks);
 
-    DBReader<IdType> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX);
-    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX);
+    reader.open(DBReader<KeyType>::LINEAR_ACCCESS);
     bool isTaxresult = Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_TAXONOMICAL_RESULT);
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
@@ -41,7 +41,7 @@ int addtaxonomy(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
 
-            IdType key = reader.getDbKey(i);
+            KeyType key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
             size_t length = reader.getEntryLen(i);
 

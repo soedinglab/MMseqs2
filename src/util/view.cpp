@@ -23,9 +23,9 @@ int view(int argc, const char **argv, const Command& command) {
             break;
     }
     const bool lookupMode = par.dbIdMode == Parameters::ID_MODE_LOOKUP;
-    int dbMode = DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA;
+    int dbMode = DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA;
     if (lookupMode) {
-        dbMode |= DBReader<IdType>::USE_LOOKUP_REV;
+        dbMode |= DBReader<KeyType>::USE_LOOKUP_REV;
     }
     IndexReader reader(par.db1, par.threads, indexSrcType, false, dbMode);
     for (size_t i = 0; i < ids.size(); ++i) {
@@ -42,7 +42,7 @@ int view(int argc, const char **argv, const Command& command) {
             key = Util::fast_atoi<unsigned int>(ref.c_str());
         }
 
-        const IdType id = reader.sequenceReader->getId(key);
+        const KeyType id = reader.sequenceReader->getId(key);
         if (id >= UINT_MAX) {
             Debug(Debug::ERROR) << "Key " << ids[i] << " not found in database\n";
             continue;

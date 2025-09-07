@@ -39,7 +39,7 @@ void intHandlerClient(int) {
 }
 
 void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
-                    DBReader<IdType> * qdbr, DBReader<IdType> * tdbr,
+                    DBReader<KeyType> * qdbr, DBReader<KeyType> * tdbr,
                     bool sameDB, DBWriter & resultWriter, EvalueComputation * evaluer,
                     QueryMatcherTaxonomyHook *taxonomyHook){
     Debug::Progress progress(qdbr->getSize());
@@ -165,7 +165,7 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         if (!keepRunningClient) {
             break;
         }
-        IdType queryKey = qdbr->getDbKey(id);
+        KeyType queryKey = qdbr->getDbKey(id);
         unsigned int querySeqLen = qdbr->getSeqLen(id);
         char *querySeqData = qdbr->getData(id, 0);
         qSeq.mapSequence(id, queryKey, querySeqData, querySeqLen);
@@ -252,7 +252,7 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         }
 
         for(size_t i = 0; i < stats.results; i++){
-            IdType targetKey = tdbr->getDbKey(results[i].id);
+            KeyType targetKey = tdbr->getDbKey(results[i].id);
             int score = results[i].score;
             if(taxonomyHook != NULL){
                 TaxID currTax = taxonomyHook->taxonomyMapping->lookup(targetKey);
@@ -336,7 +336,7 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
 #endif
 
 void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, int8_t * tinySubMat,
-                    DBReader<IdType> * qdbr, DBReader<IdType> * tdbr,
+                    DBReader<KeyType> * qdbr, DBReader<KeyType> * tdbr,
                     SequenceLookup * sequenceLookup, bool sameDB, DBWriter & resultWriter, EvalueComputation * evaluer,
                     QueryMatcherTaxonomyHook *taxonomyHook, int alignmentMode){
     std::vector<hit_t> shortResults;
@@ -365,7 +365,7 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, int8_t * tinySubMat,
         resultBuffer.reserve(262144);
         for (size_t id = 0; id < qdbr->getSize(); id++) {
             char *querySeqData = qdbr->getData(id, thread_idx);
-            IdType queryKey = qdbr->getDbKey(id);
+            KeyType queryKey = qdbr->getDbKey(id);
             unsigned int querySeqLen = qdbr->getSeqLen(id);
 
             qSeq.mapSequence(id, queryKey, querySeqData, querySeqLen);
@@ -377,7 +377,7 @@ void runFilterOnCpu(Parameters & par, BaseMatrix * subMat, int8_t * tinySubMat,
             }
 #pragma omp for schedule(static) nowait
             for (size_t tId = 0; tId < tdbr->getSize(); tId++) {
-                IdType targetKey = tdbr->getDbKey(tId);
+                KeyType targetKey = tdbr->getDbKey(tId);
                 if(taxonomyHook != NULL){
                     TaxID currTax = taxonomyHook->taxonomyMapping->lookup(targetKey);
                     if (taxonomyHook->expression[thread_idx]->isAncestor(currTax) == false) {
@@ -487,11 +487,11 @@ int prefilterInternal(int argc, const char **argv, const Command &command, int m
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     IndexReader tDbrIdx(par.db2, par.threads, IndexReader::SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0 );
     IndexReader * qDbrIdx = NULL;
-    DBReader<IdType> * qdbr = NULL;
-    DBReader<IdType> * tdbr = tDbrIdx.sequenceReader;
+    DBReader<KeyType> * qdbr = NULL;
+    DBReader<KeyType> * tdbr = tDbrIdx.sequenceReader;
 
     if (par.gpu == true) {
-        const bool isGpuDb = DBReader<IdType>::getExtendedDbtype(tdbr->getDbtype()) & Parameters::DBTYPE_EXTENDED_GPU;
+        const bool isGpuDb = DBReader<KeyType>::getExtendedDbtype(tdbr->getDbtype()) & Parameters::DBTYPE_EXTENDED_GPU;
         if (isGpuDb == false) {
             Debug(Debug::ERROR) << "Database " << FileUtil::baseName(par.db2) << " is not a valid GPU database\n" 
                                 << "Please call: makepaddedseqdb " << FileUtil::baseName(par.db2) << " " << FileUtil::baseName(par.db2) << "_pad\n";

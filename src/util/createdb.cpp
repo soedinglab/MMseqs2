@@ -23,9 +23,9 @@ int sortWithIndex(const char *dataFileSeq,
                   const char *dataFileHeader,
                   const char *indexFileHeader)
 {
-    DBReader<IdType> reader(dataFileSeq, indexFileSeq, 1, DBReader<IdType>::USE_INDEX);
-    reader.open(DBReader<IdType>::HARDNOSORT);
-    DBReader<IdType>::Index *index = reader.getIndex();
+    DBReader<KeyType> reader(dataFileSeq, indexFileSeq, 1, DBReader<KeyType>::USE_INDEX);
+    reader.open(DBReader<KeyType>::HARDNOSORT);
+    DBReader<KeyType>::Index *index = reader.getIndex();
     struct stat st;
     if (stat(dataFileSeq, &st) != 0) {
         Debug(Debug::ERROR) << "stat failed: " << dataFileSeq << "\n";
@@ -46,7 +46,7 @@ int sortWithIndex(const char *dataFileSeq,
         index[i].id = i;
     }
 
-    SORT_PARALLEL(index, index + reader.getSize(), DBReader<IdType>::Index::compareByLength);
+    SORT_PARALLEL(index, index + reader.getSize(), DBReader<KeyType>::Index::compareByLength);
 
     FILE *seqOut = FileUtil::openFileOrDie(dataFileSeq, "wb", true);
     setvbuf(seqOut, NULL, _IOFBF, 1024*1024*50);
@@ -79,14 +79,14 @@ int sortWithIndex(const char *dataFileSeq,
     }
     fclose(fin);
 
-    DBReader<IdType> header(dataFileHeader, indexFileHeader, 1, DBReader<IdType>::USE_INDEX);
-    header.open(DBReader<IdType>::HARDNOSORT);
-    DBReader<IdType>::Index *headerIndex = header.getIndex();
+    DBReader<KeyType> header(dataFileHeader, indexFileHeader, 1, DBReader<KeyType>::USE_INDEX);
+    header.open(DBReader<KeyType>::HARDNOSORT);
+    DBReader<KeyType>::Index *headerIndex = header.getIndex();
     FILE *headerout = FileUtil::openFileOrDie(dataFileHeader, "wb", true);
     setvbuf(headerout, NULL, _IOFBF, 1024*1024*50);
     offset = 0;
     for (size_t i = 0; i < header.getSize(); i++) {
-        unsigned int sortedId = index[i].id;
+        KeyType sortedId = index[i].id;
         size_t written = fwrite(buf + headerIndex[sortedId].offset, 1, headerIndex[sortedId].length, headerout);
         // reconstruct old id
         index[i].id = headerIndex[sortedId].id;
@@ -100,7 +100,7 @@ int sortWithIndex(const char *dataFileSeq,
     fclose(headerout);
     delete [] buf;
 
-    SORT_PARALLEL(index, index + reader.getSize(), DBReader<IdType>::Index::compareByOffset);
+    SORT_PARALLEL(index, index + reader.getSize(), DBReader<KeyType>::Index::compareByOffset);
     {
         std::string tmpIndex = std::string(indexFileSeq) + ".tmp";
         FILE *indexout = FileUtil::openFileOrDie(tmpIndex.c_str(), "wb", false);
@@ -136,9 +136,9 @@ int mergeSequentialByJointIndex(
 ) {
     struct JointEntry {
         unsigned int fileIdx;
-        unsigned int  id;
+        KeyType id;
         unsigned   length;
-        JointEntry(unsigned int fileIdx, unsigned int id, unsigned length) : fileIdx(fileIdx), id(id), length(length) {};
+        JointEntry(unsigned int fileIdx, KeyType id, unsigned length) : fileIdx(fileIdx), id(id), length(length) {};
 
         bool operator<(JointEntry const &o) const {
             if (length != o.length){
@@ -152,16 +152,16 @@ int mergeSequentialByJointIndex(
     joint.reserve(totalEntries);
     size_t maxLen = 0;
     for (size_t i = 0; i < shuffleSplits; i++) {
-        DBReader<IdType> reader(
+        DBReader<KeyType> reader(
                 dataFiles[i],
                 indexFiles[i],
                 1,
                 DBReader<uint32_t>::USE_INDEX
         );
         reader.open(DBReader<uint32_t>::HARDNOSORT);
-        DBReader<IdType>::Index* index = reader.getIndex();
+        DBReader<KeyType>::Index* index = reader.getIndex();
         for(size_t j = 0; j < reader.getSize(); j++){
-            joint.emplace_back((unsigned int)i, index[j].id, index[j].length);
+            joint.emplace_back((KeyType)i, index[j].id, index[j].length);
             maxLen = std::max(maxLen, static_cast<size_t>(index[j].length));
         }
         reader.close();
@@ -223,8 +223,8 @@ int mergeSequentialByJointIndex(
     size_t mergedOffset = 0;
     size_t mergedOffsetHeader = 0;
     std::vector<char> scratch(maxLen);
-    DBReader<IdType>::Index entry;
-    DBReader<IdType>::LookupEntry lookupEntry;
+    DBReader<KeyType>::Index entry;
+    DBReader<KeyType>::LookupEntry lookupEntry;
 
     char indexBuffer[1024];
     std::string lookupBuffer;
@@ -262,7 +262,7 @@ int mergeSequentialByJointIndex(
         }
         lookupEntry.fileNumber = sourceLookup[qe.fileIdx][(qe.id - qe.fileIdx) / 32];
         lookupBuffer.clear();
-        DBReader<IdType>::lookupEntryToBuffer(lookupBuffer, lookupEntry);
+        DBReader<KeyType>::lookupEntryToBuffer(lookupBuffer, lookupEntry);
         written = fwrite(lookupBuffer.data(), 1, lookupBuffer.size(), foutLookup);
         if (UNLIKELY(written != lookupBuffer.size())) {
             Debug(Debug::ERROR) << "Can not write to lookup file " << outLookupFile << "\n";
@@ -279,7 +279,7 @@ int mergeSequentialByJointIndex(
         entry.length = qe.length + 2;
         entry.id = i;
         DBWriter::writeIndexEntryToFile(idxOut, indexBuffer, entry);
-        entry.length = writeHeaderBuf.size();
+        entry.length = static_cast<unsigned int>(writeHeaderBuf.size());
         entry.offset = mergedOffsetHeader;
         DBWriter::writeIndexEntryToFile(idxOutHeader, indexBuffer, entry);
         mergedOffset += qe.length + sequencepadding;
@@ -303,8 +303,8 @@ int mergeSequentialByJointIndex(
 }
 
 void processSeqBatch(Parameters & par, DBWriter &seqWriter, DBWriter &hdrWriter, BaseMatrix *subMat, int querySeqType,
-                     Masker ** masker, Sequence ** seqs, size_t currId,
-                     std::vector<std::pair<std::vector<char>, std::string>> &entries, const size_t entriesSize,
+                     Masker ** masker, Sequence ** seqs, KeyType currId,
+                     std::vector<std::pair<std::vector<char>, std::string>> &entries, const KeyType entriesSize,
                      unsigned int shuffleSplits){
     if(masker[0] == NULL){
         for(int i = 0; i < par.threads; i++){
@@ -320,8 +320,8 @@ void processSeqBatch(Parameters & par, DBWriter &seqWriter, DBWriter &hdrWriter,
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
 #pragma omp for schedule(dynamic, 10)
-        for (size_t i = 0; i < entriesSize; i++) {
-            seqs[thread_idx]->mapSequence(currId + i, currId + i, entries[i].first.data(), entries[i].first.size());
+        for (KeyType i = 0; i < entriesSize; i++) {
+            seqs[thread_idx]->mapSequence(currId + i, currId + i, entries[i].first.data(), static_cast<unsigned int>(entries[i].first.size()));
             const unsigned char *numSequence = seqs[thread_idx]->numSequence;
             std::copy_n(numSequence, seqs[thread_idx]->L, entries[i].first.begin());
             masker[thread_idx]->maskSequence(*seqs[thread_idx], par.maskMode, par.maskProb, par.maskLowerCaseMode,
@@ -336,7 +336,7 @@ void processSeqBatch(Parameters & par, DBWriter &seqWriter, DBWriter &hdrWriter,
 
     for (size_t i = 0; i < entriesSize; i++) {
         size_t id = currId + i;
-        size_t splitIdx = id % shuffleSplits;
+        unsigned int splitIdx = id % shuffleSplits;
         seqWriter.writeData(entries[i].first.data(), entries[i].first.size(), currId + i, splitIdx, false);
         hdrWriter.writeData(entries[i].second.c_str(), entries[i].second.length(), currId + i, splitIdx);
     }
@@ -421,14 +421,14 @@ int createdb(int argc, const char **argv, const Command& command) {
     std::string hdrDataFile = dataFile + "_h";
     std::string hdrIndexFile = dataFile + "_h.index";
 
-    unsigned int entries_num = 0;
+    KeyType entries_num = 0;
     const char newline = '\n';
 
     size_t sampleCount = 0;
     const size_t testForNucSequence = 100;
     size_t isNuclCnt = 0;
     Debug::Progress progress;
-    std::vector<unsigned int>* sourceLookup = new std::vector<unsigned int>[shuffleSplits]();
+    std::vector<unsigned int >* sourceLookup = new std::vector<unsigned int >[shuffleSplits]();
     for (size_t i = 0; i < shuffleSplits; ++i) {
         sourceLookup[i].reserve(16384);
     }
@@ -450,10 +450,10 @@ int createdb(int argc, const char **argv, const Command& command) {
     size_t seqFileOffset = 0;
 
     size_t fileCount = filenames.size();
-    DBReader<IdType>* reader = NULL;
+    DBReader<KeyType>* reader = NULL;
     if (dbInput == true) {
-        reader = new DBReader<IdType>(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_LOOKUP);
-        reader->open(DBReader<IdType>::LINEAR_ACCCESS);
+        reader = new DBReader<KeyType>(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_LOOKUP);
+        reader->open(DBReader<KeyType>::LINEAR_ACCCESS);
         fileCount = reader->getSize();
     }
 
@@ -471,7 +471,7 @@ int createdb(int argc, const char **argv, const Command& command) {
 
         std::string sourceName;
         if (dbInput == true) {
-            IdType dbKey = reader->getDbKey(fileIdx);
+            KeyType dbKey = reader->getDbKey(fileIdx);
             size_t lookupId = reader->getLookupIdByKey(dbKey);
             sourceName = reader->getLookupEntryName(lookupId);
         } else {
@@ -548,7 +548,7 @@ int createdb(int argc, const char **argv, const Command& command) {
                 EXIT(EXIT_FAILURE);
             }
 
-            unsigned int id = par.identifierOffset + entries_num;
+            KeyType id = par.identifierOffset + entries_num;
             if (dbType == -1) {
                 // check for the first 10 sequences if they are nucleotide sequences
                 if (sampleCount < 10 || (sampleCount % 100) == 0) {
@@ -717,8 +717,8 @@ int createdb(int argc, const char **argv, const Command& command) {
         hdrWriter.close(true, false);
         seqWriter.close(true, false);
         if (par.shuffleDatabase == true) {
-            DBWriter::createRenumberedDB(dataFile, indexFile, "", "", DBReader<IdType>::LINEAR_ACCCESS);
-            DBWriter::createRenumberedDB(hdrDataFile, hdrIndexFile, "", "", DBReader<IdType>::LINEAR_ACCCESS);
+            DBWriter::createRenumberedDB(dataFile, indexFile, "", "", DBReader<KeyType>::LINEAR_ACCCESS);
+            DBWriter::createRenumberedDB(hdrDataFile, hdrIndexFile, "", "", DBReader<KeyType>::LINEAR_ACCCESS);
         }
         if (par.createdbMode == Parameters::SEQUENCE_SPLIT_MODE_SOFT) {
             if (filenames.size() == 1) {
@@ -732,17 +732,17 @@ int createdb(int argc, const char **argv, const Command& command) {
             }
         }
         if (par.writeLookup == true) {
-            DBReader<IdType> readerHeader(hdrDataFile.c_str(), hdrIndexFile.c_str(), 1, DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX);
-            readerHeader.open(DBReader<IdType>::NOSORT);
+            DBReader<KeyType> readerHeader(hdrDataFile.c_str(), hdrIndexFile.c_str(), 1, DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX);
+            readerHeader.open(DBReader<KeyType>::NOSORT);
             // create lookup file
             std::string lookupFile = dataFile + ".lookup";
             FILE* file = FileUtil::openAndDelete(lookupFile.c_str(), "w");
             std::string buffer;
             buffer.reserve(2048);
-            unsigned int splitIdx = 0;
-            unsigned int splitCounter = 0;
-            DBReader<IdType>::LookupEntry entry;
-            for (unsigned int id = 0; id < readerHeader.getSize(); id++) {
+            KeyType splitIdx = 0;
+            KeyType splitCounter = 0;
+            DBReader<KeyType>::LookupEntry entry;
+            for (KeyType id = 0; id < readerHeader.getSize(); id++) {
                 size_t splitSize = sourceLookup[splitIdx].size();
                 if (splitSize == 0 || splitCounter > sourceLookup[splitIdx].size() - 1) {
                     splitIdx++;
@@ -756,8 +756,8 @@ int createdb(int argc, const char **argv, const Command& command) {
                 }
                 entry.fileNumber = sourceLookup[splitIdx][splitCounter];
                 readerHeader.lookupEntryToBuffer(buffer, entry);
-                int written = fwrite(buffer.c_str(), sizeof(char), buffer.size(), file);
-                if (written != (int)buffer.size()) {
+                size_t written = fwrite(buffer.c_str(), sizeof(char), buffer.size(), file);
+                if (written != buffer.size()) {
                     Debug(Debug::ERROR) << "Cannot write to lookup file " << lookupFile << "\n";
                     EXIT(EXIT_FAILURE);
                 }
@@ -780,7 +780,7 @@ int createdb(int argc, const char **argv, const Command& command) {
         }
     }
     if(gpuCompatibleDB){
-        dbType = DBReader<IdType>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_GPU);
+        dbType = DBReader<KeyType>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_GPU);
     }
     DBWriter::writeDbtypeFile(seqWriter.getDataFileName(), dbType ,par.compressed);
     DBWriter::writeDbtypeFile(hdrWriter.getDataFileName(), Parameters::DBTYPE_GENERIC_DB, par.compressed);

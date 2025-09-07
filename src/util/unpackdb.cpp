@@ -22,12 +22,12 @@ int unpackdb(int argc, const char **argv, const Command& command) {
         par.unpackNameMode = Parameters::UNPACK_NAME_KEY;
     }
 
-    int mode = DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA;
+    int mode = DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA;
     if (par.unpackNameMode == Parameters::UNPACK_NAME_ACCESSION) {
-        mode |= DBReader<IdType>::USE_LOOKUP;
+        mode |= DBReader<KeyType>::USE_LOOKUP;
     }
-    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, mode);
-    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, mode);
+    reader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     if (FileUtil::directoryExists(par.db2.c_str()) == false && FileUtil::makeDir(par.db2.c_str()) == false) {
         Debug(Debug::ERROR) << "Cannot create output folder " << par.db2 << "\n";
@@ -51,7 +51,7 @@ int unpackdb(int argc, const char **argv, const Command& command) {
 #pragma omp for schedule(dynamic, 100)
         for (size_t i = 0; i < entries; ++i) {
             progress.updateProgress();
-            IdType key = reader.getDbKey(i);
+            KeyType key = reader.getDbKey(i);
             std::string name = par.db2;
             if (name.back() != '/') {
                 name.append(1, '/');
@@ -82,8 +82,8 @@ int unpackdb(int argc, const char **argv, const Command& command) {
                     continue;
                 }
                 size_t len = reader.getEntryLen(i) - 1;
-                int n = gzwrite(handle ,reader.getData(i, thread_idx), len * sizeof(char));
-                if ((size_t)n != len) {
+                size_t n = gzwrite(handle ,reader.getData(i, thread_idx), len * sizeof(char));
+                if (n != len) {
                     Debug(Debug::ERROR) << "Cannot not write " << name << "\n";
                     continue;
                 }
@@ -102,8 +102,8 @@ int unpackdb(int argc, const char **argv, const Command& command) {
                     continue;
                 }
                 size_t len = reader.getEntryLen(i) - 1;
-                int n = fwrite(reader.getData(i, thread_idx), sizeof(char), len, handle);
-                if ((size_t)n != len) {
+                size_t n = fwrite(reader.getData(i, thread_idx), sizeof(char), len, handle);
+                if (n != len) {
                     Debug(Debug::ERROR) << "Cannot not write " << name << "\n";
                     continue;
                 }

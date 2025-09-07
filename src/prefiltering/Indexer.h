@@ -85,7 +85,7 @@ public:
 
     // get the index of the k-mer of length maxKmerSize, beginning at position 0
     size_t int2index( const unsigned char *int_seq){
-        int2index(int_seq, 0, this->maxKmerSize);
+        int2index(int_seq, 0, static_cast<const int>(this->maxKmerSize));
         return this->lastKmerIndex;
     }
     

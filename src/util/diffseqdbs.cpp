@@ -45,11 +45,11 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<IdType> oldReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    oldReader.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> oldReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    oldReader.open(DBReader<KeyType>::NOSORT);
 
-    DBReader<IdType> newReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    newReader.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> newReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    newReader.open(DBReader<KeyType>::NOSORT);
 
     std::ofstream removedSeqDBWriter, keptSeqDBWriter, newSeqDBWriter;
     removedSeqDBWriter.open(par.db3);

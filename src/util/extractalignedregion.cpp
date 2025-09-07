@@ -16,27 +16,27 @@ int extractalignedregion(int argc, const char **argv, const Command& command) {
     // never allow deletions
     par.allowDeletion = false;
 
-    DBReader<IdType> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    qdbr.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> qdbr(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    qdbr.open(DBReader<KeyType>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         qdbr.readMmapedDataInMemory();
     }
 
     bool sameDB = false;
-    DBReader<IdType> *tdbr = NULL;
+    DBReader<KeyType> *tdbr = NULL;
     if (par.db1.compare(par.db2) == 0) {
         sameDB = true;
         tdbr = &qdbr;
     } else {
-        tdbr = new DBReader<IdType>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-        tdbr->open(DBReader<IdType>::NOSORT);
+        tdbr = new DBReader<KeyType>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        tdbr->open(DBReader<KeyType>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             tdbr->readMmapedDataInMemory();
         }
     }
 
-    DBReader<IdType> alndbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    alndbr.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> alndbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    alndbr.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     DBWriter dbw(par.db4.c_str(), par.db4Index.c_str(), static_cast<unsigned int>(par.threads), par.compressed, tdbr->getDbtype());
     dbw.open();
@@ -55,7 +55,7 @@ int extractalignedregion(int argc, const char **argv, const Command& command) {
         for (size_t i = 0; i < alndbr.getSize(); i++) {
             progress.updateProgress();
 
-            IdType queryKey = alndbr.getDbKey(i);
+            KeyType queryKey = alndbr.getDbKey(i);
             char *qSeq = NULL;
             if (par.extractMode == Parameters::EXTRACT_QUERY) {
                 qSeq = qdbr.getDataByDBKey(queryKey, thread_idx);
@@ -89,9 +89,9 @@ int extractalignedregion(int argc, const char **argv, const Command& command) {
     dbw.close();
 
     if (par.extractMode == Parameters::EXTRACT_QUERY) {
-        DBReader<IdType>::softlinkDb(par.db1, par.db4, DBFiles::SEQUENCE_ANCILLARY);
+        DBReader<KeyType>::softlinkDb(par.db1, par.db4, DBFiles::SEQUENCE_ANCILLARY);
     } else {
-        DBReader<IdType>::softlinkDb(par.db2, par.db4, DBFiles::SEQUENCE_ANCILLARY);
+        DBReader<KeyType>::softlinkDb(par.db2, par.db4, DBFiles::SEQUENCE_ANCILLARY);
     }
 
     alndbr.close();

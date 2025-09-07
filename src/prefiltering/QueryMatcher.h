@@ -31,7 +31,7 @@ struct statistics_t{
 };
 
 struct hit_t {
-    unsigned int seqId;
+    KeyType seqId;
     int prefScore;
     unsigned short diagonal;
 
@@ -153,8 +153,8 @@ protected:
     // kmer threshold for kmer generator
     short kmerThr;
 
-    unsigned int maxDbMatches;
-    unsigned int dbSize;
+    size_t maxDbMatches;
+    size_t dbSize;
 
     // result hit buffer
     //CacheFriendlyOperations * diagonalMatcher;
@@ -197,7 +197,7 @@ protected:
 
     bool isNucleotide;
 
-    const static size_t SCORE_RANGE = 256;
+    const static unsigned int SCORE_RANGE = 256;
 
     QueryMatcherHook* hook;
 
@@ -205,7 +205,7 @@ protected:
 
     static unsigned int computeScoreThreshold(unsigned int * scoreSizes, size_t maxHitsPerQuery) {
         size_t foundHits = 0;
-        size_t scoreThr = 0;
+        unsigned int scoreThr = 0;
         for (scoreThr = SCORE_RANGE - 1; scoreThr > 0 ; scoreThr--) {
             foundHits += scoreSizes[scoreThr];
             if (foundHits >= maxHitsPerQuery) {

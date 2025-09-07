@@ -99,7 +99,7 @@ void updateOffset(char* data, std::vector<Matcher::result_t> &results, const Orf
         res.dbOrfStartPos = -1;
         res.dbOrfEndPos = -1;
         if (targetNeedsUpdate == true || qloc == NULL) {
-            IdType targetId = tOrfDBr.sequenceReader->getId(res.dbKey);
+            KeyType targetId = tOrfDBr.sequenceReader->getId(res.dbKey);
             char *header = tOrfDBr.sequenceReader->getData(targetId, thread_idx);
 
             Orf::SequenceLocation tloc = Orf::parseOrfHeader(header);
@@ -165,7 +165,7 @@ void updateLengths(std::vector<Matcher::result_t> &results, unsigned int qSource
             res.qLen = qSourceLen;
         }
         if (tSourceDbr != NULL) {
-            IdType targetId = tSourceDbr->sequenceReader->getId(res.dbKey);
+            KeyType targetId = tSourceDbr->sequenceReader->getId(res.dbKey);
             res.dbLen = tSourceDbr->sequenceReader->getSeqLen(targetId);
         }
     }
@@ -178,16 +178,16 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     const bool touch = par.preloadMode != Parameters::PRELOAD_MODE_MMAP;
     int queryDbType = FileUtil::parseDbType(par.db1.c_str());
     if(Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_INDEX_DB)){
-        DBReader<IdType> idxdbr(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-        idxdbr.open(DBReader<IdType>::NOSORT);
+        DBReader<KeyType> idxdbr(par.db1.c_str(), par.db1Index.c_str(), 1, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        idxdbr.open(DBReader<KeyType>::NOSORT);
         PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&idxdbr);
         queryDbType=data.srcSeqType;
         idxdbr.close();
     }
     int targetDbType = FileUtil::parseDbType(par.db3.c_str());
     if(Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_INDEX_DB)){
-        DBReader<IdType> idxdbr(par.db3.c_str(), par.db3Index.c_str(), 1, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-        idxdbr.open(DBReader<IdType>::NOSORT);
+        DBReader<KeyType> idxdbr(par.db3.c_str(), par.db3Index.c_str(), 1, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        idxdbr.open(DBReader<KeyType>::NOSORT);
         PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(&idxdbr);
         targetDbType=data.srcSeqType;
         idxdbr.close();
@@ -201,7 +201,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     const bool queryNucl = Parameters::isEqualDbtype(queryDbType, Parameters::DBTYPE_NUCLEOTIDES);
     IndexReader *qSourceDbr = NULL;
     if (queryNucl) {
-        qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX) : 0, DBReader<IdType>::USE_INDEX);
+        qSourceDbr = new IndexReader(par.db1.c_str(), par.threads, IndexReader::SRC_SEQUENCES, (touch) ? (IndexReader::PRELOAD_INDEX) : 0, DBReader<KeyType>::USE_INDEX);
     }
 
     IndexReader * tOrfDbr;
@@ -227,7 +227,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         if(isSameSrcDB){
             tSourceDbr = qSourceDbr;
         }else{
-            tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::SRC_SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0, DBReader<IdType>::USE_INDEX );
+            tSourceDbr = new IndexReader(par.db3.c_str(), par.threads, IndexReader::SRC_SEQUENCES, (touch) ? IndexReader::PRELOAD_INDEX : 0, DBReader<KeyType>::USE_INDEX );
         }
 
         if(Parameters::isEqualDbtype(tSourceDbr->getDbtype(), Parameters::DBTYPE_INDEX_DB)){
@@ -257,8 +257,8 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         isNuclNuclSearch = (queryNucl && targetNucl && seqtargetNuc);
     }
 
-    DBReader<IdType> alnDbr(par.db5.c_str(), par.db5Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    alnDbr.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> alnDbr(par.db5.c_str(), par.db5Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    alnDbr.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     size_t localThreads = 1;
 #ifdef OPENMP
@@ -283,12 +283,12 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 #endif
 #pragma omp for schedule(dynamic, 10)
             for (size_t i = 0; i <= maxOrfKey; ++i) {
-                IdType queryId = qOrfDbr.sequenceReader->getId(i);
+                KeyType queryId = qOrfDbr.sequenceReader->getId(i);
                 if (queryId == UINT_MAX) {
                     orfLookup[i] = UINT_MAX;
                     continue;
                 }
-                IdType queryKey = qOrfDbr.sequenceReader->getDbKey(queryId);
+                KeyType queryKey = qOrfDbr.sequenceReader->getDbKey(queryId);
                 char *header = qOrfDbr.sequenceReader->getData(queryId, thread_idx);
                 Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
                 unsigned int id = (qloc.id != UINT_MAX) ? qloc.id : queryKey;
@@ -375,20 +375,20 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     continue;
                 }
                 if (qSourceDbr != NULL) {
-                    IdType queryId = qSourceDbr->sequenceReader->getId(queryKey);
+                    KeyType queryId = qSourceDbr->sequenceReader->getId(queryKey);
                     qLen = qSourceDbr->sequenceReader->getSeqLen(queryId);
                 }
                 unsigned int *orfKeys = &contigLookup[contigOffsets[i]];
                 size_t orfCount = contigOffsets[i + 1] - contigOffsets[i];
                 for (unsigned int j = 0; j < orfCount; ++j) {
                     unsigned int orfKey = orfKeys[j];
-                    IdType orfId = alnDbr.getId(orfKey);
+                    KeyType orfId = alnDbr.getId(orfKey);
                     // this is needed when alnDbr does not contain all identifier of the queryDB
                     if(orfId==UINT_MAX){
                         continue;
                     }
                     char *data = alnDbr.getData(orfId, thread_idx);
-                    IdType queryId = qOrfDbr.sequenceReader->getId(orfKey);
+                    KeyType queryId = qOrfDbr.sequenceReader->getId(orfKey);
                     char *header = qOrfDbr.sequenceReader->getData(queryId, thread_idx);
                     Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
                     if(qloc.id == UINT_MAX){
@@ -419,7 +419,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             } else if (Parameters::isEqualDbtype(targetDbType, Parameters::DBTYPE_NUCLEOTIDES)) {
                 queryKey = alnDbr.getDbKey(i);
                 if (qSourceDbr != NULL) {
-                    IdType queryId = qSourceDbr->sequenceReader->getId(queryKey);
+                    KeyType queryId = qSourceDbr->sequenceReader->getId(queryKey);
                     qLen = qSourceDbr->sequenceReader->getSeqLen(queryId);
                 }
                 char *data = alnDbr.getData(i, thread_idx);

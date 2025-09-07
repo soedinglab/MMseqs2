@@ -7,8 +7,8 @@
 class IndexBuilder {
 public:
     static void fillDatabase(IndexTable *indexTable, SequenceLookup **externalLookup, BaseMatrix &subMat,
-                             ScoreMatrix & three,  ScoreMatrix & two, Sequence *seq,
-                             DBReader<IdType> *dbr, size_t dbFrom, size_t dbTo, int kmerThr,
+                             ScoreMatrix & three, ScoreMatrix & two, Sequence *seq,
+                             DBReader<KeyType> *dbr, size_t dbFrom, size_t dbTo, int kmerThr,
                              bool mask, bool maskLowerCaseMode, float maskProb, int maskNrepeats, int targetSearchMode);
 };
 

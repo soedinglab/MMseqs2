@@ -69,7 +69,7 @@ void LinsearchIndexReader::mergeAndWriteIndex(DBWriter & dbw, std::vector<std::s
 
     dbw.writeStart(0);
     Debug(Debug::INFO) << "Merge splits ... ";
-    const int fileCnt = tmpFiles.size();
+    const size_t fileCnt = tmpFiles.size();
     FILE ** files       = new FILE*[fileCnt];
     KmerPosition<short> **entries = new KmerPosition<short>*[fileCnt];
     size_t * entrySizes = new size_t[fileCnt];
@@ -235,7 +235,7 @@ std::string LinsearchIndexReader::indexName(std::string baseName) {
     return result;
 }
 
-bool LinsearchIndexReader::checkIfIndexFile(DBReader<IdType> *pReader) {
+bool LinsearchIndexReader::checkIfIndexFile(DBReader<KeyType> *pReader) {
     char * version = pReader->getDataByDBKey(PrefilteringIndexReader::VERSION, 0);
     if(version == NULL){
         return false;
@@ -254,7 +254,7 @@ void LinsearchIndexReader::writeKmerIndexToDisk(std::string fileName, KmerPositi
 }
 
 
-std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<IdType> & index, Parameters &par, int dbtype) {
+std::string LinsearchIndexReader::findIncompatibleParameter(DBReader<KeyType> & index, Parameters &par, int dbtype) {
     PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(&index);
     if (meta.maxSeqLength != static_cast<int>(par.maxSeqLen))
         return "maxSeqLen";

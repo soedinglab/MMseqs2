@@ -49,7 +49,7 @@ struct SequencePosition{
 template <typename T>
 struct __attribute__((__packed__))KmerPosition {
     size_t kmer;
-    unsigned int id;
+    KeyType id;
     T seqLen;
     T pos;
 
@@ -133,7 +133,7 @@ struct __attribute__((__packed__))KmerPosition {
 
 
 struct __attribute__((__packed__)) KmerEntry {
-    unsigned int seqId;
+    KeyType seqId;
     short diagonal;
     unsigned char score;
     void setReverse(bool ){
@@ -145,7 +145,7 @@ struct __attribute__((__packed__)) KmerEntry {
 };
 
 struct __attribute__((__packed__)) KmerEntryRev {
-    unsigned int seqId;
+    KeyType seqId;
     short diagonal;
     unsigned char score;
     unsigned char rev;
@@ -159,15 +159,15 @@ struct __attribute__((__packed__)) KmerEntryRev {
 
 struct FileKmerPosition {
     size_t repSeq;
-    unsigned int id;
+    KeyType id;
     short pos;
     unsigned char score;
     unsigned int file;
     char reverse;
     FileKmerPosition(){}
-    FileKmerPosition(size_t repSeq, unsigned int id,short pos, unsigned char score, unsigned int file):
+    FileKmerPosition(size_t repSeq, KeyType id, short pos, unsigned char score, unsigned int file):
             repSeq(repSeq), id(id), pos(pos), score(score), file(file), reverse(0) {}
-    FileKmerPosition(size_t repSeq, unsigned int id,short pos, unsigned char score, char reverse, unsigned int file):
+    FileKmerPosition(size_t repSeq, KeyType id, short pos, unsigned char score, char reverse, unsigned int file):
             repSeq(repSeq), id(id), pos(pos), score(score), file(file), reverse(reverse) {}
 };
 
@@ -201,7 +201,7 @@ void mergeKmerFilesAndOutput(DBWriter & dbw, std::vector<std::string> tmpFiles, 
 typedef std::priority_queue<FileKmerPosition, std::vector<FileKmerPosition>, CompareResultBySeqId> KmerPositionQueue;
 
 template <int TYPE, typename T>
-size_t queueNextEntry(KmerPositionQueue &queue, int file, size_t offsetPos, T *entries, size_t entrySize);
+size_t queueNextEntry(KmerPositionQueue &queue, size_t file, size_t offsetPos, T *entries, size_t entrySize);
 
 void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqType);
 
@@ -215,13 +215,13 @@ void writeKmerMatcherResult(DBWriter & dbw, KmerPosition<T> *hashSeqPair, size_t
 
 template <typename T>
 KmerPosition<T> * doComputation(size_t totalKmers, size_t split, size_t splits, std::string splitFile,
-                                DBReader<IdType> & seqDbr, Parameters & par, BaseMatrix  * subMat,
+                                DBReader<KeyType> & seqDbr, Parameters & par, BaseMatrix  * subMat,
                                 size_t KMER_SIZE, size_t chooseTopKmer, float chooseTopKmerScale = 0.0);
 template <typename T>
 KmerPosition<T> *initKmerPositionMemory(size_t size);
 
 template <int TYPE, typename T>
-std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition<T> * kmerArray, size_t kmerArraySize, DBReader<IdType> &seqDbr,
+std::pair<size_t, size_t>  fillKmerPositionArray(KmerPosition<T> * kmerArray, size_t kmerArraySize, DBReader<KeyType> &seqDbr,
                                                  Parameters & par, BaseMatrix * subMat, bool hashWholeSequence,
                                                  size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
 
@@ -233,9 +233,9 @@ template <typename T>
 size_t computeMemoryNeededLinearfilter(size_t totalKmer);
 
 template <typename T>
-std::vector<std::pair<size_t, size_t>> setupKmerSplits(Parameters &par, BaseMatrix * subMat, DBReader<IdType> &seqDbr, size_t totalKmers, size_t splits);
+std::vector<std::pair<size_t, size_t>> setupKmerSplits(Parameters &par, BaseMatrix * subMat, DBReader<KeyType> &seqDbr, size_t totalKmers, size_t splits);
 
-size_t computeKmerCount(DBReader<IdType> &reader, size_t KMER_SIZE, size_t chooseTopKmer,
+size_t computeKmerCount(DBReader<KeyType> &reader, size_t KMER_SIZE, size_t chooseTopKmer,
                         float chooseTopKmerScale = 0.0);
 
 void setLinearFilterDefault(Parameters *p);

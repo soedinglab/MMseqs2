@@ -39,7 +39,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
 
     std::string msaData = par.db1;
     std::string msaIndex = par.db1Index;
-    DBReader<IdType> *headerReader = NULL, *sequenceReader = NULL;
+    DBReader<KeyType> *headerReader = NULL, *sequenceReader = NULL;
     if (par.msaType == 0) {
         msaData = par.db1 + "_ca3m.ffdata";
         msaIndex = par.db1 + "_ca3m.ffindex";
@@ -49,20 +49,20 @@ int msa2result(int argc, const char **argv, const Command &command) {
         std::string msaSequenceData = par.db1 + "_sequence.ffdata";
         std::string msaSequenceIndex = par.db1 + "_sequence.ffindex";
 
-        headerReader = new DBReader<IdType>(msaHeaderData.c_str(), msaHeaderIndex.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-        headerReader->open(DBReader<IdType>::SORT_BY_LINE);
+        headerReader = new DBReader<KeyType>(msaHeaderData.c_str(), msaHeaderIndex.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        headerReader->open(DBReader<KeyType>::SORT_BY_LINE);
 
-        sequenceReader = new DBReader<IdType>(msaSequenceData.c_str(), msaSequenceIndex.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-        sequenceReader->open(DBReader<IdType>::SORT_BY_LINE);
+        sequenceReader = new DBReader<KeyType>(msaSequenceData.c_str(), msaSequenceIndex.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        sequenceReader->open(DBReader<KeyType>::SORT_BY_LINE);
     }
 
-    unsigned int mode = DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA;
+    unsigned int mode = DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA;
     std::string lookupFile = msaData + ".lookup";
     if (FileUtil::fileExists(lookupFile.c_str())) {
-        mode |= DBReader<IdType>::USE_LOOKUP;
+        mode |= DBReader<KeyType>::USE_LOOKUP;
     }
-    DBReader<IdType> msaReader(msaData.c_str(), msaIndex.c_str(), par.threads, mode);
-    msaReader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> msaReader(msaData.c_str(), msaIndex.c_str(), par.threads, mode);
+    msaReader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     size_t maxMsaArea = 0;
     unsigned int maxSetSize = 0;
@@ -190,7 +190,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
         for (size_t id = 0; id < msaReader.getSize(); ++id) {
             progress.updateProgress();
 
-            IdType queryKey = msaReader.getDbKey(id);
+            KeyType queryKey = msaReader.getDbKey(id);
 
             size_t msaPos = 0;
 
@@ -476,7 +476,7 @@ int msa2result(int argc, const char **argv, const Command &command) {
     sequenceWriter.close(true);
     msaReader.close();
 
-    DBReader<IdType>::softlinkDb(par.db1, par.db2, (DBFiles::Files)(DBFiles::LOOKUP | DBFiles::SOURCE));
+    DBReader<KeyType>::softlinkDb(par.db1, par.db2, (DBFiles::Files)(DBFiles::LOOKUP | DBFiles::SOURCE));
 
     if (sequenceReader != NULL) {
         sequenceReader->close();

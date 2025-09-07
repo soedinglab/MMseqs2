@@ -17,8 +17,8 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
     NcbiTaxonomy* t = NcbiTaxonomy::openTaxonomy(par.db1);
     MappingReader mapping(par.db1);
 
-    DBReader<IdType> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
-    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX);
+    reader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     if (majority) {
         if (par.voteMode != Parameters::AGG_TAX_UNIFORM && Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_CLUSTER_RES)) {
@@ -96,7 +96,7 @@ int dolca(int argc, const char **argv, const Command& command, bool majority) {
         for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
 
-            IdType key = reader.getDbKey(i);
+            KeyType key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
             size_t length = reader.getEntryLen(i);
 

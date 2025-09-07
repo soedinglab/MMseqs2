@@ -16,9 +16,9 @@ int masksequence(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads,
-                                  DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX);
-    reader.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads,
+                             DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX);
+    reader.open(DBReader<KeyType>::NOSORT);
 
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(reader.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
@@ -54,7 +54,7 @@ int masksequence(int argc, const char **argv, const Command& command) {
         delete[] charSequence;
     }
     writer.close(true);
-    DBReader<IdType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
+    DBReader<KeyType>::softlinkDb(par.db1, par.db2, DBFiles::SEQUENCE_ANCILLARY);
     reader.close();
 
     delete subMat;

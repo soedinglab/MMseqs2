@@ -108,7 +108,7 @@ public:
 
             //unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
             for(size_t i = 0; i < kmerList.second; i++){
-                seqKmerPosBuffer.push_back(kmerList.first[i]);
+                seqKmerPosBuffer.push_back(static_cast<unsigned int>(kmerList.first[i]));
             }
         }
         if(seqKmerPosBuffer.size() > 1){
@@ -150,7 +150,7 @@ public:
                     continue;
                 }
             }
-            unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
+            unsigned int kmerIdx = static_cast<unsigned int>(idxer->int2index(kmer, 0, kmerSize));
             seqKmerPosBuffer[countKmer] = kmerIdx;
             countKmer++;
         }
@@ -315,13 +315,13 @@ public:
                 bufferSize = bufferSize*2;
             }
             for(size_t i = 0; i < scoreMatrix.second; i++) {
-                unsigned int kmerIdx = scoreMatrix.first[i];
+                unsigned int kmerIdx = static_cast<unsigned int>(scoreMatrix.first[i]);
 
                 // if region got masked do not add kmer
                 if (offsets[kmerIdx + 1] - offsets[kmerIdx] == 0)
                     continue;
                 (*buffer)[kmerPos].kmer = kmerIdx;
-                (*buffer)[kmerPos].seqId = s->getId();
+                (*buffer)[kmerPos].seqId = static_cast<unsigned int>(s->getId());
                 (*buffer)[kmerPos].position_j = s->getCurrentPosition();
                 kmerPos++;
             }
@@ -368,13 +368,13 @@ public:
                     continue;
                 }
             }
-            unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
+            unsigned int kmerIdx = static_cast<unsigned int>(idxer->int2index(kmer, 0, kmerSize));
             // if region got masked do not add kmer
             if (offsets[kmerIdx + 1] - offsets[kmerIdx] == 0)
                 continue;
 
             (*buffer)[kmerPos].kmer = kmerIdx;
-            (*buffer)[kmerPos].seqId      = s->getId();
+            (*buffer)[kmerPos].seqId      = static_cast<unsigned int>(s->getId());
             (*buffer)[kmerPos].position_j = s->getCurrentPosition();
             kmerPos++;
             if(kmerPos >= bufferSize){

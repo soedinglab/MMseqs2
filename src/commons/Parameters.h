@@ -11,14 +11,19 @@
 #include <cstddef>
 #include <utility>
 #include <cstdint>
-
+#include <limits>
 #include "Command.h"
 #include "MultiParam.h"
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
 
-typedef size_t IdType;
+typedef size_t KeyType;
+#define KEY_MAX SIZE_MAX
+//
+//typedef unsigned int KeyType;
+//#define KEY_MAX UINT_MAX
+
 
 struct MMseqsParameter {
     const char *name;

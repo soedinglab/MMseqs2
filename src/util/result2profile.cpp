@@ -41,8 +41,8 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     }
     std::sort(qid_vec.begin(), qid_vec.end());
 
-    DBReader<IdType> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX);
-    resultReader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX);
+    resultReader.open(DBReader<KeyType>::LINEAR_ACCCESS);
     size_t dbFrom = 0;
     size_t dbSize = 0;
 #ifdef HAVE_MPI
@@ -59,14 +59,14 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     localThreads = std::max(std::min((size_t)par.threads, resultReader.getSize()), (size_t)1);
 #endif
 
-    DBReader<IdType> *tDbr = NULL;
+    DBReader<KeyType> *tDbr = NULL;
     IndexReader *tDbrIdx = NULL;
     bool templateDBIsIndex = false;
     bool needSrcIndex = false;
     int targetSeqType = -1;
     int targetDbtype = FileUtil::parseDbType(par.db2.c_str());
     if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
-        uint16_t extended = DBReader<IdType>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
+        uint16_t extended = DBReader<KeyType>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
         needSrcIndex = extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC;
         bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
         tDbrIdx = new IndexReader(par.db2, par.threads,
@@ -78,16 +78,16 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     }
 
     if (templateDBIsIndex == false) {
-        tDbr = new DBReader<IdType>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-        tDbr->open(DBReader<IdType>::NOSORT);
+        tDbr = new DBReader<KeyType>(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        tDbr->open(DBReader<KeyType>::NOSORT);
         targetSeqType = tDbr->getDbtype();
     }
 
-    DBReader<IdType> *qDbr = NULL;
+    DBReader<KeyType> *qDbr = NULL;
     const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
     if (!sameDatabase) {
-        qDbr = new DBReader<IdType>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-        qDbr->open(DBReader<IdType>::NOSORT);
+        qDbr = new DBReader<KeyType>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        qDbr->open(DBReader<KeyType>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             qDbr->readMmapedDataInMemory();
         }
@@ -111,10 +111,10 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
     } else if (returnAlnRes) {
         type = Parameters::DBTYPE_ALIGNMENT_RES;
         if (needSrcIndex) {
-            type = DBReader<IdType>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
+            type = DBReader<KeyType>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
         }
     } else if (par.pcmode == Parameters::PCMODE_CONTEXT_SPECIFIC) {
-        type = DBReader<IdType>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
+        type = DBReader<KeyType>::setExtendedDbtype(type, Parameters::DBTYPE_EXTENDED_CONTEXT_PSEUDO_COUNTS);
     }
     DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), localThreads, par.compressed, type);
     resultWriter.open();
@@ -181,8 +181,8 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             progress.updateProgress();
 
-            IdType queryKey = resultReader.getDbKey(id);
-            IdType queryId = qDbr->getId(queryKey);
+            KeyType queryKey = resultReader.getDbKey(id);
+            KeyType queryId = qDbr->getId(queryKey);
             if (queryId == UINT_MAX) {
                 Debug(Debug::WARNING) << "Invalid query sequence " << queryKey << "\n";
                 continue;
@@ -213,7 +213,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
                 }
 
                 if (returnAlnRes == true || evalue < par.evalProfile) {
-                    const IdType edgeId = tDbr->getId(key);
+                    const KeyType edgeId = tDbr->getId(key);
                     if (edgeId == UINT_MAX) {
                         Debug(Debug::ERROR) << "Sequence " << key << " does not exist in target sequence database\n";
                         EXIT(EXIT_FAILURE);
@@ -323,7 +323,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
 #endif
 
     if (MMseqsMPI::isMaster() && returnAlnRes == false) {
-        DBReader<IdType>::softlinkDb(par.db1, par.db4, DBFiles::SEQUENCE_ANCILLARY);
+        DBReader<KeyType>::softlinkDb(par.db1, par.db4, DBFiles::SEQUENCE_ANCILLARY);
     }
 
     return EXIT_SUCCESS;

@@ -35,7 +35,7 @@ unsigned int PrefilteringIndexReader::ALNDATA = 25;
 
 extern const char* version;
 
-bool PrefilteringIndexReader::checkIfIndexFile(DBReader<IdType>* reader) {
+bool PrefilteringIndexReader::checkIfIndexFile(DBReader<KeyType>* reader) {
     char * version = reader->getDataByDBKey(VERSION, 0);
     if(version == NULL){
         return false;
@@ -50,9 +50,9 @@ std::string PrefilteringIndexReader::indexName(const std::string &outDB) {
 }
 
 void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
-                                              DBReader<IdType> *dbr1, DBReader<IdType> *dbr2,
-                                              DBReader<IdType> *hdbr1, DBReader<IdType> *hdbr2,
-                                              DBReader<IdType> *alndbr,
+                                              DBReader<KeyType> *dbr1, DBReader<KeyType> *dbr2,
+                                              DBReader<KeyType> *hdbr1, DBReader<KeyType> *hdbr2,
+                                              DBReader<KeyType> *alndbr,
                                               BaseMatrix *subMat, int maxSeqLen,
                                               bool hasSpacedKmer, const std::string &spacedKmerPattern,
                                               bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode,
@@ -105,9 +105,9 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     writer.alignToPageSize(SPLIT_META);
 
     Debug(Debug::INFO) << "Write DBR1INDEX (" << DBR1INDEX << ")\n";
-    char* data = DBReader<IdType>::serialize(*dbr1);
+    char* data = DBReader<KeyType>::serialize(*dbr1);
     size_t offsetIndex = writer.getOffset(SPLIT_SEQS);
-    writer.writeData(data, DBReader<IdType>::indexMemorySize(*dbr1), DBR1INDEX, SPLIT_SEQS);
+    writer.writeData(data, DBReader<KeyType>::indexMemorySize(*dbr1), DBR1INDEX, SPLIT_SEQS);
     writer.alignToPageSize(SPLIT_SEQS);
 
     Debug(Debug::INFO) << "Write DBR1DATA (" << DBR1DATA << ")\n";
@@ -121,12 +121,12 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     free(data);
 
     if (dbr2 == NULL) {
-        writer.writeIndexEntry(DBR2INDEX, offsetIndex, DBReader<IdType>::indexMemorySize(*dbr1)+1, SPLIT_SEQS);
+        writer.writeIndexEntry(DBR2INDEX, offsetIndex, DBReader<KeyType>::indexMemorySize(*dbr1) + 1, SPLIT_SEQS);
         writer.writeIndexEntry(DBR2DATA,  offsetData,  dbr1->getTotalDataSize()+1, SPLIT_SEQS);
     } else {
         Debug(Debug::INFO) << "Write DBR2INDEX (" << DBR2INDEX << ")\n";
-        data = DBReader<IdType>::serialize(*dbr2);
-        writer.writeData(data, DBReader<IdType>::indexMemorySize(*dbr2), DBR2INDEX, SPLIT_SEQS);
+        data = DBReader<KeyType>::serialize(*dbr2);
+        writer.writeData(data, DBReader<KeyType>::indexMemorySize(*dbr2), DBR2INDEX, SPLIT_SEQS);
         writer.alignToPageSize(SPLIT_SEQS);
         Debug(Debug::INFO) << "Write DBR2DATA (" << DBR2DATA << ")\n";
         writer.writeStart(SPLIT_SEQS);
@@ -140,9 +140,9 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
 
     if (hdbr1 != NULL) {
         Debug(Debug::INFO) << "Write HDR1INDEX (" << HDR1INDEX << ")\n";
-        data = DBReader<IdType>::serialize(*hdbr1);
+        data = DBReader<KeyType>::serialize(*hdbr1);
         size_t offsetIndex = writer.getOffset(SPLIT_SEQS);
-        writer.writeData(data, DBReader<IdType>::indexMemorySize(*hdbr1), HDR1INDEX, SPLIT_SEQS);
+        writer.writeData(data, DBReader<KeyType>::indexMemorySize(*hdbr1), HDR1INDEX, SPLIT_SEQS);
         writer.alignToPageSize(SPLIT_SEQS);
 
         Debug(Debug::INFO) << "Write HDR1DATA (" << HDR1DATA << ")\n";
@@ -155,14 +155,14 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
         writer.alignToPageSize(SPLIT_SEQS);
         free(data);
         if (hdbr2 == NULL) {
-            writer.writeIndexEntry(HDR2INDEX, offsetIndex, DBReader<IdType>::indexMemorySize(*hdbr1)+1, SPLIT_SEQS);
+            writer.writeIndexEntry(HDR2INDEX, offsetIndex, DBReader<KeyType>::indexMemorySize(*hdbr1) + 1, SPLIT_SEQS);
             writer.writeIndexEntry(HDR2DATA,  offsetData, hdbr1->getTotalDataSize()+1, SPLIT_SEQS);
         }
     }
     if (hdbr2 != NULL) {
         Debug(Debug::INFO) << "Write HDR2INDEX (" << HDR2INDEX << ")\n";
-        data = DBReader<IdType>::serialize(*hdbr2);
-        writer.writeData(data, DBReader<IdType>::indexMemorySize(*hdbr2), HDR2INDEX, SPLIT_SEQS);
+        data = DBReader<KeyType>::serialize(*hdbr2);
+        writer.writeData(data, DBReader<KeyType>::indexMemorySize(*hdbr2), HDR2INDEX, SPLIT_SEQS);
         writer.alignToPageSize(SPLIT_SEQS);
         Debug(Debug::INFO) << "Write HDR2DATA (" << HDR2DATA << ")\n";
         writer.writeStart(SPLIT_SEQS);
@@ -175,8 +175,8 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     }
     if (alndbr != NULL) {
         Debug(Debug::INFO) << "Write ALNINDEX (" << ALNINDEX << ")\n";
-        data = DBReader<IdType>::serialize(*alndbr);
-        writer.writeData(data, DBReader<IdType>::indexMemorySize(*alndbr), ALNINDEX, SPLIT_SEQS);
+        data = DBReader<KeyType>::serialize(*alndbr);
+        writer.writeData(data, DBReader<KeyType>::indexMemorySize(*alndbr), ALNINDEX, SPLIT_SEQS);
         writer.alignToPageSize(SPLIT_SEQS);
         Debug(Debug::INFO) << "Write ALNDATA (" << ALNDATA << ")\n";
         writer.writeStart(SPLIT_SEQS);
@@ -301,14 +301,14 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
     writer.close(false);
 }
 
-DBReader<IdType> *PrefilteringIndexReader::openNewHeaderReader(DBReader<IdType>*dbr, IdType dataIdx, IdType indexIdx, int threads,  bool touchIndex, bool touchData) {
-    IdType indexId = dbr->getId(indexIdx);
+DBReader<KeyType> *PrefilteringIndexReader::openNewHeaderReader(DBReader<KeyType>*dbr, KeyType dataIdx, KeyType indexIdx, int threads, bool touchIndex, bool touchData) {
+    KeyType indexId = dbr->getId(indexIdx);
     char *indexData = dbr->getData(indexId, 0);
     if (touchIndex) {
         dbr->touchData(indexId);
     }
 
-    IdType dataId = dbr->getId(dataIdx);
+    KeyType dataId = dbr->getId(dataIdx);
     char *data = dbr->getData(dataId, 0);
 
     size_t currDataOffset = dbr->getOffset(dataId);
@@ -319,15 +319,15 @@ DBReader<IdType> *PrefilteringIndexReader::openNewHeaderReader(DBReader<IdType>*
         dbr->touchData(dataId);
     }
 
-    DBReader<IdType> *reader = DBReader<IdType>::unserialize(indexData, threads);
-    reader->open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> *reader = DBReader<KeyType>::unserialize(indexData, threads);
+    reader->open(DBReader<KeyType>::NOSORT);
     reader->setData(data, dataSize);
-    reader->setMode(DBReader<IdType>::USE_DATA);
+    reader->setMode(DBReader<KeyType>::USE_DATA);
     return reader;
 }
 
-DBReader<IdType> *PrefilteringIndexReader::openNewReader(DBReader<IdType>*dbr, IdType dataIdx, IdType indexIdx, bool includeData, int threads, bool touchIndex, bool touchData) {
-    IdType id = dbr->getId(indexIdx);
+DBReader<KeyType> *PrefilteringIndexReader::openNewReader(DBReader<KeyType>*dbr, KeyType dataIdx, KeyType indexIdx, bool includeData, int threads, bool touchIndex, bool touchData) {
+    KeyType id = dbr->getId(indexIdx);
     char *data = dbr->getDataUncompressed(id);
     if (touchIndex) {
         dbr->touchData(id);
@@ -342,22 +342,22 @@ DBReader<IdType> *PrefilteringIndexReader::openNewReader(DBReader<IdType>*dbr, I
             dbr->touchData(id);
         }
 
-        DBReader<IdType> *reader = DBReader<IdType>::unserialize(data, threads);
-        reader->open(DBReader<IdType>::NOSORT);
+        DBReader<KeyType> *reader = DBReader<KeyType>::unserialize(data, threads);
+        reader->open(DBReader<KeyType>::NOSORT);
         size_t currDataOffset = dbr->getOffset(id);
         size_t nextDataOffset = dbr->findNextOffsetid(id);
         size_t dataSize = nextDataOffset-currDataOffset;
         reader->setData(dbr->getDataUncompressed(id), dataSize);
-        reader->setMode(DBReader<IdType>::USE_DATA);
+        reader->setMode(DBReader<KeyType>::USE_DATA);
         return reader;
     }
 
-    DBReader<IdType> *reader = DBReader<IdType>::unserialize(data, threads);
-    reader->open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> *reader = DBReader<KeyType>::unserialize(data, threads);
+    reader->open(DBReader<KeyType>::NOSORT);
     return reader;
 }
 
-SequenceLookup *PrefilteringIndexReader::getSequenceLookup(unsigned int split, DBReader<IdType> *dbr, int preloadMode) {
+SequenceLookup *PrefilteringIndexReader::getSequenceLookup(unsigned int split, DBReader<KeyType> *dbr, int preloadMode) {
     PrefilteringIndexData data = getMetadata(dbr);
     if (split >= (unsigned int)data.splits) {
         Debug(Debug::ERROR) << "Invalid split " << split << " out of " << data.splits << " chosen.\n";
@@ -366,20 +366,20 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(unsigned int split, D
 
     unsigned int splitOffset = split * 1000;
 
-    IdType id = dbr->getId(splitOffset + SEQINDEXDATA);
+    KeyType id = dbr->getId(splitOffset + SEQINDEXDATA);
     if (id == UINT_MAX) {
         return NULL;
     }
 
     char * seqData = dbr->getDataUncompressed(id);
 
-    IdType seqOffsetsId = dbr->getId(splitOffset + SEQINDEXSEQOFFSET);
+    KeyType seqOffsetsId = dbr->getId(splitOffset + SEQINDEXSEQOFFSET);
     char * seqOffsetsData = dbr->getDataUncompressed(seqOffsetsId);
 
-    IdType seqDataSizeId = dbr->getId(splitOffset + SEQINDEXDATASIZE);
+    KeyType seqDataSizeId = dbr->getId(splitOffset + SEQINDEXDATASIZE);
     int64_t seqDataSize = *((int64_t *)dbr->getDataUncompressed(seqDataSizeId));
 
-    IdType sequenceCountId = dbr->getId(splitOffset + SEQCOUNT);
+    KeyType sequenceCountId = dbr->getId(splitOffset + SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getDataUncompressed(sequenceCountId));
 
     if (preloadMode == Parameters::PRELOAD_MODE_FREAD) {
@@ -398,7 +398,7 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(unsigned int split, D
     return sequenceLookup;
 }
 
-IndexTable *PrefilteringIndexReader::getIndexTable(unsigned int split, DBReader<IdType> *dbr, int preloadMode) {
+IndexTable *PrefilteringIndexReader::getIndexTable(unsigned int split, DBReader<KeyType> *dbr, int preloadMode) {
     PrefilteringIndexData data = getMetadata(dbr);
     if (split >= (unsigned int)data.splits) {
         Debug(Debug::ERROR) << "Invalid split " << split << " out of " << data.splits << " chosen.\n";
@@ -406,20 +406,20 @@ IndexTable *PrefilteringIndexReader::getIndexTable(unsigned int split, DBReader<
     }
 
     unsigned int splitOffset = split * 1000;
-    IdType entriesNumId = dbr->getId(splitOffset + ENTRIESNUM);
+    KeyType entriesNumId = dbr->getId(splitOffset + ENTRIESNUM);
     if (entriesNumId == UINT_MAX) {
         Debug(Debug::ERROR) << "Index was not built with `prefilter` support. Please rebuild the index with:\n\tcreateindex --index-subset 0\n";
         EXIT(EXIT_FAILURE);
     }
 
     int64_t entriesNum = *((int64_t *)dbr->getDataUncompressed(entriesNumId));
-    IdType sequenceCountId = dbr->getId(splitOffset +SEQCOUNT);
+    KeyType sequenceCountId = dbr->getId(splitOffset + SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getDataUncompressed(sequenceCountId));
 
-    IdType entriesDataId = dbr->getId(splitOffset + ENTRIES);
+    KeyType entriesDataId = dbr->getId(splitOffset + ENTRIES);
     char *entriesData = dbr->getDataUncompressed(entriesDataId);
 
-    IdType entriesOffsetsDataId = dbr->getId(splitOffset + ENTRIESOFFSETS);
+    KeyType entriesOffsetsDataId = dbr->getId(splitOffset + ENTRIESOFFSETS);
     char *entriesOffsetsData = dbr->getDataUncompressed(entriesOffsetsDataId);
 
     int adjustAlphabetSize;
@@ -447,7 +447,7 @@ IndexTable *PrefilteringIndexReader::getIndexTable(unsigned int split, DBReader<
     return table;
 }
 
-void PrefilteringIndexReader::printSummary(DBReader<IdType> *dbr) {
+void PrefilteringIndexReader::printSummary(DBReader<KeyType> *dbr) {
     Debug(Debug::INFO) << "Index version: " << dbr->getDataByDBKey(VERSION, 0) << "\n";
 
     size_t id;
@@ -487,7 +487,7 @@ void PrefilteringIndexReader::printMeta(int *metadata_tmp) {
     Debug(Debug::INFO) << "Splits:       " << (metadata_tmp[11] == 0 ? 1 : metadata_tmp[11]) << "\n";
 }
 
-PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<IdType> *dbr) {
+PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<KeyType> *dbr) {
     int *meta = (int *)dbr->getDataByDBKey(META, 0);
 
     PrefilteringIndexData data;
@@ -508,8 +508,8 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<IdType> *dbr
     return data;
 }
 
-std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<IdType> *dbr) {
-    IdType key = dbr->getDbKey(SCOREMATRIXNAME);
+std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<KeyType> *dbr) {
+    KeyType key = dbr->getDbKey(SCOREMATRIXNAME);
     if (key == UINT_MAX) {
         return "";
     }
@@ -533,20 +533,20 @@ std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<IdType> 
     return matrixName;
 }
 
-std::string PrefilteringIndexReader::getSubstitutionMatrix(DBReader<IdType> *dbr) {
+std::string PrefilteringIndexReader::getSubstitutionMatrix(DBReader<KeyType> *dbr) {
     return std::string(dbr->getDataByDBKey(SCOREMATRIXNAME, 0));
 }
 
-std::string PrefilteringIndexReader::getSpacedPattern(DBReader<IdType> *dbr) {
-    IdType id = dbr->getId(SPACEDPATTERN);
+std::string PrefilteringIndexReader::getSpacedPattern(DBReader<KeyType> *dbr) {
+    KeyType id = dbr->getId(SPACEDPATTERN);
     if (id == UINT_MAX) {
         return "";
     }
     return std::string(dbr->getDataUncompressed(id));
 }
 
-ScoreMatrix PrefilteringIndexReader::get2MerScoreMatrix(DBReader<IdType> *dbr, int preloadMode) {
-    IdType id = dbr->getId(SCOREMATRIX2MER);
+ScoreMatrix PrefilteringIndexReader::get2MerScoreMatrix(DBReader<KeyType> *dbr, int preloadMode) {
+    KeyType id = dbr->getId(SCOREMATRIX2MER);
     if (id == UINT_MAX) {
         return ScoreMatrix();
     }
@@ -565,8 +565,8 @@ ScoreMatrix PrefilteringIndexReader::get2MerScoreMatrix(DBReader<IdType> *dbr, i
     return ScoreMatrix::unserialize(data, meta.alphabetSize-1, 2);
 }
 
-ScoreMatrix PrefilteringIndexReader::get3MerScoreMatrix(DBReader<IdType> *dbr, int preloadMode) {
-    IdType id = dbr->getId(SCOREMATRIX3MER);
+ScoreMatrix PrefilteringIndexReader::get3MerScoreMatrix(DBReader<KeyType> *dbr, int preloadMode) {
+    KeyType id = dbr->getId(SCOREMATRIX3MER);
     if (id == UINT_MAX) {
         return ScoreMatrix();
     }

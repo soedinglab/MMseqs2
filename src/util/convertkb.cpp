@@ -81,7 +81,7 @@ int convertkb(int argc, const char **argv, const Command &command) {
         writers[*it]->open();
     }
 
-    DBReader<IdType>* reader = NULL;
+    DBReader<KeyType>* reader = NULL;
     std::ofstream *lookupStream = NULL;
 
     const bool doMapping = FileUtil::fileExists(par.mappingFile.c_str());
@@ -93,8 +93,8 @@ int convertkb(int argc, const char **argv, const Command &command) {
             EXIT(EXIT_FAILURE);
         }
     } else {
-        reader = new DBReader<IdType>(par.mappingFile.c_str(), par.mappingFile.c_str(), 1, DBReader<IdType>::USE_LOOKUP_REV);
-        reader->open(DBReader<IdType>::NOSORT);
+        reader = new DBReader<KeyType>(par.mappingFile.c_str(), par.mappingFile.c_str(), 1, DBReader<KeyType>::USE_LOOKUP_REV);
+        reader->open(DBReader<KeyType>::NOSORT);
     }
 
     Debug::Progress progress;

@@ -14,52 +14,54 @@
 
 class ClusteringAlgorithms {
 public:
-    ClusteringAlgorithms(DBReader<IdType>* seqDbr, DBReader<IdType>* alnDbr, int threads,int scoretype, int maxiterations, unsigned int *keyToSet, size_t *sourceOffsets, unsigned int **sourceLookupTable, unsigned int *sourceList, unsigned int sourceLen, bool needSET);
+    ClusteringAlgorithms(DBReader<KeyType>* seqDbr, DBReader<KeyType>* alnDbr, int threads, int scoretype, int maxiterations,
+                         KeyType *keyToSet, size_t *sourceOffsets, KeyType **sourceLookupTable,
+                         KeyType *sourceList, KeyType sourceLen, bool needSET);
     ~ClusteringAlgorithms();
-    std::pair<unsigned int, unsigned int> * execute(int mode);
+    std::pair<KeyType, KeyType> * execute(int mode);
 private:
-    DBReader<IdType>* seqDbr;
+    DBReader<KeyType>* seqDbr;
 
-    DBReader<IdType>* alnDbr;
+    DBReader<KeyType>* alnDbr;
 
     bool needSET;
     int threads;
     int scoretype;
 //datastructures
-    unsigned int maxClustersize;
-    unsigned int dbSize;
+    KeyType maxClustersize;
+    KeyType dbSize;
     int * clustersizes;
-    unsigned int* sorted_clustersizes;
-    unsigned int* clusterid_to_arrayposition;
-    unsigned int* borders_of_set;
-    unsigned int* keyToSet;
+    KeyType* sorted_clustersizes;
+    KeyType* clusterid_to_arrayposition;
+    KeyType* borders_of_set;
+    KeyType* keyToSet;
     size_t* sourceOffsets;
-    unsigned int** sourceLookupTable;
-    unsigned int* sourceList;
-    unsigned int sourceLen;
+    KeyType** sourceLookupTable;
+    KeyType* sourceList;
+    KeyType sourceLen;
 
 //methods
 
     void initClustersizes();
 
-    void removeClustersize(unsigned int clusterid);
+    void removeClustersize(KeyType clusterid);
 
-    void decreaseClustersize(unsigned int clusterid);
+    void decreaseClustersize(KeyType clusterid);
 //for connected component
     int maxiterations;
 
 
-    void setCover(unsigned int **elementLookup, unsigned short ** elementScoreLookupTable,
-                  unsigned int *assignedcluster, short *bestscore, size_t *offsets);
+    void setCover(KeyType **elementLookup, unsigned short ** elementScoreLookupTable,
+                  KeyType *assignedcluster, short *bestscore, size_t *offsets);
 
-    void greedyIncremental(unsigned int **elementLookupTable, size_t *elementOffsets,
-                           size_t n, unsigned int *assignedcluster) ;
-
-
-    void greedyIncrementalLowMem(unsigned int *assignedcluster) ;
+    void greedyIncremental(KeyType **elementLookupTable, size_t *elementOffsets,
+                           size_t n, KeyType *assignedcluster) ;
 
 
-    void readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
+    void greedyIncrementalLowMem(KeyType *assignedcluster) ;
+
+
+    void readInClusterData(KeyType **elementLookupTable, KeyType *&elements,
                            unsigned short **scoreLookupTable, unsigned short *&scores,
                            size_t *elementOffsets, size_t totalElementCount)  ;
 

@@ -16,8 +16,8 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
 
     NcbiTaxonomy* t = NcbiTaxonomy::openTaxonomy(par.db1);
     
-    DBReader<IdType> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
-    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> reader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX);
+    reader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, reader.getDbtype());
     writer.open();
@@ -37,7 +37,7 @@ int filtertaxdb(int argc, const char **argv, const Command& command) {
         for (size_t i = 0; i < reader.getSize(); ++i) {
             progress.updateProgress();
 
-            IdType key = reader.getDbKey(i);
+            KeyType key = reader.getDbKey(i);
             char *data = reader.getData(i, thread_idx);
 
             writer.writeStart(thread_idx);

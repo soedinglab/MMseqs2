@@ -32,9 +32,9 @@ int result2msa(int argc, const char **argv, const Command &command) {
     const bool isCA3M = par.msaFormatMode == Parameters::FORMAT_MSA_CA3M || par.msaFormatMode == Parameters::FORMAT_MSA_CA3M_CONSENSUS;
     const bool shouldWriteNullByte = par.msaFormatMode != Parameters::FORMAT_MSA_STOCKHOLM_FLAT;
 
-    DBReader<IdType> *tDbr = NULL;
+    DBReader<KeyType> *tDbr = NULL;
     IndexReader *tDbrIdx = NULL;
-    DBReader<IdType> *targetHeaderReader = NULL;
+    DBReader<KeyType> *targetHeaderReader = NULL;
     IndexReader *targetHeaderReaderIdx = NULL;
     const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
 
@@ -42,7 +42,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
         Debug(Debug::ERROR) << "Cannot use result2msa with indexed target database for CA3M output\n";
         return EXIT_FAILURE;
     }
-    uint16_t extended = DBReader<IdType>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
+    uint16_t extended = DBReader<KeyType>::getExtendedDbtype(FileUtil::parseDbType(par.db3.c_str()));
     bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
     tDbrIdx = new IndexReader(par.db2, par.threads,
                               extended & Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC ? IndexReader::SRC_SEQUENCES : IndexReader::SEQUENCES,
@@ -53,16 +53,16 @@ int result2msa(int argc, const char **argv, const Command &command) {
                                             (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     targetHeaderReader = targetHeaderReaderIdx->sequenceReader;
 
-    DBReader<IdType> *qDbr = NULL;
-    DBReader<IdType> *queryHeaderReader = NULL;
+    DBReader<KeyType> *qDbr = NULL;
+    DBReader<KeyType> *queryHeaderReader = NULL;
     if (!sameDatabase) {
-        qDbr = new DBReader<IdType>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-        qDbr->open(DBReader<IdType>::NOSORT);
+        qDbr = new DBReader<KeyType>(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        qDbr->open(DBReader<KeyType>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             qDbr->readMmapedDataInMemory();
         }
-        queryHeaderReader = new DBReader<IdType>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-        queryHeaderReader->open(DBReader<IdType>::NOSORT);
+        queryHeaderReader = new DBReader<KeyType>(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        queryHeaderReader->open(DBReader<KeyType>::NOSORT);
         if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
             queryHeaderReader->readMmapedDataInMemory();
         }
@@ -73,7 +73,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
     const unsigned int maxSequenceLength = std::max(tDbr->getMaxSeqLen(), qDbr->getMaxSeqLen());
 
     DBConcat *seqConcat = NULL;
-    DBReader<IdType> *refReader = NULL;
+    DBReader<KeyType> *refReader = NULL;
     std::string outDb = par.db4;
     std::string outIndex = par.db4Index;
     if (isCA3M == true) {
@@ -88,15 +88,15 @@ int result2msa(int argc, const char **argv, const Command &command) {
 #endif
         // When exporting in ca3m, we need to access with SORT_BY_LINE
         // mode in order to keep track of the original line number in the index file.
-        refReader = new DBReader<IdType>(refData.c_str(), refIndex.c_str(), par.threads, DBReader<IdType>::USE_INDEX);
-        refReader->open(DBReader<IdType>::SORT_BY_LINE);
+        refReader = new DBReader<KeyType>(refData.c_str(), refIndex.c_str(), par.threads, DBReader<KeyType>::USE_INDEX);
+        refReader->open(DBReader<KeyType>::SORT_BY_LINE);
 
         outDb = par.db4 + "_ca3m.ffdata";
         outIndex = par.db4 + "_ca3m.ffindex";
     }
 
-    DBReader<IdType> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX);
-    resultReader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> resultReader(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX);
+    resultReader.open(DBReader<KeyType>::LINEAR_ACCCESS);
     size_t dbFrom = 0;
     size_t dbSize = 0;
 #ifdef HAVE_MPI
@@ -194,8 +194,8 @@ int result2msa(int argc, const char **argv, const Command &command) {
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             progress.updateProgress();
-            IdType queryKey = resultReader.getDbKey(id);
-            IdType queryId = qDbr->getId(queryKey);
+            KeyType queryKey = resultReader.getDbKey(id);
+            KeyType queryId = qDbr->getId(queryKey);
             if (queryId == UINT_MAX) {
                 Debug(Debug::WARNING) << "Invalid query sequence " << queryKey << "\n";
                 continue;
@@ -209,7 +209,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 //                }
 //            }
 
-            IdType centerHeaderId = queryHeaderReader->getId(queryKey);
+            KeyType centerHeaderId = queryHeaderReader->getId(queryKey);
             if (centerHeaderId == UINT_MAX) {
                 Debug(Debug::WARNING) << "Invalid query header " << queryKey << "\n";
                 continue;
@@ -234,7 +234,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     continue;
                 }
 
-                const IdType edgeId = tDbr->getId(key);
+                const KeyType edgeId = tDbr->getId(key);
                 if (edgeId == UINT_MAX) {
                     Debug(Debug::ERROR) << "Sequence " << key << " does not exist in target sequence database\n";
                     EXIT(EXIT_FAILURE);
@@ -272,7 +272,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                             headers.emplace_back(centerSequenceHeader, centerHeaderLength);
                         } else if (kept[i] == true) {
                             unsigned int key = seqKeys[i - 1];
-                            IdType id = targetHeaderReader->getId(key);
+                            KeyType id = targetHeaderReader->getId(key);
                             char *header = targetHeaderReader->getData(id, thread_idx);
                             size_t length = targetHeaderReader->getEntryLen(id) - 1;
                             headers.emplace_back(header, length);
@@ -304,7 +304,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         length = centerHeaderLength;
                     } else {
                         unsigned int key = seqKeys[i - 1];
-                        IdType id = targetHeaderReader->getId(key);
+                        KeyType id = targetHeaderReader->getId(key);
                         header = targetHeaderReader->getData(id, thread_idx);
                         length = targetHeaderReader->getEntryLen(id) - 1;
                     }
@@ -371,7 +371,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                             header = "DUMMY";
                         }else {
                             unsigned int key = seqKeys[i - 1];
-                            IdType id = targetHeaderReader->getId(key);
+                            KeyType id = targetHeaderReader->getId(key);
                             header = targetHeaderReader->getData(id, thread_idx);
                         }
                     }
@@ -418,7 +418,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                         }
                     } else {
                         unsigned int key = seqKeys[i - 1];
-                        IdType id = targetHeaderReader->getId(key);
+                        KeyType id = targetHeaderReader->getId(key);
                         if(isOnlyGap){
                             result.append("DUMMY");
                         }else {
@@ -513,7 +513,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                 for (size_t i = 0; i < alnResults.size(); ++i) {
                     unsigned int key = alnResults[i].dbKey;
                     unsigned int targetKey = seqConcat->dbBKeyMap(key);
-                    IdType targetId = refReader->getId(targetKey);
+                    KeyType targetId = refReader->getId(targetKey);
                     CompressedA3M::hitToBuffer(targetId, alnResults[i], result);
                 }
             }

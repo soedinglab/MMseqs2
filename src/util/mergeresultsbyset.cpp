@@ -12,11 +12,11 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, true, 0);
 
-    DBReader<IdType> setReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    setReader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> setReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    setReader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
-//    DBReader<IdType> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-//    resultReader.open(DBReader<IdType>::NOSORT);
+//    DBReader<KeyType> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX|DBReader<KeyType>::USE_DATA);
+//    resultReader.open(DBReader<KeyType>::NOSORT);
 
 
     const bool touch = (par.preloadMode != Parameters::PRELOAD_MODE_MMAP);
@@ -33,7 +33,7 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
                              (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
 
     int dbType = resultReader.sequenceReader->getDbtype();
-    dbType = DBReader<IdType>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
+    dbType = DBReader<KeyType>::setExtendedDbtype(dbType, Parameters::DBTYPE_EXTENDED_INDEX_NEED_SRC);
     DBWriter dbw(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, dbType);
     dbw.open();
 #pragma omp parallel
@@ -52,7 +52,7 @@ int mergeresultsbyset(int argc, const char **argv, const Command &command) {
             while (*data != '\0'){
                 Util::parseKey(data, dbKey);
                 unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
-                IdType id = resultReader.sequenceReader->getId(key);
+                KeyType id = resultReader.sequenceReader->getId(key);
                 if (id == UINT_MAX) {
                     Debug(Debug::ERROR) << "Invalid key " << key << " in entry " << i << ".\n";
                     EXIT(EXIT_FAILURE);

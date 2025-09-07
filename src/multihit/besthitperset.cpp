@@ -14,8 +14,8 @@ public :
             Aggregation(targetDbName, resultDbName, outputDbName, threads, compressed), simpleBestHitMode(simpleBestHitMode) {
         std::string sizeDbName = targetDbName + "_set_size";
         std::string sizeDbIndex = targetDbName + "_set_size.index";
-        targetSizeReader = new DBReader<IdType>(sizeDbName.c_str(), sizeDbIndex.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
-        targetSizeReader->open(DBReader<IdType>::NOSORT);
+        targetSizeReader = new DBReader<KeyType>(sizeDbName.c_str(), sizeDbIndex.c_str(), threads, DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX);
+        targetSizeReader->open(DBReader<KeyType>::NOSORT);
     }
 
     ~BestHitBySetFilter() {
@@ -36,7 +36,7 @@ public :
 
         // Look for the lowest p-value and retain only this line
         // dataToAggregate = [nbrTargetGene][Field of result]
-        IdType targetId = targetSizeReader->getId(targetSetKey);
+        KeyType targetId = targetSizeReader->getId(targetSetKey);
         if (targetId == UINT_MAX) {
             Debug(Debug::ERROR) << "Invalid target size database key " << targetSetKey << ".\n";
             EXIT(EXIT_FAILURE);
@@ -115,7 +115,7 @@ public :
     }
 
 private:
-    DBReader<IdType> *targetSizeReader;
+    DBReader<KeyType> *targetSizeReader;
     bool simpleBestHitMode;
 };
 

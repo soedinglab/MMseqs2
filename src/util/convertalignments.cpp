@@ -178,7 +178,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     bool isTranslatedSearch = false;
 
-    int dbaccessMode = needSequenceDB ? (DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA) : (DBReader<IdType>::USE_INDEX);
+    int dbaccessMode = needSequenceDB ? (DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA) : (DBReader<KeyType>::USE_INDEX);
 
     std::map<unsigned int, unsigned int> qKeyToSet;
     std::map<unsigned int, unsigned int> tKeyToSet;
@@ -252,8 +252,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         evaluer = new EvalueComputation(tDbr->sequenceReader->getAminoAcidDBSize(), subMat, gapOpen, gapExtend);
     }
 
-    DBReader<IdType> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    alnDbr.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    alnDbr.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     size_t localThreads = 1;
 #ifdef OPENMP
@@ -285,9 +285,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
                 if (headerWritten[dbKey] == false) {
                     headerWritten[dbKey] = true;
-                    IdType tId = tDbr->sequenceReader->getId(dbKey);
+                    KeyType tId = tDbr->sequenceReader->getId(dbKey);
                     unsigned int seqLen = tDbr->sequenceReader->getSeqLen(tId);
-                    IdType tHeaderId = tDbrHeader->sequenceReader->getId(dbKey);
+                    KeyType tHeaderId = tDbrHeader->sequenceReader->getId(dbKey);
                     const char *tHeader = tDbrHeader->sequenceReader->getData(tHeaderId, 0);
                     std::string targetId = Util::parseFastaHeader(tHeader);
                     int count = snprintf(buffer, sizeof(buffer), "@SQ\tSN:%s\tLN:%d\n", targetId.c_str(),
@@ -355,12 +355,12 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
             progress.updateProgress();
 
-            const IdType queryKey = alnDbr.getDbKey(i);
+            const KeyType queryKey = alnDbr.getDbKey(i);
             char *querySeqData = NULL;
             size_t querySeqLen = 0;
             queryProfData.clear();
             if (needSequenceDB) {
-                IdType qId = qDbr.sequenceReader->getId(queryKey);
+                KeyType qId = qDbr.sequenceReader->getId(queryKey);
                 querySeqData = qDbr.sequenceReader->getData(qId, thread_idx);
                 querySeqLen = qDbr.sequenceReader->getSeqLen(qId);
                 if (queryProfile) {
@@ -369,7 +369,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 }
             }
 
-            IdType qHeaderId = qDbrHeader.sequenceReader->getId(queryKey);
+            KeyType qHeaderId = qDbrHeader.sequenceReader->getId(queryKey);
             const char *qHeader = qDbrHeader.sequenceReader->getData(qHeaderId, thread_idx);
             size_t qHeaderLen = qDbrHeader.sequenceReader->getSeqLen(qHeaderId);
             std::string queryId = Util::parseFastaHeader(qHeader);
@@ -405,7 +405,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                     EXIT(EXIT_FAILURE);
                 }
 
-                IdType tHeaderId = tDbrHeader->sequenceReader->getId(res.dbKey);
+                KeyType tHeaderId = tDbrHeader->sequenceReader->getId(res.dbKey);
                 const char *tHeader = tDbrHeader->sequenceReader->getData(tHeaderId, thread_idx);
                 size_t tHeaderLen = tDbrHeader->sequenceReader->getSeqLen(tHeaderId);
                 std::string targetId = Util::parseFastaHeader(tHeader);
@@ -477,7 +477,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             }
 
                             if (needSequenceDB) {
-                                IdType tId = tDbr->sequenceReader->getId(res.dbKey);
+                                KeyType tId = tDbr->sequenceReader->getId(res.dbKey);
                                 targetSeqData = tDbr->sequenceReader->getData(tId, thread_idx);
                                 if (targetProfile) {
                                     size_t targetEntryLen = tDbr->sequenceReader->getEntryLen(tId);
@@ -784,7 +784,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                                (isTranslatedSearch == true && queryNucs == true), translateNucl);
                         }
                         result.append("\", \"dbAln\": \"");
-                        IdType tId = tDbr->sequenceReader->getId(res.dbKey);
+                        KeyType tId = tDbr->sequenceReader->getId(res.dbKey);
                         char* targetSeqData = tDbr->sequenceReader->getData(tId, thread_idx);
                         if (targetProfile) {
                             size_t targetEntryLen = tDbr->sequenceReader->getEntryLen(tId);

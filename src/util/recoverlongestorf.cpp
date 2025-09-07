@@ -16,11 +16,11 @@ int recoverlongestorf(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<IdType> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    headerReader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    headerReader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
-    DBReader<IdType> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    resultReader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    resultReader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), 1, false, Parameters::DBTYPE_OMIT_FILE);
     writer.open();
@@ -39,7 +39,7 @@ int recoverlongestorf(int argc, const char **argv, const Command &command) {
 #pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < headerReader.getSize(); ++id) {
             progress.updateProgress();
-            IdType orfKey = headerReader.getDbKey(id);
+            KeyType orfKey = headerReader.getDbKey(id);
             char *orfHeader = headerReader.getData(id, thread_idx);
             Orf::SequenceLocation orf = Orf::parseOrfHeader(orfHeader);
             unsigned int contigKey = orf.id; 
@@ -90,17 +90,17 @@ int recoverlongestorf(int argc, const char **argv, const Command &command) {
         for (size_t i = 0; i < resultReader.getSize(); ++i) {
             progress.updateProgress();
 
-            IdType key = resultReader.getDbKey(i);
+            KeyType key = resultReader.getDbKey(i);
             size_t entryLength = resultReader.getEntryLen(i);
             if (entryLength > 1) {
-                IdType id = headerReader.getId(key);
+                KeyType id = headerReader.getId(key);
                 char *orfHeader = headerReader.getData(id, thread_idx);
                 Orf::SequenceLocation orf = Orf::parseOrfHeader(orfHeader);
                 unsigned int contigKey = orf.id; 
                 localAcceptedContigs.emplace(contigKey);
             }
 
-            IdType id = headerReader.getId(key);
+            KeyType id = headerReader.getId(key);
             char *orfHeader = headerReader.getData(id, thread_idx);
             Orf::SequenceLocation orf = Orf::parseOrfHeader(orfHeader);
             unsigned int contigKey = orf.id; 

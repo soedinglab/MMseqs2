@@ -59,8 +59,8 @@ StatsComputer::StatsComputer(const Parameters &par)
         : stat(MapStatString(par.stat)),
           queryDb(par.db1), queryDbIndex(par.db1Index),
           targetDb(par.db2), targetDbIndex(par.db2Index), tsvOut(par.tsvOut) {
-    resultReader = new DBReader<IdType>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    resultReader->open(DBReader<IdType>::LINEAR_ACCCESS);
+    resultReader = new DBReader<KeyType>(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    resultReader->open(DBReader<KeyType>::LINEAR_ACCCESS);
     this->threads = par.threads;
 
     const bool shouldCompress = tsvOut == false && par.compressed == true;
@@ -355,10 +355,10 @@ std::string firstline(const char *seq) {
 
 template<typename T>
 int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyResultDb) {
-    DBReader<IdType> *targetReader = NULL;
+    DBReader<KeyType> *targetReader = NULL;
     if (!onlyResultDb) {
-        targetReader = new DBReader<IdType>(targetDb.c_str(), targetDbIndex.c_str(), threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-        targetReader->open(DBReader<IdType>::NOSORT);
+        targetReader = new DBReader<KeyType>(targetDb.c_str(), targetDbIndex.c_str(), threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        targetReader->open(DBReader<KeyType>::NOSORT);
     }
     Debug::Progress progress(resultReader->getSize());
 
@@ -393,7 +393,7 @@ int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyRes
                         continue;
                     }
 
-                    const IdType edgeId = targetReader->getId(key);
+                    const KeyType edgeId = targetReader->getId(key);
                     const char *dbSeqData = targetReader->getData(edgeId, thread_idx);
 
                     T stat = (*call)(dbSeqData);

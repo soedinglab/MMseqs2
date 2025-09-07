@@ -42,7 +42,7 @@ int tsv2db(int argc, const char **argv, const Command& command) {
                 ss << temp;
             }
             const std::string result = ss.str();
-            unsigned int keyId = strtoull(lastKey.c_str(), NULL, 10);
+            KeyType keyId = strtoull(lastKey.c_str(), NULL, 10);
             writer.writeData(result.c_str(), result.length(), keyId);
             ss.str("");
             ss.clear();
@@ -68,7 +68,7 @@ int tsv2db(int argc, const char **argv, const Command& command) {
         ss << temp;
     }
     const std::string result = ss.str();
-    unsigned int keyId = strtoull(lastKey.c_str(), NULL, 10);
+    KeyType keyId = strtoull(lastKey.c_str(), NULL, 10);
     writer.writeData(result.c_str(), result.length(), keyId);
 
     writer.close();

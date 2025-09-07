@@ -103,14 +103,14 @@ Orf::~Orf() {
     free(codon);
 }
 
-Matcher::result_t Orf::getFromDatabase(const size_t id, DBReader<IdType> & contigsReader, DBReader<IdType> & orfHeadersReader, int thread_idx) {
+Matcher::result_t Orf::getFromDatabase(const size_t id, DBReader<KeyType> & contigsReader, DBReader<KeyType> & orfHeadersReader, int thread_idx) {
     char * orfHeader = orfHeadersReader.getData(id, thread_idx);
     Orf::SequenceLocation orfLocOnContigParsed;
     orfLocOnContigParsed = Orf::parseOrfHeader(orfHeader);
 
     // get contig key and its length in nucleotides
     int contigKey = orfLocOnContigParsed.id;
-    IdType contigId = contigsReader.getId(contigKey);
+    KeyType contigId = contigsReader.getId(contigKey);
 
     size_t contigLen = contigsReader.getSeqLen(contigId);
     if (contigLen < 2) {

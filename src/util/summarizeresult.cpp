@@ -14,8 +14,8 @@ int summarizeresult(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, true, 0, 0);
     MMseqsMPI::init(argc, argv);
 
-    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    reader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
 #ifdef HAVE_MPI
     size_t dbFrom = 0;

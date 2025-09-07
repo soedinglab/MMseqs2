@@ -23,10 +23,10 @@ public:
                 : kmerCount(kmerCount), kmers(kmers), adjustedKmer(adjustedKmer)  {}
         size_t kmerCount;
         KmerPosition<short> * kmers;
-        size_t adjustedKmer;
+        int adjustedKmer;
     };
     static ExtractKmerAndSortResult extractKmerAndSort(size_t splitKmerCount, size_t split, size_t splits,
-                                                       DBReader<IdType> &seqDbr, Parameters &par, BaseMatrix *subMat);
+                                                       DBReader<KeyType> &seqDbr, Parameters &par, BaseMatrix *subMat);
 };
 
 

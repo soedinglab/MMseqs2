@@ -15,12 +15,12 @@ int orftocontig(int argn, const char **argv, const Command& command) {
     par.parseParameters(argn, argv, command, true, true, 0);
 
     // contig length is needed for computation:
-    DBReader<IdType> contigsReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    contigsReader.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> contigsReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    contigsReader.open(DBReader<KeyType>::NOSORT);
 
     // info will be obtained from orf headers:
-    DBReader<IdType> orfHeadersReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    orfHeadersReader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> orfHeadersReader(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    orfHeadersReader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     // writing in alignment format:
     DBWriter alignmentFormatWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
@@ -38,7 +38,7 @@ int orftocontig(int argn, const char **argv, const Command& command) {
 #pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < orfHeadersReader.getSize(); ++id) {
             progress.updateProgress();
-            IdType orfKey = orfHeadersReader.getDbKey(id);
+            KeyType orfKey = orfHeadersReader.getDbKey(id);
             Matcher::result_t orfToContigResult = Orf::getFromDatabase(id, contigsReader, orfHeadersReader, thread_idx);
             size_t len = Matcher::resultToBuffer(orfToContigBuffer, orfToContigResult, true);
             alignmentFormatWriter.writeData(orfToContigBuffer, len, orfKey, thread_idx);

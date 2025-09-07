@@ -45,8 +45,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
     unsigned int maxTargetId = 0;
     char *targetElementExists = NULL;
     if (isGeneralMode) {
-        DBReader<IdType> resultReader(parResultDb, parResultDbIndex, par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-        resultReader.open(DBReader<IdType>::SORT_BY_OFFSET);
+        DBReader<KeyType> resultReader(parResultDb, parResultDbIndex, par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        resultReader.open(DBReader<KeyType>::SORT_BY_OFFSET);
         //search for the maxTargetId (value of first column) in parallel
         Debug::Progress progress(resultReader.getSize());
 
@@ -82,7 +82,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
         memset(targetElementExists, 0, sizeof(char) * (maxTargetId + 1));
 #pragma omp parallel for
         for (size_t i = 0; i < target.sequenceReader->getSize(); ++i) {
-            IdType key = target.sequenceReader->getDbKey(i);
+            KeyType key = target.sequenceReader->getDbKey(i);
             targetElementExists[key] = 1;
         }
         int gapOpen, gapExtend;
@@ -99,8 +99,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
         evaluer = new EvalueComputation(aaResSize, subMat, gapOpen, gapExtend);
     }
 
-    DBReader<IdType> resultDbr(parResultDb, parResultDbIndex, par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    resultDbr.open(DBReader<IdType>::SORT_BY_OFFSET);
+    DBReader<KeyType> resultDbr(parResultDb, parResultDbIndex, par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    resultDbr.open(DBReader<KeyType>::SORT_BY_OFFSET);
 
     const size_t resultSize = resultDbr.getSize();
     Debug(Debug::INFO) << "Computing offsets.\n";
@@ -118,7 +118,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
 #pragma omp  for schedule(dynamic, 100)
             for (size_t i = 0; i < resultSize; ++i) {
                 progress.updateProgress();
-                const IdType resultId = resultDbr.getDbKey(i);
+                const KeyType resultId = resultDbr.getDbKey(i);
                 char queryKeyStr[1024];
                 char *tmpBuff = Itoa::u32toa_sse2((uint32_t) resultId, queryKeyStr);
                 *(tmpBuff) = '\0';
@@ -182,7 +182,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
             for (size_t i = 0; i < resultSize; ++i) {
                 progress.updateProgress();
                 char *data = resultDbr.getData(i, thread_idx);
-                IdType queryKey = resultDbr.getDbKey(i);
+                KeyType queryKey = resultDbr.getDbKey(i);
                 char queryKeyStr[1024];
                 char *tmpBuff = Itoa::u32toa_sse2((uint32_t) queryKey, queryKeyStr);
                 *(tmpBuff) = '\0';

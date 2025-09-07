@@ -47,7 +47,7 @@ int linclust(int argc, const char **argv, const Command& command) {
 
     // save some values to restore them later
     MultiParam<NuclAA<int>>alphabetSize = par.alphabetSize;
-    size_t kmerSize = par.kmerSize;
+    int kmerSize = par.kmerSize;
     // # 1. Finding exact $k$-mer matches.
     bool kmerSizeWasSet = false;
     bool alphabetSizeWasSet = false;

@@ -12,14 +12,14 @@ int result2repseq(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
-    DBReader<IdType> seqReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-    seqReader.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> seqReader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    seqReader.open(DBReader<KeyType>::NOSORT);
     if (par.preloadMode != Parameters::PRELOAD_MODE_MMAP) {
         seqReader.readMmapedDataInMemory();
     }
 
-    DBReader<IdType> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA);
-    resultReader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> resultReader(par.db2.c_str(), par.db2Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    resultReader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads, par.compressed, seqReader.getDbtype());
     resultWriter.open();
@@ -44,14 +44,14 @@ int result2repseq(int argc, const char **argv, const Command &command) {
 
             Util::parseKey(results, dbKey);
             const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-            const IdType edgeId = seqReader.getId(key);
+            const KeyType edgeId = seqReader.getId(key);
             resultWriter.writeData(seqReader.getData(edgeId, thread_idx), seqReader.getEntryLen(edgeId) - 1, resultReader.getDbKey(id), thread_idx);
         }
     }
     resultWriter.close(true);
     resultReader.close();
     seqReader.close();
-    DBReader<IdType>::softlinkDb(par.db1, par.db3, DBFiles::SEQUENCE_ANCILLARY);
+    DBReader<KeyType>::softlinkDb(par.db1, par.db3, DBFiles::SEQUENCE_ANCILLARY);
 
     return EXIT_SUCCESS;
 }

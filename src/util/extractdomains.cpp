@@ -205,7 +205,7 @@ std::vector<Domain> mapMsa(const std::string &msa, const std::vector<Domain> &do
     return result;
 }
 
-int doExtract(Parameters &par, DBReader<IdType> &blastTabReader,
+int doExtract(Parameters &par, DBReader<KeyType> &blastTabReader,
               const std::pair<std::string, std::string>& resultdb,
               const size_t dbFrom, const size_t dbSize) {
     SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0, 0);
@@ -214,7 +214,7 @@ int doExtract(Parameters &par, DBReader<IdType> &blastTabReader,
     std::string msaIndexName = par.db2Index;
 
     std::string msaHeaderDataName, msaHeaderIndexName, msaSequenceDataName, msaSequenceIndexName;
-    DBReader<IdType> *headerReader = NULL, *sequenceReader = NULL;
+    DBReader<KeyType> *headerReader = NULL, *sequenceReader = NULL;
 
     if (par.msaType == 0) {
         msaDataName = par.db2 + "_ca3m.ffdata";
@@ -225,15 +225,15 @@ int doExtract(Parameters &par, DBReader<IdType> &blastTabReader,
         msaSequenceDataName = par.db2 + "_sequence.ffdata";
         msaSequenceIndexName = par.db2 + "_sequence.ffindex";
 
-        headerReader = new DBReader<IdType>(msaHeaderDataName.c_str(), msaHeaderIndexName.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-        headerReader->open(DBReader<IdType>::SORT_BY_LINE);
+        headerReader = new DBReader<KeyType>(msaHeaderDataName.c_str(), msaHeaderIndexName.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        headerReader->open(DBReader<KeyType>::SORT_BY_LINE);
 
-        sequenceReader = new DBReader<IdType>(msaSequenceDataName.c_str(), msaSequenceIndexName.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-        sequenceReader->open(DBReader<IdType>::SORT_BY_LINE);
+        sequenceReader = new DBReader<KeyType>(msaSequenceDataName.c_str(), msaSequenceIndexName.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+        sequenceReader->open(DBReader<KeyType>::SORT_BY_LINE);
     }
 
-    DBReader<IdType> msaReader(msaDataName.c_str(), msaIndexName.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    msaReader.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> msaReader(msaDataName.c_str(), msaIndexName.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    msaReader.open(DBReader<KeyType>::NOSORT);
 
     DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads), par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
     writer.open();
@@ -250,8 +250,8 @@ int doExtract(Parameters &par, DBReader<IdType> &blastTabReader,
         for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
             progress.updateProgress();
 
-            IdType id = blastTabReader.getDbKey(i);
-            IdType entry = msaReader.getId(id);
+            KeyType id = blastTabReader.getDbKey(i);
+            KeyType entry = msaReader.getId(id);
             if (entry == UINT_MAX) {
                 Debug(Debug::WARNING) << "Can not find MSA for key " << id << "!\n";
                 continue;
@@ -317,8 +317,8 @@ int doExtract(Parameters &par, DBReader<IdType> &blastTabReader,
 }
 
 int doExtract(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    reader.open(DBReader<KeyType>::LINEAR_ACCCESS);
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
@@ -348,8 +348,8 @@ int doExtract(Parameters &par, const unsigned int mpiRank, const unsigned int mp
 int doExtract(Parameters &par) {
     size_t resultSize;
 
-    DBReader<IdType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<IdType>::USE_INDEX|DBReader<IdType>::USE_DATA);
-    reader.open(DBReader<IdType>::LINEAR_ACCCESS);
+    DBReader<KeyType> reader(par.db1.c_str(), par.db1Index.c_str(), par.threads, DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA);
+    reader.open(DBReader<KeyType>::LINEAR_ACCCESS);
     resultSize = reader.getSize();
 
     int status = doExtract(par, reader, std::make_pair(par.db3, par.db3Index), 0, resultSize);

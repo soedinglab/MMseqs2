@@ -12,17 +12,17 @@
 int createclusearchdb(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, MMseqsParameter::COMMAND_ALIGN);
-    DBReader<IdType> clusterReader(par.db2.c_str(), par.db2Index.c_str(), par.threads,
-                                         DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX);
-    clusterReader.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> clusterReader(par.db2.c_str(), par.db2Index.c_str(), par.threads,
+                                    DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX);
+    clusterReader.open(DBReader<KeyType>::NOSORT);
     std::vector<std::string> suffixes = Util::split(par.dbSuffixList, ",");
     suffixes.insert(suffixes.begin(), "");
     for(size_t prefix = 0; prefix < suffixes.size(); prefix++) {
         std::string db1 = par.db1 + suffixes[prefix];
         std::string db1Index = par.db1 + suffixes[prefix] + ".index";
-        DBReader<IdType> reader(db1.c_str(), db1Index.c_str(), par.threads,
-                                  DBReader<IdType>::USE_DATA | DBReader<IdType>::USE_INDEX);
-        reader.open(DBReader<IdType>::NOSORT);
+        DBReader<KeyType> reader(db1.c_str(), db1Index.c_str(), par.threads,
+                                 DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX);
+        reader.open(DBReader<KeyType>::NOSORT);
         reader.readMmapedDataInMemory();
 
         std::string repDbSeq = par.db3 + suffixes[prefix];
@@ -47,8 +47,8 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
             for (size_t id = 0; id < clusterReader.getSize(); id++) {
                 progress.updateProgress();
                 char *data = clusterReader.getData(id, thread_idx);
-                IdType repKey = clusterReader.getDbKey(id);
-                IdType repDataId = reader.getId(repKey);
+                KeyType repKey = clusterReader.getDbKey(id);
+                KeyType repDataId = reader.getId(repKey);
                 size_t repEntryLen = reader.getEntryLen(repDataId);
                 dbwRep.writeData(reader.getData(repDataId, thread_idx), repEntryLen - 1, repKey, thread_idx);
                 while (*data != '\0') {
@@ -58,7 +58,7 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
                         data = Util::skipLine(data);
                         continue;
                     }
-                    IdType readerId = reader.getId(dbKey);
+                    KeyType readerId = reader.getId(dbKey);
                     dbwClu.writeData(reader.getData(readerId, thread_idx),
                                      reader.getEntryLen(readerId) - 1, dbKey, thread_idx);
                     data = Util::skipLine(data);
@@ -70,27 +70,27 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
         reader.close();
 
         // merge index
-        DBReader<IdType> dbrRep(repDbSeq.c_str(), repDbSeqIdx.c_str(), par.threads,
-                                      DBReader<IdType>::USE_INDEX);
-        dbrRep.open(DBReader<IdType>::NOSORT);
-        DBReader<IdType> dbrSeq(seqsDbSeq.c_str(), seqsDbSeqIdx.c_str(), par.threads,
-                                      DBReader<IdType>::USE_INDEX);
-        dbrSeq.open(DBReader<IdType>::NOSORT);
+        DBReader<KeyType> dbrRep(repDbSeq.c_str(), repDbSeqIdx.c_str(), par.threads,
+                                 DBReader<KeyType>::USE_INDEX);
+        dbrRep.open(DBReader<KeyType>::NOSORT);
+        DBReader<KeyType> dbrSeq(seqsDbSeq.c_str(), seqsDbSeqIdx.c_str(), par.threads,
+                                 DBReader<KeyType>::USE_INDEX);
+        dbrSeq.open(DBReader<KeyType>::NOSORT);
         std::string seqsDbSeqIdxTmp = seqsDbSeqIdx + "_tmp";
 
         FILE *sIndex = FileUtil::openAndDelete(seqsDbSeqIdxTmp.c_str(), "w");
-        std::vector<DBReader<IdType>::Index> allIndex(dbrSeq.getSize() + dbrRep.getSize());
+        std::vector<DBReader<KeyType>::Index> allIndex(dbrSeq.getSize() + dbrRep.getSize());
         size_t dataSize = 0;
         for (size_t i = 0; i < dbrRep.getSize(); i++) {
             allIndex[i] = *dbrRep.getIndex(i);
             dataSize += allIndex[i].length;
         }
         for (size_t i = 0; i < dbrSeq.getSize(); i++) {
-            DBReader<IdType>::Index *index = dbrSeq.getIndex(i);
+            DBReader<KeyType>::Index *index = dbrSeq.getIndex(i);
             index->offset += dataSize;
             allIndex[dbrRep.getSize() + i] = *index;
         }
-        SORT_PARALLEL(allIndex.begin(), allIndex.end(), DBReader<IdType>::Index::compareById);
+        SORT_PARALLEL(allIndex.begin(), allIndex.end(), DBReader<KeyType>::Index::compareById);
         char buffer[1024];
         for (size_t i = 0; i < allIndex.size(); i++) {
             size_t len = DBWriter::indexToBuffer(buffer, allIndex[i].id, allIndex[i].offset, allIndex[i].length);
@@ -111,7 +111,7 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
         dbrSeq.close();
     }
     clusterReader.close();
-    DBReader<IdType>::copyDb(par.db2, par.db3 + "_clu");
+    DBReader<KeyType>::copyDb(par.db2, par.db3 + "_clu");
 
     struct DBSuffix {
         DBFiles::Files flag;
@@ -131,7 +131,7 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < ARRAY_SIZE(suffices); ++i) {
         std::string file = par.db1 + suffices[i].suffix;
         if (suffices[i].flag && FileUtil::fileExists(file.c_str())) {
-            DBReader<IdType>::copyDb(file, par.db3 + suffices[i].suffix);
+            DBReader<KeyType>::copyDb(file, par.db3 + suffices[i].suffix);
         }
     }
     for (size_t i = 0; i < ARRAY_SIZE(suffices); ++i) {
@@ -139,9 +139,9 @@ int createclusearchdb(int argc, const char **argv, const Command& command) {
         if (suffices[i].flag && FileUtil::fileExists(file.c_str())) {
             std::string fileToLinkTo = par.db3 + "_seq" + suffices[i].suffix;
             if (FileUtil::fileExists(fileToLinkTo.c_str())){
-                DBReader<IdType>::removeDb(fileToLinkTo);
+                DBReader<KeyType>::removeDb(fileToLinkTo);
             }
-            DBReader<IdType>::aliasDb(file, fileToLinkTo);
+            DBReader<KeyType>::aliasDb(file, fileToLinkTo);
         }
     }
     return EXIT_SUCCESS;

@@ -251,7 +251,7 @@ public:
 
     // does a binary search in the index and returns index of the entry with dbKey
     // returns UINT_MAX if the key is not contained in index
-    IdType getId (T dbKey);
+    size_t getId (T dbKey);
 
     // does a binary search in the lookup and returns index of the entry
     size_t getLookupSize() const;
@@ -259,7 +259,7 @@ public:
     size_t getLookupIdByAccession(const std::string& accession);
     T getLookupKey(size_t id);
     std::string getLookupEntryName(size_t id);
-    IdType getLookupFileNumber(size_t id);
+    KeyType getLookupFileNumber(size_t id);
     LookupEntry* getLookup() { return lookup; };
 
     static const int NOSORT = 0;
@@ -326,7 +326,7 @@ public:
 
     void readIndexId(T* id, char * line, const char** cols);
 
-    IdType indexIdToNum(T* id);
+    KeyType indexIdToNum(T* id);
 
     void readMmapedDataInMemory();
 
@@ -357,11 +357,11 @@ public:
 
     T getLastKey();
 
-    static size_t indexMemorySize(const DBReader<IdType> &idx);
+    static size_t indexMemorySize(const DBReader<KeyType> &idx);
 
-    static char* serialize(const DBReader<IdType> &idx);
+    static char* serialize(const DBReader<KeyType> &idx);
 
-    static DBReader<IdType> *unserialize(const char* data, int threads);
+    static DBReader<KeyType> *unserialize(const char* data, int threads);
 
     int getDbtype() const {
         return dbtype;
@@ -504,8 +504,8 @@ private:
     LookupEntry * lookup;
     bool sortedByOffset;
 
-    IdType * id2local;
-    IdType * local2id;
+    KeyType * id2local;
+    KeyType * local2id;
 
     bool dataMapped;
     int accessType;

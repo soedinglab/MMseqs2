@@ -34,17 +34,17 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
         }
     }
 
-    int mode = DBReader<IdType>::USE_INDEX;
+    int mode = DBReader<KeyType>::USE_INDEX;
     if (write == true) {
-        mode |= DBReader<IdType>::USE_DATA;
+        mode |= DBReader<KeyType>::USE_DATA;
     }
     if (shouldConcatLookup) {
-        mode |= DBReader<IdType>::USE_LOOKUP;
+        mode |= DBReader<KeyType>::USE_LOOKUP;
     }
-    DBReader<IdType> dbA(dataFileNameA.c_str(), indexFileNameA.c_str(), threads, mode);
-    DBReader<IdType> dbB(dataFileNameB.c_str(), indexFileNameB.c_str(), threads, mode);
-    dbA.open(DBReader<IdType>::NOSORT);
-    dbB.open(DBReader<IdType>::NOSORT);
+    DBReader<KeyType> dbA(dataFileNameA.c_str(), indexFileNameA.c_str(), threads, mode);
+    DBReader<KeyType> dbB(dataFileNameB.c_str(), indexFileNameB.c_str(), threads, mode);
+    dbA.open(DBReader<KeyType>::NOSORT);
+    dbB.open(DBReader<KeyType>::NOSORT);
     indexSizeA = dbA.getSize();
     indexSizeB = dbB.getSize();
 
@@ -83,7 +83,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
                 char *data = dbA.getData(id, thread_idx);
                 size_t dataSizeA = std::max(dbA.getEntryLen(id), trimRight) - trimRight;
                 if (takeLargerEntry == true) {
-                    IdType idB = dbB.getId(newKey);
+                    KeyType idB = dbB.getId(newKey);
                     size_t dataSizeB = std::max(dbB.getEntryLen(idB), trimRight) - trimRight;
                     if (dataSizeA >= dataSizeB) {
                         concatWriter->writeData(data, dataSizeA, newKey, thread_idx, writeNull);
@@ -122,7 +122,7 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
                 char *data = dbB.getData(id, thread_idx);
                 size_t dataSizeB = std::max(dbB.getEntryLen(id), trimRight) - trimRight;
                 if (takeLargerEntry) {
-                    IdType idB = dbA.getId(newKey);
+                    KeyType idB = dbA.getId(newKey);
                     size_t dataSizeA = std::max(dbA.getEntryLen(idB), trimRight) - trimRight;
                     if (dataSizeB > dataSizeA) {
                         concatWriter->writeData(data, dataSizeB, newKey, thread_idx, writeNull);
@@ -204,9 +204,9 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
     unsigned int maxSetIdA = 0;
     // handle lookup
     if (shouldConcatLookup) {
-        DBReader<IdType> lookupReaderA(dataFileNameA.c_str(), indexFileNameA.c_str(), 1, DBReader<IdType>::USE_LOOKUP);
-        lookupReaderA.open(DBReader<IdType>::NOSORT);
-        DBReader<IdType>::LookupEntry* lookupA = lookupReaderA.getLookup();
+        DBReader<KeyType> lookupReaderA(dataFileNameA.c_str(), indexFileNameA.c_str(), 1, DBReader<KeyType>::USE_LOOKUP);
+        lookupReaderA.open(DBReader<KeyType>::NOSORT);
+        DBReader<KeyType>::LookupEntry* lookupA = lookupReaderA.getLookup();
 
         FILE* lookupFilePtr = fopen((dataFileNameC + ".lookup").c_str(), "w");
 
@@ -242,9 +242,9 @@ DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFil
         lookupReaderA.close();
 
         // for B we compute: newSetIdB = maxSetIdA + 1 + setIdB
-        DBReader<IdType> lookupReaderB(dataFileNameB.c_str(), indexFileNameB.c_str(), 1, DBReader<IdType>::USE_LOOKUP);
-        lookupReaderB.open(DBReader<IdType>::NOSORT);
-        DBReader<IdType>::LookupEntry* lookupB = lookupReaderB.getLookup();
+        DBReader<KeyType> lookupReaderB(dataFileNameB.c_str(), indexFileNameB.c_str(), 1, DBReader<KeyType>::USE_LOOKUP);
+        lookupReaderB.open(DBReader<KeyType>::NOSORT);
+        DBReader<KeyType>::LookupEntry* lookupB = lookupReaderB.getLookup();
         for (size_t i = 0; i < lookupReaderB.getLookupSize(); ++i) {
             unsigned int prevKeyB = lookupB[i].id;
             std::string accB = lookupB[i].entryName;

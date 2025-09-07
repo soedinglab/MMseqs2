@@ -56,9 +56,9 @@ public:
 
     static void writeKmerIndexToDisk(std::string fileName, KmerPosition<short> *kmers, size_t kmerCnt);
 
-    static bool checkIfIndexFile(DBReader<IdType> *pReader);
+    static bool checkIfIndexFile(DBReader<KeyType> *pReader);
 
-    static std::string findIncompatibleParameter(DBReader<IdType> & index, Parameters &parameters, int dbtype);
+    static std::string findIncompatibleParameter(DBReader<KeyType> & index, Parameters &parameters, int dbtype);
 
     static std::string searchForIndex(const std::string& dbName);
 };

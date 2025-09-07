@@ -17,13 +17,13 @@ public:
             int threads,
             unsigned int databaseType = SEQUENCES | HEADERS,
             unsigned int preloadMode = false,
-            int dataMode = DBReader<IdType>::USE_INDEX | DBReader<IdType>::USE_DATA,
+            int dataMode = DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA,
             std::string failSuffix = ""
     ) : sequenceReader(NULL), index(NULL) {
         int targetDbtype = FileUtil::parseDbType(dataName.c_str());
         if (Parameters::isEqualDbtype(targetDbtype, Parameters::DBTYPE_INDEX_DB)) {
-            index = new DBReader<IdType>(dataName.c_str(), (dataName + ".index").c_str(), 1, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
-            index->open(DBReader<IdType>::NOSORT);
+            index = new DBReader<KeyType>(dataName.c_str(), (dataName + ".index").c_str(), 1, DBReader<KeyType>::USE_DATA | DBReader<KeyType>::USE_INDEX);
+            index->open(DBReader<KeyType>::NOSORT);
             if (PrefilteringIndexReader::checkIfIndexFile(index)) {
                 PrefilteringIndexReader::printSummary(index);
                 PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(index);
@@ -35,14 +35,14 @@ public:
                             index,
                             (databaseType & ~USER_SELECT) + 1,
                             databaseType & ~USER_SELECT,
-                            dataMode & DBReader<IdType>::USE_DATA, threads, touchIndex, touchData
+                            dataMode & DBReader<KeyType>::USE_DATA, threads, touchIndex, touchData
                     );
                 } else if (databaseType & SRC_SEQUENCES) {
                     sequenceReader = PrefilteringIndexReader::openNewReader(index,
-                                                                            PrefilteringIndexReader::DBR2DATA, PrefilteringIndexReader::DBR2INDEX, dataMode & DBReader<IdType>::USE_DATA, threads, touchIndex, touchData);
+                                                                            PrefilteringIndexReader::DBR2DATA, PrefilteringIndexReader::DBR2INDEX, dataMode & DBReader<KeyType>::USE_DATA, threads, touchIndex, touchData);
                 } else if (databaseType & SEQUENCES) {
                     sequenceReader = PrefilteringIndexReader::openNewReader(index,
-                                                                            PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX, dataMode & DBReader<IdType>::USE_DATA, threads, touchIndex, touchData);
+                                                                            PrefilteringIndexReader::DBR1DATA, PrefilteringIndexReader::DBR1INDEX, dataMode & DBReader<KeyType>::USE_DATA, threads, touchIndex, touchData);
                 } else if (databaseType & SRC_HEADERS) {
 
                     sequenceReader = PrefilteringIndexReader::openNewHeaderReader(index,
@@ -58,7 +58,7 @@ public:
                     sequenceReader = PrefilteringIndexReader::openNewReader(index,
                                                                             PrefilteringIndexReader::ALNDATA,
                                                                             PrefilteringIndexReader::ALNINDEX,
-                                                                            dataMode & DBReader<IdType>::USE_DATA,
+                                                                            dataMode & DBReader<KeyType>::USE_DATA,
                                                                             threads, touchIndex, touchData);
                 }
                 if (sequenceReader == NULL) {
@@ -97,11 +97,11 @@ public:
                     }
                 }
             }
-            sequenceReader = new DBReader<IdType>(
+            sequenceReader = new DBReader<KeyType>(
                     (dataName + failSuffix).c_str(), (dataName + failSuffix + ".index").c_str(),
                     threads, dataMode
             );
-            sequenceReader->open(DBReader<IdType>::NOSORT);
+            sequenceReader->open(DBReader<KeyType>::NOSORT);
             bool touchData = preloadMode & PRELOAD_DATA;
             if (touchData) {
                 sequenceReader->readMmapedDataInMemory();
@@ -137,8 +137,8 @@ public:
         }
     }
 
-    DBReader<IdType> *sequenceReader;
-    DBReader<IdType> *index;
+    DBReader<KeyType> *sequenceReader;
+    DBReader<KeyType> *index;
 
 private:
     int seqType;

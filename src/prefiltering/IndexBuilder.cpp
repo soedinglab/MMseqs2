@@ -23,14 +23,14 @@ char* getScoreLookup(BaseMatrix &matrix) {
 
 class DbInfo {
 public:
-    DbInfo(size_t dbFrom, size_t dbTo, unsigned int effectiveKmerSize, DBReader<IdType> & reader) {
+    DbInfo(size_t dbFrom, size_t dbTo, unsigned int effectiveKmerSize, DBReader<KeyType> & reader) {
         tableSize = 0;
         aaDbSize = 0;
         size_t dbSize = dbTo - dbFrom;
         sequenceOffsets = new size_t[dbSize];
         sequenceOffsets[0] = 0;
         for (size_t id = dbFrom; id < dbTo; id++) {
-            const int seqLen = reader.getSeqLen(id);
+            const size_t seqLen = reader.getSeqLen(id);
             aaDbSize += seqLen;
             size_t idFromNull = (id - dbFrom);
             if (id < dbTo - 1) {
@@ -54,7 +54,7 @@ public:
 
 void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup ** externalLookup, BaseMatrix &subMat,
                                 ScoreMatrix & three, ScoreMatrix & two, Sequence *seq,
-                                DBReader<IdType> *dbr, size_t dbFrom, size_t dbTo, int kmerThr,
+                                DBReader<KeyType> *dbr, size_t dbFrom, size_t dbTo, int kmerThr,
                                 bool mask, bool maskLowerCaseMode, float maskProb, int maskNrepeats, int targetSearchMode) {
     Debug(Debug::INFO) << "Index table: counting k-mers\n";
 
@@ -109,9 +109,9 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup ** extern
 
             s.resetCurrPos();
             char *seqData = dbr->getData(id, thread_idx);
-            IdType qKey = dbr->getDbKey(id);
+            KeyType qKey = dbr->getDbKey(id);
 
-            s.mapSequence(id - dbFrom, qKey, seqData, dbr->getSeqLen(id));
+            s.mapSequence(id - dbFrom, qKey, seqData, static_cast<unsigned int>(dbr->getSeqLen(id)));
             if(s.getMaxLen() >= bufferSize ){
                 buffer = static_cast<unsigned int*>(realloc(buffer, s.getMaxLen() * sizeof(unsigned int)));
                 bufferSize = seq->getMaxLen();
@@ -212,7 +212,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup ** extern
                 s.resetCurrPos();
                 progress2.updateProgress();
 
-                IdType qKey = dbr->getDbKey(id);
+                KeyType qKey = dbr->getDbKey(id);
                 if (isTargetSimiliarKmerSearch) {
                     s.mapSequence(id - dbFrom, qKey, dbr->getData(id, thread_idx), dbr->getSeqLen(id));
                     indexTable->addSimilarSequence(&s, generator, &buffer, bufferSize, &idxer);

@@ -15,7 +15,7 @@ int setextendeddbtype(int argc, const char **argv, const Command& command) {
     int dbtype = FileUtil::parseDbType(par.db1.c_str());
     // check if dbtype uses isCompressed flag
     bool isCompressed = (dbtype & (1 << 31));
-    dbtype = DBReader<IdType>::setExtendedDbtype(dbtype,  par.extendedDbtype);
+    dbtype = DBReader<KeyType>::setExtendedDbtype(dbtype, par.extendedDbtype);
     DBWriter::writeDbtypeFile(par.db1.c_str(), dbtype, isCompressed);
     return EXIT_SUCCESS;
 }
