@@ -21,7 +21,7 @@ Aggregation::~Aggregation() {
 }
 
 // build a map with the value in [target column] field as a key and the rest of the line, cut in fields, as values
-void Aggregation::buildMap(char *data, int thread_idx, std::map<unsigned int, std::vector<std::vector<std::string>>> &dataToAggregate) {
+void Aggregation::buildMap(char *data, int thread_idx, std::map<KeyType, std::vector<std::vector<std::string>>> &dataToAggregate) {
     while (*data != '\0') {
         char *current = data;
         data = Util::skipLine(data);
@@ -32,14 +32,14 @@ void Aggregation::buildMap(char *data, int thread_idx, std::map<unsigned int, st
         }
 
         std::vector<std::string> columns = Util::split(line, "\t");
-        unsigned int targetKey = Util::fast_atoi<unsigned int>(columns[0].c_str());
+        KeyType targetKey = Util::fast_atoi<KeyType>(columns[0].c_str());
         KeyType setId = targetSetReader->getId(targetKey);
         if (setId == UINT_MAX) {
             Debug(Debug::ERROR) << "Invalid target database key " << columns[0] << ".\n";
             EXIT(EXIT_FAILURE);
         }
         char *data = targetSetReader->getData(setId, thread_idx);
-        unsigned int setKey = Util::fast_atoi<unsigned int>(data);
+        KeyType setKey = Util::fast_atoi<KeyType>(data);
         dataToAggregate[setKey].push_back(columns);
     }
 }
@@ -63,7 +63,7 @@ int Aggregation::run() {
         std::string buffer;
         buffer.reserve(10 * 1024);
 
-        std::map<unsigned int, std::vector<std::vector<std::string>>> dataToMerge;
+        std::map<KeyType, std::vector<std::vector<std::string>>> dataToMerge;
 #pragma omp for
         for (size_t i = 0; i < reader.getSize(); i++) {
             progress.updateProgress();
@@ -73,9 +73,9 @@ int Aggregation::run() {
             buildMap(reader.getData(i, thread_idx), thread_idx, dataToMerge);
             prepareInput(key, thread_idx);
             
-            for (std::map<unsigned int, std::vector<std::vector<std::string>>>::const_iterator it = dataToMerge.begin();
+            for (std::map<KeyType, std::vector<std::vector<std::string>>>::const_iterator it = dataToMerge.begin();
                  it != dataToMerge.end(); ++it) {
-                unsigned int targetKey = it->first;
+                KeyType targetKey = it->first;
                 std::vector<std::vector<std::string>> columns = it->second;
                 buffer.append(aggregateEntry(columns, key, targetKey, thread_idx));
                 buffer.append("\n");

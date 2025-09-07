@@ -76,21 +76,25 @@ public:
         delete querySizeReader;
     }
 
-    void prepareInput(unsigned int querySetKey, unsigned int thread_idx) {
+    void prepareInput(KeyType querySetKey, unsigned int thread_idx) {
         unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
         precomputeLogB(orfCount, alpha/(orfCount + 1), lGammaLookup, logBiLookup[thread_idx]);
     }
 
     //Get all result of a single Query Set VS a Single Target Set and return the multiple-match p-value for it
-    std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey,
-                               unsigned int targetSetKey, unsigned int thread_idx) {
+    std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, KeyType querySetKey,
+                               KeyType targetSetKey, unsigned int thread_idx) {
         
         const size_t numTargetSets = targetSizeReader->getSize();  
         double updatedPval;
 
         std::string buffer;
         char keyBuffer[255];
-        char *tmpBuff = Itoa::u32toa_sse2(targetSetKey, keyBuffer);
+
+        constexpr bool keyIsU32 = std::is_same<KeyType, unsigned int>::value;
+        char * tmpBuff = keyIsU32
+                         ? Itoa::u32toa_sse2(targetSetKey, keyBuffer)
+                         : Itoa::u64toa_sse2(targetSetKey, keyBuffer);
         buffer.append(keyBuffer, tmpBuff - keyBuffer - 1);
         buffer.append("\t");
 

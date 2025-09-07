@@ -16,7 +16,7 @@ static bool compareToFirstString(const std::pair<std::string, TaxID>& lhs, const
     return (lhs.first <= rhs.first);
 }
 
-static bool sortMappingByDbKey(const std::pair<unsigned int, TaxID>& lhs, const std::pair<unsigned int, TaxID>& rhs){
+static bool sortMappingByDbKey(const std::pair<KeyType, TaxID>& lhs, const std::pair<KeyType, TaxID>& rhs){
     return (lhs.first <= rhs.first);
 }
 
@@ -230,8 +230,8 @@ int nrtotaxmapping(int argc, const char **argv, const Command& command) {
             Debug(Debug::ERROR) << "Invalid mapping file " << resultDbData << "\n";
             EXIT(EXIT_FAILURE);
         }
-        unsigned int dbKey = Util::fast_atoi<unsigned int>(entry[0]);
-        unsigned int taxId = Util::fast_atoi<unsigned int>(entry[1]);
+        KeyType dbKey = Util::fast_atoi<KeyType>(entry[0]);
+        KeyType taxId = Util::fast_atoi<KeyType>(entry[1]);
         mapping.emplace_back(dbKey, taxId);
     }
     mappingUnsorted.close();

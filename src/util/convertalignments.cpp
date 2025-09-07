@@ -94,8 +94,8 @@ qset        Query set
 tset        Target set
  */
 
-std::map<unsigned int, unsigned int> readKeyToSet(const std::string& file) {
-    std::map<unsigned int, unsigned int> mapping;
+std::map<KeyType, KeyType> readKeyToSet(const std::string& file) {
+    std::map<KeyType, KeyType> mapping;
     if (file.length() == 0) {
         return mapping;
     }
@@ -110,7 +110,7 @@ std::map<unsigned int, unsigned int> readKeyToSet(const std::string& file) {
             Debug(Debug::WARNING) << "Not enough columns in lookup file " << file << "\n";
             continue;
         }
-        mapping.emplace(Util::fast_atoi<unsigned int>(entry[0]), Util::fast_atoi<unsigned int>(entry[2]));
+        mapping.emplace(Util::fast_atoi<KeyType>(entry[0]), Util::fast_atoi<KeyType>(entry[2]));
         data = Util::skipLine(data);
     }
     lookup.close();
@@ -180,8 +180,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     int dbaccessMode = needSequenceDB ? (DBReader<KeyType>::USE_INDEX | DBReader<KeyType>::USE_DATA) : (DBReader<KeyType>::USE_INDEX);
 
-    std::map<unsigned int, unsigned int> qKeyToSet;
-    std::map<unsigned int, unsigned int> tKeyToSet;
+    std::map<KeyType, KeyType> qKeyToSet;
+    std::map<KeyType, KeyType> tKeyToSet;
     if (needLookup) {
         std::string file1 = par.db1 + ".lookup";
         std::string file2 = par.db2 + ".lookup";

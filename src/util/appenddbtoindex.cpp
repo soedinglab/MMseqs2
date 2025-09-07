@@ -12,7 +12,7 @@ int appenddbtoindex(int argc, const char **argv, const Command &command) {
     par.filenames.pop_back();
 
     // read in database keys for the new database entries and validate that we have enough
-    std::vector<unsigned int> keys;
+    std::vector<KeyType> keys;
     {
         std::vector<std::string> ids = Util::split(par.idList, ",");
         keys.reserve(ids.size());
@@ -31,7 +31,7 @@ int appenddbtoindex(int argc, const char **argv, const Command &command) {
             return EXIT_FAILURE;
         }
         // fail early if duplicates are found
-        std::vector<unsigned int> check(keys.begin(), keys.end());
+        std::vector<KeyType> check(keys.begin(), keys.end());
         std::sort(check.begin(), check.end());
         for (size_t i = 1; i < check.size(); ++i) {
             if (check[i - 1] == check[i] || (check[i - 1] + 1) == check[i]) {
@@ -81,7 +81,7 @@ int appenddbtoindex(int argc, const char **argv, const Command &command) {
     char buffer[8192];
     FILE* outIndexHandle = FileUtil::openFileOrDie(outIndexName.c_str(), "a", true);
     for (size_t i = 0; i < par.filenames.size(); ++i) {
-        const unsigned int key = keys[i];
+        const KeyType key = keys[i];
         const std::string& inDb = par.filenames[i];
         const std::string inIndexName = inDb + ".index";
 

@@ -54,7 +54,7 @@ int mergeclusters(int argc, const char **argv, const Command &command) {
             // go through the sequences in the cluster and add them to the initial clustering
             while (*data != '\0') {
                 Util::parseKey(data, keyBuffer);
-                unsigned int key = Util::fast_atoi<unsigned int>(keyBuffer);
+                KeyType key = Util::fast_atoi<KeyType>(keyBuffer);
                 KeyType seqId = dbr.getId(key);
                 mergedClustering[cluId].push_back(seqId);
                 data = Util::skipLine(data);
@@ -93,7 +93,7 @@ int mergeclusters(int argc, const char **argv, const Command &command) {
                 char *data = cluDb.getData(i, thread_idx);
                 while (*data != '\0') {
                     Util::parseKey(data, keyBuffer);
-                    unsigned int key = Util::fast_atoi<unsigned int>(keyBuffer);
+                    KeyType key = Util::fast_atoi<KeyType>(keyBuffer);
                     KeyType seqId = dbr.getId(key);
                     if (seqId != cluId) { // to avoid copies of the same cluster list
                         mergedClustering[cluId].splice(mergedClustering[cluId].end(), mergedClustering[seqId]);

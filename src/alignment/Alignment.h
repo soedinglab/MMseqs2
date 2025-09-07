@@ -122,7 +122,7 @@ private:
 
     static size_t estimateHDDMemoryConsumption(int dbSize, int maxSeqs);
 
-    void computeAlternativeAlignment(unsigned int queryDbKey, Sequence &dbSeq,
+    void computeAlternativeAlignment(KeyType queryDbKey, Sequence &dbSeq,
                                      std::vector<Matcher::result_t> &vector, Matcher &matcher,
                                      float covThr, float evalThr, int swMode, int thread_idx);
 };

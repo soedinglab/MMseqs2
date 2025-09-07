@@ -240,12 +240,12 @@ void Clustering::writeData(DBWriter *dbw, const std::pair<KeyType, KeyType> * re
     std::string resultStr;
     resultStr.reserve(1024*1024*1024);
     char buffer[32];
-    unsigned int prevRepresentativeKey = UINT_MAX;
+    KeyType prevRepresentativeKey = KEY_MAX;
     for(size_t i = 0; i < dbSize; i++){
-        unsigned int currRepresentativeKey = ret[i].first;
+        KeyType currRepresentativeKey = ret[i].first;
         // write query key first
         if(prevRepresentativeKey != currRepresentativeKey) {
-            if(prevRepresentativeKey != UINT_MAX){ // skip first
+            if(prevRepresentativeKey != KEY_MAX){ // skip first
                 dbw->writeData(resultStr.c_str(), resultStr.length(), prevRepresentativeKey);
             }
             resultStr.clear();
@@ -253,7 +253,7 @@ void Clustering::writeData(DBWriter *dbw, const std::pair<KeyType, KeyType> * re
             resultStr.append(buffer, (outpos - buffer - 1));
             resultStr.push_back('\n');
         }
-        unsigned int memberKey = ret[i].second;
+        KeyType memberKey = ret[i].second;
         if(memberKey != currRepresentativeKey){
             char * outpos = Itoa::u32toa_sse2(memberKey, buffer);
             resultStr.append(buffer, (outpos - buffer - 1) );
@@ -262,7 +262,7 @@ void Clustering::writeData(DBWriter *dbw, const std::pair<KeyType, KeyType> * re
 
         prevRepresentativeKey = currRepresentativeKey;
     }
-    if(prevRepresentativeKey != UINT_MAX){
+    if(prevRepresentativeKey != KEY_MAX){
         dbw->writeData(resultStr.c_str(), resultStr.length(), prevRepresentativeKey);
     }
 }

@@ -279,7 +279,10 @@ Matcher::result_t Matcher::parseAlignmentRecord(const char *data, bool readCompr
 
 size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBacktrace, bool compress, bool addOrfPosition) {
     char * basePos = buff1;
-    char * tmpBuff = Itoa::u32toa_sse2((uint32_t) result.dbKey, buff1);
+    constexpr bool keyIsU32 = std::is_same<KeyType, unsigned int>::value;
+    char * tmpBuff = keyIsU32
+              ? Itoa::u32toa_sse2(static_cast<std::uint32_t>(result.dbKey), buff1)
+              : Itoa::u64toa_sse2(static_cast<std::uint64_t>(result.dbKey), buff1);
     *(tmpBuff-1) = '\t';
     tmpBuff = Itoa::i32toa_sse2(result.score, tmpBuff);
     *(tmpBuff-1) = '\t';

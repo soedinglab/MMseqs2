@@ -443,7 +443,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
 
                 if (lcaAlign == true && swRealignResults.size() > 0) {
                     Matcher::result_t& topHit = swRealignResults[0];
-                    const unsigned int topHitKey = topHit.dbKey;
+                    const KeyType topHitKey = topHit.dbKey;
                     KeyType dbId = tdbr->getId(topHitKey);
                     char *qSeqData = tdbr->getData(dbId, thread_idx);
                     if (qSeqData == NULL) {
@@ -566,7 +566,7 @@ bool Alignment::checkCriteria(Matcher::result_t &res, bool isIdentity, double ev
     }
 }
 
-void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &dbSeq, std::vector<Matcher::result_t> &swResults,
+void Alignment::computeAlternativeAlignment(KeyType queryDbKey, Sequence &dbSeq, std::vector<Matcher::result_t> &swResults,
                                             Matcher &matcher, float covThr, float evalThr, int swMode, int thread_idx) {
     const unsigned char xIndex = m->aa2num[static_cast<int>('X')];
     const size_t firstItResSize = swResults.size();

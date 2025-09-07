@@ -24,9 +24,9 @@ public :
     }
 
 
-    void prepareInput(unsigned int, unsigned int) {}
+    void prepareInput(KeyType, unsigned int ) {}
 
-    std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int, unsigned int targetSetKey, unsigned int thread_idx)  {
+    std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, KeyType, KeyType targetSetKey, unsigned int thread_idx)  {
         double bestScore = -DBL_MAX;
         double secondBestScore = -DBL_MAX;
         double bestEval = DBL_MAX;
@@ -42,7 +42,7 @@ public :
             EXIT(EXIT_FAILURE);
         }
         char *data = targetSizeReader->getData(targetId, thread_idx);
-        unsigned int nbrGenes = Util::fast_atoi<unsigned int>(data);
+        KeyType nbrGenes = Util::fast_atoi<KeyType>(data);
 
         std::vector<std::string> *bestEntry = NULL;
         for (size_t i = 0; i < dataToAggregate.size(); i++) {

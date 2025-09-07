@@ -47,7 +47,7 @@ int makepaddedseqdb(int argc, const char **argv, const Command &command) {
     Sequence seq(dbr.getMaxSeqLen(), dbr.getDbtype(), &subMat,  0, false, false);
 
     size_t firstIt = SIZE_MAX;
-    unsigned int seqKey = 0;
+    KeyType seqKey = 0;
 
     size_t charSeqBufferSize = par.maxSeqLen + 1;
     unsigned char *charSequence = NULL;
