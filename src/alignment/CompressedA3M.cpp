@@ -146,7 +146,7 @@ std::string CompressedA3M::extractA3M(const char *data, size_t data_size,
     return output.str();
 }
 
-void CompressedA3M::extractMatcherResults(unsigned int &key, std::vector<Matcher::result_t> &results,
+void CompressedA3M::extractMatcherResults(KeyType &key, std::vector<Matcher::result_t> &results,
                                           const char *data, size_t dataSize, DBReader<KeyType> &sequenceReader, bool skipFirst) {
     //read stuff till compressed part
     char lastChar = '\0';

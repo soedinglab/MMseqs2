@@ -43,7 +43,7 @@ int convertca3m(int argc, const char **argv, const Command &command) {
             progress.updateProgress();
             results.clear();
 
-            unsigned int key;
+            KeyType key;
             CompressedA3M::extractMatcherResults(key, results, reader.getData(i, thread_idx), reader.getEntryLen(i), sequences, true);
 
             writer.writeStart(thread_idx);

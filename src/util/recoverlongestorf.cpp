@@ -26,7 +26,7 @@ int recoverlongestorf(int argc, const char **argv, const Command &command) {
     writer.open();
 
     Debug::Progress progress(resultReader.getSize());
-    std::unordered_map<unsigned int, std::pair<unsigned int, size_t>> contigToLongest;
+    std::unordered_map<unsigned int, std::pair<KeyType, size_t>> contigToLongest;
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -34,7 +34,7 @@ int recoverlongestorf(int argc, const char **argv, const Command &command) {
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 
 #endif 
-        std::unordered_map<unsigned int, std::pair<unsigned int, size_t>> localContigToLongest;
+        std::unordered_map<unsigned int, std::pair<KeyType , size_t>> localContigToLongest;
 
 #pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < headerReader.getSize(); ++id) {
@@ -42,11 +42,11 @@ int recoverlongestorf(int argc, const char **argv, const Command &command) {
             KeyType orfKey = headerReader.getDbKey(id);
             char *orfHeader = headerReader.getData(id, thread_idx);
             Orf::SequenceLocation orf = Orf::parseOrfHeader(orfHeader);
-            unsigned int contigKey = orf.id; 
+            KeyType contigKey = orf.id;
             size_t orfLen = std::max(orf.from, orf.to) - std::min(orf.from, orf.to) + 1;
-            std::unordered_map<unsigned int, std::pair<unsigned int, size_t>>::iterator it = localContigToLongest.find(contigKey);
+            std::unordered_map<unsigned int, std::pair<KeyType, size_t>>::iterator it = localContigToLongest.find(contigKey);
             if (it != localContigToLongest.end()) {
-                std::pair<unsigned int, size_t> orfKeyToLength = it->second;
+                std::pair<KeyType , size_t> orfKeyToLength = it->second;
                 if (orfLen > orfKeyToLength.second) {
                     it->second = std::make_pair(orfKey, orfLen);
                 }
@@ -73,8 +73,8 @@ int recoverlongestorf(int argc, const char **argv, const Command &command) {
     }
 
     progress.reset(resultReader.getSize());
-    std::unordered_set<unsigned int> acceptedContigs;    
-    std::unordered_set<unsigned int> eliminatedContigs;
+    std::unordered_set<KeyType> acceptedContigs;
+    std::unordered_set<KeyType> eliminatedContigs;
 #pragma omp parallel
     {
         int thread_idx = 0;
@@ -84,8 +84,8 @@ int recoverlongestorf(int argc, const char **argv, const Command &command) {
         std::string resultBuffer;
         resultBuffer.reserve(1024 * 1024);
 
-        std::unordered_set<unsigned int> localAcceptedContigs;
-        std::unordered_set<unsigned int> localEliminatedContigs;
+        std::unordered_set<KeyType> localAcceptedContigs;
+        std::unordered_set<KeyType> localEliminatedContigs;
 #pragma omp for schedule(dynamic, 5)
         for (size_t i = 0; i < resultReader.getSize(); ++i) {
             progress.updateProgress();
@@ -96,14 +96,14 @@ int recoverlongestorf(int argc, const char **argv, const Command &command) {
                 KeyType id = headerReader.getId(key);
                 char *orfHeader = headerReader.getData(id, thread_idx);
                 Orf::SequenceLocation orf = Orf::parseOrfHeader(orfHeader);
-                unsigned int contigKey = orf.id; 
+                KeyType contigKey = orf.id;
                 localAcceptedContigs.emplace(contigKey);
             }
 
             KeyType id = headerReader.getId(key);
             char *orfHeader = headerReader.getData(id, thread_idx);
             Orf::SequenceLocation orf = Orf::parseOrfHeader(orfHeader);
-            unsigned int contigKey = orf.id; 
+            KeyType contigKey = orf.id;
             localEliminatedContigs.emplace(contigKey);
         }
 
@@ -125,10 +125,10 @@ int recoverlongestorf(int argc, const char **argv, const Command &command) {
     std::string resultBuffer;
     resultBuffer.reserve(1024 * 1024);
     for (auto contigIt = eliminatedContigs.begin(); contigIt != eliminatedContigs.end(); ++contigIt) {
-        unsigned int contigKey = *contigIt;
-        std::unordered_map<unsigned int, std::pair<unsigned int, size_t>>::iterator it = contigToLongest.find(contigKey);
+        KeyType contigKey = *contigIt;
+        std::unordered_map<unsigned int, std::pair<KeyType, size_t>>::iterator it = contigToLongest.find(contigKey);
         if (it != contigToLongest.end()) {
-            unsigned int orfKey = it->second.first;
+            KeyType orfKey = it->second.first;
             resultBuffer.append(SSTR(orfKey));
             resultBuffer.append(1, '\n');
             writer.writeData(resultBuffer.c_str(), resultBuffer.length(), orfKey, 0, false, false);

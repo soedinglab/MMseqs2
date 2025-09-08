@@ -103,7 +103,7 @@ pid_t create_pipe(
     return pid;
 }
 
-int apply_by_entry(char* data, size_t size, unsigned int key, DBWriter& writer,
+int apply_by_entry(char* data, size_t size, KeyType key, DBWriter& writer,
                    const char* program_name, char ** program_argv, char **environ, unsigned int proc_idx) {
     // only works with the environ we construct ourselves
     // local_environment() leaves the first element free to use for ourselves

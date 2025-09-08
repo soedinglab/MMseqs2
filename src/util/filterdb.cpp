@@ -138,7 +138,7 @@ int filterdb(int argc, const char **argv, const Command &command) {
             std::string line;
             while (std::getline(weightsFile, line)) {
                 std::istringstream iss(line);
-                unsigned int key;
+                KeyType key;
                 float weight;
                 if (!(iss >> key >> weight)) {
                     Debug(Debug::WARNING) << "Invalid line in weights file: " << line << "\n";

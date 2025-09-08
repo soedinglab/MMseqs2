@@ -14,7 +14,7 @@ public:
                                   DBReader<KeyType>& sequenceReader,
                                   DBReader<KeyType>& headerReader, int thread_idx);
 
-    static void extractMatcherResults(unsigned int &key, std::vector<Matcher::result_t> &results,
+    static void extractMatcherResults(KeyType &key, std::vector<Matcher::result_t> &results,
                                       const char *data, size_t dataSize, DBReader<KeyType>& sequenceReader, bool skipFirst);
 };
 

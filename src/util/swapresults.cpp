@@ -162,10 +162,10 @@ int doswap(Parameters& par, bool isGeneralMode) {
 
     const char empty = '\0';
 
-    unsigned int prevDbKeyToWrite = 0;
+    KeyType prevDbKeyToWrite = 0;
     size_t prevBytesToWrite = 0;
     for (size_t split = 0; split < splits.size(); split++) {
-        unsigned int dbKeyToWrite = splits[split].first;
+        KeyType dbKeyToWrite = splits[split].first;
         size_t bytesToWrite = splits[split].second;
         char *tmpData = new(std::nothrow) char[bytesToWrite];
         Util::checkAllocation(tmpData, "Cannot allocate tmpData memory");
