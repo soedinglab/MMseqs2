@@ -53,7 +53,7 @@ public:
     };
 
     struct SequenceLocation {
-        unsigned int id;
+        KeyType id;
         size_t from, to;
         bool hasIncompleteStart, hasIncompleteEnd;
         Strand strand;

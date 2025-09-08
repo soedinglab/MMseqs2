@@ -109,7 +109,7 @@ Matcher::result_t Orf::getFromDatabase(const size_t id, DBReader<KeyType> & cont
     orfLocOnContigParsed = Orf::parseOrfHeader(orfHeader);
 
     // get contig key and its length in nucleotides
-    int contigKey = orfLocOnContigParsed.id;
+    KeyType contigKey = orfLocOnContigParsed.id;
     KeyType contigId = contigsReader.getId(contigKey);
 
     size_t contigLen = contigsReader.getSeqLen(contigId);
@@ -440,7 +440,9 @@ Orf::SequenceLocation Orf::parseOrfHeader(const char *data) {
 size_t Orf::writeOrfHeader(char *buffer, KeyType key, size_t fromPos, size_t toPos,
                            bool hasIncompleteStart, bool hasIncompleteEnd) {
     char * basePos = buffer;
-    char * tmpBuff = Itoa::u32toa_sse2((uint32_t) key, buffer);
+    constexpr bool keyIsU32 = std::is_same<KeyType, unsigned int>::value;
+    char * tmpBuff = keyIsU32 ? Itoa::u32toa_sse2((uint32_t) key, buffer) :
+                     Itoa::u64toa_sse2((uint64_t) key, buffer);
     *(tmpBuff-1) = '\t';
     tmpBuff = Itoa::u32toa_sse2(static_cast<uint32_t>(fromPos), tmpBuff);
     *(tmpBuff-1) = (fromPos < toPos) ? '+' : '-';

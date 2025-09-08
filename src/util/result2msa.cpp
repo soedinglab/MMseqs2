@@ -184,7 +184,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
         std::vector<std::vector<unsigned char>> seqSet;
         seqSet.reserve(300);
 
-        std::vector<unsigned int> seqKeys;
+        std::vector<KeyType> seqKeys;
         seqKeys.reserve(300);
 
         std::string result;
@@ -505,7 +505,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     result.append("\n;");
                 }
                 Matcher::result_t queryAln;
-                unsigned int newQueryKey = seqConcat->dbAKeyMap(queryKey);
+                KeyType newQueryKey = seqConcat->dbAKeyMap(queryKey);
                 queryAln.qStartPos = 0;
                 queryAln.dbStartPos = 0;
                 queryAln.backtrace = std::string(centerSequence.L, 'M'); // only matches

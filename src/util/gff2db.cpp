@@ -58,7 +58,7 @@ int gff2db(int argc, const char **argv, const Command &command) {
         Debug(Debug::WARNING) << "Not enough GFF files are provided. Some results might be omitted\n";
     }
 
-    unsigned int entries_num = 0;
+    KeyType entries_num = 0;
     Debug::Progress progress(par.filenames.size());
 #pragma omp parallel
     {
@@ -127,14 +127,14 @@ int gff2db(int argc, const char **argv, const Command &command) {
                     Debug(Debug::ERROR) << "GFF entry not found in database lookup: " << name << "\n";
                     EXIT(EXIT_FAILURE);
                 }
-                unsigned int lookupKey = reader.getLookupKey(lookupId);
+                KeyType lookupKey = reader.getLookupKey(lookupId);
                 KeyType seqId = reader.getId(lookupKey);
                 if (seqId == UINT_MAX) {
                     Debug(Debug::ERROR) << "GFF entry not found in sequence database: " << name << "\n";
                     EXIT(EXIT_FAILURE);
                 }
 
-                unsigned int key = __sync_fetch_and_add(&(entries_num), 1);
+                size_t key = __sync_fetch_and_add(&(entries_num), 1);
                 size_t bufferLen;
                 if (strand == "+") {
                     bufferLen = Orf::writeOrfHeader(buffer, lookupKey, start, end, 0, 0);
