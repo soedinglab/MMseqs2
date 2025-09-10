@@ -7,6 +7,8 @@ RUN mkdir -p /work/build && cd /work/build; \
         -DCMAKE_TOOLCHAIN_FILE=/opt/toolchain.cmake \
         -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AARCH64}" -DOpenMP_C_LIB_NAMES=omp -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_AARCH64}" -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=${LIBOMP_AARCH64}/libomp.a \
         -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
+        -DRust_TOOLCHAIN=stable-x86_64-unknown-linux-gnu \
+        -DRust_CARGO_TARGET=aarch64-unknown-linux-gnu \
         -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..; \
     cmake --build . -j$(nproc --all) -v;
 

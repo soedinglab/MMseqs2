@@ -42,8 +42,8 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
     this->aaBiasCorrectionScale = aaBiasCorrectionScale;
 	this->aaBiasCorrection = aaBiasCorrection;
 
-	int segmentSize = (maxSequenceLength+7)/8;
-    segSize = segmentSize;
+	// int32_t alignment needs larger seqSize, was +7/8 for word before
+    segSize = (maxSequenceLength+3)/4;
 	vHStore = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	vHLoad  = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	vE      = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
@@ -143,7 +143,15 @@ void SmithWaterman::createQueryProfile(simd_int *profile, const int8_t *query_se
 				// if will be optmized out by compiler
 				if(type == SUBSTITUTIONMATRIX) {    // substitution score for query_seq constrained by nt
 					// query_sequence starts from 1 to n
-					*t++ = ( j >= query_length) ? bias : mat[nt * aaSize + query_sequence[j + offset ]] + composition_bias[j + offset] + bias; // mat[nt][q[j]] mat eq 20*20
+					// *t++ = ( j >= query_length) ? bias : mat[nt * aaSize + query_sequence[j + offset ]] + composition_bias[j + offset] + bias; // mat[nt][q[j]] mat eq 20*20
+					if (j >= query_length) {
+						*t++ = bias;
+					} else {
+						const int q = query_sequence[j + offset];           
+						const float cb = composition_bias[j + offset];      
+					
+						*t++ = mat[nt * aaSize + q] + cb + bias;        
+					}
 				} if(type == PROFILE) {
                     // profile starts by 0
 //                    *t++ = (j >= query_length) ? bias : (mat[nt * entryLength + (j + (offset - 1))] + bias); //mat eq L*20  // mat[nt][j]
@@ -312,11 +320,11 @@ s_align SmithWaterman::alignScoreEndPos (
 	}
 	// 3. int
 	// Comment out int32_t now for benchmark
-	// if (bests.first.score == INT16_MAX) {
-	// 	bests = sw_sse2_int<type>(db_sequence, 0, db_length, query_length, gap_open, gap_extend,
-	// 				profile->profile_int, USHRT_MAX, maskLen);
-	// 	r.word = 2;
-	// }
+	if (bests.first.score == INT16_MAX) {
+		bests = sw_sse2_int<type>(db_sequence, 0, db_length, query_length, gap_open, gap_extend,
+					profile->profile_int, USHRT_MAX, maskLen);
+		r.word = 2;
+	}
 
 	r.score1 = bests.first.score;
     r.dbEndPos1 = bests.first.ref;
@@ -567,18 +575,18 @@ s_align SmithWaterman::alignStartPosBacktrace (
 										   r.score1, maskLen);
 	}
 	// Comment out int32_t now for benchmark
-	// else if (r.word == 2) {
-    //     if ((type == PROFILE_SEQ)) {
-		// 		createQueryProfile<int32_t, VECSIZE_INT * 1, PROFILE>(profile->profile_rev_int, profile->query_rev_sequence, NULL, profile->mat_rev,
-		// 															  r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, profile->query_length);
-		// 	}  else if (type == SEQ_SEQ) {
-		// 		createQueryProfile<int32_t, VECSIZE_INT * 1, SUBSTITUTIONMATRIX>(profile->profile_rev_int, profile->query_rev_sequence, profile->composition_bias_rev, profile->mat,
-		// 															  r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, 0);
-		// 	}
-		// 	bests_reverse = sw_sse2_int<type>(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open,
-		// 									  gap_extend, profile->profile_rev_int,
-		// 									  r.score1, maskLen);
-		// }
+	else if (r.word == 2) {
+        if ((type == PROFILE_SEQ)) {
+			createQueryProfile<int32_t, VECSIZE_INT * 1, PROFILE>(profile->profile_rev_int, profile->query_rev_sequence, NULL, profile->mat_rev,
+																	r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, profile->query_length);
+		}  else if (type == SEQ_SEQ) {
+			createQueryProfile<int32_t, VECSIZE_INT * 1, SUBSTITUTIONMATRIX>(profile->profile_rev_int, profile->query_rev_sequence, profile->composition_bias_rev, profile->mat,
+																	r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, 0);
+		}
+		bests_reverse = sw_sse2_int<type>(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open,
+											gap_extend, profile->profile_rev_int,
+											r.score1, maskLen);
+	}
 
     if(bests_reverse.first.score != r.score1){
 		Debug(Debug::ERROR) << "r.word: " << r.word << "\n";
