@@ -28,8 +28,10 @@ ALLOWED_DL_LIBS="lib(System\.B|z|bz2|c\+\+|objc)\."
 export MACOSX_DEPLOYMENT_TARGET=10.15
 
 mkdir -p "$BUILD/build_libomp" && cd "$BUILD/build_libomp"
-OMPVERSION=14.0.6
-wget -qO- https://github.com/llvm/llvm-project/releases/download/llvmorg-${OMPVERSION}/openmp-${OMPVERSION}.src.tar.xz | tar xvf -
+OMPVERSION=20.1.7
+wget -qO- https://github.com/llvm/llvm-project/releases/download/llvmorg-${OMPVERSION}/cmake-${OMPVERSION}.src.tar.xz | tar xJvf -
+wget -qO- https://github.com/llvm/llvm-project/releases/download/llvmorg-${OMPVERSION}/openmp-${OMPVERSION}.src.tar.xz | tar xJvf -
+mv cmake-${OMPVERSION}.src cmake
 cd openmp-${OMPVERSION}.src
 
 mkdir -p "$BUILD/build_libomp/openmp-${OMPVERSION}.src/build-amd64" && cd "$BUILD/build_libomp/openmp-${OMPVERSION}.src/build-amd64"
