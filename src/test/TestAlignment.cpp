@@ -67,7 +67,7 @@ int main (int, const char**) {
     Sequence* dbSeq = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     dbSeq->mapSequence(1,1,tim2.c_str(), tim2.size());
-    SmithWaterman aligner(15000, subMat.alphabetSize, true, 1.0, Parameters::DBTYPE_AMINO_ACIDS);
+    SmithWaterman aligner(15000, subMat.alphabetSize, true, 1.0, &subMat);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     for (int i = 0; i < subMat.alphabetSize; i++) {
         for (int j = 0; j < subMat.alphabetSize; j++) {
@@ -92,8 +92,6 @@ int main (int, const char**) {
     std::string backtrace;
     s_align alignment = aligner.ssw_align(
             dbSeq->numSequence,
-            dbSeq->numConsensusSequence,
-            dbSeq->getAlignmentProfile(),
             dbSeq->L,
             backtrace,
             gap_open, gap_extend,
@@ -102,8 +100,7 @@ int main (int, const char**) {
             &evalueComputation,
             0, 0.0,
             0.0,
-            maskLen,
-            dbSeq->getId()
+            maskLen
     );
     if(alignment.cigar){
         std::cout << "Cigar" << std::endl;

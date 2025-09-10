@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci-x86:
+    runs-on: ${{matrix.os}}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Rust Nightly
+      uses: actions-rs/toolchain@v1
+
+    - name: Test AVX2
+      run: |
+        cargo --version
+        cargo test --all-targets --features simd_avx2
+        cargo test --doc --features simd_avx2
+
+    - name: Test SSE2
+      run: |
+        cargo --version
+        cargo test --all-targets --features simd_sse2
+        cargo test --doc --features simd_sse2
+
+    - name: Install Rust Stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Test AVX2
+      run: |
+        cargo --version
+        cargo build --features simd_avx2
+
+    - name: Test SSE2
+      run: |
+        cargo --version
+        cargo build --features simd_sse2
+
+  ci-wasm32:
+    runs-on: ${{matrix.os}}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Rust Nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        target: wasm32-wasi
+
+    - name: Test WASM
+      run: |
+        WASMTIME_DIR=wasmtime-v2.0.2-x86_64-linux
+        curl -OL https://github.com/bytecodealliance/wasmtime/releases/download/v2.0.2/${WASMTIME_DIR}.tar.xz
+        tar -xvf ${WASMTIME_DIR}.tar.xz
+        mv ${WASMTIME_DIR}/wasmtime ./
+        cargo --version
+        CARGO_TARGET_WASM32_WASI_RUNNER="./wasmtime --wasm-features simd --" cargo test --target=wasm32-wasi --features simd_wasm --all-targets -- --nocapture
+
+    - name: Install Rust Stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+        target: wasm32-wasi
+
+    - name: Test WASM
+      run: |
+        cargo --version
+        cargo build --target=wasm32-wasi --features simd_wasm
+
+  ci-aarch64:
+    runs-on: ${{matrix.os}}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Rust Nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        target: aarch64-unknown-linux-gnu
+
+    - name: Test Neon
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross qemu-user
+        cargo --version
+        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER="qemu-aarch64 -L /usr/aarch64-linux-gnu" cargo test --target=aarch64-unknown-linux-gnu --all-targets --features simd_neon

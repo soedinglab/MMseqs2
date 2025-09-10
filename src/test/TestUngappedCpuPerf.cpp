@@ -67,7 +67,7 @@ int main (int, const char**) {
             Util::decomposeDomain(targets, thread_idx, par.threads, &ignore, &total);
             sanityCheck += total;
 
-            SmithWaterman aligner(seqLen, subMat.alphabetSize, false, 1.0, Parameters::DBTYPE_AMINO_ACIDS);
+            SmithWaterman aligner(seqLen, subMat.alphabetSize, false, 1.0, &subMat);
             Sequence qSeq(seqLen, Parameters::DBTYPE_AMINO_ACIDS, &subMat, 0, false, false);
             qSeq.mapSequence(0, 0, seq, seqLen);
             aligner.ssw_init(&qSeq, tinySubMat, &subMat);
