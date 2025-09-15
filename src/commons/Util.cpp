@@ -457,7 +457,7 @@ std::map<unsigned int, std::string> Util::readLookup(const std::string& file, co
             std::string& name = split[1];
 
             size_t pos;
-            if (removeSplit && (pos = name.find_last_of('_')) != std::string::npos) {
+            if (removeSplit && (pos = name.find_last_of('.')) != std::string::npos) {
                 name = name.substr(0, pos);
             }
 

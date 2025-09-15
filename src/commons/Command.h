@@ -38,6 +38,7 @@ CommandMode COMMAND_ALIGNMENT         = 1U << 15;
 CommandMode COMMAND_CLUSTER           = 1U << 16;
 CommandMode COMMAND_PROFILE           = 1U << 17;
 CommandMode COMMAND_PROFILE_PROFILE   = 1U << 18;
+CommandMode COMMAND_CLUSTPROTEOME     = 1U << 19;
 
 CommandMode COMMAND_EXPERT            = 1U << 31;
 
