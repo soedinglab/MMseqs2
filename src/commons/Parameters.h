@@ -38,6 +38,7 @@ struct MMseqsParameter {
     static const unsigned int COMMAND_CLUSTLINEAR = 64;
     static const unsigned int COMMAND_EXPERT = 128;
     static const unsigned int COMMAND_HIDDEN = 256;
+    static const unsigned int COMMAND_CLUSTPROTEOME= 512;
 
 
     MMseqsParameter(int uid, const char * n, const char *display,
@@ -478,6 +479,7 @@ public:
     bool   singleStepClustering;
     int    clusterReassignment;
     bool    clusteringSetMode;
+    int    clusterModule;
 
     // SEARCH WORKFLOW
     int numIterations;
@@ -744,6 +746,15 @@ public:
     // touchdb
     bool touchLock;
 
+
+    // proteomecluster
+    std::string  ppsWeightFile;
+    float        weightClusterCount;
+    float        proteomeSimThr;      
+    float        proteomeRelativeSimThr;
+    bool         proteomeCascadedClustering;
+    bool         includeAlignFiles;
+
     // for modules that should handle -h themselves
     bool help;
 
@@ -838,6 +849,7 @@ public:
     PARAMETER(PARAM_CASCADED)
     PARAMETER(PARAM_CLUSTER_REASSIGN)
     PARAMETER(PARAM_CLUSTER_SET_MODE)
+    PARAMETER(PARAM_CLUSTER_MODULE)
 
     // affinity clustering
     PARAMETER(PARAM_MAXITERATIONS)
@@ -1115,6 +1127,15 @@ public:
     // touchdb
     PARAMETER(PARAM_TOUCH_LOCK)
 
+
+    // proteomecluster
+    PARAMETER(PARAM_PPS_WEIGHT_FILE)
+    PARAMETER(PARAM_WEIGHT_CLUSTER_COUNT)
+    PARAMETER(PARAM_PROTEOME_SIMILARITY)
+    PARAMETER(PARAM_PROTEOME_RELATIVE_SIMILARITY)
+    PARAMETER(PARAM_PROTEOME_CASCADED_CLUSTERING)
+    PARAMETER(PARAM_INCLUDE_ALIGN_FILES)
+
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
     PARAMETER(PARAM_HELP_LONG)
@@ -1242,6 +1263,8 @@ public:
     std::vector<MMseqsParameter*> gpuserver;
     std::vector<MMseqsParameter*> tsv2exprofiledb;
     std::vector<MMseqsParameter*> fwbw;
+    std::vector<MMseqsParameter*> proteomecluster;
+    std::vector<MMseqsParameter*> easyproteomeclusterworkflow;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);
