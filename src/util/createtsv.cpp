@@ -64,8 +64,12 @@ int createtsv(int argc, const char **argv, const Command &command) {
     std::map<unsigned int, std::string> qSetToSource, tSetToSource;
     if (extended & Parameters::DBTYPE_EXTENDED_SET) {
         needSET = true;
-        qSetToSource = Util::readLookup((par.db1 + ".source"), false);
-        tSetToSource = Util::readLookup((par.db2 + ".source"), false);
+        if (hasTargetDB) {
+            qSetToSource = Util::readLookup((par.db1 + ".source"), true);
+            tSetToSource = Util::readLookup((par.db2 + ".source"), true);
+        } else {
+            qSetToSource = Util::readLookup((par.db1 + ".source"), true);
+        }
     }
 
     const std::string& dataFile = hasTargetDB ? par.db4 : par.db3;
