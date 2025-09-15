@@ -60,18 +60,18 @@ public:
             : Aggregation(targetDbName, resultDbName, outputDbName, threads, compressed), alpha(alpha), shortOutput(shortOutput) {
         std::string data = queryDbName + "_set_size";
         std::string index = queryDbName + "_set_size.index";
-        querySizeReader = new DBReader<IdType>(data.c_str(), index.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
-        querySizeReader->open(DBReader<IdType>::NOSORT);
+        querySizeReader = new DBReader<KeyType>(data.c_str(), index.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+        querySizeReader->open(DBReader<KeyType>::NOSORT);
 
         data = targetDbName + "_set_size";
         index = targetDbName + "_set_size.index";
-        targetSizeReader = new DBReader<IdType>(data.c_str(), index.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
-        targetSizeReader->open(DBReader<IdType>::NOSORT);
+        targetSizeReader = new DBReader<KeyType>(data.c_str(), index.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+        targetSizeReader->open(DBReader<KeyType>::NOSORT);
 
         data = targetDbName + "_nucl";
         index = targetDbName + "_nucl.index";
-        targetSourceReader = new DBReader<IdType>(data.c_str(), index.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
-        targetSourceReader->open(DBReader<IdType>::USE_INDEX);
+        targetSourceReader = new DBReader<KeyType>(data.c_str(), index.c_str(), threads, DBReader<IdType>::USE_DATA|DBReader<IdType>::USE_INDEX);
+        targetSourceReader->open(DBReader<KeyType>::USE_INDEX);
     }
 
     ~SetSummaryAggregator() {
@@ -89,7 +89,7 @@ public:
     void prepareInput(unsigned int, unsigned int) {}
 
     std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey,
-                               unsigned int targetSetKey, unsigned int thread_idx) {
+                               KeyType targetSetKey, unsigned int thread_idx) {
         double targetGeneCount = std::strtod(targetSizeReader->getDataByDBKey(targetSetKey, thread_idx), NULL);
         double pvalThreshold = this->alpha / targetGeneCount;
         std::vector<std::pair<long, long>> genesPositions;
@@ -205,9 +205,9 @@ public:
     }
 
 private:
-    DBReader<IdType> *querySizeReader;
-    DBReader<IdType> *targetSourceReader;
-    DBReader<IdType> *targetSizeReader;
+    DBReader<KeyType> *querySizeReader;
+    DBReader<KeyType> *targetSourceReader;
+    DBReader<KeyType> *targetSizeReader;
     float alpha;
     bool shortOutput;
 };

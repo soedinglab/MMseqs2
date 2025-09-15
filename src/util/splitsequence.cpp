@@ -69,7 +69,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
         }
         char buffer[1024];
 
-        for (unsigned int i = queryFrom; i < (queryFrom + querySize); ++i) {
+        for (KeyType i = queryFrom; i < (queryFrom + querySize); ++i) {
             progress.updateProgress();
 
             KeyType key = reader.getDbKey(i);
@@ -84,7 +84,7 @@ int splitsequence(int argc, const char **argv, const Command& command) {
             loc.id = UINT_MAX;
             loc.strand = Orf::STRAND_PLUS;
             size_t from = 0;
-            unsigned int dbKey = key;
+            KeyType dbKey = key;
             if (par.headerSplitMode == 0) {
                 loc = Orf::parseOrfHeader(header);
                 if (loc.id != UINT_MAX) {

@@ -14,7 +14,7 @@ double LBinCoeff(double* lookup, int M, int k) {
 }
 
 // Precompute coefficients logB[i] = log(B[i])
-void precomputeLogB(const unsigned int orfCount, const double pvalThreshold, double* lGammaLookup, double *logB) { 
+void precomputeLogB(const KeyType orfCount, const double pvalThreshold, double* lGammaLookup, double *logB) {
     double logPvalThr = log(pvalThreshold);
     double log1MinusPvalThr = log(1 - pvalThreshold);
     logB[orfCount - 1] = orfCount * logPvalThr;
@@ -100,7 +100,7 @@ public:
 
         //0) multihit P-values
         if(aggregationMode == Parameters::AGGREGATION_MODE_MULTIHIT){
-            unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx)); 
+            KeyType orfCount = Util::fast_atoi<KeyType>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
             double pvalThreshold = alpha / (orfCount + 1);
 
             //multihit edge case p0 = 0
@@ -149,7 +149,7 @@ public:
 
         //1) the minimum of all P-values(as a baseline)
         else if(aggregationMode == Parameters::AGGREGATION_MODE_MIN_PVAL){
-            unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
+            KeyType orfCount = Util::fast_atoi<KeyType>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
             double minLogPval = 0;
             for (size_t i = 0; i < dataToAggregate.size(); ++i) { 
                 double currentLogPval = std::strtod(dataToAggregate[i][1].c_str(), NULL);
@@ -173,7 +173,7 @@ public:
         //3) the P-values of the (modified) truncated product method 
         else if(aggregationMode == Parameters::AGGREGATION_MODE_TRUNCATED_PRODUCT){
             //new theory: taking the best hit regardless of threshold and (from second hit on)sum of how much it surpassed threshold
-            unsigned int orfCount = Util::fast_atoi<unsigned int>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
+            KeyType orfCount = Util::fast_atoi<KeyType>(querySizeReader->getDataByDBKey(querySetKey, thread_idx));
             double logPvalThreshold = log(alpha / (orfCount + 1));
             double minLogPval = 0;
             double sumLogPval = 0; 

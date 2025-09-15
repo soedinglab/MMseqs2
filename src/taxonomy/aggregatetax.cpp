@@ -73,7 +73,7 @@ int aggregate(const bool useAln, int argc, const char **argv, const Command& com
             // process a specific set
             while (*results != '\0') {
                 Util::getWordsOfLine(results, entry, 255);
-                unsigned int seqKey = Util::fast_atoi<unsigned int>(entry[0]);
+                KeyType seqKey = Util::fast_atoi<KeyType>(entry[0]);
 
                 KeyType seqId = taxSeqReader.getId(seqKey);
                 if (seqId == UINT_MAX) {
