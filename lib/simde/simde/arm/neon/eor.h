@@ -23,6 +23,9 @@
  * Copyright:
  *   2020      Evan Nemerson <evan@nemerson.com>
  *   2020      Christopher Moore <moore@free.fr>
+ *   2023      Yi-Yen Chung <eric681@andestech.com> (Copyright owned by Andes Technology)
+ *   2023      Yung-Cheng Su <eric20607@gapp.nthu.edu.tw> (Copyright owned by NTHU pllab)
+ *   2023      Chi-Wei Chu <wewe5215@gapp.nthu.edu.tw> (Copyright owned by NTHU pllab)
  */
 
 #if !defined(SIMDE_ARM_NEON_EOR_H)
@@ -47,6 +50,8 @@ simde_veor_s8(simde_int8x8_t a, simde_int8x8_t b) {
 
     #if defined(SIMDE_X86_MMX_NATIVE)
       r_.m64 = _mm_xor_si64(a_.m64, b_.m64);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vxor_vv_i8m1(a_.sv64, b_.sv64, 8);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -77,6 +82,8 @@ simde_veor_s16(simde_int16x4_t a, simde_int16x4_t b) {
 
     #if defined(SIMDE_X86_MMX_NATIVE)
       r_.m64 = _mm_xor_si64(a_.m64, b_.m64);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vxor_vv_i16m1(a_.sv64, b_.sv64, 4);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -107,6 +114,8 @@ simde_veor_s32(simde_int32x2_t a, simde_int32x2_t b) {
 
     #if defined(SIMDE_X86_MMX_NATIVE)
       r_.m64 = _mm_xor_si64(a_.m64, b_.m64);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vxor_vv_i32m1(a_.sv64, b_.sv64, 2);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -137,6 +146,8 @@ simde_veor_s64(simde_int64x1_t a, simde_int64x1_t b) {
 
     #if defined(SIMDE_X86_MMX_NATIVE)
       r_.m64 = _mm_xor_si64(a_.m64, b_.m64);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vxor_vv_i64m1(a_.sv64, b_.sv64, 1);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -167,6 +178,8 @@ simde_veor_u8(simde_uint8x8_t a, simde_uint8x8_t b) {
 
     #if defined(SIMDE_X86_MMX_NATIVE)
       r_.m64 = _mm_xor_si64(a_.m64, b_.m64);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vxor_vv_u8m1(a_.sv64, b_.sv64, 8);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -197,6 +210,8 @@ simde_veor_u16(simde_uint16x4_t a, simde_uint16x4_t b) {
 
     #if defined(SIMDE_X86_MMX_NATIVE)
       r_.m64 = _mm_xor_si64(a_.m64, b_.m64);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vxor_vv_u16m1(a_.sv64, b_.sv64, 4);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -227,6 +242,8 @@ simde_veor_u32(simde_uint32x2_t a, simde_uint32x2_t b) {
 
     #if defined(SIMDE_X86_MMX_NATIVE)
       r_.m64 = _mm_xor_si64(a_.m64, b_.m64);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vxor_vv_u32m1(a_.sv64, b_.sv64, 2);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -257,6 +274,8 @@ simde_veor_u64(simde_uint64x1_t a, simde_uint64x1_t b) {
 
     #if defined(SIMDE_X86_MMX_NATIVE)
       r_.m64 = _mm_xor_si64(a_.m64, b_.m64);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vxor_vv_u64m1(a_.sv64, b_.sv64, 1);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -291,6 +310,8 @@ simde_veorq_s8(simde_int8x16_t a, simde_int8x16_t b) {
       r_.m128i = _mm_xor_si128(a_.m128i, b_.m128i);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.v128 = wasm_v128_xor(a_.v128, b_.v128);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_i8m1(a_.sv128, b_.sv128, 16);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -325,6 +346,8 @@ simde_veorq_s16(simde_int16x8_t a, simde_int16x8_t b) {
       r_.m128i = _mm_xor_si128(a_.m128i, b_.m128i);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.v128 = wasm_v128_xor(a_.v128, b_.v128);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_i16m1(a_.sv128, b_.sv128, 8);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -359,6 +382,8 @@ simde_veorq_s32(simde_int32x4_t a, simde_int32x4_t b) {
       r_.m128i = _mm_xor_si128(a_.m128i, b_.m128i);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.v128 = wasm_v128_xor(a_.v128, b_.v128);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_i32m1(a_.sv128, b_.sv128, 4);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -393,6 +418,8 @@ simde_veorq_s64(simde_int64x2_t a, simde_int64x2_t b) {
       r_.m128i = _mm_xor_si128(a_.m128i, b_.m128i);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.v128 = wasm_v128_xor(a_.v128, b_.v128);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_i64m1(a_.sv128, b_.sv128, 2);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -427,6 +454,8 @@ simde_veorq_u8(simde_uint8x16_t a, simde_uint8x16_t b) {
       r_.m128i = _mm_xor_si128(a_.m128i, b_.m128i);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.v128 = wasm_v128_xor(a_.v128, b_.v128);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_u8m1(a_.sv128, b_.sv128, 16);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -461,6 +490,8 @@ simde_veorq_u16(simde_uint16x8_t a, simde_uint16x8_t b) {
       r_.m128i = _mm_xor_si128(a_.m128i, b_.m128i);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.v128 = wasm_v128_xor(a_.v128, b_.v128);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_u16m1(a_.sv128, b_.sv128, 8);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -495,6 +526,8 @@ simde_veorq_u32(simde_uint32x4_t a, simde_uint32x4_t b) {
       r_.m128i = _mm_xor_si128(a_.m128i, b_.m128i);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.v128 = wasm_v128_xor(a_.v128, b_.v128);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_u32m1(a_.sv128, b_.sv128, 4);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -529,6 +562,8 @@ simde_veorq_u64(simde_uint64x2_t a, simde_uint64x2_t b) {
       r_.m128i = _mm_xor_si128(a_.m128i, b_.m128i);
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.v128 = wasm_v128_xor(a_.v128, b_.v128);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_u64m1(a_.sv128, b_.sv128, 2);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.values = a_.values ^ b_.values;
     #else
@@ -544,6 +579,263 @@ simde_veorq_u64(simde_uint64x2_t a, simde_uint64x2_t b) {
 #if defined(SIMDE_ARM_NEON_A32V7_ENABLE_NATIVE_ALIASES)
   #undef veorq_u64
   #define veorq_u64(a, b) simde_veorq_u64((a), (b))
+#endif
+
+// Note: EOR3 instructions are implemented only when FEAT_SHA3 is implemented.
+SIMDE_FUNCTION_ATTRIBUTES
+simde_int8x16_t
+simde_veor3q_s8(simde_int8x16_t a, simde_int8x16_t b, simde_int8x16_t c) {
+  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(SIMDE_ARCH_ARM_SHA3)
+    return veor3q_s8(a, b, c);
+  #else
+    simde_int8x16_private
+      r_,
+      a_ = simde_int8x16_to_private(a),
+      b_ = simde_int8x16_to_private(b),
+      c_ = simde_int8x16_to_private(c);
+
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_i8m1(__riscv_vxor_vv_i8m1(a_.sv128, b_.sv128, 16), c_.sv128, 16);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+      r_.values = a_.values ^ b_.values ^ c_.values;
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+        r_.values[i] = a_.values[i] ^ b_.values[i] ^ c_.values[i];
+      }
+    #endif
+
+    return simde_int8x16_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && \
+  !(defined(SIMDE_ARCH_ARM_SHA3)))
+  #undef veor3q_s8
+  #define veor3q_s8(a, b, c) simde_veor3q_s8((a), (b), (c))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde_int16x8_t
+simde_veor3q_s16(simde_int16x8_t a, simde_int16x8_t b, simde_int16x8_t c) {
+  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(SIMDE_ARCH_ARM_SHA3)
+    return veor3q_s16(a, b, c);
+  #else
+    simde_int16x8_private
+      r_,
+      a_ = simde_int16x8_to_private(a),
+      b_ = simde_int16x8_to_private(b),
+      c_ = simde_int16x8_to_private(c);
+
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_i16m1(__riscv_vxor_vv_i16m1(a_.sv128, b_.sv128, 8), c_.sv128, 8);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+      r_.values = a_.values ^ b_.values ^ c_.values;
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+        r_.values[i] = a_.values[i] ^ b_.values[i] ^ c_.values[i];
+      }
+    #endif
+
+    return simde_int16x8_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && \
+  !(defined(SIMDE_ARCH_ARM_SHA3)))
+  #undef veor3q_s16
+  #define veor3q_s16(a, b, c) simde_veor3q_s16((a), (b), (c))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde_int32x4_t
+simde_veor3q_s32(simde_int32x4_t a, simde_int32x4_t b, simde_int32x4_t c) {
+  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(SIMDE_ARCH_ARM_SHA3)
+    return veor3q_s32(a, b, c);
+  #else
+    simde_int32x4_private
+      r_,
+      a_ = simde_int32x4_to_private(a),
+      b_ = simde_int32x4_to_private(b),
+      c_ = simde_int32x4_to_private(c);
+
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_i32m1(__riscv_vxor_vv_i32m1(a_.sv128, b_.sv128, 4), c_.sv128, 4);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+      r_.values = a_.values ^ b_.values ^ c_.values;
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+        r_.values[i] = a_.values[i] ^ b_.values[i] ^ c_.values[i];
+      }
+    #endif
+
+    return simde_int32x4_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && \
+  !(defined(SIMDE_ARCH_ARM_SHA3)))
+  #undef veor3q_s32
+  #define veor3q_s32(a, b, c) simde_veor3q_s32((a), (b), (c))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde_int64x2_t
+simde_veor3q_s64(simde_int64x2_t a, simde_int64x2_t b, simde_int64x2_t c) {
+  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(SIMDE_ARCH_ARM_SHA3)
+    return veor3q_s64(a, b, c);
+  #else
+    simde_int64x2_private
+      r_,
+      a_ = simde_int64x2_to_private(a),
+      b_ = simde_int64x2_to_private(b),
+      c_ = simde_int64x2_to_private(c);
+
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_i64m1(__riscv_vxor_vv_i64m1(a_.sv128, b_.sv128, 2), c_.sv128, 2);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+      r_.values = a_.values ^ b_.values ^ c_.values;
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+        r_.values[i] = a_.values[i] ^ b_.values[i] ^ c_.values[i];
+      }
+    #endif
+
+    return simde_int64x2_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && \
+  !(defined(SIMDE_ARCH_ARM_SHA3)))
+  #undef veor3q_s64
+  #define veor3q_s64(a, b, c) simde_veor3q_s64((a), (b), (c))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde_uint8x16_t
+simde_veor3q_u8(simde_uint8x16_t a, simde_uint8x16_t b, simde_uint8x16_t c) {
+  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(SIMDE_ARCH_ARM_SHA3)
+    return veor3q_u8(a, b, c);
+  #else
+    simde_uint8x16_private
+      r_,
+      a_ = simde_uint8x16_to_private(a),
+      b_ = simde_uint8x16_to_private(b),
+      c_ = simde_uint8x16_to_private(c);
+
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_u8m1(__riscv_vxor_vv_u8m1(a_.sv128, b_.sv128, 16), c_.sv128, 16);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+      r_.values = a_.values ^ b_.values ^ c_.values;
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+        r_.values[i] = a_.values[i] ^ b_.values[i] ^ c_.values[i];
+      }
+    #endif
+
+    return simde_uint8x16_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && \
+  !(defined(SIMDE_ARCH_ARM_SHA3)))
+  #undef veor3q_u8
+  #define veor3q_u8(a, b, c) simde_veor3q_u8((a), (b), (c))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde_uint16x8_t
+simde_veor3q_u16(simde_uint16x8_t a, simde_uint16x8_t b, simde_uint16x8_t c) {
+  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(SIMDE_ARCH_ARM_SHA3)
+    return veor3q_u16(a, b, c);
+  #else
+    simde_uint16x8_private
+      r_,
+      a_ = simde_uint16x8_to_private(a),
+      b_ = simde_uint16x8_to_private(b),
+      c_ = simde_uint16x8_to_private(c);
+
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_u16m1(__riscv_vxor_vv_u16m1(a_.sv128, b_.sv128, 8), c_.sv128, 8);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+      r_.values = a_.values ^ b_.values ^ c_.values;
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+        r_.values[i] = a_.values[i] ^ b_.values[i] ^ c_.values[i];
+      }
+    #endif
+
+    return simde_uint16x8_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && \
+  !(defined(SIMDE_ARCH_ARM_SHA3)))
+  #undef veor3q_u16
+  #define veor3q_u16(a, b, c) simde_veor3q_u16((a), (b), (c))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde_uint32x4_t
+simde_veor3q_u32(simde_uint32x4_t a, simde_uint32x4_t b, simde_uint32x4_t c) {
+  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(SIMDE_ARCH_ARM_SHA3)
+    return veor3q_u32(a, b, c);
+  #else
+    simde_uint32x4_private
+      r_,
+      a_ = simde_uint32x4_to_private(a),
+      b_ = simde_uint32x4_to_private(b),
+      c_ = simde_uint32x4_to_private(c);
+
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_u32m1(__riscv_vxor_vv_u32m1(a_.sv128, b_.sv128, 4), c_.sv128, 4);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+      r_.values = a_.values ^ b_.values ^ c_.values;
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+        r_.values[i] = a_.values[i] ^ b_.values[i] ^ c_.values[i];
+      }
+    #endif
+
+    return simde_uint32x4_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && \
+  !(defined(SIMDE_ARCH_ARM_SHA3)))
+  #undef veor3q_u32
+  #define veor3q_u32(a, b, c) simde_veor3q_u32((a), (b), (c))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde_uint64x2_t
+simde_veor3q_u64(simde_uint64x2_t a, simde_uint64x2_t b, simde_uint64x2_t c) {
+  #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(SIMDE_ARCH_ARM_SHA3)
+    return veor3q_u64(a, b, c);
+  #else
+    simde_uint64x2_private
+      r_,
+      a_ = simde_uint64x2_to_private(a),
+      b_ = simde_uint64x2_to_private(b),
+      c_ = simde_uint64x2_to_private(c);
+
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vxor_vv_u64m1(__riscv_vxor_vv_u64m1(a_.sv128, b_.sv128, 2), c_.sv128, 2);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
+      r_.values = a_.values ^ b_.values ^ c_.values;
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+        r_.values[i] = a_.values[i] ^ b_.values[i] ^ c_.values[i];
+      }
+    #endif
+
+    return simde_uint64x2_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A64V8_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && \
+  !(defined(SIMDE_ARCH_ARM_SHA3)))
+  #undef veor3q_u64
+  #define veor3q_u64(a, b, c) simde_veor3q_u64((a), (b), (c))
 #endif
 
 SIMDE_END_DECLS_
