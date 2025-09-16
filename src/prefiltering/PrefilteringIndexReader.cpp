@@ -58,8 +58,9 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
                                               bool compBiasCorrection, int alphabetSize, int kmerSize, int maskMode,
                                               int maskLowerCase, float maskProb, int maskNrepeats, int kmerThr, int targetSearchMode, int splits,
                                               int indexSubset) {
-    const bool noKmerIndex = (indexSubset & Parameters::INDEX_SUBSET_NO_PREFILTER) != 0;
-    if (noKmerIndex) {
+    const bool needKmerIndex = (indexSubset & Parameters::INDEX_SUBSET_NO_PREFILTER) == 0;
+    const bool needSequenceLookup = (indexSubset & Parameters::INDEX_SUBSET_NO_SEQUENCE_LOOKUP) == 0;
+    if (needKmerIndex == false) {
         splits = 1;
     }
 
@@ -196,7 +197,7 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
 
     ScoreMatrix s3;
     ScoreMatrix s2;
-    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) == false && noKmerIndex == false) {
+    if (Parameters::isEqualDbtype(seqType, Parameters::DBTYPE_HMM_PROFILE) == false && needKmerIndex == true) {
         int alphabetSize = subMat->alphabetSize;
         subMat->alphabetSize = subMat->alphabetSize-1;
         s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
@@ -225,22 +226,23 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
         }
 
         IndexTable * indexTable;
-        if(noKmerIndex){
-            indexTable = NULL;
-        } else {
+        if(needKmerIndex){
             indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
+        } else {
+            indexTable = NULL;
         }
         SequenceLookup *sequenceLookup = NULL;
-        IndexBuilder::fillDatabase(indexTable, &sequenceLookup,
-                                   *subMat, s3, s2, &seq, dbr1, dbFrom, dbFrom + dbSize, kmerThr,
-                                   maskMode, maskLowerCase, maskProb, maskNrepeats, targetSearchMode);
-
+        if(needKmerIndex || needSequenceLookup){
+            IndexBuilder::fillDatabase(indexTable, &sequenceLookup,
+                                       *subMat, s3, s2, &seq, dbr1, dbFrom, dbFrom + dbSize, kmerThr,
+                                       maskMode, maskLowerCase, maskProb, maskNrepeats, targetSearchMode);
+        }
         if (sequenceLookup == NULL) {
             Debug(Debug::ERROR) << "Invalid mask mode. No sequence lookup created!\n";
             EXIT(EXIT_FAILURE);
         }
         unsigned int keyOffset = 1000 * s;
-        if(noKmerIndex == false){
+        if(needKmerIndex){
             indexTable->printStatistics(subMat->num2aa);
             // save the entries
             Debug(Debug::INFO) << "Write ENTRIES (" << (keyOffset + ENTRIES) << ")\n";
@@ -272,21 +274,21 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
         writer.writeData(tablesizePtr, 1 * sizeof(size_t), (keyOffset + SEQCOUNT), SPLIT_INDX + s);
         writer.alignToPageSize(SPLIT_INDX + s);
 
-        Debug(Debug::INFO) << "Write SEQINDEXDATASIZE (" << (keyOffset + SEQINDEXDATASIZE) << ")\n";
-        int64_t seqindexDataSize = sequenceLookup->getDataSize();
-        char *seqindexDataSizePtr = (char *) &seqindexDataSize;
-        writer.writeData(seqindexDataSizePtr, 1 * sizeof(int64_t), (keyOffset + SEQINDEXDATASIZE), SPLIT_INDX + s);
-        writer.alignToPageSize(SPLIT_INDX + s);
-
-        size_t *sequenceOffsets = sequenceLookup->getOffsets();
-        size_t sequenceCount = sequenceLookup->getSequenceCount();
-        Debug(Debug::INFO) << "Write SEQINDEXSEQOFFSET (" << (keyOffset + SEQINDEXSEQOFFSET) << ")\n";
-        writer.writeData((char *) sequenceOffsets, (sequenceCount + 1) * sizeof(size_t), (keyOffset + SEQINDEXSEQOFFSET), SPLIT_INDX + s);
-        writer.alignToPageSize(SPLIT_INDX + s);
-
-        Debug(Debug::INFO) << "Write SEQINDEXDATA (" << (keyOffset + SEQINDEXDATA) << ")\n";
-        writer.writeData(sequenceLookup->getData(), (sequenceLookup->getDataSize() + 1) * sizeof(char), (keyOffset + SEQINDEXDATA), SPLIT_INDX + s);
-        writer.alignToPageSize(SPLIT_INDX + s);
+        if(needSequenceLookup){
+            Debug(Debug::INFO) << "Write SEQINDEXDATASIZE (" << (keyOffset + SEQINDEXDATASIZE) << ")\n";
+            int64_t seqindexDataSize = sequenceLookup->getDataSize();
+            char *seqindexDataSizePtr = (char *) &seqindexDataSize;
+            writer.writeData(seqindexDataSizePtr, 1 * sizeof(int64_t), (keyOffset + SEQINDEXDATASIZE), SPLIT_INDX + s);
+            writer.alignToPageSize(SPLIT_INDX + s);
+            size_t *sequenceOffsets = sequenceLookup->getOffsets();
+            size_t sequenceCount = sequenceLookup->getSequenceCount();
+            Debug(Debug::INFO) << "Write SEQINDEXSEQOFFSET (" << (keyOffset + SEQINDEXSEQOFFSET) << ")\n";
+            writer.writeData((char *) sequenceOffsets, (sequenceCount + 1) * sizeof(size_t), (keyOffset + SEQINDEXSEQOFFSET), SPLIT_INDX + s);
+            writer.alignToPageSize(SPLIT_INDX + s);
+            Debug(Debug::INFO) << "Write SEQINDEXDATA (" << (keyOffset + SEQINDEXDATA) << ")\n";
+            writer.writeData(sequenceLookup->getData(), (sequenceLookup->getDataSize() + 1) * sizeof(char), (keyOffset + SEQINDEXDATA), SPLIT_INDX + s);
+            writer.alignToPageSize(SPLIT_INDX + s);
+        }
         delete sequenceLookup;
         if(indexTable != NULL){
             delete indexTable;

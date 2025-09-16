@@ -192,6 +192,7 @@ public:
     static const int INDEX_SUBSET_NO_HEADERS = 1;
     static const int INDEX_SUBSET_NO_PREFILTER = 2;
     static const int INDEX_SUBSET_NO_ALIGNMENT = 4;
+    static const int INDEX_SUBSET_NO_SEQUENCE_LOOKUP = 8;
 
 
     static std::vector<int> getOutputFormat(int formatMode, const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
