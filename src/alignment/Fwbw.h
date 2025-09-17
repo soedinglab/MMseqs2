@@ -115,14 +115,14 @@ private:
     float** blosum= nullptr; // Profile true
     float* S_prev = nullptr; // backtrace true
     float* S_curr = nullptr; // backtrace true
-    simd_float exp_go;
-    simd_float exp_ge;
+    float exp_go;
+    float exp_ge;
     float max_zm;
     float sum_exp;
     // float maxP;
     
-    simd_float vMax_zm;
-    simd_float vSum_exp;
+    
+    //simd_float vSum_exp;
     size_t colSeqLen_padding;
     
     s_align alignResult;
