@@ -236,10 +236,10 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
             IndexBuilder::fillDatabase(indexTable, &sequenceLookup,
                                        *subMat, s3, s2, &seq, dbr1, dbFrom, dbFrom + dbSize, kmerThr,
                                        maskMode, maskLowerCase, maskProb, maskNrepeats, targetSearchMode);
-        }
-        if (sequenceLookup == NULL) {
-            Debug(Debug::ERROR) << "Invalid mask mode. No sequence lookup created!\n";
-            EXIT(EXIT_FAILURE);
+            if (sequenceLookup == NULL) {
+                Debug(Debug::ERROR) << "Invalid mask mode. No sequence lookup created!\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
         unsigned int keyOffset = 1000 * s;
         if(needKmerIndex){
@@ -267,14 +267,15 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
             writer.alignToPageSize(SPLIT_INDX + s);
 
         }
-        // SEQCOUNT
-        Debug(Debug::INFO) << "Write SEQCOUNT (" << (keyOffset + SEQCOUNT) << ")\n";
-        size_t tablesize = sequenceLookup->getSequenceCount();
-        char *tablesizePtr = (char *) &tablesize;
-        writer.writeData(tablesizePtr, 1 * sizeof(size_t), (keyOffset + SEQCOUNT), SPLIT_INDX + s);
-        writer.alignToPageSize(SPLIT_INDX + s);
 
-        if(needSequenceLookup){
+        if (needSequenceLookup) {
+            // SEQCOUNT
+            Debug(Debug::INFO) << "Write SEQCOUNT (" << (keyOffset + SEQCOUNT) << ")\n";
+            size_t tablesize = sequenceLookup->getSequenceCount();
+            char *tablesizePtr = (char *) &tablesize;
+            writer.writeData(tablesizePtr, 1 * sizeof(size_t), (keyOffset + SEQCOUNT), SPLIT_INDX + s);
+            writer.alignToPageSize(SPLIT_INDX + s);
+
             Debug(Debug::INFO) << "Write SEQINDEXDATASIZE (" << (keyOffset + SEQINDEXDATASIZE) << ")\n";
             int64_t seqindexDataSize = sequenceLookup->getDataSize();
             char *seqindexDataSizePtr = (char *) &seqindexDataSize;
@@ -288,8 +289,9 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB,
             Debug(Debug::INFO) << "Write SEQINDEXDATA (" << (keyOffset + SEQINDEXDATA) << ")\n";
             writer.writeData(sequenceLookup->getData(), (sequenceLookup->getDataSize() + 1) * sizeof(char), (keyOffset + SEQINDEXDATA), SPLIT_INDX + s);
             writer.alignToPageSize(SPLIT_INDX + s);
+
+            delete sequenceLookup;
         }
-        delete sequenceLookup;
         if(indexTable != NULL){
             delete indexTable;
         }
