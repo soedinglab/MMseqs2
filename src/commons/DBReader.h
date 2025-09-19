@@ -160,6 +160,31 @@ public:
         }
     };
 
+    struct SourceEntry{
+        T id;
+        std::string fileName;
+
+        static bool compareByIdOnly(const SourceEntry& x, const SourceEntry& y) {
+            return x.id <= y.id;
+        }
+
+        static bool compareById(const SourceEntry& x, const SourceEntry& y) {
+            if (x.id < y.id)
+                return true;
+            if (y.id < x.id)
+                return false;
+             return (x.fileName < y.fileName);
+        }
+
+        static bool compareByFileNameOnly(const SourceEntry& x, const SourceEntry& y){
+            return x.fileName.compare(y.fileName) <= 0;
+        }
+
+        static bool compareByFileName(const SourceEntry& x, const SourceEntry& y) {
+            return (x.fileName < y.fileName);
+        }
+    };
+
     // = USE_DATA|USE_INDEX
     DBReader(const char* dataFileName, const char* indexFileName, int threads, int mode);
 
@@ -262,6 +287,14 @@ public:
     unsigned int getLookupFileNumber(size_t id);
     LookupEntry* getLookup() { return lookup; };
 
+    size_t getSourceSize() const;
+    std::string getSourceFileName(size_t id);
+    size_t getSourceIdByFileName(const std::string& fileName);
+    T getSourceKey(size_t id);
+
+    void sortSourceById(); // temporary way to sort source by id
+    void sortSourceByFileName(); // temporary way to sort source by filename
+
     static const int NOSORT = 0;
     static const int SORT_BY_LENGTH = 1;
     static const int LINEAR_ACCCESS = 2;
@@ -280,6 +313,8 @@ public:
     static const unsigned int USE_FREAD      = 4;
     static const unsigned int USE_LOOKUP     = 8;
     static const unsigned int USE_LOOKUP_REV = 16;
+    static const unsigned int USE_SOURCE     = 32;
+    static const unsigned int USE_SOURCE_REV = 64;
 
 
     // compressed
@@ -323,6 +358,8 @@ public:
     bool readIndex(char *data, size_t indexDataSize, Index *index, size_t & dataSize);
 
     void readLookup(char *data, size_t dataSize, LookupEntry *lookup);
+
+    void readSource(char *data, size_t dataSize, SourceEntry *source);
 
     void readIndexId(T* id, char * line, const char** cols);
 
@@ -502,6 +539,8 @@ private:
     Index * index;
     size_t lookupSize;
     LookupEntry * lookup;
+    size_t sourceSize;
+    SourceEntry * source;
     bool sortedByOffset;
 
     unsigned int * id2local;

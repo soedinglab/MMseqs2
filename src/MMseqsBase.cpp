@@ -79,6 +79,23 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2|CITATION_LINCLUST, {{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
                                                             {"clusterPrefix", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
                                                             {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
+        {"easy-proteomecluster", easyproteomecluster, &par.easyproteomeclusterworkflow, COMMAND_EASY,
+                "Cluster proteomes and identify reference proteomes",
+                "mmseqs easy-proteomecluster examples/ProteomeDBPaths.tsv(examples/fastaFile1.fa...fastaFile1.fa) result tmp\n\n"
+                "# ProteomeCluster output\n"
+                "#  - result_protein_cluster.tsv:  Results of protein clustering (linclust/cluster)\n"
+                "#  - result_proteome_cluster.tsv: Results of proteome clustering including similarity to the reference proteome \n"
+                "#  - result_protein_align.tsv: Results of protein alignments\n"
+                "#  - result_cluster_count.tsv: Number of clusters containing proteins from each proteome (from protein clustering results)\n"
+                "# Clustering multiple proteomes with linclust for protein clustering(cluster-module 0)\n"
+                "mmseqs easy-proteomecluster examples/ProteomeDBPaths.tsv(examples/fastaFile1.fa...fastaFile1.fa) result tmp --proteome-similarity 0.9 -c 0.8 --cov-mode 1 --cluster-module 0 \n"
+                "# Cascade clustering: iteratively cluster remaining proteomes with protein clustering while selecting reference proteomes\n"
+                "mmseqs easy-proteomecluster examples/ProteomeDBPaths.tsv(examples/fastaFile1.fa...fastaFile1.fa) result tmp --proteome-similarity 0.9 -c 0.8 --cov-mode 1 --proteome-cascaded-clustering 1 \n",
+                "Gyuri Kim <gyuribio@snu.ac.kr> & Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:fastaFile1[.gz|.bz2]> ... <i:fastaFileN[.gz|.bz2]> <o:clusterPrefix> <tmpDir>",
+                CITATION_MMSEQS2, {{"fastaFile[.gz|.bz2]", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::VARIADIC, &DbValidator::flatfileAndStdin },
+                                        {"outputReports", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::flatfile },
+                                        {"tmpDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"easy-taxonomy",        easytaxonomy,         &par.easytaxonomy,         COMMAND_EASY,
                 "Taxonomic classification",
                 "# Assign taxonomic labels to FASTA sequences\n"
@@ -655,6 +672,16 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
                                                            {"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
                                                            {"alignmentDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb }}},
+        {"proteomecluster",             proteomecluster,             &par.proteomecluster,             COMMAND_CLUSTPROTEOME,
+                "Cluster proteomes and identify reference proteomes",
+                NULL,
+                "Gyuri Kim <gyuribio@snu.ac.kr> & Martin Steinegger <martin.steinegger@snu.ac.kr>",
+                "<i:sequenceDB> <i:clustresultDB> <o:proteomeAlignmentResultDB> <o:proteomeClusterCountReport> <o:proteinAlignmenResultDB> ",
+                CITATION_MMSEQS2, {{"sequenceDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::sequenceDb },
+                                                                {"clustresultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
+                                                                {"proteomeAlignmentResultDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb },
+                                                                {"proteomeClusterCountReport", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb },
+                                                                {"proteinAlignmenResultDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb }}},
         {"transitivealign",      transitivealign,      &par.align,                COMMAND_ALIGNMENT,
                 "Transfer alignments via transitivity",
                 //"Infer the alignment A->C via B, B being the center sequence and A,C each pairwise aligned against B",
