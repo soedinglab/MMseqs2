@@ -319,6 +319,8 @@ Parameters::Parameters():
         PARAM_TEMPERATURE(PARAM_TEMPERATURE_ID, "--temperature", "Temperature", "Temperature for forward-backward", typeid(float), (void *) &temperature, "^(0\\.[0-9]+|[1-9][0-9]*\\.?[0-9]*)$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_BLOCKLEN(PARAM_BLOCKLEN_ID, "--blocklen", "Block length", "Block length for forward-backward", typeid(int), (void *) &blocklen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_FWBW_BACKTRACE_MODE(PARAM_FWBW_BACKTRACE_MODE_ID, "--fwbw-backtrace-mode", "Backtrace mode", "Backtrace mode 0: no backtrace, 1: local", typeid(int), (void *) &fwbwBacktraceMode, "^[01]$", MMseqsParameter::COMMAND_EXPERT),
+        // touchdb
+        PARAM_TOUCH_LOCK(PARAM_TOUCH_LOCK_ID, "--touch-lock", "Touch lock", "Lock touched database or database entries into memory. Process will not exit until killed.", typeid(bool), (void *) &touchLock, "", MMseqsParameter::COMMAND_EXPERT),
         // for modules that should handle -h themselves
         PARAM_HELP(PARAM_HELP_ID, "-h", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_HELP_LONG(PARAM_HELP_LONG_ID, "--help", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN)
@@ -1493,6 +1495,8 @@ Parameters::Parameters():
     appenddbtoindex.push_back(&PARAM_V);
 
     // touchdb
+    touchdb.push_back(&PARAM_ID_LIST);
+    touchdb.push_back(&PARAM_TOUCH_LOCK);
     touchdb.push_back(&PARAM_THREADS);
     touchdb.push_back(&PARAM_V);
 
@@ -2707,6 +2711,10 @@ void Parameters::setDefaults() {
     temperature = 1;
     blocklen = 16;
     fwbwBacktraceMode = 1;
+
+    // touchdb
+    touchLock = false;
+
     // help
     help = 0;
 

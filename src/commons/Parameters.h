@@ -740,6 +740,10 @@ public:
     float temperature;
     int blocklen;
     int fwbwBacktraceMode;
+
+    // touchdb
+    bool touchLock;
+
     // for modules that should handle -h themselves
     bool help;
 
@@ -1107,6 +1111,10 @@ public:
     PARAMETER(PARAM_TEMPERATURE)
     PARAMETER(PARAM_BLOCKLEN)
     PARAMETER(PARAM_FWBW_BACKTRACE_MODE)
+
+    // touchdb
+    PARAMETER(PARAM_TOUCH_LOCK)
+
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
     PARAMETER(PARAM_HELP_LONG)
