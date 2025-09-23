@@ -192,6 +192,7 @@ public:
     static const int INDEX_SUBSET_NO_HEADERS = 1;
     static const int INDEX_SUBSET_NO_PREFILTER = 2;
     static const int INDEX_SUBSET_NO_ALIGNMENT = 4;
+    static const int INDEX_SUBSET_NO_SEQUENCE_LOOKUP = 8;
 
 
     static std::vector<int> getOutputFormat(int formatMode, const std::string &outformat, bool &needSequences, bool &needBacktrace, bool &needFullHeaders,
@@ -476,6 +477,7 @@ public:
     int    clusterSteps;
     bool   singleStepClustering;
     int    clusterReassignment;
+    bool    clusteringSetMode;
 
     // SEARCH WORKFLOW
     int numIterations;
@@ -738,6 +740,10 @@ public:
     float temperature;
     int blocklen;
     int fwbwBacktraceMode;
+
+    // touchdb
+    bool touchLock;
+
     // for modules that should handle -h themselves
     bool help;
 
@@ -831,6 +837,7 @@ public:
     PARAMETER(PARAM_CLUSTER_STEPS)
     PARAMETER(PARAM_CASCADED)
     PARAMETER(PARAM_CLUSTER_REASSIGN)
+    PARAMETER(PARAM_CLUSTER_SET_MODE)
 
     // affinity clustering
     PARAMETER(PARAM_MAXITERATIONS)
@@ -1104,6 +1111,10 @@ public:
     PARAMETER(PARAM_TEMPERATURE)
     PARAMETER(PARAM_BLOCKLEN)
     PARAMETER(PARAM_FWBW_BACKTRACE_MODE)
+
+    // touchdb
+    PARAMETER(PARAM_TOUCH_LOCK)
+
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
     PARAMETER(PARAM_HELP_LONG)

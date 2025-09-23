@@ -124,6 +124,7 @@ int renamedbkeys(int argc, const char **argv, const Command &command) {
             mappingIt = std::upper_bound(mapping.begin(), mapping.end(), val, compareToFirst);
             if (mappingIt != mapping.end() && mappingIt->first == val.first) {
                 val.first = newKey;
+                val.second = mappingIt->second;
                 newMapping.emplace_back(val);
             }
         }

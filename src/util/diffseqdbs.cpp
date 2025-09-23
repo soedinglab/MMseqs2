@@ -1,26 +1,33 @@
-// Computes either a PSSM or a MSA from clustering or alignment result
-// For PSSMs: MMseqs just stores the position specific score in 1 byte
-
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
 #include <utility>
-
+#include <climits>
 #include "Parameters.h"
 
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Util.h"
+#include "FastSort.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
+
+struct compareSecondEntry {
+    bool
+    operator()(const std::pair<std::string, unsigned int> &lhs, const std::pair<std::string, unsigned int> &rhs) const {
+        return (lhs.second < rhs.second);
+    }
+};
+
 struct compareFirstEntry {
     bool
     operator()(const std::pair<std::string, unsigned int> &lhs, const std::pair<std::string, unsigned int> &rhs) const {
-        return (lhs.first.compare(rhs.first) <= 0);
+        return (lhs.first < rhs.first) ||
+               (lhs.first == rhs.first && lhs.second < rhs.second);
     }
 };
 
@@ -101,17 +108,45 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     }
 
     //sort by header for binary search
-    std::stable_sort(keysNew, keysNew + indexSizeNew, compareFirstEntry());
-
+    SORT_PARALLEL(keysNew, keysNew + indexSizeNew, compareFirstEntry());
+    // remove duplicates in new DB by setting the dbkey to UINT_MAX
+    for(size_t i = 0; i + 1  < indexSizeNew; ++i) {
+        if(keysNew[i].first == keysNew[i+1].first) {
+           keysNew[i+1].second = UINT_MAX;
+        }
+    }
     // default initialized with false
     bool* checkedNew = new bool[indexSizeNew]();
     // doesn't need to be initialized
     size_t *mappedIds = new size_t[indexSizeNew];
-
     bool* deletedIds = new bool[indexSizeOld]();
+
+    // copy the orignal dbKey from keysOld to originalOldKeys
+    unsigned int* originalOldKeys = new unsigned int[indexSizeOld]();
+    for (size_t i = 0; i < indexSizeOld; ++i) {
+        originalOldKeys[i] = keysOld[i].second;
+        keysOld[i].second = i;
+    }
+
+    // sorting should be the same as with orignal dbKeys since they are monotonically increasing
+    SORT_PARALLEL(keysOld, keysOld + indexSizeOld, compareFirstEntry());
+    for (size_t i = 0; i + 1 < indexSizeOld; ++i) {
+        if(keysOld[i].first == keysOld[i+1].first) {
+            deletedIds[keysOld[i+1].second] = true;
+        }
+    }
+    for (size_t i = 0; i  < indexSizeOld; ++i) {
+        keysOld[i].second = originalOldKeys[keysOld[i].second];
+    }
+    delete [] originalOldKeys;
+    // restore original order
+    SORT_PARALLEL(keysOld, keysOld + indexSizeOld, compareSecondEntry());
 
 #pragma omp parallel for schedule(dynamic, 10)
     for (size_t id = 0; id < indexSizeOld; ++id) {
+        if (deletedIds[id]) {
+            continue;
+        }
         const std::string &keyToSearch = keysOld[id].first;
         std::pair<std::string, unsigned int> *mappedKey
                 = std::lower_bound(keysNew, keysNew + indexSizeNew, keyToSearch, compareKeyToFirstEntry());
@@ -127,6 +162,17 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
         }
     }
 
+    for (size_t id = 0; id < indexSizeNew; ++id) {
+        if (keysNew[id].second == UINT_MAX) {
+            continue;
+        }
+        if (checkedNew[id]) {
+            keptSeqDBWriter << keysOld[mappedIds[id]].second << "\t" << keysNew[id].second << std::endl;
+        } else {
+            newSeqDBWriter << keysNew[id].second << std::endl;
+        }
+    }
+
     for (size_t i = 0; i < indexSizeOld; ++i) {
         if(deletedIds[i]) {
             removedSeqDBWriter << keysOld[i].second << std::endl;
@@ -134,13 +180,7 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     }
     removedSeqDBWriter.close();
 
-    for (size_t id = 0; id < indexSizeNew; ++id) {
-        if (checkedNew[id]) {
-            keptSeqDBWriter << keysOld[mappedIds[id]].second << "\t" << keysNew[id].second << std::endl;
-        } else {
-            newSeqDBWriter << keysNew[id].second << std::endl;
-        }
-    }
+
     newSeqDBWriter.close();
     keptSeqDBWriter.close();
 
@@ -149,7 +189,6 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     delete[] checkedNew;
     delete[] keysNew;
     delete[] keysOld;
-
     newReader.close();
     oldReader.close();
 
