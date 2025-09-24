@@ -39,6 +39,18 @@ if notExists "${RESULTS}_cluster_count.tsv"; then
             || fail "createtsv proteome cluster count report died"
 fi
 
+if [ -z "${CASCADED_PROTEOME_CLUSTERING}" ] && notExists "${RESULTS}_proteome_cluster.tsv"; then
+    # shellcheck disable=SC2086
+    "$MMSEQS" createtsv "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/aln_proteome" "${RESULTS}_proteome_cluster.tsv" ${THREADS_PAR} \
+            || fail "createtsv proteome cluster died"
+fi
+
+if [ -n "${PROTEOME_HIDDEN_REPORT}" ]; then
+    # shellcheck disable=SC2086
+    "$MMSEQS" createtsv "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/aln_proteome_productionReport" "${RESULTS}_proteome_cluster_production.tsv" ${THREADS_PAR} \
+            || fail "createtsv proteome cluster died"
+fi
+
 if notExists "${RESULTS}_protein_align.tsv" && [ -n "${WRITE_ALIGN_PROTEOME}" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" createtsv "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/aln_protein" "${RESULTS}_protein_align.tsv" ${THREADS_PAR} \
@@ -46,6 +58,7 @@ if notExists "${RESULTS}_protein_align.tsv" && [ -n "${WRITE_ALIGN_PROTEOME}" ];
 else
     rm -rf "${TMP_PATH}/aln_protein"*
 fi
+
 # cascade 
 awk 'NR==FNR { sub(/^\x00/, "", $1); a[$1]; next } !($1 in a)' "${TMP_PATH}/aln_proteome" "${TMP_PATH}/input.source" > "${TMP_PATH}/source_filtered"
 SOURCEtoNEXTITERATION="${TMP_PATH}/source_filtered"
@@ -54,7 +67,7 @@ STEP=2
 SUBDB_LOOKUP_LIST="${TMP_PATH}/input.lookup"
 
 # Corrected while loop condition with proper spacing and quoting
-while [ -s "$SOURCEtoNEXTITERATION" ]; do
+while [ -s "$SOURCEtoNEXTITERATION" ] && [ -n "${CASCADED_PROTEOME_CLUSTERING}" ]; do
     echo "Step $STEP: $(wc -l < "$SOURCEtoNEXTITERATION") sources left"
     # Make "sublookup_STEP" from lines in input.lookup whose 3rd field is in the set from source_filtered
     awk 'NR==FNR {sources[$1]; next} $3 in sources' "$SOURCEtoNEXTITERATION" "${SUBDB_LOOKUP_LIST}" > "${TMP_PATH}/sublookup_${STEP}"
@@ -99,6 +112,12 @@ while [ -s "$SOURCEtoNEXTITERATION" ]; do
                 || fail "createtsv proteome cluster count report died"
     fi
 
+    if [ -n "${PROTEOME_HIDDEN_REPORT}" ]; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" createtsv "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/aln_proteome_${STEP}_productionReport" "${RESULTS}_proteome_cluster_production_${STEP}.tsv" ${THREADS_PAR} \
+                || fail "createtsv proteome cluster died"
+    fi
+
     if notExists "${RESULTS}_protein_align_${STEP}.tsv" && [ -n "${WRITE_ALIGN_PROTEOME}" ]; then
         echo "Run createtsv: protein align result for iter $STEP"
         # shellcheck disable=SC2086
@@ -119,8 +138,7 @@ while [ -s "$SOURCEtoNEXTITERATION" ]; do
     STEP=$((STEP + 1))
 done
 
-echo "Run createtsv: proteome alignment result"
-if notExists "${RESULTS}_proteome_cluster.tsv"; then
+if [ -n "${CASCADED_PROTEOME_CLUSTERING}" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" createtsv "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/aln_proteome" "${RESULTS}_proteome_cluster.tsv" ${THREADS_PAR} \
             || fail "createtsv proteome cluster died"
