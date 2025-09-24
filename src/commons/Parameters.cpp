@@ -322,12 +322,16 @@ Parameters::Parameters():
         // touchdb
         PARAM_TOUCH_LOCK(PARAM_TOUCH_LOCK_ID, "--touch-lock", "Touch lock", "Lock touched database or database entries into memory. Process will not exit until killed.", typeid(bool), (void *) &touchLock, "", MMseqsParameter::COMMAND_EXPERT),
         // proteomecluster
-        PARAM_PPS_WEIGHT_FILE(PARAM_PPS_WEIGHT_FILE_ID, "--ppsWeights", "PPS Weight file name", "Weights used for proteome cluster priorization", typeid(std::string), (void*) &ppsWeightFile, "",MMseqsParameter::COMMAND_EXPERT ),
-        PARAM_WEIGHT_CLUSTER_COUNT(PARAM_WEIGHT_CLUSTER_COUNT_ID, "--weight-cluster-count", "Weight cluster count", "Weight of cluster count in clustering", typeid(float), (void *) &weightClusterCount, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PPS_WEIGHT_FILE(PARAM_PPS_WEIGHT_FILE_ID, "--ppsWeights", "PPS Weight file name", "Weights used for proteome cluster priorization", typeid(std::string), (void*) &ppsWeightFile, "",MMseqsParameter::COMMAND_HIDDEN ),
+        PARAM_WEIGHT_CLUSTER_COUNT(PARAM_WEIGHT_CLUSTER_COUNT_ID, "--weight-clustercount", "Weight cluster count", "Weight of cluster count in clustering", typeid(float), (void *) &weightClusterCount, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_PROTEOME_SIMILARITY(PARAM_PROTEOME_SIMILARITY_ID, "--proteome-similarity", "Proteome similarity", "Proteome similarity threshold", typeid(float), (void *) &proteomeSimThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_PROTEOME_RELATIVE_SIMILARITY(PARAM_PROTEOME_RELATIVE_SIMILARITY_ID, "--proteome-relative-similarity", "Proteome relative similarity", "Proteome relative similarity threshold normalized by proteome size", typeid(float), (void *) &proteomeRelativeSimThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_CLUSTPROTEOME),
         PARAM_PROTEOME_CASCADED_CLUSTERING(PARAM_PROTEOME_CASCADED_CLUSTERING_ID, "--proteome-cascaded-clustering", "Proteome cascaded clustering", "Cascaded clustering", typeid(bool), (void *) &proteomeCascadedClustering, "", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_INCLUDE_ALIGN_FILES(PARAM_INCLUDE_ALIGN_FILES_ID, "--include-align-files", "Include align files in proteomecluster", "Include align files", typeid(bool), (void *) &includeAlignFiles, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_INCLUDE_ALIGN_FILES(PARAM_INCLUDE_ALIGN_FILES_ID, "--include-align-files", "Include align files in proteomecluster", "Include align files", typeid(bool), (void *) &includeAlignFiles, "", MMseqsParameter::COMMAND_HIDDEN),
+        PARAM_PROTEOME_WEIGHT_FILE(PARAM_PROTEOME_WEIGHT_FILE_ID, "--proteome-weights", "Proteome Weight file name", "Weights used for proteome priorization", typeid(std::string), (void*) &proteomeWeightFile, "",MMseqsParameter::COMMAND_EXPERT ),
+        PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT(PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT_ID, "--proteome-weight-clustercount", "Weight cluster count in proteome clustering", "Weight of cluster count in proteome clustering", typeid(float), (void *) &proteomeWeightClusterCount, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PROTEOME_INCLUDE_ALIGN_FILES(PARAM_PROTEOME_INCLUDE_ALIGN_FILES_ID, "--proteome-include-align-files", "Include align files in proteomecluster", "Include align files", typeid(bool), (void *) &proteomeIncludeAlignFiles, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_PROTEOME_HIDDEN_REPORT(PARAM_PROTEOME_HIDDEN_REPORT_ID, "--proteome-hidden-report", "Hidden report", "Hidden proteome alignment result against the reference proteome", typeid(bool), (void *) &proteomeHiddenReport, "", MMseqsParameter::COMMAND_HIDDEN),
         // for modules that should handle -h themselves
         PARAM_HELP(PARAM_HELP_ID, "-h", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_HELP_LONG(PARAM_HELP_LONG_ID, "--help", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN)
@@ -1344,6 +1348,10 @@ Parameters::Parameters():
     proteomecluster.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     proteomecluster.push_back(&PARAM_WEIGHT_CLUSTER_COUNT);
     proteomecluster.push_back(&PARAM_PPS_WEIGHT_FILE);
+    proteomecluster.push_back(&PARAM_PROTEOME_WEIGHT_FILE);
+    proteomecluster.push_back(&PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT);
+    proteomecluster.push_back(&PARAM_PROTEOME_INCLUDE_ALIGN_FILES);
+    proteomecluster.push_back(&PARAM_PROTEOME_HIDDEN_REPORT);
     proteomecluster.push_back(&PARAM_PROTEOME_SIMILARITY);
     proteomecluster.push_back(&PARAM_PROTEOME_RELATIVE_SIMILARITY);
     proteomecluster.push_back(&PARAM_PROTEOME_CASCADED_CLUSTERING);
@@ -2760,11 +2768,15 @@ void Parameters::setDefaults() {
 
     // proteomecluster
     ppsWeightFile = "";
+    proteomeWeightFile = "";
     weightClusterCount = 0.0;
+    proteomeWeightClusterCount = 0.0;
     proteomeSimThr = 0.9;
     proteomeRelativeSimThr = 0.9;
     proteomeCascadedClustering = 0;
     includeAlignFiles = false;
+    proteomeIncludeAlignFiles = false;
+    proteomeHiddenReport = false;
 
     // help
     help = 0;

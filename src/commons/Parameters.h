@@ -749,11 +749,15 @@ public:
 
     // proteomecluster
     std::string  ppsWeightFile;
+    std::string  proteomeWeightFile;
     float        weightClusterCount;
+    float        proteomeWeightClusterCount;
     float        proteomeSimThr;      
     float        proteomeRelativeSimThr;
     bool         proteomeCascadedClustering;
     bool         includeAlignFiles;
+    bool         proteomeIncludeAlignFiles;
+    bool         proteomeHiddenReport;
 
     // for modules that should handle -h themselves
     bool help;
@@ -1135,6 +1139,10 @@ public:
     PARAMETER(PARAM_PROTEOME_RELATIVE_SIMILARITY)
     PARAMETER(PARAM_PROTEOME_CASCADED_CLUSTERING)
     PARAMETER(PARAM_INCLUDE_ALIGN_FILES)
+    PARAMETER(PARAM_PROTEOME_WEIGHT_FILE)
+    PARAMETER(PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT)
+    PARAMETER(PARAM_PROTEOME_INCLUDE_ALIGN_FILES)
+    PARAMETER(PARAM_PROTEOME_HIDDEN_REPORT)
 
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
