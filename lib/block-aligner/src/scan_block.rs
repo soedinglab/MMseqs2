@@ -12,6 +12,9 @@ use crate::simd128::*;
 #[cfg(feature = "simd_neon")]
 use crate::neon::*;
 
+#[cfg(feature = "no_simd")]
+use crate::fallback::*;
+
 use crate::scores::*;
 use crate::cigar::*;
 
@@ -365,39 +368,82 @@ macro_rules! align_core_gen {
 
                 if off_max > best_max {
                     if X_DROP {
-                        // TODO: move outside loop
-                        // calculate location with the best score
-                        let lane_idx = simd_hargmax_i16(D_max, D_max_max);
-                        let idx_i = simd_slow_extract_i16(D_argmax_i, lane_idx) as usize;
-                        let idx_j = simd_slow_extract_i16(D_argmax_j, lane_idx) as usize;
-                        let r = idx_i + lane_idx;
-                        let c = (block_size - STEP) + idx_j;
+                        let mut best_i: usize = 0;
+                        let mut best_j: usize = 0;
 
-                        match dir {
-                            Direction::Right => {
-                                best_argmax_i = state.i + r;
-                                best_argmax_j = state.j + c;
-                            },
-                            Direction::Down => {
-                                best_argmax_i = state.i + c;
-                                best_argmax_j = state.j + r;
-                            },
-                            Direction::Grow => {
-                                // max could be in either block
-                                if D_max_max >= grow_max {
-                                    // grow right
-                                    best_argmax_i = state.i + idx_i + lane_idx;
-                                    best_argmax_j = state.j + prev_size + idx_j;
-                                } else {
-                                    // grow down
-                                    let lane_idx = simd_hargmax_i16(grow_D_max, grow_max);
-                                    let idx_i = simd_slow_extract_i16(grow_D_argmax_i, lane_idx) as usize;
-                                    let idx_j = simd_slow_extract_i16(grow_D_argmax_j, lane_idx) as usize;
-                                    best_argmax_i = state.i + prev_size + idx_j;
-                                    best_argmax_j = state.j + idx_i + lane_idx;
+                        fn compare(i: usize, j: usize, min_i: usize, min_j: usize) -> bool {
+                            if j != min_j {
+                                return j > min_j
+                            }
+                            return i > min_i
+
+                        }
+                        
+                        let (grow, curr_max, curr_d_max, curr_d_argmax_i, curr_d_argmax_j) = if dir == Direction::Grow && D_max_max < grow_max {
+                            (true, grow_max, grow_D_max, grow_D_argmax_i, grow_D_argmax_j)
+                        } else {
+                            (false, D_max_max, D_max, D_argmax_i, D_argmax_j)
+                        };
+                        #[cfg(feature = "debug")]
+                        {
+                            print!("D_max: ");
+                            simd_dbg_i16(curr_d_max);
+                            println!("D_max_max: {}", curr_max);
+                            print!("D_argmax_i: ");
+                            simd_dbg_i16(curr_d_argmax_i);
+                            print!("D_argmax_j: ");
+                            simd_dbg_i16(curr_d_argmax_j);
+                        }
+
+                        #[repr(align(32))]
+                        struct A([i16; L]);
+
+                        let mut curr_d_max_buf = A([0i16; L]);
+                        simd_store(curr_d_max_buf.0.as_mut_ptr() as *mut Simd, curr_d_max);
+
+                        let mut curr_d_argmax_i_buf = A([0i16; L]);
+                        simd_store(curr_d_argmax_i_buf.0.as_mut_ptr() as *mut Simd, curr_d_argmax_i);
+
+                        let mut curr_d_argmax_j_buf = A([0i16; L]);
+                        simd_store(curr_d_argmax_j_buf.0.as_mut_ptr() as *mut Simd, curr_d_argmax_j);
+
+                        
+                        for lane_idx in 0..L {
+                            let val = curr_d_max_buf.0[lane_idx];
+                            if val != curr_max {
+                                continue;
+                            }
+
+                            let idx_i = curr_d_argmax_i_buf.0[lane_idx] as usize;
+                            let idx_j = curr_d_argmax_j_buf.0[lane_idx] as usize;
+
+                            let r = idx_i + lane_idx;
+                            let c = (block_size - STEP) + idx_j;
+
+                            let (gi, gj) =  if grow {
+                                (state.i + prev_size + idx_j, state.j + idx_i + lane_idx)
+                            } else {
+                                match dir {
+                                    Direction::Right => {
+                                        (state.i + r, state.j + c)
+                                    },
+                                    Direction::Down => {
+                                        (state.i + c, state.j + r)
+                                    },
+                                    Direction::Grow => {
+                                        (state.i + idx_i + lane_idx, state.j + prev_size + idx_j)
+                                    }
                                 }
+                            };
+
+                            if compare(gi, gj, best_i, best_j) {
+                                best_i = gi;
+                                best_j = gj;
                             }
                         }
+                        (best_argmax_i, best_argmax_j) = (best_i, best_j);
+                        #[cfg(feature = "debug")]
+                        println!("best_argmax_i: {}, best_argmax_j: {}, down", best_argmax_i, best_argmax_j);
                     }
 
                     if block_size < state.max_size {

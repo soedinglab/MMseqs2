@@ -1,4 +1,4 @@
-#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
 use parasailors::{Matrix, *};
 
 use block_aligner::scan_block::*;
@@ -50,7 +50,7 @@ fn get_data(file_name: Option<&str>) -> Vec<(Vec<u8>, Vec<u8>)> {
     }
 }
 
-#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
 #[allow(dead_code)]
 fn bench_parasailors_nuc_core(file: bool, _trace: bool, _max_size: usize) -> (i32, Duration) {
     let file_data = get_data(if file { Some(&FILE_NAME) } else { None });
