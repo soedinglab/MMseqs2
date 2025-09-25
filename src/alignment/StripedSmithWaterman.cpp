@@ -266,7 +266,7 @@ s_align SmithWaterman::ssw_align_private (
 	}
 
 	// run overflowing alignments with Smith-Waterman instead of block aligner
-	if (r.word == 2) {
+	if (align.word == 2) {
 		return alignStartPosBacktrace<type>(db_sequence, db_length, gap_open, gap_extend, alignmentMode, backtrace, align, evaluer, covMode, covThr, correlationScoreWeight, maskLen);
 	}
 
