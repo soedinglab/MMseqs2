@@ -88,19 +88,25 @@ pub mod neon;
 #[cfg(feature = "simd_neon")]
 pub use neon::L;
 
-#[cfg(any(feature = "simd_sse2", feature = "simd_avx2", feature = "simd_wasm", feature = "simd_neon"))]
+#[cfg(feature = "no_simd")]
+#[macro_use]
+#[doc(hidden)]
+/// cbindgen:ignore
+pub mod fallback;
+
+#[cfg(feature = "no_simd")]
+pub use fallback::L;
+
+#[cfg(any(feature = "no_simd", feature = "simd_sse2", feature = "simd_avx2", feature = "simd_wasm", feature = "simd_neon"))]
 pub mod scan_block;
-#[cfg(any(feature = "simd_sse2", feature = "simd_avx2", feature = "simd_wasm", feature = "simd_neon"))]
+#[cfg(any(feature = "no_simd", feature = "simd_sse2", feature = "simd_avx2", feature = "simd_wasm", feature = "simd_neon"))]
 pub mod scores;
-#[cfg(any(feature = "simd_sse2", feature = "simd_avx2", feature = "simd_wasm", feature = "simd_neon"))]
+#[cfg(any(feature = "no_simd", feature = "simd_sse2", feature = "simd_avx2", feature = "simd_wasm", feature = "simd_neon"))]
 pub mod cigar;
 
-#[cfg(any(feature = "simd_sse2", feature = "simd_avx2", feature = "simd_wasm", feature = "simd_neon"))]
+#[cfg(any(feature = "no_simd", feature = "simd_sse2", feature = "simd_avx2", feature = "simd_wasm", feature = "simd_neon"))]
 #[doc(hidden)]
 pub mod ffi;
-
-#[cfg(not(any(feature = "no_simd", feature = "simd_sse2", feature = "simd_avx2", feature = "simd_wasm", feature = "simd_neon")))]
-compile_error!("No SIMD feature flag specified! Specify \"no_simd\" to disable all SIMD features.");
 
 /// Calculate the percentage of a length, rounded to the next power of two.
 ///

@@ -1,13 +1,13 @@
-#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
 use parasailors::{Matrix, *};
 
-#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
 use rust_wfa2::aligner::*;
 
-#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
 use edlib_rs::edlibrs::*;
 
-#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
 use ksw2_sys::*;
 
 use block_aligner::percent_len;
@@ -36,7 +36,7 @@ fn get_data(file_name: &str) -> Vec<(Vec<u8>, Vec<u8>)> {
     res
 }
 
-#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
 fn bench_parasailors(file: &str) -> f64 {
     let file_data = get_data(file);
     let matrix = Matrix::create("ACGNT", 2, -4);
@@ -57,7 +57,7 @@ fn bench_parasailors(file: &str) -> f64 {
     total_time
 }
 
-#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
 fn bench_wfa2(file: &str, use_heuristic: bool) -> f64 {
     let data = get_data(file);
 
@@ -79,7 +79,7 @@ fn bench_wfa2(file: &str, use_heuristic: bool) -> f64 {
     total_time
 }
 
-#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
 fn bench_edlib(file: &str) -> f64 {
     let data = get_data(file);
 
@@ -95,7 +95,7 @@ fn bench_edlib(file: &str) -> f64 {
     total_time
 }
 
-#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+#[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
 fn bench_ksw2(file: &str, band_width_percent: f32) -> f64 {
     let lut = {
         let mut l = [0u8; 128];
@@ -183,13 +183,13 @@ fn main() {
             println!("{}, ours ({}), {}", name, if g { "1%-10%" } else { "1%-1%" }, t);
         }
 
-        #[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+        #[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
         {
             let t = bench_edlib(file);
             println!("{}, edlib, {}", name, t);
         }
 
-        #[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+        #[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
         {
             for &b in &band_widths {
                 let t = bench_ksw2(file, b);
@@ -197,7 +197,7 @@ fn main() {
             }
         }
 
-        #[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+        #[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
         {
             let t = bench_wfa2(file, false);
             println!("{}, wfa2, {}", name, t);
@@ -207,7 +207,7 @@ fn main() {
         }
 
         if run_parasail {
-            #[cfg(not(any(feature = "simd_wasm", feature = "simd_neon")))]
+            #[cfg(not(any(feature = "simd_wasm", feature = "simd_neon", feature = "no_simd")))]
             {
                 let t = bench_parasailors(file);
                 println!("{}, parasail, {}", name, t);

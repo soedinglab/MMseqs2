@@ -73,7 +73,7 @@ fn test(file_name: &str, min_size: usize, max_size: usize, string: &str, verbose
                     q,
                     r.len(),
                     r,
-                    bio_alignment.pretty(q.as_bytes(), r.as_bytes()),
+                    bio_alignment.pretty(q.as_bytes(), r.as_bytes(), 1_000_000_000),
                     a_pretty,
                     b_pretty
                 );

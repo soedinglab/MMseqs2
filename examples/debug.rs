@@ -41,6 +41,6 @@ fn main() {
         scan_cigar,
         a,
         b,
-        bio_alignment.pretty(&q, &r)
+        bio_alignment.pretty(&q, &r, 1_000_000_000)
     );
 }
