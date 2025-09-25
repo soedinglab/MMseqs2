@@ -265,11 +265,13 @@ s_align SmithWaterman::ssw_align_private (
 		return align;
 	}
 
-	bool blockAlignFailed = false;
-	s_align alignTmp;
-	// Run BlockAligner
-	alignTmp=alignStartPosBacktraceBlock<type>(db_sequence, db_length, gap_open, gap_extend, backtrace, align);
+	// run overflowing alignments with Smith-Waterman instead of block aligner
+	if (r.word == 2) {
+		return alignStartPosBacktrace<type>(db_sequence, db_length, gap_open, gap_extend, alignmentMode, backtrace, align, evaluer, covMode, covThr, correlationScoreWeight, maskLen);
+	}
 
+	bool blockAlignFailed = false;
+	s_align alignTmp = alignStartPosBacktraceBlock<type>(db_sequence, db_length, gap_open, gap_extend, backtrace, align);
 	if (align.score1 == UINT32_MAX) {
 		blockAlignFailed = true;
 	} else {
@@ -277,7 +279,7 @@ s_align SmithWaterman::ssw_align_private (
 	}
 
 	if (blockAlignFailed) {
-		Debug(Debug::WARNING) << "Block alignment failed, falling back to normal alignment.\n";
+		Debug(Debug::WARNING) << "Block alignment failed, falling back to Smith-Waterman\n";
 		align = alignStartPosBacktrace<type>(db_sequence, db_length, gap_open, gap_extend, alignmentMode, backtrace, align, evaluer, covMode, covThr, correlationScoreWeight, maskLen);
 	}
 
