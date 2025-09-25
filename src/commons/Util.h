@@ -356,7 +356,7 @@ public:
     static std::string removeWhiteSpace(std::string in);
 
     static std::map<unsigned int, std::string> readLookup(const std::string& lookupFile,
-                                                          const bool removeSplit = false);
+                                                          const unsigned char removeSplit = 0);
 
     static bool canBeCovered(const float covThr, const int covMode, float queryLength, float targetLength);
 

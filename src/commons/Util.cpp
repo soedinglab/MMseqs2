@@ -439,8 +439,7 @@ int Util::omp_thread_count() {
     n += 1;
     return n;
 }
-
-std::map<unsigned int, std::string> Util::readLookup(const std::string& file, const bool removeSplit) {
+std::map<unsigned int, std::string> Util::readLookup(const std::string& file, const unsigned char removeSplit) {
     std::map<unsigned int, std::string> mapping;
     if (file.length() > 0) {
         std::ifstream mappingStream(file);
@@ -456,9 +455,20 @@ std::map<unsigned int, std::string> Util::readLookup(const std::string& file, co
 
             std::string& name = split[1];
 
-            size_t pos;
-            if (removeSplit && (pos = name.find_last_of('_')) != std::string::npos) {
-                name = name.substr(0, pos);
+            switch (removeSplit) {
+                case 1: { // Underscore
+                    size_t pos = name.find_last_of('_');
+                    if (pos != std::string::npos) name = name.substr(0, pos);
+                    break;
+                }
+                case 2: { // Dot
+                    size_t pos = name.find_last_of('.');
+                    if (pos != std::string::npos) name = name.substr(0, pos);
+                    break;
+                }
+                case 0: // None
+                default:
+                    break;
             }
 
             mapping.emplace(id, name);
@@ -467,7 +477,6 @@ std::map<unsigned int, std::string> Util::readLookup(const std::string& file, co
 
     return mapping;
 }
-
 
 std::string Util::removeWhiteSpace(std::string in) {
     in.erase(std::remove_if(in.begin(), in.end(), isspace), in.end());
