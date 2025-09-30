@@ -35,6 +35,14 @@
 
 #define MAX_SIZE 4096
 
+struct s_block{
+	PaddedBytes* query;
+	PosBias* query_bias;
+	AAMatrix* mat_aa;
+	BlockHandle block_trace;
+	int16_t* query_bias_arr;
+};
+
 SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection,
                              float aaBiasCorrectionScale, SubstitutionMatrix * subMat) {
 	maxSequenceLength += 1;
@@ -83,7 +91,8 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
 	memset(profile->mat_rev, 0, maxSequenceLength * aaSize);
 	memset(profile->composition_bias, 0, maxSequenceLength * sizeof(int8_t));
 	memset(profile->composition_bias_rev, 0, maxSequenceLength * sizeof(int8_t));
-	// set up blockaligner
+
+	// blockaligner
 	block = new s_block();
 	block->query = block_new_padded_aa(maxSequenceLength, MAX_SIZE);
 	block->query_bias = block_new_pos_bias(maxSequenceLength, MAX_SIZE);

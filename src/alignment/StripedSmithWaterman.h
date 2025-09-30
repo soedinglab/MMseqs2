@@ -45,7 +45,8 @@
 
 #include "Sequence.h"
 #include "EvalueComputation.h"
-#include "block_aligner.h"
+
+struct s_block;
 
 typedef struct {
     short qStartPos;
@@ -115,14 +116,6 @@ public:
         short ** profile_word_linear;
         int32_t ** profile_int_linear;
         simd_int *target_profile_byte;
-    };
-
-    struct s_block{
-        PaddedBytes* query;
-        PosBias* query_bias;
-        AAMatrix* mat_aa;
-        BlockHandle block_trace;
-        int16_t* query_bias_arr;
     };
 
     // prints a __m128 vector containing 8 signed shorts
