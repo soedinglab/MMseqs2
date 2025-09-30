@@ -115,7 +115,6 @@ public:
         uint8_t bias;
         short ** profile_word_linear;
         int32_t ** profile_int_linear;
-        simd_int *target_profile_byte;
     };
 
     // prints a __m128 vector containing 8 signed shorts
@@ -249,7 +248,6 @@ public:
    mat is the pointer to the array {2, -2, -2, -2, -2, 2, -2, -2, -2, -2, 2, -2, -2, -2, -2, 2}
    */
     void ssw_init(const Sequence *q, const int8_t *mat, const BaseMatrix *m);
-    void ssw_initTarget(const Sequence *q, const int8_t *mat, const BaseMatrix *m);
 
     static char cigar_int_to_op (uint32_t cigar_int);
 
@@ -298,7 +296,6 @@ private:
     uint8_t * maxColumn;
 
     // target variables
-    simd_int* target_profile_byte;
     int segSize;
 
     // needed for type checking query and target databases
