@@ -292,7 +292,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
 
             std::vector<Matcher::result_t> swResults;
             swResults.reserve(300);
-            Matcher matcher(querySeqType, targetSeqType, maxMatcherSeqLen, m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, correlationScoreWeight, zdrop);
+            Matcher matcher(querySeqType, maxMatcherSeqLen, m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, correlationScoreWeight, zdrop);
 
             std::vector<Matcher::result_t> swRealignResults;
             Matcher *realigner = NULL;
@@ -300,7 +300,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex, con
                 swRealignResults.reserve(300);
                 realigner = &matcher;
                 if (realign_m != NULL) {
-                    realigner = new Matcher(querySeqType, targetSeqType, maxMatcherSeqLen, realign_m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, 0.0, zdrop);
+                    realigner = new Matcher(querySeqType, maxMatcherSeqLen, realign_m, &evaluer, compBiasCorrection, compBiasCorrectionScale, gapOpen, gapExtend, 0.0, zdrop);
                 }
             }
 

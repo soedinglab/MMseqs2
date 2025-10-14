@@ -138,7 +138,7 @@ else ()
     message("-- OMPTL sorting fallback")
 endif ()
 
-target_link_libraries(mmseqs-framework tinyexpr ${ZSTD_LIBRARIES} microtar tantan)
+target_link_libraries(mmseqs-framework tinyexpr ${ZSTD_LIBRARIES} microtar tantan block_aligner_c)
 # if (CYGWIN)
 #     target_link_libraries(mmseqs-framework nedmalloc)
 # endif ()

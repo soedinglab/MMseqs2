@@ -147,7 +147,7 @@ int result2profile(int argc, const char **argv, const Command &command, bool ret
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        Matcher matcher(qDbr->getDbtype(), tDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation,
+        Matcher matcher(qDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation,
                         par.compBiasCorrection, par.compBiasCorrectionScale,
                         par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0, par.zdrop);
         Masker masker(subMat);

@@ -45,6 +45,11 @@ jobs:
       - checkout: self
         submodules: true
       - script: |
+          rustup update
+          rustup target install x86_64-apple-darwin
+          rustup target install aarch64-apple-darwin
+        displayName: Install Rust Toolchain
+      - script: |
           cd ${BUILD_SOURCESDIRECTORY}
           ./util/build_osx.sh . build
         displayName: Build MMseqs2
@@ -89,14 +94,13 @@ jobs:
           STATIC: 0
           MPI: 0
           BUILD_TYPE: ASanOpt
-
     steps:
       - checkout: self
         submodules: true
       - script: |
           # sudo add-apt-repository ppa:ubuntu-toolchain-r/test
           sudo apt-get update
-          sudo apt-get install -y gcc-11 g++-11 libgcc-11-dev build-essential
+          sudo apt-get install -y gcc-11 g++-11 libgcc-11-dev rustc cargo build-essential
         retryCountOnTaskFailure: "2"
         displayName: Install newer G++
       - script: |
@@ -197,6 +201,7 @@ jobs:
           HEREDOC
           sudo apt-get update
           sudo apt-get -y install -o APT::Immediate-Configure=false crossbuild-essential-$ARCH zlib1g-dev:$ARCH libbz2-dev:$ARCH
+          rustup target add ${CPREF}-unknown-linux-gnu
         retryCountOnTaskFailure: "2"
         displayName: Install Toolchain
       - script: |
@@ -205,6 +210,7 @@ jobs:
           CC=${CPREF}-linux-gnu-gcc CXX=${CPREF}-linux-gnu-g++ \
            cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 -DFORCE_STATIC_DEPS=1 \
             -DOpenMP_C_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY=${LIBGOMP}/libgomp.a \
+            -DRust_CARGO_TARGET=${CPREF}-unknown-linux-gnu \
             -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 ..
           make -j $(nproc --all)
         displayName: Build MMseqs2
@@ -215,6 +221,8 @@ jobs:
 
   - job: build_windows
     displayName: Windows
+    # TODO: no rust support in cygwin yet, re-enable soon
+    condition: 'false'
     pool:
       vmImage: 'windows-2019'
     variables:
@@ -279,7 +287,7 @@ jobs:
       - build_ubuntu
       - build_ubuntu_gpu
       - build_ubuntu_cross
-      - build_windows
+      # - build_windows
     steps:
       - script: |
           cd "${BUILD_SOURCESDIRECTORY}"
@@ -405,19 +413,19 @@ jobs:
           archiveType: tar
       - script:
           rm "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
-      - task: DownloadPipelineArtifact@1
-        inputs:
-          artifactName: mmseqs-win64
-          targetPath: $(Build.SourcesDirectory)
-      - script: |
-          unzip "${BUILD_SOURCESDIRECTORY}/mmseqs-win64.zip"
-          chmod +x mmseqs/mmseqs.bat mmseqs/bin/*
-      - task: ArchiveFiles@2
-        inputs:
-          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
-          archiveFile: $(Build.SourcesDirectory)/mmseqs-win64.zip
-          includeRootFolder: true
-          archiveType: zip
+      # - task: DownloadPipelineArtifact@1
+      #   inputs:
+      #     artifactName: mmseqs-win64
+      #     targetPath: $(Build.SourcesDirectory)
+      # - script: |
+      #     unzip "${BUILD_SOURCESDIRECTORY}/mmseqs-win64.zip"
+      #     chmod +x mmseqs/mmseqs.bat mmseqs/bin/*
+      # - task: ArchiveFiles@2
+      #   inputs:
+      #     rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+      #     archiveFile: $(Build.SourcesDirectory)/mmseqs-win64.zip
+      #     includeRootFolder: true
+      #     archiveType: zip
       - task: DownloadSecureFile@1
         inputs:
           secureFile: secretKeyPleaseDontSteal
@@ -430,6 +438,8 @@ jobs:
           cp mmseqs/userguide.pdf userguide.pdf
           # disabled: mmseqs-linux-ppc64le-power8.tar.gz
           # -F file[]=@mmseqs-linux-ppc64le-power8.tar.gz -F signature[]=@mmseqs-linux-ppc64le-power8.tar.gz.sig
+          # mmseqs-win64.zip
+          # -F file[]=@mmseqs-win64.zip  -F signature[]=@mmseqs-win64.zip.sig
           ssh-keygen -Y sign -f ~/.ssh/id_rsa -n file \
             userguide.pdf \
             mmseqs-osx-universal.tar.gz \
@@ -439,8 +449,7 @@ jobs:
             mmseqs-linux-gpu.tar.gz \
             mmseqs-linux-gpu-arm64.tar.gz \
             mmseqs-linux-arm64.tar.gz \
-            mmseqs-linux-ppc64le-power9.tar.gz \
-            mmseqs-win64.zip
+            mmseqs-linux-ppc64le-power9.tar.gz
           curl --fail --retry 5 --retry-all-errors -X POST \
             -F file[]=@userguide.pdf -F signature[]=@userguide.pdf.sig \
             -F file[]=@mmseqs-osx-universal.tar.gz -F signature[]=@mmseqs-osx-universal.tar.gz.sig \
@@ -451,7 +460,6 @@ jobs:
             -F file[]=@mmseqs-linux-gpu-arm64.tar.gz -F signature[]=@mmseqs-linux-gpu-arm64.tar.gz.sig \
             -F file[]=@mmseqs-linux-arm64.tar.gz -F signature[]=@mmseqs-linux-arm64.tar.gz.sig \
             -F file[]=@mmseqs-linux-ppc64le-power9.tar.gz -F signature[]=@mmseqs-linux-ppc64le-power9.tar.gz.sig \
-            -F file[]=@mmseqs-win64.zip  -F signature[]=@mmseqs-win64.zip.sig \
             -F identifier="mmseqs" -F directory="${BUILD_SOURCEVERSION}" \
               https://mmseqs.com/upload
 

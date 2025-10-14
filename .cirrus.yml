@@ -5,10 +5,13 @@ task:
   name: FreeBSD
   freebsd_instance:
     image_family: freebsd-14-2-snap
-  install_script: pkg install -y cmake git samtools
+  install_script: |
+    # pkg update -f
+    pkg install -y cmake git samtools rust
+    export PATH=/usr/local/bin:$PATH
   compile_script: |
     mkdir build && cd build
-    cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_SSE4_1=1 ..
+    cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=1 -DHAVE_SSE4_1=1 -DRust_COMPILER=/usr/local/bin/rustc ..
     make -j $(sysctl -n hw.ncpu)
   test_script: ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH
 
@@ -24,7 +27,9 @@ task:
         echo "deb [trusted=yes] http://archive.debian.org/debian jessie main" > /etc/apt/sources.list
         echo "deb [trusted=yes] http://archive.debian.org/debian-security jessie/updates main" >> /etc/apt/sources.list
         apt-get update --yes --force-yes || true
-        apt-get install wget clang-4.0 libc++-dev make git ca-certificates --yes --force-yes --no-install-suggests --no-install-recommends
+        apt-get install -y --no-install-suggests --no-install-recommends wget clang-4.0 libc++-dev make git ca-certificates curl
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        export PATH=/root/.cargo/bin:$PATH
       env:
         CC: clang-4.0
         CXX: clang++-4.0
@@ -33,20 +38,24 @@ task:
         echo "deb [trusted=yes] http://archive.debian.org/debian jessie main" > /etc/apt/sources.list
         echo "deb [trusted=yes] http://archive.debian.org/debian-security jessie/updates main" >> /etc/apt/sources.list
         apt-get update --yes --force-yes || true
-        apt-get install wget gcc-4.9 g++-4.9 make git ca-certificates --yes --force-yes --no-install-suggests --no-install-recommends
+        apt-get install -y --no-install-suggests --no-install-recommends wget gcc-4.9 g++-4.9 make git ca-certificates curl
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        export PATH=/root/.cargo/bin:$PATH
       env:
         CC: gcc-4.9
         CXX: g++-4.9
+
   compile_script: |
     mkdir -p /opt/cmake-3.31.0
     wget https://cmake.org/files/v3.31/cmake-3.31.0-linux-x86_64.sh
     chmod +x cmake-3.31.0-linux-x86_64.sh
     ./cmake-3.31.0-linux-x86_64.sh --skip-license --prefix=/opt/cmake-3.31.0
     export PATH=/opt/cmake-3.31.0/bin/:$PATH
+    export PATH=/root/.cargo/bin:$PATH
     mkdir build && cd build
-    cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=0 -DHAVE_SSE4_1=1 -DREQUIRE_OPENMP=0 ..
+    cmake -DCMAKE_BUILD_TYPE=Release -DHAVE_TESTS=1 -DENABLE_WERROR=0 -DHAVE_SSE4_1=1 -DREQUIRE_OPENMP=0 -DRust_COMPILER=/root/.cargo/bin/rustc ..
     make -j $(nproc --all)
   test_script: |
     export PATH=/opt/cmake-3.31.0/bin/:$PATH
+    export PATH=/root/.cargo/bin:$PATH
     MMSEQS_NUM_THREADS=4 ./util/regression/run_regression.sh ./build/src/mmseqs SCRATCH SEARCH
-
