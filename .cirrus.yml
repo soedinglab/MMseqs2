@@ -6,7 +6,7 @@ task:
   freebsd_instance:
     image_family: freebsd-14-2-snap
   install_script: |
-    pkg update -f
+    # pkg update -f
     pkg install -y cmake git samtools rust
     export PATH=/usr/local/bin:$PATH
   compile_script: |
