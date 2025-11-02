@@ -18,7 +18,7 @@ static uint32_t be32(const unsigned char *p) {
 }
 
 static inline char iupacFromMask(unsigned char m) {
-    static const char LUT[16] = {'-', 'A','C','M','G','R','S','V','T','W','Y','H','K','D','B','N'};
+    static const char LUT[16] = {'N', 'A','C','M','G','R','S','V','T','W','Y','H','K','D','B','N'};
     if (m < 16) {
         return LUT[m];
     }
@@ -964,11 +964,91 @@ static bool parseDbtag(const unsigned char *b, size_t n, size_t nodePos, SeqId &
     return (gotDb || !out.tag.empty());
 }
 
+// parse Seq-id::pdb { mol, chain, rel }
+static bool parsePdbSeqId(const unsigned char *b, size_t n, size_t nodePos, SeqId &out) {
+    Tlv t;
+    size_t nxt;
+    if (!skipValue(b, n, nodePos, t, nxt)) {
+        return false;
+    }
+
+    std::string mol;
+    std::string chainId;
+    std::string chainLegacy;
+
+    // walk children of PDB-seq-id
+    size_t p = t.vpos;
+    while (true) {
+        if ((t.len >= 0 && p >= t.vpos + (size_t)t.len) || (t.len < 0 && isEoc(b, n, p))) {
+            break;
+        }
+
+        Tlv ch;
+        size_t cn;
+        if (!skipValue(b, n, p, ch, cn)) {
+            break;
+        }
+
+        if (ch.cls == CLS_CTX) {
+            unsigned char nt = tagNum(ch.tag);
+            if (nt == 0 && mol.empty()) {
+                // [0] mol-id (VisibleString)
+                std::string s;
+                if (getVisibleUtf8String(b, n, p, s)) {
+                    mol = s;
+                }
+            } else if (nt == 1 && chainLegacy.empty()) {
+                // [1] legacy chain (CHOICE { char VisibleString | num INTEGER })
+                std::string s;
+                if (getVisibleUtf8String(b, n, p, s) && !s.empty()) {
+                    chainLegacy = s;
+                } else {
+                    long v = 0;
+                    if (getInteger(b, n, p, v)) {
+                        chainLegacy.assign(1, static_cast<char>(v));
+                    }
+                }
+            } else if (nt == 3 && chainId.empty()) {
+                // [2] ignored rel (Date-std)
+                // [3] any length chain-id (VisibleString)
+                std::string s;
+                if (getVisibleUtf8String(b, n, p, s)) {
+                    chainId = s;
+                }
+            }
+        }
+        p = cn;
+    }
+
+    if (mol.empty()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < mol.size(); ++i) {
+        mol[i] = std::toupper((unsigned char)mol[i]);
+    }
+
+    std::string chain = !chainId.empty() ? chainId : chainLegacy;
+    out.accession = chain.empty() ? mol : (mol + "_" + chain);
+    out.name.clear();
+    out.release.clear();
+    out.version.clear();
+    out.db.clear();
+    out.tag.clear();
+
+    return true;
+}
+
+
 static bool parseSeqId(const unsigned char *b, size_t n, unsigned char ctag, size_t vpos, long vlen, SeqId &out) {
     (void)vlen;
 
     out.which = (int)tagNum(ctag);
     out.type  = typeFromChoice(out.which);
+
+    if (out.which == 14) {
+        return parsePdbSeqId(b, n, vpos, out);
+    }
 
     bool isTextseq =
         (out.which == 4 || out.which == 5 || out.which == 6 || out.which == 7 || out.which == 9 ||
@@ -986,7 +1066,6 @@ static bool parseSeqId(const unsigned char *b, size_t n, unsigned char ctag, siz
 
         if (inner.tag == 0x30 || inner.constructed) {
             parseTextseqId(b, n, vpos, out);
-
             return (!out.accession.empty() || !out.name.empty());
         }
 
@@ -1102,6 +1181,35 @@ static void parseSeqidList(const unsigned char *b, size_t n, size_t nodePos, std
     }
 }
 
+// rank order: 0 = accession+version, 1 = accession, 2 = db|tag, 3 = gi|..., 4 = name, 5 = empty
+static std::pair<int, std::string> formatId(const SeqId &sid) {
+    if (!sid.accession.empty()) {
+        if (!sid.version.empty()) {
+            size_t dot = sid.accession.rfind('.');
+            if (dot == std::string::npos || sid.accession.substr(dot + 1) != sid.version) {
+                return std::make_pair(0, sid.accession + "." + sid.version);
+            } else {
+                return std::make_pair(0, sid.accession);
+            }
+        }
+        return std::make_pair(1, sid.accession);
+    }
+
+    if (sid.type == 8 && !sid.db.empty() && !sid.tag.empty()) {
+        return std::make_pair(2, sid.db + "|" + sid.tag);
+    }
+
+    if (sid.type == 9 && !sid.tag.empty()) {
+        return std::make_pair(3, std::string("gi|") + sid.tag);
+    }
+
+    if (!sid.name.empty()) {
+        return std::make_pair(4, sid.name);
+    }
+
+    return std::make_pair(5, std::string());
+}
+
 struct DefInfo {
     std::string title;
     long taxid = -1;
@@ -1109,20 +1217,20 @@ struct DefInfo {
     long pig = -1;
 };
 
-static void parseBlastDeflineSet(const unsigned char *blob, size_t blobSize, DefInfo &out) {
-    size_t i = 0;
+static std::string parseBlastDefline(const unsigned char *blob, size_t blobSize, DefInfo& first) {
+    std::string header;
+    bool hasFirst = false;
 
+    size_t i = 0;
     while (i < blobSize) {
         Tlv t;
         size_t nxt;
-
         if (!skipValue(blob, blobSize, i, t, nxt)) {
             break;
         }
 
         if (t.tag == 0x30) {
             size_t p = t.vpos;
-
             while (true) {
                 if (t.len >= 0 && p >= t.vpos + (size_t)t.len) {
                     break;
@@ -1139,8 +1247,8 @@ static void parseBlastDeflineSet(const unsigned char *blob, size_t blobSize, Def
                 }
 
                 if (def.tag == 0x30) {
+                    DefInfo out;
                     size_t f = def.vpos;
-
                     while (true) {
                         if (def.len >= 0 && f >= def.vpos + (size_t)def.len) {
                             break;
@@ -1179,6 +1287,53 @@ static void parseBlastDeflineSet(const unsigned char *blob, size_t blobSize, Def
                         }
                         f = fn;
                     }
+
+                    int bestRank = INT_MAX;
+                    std::string id;
+                    for (size_t si = 0; si < out.seqids.size(); ++si) {
+                        std::pair<int, std::string> cand = formatId(out.seqids[si]);
+                        // Debug(Debug::INFO) << "which =" << out.seqids[si].which
+                        //                   << " type=" << out.seqids[si].type
+                        //                   << " acc='" << out.seqids[si].accession << "'"
+                        //                   << " name='" << out.seqids[si].name << "'"
+                        //                   << " name='" << out.seqids[si].release << "'"
+                        //                   << " ver='" << out.seqids[si].version << "'"
+                        //                   << " db='" << out.seqids[si].db << "'"
+                        //                   << " tag='" << out.seqids[si].tag << "'"
+                        //                   << " => rank=" << cand.first
+                        //                   << " id='" << cand.second << "'\n";
+                        if (!cand.second.empty() && cand.first < bestRank) {
+                            bestRank = cand.first;
+                            id = cand.second;
+                            if (bestRank == 0) {
+                                break;
+                            }
+                        }
+                    }
+                    // EXIT(EXIT_SUCCESS);
+
+                    std::string part;
+                    if (!id.empty() && !out.title.empty()) {
+                        part = id + " " + out.title;
+                    } else if (!id.empty()) {
+                        part = id;
+                    } else {
+                        part = out.title;
+                    }
+
+                    if (!hasFirst) {
+                        first = out;
+                        hasFirst = true;
+                    }
+
+                    if (!part.empty()) {
+                        if (header.empty()) {
+                            header = part;
+                        } else {
+                            header += " >";
+                            header += part;
+                        }
+                    }
                 }
                 p = dn;
             }
@@ -1186,89 +1341,7 @@ static void parseBlastDeflineSet(const unsigned char *blob, size_t blobSize, Def
         }
         i = nxt;
     }
-}
-
-static std::string pickAccVerHelper(const std::vector<SeqId> &v) {
-    for (size_t i = 0; i < v.size(); ++i) {
-        const SeqId &s = v[i];
-
-        if (!s.accession.empty()) {
-            if (!s.version.empty()) {
-                size_t dot = s.accession.rfind('.');
-
-                if (dot == std::string::npos || s.accession.substr(dot + 1) != s.version) {
-                    return s.accession + "." + s.version;
-                } else {
-                    return s.accession;
-                }
-            }
-
-            return s.accession;
-        }
-    }
-
-    for (size_t i = 0; i < v.size(); ++i) {
-        const SeqId &s = v[i];
-
-        if (!s.name.empty()) {
-            return s.name;
-        }
-    }
-
-    return std::string();
-}
-
-static std::string choosePrimaryAccession(const std::vector<SeqId> &sids) {
-    std::vector<SeqId> by[11];
-
-    for (size_t i = 0; i < sids.size(); ++i) {
-        const SeqId &s = sids[i];
-        int t = (s.type < 0 || s.type > 10) ? 0 : s.type;
-        by[t].push_back(s);
-    }
-
-    const int order[] = {1, 2, 3, 4, 5, 6, 7};
-    for (size_t oi = 0; oi < sizeof(order)/sizeof(order[0]); ++oi) {
-        int o = order[oi];
-        std::string s = pickAccVerHelper(by[o]);
-        if (!s.empty()) {
-            return s;
-        }
-    }
-
-    for (size_t i = 0; i < by[8].size(); ++i) {
-        const SeqId &s = by[8][i];
-        if (!s.db.empty() && !s.tag.empty()) {
-            return s.db + "|" + s.tag;
-        }
-    }
-
-    for (size_t i = 0; i < by[9].size(); ++i) {
-        const SeqId &s = by[9][i];
-        if (!s.tag.empty()) {
-            return std::string("gi|") + s.tag;
-        }
-    }
-
-    return std::string();
-}
-
-static std::string makeDbKey(const std::vector<SeqId> &sids, const std::string &primary) {
-    for (size_t i = 0; i < sids.size(); ++i) {
-        const SeqId &s = sids[i];
-        if (s.type == 8 && !s.db.empty() && !s.tag.empty()) {
-            return s.db + "|" + s.tag;
-        }
-    }
-
-    for (size_t i = 0; i < sids.size(); ++i) {
-        const SeqId &s = sids[i];
-        if (s.type == 9 && !s.tag.empty()) {
-            return std::string("gi|") + s.tag;
-        }
-    }
-
-    return primary;
+    return header;
 }
 
 static void dumpVolumeToDb(const std::string &base,
@@ -1322,20 +1395,12 @@ static void dumpVolumeToDb(const std::string &base,
         const unsigned char *blob = (h1 >= h0 && (size_t)h1 <= hdr.mappedSize()) ? (hdrData + h0) : NULL;
         size_t blobSize = (h1 >= h0 && (size_t)h1 <= hdr.mappedSize()) ? (size_t)(h1 - h0) : 0;
 
+        std::string header;
         DefInfo info;
         if (blob && blobSize) {
-            parseBlastDeflineSet(blob, blobSize, info);
+            header = parseBlastDefline(blob, blobSize, info);
         }
-
-        std::string primary = choosePrimaryAccession(info.seqids);
-        std::string header;
-        if (!primary.empty() && !info.title.empty()) {
-            header = primary + " " + info.title;
-        } else if (!primary.empty()) {
-            header = primary;
-        } else if (!info.title.empty()) {
-            header = info.title;
-        } else {
+        if (header.empty()) {
             header = "OID:" + SSTR(globalOid);
         }
         if (header.back() != '\n') {
@@ -1377,7 +1442,7 @@ static void dumpVolumeToDb(const std::string &base,
             }
         }
 
-        std::string accession = makeDbKey(info.seqids, primary);
+        std::string accession = Util::parseFastaHeader(header.c_str());
         char buf[4096];
         int len = std::snprintf(buf, sizeof(buf), "%u\t%s\t%s\n",
                                 key,
