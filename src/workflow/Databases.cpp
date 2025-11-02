@@ -56,15 +56,15 @@ std::vector<DatabaseDownload> downloads = {{
                                                    "NR",
                                                    "Non-redundant protein sequences from GenPept, Swissprot, PIR, PDF, PDB, and NCBI RefSeq.",
                                                    "NCBI Resource Coordinators: Database resources of the National Center for Biotechnology Information. Nucleic Acids Res 46(D1), D8-D13 (2018)",
-                                                   "https://ftp.ncbi.nlm.nih.gov/blast/db/FASTA",
+                                                   "https://ftp.ncbi.nlm.nih.gov/blast/db",
                                                    true, Parameters::DBTYPE_AMINO_ACIDS, databases_sh, databases_sh_len,
                                                    { }
                                            }, {
                                                    "NT",
                                                    "Partially non-redundant nucleotide sequences from all traditional divisions of GenBank, EMBL, and DDBJ excluding GSS, STS, PAT, EST, HTG, and WGS.",
                                                    "NCBI Resource Coordinators: Database resources of the National Center for Biotechnology Information. Nucleic Acids Res 46(D1), D8-D13 (2018)",
-                                                   "https://ftp.ncbi.nlm.nih.gov/blast/db/FASTA",
-                                                   false, Parameters::DBTYPE_NUCLEOTIDES, databases_sh, databases_sh_len,
+                                                   "https://ftp.ncbi.nlm.nih.gov/blast/db",
+                                                   true, Parameters::DBTYPE_NUCLEOTIDES, databases_sh, databases_sh_len,
                                                    { }
                                            }, {
                                                    "GTDB",

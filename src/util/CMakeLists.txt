@@ -8,6 +8,7 @@ set(util_source_files
         util/compress.cpp
         util/convert2fasta.cpp
         util/convertalignments.cpp
+        util/convertblastdb.cpp
         util/convertca3m.cpp
         util/convertkb.cpp
         util/convertmsa.cpp

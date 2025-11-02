@@ -63,6 +63,20 @@ downloadFile() {
     fail "Could not download $URL to $OUTPUT"
 }
 
+downloadExtractBlastTars() {
+    META_JSON="$1"
+    OUTPUT="$2"
+    ( downloadFile "${META_JSON}" "${OUTPUT}/version" )
+    grep -F ".tar.gz" "${OUTPUT}/version" | cut -f2 -d\" | sed 's|^ftp:|https:|g' > "${OUTPUT}/tar_files.txt"
+    while IFS= read -r URL; do
+        FILENAME=$(basename "${URL}")
+        ( downloadFile "${URL}" "${OUTPUT}/${FILENAME}" )
+        tar -C "${OUTPUT}" -xzf "${OUTPUT}/${FILENAME}"
+        rm -f -- "${OUTPUT}/${FILENAME}"
+    done < "${OUTPUT}/tar_files.txt"
+    rm -f -- "${OUTPUT}/tar_files.txt"
+}
+
 # check number of input variables
 [ "$#" -ne 3 ] && echo "Please provide <selection> <outDB> <tmp>" && exit 1;
 [ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && mkdir -p "$3";
@@ -124,24 +138,18 @@ case "${SELECTION}" in
         INPUT_TYPE="FASTA_LIST"
     ;;
     "NR")
-        if notExists "${TMP_PATH}/nr.gz"; then
-            date "+%s" > "${TMP_PATH}/version"
-            downloadFile "https://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz" "${TMP_PATH}/nr.gz"
-            downloadFile "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz" "${TMP_PATH}/prot.accession2taxid.gz"
-            gunzip "${TMP_PATH}/prot.accession2taxid.gz"
-            downloadFile "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/pdb.accession2taxid.gz" "${TMP_PATH}/pdb.accession2taxid.gz"
-            gunzip "${TMP_PATH}/pdb.accession2taxid.gz"
+        if notExists "${TMP_PATH}/nr.pal"; then
+            downloadExtractBlastTars "https://ftp.ncbi.nlm.nih.gov/blast/db/nr-prot-metadata.json" "${TMP_PATH}"
         fi
-        push_back "${TMP_PATH}/nr.gz"
-        INPUT_TYPE="FASTA_LIST"
+        push_back "${TMP_PATH}/nr"
+        INPUT_TYPE="BLASTDB"
     ;;
     "NT")
-        if notExists "${TMP_PATH}/nt.gz"; then
-            date "+%s" > "${TMP_PATH}/version"
-            downloadFile "https://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nt.gz" "${TMP_PATH}/nt.gz"
+        if notExists "${TMP_PATH}/nt.nal"; then
+            downloadExtractBlastTars "https://ftp.ncbi.nlm.nih.gov/blast/db/nt-nucl-metadata.json" "${TMP_PATH}"
         fi
-        push_back "${TMP_PATH}/nt.gz"
-        INPUT_TYPE="FASTA_LIST"
+        push_back "${TMP_PATH}/nt"
+        INPUT_TYPE="BLASTDB"
     ;;
     "GTDB")
         if notExists "${TMP_PATH}/download.done"; then
@@ -393,105 +401,112 @@ case "${INPUT_TYPE}" in
                 || fail "rmdb died"
         fi
     ;;
+    "BLASTDB")
+        eval "set -- $ARR"
+        # shellcheck disable=SC2086
+        "${MMSEQS}" convertblastdb "${@}" "${OUTDB}" ${VERB_PAR} \
+            || fail "convertblastdb died"
+    ;;
 esac
 fi
 
-if [ -n "${TAXONOMY}" ] && notExists "${OUTDB}_mapping"; then
-    case "${SELECTION}" in
-      "SILVA")
-        mkdir -p "${TMP_PATH}/taxonomy"
-        # shellcheck disable=SC2016
-        CMD='BEGIN {
-              ids["root"] = 1;
-              print "1\t|\t1\t|\tno rank\t|\t-\t|" > taxdir"/nodes.dmp";
-              print "1\t|\troot\t|\t-\t|\tscientific name\t|" > taxdir"/names.dmp";
-          }
-          {
-              n = split($1, a, ";");
-              gsub("domain", "superkingdom", $3);
-              ids[$1] = $2;
-              gsub(/[^,;]*;$/, "", $1);
-              pname = $1;
-              if (n == 2) {
-                pname = "root";
-              }
-              pid = ids[pname];
-              printf("%s\t|\t%s\t|\t%s\t|\t-\t|\n", $2, pid, $3) > taxdir"/nodes.dmp";
-              printf("%s\t|\t%s\t|\t-\t|\tscientific name\t|\n", $2, a[n-1]) > taxdir"/names.dmp";
-          }'
-        awk -v taxdir="${TMP_PATH}/taxonomy" -F'\t' "$CMD" "${TMP_PATH}/silva_tax.txt"
-        touch "${TMP_PATH}/taxonomy/merged.dmp"
-        touch "${TMP_PATH}/taxonomy/delnodes.dmp"
-        # shellcheck disable=SC2086
-        "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxdb" --ncbi-tax-dump "${TMP_PATH}/taxonomy" --tax-mapping-file "${TMP_PATH}/silva.acc_taxid" ${THREADS_PAR}
-       ;;
-     "NR")
-        touch "${OUTDB}_mapping"
-        # shellcheck disable=SC2086
-        "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxonomy" ${THREADS_PAR} \
-            || fail "createtaxdb died"
-        # shellcheck disable=SC2086
-        "${MMSEQS}" nrtotaxmapping "${TMP_PATH}/pdb.accession2taxid" "${TMP_PATH}/prot.accession2taxid" "${OUTDB}" "${OUTDB}_mapping" ${THREADS_PAR} \
-            || fail "nrtotaxmapping died"
-       ;;
-     "GTDB")
-          # shellcheck disable=SC2016
-          CMD='BEGIN {
-              FS = "[\t;]";
-              rank["c"] = "class";
-              rank["d"] = "superkingdom";
-              rank["f"] = "family";
-              rank["g"] = "genus";
-              rank["o"] = "order";
-              rank["p"] = "phylum";
-              rank["s"] = "species";
-              taxCnt = 1;
-              ids["root"] = 1;
-              print "1\t|\t1\t|\tno rank\t|\t-\t|" > taxdir"/nodes.dmp";
-              print "1\t|\troot\t|\t-\t|\tscientific name\t|" > taxdir"/names.dmp";
-          }
-          {
-              prevTaxon=1;
-              for (i = 2; i <= NF; i++) {
-                  if ($i in ids) {
-                      prevTaxon = ids[$i];
-                  } else {
-                      taxCnt++;
-                      ids[$i] = taxCnt;
-                      r = substr($i, 0, 1);
-                      name = substr($i, 4);
-                      gsub(/_/, " ", name);
-                      printf("%s\t|\t%s\t|\t%s\t|\t-\t|\n", taxCnt, prevTaxon, rank[r]) > taxdir"/nodes.dmp";
-                      printf("%s\t|\t%s\t|\t-\t|\tscientific name\t|\n", taxCnt, name) > taxdir"/names.dmp";
-                      prevTaxon = taxCnt;
-                  }
-              }
-              printf("%s\t%s\n", $1, ids[$NF]) > taxdir"/mapping_genomes";
-          }'
-          mkdir -p "${TMP_PATH}/taxonomy"
-          awk -v taxdir="${TMP_PATH}/taxonomy" "$CMD" "${TMP_PATH}/bac120_taxonomy.tsv" "${TMP_PATH}/ar53_taxonomy.tsv"
-          touch "${TMP_PATH}/taxonomy/merged.dmp"
-          touch "${TMP_PATH}/taxonomy/delnodes.dmp"
-          # shellcheck disable=SC2086
-          "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxdb" --ncbi-tax-dump "${TMP_PATH}/taxonomy" --tax-mapping-file "${TMP_PATH}/taxonomy/mapping_genomes" --tax-mapping-mode 1 ${THREADS_PAR} \
-              || fail "createtaxdb died"
-          if [ -n "${REMOVE_TMP}" ]; then
-              rm -f -- "${TMP_PATH}/taxonomy/nodes.dmp" "${TMP_PATH}/taxonomy/names.dmp" "${TMP_PATH}/taxonomy/merged.dmp" "${TMP_PATH}/taxonomy/delnodes.dmp" "${TMP_PATH}/taxonomy/mapping_genomes" "${TMP_PATH}/bac120_taxonomy.tsv" "${TMP_PATH}/ar122_taxonomy.tsv"
-              rm -rf -- "${TMP_PATH}/taxdb" "${TMP_PATH}/taxonomy"
-          fi
-     ;;
-     *)
-       # shellcheck disable=SC2086
-       "${MMSEQS}" prefixid "${OUTDB}_h" "${TMP_PATH}/header_pref.tsv" --tsv ${THREADS_PAR} \
-           || fail "prefixid died"
-       awk '{ match($0, / OX=[0-9]+ /); if (RLENGTH != -1) { print $1"\t"substr($0, RSTART+4, RLENGTH-5); next; } match($0, / TaxID=[0-9]+ /); print $1"\t"substr($0, RSTART+7, RLENGTH-8); }' "${TMP_PATH}/header_pref.tsv" \
-           | LC_ALL=C sort -n > "${OUTDB}_mapping"
-       rm -f "${TMP_PATH}/header_pref.tsv"
-       # shellcheck disable=SC2086
-       "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxonomy" ${THREADS_PAR} \
-           || fail "createtaxdb died"
-       ;;
-     esac
+if [ -n "${TAXONOMY}" ]; then
+    if notExists "${OUTDB}_mapping"; then
+        case "${SELECTION}" in
+            "SILVA")
+            mkdir -p "${TMP_PATH}/taxonomy"
+            # shellcheck disable=SC2016
+            CMD='BEGIN {
+                ids["root"] = 1;
+                print "1\t|\t1\t|\tno rank\t|\t-\t|" > taxdir"/nodes.dmp";
+                print "1\t|\troot\t|\t-\t|\tscientific name\t|" > taxdir"/names.dmp";
+            }
+            {
+                n = split($1, a, ";");
+                gsub("domain", "superkingdom", $3);
+                ids[$1] = $2;
+                gsub(/[^,;]*;$/, "", $1);
+                pname = $1;
+                if (n == 2) {
+                    pname = "root";
+                }
+                pid = ids[pname];
+                printf("%s\t|\t%s\t|\t%s\t|\t-\t|\n", $2, pid, $3) > taxdir"/nodes.dmp";
+                printf("%s\t|\t%s\t|\t-\t|\tscientific name\t|\n", $2, a[n-1]) > taxdir"/names.dmp";
+            }'
+            awk -v taxdir="${TMP_PATH}/taxonomy" -F'\t' "$CMD" "${TMP_PATH}/silva_tax.txt"
+            touch "${TMP_PATH}/taxonomy/merged.dmp"
+            touch "${TMP_PATH}/taxonomy/delnodes.dmp"
+            # shellcheck disable=SC2086
+            "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxdb" --ncbi-tax-dump "${TMP_PATH}/taxonomy" --tax-mapping-file "${TMP_PATH}/silva.acc_taxid" ${THREADS_PAR}
+            ;;
+            "GTDB")
+            # shellcheck disable=SC2016
+            CMD='BEGIN {
+                FS = "[\t;]";
+                rank["c"] = "class";
+                rank["d"] = "superkingdom";
+                rank["f"] = "family";
+                rank["g"] = "genus";
+                rank["o"] = "order";
+                rank["p"] = "phylum";
+                rank["s"] = "species";
+                taxCnt = 1;
+                ids["root"] = 1;
+                print "1\t|\t1\t|\tno rank\t|\t-\t|" > taxdir"/nodes.dmp";
+                print "1\t|\troot\t|\t-\t|\tscientific name\t|" > taxdir"/names.dmp";
+            }
+            {
+                prevTaxon=1;
+                for (i = 2; i <= NF; i++) {
+                    if ($i in ids) {
+                        prevTaxon = ids[$i];
+                    } else {
+                        taxCnt++;
+                        ids[$i] = taxCnt;
+                        r = substr($i, 0, 1);
+                        name = substr($i, 4);
+                        gsub(/_/, " ", name);
+                        printf("%s\t|\t%s\t|\t%s\t|\t-\t|\n", taxCnt, prevTaxon, rank[r]) > taxdir"/nodes.dmp";
+                        printf("%s\t|\t%s\t|\t-\t|\tscientific name\t|\n", taxCnt, name) > taxdir"/names.dmp";
+                        prevTaxon = taxCnt;
+                    }
+                }
+                printf("%s\t%s\n", $1, ids[$NF]) > taxdir"/mapping_genomes";
+            }'
+            mkdir -p "${TMP_PATH}/taxonomy"
+            awk -v taxdir="${TMP_PATH}/taxonomy" "$CMD" "${TMP_PATH}/bac120_taxonomy.tsv" "${TMP_PATH}/ar53_taxonomy.tsv"
+            touch "${TMP_PATH}/taxonomy/merged.dmp"
+            touch "${TMP_PATH}/taxonomy/delnodes.dmp"
+            # shellcheck disable=SC2086
+            "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxdb" --ncbi-tax-dump "${TMP_PATH}/taxonomy" --tax-mapping-file "${TMP_PATH}/taxonomy/mapping_genomes" --tax-mapping-mode 1 ${THREADS_PAR} \
+                || fail "createtaxdb died"
+            if [ -n "${REMOVE_TMP}" ]; then
+                rm -f -- "${TMP_PATH}/taxonomy/nodes.dmp" "${TMP_PATH}/taxonomy/names.dmp" "${TMP_PATH}/taxonomy/merged.dmp" "${TMP_PATH}/taxonomy/delnodes.dmp" "${TMP_PATH}/taxonomy/mapping_genomes" "${TMP_PATH}/bac120_taxonomy.tsv" "${TMP_PATH}/ar122_taxonomy.tsv"
+                rm -rf -- "${TMP_PATH}/taxdb" "${TMP_PATH}/taxonomy"
+            fi
+            ;;
+            *)
+            # shellcheck disable=SC2086
+            "${MMSEQS}" prefixid "${OUTDB}_h" "${TMP_PATH}/header_pref.tsv" --tsv ${THREADS_PAR} \
+                || fail "prefixid died"
+            awk '{ match($0, / OX=[0-9]+ /); if (RLENGTH != -1) { print $1"\t"substr($0, RSTART+4, RLENGTH-5); next; } match($0, / TaxID=[0-9]+ /); print $1"\t"substr($0, RSTART+7, RLENGTH-8); }' "${TMP_PATH}/header_pref.tsv" \
+                | LC_ALL=C sort -n > "${OUTDB}_mapping"
+            rm -f "${TMP_PATH}/header_pref.tsv"
+            # shellcheck disable=SC2086
+            "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxonomy" ${THREADS_PAR} \
+                || fail "createtaxdb died"
+            ;;
+        esac
+    else
+        case "${SELECTION}" in
+            NR|NT)
+            # shellcheck disable=SC2086
+            "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxonomy" ${THREADS_PAR} \
+                || fail "createtaxdb died"
+            ;;
+        esac
+    fi
 fi
 
 if notExists "${OUTDB}.version"; then
