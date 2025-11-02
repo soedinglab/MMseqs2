@@ -25,25 +25,123 @@ static inline char iupacFromMask(unsigned char m) {
     return 'N';
 }
 
-static const char STDAA[28] = {
-    '-', 'A','B','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','W','X','Y','Z','U','*','O','J'
-};
+// 2-bit (NCBI2na) -> DNA base
+static inline char baseFrom2na(unsigned char code) {
+    static const char LUT[4] = {'A', 'C', 'G', 'T'};
 
-static std::string decodeNucSlice(const unsigned char *nsq, uint32_t s, uint32_t e) {
-    if (e > s && nsq[e - 1] == 0) {
-        --e;
+    return LUT[code & 3];
+}
+
+// compute number of residues between [startByte, endByte) in .nsq 2na block
+static size_t countNucResidues(const unsigned char *nsq, uint32_t startByte, uint32_t endByte) {
+    if (endByte <= startByte) {
+        return 0;
     }
 
+    size_t bytes = (size_t)(endByte - startByte);
+    unsigned char last = nsq[endByte - 1];
+    size_t lastCount = (size_t)(last & 0x03);
+    return (bytes - 1U) * 4U + lastCount;
+}
+
+// decode NCBI2na from [startByte, endByte)
+static std::string decodeNucSlice(const unsigned char *nsq, uint32_t startByte, uint32_t endByte) {
+    size_t nres = countNucResidues(nsq, startByte, endByte);
+
     std::string out;
-    out.resize(e - s);
-    for (uint32_t i = s; i < e; ++i) {
-        unsigned char b = nsq[i];
-        out[i - s] = iupacFromMask((unsigned char)(b & 0x0F));
+    out.resize(nres);
+    for (size_t r = 0; r < nres; ++r) {
+        size_t byteIdx = (size_t)startByte + (r >> 2);
+        unsigned char b = nsq[byteIdx];
+        unsigned int shift = 6U - 2U * (unsigned int)(r & 3U);
+        unsigned char code = (unsigned char)((b >> shift) & 0x03U);
+        out[r] = baseFrom2na(code);
     }
 
     return out;
 }
 
+// Apply ambiguity table to an ASCII sequence
+// ambStart points at the table,
+// ambEnd is the start of the next sequence (.nin: S[i+1]).
+static void applyAmbiguityPatches(
+    std::string &seqStr,
+    const unsigned char *nsq,
+    uint32_t ambStart,
+    uint32_t ambEnd
+) {
+    if (ambStart >= ambEnd) {
+        return;
+    }
+
+    if ((size_t)ambEnd - (size_t)ambStart < 4U) {
+        return;
+    }
+
+    uint32_t countWords = be32(nsq + ambStart);
+    bool is64 = ((countWords & 0x80000000U) != 0);
+    countWords &= 0x7FFFFFFFU;
+
+    size_t tableBytes = (size_t)countWords * 4U;
+    size_t avail = (size_t)ambEnd - (size_t)ambStart;
+    if (4U + tableBytes > avail) {
+        return;
+    }
+
+    size_t numEntries = is64 ? (tableBytes / 8U) : (tableBytes / 4U);
+    size_t p = (size_t)ambStart + 4U;
+    for (size_t e = 0; e < numEntries; ++e) {
+        if (!is64) {
+            uint32_t w = be32(nsq + p);
+            p += 4U;
+            unsigned int sym = (unsigned int)(w >> 28);
+            unsigned int rep = ((unsigned int)((w >> 24) & 0x0FU)) + 1U;
+            unsigned int off = (unsigned int)(w & 0x00FFFFFFU);
+            char ch = iupacFromMask((unsigned char)sym);
+            size_t a = (size_t)off;
+            size_t b = a + (size_t)rep;
+
+            if (a >= seqStr.size()) {
+                continue;
+            }
+
+            if (b > seqStr.size()) {
+                b = seqStr.size();
+            }
+
+            for (size_t i = a; i < b; ++i) {
+                seqStr[i] = ch;
+            }
+        } else {
+            uint32_t hi = be32(nsq + p);
+            uint32_t lo = be32(nsq + p + 4U);
+            p += 8U;
+            uint64_t word = (((uint64_t)hi) << 32) | (uint64_t)lo;
+            unsigned int sym = (unsigned int)((word >> 60) & 0x0FULL);
+            unsigned int rep = (unsigned int)(((word >> 48) & 0x0FFFULL) + 1ULL);
+            uint64_t off = (word & 0x0000FFFFFFFFFFFFULL);
+            char ch = iupacFromMask((unsigned char)sym);
+
+            size_t a = (size_t)off;
+            size_t b = a + (size_t)rep;
+            if (a >= seqStr.size()) {
+                continue;
+            }
+
+            if (b > seqStr.size()) {
+                b = seqStr.size();
+            }
+
+            for (size_t i = a; i < b; ++i) {
+                seqStr[i] = ch;
+            }
+        }
+    }
+}
+
+static const char STDAA[28] = {
+    '-', 'A','B','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','W','X','Y','Z','U','*','O','J'
+};
 static std::string decodePsqSlice(const unsigned char *psq, uint32_t s, uint32_t e) {
     if (e > s && psq[e - 1] == 0) {
         --e;
@@ -77,9 +175,9 @@ static void pushNumberedVols(
     bool hasPlain = false;
 
     DIR* dp = opendir(scanDir.c_str());
-    if (dp != nullptr) {
-        struct dirent* de = nullptr;
-        while ((de = readdir(dp)) != nullptr) {
+    if (dp != NULL) {
+        struct dirent* de = NULL;
+        while ((de = readdir(dp)) != NULL) {
 #if defined(_DIRENT_HAVE_D_TYPE)
             if (de->d_type == DT_DIR) {
                 continue;
@@ -324,57 +422,58 @@ static void findVolumes(
     EXIT(EXIT_FAILURE);
 }
 
-static bool tryPinAt(const unsigned char *pin, size_t pinSize, size_t pos,
-                     size_t psqSize, size_t phrSize,
-                     std::vector<uint32_t> &hdr, std::vector<uint32_t> &seq) {
-    if (pos + 4 > pinSize) {
+// supports 2 (hdr,seq) or 3 (hdr,seq,amb) tables.
+// If amb==NULL, do not attempt to read the third table. If amb!=NULL but a 3rd
+// table is not present or invalid, leave *amb empty and still succeed (protein case or nuc w/o patches).
+static bool tryPinAt(const unsigned char *idx, size_t idxSize,
+                     size_t pos,
+                     size_t seqFileSize, size_t hdrFileSize,
+                     std::vector<uint32_t> &hdr, std::vector<uint32_t> &seq,
+                     std::vector<uint32_t> *amb) {
+    if (pos + 4 > idxSize) {
         return false;
     }
 
-    uint32_t nseq = be32(pin + pos);
 
+    uint32_t nseq = be32(idx + pos);
     pos += 4;
 
     if (nseq == 0) {
         return false;
     }
 
-    if (pos + 8 + 4 > pinSize) {
+    if (pos + 8 + 4 > idxSize) {
         return false;
     }
 
     pos += 8 + 4;
 
-    size_t remain = pinSize - pos;
-
-    if (remain < 8) {
-        return false;
-    }
-
-    size_t maxEntries = remain / 8;
-
-    if ((size_t)nseq + 1 > maxEntries) {
-        return false;
-    }
+    size_t remain = idxSize - pos;
 
     size_t entries = (size_t)nseq + 1;
+    size_t needTwo = entries * 8;
+
+    if (remain < needTwo) {
+        return false;
+    }
+
 
     std::vector<uint32_t> H(entries);
     std::vector<uint32_t> S(entries);
 
     for (size_t i = 0; i < entries; ++i) {
-        if (pos + 4 > pinSize) {
+        if (pos + 4 > idxSize) {
             return false;
         }
-        H[i] = be32(pin + pos);
+        H[i] = be32(idx + pos);
         pos += 4;
     }
 
     for (size_t i = 0; i < entries; ++i) {
-        if (pos + 4 > pinSize) {
+        if (pos + 4 > idxSize) {
             return false;
         }
-        S[i] = be32(pin + pos);
+        S[i] = be32(idx + pos);
         pos += 4;
     }
 
@@ -390,12 +489,48 @@ static bool tryPinAt(const unsigned char *pin, size_t pinSize, size_t pos,
         }
     }
 
-    if ((size_t)H.back() > phrSize || (size_t)S.back() > psqSize) {
+    if ((size_t)H.back() > hdrFileSize || (size_t)S.back() > seqFileSize) {
         return false;
     }
 
     hdr.swap(H);
     seq.swap(S);
+
+    if (amb != NULL) {
+        size_t remainAfter = idxSize - pos;
+
+        if (remainAfter >= entries * 4) {
+            std::vector<uint32_t> A(entries);
+
+            for (size_t i = 0; i < entries; ++i) {
+                if (pos + 4 > idxSize) {
+                    A.clear();
+                    break;
+                }
+
+                A[i] = be32(idx + pos);
+                pos += 4;
+            }
+
+            bool ok = true;
+            if (!A.empty()) {
+                for (size_t i = 0; i + 1 < entries; ++i) {
+                    if (A[i] > A[i + 1]) {
+                        ok = false;
+                        break;
+                    }
+                }
+
+                if (!A.empty() && (size_t)A.back() > seqFileSize) {
+                    ok = false;
+                }
+            }
+
+            if (ok && !A.empty()) {
+                amb->swap(A);
+            }
+        }
+    }
 
     return true;
 }
@@ -405,7 +540,9 @@ static bool readIdxOffsets(
     const unsigned char *idx, size_t idxSize,
     int expectedDbType,
     size_t seqFileSize, size_t hdrFileSize,
-    std::vector<uint32_t> &hdr, std::vector<uint32_t> &seq) {
+    std::vector<uint32_t> &hdr, std::vector<uint32_t> &seq,
+    std::vector<uint32_t> *amb
+) {
     if (idxSize < 12) {
         Debug(Debug::ERROR) << "BlastDB idx too small: idxSize " << idxSize << "\n";
         return false;
@@ -447,14 +584,15 @@ static bool readIdxOffsets(
     size_t tsEnd = o + slen;
 
     for (int pad = 0; pad < 8; ++pad) {
-        if (tryPinAt(idx, idxSize, tsEnd + (size_t)pad, seqFileSize, hdrFileSize, hdr, seq)) {
+        if (tryPinAt(idx, idxSize, tsEnd + (size_t)pad, seqFileSize, hdrFileSize, hdr, seq, amb)) {
             return true;
         }
     }
 
     size_t maxProbe = std::min(idxSize, tsEnd + (size_t)4096);
+
     for (size_t pos = tsEnd; pos + 12 < maxProbe; ++pos) {
-        if (tryPinAt(idx, idxSize, pos, seqFileSize, hdrFileSize, hdr, seq)) {
+        if (tryPinAt(idx, idxSize, pos, seqFileSize, hdrFileSize, hdr, seq, amb)) {
             return true;
         }
     }
@@ -630,6 +768,20 @@ static bool getVisibleUtf8String(const unsigned char *b, size_t n, size_t nodePo
     return false;
 }
 
+static bool readPrim(const unsigned char *b, const struct Tlv &tt, long &val) {
+    if (tt.len < 0) {
+        return false;
+    }
+
+    long v = 0;
+    for (long k = 0; k < tt.len; ++k) {
+        v = (v << 8) | b[tt.vpos + (size_t)k];
+    }
+    val = v;
+
+    return true;
+}
+
 static bool getInteger(const unsigned char *b, size_t n, size_t nodePos, long &val) {
     Tlv t;
     size_t nxt;
@@ -638,22 +790,8 @@ static bool getInteger(const unsigned char *b, size_t n, size_t nodePos, long &v
         return false;
     }
 
-    auto readPrim = [&](const Tlv &tt) -> bool {
-        if (tt.len < 0) {
-            return false;
-        }
-
-        long v = 0;
-        for (long k = 0; k < tt.len; ++k) {
-            v = (v << 8) | b[tt.vpos + (size_t)k];
-        }
-        val = v;
-
-        return true;
-    };
-
     if (t.tag == 0x02) {
-        return readPrim(t);
+        return readPrim(b, t, val);
     }
 
     if (t.constructed) {
@@ -685,7 +823,7 @@ static bool getInteger(const unsigned char *b, size_t n, size_t nodePos, long &v
     }
 
     if ((t.cls == CLS_CTX) && !t.constructed) {
-        return readPrim(t);
+        return readPrim(b, t, val);
     }
 
     return false;
@@ -1050,55 +1188,63 @@ static void parseBlastDeflineSet(const unsigned char *blob, size_t blobSize, Def
     }
 }
 
+static std::string pickAccVerHelper(const std::vector<SeqId> &v) {
+    for (size_t i = 0; i < v.size(); ++i) {
+        const SeqId &s = v[i];
+
+        if (!s.accession.empty()) {
+            if (!s.version.empty()) {
+                size_t dot = s.accession.rfind('.');
+
+                if (dot == std::string::npos || s.accession.substr(dot + 1) != s.version) {
+                    return s.accession + "." + s.version;
+                } else {
+                    return s.accession;
+                }
+            }
+
+            return s.accession;
+        }
+    }
+
+    for (size_t i = 0; i < v.size(); ++i) {
+        const SeqId &s = v[i];
+
+        if (!s.name.empty()) {
+            return s.name;
+        }
+    }
+
+    return std::string();
+}
+
 static std::string choosePrimaryAccession(const std::vector<SeqId> &sids) {
     std::vector<SeqId> by[11];
 
-    for (const auto &s : sids) {
+    for (size_t i = 0; i < sids.size(); ++i) {
+        const SeqId &s = sids[i];
         int t = (s.type < 0 || s.type > 10) ? 0 : s.type;
         by[t].push_back(s);
     }
 
-    auto pickAccVer = [](const std::vector<SeqId> &v) -> std::string {
-        for (const auto &s : v) {
-            if (!s.accession.empty()) {
-                if (!s.version.empty()) {
-                    size_t dot = s.accession.rfind('.');
-
-                    if (dot == std::string::npos || s.accession.substr(dot + 1) != s.version) {
-                        return s.accession + "." + s.version;
-                    } else {
-                        return s.accession;
-                    }
-                }
-
-                return s.accession;
-            }
-        }
-
-        for (const auto &s : v) {
-            if (!s.name.empty()) {
-                return s.name;
-            }
-        }
-
-        return std::string();
-    };
-
     const int order[] = {1, 2, 3, 4, 5, 6, 7};
-    for (int o : order) {
-        std::string s = pickAccVer(by[o]);
+    for (size_t oi = 0; oi < sizeof(order)/sizeof(order[0]); ++oi) {
+        int o = order[oi];
+        std::string s = pickAccVerHelper(by[o]);
         if (!s.empty()) {
             return s;
         }
     }
 
-    for (const auto &s : by[8]) {
+    for (size_t i = 0; i < by[8].size(); ++i) {
+        const SeqId &s = by[8][i];
         if (!s.db.empty() && !s.tag.empty()) {
             return s.db + "|" + s.tag;
         }
     }
 
-    for (const auto &s : by[9]) {
+    for (size_t i = 0; i < by[9].size(); ++i) {
+        const SeqId &s = by[9][i];
         if (!s.tag.empty()) {
             return std::string("gi|") + s.tag;
         }
@@ -1108,13 +1254,15 @@ static std::string choosePrimaryAccession(const std::vector<SeqId> &sids) {
 }
 
 static std::string makeDbKey(const std::vector<SeqId> &sids, const std::string &primary) {
-    for (const auto &s : sids) {
+    for (size_t i = 0; i < sids.size(); ++i) {
+        const SeqId &s = sids[i];
         if (s.type == 8 && !s.db.empty() && !s.tag.empty()) {
             return s.db + "|" + s.tag;
         }
     }
 
-    for (const auto &s : sids) {
+    for (size_t i = 0; i < sids.size(); ++i) {
+        const SeqId &s = sids[i];
         if (s.type == 9 && !s.tag.empty()) {
             return std::string("gi|") + s.tag;
         }
@@ -1154,7 +1302,9 @@ static void dumpVolumeToDb(const std::string &base,
 
     std::vector<uint32_t> hdrOff;
     std::vector<uint32_t> seqOff;
-    if (!readIdxOffsets(idx.getData(), idx.mappedSize(), kind, seq.mappedSize(), hdr.mappedSize(), hdrOff, seqOff)) {
+    std::vector<uint32_t> ambOff;
+    std::vector<uint32_t> *ambPtr = (kind == Parameters::DBTYPE_NUCLEOTIDES) ? &ambOff : NULL;
+    if (!readIdxOffsets(idx.getData(), idx.mappedSize(), kind, seq.mappedSize(), hdr.mappedSize(), hdrOff, seqOff, ambPtr)) {
         Debug(Debug::ERROR) << "Cannot locate offset tables in '" << idxPath << "'\n";
         EXIT(EXIT_FAILURE);
     }
@@ -1169,7 +1319,7 @@ static void dumpVolumeToDb(const std::string &base,
         uint32_t s0 = seqOff[i];
         uint32_t s1 = seqOff[i + 1];
 
-        const unsigned char *blob = (h1 >= h0 && (size_t)h1 <= hdr.mappedSize()) ? (hdrData + h0) : nullptr;
+        const unsigned char *blob = (h1 >= h0 && (size_t)h1 <= hdr.mappedSize()) ? (hdrData + h0) : NULL;
         size_t blobSize = (h1 >= h0 && (size_t)h1 <= hdr.mappedSize()) ? (size_t)(h1 - h0) : 0;
 
         DefInfo info;
@@ -1196,7 +1346,21 @@ static void dumpVolumeToDb(const std::string &base,
         if (kind == Parameters::DBTYPE_AMINO_ACIDS) {
             seqStr = decodePsqSlice(seqData, s0, s1);
         } else {
-            seqStr = decodeNucSlice(seqData, s0, s1);
+            uint32_t a0 = s1;
+            if (!ambOff.empty() && ambOff.size() == seqOff.size()) {
+                a0 = ambOff[i];
+                if (a0 < s0 || a0 > s1) {
+                    a0 = s1;
+                }
+            }
+
+            seqStr = decodeNucSlice(seqData, s0, a0);
+
+            if (!ambOff.empty() && ambOff[i] < seqOff[i + 1]) {
+                if (ambOff[i] < seqOff[i + 1]) {
+                    applyAmbiguityPatches(seqStr, seqData, ambOff[i], seqOff[i + 1]);
+                }
+            }
         }
         unsigned int key = (unsigned int)globalOid;
         hdrWriter.writeData(header.c_str(), header.size(), key, threadIdx);
