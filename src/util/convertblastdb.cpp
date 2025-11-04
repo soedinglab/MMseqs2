@@ -17,6 +17,33 @@ static uint32_t be32(const unsigned char *p) {
     return v;
 }
 
+static inline uint64_t le64(const unsigned char *p) {
+    return ((uint64_t)p[0]) |
+           ((uint64_t)p[1] << 8) |
+           ((uint64_t)p[2] << 16) |
+           ((uint64_t)p[3] << 24) |
+           ((uint64_t)p[4] << 32) |
+           ((uint64_t)p[5] << 40) |
+           ((uint64_t)p[6] << 48) |
+           ((uint64_t)p[7] << 56);
+}
+
+static bool readBe32String(const unsigned char *idx, size_t idxSize, size_t &pos) {
+    if (pos + 4 > idxSize) {
+        return false;
+    }
+
+    uint32_t len = be32(idx + pos);
+    pos += 4;
+    if (pos + (size_t)len > idxSize) {
+        return false;
+    }
+    pos += (size_t)len;
+    return true;
+}
+
+
+
 static inline char iupacFromMask(unsigned char m) {
     static const char LUT[16] = {'N', 'A','C','M','G','R','S','V','T','W','Y','H','K','D','B','N'};
     if (m < 16) {
@@ -422,119 +449,142 @@ static void findVolumes(
     EXIT(EXIT_FAILURE);
 }
 
-// supports 2 (hdr,seq) or 3 (hdr,seq,amb) tables.
-// If amb==NULL, do not attempt to read the third table. If amb!=NULL but a 3rd
-// table is not present or invalid, leave *amb empty and still succeed (protein case or nuc w/o patches).
-static bool tryPinAt(const unsigned char *idx, size_t idxSize,
-                     size_t pos,
-                     size_t seqFileSize, size_t hdrFileSize,
-                     std::vector<uint32_t> &hdr, std::vector<uint32_t> &seq,
-                     std::vector<uint32_t> *amb) {
+static bool parseIndexHeader(
+    const unsigned char *idx, size_t idxSize,
+    int expectedDbType,
+    size_t &arraysPos,
+    uint32_t &nseq
+) {
+    // require minimal header
+    if (idxSize < 16) {
+        return false;
+    }
+
+    // read format version
+    size_t pos = 0;
+    uint32_t ver = be32(idx + pos);
+    pos += 4;
+    // read seq type: nucleotide (0) protein (1)
     if (pos + 4 > idxSize) {
         return false;
     }
 
+    uint32_t seqType = be32(idx + pos);
+    pos += 4;
+    int expectedKind = (expectedDbType == Parameters::DBTYPE_AMINO_ACIDS) ? 1 : 0;
+    if (expectedKind != 0 && (int)seqType != expectedKind) {
+        return false;
+    }
 
-    uint32_t nseq = be32(idx + pos);
+    if (ver == 5U) {
+        // read volume index
+        if (pos + 4 > idxSize) {
+            return false;
+        }
+        (void)be32(idx + pos);
+        pos += 4;
+        // read title
+        if (!readBe32String(idx, idxSize, pos)) {
+            return false;
+        }
+        // read LMDB name
+        if (!readBe32String(idx, idxSize, pos)) {
+            return false;
+        }
+        // read padded date
+        if (!readBe32String(idx, idxSize, pos)) {
+            return false;
+        }
+    } else if (ver == 4U) {
+        // read title
+        if (!readBe32String(idx, idxSize, pos)) {
+            return false;
+        }
+        // read padded date
+        if (!readBe32String(idx, idxSize, pos)) {
+            return false;
+        }
+    } else {
+        // unknown version
+        return false;
+    }
+    // read #OIDs (nseq)
+    if (pos + 4 > idxSize) {
+        return false;
+    }
+    nseq = be32(idx + pos);
+    pos += 4;
+    // read letters (u64 LE)
+    if (pos + 8 > idxSize) {
+        return false;
+    }
+    (void)le64(idx + pos);
+    pos += 8;
+    // read maxlength (u32 BE)
+    if (pos + 4 > idxSize) {
+        return false;
+    }
+    (void)be32(idx + pos);
     pos += 4;
 
-    if (nseq == 0) {
-        return false;
-    }
-
-    if (pos + 8 + 4 > idxSize) {
-        return false;
-    }
-
-    pos += 8 + 4;
-
-    size_t remain = idxSize - pos;
-
-    size_t entries = (size_t)nseq + 1;
-    size_t needTwo = entries * 8;
-
-    if (remain < needTwo) {
-        return false;
-    }
-
-
-    std::vector<uint32_t> H(entries);
-    std::vector<uint32_t> S(entries);
-
-    for (size_t i = 0; i < entries; ++i) {
-        if (pos + 4 > idxSize) {
-            return false;
-        }
-        H[i] = be32(idx + pos);
-        pos += 4;
-    }
-
-    for (size_t i = 0; i < entries; ++i) {
-        if (pos + 4 > idxSize) {
-            return false;
-        }
-        S[i] = be32(idx + pos);
-        pos += 4;
-    }
-
-    for (size_t i = 0; i + 1 < entries; ++i) {
-        if (H[i] > H[i + 1]) {
-            return false;
-        }
-    }
-
-    for (size_t i = 0; i + 1 < entries; ++i) {
-        if (S[i] > S[i + 1]) {
-            return false;
-        }
-    }
-
-    if ((size_t)H.back() > hdrFileSize || (size_t)S.back() > seqFileSize) {
-        return false;
-    }
-
-    hdr.swap(H);
-    seq.swap(S);
-
-    if (amb != NULL) {
-        size_t remainAfter = idxSize - pos;
-
-        if (remainAfter >= entries * 4) {
-            std::vector<uint32_t> A(entries);
-
-            for (size_t i = 0; i < entries; ++i) {
-                if (pos + 4 > idxSize) {
-                    A.clear();
-                    break;
-                }
-
-                A[i] = be32(idx + pos);
-                pos += 4;
-            }
-
-            bool ok = true;
-            if (!A.empty()) {
-                for (size_t i = 0; i + 1 < entries; ++i) {
-                    if (A[i] > A[i + 1]) {
-                        ok = false;
-                        break;
-                    }
-                }
-
-                if (!A.empty() && (size_t)A.back() > seqFileSize) {
-                    ok = false;
-                }
-            }
-
-            if (ok && !A.empty()) {
-                amb->swap(A);
-            }
-        }
-    }
+    // arrays begin here
+    arraysPos = pos;
 
     return true;
 }
 
+static bool getVolumeNseq(const std::string& base, int kind, uint32_t& nseqOut) {
+    const char *idxExt = (kind == Parameters::DBTYPE_AMINO_ACIDS) ? ".pin" : ".nin";
+    MemoryMapped idx(base + idxExt, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+    if (!idx.isValid()) {
+        return false;
+    }
+    size_t arraysPos = 0;
+    if (!parseIndexHeader(idx.getData(), idx.mappedSize(), kind, arraysPos, nseqOut)) {
+        return false;
+    }
+    idx.close();
+    return true;
+}
+
+// load (nseq+1) u32 be offsets; validates monotonic non-decreasing and <= fileSize
+static bool loadOffsetArray(
+    const unsigned char *idx, size_t idxSize, size_t &pos,
+    size_t entries,
+    size_t fileSize,
+    bool requireFirstValue,
+    uint32_t requiredFirst,
+    std::vector<uint32_t> &out
+) {
+    // check bounds
+    if (pos + entries * 4ULL > idxSize) {
+        return false;
+    }
+    // read values
+    out.resize(entries);
+    for (size_t i = 0; i < entries; ++i) {
+        out[i] = be32(idx + pos);
+        pos += 4;
+    }
+    // validate first element if requested
+    if (requireFirstValue) {
+        if (out[0] != requiredFirst) {
+            return false;
+        }
+    }
+    // validate monotonic non-decreasing
+    for (size_t i = 1; i < entries; ++i) {
+        if (out[i] < out[i - 1]) {
+            return false;
+        }
+    }
+    // validate last element bound
+    if ((size_t)out.back() > fileSize) {
+        return false;
+    }
+
+    return true;
+}
 
 static bool readIdxOffsets(
     const unsigned char *idx, size_t idxSize,
@@ -543,61 +593,67 @@ static bool readIdxOffsets(
     std::vector<uint32_t> &hdr, std::vector<uint32_t> &seq,
     std::vector<uint32_t> *amb
 ) {
-    if (idxSize < 12) {
-        Debug(Debug::ERROR) << "BlastDB idx too small: idxSize " << idxSize << "\n";
+    // parse header for v4 or v5
+    size_t arraysPos = 0;
+    uint32_t nseq = 0;
+
+    if (!parseIndexHeader(idx, idxSize, expectedDbType, arraysPos, nseq)) {
         return false;
     }
 
-    size_t o = 0;
-
-    uint32_t ver = be32(idx + o);
-    (void)ver;
-    o += 4;
-
-    uint32_t dbt = be32(idx + o);
-    o += 4;
-
-    int expectedKind = (expectedDbType == Parameters::DBTYPE_AMINO_ACIDS) ? 1 : 0;
-    if (expectedKind != 0 && (int)dbt != expectedKind) {
-        Debug(Debug::ERROR) << "BlastDB dbtype mismatch (saw " << dbt << ")\n";
+    size_t entries = (size_t)nseq + 1;
+    size_t pos = arraysPos;
+    // read header offsets H[0..nseq] with H[0] == 0
+    if (!loadOffsetArray(idx, idxSize, pos, entries, hdrFileSize, true, 0, hdr)) {
         return false;
     }
 
-    uint32_t tlen = be32(idx + o);
-    o += 4;
-
-    if (o + tlen + 4 > idxSize) {
-        Debug(Debug::ERROR) << "Bad BlastDB header: titleLen " << tlen << " exceeds idx\n";
-        return false;
-    }
-
-    o += tlen;
-
-    uint32_t slen = be32(idx + o);
-    o += 4;
-
-    if (o + slen > idxSize) {
-        Debug(Debug::ERROR) << "Bad BlastDB timestamp: tsLen " << slen << " exceeds idx\n";
-        return false;
-    }
-
-    size_t tsEnd = o + slen;
-
-    for (int pad = 0; pad < 8; ++pad) {
-        if (tryPinAt(idx, idxSize, tsEnd + (size_t)pad, seqFileSize, hdrFileSize, hdr, seq, amb)) {
-            return true;
+    // read sequence offsets S[0..nseq] with S[0] == 1 (see writer: m_Seq.push_back(1))
+    if (!loadOffsetArray(idx, idxSize, pos, entries, seqFileSize, true, 1, seq)) {
+        // some legacy producers used 0; allow as a fallback but keep strong bounds
+        // rewind to after H
+        pos = arraysPos + entries * 4;
+        seq.clear();
+        if (!loadOffsetArray(idx, idxSize, pos, entries, seqFileSize, false, 0, seq)) {
+            return false;
         }
     }
 
-    size_t maxProbe = std::min(idxSize, tsEnd + (size_t)4096);
-
-    for (size_t pos = tsEnd; pos + 12 < maxProbe; ++pos) {
-        if (tryPinAt(idx, idxSize, pos, seqFileSize, hdrFileSize, hdr, seq, amb)) {
-            return true;
+    if (amb != NULL && expectedDbType == Parameters::DBTYPE_NUCLEOTIDES) {
+        // check if an ambiguity block is present at all
+        if (pos + entries * 4ULL <= idxSize) {
+            // read A[0..nseq] (writer emits nseq entries + extra S.back())
+            std::vector<uint32_t> A;
+            size_t apos = pos;
+            if (!loadOffsetArray(idx, idxSize, apos, entries, seqFileSize, false, 0, A)) {
+                amb->clear();
+            } else {
+                // validate per-entry bounds
+                bool ok = true;
+                for (size_t i = 0; i + 1 < entries; ++i) {
+                    if (A[i] < seq[i] || A[i] > seq[i + 1]) {
+                        ok = false;
+                        break;
+                    }
+                }
+                // validate last element equals S.back()
+                if (ok) {
+                    if (A.back() != seq.back()) {
+                        ok = false;
+                    }
+                }
+                if (ok) {
+                    *amb = std::move(A);
+                    pos = apos;
+                } else {
+                    amb->clear();
+                }
+            }
+        } else {
+            amb->clear();
         }
     }
-
-    return false;
+    return true;
 }
 
 // static const unsigned char CLS_UNIV = 0x00;
@@ -940,7 +996,7 @@ static bool parseDbtag(const unsigned char *b, size_t n, size_t nodePos, SeqId &
             break;
         }
 
-        if (ch.tag == 0x1A && ch.len >= 0 && !gotDb) {
+        if ((ch.tag == 0x1A || ch.tag == 0x0C) && ch.len >= 0 && !gotDb) {
             out.db.assign(reinterpret_cast<const char*>(b + ch.vpos), (size_t)ch.len);
             gotDb = true;
         } else if (ch.cls == CLS_CTX) {
@@ -1349,9 +1405,9 @@ static void dumpVolumeToDb(const std::string &base,
                            DBWriter &seqWriter,
                            DBWriter &hdrWriter,
                            DBWriter &lookupWriter,
-                           FILE *mapFp,
-                           size_t &globalOid,
-                           int threadIdx = 0) {
+                           DBWriter &mappingWriter,
+                           size_t baseOid,
+                           int threadIdx) {
     const char *seqExt = (kind == Parameters::DBTYPE_AMINO_ACIDS) ? ".psq" : ".nsq";
     const char *hdrExt = (kind == Parameters::DBTYPE_AMINO_ACIDS) ? ".phr" : ".nhr";
     const char *idxExt = (kind == Parameters::DBTYPE_AMINO_ACIDS) ? ".pin" : ".nin";
@@ -1395,13 +1451,15 @@ static void dumpVolumeToDb(const std::string &base,
         const unsigned char *blob = (h1 >= h0 && (size_t)h1 <= hdr.mappedSize()) ? (hdrData + h0) : NULL;
         size_t blobSize = (h1 >= h0 && (size_t)h1 <= hdr.mappedSize()) ? (size_t)(h1 - h0) : 0;
 
+        unsigned int key = baseOid++;
+
         std::string header;
         DefInfo info;
         if (blob && blobSize) {
             header = parseBlastDefline(blob, blobSize, info);
         }
         if (header.empty()) {
-            header = "OID:" + SSTR(globalOid);
+            header = "OID:" + SSTR(baseOid);
         }
         if (header.back() != '\n') {
             header.append(1, '\n');
@@ -1427,7 +1485,6 @@ static void dumpVolumeToDb(const std::string &base,
                 }
             }
         }
-        unsigned int key = (unsigned int)globalOid;
         hdrWriter.writeData(header.c_str(), header.size(), key, threadIdx);
 
         seqWriter.writeStart(threadIdx);
@@ -1435,11 +1492,14 @@ static void dumpVolumeToDb(const std::string &base,
         seqWriter.writeAdd("\n", 1, threadIdx);
         seqWriter.writeEnd(key, threadIdx);
 
-        if (mapFp && info.taxid >= 0) {
-            if (std::fprintf(mapFp, "%u\t%ld\n", key, info.taxid) < 0) {
-                Debug(Debug::ERROR) << "Failed writing mapping line\n";
+        if (info.taxid >= 0) {
+            char buf[4096];
+            int len = std::snprintf(buf, sizeof(buf), "%u\t%ld\n", key, info.taxid);
+            if (len < 0 || (size_t)len >= sizeof(buf)) {
+                Debug(Debug::ERROR) << "mapping line overflow\n";
                 EXIT(EXIT_FAILURE);
             }
+            mappingWriter.writeData(buf, (size_t)len, key, threadIdx, false, false);
         }
 
         std::string accession = Util::parseFastaHeader(header.c_str());
@@ -1453,8 +1513,6 @@ static void dumpVolumeToDb(const std::string &base,
             EXIT(EXIT_FAILURE);
         }
         lookupWriter.writeData(buf, (size_t)len, key, threadIdx, false, false);
-
-        __sync_fetch_and_add(&globalOid, 1);
     }
 
     seq.close();
@@ -1464,9 +1522,7 @@ static void dumpVolumeToDb(const std::string &base,
 
 int convertblastdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.threads = 1; // TODO
     par.parseParameters(argc, argv, command, true, 0, 0);
-    par.threads = 1;
 
     int kind = Parameters::DBTYPE_AMINO_ACIDS;
     std::vector<std::string> volumes;
@@ -1485,25 +1541,38 @@ int convertblastdb(int argc, const char **argv, const Command &command) {
     DBWriter lookupWriter(lookupPath.c_str(), lookupIndex.c_str(), par.threads, 0, Parameters::DBTYPE_OMIT_FILE);
     lookupWriter.open();
 
-    std::string mapPath = par.db2 + "_mapping";
-    FILE *mapFp = std::fopen(mapPath.c_str(), "w");
-    if (!mapFp) {
-        Debug(Debug::ERROR) << "Cannot open " << mapPath << " for writing\n";
-        return EXIT_FAILURE;
+    std::string mappingPath = par.db2 + "_mapping";
+    std::string mappingIndex = mappingPath + ".index";
+    DBWriter mappingWriter(mappingPath.c_str(), mappingIndex.c_str(), par.threads, 0, Parameters::DBTYPE_OMIT_FILE);
+    mappingWriter.open();
+
+    std::vector<size_t> baseOid(volumes.size(), 0);
+    size_t total = 0;
+    for (size_t i = 0; i < volumes.size(); ++i) {
+        uint32_t nseq = 0;
+        if (!getVolumeNseq(volumes[i], kind, nseq)) {
+            Debug(Debug::ERROR) << "Failed reading nseq from index for '" << volumes[i] << "'\n";
+            EXIT(EXIT_FAILURE);
+        }
+        baseOid[i] = total;
+        total += nseq;
     }
 
-    size_t globalOid = 0;
     Debug::Progress progress(volumes.size());
-// #pragma omp parallel for schedule(static)
+#pragma omp parallel
+{
+    unsigned int thread_idx = 0;
+#ifdef OPENMP
+    thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+#pragma omp for schedule(static)
     for (size_t vi = 0; vi < volumes.size(); ++vi) {
+        dumpVolumeToDb(volumes[vi], kind, seqWriter, hdrWriter, lookupWriter, mappingWriter, baseOid[vi], thread_idx);
         progress.updateProgress();
-        dumpVolumeToDb(volumes[vi], kind, seqWriter, hdrWriter, lookupWriter, mapFp, globalOid, 0);
     }
-
-    if (std::fclose(mapFp) != 0) {
-        Debug(Debug::ERROR) << "Cannot close " << mapPath << "\n";
-        return EXIT_FAILURE;
-    }
+}
+    mappingWriter.close(true);
+    FileUtil::remove(mappingIndex.c_str());
 
     lookupWriter.close(true);
     FileUtil::remove(lookupIndex.c_str());
@@ -1511,7 +1580,7 @@ int convertblastdb(int argc, const char **argv, const Command &command) {
     hdrWriter.close(true);
     seqWriter.close(true);
 
-    Debug(Debug::INFO) << "Wrote " << globalOid << " sequences\n";
+    Debug(Debug::INFO) << "Wrote " << total << " sequences\n";
 
     return EXIT_SUCCESS;
 }
