@@ -418,7 +418,7 @@ case "${INPUT_TYPE}" in
     "BLASTDB")
         eval "set -- $ARR"
         # shellcheck disable=SC2086
-        "${MMSEQS}" convertblastdb "${@}" "${OUTDB}" ${VERB_PAR} \
+        "${MMSEQS}" convertblastdb "${@}" "${OUTDB}" ${THREADS_PAR} \
             || fail "convertblastdb died"
     ;;
 esac

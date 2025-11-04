@@ -1296,7 +1296,7 @@ std::vector<Command> baseCommands = {
                 "<i:uniprotkb.dat[.gz]> ... <i:uniprotkb.dat[.gz]> <o:uniprotkbDB>",
                 CITATION_MMSEQS2, {{"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA | DbType::VARIADIC, &DbValidator::flatfile },
                                                            {"DB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::genericDb }}},
-        {"convertblastdb",       convertblastdb,       &par.onlyverbosity,        COMMAND_SPECIAL,
+        {"convertblastdb",       convertblastdb,       &par.onlythreads,          COMMAND_SPECIAL,
                 "Convert BLAST database to a sequence DB",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",
