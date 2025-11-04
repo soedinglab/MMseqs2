@@ -144,11 +144,25 @@ case "${SELECTION}" in
         push_back "${TMP_PATH}/nr"
         INPUT_TYPE="BLASTDB"
     ;;
+    "ClusteredNR")
+        if notExists "${TMP_PATH}/nr_cluster_seq.pal"; then
+            downloadExtractBlastTars "https://ftp.ncbi.nlm.nih.gov/blast/db/experimental/nr_cluster_seq-prot-metadata.json" "${TMP_PATH}"
+        fi
+        push_back "${TMP_PATH}/nr_cluster_seq"
+        INPUT_TYPE="BLASTDB"
+    ;;
     "NT")
         if notExists "${TMP_PATH}/nt.nal"; then
             downloadExtractBlastTars "https://ftp.ncbi.nlm.nih.gov/blast/db/nt-nucl-metadata.json" "${TMP_PATH}"
         fi
         push_back "${TMP_PATH}/nt"
+        INPUT_TYPE="BLASTDB"
+    ;;
+    "core_nt")
+        if notExists "${TMP_PATH}/core_nt.nal" && notExists "${TMP_PATH}/core_nt.nsq"; then
+            downloadExtractBlastTars "https://ftp.ncbi.nlm.nih.gov/blast/db/core_nt-nucl-metadata.json" "${TMP_PATH}"
+        fi
+        push_back "${TMP_PATH}/core_nt"
         INPUT_TYPE="BLASTDB"
     ;;
     "GTDB")
@@ -500,7 +514,7 @@ if [ -n "${TAXONOMY}" ]; then
         esac
     else
         case "${SELECTION}" in
-            NR|NT)
+            NR|ClusteredNR|NT|core_nt)
             # shellcheck disable=SC2086
             "${MMSEQS}" createtaxdb "${OUTDB}" "${TMP_PATH}/taxonomy" ${THREADS_PAR} \
                 || fail "createtaxdb died"
