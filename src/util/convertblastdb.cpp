@@ -1237,8 +1237,27 @@ static void parseSeqidList(const unsigned char *b, size_t n, size_t nodePos, std
     }
 }
 
-// rank order: 0 = accession+version, 1 = accession, 2 = db|tag, 3 = gi|..., 4 = name, 5 = empty
+// rank order: accession+version, pir|..., prf||..., accession, db|tag, gi|..., name, empty
 static std::pair<int, std::string> formatId(const SeqId &sid) {
+    if (sid.which == 6 /* PIR */ && !sid.accession.empty()) {
+        std::string s = "pir|";
+        s += sid.accession;
+        s += "|";
+        if (!sid.name.empty()) {
+            s += sid.name;
+        }
+        return std::make_pair(1, s);
+    }
+
+    if (sid.which == 13 /* PRF */) {
+        if (!sid.name.empty()) {
+            return {4, std::string("prf||") + sid.name};
+        }
+        if (!sid.accession.empty()) {
+            return {1, std::string("prf||") + sid.accession};
+        }
+    }
+
     if (!sid.accession.empty()) {
         if (!sid.version.empty()) {
             size_t dot = sid.accession.rfind('.');
