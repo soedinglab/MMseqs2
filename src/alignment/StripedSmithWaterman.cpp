@@ -1413,9 +1413,9 @@ void SmithWaterman::ssw_init(const Sequence* q,
 		memset(profile->pos_aa_rev, 0x80, q->L*32); // do we need it?
 		int rowIdx = 0;
 		for (int i = 0; i < profile->query_length; i++) {
-			for (int aa = 0; aa < subMat->alphabetSize; aa++) {
+			for (int aa = 0; aa < m->alphabetSize; aa++) {
 				int score = profile->mat_rev[aa * profile->query_length + i];
-				// int idx = rowIdx + (subMat->num2aa[aa] - 'A'); //orig
+				// int idx = rowIdx + (m->num2aa[aa] - 'A'); //orig
 				int idx = rowIdx + aa; //new
 				profile->pos_aa_rev[idx] = static_cast<int8_t>(score);
 			}
@@ -1427,11 +1427,10 @@ void SmithWaterman::ssw_init(const Sequence* q,
 			block->query_bias_arr[i] = profile->composition_bias_rev[i];
 		}
 
-		for (int aa1 = 0; aa1 < subMat->alphabetSize; aa1++) {
-			for (int aa2 = 0; aa2 < subMat->alphabetSize; aa2++) {
+		for (int aa1 = 0; aa1 < m->alphabetSize; aa1++) {
+			for (int aa2 = 0; aa2 < m->alphabetSize; aa2++) {
 				// instead of num2aa, use aa directly
-				block_set_aamatrix_num(block->mat_aa, aa1, aa2,
-								subMat->subMatrix[aa1][aa2]);
+				block_set_aamatrix_num(block->mat_aa, aa1, aa2, m->subMatrix[aa1][aa2]);
 			}
 		}
 	}
