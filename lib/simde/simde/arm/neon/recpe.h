@@ -23,6 +23,8 @@
  * Copyright:
  *   2020      Evan Nemerson <evan@nemerson.com>
  *   2021      Zhi An Ng <zhin@google.com> (Copyright owned by Google, LLC)
+ *   2023      Yi-Yen Chung <eric681@andestech.com> (Copyright owned by Andes Technology)
+ *   2023      Ju-Hung Li <jhlee@pllab.cs.nthu.edu.tw> (Copyright owned by NTHU pllab)
  */
 
 #if !defined(SIMDE_ARM_NEON_RECPE_H)
@@ -33,6 +35,23 @@
 HEDLEY_DIAGNOSTIC_PUSH
 SIMDE_DISABLE_UNWANTED_DIAGNOSTICS
 SIMDE_BEGIN_DECLS_
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde_float16_t
+simde_vrecpeh_f16(simde_float16_t a) {
+  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE) && defined(SIMDE_ARM_NEON_FP16)
+    return vrecpeh_f16(a);
+  #else
+    simde_float32_t r_;
+    simde_float32_t a_ = simde_float16_to_float32(a);
+    r_ = 1.0f / a_;
+    return simde_float16_from_float32(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A32V8_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && !defined(SIMDE_ARM_NEON_FP16))
+  #undef vrecpeh_f16
+  #define vrecpeh_f16(a) simde_vrecpeh_f16((a))
+#endif
 
 SIMDE_FUNCTION_ATTRIBUTES
 simde_float32_t
@@ -63,6 +82,33 @@ simde_vrecped_f64(simde_float64_t a) {
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
+simde_float16x4_t
+simde_vrecpe_f16(simde_float16x4_t a) {
+  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE) && defined(SIMDE_ARM_NEON_FP16)
+    return vrecpe_f16(a);
+  #else
+    simde_float16x4_private
+      r_,
+      a_ = simde_float16x4_to_private(a);
+
+    #if defined(SIMDE_RISCV_V_NATIVE) && defined(SIMDE_ARCH_RISCV_ZVFH)
+      r_.sv64 = __riscv_vfrec7_v_f16m1(a_.sv64 , 4);
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+        r_.values[i] = simde_vrecpeh_f16(a_.values[i]);
+      }
+    #endif
+
+    return simde_float16x4_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A32V8_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && !defined(SIMDE_ARM_NEON_FP16))
+  #undef vrecpe_f16
+  #define vrecpe_f16(a) simde_vrecpe_f16((a))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
 simde_float32x2_t
 simde_vrecpe_f32(simde_float32x2_t a) {
   #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
@@ -72,7 +118,9 @@ simde_vrecpe_f32(simde_float32x2_t a) {
       r_,
       a_ = simde_float32x2_to_private(a);
 
-    #if defined(SIMDE_IEEE754_STORAGE)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vfrec7_v_f32m1(a_.sv64 , 2);
+    #elif defined(SIMDE_IEEE754_STORAGE)
       /* https://stackoverflow.com/questions/12227126/division-as-multiply-and-lut-fast-float-division-reciprocal/12228234#12228234 */
       SIMDE_VECTORIZE
       for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
@@ -111,7 +159,9 @@ simde_vrecpe_f64(simde_float64x1_t a) {
       r_,
       a_ = simde_float64x1_to_private(a);
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vfrec7_v_f64m1(a_.sv64 , 1);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR)
       r_.values = 1.0 / a_.values;
     #else
       SIMDE_VECTORIZE
@@ -138,7 +188,9 @@ simde_vrecpeq_f64(simde_float64x2_t a) {
       r_,
       a_ = simde_float64x2_to_private(a);
 
-    #if defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vfrec7_v_f64m1(a_.sv128 , 2);
+    #elif defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR)
       r_.values = 1.0 / a_.values;
     #else
       SIMDE_VECTORIZE
@@ -167,8 +219,11 @@ simde_vrecpeq_f32(simde_float32x4_t a) {
       r_,
       a_ = simde_float32x4_to_private(a);
 
+
     #if defined(SIMDE_X86_SSE_NATIVE)
       r_.m128 = _mm_rcp_ps(a_.m128);
+    #elif defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv128 = __riscv_vfrec7_v_f32m1(a_.sv128 , 4);
     #elif defined(SIMDE_IEEE754_STORAGE)
       /* https://stackoverflow.com/questions/12227126/division-as-multiply-and-lut-fast-float-division-reciprocal/12228234#12228234 */
       SIMDE_VECTORIZE
@@ -199,6 +254,33 @@ simde_vrecpeq_f32(simde_float32x4_t a) {
 #endif
 
 SIMDE_FUNCTION_ATTRIBUTES
+simde_float16x8_t
+simde_vrecpeq_f16(simde_float16x8_t a) {
+  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE) && defined(SIMDE_ARM_NEON_FP16)
+    return vrecpeq_f16(a);
+  #else
+    simde_float16x8_private
+      r_,
+      a_ = simde_float16x8_to_private(a);
+
+    #if defined(SIMDE_RISCV_V_NATIVE) && defined(SIMDE_ARCH_RISCV_ZVFH)
+      r_.sv128 = __riscv_vfrec7_v_f16m1(a_.sv128 , 8);
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+        r_.values[i] = simde_vrecpeh_f16(a_.values[i]);
+      }
+    #endif
+
+    return simde_float16x8_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A32V8_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && !defined(SIMDE_ARM_NEON_FP16))
+  #undef vrecpeq_f16
+  #define vrecpeq_f16(a) simde_vrecpeq_f16((a))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
 simde_uint32x2_t
 simde_vrecpe_u32(simde_uint32x2_t a){
   #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
@@ -210,7 +292,7 @@ simde_vrecpe_u32(simde_uint32x2_t a){
 
     SIMDE_VECTORIZE
     for(size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
-      if(a_.values[i] <= 0x7FFFFFFF){
+      if (a_.values[i] <= 0x7FFFFFFF){
         r_.values[i] = UINT32_MAX;
       } else {
         uint32_t a_temp = (a_.values[i] >> 23) & 511;
@@ -241,7 +323,7 @@ simde_vrecpeq_u32(simde_uint32x4_t a){
 
     SIMDE_VECTORIZE
     for(size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
-      if(a_.values[i] <= 0x7FFFFFFF){
+      if (a_.values[i] <= 0x7FFFFFFF){
         r_.values[i] = UINT32_MAX;
       } else {
         uint32_t a_temp = (a_.values[i] >> 23) & 511;
