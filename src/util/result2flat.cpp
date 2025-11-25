@@ -62,7 +62,6 @@ int result2flat(int argc, const char **argv, const Command &command) {
             for(size_t  i = 0; i < DbValidator::resultDb.size(); i++){
                 if(Parameters::isEqualDbtype(dbr_data.getDbtype(), DbValidator::resultDb[i])  ) {
                     keyLen = (words[1] - words[0]);
-                    dbKeyBuffer.size();
                     dbKeyBuffer.append(words[0], keyLen);
                     const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer.c_str(), NULL, 10);
                     target_header_data = targetdb_header.getDataByDBKey(dbKey, 0);
