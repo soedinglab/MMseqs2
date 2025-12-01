@@ -47,7 +47,7 @@ Parameters::Parameters():
         PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID, "--mask", "Mask residues", "Mask sequences in prefilter stage with tantan: 0: w/o low complexity masking, 1: with low complexity masking", typeid(int), (void *) &maskMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_PROBABILTY(PARAM_MASK_PROBABILTY_ID, "--mask-prob", "Mask residues probability", "Mask sequences is probablity is above threshold", typeid(float), (void *) &maskProb, "^0(\\.[0-9]+)?|^1(\\.0+)?$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_LOWER_CASE(PARAM_MASK_LOWER_CASE_ID, "--mask-lower-case", "Mask lower case residues", "Lowercase letters will be excluded from k-mer search 0: include region, 1: exclude region", typeid(int), (void *) &maskLowerCaseMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_MASK_N_REPEAT(PARAM_MASK_N_REPEAT_ID, "--mask-n-repeat", "Mask lower letter repeating N times", "Repeat letters that occure > threshold in a rwo", typeid(int), (void *) &maskNrepeats, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_MASK_N_REPEAT(PARAM_MASK_N_REPEAT_ID, "--mask-n-repeat", "Mask lower letter repeating N times", "Repeat letters that occur > threshold in a rwo", typeid(int), (void *) &maskNrepeats, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID, "--min-ungapped-score", "Minimum diagonal score", "Accept only matches with ungapped alignment score above threshold", typeid(int), (void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_K_SCORE(PARAM_K_SCORE_ID, "--k-score", "k-score", "k-mer threshold for generating similar k-mer lists", typeid(MultiParam<SeqProf<int>>), (void *) &kmerScore, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID, "--max-seqs", "Max results per query", "Maximum results per query sequence allowed to pass the prefilter (affects sensitivity)", typeid(size_t), (void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
@@ -766,7 +766,7 @@ Parameters::Parameters():
 
     // extract frames
     extractframes.push_back(&PARAM_ORF_FORWARD_FRAMES);
-    extractframes.push_back(&PARAM_ORF_REVERSE_FRAMES);    
+    extractframes.push_back(&PARAM_ORF_REVERSE_FRAMES);
     extractframes.push_back(&PARAM_TRANSLATION_TABLE);
     extractframes.push_back(&PARAM_TRANSLATE);
     extractframes.push_back(&PARAM_CREATE_LOOKUP);
@@ -802,7 +802,7 @@ Parameters::Parameters():
     masksequence.push_back(&PARAM_THREADS);
     masksequence.push_back(&PARAM_COMPRESSED);
     masksequence.push_back(&PARAM_V);
-    
+
     // splitdb
     splitdb.push_back(&PARAM_SPLIT);
     splitdb.push_back(&PARAM_SPLIT_AMINOACID);
@@ -1336,7 +1336,7 @@ Parameters::Parameters():
     proteomecluster.push_back(&PARAM_SUB_MAT);
     proteomecluster.push_back(&PARAM_ADD_BACKTRACE);
     proteomecluster.push_back(&PARAM_ALIGNMENT_MODE);
-    proteomecluster.push_back(&PARAM_REALIGN_SCORE_BIAS); 
+    proteomecluster.push_back(&PARAM_REALIGN_SCORE_BIAS);
     proteomecluster.push_back(&PARAM_E);
     proteomecluster.push_back(&PARAM_MIN_SEQ_ID);
     proteomecluster.push_back(&PARAM_MIN_ALN_LEN);
@@ -2753,7 +2753,7 @@ void Parameters::setDefaults() {
     // taxonomy
     taxonomySearchMode = Parameters::TAXONOMY_APPROX_2BLCA;
     taxonomyOutputMode = Parameters::TAXONOMY_OUTPUT_LCA;
-    
+
     // fwbw
     mact = 0.035;
     fwbwGapopen = 10;
