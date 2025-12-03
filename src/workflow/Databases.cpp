@@ -312,6 +312,7 @@ int databases(int argc, const char **argv, const Command &command) {
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("VERB_PAR", par.createParameterString(par.onlyverbosity).c_str());
     cmd.addVariable("COMP_PAR", par.createParameterString(par.verbandcompression).c_str());
+    cmd.addVariable("GPU_ENABLED", par.gpu ? "1" : "0");
     // aria2c gives an (undocumented error with more than 16 connections)
     cmd.addVariable("ARIA_NUM_CONN", SSTR(std::min(16, par.threads)).c_str());
     cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
