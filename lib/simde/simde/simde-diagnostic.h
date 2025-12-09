@@ -272,7 +272,7 @@
   #define SIMDE_DIAGNOSTIC_DISABLE_CAST_FUNCTION_TYPE_
 #endif
 
-/* clang will emit this warning when we use C99 extensions whan not in
+/* clang will emit this warning when we use C99 extensions when not in
  * C99 mode, even though it does support this.  In such cases we check
  * the compiler and version first, so we know it's not a problem. */
 #if HEDLEY_HAS_WARNING("-Wc99-extensions")
@@ -400,6 +400,8 @@
  * more elegantly, but until then... */
 #if defined(HEDLEY_MSVC_VERSION)
   #define SIMDE_DIAGNOSTIC_DISABLE_UNREACHABLE_ __pragma(warning(disable:4702))
+#elif defined(__clang__)
+  #define SIMDE_DIAGNOSTIC_DISABLE_UNREACHABLE_ HEDLEY_PRAGMA(clang diagnostic ignored "-Wunreachable-code")
 #else
   #define SIMDE_DIAGNOSTIC_DISABLE_UNREACHABLE_
 #endif
