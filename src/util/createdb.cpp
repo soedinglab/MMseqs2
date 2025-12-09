@@ -357,6 +357,28 @@ int createdb(int argc, const char **argv, const Command& command) {
     std::vector<std::string> filenames(par.filenames);
     std::string dataFile = filenames.back();
     filenames.pop_back();
+    if (Util::endsWith(".tsv", filenames[0])) {
+	    if (filenames.size() > 1) {
+		    Debug(Debug::ERROR) << "Only one tsv file can be given\n";
+		    EXIT(EXIT_FAILURE);
+	    }
+	    std::string tsv = filenames.back();
+	    filenames.pop_back();
+
+	    FILE* file = FileUtil::openFileOrDie(tsv.c_str(), "r", true);
+	    char* line = NULL;
+	    size_t len = 0;
+	    ssize_t read;
+	    while ((read = getline(&line, &len, file)) != -1) {
+		    if (line[read - 1] == '\n') {
+			    line[read - 1] = '\0';
+			    read--;
+		    }
+		    filenames.push_back(line);
+	    }
+	    free(line);
+	    fclose(file);
+    }
 
     if (Util::endsWith(".tsv", filenames[0])) {
 	    if (filenames.size() > 1) {
