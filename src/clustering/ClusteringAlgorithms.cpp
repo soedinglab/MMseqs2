@@ -297,7 +297,10 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
         // Parallel reading and parsing into buffer
 #pragma omp parallel
         {
-            int thread_idx = omp_get_thread_num();
+            int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+#endif
 #pragma omp for schedule(dynamic, 4)
             for (long i = start; i < end; i++) {
                 unsigned int clusterKey = seqDbr->getDbKey(i);
