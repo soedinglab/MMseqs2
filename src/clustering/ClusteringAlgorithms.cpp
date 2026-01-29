@@ -295,41 +295,48 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
         }
 
         // Parallel reading and parsing into buffer
-#pragma omp parallel for schedule(dynamic, 4)
-        for (long i = start; i < end; i++) {
-            unsigned int clusterKey = seqDbr->getDbKey(i);
-            std::vector<unsigned int>& keys = buffer[i - start].second;
-            if(needSET) {
-                size_t start1 = sourceOffsets[clusterKey];
-                size_t end1 = sourceOffsets[clusterKey+1];
-                size_t len = end1 - start1;
-                for (size_t j = 0; j < len; ++j) {
-                    unsigned int value = sourceLookupTable[clusterKey][j];
-                    if (value != UINT_MAX) {
-                        const size_t alnId = alnDbr->getId(value);
-                        char *data = alnDbr->getData(alnId, 0);
-                        while (*data != '\0') {
-                            char dbKey[255 + 1];
-                            Util::parseKey(data, dbKey);
-                            const unsigned int key = keyToSet[(unsigned int)strtoul(dbKey, NULL, 10)];
-                            keys.push_back(key);
-                            data = Util::skipLine(data);
+#pragma omp parallel
+        {
+            int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+#pragma omp for schedule(dynamic, 4)
+            for (long i = start; i < end; i++) {
+                unsigned int clusterKey = seqDbr->getDbKey(i);
+                std::vector<unsigned int>& keys = buffer[i - start].second;
+                if(needSET) {
+                    size_t start1 = sourceOffsets[clusterKey];
+                    size_t end1 = sourceOffsets[clusterKey+1];
+                    size_t len = end1 - start1;
+                    for (size_t j = 0; j < len; ++j) {
+                        unsigned int value = sourceLookupTable[clusterKey][j];
+                        if (value != UINT_MAX) {
+                            const size_t alnId = alnDbr->getId(value);
+                            char *data = alnDbr->getData(alnId, thread_idx);
+                            while (*data != '\0') {
+                                char dbKey[255 + 1];
+                                Util::parseKey(data, dbKey);
+                                const unsigned int key = keyToSet[(unsigned int)strtoul(dbKey, NULL, 10)];
+                                keys.push_back(key);
+                                data = Util::skipLine(data);
+                            }
                         }
                     }
+                } else {
+                    const size_t alnId = alnDbr->getId(clusterKey);
+                    char* data = alnDbr->getData(alnId, thread_idx);
+                    while (*data != '\0') {
+                        char dbKey[255 + 1];
+                        Util::parseKey(data, dbKey);
+                        const unsigned int key = (unsigned int)strtoul(dbKey, NULL, 10);
+                        keys.push_back(key);
+                        data = Util::skipLine(data);
+                    }
                 }
-            } else {
-                const size_t alnId = alnDbr->getId(clusterKey);
-                char* data = alnDbr->getData(alnId, 0);
-                while (*data != '\0') {
-                    char dbKey[255 + 1];
-                    Util::parseKey(data, dbKey);
-                    const unsigned int key = (unsigned int)strtoul(dbKey, NULL, 10);
-                    keys.push_back(key);
-                    data = Util::skipLine(data);
-                }
-            }
 
-            buffer[i - start].first = i;
+                buffer[i - start].first = i;
+            }
         }
 
         // Sequential processing of the buffer
