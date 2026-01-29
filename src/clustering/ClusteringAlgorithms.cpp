@@ -299,7 +299,7 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
         {
             int thread_idx = 0;
 #ifdef OPENMP
-            thread_idx = omp_get_thread_num();
+            thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 #pragma omp for schedule(dynamic, 4)
             for (long i = start; i < end; i++) {
