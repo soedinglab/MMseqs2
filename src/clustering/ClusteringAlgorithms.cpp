@@ -337,26 +337,26 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
 
                 buffer[i - start].first = i;
             }
+        }
 
-            // Sequential processing of the buffer
-            for (long j = 0; j < (end - start); j++) {
-                unsigned int clusterId = buffer[j].first;
-                const std::vector<unsigned int>& keys = buffer[j].second;
+        // Sequential processing of the buffer
+        for (long j = 0; j < (end - start); j++) {
+            unsigned int clusterId = buffer[j].first;
+            const std::vector<unsigned int>& keys = buffer[j].second;
 
-                if (assignedcluster[clusterId] != UINT_MAX) {
-                    continue;
-                }
+            if (assignedcluster[clusterId] != UINT_MAX) {
+                continue;
+            }
 
-                if (keys.size() <= 1) {
-                    continue;
-                }
+            if (keys.size() <= 1) {
+                continue;
+            }
 
-                for (unsigned int key : keys) {
-                    unsigned int currElement = seqDbr->getId(key);
+            for (unsigned int key : keys) {
+                unsigned int currElement = seqDbr->getId(key);
 
-                    if (assignedcluster[currElement] == UINT_MAX) {
-                        assignedcluster[currElement] = clusterId;
-                    }
+                if (assignedcluster[currElement] == UINT_MAX) {
+                    assignedcluster[currElement] = clusterId;
                 }
             }
         }
