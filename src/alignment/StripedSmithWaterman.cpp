@@ -332,11 +332,11 @@ s_align SmithWaterman::alignScoreEndPos (
 	}
 	// 3. int
 	// Comment out int32_t now for benchmark
-	if (bests.first.score == INT16_MAX) {
-		bests = sw_sse2_int<type>(db_sequence, 0, db_length, query_length, gap_open, gap_extend,
-					profile->profile_int, USHRT_MAX, maskLen);
-		r.word = 2;
-	}
+	// if (bests.first.score == INT16_MAX) {
+	// 	bests = sw_sse2_int<type>(db_sequence, 0, db_length, query_length, gap_open, gap_extend,
+	// 				profile->profile_int, USHRT_MAX, maskLen);
+	// 	r.word = 2;
+	// }
 
 	r.score1 = bests.first.score;
     r.dbEndPos1 = bests.first.ref;
@@ -587,18 +587,18 @@ s_align SmithWaterman::alignStartPosBacktrace (
 										   r.score1, maskLen);
 	}
 	// Comment out int32_t now for benchmark
-	else if (r.word == 2) {
-        if ((type == PROFILE_SEQ)) {
-			createQueryProfile<int32_t, VECSIZE_INT * 1, PROFILE>(profile->profile_rev_int, profile->query_rev_sequence, NULL, profile->mat_rev,
-																	r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, profile->query_length);
-		}  else if (type == SEQ_SEQ) {
-			createQueryProfile<int32_t, VECSIZE_INT * 1, SUBSTITUTIONMATRIX>(profile->profile_rev_int, profile->query_rev_sequence, profile->composition_bias_rev, profile->mat,
-																	r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, 0);
-		}
-		bests_reverse = sw_sse2_int<type>(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open,
-											gap_extend, profile->profile_rev_int,
-											r.score1, maskLen);
-	}
+	// else if (r.word == 2) {
+    //     if ((type == PROFILE_SEQ)) {
+	// 		createQueryProfile<int32_t, VECSIZE_INT * 1, PROFILE>(profile->profile_rev_int, profile->query_rev_sequence, NULL, profile->mat_rev,
+	// 																r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, profile->query_length);
+	// 	}  else if (type == SEQ_SEQ) {
+	// 		createQueryProfile<int32_t, VECSIZE_INT * 1, SUBSTITUTIONMATRIX>(profile->profile_rev_int, profile->query_rev_sequence, profile->composition_bias_rev, profile->mat,
+	// 																r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, 0);
+	// 	}
+	// 	bests_reverse = sw_sse2_int<type>(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open,
+	// 										gap_extend, profile->profile_rev_int,
+	// 										r.score1, maskLen);
+	// }
 
     if(bests_reverse.first.score != r.score1){
 		Debug(Debug::ERROR) << "r.word: " << r.word << "\n";
