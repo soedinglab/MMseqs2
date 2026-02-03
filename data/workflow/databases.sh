@@ -265,7 +265,7 @@ case "${SELECTION}" in
     ;;
     "dbCAN2")
         if notExists "${TMP_PATH}/download.done"; then
-            downloadFile "https://dbcan-hcc.unl.edu/download/dbCAN-fam-aln-V14.tar.gz" "${TMP_PATH}/msa.tar.gz"
+            downloadFile "http://dbcan-hcc.unl.edu/download/dbCAN-fam-aln-V14.tar.gz" "${TMP_PATH}/msa.tar.gz"
             printf "14 %s\n" "$(date "+%s")" > "${TMP_PATH}/version"
             touch "${TMP_PATH}/download.done"
         fi
