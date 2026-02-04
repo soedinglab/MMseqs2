@@ -42,7 +42,7 @@ int doeasysearch(int argc, const char **argv, const Command &command, bool linse
     for (size_t i = 0; i < par.extractorfs.size(); i++){
         par.extractorfs[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
-    for (size_t i = 0; i < par.extractframes.size(); i++){
+    for (size_t i = 0; i < par.extractframes.size(); i++) {
         par.extractframes[i]->addCategory(MMseqsParameter::COMMAND_EXPERT);
     }
     for (size_t i = 0; i < par.splitsequence.size(); i++) {
