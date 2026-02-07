@@ -20,6 +20,8 @@
 #include <Sequence.h>
 #include <BandedNucleotideAligner.h>
 
+#include <algorithm>
+
 const char* binary_name = "test_ksw2";
 
 
