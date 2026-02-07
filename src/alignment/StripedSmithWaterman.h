@@ -40,13 +40,14 @@
 #include <malloc.h>
 #endif
 
-#include "simd.h"
 #include "BaseMatrix.h"
 
 #include "Sequence.h"
 #include "EvalueComputation.h"
 
+struct s_profile;
 struct s_block;
+struct simd_data;
 
 typedef struct {
     short qStartPos;
@@ -72,58 +73,18 @@ typedef struct {
     int word;
 } s_align;
 
+typedef struct {
+    uint16_t score;
+    int32_t ref;    //0-based position
+    int32_t read;   //alignment ending position on read, 0-based
+} alignment_end;
+
 class SmithWaterman{
 public:
 
     SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection,
                   float aaBiasCorrectionScale, SubstitutionMatrix * subMat);
     ~SmithWaterman();
-
-    // TODO: private or public?
-    struct s_profile{
-        simd_int* profile_byte;	// 0: none
-        simd_int* profile_word;	// 0: none
-        simd_int* profile_int;
-        simd_int* profile_rev_byte;	// 0: none
-        simd_int* profile_rev_word;	// 0: none
-        simd_int* profile_rev_int;
-        int8_t* query_sequence;
-        int8_t* query_rev_sequence;
-        int8_t* composition_bias;
-        int8_t* composition_bias_rev;
-        int8_t* composition_bias_target;
-        int8_t* composition_bias_target_rev;
-        int8_t* mat;
-        bool isProfile;
-        // Memory layout of if mat + queryProfile is qL * AA
-        //    Query length
-        // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
-        // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
-        // ...
-        // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
-        // Memory layout of if mat + sub is AA * AA
-        //     A   C    ...                                                                Y
-        // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
-        // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
-        // ...
-        // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
-        int8_t* mat_rev; // needed for queryProfile
-        int8_t* pos_aa_rev;
-        int32_t query_length;
-        // int32_t sequence_type;
-        int32_t alphabetSize;
-        uint8_t bias;
-        short ** profile_word_linear;
-        int32_t ** profile_int_linear;
-    };
-
-    // prints a __m128 vector containing 8 signed shorts
-    static void printVector (__m128i v);
-
-    // prints a __m128 vector containing 8 unsigned shorts, added 32768
-    static void printVectorUS (__m128i v);
-
-    static unsigned short sse2_extract_epi16(__m128i v, int pos);
 
     // The dynamic programming matrix entries for the query and database sequences are stored sequentially (the order see the Farrar paper).
     // This function calculates the index within the dynamic programming matrices for the given query and database sequence position.
@@ -256,9 +217,8 @@ public:
 
     static float computeCov(unsigned int startPos, unsigned int endPos, unsigned int len);
 
-    int isProfileSearch(){
-        return profile->isProfile;
-    }
+    int isProfileSearch() const;
+
     s_align scoreIdentical(unsigned char *dbSeq, int L, EvalueComputation * evaluer, int alignmentMode, std::string &backtrace);
 
     static void seq_reverse(int8_t * reverse, const int8_t* seq, int32_t end)	/* end is 0-based alignment ending position */
@@ -278,6 +238,11 @@ public:
     void computerBacktrace(s_profile * query, const unsigned char * db_sequence,
                            s_align & alignment, std::string & backtrace, uint32_t & aaIds, int8_t * scorePerCol, size_t & mStatesCnt);
 
+    /*!	@function		Produce CIGAR 32-bit unsigned integer from CIGAR operation and CIGAR length
+        @param	length		length of CIGAR
+        @param	op_letter	CIGAR operation character ('M', 'I', etc)
+        @return			32-bit unsigned integer, representing encoded CIGAR operation and length
+        */
     static uint32_t to_cigar_int (uint32_t length, char op_letter);
 
     // ssw_init
@@ -288,12 +253,7 @@ public:
     const static unsigned int PROFILE_SEQ = 4;
 
 private:
-
-    simd_int* vHStore;
-    simd_int* vHLoad;
-    simd_int* vE;
-    simd_int* vHmax;
-    uint8_t * maxColumn;
+    simd_data* simdData;
 
     // target variables
     int segSize;
@@ -302,17 +262,9 @@ private:
     bool isQueryProfile;
 
     typedef struct {
-        uint16_t score;
-        int32_t ref;	 //0-based position
-        int32_t read;    //alignment ending position on read, 0-based
-    } alignment_end;
-
-
-    typedef struct {
         uint32_t* seq;
         int32_t length;
     } cigar;
-
 
     template <unsigned int type>
     s_align ssw_align_private (const unsigned char*db_sequence,
@@ -326,50 +278,6 @@ private:
                         const int covMode, const float covThr, const float correlationScoreWeight,
                         const int32_t maskLen);
 
-    /* Striped Smith-Waterman
-     Record the highest score of each reference position.
-     Return the alignment score and ending position of the best alignment, 2nd best alignment, etc.
-     Gap begin and gap extension are different.
-     wight_match > 0, all other weights < 0.
-     The returned positions are 0-based.
-     */
-    template <unsigned int type>
-    std::pair<alignment_end, alignment_end> sw_sse2_byte(const unsigned char *db_sequence,
-                                 int8_t ref_dir,	// 0: forward ref; 1: reverse ref
-                                 int32_t db_length,
-                                 int32_t query_length,
-                                 const uint8_t gap_open, /* will be used as - */
-                                 const uint8_t gap_extend, /* will be used as - */
-                                 const simd_int* query_profile_byte,
-                                 uint8_t terminate,	/* the best alignment score: used to terminate
-                                                     the matrix calculation when locating the
-                                                     alignment beginning point. If this score
-                                                     is set to 0, it will not be used */
-                                 uint8_t bias,  /* Shift 0 point to a positive value. */
-                                 int32_t maskLen);
-
-    template <unsigned int type>
-    std::pair<alignment_end, alignment_end> sw_sse2_word (const unsigned char* db_sequence,
-                                 int8_t ref_dir,	// 0: forward ref; 1: reverse ref
-                                 int32_t db_length,
-                                 int32_t query_length,
-                                 const uint8_t gap_open, /* will be used as - */
-                                 const uint8_t gap_extend, /* will be used as - */
-                                 const simd_int* query_profile_word,
-                                 uint16_t terminate,
-                                 int32_t maskLen);
-
-    template <unsigned int type>
-    std::pair<alignment_end, alignment_end> sw_sse2_int (const unsigned char* db_sequence,
-                                int8_t ref_dir,	// 0: forward ref; 1: reverse ref
-                                int32_t db_length,
-                                int32_t query_length,
-                                const uint8_t gap_open, /* will be used as - */
-                                const uint8_t gap_extend, /* will be used as - */
-                                const simd_int* query_profile_int,
-                                uint32_t terminate,
-                                int32_t maskLen);
-
     template <unsigned int type>
     SmithWaterman::cigar *banded_sw(const unsigned char *db_sequence, const int8_t *query_sequence,
                                     const int8_t * compositionBias,
@@ -377,19 +285,8 @@ private:
                                     int32_t score, const uint32_t gap_open, const uint32_t gap_extend,
                                     int32_t band_width, const int8_t *mat, const int32_t qry_n);
 
-
-    /*!	@function		Produce CIGAR 32-bit unsigned integer from CIGAR operation and CIGAR length
-     @param	length		length of CIGAR
-     @param	op_letter	CIGAR operation character ('M', 'I', etc)
-     @return			32-bit unsigned integer, representing encoded CIGAR operation and length
-     */
-
     s_profile* profile;
     s_block* block;
-
-    template <typename T, size_t Elements, const unsigned int type>
-    void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias,
-            const int8_t *mat, const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
 
     float *tmp_composition_bias;
     int8_t * scorePerCol;
@@ -399,9 +296,6 @@ private:
     bool aaBiasCorrection;
     float aaBiasCorrectionScale;
     SubstitutionMatrix * subMat;
-
-    template <typename T, size_t Elements>
-    void updateQueryProfile(simd_int *profile, const int32_t query_length, const int32_t aaSize, uint8_t shift);
 
     uint8_t computeBias(const int32_t target_length, const int8_t *mat, const int32_t aaSize);
 

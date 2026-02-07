@@ -1,9 +1,7 @@
 #include "FileUtil.h"
 #include "Util.h"
 #include "Debug.h"
-
-#define SIMDE_ENABLE_NATIVE_ALIASES
-#include <simde/simde-common.h>
+#include "simd.h"
 
 #include <cstddef>
 #include <cstring>
@@ -271,6 +269,17 @@ size_t FileUtil::getFileSize(const std::string &fileName) {
     struct stat stat_buf;
     int rc = stat(fileName.c_str(), &stat_buf);
     return rc == 0 ? stat_buf.st_size : -1;
+}
+
+char *FileUtil::allocPageBufferWithAdvice(int input_desc, size_t insize) {
+    const size_t page_size = getpagesize();
+    void *inbuf = mem_align(page_size, insize);
+#if HAVE_POSIX_FADVISE
+    if (posix_fadvise(input_desc, 0, 0, POSIX_FADV_SEQUENTIAL) != 0) {
+        Debug(Debug::ERROR) << "posix_fadvise returned an error\n";
+    }
+#endif
+    return static_cast<char *>(inbuf);
 }
 
 

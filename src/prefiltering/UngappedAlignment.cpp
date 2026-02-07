@@ -1,7 +1,21 @@
 //
 // Created by mad on 12/15/15.
 
+#include "simd.h"
 #include "UngappedAlignment.h"
+
+inline void extractScores(unsigned int *score_arr, simd_int score) {
+#ifdef AVX2
+    #define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi32(score, i)
+    EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
+    EXTRACT_AVX(4);  EXTRACT_AVX(5);  EXTRACT_AVX(6);  EXTRACT_AVX(7);
+#undef EXTRACT_AVX
+#else
+#define EXTRACT_SSE(i) score_arr[i] = _mm_extract_epi32(score, i)
+    EXTRACT_SSE(0);  EXTRACT_SSE(1);   EXTRACT_SSE(2);  EXTRACT_SSE(3);
+#undef EXTRACT_SSE
+#endif
+}
 
 UngappedAlignment::UngappedAlignment(const unsigned int maxSeqLen,
                                      BaseMatrix *substitutionMatrix, SequenceLookup *sequenceLookup)
@@ -367,20 +381,6 @@ unsigned short UngappedAlignment::distanceFromDiagonal(const unsigned short diag
     const unsigned short dist2 =  diagonal - zero;
     return std::min(dist1 , dist2);
 }
-
-void UngappedAlignment::extractScores(unsigned int *score_arr, simd_int score) {
-#ifdef AVX2
-    #define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi32(score, i)
-    EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
-    EXTRACT_AVX(4);  EXTRACT_AVX(5);  EXTRACT_AVX(6);  EXTRACT_AVX(7);
-#undef EXTRACT_AVX
-#else
-#define EXTRACT_SSE(i) score_arr[i] = _mm_extract_epi32(score, i)
-    EXTRACT_SSE(0);  EXTRACT_SSE(1);   EXTRACT_SSE(2);  EXTRACT_SSE(3);
-#undef EXTRACT_SSE
-#endif
-}
-
 
 void UngappedAlignment::createProfile(Sequence *seq,
                                       float * biasCorrection) {

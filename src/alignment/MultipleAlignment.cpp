@@ -1,6 +1,7 @@
 #include "MultipleAlignment.h"
 
 #include "Debug.h"
+#include "simd.h"
 #include "Sequence.h"
 #include "SubstitutionMatrix.h"
 #include "Util.h"

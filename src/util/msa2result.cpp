@@ -8,6 +8,7 @@
 #include "MathUtil.h"
 #include "AlignmentSymmetry.h"
 #include "Matcher.h"
+#include "simd.h"
 
 #include "kseq.h"
 #include "KSeqBufferReader.h"

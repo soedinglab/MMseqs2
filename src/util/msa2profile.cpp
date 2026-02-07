@@ -7,6 +7,7 @@
 #include "FileUtil.h"
 #include "CompressedA3M.h"
 #include "MathUtil.h"
+#include "simd.h"
 
 #include "kseq.h"
 #include "KSeqBufferReader.h"

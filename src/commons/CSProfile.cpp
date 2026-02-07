@@ -3,6 +3,7 @@
 //
 
 #include "CSProfile.h"
+#include "simd.h"
 #include "K4000.crf.h"
 
 
@@ -24,6 +25,22 @@ ContextLibrary::~ContextLibrary() {
     delete [] context_weights;
     delete [] pc_weights;
     delete [] pc;
+}
+
+CSProfile::CSProfile(size_t maxSeqLen) {
+    ctxLib = ContextLibrary::getContextLibraryInstance();
+    profile = (float *) mem_align(ALIGN_FLOAT, (Sequence::PROFILE_AA_SIZE + 4) * maxSeqLen * sizeof(float));
+    int segmentSize = (maxSeqLen + VECSIZE_FLOAT - 1) / VECSIZE_FLOAT;
+    pp = (float *) mem_align(ALIGN_FLOAT, 4000 * segmentSize * VECSIZE_FLOAT * sizeof(float));
+    maximums = (float *) mem_align(ALIGN_FLOAT, segmentSize * VECSIZE_FLOAT * sizeof(float));
+    sums = (float *) mem_align(ALIGN_FLOAT, segmentSize * VECSIZE_FLOAT * sizeof(float));
+}
+
+CSProfile::~CSProfile() {
+    free(profile);
+    free(pp);
+    free(maximums);
+    free(sums);
 }
 
 void ContextLibrary::read(std::string &libStr){

@@ -4,6 +4,8 @@
 #include "Debug.h"
 #include "Util.h"
 
+#include <algorithm>
+
 int appenddbtoindex(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, Parameters::PARSE_VARIADIC, 0);

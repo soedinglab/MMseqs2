@@ -2,6 +2,10 @@
 // optimze based on technolegy double, float and integer (32) SIMD instructions
 // writen by Martin Steinegger
 
+// #ifdef SIMD_H
+// #error "simd.h included multiple times in the same translation unit"
+// #endif
+
 #ifndef SIMD_H
 #define SIMD_H
 #include <cstdlib>

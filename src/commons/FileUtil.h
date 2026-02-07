@@ -47,6 +47,8 @@ public:
 
     static size_t getFileSize(const std::string &fileName);
 
+    static char *allocPageBufferWithAdvice(int input_desc, size_t insize);
+
     static bool symlinkExists(const std::string &path);
 
     static void copyFile(const char *src, const char *dst);

@@ -10,12 +10,13 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <simd.h>
+#include <errno.h>
 #include <algorithm>
 #include <fcntl.h>
 #include <limits.h>
 
 #include "Debug.h"
+#include "FileUtil.h"
 #include "Util.h"
 #define SAFE_READ_ERROR ((size_t) -1)
 
@@ -128,16 +129,7 @@ public:
             size_t insize = io_blksize(stat_buf);
             insize = std::max(insize, outsize);
 
-            size_t page_size = getpagesize();
-            char *inbuf = (char *) mem_align(page_size, insize);
-#if HAVE_POSIX_FADVISE
-            if (posix_fadvise (input_desc, 0, 0, POSIX_FADV_SEQUENTIAL) != 0){
-                Debug(Debug::ERROR) << "posix_fadvise returned an error\n";
-            }
-#endif
-            /* Loop until the end of the file.  */
-//            std::cout << "(size_t) p1 % alignment=" << (size_t) (inbuf + page_size - 1) % page_size << std::endl;
-//            static char const *buf = (char *) ptr_align(inbuf, page_size);
+            char *inbuf = FileUtil::allocPageBufferWithAdvice(input_desc, insize);
             doConcat(input_desc, output_desc, inbuf, insize);
             free(inbuf);
         }

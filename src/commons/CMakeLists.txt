@@ -74,6 +74,7 @@ set(commons_source_files
         commons/Parameters.cpp
         commons/ProfileStates.cpp
         commons/LibraryReader.cpp
+        commons/ScoreMatrix.cpp
         commons/Sequence.cpp
         commons/SequenceWeights.cpp
         commons/SubstitutionMatrix.cpp

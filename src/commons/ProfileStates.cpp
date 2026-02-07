@@ -3,7 +3,7 @@
 #include "Util.h"
 #include "MathUtil.h"
 #include <sstream>
-#include <simd/simd.h>
+#include <simd.h>
 //#include <LibraryPure.lib.h>
 //#include <LibraryPureMMorder.lib.h>
 //#include <Library_Training2_run17.lib.h>

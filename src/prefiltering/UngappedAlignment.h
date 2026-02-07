@@ -6,7 +6,6 @@
 #define MMSEQS_DIAGONALMATCHER_H
 
 #include "SubstitutionMatrix.h"
-#include "simd.h"
 #include "CacheFriendlyOperations.h"
 #include "SequenceLookup.h"
 class UngappedAlignment {
@@ -34,20 +33,6 @@ public:
     inline short getQueryBias() {
         return 0;
     }
-
-#ifdef AVX2
-    static __m256i Shuffle(const __m256i & value, const __m256i & shuffle)
-    {
-        const __m256i K0 = _mm256_setr_epi8(
-                (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70,
-                (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0);
-        const __m256i K1 = _mm256_setr_epi8(
-                (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0, (char)0xF0,
-                (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70);
-        return _mm256_or_si256(_mm256_shuffle_epi8(value, _mm256_add_epi8(shuffle, K0)),
-                               _mm256_shuffle_epi8(_mm256_permute4x64_epi64(value, 0x4E), _mm256_add_epi8(shuffle, K1)));
-    }
-#endif
 
 private:
     const static unsigned int DIAGONALCOUNT = 0xFFFF + 1;
@@ -89,8 +74,6 @@ private:
                                     const short diagonal, CounterResult **hits, const unsigned int hitSize);
 
     unsigned short distanceFromDiagonal(const unsigned short diagonal);
-
-    void extractScores(unsigned int *score_arr, simd_int score);
 
     int computeSingelSequenceScores(const char *queryProfile, const unsigned int queryLen,
                                     std::pair<const unsigned char *, const unsigned int> &dbSeq,

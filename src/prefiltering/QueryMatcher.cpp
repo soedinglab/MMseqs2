@@ -1,6 +1,7 @@
 #include "SubstitutionMatrix.h"
 #include "QueryMatcher.h"
 #include "FastSort.h"
+#include "simd.h"
 #include "Util.h"
 
 #define FE_1(WHAT, X) WHAT(X)

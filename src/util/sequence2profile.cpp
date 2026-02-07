@@ -8,6 +8,7 @@
 #include "Parameters.h"
 #include "DBWriter.h"
 #include "Masker.h"
+#include "simd.h"
 
 #include <string>
 

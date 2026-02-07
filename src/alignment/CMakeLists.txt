@@ -23,6 +23,7 @@ set(alignment_source_files
         alignment/PSSMCalculator.cpp
         alignment/StripedSmithWaterman.cpp
         alignment/BandedNucleotideAligner.cpp
+        alignment/DistanceCalculator.cpp
         alignment/rescorediagonal.cpp
         alignment/Fwbw.cpp
         PARENT_SCOPE

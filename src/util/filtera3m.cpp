@@ -1,6 +1,7 @@
 #include "Debug.h"
 #include "Util.h"
 #include "FileUtil.h"
+#include "simd.h"
 #include "KSeqWrapper.h"
 #include "MsaFilter.h"
 #include "MultipleAlignment.h"

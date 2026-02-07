@@ -304,6 +304,17 @@ void Sequence::nextProfileKmer() {
     }
 }
 
+bool Sequence::kmerWindowContainsX() const {
+    const simd_int xVec = simdi8_set(subMat->aa2num[static_cast<int>('X')]);
+    const simd_int *simdKmer = reinterpret_cast<const simd_int *>(kmerWindow);
+    for (unsigned int pos = 0; pos < simdKmerRegisterCnt; pos++) {
+        if (simd_any(simdi8_eq(simdi_load(simdKmer + pos), xVec))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void Sequence::mapSequence(const char * sequence, unsigned int dataLen){
     if(dataLen >= maxLen){
         numSequence = static_cast<unsigned char*>(realloc(numSequence, dataLen+1));
