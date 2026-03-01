@@ -580,6 +580,7 @@ public:
     int resultDirection;
     float weightThr;
     std::string weightFile;
+    bool useParallelism;
 
     // indexdb
     int checkCompatible;
@@ -930,6 +931,7 @@ public:
     PARAMETER(PARAM_RESULT_DIRECTION)
     PARAMETER(PARAM_WEIGHT_FILE)
     PARAMETER(PARAM_WEIGHT_THR)
+    PARAMETER(PARAM_USE_PARALLELISM)
 
     // workflow
     PARAMETER(PARAM_RUNNER)
