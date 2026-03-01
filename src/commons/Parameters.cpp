@@ -2692,6 +2692,7 @@ void Parameters::setDefaults() {
     weightThr = 0.9;
     weightFile = "";
     useParallelism = false;
+    adjIteration = 3;
 
     // result2stats
     stat = "";

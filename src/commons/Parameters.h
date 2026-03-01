@@ -581,6 +581,7 @@ public:
     float weightThr;
     std::string weightFile;
     bool useParallelism;
+    int adjIteration;
 
     // indexdb
     int checkCompatible;
