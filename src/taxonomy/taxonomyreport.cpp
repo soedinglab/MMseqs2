@@ -199,8 +199,6 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), localThreads, false, mode);
     writer.open();
 
-    std::unordered_map<TaxID, std::vector<TaxID>> parentToChildren = taxDB->getParentToChildren();
-
     std::unordered_map<TaxID, unsigned int> taxCounts;
     Debug::Progress progress(reader.getSize());
 #pragma omp parallel num_threads(localThreads)
@@ -240,7 +238,7 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
                 data = Util::skipLine(data);
             }
             if (par.reportMode == Parameters::REPORT_MODE_KRAKENDB) {
-                std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB->getCladeCounts(localTaxCounts, parentToChildren);
+                std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB->getCladeCounts(localTaxCounts);
                 writer.writeStart(thread_idx);
                 taxReport(writer, thread_idx, *taxDB, cladeCounts, entryCount);
                 writer.writeEnd(reader.getDbKey(i), thread_idx);
@@ -267,7 +265,7 @@ int taxonomyreport(int argc, const char **argv, const Command &command) {
         reader.close();
 
         Debug(Debug::INFO) << "Calculating clade counts ... ";
-        std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB->getCladeCounts(taxCounts, parentToChildren);
+        std::unordered_map<TaxID, TaxonCounts> cladeCounts = taxDB->getCladeCounts(taxCounts);
         Debug(Debug::INFO) << " Done\n";
         if (par.reportMode == Parameters::REPORT_MODE_KRAKEN) {
             writer.writeStart(0);

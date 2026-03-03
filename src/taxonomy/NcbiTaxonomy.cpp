@@ -501,43 +501,26 @@ size_t NcbiTaxonomy::loadMerged(const std::string &mergedFile) {
     return count;
 }
 
-std::unordered_map<TaxID, std::vector<TaxID>> NcbiTaxonomy::getParentToChildren() const {
-    std::unordered_map<TaxID, std::vector<TaxID>> result;
-    result.reserve(maxNodes);
-    
-    // Build the adjacency (parent -> children)
-    for (size_t i = 0; i < maxNodes; ++i) {
-        const TaxonNode& tn = taxonNodes[i];
-        if (tn.parentTaxId == tn.taxId) {
-            continue;
-        }
-        result[tn.parentTaxId].push_back(tn.taxId);
-    }
-
-    return result;
-}
-
-std::unordered_map<TaxID, TaxonCounts> NcbiTaxonomy::getCladeCounts(const std::unordered_map<TaxID, unsigned int>& taxonCounts, const std::unordered_map<TaxID, std::vector<TaxID>>& parentToChildren) const {
+std::unordered_map<TaxID, TaxonCounts> NcbiTaxonomy::getCladeCounts(const std::unordered_map<TaxID, unsigned int>& taxonCounts) const {
     std::unordered_map<TaxID, TaxonCounts> cladeCounts;
-
     for (std::unordered_map<TaxID, unsigned int>::const_iterator it = taxonCounts.begin(); it != taxonCounts.end(); ++it) {
-        cladeCounts[it->first].taxCount = it->second;
-        cladeCounts[it->first].cladeCount += it->second;
-        if (nodeExists(it->first)) {
-            TaxonNode const* taxon = taxonNode(it->first);
+        TaxID startTaxId = it->first;
+        unsigned int count = it->second;
+        cladeCounts[startTaxId].taxCount = count;
+        cladeCounts[startTaxId].cladeCount += count;
+        if (nodeExists(startTaxId)) {
+            TaxID childId = startTaxId;
+            TaxonNode const* taxon = taxonNode(startTaxId);
             while (taxon->parentTaxId != taxon->taxId && nodeExists(taxon->parentTaxId)) {
-                taxon = taxonNode(taxon->parentTaxId);
-                cladeCounts[taxon->taxId].cladeCount += it->second;
+                TaxID parentId = taxon->parentTaxId;
+                taxon = taxonNode(parentId);
+                cladeCounts[parentId].cladeCount += count;
+                std::vector<TaxID>& children = cladeCounts[parentId].children;
+                if (std::find(children.begin(), children.end(), childId) == children.end()) {
+                    children.push_back(childId);
+                }
+                childId = parentId;
             }
-        }
-    }
-
-   for (std::unordered_map<TaxID, TaxonCounts>::iterator it = cladeCounts.begin(); it != cladeCounts.end(); ++it) {
-        TaxID parentTaxId = it->first;
-        TaxonCounts& taxCounts = it->second;
-        std::unordered_map<TaxID, std::vector<TaxID>>::const_iterator ptcIt = parentToChildren.find(parentTaxId);
-        if (ptcIt != parentToChildren.end()) {
-            taxCounts.children = ptcIt->second;
         }
     }
 
