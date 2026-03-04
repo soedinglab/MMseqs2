@@ -183,6 +183,108 @@ namespace cudasw4{
     }
 
     __inline__
+    std::vector<SmithWatermanKernelConfig> getOptimalKernelConfigs_SW_sm103(){
+        std::vector<SmithWatermanKernelConfig> configs{
+            {16, 4, 4, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {32, 4, 8, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {48, 4, 12, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {64, 4, 16, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {80, 4, 20, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {96, 4, 24, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {112, 4, 28, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {128, 4, 32, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {144, 4, 36, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {160, 8, 20, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {176, 4, 44, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {192, 8, 24, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {224, 8, 28, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {256, 8, 32, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {288, 8, 36, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {320, 8, 40, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {352, 8, 44, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {384, 16, 24, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {448, 16, 28, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {512, 16, 32, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {576, 16, 36, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {640, 16, 40, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {704, 16, 44, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {768, 32, 24, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {896, 32, 28, 1, SmithWatermanKernelConfig::Approach::Unused },
+            {1024, 32, 32, 1, SmithWatermanKernelConfig::Approach::Unused }
+        };
+
+        return configs;
+    }
+
+        __inline__
+    std::vector<SmithWatermanKernelConfig> getOptimalKernelConfigs_SW_sm120(){
+        std::vector<SmithWatermanKernelConfig> configs{
+            { 16, 4, 4, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 32, 4, 8, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 48, 4, 12, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 64, 4, 16, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 80, 4, 20, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 96, 4, 24, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 112, 4, 28, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 128, 4, 32, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 144, 4, 36, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 160, 8, 20, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 176, 4, 44, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 192, 8, 24, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 224, 8, 28, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 256, 8, 32, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 288, 8, 36, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 320, 16, 20, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 352, 8, 44, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 384, 16, 24, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 448, 16, 28, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 512, 16, 32, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 576, 16, 36, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 640, 32, 20, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 704, 16, 44, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 768, 32, 24, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 896, 32, 28, 1, SmithWatermanKernelConfig::Approach::Unused },
+            { 1024, 32, 32, 1, SmithWatermanKernelConfig::Approach::Unused },
+        };
+
+        return configs;
+    }
+
+    __inline__
+    std::vector<SmithWatermanKernelConfig> getOptimalKernelConfigs_SW_sm121(){
+        std::vector<SmithWatermanKernelConfig> configs{
+            {16, 4, 4, 1, SmithWatermanKernelConfig::Approach::Unused},
+            {32, 4, 8, 1, SmithWatermanKernelConfig::Approach::Unused},
+            {48, 4, 12, 1, SmithWatermanKernelConfig::Approach::Unused},
+            {64, 4, 16, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {80, 4, 20, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {96, 4, 24, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {112, 4, 28, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {128, 4, 32, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {144, 4, 36, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {160, 8, 20, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {176, 4, 44, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {192, 8, 24, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {224, 8, 28, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {256, 8, 32, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {288, 8, 36, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {320, 8, 40, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {352, 8, 44, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {384, 16, 24, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {448, 16, 28, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {512, 16, 32, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {576, 16, 36, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {640, 16, 40, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {704, 16, 44, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {768, 32, 24, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {896, 32, 28, 0, SmithWatermanKernelConfig::Approach::Unused},
+            {1024, 32, 32, 0, SmithWatermanKernelConfig::Approach::Unused},
+        };
+
+        return configs;
+    }
+
+    __inline__
     std::vector<SmithWatermanKernelConfig> getOptimalKernelConfigs_SW_default(){
         return getOptimalKernelConfigs_SW_sm89();
     }
@@ -204,6 +306,12 @@ namespace cudasw4{
             configs = getOptimalKernelConfigs_SW_sm89();
         }else if(ccMajor == 9 && ccMinor == 0){
             configs = getOptimalKernelConfigs_SW_sm90();
+        }else if(ccMajor == 10 && ccMinor == 3){
+            configs = getOptimalKernelConfigs_SW_sm103();
+        }else if(ccMajor == 12 && ccMinor == 0){
+            configs = getOptimalKernelConfigs_SW_sm120();
+        }else if(ccMajor == 12 && ccMinor == 1){
+            configs = getOptimalKernelConfigs_SW_sm121();
         }else{
             configs = getOptimalKernelConfigs_SW_default();
         }

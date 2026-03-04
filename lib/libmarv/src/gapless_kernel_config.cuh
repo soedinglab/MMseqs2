@@ -209,6 +209,126 @@ namespace cudasw4{
     }
 
     __inline__
+    std::vector<GaplessKernelConfig> getOptimalKernelConfigs_gapless_sm103(){
+        std::vector<GaplessKernelConfig> configs{
+            {32, 4, 4, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {64, 4, 8, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {96, 4, 12, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {128, 4, 16, 0, GaplessKernelConfig::Approach::hardcodedzero },
+            {160, 4, 20, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {192, 4, 24, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {224, 4, 28, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {256, 4, 32, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {288, 4, 36, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {320, 4, 40, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {352, 4, 44, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {384, 4, 48, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {416, 4, 52, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {448, 4, 56, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {480, 4, 60, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {512, 4, 64, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {576, 8, 36, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {640, 8, 40, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {704, 8, 44, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {768, 8, 48, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {832, 8, 52, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {896, 8, 56, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {960, 8, 60, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {1024, 8, 64, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {1152, 16, 36, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {1280, 16, 40, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {1408, 16, 44, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {1536, 16, 48, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {1664, 16, 52, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {1792, 16, 56, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {1920, 16, 60, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {2048, 16, 64, 1, GaplessKernelConfig::Approach::kernelparamzero }
+        };
+
+        return configs;
+    }
+
+    __inline__
+    std::vector<GaplessKernelConfig> getOptimalKernelConfigs_gapless_sm120(){
+        std::vector<GaplessKernelConfig> configs{
+            { 32, 4, 4, 0, GaplessKernelConfig::Approach::kernelparamzero },
+            { 64, 4, 8, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 96, 4, 12, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 128, 4, 16, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 160, 4, 20, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 192, 4, 24, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 224, 4, 28, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            { 256, 4, 32, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 288, 4, 36, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 320, 4, 40, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 352, 4, 44, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            { 384, 4, 48, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 416, 4, 52, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 448, 4, 56, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 480, 4, 60, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 512, 4, 64, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 576, 8, 36, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            { 640, 8, 40, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 704, 8, 44, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            { 768, 8, 48, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            { 832, 8, 52, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            { 896, 8, 56, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            { 960, 8, 60, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            { 1024, 8, 64, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 1152, 16, 36, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 1280, 16, 40, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 1408, 16, 44, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 1536, 16, 48, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 1664, 16, 52, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 1792, 16, 56, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 1920, 16, 60, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            { 2048, 16, 64, 1, GaplessKernelConfig::Approach::hardcodedzero }
+        };
+
+        return configs;
+    }
+
+    __inline__
+    std::vector<GaplessKernelConfig> getOptimalKernelConfigs_gapless_sm121(){
+        std::vector<GaplessKernelConfig> configs{
+            {32, 4, 4, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {64, 4, 8, 0, GaplessKernelConfig::Approach::hardcodedzero },
+            {96, 4, 12, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {128, 4, 16, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {160, 4, 20, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {192, 4, 24, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {224, 4, 28, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {256, 4, 32, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {288, 4, 36, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {320, 4, 40, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {352, 4, 44, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {384, 4, 48, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {416, 4, 52, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {448, 4, 56, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {480, 4, 60, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {512, 4, 64, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {576, 8, 36, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {640, 8, 40, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {704, 8, 44, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {768, 8, 48, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {832, 8, 52, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {896, 8, 56, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {960, 8, 60, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {1024, 8, 64, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {1152, 16, 36, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {1280, 16, 40, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {1408, 16, 44, 1, GaplessKernelConfig::Approach::kernelparamzero },
+            {1536, 16, 48, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {1664, 16, 52, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {1792, 16, 56, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {1920, 16, 60, 1, GaplessKernelConfig::Approach::hardcodedzero },
+            {2048, 16, 64, 1, GaplessKernelConfig::Approach::hardcodedzero },
+        };
+
+        return configs;
+    }
+
+    __inline__
     std::vector<GaplessKernelConfig> getOptimalKernelConfigs_gapless_default(){
         return getOptimalKernelConfigs_gapless_sm89();
     }
@@ -230,6 +350,12 @@ namespace cudasw4{
             configs = getOptimalKernelConfigs_gapless_sm89();
         }else if(ccMajor == 9 && ccMinor == 0){
             configs = getOptimalKernelConfigs_gapless_sm90();
+        }else if(ccMajor == 10 && ccMinor == 3){
+            configs = getOptimalKernelConfigs_gapless_sm103();
+        }else if(ccMajor == 12 && ccMinor == 0){
+            configs = getOptimalKernelConfigs_gapless_sm120();
+        }else if(ccMajor == 12 && ccMinor == 1){
+            configs = getOptimalKernelConfigs_gapless_sm121();
         }else{
             configs = getOptimalKernelConfigs_gapless_default();
         }
