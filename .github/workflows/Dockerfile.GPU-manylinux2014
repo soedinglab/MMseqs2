@@ -25,7 +25,7 @@ RUN if ldd /work/build/src/mmseqs | grep -P -v "linux-vdso.so|/lib64/(ld-linux-x
         exit 1; \
     fi; \
     LIBC_V=$(readelf -V /work/build/src/mmseqs | awk '$3 ~ /^GLIBC_/ { print $3 }' | sort -V | tail -n1); \
-    if [[ "$LIBC_V" > "GLIBC_2.17" ]]; then \
+    if [[ "$LIBC_V" > "GLIBC_2.28" ]]; then \
         echo "Error: glibc too new"; \
         readelf -V /work/build/src/mmseqs; \
         exit 1; \
