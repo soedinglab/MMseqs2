@@ -873,7 +873,7 @@ std::vector<Command> baseCommands = {
         {"view",                 view,                 &par.view,                 COMMAND_DB,
                 "Print DB entries given in --id-list to stdout",
                 "# Print entries with keys 1, 2 and 3 from a sequence DB to stdout\n"
-                "mmseqs view sequenecDB --id-list 1,2,3\n",
+                "mmseqs view sequenceDB --id-list 1,2,3\n",
                 "Martin Steinegger <martin.steinegger@snu.ac.kr>",
                 "<i:DB>",
                 CITATION_MMSEQS2, {{"DB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::allDb }}},
