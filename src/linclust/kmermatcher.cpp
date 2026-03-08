@@ -672,97 +672,106 @@ size_t assignGroup(KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, KmerPositio
             }
 
             if (prevHash != currKmer) {
-                for (size_t i = prevHashStart; i < elementIdx; i++) {
-                    // skip target sequences if weight > weightThr
-                    if (i > prevHashStart && sequenceWeights != nullptr &&
-                        sequenceWeights->getWeightById(hashSeqPair[i].id) > weightThr) {
-                        continue;
-                    }
+                bool skipProcessing = (IncludeAdjacentSeq && hashSeqPair[prevHashStart].getAdjacentSeq(0) == UCHAR_MAX);
 
-                    size_t kmer = hashSeqPair[i].kmer;
-                    if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                        kmer = BIT_SET(hashSeqPair[i].kmer, 63);
-                    }
+                if (skipProcessing == false) {
+                    for (size_t i = prevHashStart; i < elementIdx; i++) {
+                        // skip target sequences if weight > weightThr
+                        if (i > prevHashStart && sequenceWeights != nullptr &&
+                            sequenceWeights->getWeightById(hashSeqPair[i].id) > weightThr) {
+                            continue;
+                        }
 
-                    size_t rId = (kmer != SIZE_T_MAX) ? ((prevSetSize - skipByWeightCount == 1) ? SIZE_T_MAX : repSeqId) : SIZE_T_MAX;
-                    
-                    // remove singletones from set
-                    if (rId != SIZE_T_MAX) {
-                        int diagonal = repSeq_i_pos - hashSeqPair[i].pos;
+                        size_t kmer = hashSeqPair[i].kmer;
                         if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                            //  00 No problem here both are forward
-                            //  01 We can revert the query of target, lets invert the query.
-                            //  10 Same here, we can revert query to match the not inverted target
-                            //  11 Both are reverted so no problem!
-                            //  So we need just 1 bit of information to encode all four states
-                            bool targetIsReverse = (BIT_CHECK(hashSeqPair[i].kmer, 63) == false);
-                            bool queryNeedsToBeRev = false;
-                            
-                            // we now need 2 byte of information (00),(01),(10),(11)
-                            // we need to flip the coordinates of the query
-                            T queryPos = 0;
-                            T targetPos = 0;
-                            
-                            // revert kmer in query hits normal kmer in target
-                            // we need revert the query
-                            if (repIsReverse == true && targetIsReverse == false) {
-                                queryPos = repSeq_i_pos;
-                                targetPos = hashSeqPair[i].pos;
-                                queryNeedsToBeRev = true;
-                                // both k-mers were extracted on the reverse strand
-                                // this is equal to both are extract on the forward strand
-                                // we just need to offset the position to the forward strand
-                            } else if (repIsReverse == true && targetIsReverse == true) {
-                                queryPos = (queryLen - 1) - repSeq_i_pos;
-                                targetPos = (hashSeqPair[i].seqLen - 1) - hashSeqPair[i].pos;
-                                queryNeedsToBeRev = false;
-                                // query is not revers but target k-mer is reverse
-                                // instead of reverting the target, we revert the query and offset the the query/target position
-                            } else if (repIsReverse == false && targetIsReverse == true) {
-                                queryPos = (queryLen - 1) - repSeq_i_pos;
-                                targetPos = (hashSeqPair[i].seqLen - 1) - hashSeqPair[i].pos;
-                                queryNeedsToBeRev = true;
-                                // both are forward, everything is good here
-                            } else {
-                                queryPos = repSeq_i_pos;
-                                targetPos = hashSeqPair[i].pos;
-                                queryNeedsToBeRev = false;
-                            }
-                            diagonal = queryPos - targetPos;
-                            rId = (queryNeedsToBeRev) ? BIT_CLEAR(rId, 63) : BIT_SET(rId, 63);
-                        }
-                        
-                        if (IncludeAdjacentSeq) {
-                            int currAdjScore = 0;
-                            for (size_t j = 0; j < 6; j++) {
-                                currAdjScore += subMatPos[j][hashSeqPair[i].getAdjacentSeq(j)];
-                            }
-
-                            if (currAdjScore <= minAdjScore) {
-                                minAdjScore = currAdjScore;
-                                nextRepSeqPos = i;
-                            }
+                            kmer = BIT_SET(hashSeqPair[i].kmer, 63);
                         }
 
-                        bool canBeExtended = (diagonal < 0) || (diagonal > (queryLen - hashSeqPair[i].seqLen));
-                        bool canBeCovered = Util::canBeCovered(covThr, covMode, static_cast<float>(queryLen),
-                                                               static_cast<float>(hashSeqPair[i].seqLen));
+                        size_t rId = (kmer != SIZE_T_MAX) ? ((prevSetSize - skipByWeightCount == 1) ? SIZE_T_MAX : repSeqId) : SIZE_T_MAX;
                         
-                        if ((includeOnlyExtendable == false && canBeCovered) || (canBeExtended && includeOnlyExtendable == true)) {
-                            targetSeqPair[localWritePos[thread]].kmer = rId;
-                            targetSeqPair[localWritePos[thread]].pos = diagonal;
-                            targetSeqPair[localWritePos[thread]].seqLen = hashSeqPair[i].seqLen;
-                            targetSeqPair[localWritePos[thread]].id = hashSeqPair[i].id;
-                            localWritePos[thread]++;
+                        // remove singletones from set
+                        if (rId != SIZE_T_MAX) {
+                            int diagonal = repSeq_i_pos - hashSeqPair[i].pos;
+                            if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
+                                //  00 No problem here both are forward
+                                //  01 We can revert the query of target, lets invert the query.
+                                //  10 Same here, we can revert query to match the not inverted target
+                                //  11 Both are reverted so no problem!
+                                //  So we need just 1 bit of information to encode all four states
+                                bool targetIsReverse = (BIT_CHECK(hashSeqPair[i].kmer, 63) == false);
+                                bool queryNeedsToBeRev = false;
+                                
+                                // we now need 2 byte of information (00),(01),(10),(11)
+                                // we need to flip the coordinates of the query
+                                T queryPos = 0;
+                                T targetPos = 0;
+                                
+                                // revert kmer in query hits normal kmer in target
+                                // we need revert the query
+                                if (repIsReverse == true && targetIsReverse == false) {
+                                    queryPos = repSeq_i_pos;
+                                    targetPos = hashSeqPair[i].pos;
+                                    queryNeedsToBeRev = true;
+                                    // both k-mers were extracted on the reverse strand
+                                    // this is equal to both are extract on the forward strand
+                                    // we just need to offset the position to the forward strand
+                                } else if (repIsReverse == true && targetIsReverse == true) {
+                                    queryPos = (queryLen - 1) - repSeq_i_pos;
+                                    targetPos = (hashSeqPair[i].seqLen - 1) - hashSeqPair[i].pos;
+                                    queryNeedsToBeRev = false;
+                                    // query is not revers but target k-mer is reverse
+                                    // instead of reverting the target, we revert the query and offset the the query/target position
+                                } else if (repIsReverse == false && targetIsReverse == true) {
+                                    queryPos = (queryLen - 1) - repSeq_i_pos;
+                                    targetPos = (hashSeqPair[i].seqLen - 1) - hashSeqPair[i].pos;
+                                    queryNeedsToBeRev = true;
+                                    // both are forward, everything is good here
+                                } else {
+                                    queryPos = repSeq_i_pos;
+                                    targetPos = hashSeqPair[i].pos;
+                                    queryNeedsToBeRev = false;
+                                }
+                                diagonal = queryPos - targetPos;
+                                rId = (queryNeedsToBeRev) ? BIT_CLEAR(rId, 63) : BIT_SET(rId, 63);
+                            }
+                            
+                            if (IncludeAdjacentSeq) {
+                                if (hashSeqPair[i].id == repSeqId) {
+                                    hashSeqPair[i].setAdjacentSeq(0, UCHAR_MAX);
+                                }
+
+                                if (hashSeqPair[i].getAdjacentSeq(0) != UCHAR_MAX) {
+                                    int currAdjScore = 0;
+                                    for (size_t j = 0; j < 6; j++) {
+                                        currAdjScore += subMatPos[j][hashSeqPair[i].getAdjacentSeq(j)];
+                                    }
+
+                                    if (currAdjScore <= minAdjScore) {
+                                        minAdjScore = currAdjScore;
+                                        nextRepSeqPos = i;
+                                    }
+                                }
+                            }
+
+                            bool canBeExtended = (diagonal < 0) || (diagonal > (queryLen - hashSeqPair[i].seqLen));
+                            bool canBeCovered = Util::canBeCovered(covThr, covMode, static_cast<float>(queryLen),
+                                                                static_cast<float>(hashSeqPair[i].seqLen));
+                            
+                            if ((includeOnlyExtendable == false && canBeCovered) || (canBeExtended && includeOnlyExtendable == true)) {
+                                targetSeqPair[localWritePos[thread]].kmer = rId;
+                                targetSeqPair[localWritePos[thread]].pos = diagonal;
+                                targetSeqPair[localWritePos[thread]].seqLen = hashSeqPair[i].seqLen;
+                                targetSeqPair[localWritePos[thread]].id = hashSeqPair[i].id;
+                                localWritePos[thread]++;
+                            }
+                        }
+                    }
+                    if (IncludeAdjacentSeq) {
+                        if (nextRepSeqPos != prevHashStart) {
+                            std::swap(hashSeqPair[nextRepSeqPos], hashSeqPair[prevHashStart]);
                         }
                     }
                 }
-                if (IncludeAdjacentSeq) {
-                    if (nextRepSeqPos != prevHashStart) {
-                        std::swap(hashSeqPair[nextRepSeqPos], hashSeqPair[prevHashStart]);
-                    }
-                }
-
                 prevSetSize = 0;
                 skipByWeightCount = 0;
                 prevHash = currKmer;
