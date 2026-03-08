@@ -572,7 +572,8 @@ template <typename T> char* DBReader<T>::getUnpadded(size_t id, int thrIdx) {
     for(size_t i = 0; i < seqLen; i++){
         unsigned char code = static_cast<unsigned char>(data[i]);
         unsigned char baseCode = (code >= 32) ? code - 32 : code;
-        compressedBuffers[thrIdx][i] = CODE_TO_CHAR[baseCode];
+        // restore masked characters as lowercase with bit twiddling
+        compressedBuffers[thrIdx][i] = (code >= 32) ? (CODE_TO_CHAR[baseCode] | ' ') : CODE_TO_CHAR[baseCode];
     }
     compressedBuffers[thrIdx][seqLen + 0] = '\n';
     compressedBuffers[thrIdx][seqLen + 1] = '\0';
