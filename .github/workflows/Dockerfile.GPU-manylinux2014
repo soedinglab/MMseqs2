@@ -1,4 +1,4 @@
-FROM ghcr.io/steineggerlab/build-containers:main-x86_64
+FROM ghcr.io/steineggerlab/build-containers:main-x86_64-manylinux_2_28-cuda13_1
 
 WORKDIR /work
 ADD . .
@@ -11,7 +11,7 @@ RUN mkdir -p /work/build && cd /work/build; \
         -DATOMIC_LIB_OVERRIDE="${LIBGCC}/libatomic.a" \
         -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
         -DZLIB_ROOT=/deps -DBZIP2_ROOT=/deps \
-        -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..; \
+        -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90-real;100-real;103-real;120" ..; \
     cmake --build . -j$(nproc --all) -v;
 
 RUN if ldd /work/build/src/mmseqs | grep -P -v "linux-vdso.so|/lib64/(ld-linux-x86-64|libc|libm|libdl|librt|libpthread|libutil).so" | grep -q .; then \

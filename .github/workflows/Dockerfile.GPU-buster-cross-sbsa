@@ -1,4 +1,4 @@
-FROM ghcr.io/steineggerlab/build-containers:main-sbsa
+FROM ghcr.io/steineggerlab/build-containers:main-sbsa-cuda13_1
 WORKDIR /work
 ADD . .
 
@@ -9,7 +9,7 @@ RUN mkdir -p /work/build && cd /work/build; \
         -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
         -DRust_TOOLCHAIN=stable-x86_64-unknown-linux-gnu \
         -DRust_CARGO_TARGET=aarch64-unknown-linux-gnu \
-        -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..; \
+        -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90-real;100-real;103-real;120;121-real" ..; \
     cmake --build . -j$(nproc --all) -v;
 
 RUN if readelf -a /work/build/src/mmseqs | grep -i "Shared library" | grep -P -v "(linux-vdso|ld-linux-aarch64|libc|libm|libdl|librt|libpthread|libutil).so" | grep -q .; then \
