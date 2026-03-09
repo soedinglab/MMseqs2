@@ -39,25 +39,25 @@ uint64_t hashUInt64(uint64_t in, uint64_t seed) {
     return XXH64(&in, sizeof(uint64_t), seed);
 }
 
-template <typename T, bool IncludeAdjacentSeq>
-KmerPosition<T, IncludeAdjacentSeq> *initKmerPositionMemory(size_t size) {
-    KmerPosition<T, IncludeAdjacentSeq> * hashSeqPair = new(std::nothrow) KmerPosition<T, IncludeAdjacentSeq>[size + 1];
+template <typename T, bool IncludeAdjacentSeq, bool IncludeSeqLen>
+KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> *initKmerPositionMemory(size_t size) {
+    KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> * hashSeqPair = new(std::nothrow) KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>[size + 1];
     Util::checkAllocation(hashSeqPair, "Can not allocate memory");
-    size_t pageSize = Util::getPageSize()/sizeof(KmerPosition<T, IncludeAdjacentSeq>);
+    size_t pageSize = Util::getPageSize()/sizeof(KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>);
 #pragma omp parallel
     {
 #pragma omp for schedule(static)
         for (size_t page = 0; page < size+1; page += pageSize) {
             size_t readUntil = std::min(size+1, page + pageSize) - page;
-            memset(hashSeqPair+page, 0xFF, sizeof(KmerPosition<T, IncludeAdjacentSeq>)* readUntil);
+            memset(hashSeqPair+page, 0xFF, sizeof(KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>)* readUntil);
         }
     }
     return hashSeqPair;
 }
 
 
-template <int TYPE, typename T, bool IncludeAdjacentSeq>
-std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, IncludeAdjacentSeq> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
+template <int TYPE, typename T, bool IncludeAdjacentSeq, bool IncludeSeqLen>
+std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
                                                 Parameters & par, BaseMatrix * subMat, bool hashWholeSequence,
                                                 size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution){
     size_t offset = 0;
@@ -97,7 +97,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, IncludeAdjacentS
         Indexer idxer(subMat->alphabetSize - 1,  par.kmerSize);
         const unsigned int BUFFER_SIZE = 1048576;
         size_t bufferPos = 0;
-        KmerPosition<T, IncludeAdjacentSeq> * threadKmerBuffer = new KmerPosition<T, IncludeAdjacentSeq>[BUFFER_SIZE];
+        KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> * threadKmerBuffer = new KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>[BUFFER_SIZE];
         SequencePosition * kmers = (SequencePosition *) malloc((par.pickNbest * (par.maxSeqLen + 1) + 1) * sizeof(SequencePosition) * 2);
         size_t kmersArraySize = par.maxSeqLen;
         const size_t flushSize = 100000000;
@@ -171,7 +171,6 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, IncludeAdjacentS
                         seqKmerCount++;
                     } else if(TYPE == Parameters::DBTYPE_HMM_PROFILE) {
                         std::pair<size_t*, size_t>  scoreMat = generator->generateKmerList(kmer, true);
-//                        std::cout << scoreMat.elementSize << std::endl;
                         for(size_t kmerPos = 0; kmerPos < scoreMat.second && kmerPos < static_cast<size_t >(par.pickNbest); kmerPos++){
                             size_t kmerIdx = scoreMat.first[kmerPos];
                             (kmers + seqKmerCount)->kmer = kmerIdx;
@@ -187,13 +186,9 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, IncludeAdjacentS
                         (kmers + seqKmerCount)->kmer = kmerIdx;
                         (kmers + seqKmerCount)->pos = seq.getCurrentPosition();
                         const unsigned short hash = hashUInt64(kmerIdx, par.hashShift);
-//                        (kmers + seqKmerCount)->score = hash;
-//                        const unsigned short hash = circ_hash(kmer, par.kmerSize, 5);
                         (kmers + seqKmerCount)->score = hash;
                         scoreDist[hash]++;
                         hierarchicalScoreDist[hash >> 9]++;
-//                        std::cout << seqId << "\t" << (kmers + seqKmerCount)->score << "\t" << (kmers + seqKmerCount)->pos << std::endl;
-
                         seqKmerCount++;
                     }
                     if(seqKmerCount >= kmersArraySize){
@@ -230,7 +225,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, IncludeAdjacentS
                         threadKmerBuffer[bufferPos].kmer = seqHash;
                         threadKmerBuffer[bufferPos].id = seqId;
                         threadKmerBuffer[bufferPos].pos = 0;
-                        threadKmerBuffer[bufferPos].seqLen = seq.L;
+                        threadKmerBuffer[bufferPos].sl.setSeqLen(static_cast<T>(seq.L));
                         if (IncludeAdjacentSeq) {
                             for (size_t i = 0; i < 6; i++) {
                                 threadKmerBuffer[bufferPos].setAdjacentSeq(i, xIndex);
@@ -241,7 +236,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, IncludeAdjacentS
                             size_t writeOffset = __sync_fetch_and_add(&offset, bufferPos);
                             if(writeOffset + bufferPos < kmerArraySize){
                                 if(kmerArray!=NULL){
-                                    memcpy(kmerArray + writeOffset, threadKmerBuffer, sizeof(KmerPosition<T, IncludeAdjacentSeq>) * bufferPos);
+                                    memcpy(kmerArray + writeOffset, threadKmerBuffer, sizeof(KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>) * bufferPos);
                                 }
                             } else{
                                 Debug(Debug::ERROR) << "Kmer array overflow. currKmerArrayOffset="<< writeOffset
@@ -292,21 +287,14 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, IncludeAdjacentS
                     }
 
                     if ((kmers + kmerIdx)->score < threshold ){
-                        // this if is needed to avoid extracting too much elements in the last bin
                         if((kmers + kmerIdx)->score == (threshold - 1) && tooMuchElemInLastBin){
                             tooMuchElemInLastBin--;
                             threshold -= (tooMuchElemInLastBin == 0) ? 1 : 0;
                         }
-//                        std::cout << seqId << "\t" << (kmers + kmerIdx)->score << "\t" << (kmers + kmerIdx)->pos << std::endl;
 
                         selectedKmer++;
                         if ((kmers + kmerIdx)->score >= hashStartRange && (kmers + kmerIdx)->score <= hashEndRange)
                         {
-//                            {
-//                                size_t tmpKmerIdx= (kmers + kmerIdx)->kmer;
-//                                tmpKmerIdx=BIT_CLEAR(tmpKmerIdx, 63);
-//                                std::cout << seqId << "\t" << (kmers + kmerIdx)->score << "\t" << tmpKmerIdx << std::endl;
-//                            }
                             if(hashDistribution != NULL){
                                 __sync_fetch_and_add(&hashDistribution[(kmers + kmerIdx)->score], 1);
                                 continue;
@@ -314,9 +302,8 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, IncludeAdjacentS
                             threadKmerBuffer[bufferPos].kmer = (kmers + kmerIdx)->kmer;
                             threadKmerBuffer[bufferPos].id = seqId;
                             threadKmerBuffer[bufferPos].pos = (kmers + kmerIdx)->pos;
-                            threadKmerBuffer[bufferPos].seqLen = seq.L;
+                            threadKmerBuffer[bufferPos].sl.setSeqLen(static_cast<T>(seq.L));
                             if (IncludeAdjacentSeq) {
-                                // store adjacent sequence information
                                 unsigned int startPos = (kmers + kmerIdx)->pos;
                                 unsigned int endPos = (kmers + kmerIdx)->pos + seq.getEffectiveKmerSize() - 1;
                                 for (size_t i = 0; i < 6; i++) {
@@ -352,7 +339,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, IncludeAdjacentS
                                 if(writeOffset + bufferPos < kmerArraySize){
                                     if(kmerArray!=NULL) {
                                         memcpy(kmerArray + writeOffset, threadKmerBuffer,
-                                               sizeof(KmerPosition<T, IncludeAdjacentSeq>) * bufferPos);
+                                               sizeof(KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>) * bufferPos);
                                     }
                                 } else{
                                     Debug(Debug::ERROR) << "Kmer array overflow. currKmerArrayOffset="<< writeOffset
@@ -386,7 +373,7 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, IncludeAdjacentS
         if(bufferPos > 0){
             size_t writeOffset = __sync_fetch_and_add(&offset, bufferPos);
             if(kmerArray != NULL){
-                memcpy(kmerArray+writeOffset, threadKmerBuffer, sizeof(KmerPosition<T, IncludeAdjacentSeq>) * bufferPos);
+                memcpy(kmerArray+writeOffset, threadKmerBuffer, sizeof(KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>) * bufferPos);
             }
         }
         free(kmers);
@@ -407,9 +394,8 @@ std::pair<size_t, size_t> fillKmerPositionArray(KmerPosition<T, IncludeAdjacentS
 }
 
 
-template <int TYPE, typename T, bool IncludeAdjacentSeq>
-void swapCenterSequence(KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, size_t splitKmerCount, SequenceWeights &seqWeights) {
-
+template <int TYPE, typename T, bool IncludeAdjacentSeq, bool IncludeSeqLen>
+void swapCenterSequence(KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> *hashSeqPair, size_t splitKmerCount, SequenceWeights &seqWeights) {
 
     size_t prevHash = hashSeqPair[0].kmer;
     if(TYPE == Parameters::DBTYPE_NUCLEOTIDES){
@@ -427,7 +413,6 @@ void swapCenterSequence(KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, size_t
         }
         if (prevHash != currKmer) {
 
-            // swap sequence with heighest weigtht to the front of the block
             if (repSeqPos != prevHashStart)
                 std::swap(hashSeqPair[repSeqPos],hashSeqPair[prevHashStart]);
 
@@ -463,19 +448,19 @@ template void swapCenterSequence<1, short, false>(KmerPosition<short, false> *km
 template void swapCenterSequence<1, int, true>(KmerPosition<int, true> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
 template void swapCenterSequence<1, int, false>(KmerPosition<int, false> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
 
-template <typename T, bool IncludeAdjacentSeq>
-KmerPosition<T, IncludeAdjacentSeq> * doComputation(size_t totalKmers, size_t hashStartRange, size_t hashEndRange, std::string splitFile,
+template <typename T, bool IncludeAdjacentSeq, bool IncludeSeqLen>
+KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> * doComputation(size_t totalKmers, size_t hashStartRange, size_t hashEndRange, std::string splitFile,
                                 DBReader<unsigned int> & seqDbr, Parameters & par, BaseMatrix  * subMat) {
 
-    KmerPosition<T, IncludeAdjacentSeq> * hashSeqPair = initKmerPositionMemory<T, IncludeAdjacentSeq>(totalKmers);
+    KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> * hashSeqPair = initKmerPositionMemory<T, IncludeAdjacentSeq, IncludeSeqLen>(totalKmers);
     size_t elementsToSort;
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES, T, IncludeAdjacentSeq>(hashSeqPair, totalKmers, seqDbr, par, subMat, true, hashStartRange, hashEndRange, NULL);
+        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES, T, IncludeAdjacentSeq, IncludeSeqLen>(hashSeqPair, totalKmers, seqDbr, par, subMat, true, hashStartRange, hashEndRange, NULL);
         elementsToSort = ret.first;
         par.kmerSize = ret.second;
         Debug(Debug::INFO) << "\nAdjusted k-mer length " << par.kmerSize << "\n";
     }else{
-        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, T, IncludeAdjacentSeq>(hashSeqPair, totalKmers, seqDbr, par, subMat, true, hashStartRange, hashEndRange, NULL);
+        std::pair<size_t, size_t > ret = fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, T, IncludeAdjacentSeq, IncludeSeqLen>(hashSeqPair, totalKmers, seqDbr, par, subMat, true, hashStartRange, hashEndRange, NULL);
         elementsToSort = ret.first;
     }
     if(hashEndRange == SIZE_T_MAX){
@@ -485,28 +470,26 @@ KmerPosition<T, IncludeAdjacentSeq> * doComputation(size_t totalKmers, size_t ha
     Debug(Debug::INFO) << "Sort kmer ";
     Timer timer;
     if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-        SORT_PARALLEL(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<T, IncludeAdjacentSeq>::compareRepSequenceAndIdAndPosReverse);
+        SORT_PARALLEL(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>::compareRepSequenceAndIdAndPosReverse);
     }else{
-        SORT_PARALLEL(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<T, IncludeAdjacentSeq>::compareRepSequenceAndIdAndPos);
+        SORT_PARALLEL(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>::compareRepSequenceAndIdAndPos);
     }
     Debug(Debug::INFO) << timer.lap() << "\n";
 
     SequenceWeights *sequenceWeights = NULL;
-    // use priority information to swap center sequences
     if (par.PARAM_WEIGHT_FILE.wasSet) {
         sequenceWeights = new SequenceWeights(par.weightFile.c_str());
         if (sequenceWeights != NULL) {
             if (Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-                swapCenterSequence<Parameters::DBTYPE_NUCLEOTIDES, T, IncludeAdjacentSeq>(hashSeqPair, totalKmers, *sequenceWeights);
+                swapCenterSequence<Parameters::DBTYPE_NUCLEOTIDES, T, IncludeAdjacentSeq, IncludeSeqLen>(hashSeqPair, totalKmers, *sequenceWeights);
             } else {
-                swapCenterSequence<Parameters::DBTYPE_AMINO_ACIDS, T, IncludeAdjacentSeq>(hashSeqPair, totalKmers, *sequenceWeights);
+                swapCenterSequence<Parameters::DBTYPE_AMINO_ACIDS, T, IncludeAdjacentSeq, IncludeSeqLen>(hashSeqPair, totalKmers, *sequenceWeights);
             }
         }
     }
 
-    // set multithreading
-    KmerPosition<T, IncludeAdjacentSeq> * writeSeqPair  = par.useParallelism ? initKmerPositionMemory<T, IncludeAdjacentSeq>(totalKmers) : nullptr;
-    KmerPosition<T, IncludeAdjacentSeq> * targetSeqPair = par.useParallelism ? writeSeqPair : hashSeqPair;
+    KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> * writeSeqPair  = par.useParallelism ? initKmerPositionMemory<T, IncludeAdjacentSeq, IncludeSeqLen>(totalKmers) : nullptr;
+    KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> * targetSeqPair = par.useParallelism ? writeSeqPair : hashSeqPair;
 
     std::vector<size_t> threadOffsets;
     size_t splitSize = elementsToSort/par.threads;
@@ -552,31 +535,27 @@ KmerPosition<T, IncludeAdjacentSeq> * doComputation(size_t totalKmers, size_t ha
     const int maxIter = (IncludeAdjacentSeq) ? par.adjIteration + 1 : 1;
 
     for (int iter = 0; iter < maxIter; iter++){
-        // assign rep. sequence to same kmer members
-        // The longest sequence is the first since we sorted by kmer, seq.Len and id
         size_t writePos;
         timer.reset();
         if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-            writePos = assignGroup<Parameters::DBTYPE_NUCLEOTIDES, T, IncludeAdjacentSeq>(hashSeqPair, writeSeqPair, par.includeOnlyExtendable, par.covMode, par.covThr, sequenceWeights, par.weightThr, par.threads, threadOffsets, subMat);
+            writePos = assignGroup<Parameters::DBTYPE_NUCLEOTIDES, T, IncludeAdjacentSeq, IncludeSeqLen>(hashSeqPair, writeSeqPair, par.includeOnlyExtendable, par.covMode, par.covThr, sequenceWeights, par.weightThr, par.threads, threadOffsets, subMat);
         }else{
-            writePos = assignGroup<Parameters::DBTYPE_AMINO_ACIDS, T, IncludeAdjacentSeq>(hashSeqPair, writeSeqPair, par.includeOnlyExtendable, par.covMode, par.covThr, sequenceWeights, par.weightThr, par.threads, threadOffsets, subMat);
+            writePos = assignGroup<Parameters::DBTYPE_AMINO_ACIDS, T, IncludeAdjacentSeq, IncludeSeqLen>(hashSeqPair, writeSeqPair, par.includeOnlyExtendable, par.covMode, par.covThr, sequenceWeights, par.weightThr, par.threads, threadOffsets, subMat);
         }
         Debug(Debug::INFO) << "Time for assign: " << timer.lap() << "\n";
 
         delete sequenceWeights;
 
-        // sort by rep. sequence (stored in kmer) and sequence id
         Debug(Debug::INFO) << "Sort by rep. sequence ";
         timer.reset();
         if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-            SORT_PARALLEL(targetSeqPair, targetSeqPair + writePos, KmerPosition<T, IncludeAdjacentSeq>::compareRepSequenceAndIdAndDiagReverse);
+            SORT_PARALLEL(targetSeqPair, targetSeqPair + writePos, KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>::compareRepSequenceAndIdAndDiagReverse);
         }else{
-            SORT_PARALLEL(targetSeqPair, targetSeqPair + writePos, KmerPosition<T, IncludeAdjacentSeq>::compareRepSequenceAndIdAndDiag);
+            SORT_PARALLEL(targetSeqPair, targetSeqPair + writePos, KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>::compareRepSequenceAndIdAndDiag);
         }
         Debug(Debug::INFO) << timer.lap() << "\n";
 
         if(hashEndRange != SIZE_T_MAX || par.useParallelism){
-            // set multithreading for write
             std::vector<size_t> threadQueryOffsets;
             threadQueryOffsets.resize(par.threads + 1);
             size_t splitSize = seqDbr.getSize()/par.threads;
@@ -585,11 +564,11 @@ KmerPosition<T, IncludeAdjacentSeq> * doComputation(size_t totalKmers, size_t ha
 #pragma omp parallel for schedule(dynamic, 1) num_threads(par.threads)
             for(int thread = 1; thread < par.threads; thread++){
                 size_t startqid = splitSize * thread;
-                KmerPosition<T, IncludeAdjacentSeq> * it = std::lower_bound(
+                KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> * it = std::lower_bound(
                     targetSeqPair,
                     targetSeqPair + writePos,
                     startqid,
-                    [](const KmerPosition<T, IncludeAdjacentSeq>& elem, size_t k) {
+                    [](const KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>& elem, size_t k) {
                         return elem.kmer < k;
                     }
                 );
@@ -600,9 +579,9 @@ KmerPosition<T, IncludeAdjacentSeq> * doComputation(size_t totalKmers, size_t ha
 
             timer.reset();
             if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-                writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, T, IncludeAdjacentSeq>(splitFile, targetSeqPair, writePos + 1, par.threads, &threadQueryOffsets, iter);
+                writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, T, IncludeAdjacentSeq, IncludeSeqLen>(splitFile, targetSeqPair, writePos + 1, par.threads, &threadQueryOffsets, iter);
             }else{
-                writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, T, IncludeAdjacentSeq>(splitFile, targetSeqPair, writePos + 1, par.threads, &threadQueryOffsets, iter);
+                writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, T, IncludeAdjacentSeq, IncludeSeqLen>(splitFile, targetSeqPair, writePos + 1, par.threads, &threadQueryOffsets, iter);
             }
             Debug(Debug::INFO) << "Time for write: " << timer.lap() << "\n";
         }
@@ -619,8 +598,8 @@ KmerPosition<T, IncludeAdjacentSeq> * doComputation(size_t totalKmers, size_t ha
 
 
 
-template <int TYPE, typename T, bool IncludeAdjacentSeq>
-size_t assignGroup(KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, KmerPosition<T, IncludeAdjacentSeq> *writeSeqPair,
+template <int TYPE, typename T, bool IncludeAdjacentSeq, bool IncludeSeqLen>
+size_t assignGroup(KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> *hashSeqPair, KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> *writeSeqPair,
                    bool includeOnlyExtendable, int covMode, float covThr, SequenceWeights *sequenceWeights,
                    float weightThr, int threads, std::vector<size_t> &threadOffsets, BaseMatrix *subMat) {
     std::vector<size_t> localWritePos;
@@ -629,7 +608,7 @@ size_t assignGroup(KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, KmerPositio
         localWritePos[thread] = threadOffsets[thread];
     }
 
-    KmerPosition<T, IncludeAdjacentSeq> *targetSeqPair = (writeSeqPair == nullptr) ? hashSeqPair : writeSeqPair;
+    KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> *targetSeqPair = (writeSeqPair == nullptr) ? hashSeqPair : writeSeqPair;
 
 #pragma omp parallel for schedule(dynamic, 1) num_threads(threads)
     for (int thread = 0; thread < threads; thread++) {
@@ -650,11 +629,10 @@ size_t assignGroup(KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, KmerPositio
         size_t prevHashStart = startIdx;
         size_t prevSetSize = 0;
         size_t skipByWeightCount = 0;
-        T queryLen = hashSeqPair[startIdx].seqLen;
+        T queryLen = hashSeqPair[prevHashStart].sl.getSeqLen(hashSeqPair[prevHashStart].id);
         bool repIsReverse = false;
         T repSeq_i_pos = hashSeqPair[startIdx].pos;
 
-        // adjacent sequence related
         size_t nextRepSeqPos = prevHashStart;
         int minAdjScore = INT_MAX;
         short* subMatPos[6];
@@ -676,7 +654,6 @@ size_t assignGroup(KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, KmerPositio
 
                 if (skipProcessing == false) {
                     for (size_t i = prevHashStart; i < elementIdx; i++) {
-                        // skip target sequences if weight > weightThr
                         if (i > prevHashStart && sequenceWeights != nullptr &&
                             sequenceWeights->getWeightById(hashSeqPair[i].id) > weightThr) {
                             continue;
@@ -689,43 +666,28 @@ size_t assignGroup(KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, KmerPositio
 
                         size_t rId = (kmer != SIZE_T_MAX) ? ((prevSetSize - skipByWeightCount == 1) ? SIZE_T_MAX : repSeqId) : SIZE_T_MAX;
                         
-                        // remove singletones from set
                         if (rId != SIZE_T_MAX) {
                             int diagonal = repSeq_i_pos - hashSeqPair[i].pos;
                             if (TYPE == Parameters::DBTYPE_NUCLEOTIDES) {
-                                //  00 No problem here both are forward
-                                //  01 We can revert the query of target, lets invert the query.
-                                //  10 Same here, we can revert query to match the not inverted target
-                                //  11 Both are reverted so no problem!
-                                //  So we need just 1 bit of information to encode all four states
                                 bool targetIsReverse = (BIT_CHECK(hashSeqPair[i].kmer, 63) == false);
                                 bool queryNeedsToBeRev = false;
                                 
-                                // we now need 2 byte of information (00),(01),(10),(11)
-                                // we need to flip the coordinates of the query
                                 T queryPos = 0;
                                 T targetPos = 0;
+                                T targetLen = hashSeqPair[i].sl.getSeqLen(hashSeqPair[i].id);
                                 
-                                // revert kmer in query hits normal kmer in target
-                                // we need revert the query
                                 if (repIsReverse == true && targetIsReverse == false) {
                                     queryPos = repSeq_i_pos;
                                     targetPos = hashSeqPair[i].pos;
                                     queryNeedsToBeRev = true;
-                                    // both k-mers were extracted on the reverse strand
-                                    // this is equal to both are extract on the forward strand
-                                    // we just need to offset the position to the forward strand
                                 } else if (repIsReverse == true && targetIsReverse == true) {
                                     queryPos = (queryLen - 1) - repSeq_i_pos;
-                                    targetPos = (hashSeqPair[i].seqLen - 1) - hashSeqPair[i].pos;
+                                    targetPos = (targetLen - 1) - hashSeqPair[i].pos;
                                     queryNeedsToBeRev = false;
-                                    // query is not revers but target k-mer is reverse
-                                    // instead of reverting the target, we revert the query and offset the the query/target position
                                 } else if (repIsReverse == false && targetIsReverse == true) {
                                     queryPos = (queryLen - 1) - repSeq_i_pos;
-                                    targetPos = (hashSeqPair[i].seqLen - 1) - hashSeqPair[i].pos;
+                                    targetPos = (targetLen - 1) - hashSeqPair[i].pos;
                                     queryNeedsToBeRev = true;
-                                    // both are forward, everything is good here
                                 } else {
                                     queryPos = repSeq_i_pos;
                                     targetPos = hashSeqPair[i].pos;
@@ -746,21 +708,23 @@ size_t assignGroup(KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, KmerPositio
                                         currAdjScore += subMatPos[j][hashSeqPair[i].getAdjacentSeq(j)];
                                     }
 
-                                    if (currAdjScore <= minAdjScore) {
+                                    if (currAdjScore <= minAdjScore) { // gg // gyuri test <
                                         minAdjScore = currAdjScore;
                                         nextRepSeqPos = i;
                                     }
                                 }
                             }
 
-                            bool canBeExtended = (diagonal < 0) || (diagonal > (queryLen - hashSeqPair[i].seqLen));
-                            bool canBeCovered = Util::canBeCovered(covThr, covMode, static_cast<float>(queryLen),
-                                                                static_cast<float>(hashSeqPair[i].seqLen));
+                            T targetLen = hashSeqPair[i].sl.getSeqLen(hashSeqPair[i].id);
+                            bool canBeExtended = diagonal < 0 || (diagonal > (queryLen - targetLen));
+                            bool canBecovered = Util::canBeCovered(covThr, covMode,
+                                                            static_cast<float>(queryLen),
+                                                            static_cast<float>(targetLen));
+                        
                             
-                            if ((includeOnlyExtendable == false && canBeCovered) || (canBeExtended && includeOnlyExtendable == true)) {
+                            if ((includeOnlyExtendable == false && canBecovered) || (canBeExtended && includeOnlyExtendable == true)) {
                                 targetSeqPair[localWritePos[thread]].kmer = rId;
                                 targetSeqPair[localWritePos[thread]].pos = diagonal;
-                                targetSeqPair[localWritePos[thread]].seqLen = hashSeqPair[i].seqLen;
                                 targetSeqPair[localWritePos[thread]].id = hashSeqPair[i].id;
                                 localWritePos[thread]++;
                             }
@@ -772,6 +736,9 @@ size_t assignGroup(KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, KmerPositio
                         }
                     }
                 }
+                if (elementIdx == endIdx || hashSeqPair[elementIdx].kmer == SIZE_T_MAX) {
+                    break;
+                }
                 prevSetSize = 0;
                 skipByWeightCount = 0;
                 prevHash = currKmer;
@@ -782,7 +749,7 @@ size_t assignGroup(KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, KmerPositio
                     repIsReverse = (BIT_CHECK(hashSeqPair[elementIdx].kmer, 63) == 0);
                     repSeqId = (repIsReverse) ? repSeqId : BIT_SET(repSeqId, 63);
                 }
-                queryLen = hashSeqPair[elementIdx].seqLen;
+                queryLen = hashSeqPair[elementIdx].sl.getSeqLen(hashSeqPair[elementIdx].id);
                 repSeq_i_pos = hashSeqPair[elementIdx].pos;
 
                 if (IncludeAdjacentSeq) {
@@ -819,7 +786,6 @@ size_t assignGroup(KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, KmerPositio
         }
     }
 
-    // set the last element to SIZE_T_MAX
     targetSeqPair[writePos].kmer = SIZE_T_MAX;
 
     return writePos;
@@ -849,23 +815,22 @@ size_t computeKmerCount(DBReader<unsigned int> &reader, size_t KMER_SIZE, size_t
     size_t totalKmers = 0;
     for(size_t id = 0; id < reader.getSize(); id++ ){
         int seqLen = static_cast<int>(reader.getSeqLen(id));
-        // we need one for the sequence hash
         int kmerAdjustedSeqLen = std::max(1, seqLen  - static_cast<int>(KMER_SIZE ) + 2) ;
         totalKmers += std::min(kmerAdjustedSeqLen, static_cast<int>( chooseTopKmer + (chooseTopKmerScale * seqLen)));
     }
     return totalKmers;
 }
 
-template <typename T, bool IncludeAdjacentSeq>
+template <typename T, bool IncludeAdjacentSeq, bool IncludeSeqLen>
 size_t computeMemoryNeededLinearfilter(size_t totalKmer) {
-    return sizeof(KmerPosition<T, IncludeAdjacentSeq>) * totalKmer;
+    return sizeof(KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>) * totalKmer;
 }
 
 
-template <typename T, bool IncludeAdjacentSeq>
+template <typename T, bool IncludeAdjacentSeq, bool IncludeSeqLen>
 int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
-
     int querySeqType = seqDbr.getDbtype();
+    size_t dbKeySize = seqDbr.getLastKey() +1 ;
     BaseMatrix *subMat;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0, 0.0);
@@ -878,28 +843,39 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
         }
     }
 
-    //seqDbr.readMmapedDataInMemory();
-
-    // memoryLimit in bytes
     size_t memoryLimit=Util::computeMemory(par.splitMemoryLimit);
 
     Debug(Debug::INFO) << "\n";
     float kmersPerSequenceScale = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ?
                                         par.kmersPerSequenceScale.values.nucleotide() : par.kmersPerSequenceScale.values.aminoacid();
     size_t totalKmers = computeKmerCount(seqDbr, par.kmerSize, par.kmersPerSequence, kmersPerSequenceScale);
-    size_t totalSizeNeeded = computeMemoryNeededLinearfilter<T, IncludeAdjacentSeq>(totalKmers) * (par.useParallelism ? 2 : 1); // x2 for multithreading settings
-    // compute splits
+    size_t totalSizeNeeded = computeMemoryNeededLinearfilter<T, IncludeAdjacentSeq, IncludeSeqLen>(totalKmers) * (par.useParallelism ? 2 : 1);
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
     size_t totalKmersPerSplit = std::max(static_cast<size_t>(1024 + 1),
                                          static_cast<size_t>(std::min(totalSizeNeeded, memoryLimit) / 
-                                         (sizeof(KmerPosition<T, IncludeAdjacentSeq>) * (par.useParallelism ? 2 : 1))) + 1); // x2 for multithreading settings
+                                         (sizeof(KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>) * (par.useParallelism ? 2 : 1))) + 1);
 
-    std::vector<std::pair<size_t, size_t>> hashRanges = setupKmerSplits<T, IncludeAdjacentSeq>(par, subMat, seqDbr, totalKmersPerSplit, splits);
+    if (!IncludeSeqLen) {
+        T * seqkey_to_len = new(std::nothrow) T[dbKeySize+1];
+        Util::checkAllocation(seqkey_to_len, "Can not allocate seqkey_to_len memory");
+        memset(seqkey_to_len, 0, sizeof(T)*(dbKeySize+1));
+#pragma omp parallel
+        {
+#pragma omp for schedule(dynamic, 1000)
+            for (size_t id = 0; id < seqDbr.getSize(); id++) {
+                unsigned int seqKey = seqDbr.getDbKey(id);
+                seqkey_to_len[seqKey] = static_cast<T>(seqDbr.getSeqLen(id));
+            }
+        }
+        SeqLenData<T, false>::seqkey_to_len = seqkey_to_len;
+    }
+
+    std::vector<std::pair<size_t, size_t>> hashRanges = setupKmerSplits<T, IncludeAdjacentSeq, IncludeSeqLen>(par, subMat, seqDbr, totalKmersPerSplit, splits);
     if(splits > 1){
         Debug(Debug::INFO) << "Process file into " << hashRanges.size() << " parts\n";
     }
     std::vector<std::string> splitFiles;
-    KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair = NULL;
+    KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> *hashSeqPair = NULL;
 
     size_t mpiRank = 0;
 #ifdef HAVE_MPI
@@ -907,8 +883,6 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
     size_t fromSplit = 0;
     size_t splitCount = 1;
     mpiRank = MMseqsMPI::rank;
-    // if split size is great than nodes than we have to
-    // distribute all splits equally over all nodes
     unsigned int * splitCntPerProc = new unsigned int[MMseqsMPI::numProc];
     memset(splitCntPerProc, 0, sizeof(unsigned int) * MMseqsMPI::numProc);
     for(size_t i = 0; i < splits; i++){
@@ -922,7 +896,7 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
 
     for(size_t split = fromSplit; split < fromSplit+splitCount; split++) {
         std::string splitFileName = par.db2 + "_split_" +SSTR(split);
-        hashSeqPair = doComputation<T, IncludeAdjacentSeq>(totalKmers, hashRanges[split].first, hashRanges[split].second, splitFileName, seqDbr, par, subMat);
+        hashSeqPair = doComputation<T, IncludeAdjacentSeq, IncludeSeqLen>(totalKmers, hashRanges[split].first, hashRanges[split].second, splitFileName, seqDbr, par, subMat);
     }
     MPI_Barrier(MPI_COMM_WORLD);
     if(mpiRank == 0){
@@ -938,7 +912,7 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
 
         std::string splitFileNameDone = splitFileName + ".done";
         if(FileUtil::fileExists(splitFileNameDone.c_str()) == false){
-            hashSeqPair = doComputation<T, IncludeAdjacentSeq>(totalKmersPerSplit, hashRanges[split].first, hashRanges[split].second, splitFileName, seqDbr, par, subMat);
+            hashSeqPair = doComputation<T, IncludeAdjacentSeq, IncludeSeqLen>(totalKmersPerSplit, hashRanges[split].first, hashRanges[split].second, splitFileName, seqDbr, par, subMat);
         }
 
         splitFiles.push_back(splitFileName);
@@ -947,7 +921,6 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
     if(mpiRank == 0){
         std::vector<char> repSequence(seqDbr.getLastKey()+1);
         std::fill(repSequence.begin(), repSequence.end(), false);
-        // write result
         DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads, par.compressed,
                      (Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) ? Parameters::DBTYPE_PREFILTER_REV_RES : Parameters::DBTYPE_PREFILTER_RES );
         dbw.open();
@@ -963,18 +936,13 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
                 mergeKmerFilesAndOutput<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, IncludeAdjacentSeq>(dbw, splitFiles, repSequence, par.threads, maxIter);
             }
 
-            // Cleanup temporary .done files
             for (int iter = 0; iter < maxIter; ++iter) {
                 for (size_t i = 0; i < splitFiles.size(); ++i) {
                     std::string doneFilePath = splitFiles[i];
-
-                    // If adjacent sequence is used, append iteration index
                     if (IncludeAdjacentSeq) {
                         doneFilePath += "_iteration_" + std::to_string(iter);
                     }
-
                     doneFilePath += ".done";
-
                     if (FileUtil::fileExists(doneFilePath.c_str())) {
                         FileUtil::remove(doneFilePath.c_str());
                     }
@@ -982,13 +950,12 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
             }
         } else {
             if (Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)) {
-                writeKmerMatcherResult<Parameters::DBTYPE_NUCLEOTIDES>(dbw, hashSeqPair, totalKmersPerSplit, repSequence, 1);
+                writeKmerMatcherResult<Parameters::DBTYPE_NUCLEOTIDES, T, IncludeAdjacentSeq, IncludeSeqLen>(dbw, hashSeqPair, totalKmersPerSplit, repSequence, 1);
             } else {
-                writeKmerMatcherResult<Parameters::DBTYPE_AMINO_ACIDS>(dbw, hashSeqPair, totalKmersPerSplit, repSequence, 1);
+                writeKmerMatcherResult<Parameters::DBTYPE_AMINO_ACIDS, T, IncludeAdjacentSeq, IncludeSeqLen>(dbw, hashSeqPair, totalKmersPerSplit, repSequence, 1);
             }
         }
         Debug(Debug::INFO) << "Time for fill: " << timer.lap() << "\n";
-        // add missing entries to the result (needed for clustering)
 
 #pragma omp parallel num_threads(1)
         {
@@ -1012,7 +979,6 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
         }
         dbw.close(false, false);
     }
-    // free memory
     delete subMat;
     if(hashSeqPair){
         delete [] hashSeqPair;
@@ -1021,21 +987,19 @@ int kmermatcherInner(Parameters& par, DBReader<unsigned int>& seqDbr) {
     return EXIT_SUCCESS;
 }
 
-template <typename T, bool IncludeAdjacentSeq>
+template <typename T, bool IncludeAdjacentSeq, bool IncludeSeqLen>
 std::vector<std::pair<size_t, size_t>> setupKmerSplits(Parameters &par, BaseMatrix * subMat, DBReader<unsigned int> &seqDbr, size_t totalKmers, size_t splits){
     std::vector<std::pair<size_t, size_t>> hashRanges;
     if (splits > 1) {
         Debug(Debug::INFO) << "Not enough memory to process at once need to split\n";
-        // compute exact k-mer dist
         size_t * hashDist = new size_t[USHRT_MAX+1];
         memset(hashDist, 0 , sizeof(size_t) * (USHRT_MAX+1));
         if(Parameters::isEqualDbtype(seqDbr.getDbtype(), Parameters::DBTYPE_NUCLEOTIDES)){
-            fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES, T, IncludeAdjacentSeq>(NULL, SIZE_T_MAX, seqDbr, par, subMat, true, 0, SIZE_T_MAX, hashDist);
+            fillKmerPositionArray<Parameters::DBTYPE_NUCLEOTIDES, T, IncludeAdjacentSeq, IncludeSeqLen>(NULL, SIZE_T_MAX, seqDbr, par, subMat, true, 0, SIZE_T_MAX, hashDist);
         }else{
-            fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, T, IncludeAdjacentSeq>(NULL, SIZE_T_MAX, seqDbr, par, subMat, true, 0, SIZE_T_MAX, hashDist);
+            fillKmerPositionArray<Parameters::DBTYPE_AMINO_ACIDS, T, IncludeAdjacentSeq, IncludeSeqLen>(NULL, SIZE_T_MAX, seqDbr, par, subMat, true, 0, SIZE_T_MAX, hashDist);
         }
         seqDbr.remapData();
-        // figure out if machine has enough memory to run this job
         size_t maxBucketSize = 0;
         for(size_t i = 0; i < (USHRT_MAX+1); i++) {
             if(maxBucketSize < hashDist[i]){
@@ -1043,10 +1007,9 @@ std::vector<std::pair<size_t, size_t>> setupKmerSplits(Parameters &par, BaseMatr
             }
         }
         if(maxBucketSize > totalKmers){
-            Debug(Debug::INFO) << "Not enough memory to run the kmermatcher. Minimum is at least " << maxBucketSize* sizeof(KmerPosition<T, IncludeAdjacentSeq>) << " bytes\n";
+            Debug(Debug::INFO) << "Not enough memory to run the kmermatcher. Minimum is at least " << maxBucketSize* sizeof(KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen>) << " bytes\n";
             EXIT(EXIT_FAILURE);
         }
-        // define splits
         size_t currBucketSize = 0;
         size_t currBucketStart = 0;
         for(size_t i = 0; i < (USHRT_MAX+1); i++){
@@ -1084,18 +1047,18 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 
     if (seqDbr.getMaxSeqLen() < SHRT_MAX) {
         if (par.useParallelism) {
-            kmermatcherInner<short, true>(par, seqDbr); 
+            kmermatcherInner<short, true, false>(par, seqDbr); 
         }
         else {
-            kmermatcherInner<short, false>(par, seqDbr);   
+            kmermatcherInner<short, false, false>(par, seqDbr);   
         }
     }
     else {
         if (par.useParallelism) {
-            kmermatcherInner<int, true>(par, seqDbr);
+            kmermatcherInner<int, true, false>(par, seqDbr);
         }
         else {
-            kmermatcherInner<int, false>(par, seqDbr);
+            kmermatcherInner<int, false, false>(par, seqDbr);
         }
     }
 
@@ -1104,9 +1067,9 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     return EXIT_SUCCESS;
 }
 
-template <int TYPE, typename T, bool IncludeAdjacentSeq>
+template <int TYPE, typename T, bool IncludeAdjacentSeq, bool IncludeSeqLen>
 void writeKmerMatcherResult(DBWriter & dbw,
-                            KmerPosition<T, IncludeAdjacentSeq> *hashSeqPair, size_t totalKmers,
+                            KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> *hashSeqPair, size_t totalKmers,
                             std::vector<char> &repSequence, size_t threads) {
     std::vector<size_t> threadOffsets;
     size_t splitSize = totalKmers/threads;
@@ -1163,7 +1126,6 @@ void writeKmerMatcherResult(DBWriter & dbw,
                 h.prefScore = 0;
                 h.diagonal = 0;
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
-                // TODO: error handling for len
                 prefResultsOutString.append(buffer, len);
             }
             unsigned int targetId = hashSeqPair[kmerPos].id;
@@ -1174,7 +1136,6 @@ void writeKmerMatcherResult(DBWriter & dbw,
             size_t diagonalCnt = 0;
             size_t topScore =0;
             int bestReverMask = reverMask;
-            // compute best diagonal and score for every group of target sequences
             while(lastTargetId != targetId
                   && kmerPos+kmerOffset < threadOffsets[thread+1]
                   && hashSeqPair[kmerPos+kmerOffset].kmer == repSeqId
@@ -1195,7 +1156,6 @@ void writeKmerMatcherResult(DBWriter & dbw,
                 kmerOffset++;
                 topScore++;
             }
-            // remove similar double sequence hit
             if(targetId != repSeqId && lastTargetId != targetId ){
                 ;
             }else{
@@ -1242,7 +1202,7 @@ size_t queueNextEntry(KmerPositionQueue &queue, int file, size_t offsetPos, T *e
     return offsetPos+pos;
 }
 
-template <int TYPE, typename T, bool IncludeAdjacentSeq = false>
+template <int TYPE, typename T, bool IncludeAdjacentSeq>
 void mergeKmerFilesAndOutput(DBWriter &dbw,
                              std::vector<std::string> tmpFiles,
                              std::vector<char> &repSequence,
@@ -1256,14 +1216,10 @@ void mergeKmerFilesAndOutput(DBWriter &dbw,
         for (int iter = 0; iter < maxIter; iter++) {
             for (size_t i = 0; i < tmpFiles.size(); ++i) {
                 std::string splitFileName = tmpFiles[i];
-
-                // Conditionally append the iteration suffix
                 if (IncludeAdjacentSeq) {
                     splitFileName += "_iteration_" + std::to_string(iter);
                 }
-
                 splitFileName += "_thread_" + std::to_string(threadIdx);
-
                 if (FileUtil::fileExists(splitFileName.c_str())) {
                     threadedFiles[threadIdx].push_back(splitFileName);
                 }
@@ -1271,7 +1227,6 @@ void mergeKmerFilesAndOutput(DBWriter &dbw,
         }
     }
 
-// Parallelize the merging process across multiple threads
 #pragma omp parallel for num_threads(numThreads)
     for (int threadIdx = 0; threadIdx < numThreads; threadIdx++) {
         const int fileCnt = threadedFiles[threadIdx].size();
@@ -1285,7 +1240,6 @@ void mergeKmerFilesAndOutput(DBWriter &dbw,
         size_t *offsetPos  = new size_t[fileCnt];
         size_t *dataSizes  = new size_t[fileCnt];
 
-        // Init structures and mmap files
         for (size_t file = 0; file < threadedFiles[threadIdx].size(); file++) {
             files[file] = FileUtil::openFileOrDie(threadedFiles[threadIdx][file].c_str(), "r", true);
             size_t dataSize = 0;
@@ -1308,7 +1262,6 @@ void mergeKmerFilesAndOutput(DBWriter &dbw,
         }
 
         KmerPositionQueue queue;
-        // Read one entry for each file and populate the priority queue
         for (int file = 0; file < fileCnt; file++) {
             offsetPos[file] = queueNextEntry<TYPE, T>(queue, file, 0, entries[file], entrySizes[file]);
         }
@@ -1333,7 +1286,6 @@ void mergeKmerFilesAndOutput(DBWriter &dbw,
             }
         }
 
-        // Main merge loop
         while (queue.empty() == false) {
             res = queue.top();
             queue.pop();
@@ -1349,7 +1301,6 @@ void mergeKmerFilesAndOutput(DBWriter &dbw,
                 }
                 prefResultsOutString.clear();
 
-                // Skip redundant UINT_MAX entries
                 while (queue.empty() == false && queue.top().id == UINT_MAX) {
                     res = queue.top();
                     queue.pop();
@@ -1373,12 +1324,10 @@ void mergeKmerFilesAndOutput(DBWriter &dbw,
             }
 
             bool hitIsRepSeq = (currRepSeq == res.id);
-            // Skip rep. seq. if set does not have rep. sequences
             if (hitIsRepSeq) {
                 continue;
             }
 
-            // If its not a duplicate, find maximal diagonal and top score for the current hit
             int bestDiagonalCnt = 0;
             int bestRevertMask  = 0;
             short bestDiagonal  = res.pos;
@@ -1421,7 +1370,6 @@ void mergeKmerFilesAndOutput(DBWriter &dbw,
             prefResultsOutString.append(buffer, len);
         }
 
-        // Cleanup resources for the current thread
         for (size_t file = 0; file < threadedFiles[threadIdx].size(); file++) {
             if (fclose(files[file]) != 0) {
                 Debug(Debug::ERROR) << "Cannot close file " << threadedFiles[threadIdx][file] << "\n";
@@ -1448,8 +1396,8 @@ void mergeKmerFilesAndOutput(DBWriter &dbw,
 }
 
 
-template <int TYPE, typename T, typename seqLenType, bool IncludeAdjacentSeq>
-void writeKmersToDisk(std::string tmpFile, KmerPosition<seqLenType, IncludeAdjacentSeq> *hashSeqPair, size_t totalKmers,
+template <int TYPE, typename T, typename seqLenType, bool IncludeAdjacentSeq, bool IncludeSeqLen>
+void writeKmersToDisk(std::string tmpFile, KmerPosition<seqLenType, IncludeAdjacentSeq, IncludeSeqLen> *hashSeqPair, size_t totalKmers,
                       int numThreads, std::vector<size_t> *threadQueryOffsets, int iteration) {
     const size_t BUFFER_SIZE = 2048;
 
@@ -1524,7 +1472,6 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition<seqLenType, IncludeAdjac
                 int forward = 0;
                 int reverse = 0;
 
-                // find diagonal score
                 do {
                     diagonalScore += (diagonalScore == 0 || (lastTargetId == targetId && lastDiagonal == diagonal));
                     lastTargetId = hashSeqPair[kmerPos].id;
@@ -1570,7 +1517,7 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition<seqLenType, IncludeAdjac
                 EXIT(EXIT_FAILURE);
             }
         }
-    } // end parallel region
+    }
     
     std::string fileName = tmpFile + ".done";
     FILE *done = FileUtil::openFileOrDie(fileName.c_str(), "w", false);
@@ -1610,58 +1557,58 @@ void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTy
     }
 }
 
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, true>(KmerPosition<short, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                                          Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, false>(KmerPosition<short, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                                           Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, true>(KmerPosition<short, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                                          Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, false>(KmerPosition<short, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                                           Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, true>(KmerPosition<short, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                                          Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, false>(KmerPosition<short, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                                           Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, int, true>(KmerPosition<int, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                                        Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<0, int, false>(KmerPosition<int, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                                         Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, int, true>(KmerPosition <int, true>* kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                                        Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<1, int, false>(KmerPosition <int, false>* kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                                         Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, int, true>(KmerPosition< int, true> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                                        Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
-template std::pair<size_t, size_t>  fillKmerPositionArray<2, int, false>(KmerPosition< int, false> * kmerArray, size_t kmerArraySize, DBReader<unsigned int> &seqDbr,
-                                                                         Parameters & par, BaseMatrix * subMat, bool hashWholeSequence, size_t hashStartRange, size_t hashEndRange, size_t * hashDistribution);
+// Existing explicit instantiations (IncludeSeqLen defaults to false)
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, true>(KmerPosition<short, true> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, false>(KmerPosition<short, false> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, true>(KmerPosition<short, true> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, false>(KmerPosition<short, false> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, true>(KmerPosition<short, true> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, false>(KmerPosition<short, false> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, int, true>(KmerPosition<int, true> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, int, false>(KmerPosition<int, false> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, int, true>(KmerPosition<int, true> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, int, false>(KmerPosition<int, false> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, int, true>(KmerPosition<int, true> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, int, false>(KmerPosition<int, false> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+
+// Linsearch explicit instantiations (IncludeSeqLen=true)
+template std::pair<size_t, size_t>  fillKmerPositionArray<0, short, false, true>(KmerPosition<short, false, true> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<1, short, false, true>(KmerPosition<short, false, true> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
+template std::pair<size_t, size_t>  fillKmerPositionArray<2, short, false, true>(KmerPosition<short, false, true> *, size_t, DBReader<unsigned int> &, Parameters &, BaseMatrix *, bool, size_t, size_t, size_t *);
 
 template KmerPosition<short, true> *initKmerPositionMemory(size_t size);
 template KmerPosition<short, false> *initKmerPositionMemory(size_t size);
 template KmerPosition<int, true> *initKmerPositionMemory(size_t size);
 template KmerPosition<int, false> *initKmerPositionMemory(size_t size);
+template KmerPosition<short, false, true> *initKmerPositionMemory(size_t size);
 
 template size_t computeMemoryNeededLinearfilter<short, true>(size_t totalKmer);
 template size_t computeMemoryNeededLinearfilter<short, false>(size_t totalKmer);
 template size_t computeMemoryNeededLinearfilter<int, true>(size_t totalKmer);
 template size_t computeMemoryNeededLinearfilter<int, false>(size_t totalKmer);
+template size_t computeMemoryNeededLinearfilter<short, false, true>(size_t totalKmer);
 
-template std::vector<std::pair<size_t, size_t>>  setupKmerSplits<short, true>(Parameters &par, BaseMatrix * subMat, DBReader<unsigned int> &seqDbr, size_t totalKmers, size_t splits);
-template std::vector<std::pair<size_t, size_t>>  setupKmerSplits<short, false>(Parameters &par, BaseMatrix * subMat, DBReader<unsigned int> &seqDbr, size_t totalKmers, size_t splits);
-template std::vector<std::pair<size_t, size_t>>  setupKmerSplits<int, true>(Parameters &par, BaseMatrix * subMat, DBReader<unsigned int> &seqDbr, size_t totalKmers, size_t splits);
-template std::vector<std::pair<size_t, size_t>>  setupKmerSplits<int, false>(Parameters &par, BaseMatrix * subMat, DBReader<unsigned int> &seqDbr, size_t totalKmers, size_t splits);
+template std::vector<std::pair<size_t, size_t>>  setupKmerSplits<short, true>(Parameters &, BaseMatrix *, DBReader<unsigned int> &, size_t, size_t);
+template std::vector<std::pair<size_t, size_t>>  setupKmerSplits<short, false>(Parameters &, BaseMatrix *, DBReader<unsigned int> &, size_t, size_t);
+template std::vector<std::pair<size_t, size_t>>  setupKmerSplits<int, true>(Parameters &, BaseMatrix *, DBReader<unsigned int> &, size_t, size_t);
+template std::vector<std::pair<size_t, size_t>>  setupKmerSplits<int, false>(Parameters &, BaseMatrix *, DBReader<unsigned int> &, size_t, size_t);
+template std::vector<std::pair<size_t, size_t>>  setupKmerSplits<short, false, true>(Parameters &, BaseMatrix *, DBReader<unsigned int> &, size_t, size_t);
 
-template void writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, short, true>(std::string tmpFile, KmerPosition<short, true> *hashSeqPair, size_t totalKmers, int, std::vector<size_t> *, int);
-template void writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, int, true>(std::string tmpFile, KmerPosition<int, true> *hashSeqPair, size_t totalKmers, int, std::vector<size_t> *, int);
-template void writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, short, true>(std::string tmpFile, KmerPosition<short, true> *hashSeqPair, size_t totalKmers, int, std::vector<size_t> *, int);
-template void writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, int, true>(std::string tmpFile, KmerPosition<int, true> *hashSeqPair, size_t totalKmers, int, std::vector<size_t> *, int);
-template void writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, short, false>(std::string tmpFile, KmerPosition<short, false> *hashSeqPair, size_t totalKmers, int, std::vector<size_t> *, int);
-template void writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, int, false>(std::string tmpFile, KmerPosition<int, false> *hashSeqPair, size_t totalKmers, int, std::vector<size_t> *, int);
-template void writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, short, false>(std::string tmpFile, KmerPosition<short, false> *hashSeqPair, size_t totalKmers, int, std::vector<size_t> *, int);
-template void writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, int, false>(std::string tmpFile, KmerPosition<int, false> *hashSeqPair, size_t totalKmers, int, std::vector<size_t> *, int);
+template void writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, short, true>(std::string, KmerPosition<short, true> *, size_t, int, std::vector<size_t> *, int);
+template void writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, int, true>(std::string, KmerPosition<int, true> *, size_t, int, std::vector<size_t> *, int);
+template void writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, short, true>(std::string, KmerPosition<short, true> *, size_t, int, std::vector<size_t> *, int);
+template void writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, int, true>(std::string, KmerPosition<int, true> *, size_t, int, std::vector<size_t> *, int);
+template void writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, short, false>(std::string, KmerPosition<short, false> *, size_t, int, std::vector<size_t> *, int);
+template void writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, int, false>(std::string, KmerPosition<int, false> *, size_t, int, std::vector<size_t> *, int);
+template void writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, short, false>(std::string, KmerPosition<short, false> *, size_t, int, std::vector<size_t> *, int);
+template void writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, int, false>(std::string, KmerPosition<int, false> *, size_t, int, std::vector<size_t> *, int);
+// Linsearch (IncludeSeqLen=true)
+template void writeKmersToDisk<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, short, false, true>(std::string, KmerPosition<short, false, true> *, size_t, int, std::vector<size_t> *, int);
+template void writeKmersToDisk<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, short, false, true>(std::string, KmerPosition<short, false, true> *, size_t, int, std::vector<size_t> *, int);
 
-template void mergeKmerFilesAndOutput<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, true>(DBWriter & dbw, std::vector<std::string> tmpFiles, std::vector<char> &repSequence, int, int);
-template void mergeKmerFilesAndOutput<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, true>(DBWriter & dbw, std::vector<std::string> tmpFiles, std::vector<char> &repSequence, int, int);
-template void mergeKmerFilesAndOutput<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, false>(DBWriter & dbw, std::vector<std::string> tmpFiles, std::vector<char> &repSequence, int, int);
-template void mergeKmerFilesAndOutput<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, false>(DBWriter & dbw, std::vector<std::string> tmpFiles, std::vector<char> &repSequence, int, int);
+template void mergeKmerFilesAndOutput<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, true>(DBWriter &, std::vector<std::string>, std::vector<char> &, int, int);
+template void mergeKmerFilesAndOutput<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, true>(DBWriter &, std::vector<std::string>, std::vector<char> &, int, int);
+template void mergeKmerFilesAndOutput<Parameters::DBTYPE_NUCLEOTIDES, KmerEntryRev, false>(DBWriter &, std::vector<std::string>, std::vector<char> &, int, int);
+template void mergeKmerFilesAndOutput<Parameters::DBTYPE_AMINO_ACIDS, KmerEntry, false>(DBWriter &, std::vector<std::string>, std::vector<char> &, int, int);
 
 #undef SIZE_T_MAX
