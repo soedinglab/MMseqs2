@@ -145,6 +145,9 @@ jobs:
         x86_64:
           ARCH: x86_64
           DOCKER: .github/workflows/Dockerfile.GPU-manylinux2014
+        x86_64-cuda13:
+          ARCH: x86_64
+          DOCKER: .github/workflows/Dockerfile.GPU-manylinux_2_28
         aarch64:
           ARCH: aarch64
           DOCKER: .github/workflows/Dockerfile.GPU-buster-cross-sbsa
@@ -365,6 +368,18 @@ jobs:
           archiveType: tar
       - task: DownloadPipelineArtifact@1
         inputs:
+          artifactName: mmseqs-linux-gpu-x86_64-cuda13
+          targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - script:
+          chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-gpu-cuda13.tar.gz
+          includeRootFolder: true
+          archiveType: tar
+      - task: DownloadPipelineArtifact@1
+        inputs:
           artifactName: mmseqs-linux-gpu-aarch64
           targetPath: $(Build.SourcesDirectory)/mmseqs/bin
       - script:
@@ -447,6 +462,7 @@ jobs:
             mmseqs-linux-sse41.tar.gz \
             mmseqs-linux-avx2.tar.gz \
             mmseqs-linux-gpu.tar.gz \
+            mmseqs-linux-gpu-cuda13.tar.gz \
             mmseqs-linux-gpu-arm64.tar.gz \
             mmseqs-linux-arm64.tar.gz \
             mmseqs-linux-ppc64le-power9.tar.gz
@@ -457,6 +473,7 @@ jobs:
             -F file[]=@mmseqs-linux-sse41.tar.gz -F signature[]=@mmseqs-linux-sse41.tar.gz.sig \
             -F file[]=@mmseqs-linux-avx2.tar.gz -F signature[]=@mmseqs-linux-avx2.tar.gz.sig \
             -F file[]=@mmseqs-linux-gpu.tar.gz -F signature[]=@mmseqs-linux-gpu.tar.gz.sig \
+            -F file[]=@mmseqs-linux-gpu-cuda13.tar.gz -F signature[]=@mmseqs-linux-gpu-cuda13.tar.gz.sig \
             -F file[]=@mmseqs-linux-gpu-arm64.tar.gz -F signature[]=@mmseqs-linux-gpu-arm64.tar.gz.sig \
             -F file[]=@mmseqs-linux-arm64.tar.gz -F signature[]=@mmseqs-linux-arm64.tar.gz.sig \
             -F file[]=@mmseqs-linux-ppc64le-power9.tar.gz -F signature[]=@mmseqs-linux-ppc64le-power9.tar.gz.sig \
