@@ -146,7 +146,7 @@ jobs:
           ARCH: x86_64
           DOCKER: .github/workflows/Dockerfile.GPU-manylinux2014
         x86_64-cuda13:
-          ARCH: x86_64
+          ARCH: x86_64-cuda13
           DOCKER: .github/workflows/Dockerfile.GPU-manylinux_2_28
         aarch64:
           ARCH: aarch64
