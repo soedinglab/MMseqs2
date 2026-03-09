@@ -272,6 +272,30 @@ struct TopNMaximaArrayWithExtra{
     size_t size;
 };
 
+struct PositionsIterator{
+    ReferenceIdT* ptr;
+    ReferenceIdT offset;
+
+    static PositionsIterator fromPointer(ReferenceIdT* p){
+        return {p, 0};
+    }
+
+    static PositionsIterator fromCountingIterator(ReferenceIdT startOffset){
+        return {nullptr, startOffset};
+    }
+
+    __host__ __device__
+    ReferenceIdT operator[](size_t i) const{
+        return ptr ? ptr[i] : offset + static_cast<ReferenceIdT>(i);
+    }
+
+    __host__ __device__
+    PositionsIterator operator+(size_t n) const{
+        if(ptr) return {ptr + n, 0};
+        return {nullptr, offset + static_cast<ReferenceIdT>(n)};
+    }
+};
+
 }
 
 #endif

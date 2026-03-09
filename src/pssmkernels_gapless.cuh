@@ -185,8 +185,7 @@ namespace hardcodedzero{
         int group_size, 
         int numRegs, 
         bool subjectIsCaseSensitive, 
-        class ScoreOutputIterator,
-        class PositionsIterator
+        class ScoreOutputIterator
     >
     __global__
     __launch_bounds__(512,1)
@@ -372,8 +371,7 @@ namespace hardcodedzero{
         int group_size, 
         int numRegs, 
         bool subjectIsCaseSensitive, 
-        class ScoreOutputIterator, 
-        class PositionsIterator
+        class ScoreOutputIterator
     >
     void call_GaplessFilter_strided_PSSM_singletile_kernel(
         const char * const devChars,
@@ -407,8 +405,7 @@ namespace hardcodedzero{
             group_size, 
             numRegs, 
             subjectIsCaseSensitive,
-            ScoreOutputIterator, 
-            PositionsIterator>;
+            ScoreOutputIterator>;
 
         auto setSmemKernelAttribute = [&](){
             static std::map<int, bool> isSet;
@@ -443,10 +440,9 @@ namespace hardcodedzero{
 
 
     #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator decltype(thrust::make_counting_iterator<ReferenceIdT>(0))
     #define subjectIsCaseSensitive true
     #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_singletile_kernel<half2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
+        extern template void call_GaplessFilter_strided_PSSM_singletile_kernel<half2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator>( \
             const char * const, \
             ScoreOutputIterator const, \
             const size_t* const, \
@@ -462,14 +458,12 @@ namespace hardcodedzero{
 
     #undef X
     #undef subjectIsCaseSensitive
-    #undef PositionsIterator
     #undef ScoreOutputIterator
 
     #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator decltype(thrust::make_counting_iterator<ReferenceIdT>(0))
     #define subjectIsCaseSensitive true
     #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_singletile_kernel<short2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
+        extern template void call_GaplessFilter_strided_PSSM_singletile_kernel<short2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator>( \
             const char * const, \
             ScoreOutputIterator const, \
             const size_t* const, \
@@ -485,61 +479,11 @@ namespace hardcodedzero{
 
     #undef X
     #undef subjectIsCaseSensitive
-    #undef PositionsIterator
     #undef ScoreOutputIterator
 
 
 
-
-    #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator ReferenceIdT*
-    #define subjectIsCaseSensitive true
-    #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_singletile_kernel<half2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
-            const char * const, \
-            ScoreOutputIterator const, \
-            const size_t* const, \
-            const SequenceLengthT* const, \
-            PositionsIterator const, \
-            const int, \
-            const SequenceLengthT, \
-            const PSSM_2D_View<half2>&, \
-            cudaStream_t \
-        );
-
-        PSSM_GAPLESS_SINGLETILE_FOR_EACH_VALID_CONFIG_DO_X
-
-    #undef X
-    #undef subjectIsCaseSensitive
-    #undef PositionsIterator
-    #undef ScoreOutputIterator
-
-    #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator ReferenceIdT*
-    #define subjectIsCaseSensitive true
-    #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_singletile_kernel<short2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
-            const char * const, \
-            ScoreOutputIterator const, \
-            const size_t* const, \
-            const SequenceLengthT* const, \
-            PositionsIterator const, \
-            const int, \
-            const SequenceLengthT, \
-            const PSSM_2D_View<short2>&, \
-            cudaStream_t \
-        );
-
-        PSSM_GAPLESS_SINGLETILE_FOR_EACH_VALID_CONFIG_DO_X
-
-    #undef X
-    #undef subjectIsCaseSensitive
-    #undef PositionsIterator
-    #undef ScoreOutputIterator
-
-
-
-    template<class ScoreType, int blocksize, class ScoreOutputIterator, class PositionsIterator>
+    template<class ScoreType, int blocksize, class ScoreOutputIterator>
     void call_GaplessFilter_strided_PSSM_singletile_kernel(
         int group_size,
         int numRegs,
@@ -592,8 +536,7 @@ namespace hardcodedzero{
         int group_size, 
         int numRegs, 
         bool subjectIsCaseSensitive, 
-        class ScoreOutputIterator,
-        class PositionsIterator
+        class ScoreOutputIterator
     >
     __global__
     __launch_bounds__(512,1)
@@ -925,8 +868,7 @@ namespace hardcodedzero{
         int group_size, 
         int numRegs, 
         bool subjectIsCaseSensitive, 
-        class ScoreOutputIterator,
-        class PositionsIterator
+        class ScoreOutputIterator
     >
     void call_GaplessFilter_strided_PSSM_multitile_kernel(
         int numThreadBlocks,
@@ -958,7 +900,7 @@ namespace hardcodedzero{
 
         int smem = sizeof(SharedPSSM);
         auto kernel = GaplessFilter_strided_PSSM_multitile_kernel<ScoreType, blocksize, group_size, numRegs, subjectIsCaseSensitive,
-            ScoreOutputIterator, PositionsIterator>;
+            ScoreOutputIterator>;
 
         auto setSmemKernelAttribute = [&](){
             static std::map<int, bool> isSet;
@@ -993,10 +935,9 @@ namespace hardcodedzero{
 
 
     #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator decltype(thrust::make_counting_iterator<ReferenceIdT>(0))
     #define subjectIsCaseSensitive true
     #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_multitile_kernel<half2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
+        extern template void call_GaplessFilter_strided_PSSM_multitile_kernel<half2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator>( \
             int, \
             const char * const, \
             ScoreOutputIterator const, \
@@ -1015,14 +956,12 @@ namespace hardcodedzero{
 
     #undef X
     #undef subjectIsCaseSensitive
-    #undef PositionsIterator
     #undef ScoreOutputIterator
 
     #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator decltype(thrust::make_counting_iterator<ReferenceIdT>(0))
     #define subjectIsCaseSensitive true
     #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_multitile_kernel<short2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
+        extern template void call_GaplessFilter_strided_PSSM_multitile_kernel<short2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator>( \
             int, \
             const char * const, \
             ScoreOutputIterator const, \
@@ -1041,68 +980,13 @@ namespace hardcodedzero{
 
     #undef X
     #undef subjectIsCaseSensitive
-    #undef PositionsIterator
-    #undef ScoreOutputIterator
-
-
-    #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator ReferenceIdT*
-    #define subjectIsCaseSensitive true
-    #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_multitile_kernel<half2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
-            int, \
-            const char * const, \
-            ScoreOutputIterator const, \
-            const size_t* const, \
-            const SequenceLengthT* const, \
-            PositionsIterator const, \
-            const int, \
-            const SequenceLengthT, \
-            const PSSM_2D_View<half2>&, \
-            float2*, \
-            size_t, \
-            cudaStream_t \
-        );
-
-        PSSM_GAPLESS_MULTITILE_FOR_EACH_VALID_CONFIG_DO_X
-
-    #undef X
-    #undef subjectIsCaseSensitive
-    #undef PositionsIterator
-    #undef ScoreOutputIterator
-
-    #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator ReferenceIdT*
-    #define subjectIsCaseSensitive true
-    #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_multitile_kernel<short2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
-            int, \
-            const char * const, \
-            ScoreOutputIterator const, \
-            const size_t* const, \
-            const SequenceLengthT* const, \
-            PositionsIterator const, \
-            const int, \
-            const SequenceLengthT, \
-            const PSSM_2D_View<short2>&, \
-            float2*, \
-            size_t, \
-            cudaStream_t \
-        );
-
-        PSSM_GAPLESS_MULTITILE_FOR_EACH_VALID_CONFIG_DO_X
-
-    #undef X
-    #undef subjectIsCaseSensitive
-    #undef PositionsIterator
     #undef ScoreOutputIterator
 
 
     template<
         class ScoreType,
         int blocksize, 
-        class ScoreOutputIterator, 
-        class PositionsIterator
+        class ScoreOutputIterator
     >
     void call_GaplessFilter_strided_PSSM_multitile_kernel(
         int numThreadBlocks,
@@ -1287,8 +1171,7 @@ namespace kernelparamzero{
         int group_size, 
         int numRegs, 
         bool subjectIsCaseSensitive, 
-        class ScoreOutputIterator,
-        class PositionsIterator
+        class ScoreOutputIterator
     >
     __global__
     __launch_bounds__(512,1)
@@ -1453,8 +1336,7 @@ namespace kernelparamzero{
         int group_size, 
         int numRegs, 
         bool subjectIsCaseSensitive, 
-        class ScoreOutputIterator, 
-        class PositionsIterator
+        class ScoreOutputIterator
     >
     void call_GaplessFilter_strided_PSSM_singletile_kernel(
         const char * const devChars,
@@ -1488,8 +1370,7 @@ namespace kernelparamzero{
             group_size, 
             numRegs, 
             subjectIsCaseSensitive,
-            ScoreOutputIterator, 
-            PositionsIterator>;
+            ScoreOutputIterator>;
 
         auto setSmemKernelAttribute = [&](){
             static std::map<int, bool> isSet;
@@ -1525,10 +1406,9 @@ namespace kernelparamzero{
 
 
     #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator decltype(thrust::make_counting_iterator<ReferenceIdT>(0))
     #define subjectIsCaseSensitive true
     #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_singletile_kernel<half2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
+        extern template void call_GaplessFilter_strided_PSSM_singletile_kernel<half2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator>( \
             const char * const, \
             ScoreOutputIterator const, \
             const size_t* const, \
@@ -1544,14 +1424,12 @@ namespace kernelparamzero{
 
     #undef X
     #undef subjectIsCaseSensitive
-    #undef PositionsIterator
     #undef ScoreOutputIterator
 
     #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator decltype(thrust::make_counting_iterator<ReferenceIdT>(0))
     #define subjectIsCaseSensitive true
     #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_singletile_kernel<short2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
+        extern template void call_GaplessFilter_strided_PSSM_singletile_kernel<short2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator>( \
             const char * const, \
             ScoreOutputIterator const, \
             const size_t* const, \
@@ -1567,61 +1445,11 @@ namespace kernelparamzero{
 
     #undef X
     #undef subjectIsCaseSensitive
-    #undef PositionsIterator
     #undef ScoreOutputIterator
 
 
 
-
-    #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator ReferenceIdT*
-    #define subjectIsCaseSensitive true
-    #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_singletile_kernel<half2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
-            const char * const, \
-            ScoreOutputIterator const, \
-            const size_t* const, \
-            const SequenceLengthT* const, \
-            PositionsIterator const, \
-            const int, \
-            const SequenceLengthT, \
-            const PSSM_2D_View<half2>&, \
-            cudaStream_t \
-        );
-
-        PSSM_GAPLESS_SINGLETILE_FOR_EACH_VALID_CONFIG_DO_X
-
-    #undef X
-    #undef subjectIsCaseSensitive
-    #undef PositionsIterator
-    #undef ScoreOutputIterator
-
-    #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator ReferenceIdT*
-    #define subjectIsCaseSensitive true
-    #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_singletile_kernel<short2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
-            const char * const, \
-            ScoreOutputIterator const, \
-            const size_t* const, \
-            const SequenceLengthT* const, \
-            PositionsIterator const, \
-            const int, \
-            const SequenceLengthT, \
-            const PSSM_2D_View<short2>&, \
-            cudaStream_t \
-        );
-
-        PSSM_GAPLESS_SINGLETILE_FOR_EACH_VALID_CONFIG_DO_X
-
-    #undef X
-    #undef subjectIsCaseSensitive
-    #undef PositionsIterator
-    #undef ScoreOutputIterator
-
-
-
-    template<class ScoreType, int blocksize, class ScoreOutputIterator, class PositionsIterator>
+    template<class ScoreType, int blocksize, class ScoreOutputIterator>
     void call_GaplessFilter_strided_PSSM_singletile_kernel(
         int group_size,
         int numRegs,
@@ -1674,8 +1502,7 @@ namespace kernelparamzero{
         int group_size, 
         int numRegs, 
         bool subjectIsCaseSensitive, 
-        class ScoreOutputIterator,
-        class PositionsIterator
+        class ScoreOutputIterator
     >
     __global__
     __launch_bounds__(512,1)
@@ -2008,8 +1835,7 @@ namespace kernelparamzero{
         int group_size, 
         int numRegs, 
         bool subjectIsCaseSensitive, 
-        class ScoreOutputIterator,
-        class PositionsIterator
+        class ScoreOutputIterator
     >
     void call_GaplessFilter_strided_PSSM_multitile_kernel(
         int numThreadBlocks,
@@ -2041,7 +1867,7 @@ namespace kernelparamzero{
 
         int smem = sizeof(SharedPSSM);
         auto kernel = GaplessFilter_strided_PSSM_multitile_kernel<ScoreType, blocksize, group_size, numRegs, subjectIsCaseSensitive,
-            ScoreOutputIterator, PositionsIterator>;
+            ScoreOutputIterator>;
 
         auto setSmemKernelAttribute = [&](){
             static std::map<int, bool> isSet;
@@ -2076,10 +1902,9 @@ namespace kernelparamzero{
 
 
     #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator decltype(thrust::make_counting_iterator<ReferenceIdT>(0))
     #define subjectIsCaseSensitive true
     #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_multitile_kernel<half2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
+        extern template void call_GaplessFilter_strided_PSSM_multitile_kernel<half2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator>( \
             int, \
             const char * const, \
             ScoreOutputIterator const, \
@@ -2098,14 +1923,12 @@ namespace kernelparamzero{
 
     #undef X
     #undef subjectIsCaseSensitive
-    #undef PositionsIterator
     #undef ScoreOutputIterator
 
     #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator decltype(thrust::make_counting_iterator<ReferenceIdT>(0))
     #define subjectIsCaseSensitive true
     #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_multitile_kernel<short2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
+        extern template void call_GaplessFilter_strided_PSSM_multitile_kernel<short2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator>( \
             int, \
             const char * const, \
             ScoreOutputIterator const, \
@@ -2124,68 +1947,13 @@ namespace kernelparamzero{
 
     #undef X
     #undef subjectIsCaseSensitive
-    #undef PositionsIterator
-    #undef ScoreOutputIterator
-
-
-    #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator ReferenceIdT*
-    #define subjectIsCaseSensitive true
-    #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_multitile_kernel<half2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
-            int, \
-            const char * const, \
-            ScoreOutputIterator const, \
-            const size_t* const, \
-            const SequenceLengthT* const, \
-            PositionsIterator const, \
-            const int, \
-            const SequenceLengthT, \
-            const PSSM_2D_View<half2>&, \
-            float2*, \
-            size_t, \
-            cudaStream_t \
-        );
-
-        PSSM_GAPLESS_MULTITILE_FOR_EACH_VALID_CONFIG_DO_X
-
-    #undef X
-    #undef subjectIsCaseSensitive
-    #undef PositionsIterator
-    #undef ScoreOutputIterator
-
-    #define ScoreOutputIterator TopNMaximaArray
-    #define PositionsIterator ReferenceIdT*
-    #define subjectIsCaseSensitive true
-    #define X(g,r) \
-        extern template void call_GaplessFilter_strided_PSSM_multitile_kernel<short2, 512, g, r, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
-            int, \
-            const char * const, \
-            ScoreOutputIterator const, \
-            const size_t* const, \
-            const SequenceLengthT* const, \
-            PositionsIterator const, \
-            const int, \
-            const SequenceLengthT, \
-            const PSSM_2D_View<short2>&, \
-            float2*, \
-            size_t, \
-            cudaStream_t \
-        );
-
-        PSSM_GAPLESS_MULTITILE_FOR_EACH_VALID_CONFIG_DO_X
-
-    #undef X
-    #undef subjectIsCaseSensitive
-    #undef PositionsIterator
     #undef ScoreOutputIterator
 
 
     template<
         class ScoreType,
         int blocksize, 
-        class ScoreOutputIterator, 
-        class PositionsIterator
+        class ScoreOutputIterator
     >
     void call_GaplessFilter_strided_PSSM_multitile_kernel(
         int numThreadBlocks,
