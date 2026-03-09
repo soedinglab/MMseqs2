@@ -57,8 +57,7 @@ template<
     int numItems, 
     bool withEndPosition,
     bool subjectIsCaseSensitive, 
-    class ScoreOutputIterator, 
-    class PositionsIterator
+    class ScoreOutputIterator
 >
 __global__
 __launch_bounds__(blocksize,1)
@@ -559,8 +558,7 @@ template<
     int numItems, 
     bool withEndPosition,
     bool subjectIsCaseSensitive, 
-    class ScoreOutputIterator, 
-    class PositionsIterator
+    class ScoreOutputIterator
 >
 void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_singletile(
     int numThreadBlocks,
@@ -593,8 +591,7 @@ void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_singletile(
         numItems, 
         withEndPosition,
         subjectIsCaseSensitive,
-        ScoreOutputIterator, 
-        PositionsIterator>;
+        ScoreOutputIterator>;
 
     auto setSmemKernelAttribute = [&](){
         static std::map<int, bool> isSet;
@@ -631,11 +628,10 @@ void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_singletile(
 
 
 #define ScoreOutputIterator TopNMaximaArrayWithExtra<AlignmentEndPosition>
-#define PositionsIterator decltype(thrust::make_counting_iterator<ReferenceIdT>(0))
 #define withEndPosition true
 #define subjectIsCaseSensitive true
 #define X(g,r) \
-    extern template void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_singletile<float, 512, g, r, withEndPosition, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
+    extern template void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_singletile<float, 512, g, r, withEndPosition, subjectIsCaseSensitive, ScoreOutputIterator>( \
         int, \
         const char * const, \
         ScoreOutputIterator const, \
@@ -655,43 +651,13 @@ PSSM_SW_ENDPOS_SINGLETILE_FLOAT_OR_INT_FOR_EACH_VALID_CONFIG_DO_X
 #undef X
 #undef subjectIsCaseSensitive
 #undef withEndPosition
-#undef PositionsIterator
 #undef ScoreOutputIterator
 
 #define ScoreOutputIterator TopNMaximaArrayWithExtra<AlignmentEndPosition>
-#define PositionsIterator ReferenceIdT*
 #define withEndPosition true
 #define subjectIsCaseSensitive true
 #define X(g,r) \
-    extern template void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_singletile<float, 512, g, r, withEndPosition, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
-        int, \
-        const char * const, \
-        ScoreOutputIterator const, \
-        const size_t* const, \
-        const SequenceLengthT* const, \
-        PositionsIterator const, \
-        const int, \
-        const SequenceLengthT, \
-        const PSSM_2D_View<float>&, \
-        const float,  \
-        const float, \
-        cudaStream_t \
-    );
-
-PSSM_SW_ENDPOS_SINGLETILE_FLOAT_OR_INT_FOR_EACH_VALID_CONFIG_DO_X
-
-#undef X
-#undef subjectIsCaseSensitive
-#undef withEndPosition
-#undef PositionsIterator
-#undef ScoreOutputIterator
-
-#define ScoreOutputIterator TopNMaximaArrayWithExtra<AlignmentEndPosition>
-#define PositionsIterator decltype(thrust::make_counting_iterator<ReferenceIdT>(0))
-#define withEndPosition true
-#define subjectIsCaseSensitive true
-#define X(g,r) \
-    extern template void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_singletile<int, 512, g, r, withEndPosition, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
+    extern template void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_singletile<int, 512, g, r, withEndPosition, subjectIsCaseSensitive, ScoreOutputIterator>( \
         int, \
         const char * const, \
         ScoreOutputIterator const, \
@@ -711,35 +677,6 @@ PSSM_SW_ENDPOS_SINGLETILE_FLOAT_OR_INT_FOR_EACH_VALID_CONFIG_DO_X
 #undef X
 #undef subjectIsCaseSensitive
 #undef withEndPosition
-#undef PositionsIterator
-#undef ScoreOutputIterator
-
-#define ScoreOutputIterator TopNMaximaArrayWithExtra<AlignmentEndPosition>
-#define PositionsIterator ReferenceIdT*
-#define withEndPosition true
-#define subjectIsCaseSensitive true
-#define X(g,r) \
-    extern template void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_singletile<int, 512, g, r, withEndPosition, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
-        int, \
-        const char * const, \
-        ScoreOutputIterator const, \
-        const size_t* const, \
-        const SequenceLengthT* const, \
-        PositionsIterator const, \
-        const int, \
-        const SequenceLengthT, \
-        const PSSM_2D_View<int>&, \
-        const int,  \
-        const int, \
-        cudaStream_t \
-    );
-
-PSSM_SW_ENDPOS_SINGLETILE_FLOAT_OR_INT_FOR_EACH_VALID_CONFIG_DO_X
-
-#undef X
-#undef subjectIsCaseSensitive
-#undef withEndPosition
-#undef PositionsIterator
 #undef ScoreOutputIterator
 
 
@@ -750,8 +687,7 @@ template<
     int blocksize, 
     bool withEndPosition,
     bool subjectIsCaseSensitive, 
-    class ScoreOutputIterator, 
-    class PositionsIterator
+    class ScoreOutputIterator
 >
 void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_singletile(
     int numThreadBlocks,
@@ -797,8 +733,7 @@ template<
     int numItems, 
     bool withEndPosition,
     bool subjectIsCaseSensitive, 
-    class ScoreOutputIterator, 
-    class PositionsIterator
+    class ScoreOutputIterator
 >
 __global__
 __launch_bounds__(blocksize,1)
@@ -1676,8 +1611,7 @@ template<
     int numItems, 
     bool withEndPosition,
     bool subjectIsCaseSensitive, 
-    class ScoreOutputIterator, 
-    class PositionsIterator
+    class ScoreOutputIterator
 >
 void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile(
     int numThreadBlocks,
@@ -1712,8 +1646,7 @@ void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile(
         numItems, 
         withEndPosition,
         subjectIsCaseSensitive,
-        ScoreOutputIterator, 
-        PositionsIterator>;
+        ScoreOutputIterator>;
 
     auto setSmemKernelAttribute = [&](){
         static std::map<int, bool> isSet;
@@ -1754,11 +1687,10 @@ void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile(
 
 
 #define ScoreOutputIterator TopNMaximaArrayWithExtra<AlignmentEndPosition>
-#define PositionsIterator decltype(thrust::make_counting_iterator<ReferenceIdT>(0))
 #define withEndPosition true
 #define subjectIsCaseSensitive true
 #define X(g,r) \
-    extern template void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile<float, 512, g, r, withEndPosition, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
+    extern template void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile<float, 512, g, r, withEndPosition, subjectIsCaseSensitive, ScoreOutputIterator>( \
         int, \
         const char * const, \
         ScoreOutputIterator const, \
@@ -1780,48 +1712,16 @@ void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile(
 #undef X
 #undef subjectIsCaseSensitive
 #undef withEndPosition
-#undef PositionsIterator
-#undef ScoreOutputIterator
-
-#define ScoreOutputIterator TopNMaximaArrayWithExtra<AlignmentEndPosition>
-#define PositionsIterator ReferenceIdT*
-#define withEndPosition true
-#define subjectIsCaseSensitive true
-#define X(g,r) \
-    extern template void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile<float, 512, g, r, withEndPosition, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
-        int, \
-        const char * const, \
-        ScoreOutputIterator const, \
-        const size_t* const, \
-        const SequenceLengthT* const, \
-        PositionsIterator const, \
-        const int, \
-        const SequenceLengthT, \
-        const PSSM_2D_View<float>&, \
-        const float,  \
-        const float, \
-        char* const, \
-        const size_t, \
-        cudaStream_t \
-    );
-
-    PSSM_SW_ENDPOS_MULTITILE_FLOAT_OR_INT_FOR_EACH_VALID_CONFIG_DO_X
-
-#undef X
-#undef subjectIsCaseSensitive
-#undef withEndPosition
-#undef PositionsIterator
 #undef ScoreOutputIterator
 
 
 
 
 #define ScoreOutputIterator TopNMaximaArrayWithExtra<AlignmentEndPosition>
-#define PositionsIterator decltype(thrust::make_counting_iterator<ReferenceIdT>(0))
 #define withEndPosition true
 #define subjectIsCaseSensitive true
 #define X(g,r) \
-    extern template void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile<int, 512, g, r, withEndPosition, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
+    extern template void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile<int, 512, g, r, withEndPosition, subjectIsCaseSensitive, ScoreOutputIterator>( \
         int, \
         const char * const, \
         ScoreOutputIterator const, \
@@ -1843,37 +1743,6 @@ void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile(
 #undef X
 #undef subjectIsCaseSensitive
 #undef withEndPosition
-#undef PositionsIterator
-#undef ScoreOutputIterator
-
-#define ScoreOutputIterator TopNMaximaArrayWithExtra<AlignmentEndPosition>
-#define PositionsIterator ReferenceIdT*
-#define withEndPosition true
-#define subjectIsCaseSensitive true
-#define X(g,r) \
-    extern template void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile<int, 512, g, r, withEndPosition, subjectIsCaseSensitive, ScoreOutputIterator, PositionsIterator>( \
-        int, \
-        const char * const, \
-        ScoreOutputIterator const, \
-        const size_t* const, \
-        const SequenceLengthT* const, \
-        PositionsIterator const, \
-        const int, \
-        const SequenceLengthT, \
-        const PSSM_2D_View<int>&, \
-        const int,  \
-        const int, \
-        char* const, \
-        const size_t, \
-        cudaStream_t \
-    );
-
-    PSSM_SW_ENDPOS_MULTITILE_FLOAT_OR_INT_FOR_EACH_VALID_CONFIG_DO_X
-
-#undef X
-#undef subjectIsCaseSensitive
-#undef withEndPosition
-#undef PositionsIterator
 #undef ScoreOutputIterator
 
 
@@ -1886,8 +1755,7 @@ template<
     int blocksize, 
     bool withEndPosition,
     bool subjectIsCaseSensitive, 
-    class ScoreOutputIterator, 
-    class PositionsIterator
+    class ScoreOutputIterator
 >
 void call_amino_gpu_localAlignmentKernel_affinegap_floatOrInt_pssm_multitile(
     int numThreadBlocks,

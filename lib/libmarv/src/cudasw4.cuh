@@ -33,6 +33,7 @@
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/merge.h>
+#include <thrust/distance.h>
 
 #include <iostream>
 #include <string>
@@ -2647,7 +2648,7 @@ namespace cudasw4{
                                 const char* const inputChars = variables.d_inputChars;
                                 const SequenceLengthT* const inputLengths = variables.d_inputLengths;
                                 const size_t* const inputOffsets = variables.d_inputOffsets;
-                                auto d_selectedPositions = thrust::make_counting_iterator<ReferenceIdT>(sequencePassOffset);
+                                PositionsIterator d_selectedPositions = PositionsIterator::fromCountingIterator(sequencePassOffset);
                                 const size_t numInPass = std::min(numSequencesInBatch - sequencePassOffset, seqsPerPass);
                                 const cudaStream_t stream = ws.workStreamsWithoutTemp[0];
 
@@ -2987,26 +2988,28 @@ namespace cudasw4{
                 const SequenceLengthT* const inputLengths = ws.d_cacheddb->getLengthData();
                 const size_t* const inputOffsets = ws.d_cacheddb->getOffsetData();
 
-                ReferenceIdT* d_selectedPositions;
+                ReferenceIdT* d_selectedPositionsRaw;
                 char* d_availableTempStorage = ws.d_tempStorageHE.data();
                 size_t availableTempStorageBytes = ws.numTempBytes;
 
                 size_t numBytesForSelectedPositions = SDIV(sizeof(ReferenceIdT) * numCachedTargetSubjects, 512) * 512;
                 if(numBytesForSelectedPositions < availableTempStorageBytes * 0.4){
-                    d_selectedPositions = (ReferenceIdT*)d_availableTempStorage;
+                    d_selectedPositionsRaw = (ReferenceIdT*)d_availableTempStorage;
                     d_availableTempStorage = ((char*)d_availableTempStorage) + numBytesForSelectedPositions;
                     availableTempStorageBytes -= numBytesForSelectedPositions;
                 }else{
-                    cudaMallocAsync(&d_selectedPositions, sizeof(ReferenceIdT) * numCachedTargetSubjects, stream); CUERR;
+                    cudaMallocAsync(&d_selectedPositionsRaw, sizeof(ReferenceIdT) * numCachedTargetSubjects, stream); CUERR;
                 }
 
                 cudaMemcpyAsync(
-                    d_selectedPositions, 
+                    d_selectedPositionsRaw,
                     targetSubjectIds->subjectIds.data(), 
                     sizeof(ReferenceIdT) * numCachedTargetSubjects, 
                     cudaMemcpyHostToDevice, 
                     stream
                 ); CUERR;
+
+                PositionsIterator d_selectedPositions = PositionsIterator::fromPointer(d_selectedPositionsRaw);
 
                 if(scanType == ScanType::Gapless){
                     const size_t seqsPerPass = maxReduceArraySize;
@@ -3201,7 +3204,7 @@ namespace cudasw4{
                 }
 
                 if(numBytesForSelectedPositions >= availableTempStorageBytes * 0.4){
-                    cudaFreeAsync(d_selectedPositions, stream); CUERR;
+                    cudaFreeAsync(d_selectedPositionsRaw, stream); CUERR;
                 }
             }
 
@@ -3290,7 +3293,7 @@ namespace cudasw4{
                         stream
                     );
                 
-                    auto d_selectedPositions = thrust::make_counting_iterator<ReferenceIdT>(0);
+                    PositionsIterator d_selectedPositions = PositionsIterator::fromCountingIterator(0);
 
                     if(scanType == ScanType::Gapless){
 
@@ -4036,14 +4039,14 @@ namespace cudasw4{
             return maxi;
         }
 
-        template<class OutputScores, class SelectedPositions>
+        template<class OutputScores>
         void runGaplessFilterKernels_PSSM(
             OutputScores& d_scores,
             GpuPermutedPSSMforGapless& permutedPSSM,
             const char* d_inputChars,
             const SequenceLengthT* d_inputLengths,
             const size_t* d_inputOffsets,
-            SelectedPositions d_selectedPositions,
+            PositionsIterator d_selectedPositions,
             size_t numSequences,
             char* d_tempStorage,
             size_t tempStorageBytes,
@@ -4179,14 +4182,14 @@ namespace cudasw4{
         }
 
 
-        template<bool subjectIsCaseSensitive, bool withEndPosition, class OutputScores, class SelectedPositions>
+        template<bool subjectIsCaseSensitive, bool withEndPosition, class OutputScores>
         void run_SW_endposition_kernels_PSSM(
             OutputScores& d_scores,
             GpuPermutedPSSMforSW& permutedPSSM,
             const char* d_inputChars,
             const SequenceLengthT* d_inputLengths,
             const size_t* d_inputOffsets,
-            SelectedPositions d_selectedPositions,
+            PositionsIterator d_selectedPositions,
             size_t numSequences,
             char* d_tempStorage,
             size_t tempStorageBytes,
