@@ -1,4 +1,4 @@
-FROM ghcr.io/steineggerlab/build-containers:main-x86_64-manylinux_2_28-cuda13_1
+FROM ghcr.io/steineggerlab/build-containers:main-x86_64-manylinux_2_28-cuda13
 
 WORKDIR /work
 ADD . .

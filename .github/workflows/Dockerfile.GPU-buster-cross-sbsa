@@ -1,4 +1,4 @@
-FROM ghcr.io/steineggerlab/build-containers:main-sbsa-cuda13_1
+FROM ghcr.io/steineggerlab/build-containers:main-sbsa-cuda13
 WORKDIR /work
 ADD . .
 
