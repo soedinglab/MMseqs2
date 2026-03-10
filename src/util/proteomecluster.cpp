@@ -437,16 +437,6 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     clusterCountWriter.open();
     DBWriter proteinAlignWriter(par.db5.c_str(), par.db5Index.c_str(), par.threads, par.compressed, Parameters::DBTYPE_GENERIC_DB);
     proteinAlignWriter.open();
-    DBWriter* hiddenWriter = nullptr;
-    if (par.proteomeHiddenReport) {
-        Debug(Debug::INFO) << "Hidden report for production enabled\n";
-        std::string hiddenDb = par.db3 + "_productionReport";
-        std::string::size_type dotPos = par.db3Index.rfind('.');
-        std::string hiddenIndex = par.db3Index.substr(0, dotPos) + "_productionReport" + par.db3Index.substr(dotPos);
-        
-        hiddenWriter = new DBWriter(hiddenDb.c_str(), hiddenIndex.c_str(), 1, par.compressed, proteomeDBType);
-        hiddenWriter->open();
-    }
     timer.reset();
     // Output Write1. Generate clusterCount Report as output
     for (size_t idx=0; idx < proteomeList.size(); idx++){ // we can apply multithread but then id sequences are shuffled(not sorted). Is there any smart way to do this?
@@ -520,14 +510,6 @@ int proteomecluster(int argc, const char **argv, const Command &command){
         char* endPos = writeProteomeToBuffer(referenceProteome, proteomeBuffer);
         totalProteomeAlnResultsOutString.append(proteomeBuffer, endPos - proteomeBuffer);
 
-        // hidden for production
-        std::string totalProteomeAlnResultsOutString_hidden;
-        totalProteomeAlnResultsOutString_hidden.reserve(1024*1024);
-
-        if (par.proteomeHiddenReport) {
-            totalProteomeAlnResultsOutString_hidden.append(proteomeBuffer, endPos - proteomeBuffer);
-        }
-
         // Done Alignment. Parse the results and prepare for the next iteration
         std::vector<unsigned int> newAvailableProteomeKeys;
         newAvailableProteomeKeys.reserve(availableProteomeKeys.size());
@@ -536,10 +518,6 @@ int proteomecluster(int argc, const char **argv, const Command &command){
         {
             std::string localProteomeAlnResultsOutString;
             localProteomeAlnResultsOutString.reserve(1024*1024);
-
-            // hidden for production
-            std::string localProteomeAlnResultsOutString_hidden;
-            localProteomeAlnResultsOutString_hidden.reserve(1024*1024);
 
             std::vector<unsigned int> localNextAvailableProteomeKeys;
             localNextAvailableProteomeKeys.reserve(availableProteomeKeys.size());
@@ -560,16 +538,8 @@ int proteomecluster(int argc, const char **argv, const Command &command){
                     proteome.setReference(referenceProteomeKey);
                     char* endPos = writeProteomeToBuffer(proteome, localBuffer);
                     localProteomeAlnResultsOutString.append(localBuffer, endPos - localBuffer);
-                    if (par.proteomeHiddenReport) {
-                        localProteomeAlnResultsOutString_hidden.append(localBuffer, endPos - localBuffer);
-                    }
                 } else {
                     localNextAvailableProteomeKeys.push_back(proteome.proteomeKey);
-                    //temporary for production
-                    if (par.proteomeHiddenReport) {
-                        char* endPos = writeProteomeToBuffer(proteome, localBuffer);
-                        localProteomeAlnResultsOutString_hidden.append(localBuffer, endPos - localBuffer);
-                    }
                     proteome.reset();
                 }
             }
@@ -577,7 +547,6 @@ int proteomecluster(int argc, const char **argv, const Command &command){
             #pragma omp critical
             {
                 totalProteomeAlnResultsOutString.append(localProteomeAlnResultsOutString);
-                totalProteomeAlnResultsOutString_hidden.append(localProteomeAlnResultsOutString_hidden);
                 newAvailableProteomeKeys.insert(
                     newAvailableProteomeKeys.end(),
                     localNextAvailableProteomeKeys.begin(),
@@ -591,11 +560,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
         Debug(Debug::INFO) << "Number of available proteomes in next iteration: " << availableProteomeKeys.size() << "\n";
         // Write proteomecluster result for this iteration
         proteomeClustWriter.writeData(totalProteomeAlnResultsOutString.c_str(), totalProteomeAlnResultsOutString.length(), referenceProteomeKey, 0);
-        if (par.proteomeHiddenReport) {
-            hiddenWriter->writeData(totalProteomeAlnResultsOutString_hidden.c_str(), totalProteomeAlnResultsOutString_hidden.length(), referenceProteomeKey, 0);
-        }
         totalProteomeAlnResultsOutString.clear();
-        totalProteomeAlnResultsOutString_hidden.clear();
         
         // Determine whether to continue the next iteration
         if (availableProteomeKeys.empty()) {
@@ -620,13 +585,7 @@ int proteomecluster(int argc, const char **argv, const Command &command){
             proteomeClustWriter.writeData(totalProteomeAlnResultsOutString.c_str(), 
                                         totalProteomeAlnResultsOutString.length(), 
                                         singletonRefProteome.referenceKey, 0);
-
-            if (par.proteomeHiddenReport) {
-                hiddenWriter->writeData(totalProteomeAlnResultsOutString.c_str(), totalProteomeAlnResultsOutString.length(), singletonRefProteome.referenceKey, 0);
-            }
             totalProteomeAlnResultsOutString.clear();
-
-            //hidden for production
 
             break; // only one proteome is left 
             //Fill up output writer
@@ -691,9 +650,6 @@ int proteomecluster(int argc, const char **argv, const Command &command){
     tProteinDB.close();
     linResDB.close();
     proteomeClustWriter.close();
-    if (par.proteomeHiddenReport) {
-        hiddenWriter->close();
-    }
     clusterCountWriter.close();
     proteinAlignWriter.close();
     

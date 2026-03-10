@@ -768,7 +768,6 @@ public:
     bool         proteomeCascadedClustering;
     bool         includeAlignFiles;
     bool         proteomeIncludeAlignFiles;
-    bool         proteomeHiddenReport;
 
     // for modules that should handle -h themselves
     bool help;
@@ -1163,7 +1162,6 @@ public:
     PARAMETER(PARAM_PROTEOME_WEIGHT_FILE)
     PARAMETER(PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT)
     PARAMETER(PARAM_PROTEOME_INCLUDE_ALIGN_FILES)
-    PARAMETER(PARAM_PROTEOME_HIDDEN_REPORT)
 
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
@@ -1295,6 +1293,8 @@ public:
     std::vector<MMseqsParameter*> fwbw;
     std::vector<MMseqsParameter*> proteomecluster;
     std::vector<MMseqsParameter*> easyproteomeclusterworkflow;
+    std::vector<MMseqsParameter*> parseproteomealignments;
+    std::vector<MMseqsParameter*> easyproteomesearchworkflow;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);

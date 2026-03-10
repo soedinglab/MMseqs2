@@ -5,6 +5,7 @@
 extern int align(int argc, const char **argv, const Command& command);
 extern int alignall(int argc, const char **argv, const Command& command);
 extern int alignbykmer(int argc, const char **argv, const Command& command);
+extern int align2clust(int argc, const char **argv, const Command& command);
 extern int appenddbtoindex(int argc, const char **argv, const Command& command);
 extern int apply(int argc, const char **argv, const Command& command);
 extern int besthitperset(int argc, const char **argv, const Command &command);
@@ -49,6 +50,7 @@ extern int easylinclust(int argc, const char **argv, const Command& command);
 extern int easysearch(int argc, const char **argv, const Command& command);
 extern int easylinsearch(int argc, const char **argv, const Command& command);
 extern int easyproteomecluster(int argc, const char **argv, const Command& command);
+extern int easyproteomesearch(int argc, const char **argv, const Command& command);
 extern int tsv2exprofiledb(int argc, const char **argv, const Command& command);
 extern int enrich(int argc, const char **argv, const Command& command);
 extern int expandaln(int argc, const char **argv, const Command& command);
@@ -100,6 +102,7 @@ extern int profile2consensus(int argc, const char **argv, const Command& command
 extern int profile2repseq(int argc, const char **argv, const Command& command);
 extern int proteinaln2nucl(int argc, const char **argv, const Command& command);
 extern int proteomecluster(int argc, const char **argv, const Command& command);
+extern int parseproteomealignments(int argc, const char **argv, const Command& command);
 extern int rescorediagonal(int argc, const char **argv, const Command& command);
 extern int ungappedprefilter(int argc, const char **argv, const Command& command);
 extern int gappedprefilter(int argc, const char **argv, const Command& command);
