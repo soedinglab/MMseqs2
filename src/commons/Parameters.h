@@ -96,6 +96,8 @@ public:
 
     // don't forget to add new database types to DBReader::getDbTypeName and Parameters::PARAM_OUTPUT_DBTYPE
 
+    static const int LINCLUST_VERSION1 = 1;
+    static const int LINCLUST_VERSION2 = 2;
     static const int SEARCH_TYPE_AUTO = 0;
     static const int SEARCH_TYPE_PROTEIN = 1;
     static const int SEARCH_TYPE_TRANSLATED = 2;
@@ -587,6 +589,8 @@ public:
     float countTableScale;
     bool includeAdjacentSeq;
     int adjIteration;
+    bool clustHash;
+    int linclustVersion;
 
     // indexdb
     int checkCompatible;
@@ -946,6 +950,8 @@ public:
     PARAMETER(PARAM_NUM_ADJSEQ)
     PARAMETER(PARAM_USE_PARALLELISM)
     PARAMETER(PARAM_NEED_WRITEBUFFER)
+    PARAMETER(PARAM_CLUST_HASH)
+    PARAMETER(PARAM_LINCLUST_VERSION)
 
     // workflow
     PARAMETER(PARAM_RUNNER)
