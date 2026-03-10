@@ -16,6 +16,7 @@ set(alignment_header_files
 
 set(alignment_source_files
         alignment/Alignment.cpp
+        alignment/Align2clust.cpp
         alignment/CompressedA3M.cpp
         alignment/Main.cpp
         alignment/Matcher.cpp

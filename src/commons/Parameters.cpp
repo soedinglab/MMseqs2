@@ -247,6 +247,9 @@ Parameters::Parameters():
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0: no sorting, 1: increasing, 2: decreasing, 3: random shuffle, 4: priority", typeid(int), (void *) &sortEntries, "^[0-4]{1}$"),
         PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry", typeid(bool), (void *) &beatsFirst, ""),
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db", "join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void *) &joinDB, ""),
+        // align2clust
+        PARAM_FILTER_CLUDB_FILE(PARAM_FILTER_CLUDB_FILE_ID, "--filter-cludb-file", "Filter cluDB file", "Specify a cluDB file to filter", typeid(std::string), (void *) &filterCluDBFile, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_FILTER_SEQDB_FILE(PARAM_FILTER_SEQDB_FILE_ID, "--filter-seqdb-file", "Filter seqDB file", "Specify a seqDB of cluDB file to filter", typeid(std::string), (void *) &filterSeqDBFile, "", MMseqsParameter::COMMAND_EXPERT),
         // besthitperset
         PARAM_SIMPLE_BEST_HIT(PARAM_SIMPLE_BEST_HIT_ID, "--simple-best-hit", "Use simple best hit", "Update the p-value by a single best hit, or by best and second best hits", typeid(bool), (void *) &simpleBestHit, ""),
         PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining p-values during aggregation", typeid(float), (void *) &alpha, "^0(\\.[0-9]+)?|^1(\\.0+)?$"),
@@ -437,6 +440,27 @@ Parameters::Parameters():
     align.push_back(&PARAM_COMPRESSED);
     align.push_back(&PARAM_V);
 
+    // align2clust
+    align2clust.push_back(&PARAM_SUB_MAT);
+    align2clust.push_back(&PARAM_ADD_BACKTRACE);
+    align2clust.push_back(&PARAM_ALIGNMENT_MODE);
+    align2clust.push_back(&PARAM_MIN_SEQ_ID);
+    align2clust.push_back(&PARAM_MIN_ALN_LEN);
+    align2clust.push_back(&PARAM_SEQ_ID_MODE);
+    align2clust.push_back(&PARAM_FILTER_HITS);
+    align2clust.push_back(&PARAM_E);
+    align2clust.push_back(&PARAM_C);
+    align2clust.push_back(&PARAM_COV_MODE);
+    align2clust.push_back(&PARAM_INCLUDE_IDENTITY);
+    align2clust.push_back(&PARAM_SORT_RESULTS);
+    align2clust.push_back(&PARAM_PRELOAD_MODE);
+    align2clust.push_back(&PARAM_THREADS);
+    align2clust.push_back(&PARAM_COMPRESSED);
+    align2clust.push_back(&PARAM_V);
+    align2clust.push_back(&PARAM_CLUSTER_MODE);
+    align2clust.push_back(&PARAM_FILTER_CLUDB_FILE);
+    align2clust.push_back(&PARAM_FILTER_SEQDB_FILE);
+    
     // prefilter
     prefilter.push_back(&PARAM_SUB_MAT);
     prefilter.push_back(&PARAM_SEED_SUB_MAT);

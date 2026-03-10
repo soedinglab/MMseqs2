@@ -643,6 +643,10 @@ public:
     bool beatsFirst;
     std::string joinDB;
 
+    // align2clust
+    std::string filterCluDBFile;
+    std::string filterSeqDBFile;
+
     // besthitperset
     bool simpleBestHit;
     float alpha;
@@ -1034,6 +1038,10 @@ public:
     PARAMETER(PARAM_BEATS_FIRST)
     PARAMETER(PARAM_JOIN_DB)
 
+    // align2clust
+    PARAMETER(PARAM_FILTER_CLUDB_FILE)
+    PARAMETER(PARAM_FILTER_SEQDB_FILE)
+
     //besthitperset
     PARAMETER(PARAM_SIMPLE_BEST_HIT)
     PARAMETER(PARAM_ALPHA)
@@ -1180,6 +1188,7 @@ public:
 
     std::vector<MMseqsParameter*> alignall;
     std::vector<MMseqsParameter*> align;
+    std::vector<MMseqsParameter*> align2clust;
     std::vector<MMseqsParameter*> rescorediagonal;
     std::vector<MMseqsParameter*> alignbykmer;
     std::vector<MMseqsParameter*> createFasta;
