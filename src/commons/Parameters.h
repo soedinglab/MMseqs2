@@ -581,6 +581,11 @@ public:
     float weightThr;
     std::string weightFile;
     bool useParallelism;
+    bool needWriteBuffer;
+    bool includeCountTable;
+    int countTableIteration;
+    float countTableScale;
+    bool includeAdjacentSeq;
     int adjIteration;
 
     // indexdb
@@ -932,7 +937,12 @@ public:
     PARAMETER(PARAM_RESULT_DIRECTION)
     PARAMETER(PARAM_WEIGHT_FILE)
     PARAMETER(PARAM_WEIGHT_THR)
+    PARAMETER(PARAM_INCLUDE_COUNTTABLE)
+    PARAMETER(PARAM_NUM_COUNTS)
+    PARAMETER(PARAM_INCLUDE_ADJSEQ)
+    PARAMETER(PARAM_NUM_ADJSEQ)
     PARAMETER(PARAM_USE_PARALLELISM)
+    PARAMETER(PARAM_NEED_WRITEBUFFER)
 
     // workflow
     PARAMETER(PARAM_RUNNER)

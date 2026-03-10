@@ -10,6 +10,23 @@
 #define SIZE_T_MAX ((size_t) -1)
 #endif
 
+using AssignGroupMask = uint32_t;
+
+struct AssignGroupFeature {
+    static constexpr AssignGroupMask Default        = 0;
+    static constexpr AssignGroupMask AdjacentSeq = 1u << 0;
+    static constexpr AssignGroupMask CountTable  = 1u << 1;
+};
+
+enum class ComputationPhase {
+    Main,
+    SetupCountTable
+};
+
+inline bool hasFeature(AssignGroupMask mask, AssignGroupMask feature) {
+    return (mask & feature) != 0;
+}
+
 struct SequencePosition{
     unsigned short score;
     size_t kmer;
@@ -222,10 +239,6 @@ public:
         return false;
     }
 };
-
-
-template <int TYPE, typename T, bool IncludeAdjacentSeq = false, bool IncludeSeqLen = false> 
-size_t assignGroup(KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> *kmers, KmerPosition<T, IncludeAdjacentSeq, IncludeSeqLen> *writeSeqPair, bool includeOnlyExtendable, int covMode, float covThr);
 
 template <int TYPE, typename T, bool IncludeAdjacentSeq = false>
 void mergeKmerFilesAndOutput(DBWriter & dbw, std::vector<std::string> tmpFiles, std::vector<char> &repSequence, int numThreads = 1, int maxIter = 1);
