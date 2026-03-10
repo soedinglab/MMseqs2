@@ -11,13 +11,13 @@
 #include "BlockAligner.h"
 #include "Alignment.h"
 #include "AlignmentSymmetry.h"
-
-#ifdef OPENMP
-#include <omp.h>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <queue>
+
+#ifdef OPENMP
+#include <omp.h>
 #endif
 
 #define MAX_SIZE 4096 //change
@@ -761,6 +761,15 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<unsigned int
     delete subMat;
     seqDbr->close();
     delete seqDbr;
+
+    if (cluDbr != nullptr) {
+        cluDbr->close();
+        delete cluDbr;
+    }
+    if (cluSeqDbr != nullptr) {
+        cluSeqDbr->close();
+        delete cluSeqDbr;
+    }
     
     return 0;
 }

@@ -98,6 +98,8 @@ public:
 
     static const int LINCLUST_VERSION1 = 1;
     static const int LINCLUST_VERSION2 = 2;
+    static const int CLUSTER_VERSION1 = 1;
+    static const int CLUSTER_VERSION2 = 2;
     static const int SEARCH_TYPE_AUTO = 0;
     static const int SEARCH_TYPE_PROTEIN = 1;
     static const int SEARCH_TYPE_TRANSLATED = 2;
@@ -591,6 +593,7 @@ public:
     int adjIteration;
     bool clustHash;
     int linclustVersion;
+    int clusterVersion;
 
     // indexdb
     int checkCompatible;
@@ -952,6 +955,7 @@ public:
     PARAMETER(PARAM_NEED_WRITEBUFFER)
     PARAMETER(PARAM_CLUST_HASH)
     PARAMETER(PARAM_LINCLUST_VERSION)
+    PARAMETER(PARAM_CLUSTER_VERSION)
 
     // workflow
     PARAMETER(PARAM_RUNNER)

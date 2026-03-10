@@ -17,6 +17,7 @@ void setWorkflowDefaults(Parameters *p) {
     p->evalThr = 0.001;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     p->maxResListLen = 20;
+    p->clusterVersion = Parameters::CLUSTER_VERSION1; // set cluster1 as default
 }
 
 float setAutomaticThreshold(float seqId) {
@@ -87,6 +88,14 @@ void setClusterAutomagicParameters(Parameters& par) {
         par.PARAM_CLUSTER_MODE.wasSet = true;
         Debug(Debug::INFO) << "Set cluster mode " << ((par.clusteringMode == Parameters::GREEDY_MEM) ? "GREEDY MEM" : "SET COVER") << "\n";
     }
+    if (par.PARAM_INCLUDE_COUNTTABLE.wasSet == false) {
+        if (nonsymetric) {
+            par.includeCountTable = false;
+        } else {
+            par.includeCountTable = true;
+        }
+        par.PARAM_INCLUDE_COUNTTABLE.wasSet = true;
+    }
     if (nonsymetric && par.clusteringMode != Parameters::GREEDY && par.clusteringMode != Parameters::GREEDY_MEM) {
         Debug(Debug::WARNING) << "Combining cluster mode " << par.clusteringMode
                               << " in combination with coverage mode " << par.covMode << " can produce wrong results.\n"
@@ -148,6 +157,12 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     cmd.addVariable("MERGECLU_PAR", par.createParameterString(par.threadsandcompression).c_str());
     cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
 
+    if (par.clusterVersion == 1) {
+        cmd.addVariable("CLUSTER_MODULE", "cluster1");
+    } else if (par.clusterVersion == 2) {
+        cmd.addVariable("CLUSTER_MODULE", "cluster2");
+    }
+
     if (isNucleotideDb) {
         par.forwardFrames = "1";
         par.reverseFrames = "1";
@@ -179,65 +194,77 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         FileUtil::writeFile(program, nucleotide_clustering_sh, nucleotide_clustering_sh_len);
         cmd.execProgram(program.c_str(), par.filenames);
     } else if (par.singleStepClustering == false) {
-        // save some values to restore them later
-        float targetSensitivity = par.sensitivity;
-        MultiParam<NuclAA<int>> alphabetSize = par.alphabetSize;
-        par.alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE, 5));
-        int kmerSize = par.kmerSize;
-        par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
-        int maskMode = par.maskMode;
-        par.maskMode = 0;
-        cmd.addVariable("LINCLUST_PAR", par.createParameterString(par.linclustworkflow).c_str());
-        par.alphabetSize = alphabetSize;
-        par.kmerSize = kmerSize;
-        par.maskMode = maskMode;
-        // 1 is lowest sens
-        par.sensitivity = ((par.clusterSteps - 1) == 0) ? par.sensitivity : 1;
-        int minDiagScoreThr = par.minDiagScoreThr;
-        par.minDiagScoreThr = 0;
-        par.diagonalScoring = 0;
-        par.compBiasCorrection = 0;
-        cmd.addVariable("PREFILTER0_PAR", par.createParameterString(par.prefilter).c_str());
-        if (isUngappedMode) {
-            par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
-            cmd.addVariable("ALIGNMENT0_PAR", par.createParameterString(par.rescorediagonal).c_str());
-            par.rescoreMode = originalRescoreMode;
-        } else {
-            cmd.addVariable("ALIGNMENT0_PAR", par.createParameterString(par.align).c_str());
-        }
-        cmd.addVariable("CLUSTER0_PAR", par.createParameterString(par.clust).c_str());
-        par.diagonalScoring = 1;
-        par.compBiasCorrection = 1;
-        par.minDiagScoreThr = minDiagScoreThr;
-        float sensStepSize = (targetSensitivity - 1) / (static_cast<float>(par.clusterSteps) - 1);
-        for (int step = 1; step < par.clusterSteps; step++) {
-            par.sensitivity = 1.0 + sensStepSize * step;
-
-            cmd.addVariable(std::string("PREFILTER" + SSTR(step) + "_PAR").c_str(), par.createParameterString(par.prefilter).c_str());
+        if (par.clusterVersion == 1) {
+            // save some values to restore them later
+            float targetSensitivity = par.sensitivity;
+            MultiParam<NuclAA<int>> alphabetSize = par.alphabetSize;
+            par.alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE, 5));
+            int kmerSize = par.kmerSize;
+            par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
+            int maskMode = par.maskMode;
+            par.maskMode = 0;
+            cmd.addVariable("LINCLUST_PAR", par.createParameterString(par.linclustworkflow).c_str());
+            par.alphabetSize = alphabetSize;
+            par.kmerSize = kmerSize;
+            par.maskMode = maskMode;
+            // 1 is lowest sens
+            par.sensitivity = ((par.clusterSteps - 1) == 0) ? par.sensitivity : 1;
+            int minDiagScoreThr = par.minDiagScoreThr;
+            par.minDiagScoreThr = 0;
+            par.diagonalScoring = 0;
+            par.compBiasCorrection = 0;
+            cmd.addVariable("PREFILTER0_PAR", par.createParameterString(par.prefilter).c_str());
             if (isUngappedMode) {
                 par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
-                cmd.addVariable(std::string("ALIGNMENT" + SSTR(step) + "_PAR").c_str(), par.createParameterString(par.rescorediagonal).c_str());
+                cmd.addVariable("ALIGNMENT0_PAR", par.createParameterString(par.rescorediagonal).c_str());
                 par.rescoreMode = originalRescoreMode;
             } else {
-                cmd.addVariable(std::string("ALIGNMENT" + SSTR(step) + "_PAR").c_str(), par.createParameterString(par.align).c_str());
+                cmd.addVariable("ALIGNMENT0_PAR", par.createParameterString(par.align).c_str());
             }
-            cmd.addVariable(std::string("CLUSTER" + SSTR(step) + "_PAR").c_str(), par.createParameterString(par.clust).c_str());
-        }
-        cmd.addVariable("STEPS", SSTR(par.clusterSteps).c_str());
-        // correct for cascading clustering errors
-        if (par.clusterReassignment) {
-            cmd.addVariable("REASSIGN", "TRUE");
-        }
-        cmd.addVariable("THREADSANDCOMPRESS", par.createParameterString(par.threadsandcompression).c_str());
-        cmd.addVariable("VERBCOMPRESS", par.createParameterString(par.verbandcompression).c_str());
-        int swapedCovMode = Util::swapCoverageMode(par.covMode);
-        int tmpCovMode = par.covMode;
-        par.covMode = swapedCovMode;
-        cmd.addVariable("PREFILTER_REASSIGN_PAR", par.createParameterString(par.prefilter).c_str());
-        par.covMode = tmpCovMode;
-        cmd.addVariable("ALIGNMENT_REASSIGN_PAR", par.createParameterString(par.align).c_str());
-        cmd.addVariable("MERGEDBS_PAR", par.createParameterString(par.mergedbs).c_str());
+            cmd.addVariable("CLUSTER0_PAR", par.createParameterString(par.clust).c_str());
+            par.diagonalScoring = 1;
+            par.compBiasCorrection = 1;
+            par.minDiagScoreThr = minDiagScoreThr;
+            float sensStepSize = (targetSensitivity - 1) / (static_cast<float>(par.clusterSteps) - 1);
+            for (int step = 1; step < par.clusterSteps; step++) {
+                par.sensitivity = 1.0 + sensStepSize * step;
 
+                cmd.addVariable(std::string("PREFILTER" + SSTR(step) + "_PAR").c_str(), par.createParameterString(par.prefilter).c_str());
+                if (isUngappedMode) {
+                    par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+                    cmd.addVariable(std::string("ALIGNMENT" + SSTR(step) + "_PAR").c_str(), par.createParameterString(par.rescorediagonal).c_str());
+                    par.rescoreMode = originalRescoreMode;
+                } else {
+                    cmd.addVariable(std::string("ALIGNMENT" + SSTR(step) + "_PAR").c_str(), par.createParameterString(par.align).c_str());
+                }
+                cmd.addVariable(std::string("CLUSTER" + SSTR(step) + "_PAR").c_str(), par.createParameterString(par.clust).c_str());
+            }
+            cmd.addVariable("STEPS", SSTR(par.clusterSteps).c_str());
+            // correct for cascading clustering errors
+            if (par.clusterReassignment) {
+                cmd.addVariable("REASSIGN", "TRUE");
+            }
+            cmd.addVariable("THREADSANDCOMPRESS", par.createParameterString(par.threadsandcompression).c_str());
+            cmd.addVariable("VERBCOMPRESS", par.createParameterString(par.verbandcompression).c_str());
+            int swapedCovMode = Util::swapCoverageMode(par.covMode);
+            int tmpCovMode = par.covMode;
+            par.covMode = swapedCovMode;
+            cmd.addVariable("PREFILTER_REASSIGN_PAR", par.createParameterString(par.prefilter).c_str());
+            par.covMode = tmpCovMode;
+            cmd.addVariable("ALIGNMENT_REASSIGN_PAR", par.createParameterString(par.align).c_str());
+            cmd.addVariable("MERGEDBS_PAR", par.createParameterString(par.mergedbs).c_str());
+        } else if (par.clusterVersion == 2) {
+            if (par.seqIdThr >= 0.7) {
+                par.sensitivity = 0;
+            } else if (par.seqIdThr <= 0.3) {
+                par.sensitivity = 3.0;
+            } else {
+                par.sensitivity = 3.0f * (0.7f - par.seqIdThr) / (0.7f - 0.3f);
+            }
+            cmd.addVariable("LINCLUST_PAR", par.createParameterString(par.linclustworkflow).c_str());
+            cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
+            cmd.addVariable("ALIGN2CLUST_PAR", par.createParameterString(par.align2clust).c_str());
+        }
         std::string program = tmpDir + "/cascaded_clustering.sh";
         FileUtil::writeFile(program, cascaded_clustering_sh, cascaded_clustering_sh_len);
         cmd.execProgram(program.c_str(), par.filenames);
