@@ -8,6 +8,7 @@ set(alignment_header_files
         alignment/PSSMCalculator.h
         alignment/StripedSmithWaterman.h
         alignment/BandedNucleotideAligner.h
+        alignment/BlockAligner.h
         alignment/DistanceCalculator.h
         alignment/Fwbw.h
         PARENT_SCOPE
@@ -23,6 +24,7 @@ set(alignment_source_files
         alignment/PSSMCalculator.cpp
         alignment/StripedSmithWaterman.cpp
         alignment/BandedNucleotideAligner.cpp
+        alignment/BlockAligner.cpp
         alignment/DistanceCalculator.cpp
         alignment/rescorediagonal.cpp
         alignment/Fwbw.cpp
