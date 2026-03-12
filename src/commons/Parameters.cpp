@@ -164,10 +164,10 @@ Parameters::Parameters():
         PARAM_RESULT_DIRECTION(PARAM_RESULT_DIRECTION_ID, "--result-direction", "Result direction", "result is 0: query, 1: target centric", typeid(int), (void *) &resultDirection, "^[0-1]{1}$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_WEIGHT_FILE(PARAM_WEIGHT_FILE_ID, "--weights", "Weight file name", "Weights used for cluster priorization", typeid(std::string), (void*) &weightFile, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT ),
         PARAM_WEIGHT_THR(PARAM_WEIGHT_THR_ID, "--cluster-weight-threshold", "Cluster Weight threshold", "Weight threshold used for cluster priorization", typeid(float), (void*) &weightThr, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_INCLUDE_COUNTTABLE(PARAM_INCLUDE_COUNTTABLE_ID, "--include-count-table", "Include count table", "Include counttable", typeid(bool), (void *) &includeCountTable, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_NUM_COUNTS(PARAM_NUM_COUNTS_ID, "--num-count-table", "Number of count table based iteration", "Number of count table based iteration", typeid(int), (void *) &countTableIteration, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_INCLUDE_ADJSEQ(PARAM_INCLUDE_ADJSEQ_ID, "--include-adj-seq", "Include adjacent sequences", "Include adjacent sequences", typeid(bool), (void *) &includeAdjacentSeq, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
-        PARAM_NUM_ADJSEQ(PARAM_NUM_ADJSEQ_ID, "--num-adj-seq", "Number of adjacent sequences based iteration", "Number of adjacent sequences based iteration", typeid(int), (void *) &adjIteration, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_INCLUDE_COUNTTABLE(PARAM_INCLUDE_COUNTTABLE_ID, "--include-count-table", "Include count table", "Include count table", typeid(bool), (void *) &includeCountTable, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_NUM_COUNTS(PARAM_NUM_COUNTS_ID, "--num-count-table", "Number of count table based center swapping", "Number of count table based center swapping", typeid(int), (void *) &countTableIteration, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_INCLUDE_ADJACENCY(PARAM_INCLUDE_ADJACENCY_ID, "--include-adjacency", "Include adjacency based center swapping", "Include adjacency based center swapping", typeid(bool), (void *) &includeAdjacency, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_NUM_ADJACENCY(PARAM_NUM_ADJACENCY_ID, "--num-adjacency", "Number of adjacency based center swapping", "Number of adjacency based center swapping", typeid(int), (void *) &adjIteration, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_USE_PARALLELISM(PARAM_USE_PARALLELISM_ID, "--use-parallelism", "Use parallelism", "Enable or disable parallel execution for group assignment and related k-mer processing steps", typeid(bool), (void *) &useParallelism, "^[0-1]{1}$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_NEED_WRITEBUFFER(PARAM_NEED_WRITEBUFFER_ID, "--need-write-buffer", "Use write buffer", "Enable or disable allocation of an auxiliary write buffer for intermediate per-thread or per-iteration output and merge steps", typeid(bool), (void *) &needWriteBuffer, "^[0-1]{1}$", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_CLUST_HASH(PARAM_CLUST_HASH_ID, "--clust-hash", "Cluster hash", "Use clusthash before kmermatcher in linclust", typeid(bool), (void *) &clustHash, "^[0-1]{0}$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
@@ -1083,8 +1083,8 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_WEIGHT_THR);
     kmermatcher.push_back(&PARAM_INCLUDE_COUNTTABLE);
     kmermatcher.push_back(&PARAM_NUM_COUNTS);
-    kmermatcher.push_back(&PARAM_INCLUDE_ADJSEQ);
-    kmermatcher.push_back(&PARAM_NUM_ADJSEQ);
+    kmermatcher.push_back(&PARAM_INCLUDE_ADJACENCY);
+    kmermatcher.push_back(&PARAM_NUM_ADJACENCY);
     kmermatcher.push_back(&PARAM_USE_PARALLELISM);
     kmermatcher.push_back(&PARAM_NEED_WRITEBUFFER);
     kmermatcher.push_back(&PARAM_LINCLUST_VERSION);
@@ -2741,10 +2741,10 @@ void Parameters::setDefaults() {
     weightFile = "";
     useParallelism = false;
     needWriteBuffer = false;
-    includeCountTable = false;
+    includeCountTable = true;
     countTableIteration = 2;
     countTableScale = 0.1;
-    includeAdjacentSeq = false;
+    includeAdjacency = true;
     adjIteration = 3;
     clustHash = false;
     linclustVersion = 2;

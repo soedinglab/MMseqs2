@@ -1927,8 +1927,10 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition<seqLenType, includeAdjac
                 writeSets++;
             }
 
-            if (writeSets > 0 && elementCnt > 0 && bufferPos > 0) {
-                fwrite(writeBuffer, sizeof(T), bufferPos, filePtr);
+            if (writeSets > 0 && elementCnt > 0) {
+                if (bufferPos > 0) {
+                    fwrite(writeBuffer, sizeof(T), bufferPos, filePtr);
+                }
                 fwrite(&nullEntry, sizeof(T), 1, filePtr);
             }
 

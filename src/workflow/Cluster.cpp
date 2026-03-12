@@ -257,7 +257,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
             if (par.seqIdThr >= 0.7) {
                 par.sensitivity = 0;
             } else if (par.seqIdThr <= 0.3) {
-                par.sensitivity = 3.0;
+                par.sensitivity = 3.0f + 10.0f * (0.3f - par.seqIdThr);
             } else {
                 par.sensitivity = 3.0f * (0.7f - par.seqIdThr) / (0.7f - 0.3f);
             }

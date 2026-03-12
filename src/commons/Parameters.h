@@ -589,7 +589,7 @@ public:
     bool includeCountTable;
     int countTableIteration;
     float countTableScale;
-    bool includeAdjacentSeq;
+    bool includeAdjacency;
     int adjIteration;
     bool clustHash;
     int linclustVersion;
@@ -949,8 +949,8 @@ public:
     PARAMETER(PARAM_WEIGHT_THR)
     PARAMETER(PARAM_INCLUDE_COUNTTABLE)
     PARAMETER(PARAM_NUM_COUNTS)
-    PARAMETER(PARAM_INCLUDE_ADJSEQ)
-    PARAMETER(PARAM_NUM_ADJSEQ)
+    PARAMETER(PARAM_INCLUDE_ADJACENCY)
+    PARAMETER(PARAM_NUM_ADJACENCY)
     PARAMETER(PARAM_USE_PARALLELISM)
     PARAMETER(PARAM_NEED_WRITEBUFFER)
     PARAMETER(PARAM_CLUST_HASH)
