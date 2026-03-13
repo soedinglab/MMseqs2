@@ -75,14 +75,6 @@ void rescoreResultByBacktrace(Matcher::result_t &result, Sequence &qSeq, Sequenc
     result.seqId = identities;
 }
 
-static bool compareHitsByKeyScore(const Matcher::result_t &first, const Matcher::result_t &second) {
-    if (first.score > second.score)
-        return true;
-    if (second.score > first.score)
-        return false;
-    return false;
-}
-
 int expandaln(int argc, const char **argv, const Command& command, bool returnAlnRes) {
     Parameters &par = Parameters::getInstance();
     // default for expand2profile to filter MSA
@@ -305,7 +297,6 @@ int expandaln(int argc, const char **argv, const Command& command, bool returnAl
                     }
                     subSeqSet.clear();
                 }
-                //std::stable_sort(resultsBc.begin(), resultsBc.end(), compareHitsByKeyScore);
 
                 for (size_t k = 0; k < resultsBc.size(); ++k) {
                     Matcher::result_t &resultBc = resultsBc[k];

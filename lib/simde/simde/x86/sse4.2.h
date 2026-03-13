@@ -30,9 +30,10 @@
 
 #include "sse4.1.h"
 
-#if defined(__ARM_ACLE) || (defined(__GNUC__) && defined(__ARM_FEATURE_CRC32))
+#if defined(__ARM_ACLE) || (defined(__GNUC__) && defined(SIMDE_ARCH_ARM_CRC32))
   #include <arm_acle.h>
 #endif
+//                         ^^ Due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70974
 
 HEDLEY_DIAGNOSTIC_PUSH
 SIMDE_DISABLE_UNWANTED_DIAGNOSTICS
@@ -172,6 +173,10 @@ simde_mm_cmpgt_epi64 (simde__m128i a, simde__m128i b) {
       r_.neon_i64 = vshrq_n_s64(vqsubq_s64(b_.neon_i64, a_.neon_i64), 63);
     #elif defined(SIMDE_POWER_ALTIVEC_P8_NATIVE)
       r_.altivec_u64 = HEDLEY_REINTERPRET_CAST(SIMDE_POWER_ALTIVEC_VECTOR(unsigned long long), vec_cmpgt(a_.altivec_i64, b_.altivec_i64));
+    #elif defined(SIMDE_WASM_SIMD128_NATIVE)
+      r_.wasm_v128 = wasm_i64x2_gt(a_.wasm_v128, b_.wasm_v128);
+    #elif defined(SIMDE_LOONGARCH_LSX_NATIVE)
+      r_.lsx_i64 = __lsx_vslt_d(b_.lsx_i64, a_.lsx_i64);
     #elif defined(SIMDE_VECTOR_SUBSCRIPT_OPS)
       r_.i64 = HEDLEY_REINTERPRET_CAST(__typeof__(r_.i64), a_.i64 > b_.i64);
     #else
@@ -293,17 +298,27 @@ simde_mm_crc32_u8(uint32_t prevcrc, uint8_t v) {
   #if defined(SIMDE_X86_SSE4_2_NATIVE)
     return _mm_crc32_u8(prevcrc, v);
   #else
-    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(__ARM_FEATURE_CRC32)
+    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(SIMDE_ARCH_ARM_CRC32)
       return __crc32cb(prevcrc, v);
+    #elif defined(SIMDE_LOONGARCH_LSX_NATIVE)
+      return __builtin_loongarch_crcc_w_b_w(v, prevcrc);
     #else
       uint32_t crc = prevcrc;
       crc ^= v;
-      for(int bit = 0 ; bit < 8 ; bit++) {
-        if (crc & 1)
-          crc = (crc >> 1) ^ UINT32_C(0x82f63b78);
-        else
-          crc = (crc >> 1);
-      }
+      // Adapted from: https://create.stephan-brumme.com/crc32/
+      // Apply half-byte comparision algorithm for the best ratio between
+      // performance and lookup table.
+
+      // The lookup table just needs to store every 16th entry
+      // of the standard look-up table.
+      static const uint32_t crc32_half_byte_tbl[] = {
+        0x00000000, 0x105ec76f, 0x20bd8ede, 0x30e349b1, 0x417b1dbc, 0x5125dad3,
+        0x61c69362, 0x7198540d, 0x82f63b78, 0x92a8fc17, 0xa24bb5a6, 0xb21572c9,
+        0xc38d26c4, 0xd3d3e1ab, 0xe330a81a, 0xf36e6f75,
+      };
+
+      crc = (crc >> 4) ^ crc32_half_byte_tbl[crc & 0x0f];
+      crc = (crc >> 4) ^ crc32_half_byte_tbl[crc & 0x0f];
       return crc;
     #endif
   #endif
@@ -318,8 +333,10 @@ simde_mm_crc32_u16(uint32_t prevcrc, uint16_t v) {
   #if defined(SIMDE_X86_SSE4_2_NATIVE)
     return _mm_crc32_u16(prevcrc, v);
   #else
-    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(__ARM_FEATURE_CRC32)
+    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(SIMDE_ARCH_ARM_CRC32)
       return __crc32ch(prevcrc, v);
+    #elif defined(SIMDE_LOONGARCH_LSX_NATIVE)
+      return __builtin_loongarch_crcc_w_h_w(v, prevcrc);
     #else
       uint32_t crc = prevcrc;
       crc = simde_mm_crc32_u8(crc, v & 0xff);
@@ -338,8 +355,10 @@ simde_mm_crc32_u32(uint32_t prevcrc, uint32_t v) {
   #if defined(SIMDE_X86_SSE4_2_NATIVE)
     return _mm_crc32_u32(prevcrc, v);
   #else
-    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(__ARM_FEATURE_CRC32)
+    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(SIMDE_ARCH_ARM_CRC32)
       return __crc32cw(prevcrc, v);
+    #elif defined(SIMDE_LOONGARCH_LSX_NATIVE)
+      return __builtin_loongarch_crcc_w_w_w(v, prevcrc);
     #else
       uint32_t crc = prevcrc;
       crc = simde_mm_crc32_u16(crc, v & 0xffff);
@@ -358,7 +377,7 @@ simde_mm_crc32_u64(uint64_t prevcrc, uint64_t v) {
   #if defined(SIMDE_X86_SSE4_2_NATIVE) && defined(SIMDE_ARCH_AMD64)
     return _mm_crc32_u64(prevcrc, v);
   #else
-    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(__ARM_FEATURE_CRC32)
+    #if defined(SIMDE_ARM_NEON_A64V8_NATIVE) && defined(SIMDE_ARCH_ARM_CRC32)
       return __crc32cd(HEDLEY_STATIC_CAST(uint32_t, prevcrc), v);
     #else
       uint64_t crc = prevcrc;
