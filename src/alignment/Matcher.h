@@ -250,4 +250,7 @@ private:
     void setSubstitutionMatrix(BaseMatrix *m);
 };
 
+std::string getCovSeqidQscPercMinDiag();
+std::string getCovSeqidQscPercMinDiagTargetCov();
+
 #endif

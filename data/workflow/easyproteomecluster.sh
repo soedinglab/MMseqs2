@@ -45,12 +45,6 @@ if [ -z "${CASCADED_PROTEOME_CLUSTERING}" ] && notExists "${RESULTS}_proteome_cl
             || fail "createtsv proteome cluster died"
 fi
 
-if [ -n "${PROTEOME_HIDDEN_REPORT}" ]; then
-    # shellcheck disable=SC2086
-    "$MMSEQS" createtsv "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/aln_proteome_productionReport" "${RESULTS}_proteome_cluster_production.tsv" ${THREADS_PAR} \
-            || fail "createtsv proteome cluster died"
-fi
-
 if notExists "${RESULTS}_protein_align.tsv" && [ -n "${WRITE_ALIGN_PROTEOME}" ]; then
     # shellcheck disable=SC2086
     "$MMSEQS" createtsv "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/aln_protein" "${RESULTS}_protein_align.tsv" ${THREADS_PAR} \
@@ -110,12 +104,6 @@ while [ -s "$SOURCEtoNEXTITERATION" ] && [ -n "${CASCADED_PROTEOME_CLUSTERING}" 
         # shellcheck disable=SC2086
         "$MMSEQS" createtsv "${NEXTINPUT}" "${TMP_PATH}/cluster_count_${STEP}" "${RESULTS}_cluster_count_${STEP}.tsv" ${THREADS_PAR} \
                 || fail "createtsv proteome cluster count report died"
-    fi
-
-    if [ -n "${PROTEOME_HIDDEN_REPORT}" ]; then
-        # shellcheck disable=SC2086
-        "$MMSEQS" createtsv "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/aln_proteome_${STEP}_productionReport" "${RESULTS}_proteome_cluster_production_${STEP}.tsv" ${THREADS_PAR} \
-                || fail "createtsv proteome cluster died"
     fi
 
     if notExists "${RESULTS}_protein_align_${STEP}.tsv" && [ -n "${WRITE_ALIGN_PROTEOME}" ]; then

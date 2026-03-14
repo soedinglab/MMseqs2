@@ -81,16 +81,16 @@ int kmerindexdb(int argc, const char **argv, const Command &command) {
                                   par.kmersPerSequenceScale.values.nucleotide() : par.kmersPerSequenceScale.values.aminoacid();
     size_t totalKmers = computeKmerCount(seqDbr, par.kmerSize, par.kmersPerSequence, kmersPerSequenceScale);
     totalKmers *= par.pickNbest;
-    size_t totalSizeNeeded = computeMemoryNeededLinearfilter<short>(totalKmers);
+    size_t totalSizeNeeded = computeMemoryNeededLinearfilter<short,false,true>(totalKmers);
     // compute splits
     size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
     size_t totalKmersPerSplit = std::max(static_cast<size_t>(1024+1),
-                                         static_cast<size_t>(std::min(totalSizeNeeded, memoryLimit)/sizeof(KmerPosition<short>))+1);
-    std::vector<std::pair<size_t, size_t>> hashRanges = setupKmerSplits<short>(par, subMat, seqDbr, totalKmersPerSplit, splits);
+                                         static_cast<size_t>(std::min(totalSizeNeeded, memoryLimit)/sizeof(KmerPosition<short, false, true>))+1);
+    std::vector<std::pair<size_t, size_t>> hashRanges = setupKmerSplits<short,false,true>(par, subMat, seqDbr, totalKmersPerSplit, splits);
 
     Debug(Debug::INFO) << "Process file into " << hashRanges.size() << " parts\n";
     std::vector<std::string> splitFiles;
-    KmerPosition<short> *hashSeqPair = NULL;
+    KmerPosition<short, false, true> *hashSeqPair = NULL;
 
     size_t writePos = 0;
     size_t mpiRank = 0;
