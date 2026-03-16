@@ -8,6 +8,7 @@
 #include "DBConcat.h"
 #include "HeaderSummarizer.h"
 #include "CompressedA3M.h"
+#include "NucleotideMatrix.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -128,8 +129,19 @@ int result2msa(int argc, const char **argv, const Command &command) {
     size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
-    SubstitutionMatrix subMat(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
-    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
+    bool isNucl = Parameters::isEqualDbtype(tDbr->getDbtype(), Parameters::DBTYPE_NUCLEOTIDES);
+    SubstitutionMatrix *subMat;
+    int gapOpen, gapExtend;
+    if (isNucl) {
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.values.nucleotide().c_str(), 1.0f, -0.2f);
+        gapOpen = par.gapOpen.values.nucleotide();
+        gapExtend = par.gapExtend.values.nucleotide();
+    } else {
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.values.aminoacid().c_str(), 2.0f, -0.2f);
+        gapOpen = par.gapOpen.values.aminoacid();
+        gapExtend = par.gapExtend.values.aminoacid();
+    }
+    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), subMat, gapOpen, gapExtend);
     if (qDbr->getDbtype() == -1 || tDbr->getDbtype() == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database\n";
         return EXIT_FAILURE;
@@ -150,20 +162,20 @@ int result2msa(int argc, const char **argv, const Command &command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        Matcher matcher(qDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection,
-                        par.compBiasCorrectionScale, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 0.0, par.zdrop);
-        MultipleAlignment aligner(maxSequenceLength, &subMat);
+        Matcher matcher(qDbr->getDbtype(), maxSequenceLength, subMat, &evalueComputation, par.compBiasCorrection,
+                        par.compBiasCorrectionScale, gapOpen, gapExtend, 0.0, par.zdrop);
+        MultipleAlignment aligner(maxSequenceLength, subMat);
         PSSMCalculator calculator(
-            &subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb
+            subMat, maxSequenceLength, maxSetSize, par.pcmode, par.pca, par.pcb
 #ifdef GAP_POS_SCORING
-            , par.gapOpen.values.aminoacid()
+            , gapOpen
             , par.gapPseudoCount
 #endif
         );
-        MsaFilter filter(maxSequenceLength, maxSetSize, &subMat, par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid());
+        MsaFilter filter(maxSequenceLength, maxSetSize, subMat, gapOpen, gapExtend);
         UniprotHeaderSummarizer summarizer;
-        Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
-        Sequence edgeSequence(maxSequenceLength, tDbr->getDbtype(), &subMat, 0, false, false);
+        Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), subMat, 0, false, par.compBiasCorrection);
+        Sequence edgeSequence(maxSequenceLength, tDbr->getDbtype(), subMat, 0, false, false);
 
         // which sequences where kept after filtering
         bool *kept = new bool[maxSetSize];
@@ -244,15 +256,26 @@ int result2msa(int argc, const char **argv, const Command &command) {
                 seqKeys.emplace_back(key);
 
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
+                bool hasBt = (columns == Matcher::ALN_RES_WITH_BT_COL_CNT || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT);
                 if (columns > Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
                     alnResults.emplace_back(Matcher::parseAlignmentRecord(data));
-                } else {
-                    // Recompute if not all the backtraces are present
+                }
+                if (!hasBt) {
                     if (isQueryInit == false) {
                         matcher.initQuery(&centerSequence);
                         isQueryInit = true;
                     }
-                    alnResults.emplace_back(matcher.getSWResult(&edgeSequence, INT_MAX, false, 0, 0.0, FLT_MAX, Matcher::SCORE_COV_SEQID, 0, false));
+                    if (columns <= Matcher::ALN_RES_WITHOUT_BT_COL_CNT) {
+                        // No parsed result — recompute from scratch
+                        alnResults.emplace_back(matcher.getSWResult(&edgeSequence, INT_MAX, false, 0, 0.0, FLT_MAX, Matcher::SCORE_COV_SEQID, 0, false));
+                    } else {
+                        // Parsed result exists but backtrace is missing — recompute using diagonal from parsed result
+                        Matcher::result_t &parsed = alnResults.back();
+                        bool isReverse = (parsed.qStartPos > parsed.qEndPos);
+                        int diagonal = parsed.dbStartPos - parsed.qStartPos;
+                        Matcher::result_t recomputed = matcher.getSWResult(&edgeSequence, diagonal, isReverse, 0, 0.0, FLT_MAX, Matcher::SCORE_COV_SEQID, 0, false);
+                        parsed.backtrace = recomputed.backtrace;
+                    }
                 }
                 data = Util::skipLine(data);
             }
@@ -326,7 +349,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     // need to allow insertion in the centerSequence
                     for (size_t pos = 0; pos < res.centerLength; pos++) {
                         char aa = res.msaSequence[i][pos];
-                        result.append(1, ((aa < MultipleAlignment::GAP) ? subMat.num2aa[(int) aa] : '-'));
+                        result.append(1, ((aa < MultipleAlignment::GAP) ? subMat->num2aa[(int) aa] : '-'));
                     }
                     result.append(1, '\n');
                 }
@@ -382,7 +405,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     // need to allow insertion in the centerSequence
                     for (size_t pos = 0; pos < res.centerLength; pos++) {
                         char aa = res.msaSequence[i][pos];
-                        result.append(1, ((aa < MultipleAlignment::GAP) ? subMat.num2aa[(int) aa] : '-'));
+                        result.append(1, ((aa < MultipleAlignment::GAP) ? subMat->num2aa[(int) aa] : '-'));
                     }
                     result.append(1, '\n');
                 }
@@ -437,7 +460,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     if(i == 0){
                         for (size_t pos = 0; pos < res.centerLength; pos++) {
                             char aa = res.msaSequence[i][pos];
-                            result.append(1, ((aa < MultipleAlignment::GAP) ? subMat.num2aa[(int) aa] : '-'));
+                            result.append(1, ((aa < MultipleAlignment::GAP) ? subMat->num2aa[(int) aa] : '-'));
                         }
                         result.append(1, '\n');
                     }else{
@@ -453,7 +476,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                             if(aa>=MultipleAlignment::GAP){
                                 result.push_back('-');
                             }else if(aa<MultipleAlignment::GAP){
-                                result.push_back( subMat.num2aa[(int) aa]);
+                                result.push_back( subMat->num2aa[(int) aa]);
                                 btPos++;
                                 seqPos++;
                             }
@@ -462,7 +485,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
 
                             // add lower case deletions
                             while(btPos < bt.size() && bt[btPos] == 'D') {
-                                result.push_back(tolower(subMat.num2aa[seq[seqStartPos+seqPos]]));
+                                result.push_back(tolower(subMat->num2aa[seq[seqStartPos+seqPos]]));
                                 btPos++;
                                 seqPos++;
                             }
@@ -492,7 +515,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     result.append(">consensus_");
                     result.append(centerSequenceHeader, centerHeaderLength);
                     for (int pos = 0; pos < centerSequence.L; pos++) {
-                        result.push_back(subMat.num2aa[pssmRes.consensus[pos]]);
+                        result.push_back(subMat->num2aa[pssmRes.consensus[pos]]);
                     }
                     result.append("\n;");
                 } else {
@@ -500,7 +523,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
                     result.append(centerSequenceHeader, centerHeaderLength);
                     // Retrieve the master sequence
                     for (int pos = 0; pos < centerSequence.L; pos++) {
-                        result.push_back(subMat.num2aa[centerSequence.numSequence[pos]]);
+                        result.push_back(subMat->num2aa[centerSequence.numSequence[pos]]);
                     }
                     result.append("\n;");
                 }
@@ -559,6 +582,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
     if (seqConcat != NULL) {
         delete seqConcat;
     }
+    delete subMat;
 
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
