@@ -156,10 +156,22 @@ int linclust(int argc, const char **argv, const Command& command) {
     } else if (par.linclustVersion == 2) {
         par.alphabetSize = alphabetSize;
         par.kmerSize = kmerSize;
+        bool prevspacedKmer = par.spacedKmer;
+        bool prevmaskMode = par.maskMode;
+        par.spacedKmer = false;
+        par.maskMode = false;
         cmd.addVariable("KMERMATCHER_PAR", par.createParameterString(par.kmermatcher).c_str());
+        
         cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
         cmd.addVariable("ALIGN2CLUST_PAR", par.createParameterString(par.align2clust).c_str());
         cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
+        
+        par.spacedKmer = true;
+        par.kmersPerSequenceScale = 0.1;
+        cmd.addVariable("KMERMATCHER_PAR2", par.createParameterString(par.kmermatcher).c_str());
+        
+        par.spacedKmer = prevspacedKmer;
+        par.maskMode = prevmaskMode;
     }
     float prevSeqId = par.seqIdThr;
     // # 0. clust hash

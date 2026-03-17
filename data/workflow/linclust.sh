@@ -24,26 +24,28 @@ if [ "$LINCLUST_MODULE" = "linclust2" ]; then
         if notExists "${TMP_PATH}/input_clusthash.dbtype"; then
             # shellcheck disable=SC2086
             $RUNNER "$MMSEQS" clusthash "$INPUT" "${TMP_PATH}/input_clusthash" ${CLUSTHASH_PAR} \
-                    || fail "clust hash died"
+                || fail "clusthash died"
         fi
 
         if notExists "${TMP_PATH}/input_clusthash_clust.dbtype"; then
             # shellcheck disable=SC2086
             $RUNNER "$MMSEQS" clust "$INPUT" "${TMP_PATH}/input_clusthash" "${TMP_PATH}/input_clusthash_clust" ${CLUSTHASH_CLUST_PAR} \
-                    || fail "clust hash based clust died"
+                || fail "clusthash-based clust died"
         fi
 
-        awk '{print $1}' "${TMP_PATH}/input_clusthash_clust.index" > "${TMP_PATH}/order_clusthash_redundancy"
+        awk '{print $1}' "${TMP_PATH}/input_clusthash_clust.index" \
+            > "${TMP_PATH}/order_clusthash_redundancy"
 
         if notExists "${TMP_PATH}/input_clusthash_redundancy.dbtype"; then
             # shellcheck disable=SC2086
-            "$MMSEQS" createsubdb "${TMP_PATH}/order_clusthash_redundancy" "$SOURCE" "${TMP_PATH}/input_clusthash_redundancy" ${VERBOSITY} --subdb-mode 1 \
-                || fail "Createsubdb step died"
+            "$MMSEQS" createsubdb "${TMP_PATH}/order_clusthash_redundancy" "$SOURCE" \
+                "${TMP_PATH}/input_clusthash_redundancy" ${VERBOSITY} --subdb-mode 1 \
+                || fail "createsubdb (clusthash representatives) died"
         fi
         INPUT="${TMP_PATH}/input_clusthash_redundancy"
     fi
 
-    # 1. Finding exact k-mer matches.
+    # 1. k-mer matching
     if notExists "${TMP_PATH}/pref.dbtype"; then
         # shellcheck disable=SC2086
         $RUNNER "$MMSEQS" kmermatcher "$INPUT" "${TMP_PATH}/pref" ${KMERMATCHER_PAR} \
@@ -51,26 +53,53 @@ if [ "$LINCLUST_MODULE" = "linclust2" ]; then
     fi
     RESULTDB="${TMP_PATH}/pref"
 
-    if [ -n "$CLUSTHASH" ]; then
-        CLUDB="${TMP_PATH}/clu"
-    else
-        CLUDB="$2"
-    fi
-
-    # 2. Ungapped and gapped alignment(w/ banded-block aligner) + clustering
-    if notExists "${CLUDB}.dbtype"; then
+    # 2. Alignment + clustering (ungapped / gapped banded-block aligner)
+    if notExists "${TMP_PATH}/clu.dbtype"; then
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" align2clust "$INPUT" "$RESULTDB" "$CLUDB" ${ALIGN2CLUST_PAR} \
-            || fail "align2clust step died"
+        $RUNNER "$MMSEQS" align2clust "$INPUT" "$RESULTDB" "${TMP_PATH}/clu" ${ALIGN2CLUST_PAR} \
+            || fail "align2clust died"
     fi
 
-    # 0. clusthash (merge with clust)
+    # 2a. Merge clusthash pre-clusters with alignment clusters
     if [ -n "$CLUSTHASH" ]; then
-        if notExists "$2.dbtype"; then
+        if notExists "${TMP_PATH}/clu_merged.dbtype"; then
             # shellcheck disable=SC2086
-            "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/input_clusthash_clust" "$CLUDB" $MERGECLU_PAR \
-                    || fail "mergeclusters clusthash based clust and preclust died"
+            "$MMSEQS" mergeclusters "$SOURCE" "${TMP_PATH}/clu_merged" \
+                "${TMP_PATH}/input_clusthash_clust" "${TMP_PATH}/clu" $MERGECLU_PAR \
+                || fail "mergeclusters (clusthash + alignment) died"
         fi
+        CLUDB="${TMP_PATH}/clu_merged"
+    else
+        CLUDB="${TMP_PATH}/clu"
+    fi
+
+    # 3. Refinement pass: re-cluster representative sequences
+    if notExists "${TMP_PATH}/input_rep.dbtype"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" createsubdb "$CLUDB" "$INPUT" "${TMP_PATH}/input_rep" ${VERBOSITY} --subdb-mode 1 \
+            || fail "createsubdb (representatives) died"
+    fi
+
+    if notExists "${TMP_PATH}/pref_rep.dbtype"; then
+        # shellcheck disable=SC2086
+        $RUNNER "$MMSEQS" kmermatcher "${TMP_PATH}/input_rep" "${TMP_PATH}/pref_rep" ${KMERMATCHER_PAR2} \
+            || fail "kmermatcher (representatives) died"
+    fi
+
+    if notExists "${TMP_PATH}/clu_rep.dbtype"; then
+        # shellcheck disable=SC2086
+        $RUNNER "$MMSEQS" align2clust "${TMP_PATH}/input_rep" "${TMP_PATH}/pref_rep" "${TMP_PATH}/clu_rep" \
+            ${ALIGN2CLUST_PAR} \
+            --filter-cludb-file "$CLUDB" \
+            --filter-seqdb-file "$SOURCE" \
+            || fail "align2clust (representatives) died"
+    fi
+
+    if notExists "$2.dbtype"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" mergeclusters "$SOURCE" "$2" \
+            "$CLUDB" "${TMP_PATH}/clu_rep" $MERGECLU_PAR \
+            || fail "mergeclusters died"
     fi
 
 elif [ "$LINCLUST_MODULE" = "linclust1" ]; then

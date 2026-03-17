@@ -375,22 +375,25 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<unsigned int
     timer.reset();
 
     size_t endRange = (mode == Parameters::SET_COVER) ? dbSize : alnDbr.getSize();
-    // unsigned int swMode = Alignment::initSWMode(par.alignmentMode, par.covThr, par.seqIdThr);
+    unsigned int swMode = Alignment::initSWMode(par.alignmentMode, par.covThr, par.seqIdThr);
     Debug::Progress progress(endRange);
+    size_t db_maxseqlen = (cluSeqDbr != nullptr)
+        ? std::max(seqDbr->getMaxSeqLen(), cluSeqDbr->getMaxSeqLen())
+        : seqDbr->getMaxSeqLen();
 #pragma omp parallel
     {
         unsigned int threadIdx = 0;
 #ifdef OPENMP
         threadIdx = (unsigned int) omp_get_thread_num();
 #endif
-        Matcher matcher(Parameters::DBTYPE_AMINO_ACIDS, seqDbr->getMaxSeqLen(), subMat, &evaluer, 
+        Matcher matcher(Parameters::DBTYPE_AMINO_ACIDS, db_maxseqlen, subMat, &evaluer, 
                        par.compBiasCorrection, par.compBiasCorrectionScale, 
                        par.gapOpen.values.aminoacid(), par.gapExtend.values.aminoacid(), 
                        0.0, par.zdrop);
-        Sequence query(seqDbr->getMaxSeqLen(), Parameters::DBTYPE_AMINO_ACIDS, subMat, 0, false, par.compBiasCorrection);
-        Sequence target(seqDbr->getMaxSeqLen(), Parameters::DBTYPE_AMINO_ACIDS, subMat, 0, false, par.compBiasCorrection);
-        Sequence element(seqDbr->getMaxSeqLen(), Parameters::DBTYPE_AMINO_ACIDS, subMat, 0, false, par.compBiasCorrection);
-        BlockAligner blockAligner(Parameters::DBTYPE_AMINO_ACIDS, seqDbr->getMaxSeqLen(), subMat, &fastMatrix, 
+        Sequence query(db_maxseqlen, Parameters::DBTYPE_AMINO_ACIDS, subMat, 0, false, par.compBiasCorrection);
+        Sequence target(db_maxseqlen, Parameters::DBTYPE_AMINO_ACIDS, subMat, 0, false, par.compBiasCorrection);
+        Sequence element(db_maxseqlen, Parameters::DBTYPE_AMINO_ACIDS, subMat, 0, false, par.compBiasCorrection);
+        BlockAligner blockAligner(Parameters::DBTYPE_AMINO_ACIDS, db_maxseqlen, subMat, &fastMatrix, 
                                  &evaluer, par.compBiasCorrection, par.compBiasCorrectionScale, 
                                  -par.gapOpen.values.aminoacid(), -par.gapExtend.values.aminoacid());
         char buffer[1024 + 32768 * 4];
@@ -543,23 +546,14 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<unsigned int
                                 bool elementHasSeqId = elementSeqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
                                 
                                 if (!(elementHasAlnLen && elementHasCoverage && elementHasSeqId && elementHasEvalue)) {
-                                    allpass = false;
-                                    break;
-                                    // float currentScorePerCol = static_cast<float>(elementUngappedAlignment.score) / static_cast<float>(elementUngappedAlignment.diagonalLen);
-                                    // if (currentScorePerCol < scorePerColThreshold) {
-                                    //     allpass = false;
-                                    //     break;
-                                    // } 
-                                    // else {
-                                    //     // 3. gapped alignment
-                                    //     Matcher::result_t res_element = matcher.getSWResult(&element, static_cast<int>(concatedDiagonal), false, par.covMode, par.covThr, par.evalThr,
-                                    //                                         swMode, par.seqIdMode, false);
-                                    //     if (Alignment::checkCriteria(res_element, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr) == false) {
-                                    //         allpass = false;
-                                    //         break;
-                                    //     }
-                                    // }   
-                                }
+                                    // 3. gapped alignment
+                                    Matcher::result_t res_element = matcher.getSWResult(&element, static_cast<int>(concatedDiagonal), false, par.covMode, par.covThr, par.evalThr,
+                                                                        swMode, par.seqIdMode, false);
+                                    if (Alignment::checkCriteria(res_element, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr) == false) {
+                                        allpass = false;
+                                        break;
+                                    }
+                            }
                                 cluData = Util::skipLine(cluData);
                             }
                         }
@@ -623,7 +617,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<unsigned int
                     if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, 
                                                 par.alnLenThr, par.covMode, par.covThr)) {
                         if (assignedCluster[targetId] != UINT_MAX) continue;
-                        if (par.filteringFile.empty()==false){
+                        if (par.filterCluDBFile.empty()== false && par.filterSeqDBFile.empty()== false){
                             // check all the member from filtering file
                             const size_t cluId = cluDbr->getId(targetKey);
                             char *cluData = cluDbr->getData(cluId, threadIdx);
@@ -642,7 +636,8 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<unsigned int
                                     const size_t elementId = cluSeqDbr->getId(elementKey);
                                     char *elementSequence = cluSeqDbr->getData(elementId, threadIdx);
                                     size_t elementLength = cluSeqDbr->getSeqLen(elementId);
-                                    short concatedDiagonal = diagonal;
+                                    // short concatedDiagonal = diagonal;
+                                    short concatedDiagonal = 0;
                                     
                                     // 1. ungapped alignment
                                     element.mapSequence(elementId, elementKey, elementSequence, elementLength);
@@ -662,22 +657,13 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<unsigned int
                                     bool elementHasSeqId = elementSeqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
                                     
                                     if (!(elementHasAlnLen && elementHasCoverage && elementHasSeqId && elementHasEvalue)) {
-                                        allpass = false;
-                                        break;
-                                        // float currentScorePerCol = static_cast<float>(elementUngappedAlignment.score) / static_cast<float>(elementUngappedAlignment.diagonalLen);
-                                        // if (currentScorePerCol < scorePerColThreshold) {
-                                        //     allpass = false;
-                                        //     break;
-                                        // } 
-                                        // else {
-                                        //     // 3. gapped alignment
-                                        //     Matcher::result_t res_element = matcher.getSWResult(&element, static_cast<int>(concatedDiagonal), false, par.covMode, par.covThr, par.evalThr,
-                                        //                                         swMode, par.seqIdMode, false);
-                                        //     if (Alignment::checkCriteria(res_element, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr) == false) {
-                                        //         allpass = false;
-                                        //         break;
-                                        //     }
-                                        // }
+                                        // 3. gapped alignment
+                                        Matcher::result_t res_element = matcher.getSWResult(&element, static_cast<int>(concatedDiagonal), false, par.covMode, par.covThr, par.evalThr,
+                                                                            swMode, par.seqIdMode, false);
+                                        if (Alignment::checkCriteria(res_element, false, par.evalThr, par.seqIdThr, par.alnLenThr, par.covMode, par.covThr) == false) {
+                                            allpass = false;
+                                            break;
+                                        }
                                     }
                                     cluData = Util::skipLine(cluData);
                                 }

@@ -55,15 +55,15 @@ if [ "$CLUSTER_MODULE" = "cluster2" ]; then
             || fail "Prefilter died"
     fi
 
-    if notExists "${TMP_PATH}/clu_rep.dbtype"; then
+    if notExists "${TMP_PATH}/clu2_rep.dbtype"; then
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" align2clust "$INPUT_PRECLUST" "${TMP_PATH}/pref_rep" "${TMP_PATH}/clu_rep" ${ALIGN2CLUST_PAR} --filter-cludb-file "${TMP_PATH}/clu_redundancy" --filter-seqdb-file "$INPUT" \
+        $RUNNER "$MMSEQS" align2clust "$INPUT_PRECLUST" "${TMP_PATH}/pref_rep" "${TMP_PATH}/clu2_rep" ${ALIGN2CLUST_PAR} --filter-cludb-file "${TMP_PATH}/clu_redundancy" --filter-seqdb-file "$INPUT" \
             || fail "align2clust step died"
     fi
 
     if notExists "$2.dbtype"; then
         # shellcheck disable=SC2086
-        "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_rep" $MERGECLU_PAR \
+        "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu2_rep" $MERGECLU_PAR \
             || fail "Merging of clusters has died"
     fi
 elif [ "$CLUSTER_MODULE" = "cluster1" ]; then
@@ -286,7 +286,7 @@ if [ -n "$REMOVE_TMP" ]; then
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/pref_rep" ${VERBOSITY}
         # shellcheck disable=SC2086
-        "$MMSEQS" rmdb "${TMP_PATH}/clu_rep" ${VERBOSITY}
+        "$MMSEQS" rmdb "${TMP_PATH}/clu2_rep" ${VERBOSITY}
     elif [ "$CLUSTER_MODULE" = "cluster1" ]; then
 
         STEP=0
