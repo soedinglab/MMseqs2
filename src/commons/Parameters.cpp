@@ -311,7 +311,6 @@ Parameters::Parameters():
         // reclassify
         PARAM_RECLASSIFY_LAMBDA(PARAM_RECLASSIFY_LAMBDA_ID, "--reclassify-lambda", "Reclassify lambda", "Lambda scaling factor for the reclassification score term", typeid(double), (void *) &reclassifyLambda, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_RECLASSIFY_ALPHA(PARAM_RECLASSIFY_ALPHA_ID, "--reclassify-alpha", "Reclassify alpha", "Exponent applied to abundance during reclassification", typeid(double), (void *) &reclassifyAlpha, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
-        PARAM_RECLASSIFY_BETA(PARAM_RECLASSIFY_BETA_ID, "--reclassify-beta", "Reclassify beta", "Exponent applied to sequence identity during reclassification", typeid(double), (void *) &reclassifyBeta, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_RECLASSIFY_GAMMA(PARAM_RECLASSIFY_GAMMA_ID, "--reclassify-gamma", "Reclassify gamma", "Exponent applied to entropy penalty during reclassification", typeid(double), (void *) &reclassifyGamma, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_RECLASSIFY_MAX_ITER(PARAM_RECLASSIFY_MAX_ITER_ID, "--reclassify-max-iter", "Reclassify max iterations", "Maximum number of SQUAREM iterations for reclassification", typeid(int), (void *) &reclassifyMaxIterations, "^[1-9]{1}[0-9]*$"),
         PARAM_RECLASSIFY_TOL(PARAM_RECLASSIFY_TOL_ID, "--reclassify-tol", "Reclassify tolerance", "Convergence tolerance for reclassification", typeid(double), (void *) &reclassifyTolerance, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
@@ -346,7 +345,6 @@ Parameters::Parameters():
     // reclassify
     reclassify.push_back(&PARAM_RECLASSIFY_LAMBDA);
     reclassify.push_back(&PARAM_RECLASSIFY_ALPHA);
-    reclassify.push_back(&PARAM_RECLASSIFY_BETA);
     reclassify.push_back(&PARAM_RECLASSIFY_GAMMA);
     reclassify.push_back(&PARAM_RECLASSIFY_MAX_ITER);
     reclassify.push_back(&PARAM_RECLASSIFY_TOL);
@@ -2660,7 +2658,6 @@ void Parameters::setDefaults() {
     // reclassify
     reclassifyLambda = 0.02;
     reclassifyAlpha = 1.0;
-    reclassifyBeta = 1.0;
     reclassifyGamma = 1.0;
     reclassifyMaxIterations = 100;
     reclassifyTolerance = 1e-5;

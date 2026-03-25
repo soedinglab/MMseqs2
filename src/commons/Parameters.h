@@ -727,7 +727,6 @@ public:
     // reclassify
     double reclassifyLambda;
     double reclassifyAlpha;
-    double reclassifyBeta;
     double reclassifyGamma;
     int reclassifyMaxIterations;
     double reclassifyTolerance;
@@ -1093,7 +1092,6 @@ public:
     // reclassify
     PARAMETER(PARAM_RECLASSIFY_LAMBDA)
     PARAMETER(PARAM_RECLASSIFY_ALPHA)
-    PARAMETER(PARAM_RECLASSIFY_BETA)
     PARAMETER(PARAM_RECLASSIFY_GAMMA)
     PARAMETER(PARAM_RECLASSIFY_MAX_ITER)
     PARAMETER(PARAM_RECLASSIFY_TOL)

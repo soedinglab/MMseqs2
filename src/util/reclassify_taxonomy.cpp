@@ -232,41 +232,50 @@ static void initEntropy(MappingTable &mappingTable, const std::unordered_set<uns
     }
 }
 
-static double scoreTerm(const ReclassTaxEntry &entry, double lambda, double alpha, double beta, double gamma) {
-    if (entry.result.alnLength == 0) {
+static double maxQueryBitScore(const std::vector<ReclassTaxEntry> &entries) {
+    double maxScore = 0.0;
+    for (size_t i = 0; i < entries.size(); ++i) {
+        maxScore = std::max(maxScore, static_cast<double>(entries[i].result.score));
+    }
+    return maxScore;
+}
+
+static double scoreTerm(const ReclassTaxEntry &entry, double queryMaxScore, double lambda, double alpha, double gamma) {
+    if (queryMaxScore <= 0.0) {
         return 0.0;
     }
 
-    const double bitPerLen = static_cast<double>(entry.result.score) / static_cast<double>(entry.result.alnLength);
-    const double seqId = std::max(static_cast<double>(entry.result.seqId) / 100.0, EPS);
+    const double normalizedScore = static_cast<double>(entry.result.score) / queryMaxScore;
     const double abundance = std::max(entry.abundance, EPS);
     const double entropyPenalty = std::max(entry.entropyPenalty, EPS);
-    return std::exp(lambda * bitPerLen) * std::pow(seqId, beta) * std::pow(abundance, alpha) * std::pow(entropyPenalty, gamma);
+    return std::exp(lambda * normalizedScore) * std::pow(abundance, alpha) * std::pow(entropyPenalty, gamma);
 }
 
-static void computePosterior(MappingTable &mappingTable, double lambda, double alpha, double beta, double gamma) {
+static void computePosterior(MappingTable &mappingTable, double lambda, double alpha, double gamma) {
     for (MappingTable::iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
+        const double queryMaxScore = maxQueryBitScore(it->second);
         double denom = 0.0;
         for (size_t j = 0; j < it->second.size(); ++j) {
-            denom += scoreTerm(it->second[j], lambda, alpha, beta, gamma);
+            denom += scoreTerm(it->second[j], queryMaxScore, lambda, alpha, gamma);
         }
         for (size_t j = 0; j < it->second.size(); ++j) {
-            const double value = scoreTerm(it->second[j], lambda, alpha, beta, gamma);
+            const double value = scoreTerm(it->second[j], queryMaxScore, lambda, alpha, gamma);
             it->second[j].posterior = (denom > 0.0) ? (value / denom) : 0.0;
         }
     }
 }
 
-static double logLikelihood(const MappingTable &mappingTable, double lambda, double alpha, double beta, double gamma, size_t queryCount) {
+static double logLikelihood(const MappingTable &mappingTable, double lambda, double alpha, double gamma, size_t queryCount) {
     if (queryCount == 0) {
         return 0.0;
     }
 
     double ll = 0.0;
     for (MappingTable::const_iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
+        const double queryMaxScore = maxQueryBitScore(it->second);
         double denom = 0.0;
         for (size_t j = 0; j < it->second.size(); ++j) {
-            const double value = scoreTerm(it->second[j], lambda, alpha, beta, gamma);
+            const double value = scoreTerm(it->second[j], queryMaxScore, lambda, alpha, gamma);
             denom += value;
             if (it->second[j].posterior > 0.0) {
                 ll += it->second[j].posterior * std::log(value > 0.0 ? value : 1e-300);
@@ -318,9 +327,8 @@ static std::vector<double> emUpdate(MappingTable &mappingTable,
                                     const std::vector<unsigned int> &targetList,
                                     size_t queryCount,
                                     double alpha,
-                                    double beta,
                                     double gamma) {
-    computePosterior(mappingTable, lambda, alpha, beta, gamma);
+    computePosterior(mappingTable, lambda, alpha, gamma);
 
     std::unordered_map<unsigned int, double> nextAbundance;
     nextAbundance.reserve(targetList.size());
@@ -381,7 +389,7 @@ static std::vector<double> projectSimplex(const std::vector<double> &x) {
     return projected;
 }
 
-static void squarem(ReclassTaxContext &ctx, double lambda, int maxIter, double tol, double alpha, double beta, double gamma) {
+static void squarem(ReclassTaxContext &ctx, double lambda, int maxIter, double tol, double alpha, double gamma) {
     if (ctx.queryCount == 0 || ctx.targetSet.empty()) {
         return;
     }
@@ -402,8 +410,8 @@ static void squarem(ReclassTaxContext &ctx, double lambda, int maxIter, double t
     std::vector<double> logLikelihoods;
 
     for (int iter = 0; iter < maxIter; ++iter) {
-        const std::vector<double> x1 = emUpdate(ctx.mappingTable, lambda, fixedEntropy, targetList, ctx.queryCount, alpha, beta, gamma);
-        const std::vector<double> x2 = emUpdate(ctx.mappingTable, lambda, fixedEntropy, targetList, ctx.queryCount, alpha, beta, gamma);
+        const std::vector<double> x1 = emUpdate(ctx.mappingTable, lambda, fixedEntropy, targetList, ctx.queryCount, alpha, gamma);
+        const std::vector<double> x2 = emUpdate(ctx.mappingTable, lambda, fixedEntropy, targetList, ctx.queryCount, alpha, gamma);
 
         std::vector<double> r(x0.size(), 0.0);
         std::vector<double> v(x0.size(), 0.0);
@@ -431,13 +439,13 @@ static void squarem(ReclassTaxContext &ctx, double lambda, int maxIter, double t
         xNew = projectSimplex(xNew);
 
         setAbundance(ctx.mappingTable, targetList, xNew);
-        computePosterior(ctx.mappingTable, lambda, alpha, beta, gamma);
-        double currentLl = logLikelihood(ctx.mappingTable, lambda, alpha, beta, gamma, ctx.queryCount);
+        computePosterior(ctx.mappingTable, lambda, alpha, gamma);
+        double currentLl = logLikelihood(ctx.mappingTable, lambda, alpha, gamma, ctx.queryCount);
 
         if (!logLikelihoods.empty() && currentLl < logLikelihoods.back() - 1e-9) {
             setAbundance(ctx.mappingTable, targetList, x2);
-            computePosterior(ctx.mappingTable, lambda, alpha, beta, gamma);
-            currentLl = logLikelihood(ctx.mappingTable, lambda, alpha, beta, gamma, ctx.queryCount);
+            computePosterior(ctx.mappingTable, lambda, alpha, gamma);
+            currentLl = logLikelihood(ctx.mappingTable, lambda, alpha, gamma, ctx.queryCount);
             xNew = x2;
         }
 
@@ -759,7 +767,6 @@ int reclassifytaxonomy(int argc, const char **argv, const Command &command) {
             par.reclassifyMaxIterations,
             par.reclassifyTolerance,
             par.reclassifyAlpha,
-            par.reclassifyBeta,
             par.reclassifyGamma);
 
     const std::string outDir = par.db4;
