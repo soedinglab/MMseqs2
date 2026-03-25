@@ -724,6 +724,15 @@ public:
     std::string unpackSuffix;
     int unpackNameMode;
 
+    // reclassify
+    double reclassifyLambda;
+    double reclassifyAlpha;
+    double reclassifyBeta;
+    double reclassifyGamma;
+    int reclassifyMaxIterations;
+    double reclassifyTolerance;
+    int reclassifyTaxonomy;
+
     // for modules that should handle -h themselves
     bool help;
 
@@ -1081,6 +1090,15 @@ public:
     PARAMETER(PARAM_UNPACK_SUFFIX)
     PARAMETER(PARAM_UNPACK_NAME_MODE)
 
+    // reclassify
+    PARAMETER(PARAM_RECLASSIFY_LAMBDA)
+    PARAMETER(PARAM_RECLASSIFY_ALPHA)
+    PARAMETER(PARAM_RECLASSIFY_BETA)
+    PARAMETER(PARAM_RECLASSIFY_GAMMA)
+    PARAMETER(PARAM_RECLASSIFY_MAX_ITER)
+    PARAMETER(PARAM_RECLASSIFY_TOL)
+    PARAMETER(PARAM_RECLASSIFY_TAXONOMY)
+
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
     PARAMETER(PARAM_HELP_LONG)
@@ -1207,6 +1225,7 @@ public:
     std::vector<MMseqsParameter*> touchdb;
     std::vector<MMseqsParameter*> gpuserver;
     std::vector<MMseqsParameter*> tsv2exprofiledb;
+    std::vector<MMseqsParameter*> reclassify;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);

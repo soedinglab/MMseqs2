@@ -308,6 +308,14 @@ Parameters::Parameters():
         // unpackdb
         PARAM_UNPACK_SUFFIX(PARAM_UNPACK_SUFFIX_ID, "--unpack-suffix", "Unpack suffix", "File suffix for unpacked files.\nAdd .gz suffix to write compressed files.", typeid(std::string), (void *) &unpackSuffix, "^.*$"),
         PARAM_UNPACK_NAME_MODE(PARAM_UNPACK_NAME_MODE_ID, "--unpack-name-mode", "Unpack name mode", "Name unpacked files by 0: DB key, 1: accession (through .lookup)", typeid(int), (void *) &unpackNameMode, "^[0-1]{1}$"),
+        // reclassify
+        PARAM_RECLASSIFY_LAMBDA(PARAM_RECLASSIFY_LAMBDA_ID, "--reclassify-lambda", "Reclassify lambda", "Lambda scaling factor for the reclassification score term", typeid(double), (void *) &reclassifyLambda, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
+        PARAM_RECLASSIFY_ALPHA(PARAM_RECLASSIFY_ALPHA_ID, "--reclassify-alpha", "Reclassify alpha", "Exponent applied to abundance during reclassification", typeid(double), (void *) &reclassifyAlpha, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
+        PARAM_RECLASSIFY_BETA(PARAM_RECLASSIFY_BETA_ID, "--reclassify-beta", "Reclassify beta", "Exponent applied to sequence identity during reclassification", typeid(double), (void *) &reclassifyBeta, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
+        PARAM_RECLASSIFY_GAMMA(PARAM_RECLASSIFY_GAMMA_ID, "--reclassify-gamma", "Reclassify gamma", "Exponent applied to entropy penalty during reclassification", typeid(double), (void *) &reclassifyGamma, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
+        PARAM_RECLASSIFY_MAX_ITER(PARAM_RECLASSIFY_MAX_ITER_ID, "--reclassify-max-iter", "Reclassify max iterations", "Maximum number of SQUAREM iterations for reclassification", typeid(int), (void *) &reclassifyMaxIterations, "^[1-9]{1}[0-9]*$"),
+        PARAM_RECLASSIFY_TOL(PARAM_RECLASSIFY_TOL_ID, "--reclassify-tol", "Reclassify tolerance", "Convergence tolerance for reclassification", typeid(double), (void *) &reclassifyTolerance, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
+        PARAM_RECLASSIFY_TAXONOMY(PARAM_RECLASSIFY_TAXONOMY_ID, "--taxonomy", "Reclassify taxonomy output", "0: write alignment and protein abundance only, 1: also write taxonomy_abundance.tsv", typeid(int), (void *) &reclassifyTaxonomy, "^[0-1]{1}$"),
         // for modules that should handle -h themselves
         PARAM_HELP(PARAM_HELP_ID, "-h", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_HELP_LONG(PARAM_HELP_LONG_ID, "--help", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN)
@@ -334,6 +342,18 @@ Parameters::Parameters():
     threadsandcompression.push_back(&PARAM_THREADS);
     threadsandcompression.push_back(&PARAM_COMPRESSED);
     threadsandcompression.push_back(&PARAM_V);
+
+    // reclassify
+    reclassify.push_back(&PARAM_RECLASSIFY_LAMBDA);
+    reclassify.push_back(&PARAM_RECLASSIFY_ALPHA);
+    reclassify.push_back(&PARAM_RECLASSIFY_BETA);
+    reclassify.push_back(&PARAM_RECLASSIFY_GAMMA);
+    reclassify.push_back(&PARAM_RECLASSIFY_MAX_ITER);
+    reclassify.push_back(&PARAM_RECLASSIFY_TOL);
+    reclassify.push_back(&PARAM_RECLASSIFY_TAXONOMY);
+    reclassify.push_back(&PARAM_THREADS);
+    reclassify.push_back(&PARAM_COMPRESSED);
+    reclassify.push_back(&PARAM_V);
 
     // createclusearchdb
     createclusearchdb.push_back(&PARAM_THREADS);
@@ -2636,6 +2656,15 @@ void Parameters::setDefaults() {
     // unpackdb
     unpackSuffix = "";
     unpackNameMode = Parameters::UNPACK_NAME_ACCESSION;
+
+    // reclassify
+    reclassifyLambda = 0.02;
+    reclassifyAlpha = 1.0;
+    reclassifyBeta = 1.0;
+    reclassifyGamma = 1.0;
+    reclassifyMaxIterations = 100;
+    reclassifyTolerance = 1e-5;
+    reclassifyTaxonomy = 0;
 
     lcaRanks = "";
     showTaxLineage = 0;

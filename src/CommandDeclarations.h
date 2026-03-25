@@ -102,6 +102,7 @@ extern int unpackdb(int argc, const char **argv, const Command& command);
 extern int rbh(int argc, const char **argv, const Command& command);
 extern int recoverlongestorf(int argc, const char **argv, const Command& command);
 extern int reclassify(int argc, const char **argv, const Command& command);
+extern int reclassifytaxonomy(int argc, const char **argv, const Command& command);
 extern int result2flat(int argc, const char **argv, const Command& command);
 extern int result2msa(int argc, const char **argv, const Command& command);
 extern int result2dnamsa(int argc, const char **argv, const Command& command);
