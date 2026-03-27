@@ -68,6 +68,8 @@ struct ReclassTaxContext {
 static const double STEP_MIN = -1.0;
 static const double STEP_MAX = 1.0;
 static const double EPS = 1e-12;
+static const size_t MIN_FILTER_TARGETS = 20;
+static const size_t MIN_TAIL_TARGETS = 2;
 
 static std::vector<unsigned int> targetListFromSet(const std::unordered_set<unsigned int> &targets) {
     std::vector<unsigned int> out(targets.begin(), targets.end());
@@ -613,20 +615,40 @@ static std::vector<TargetStats> collectTargetStats(const ReclassTaxContext &ctx)
     return out;
 }
 
-static bool largestJumpCutoff(std::vector<double> values, double &cutoff) {
+static double clamp01(double value) {
+    return std::max(0.0, std::min(1.0, value));
+}
+
+static bool largestJumpCutoff(std::vector<double> values,
+                              bool useLowTail,
+                              double maxTailFraction,
+                              double &cutoff,
+                              size_t &tailCount) {
     cutoff = 0.0;
-    if (values.size() < 4) {
+    tailCount = 0;
+    if (values.size() < MIN_FILTER_TARGETS) {
         return false;
     }
 
     std::sort(values.begin(), values.end());
+    maxTailFraction = clamp01(maxTailFraction);
+    const size_t maxTailCount = std::max(MIN_TAIL_TARGETS,
+                                         static_cast<size_t>(std::floor(maxTailFraction * static_cast<double>(values.size()))));
     double bestGap = 0.0;
     size_t bestIdx = 0;
     for (size_t i = 0; i + 1 < values.size(); ++i) {
+        const size_t lowTailCount = i + 1;
+        const size_t highTailCount = values.size() - lowTailCount;
+        const size_t candidateTailCount = useLowTail ? lowTailCount : highTailCount;
+        if (candidateTailCount < MIN_TAIL_TARGETS || candidateTailCount > maxTailCount) {
+            continue;
+        }
+
         const double gap = values[i + 1] - values[i];
         if (gap > bestGap) {
             bestGap = gap;
             bestIdx = i;
+            tailCount = candidateTailCount;
         }
     }
 
@@ -638,42 +660,94 @@ static bool largestJumpCutoff(std::vector<double> values, double &cutoff) {
     return true;
 }
 
+static bool tailQuantileCutoff(std::vector<double> values,
+                               bool useLowTail,
+                               double maxTailFraction,
+                               double &cutoff,
+                               size_t &tailCount) {
+    cutoff = 0.0;
+    tailCount = 0;
+    if (values.size() < MIN_FILTER_TARGETS) {
+        return false;
+    }
+
+    std::sort(values.begin(), values.end());
+    maxTailFraction = clamp01(maxTailFraction);
+    const size_t maxTailCount = std::max(MIN_TAIL_TARGETS,
+                                         static_cast<size_t>(std::floor(maxTailFraction * static_cast<double>(values.size()))));
+    if (maxTailCount < MIN_TAIL_TARGETS || maxTailCount >= values.size()) {
+        return false;
+    }
+
+    tailCount = maxTailCount;
+    if (useLowTail) {
+        cutoff = values[tailCount - 1];
+    } else {
+        cutoff = values[values.size() - tailCount];
+    }
+    return true;
+}
+
+static std::unordered_set<unsigned int> selectTailTargets(const std::vector<TargetStats> &stats,
+                                                          bool useLowTail,
+                                                          size_t tailCount) {
+    std::vector<const TargetStats *> ordered;
+    ordered.reserve(stats.size());
+    for (size_t i = 0; i < stats.size(); ++i) {
+        ordered.push_back(&stats[i]);
+    }
+
+    std::sort(ordered.begin(), ordered.end(), [useLowTail](const TargetStats *lhs, const TargetStats *rhs) {
+        const double lhsValue = useLowTail ? lhs->abundance : lhs->entropyValue;
+        const double rhsValue = useLowTail ? rhs->abundance : rhs->entropyValue;
+        if (lhsValue != rhsValue) {
+            return useLowTail ? (lhsValue < rhsValue) : (lhsValue > rhsValue);
+        }
+        return lhs->key < rhs->key;
+    });
+
+    std::unordered_set<unsigned int> selected;
+    const size_t limit = std::min(tailCount, ordered.size());
+    selected.reserve(limit);
+    for (size_t i = 0; i < limit; ++i) {
+        selected.insert(ordered[i]->key);
+    }
+    return selected;
+}
+
 static std::unordered_set<unsigned int> selectDroppedTargets(const std::vector<TargetStats> &stats,
-                                                             double &abundanceCutoff,
-                                                             double &entropyCutoff) {
+                                                             double maxDropPercentage,
+                                                             double &abundanceCutoff) {
     std::unordered_set<unsigned int> dropped;
     if (stats.empty()) {
         abundanceCutoff = 0.0;
-        entropyCutoff = 0.0;
         return dropped;
     }
-    if (stats.size() < 4) {
+    if (stats.size() < MIN_FILTER_TARGETS) {
         abundanceCutoff = 0.0;
-        entropyCutoff = 0.0;
         return dropped;
     }
 
     std::vector<double> abundances;
-    std::vector<double> entropies;
     abundances.reserve(stats.size());
-    entropies.reserve(stats.size());
     for (size_t i = 0; i < stats.size(); ++i) {
         abundances.push_back(stats[i].abundance);
-        entropies.push_back(stats[i].entropyValue);
     }
 
-    const bool hasAbundanceCutoff = largestJumpCutoff(abundances, abundanceCutoff);
-    const bool hasEntropyCutoff = largestJumpCutoff(entropies, entropyCutoff);
-    if (hasAbundanceCutoff == false || hasEntropyCutoff == false) {
+    const double maxTailFraction = clamp01(maxDropPercentage / 100.0);
+    size_t abundanceTailCount = 0;
+    bool hasAbundanceCutoff = largestJumpCutoff(abundances, true, maxTailFraction, abundanceCutoff, abundanceTailCount);
+    if (hasAbundanceCutoff == false) {
+        hasAbundanceCutoff = tailQuantileCutoff(abundances, true, maxTailFraction, abundanceCutoff, abundanceTailCount);
+    }
+    if (hasAbundanceCutoff == false) {
         abundanceCutoff = 0.0;
-        entropyCutoff = 0.0;
         return dropped;
     }
 
-    for (size_t i = 0; i < stats.size(); ++i) {
-        if (stats[i].abundance <= abundanceCutoff && stats[i].entropyValue >= entropyCutoff) {
-            dropped.insert(stats[i].key);
-        }
+    const std::unordered_set<unsigned int> lowAbundanceTargets = selectTailTargets(stats, true, abundanceTailCount);
+    for (std::unordered_set<unsigned int>::const_iterator it = lowAbundanceTargets.begin(); it != lowAbundanceTargets.end(); ++it) {
+        dropped.insert(*it);
     }
     if (dropped.size() == stats.size()) {
         dropped.clear();
@@ -684,11 +758,10 @@ static std::unordered_set<unsigned int> selectDroppedTargets(const std::vector<T
 static void applyDroppedTargets(ReclassTaxContext &ctx,
                                 const std::unordered_set<unsigned int> &dropped,
                                 size_t totalTargets,
-                                double abundanceCutoff,
-                                double entropyCutoff) {
+                                double abundanceCutoff) {
     if (dropped.empty()) {
         Debug(Debug::INFO) << "Reclassify-taxonomy target filter kept all targets. abundance cutoff="
-                           << abundanceCutoff << " entropy cutoff=" << entropyCutoff << "\n";
+                           << abundanceCutoff << "\n";
         return;
     }
 
@@ -719,8 +792,7 @@ static void applyDroppedTargets(ReclassTaxContext &ctx,
     Debug(Debug::INFO) << "Reclassify-taxonomy dropped " << dropped.size()
                        << " of " << totalTargets
                        << " targets (" << removedPct << "%)"
-                       << " using abundance <= " << abundanceCutoff
-                       << " and entropy >= " << entropyCutoff << ".\n";
+                       << " using abundance <= " << abundanceCutoff << ".\n";
 }
 
 static void markDroppedTargets(std::vector<TargetStats> &stats, const std::unordered_set<unsigned int> &dropped) {
@@ -855,21 +927,20 @@ static void writeTaxonomyStats(const std::vector<TargetStats> &stats,
     });
 
     FILE *handle = FileUtil::openFileOrDie(path.c_str(), "w", false);
-    fputs("taxid\trank\ttaxname\ttaxlineage\tprotein_abundance_pct\tprotein_count\tmean_entropy\tmean_entropy_penalty\n", handle);
+    fputs("taxid\trank\ttaxname\ttaxlineage\tprotein_abundance_pct\tprotein_count\tmean_entropy\n", handle);
 
     for (size_t i = 0; i < rows.size(); ++i) {
         const TaxonNode *node = (rows[i].taxId != 0) ? taxonomy->taxonNode(rows[i].taxId, false) : NULL;
         const std::string lineage = (node != NULL) ? taxonomy->taxLineage(node, true) : "unclassified";
         const double denom = (rows[i].proteinCount > 0) ? static_cast<double>(rows[i].proteinCount) : 1.0;
-        fprintf(handle, "%u\t%s\t%s\t%s\t%.12g\t%zu\t%.12g\t%.12g\n",
+        fprintf(handle, "%u\t%s\t%s\t%s\t%.12g\t%zu\t%.12g\n",
                 rows[i].taxId,
                 (node != NULL) ? taxonomy->getString(node->rankIdx) : "unclassified",
                 (node != NULL) ? taxonomy->getString(node->nameIdx) : "unclassified",
                 lineage.c_str(),
                 rows[i].abundance,
                 rows[i].proteinCount,
-                rows[i].entropySum / denom,
-                rows[i].entropyPenaltySum / denom);
+                rows[i].entropySum / denom);
     }
 
     fclose(handle);
@@ -913,10 +984,9 @@ int reclassifytaxonomy(int argc, const char **argv, const Command &command) {
 
     std::vector<TargetStats> allTargetStats = collectTargetStats(ctx);
     double abundanceCutoff = 0.0;
-    double entropyCutoff = 0.0;
     const std::unordered_set<unsigned int> dropped = selectDroppedTargets(allTargetStats,
-                                                                          abundanceCutoff,
-                                                                          entropyCutoff);
+                                                                          par.reclassifyMaxDropPercentage,
+                                                                          abundanceCutoff);
     markDroppedTargets(allTargetStats, dropped);
     convertAbundanceToPercent(allTargetStats);
 
@@ -924,7 +994,7 @@ int reclassifytaxonomy(int argc, const char **argv, const Command &command) {
     targetStats.erase(std::remove_if(targetStats.begin(), targetStats.end(), [](const TargetStats &entry) {
         return entry.dropped;
     }), targetStats.end());
-    applyDroppedTargets(ctx, dropped, allTargetStats.size(), abundanceCutoff, entropyCutoff);
+    applyDroppedTargets(ctx, dropped, allTargetStats.size(), abundanceCutoff);
     convertAbundanceToPercent(targetStats);
 
     writeReclassifiedM8(ctx, queryHeaderReader, targetHeaderReader, m8Path);

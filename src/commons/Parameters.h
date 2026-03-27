@@ -731,6 +731,7 @@ public:
     int reclassifyMaxIterations;
     double reclassifyTolerance;
     int reclassifyTaxonomy;
+    double reclassifyMaxDropPercentage;
 
     // for modules that should handle -h themselves
     bool help;
@@ -1096,6 +1097,7 @@ public:
     PARAMETER(PARAM_RECLASSIFY_MAX_ITER)
     PARAMETER(PARAM_RECLASSIFY_TOL)
     PARAMETER(PARAM_RECLASSIFY_TAXONOMY)
+    PARAMETER(PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE)
 
     // for modules that should handle -h themselves
     PARAMETER(PARAM_HELP)
