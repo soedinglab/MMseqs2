@@ -6,8 +6,8 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "QueryMatcher.h"
-#include "CovSeqidQscPercMinDiag.lib.h"
-#include "CovSeqidQscPercMinDiagTargetCov.lib.h"
+// #include "CovSeqidQscPercMinDiag.lib.h"
+// #include "CovSeqidQscPercMinDiagTargetCov.lib.h"
 #include "QueryMatcher.h"
 #include "NucleotideMatrix.h"
 #include "IndexReader.h"
@@ -99,8 +99,8 @@ int doRescorediagonal(Parameters &par,
         }
 
         std::string libraryString = (par.covMode == Parameters::COV_MODE_BIDIRECTIONAL)
-                                    ? std::string((const char*)CovSeqidQscPercMinDiag_lib, CovSeqidQscPercMinDiag_lib_len)
-                                    : std::string((const char*)CovSeqidQscPercMinDiagTargetCov_lib, CovSeqidQscPercMinDiagTargetCov_lib_len);
+                                        ? getCovSeqidQscPercMinDiag()
+                                        : getCovSeqidQscPercMinDiagTargetCov();
         scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
     }
     bool reversePrefilterResult = (Parameters::isEqualDbtype(resultReader.getDbtype(), Parameters::DBTYPE_PREFILTER_REV_RES));

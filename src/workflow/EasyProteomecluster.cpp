@@ -41,7 +41,6 @@ int easyproteomecluster(int argc, const char **argv, const Command &command) {
     cmd.addVariable("RESULTS", par.filenames.back().c_str());
     par.filenames.pop_back();
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
-    cmd.addVariable("PROTEOME_HIDDEN_REPORT", par.proteomeHiddenReport ? "TRUE" : NULL);
     cmd.addVariable("WRITE_ALIGN_PROTEOME", par.includeAlignFiles ? "TRUE" : NULL);
     cmd.addVariable("CASCADED_PROTEOME_CLUSTERING", par.proteomeCascadedClustering ? "TRUE" : NULL);
     cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb).c_str());

@@ -163,7 +163,16 @@ Parameters::Parameters():
         PARAM_ADJUST_KMER_LEN(PARAM_ADJUST_KMER_LEN_ID, "--adjust-kmer-len", "Adjust k-mer length", "Adjust k-mer length based on specificity (only for nucleotides)", typeid(bool), (void *) &adjustKmerLength, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_RESULT_DIRECTION(PARAM_RESULT_DIRECTION_ID, "--result-direction", "Result direction", "result is 0: query, 1: target centric", typeid(int), (void *) &resultDirection, "^[0-1]{1}$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_WEIGHT_FILE(PARAM_WEIGHT_FILE_ID, "--weights", "Weight file name", "Weights used for cluster priorization", typeid(std::string), (void*) &weightFile, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT ),
-        PARAM_WEIGHT_THR(PARAM_WEIGHT_THR_ID, "--cluster-weight-threshold", "Cluster Weight threshold", "Weight threshold used for cluster priorization", typeid(float), (void*) &weightThr, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT ),
+        PARAM_WEIGHT_THR(PARAM_WEIGHT_THR_ID, "--cluster-weight-threshold", "Cluster Weight threshold", "Weight threshold used for cluster priorization", typeid(float), (void*) &weightThr, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_INCLUDE_COUNTTABLE(PARAM_INCLUDE_COUNTTABLE_ID, "--include-count-table", "Include count table", "Include count table", typeid(bool), (void *) &includeCountTable, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_NUM_COUNTS(PARAM_NUM_COUNTS_ID, "--num-count-table", "Number of count table based center swapping", "Number of count table based center swapping", typeid(int), (void *) &countTableIteration, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_INCLUDE_ADJACENCY(PARAM_INCLUDE_ADJACENCY_ID, "--include-adjacency", "Include adjacency based center swapping", "Include adjacency based center swapping", typeid(bool), (void *) &includeAdjacency, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_NUM_ADJACENCY(PARAM_NUM_ADJACENCY_ID, "--num-adjacency", "Number of adjacency based center swapping", "Number of adjacency based center swapping", typeid(int), (void *) &adjIteration, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_USE_PARALLELISM(PARAM_USE_PARALLELISM_ID, "--use-parallelism", "Use parallelism", "Enable or disable parallel execution for group assignment and related k-mer processing steps", typeid(bool), (void *) &useParallelism, "^[0-1]{1}$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_NEED_WRITEBUFFER(PARAM_NEED_WRITEBUFFER_ID, "--need-write-buffer", "Use write buffer", "Enable or disable allocation of an auxiliary write buffer for intermediate per-thread or per-iteration output and merge steps", typeid(bool), (void *) &needWriteBuffer, "^[0-1]{1}$", MMseqsParameter::COMMAND_HIDDEN),
+        PARAM_CLUST_HASH(PARAM_CLUST_HASH_ID, "--clust-hash", "Cluster hash", "Use clusthash before kmermatcher in linclust", typeid(bool), (void *) &clustHash, "^[0-1]{0}$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_LINCLUST_VERSION(PARAM_LINCLUST_VERSION_ID, "--linclust-version", "Linclust version", "Linclust version: 1: Linclust1, 2: Linclust2", typeid(int), (void *) &linclustVersion, "^[1-2]$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_CLUSTER_VERSION(PARAM_CLUSTER_VERSION_ID, "--cluster-version", "Cluster version", "Cluster version: 1: Cluster1, 2: Cluster2", typeid(int), (void *) &clusterVersion, "^[1-2]$", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "MPI runner", "Use MPI on compute cluster with this MPI command (e.g. \"mpirun -np 42\")", typeid(std::string), (void *) &runner, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         PARAM_REUSELATEST(PARAM_REUSELATEST_ID, "--force-reuse", "Force restart with latest tmp", "Reuse tmp filse in tmp/latest folder ignoring parameters and version changes", typeid(bool), (void *) &reuseLatest, "", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
@@ -241,6 +250,9 @@ Parameters::Parameters():
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0: no sorting, 1: increasing, 2: decreasing, 3: random shuffle, 4: priority", typeid(int), (void *) &sortEntries, "^[0-4]{1}$"),
         PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry", typeid(bool), (void *) &beatsFirst, ""),
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db", "join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void *) &joinDB, ""),
+        // align2clust
+        PARAM_FILTER_CLUDB_FILE(PARAM_FILTER_CLUDB_FILE_ID, "--filter-cludb-file", "Filter cluDB file", "Specify a cluDB file to filter", typeid(std::string), (void *) &filterCluDBFile, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_FILTER_SEQDB_FILE(PARAM_FILTER_SEQDB_FILE_ID, "--filter-seqdb-file", "Filter seqDB file", "Specify a seqDB of cluDB file to filter", typeid(std::string), (void *) &filterSeqDBFile, "", MMseqsParameter::COMMAND_EXPERT),
         // besthitperset
         PARAM_SIMPLE_BEST_HIT(PARAM_SIMPLE_BEST_HIT_ID, "--simple-best-hit", "Use simple best hit", "Update the p-value by a single best hit, or by best and second best hits", typeid(bool), (void *) &simpleBestHit, ""),
         PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining p-values during aggregation", typeid(float), (void *) &alpha, "^0(\\.[0-9]+)?|^1(\\.0+)?$"),
@@ -331,7 +343,6 @@ Parameters::Parameters():
         PARAM_PROTEOME_WEIGHT_FILE(PARAM_PROTEOME_WEIGHT_FILE_ID, "--proteome-weights", "Proteome Weight file name", "Weights used for proteome priorization", typeid(std::string), (void*) &proteomeWeightFile, "",MMseqsParameter::COMMAND_EXPERT ),
         PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT(PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT_ID, "--proteome-weight-clustercount", "Weight cluster count in proteome clustering", "Weight of cluster count in proteome clustering", typeid(float), (void *) &proteomeWeightClusterCount, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_PROTEOME_INCLUDE_ALIGN_FILES(PARAM_PROTEOME_INCLUDE_ALIGN_FILES_ID, "--proteome-include-align-files", "Include align files in proteomecluster", "Include align files", typeid(bool), (void *) &proteomeIncludeAlignFiles, "", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_PROTEOME_HIDDEN_REPORT(PARAM_PROTEOME_HIDDEN_REPORT_ID, "--proteome-hidden-report", "Hidden report", "Hidden proteome alignment result against the reference proteome", typeid(bool), (void *) &proteomeHiddenReport, "", MMseqsParameter::COMMAND_HIDDEN),
         // for modules that should handle -h themselves
         PARAM_HELP(PARAM_HELP_ID, "-h", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_HELP_LONG(PARAM_HELP_LONG_ID, "--help", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN)
@@ -431,6 +442,27 @@ Parameters::Parameters():
     align.push_back(&PARAM_COMPRESSED);
     align.push_back(&PARAM_V);
 
+    // align2clust
+    align2clust.push_back(&PARAM_SUB_MAT);
+    align2clust.push_back(&PARAM_ADD_BACKTRACE);
+    align2clust.push_back(&PARAM_ALIGNMENT_MODE);
+    align2clust.push_back(&PARAM_MIN_SEQ_ID);
+    align2clust.push_back(&PARAM_MIN_ALN_LEN);
+    align2clust.push_back(&PARAM_SEQ_ID_MODE);
+    align2clust.push_back(&PARAM_FILTER_HITS);
+    align2clust.push_back(&PARAM_E);
+    align2clust.push_back(&PARAM_C);
+    align2clust.push_back(&PARAM_COV_MODE);
+    align2clust.push_back(&PARAM_INCLUDE_IDENTITY);
+    align2clust.push_back(&PARAM_SORT_RESULTS);
+    align2clust.push_back(&PARAM_PRELOAD_MODE);
+    align2clust.push_back(&PARAM_THREADS);
+    align2clust.push_back(&PARAM_COMPRESSED);
+    align2clust.push_back(&PARAM_V);
+    align2clust.push_back(&PARAM_CLUSTER_MODE);
+    align2clust.push_back(&PARAM_FILTER_CLUDB_FILE);
+    align2clust.push_back(&PARAM_FILTER_SEQDB_FILE);
+    
     // prefilter
     prefilter.push_back(&PARAM_SUB_MAT);
     prefilter.push_back(&PARAM_SEED_SUB_MAT);
@@ -1049,6 +1081,13 @@ Parameters::Parameters():
     kmermatcher.push_back(&PARAM_V);
     kmermatcher.push_back(&PARAM_WEIGHT_FILE);
     kmermatcher.push_back(&PARAM_WEIGHT_THR);
+    kmermatcher.push_back(&PARAM_INCLUDE_COUNTTABLE);
+    kmermatcher.push_back(&PARAM_NUM_COUNTS);
+    kmermatcher.push_back(&PARAM_INCLUDE_ADJACENCY);
+    kmermatcher.push_back(&PARAM_NUM_ADJACENCY);
+    kmermatcher.push_back(&PARAM_USE_PARALLELISM);
+    kmermatcher.push_back(&PARAM_NEED_WRITEBUFFER);
+    kmermatcher.push_back(&PARAM_LINCLUST_VERSION);
 
     // kmermatcher
     kmersearch.push_back(&PARAM_SEED_SUB_MAT);
@@ -1351,7 +1390,6 @@ Parameters::Parameters():
     proteomecluster.push_back(&PARAM_PROTEOME_WEIGHT_FILE);
     proteomecluster.push_back(&PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT);
     proteomecluster.push_back(&PARAM_PROTEOME_INCLUDE_ALIGN_FILES);
-    proteomecluster.push_back(&PARAM_PROTEOME_HIDDEN_REPORT);
     proteomecluster.push_back(&PARAM_PROTEOME_SIMILARITY);
     proteomecluster.push_back(&PARAM_PROTEOME_RELATIVE_SIMILARITY);
     proteomecluster.push_back(&PARAM_PROTEOME_CASCADED_CLUSTERING);
@@ -1366,6 +1404,11 @@ Parameters::Parameters():
     proteomecluster.push_back(&PARAM_THREADS);
     proteomecluster.push_back(&PARAM_COMPRESSED);
     proteomecluster.push_back(&PARAM_V);
+
+    //parseproteomealignments
+    parseproteomealignments.push_back(&PARAM_THREADS);
+    parseproteomealignments.push_back(&PARAM_COMPRESSED);
+    parseproteomealignments.push_back(&PARAM_V);
 
     // WORKFLOWS
     searchworkflow = combineList(align, prefilter);
@@ -1410,6 +1453,9 @@ Parameters::Parameters():
     easysearchworkflow = combineList(easysearchworkflow, makepaddedseqdb);
     easysearchworkflow.push_back(&PARAM_GREEDY_BEST_HITS);
 
+    // easyproteomesearch
+    easyproteomesearchworkflow = combineList(searchworkflow, createdb);
+    easyproteomesearchworkflow = combineList(searchworkflow, parseproteomealignments);
 
     // createindex workflow
     createindex = combineList(indexdb, extractorfs);
@@ -1427,6 +1473,9 @@ Parameters::Parameters():
     linclustworkflow = combineList(clust, align);
     linclustworkflow = combineList(linclustworkflow, kmermatcher);
     linclustworkflow = combineList(linclustworkflow, rescorediagonal);
+    linclustworkflow = combineList(linclustworkflow, align2clust);
+    linclustworkflow = combineList(linclustworkflow, clusthash);
+    linclustworkflow.push_back(&PARAM_CLUST_HASH);
     linclustworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
     linclustworkflow.push_back(&PARAM_REUSELATEST);
     linclustworkflow.push_back(&PARAM_RUNNER);
@@ -1444,6 +1493,7 @@ Parameters::Parameters():
     clusterworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
     clusterworkflow.push_back(&PARAM_REUSELATEST);
     clusterworkflow.push_back(&PARAM_RUNNER);
+    clusterworkflow.push_back(&PARAM_CLUSTER_VERSION);
     clusterworkflow = combineList(clusterworkflow, linclustworkflow);
     clusterworkflow = removeParameter(clusterworkflow, PARAM_GPU);
     clusterworkflow = removeParameter(clusterworkflow, PARAM_GPU_SERVER);
@@ -2689,6 +2739,16 @@ void Parameters::setDefaults() {
     resultDirection = Parameters::PARAM_RESULT_DIRECTION_TARGET;
     weightThr = 0.9;
     weightFile = "";
+    useParallelism = false;
+    needWriteBuffer = false;
+    includeCountTable = true;
+    countTableIteration = 2;
+    countTableScale = 0.1;
+    includeAdjacency = true;
+    adjIteration = 3;
+    clustHash = false;
+    linclustVersion = 2;
+    clusterVersion = 1;
 
     // result2stats
     stat = "";
@@ -2777,7 +2837,6 @@ void Parameters::setDefaults() {
     proteomeCascadedClustering = 0;
     includeAlignFiles = false;
     proteomeIncludeAlignFiles = false;
-    proteomeHiddenReport = false;
 
     // help
     help = 0;

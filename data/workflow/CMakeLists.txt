@@ -4,6 +4,7 @@ set(GENERATED_WORKFLOWS
         workflow/easytaxonomy.sh
         workflow/easyrbh.sh
         workflow/easyproteomecluster.sh
+        workflow/easyproteomesearch.sh
         workflow/blastp.sh
         workflow/blastpgp.sh
         workflow/map.sh

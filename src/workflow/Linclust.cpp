@@ -15,7 +15,9 @@ void setLinclustWorkflowDefaults(Parameters *p) {
     p->maskMode = 0;
     p->evalThr = 0.001;
     p->seqIdThr = 0.9;
-    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
+    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID; // set alignmentmode 3 as a default in linclust2
+    p->linclustVersion = Parameters::LINCLUST_VERSION2;
+    p->clustHash = false;
 }
 
 int linclust(int argc, const char **argv, const Command& command) {
@@ -31,7 +33,6 @@ int linclust(int argc, const char **argv, const Command& command) {
     par.PARAM_INCLUDE_ONLY_EXTENDABLE.addCategory(MMseqsParameter::COMMAND_EXPERT);
 
     par.parseParameters(argc, argv, command, true, 0, 0);
-
     std::string tmpDir = par.db3;
     std::string hash = SSTR(par.hashParameter(command.databases, par.filenames, par.linclustworkflow));
     if (par.reuseLatest) {
@@ -44,14 +45,18 @@ int linclust(int argc, const char **argv, const Command& command) {
     CommandCaller cmd;
     cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("RUNNER", par.runner.c_str());
-
+    if (par.linclustVersion == 1) {
+        cmd.addVariable("LINCLUST_MODULE", "linclust1");
+    } else if (par.linclustVersion == 2) {
+        cmd.addVariable("LINCLUST_MODULE", "linclust2");
+    }
     // save some values to restore them later
     MultiParam<NuclAA<int>>alphabetSize = par.alphabetSize;
     size_t kmerSize = par.kmerSize;
-    // # 1. Finding exact $k$-mer matches.
     bool kmerSizeWasSet = false;
     bool alphabetSizeWasSet = false;
     bool clusterModeSet = false;
+    bool includeCountTableSet = false;
     for (size_t i = 0; i < par.linclustworkflow.size(); i++) {
         if (par.linclustworkflow[i]->uniqid == par.PARAM_K.uniqid && par.linclustworkflow[i]->wasSet) {
             kmerSizeWasSet = true;
@@ -62,6 +67,13 @@ int linclust(int argc, const char **argv, const Command& command) {
         if (par.linclustworkflow[i]->uniqid == par.PARAM_CLUSTER_MODE.uniqid && par.linclustworkflow[i]->wasSet) {
             clusterModeSet = true;
         }
+        if (par.linclustworkflow[i]->uniqid == par.PARAM_INCLUDE_COUNTTABLE.uniqid && par.linclustworkflow[i]->wasSet) {
+            includeCountTableSet = true;
+        }
+        if (par.linclustworkflow[i]->uniqid == par.PARAM_NUM_COUNTS.uniqid && par.linclustworkflow[i]->wasSet) {
+            includeCountTableSet = true;
+        }
+        
     }
 
     const bool nonSymetric = (par.covMode == Parameters::COV_MODE_TARGET || par.covMode == Parameters::COV_MODE_QUERY);
@@ -73,6 +85,15 @@ int linclust(int argc, const char **argv, const Command& command) {
         }
         std::string cluMode = (par.clusteringMode==Parameters::GREEDY_MEM) ? "GREEDY MEM" : "SET COVER";
         Debug(Debug::INFO) << "Set cluster mode " << cluMode << ".\n";
+    }
+
+    if (includeCountTableSet == false) {
+        if (nonSymetric) {
+            par.includeCountTable = false;
+            par.countTableIteration = 0;
+        } else {
+            par.includeCountTable = true;
+        }
     }
 
     if (kmerSizeWasSet == false) {
@@ -89,48 +110,78 @@ int linclust(int argc, const char **argv, const Command& command) {
         Debug(Debug::ERROR) << "Cannot use ungapped alignment mode with profile databases.\n";
         EXIT(EXIT_FAILURE);
     }
+    
+    if (par.linclustVersion == 1) {
+        cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
+        // filter by diagonal in case of AA (do not filter for nucl, profiles, ...)
+        cmd.addVariable("FILTER", Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_AMINO_ACIDS) ? "1" : NULL);
+        cmd.addVariable("KMERMATCHER_PAR", par.createParameterString(par.kmermatcher).c_str());
+        cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
+        cmd.addVariable("VERBOSITYANDCOMPRESS", par.createParameterString(par.threadsandcompression).c_str());
+        
+        par.alphabetSize = alphabetSize;
+        par.kmerSize = kmerSize;
+        // # 2. Hamming distance pre-clustering
+        par.rescoreMode = Parameters::RESCORE_MODE_HAMMING;
+        par.filterHits = false;
+        float prevSeqId = par.seqIdThr;
+        // hamming distance does not work well with seq. id < 0.5 since it does not have an e-value criteria
+        par.seqIdThr = std::max(0.5f, par.seqIdThr);
+        // also coverage should not be under 0.5
+        float prevCov = par.covThr;
+        par.covThr = std::max(0.5f, par.covThr);
+        cmd.addVariable("HAMMING_PAR", par.createParameterString(par.rescorediagonal).c_str());
+        // set it back to old value
+        par.covThr = prevCov;
+        par.seqIdThr = prevSeqId;
+        par.rescoreMode = Parameters::RESCORE_MODE_SUBSTITUTION;
 
-    cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
-    // filter by diagonal in case of AA (do not filter for nucl, profiles, ...)
-    cmd.addVariable("FILTER", Parameters::isEqualDbtype(dbType, Parameters::DBTYPE_AMINO_ACIDS) ? "1" : NULL);
-    cmd.addVariable("KMERMATCHER_PAR", par.createParameterString(par.kmermatcher).c_str());
-    cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
-    cmd.addVariable("VERBOSITYANDCOMPRESS", par.createParameterString(par.threadsandcompression).c_str());
+        // # 3. Ungapped alignment filtering
+        par.filterHits = true;
+        cmd.addVariable("UNGAPPED_ALN_PAR", par.createParameterString(par.rescorediagonal).c_str());
 
-    par.alphabetSize = alphabetSize;
-    par.kmerSize = kmerSize;
+        // # 4. Local gapped sequence alignment.
+        if (isUngappedMode) {
+            const int originalRescoreMode = par.rescoreMode;
+            par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
+            par.rescoreMode = originalRescoreMode;
+        } else {
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        }
+        // # 5. Clustering using greedy set cover.
+        cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
+        cmd.addVariable("MERGECLU_PAR", par.createParameterString(par.threadsandcompression).c_str());
 
-    // # 2. Hamming distance pre-clustering
-    par.rescoreMode = Parameters::RESCORE_MODE_HAMMING;
-    par.filterHits = false;
-    float prevSeqId = par.seqIdThr;
-    // hamming distance does not work well with seq. id < 0.5 since it does not have an e-value criteria
-    par.seqIdThr = std::max(0.5f, par.seqIdThr);
-    // also coverage should not be under 0.5
-    float prevCov = par.covThr;
-    par.covThr = std::max(0.5f, par.covThr);
-    cmd.addVariable("HAMMING_PAR", par.createParameterString(par.rescorediagonal).c_str());
-    // set it back to old value
-    par.covThr = prevCov;
-    par.seqIdThr = prevSeqId;
-    par.rescoreMode = Parameters::RESCORE_MODE_SUBSTITUTION;
-
-    // # 3. Ungapped alignment filtering
-    par.filterHits = true;
-    cmd.addVariable("UNGAPPED_ALN_PAR", par.createParameterString(par.rescorediagonal).c_str());
-
-    // # 4. Local gapped sequence alignment.
-    if (isUngappedMode) {
-        const int originalRescoreMode = par.rescoreMode;
-        par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
-        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
-        par.rescoreMode = originalRescoreMode;
-    } else {
-        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+    } else if (par.linclustVersion == 2) {
+        par.alphabetSize = alphabetSize;
+        par.kmerSize = kmerSize;
+        bool prevspacedKmer = par.spacedKmer;
+        bool prevmaskMode = par.maskMode;
+        par.spacedKmer = false;
+        par.maskMode = false;
+        cmd.addVariable("KMERMATCHER_PAR", par.createParameterString(par.kmermatcher).c_str());
+        
+        cmd.addVariable("VERBOSITY", par.createParameterString(par.onlyverbosity).c_str());
+        cmd.addVariable("ALIGN2CLUST_PAR", par.createParameterString(par.align2clust).c_str());
+        cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
+        
+        par.spacedKmer = true;
+        par.kmersPerSequenceScale = 0.1;
+        cmd.addVariable("KMERMATCHER_PAR2", par.createParameterString(par.kmermatcher).c_str());
+        
+        par.spacedKmer = prevspacedKmer;
+        par.maskMode = prevmaskMode;
     }
-    // # 5. Clustering using greedy set cover.
-    cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
-    cmd.addVariable("MERGECLU_PAR", par.createParameterString(par.threadsandcompression).c_str());
+    float prevSeqId = par.seqIdThr;
+    // # 0. clust hash
+    par.seqIdThr = std::max(0.9f, par.seqIdThr);
+    par.alphabetSize = MultiParam<NuclAA<int>>(NuclAA<int>(Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE, 5));
+    cmd.addVariable("CLUSTHASH", par.clustHash ? "TRUE" : NULL);
+    cmd.addVariable("CLUSTHASH_PAR", par.createParameterString(par.clusthash).c_str());
+    par.seqIdThr = prevSeqId;
+    par.alphabetSize = alphabetSize;
+    cmd.addVariable("CLUSTHASH_CLUST_PAR", par.createParameterString(par.clust).c_str());
 
     std::string program = tmpDir + "/linclust.sh";
     FileUtil::writeFile(program, linclust_sh, linclust_sh_len);
