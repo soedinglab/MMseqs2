@@ -81,11 +81,13 @@ Prefiltering::Prefiltering(const std::string &queryDB,
     }
 
     // Detect extended dbtype and load auxiliary matrix for dual ungapped scoring
+    // Both query and target must have aux data for dual scoring
     ungappedSubMatAux = NULL;
-    const Sequence::SeqAuxInfo *auxInfo = Sequence::getAuxInfo(targetSeqType);
-    if (par.useAuxScoring && auxInfo != NULL && auxInfo->auxMatData != NULL) {
+    const Sequence::SeqAuxInfo *auxInfoTarget = Sequence::getAuxInfo(targetSeqType);
+    const Sequence::SeqAuxInfo *auxInfoQuery  = Sequence::getAuxInfo(querySeqType);
+    if (par.useAuxScoring && auxInfoTarget != NULL && auxInfoQuery != NULL && auxInfoTarget->auxMatData != NULL) {
         std::string matName("aux.out");
-        std::string matData(reinterpret_cast<const char*>(auxInfo->auxMatData), auxInfo->auxMatDataLen);
+        std::string matData(reinterpret_cast<const char*>(auxInfoTarget->auxMatData), auxInfoTarget->auxMatDataLen);
         char *serialized = BaseMatrix::serialize(matName, matData);
         ungappedSubMatAux = new SubstitutionMatrix(serialized, 2.0, -0.2f);
         free(serialized);
