@@ -309,13 +309,13 @@ Parameters::Parameters():
         PARAM_UNPACK_SUFFIX(PARAM_UNPACK_SUFFIX_ID, "--unpack-suffix", "Unpack suffix", "File suffix for unpacked files.\nAdd .gz suffix to write compressed files.", typeid(std::string), (void *) &unpackSuffix, "^.*$"),
         PARAM_UNPACK_NAME_MODE(PARAM_UNPACK_NAME_MODE_ID, "--unpack-name-mode", "Unpack name mode", "Name unpacked files by 0: DB key, 1: accession (through .lookup)", typeid(int), (void *) &unpackNameMode, "^[0-1]{1}$"),
         // reclassify
-        PARAM_RECLASSIFY_LAMBDA(PARAM_RECLASSIFY_LAMBDA_ID, "--lambda", "Reclassify lambda", "Lambda scaling factor for the reclassification score term", typeid(double), (void *) &reclassifyLambda, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
+        PARAM_RECLASSIFY_LAMBDA(PARAM_RECLASSIFY_LAMBDA_ID, "--lambda", "Reclassify lambda", "Lambda scaling factor for the reclassification bit score term", typeid(double), (void *) &reclassifyLambda, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_RECLASSIFY_ALPHA(PARAM_RECLASSIFY_ALPHA_ID, "--alpha", "Reclassify alpha", "Exponent applied to abundance during reclassification", typeid(double), (void *) &reclassifyAlpha, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
-        PARAM_RECLASSIFY_GAMMA(PARAM_RECLASSIFY_GAMMA_ID, "--gamma", "Reclassify gamma", "Exponent applied to entropy penalty during reclassification", typeid(double), (void *) &reclassifyGamma, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
+        PARAM_RECLASSIFY_GAMMA(PARAM_RECLASSIFY_GAMMA_ID, "--gamma", "Reclassify gamma", "Exponent applied to coverage confidence during reclassification", typeid(double), (void *) &reclassifyGamma, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_RECLASSIFY_MAX_ITER(PARAM_RECLASSIFY_MAX_ITER_ID, "--max-iter", "Reclassify max iterations", "Maximum number of SQUAREM iterations for reclassification", typeid(int), (void *) &reclassifyMaxIterations, "^[1-9]{1}[0-9]*$"),
         PARAM_RECLASSIFY_TOL(PARAM_RECLASSIFY_TOL_ID, "--tol", "Reclassify tolerance", "Convergence tolerance for reclassification", typeid(double), (void *) &reclassifyTolerance, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
-        PARAM_RECLASSIFY_TAXONOMY(PARAM_RECLASSIFY_TAXONOMY_ID, "--taxonomy", "Reclassify taxonomy output", "0: write alignment and protein abundance only, 1: also write taxonomy_abundance.tsv", typeid(int), (void *) &reclassifyTaxonomy, "^[0-1]{1}$"),
-        PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE(PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE_ID, "--max-drop-percentage", "Max drop percentage", "Maximum percentage of targets that the automatic jump-based filter may classify as a tail for dropping (range 0.0-100.0)", typeid(double), (void *) &reclassifyMaxDropPercentage, "^100(\\.0+)?$|^([0-9]|[1-9][0-9])(\\.[0-9]+)?$"),
+        PARAM_RECLASSIFY_TAXONOMY(PARAM_RECLASSIFY_TAXONOMY_ID, "--taxonomy", "Reclassify taxonomy output", "0: write alignment and protein abundance only; taxonomy files are not required. 1: also write taxonomy_abundance.tsv and taxonomic columns in protein_abundance.tsv; requires targetDB_mapping and targetDB_taxonomy", typeid(int), (void *) &reclassifyTaxonomy, "^[0-1]{1}$"),
+        PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE(PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE_ID, "--max-drop-percentage", "Max drop percentage", "Maximum percentage of targets that the automatic jump-based filter may classify as a tail for dropping (range 0.0-100.0, default 30.0)", typeid(double), (void *) &reclassifyMaxDropPercentage, "^100(\\.0+)?$|^([0-9]|[1-9][0-9])(\\.[0-9]+)?$"),
         // for modules that should handle -h themselves
         PARAM_HELP(PARAM_HELP_ID, "-h", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_HELP_LONG(PARAM_HELP_LONG_ID, "--help", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN)
@@ -2664,7 +2664,7 @@ void Parameters::setDefaults() {
     reclassifyMaxIterations = 100;
     reclassifyTolerance = 1e-5;
     reclassifyTaxonomy = 0;
-    reclassifyMaxDropPercentage = 20.0;
+    reclassifyMaxDropPercentage = 30.0;
 
     lcaRanks = "";
     showTaxLineage = 0;

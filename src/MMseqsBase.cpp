@@ -1075,11 +1075,12 @@ std::vector<Command> baseCommands = {
         {"reclassify",           reclassifytaxonomy,   &par.reclassify,           COMMAND_RESULT | COMMAND_FORMAT_CONVERSION,
                 "Reclassify alignments and export default flat-file summaries",
                 "mmseqs reclassify queryDB targetDB alignmentDB outDir\n"
+                "# targetDB_mapping and targetDB_taxonomy are only required with --taxonomy 1\n"
                 "mmseqs reclassify queryDB targetDB alignmentDB outDir --taxonomy 1\n",
                 "Yaeji Kim",
                 "<i:queryDB> <i:targetDB> <i:alignmentDB> <o:outDir>",
                 CITATION_MMSEQS2 | CITATION_TAXONOMY, {{"queryDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_HEADER, &DbValidator::sequenceDb },
-                                          {"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_HEADER|DbType::NEED_TAXONOMY, &DbValidator::taxSequenceDb },
+                                          {"targetDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_HEADER, &DbValidator::taxSequenceDb },
                                           {"alignmentDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::alignmentDb },
                                           {"outDir", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::directory }}},
         {"summarizealis",      summarizealis,      &par.threadsandcompression,     COMMAND_RESULT,

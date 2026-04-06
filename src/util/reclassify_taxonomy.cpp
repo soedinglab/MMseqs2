@@ -17,14 +17,16 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
 namespace {
 struct ReclassTaxEntry {
     Matcher::result_t result;
     double abundance;
     double posterior;
-    double entropyValue;
-    double entropyPenalty;
+    double coverageConfidence;
 };
 
 typedef std::unordered_map<unsigned int, std::vector<ReclassTaxEntry> > MappingTable;
@@ -38,8 +40,7 @@ struct TargetStats {
     unsigned int key;
     unsigned int targetLength;
     double abundance;
-    double entropyValue;
-    double entropyPenalty;
+    double coverageConfidence;
     bool dropped;
     std::vector<Interval> intervals;
 };
@@ -47,11 +48,10 @@ struct TargetStats {
 struct TaxonomyStats {
     unsigned int taxId;
     double abundance;
-    double entropySum;
-    double entropyPenaltySum;
+    double coverageConfidenceSum;
     size_t proteinCount;
 
-    TaxonomyStats() : taxId(0), abundance(0.0), entropySum(0.0), entropyPenaltySum(0.0), proteinCount(0) {}
+    TaxonomyStats() : taxId(0), abundance(0.0), coverageConfidenceSum(0.0), proteinCount(0) {}
 };
 
 struct ReclassTaxContext {
@@ -70,6 +70,8 @@ static const double STEP_MAX = 1.0;
 static const double EPS = 1e-12;
 static const size_t MIN_FILTER_TARGETS = 20;
 static const size_t MIN_TAIL_TARGETS = 2;
+
+static double clamp01(double value);
 
 static std::vector<unsigned int> targetListFromSet(const std::unordered_set<unsigned int> &targets) {
     std::vector<unsigned int> out(targets.begin(), targets.end());
@@ -109,7 +111,7 @@ static void loadAlignmentDb(DBReader<unsigned int> &reader, ReclassTaxContext &c
             }
 
             Matcher::result_t result = Matcher::parseAlignmentRecord(data, true);
-            records.push_back(ReclassTaxEntry{result, 0.0, 0.0, 0.0, 0.0});
+            records.push_back(ReclassTaxEntry{result, 0.0, 0.0, 0.0});
             ctx.targetSet.insert(result.dbKey);
             data = Util::skipLine(data);
         }
@@ -152,16 +154,33 @@ static void initAbundance(MappingTable &mappingTable, const std::unordered_set<u
     }
 }
 
-static void initEntropy(MappingTable &mappingTable, const std::unordered_set<unsigned int> &targetSet, double lambda) {
+struct TargetHitRef {
+    const ReclassTaxEntry *entry;
+    double expScore;
+    double weight;
+};
+
+static void initCoverageConfidence(MappingTable &mappingTable,
+                                   const std::unordered_set<unsigned int> &targetSet,
+                                   double lambda,
+                                   int threads) {
     std::unordered_map<unsigned int, int> targetMin;
     std::unordered_map<unsigned int, int> targetMax;
+    std::unordered_map<unsigned int, unsigned int> targetLenMap;
+    std::unordered_map<unsigned int, std::vector<TargetHitRef> > hitsByTarget;
 
     for (std::unordered_set<unsigned int>::const_iterator it = targetSet.begin(); it != targetSet.end(); ++it) {
         targetMin[*it] = std::numeric_limits<int>::max();
         targetMax[*it] = std::numeric_limits<int>::min();
+        targetLenMap[*it] = 0;
+        hitsByTarget.emplace(*it, std::vector<TargetHitRef>());
     }
 
     for (MappingTable::const_iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
+        double scoreSumExp = 0.0;
+        for (size_t j = 0; j < it->second.size(); ++j) {
+            scoreSumExp += std::exp(lambda * static_cast<double>(it->second[j].result.score));
+        }
         for (size_t j = 0; j < it->second.size(); ++j) {
             const unsigned int target = it->second[j].result.dbKey;
             if (it->second[j].result.dbStartPos < targetMin[target]) {
@@ -170,67 +189,67 @@ static void initEntropy(MappingTable &mappingTable, const std::unordered_set<uns
             if (it->second[j].result.dbEndPos > targetMax[target]) {
                 targetMax[target] = it->second[j].result.dbEndPos;
             }
-        }
-    }
-
-    std::unordered_map<unsigned int, std::vector<double> > coverage;
-    coverage.reserve(targetSet.size());
-    for (std::unordered_set<unsigned int>::const_iterator it = targetSet.begin(); it != targetSet.end(); ++it) {
-        const int start = targetMin[*it];
-        const int end = targetMax[*it];
-        const int len = (end >= start) ? (end - start + 1) : 1;
-        coverage[*it] = std::vector<double>(len, 0.0);
-    }
-
-    for (MappingTable::const_iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        for (size_t j = 0; j < it->second.size(); ++j) {
-            const Matcher::result_t &result = it->second[j].result;
-            const int targetLen = result.dbEndPos - result.dbStartPos + 1;
-            if (targetLen <= 0) {
-                continue;
+            if (static_cast<unsigned int>(it->second[j].result.dbLen) > targetLenMap[target]) {
+                targetLenMap[target] = static_cast<unsigned int>(it->second[j].result.dbLen);
             }
-
-            const double mq = std::exp(lambda * static_cast<double>(result.score)) / static_cast<double>(targetLen);
-            std::vector<double> &cov = coverage[result.dbKey];
-            const int start = std::max(0, result.dbStartPos - targetMin[result.dbKey]);
-            const int end = std::min(static_cast<int>(cov.size()) - 1, result.dbEndPos - targetMin[result.dbKey]);
-            for (int pos = start; pos <= end; ++pos) {
-                cov[pos] += mq;
-            }
+            const double expScore = std::exp(lambda * static_cast<double>(it->second[j].result.score));
+            const double weight = (scoreSumExp > 0.0) ? (expScore / scoreSumExp) : 0.0;
+            hitsByTarget[target].push_back(TargetHitRef{&it->second[j], expScore, weight});
         }
     }
 
-    std::unordered_map<unsigned int, double> entropy;
-    entropy.reserve(targetSet.size());
-    for (std::unordered_set<unsigned int>::const_iterator it = targetSet.begin(); it != targetSet.end(); ++it) {
-        const std::vector<double> &cov = coverage[*it];
-        const double covSum = std::accumulate(cov.begin(), cov.end(), 0.0);
-        if (covSum <= 0.0) {
-            entropy[*it] = 0.0;
-            continue;
+    std::unordered_map<unsigned int, double> coverageFraction;
+    coverageFraction.reserve(targetSet.size());
+    const std::vector<unsigned int> targetList = targetListFromSet(targetSet);
+    std::vector<double> coverageFractionByIndex(targetList.size(), 0.0);
+
+#pragma omp parallel for num_threads(threads) schedule(dynamic, 1)
+    for (size_t i = 0; i < targetList.size(); ++i) {
+        const unsigned int target = targetList[i];
+        const int startPos = targetMin[target];
+        const int endPos = targetMax[target];
+        const int len = (endPos >= startPos) ? (endPos - startPos + 1) : 1;
+        std::vector<double> cov(static_cast<size_t>(len), 0.0);
+        std::vector<double> covConf(static_cast<size_t>(len), 0.0);
+
+        std::unordered_map<unsigned int, std::vector<TargetHitRef> >::const_iterator hitIt = hitsByTarget.find(target);
+        if (hitIt != hitsByTarget.end()) {
+            const std::vector<TargetHitRef> &hits = hitIt->second;
+            for (size_t h = 0; h < hits.size(); ++h) {
+                const Matcher::result_t &result = hits[h].entry->result;
+                const int targetLen = result.dbEndPos - result.dbStartPos + 1;
+                if (targetLen <= 0) {
+                    continue;
+                }
+
+                const double mq = hits[h].expScore / static_cast<double>(targetLen);
+                const int start = std::max(0, result.dbStartPos - startPos);
+                const int end = std::min(len - 1, result.dbEndPos - startPos);
+                for (int pos = start; pos <= end; ++pos) {
+                    cov[static_cast<size_t>(pos)] += mq;
+                    covConf[static_cast<size_t>(pos)] += hits[h].weight;
+                }
+            }
         }
 
-        double ent = 0.0;
-        for (size_t pos = 0; pos < cov.size(); ++pos) {
-            if (cov[pos] <= 0.0) {
-                continue;
-            }
-            const double p = cov[pos] / covSum;
-            ent -= p * std::log2(p);
+        double covered = 0.0;
+        for (size_t pos = 0; pos < covConf.size(); ++pos) {
+            covered += std::min(1.0, covConf[pos]);
         }
-        entropy[*it] = ent;
+        const unsigned int targetLen = (targetLenMap[target] > 0) ? targetLenMap[target] : 1;
+        const double fraction = covered / static_cast<double>(targetLen);
+        coverageFractionByIndex[i] = clamp01(fraction);
     }
 
-    double entropySum = 0.0;
-    for (std::unordered_map<unsigned int, double>::const_iterator it = entropy.begin(); it != entropy.end(); ++it) {
-        entropySum += it->second;
+    for (size_t i = 0; i < targetList.size(); ++i) {
+        coverageFraction[targetList[i]] = coverageFractionByIndex[i];
     }
 
     for (MappingTable::iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
         for (size_t j = 0; j < it->second.size(); ++j) {
             const unsigned int target = it->second[j].result.dbKey;
-            it->second[j].entropyValue = entropy[target];
-            it->second[j].entropyPenalty = (entropySum > 0.0) ? (1.0 - (entropy[target] / entropySum)) : 0.0;
+            std::unordered_map<unsigned int, double>::const_iterator cf = coverageFraction.find(target);
+            it->second[j].coverageConfidence = (cf != coverageFraction.end()) ? cf->second : 0.0;
         }
     }
 }
@@ -250,8 +269,8 @@ static double scoreTerm(const ReclassTaxEntry &entry, double queryMaxScore, doub
 
     const double normalizedScore = static_cast<double>(entry.result.score) / queryMaxScore;
     const double abundance = std::max(entry.abundance, EPS);
-    const double entropyPenalty = std::max(entry.entropyPenalty, EPS);
-    return std::exp(lambda * normalizedScore) * std::pow(abundance, alpha) * std::pow(entropyPenalty, gamma);
+    const double coverageConfidence = std::max(entry.coverageConfidence, EPS);
+    return std::exp(lambda * normalizedScore) * std::pow(abundance, alpha) * std::pow(coverageConfidence, gamma);
 }
 
 static void computePosterior(MappingTable &mappingTable, double lambda, double alpha, double gamma) {
@@ -326,7 +345,7 @@ static void setAbundance(MappingTable &mappingTable, const std::vector<unsigned 
 
 static std::vector<double> emUpdate(MappingTable &mappingTable,
                                     double lambda,
-                                    const std::unordered_map<unsigned int, std::pair<double, double> > &fixedEntropy,
+                                    const std::unordered_map<unsigned int, double> &fixedCoverageConfidence,
                                     const std::vector<unsigned int> &targetList,
                                     size_t queryCount,
                                     double alpha,
@@ -356,13 +375,11 @@ static std::vector<double> emUpdate(MappingTable &mappingTable,
         for (size_t j = 0; j < it->second.size(); ++j) {
             const unsigned int target = it->second[j].result.dbKey;
             it->second[j].abundance = nextAbundance[target];
-            std::unordered_map<unsigned int, std::pair<double, double> >::const_iterator fixed = fixedEntropy.find(target);
-            if (fixed != fixedEntropy.end()) {
-                it->second[j].entropyValue = fixed->second.first;
-                it->second[j].entropyPenalty = fixed->second.second;
+            std::unordered_map<unsigned int, double>::const_iterator fixed = fixedCoverageConfidence.find(target);
+            if (fixed != fixedCoverageConfidence.end()) {
+                it->second[j].coverageConfidence = fixed->second;
             } else {
-                it->second[j].entropyValue = 0.0;
-                it->second[j].entropyPenalty = 0.0;
+                it->second[j].coverageConfidence = 0.0;
             }
         }
     }
@@ -392,19 +409,26 @@ static std::vector<double> projectSimplex(const std::vector<double> &x) {
     return projected;
 }
 
-static void squarem(ReclassTaxContext &ctx, double lambda, int maxIter, double tol, double alpha, double gamma) {
+static void squarem(ReclassTaxContext &ctx,
+                    double lambda,
+                    int maxIter,
+                    double tol,
+                    double alpha,
+                    double gamma,
+                    int threads) {
     if (ctx.queryCount == 0 || ctx.targetSet.empty()) {
         return;
     }
 
     initAbundance(ctx.mappingTable, ctx.targetSet, ctx.queryCount);
-    initEntropy(ctx.mappingTable, ctx.targetSet, lambda);
+    initCoverageConfidence(ctx.mappingTable, ctx.targetSet, lambda, threads);
+    Debug(Debug::INFO) << "Reclassify-taxonomy initialized coverage confidence." << "\n";
 
-    std::unordered_map<unsigned int, std::pair<double, double> > fixedEntropy;
-    fixedEntropy.reserve(ctx.targetSet.size());
+    std::unordered_map<unsigned int, double> fixedCoverageConfidence;
+    fixedCoverageConfidence.reserve(ctx.targetSet.size());
     for (MappingTable::const_iterator it = ctx.mappingTable.begin(); it != ctx.mappingTable.end(); ++it) {
         for (size_t j = 0; j < it->second.size(); ++j) {
-            fixedEntropy[it->second[j].result.dbKey] = std::make_pair(it->second[j].entropyValue, it->second[j].entropyPenalty);
+            fixedCoverageConfidence[it->second[j].result.dbKey] = it->second[j].coverageConfidence;
         }
     }
 
@@ -413,8 +437,8 @@ static void squarem(ReclassTaxContext &ctx, double lambda, int maxIter, double t
     std::vector<double> logLikelihoods;
 
     for (int iter = 0; iter < maxIter; ++iter) {
-        const std::vector<double> x1 = emUpdate(ctx.mappingTable, lambda, fixedEntropy, targetList, ctx.queryCount, alpha, gamma);
-        const std::vector<double> x2 = emUpdate(ctx.mappingTable, lambda, fixedEntropy, targetList, ctx.queryCount, alpha, gamma);
+        const std::vector<double> x1 = emUpdate(ctx.mappingTable, lambda, fixedCoverageConfidence, targetList, ctx.queryCount, alpha, gamma);
+        const std::vector<double> x2 = emUpdate(ctx.mappingTable, lambda, fixedCoverageConfidence, targetList, ctx.queryCount, alpha, gamma);
 
         std::vector<double> r(x0.size(), 0.0);
         std::vector<double> v(x0.size(), 0.0);
@@ -592,8 +616,7 @@ static std::vector<TargetStats> collectTargetStats(const ReclassTaxContext &ctx)
             stats.key = entry.result.dbKey;
             stats.targetLength = entry.result.dbLen;
             stats.abundance = entry.abundance;
-            stats.entropyValue = entry.entropyValue;
-            stats.entropyPenalty = entry.entropyPenalty;
+            stats.coverageConfidence = entry.coverageConfidence;
             stats.dropped = false;
             addInterval(stats.intervals, entry.result.dbStartPos, entry.result.dbEndPos);
         }
@@ -698,8 +721,8 @@ static std::unordered_set<unsigned int> selectTailTargets(const std::vector<Targ
     }
 
     std::sort(ordered.begin(), ordered.end(), [useLowTail](const TargetStats *lhs, const TargetStats *rhs) {
-        const double lhsValue = useLowTail ? lhs->abundance : lhs->entropyValue;
-        const double rhsValue = useLowTail ? rhs->abundance : rhs->entropyValue;
+        const double lhsValue = useLowTail ? lhs->abundance : lhs->coverageConfidence;
+        const double rhsValue = useLowTail ? rhs->abundance : rhs->coverageConfidence;
         if (lhsValue != rhsValue) {
             return useLowTail ? (lhsValue < rhsValue) : (lhsValue > rhsValue);
         }
@@ -866,34 +889,48 @@ static void writeReclassifiedM8(const ReclassTaxContext &ctx,
 
 static void writeProteinStats(const std::vector<TargetStats> &stats,
                               DBReader<unsigned int> &targetHeaderReader,
-                              MappingReader &mapping,
+                              MappingReader *mapping,
                               NcbiTaxonomy *taxonomy,
                               const std::string &path) {
     FILE *handle = FileUtil::openFileOrDie(path.c_str(), "w", false);
-    fputs("target_key\ttarget_id\tabundance_pct\tentropy\tDrop(y/n)\tmapping_parts\tmapped_length\ttarget_length\ttaxid\trank\ttaxname\ttaxlineage\n", handle);
+    const bool withTaxonomy = (mapping != NULL && taxonomy != NULL);
+    if (withTaxonomy) {
+        fputs("target_key\ttarget_id\tabundance_pct\tcoverage_confidence\tDrop(y/n)\tmapped_length\ttarget_length\ttaxid\trank\ttaxname\ttaxlineage\n", handle);
+    } else {
+        fputs("target_key\ttarget_id\tabundance_pct\tcoverage_confidence\tDrop(y/n)\tmapped_length\ttarget_length\n", handle);
+    }
 
     for (size_t i = 0; i < stats.size(); ++i) {
         const unsigned int key = stats[i].key;
         const std::string targetId = identifierForKey(targetHeaderReader, key, 0);
-        const unsigned int taxId = mapping.lookup(key);
-        const TaxonNode *node = (taxId != 0) ? taxonomy->taxonNode(taxId, false) : NULL;
-        const std::string lineage = (node != NULL) ? taxonomy->taxLineage(node, true) : "unclassified";
-        const std::string parts = intervalsToString(stats[i].intervals);
         const unsigned int mappedLength = intervalCoverage(stats[i].intervals);
 
-        fprintf(handle, "%u\t%s\t%.12g\t%.12g\t%s\t%s\t%u\t%u\t%u\t%s\t%s\t%s\n",
-                key,
-                targetId.c_str(),
-                stats[i].abundance,
-                stats[i].entropyValue,
-                stats[i].dropped ? "y" : "n",
-                parts.c_str(),
-                mappedLength,
-                stats[i].targetLength,
-                taxId,
-                (node != NULL) ? taxonomy->getString(node->rankIdx) : "unclassified",
-                (node != NULL) ? taxonomy->getString(node->nameIdx) : "unclassified",
-                lineage.c_str());
+        if (withTaxonomy) {
+            const unsigned int taxId = mapping->lookup(key);
+            const TaxonNode *node = (taxId != 0) ? taxonomy->taxonNode(taxId, false) : NULL;
+            const std::string lineage = (node != NULL) ? taxonomy->taxLineage(node, true) : "unclassified";
+                fprintf(handle, "%u\t%s\t%.12g\t%.12g\t%s\t%u\t%u\t%u\t%s\t%s\t%s\n",
+                    key,
+                    targetId.c_str(),
+                    stats[i].abundance,
+                    stats[i].coverageConfidence,
+                    stats[i].dropped ? "y" : "n",
+                    mappedLength,
+                    stats[i].targetLength,
+                    taxId,
+                    (node != NULL) ? taxonomy->getString(node->rankIdx) : "unclassified",
+                    (node != NULL) ? taxonomy->getString(node->nameIdx) : "unclassified",
+                    lineage.c_str());
+        } else {
+                fprintf(handle, "%u\t%s\t%.12g\t%.12g\t%s\t%u\t%u\n",
+                    key,
+                    targetId.c_str(),
+                    stats[i].abundance,
+                    stats[i].coverageConfidence,
+                    stats[i].dropped ? "y" : "n",
+                    mappedLength,
+                    stats[i].targetLength);
+        }
     }
 
     fclose(handle);
@@ -909,8 +946,7 @@ static void writeTaxonomyStats(const std::vector<TargetStats> &stats,
         TaxonomyStats &entry = aggregated[taxId];
         entry.taxId = taxId;
         entry.abundance += stats[i].abundance;
-        entry.entropySum += stats[i].entropyValue;
-        entry.entropyPenaltySum += stats[i].entropyPenalty;
+        entry.coverageConfidenceSum += stats[i].coverageConfidence;
         entry.proteinCount += 1;
     }
 
@@ -927,20 +963,18 @@ static void writeTaxonomyStats(const std::vector<TargetStats> &stats,
     });
 
     FILE *handle = FileUtil::openFileOrDie(path.c_str(), "w", false);
-    fputs("taxid\trank\ttaxname\ttaxlineage\tprotein_abundance_pct\tprotein_count\tmean_entropy\n", handle);
+    fputs("taxid\trank\ttaxname\ttaxlineage\tprotein_abundance_pct\tprotein_count\n", handle);
 
     for (size_t i = 0; i < rows.size(); ++i) {
         const TaxonNode *node = (rows[i].taxId != 0) ? taxonomy->taxonNode(rows[i].taxId, false) : NULL;
         const std::string lineage = (node != NULL) ? taxonomy->taxLineage(node, true) : "unclassified";
-        const double denom = (rows[i].proteinCount > 0) ? static_cast<double>(rows[i].proteinCount) : 1.0;
-        fprintf(handle, "%u\t%s\t%s\t%s\t%.12g\t%zu\t%.12g\n",
+        fprintf(handle, "%u\t%s\t%s\t%s\t%.12g\t%zu\n",
                 rows[i].taxId,
                 (node != NULL) ? taxonomy->getString(node->rankIdx) : "unclassified",
                 (node != NULL) ? taxonomy->getString(node->nameIdx) : "unclassified",
                 lineage.c_str(),
                 rows[i].abundance,
-                rows[i].proteinCount,
-                rows[i].entropySum / denom);
+            rows[i].proteinCount);
     }
 
     fclose(handle);
@@ -963,19 +997,25 @@ int reclassifytaxonomy(int argc, const char **argv, const Command &command) {
                                               DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     targetHeaderReader.open(DBReader<unsigned int>::NOSORT);
 
-    NcbiTaxonomy *taxonomy = NcbiTaxonomy::openTaxonomy(par.db2);
-    MappingReader mapping(par.db2);
+    const bool withTaxonomy = (par.reclassifyTaxonomy == 1);
+    NcbiTaxonomy *taxonomy = NULL;
+    MappingReader *mapping = NULL;
+    if (withTaxonomy) {
+        taxonomy = NcbiTaxonomy::openTaxonomy(par.db2);
+        mapping = new MappingReader(par.db2);
+    }
 
     ReclassTaxContext ctx;
     loadAlignmentDb(reader, ctx);
     Debug(Debug::INFO) << "Loaded " << ctx.queryCount << " queries with hits and " << ctx.targetSet.size() << " unique targets.\n";
 
-    squarem(ctx,
+        squarem(ctx,
             par.reclassifyLambda,
             par.reclassifyMaxIterations,
             par.reclassifyTolerance,
             par.reclassifyAlpha,
-            par.reclassifyGamma);
+            par.reclassifyGamma,
+            par.threads);
 
     const std::string outDir = par.db4;
     const std::string m8Path = outDir + "/new_alignment_result.m8";
@@ -999,10 +1039,11 @@ int reclassifytaxonomy(int argc, const char **argv, const Command &command) {
 
     writeReclassifiedM8(ctx, queryHeaderReader, targetHeaderReader, m8Path);
     writeProteinStats(allTargetStats, targetHeaderReader, mapping, taxonomy, proteinPath);
-    if (par.reclassifyTaxonomy == 1) {
-        writeTaxonomyStats(targetStats, mapping, taxonomy, taxonomyPath);
+    if (withTaxonomy) {
+        writeTaxonomyStats(targetStats, *mapping, taxonomy, taxonomyPath);
     }
 
+    delete mapping;
     delete taxonomy;
     targetHeaderReader.close();
     queryHeaderReader.close();
