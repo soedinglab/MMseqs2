@@ -12,6 +12,7 @@
 #include "NucleotideMatrix.h"
 #include "IndexReader.h"
 #include "FastSort.h"
+#include "Sequence.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -90,6 +91,17 @@ int doRescorediagonal(Parameters &par,
 
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
 
+    // Build byte-to-ASCII remap table for interleaved DBs (e.g. foldseek _ss)
+    // raw byte -> primaryRemap -> num2aa -> ASCII letter usable with fastMatrix
+    unsigned char rawToAscii[256];
+    bool needsRemap = false;
+    const Sequence::SeqAuxInfo *auxInfo = Sequence::getAuxInfo(targetSeqType);
+    if (auxInfo != NULL && auxInfo->primaryRemap != NULL) {
+        needsRemap = true;
+        for (int i = 0; i < 256; i++) {
+            rawToAscii[i] = subMat->num2aa[auxInfo->primaryRemap[i]];
+        }
+    }
 
     float scorePerColThr = 0.0;
     if (par.filterHits) {
@@ -142,6 +154,12 @@ int doRescorediagonal(Parameters &par,
             if (reversePrefilterResult == true) {
                 queryRevSeq = static_cast<char*>(malloc(queryRevSeqLen));
             }
+            std::string queryRemapBuffer;
+            std::string targetRemapBuffer;
+            if (needsRemap) {
+                queryRemapBuffer.reserve(par.maxSeqLen + 1);
+                targetRemapBuffer.reserve(par.maxSeqLen + 1);
+            }
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 progress.updateProgress();
@@ -186,6 +204,13 @@ int doRescorediagonal(Parameters &par,
                         queryBuffer.append(querySeq, queryLen);
                         querySeq = (char *) queryBuffer.c_str();
                     }
+                    if (needsRemap) {
+                        queryRemapBuffer.resize(queryLen);
+                        for (int i = 0; i < queryLen; i++) {
+                            queryRemapBuffer[i] = rawToAscii[static_cast<unsigned char>(querySeq[i])];
+                        }
+                        querySeq = (char *) queryRemapBuffer.c_str();
+                    }
                 }
 //                if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
 //                    query.mapSequence(id, queryId, querySeq);
@@ -213,6 +238,13 @@ int doRescorediagonal(Parameters &par,
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameQTDB)) ? true : false;
                     char *targetSeq = tdbr->getData(targetId, thread_idx);
                     int dbLen = static_cast<int>(tdbr->getSeqLen(targetId));
+                    if (needsRemap) {
+                        targetRemapBuffer.resize(dbLen);
+                        for (int i = 0; i < dbLen; i++) {
+                            targetRemapBuffer[i] = rawToAscii[static_cast<unsigned char>(targetSeq[i])];
+                        }
+                        targetSeq = (char *) targetRemapBuffer.c_str();
+                    }
 
                     float queryLength = static_cast<float>(origQueryLen);
                     float targetLength = static_cast<float>(dbLen);
