@@ -51,10 +51,17 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
     std::vector<hit_t> shortResults;
     std::vector<Matcher::result_t> resultsAln;
 
+    // GPU PSSM always uses 21 rows (ConvertAA_20 encoding)
+    const bool isNucl = Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES);
+    const int gpuAlphabetSize = 21;
+    // NucleotideMatrix encoding → ConvertAA_20 row index
+    // A(0)→0, C(1)→1, T(2)→16, G(3)→5, X(4)→20
+    static const int nuclToAA20[5] = {0, 1, 16, 5, 20};
+
     size_t profileBufferLength = par.maxSeqLen;
     int8_t* profile = NULL;
     if (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_HMM_PROFILE) == false) {
-        profile = (int8_t*)malloc(subMat->alphabetSize * profileBufferLength * sizeof(int8_t));
+        profile = (int8_t*)malloc(gpuAlphabetSize * profileBufferLength * sizeof(int8_t));
     }
 
     std::string resultBuffer;
@@ -142,7 +149,7 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         int32_t maxTargetLength = lengths.back();
         Marv::AlignmentType type = (par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) ?
                 Marv::AlignmentType::GAPLESS_SMITH_WATERMAN : Marv::AlignmentType::GAPLESS;
-        marv = new Marv(tdbr->getSize(), subMat->alphabetSize, maxTargetLength,
+        marv = new Marv(tdbr->getSize(), gpuAlphabetSize, maxTargetLength,
                         par.maxResListLen, type);
         void* h = marv->loadDb(
             tdbr->getDataForFile(0), offsetData, lengthData, tdbr->getDataSizeForFile(0)
@@ -174,7 +181,7 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         } else {
             if ((size_t)qSeq.L >= profileBufferLength) {
                 profileBufferLength = (size_t)qSeq.L * 1.5;
-                profile = (int8_t*)realloc(profile, subMat->alphabetSize * profileBufferLength * sizeof(int8_t));
+                profile = (int8_t*)realloc(profile, gpuAlphabetSize * profileBufferLength * sizeof(int8_t));
             }
             if (compositionBias != NULL) {
                 if ((size_t)qSeq.L >= compBufferSize) {
@@ -184,13 +191,24 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
                 }
                 SubstitutionMatrix::calcLocalAaBiasCorrection(subMat, qSeq.numSequence, qSeq.L, compositionBias, par.compBiasCorrectionScale);
             }
-            for (size_t j = 0; j < (size_t)subMat->alphabetSize; ++j) {
-                for (size_t i = 0; i < (size_t)qSeq.L; ++i) {
-                    short bias = 0;
-                    if (compositionBias != NULL) {
-                        bias = static_cast<short>((compositionBias[i] < 0.0) ? (compositionBias[i] - 0.5) : (compositionBias[i] + 0.5));
+            if (isNucl) {
+                // Zero-fill all 21 rows, then place nucleotide scores at ConvertAA_20 positions
+                memset(profile, 0, gpuAlphabetSize * qSeq.L * sizeof(int8_t));
+                for (size_t j = 0; j < (size_t)subMat->alphabetSize; ++j) {
+                    int aa20Row = nuclToAA20[j];
+                    for (size_t i = 0; i < (size_t)qSeq.L; ++i) {
+                        profile[aa20Row * qSeq.L + i] = subMat->subMatrix[j][qSeq.numSequence[i]];
                     }
-                    profile[j * qSeq.L  + i] = subMat->subMatrix[j][qSeq.numSequence[i]] + bias;
+                }
+            } else {
+                for (size_t j = 0; j < (size_t)subMat->alphabetSize; ++j) {
+                    for (size_t i = 0; i < (size_t)qSeq.L; ++i) {
+                        short bias = 0;
+                        if (compositionBias != NULL) {
+                            bias = static_cast<short>((compositionBias[i] < 0.0) ? (compositionBias[i] - 0.5) : (compositionBias[i] + 0.5));
+                        }
+                        profile[j * qSeq.L  + i] = subMat->subMatrix[j][qSeq.numSequence[i]] + bias;
+                    }
                 }
             }
         }
