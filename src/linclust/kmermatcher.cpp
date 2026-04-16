@@ -438,14 +438,14 @@ void swapCenterSequence(KmerPosition<T, includeAdjacency, IncludeSeqLen> *hashSe
     }
 }
 
-template void swapCenterSequence<0, short, true>(KmerPosition<short, true> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
-template void swapCenterSequence<0, short, false>(KmerPosition<short, false> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
-template void swapCenterSequence<0, int, true>(KmerPosition<int, true> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
-template void swapCenterSequence<0, int, false>(KmerPosition<int, false> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
-template void swapCenterSequence<1, short, true>(KmerPosition<short, true> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
-template void swapCenterSequence<1, short, false>(KmerPosition<short, false> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
-template void swapCenterSequence<1, int, true>(KmerPosition<int, true> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
-template void swapCenterSequence<1, int, false>(KmerPosition<int, false> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
+template void swapCenterSequence<0, short, true, false>(KmerPosition<short, true> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
+template void swapCenterSequence<0, short, false, false>(KmerPosition<short, false> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
+template void swapCenterSequence<0, int, true, false>(KmerPosition<int, true> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
+template void swapCenterSequence<0, int, false, false>(KmerPosition<int, false> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
+template void swapCenterSequence<1, short, true, false>(KmerPosition<short, true> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
+template void swapCenterSequence<1, short, false, false>(KmerPosition<short, false> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
+template void swapCenterSequence<1, int, true, false>(KmerPosition<int, true> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
+template void swapCenterSequence<1, int, false, false>(KmerPosition<int, false> *kmers, size_t splitKmerCount, SequenceWeights &seqWeights);
 
 
 template <int TYPE, typename T, bool includeAdjacency, bool IncludeSeqLen>
