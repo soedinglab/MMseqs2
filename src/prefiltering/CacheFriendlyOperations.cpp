@@ -207,8 +207,8 @@ size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(CounterResult *output, s
             duplicateBitArray[hashBinElement] = currDiagonal;
         }
         // check for overflow
-        if (doubleElementCount + std::min(elementCount, currBinSize/2) >= outputSize) {
-            return doubleElementCount;
+        if (doubleElementCount + elementCount >= outputSize) {
+                    return doubleElementCount;
         }
         // set memory to zero
         if (computeTotalScore) {
