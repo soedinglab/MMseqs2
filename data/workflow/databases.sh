@@ -67,7 +67,7 @@ downloadExtractBlastTars() {
     META_JSON="$1"
     OUTPUT="$2"
     ( downloadFile "${META_JSON}" "${OUTPUT}/version" )
-    grep -F ".tar.gz" "${OUTPUT}/version" | cut -f2 -d\" | sed 's|^ftp:|https:|g' > "${OUTPUT}/tar_files.txt"
+    grep -F ".tar.gz" "${OUTPUT}/version" | cut -f2 -d\" | sed 's|^ftp:|https:|g' | sed 's|/export/home/blastadm/clustered_nr_ftp/db/||' > "${OUTPUT}/tar_files.txt"
     while IFS= read -r URL; do
         FILENAME=$(basename "${URL}")
         ( downloadFile "${URL}" "${OUTPUT}/${FILENAME}" )
