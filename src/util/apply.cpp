@@ -149,7 +149,7 @@ int apply_by_entry(char* data, size_t size, unsigned int key, DBWriter& writer,
 
         if (plist[0].revents & POLLOUT) {
             ssize_t write_size = batch_size;
-            if (size - written > 0) {
+            if (size > written) {
                 for (;;) {
                     ssize_t w = write(fd[1], data + written, write_size);
                     if (w < 0) {
