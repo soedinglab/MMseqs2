@@ -16,9 +16,16 @@
 #include <sys/mman.h>
 #include <signal.h>
 
+#ifdef HAVE_CUDA
+GPUSharedMemorySem gpuSemaphore;
+#endif
+
 volatile sig_atomic_t keepRunning = 1;
 void intHandler(int) {
     keepRunning = 0;
+#ifdef HAVE_CUDA
+    gpuSemaphore.post();
+#endif
 }
 
 int gpuserver(int argc, const char **argv, const Command& command) {
@@ -64,6 +71,12 @@ int gpuserver(int argc, const char **argv, const Command& command) {
     marv.setDb(h1);
     marv.prefetch();
 
+    std::string shmFile = GPUSharedMemory::getShmHash(par.db1);
+    GPUSharedMemory* layout = GPUSharedMemory::alloc(shmFile, par.maxSeqLen, par.maxResListLen);
+    Debug(Debug::WARNING) << shmFile << "\n";
+
+    gpuSemaphore.create(shmFile);
+
     struct sigaction act;
     memset(&act, 0, sizeof(act));
     act.sa_handler = intHandler;
@@ -72,10 +85,11 @@ int gpuserver(int argc, const char **argv, const Command& command) {
     sigaction(SIGINT, &act, NULL);
     sigaction(SIGTERM, &act, NULL);
 
-    std::string shmFile = GPUSharedMemory::getShmHash(par.db1);
-    GPUSharedMemory* layout = GPUSharedMemory::alloc(shmFile, par.maxSeqLen, par.maxResListLen);
-    Debug(Debug::WARNING) << shmFile << "\n";
     while (keepRunning) {
+        gpuSemaphore.wait();
+        if (!keepRunning) {
+            break;
+        }
         if (layout->state.load(std::memory_order_acquire) == GPUSharedMemory::READY) {
             std::atomic_thread_fence(std::memory_order_acquire);
 
@@ -85,8 +99,6 @@ int gpuserver(int argc, const char **argv, const Command& command) {
             std::atomic_thread_fence(std::memory_order_release);
             // Debug(Debug::ERROR) << "switch to done\n";
             layout->state.store(GPUSharedMemory::DONE, std::memory_order_release);
-        } else {
-            std::this_thread::yield();
         }
     }
 
@@ -95,6 +107,7 @@ int gpuserver(int argc, const char **argv, const Command& command) {
     layout->serverExit.store(true, std::memory_order_release);
     std::atomic_thread_fence(std::memory_order_release);
     GPUSharedMemory::dealloc(layout, shmFile);
+    gpuSemaphore.destroy();
 #endif
     return EXIT_SUCCESS;
 
