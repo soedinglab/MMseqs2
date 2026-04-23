@@ -2,7 +2,6 @@
 #include "QueryMatcher.h"
 #include "FastSort.h"
 #include "Util.h"
-#include <omp.h>
 
 #define FE_1(WHAT, X) WHAT(X)
 #define FE_2(WHAT, X, ...) WHAT(X)FE_1(WHAT, __VA_ARGS__)
@@ -209,19 +208,10 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, unsigned 
             bool rescored = false;
 
             if (scoreIsTruncated) {
-                if (omp_get_thread_num() == 0) {
-                    printf("Buffer-overflow branch (truncated): resultSize=%zu foundDiagonalsSize=%zu diagonalThr=%u maxDiagonalScoreThr=%u\n",
-                           resultSize, foundDiagonalsSize, diagonalThr, maxDiagonalScoreThr);
-                }
                 // Count truncated-score hits from already-computed scoreSizes
                 size_t truncatedCount = 0;
                 for (unsigned int s = maxDiagonalScoreThr; s < SCORE_RANGE; s++) {
                     truncatedCount += scoreSizes[s];
-                }
-
-                if (omp_get_thread_num() == 0) {
-                    printf("Truncated-score diagonals: %zu / %zu total diagonals (availableSpace=%zu)\n",
-                           truncatedCount, resultSize, availableSpace);
                 }
 
                 if (truncatedCount * 2 <= availableSpace) {
@@ -243,16 +233,10 @@ std::pair<hit_t*, size_t> QueryMatcher::matchQuery(Sequence *querySeq, unsigned 
                     std::swap(resultReadPos, resultWritePos);
                     queryResult = getResult<UNGAPPED_DIAGONAL_SCORE>(resultReadPos, elementsCntAboveDiagonalThr, identityId, 0, ungappedAlignment, maxSelfScoreMinusDiag);
                     rescored = true;
-                    if (omp_get_thread_num() == 0) {
-                        printf("Filtering helped: avoided serial sort, rescored %zu truncated diagonals\n", filteredSize);
-                    }
                 }
             }
 
             if (!rescored) {
-                if (scoreIsTruncated && omp_get_thread_num() == 0) {
-                    printf("Filtering did not help: truncated diagonals don't fit, falling back to serial sort (resultSize=%zu)\n", resultSize);
-                }
                 size_t resultPos = 0;
                 for (size_t i = 0; i < resultSize; i++) {
                     resultReadPos[resultPos].id = resultReadPos[i].id;
