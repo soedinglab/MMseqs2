@@ -43,6 +43,7 @@ Parameters::Parameters():
         PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID, "--alph-size", "Alphabet size", "Alphabet size (range 2-21)", typeid(MultiParam<NuclAA<int>>), (void *) &alphabetSize, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID, "--max-seq-len", "Max sequence length", "Maximum sequence length", typeid(size_t), (void *) &maxSeqLen, "^[0-9]{1}[0-9]*", MMseqsParameter::COMMAND_COMMON | MMseqsParameter::COMMAND_EXPERT),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID, "--diag-score", "Diagonal scoring", "Use ungapped diagonal scoring during prefilter", typeid(bool), (void *) &diagonalScoring, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
+        PARAM_USE_AUX_SCORING(PARAM_USE_AUX_SCORING_ID, "--aux-score", "Auxiliary scoring", "Use auxiliary sequence scoring during prefilter", typeid(bool), (void *) &useAuxScoring, "", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_EXACT_KMER_MATCHING(PARAM_EXACT_KMER_MATCHING_ID, "--exact-kmer-matching", "Exact k-mer matching", "Extract only exact k-mers for matching (range 0-1)", typeid(int), (void *) &exactKmerMatching, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID, "--mask", "Mask residues", "Mask sequences in prefilter stage with tantan: 0: w/o low complexity masking, 1: with low complexity masking", typeid(int), (void *) &maskMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_PROBABILTY(PARAM_MASK_PROBABILTY_ID, "--mask-prob", "Mask residues probability", "Mask sequences is probablity is above threshold", typeid(float), (void *) &maskProb, "^0(\\.[0-9]+)?|^1(\\.0+)?$", MMseqsParameter::COMMAND_PREFILTER | MMseqsParameter::COMMAND_EXPERT),
@@ -481,6 +482,7 @@ Parameters::Parameters():
     prefilter.push_back(&PARAM_NO_COMP_BIAS_CORR);
     prefilter.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
     prefilter.push_back(&PARAM_DIAGONAL_SCORING);
+    prefilter.push_back(&PARAM_USE_AUX_SCORING);
     prefilter.push_back(&PARAM_EXACT_KMER_MATCHING);
     prefilter.push_back(&PARAM_MASK_RESIDUES);
     prefilter.push_back(&PARAM_MASK_PROBABILTY);
@@ -2506,6 +2508,7 @@ void Parameters::setDefaults() {
     compBiasCorrection = 1;
     compBiasCorrectionScale = 1.0;
     diagonalScoring = true;
+    useAuxScoring = true;
     exactKmerMatching = 0;
     maskMode = 1;
     maskProb = 0.9;
