@@ -14,8 +14,8 @@ unsigned int DistanceCalculator::computeInverseHammingDistance(const T *seq1, co
         // int _mm_movemask_epi8(__m128i a) creates 16-bit mask from most significant bits of
         // the 16 signed or unsigned 8-bit integers in a and zero-extends the upper bits.
         simd_int seqComparision = simdi8_eq(seq1vec, seq2vec);
-        int res = simdi8_movemask(seqComparision);
-        diff += __builtin_popcount(res);  // subtract positions that should not contribute to coverage
+        movemask_max_t res = simdi8_movemask(seqComparision);
+        diff += popcount(res);  // subtract positions that should not contribute to coverage
     }
     // compute missing rest
     for (unsigned int pos = simdBlock*(VECSIZE_INT*4); pos < length; pos++ ) {

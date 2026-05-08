@@ -45,18 +45,209 @@
 #define SIMDE_ENABLE_NATIVE_ALIASES
 #include <simde/simde-features.h>
 
-// FIXME: Finish AVX512 implementation
-//#if defined(SIMDE_X86_AVX512F_NATIVE) && defined(SIMDE_X86_AVX512BW_NATIVE)
-//#define AVX512
-//#endif
-
-#if defined(AVX512) || defined(SIMDE_X86_AVX2_NATIVE)
-#define AVX2
+#if defined(SIMDE_X86_AVX512F_NATIVE) && defined(SIMDE_X86_AVX512BW_NATIVE)
+#define AVX512
 #endif
 
+// #if defined(AVX512) || defined(SIMDE_X86_AVX2_NATIVE)
+// #define AVX2
+// #endif
+
 #ifdef AVX512
-#include <simde/x86/avx512f.h>
-#include <simde/x86/avx512bw.h>
+// FIXME: Remove after updating SIMDe, headers are buggy in this versions
+#define SIMDE_X86_AVX512_CMPLE_H
+#define SIMDE_X86_AVX512_CMPGE_H
+#include <simde/x86/avx512.h>
+
+inline float simdf32_hmax_avx512(const __m512 buffer) {
+    const __m512 shuffle1 = _mm512_shuffle_ps(buffer, buffer,(_MM_PERM_ENUM)_MM_SHUFFLE(1, 0, 3, 2));
+    const __m512 max1 = _mm512_max_ps(buffer, shuffle1);
+    const __m512 shuffle2 = _mm512_shuffle_ps(max1, max1, (_MM_PERM_ENUM)_MM_SHUFFLE(2, 3, 0, 1));
+    const __m512 max2 = _mm512_max_ps(max1, shuffle2);
+    const __m512 shuffle3 = _mm512_shuffle_f32x4(max2, max2, _MM_SHUFFLE(1, 0, 3, 2));
+    const __m512 max3 = _mm512_max_ps(max2, shuffle3);
+    const __m512 shuffle4 = _mm512_shuffle_f32x4(max3, max3, _MM_SHUFFLE(2, 3, 0, 1));
+    const __m512 max4 = _mm512_max_ps(max3, shuffle4);
+    // const __m128 max128 = _mm512_castps512_ps128(max4);
+    return _mm512_cvtss_f32(max4);
+}
+
+inline uint32_t simdi32_hmax_avx512(const __m512i buffer) {
+    const __m512i shuffle1 = _mm512_shuffle_epi32(buffer, (_MM_PERM_ENUM)_MM_SHUFFLE(1, 0, 3, 2));
+    const __m512i max1 = _mm512_max_epi32(buffer, shuffle1);
+    const __m512i shuffle2 = _mm512_shuffle_epi32(max1, (_MM_PERM_ENUM)_MM_SHUFFLE(2, 3, 0, 1));
+    const __m512i max2 = _mm512_max_epi32(max1, shuffle2);
+    const __m512i shuffle3 = _mm512_shuffle_i32x4(max2, max2, _MM_SHUFFLE(1, 0, 3, 2));
+    const __m512i max3 = _mm512_max_epi32(max2, shuffle3);
+    const __m512i shuffle4 = _mm512_shuffle_i32x4(max3, max3, _MM_SHUFFLE(2, 3, 0, 1));
+    const __m512i max4 = _mm512_max_epi32(max3, shuffle4);
+    return (uint32_t)_mm512_cvtsi512_si32(max4);
+}
+
+uint16_t simd_hmax16_sse(const __m128i buffer);
+
+inline uint16_t simdi16_hmax_avx512(const __m512i buffer) {
+    const __m128i abcd = _mm512_castsi512_si128(buffer);
+    const uint16_t first = simd_hmax16_sse(abcd);
+    const __m128i efgh = _mm512_extracti32x4_epi32(buffer, 1);
+    const uint16_t second = simd_hmax16_sse(efgh);
+    const uint16_t lower = std::max(first, second);
+
+    const __m128i hijk = _mm512_extracti32x4_epi32(buffer, 2);
+    const uint16_t third = simd_hmax16_sse(hijk);
+    const __m128i lmno = _mm512_extracti32x4_epi32(buffer, 3);
+    const uint16_t forth = simd_hmax16_sse(lmno);
+    const uint16_t upper = std::max(third, forth);
+
+    return std::max(lower, upper);
+}
+
+inline uint8_t simdi8_hmax_avx512(const __m512i buffer) {
+    // https://github.com/EddyRivasLab/easel/blob/07ca83ba9ef0414dba9ce0a9331d465b5eb58f2b/esl_avx512.h#L35-L63
+    // Use AVX instructions for this because AVX-512 can't extract 8-bit quantities
+    // Intel has stated that there will be no performance penalty for switching between AVX-512 and AVX
+    __m256i b = _mm256_max_epu8(_mm512_extracti64x4_epi64(buffer, 0), _mm512_extracti64x4_epi64(buffer, 1)); //changed from extract i32x8
+    b = _mm256_max_epu8(b, _mm256_permute2x128_si256(b, b, 0x01));
+    b = _mm256_max_epu8(b, _mm256_shuffle_epi32     (b,    0x4e));
+    b = _mm256_max_epu8(b, _mm256_shuffle_epi32     (b,    0xb1));
+    b = _mm256_max_epu8(b, _mm256_shufflelo_epi16   (b,    0xb1));
+    b = _mm256_max_epu8(b, _mm256_srli_si256        (b,    1));
+    return _mm256_extract_epi8(b, 0);  // epi8 is fine here. gets cast properly to uint8_t on return.
+}
+
+
+inline float simdf32_hadd(const __m512 buffer) {
+    const __m512 shuffle1 = _mm512_shuffle_ps(buffer,buffer, (_MM_PERM_ENUM)_MM_SHUFFLE(1, 0, 3, 2));
+    const __m512 max1 = _mm512_add_ps(buffer, shuffle1);
+    const __m512 shuffle2 = _mm512_shuffle_ps(max1, max1, (_MM_PERM_ENUM)_MM_SHUFFLE(2, 3, 0, 1));
+    const __m512 max2 = _mm512_add_ps(max1, shuffle2);
+    const __m512 shuffle3 = _mm512_shuffle_f32x4(max2, max2, _MM_SHUFFLE(1, 0, 3, 2));
+    const __m512 max3 = _mm512_add_ps(max2, shuffle3);
+    const __m512 shuffle4 = _mm512_shuffle_f32x4(max3, max3, _MM_SHUFFLE(2, 3, 0, 1));
+    const __m512 max4 = _mm512_add_ps(max3, shuffle4);
+    return _mm512_cvtss_f32(max4);
+}
+
+template  <unsigned int N>
+inline __m512i _mm512_shift_left(__m512i a) {
+    //Only work for N <= 16
+    __m512i mask = _mm512_permutex2var_epi64(_mm512_setzero_si512(), _mm512_set_epi64(13, 12, 11, 10, 9, 8, 7, 6), a);
+    return _mm512_alignr_epi8(a,mask,16-N);
+}
+
+inline __m512i _mm512_shift_left4(__m512i a) {
+    //Only work for N == 4
+    return _mm512_alignr_epi32(a, _mm512_setzero_si512(), (64 - 4)/ 4);
+}
+
+inline __m512i _mm512_shift_left8(__m512i a) {
+    //Only work for N == 8
+    return _mm512_alignr_epi32(a, _mm512_setzero_si512(), (64 - 8)/ 4);
+}
+
+inline __m512i _mm512_shift_left16(__m512i a) {
+    //Only work for N == 16
+    return _mm512_alignr_epi32(a, _mm512_setzero_si512(), (64 - 16)/ 4);
+}
+
+inline __m512i _mm512_shift_left32(__m512i a) {
+    //Only work for N == 32
+    return _mm512_alignr_epi32(a, _mm512_setzero_si512(), (64 - 32)/ 4);
+}
+
+inline __m512i simdi32_gt_avx512(__m512i a, __m512i b) {
+    __mmask16 mask = _mm512_cmp_epi32_mask(a, b, _MM_CMPINT_NLE);
+    return _mm512_mask_mov_epi32(_mm512_setzero_si512(), mask, _mm512_set1_epi32(-1));
+}
+
+inline __m512i simdi16_gt_avx512(__m512i a, __m512i b) {
+    __mmask32 mask = _mm512_cmp_epi16_mask(a, b, _MM_CMPINT_NLE);
+    return _mm512_mask_mov_epi16(_mm512_setzero_si512(), mask, _mm512_set1_epi16(-1));
+}
+
+inline __m512i simdi8_gt_avx512(__m512i a, __m512i b) {
+    __mmask64 mask = _mm512_cmp_epi8_mask(a, b, _MM_CMPINT_NLE);
+    return _mm512_mask_mov_epi8(_mm512_setzero_si512(), mask, _mm512_set1_epi8(-1));
+}
+
+inline __m512i simdi32_eq_avx512(__m512i a, __m512i b) {
+    __mmask16 mask = _mm512_cmp_epi32_mask(a, b, _MM_CMPINT_EQ);
+    return _mm512_mask_mov_epi32(_mm512_setzero_si512(), mask, _mm512_set1_epi32(-1));
+}
+
+inline __m512i simdi16_eq_avx512(__m512i a, __m512i b) {
+    __mmask32 mask = _mm512_cmp_epi16_mask(a, b, _MM_CMPINT_EQ);
+    return _mm512_mask_mov_epi16(_mm512_setzero_si512(), mask, _mm512_set1_epi16(-1));
+}
+
+inline __m512i simdi8_eq_avx512(__m512i a, __m512i b) {
+    __mmask64 mask = _mm512_cmp_epi8_mask(a, b, _MM_CMPINT_EQ);
+    return _mm512_mask_mov_epi8(_mm512_setzero_si512(), mask, _mm512_set1_epi8(-1));
+}
+
+inline __m512 simdf32_gt_avx512(__m512 a, __m512 b) {
+    __mmask16 mask = _mm512_cmp_ps_mask(a, b, _CMP_GT_OS);
+    return _mm512_mask_mov_ps(_mm512_setzero_ps(), mask, _mm512_castsi512_ps(_mm512_set1_epi32(-1)));
+}
+
+inline __m512d simdf64_gt_avx512(__m512d a, __m512d b) {
+    __mmask8 mask = _mm512_cmp_pd_mask(a, b, _CMP_GT_OS);
+    return _mm512_mask_mov_pd(_mm512_setzero_pd(), mask, _mm512_castsi512_pd(_mm512_set1_epi32(-1)));
+}
+
+inline __m512d simdf64_lt_avx512(__m512d a, __m512d b) {
+    __mmask8 mask = _mm512_cmp_pd_mask(a, b, _CMP_LT_OS);
+    return _mm512_mask_mov_pd(_mm512_setzero_pd(), mask, _mm512_castsi512_pd(_mm512_set1_epi32(-1)));
+}
+
+inline __m512 simdf32_eq_avx512(__m512 a, __m512 b) {
+    __mmask16 mask = _mm512_cmp_ps_mask(a, b, _CMP_EQ_OS);
+    return _mm512_mask_mov_ps(_mm512_setzero_ps(), mask, _mm512_castsi512_ps(_mm512_set1_epi32(-1)));
+}
+
+inline __m512 simdf32_le_avx512(__m512 a, __m512 b) {
+    __mmask16 mask = _mm512_cmp_ps_mask(a, b, _CMP_LE_OQ);
+    return _mm512_mask_mov_ps(_mm512_setzero_ps(), mask, _mm512_castsi512_ps(_mm512_set1_epi32(-1)));
+}
+
+inline __m512 simdf32_cmp_avx512(__m512 a, __m512 b, const int imm8) {
+    __mmask16 mask = _mm512_cmp_ps_mask(a, b, imm8);
+    return _mm512_mask_mov_ps(_mm512_setzero_ps(), mask, _mm512_castsi512_ps(_mm512_set1_epi32(-1)));
+}
+
+// AI Idea to get around z in _mm512_mask_blend_ps(z,x,y) beeing __mmask16 
+inline __mmask16 simdf32_mask_from_ps_avx512(__m512 m) {
+    return _mm512_movepi32_mask(_mm512_castps_si512(m));
+}
+
+inline bool simd_any_avx512(const __m512i buffer) {
+    const __m512i vZero = _mm512_setzero_si512();
+    const uint64_t mask = (uint64_t) _mm512_cmpeq_epi8_mask(buffer, vZero);
+    return (mask != 0xFFFFFFFFFFFFFFFFULL);
+}
+
+inline bool simd_eq_all_avx512(const __m512i a, const __m512i b) {
+    const uint64_t mask = (uint64_t)_mm512_cmpeq_epi8_mask(a, b);
+    return (mask == 0xFFFFFFFFFFFFFFFFULL);
+}
+
+inline __m512 simdf32_reverse_sse(const __m512 buffer) {
+    return _mm512_shuffle_ps(buffer, buffer, _MM_SHUFFLE(0, 1, 2, 3));
+}
+
+
+// float simdf32_hmax_sse(const __m128 buffer);
+// inline float simdf32_hmax_avx512(const __m512 buffer) {
+//     const __m128 abcd = _mm256_extractf128_ps(buffer, 3); // highest 128 bits
+//     const __m128 efgh = _mm256_extractf128_ps(buffer, 2); // second highest 128 bits
+//     const __m128 ijkl = _mm256_extractf128_ps(buffer, 1); // second lowest 128 bits
+//     const __m128 mnop = _mm256_extractf128_ps(buffer, 0); // lowest 128 bits
+//     const float abcd_max = simdf32_hmax_sse(abcd);
+//     const float efgh_max = simdf32_hmax_sse(efgh);
+//     const float ijkl_max = simdf32_hmax_sse(ijkl);
+//     const float mnop_max = simdf32_hmax_sse(mnop);
+//     return std::max(abcd_max, efgh_max, ijkl_max, mnop_max);
+// }
 
 // double support
 #ifndef SIMD_DOUBLE
@@ -73,12 +264,12 @@ typedef __m512d simd_double;
 #define simdf64_store(x,y)  _mm512_store_pd(x,y)
 #define simdf64_set(x)      _mm512_set1_pd(x)
 #define simdf64_setzero(x)  _mm512_setzero_pd()
-#define simdf64_gt(x,y)     _mm512_cmpnle_pd_mask(x,y)
-#define simdf64_lt(x,y)     _mm512_cmplt_pd_mask(x,y)
-#define simdf64_or(x,y)     _mm512_or_si512(x,y)
-#define simdf64_and(x,y)    _mm512_and_si512 (x,y)
-#define simdf64_andnot(x,y) _mm512_andnot_si512(x,y)
-#define simdf64_xor(x,y)    _mm512_xor_si512(x,y)
+#define simdf64_gt(x,y)     simdf64_gt_avx512(x,y)
+#define simdf64_lt(x,y)     simdf64_lt_avx512(x,y)
+#define simdf64_or(x,y)     _mm512_or_pd(x,y)
+#define simdf64_and(x,y)    _mm512_and_pd (x,y)
+#define simdf64_andnot(x,y) _mm512_andnot_pd(x,y)
+#define simdf64_xor(x,y)    _mm512_xor_pd(x,y)
 #endif //SIMD_DOUBLE
 // float support
 #ifndef SIMD_FLOAT
@@ -90,28 +281,34 @@ typedef __m512  simd_float;
 #define simdf32_sub(x,y)    _mm512_sub_ps(x,y)
 #define simdf32_mul(x,y)    _mm512_mul_ps(x,y)
 #define simdf32_div(x,y)    _mm512_div_ps(x,y)
-#define simdf32_rcp(x)      _mm512_rcp_ps(x)
+#define simdf32_sqrt(x)     _mm512_sqrt_ps(x)
+#define simdf32_rcp(x)      _mm512_rcp14_ps(x)
 #define simdf32_max(x,y)    _mm512_max_ps(x,y)
 #define simdf32_min(x,y)    _mm512_min_ps(x,y)
 #define simdf32_load(x)     _mm512_load_ps(x)
+#define simdf32_loadu(x)    _mm512_loadu_ps(x)
 #define simdf32_store(x,y)  _mm512_store_ps(x,y)
+#define simdf32_storeu(x,y) _mm512_storeu_ps(x,y)
 #define simdf32_set(x)      _mm512_set1_ps(x)
 #define simdf32_setzero(x)  _mm512_setzero_ps()
-#define simdf32_gt(x,y)     _mm512_cmpnle_ps_mask(x,y)
-#define simdf32_eq(x,y)     _mm512_cmpeq_ps_mask(x,y)
-#define simdf32_lt(x,y)     _mm512_cmplt_ps_mask(x,y)
-#define simdf32_le(x,y)     _mm512_cmple_ps_mask(x,y)
-#define simdf32_cmp(x,y,z) _mm512_cmp_ps_mask(x,y,z)
-#define simdf32_or(x,y)     _mm512_or_si512(x,y)
-#define simdf32_and(x,y)    _mm512_and_si512(x,y)
-#define simdf32_andnot(x,y) _mm512_andnot_si512(x,y)
-#define simdf32_xor(x,y)    _mm512_xor_si512(x,y)
+#define simdf32_gt(x,y)     simdf32_gt_avx512(x,y)
+#define simdf32_eq(x,y)     simdf32_eq_avx512(x,y)
+#define simdf32_lt(x,y)     simdf32_gt_avx512(y,x)
+#define simdf32_le(x,y)     simdf32_le_avx512(x,y)
+#define simdf32_cmp(x,y,z)  _mm512_mask_mov_ps(_mm512_setzero_ps(), _mm512_cmp_ps_mask(x, y, z), _mm512_castsi512_ps(_mm512_set1_epi32(-1)))
+#define simdf32_or(x,y)     _mm512_or_ps(x,y)
+#define simdf32_and(x,y)    _mm512_and_ps(x,y)
+#define simdf32_andnot(x,y) _mm512_andnot_ps(x,y)
+#define simdf32_xor(x,y)    _mm512_xor_ps(x,y)
+#define simdi32_i2f(x) 	    _mm512_cvtepi32_ps(x)  // convert integer to s.p. float
+#define simdi_i2fcast(x)    _mm512_castsi512_ps(x)
+#define simdf32_round(x)    _mm512_roundscale_ps(x, SIMDE_MM_FROUND_TO_NEAREST_INT | SIMDE_MM_FROUND_NO_EXC)
+#define simdf32_blendv_ps(x,y,z) _mm512_mask_blend_ps(simdf32_mask_from_ps_avx512(z), x, y) // AI Idea, prob broken
+#define simdf32_reverse(x)  _mm512_permute_ps(_mm512_shuffle_f32x4(x, x, _MM_SHUFFLE(0, 1, 2, 3)), _MM_SHUFFLE(0, 1, 2, 3))
+#define simdf32_fmadd(x,y,z) _mm512_fmadd_ps(x,y,z)
+#define simdf32_hmax(x)     simdf32_hmax_avx512(x)
 #define simdf32_f2i(x) 	    _mm512_cvtps_epi32(x)  // convert s.p. float to integer
 #define simdf_f2icast(x)    _mm512_castps_si512(x)
-#define simdf32_round(x)    _mm512_roundscale_ps(x, SIMDE_MM_FROUND_TO_NEAREST_INT | SIMDE_MM_FROUND_NO_EXC)
-#define simdf32_blendv_ps(x,y,z) _mm512_mask_blend_ps(z,x,y)
-#define simdf32_reverse(x) simdf32_reverse_avx512(x) //_mm512_permute_ps(_mm512_shuffle_f32x4(x, x, _MM_SHUFFLE(0, 1, 2, 3)), _MM_SHUFFLE(0, 1, 2, 3))
-#define simdf32_fmadd(x,y,z) _mm512_fmadd_ps(x,y,z)
 #endif //SIMD_FLOAT
 
 // integer support 
@@ -123,14 +320,27 @@ typedef __m512i simd_int;
 #define simdi32_add(x,y)    _mm512_add_epi32(x,y)
 #define simdi16_add(x,y)    _mm512_add_epi16(x,y)
 #define simdi16_adds(x,y)   _mm512_adds_epi16(x,y)
-#define simdui8_adds(x,y)   _mm512_adds_epu8()
+#define simdui8_adds(x,y)   _mm512_adds_epu8(x,y)
 #define simdi32_sub(x,y)    _mm512_sub_epi32(x,y)
-#define simdui8_subs(x,y)   _mm512_subs_epu8()
+#define simdi16_sub(x,y)    _mm512_sub_epi16(x,y)
+#define simdui8_subs(x,y)   _mm512_subs_epu8(x,y)
+#define simdui16_subs(x,y)  _mm512_subs_epu16(x,y)
+#define simdui32_subs(x,y)  _mm512_max_epi32(_mm512_sub_epi32(x,y), _mm512_setzero_si512())
 #define simdi32_mul(x,y)    _mm512_mullo_epi32(x,y)
-#define simdui8_max(x,y)    _mm512_max_epu8()
-#define simdi16_max(x,y)    _mm512_max_epi16(x,y)
-#define simdi32_max(x,y)    _mm512_max_epi32(x,y)
+#define simdui8_max(x,y)    _mm512_max_epu8(x,y)
+
+#define simdi32_max(x,y)    _mm512_max_epi32(x, y)
+#define simdi32_hmax(x)     simdi32_hmax_avx512(x)
+#define simdi16_max(x,y)    _mm512_max_epi16(x, y)
+#define simdi16_hmax(x)     simdi16_hmax_avx512(x)
+#define simdi8_max(x,y)     _mm512_max_epi8(x, y)
+#define simdi8_hmax(x)      simdi8_hmax_avx512(x)
+
+#define simdi16_min(x,y)    _mm512_min_epi16(x,y)
+#define simdui8_avg(x,y)    _mm512_avg_epu8(x,y)
+#define simdui16_avg(x,y)   _mm512_avg_epu16(x,y)
 #define simdi_load(x)       _mm512_load_si512(x)
+#define simdi_loadu(x)      _mm512_loadu_si512(x)
 #define simdi_streamload(x) _mm512_stream_load_si512(x)
 #define simdi_store(x,y)    _mm512_store_si512(x,y)
 #define simdi_storeu(x,y)   _mm512_storeu_si512(x,y)
@@ -138,32 +348,38 @@ typedef __m512i simd_int;
 #define simdi16_set(x)      _mm512_set1_epi16(x)
 #define simdi8_set(x)       _mm512_set1_epi8(x)
 #define simdi32_shuffle(x,y) _mm512_shuffle_epi32(x,y)
-#define simdi16_shuffle(x,y) NOT_YET_IMP(x,y)
-#define simdi8_shuffle(x,y)  _mm512_shuffle_epi8(x,y)
+#define simdi16_shuffle(x,y) NOT_YET_IMP(x,y) //_mm512_shuffle_epi16(x,y) does not exist
+#define simdi8_shuffle(x,y) _mm512_shuffle_epi8(x,y)
 #define simdi_setzero()     _mm512_setzero_si512()
-#define simdi32_gt(x,y)     _mm512_cmpgt_epi32(x,y)
-#define simdi8_gt(x,y)      NOT_YET_IMP()
-#define simdi16_gt(x,y)     NOT_YET_IMP()
-#define simdi8_eq(x,y)      NOT_YET_IMP()
-#define simdi32_lt(x,y)     NOT_YET_IMP()
-#define simdi16_lt(x,y)     NOT_YET_IMP()
-#define simdi8_lt(x,y)      NOT_YET_IMP()
+#define simdi32_gt(x,y)     simdi32_gt_avx512(x, y)
+#define simdi16_gt(x,y)     simdi16_gt_avx512(x, y)
+#define simdi8_gt(x,y)      simdi8_gt_avx512(x, y)
+#define simdi32_eq(x,y)     simdi32_eq_avx512(x, y)
+#define simdi16_eq(x,y)     simdi16_eq_avx512(x, y)
+#define simdi8_eq(x,y)      simdi8_eq_avx512(x, y)
+#define simdi32_lt(x,y)     simdi32_gt_avx512(y, x)
+#define simdi16_lt(x,y)     simdi16_gt_avx512(y, x)
+#define simdi8_lt(x,y)      simdi8_gt_avx512(y, x)
 
+#define SIMD_MOVEMASK_MAX   0xffffffffffffffff  // not sure if correct
+typedef uint64_t            movemask_max_t;
+#define popcount(x)         __builtin_popcountll(x)
+#define simd_any(x)         simd_any_avx512(x)
+#define simd_eq_all(x,y)    simd_eq_all_avx512(x,y)
 #define simdi_or(x,y)       _mm512_or_si512(x,y)
 #define simdi_and(x,y)      _mm512_and_si512(x,y)
 #define simdi_andnot(x,y)   _mm512_andnot_si512(x,y)
 #define simdi_xor(x,y)      _mm512_xor_si512(x,y)
-#define simdi8_shiftl(x,y)  NOT_YET_IMP()
-#define simdi8_shiftr(x,y)  NOT_YET_IMP()
-#define simdi8_movemask(x)  NOT_YET_IMP()
-#define simdi16_extract(x,y) NOT_YET_IMP()
+#define simdi8_shiftl(x,y)  _mm512_shift_left<y>(x)
+//#define simdi8_shiftr(x,y)  simdi8_shift_right<y>(x)
+#define simdi8_movemask(x)  _mm512_movepi8_mask(x)
+#define simdi16_extract(x,y) NOT_YET_IMP()         // no 16 bit version available
 #define simdi16_slli(x,y)	_mm512_slli_epi16(x,y) // shift integers in a left by y
 #define simdi16_srli(x,y)	_mm512_srli_epi16(x,y) // shift integers in a right by y
 #define simdi32_slli(x,y)	_mm512_slli_epi32(x,y) // shift integers in a left by y
 #define simdi32_srli(x,y)	_mm512_srli_epi32(x,y) // shift integers in a right by y
 #define simdi32_srai(x,y)	_mm512_srai_epi32(x,y)
-#define simdi32_i2f(x) 	    _mm512_cvtepi32_ps(x)  // convert integer to s.p. float
-#define simdi_i2fcast(x)    _mm512_castsi512_ps(x)
+
 #endif //SIMD_INT
 #endif //AVX512_SUPPORT
 
@@ -326,7 +542,7 @@ typedef __m256i simd_int;
 #define simdi16_set(x)      _mm256_set1_epi16(x)
 #define simdi8_set(x)       _mm256_set1_epi8(x)
 #define simdi32_shuffle(x,y) _mm256_shuffle_epi32(x,y)
-#define simdi16_shuffle(x,y) _mm256_shuffle_epi16(x,y)
+#define simdi16_shuffle(x,y) NOT_YET_IMP() //_mm256_shuffle_epi16(x,y) does not exist
 #define simdi8_shuffle(x,y)  _mm256_shuffle_epi8(x,y)
 #define simdi_setzero()     _mm256_setzero_si256()
 #define simdi8_blend(x,y,z) _mm256_blendv_epi8(x,y,z)
@@ -347,6 +563,8 @@ typedef __m256i simd_int;
 //TODO fix like shift_left
 #define simdi8_shiftr(x,y)  _mm256_srli_si256(x,y)
 #define SIMD_MOVEMASK_MAX   0xffffffff
+typedef uint32_t            movemask_max_t;
+#define popcount(x)         __builtin_popcount(x)
 #define simdi8_movemask(x)  _mm256_movemask_epi8(x)
 #define simdi16_extract(x,y) extract_epi16(x,y)
 #define simdi32_pack(x,y)   _mm256_packs_epi32(x,y)
@@ -637,6 +855,8 @@ typedef __m128i simd_int;
 #define simdi8_shiftl(x,y)  _mm_slli_si128(x,y)
 #define simdi8_shiftr(x,y)  _mm_srli_si128(x,y)
 #define SIMD_MOVEMASK_MAX   0xffff
+typedef uint32_t            movemask_max_t;
+#define popcount(x)         __builtin_popcount(x)
 #define simdi8_movemask(x)  _mm_movemask_epi8(x)
 #define simdi16_extract(x,y) extract_epi16(x,y)
 #define simdi32_pack(x,y)   _mm_packs_epi32(x,y)

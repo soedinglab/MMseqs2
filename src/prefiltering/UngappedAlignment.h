@@ -53,7 +53,9 @@ public:
 
 private:
     const static unsigned int DIAGONALCOUNT = 0xFFFF + 1;
-#ifdef AVX2
+#ifdef AVX512
+    const static unsigned int DIAGONALBINSIZE = 16;
+#elif defined(AVX2)
     const static unsigned int DIAGONALBINSIZE = 8;
 #else
     const static unsigned int DIAGONALBINSIZE = 4;

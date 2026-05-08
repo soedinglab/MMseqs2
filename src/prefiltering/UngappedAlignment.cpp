@@ -78,6 +78,22 @@ void UngappedAlignment::unrolledDiagonalScoring(const char * profile,
         int subScore6 =  profileColumn[dbSeq[6][pos]];
         int subScore7 =  profileColumn[dbSeq[7][pos]];
         simd_int subScores = _mm256_set_epi32(subScore7, subScore6, subScore5, subScore4, subScore3, subScore2, subScore1, subScore0);
+#elif defined(AVX512)
+        int subScore4 =  profileColumn[dbSeq[4][pos]];
+        int subScore5 =  profileColumn[dbSeq[5][pos]];
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        int subScore8 =  profileColumn[dbSeq[8][pos]];
+        int subScore9 =  profileColumn[dbSeq[9][pos]];
+        int subScore10 =  profileColumn[dbSeq[10][pos]];
+        int subScore11 =  profileColumn[dbSeq[11][pos]];
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, subScore11, subScore10, subScore9, subScore8,
+            subScore7, subScore6, subScore5, subScore4, subScore3, subScore2, subScore1, subScore0);
 #else
         simd_int subScores = _mm_set_epi32(subScore3, subScore2, subScore1, subScore0);
 #endif
@@ -96,6 +112,22 @@ void UngappedAlignment::unrolledDiagonalScoring(const char * profile,
         int subScore6 =  profileColumn[dbSeq[6][pos]];
         int subScore7 =  profileColumn[dbSeq[7][pos]];
         simd_int subScores = _mm256_set_epi32(subScore7, subScore6, subScore5, subScore4, subScore3, subScore2, subScore1, 0);
+#elif defined(AVX512)
+        int subScore4 =  profileColumn[dbSeq[4][pos]];
+        int subScore5 =  profileColumn[dbSeq[5][pos]];
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        int subScore8 =  profileColumn[dbSeq[8][pos]];
+        int subScore9 =  profileColumn[dbSeq[9][pos]];
+        int subScore10 =  profileColumn[dbSeq[10][pos]];
+        int subScore11 =  profileColumn[dbSeq[11][pos]];
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, subScore11, subScore10, subScore9, subScore8,
+            subScore7, subScore6, subScore5, subScore4, subScore3, subScore2, subScore1, 0);
 #else
         simd_int subScores = _mm_set_epi32(subScore3, subScore2, subScore1, 0);
 #endif
@@ -113,6 +145,22 @@ void UngappedAlignment::unrolledDiagonalScoring(const char * profile,
         int subScore6 =  profileColumn[dbSeq[6][pos]];
         int subScore7 =  profileColumn[dbSeq[7][pos]];
         simd_int subScores = _mm256_set_epi32(subScore7, subScore6, subScore5, subScore4, subScore3, subScore2, 0, 0);
+#elif defined(AVX512)
+        int subScore4 =  profileColumn[dbSeq[4][pos]];
+        int subScore5 =  profileColumn[dbSeq[5][pos]];
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        int subScore8 =  profileColumn[dbSeq[8][pos]];
+        int subScore9 =  profileColumn[dbSeq[9][pos]];
+        int subScore10 =  profileColumn[dbSeq[10][pos]];
+        int subScore11 =  profileColumn[dbSeq[11][pos]];
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, subScore11, subScore10, subScore9, subScore8,
+            subScore7, subScore6, subScore5, subScore4, subScore3, subScore2, 0, 0);
 #else
         simd_int subScores = _mm_set_epi32(subScore3, subScore2, 0, 0);
 #endif
@@ -129,6 +177,22 @@ void UngappedAlignment::unrolledDiagonalScoring(const char * profile,
         int subScore6 =  profileColumn[dbSeq[6][pos]];
         int subScore7 =  profileColumn[dbSeq[7][pos]];
         simd_int subScores = _mm256_set_epi32(subScore7, subScore6, subScore5, subScore4, subScore3, 0, 0, 0);
+#elif defined(AVX512)
+        int subScore4 =  profileColumn[dbSeq[4][pos]];
+        int subScore5 =  profileColumn[dbSeq[5][pos]];
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        int subScore8 =  profileColumn[dbSeq[8][pos]];
+        int subScore9 =  profileColumn[dbSeq[9][pos]];
+        int subScore10 =  profileColumn[dbSeq[10][pos]];
+        int subScore11 =  profileColumn[dbSeq[11][pos]];
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, subScore11, subScore10, subScore9, subScore8,
+            subScore7, subScore6, subScore5, subScore4, subScore3, 0, 0, 0);
 #else
         simd_int subScores = _mm_set_epi32(subScore3, 0, 0, 0);
 #endif
@@ -136,7 +200,7 @@ void UngappedAlignment::unrolledDiagonalScoring(const char * profile,
         score = simdi32_max(score, zero);
         maxVec = simdui8_max(maxVec, score);
     }
-#ifdef AVX2
+#if defined(AVX2)
     for(unsigned int pos = seqLen[3]; pos < seqLen[4]; pos++){
         const char * profileColumn = (profile + pos * T);
         int subScore4 =  profileColumn[dbSeq[4][pos]];
@@ -171,6 +235,193 @@ void UngappedAlignment::unrolledDiagonalScoring(const char * profile,
         const char * profileColumn = (profile + pos * T);
         int subScore7 =  profileColumn[dbSeq[7][pos]];
         simd_int subScores = _mm256_set_epi32(subScore7, 0, 0, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        maxVec = simdui8_max(maxVec, score);
+    }
+#elif defined(AVX512)
+    for(unsigned int pos = seqLen[3]; pos < seqLen[4]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        int subScore4 =  profileColumn[dbSeq[4][pos]];
+        int subScore5 =  profileColumn[dbSeq[5][pos]];
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        int subScore8 =  profileColumn[dbSeq[8][pos]];
+        int subScore9 =  profileColumn[dbSeq[9][pos]];
+        int subScore10 =  profileColumn[dbSeq[10][pos]];
+        int subScore11 =  profileColumn[dbSeq[11][pos]];
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, subScore11, subScore10, subScore9, subScore8,
+            subScore7, subScore6, subScore5, subScore4, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[4]; pos < seqLen[5]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        int subScore5 =  profileColumn[dbSeq[5][pos]];
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        int subScore8 =  profileColumn[dbSeq[8][pos]];
+        int subScore9 =  profileColumn[dbSeq[9][pos]];
+        int subScore10 =  profileColumn[dbSeq[10][pos]];
+        int subScore11 =  profileColumn[dbSeq[11][pos]];
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, subScore11, subScore10, subScore9, subScore8,
+            subScore7, subScore6, subScore5, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[5]; pos < seqLen[6]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        int subScore6 =  profileColumn[dbSeq[6][pos]];
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        int subScore8 =  profileColumn[dbSeq[8][pos]];
+        int subScore9 =  profileColumn[dbSeq[9][pos]];
+        int subScore10 =  profileColumn[dbSeq[10][pos]];
+        int subScore11 =  profileColumn[dbSeq[11][pos]];
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, subScore11, subScore10, subScore9, subScore8,
+            subScore7, subScore6, 0, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[6]; pos < seqLen[7]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        int subScore7 =  profileColumn[dbSeq[7][pos]];
+        int subScore8 =  profileColumn[dbSeq[8][pos]];
+        int subScore9 =  profileColumn[dbSeq[9][pos]];
+        int subScore10 =  profileColumn[dbSeq[10][pos]];
+        int subScore11 =  profileColumn[dbSeq[11][pos]];
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, subScore11, subScore10, subScore9, subScore8,
+            subScore7, 0, 0, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[7]; pos < seqLen[8]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        int subScore8 =  profileColumn[dbSeq[8][pos]];
+        int subScore9 =  profileColumn[dbSeq[9][pos]];
+        int subScore10 =  profileColumn[dbSeq[10][pos]];
+        int subScore11 =  profileColumn[dbSeq[11][pos]];
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, subScore11, subScore10, subScore9, subScore8,
+            0, 0, 0, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[8]; pos < seqLen[9]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        int subScore9 =  profileColumn[dbSeq[9][pos]];
+        int subScore10 =  profileColumn[dbSeq[10][pos]];
+        int subScore11 =  profileColumn[dbSeq[11][pos]];
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, subScore11, subScore10, subScore9, 0,
+            0, 0, 0, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[9]; pos < seqLen[10]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        int subScore10 =  profileColumn[dbSeq[10][pos]];
+        int subScore11 =  profileColumn[dbSeq[11][pos]];
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, subScore11, subScore10, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[10]; pos < seqLen[11]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        int subScore11 =  profileColumn[dbSeq[11][pos]];
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, subScore11, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[11]; pos < seqLen[12]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        int subScore12 =  profileColumn[dbSeq[12][pos]];
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, subScore12, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[12]; pos < seqLen[13]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        int subScore13 =  profileColumn[dbSeq[13][pos]];
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, subScore13, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[13]; pos < seqLen[14]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        int subScore14 =  profileColumn[dbSeq[14][pos]];
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, subScore14, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0);
+        score = simdi32_add(score, subScores);
+        score = simdi32_max(score, zero);
+        maxVec = simdui8_max(maxVec, score);
+    }
+    for(unsigned int pos = seqLen[14]; pos < seqLen[15]; pos++){
+        const char * profileColumn = (profile + pos * T);
+        int subScore15 =  profileColumn[dbSeq[15][pos]];
+        simd_int subScores = _mm512_set_epi32(
+            subScore15, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0);
         score = simdi32_add(score, subScores);
         score = simdi32_max(score, zero);
         maxVec = simdui8_max(maxVec, score);
@@ -354,7 +605,14 @@ unsigned short UngappedAlignment::distanceFromDiagonal(const unsigned short diag
 }
 
 void UngappedAlignment::extractScores(unsigned int *score_arr, simd_int score) {
-#ifdef AVX2
+#ifdef AVX512
+    #define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi32(_mm512_extracti64x4_epi64(score, i <= 7 ? 0 : 1), i <= 7 ? i : i - 8) //might not work as it extracts 64 bit ints not 32, bt 32 is not avaibale on avx512F/BW
+    EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
+    EXTRACT_AVX(4);  EXTRACT_AVX(5);  EXTRACT_AVX(6);  EXTRACT_AVX(7);
+    EXTRACT_AVX(8);  EXTRACT_AVX(9);  EXTRACT_AVX(10);  EXTRACT_AVX(11);
+    EXTRACT_AVX(12);  EXTRACT_AVX(13);  EXTRACT_AVX(14);  EXTRACT_AVX(15);
+#undef EXTRACT_AVX
+#elif defined(AVX2)
     #define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi32(score, i)
     EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
     EXTRACT_AVX(4);  EXTRACT_AVX(5);  EXTRACT_AVX(6);  EXTRACT_AVX(7);

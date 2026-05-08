@@ -179,7 +179,7 @@ inline float CSProfile::computeProfileContextScore(float ** context_weights,
     const size_t end = std::min(static_cast<size_t>(L), idx + center + 1);
     simd_float vTotalScore = simdf32_setzero();
     for(size_t i = beg, j = beg - idx + center; i < end; ++i, ++j) {
-#ifdef AVX2
+#if defined(AVX2) || defined(AVX512)
         simd_float vContextWeight1 = simdf32_load(&context_weights[j][0]);
         simd_float vCount1 = simdf32_load(&counts[i * (Sequence::PROFILE_AA_SIZE + 4) + 0]);
         simd_float vScore1 = simdf32_mul(vContextWeight1, vCount1);
