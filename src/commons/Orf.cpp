@@ -203,7 +203,7 @@ inline bool isGapOrN(const char *codon) {
 }
 
 template <int N>
-#ifndef AVX2
+#if !defined(AVX2) && !defined(AVX512)
 inline bool isInCodons(const char* sequence, simd_int codons, simd_int codons2) {
 #else
 inline bool isInCodons(const char* sequence, simd_int codons, simd_int) {
@@ -220,7 +220,7 @@ inline bool isInCodons(const char* sequence, simd_int codons, simd_int) {
     c = simdi_and(mask, c);
     // t: FFFF 0000 0000 0000
     simd_int test = simdi32_eq(c, codons);
-#ifndef AVX2
+#if !defined(AVX2) && !defined(AVX512)
     if (N > 4) {
         simd_int test2 = simdi32_eq(c, codons2);
         return (simdi8_movemask(test) != 0) || (simdi8_movemask(test2) != 0);
@@ -256,7 +256,7 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
     size_t from[FRAMES] = {frameOffset[0], frameOffset[1], frameOffset[2]};
     simd_int startCodonsHi = simdi_load((simd_int*)startCodons);
     simd_int stopCodonsHi  = simdi_load((simd_int*)stopCodons);
-#ifdef AVX2
+#if defined(AVX2) || defined(AVX512)
     simd_int startCodonsLo = simdi_setzero();
     simd_int stopCodonsLo  = simdi_setzero();
 #else
