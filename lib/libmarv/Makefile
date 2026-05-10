@@ -4,11 +4,17 @@ OPTIMIZATION = -O3 -g
 WARNINGS     = -Xcompiler="-Wall -Wextra"
 
 # NVCC_FLAGS   = -DCUDASW_DEBUG_CHECK_CORRECTNESS -arch=native -lineinfo --expt-relaxed-constexpr -rdc=true --extended-lambda -lnvToolsExt -Xcompiler="-fopenmp" #-res-usage #-Xptxas "-v"
-NVCC_FLAGS   = -arch=native -lineinfo --expt-relaxed-constexpr -rdc=true --extended-lambda -lnvToolsExt -Xcompiler="-fopenmp" #-res-usage #-Xptxas "-v"
 
+NVCC_ARCH = -arch=native
+NVCC_FLAGS   =  -lineinfo --expt-relaxed-constexpr -rdc=true --extended-lambda -Xcompiler="-fopenmp" #-res-usage #-Xptxas "-v"
+NVTX ?= 0
+ifeq ($(NVTX), 1)
+NVCC_FLAGS += -lnvToolsExt
+endif
 
 LDFLAGS      = -Xcompiler="-pthread"  $(NVCC_FLAGS) -lz
-COMPILER     = nvcc
+NVCC ?= nvcc
+COMPILER     = $(NVCC)
 ARTIFACT     = align
 
 BUILDDIR = build
@@ -33,9 +39,13 @@ clean :
 	rm -f $(TILECONFIGSEARCH)
 
 # compiler call
-COMPILE = $(COMPILER) $(NVCC_FLAGS) $(DIALECT) $(OPTIMIZATION) $(WARNINGS) -c $< -o $@
+COMPILE = $(COMPILER) $(NVCC_FLAGS) $(NVCC_ARCH) $(DIALECT) $(OPTIMIZATION) $(WARNINGS) -c $< -o $@
+
+COMPILE_INT8 =  ~/cuda-13.2/bin/nvcc $(NVCC_FLAGS) -gencode=arch=compute_120f,code=sm_120 $(DIALECT) $(OPTIMIZATION) $(WARNINGS) -c $< -o $@
 
 CUDASW_OBJS =  $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o $(BUILDDIR)/options.o $(BUILDDIR)/blosum.o $(BUILDDIR)/pssmkernels_smithwaterman_instantiation_float.o $(BUILDDIR)/pssmkernels_smithwaterman_instantiation_dpx.o $(BUILDDIR)/pssmkernels_gapless_instantiation_half2.o $(BUILDDIR)/pssmkernels_gapless_instantiation_dpx.o $(BUILDDIR)/pssmkernels_gapless_instantiation_half2_kernelparamzero.o $(BUILDDIR)/pssmkernels_gapless_instantiation_dpx_kernelparamzero.o
+
+CUDASW_OBJS += $(BUILDDIR)/pssmkernels_gapless_instantiation_int8.o
 
 # link object files into executable
 $(ARTIFACT): $(BUILDDIR)/main.o $(CUDASW_OBJS)
@@ -87,6 +97,10 @@ $(BUILDDIR)/pssmkernels_smithwaterman_instantiation_dpx.o : src/pssmkernels_smit
 
 $(BUILDDIR)/makedb.o : src/makedb.cpp src/dbdata.hpp src/sequence_io.h
 	$(COMPILE)
+
+$(BUILDDIR)/pssmkernels_gapless_instantiation_int8.o : src/pssmkernels_gapless_instantiation_int8.cu src/util.cuh
+	$(COMPILE_INT8)
+	
 
 
 

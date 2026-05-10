@@ -69,6 +69,17 @@ Marv::Marv(size_t dbEntries, int alphabetSize, int maxSeqLength, size_t maxSeqs,
         kernelConfigFilenames
     ));
     cudasw4::CudaSW4* sw = static_cast<cudasw4::CudaSW4*>(cudasw);
+
+    bool allBlackwell = !deviceIds.empty();
+    for (int devId : deviceIds) {
+        int ccMajor = 0;
+        cudaDeviceGetAttribute(&ccMajor, cudaDevAttrComputeCapabilityMajor, devId); CUERR
+        if (ccMajor < 12) { allBlackwell = false; break; }
+    }
+    if (allBlackwell) {
+        sw->allowInt8(true);
+    }
+
     sw->setScanType(mapCswScanType(alignmentType));
 }
 std::vector<std::shared_ptr<GpuDatabaseAllocationBase>> allocations_all;

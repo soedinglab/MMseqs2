@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <fstream>
 #include <vector>
 #include <iostream>
 
@@ -48,7 +49,29 @@ std::ostream& operator<<(std::ostream& os, const BenchmarkDataSW& data){
 }
 
 
-void gapless_search(){
+void saveBestGaplessConfigs(const std::vector<BenchmarkData>& bestConfigs, const std::string& filename){
+    std::ofstream os(filename);
+    if(!os) throw std::runtime_error("could not open output file: " + filename);
+    os << "# tilesize groupsize numRegs dpx kernelApproach\n";
+    for(const auto& d : bestConfigs){
+        os << d.tilesize << " " << d.groupsize << " " << d.numRegs
+           << " " << d.dpx << " " << int(d.kernelApproach) << "\n";
+    }
+    std::cout << "Gapless configs saved to: " << filename << "\n";
+}
+
+void saveBestSWConfigs(const std::vector<BenchmarkDataSW>& bestConfigs, const std::string& filename){
+    std::ofstream os(filename);
+    if(!os) throw std::runtime_error("could not open output file: " + filename);
+    os << "# tilesize groupsize numRegs dpx kernelApproach\n";
+    for(const auto& d : bestConfigs){
+        os << d.tilesize << " " << d.groupsize << " " << d.numRegs
+           << " " << d.dpx << " " << int(d.kernelApproach) << "\n";
+    }
+    std::cout << "SW configs saved to: " << filename << "\n";
+}
+
+void gapless_search(const std::string& outputFile){
     std::cout << "gapless_search\n";
 
     ProgramOptions options;
@@ -234,6 +257,8 @@ void gapless_search(){
 
     std::cout << "best\n";
     std::copy(bestConfigs.begin(), bestConfigs.end(), std::ostream_iterator<BenchmarkData>(std::cout, "\n"));
+
+    saveBestGaplessConfigs(bestConfigs, outputFile);
 }
 
 
@@ -244,7 +269,7 @@ void gapless_search(){
 
 
 
-void sw_search(){
+void sw_search(const std::string& outputFile){
     std::cout << "sw_search\n";
     ProgramOptions options;
 
@@ -415,6 +440,8 @@ void sw_search(){
 
     std::cout << "best\n";
     std::copy(bestConfigs.begin(), bestConfigs.end(), std::ostream_iterator<BenchmarkDataSW>(std::cout, "\n"));
+
+    saveBestSWConfigs(bestConfigs, outputFile);
 }
 
 
@@ -424,22 +451,34 @@ int main(int argc, char* argv[]){
 
     bool gapless = false;
     bool sw = false;
+    std::string gaplessOutputFile = "kernelconfigs_gapless.txt";
+    std::string swOutputFile = "kernelconfigs_sw.txt";
+
     for(int x = 1; x < argc; x++){
         std::string argstring = argv[x];
         if(argstring == "--gapless"){
             gapless = true;
-        }
-        if(argstring == "--sw"){
+        } else if(argstring == "--sw"){
             sw = true;
+        } else if(argstring == "--output-gapless" && x + 1 < argc){
+            gaplessOutputFile = argv[++x];
+        } else if(argstring == "--output-sw" && x + 1 < argc){
+            swOutputFile = argv[++x];
         }
+    }
+
+    // run both by default if no mode flag is given
+    if(!gapless && !sw){
+        gapless = true;
+        sw = true;
     }
 
     if(gapless){
-        gapless_search();
+        gapless_search(gaplessOutputFile);
     }
 
     if(sw){
-        sw_search();
+        sw_search(swOutputFile);
     }
 
     return 0;

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.18)
 project(CUDA_INCLUDE_DIRS LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -18,7 +18,6 @@ endif()
 set(NVCC_FLAGS_OMP ${NVCC_FLAGS})
 list(APPEND NVCC_FLAGS_OMP -Xcompiler -fopenmp)
 
-
 set(ALIGN_SOURCES
     kernels.cuh
     blosum.cu
@@ -34,22 +33,38 @@ set(ALIGN_SOURCES
     dbdata.cpp
 )
 
-add_library(marv ${ALIGN_SOURCES} marv.cu marv.h)
+set(INT8_GAPLESS_OBJECTS "")
+set(INT8_GAPLESS_DEFINITION "")
+if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL "13.2")
+    add_library(pssmkernels_gapless_int8_obj OBJECT pssmkernels_gapless_instantiation_int8.cu)
+    set_target_properties(pssmkernels_gapless_int8_obj PROPERTIES
+        CUDA_ARCHITECTURES "120f-real;121f-real"
+    )
+    target_compile_options(pssmkernels_gapless_int8_obj PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:${NVCC_FLAGS}>
+    )
+    target_compile_definitions(pssmkernels_gapless_int8_obj PRIVATE CUDASW_INT8_GAPLESS)
+    set(INT8_GAPLESS_OBJECTS $<TARGET_OBJECTS:pssmkernels_gapless_int8_obj>)
+    set(INT8_GAPLESS_DEFINITION CUDASW_INT8_GAPLESS)
+endif()
+
+add_library(marv ${ALIGN_SOURCES} marv.cu marv.h ${INT8_GAPLESS_OBJECTS})
 target_compile_options(marv PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${NVCC_FLAGS}>)
 set_target_properties(marv
     PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
         CUDA_RESOLVE_DEVICE_SYMBOLS ON
 )
-target_compile_definitions(marv PRIVATE NO_NVTOOLSEXT)
+target_compile_definitions(marv PRIVATE NO_NVTOOLSEXT ${INT8_GAPLESS_DEFINITION})
 
 if (NOT LIBRARY_ONLY)
     find_package(CUDAToolkit REQUIRED)
     find_package(ZLIB REQUIRED)
     find_package(OpenMP REQUIRED)
 
-    add_executable(align ${ALIGN_SOURCES} main.cu options.cpp sequence_io.cpp)
+    add_executable(align ${ALIGN_SOURCES} main.cu options.cpp sequence_io.cpp ${INT8_GAPLESS_OBJECTS})
     target_compile_options(align PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${NVCC_FLAGS_OMP}>)
+    target_compile_definitions(align PRIVATE ${INT8_GAPLESS_DEFINITION})
     target_link_libraries(align ZLIB::ZLIB CUDA::nvToolsExt OpenMP::OpenMP_CXX)
     set_target_properties(align PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
     
