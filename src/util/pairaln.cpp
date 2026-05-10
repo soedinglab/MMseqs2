@@ -219,8 +219,8 @@ int pairaln(int argc, const char **argv, const Command& command) {
                                                 (touch) ? (IndexReader::PRELOAD_INDEX | IndexReader::PRELOAD_DATA) : 0);
     }
 
-    std::string db2NoIndexName = PrefilteringIndexReader::dbPathWithoutIndex(par.db2);
-    MappingReader* mapping = new MappingReader(db2NoIndexName);
+    std::string db2Name = par.db2;
+    MappingReader* mapping = new MappingReader(db2Name);
 
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str(), par.threads, DBReader<unsigned int>::USE_INDEX|DBReader<unsigned int>::USE_DATA);
     alnDbr.open(DBReader<unsigned int>::NOSORT);
