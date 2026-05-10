@@ -5,6 +5,9 @@
 #include <cooperative_groups.h>
 #include <cooperative_groups/reduce.h>
 
+#include "ptx_wrappers.cuh"
+#include "custom_score_types.cuh"
+
 // from https://docs.nvidia.com/cuda/cuda-math-api/group__CUDA__MATH__INTRINSIC__HALF__CONSTANTS.html
 #ifndef CUDART_ZERO_FP16
 #define CUDART_ZERO_FP16 __ushort_as_half((unsigned short)0x0000U)
@@ -426,6 +429,89 @@ namespace cudasw4{
         __device__
         static Type reduce_max(Group& group, Type val){
             return cooperative_groups::reduce(group, val, cooperative_groups::greater<Type>{});
+        }
+    };
+
+
+    template<>
+    struct MathOps<ScoreType_u8x4>{
+        using Type = cuda::std::uint8_t;
+        using VecType = ScoreType_u8x4;
+
+        __host__ __device__
+        static VecType zero_score(){
+            return VecType{};
+        }
+
+        //max(a,b)
+        __device__
+        static VecType max(const VecType& a, const VecType& b){
+            #ifdef HAS_BLACKWELL_INT8_PTX
+            return ptx_max_u8x4(a, b);
+            #else
+            return __vmaxu4(a,b);
+            #endif
+        }
+
+        //max(a,b,c)
+        __device__
+        static VecType max3(const VecType& a, const VecType& b, const VecType& c){
+            return max(a, max(b,c));
+        }
+
+        __device__
+        static VecType add(const VecType& a, const VecType& b){
+            //unsigned, always >= 0
+            #ifdef HAS_BLACKWELL_INT8_PTX
+            return ptx_add_u8x4(a,b);
+            #else
+            return __vadd4(a,b);
+            #endif
+        }
+
+        __device__
+        static VecType add_sat(const VecType& a, const VecType& b){
+            //unsigned, always >= 0
+            #ifdef HAS_BLACKWELL_INT8_PTX
+            return ptx_add_sat_u8x4(a,b);
+            #else
+            return __vaddus4(a,b);
+            #endif
+        }
+
+        __device__
+        static VecType add_sat_relu(const VecType& a, const VecType& b){
+            //unsigned, always >= 0
+            #ifdef HAS_BLACKWELL_INT8_PTX
+            return ptx_add_sat_u8x4(a,b);
+            #else
+            return __vaddus4(a,b);
+            #endif
+        }
+
+
+        __device__
+        static VecType sub_sat(const VecType& a, const VecType& b){
+            //unsigned, always >= 0
+            #ifdef HAS_BLACKWELL_INT8_PTX
+            return ptx_sub_sat_u8x4(a,b);
+            #else
+            return __vsubus4(a,b);
+            #endif
+        }
+
+        template<class Group>
+        __device__
+        static VecType reduce_max(Group& group, VecType val){
+            #ifdef HAS_BLACKWELL_INT8_PTX
+            return VecType(
+                cooperative_groups::reduce(group, static_cast<unsigned int>(val), [](const auto& l, const auto& r){return ptx_max_u8x4(l,r);})
+            );
+            #else
+            return VecType(
+                cooperative_groups::reduce(group, static_cast<unsigned int>(val), [](const auto& l, const auto& r){return __vmaxu4(l,r);})
+            );            
+            #endif
         }
     };
 

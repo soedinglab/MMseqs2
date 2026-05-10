@@ -6,6 +6,9 @@
 #include "convert.cuh"
 #include "hpc_helpers/all_helpers.cuh"
 #include "hpc_helpers/simple_allocation.cuh"
+#include "custom_score_types.cuh"
+
+#include <cuda_fp16.h>
 
 #include <vector>
 #include <cassert>
@@ -60,6 +63,14 @@ struct PSSM{
     }
     const int* operator[](int encodedSubjectLetter) const{
         return data.data() + encodedSubjectLetter * queryLength;
+    }
+
+    int getMinElement() const{
+        if(data.size() == 0){
+            return 0;
+        }else{
+            return *std::min_element(data.begin(), data.end());
+        }
     }
 
     PSSM_2D_View<int> makeView(int startQueryPos = 0) const{
@@ -203,16 +214,21 @@ void permute_PSSM_for_gapless_kernel(
     const int numRegs,
     const int group_size
 ) {
+    static_assert(sizeof(OutputT) == 4 || sizeof(OutputT) == 2 || sizeof(OutputT) == 1);
     static_assert(accessSizeBytes == 4 || accessSizeBytes == 8 || accessSizeBytes == 16); //float, float2, float4
+
+    //2 for half / short, 4 for int8
+    constexpr int numOutputElemsPer4Bytes = 4 / sizeof(OutputT);
+
     constexpr int numFloatsPerAccess = accessSizeBytes / 4;
-    constexpr int numHalfsPerAccess = numFloatsPerAccess * 2;
+    constexpr int numOutputElemsPerAccess = numFloatsPerAccess * numOutputElemsPer4Bytes;
 
     const int thid = threadIdx.x + blockIdx.x*blockDim.x;
 
     const int numColumns = inputView.numColumns;
     const int numRows = inputView.numRows;
 
-    const int tileSize = (numRegs * group_size * 2);
+    const int tileSize = (numRegs * group_size * numOutputElemsPer4Bytes);
 
     for(int inputRow = blockIdx.y; inputRow < numRows; inputRow += gridDim.y){
 
@@ -221,11 +237,11 @@ void permute_PSSM_for_gapless_kernel(
             const int tileColumnOffset = tileId * tileSize;
             const int columnInTile = inputCol - tileColumnOffset;
 
-            const int l_2 = tileSize/2;
-            const int offset = (2*(columnInTile%l_2) + columnInTile/l_2)%numHalfsPerAccess;
-            const int thread = (columnInTile%l_2)/numRegs;
+            const int stride = tileSize/numOutputElemsPer4Bytes;
+            const int offset = (numOutputElemsPer4Bytes*(columnInTile%stride) + columnInTile/stride)%numOutputElemsPerAccess;
+            const int thread = (columnInTile%stride)/numRegs;
             const int part = (columnInTile%numRegs)/numFloatsPerAccess;
-            const int resultCol = numHalfsPerAccess*thread + offset + part*numHalfsPerAccess*group_size;
+            const int resultCol = numOutputElemsPerAccess*thread + offset + part*numOutputElemsPerAccess*group_size;
 
             resultView[inputRow][tileColumnOffset + resultCol] = inputView[inputRow][inputCol];
         }
@@ -290,7 +306,7 @@ struct GpuPermutedPSSMforGapless{
         alphabetSize = alphabetSize_;
         queryLength = queryLength_;
 
-        const int tileSize = (numRegs * group_size * 2);
+        const int tileSize = (numRegs * group_size * 4 / sizeof(T));
         const int numTiles = SDIV(queryLength, tileSize);
         columnstride = numTiles * tileSize;
         //numPaddedColumns = (SDIV(groupsize * numItems * sizeof(PssmScoreType), 512) * 512) / sizeof(PssmScoreType);
@@ -321,6 +337,18 @@ struct GpuPermutedPSSMforGapless{
         view.numColumns = columnstride / 2;
         view.stride = columnstride / 2;
         view.data = reinterpret_cast<const short2*>(data.data());
+
+        return view;
+    }
+
+    PSSM_2D_View<ScoreType_u8x4> makeUint8x4View() const{
+        assert(columnstride % 4 == 0);
+
+        PSSM_2D_View<ScoreType_u8x4> view;
+        view.numRows = alphabetSize;
+        view.numColumns = columnstride / 4;
+        view.stride = columnstride / 4;
+        view.data = reinterpret_cast<const ScoreType_u8x4*>(data.data());
 
         return view;
     }
