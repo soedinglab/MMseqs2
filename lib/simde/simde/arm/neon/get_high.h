@@ -23,6 +23,8 @@
  * Copyright:
  *   2020      Evan Nemerson <evan@nemerson.com>
  *   2020      Sean Maher <seanptmaher@gmail.com> (Copyright owned by Google, LLC)
+ *   2023      Yi-Yen Chung <eric681@andestech.com> (Copyright owned by Andes Technology)
+ *   2023      Ju-Hung Li <jhlee@pllab.cs.nthu.edu.tw> (Copyright owned by NTHU pllab)
  */
 
 #if !defined(SIMDE_ARM_NEON_GET_HIGH_H)
@@ -35,6 +37,31 @@ SIMDE_DISABLE_UNWANTED_DIAGNOSTICS
 SIMDE_BEGIN_DECLS_
 
 SIMDE_FUNCTION_ATTRIBUTES
+simde_float16x4_t
+simde_vget_high_f16(simde_float16x8_t a) {
+  #if defined(SIMDE_ARM_NEON_A32V7_NATIVE) && defined(SIMDE_ARM_NEON_FP16)
+    return vget_high_f16(a);
+  #else
+    simde_float16x4_private r_;
+    simde_float16x8_private a_ = simde_float16x8_to_private(a);
+    #if defined(SIMDE_RISCV_V_NATIVE) && SIMDE_ARCH_RISCV_ZVFH
+      r_.sv64 = __riscv_vslidedown_vx_f16m1(a_.sv128 , 4 , 8);
+    #else
+      SIMDE_VECTORIZE
+      for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+        r_.values[i] = a_.values[i + (sizeof(r_.values) / sizeof(r_.values[0]))];
+      }
+    #endif
+    return simde_float16x4_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A32V7_ENABLE_NATIVE_ALIASES) || (defined(SIMDE_ENABLE_NATIVE_ALIASES) && \
+  !(defined(SIMDE_ARM_NEON_FP16)))
+  #undef vget_high_f16
+  #define vget_high_f16(a) simde_vget_high_f16((a))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
 simde_float32x2_t
 simde_vget_high_f32(simde_float32x4_t a) {
   #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
@@ -43,7 +70,9 @@ simde_vget_high_f32(simde_float32x4_t a) {
     simde_float32x2_private r_;
     simde_float32x4_private a_ = simde_float32x4_to_private(a);
 
-    #if HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vslidedown_vx_f32m1(a_.sv128 , 2 , 4);
+    #elif HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
       r_.values = __builtin_shufflevector(a_.values, a_.values, 2, 3);
     #else
       SIMDE_VECTORIZE
@@ -69,7 +98,9 @@ simde_vget_high_f64(simde_float64x2_t a) {
     simde_float64x1_private r_;
     simde_float64x2_private a_ = simde_float64x2_to_private(a);
 
-    #if HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vslidedown_vx_f64m1(a_.sv128 , 1 , 2);
+    #elif HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
       r_.values = __builtin_shufflevector(a_.values, a_.values, 1);
     #else
       SIMDE_VECTORIZE
@@ -95,7 +126,9 @@ simde_vget_high_s8(simde_int8x16_t a) {
     simde_int8x8_private r_;
     simde_int8x16_private a_ = simde_int8x16_to_private(a);
 
-    #if HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vslidedown_vx_i8m1(a_.sv128 , 8 , 16);
+    #elif HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
       r_.values = __builtin_shufflevector(a_.values, a_.values, 8, 9, 10, 11, 12, 13, 14, 15);
     #else
       SIMDE_VECTORIZE
@@ -121,7 +154,9 @@ simde_vget_high_s16(simde_int16x8_t a) {
     simde_int16x4_private r_;
     simde_int16x8_private a_ = simde_int16x8_to_private(a);
 
-    #if HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vslidedown_vx_i16m1(a_.sv128 , 4 , 8);
+    #elif HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
       r_.values = __builtin_shufflevector(a_.values, a_.values, 4, 5, 6, 7);
     #else
       SIMDE_VECTORIZE
@@ -147,7 +182,9 @@ simde_vget_high_s32(simde_int32x4_t a) {
     simde_int32x2_private r_;
     simde_int32x4_private a_ = simde_int32x4_to_private(a);
 
-    #if HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vslidedown_vx_i32m1(a_.sv128 , 2 , 4);
+    #elif HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
       r_.values = __builtin_shufflevector(a_.values, a_.values, 2, 3);
     #else
       SIMDE_VECTORIZE
@@ -173,7 +210,9 @@ simde_vget_high_s64(simde_int64x2_t a) {
     simde_int64x1_private r_;
     simde_int64x2_private a_ = simde_int64x2_to_private(a);
 
-    #if HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vslidedown_vx_i64m1(a_.sv128 , 1 , 2);
+    #elif HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
       r_.values = __builtin_shufflevector(a_.values, a_.values, 1);
     #else
       SIMDE_VECTORIZE
@@ -199,7 +238,9 @@ simde_vget_high_u8(simde_uint8x16_t a) {
     simde_uint8x8_private r_;
     simde_uint8x16_private a_ = simde_uint8x16_to_private(a);
 
-    #if HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vslidedown_vx_u8m1(a_.sv128 , 8 , 16);
+    #elif HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
       r_.values = __builtin_shufflevector(a_.values, a_.values, 8, 9, 10, 11, 12, 13, 14,15);
     #else
       SIMDE_VECTORIZE
@@ -225,7 +266,9 @@ simde_vget_high_u16(simde_uint16x8_t a) {
     simde_uint16x4_private r_;
     simde_uint16x8_private a_ = simde_uint16x8_to_private(a);
 
-    #if HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vslidedown_vx_u16m1(a_.sv128 , 4 , 8);
+    #elif HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
       r_.values = __builtin_shufflevector(a_.values, a_.values, 4, 5, 6, 7);
     #else
       SIMDE_VECTORIZE
@@ -251,7 +294,9 @@ simde_vget_high_u32(simde_uint32x4_t a) {
     simde_uint32x2_private r_;
     simde_uint32x4_private a_ = simde_uint32x4_to_private(a);
 
-    #if HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vslidedown_vx_u32m1(a_.sv128 , 2 , 4);
+    #elif HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
       r_.values = __builtin_shufflevector(a_.values, a_.values, 2, 3);
     #else
       SIMDE_VECTORIZE
@@ -277,7 +322,9 @@ simde_vget_high_u64(simde_uint64x2_t a) {
     simde_uint64x1_private r_;
     simde_uint64x2_private a_ = simde_uint64x2_to_private(a);
 
-    #if HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
+    #if defined(SIMDE_RISCV_V_NATIVE)
+      r_.sv64 = __riscv_vslidedown_vx_u64m1(a_.sv128 , 1 , 2);
+    #elif HEDLEY_HAS_BUILTIN(__builtin_shufflevector)
       r_.values = __builtin_shufflevector(a_.values, a_.values, 1);
     #else
       SIMDE_VECTORIZE
@@ -292,6 +339,94 @@ simde_vget_high_u64(simde_uint64x2_t a) {
 #if defined(SIMDE_ARM_NEON_A32V7_ENABLE_NATIVE_ALIASES)
   #undef vget_high_u64
   #define vget_high_u64(a) simde_vget_high_u64((a))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde_poly8x8_t
+simde_vget_high_p8(simde_poly8x16_t a) {
+  #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
+    return vget_high_p8(a);
+  #else
+    simde_poly8x8_private r_;
+    simde_poly8x16_private a_ = simde_poly8x16_to_private(a);
+
+    SIMDE_VECTORIZE
+    for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+      r_.values[i] = a_.values[i + (sizeof(r_.values) / sizeof(r_.values[0]))];
+    }
+
+    return simde_poly8x8_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A32V7_ENABLE_NATIVE_ALIASES)
+  #undef vget_high_p8
+  #define vget_high_p8(a) simde_vget_high_p8((a))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde_poly16x4_t
+simde_vget_high_p16(simde_poly16x8_t a) {
+  #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
+    return vget_high_p16(a);
+  #else
+    simde_poly16x4_private r_;
+    simde_poly16x8_private a_ = simde_poly16x8_to_private(a);
+
+    SIMDE_VECTORIZE
+    for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+      r_.values[i] = a_.values[i + (sizeof(r_.values) / sizeof(r_.values[0]))];
+    }
+
+    return simde_poly16x4_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A32V7_ENABLE_NATIVE_ALIASES)
+  #undef vget_high_p16
+  #define vget_high_p16(a) simde_vget_high_p16((a))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde_poly64x1_t
+simde_vget_high_p64(simde_poly64x2_t a) {
+  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE)
+    return vget_high_p64(a);
+  #else
+    simde_poly64x1_private r_;
+    simde_poly64x2_private a_ = simde_poly64x2_to_private(a);
+
+    SIMDE_VECTORIZE
+    for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+      r_.values[i] = a_.values[i + (sizeof(r_.values) / sizeof(r_.values[0]))];
+    }
+
+    return simde_poly64x1_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A32V8_ENABLE_NATIVE_ALIASES)
+  #undef vget_high_p64
+  #define vget_high_p64(a) simde_vget_high_p64((a))
+#endif
+
+SIMDE_FUNCTION_ATTRIBUTES
+simde_bfloat16x4_t
+simde_vget_high_bf16(simde_bfloat16x8_t a) {
+  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE) && defined(SIMDE_ARM_NEON_BF16)
+    return vget_high_bf16(a);
+  #else
+    simde_bfloat16x4_private r_;
+    simde_bfloat16x8_private a_ = simde_bfloat16x8_to_private(a);
+
+    SIMDE_VECTORIZE
+    for (size_t i = 0 ; i < (sizeof(r_.values) / sizeof(r_.values[0])) ; i++) {
+      r_.values[i] = a_.values[i + (sizeof(r_.values) / sizeof(r_.values[0]))];
+    }
+
+    return simde_bfloat16x4_from_private(r_);
+  #endif
+}
+#if defined(SIMDE_ARM_NEON_A32V8_ENABLE_NATIVE_ALIASES)
+  #undef vget_high_bf16
+  #define vget_high_bf16(a) simde_vget_high_bf16((a))
 #endif
 
 SIMDE_END_DECLS_
