@@ -70,6 +70,7 @@ Marv::Marv(size_t dbEntries, int alphabetSize, int maxSeqLength, size_t maxSeqs,
     ));
     cudasw4::CudaSW4* sw = static_cast<cudasw4::CudaSW4*>(cudasw);
 
+#ifdef CUDASW_INT8_GAPLESS
     bool allBlackwell = !deviceIds.empty();
     for (int devId : deviceIds) {
         int ccMajor = 0;
@@ -79,6 +80,7 @@ Marv::Marv(size_t dbEntries, int alphabetSize, int maxSeqLength, size_t maxSeqs,
     if (allBlackwell) {
         sw->allowInt8(true);
     }
+#endif
 
     sw->setScanType(mapCswScanType(alignmentType));
 }
