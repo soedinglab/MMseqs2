@@ -48,6 +48,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             unsigned int setkey = 0;
             unsigned int maxsetkey = 0;
             unsigned int maxkey = 0;
+            size_t lookupEntryCount = 0;
             while (std::getline(mappingStream, line)) {
                 std::vector<std::string> split = Util::split(line, "\t");
                 unsigned int key = strtoul(split[0].c_str(), NULL, 10);
@@ -56,6 +57,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                     maxsetkey = setkey;
                 }
                 maxkey = key;
+                lookupEntryCount++;
             }
             unsigned int lastKey = maxkey;
             keyToSet = new unsigned int[lastKey+1];
@@ -78,7 +80,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             }
             unsigned int sourceLen = maxsetkey + 1;
             seqnum = setToLength.size();
-            sourceList = new(std::nothrow) unsigned int[lastKey];
+            sourceList = new(std::nothrow) unsigned int[lookupEntryCount];
             sourceOffsets = new(std::nothrow) size_t[sourceLen + 1]();
             sourceLookupTable = new(std::nothrow) unsigned int *[sourceLen];
             size_t * sourceOffsetsDecrease = new(std::nothrow) size_t[sourceLen + 1]();
@@ -94,7 +96,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                 sourceOffsetsDecrease[setkey]++;
             }
             AlignmentSymmetry::computeOffsetFromCounts(sourceOffsets, sourceLen);
-            AlignmentSymmetry::setupPointers<unsigned int>(sourceList, sourceLookupTable, sourceOffsets, sourceLen, lastKey);
+            AlignmentSymmetry::setupPointers<unsigned int>(sourceList, sourceLookupTable, sourceOffsets, sourceLen, lookupEntryCount);
             
             mappingStream.close();
             mappingStream.open(seqDB + ".lookup");
@@ -156,6 +158,8 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             for (auto* ptr : indexStorage) {
                 delete ptr;
             }
+            delete[] sourceOffsetsDecrease;
+            delete originalseqDbr;
         }
     }
 
@@ -166,9 +170,9 @@ Clustering::~Clustering() {
     delete seqDbr;
     delete alnDbr;
     if(needSET){
-        delete keyToSet;
-        delete sourceOffsets;
-        delete sourceList;
+        delete[] keyToSet;
+        delete[] sourceOffsets;
+        delete[] sourceList;
         delete[] sourceLookupTable;
     }
 }
