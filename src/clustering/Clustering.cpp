@@ -78,7 +78,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             }
             unsigned int sourceLen = maxsetkey + 1;
             seqnum = setToLength.size();
-            sourceList = new(std::nothrow) unsigned int[lastKey];
+            sourceList = new(std::nothrow) unsigned int[lastKey + 1];
             sourceOffsets = new(std::nothrow) size_t[sourceLen + 1]();
             sourceLookupTable = new(std::nothrow) unsigned int *[sourceLen];
             size_t * sourceOffsetsDecrease = new(std::nothrow) size_t[sourceLen + 1]();
@@ -94,7 +94,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                 sourceOffsetsDecrease[setkey]++;
             }
             AlignmentSymmetry::computeOffsetFromCounts(sourceOffsets, sourceLen);
-            AlignmentSymmetry::setupPointers<unsigned int>(sourceList, sourceLookupTable, sourceOffsets, sourceLen, lastKey);
+            AlignmentSymmetry::setupPointers<unsigned int>(sourceList, sourceLookupTable, sourceOffsets, sourceLen, lastKey + 1);
             
             mappingStream.close();
             mappingStream.open(seqDB + ".lookup");
@@ -156,6 +156,8 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             for (auto* ptr : indexStorage) {
                 delete ptr;
             }
+            delete[] sourceOffsetsDecrease;
+            delete originalseqDbr;
         }
     }
 
@@ -166,9 +168,9 @@ Clustering::~Clustering() {
     delete seqDbr;
     delete alnDbr;
     if(needSET){
-        delete keyToSet;
-        delete sourceOffsets;
-        delete sourceList;
+        delete[] keyToSet;
+        delete[] sourceOffsets;
+        delete[] sourceList;
         delete[] sourceLookupTable;
     }
 }
