@@ -48,7 +48,6 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             unsigned int setkey = 0;
             unsigned int maxsetkey = 0;
             unsigned int maxkey = 0;
-            size_t lookupEntryCount = 0;
             while (std::getline(mappingStream, line)) {
                 std::vector<std::string> split = Util::split(line, "\t");
                 unsigned int key = strtoul(split[0].c_str(), NULL, 10);
@@ -57,7 +56,6 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                     maxsetkey = setkey;
                 }
                 maxkey = key;
-                lookupEntryCount++;
             }
             unsigned int lastKey = maxkey;
             keyToSet = new unsigned int[lastKey+1];
@@ -80,7 +78,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
             }
             unsigned int sourceLen = maxsetkey + 1;
             seqnum = setToLength.size();
-            sourceList = new(std::nothrow) unsigned int[lookupEntryCount];
+            sourceList = new(std::nothrow) unsigned int[lastKey + 1];
             sourceOffsets = new(std::nothrow) size_t[sourceLen + 1]();
             sourceLookupTable = new(std::nothrow) unsigned int *[sourceLen];
             size_t * sourceOffsetsDecrease = new(std::nothrow) size_t[sourceLen + 1]();
@@ -96,7 +94,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                 sourceOffsetsDecrease[setkey]++;
             }
             AlignmentSymmetry::computeOffsetFromCounts(sourceOffsets, sourceLen);
-            AlignmentSymmetry::setupPointers<unsigned int>(sourceList, sourceLookupTable, sourceOffsets, sourceLen, lookupEntryCount);
+            AlignmentSymmetry::setupPointers<unsigned int>(sourceList, sourceLookupTable, sourceOffsets, sourceLen, lastKey + 1);
             
             mappingStream.close();
             mappingStream.open(seqDB + ".lookup");
