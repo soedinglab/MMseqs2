@@ -428,6 +428,7 @@ public:
     float    compBiasCorrectionScale;    // Aminoacid composiont correction scale factor
 
     bool   diagonalScoring;              // switch diagonal scoring
+    bool   useAuxScoring;               // use auxiliary sequence scoring in prefilter
     int    exactKmerMatching;            // only exact k-mer matching
     int    maskMode;                     // mask low complex areas
     float  maskProb;                     // mask probability
@@ -811,6 +812,7 @@ public:
     PARAMETER(PARAM_ALPH_SIZE)
     PARAMETER(PARAM_MAX_SEQ_LEN)
     PARAMETER(PARAM_DIAGONAL_SCORING)
+    PARAMETER(PARAM_USE_AUX_SCORING)
     PARAMETER(PARAM_EXACT_KMER_MATCHING)
     PARAMETER(PARAM_MASK_RESIDUES)
     PARAMETER(PARAM_MASK_PROBABILTY)
