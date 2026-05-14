@@ -314,8 +314,8 @@ Parameters::Parameters():
         PARAM_RECLASSIFY_GAMMA(PARAM_RECLASSIFY_GAMMA_ID, "--gamma", "Reclassify gamma", "Exponent applied to coverage confidence during reclassification", typeid(double), (void *) &reclassifyGamma, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_RECLASSIFY_MAX_ITER(PARAM_RECLASSIFY_MAX_ITER_ID, "--max-iter", "Reclassify max iterations", "Maximum number of SQUAREM iterations for reclassification", typeid(int), (void *) &reclassifyMaxIterations, "^[1-9]{1}[0-9]*$"),
         PARAM_RECLASSIFY_TOL(PARAM_RECLASSIFY_TOL_ID, "--tol", "Reclassify tolerance", "Convergence tolerance for reclassification", typeid(double), (void *) &reclassifyTolerance, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
-        PARAM_RECLASSIFY_TAXONOMY(PARAM_RECLASSIFY_TAXONOMY_ID, "--taxonomy", "Reclassify taxonomy output", "0: write alignment and protein abundance only; taxonomy files are not required. 1: also write taxonomy_abundance.tsv and taxonomic columns in protein_abundance.tsv; requires targetDB_mapping and targetDB_taxonomy", typeid(int), (void *) &reclassifyTaxonomy, "^[0-1]{1}$"),
-        PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE(PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE_ID, "--max-drop-percentage", "Max drop percentage", "Maximum percentage of targets that the automatic jump-based filter may classify as a tail for dropping (range 0.0-100.0, default 30.0)", typeid(double), (void *) &reclassifyMaxDropPercentage, "^100(\\.0+)?$|^([0-9]|[1-9][0-9])(\\.[0-9]+)?$"),
+        PARAM_RECLASSIFY_TAXONOMY(PARAM_RECLASSIFY_TAXONOMY_ID, "--taxonomy", "Abundance taxonomy output", "0: write alignment and protein abundance only; taxonomy files are not required. 1: also write taxonomy_abundance.tsv and taxonomic columns in protein_abundance.tsv; requires targetDB_mapping and targetDB_taxonomy", typeid(int), (void *) &reclassifyTaxonomy, "^[0-1]{1}$"),
+        PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE(PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE_ID, "--drop-percentage", "Max drop percentage", "Maximum percentage of cumulative low-tail abundance mass that the automatic jump-based filter may drop (range 0.0-100.0, default 10.0)", typeid(double), (void *) &reclassifyMaxDropPercentage, "^100(\\.0+)?$|^([0-9]|[1-9][0-9])(\\.[0-9]+)?$"),
         // for modules that should handle -h themselves
         PARAM_HELP(PARAM_HELP_ID, "-h", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_HELP_LONG(PARAM_HELP_LONG_ID, "--help", "Help", "Help", typeid(bool), (void *) &help, "", MMseqsParameter::COMMAND_HIDDEN)
@@ -349,11 +349,22 @@ Parameters::Parameters():
     reclassify.push_back(&PARAM_RECLASSIFY_GAMMA);
     reclassify.push_back(&PARAM_RECLASSIFY_MAX_ITER);
     reclassify.push_back(&PARAM_RECLASSIFY_TOL);
-    reclassify.push_back(&PARAM_RECLASSIFY_TAXONOMY);
     reclassify.push_back(&PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE);
     reclassify.push_back(&PARAM_THREADS);
     reclassify.push_back(&PARAM_COMPRESSED);
     reclassify.push_back(&PARAM_V);
+
+    // abundance
+    abundance.push_back(&PARAM_RECLASSIFY_LAMBDA);
+    abundance.push_back(&PARAM_RECLASSIFY_ALPHA);
+    abundance.push_back(&PARAM_RECLASSIFY_GAMMA);
+    abundance.push_back(&PARAM_RECLASSIFY_MAX_ITER);
+    abundance.push_back(&PARAM_RECLASSIFY_TOL);
+    abundance.push_back(&PARAM_RECLASSIFY_TAXONOMY);
+    abundance.push_back(&PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE);
+    abundance.push_back(&PARAM_THREADS);
+    abundance.push_back(&PARAM_COMPRESSED);
+    abundance.push_back(&PARAM_V);
 
     // createclusearchdb
     createclusearchdb.push_back(&PARAM_THREADS);
@@ -2658,13 +2669,13 @@ void Parameters::setDefaults() {
     unpackNameMode = Parameters::UNPACK_NAME_ACCESSION;
 
     // reclassify
-    reclassifyLambda = 0.02;
+    reclassifyLambda = 1.0;
     reclassifyAlpha = 1.0;
     reclassifyGamma = 1.0;
     reclassifyMaxIterations = 100;
     reclassifyTolerance = 1e-5;
     reclassifyTaxonomy = 0;
-    reclassifyMaxDropPercentage = 30.0;
+    reclassifyMaxDropPercentage = 10.0;
 
     lcaRanks = "";
     showTaxLineage = 0;

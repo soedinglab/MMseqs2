@@ -1,16 +1,13 @@
 #include "Parameters.h"
 #include "DBReader.h"
+#include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
 #include "Matcher.h"
 #include "FastSort.h"
-#include "FileUtil.h"
-#include "NcbiTaxonomy.h"
-#include "MappingReader.h"
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <cctype>
 #include <limits>
 #include <numeric>
@@ -43,15 +40,6 @@ struct TargetStats {
     double coverageConfidence;
     bool dropped;
     std::vector<Interval> intervals;
-};
-
-struct TaxonomyStats {
-    unsigned int taxId;
-    double abundance;
-    double coverageConfidenceSum;
-    size_t proteinCount;
-
-    TaxonomyStats() : taxId(0), abundance(0.0), coverageConfidenceSum(0.0), proteinCount(0) {}
 };
 
 struct ReclassTaxContext {
@@ -103,10 +91,12 @@ static void loadAlignmentDb(DBReader<unsigned int> &reader, ReclassTaxContext &c
                 EXIT(EXIT_FAILURE);
             }
 
-            if (columns == Matcher::ALN_RES_WITH_BT_COL_CNT || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT) {
+            if (columns == Matcher::ALN_RES_WITH_BT_COL_CNT || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT
+                || columns == Matcher::ALN_RES_WITH_BT_COL_CNT + 1 || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT + 1) {
                 ctx.hasBacktrace = true;
             }
-            if (columns == Matcher::ALN_RES_WITH_ORF_POS_WITHOUT_BT_COL_CNT || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT) {
+            if (columns == Matcher::ALN_RES_WITH_ORF_POS_WITHOUT_BT_COL_CNT || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT
+                || columns == Matcher::ALN_RES_WITH_ORF_POS_WITHOUT_BT_COL_CNT + 1 || columns == Matcher::ALN_RES_WITH_ORF_AND_BT_COL_CNT + 1) {
                 ctx.hasOrfPosition = true;
             }
 
@@ -156,30 +146,28 @@ static void initAbundance(MappingTable &mappingTable, const std::unordered_set<u
 
 struct TargetHitRef {
     const ReclassTaxEntry *entry;
-    double expScore;
+    double score;
     double weight;
 };
 
 static void initCoverageConfidence(MappingTable &mappingTable,
                                    const std::unordered_set<unsigned int> &targetSet,
-                                   double lambda,
                                    int threads) {
+    (void)threads;
     std::unordered_map<unsigned int, int> targetMin;
     std::unordered_map<unsigned int, int> targetMax;
-    std::unordered_map<unsigned int, unsigned int> targetLenMap;
     std::unordered_map<unsigned int, std::vector<TargetHitRef> > hitsByTarget;
 
     for (std::unordered_set<unsigned int>::const_iterator it = targetSet.begin(); it != targetSet.end(); ++it) {
         targetMin[*it] = std::numeric_limits<int>::max();
         targetMax[*it] = std::numeric_limits<int>::min();
-        targetLenMap[*it] = 0;
         hitsByTarget.emplace(*it, std::vector<TargetHitRef>());
     }
 
     for (MappingTable::const_iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
-        double scoreSumExp = 0.0;
+        double scoreSum = 0.0;
         for (size_t j = 0; j < it->second.size(); ++j) {
-            scoreSumExp += std::exp(lambda * static_cast<double>(it->second[j].result.score));
+            scoreSum += static_cast<double>(it->second[j].result.score);
         }
         for (size_t j = 0; j < it->second.size(); ++j) {
             const unsigned int target = it->second[j].result.dbKey;
@@ -189,12 +177,9 @@ static void initCoverageConfidence(MappingTable &mappingTable,
             if (it->second[j].result.dbEndPos > targetMax[target]) {
                 targetMax[target] = it->second[j].result.dbEndPos;
             }
-            if (static_cast<unsigned int>(it->second[j].result.dbLen) > targetLenMap[target]) {
-                targetLenMap[target] = static_cast<unsigned int>(it->second[j].result.dbLen);
-            }
-            const double expScore = std::exp(lambda * static_cast<double>(it->second[j].result.score));
-            const double weight = (scoreSumExp > 0.0) ? (expScore / scoreSumExp) : 0.0;
-            hitsByTarget[target].push_back(TargetHitRef{&it->second[j], expScore, weight});
+            const double score = static_cast<double>(it->second[j].result.score);
+            const double weight = (scoreSum > 0.0) ? (score / scoreSum) : 0.0;
+            hitsByTarget[target].push_back(TargetHitRef{&it->second[j], score, weight});
         }
     }
 
@@ -222,7 +207,7 @@ static void initCoverageConfidence(MappingTable &mappingTable,
                     continue;
                 }
 
-                const double mq = hits[h].expScore / static_cast<double>(targetLen);
+                const double mq = hits[h].score / static_cast<double>(targetLen);
                 const int start = std::max(0, result.dbStartPos - startPos);
                 const int end = std::min(len - 1, result.dbEndPos - startPos);
                 for (int pos = start; pos <= end; ++pos) {
@@ -233,12 +218,16 @@ static void initCoverageConfidence(MappingTable &mappingTable,
         }
 
         double covered = 0.0;
+        double squaredCovered = 0.0;
         for (size_t pos = 0; pos < covConf.size(); ++pos) {
-            covered += std::min(1.0, covConf[pos]);
+            const double clipped = std::min(1.0, covConf[pos]);
+            covered += clipped;
+            squaredCovered += clipped * clipped;
         }
-        const unsigned int targetLen = (targetLenMap[target] > 0) ? targetLenMap[target] : 1;
-        const double fraction = covered / static_cast<double>(targetLen);
-        coverageFractionByIndex[i] = clamp01(fraction);
+        const double fraction = covered / static_cast<double>(len);
+        const double hhi = (covered > 0.0) ? (squaredCovered / (covered * covered)) : 1.0;
+        const double concentrationPenalty = 1.0 - hhi;
+        coverageFractionByIndex[i] = clamp01(fraction * concentrationPenalty);
     }
 
     for (size_t i = 0; i < targetList.size(); ++i) {
@@ -421,8 +410,8 @@ static void squarem(ReclassTaxContext &ctx,
     }
 
     initAbundance(ctx.mappingTable, ctx.targetSet, ctx.queryCount);
-    initCoverageConfidence(ctx.mappingTable, ctx.targetSet, lambda, threads);
-    Debug(Debug::INFO) << "Reclassify-taxonomy initialized coverage confidence." << "\n";
+    initCoverageConfidence(ctx.mappingTable, ctx.targetSet, threads);
+    Debug(Debug::INFO) << "Reclassify initialized coverage confidence." << "\n";
 
     std::unordered_map<unsigned int, double> fixedCoverageConfidence;
     fixedCoverageConfidence.reserve(ctx.targetSet.size());
@@ -483,74 +472,12 @@ static void squarem(ReclassTaxContext &ctx,
             parameterChange = std::max(parameterChange, std::fabs(xNew[i] - x0[i]));
         }
 
-        Debug(Debug::INFO) << "Reclassify-taxonomy iteration " << iter << ": LL=" << currentLl << " delta=" << parameterChange << "\n";
+        Debug(Debug::INFO) << "Reclassify iteration " << iter << ": LL=" << currentLl << " delta=" << parameterChange << "\n";
         x0 = xNew;
         if (parameterChange < tol && iter > 5) {
-            Debug(Debug::INFO) << "Reclassify-taxonomy converged after " << (iter + 1) << " iterations.\n";
+            Debug(Debug::INFO) << "Reclassify converged after " << (iter + 1) << " iterations." << "\n";
             break;
         }
-    }
-}
-
-static bool compareByPosterior(const ReclassTaxEntry &a, const ReclassTaxEntry &b) {
-    if (a.posterior != b.posterior) {
-        return a.posterior > b.posterior;
-    }
-    return Matcher::compareHits(a.result, b.result);
-}
-
-static const char *headerForKey(DBReader<unsigned int> &headerReader, unsigned int key, unsigned int threadIdx) {
-    size_t id = headerReader.getId(key);
-    if (id == UINT_MAX) {
-        return NULL;
-    }
-    return headerReader.getData(id, threadIdx);
-}
-
-static std::string identifierForKey(DBReader<unsigned int> &headerReader, unsigned int key, unsigned int threadIdx) {
-    const char *header = headerForKey(headerReader, key, threadIdx);
-    if (header == NULL) {
-        return SSTR(key);
-    }
-    std::string parsed = Util::parseFastaHeader(header);
-    return parsed.empty() ? SSTR(key) : parsed;
-}
-
-static void computeAlignmentCounts(const Matcher::result_t &res, unsigned int &alnLen, unsigned int &mismatchCount, unsigned int &gapOpenCount) {
-    gapOpenCount = 0;
-    alnLen = res.alnLength;
-    mismatchCount = 0;
-
-    if (!res.backtrace.empty()) {
-        size_t matchCount = 0;
-        alnLen = 0;
-        for (size_t pos = 0; pos < res.backtrace.size(); ++pos) {
-            int cnt = 0;
-            if (std::isdigit(static_cast<unsigned char>(res.backtrace[pos]))) {
-                cnt += Util::fast_atoi<int>(res.backtrace.c_str() + pos);
-                while (std::isdigit(static_cast<unsigned char>(res.backtrace[pos]))) {
-                    pos++;
-                }
-            }
-            alnLen += cnt;
-
-            switch (res.backtrace[pos]) {
-                case 'M':
-                    matchCount += cnt;
-                    break;
-                case 'D':
-                case 'I':
-                    gapOpenCount += 1;
-                    break;
-            }
-        }
-        const unsigned int identical = static_cast<unsigned int>(res.seqId * static_cast<float>(alnLen) + 0.5f);
-        mismatchCount = static_cast<unsigned int>(matchCount - identical);
-    } else {
-        const int adjustQstart = (res.qStartPos == -1) ? 0 : res.qStartPos;
-        const int adjustDBstart = (res.dbStartPos == -1) ? 0 : res.dbStartPos;
-        const float bestMatchEstimate = static_cast<float>(std::min(abs(res.qEndPos - adjustQstart), abs(res.dbEndPos - adjustDBstart)));
-        mismatchCount = static_cast<unsigned int>(bestMatchEstimate * (1.0f - res.seqId) + 0.5f);
     }
 }
 
@@ -583,27 +510,6 @@ static std::vector<Interval> mergeIntervals(std::vector<Interval> intervals) {
         }
     }
     return merged;
-}
-
-static std::string intervalsToString(const std::vector<Interval> &intervals) {
-    std::string out;
-    for (size_t i = 0; i < intervals.size(); ++i) {
-        if (i > 0) {
-            out.append(",");
-        }
-        out.append(SSTR(intervals[i].start + 1));
-        out.append(":");
-        out.append(SSTR(intervals[i].end + 1));
-    }
-    return out;
-}
-
-static unsigned int intervalCoverage(const std::vector<Interval> &intervals) {
-    unsigned int covered = 0;
-    for (size_t i = 0; i < intervals.size(); ++i) {
-        covered += static_cast<unsigned int>(intervals[i].end - intervals[i].start + 1);
-    }
-    return covered;
 }
 
 static std::vector<TargetStats> collectTargetStats(const ReclassTaxContext &ctx) {
@@ -655,15 +561,23 @@ static bool largestJumpCutoff(std::vector<double> values,
 
     std::sort(values.begin(), values.end());
     maxTailFraction = clamp01(maxTailFraction);
-    const size_t maxTailCount = std::max(MIN_TAIL_TARGETS,
-                                         static_cast<size_t>(std::floor(maxTailFraction * static_cast<double>(values.size()))));
+    const double totalMass = std::accumulate(values.begin(), values.end(), 0.0);
+    if (totalMass <= EPS || maxTailFraction <= 0.0) {
+        return false;
+    }
+    const double maxTailMass = maxTailFraction * totalMass;
+
     double bestGap = 0.0;
     size_t bestIdx = 0;
+    double lowTailMass = 0.0;
     for (size_t i = 0; i + 1 < values.size(); ++i) {
         const size_t lowTailCount = i + 1;
         const size_t highTailCount = values.size() - lowTailCount;
         const size_t candidateTailCount = useLowTail ? lowTailCount : highTailCount;
-        if (candidateTailCount < MIN_TAIL_TARGETS || candidateTailCount > maxTailCount) {
+        lowTailMass += values[i];
+        const double highTailMass = totalMass - lowTailMass;
+        const double candidateTailMass = useLowTail ? lowTailMass : highTailMass;
+        if (candidateTailCount < MIN_TAIL_TARGETS || candidateTailMass > (maxTailMass + EPS)) {
             continue;
         }
 
@@ -696,8 +610,22 @@ static bool tailQuantileCutoff(std::vector<double> values,
 
     std::sort(values.begin(), values.end());
     maxTailFraction = clamp01(maxTailFraction);
-    const size_t maxTailCount = std::max(MIN_TAIL_TARGETS,
-                                         static_cast<size_t>(std::floor(maxTailFraction * static_cast<double>(values.size()))));
+    const double totalMass = std::accumulate(values.begin(), values.end(), 0.0);
+    if (totalMass <= EPS || maxTailFraction <= 0.0) {
+        return false;
+    }
+    const double maxTailMass = maxTailFraction * totalMass;
+
+    double accumulatedMass = 0.0;
+    size_t maxTailCount = 0;
+    for (size_t i = 0; i < values.size(); ++i) {
+        const double candidate = accumulatedMass + values[i];
+        if (candidate > (maxTailMass + EPS)) {
+            break;
+        }
+        accumulatedMass = candidate;
+        ++maxTailCount;
+    }
     if (maxTailCount < MIN_TAIL_TARGETS || maxTailCount >= values.size()) {
         return false;
     }
@@ -713,7 +641,8 @@ static bool tailQuantileCutoff(std::vector<double> values,
 
 static std::unordered_set<unsigned int> selectTailTargets(const std::vector<TargetStats> &stats,
                                                           bool useLowTail,
-                                                          size_t tailCount) {
+                                                          size_t tailCount,
+                                                          double maxTailFraction) {
     std::vector<const TargetStats *> ordered;
     ordered.reserve(stats.size());
     for (size_t i = 0; i < stats.size(); ++i) {
@@ -729,10 +658,23 @@ static std::unordered_set<unsigned int> selectTailTargets(const std::vector<Targ
         return lhs->key < rhs->key;
     });
 
+    double totalMass = 0.0;
+    for (size_t i = 0; i < ordered.size(); ++i) {
+        const double value = useLowTail ? ordered[i]->abundance : ordered[i]->coverageConfidence;
+        totalMass += value;
+    }
+    const double maxTailMass = clamp01(maxTailFraction) * totalMass;
+
     std::unordered_set<unsigned int> selected;
     const size_t limit = std::min(tailCount, ordered.size());
+    double selectedMass = 0.0;
     selected.reserve(limit);
     for (size_t i = 0; i < limit; ++i) {
+        const double value = useLowTail ? ordered[i]->abundance : ordered[i]->coverageConfidence;
+        if (selected.size() >= MIN_TAIL_TARGETS && (selectedMass + value) > (maxTailMass + EPS)) {
+            break;
+        }
+        selectedMass += value;
         selected.insert(ordered[i]->key);
     }
     return selected;
@@ -768,7 +710,7 @@ static std::unordered_set<unsigned int> selectDroppedTargets(const std::vector<T
         return dropped;
     }
 
-    const std::unordered_set<unsigned int> lowAbundanceTargets = selectTailTargets(stats, true, abundanceTailCount);
+    const std::unordered_set<unsigned int> lowAbundanceTargets = selectTailTargets(stats, true, abundanceTailCount, maxTailFraction);
     for (std::unordered_set<unsigned int>::const_iterator it = lowAbundanceTargets.begin(); it != lowAbundanceTargets.end(); ++it) {
         dropped.insert(*it);
     }
@@ -783,7 +725,7 @@ static void applyDroppedTargets(ReclassTaxContext &ctx,
                                 size_t totalTargets,
                                 double abundanceCutoff) {
     if (dropped.empty()) {
-        Debug(Debug::INFO) << "Reclassify-taxonomy target filter kept all targets. abundance cutoff="
+        Debug(Debug::INFO) << "Reclassify target filter kept all targets. abundance cutoff="
                            << abundanceCutoff << "\n";
         return;
     }
@@ -812,176 +754,68 @@ static void applyDroppedTargets(ReclassTaxContext &ctx,
     const double removedPct = (totalTargets > 0)
                                 ? (100.0 * static_cast<double>(dropped.size()) / static_cast<double>(totalTargets))
                                 : 0.0;
-    Debug(Debug::INFO) << "Reclassify-taxonomy dropped " << dropped.size()
+    Debug(Debug::INFO) << "Reclassify dropped " << dropped.size()
                        << " of " << totalTargets
                        << " targets (" << removedPct << "%)"
                        << " using abundance <= " << abundanceCutoff << ".\n";
 }
 
-static void markDroppedTargets(std::vector<TargetStats> &stats, const std::unordered_set<unsigned int> &dropped) {
-    for (size_t i = 0; i < stats.size(); ++i) {
-        stats[i].dropped = (dropped.find(stats[i].key) != dropped.end());
+static bool compareByPosteriorThenBitScore(const ReclassTaxEntry &a, const ReclassTaxEntry &b) {
+    if (a.posterior != b.posterior) {
+        return a.posterior > b.posterior;
     }
+    if (a.result.score != b.result.score) {
+        return a.result.score > b.result.score;
+    }
+    return Matcher::compareHits(a.result, b.result);
 }
 
-static void convertAbundanceToPercent(std::vector<TargetStats> &stats) {
-    double total = 0.0;
-    for (size_t i = 0; i < stats.size(); ++i) {
-        total += stats[i].abundance;
-    }
+static void writeReclassifiedDb(const ReclassTaxContext &ctx,
+                                int dbType,
+                                const std::string &outDb,
+                                const std::string &outIndex,
+                                int threads,
+                                bool compress) {
+    DBWriter writer(outDb.c_str(), outIndex.c_str(), threads, compress, dbType);
+    writer.open();
 
-    if (total <= 0.0) {
-        for (size_t i = 0; i < stats.size(); ++i) {
-            stats[i].abundance = 0.0;
-        }
-        return;
-    }
+    Debug::Progress progress(ctx.queryOrder.size());
+#pragma omp parallel
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+        char buffer[1024 + 32768 * 4];
 
-    for (size_t i = 0; i < stats.size(); ++i) {
-        stats[i].abundance = 100.0 * (stats[i].abundance / total);
-    }
-}
-
-static void writeReclassifiedM8(const ReclassTaxContext &ctx,
-                                DBReader<unsigned int> &queryHeaderReader,
-                                DBReader<unsigned int> &targetHeaderReader,
-                                const std::string &path) {
-    FILE *handle = FileUtil::openFileOrDie(path.c_str(), "w", false);
-    char line[4096];
-
-    for (size_t i = 0; i < ctx.queryOrder.size(); ++i) {
-        const unsigned int queryKey = ctx.queryOrder[i];
-        MappingTable::const_iterator recordsIt = ctx.mappingTable.find(queryKey);
-        if (recordsIt == ctx.mappingTable.end()) {
-            continue;
-        }
-
-        std::string queryId = identifierForKey(queryHeaderReader, queryKey, 0);
-        std::vector<ReclassTaxEntry> records = recordsIt->second;
-        SORT_SERIAL(records.begin(), records.end(), compareByPosterior);
-
-        for (size_t j = 0; j < records.size(); ++j) {
-            const Matcher::result_t &res = records[j].result;
-            const std::string targetId = identifierForKey(targetHeaderReader, res.dbKey, 0);
-
-            unsigned int alnLen = 0;
-            unsigned int mismatchCount = 0;
-            unsigned int gapOpenCount = 0;
-            computeAlignmentCounts(res, alnLen, mismatchCount, gapOpenCount);
-
-            const int written = snprintf(line, sizeof(line),
-                                         "%s\t%s\t%1.3f\t%u\t%u\t%u\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                                         queryId.c_str(), targetId.c_str(), res.seqId, alnLen,
-                                         mismatchCount, gapOpenCount,
-                                         res.qStartPos + 1, res.qEndPos + 1,
-                                         res.dbStartPos + 1, res.dbEndPos + 1,
-                                         res.eval, res.score);
-            if (written < 0 || static_cast<size_t>(written) >= sizeof(line)) {
-                Debug(Debug::WARNING) << "Truncated M8 line for query " << queryKey << " and target " << res.dbKey << ".\n";
+#pragma omp for schedule(dynamic, 5)
+        for (size_t i = 0; i < ctx.queryOrder.size(); ++i) {
+            progress.updateProgress();
+            const unsigned int queryKey = ctx.queryOrder[i];
+            MappingTable::const_iterator recordsIt = ctx.mappingTable.find(queryKey);
+            if (recordsIt == ctx.mappingTable.end()) {
                 continue;
             }
-            fputs(line, handle);
+
+            std::vector<ReclassTaxEntry> records = recordsIt->second;
+            SORT_SERIAL(records.begin(), records.end(), compareByPosteriorThenBitScore);
+
+            writer.writeStart(thread_idx);
+            for (size_t j = 0; j < records.size(); ++j) {
+                Matcher::result_t res = records[j].result;
+                res.seqId = static_cast<float>(records[j].posterior);
+                size_t len = Matcher::resultToBuffer(buffer, res, ctx.hasBacktrace, ctx.hasOrfPosition);
+                writer.writeAdd(buffer, len, thread_idx);
+            }
+            writer.writeEnd(queryKey, thread_idx);
         }
     }
 
-    fclose(handle);
-}
-
-static void writeProteinStats(const std::vector<TargetStats> &stats,
-                              DBReader<unsigned int> &targetHeaderReader,
-                              MappingReader *mapping,
-                              NcbiTaxonomy *taxonomy,
-                              const std::string &path) {
-    FILE *handle = FileUtil::openFileOrDie(path.c_str(), "w", false);
-    const bool withTaxonomy = (mapping != NULL && taxonomy != NULL);
-    if (withTaxonomy) {
-        fputs("target_key\ttarget_id\tabundance_pct\tcoverage_confidence\tDrop(y/n)\tmapped_length\ttarget_length\ttaxid\trank\ttaxname\ttaxlineage\n", handle);
-    } else {
-        fputs("target_key\ttarget_id\tabundance_pct\tcoverage_confidence\tDrop(y/n)\tmapped_length\ttarget_length\n", handle);
-    }
-
-    for (size_t i = 0; i < stats.size(); ++i) {
-        const unsigned int key = stats[i].key;
-        const std::string targetId = identifierForKey(targetHeaderReader, key, 0);
-        const unsigned int mappedLength = intervalCoverage(stats[i].intervals);
-
-        if (withTaxonomy) {
-            const unsigned int taxId = mapping->lookup(key);
-            const TaxonNode *node = (taxId != 0) ? taxonomy->taxonNode(taxId, false) : NULL;
-            const std::string lineage = (node != NULL) ? taxonomy->taxLineage(node, true) : "unclassified";
-                fprintf(handle, "%u\t%s\t%.12g\t%.12g\t%s\t%u\t%u\t%u\t%s\t%s\t%s\n",
-                    key,
-                    targetId.c_str(),
-                    stats[i].abundance,
-                    stats[i].coverageConfidence,
-                    stats[i].dropped ? "y" : "n",
-                    mappedLength,
-                    stats[i].targetLength,
-                    taxId,
-                    (node != NULL) ? taxonomy->getString(node->rankIdx) : "unclassified",
-                    (node != NULL) ? taxonomy->getString(node->nameIdx) : "unclassified",
-                    lineage.c_str());
-        } else {
-                fprintf(handle, "%u\t%s\t%.12g\t%.12g\t%s\t%u\t%u\n",
-                    key,
-                    targetId.c_str(),
-                    stats[i].abundance,
-                    stats[i].coverageConfidence,
-                    stats[i].dropped ? "y" : "n",
-                    mappedLength,
-                    stats[i].targetLength);
-        }
-    }
-
-    fclose(handle);
-}
-
-static void writeTaxonomyStats(const std::vector<TargetStats> &stats,
-                               MappingReader &mapping,
-                               NcbiTaxonomy *taxonomy,
-                               const std::string &path) {
-    std::unordered_map<unsigned int, TaxonomyStats> aggregated;
-    for (size_t i = 0; i < stats.size(); ++i) {
-        const unsigned int taxId = mapping.lookup(stats[i].key);
-        TaxonomyStats &entry = aggregated[taxId];
-        entry.taxId = taxId;
-        entry.abundance += stats[i].abundance;
-        entry.coverageConfidenceSum += stats[i].coverageConfidence;
-        entry.proteinCount += 1;
-    }
-
-    std::vector<TaxonomyStats> rows;
-    rows.reserve(aggregated.size());
-    for (std::unordered_map<unsigned int, TaxonomyStats>::const_iterator it = aggregated.begin(); it != aggregated.end(); ++it) {
-        rows.push_back(it->second);
-    }
-    std::sort(rows.begin(), rows.end(), [](const TaxonomyStats &lhs, const TaxonomyStats &rhs) {
-        if (lhs.abundance != rhs.abundance) {
-            return lhs.abundance > rhs.abundance;
-        }
-        return lhs.taxId < rhs.taxId;
-    });
-
-    FILE *handle = FileUtil::openFileOrDie(path.c_str(), "w", false);
-    fputs("taxid\trank\ttaxname\ttaxlineage\tprotein_abundance_pct\tprotein_count\n", handle);
-
-    for (size_t i = 0; i < rows.size(); ++i) {
-        const TaxonNode *node = (rows[i].taxId != 0) ? taxonomy->taxonNode(rows[i].taxId, false) : NULL;
-        const std::string lineage = (node != NULL) ? taxonomy->taxLineage(node, true) : "unclassified";
-        fprintf(handle, "%u\t%s\t%s\t%s\t%.12g\t%zu\n",
-                rows[i].taxId,
-                (node != NULL) ? taxonomy->getString(node->rankIdx) : "unclassified",
-                (node != NULL) ? taxonomy->getString(node->nameIdx) : "unclassified",
-                lineage.c_str(),
-                rows[i].abundance,
-            rows[i].proteinCount);
-    }
-
-    fclose(handle);
+    writer.close();
 }
 }
 
-int reclassifytaxonomy(int argc, const char **argv, const Command &command) {
+int emreclassify(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, true, 0, 0);
 
@@ -989,27 +823,11 @@ int reclassifytaxonomy(int argc, const char **argv, const Command &command) {
                                   DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBReader<unsigned int> queryHeaderReader((par.db1 + "_h").c_str(), (par.db1 + "_h.index").c_str(), par.threads,
-                                             DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    queryHeaderReader.open(DBReader<unsigned int>::NOSORT);
-
-    DBReader<unsigned int> targetHeaderReader((par.db2 + "_h").c_str(), (par.db2 + "_h.index").c_str(), par.threads,
-                                              DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA);
-    targetHeaderReader.open(DBReader<unsigned int>::NOSORT);
-
-    const bool withTaxonomy = (par.reclassifyTaxonomy == 1);
-    NcbiTaxonomy *taxonomy = NULL;
-    MappingReader *mapping = NULL;
-    if (withTaxonomy) {
-        taxonomy = NcbiTaxonomy::openTaxonomy(par.db2);
-        mapping = new MappingReader(par.db2);
-    }
-
     ReclassTaxContext ctx;
     loadAlignmentDb(reader, ctx);
     Debug(Debug::INFO) << "Loaded " << ctx.queryCount << " queries with hits and " << ctx.targetSet.size() << " unique targets.\n";
 
-        squarem(ctx,
+    squarem(ctx,
             par.reclassifyLambda,
             par.reclassifyMaxIterations,
             par.reclassifyTolerance,
@@ -1017,36 +835,15 @@ int reclassifytaxonomy(int argc, const char **argv, const Command &command) {
             par.reclassifyGamma,
             par.threads);
 
-    const std::string outDir = par.db4;
-    const std::string m8Path = outDir + "/new_alignment_result.m8";
-    const std::string proteinPath = outDir + "/protein_abundance.tsv";
-    const std::string taxonomyPath = outDir + "/taxonomy_abundance.tsv";
-
     std::vector<TargetStats> allTargetStats = collectTargetStats(ctx);
     double abundanceCutoff = 0.0;
     const std::unordered_set<unsigned int> dropped = selectDroppedTargets(allTargetStats,
                                                                           par.reclassifyMaxDropPercentage,
                                                                           abundanceCutoff);
-    markDroppedTargets(allTargetStats, dropped);
-    convertAbundanceToPercent(allTargetStats);
-
-    std::vector<TargetStats> targetStats = allTargetStats;
-    targetStats.erase(std::remove_if(targetStats.begin(), targetStats.end(), [](const TargetStats &entry) {
-        return entry.dropped;
-    }), targetStats.end());
     applyDroppedTargets(ctx, dropped, allTargetStats.size(), abundanceCutoff);
-    convertAbundanceToPercent(targetStats);
 
-    writeReclassifiedM8(ctx, queryHeaderReader, targetHeaderReader, m8Path);
-    writeProteinStats(allTargetStats, targetHeaderReader, mapping, taxonomy, proteinPath);
-    if (withTaxonomy) {
-        writeTaxonomyStats(targetStats, *mapping, taxonomy, taxonomyPath);
-    }
+    writeReclassifiedDb(ctx, reader.getDbtype(), par.db4, par.db4Index, par.threads, par.compressed);
 
-    delete mapping;
-    delete taxonomy;
-    targetHeaderReader.close();
-    queryHeaderReader.close();
     reader.close();
     return EXIT_SUCCESS;
 }

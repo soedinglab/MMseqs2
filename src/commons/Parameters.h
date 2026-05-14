@@ -1226,6 +1226,7 @@ public:
     std::vector<MMseqsParameter*> gpuserver;
     std::vector<MMseqsParameter*> tsv2exprofiledb;
     std::vector<MMseqsParameter*> reclassify;
+    std::vector<MMseqsParameter*> abundance;
 
     std::vector<MMseqsParameter*> combineList(const std::vector<MMseqsParameter*> &par1,
                                              const std::vector<MMseqsParameter*> &par2);
