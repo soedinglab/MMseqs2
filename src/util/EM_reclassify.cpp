@@ -9,8 +9,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cctype>
+#include <iomanip>
 #include <limits>
 #include <numeric>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -105,7 +107,7 @@ static void loadAlignmentDb(DBReader<unsigned int> &reader, ReclassTaxContext &c
             }
 
             Matcher::result_t result = Matcher::parseAlignmentRecord(data, true);
-            records.push_back(ReclassTaxEntry{result, 0.0, 0.0, 0.0});
+            records.push_back(ReclassTaxEntry{result, 0.0, static_cast<double>(result.seqId), 0.0});
             ctx.targetSet.insert(result.dbKey);
             data = Util::skipLine(data);
         }
@@ -600,6 +602,73 @@ static std::vector<TargetStats> collectTargetStats(const ReclassTaxContext &ctx)
     return out;
 }
 
+static void printAbundanceDistribution(const std::vector<TargetStats> &stats) {
+    if (stats.empty()) {
+        Debug(Debug::INFO) << "Abundance distribution: no targets.\n";
+        return;
+    }
+
+    std::vector<double> values;
+    values.reserve(stats.size());
+    for (size_t i = 0; i < stats.size(); ++i) {
+        values.push_back(stats[i].abundance);
+    }
+    std::sort(values.begin(), values.end());
+
+    const auto quantile = [&values](double q) -> double {
+        const size_t idx = static_cast<size_t>(q * static_cast<double>(values.size() - 1));
+        return values[idx];
+    };
+
+    const double totalMass = std::accumulate(values.begin(), values.end(), 0.0);
+    const auto cumulativeCountAtMassFraction = [&values, totalMass](double massFraction, size_t &count, double &countFrac) {
+        count = 0;
+        countFrac = 0.0;
+        if (values.empty() || totalMass <= 0.0 || massFraction <= 0.0) {
+            return;
+        }
+
+        const double targetMass = massFraction * totalMass;
+        double cumulativeMass = 0.0;
+        for (size_t i = 0; i < values.size(); ++i) {
+            if ((cumulativeMass + values[i]) <= targetMass) {
+                cumulativeMass += values[i];
+                ++count;
+            } else {
+                break;
+            }
+        }
+        countFrac = static_cast<double>(count) / static_cast<double>(values.size());
+    };
+
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(8);
+    oss << "Abundance distribution (targets=" << values.size() << "):"
+        << " min=" << values.front()
+        << " p25=" << quantile(0.25)
+        << " p50=" << quantile(0.50)
+        << " p75=" << quantile(0.75)
+        << " p90=" << quantile(0.90)
+        << " p95=" << quantile(0.95)
+        << " p99=" << quantile(0.99)
+        << " max=" << values.back();
+    Debug(Debug::INFO) << oss.str() << "\n";
+
+    const double cutoffs[] = {0.1, 0.3, 0.5, 0.7, 0.9, 0.95, 0.99};
+    std::ostringstream cumulativeOss;
+    cumulativeOss << std::fixed << std::setprecision(8);
+    cumulativeOss << "Abundance cumulative:";
+    for (size_t i = 0; i < sizeof(cutoffs) / sizeof(cutoffs[0]); ++i) {
+        size_t count = 0;
+        double countFrac = 0.0;
+        cumulativeCountAtMassFraction(cutoffs[i], count, countFrac);
+        cumulativeOss << " <=" << cutoffs[i]
+                      << "[count=" << count
+                      << ",countFrac=" << countFrac << "]";
+    }
+    Debug(Debug::INFO) << cumulativeOss.str() << "\n";
+}
+
 static double clamp01(double value) {
     return std::max(0.0, std::min(1.0, value));
 }
@@ -840,11 +909,20 @@ int emreclassify(int argc, const char **argv, const Command &command) {
             par.threads);
 
     std::vector<TargetStats> allTargetStats = collectTargetStats(ctx);
+    printAbundanceDistribution(allTargetStats);
     double abundanceCutoff = 0.0;
     const std::unordered_set<unsigned int> dropped = selectDroppedTargets(allTargetStats,
                                                                           par.reclassifyMaxDropPercentage,
                                                                           abundanceCutoff);
     applyDroppedTargets(ctx, dropped, allTargetStats.size(), abundanceCutoff);
+    const size_t totalTargets = allTargetStats.size();
+    const size_t removedTargets = dropped.size();
+    const double removedPct = (totalTargets > 0)
+                                ? (100.0 * static_cast<double>(removedTargets) / static_cast<double>(totalTargets))
+                                : 0.0;
+    Debug(Debug::INFO) << "Reclassify-drop summary: removed " << removedTargets
+                       << " / " << totalTargets
+                       << " targets (" << removedPct << "%).\n";
 
     writeReclassifiedDb(ctx, reader.getDbtype(), par.db4, par.db4Index, par.threads, par.compressed);
 
