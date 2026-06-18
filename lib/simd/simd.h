@@ -304,7 +304,7 @@ typedef __m512  simd_float;
 #define simdi_i2fcast(x)    _mm512_castsi512_ps(x)
 #define simdf32_round(x)    _mm512_roundscale_ps(x, SIMDE_MM_FROUND_TO_NEAREST_INT | SIMDE_MM_FROUND_NO_EXC)
 #define simdf32_blendv_ps(x,y,z) _mm512_mask_blend_ps(simdf32_mask_from_ps_avx512(z), x, y) // AI Idea, prob broken
-#define simdf32_reverse(x)  _mm512_permute_ps(_mm512_shuffle_f32x4(x, x, _MM_SHUFFLE(0, 1, 2, 3)), _MM_SHUFFLE(0, 1, 2, 3))
+#define simdf32_reverse(x)  _mm512_permutexvar_ps(_mm512_setr_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0), x) 
 #define simdf32_fmadd(x,y,z) _mm512_fmadd_ps(x,y,z)
 #define simdf32_hmax(x)     simdf32_hmax_avx512(x)
 #define simdf32_f2i(x) 	    _mm512_cvtps_epi32(x)  // convert s.p. float to integer
@@ -1050,19 +1050,91 @@ static inline simd_float simdf32_exp(simd_float x_init) {
     simd_float n2 = simdf32_pow2n(r);
     z = simdf32_fmadd(z, n2, n2);
 
-    //special cases
-    const simd_float MAX_X = simdf32_set(87.3f);
-    simd_float inrange = simdf32_lt(simdf32_abs(x_init), MAX_X);
-    const simd_float InfVec = simdf32_set(std::numeric_limits<float>::infinity());
-    simd_float signBit = simdi_i2fcast(simdi32_srai(simdf_f2icast(x_init), 31));
-    simd_float isNan = simdf32_cmp(x_init, x_init, 3);
-    
-    r = simdf32_blendv_ps(InfVec, simdf32_set(0.0f), signBit); // value in case of -
-    z = simdf32_blendv_ps(r, z, inrange);     // +/- underflow
-    z = simdf32_blendv_ps(z, x_init, isNan); // NAN goes through
+    #ifdef AVX512
+        //special cases
+        const simd_float MAX_X = simdf32_set(87.3f);
+        __mmask16 inrange = _mm512_cmp_ps_mask(simdf32_abs(x_init), MAX_X, _CMP_LT_OS);
+        const simd_float InfVec = simdf32_set(std::numeric_limits<float>::infinity());
+        const __mmask16 signBit = _mm512_cmp_epi32_mask(_mm512_castps_si512(x_init), _mm512_setzero_si512(), _MM_CMPINT_LT);
+        __mmask16 isNan = _mm512_cmp_ps_mask(x_init, x_init, 3);
+        r = _mm512_mask_blend_ps(signBit, InfVec, simdf32_set(0.0f)); // value in case of -
+        z = _mm512_mask_blend_ps(inrange, r, z);     // +/- underflow
+        z = _mm512_mask_blend_ps(isNan, z, x_init); // NAN goes through
+    #else
+        //special cases
+        const simd_float MAX_X = simdf32_set(87.3f);
+        simd_float inrange = simdf32_lt(simdf32_abs(x_init), MAX_X);
+        const simd_float InfVec = simdf32_set(std::numeric_limits<float>::infinity());
+        simd_float signBit = simdi_i2fcast(simdi32_srai(simdf_f2icast(x_init), 31));
+        simd_float isNan = simdf32_cmp(x_init, x_init, 3);
+        r = simdf32_blendv_ps(InfVec, simdf32_set(0.0f), signBit); // value in case of -
+        z = simdf32_blendv_ps(r, z, inrange);     // +/- underflow
+        z = simdf32_blendv_ps(z, x_init, isNan); // NAN goes through
+    #endif
     return z;
 }
 
+#ifdef AVX512
+static inline simd_float simdf32_log(simd_float x_init) {
+    // Same as AVX2 but uses masked to avoid having to convert mask to vector back and forth 
+    // Constants
+    const simd_float LN2f_HI = simdf32_set(0.693359375f);
+    const simd_float LN2f_LO = simdf32_set(-2.12194440e-4f);
+    const simd_float P0LOGF  = simdf32_set(3.3333331174E-1f);
+    const simd_float P1LOGF  = simdf32_set(-2.4999993993E-1f);
+    const simd_float P2LOGF  = simdf32_set(2.0000714765E-1f);
+    const simd_float P3LOGF  = simdf32_set(-1.6668057665E-1f);
+    const simd_float P4LOGF  = simdf32_set(1.4249322787E-1f);
+    const simd_float P5LOGF  = simdf32_set(-1.2420140846E-1f);
+    const simd_float P6LOGF  = simdf32_set(1.1676998740E-1f);
+    const simd_float P7LOGF  = simdf32_set(-1.1514610310E-1f);
+    const simd_float P8LOGF  = simdf32_set(7.0376836292E-2f);
+    const simd_float SQRT2_threshold   = simdf32_set(1.41421356237309504880*0.5);
+    const simd_float one = simdf32_set(1.0f);
+
+    // separate mantissa from exponent
+    simd_int xi = simdf_f2icast(x_init);
+    simd_int mi = simdi_or(simdi_and(xi, simdi32_set(0x007FFFFF)), simdi32_set(0x3F000000));
+    simd_float m = simdi_i2fcast(mi);
+
+    simd_int ei = simdi32_sub(simdi32_srli(simdi32_slli(xi, 1), 24), simdi32_set(0x7F));
+    simd_float e = simdi32_i2f(ei);
+    __mmask16 blend_mask = _mm512_cmp_ps_mask(m, SQRT2_threshold, _CMP_GT_OS);
+    __mmask16 not_blend_mask = _mm512_cmp_ps_mask(m, SQRT2_threshold, _CMP_LE_OQ);
+    simd_float m_2 = simdf32_add(m, m);
+
+    m = _mm512_mask_blend_ps(not_blend_mask, m, m_2);
+    m = simdf32_sub(m, one);
+
+    simd_float e_1 = simdf32_add(e, one);
+    e = _mm512_mask_blend_ps(blend_mask, e, e_1);
+
+    simd_float res = polynomial_8(m, P0LOGF, P1LOGF, P2LOGF, P3LOGF, P4LOGF, P5LOGF, P6LOGF, P7LOGF, P8LOGF);
+    simd_float m2 = simdf32_mul(m, m);
+    res = simdf32_mul(res, simdf32_mul(m2, m));
+
+    res = simdf32_fmadd(e, LN2f_LO, res);
+    res = simdf32_add(res, simdf32_sub(m, simdf32_mul(m2, simdf32_set(0.5f))));
+    res = simdf32_fmadd(e, LN2f_HI, res);
+
+    // Special cases
+    const simd_float VM_SMALLEST_NORMALF = simdf32_set(1.17549435e-38f);
+    __mmask16 overflow =_mm512_cmp_epi32_mask(simdi32_is_finite(x_init), _mm512_setzero_si512(), _MM_CMPINT_EQ);
+    __mmask16 underflow = _mm512_cmp_ps_mask(x_init, VM_SMALLEST_NORMALF, _CMP_LT_OS);
+
+    const simd_float negNanVec = simdf32_set(-std::numeric_limits<float>::quiet_NaN());
+    const simd_float negInfVec = simdf32_set(-std::numeric_limits<float>::infinity());
+    // if overflow(+- INF or NaN) gives x_init
+    res = _mm512_mask_blend_ps(overflow, res, x_init);
+    // if underflow(<1.17549435e-38f) gives -NAN
+    res = _mm512_mask_blend_ps(underflow, res, negNanVec);
+    simd_int x_exponent = simdi_and(xi, simdi32_set(0x7F800000));
+    // if x == 0 or subnormal gives -INF
+    __mmask16 maskZeroOrSubnormal = _mm512_cmp_epi32_mask(x_exponent, _mm512_setzero_si512, _MM_CMPINT_EQ); // x == 0 or subnormal
+    res = _mm512_mask_blend_ps(maskZeroOrSubnormal, res, negInfVec, );
+    return res;
+}
+#else
 static inline simd_float simdf32_log(simd_float x_init) {
     // Constants
     const simd_float LN2f_HI = simdf32_set(0.693359375f);
@@ -1121,6 +1193,7 @@ static inline simd_float simdf32_log(simd_float x_init) {
     res = simdf32_blendv_ps(res, negInfVec, maskZeroOrSubnormal);
     return res;
 }
+#endif
 
 inline float ScalarProd20(const float* qi, const float* tj) {
 //#ifdef AVX

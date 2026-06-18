@@ -456,7 +456,7 @@ void FwBwAligner::forward() {
                 simd_float vZf = simdf32_load(&zfBlock[j-1]);
                 simd_float vScoreMatrix;
                 if (profile) {
-                    vScoreMatrix = simdf32_exp(simdf32_load(&scoreForwardProfile[rowSeqAANum[i-1]][start + j - 1]));
+                    vScoreMatrix = simdf32_load(&scoreForwardProfile_exp[rowSeqAANum[i-1]][start + j - 1]);
                 } else {
                     vScoreMatrix = simdf32_exp(simdf32_load(&scoreForward[i-1][start + j - 1]));
                 } 
