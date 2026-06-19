@@ -744,6 +744,7 @@ public:
     // createsubdb
     int subDbMode;
     int dbIdMode;
+    int inputmode;
 
     // tar2db
     std::string tarInclude;
@@ -1141,6 +1142,7 @@ public:
     // createsubdb
     PARAMETER(PARAM_SUBDB_MODE)
     PARAMETER(PARAM_ID_MODE)
+    PARAMETER(PARAM_INPUT_MODE)
 
     // tar2db
     PARAMETER(PARAM_TAR_INCLUDE)
