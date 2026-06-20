@@ -37,6 +37,8 @@ When compiling from source, pass `-DMMSEQS_INT64_IDS=1` to CMake to build MMseqs
     wget https://mmseqs.com/latest/mmseqs-linux-gpu.tar.gz; tar xvfz mmseqs-linux-gpu.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
     # static build with AVX2 (fastest)
     wget https://mmseqs.com/latest/mmseqs-linux-avx2.tar.gz; tar xvfz mmseqs-linux-avx2.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
+    # static build with AVX2 (fastest) with > 2^32 sequences support (>4B)
+    wget https://mmseqs.com/latest/mmseqs-linux-avx2-64bit.tar.gz; tar xvfz mmseqs-linux-avx2-64bit.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
     # static build with SSE4.1
     wget https://mmseqs.com/latest/mmseqs-linux-sse41.tar.gz; tar xvfz mmseqs-linux-sse41.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
     # static build with SSE2 (slowest, for very old systems)

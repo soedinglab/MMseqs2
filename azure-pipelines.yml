@@ -74,16 +74,26 @@ jobs:
           STATIC: 1
           MPI: 0
           BUILD_TYPE: Release
+          ARTIFACT: 'mmseqs-linux-AVX2'
         sse41:
           SIMD: 'SSE4_1'
           STATIC: 1
           MPI: 0
           BUILD_TYPE: Release
+          ARTIFACT: 'mmseqs-linux-SSE4_1'
         sse2:
           SIMD: 'SSE2'
           STATIC: 1
           MPI: 0
           BUILD_TYPE: Release
+          ARTIFACT: 'mmseqs-linux-SSE2'
+        avx2_int64:
+          SIMD: 'AVX2'
+          STATIC: 1
+          MPI: 0
+          BUILD_TYPE: Release
+          INT64: 1
+          ARTIFACT: 'mmseqs-linux-AVX2-64bit'
         avx2_mpi:
           SIMD: 'AVX2'
           STATIC: 0
@@ -112,14 +122,20 @@ jobs:
       - script: |
           mkdir build && cd build
           export CC=gcc-11 ; export CXX=g++-11
+          EXTRA=""
+          WERROR="-DENABLE_WERROR=1"
+          if [ "${INT64}" = "1" ]; then
+            EXTRA="-DMMSEQS_INT64_IDS=1"
+            WERROR=""   # 64-bit-ID build not yet vetted warning-clean under -Werror
+          fi
           if [ "${STATIC}" -eq "1" ]; then
             LIBGOMP=/usr/lib/gcc/x86_64-linux-gnu/11
             cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DFORCE_STATIC_DEPS=1 -DHAVE_TESTS=1 \
               -DOpenMP_C_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_C_LIB_NAMES=gomp -DOpenMP_CXX_FLAGS="-fopenmp -I${LIBGOMP}" -DOpenMP_CXX_LIB_NAMES=gomp -DOpenMP_gomp_LIBRARY=${LIBGOMP}/libgomp.a \
-              -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
+              ${WERROR} ${EXTRA} -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           else
             cmake -DHAVE_SANITIZER=1 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DHAVE_TESTS=1 \
-              -DENABLE_WERROR=1 -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
+              ${WERROR} ${EXTRA} -DHAVE_${SIMD}=1 -DHAVE_MPI=${MPI} ..
           fi
 
           make -j $(nproc --all) VERBOSE=1
@@ -133,7 +149,7 @@ jobs:
         condition: eq(variables['STATIC'], 1)
         inputs:
           targetPath: $(Build.SourcesDirectory)/build/src/mmseqs
-          artifactName: mmseqs-linux-$(SIMD)
+          artifactName: $(ARTIFACT)
 
   - job: build_ubuntu_gpu
     displayName: Ubuntu MMseqs2 GPU
@@ -426,6 +442,18 @@ jobs:
           archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-arm64.tar.gz
           includeRootFolder: true
           archiveType: tar
+      - task: DownloadPipelineArtifact@1
+        inputs:
+          artifactName: mmseqs-linux-AVX2-64bit
+          targetPath: $(Build.SourcesDirectory)/mmseqs/bin
+      - script:
+          chmod +x "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: $(Build.SourcesDirectory)/mmseqs
+          archiveFile: $(Build.SourcesDirectory)/mmseqs-linux-avx2-64bit.tar.gz
+          includeRootFolder: true
+          archiveType: tar
       - script:
           rm "${BUILD_SOURCESDIRECTORY}/mmseqs/bin/mmseqs"
       # - task: DownloadPipelineArtifact@1
@@ -461,6 +489,7 @@ jobs:
             mmseqs-linux-sse2.tar.gz \
             mmseqs-linux-sse41.tar.gz \
             mmseqs-linux-avx2.tar.gz \
+            mmseqs-linux-avx2-64bit.tar.gz \
             mmseqs-linux-gpu.tar.gz \
             mmseqs-linux-gpu-cuda13.tar.gz \
             mmseqs-linux-gpu-arm64.tar.gz \
@@ -472,6 +501,7 @@ jobs:
             -F file[]=@mmseqs-linux-sse2.tar.gz -F signature[]=@mmseqs-linux-sse2.tar.gz.sig \
             -F file[]=@mmseqs-linux-sse41.tar.gz -F signature[]=@mmseqs-linux-sse41.tar.gz.sig \
             -F file[]=@mmseqs-linux-avx2.tar.gz -F signature[]=@mmseqs-linux-avx2.tar.gz.sig \
+            -F file[]=@mmseqs-linux-avx2-64bit.tar.gz -F signature[]=@mmseqs-linux-avx2-64bit.tar.gz.sig \
             -F file[]=@mmseqs-linux-gpu.tar.gz -F signature[]=@mmseqs-linux-gpu.tar.gz.sig \
             -F file[]=@mmseqs-linux-gpu-cuda13.tar.gz -F signature[]=@mmseqs-linux-gpu-cuda13.tar.gz.sig \
             -F file[]=@mmseqs-linux-gpu-arm64.tar.gz -F signature[]=@mmseqs-linux-gpu-arm64.tar.gz.sig \
