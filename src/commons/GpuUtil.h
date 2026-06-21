@@ -4,6 +4,14 @@
 #include <atomic>
 #include <string>
 #include <cstddef>
+#include <sched.h>
+#ifdef USE_GPU_SEM
+#include <cstdio>
+#include <cstdlib>
+#include <cerrno>
+#include <semaphore.h>
+#include <fcntl.h>
+#endif
 #include "marv.h"
 
 struct GPUSharedMemory {
@@ -50,6 +58,46 @@ struct GPUSharedMemory {
     // Function to open and map existing shared memory and automatically determine sizes
     static GPUSharedMemory* openSharedMemory(const std::string& name);
 
+};
+
+struct GPUSharedMemorySem {
+#ifdef USE_GPU_SEM
+    sem_t* sem;
+    std::string shmName;
+
+    GPUSharedMemorySem() : sem(SEM_FAILED) {}
+    void create(const std::string& name) {
+        shmName = name;
+        std::string semName = "/" + name + "_sem";
+        sem_unlink(semName.c_str());
+        sem = sem_open(semName.c_str(), O_CREAT, 0660, 0);
+        if (sem == SEM_FAILED) {
+            perror(("sem_open(create) " + semName).c_str());
+            exit(EXIT_FAILURE);
+        }
+    }
+    void open(const std::string& name) {
+        shmName = name;
+        std::string semName = "/" + name + "_sem";
+        sem = sem_open(semName.c_str(), 0);
+        if (sem == SEM_FAILED) {
+            perror(("sem_open " + semName).c_str());
+            exit(EXIT_FAILURE);
+        }
+    }
+    void wait()  { while (sem_wait(sem) == -1 && errno == EINTR) {} }
+    void post()  { if (sem != SEM_FAILED) sem_post(sem); }
+    void close() { if (sem != SEM_FAILED) { sem_close(sem); sem = SEM_FAILED; } }
+    void destroy() { close(); sem_unlink(("/" + shmName + "_sem").c_str()); }
+#else
+    GPUSharedMemorySem() {}
+    void create(const std::string&) {}
+    void open(const std::string&) {}
+    void wait()    { sched_yield(); }
+    void post()    {}
+    void close()   {}
+    void destroy() {}
+#endif
 };
 
 #endif
