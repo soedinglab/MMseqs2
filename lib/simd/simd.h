@@ -1130,8 +1130,8 @@ static inline simd_float simdf32_log(simd_float x_init) {
     res = _mm512_mask_blend_ps(underflow, res, negNanVec);
     simd_int x_exponent = simdi_and(xi, simdi32_set(0x7F800000));
     // if x == 0 or subnormal gives -INF
-    __mmask16 maskZeroOrSubnormal = _mm512_cmp_epi32_mask(x_exponent, _mm512_setzero_si512, _MM_CMPINT_EQ); // x == 0 or subnormal
-    res = _mm512_mask_blend_ps(maskZeroOrSubnormal, res, negInfVec, );
+    __mmask16 maskZeroOrSubnormal = _mm512_cmp_epi32_mask(x_exponent, _mm512_setzero_si512(), _MM_CMPINT_EQ); // x == 0 or subnormal
+    res = _mm512_mask_blend_ps(maskZeroOrSubnormal, res, negInfVec );
     return res;
 }
 #else
