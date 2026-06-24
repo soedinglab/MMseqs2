@@ -37,6 +37,7 @@
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/distance.h>
+#include <thrust/tuple.h>
 
 #include <iostream>
 #include <string>
