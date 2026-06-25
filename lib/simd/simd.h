@@ -379,6 +379,10 @@ typedef uint64_t            movemask_max_t;
 #define simdi32_slli(x,y)	_mm512_slli_epi32(x,y) // shift integers in a left by y
 #define simdi32_srli(x,y)	_mm512_srli_epi32(x,y) // shift integers in a right by y
 #define simdi32_srai(x,y)	_mm512_srai_epi32(x,y)
+#define simdi16_pack(x,y)   _mm512_packs_epi16(x,y)
+#define simdi32_pack(x,y)   _mm512_packs_epi32(x,y)
+#define simdi8_blend(x,y,z)   _mm512_mask_blend_epi8(_mm512_movepi8_mask(z),x,y)
+#define simdi32_insert(x,y,z) _mm512_mask_set1_epi32(x, 1UL<<z, y) // https://stackoverflow.com/questions/58303958/how-to-implement-16-and-32-bit-integer-insert-and-extract-operations-with-avx-51
 
 #endif //SIMD_INT
 #endif //AVX512_SUPPORT
@@ -1009,9 +1013,15 @@ static inline simd_float simdf32_pow2n(simd_float n) {
     return simdi_i2fcast(c);
 }
 
-static inline simd_float simdf32_abs(simd_float a){
-    const simd_float mask = simdi_i2fcast(simdi32_set(0x7FFFFFFF));
-    return simdf32_and(a, mask);
+// Robot idea, seems to make FwBw faster on AVX512
+static inline simd_float simdf32_abs(simd_float a) {
+  #ifdef AVX512
+      const __m512i mask = _mm512_set1_epi32(0x7fffffff);
+      return _mm512_castsi512_ps(_mm512_and_si512(_mm512_castps_si512(a), mask));
+  #else
+      const simd_float mask = simdi_i2fcast(simdi32_set(0x7FFFFFFF));
+      return simdf32_and(a, mask);
+  #endif
 }
 
 static inline simd_int simdi32_is_finite(simd_float a) {
