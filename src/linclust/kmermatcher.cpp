@@ -1091,6 +1091,81 @@ size_t computeMemoryNeededLinearfilter(size_t totalKmer) {
     return sizeof(KmerPosition<T, includeAdjacency, IncludeSeqLen>) * totalKmer;
 }
 
+static size_t saturatingAdd(size_t lhs, size_t rhs) {
+    if (lhs > std::numeric_limits<size_t>::max() - rhs) {
+        return std::numeric_limits<size_t>::max();
+    }
+    return lhs + rhs;
+}
+
+static size_t saturatingMul(size_t lhs, size_t rhs) {
+    if (rhs != 0 && lhs > std::numeric_limits<size_t>::max() / rhs) {
+        return std::numeric_limits<size_t>::max();
+    }
+    return lhs * rhs;
+}
+
+static size_t ceilDiv(size_t numerator, size_t denominator) {
+    return numerator == 0 ? 0 : 1 + ((numerator - 1) / denominator);
+}
+
+static size_t applySplitMemoryHeadroom(size_t memory) {
+    return static_cast<size_t>(static_cast<double>(memory) * 0.9);
+}
+
+static size_t getSplitMemoryBudget(size_t memoryLimit, size_t fixedMemory) {
+    if (fixedMemory >= memoryLimit) {
+        Debug(Debug::ERROR) << "Not enough memory to run the kmermatcher. Memory limit: "
+                            << memoryLimit << " bytes, fixed memory need: "
+                            << fixedMemory << " bytes\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    size_t budget = applySplitMemoryHeadroom(memoryLimit - fixedMemory);
+    if (budget == 0) {
+        Debug(Debug::ERROR) << "Not enough memory to run the kmermatcher after reserving memory headroom\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return budget;
+}
+
+template <typename T, bool includeAdjacency, bool IncludeSeqLen>
+size_t estimateFillKmerPositionArrayMemory(const Parameters &par) {
+    const size_t kmerBufferSize = 1048576;
+    size_t perThreadMemory = saturatingMul(kmerBufferSize, sizeof(KmerPosition<T, includeAdjacency, IncludeSeqLen>));
+    perThreadMemory = saturatingAdd(perThreadMemory, sizeof(unsigned short) * 65536);
+    perThreadMemory = saturatingAdd(perThreadMemory, sizeof(unsigned int) * 128);
+
+    size_t selectedKmers = saturatingMul(
+        static_cast<size_t>(par.pickNbest),
+        saturatingAdd(static_cast<size_t>(par.maxSeqLen), 1)
+    );
+    selectedKmers = saturatingAdd(selectedKmers, 1);
+    perThreadMemory = saturatingAdd(
+        perThreadMemory,
+        saturatingMul(saturatingMul(selectedKmers, sizeof(SequencePosition)), 2)
+    );
+
+    return saturatingMul(static_cast<size_t>(par.threads), perThreadMemory);
+}
+
+template <typename T, bool includeAdjacency, bool IncludeSeqLen>
+size_t estimateKmerMatcherFixedMemory(size_t dbKeySize, const Parameters &par) {
+    size_t fixedMemory = estimateFillKmerPositionArrayMemory<T, includeAdjacency, IncludeSeqLen>(par);
+    if (!IncludeSeqLen) {
+        fixedMemory = saturatingAdd(fixedMemory, saturatingMul(dbKeySize + 1, sizeof(T)));
+    }
+    return fixedMemory;
+}
+
+static size_t entriesFittingMemoryBudget(size_t memoryBudget, size_t bytesPerEntry) {
+    size_t entries = memoryBudget / bytesPerEntry;
+    if (entries <= 1025) {
+        return 1025;
+    }
+    return entries - 1;
+}
+
 template <typename T, bool includeAdjacency, bool IncludeSeqLen>
 std::vector<std::pair<size_t, size_t>> setupCountTable(
     Parameters &par,
@@ -1176,16 +1251,13 @@ int kmermatcherInner(Parameters& par, DBReader<DBKeyType>& seqDbr) {
     float kmersPerSequenceScale = (Parameters::isEqualDbtype(querySeqType, Parameters::DBTYPE_NUCLEOTIDES)) ?
                                         par.kmersPerSequenceScale.values.nucleotide() : par.kmersPerSequenceScale.values.aminoacid();
     size_t totalKmers = computeKmerCount(seqDbr, par.kmerSize, par.kmersPerSequence, kmersPerSequenceScale);
-    size_t totalSizeNeeded = computeMemoryNeededLinearfilter<T, includeAdjacency, IncludeSeqLen>(totalKmers) * (par.needWriteBuffer ? 2 : 1);
-    size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
-    size_t totalKmersPerSplit = std::max(
-                                    static_cast<size_t>(1024 + 1),
-                                    static_cast<size_t>(
-                                        std::min(totalSizeNeeded, memoryLimit) /
-                                        (sizeof(KmerPosition<T, includeAdjacency, IncludeSeqLen>) +
-                                        (par.needWriteBuffer ? sizeof(KmerPosition<T, false, IncludeSeqLen>) : 0))
-                                    ) + 1
-                                );
+    size_t fixedMemory = estimateKmerMatcherFixedMemory<T, includeAdjacency, IncludeSeqLen>(dbKeySize, par);
+    size_t mainSplitMemoryBudget = getSplitMemoryBudget(memoryLimit, fixedMemory);
+    size_t mainBytesPerKmer = sizeof(KmerPosition<T, includeAdjacency, IncludeSeqLen>) +
+                              (par.needWriteBuffer ? sizeof(KmerPosition<T, false, IncludeSeqLen>) : 0);
+    size_t totalSizeNeeded = saturatingMul(totalKmers, mainBytesPerKmer);
+    size_t totalKmersPerSplit = entriesFittingMemoryBudget(mainSplitMemoryBudget, mainBytesPerKmer);
+    size_t splits = std::max(static_cast<size_t>(1), ceilDiv(totalSizeNeeded, mainSplitMemoryBudget));
 
     if (!IncludeSeqLen) {
         T * seqkey_to_len = new(std::nothrow) T[dbKeySize+1];
@@ -1209,13 +1281,15 @@ int kmermatcherInner(Parameters& par, DBReader<DBKeyType>& seqDbr) {
         // re calculate memory for countTable
         size_t countTableTotalKmers = static_cast<size_t>(totalKmers * par.countTableScale);
         // hashSeqPair + writeSeqPair
-        size_t countTableTotalSizeNeeded = computeMemoryNeededLinearfilter<T, false, false>(countTableTotalKmers) * 2; 
+        size_t countTableTotalSizeNeeded = saturatingMul(computeMemoryNeededLinearfilter<T, false, false>(countTableTotalKmers), 2);
 
-        size_t availableMemory = memoryLimit - countTable.size() * sizeof(short);
-
-        size_t countTableSplits = static_cast<size_t>(
-            std::ceil(static_cast<double>(countTableTotalSizeNeeded) / availableMemory)
+        size_t countTableFixedMemory = saturatingAdd(
+            fixedMemory,
+            saturatingMul(countTable.size(), sizeof(short))
         );
+        size_t availableMemory = getSplitMemoryBudget(memoryLimit, countTableFixedMemory);
+
+        size_t countTableSplits = std::max(static_cast<size_t>(1), ceilDiv(countTableTotalSizeNeeded, availableMemory));
 
         size_t countTableKmersPerSplit = std::max(
             static_cast<size_t>(1024 + 1),
