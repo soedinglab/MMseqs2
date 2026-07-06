@@ -308,7 +308,7 @@ Parameters::Parameters():
         // unpackdb
         PARAM_UNPACK_SUFFIX(PARAM_UNPACK_SUFFIX_ID, "--unpack-suffix", "Unpack suffix", "File suffix for unpacked files.\nAdd .gz suffix to write compressed files.", typeid(std::string), (void *) &unpackSuffix, "^.*$"),
         PARAM_UNPACK_NAME_MODE(PARAM_UNPACK_NAME_MODE_ID, "--unpack-name-mode", "Unpack name mode", "Name unpacked files by 0: DB key, 1: accession (through .lookup)", typeid(int), (void *) &unpackNameMode, "^[0-1]{1}$"),
-        // reclassify
+        // reclassify / abundance (lambda..tol shared; taxonomy and drop are abundance-only)
         PARAM_RECLASSIFY_LAMBDA(PARAM_RECLASSIFY_LAMBDA_ID, "--lambda", "Reclassify lambda", "Lambda scaling factor for the reclassification bit score term", typeid(double), (void *) &reclassifyLambda, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_RECLASSIFY_ALPHA(PARAM_RECLASSIFY_ALPHA_ID, "--alpha", "Reclassify alpha", "Exponent applied to abundance during reclassification", typeid(double), (void *) &reclassifyAlpha, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_RECLASSIFY_GAMMA(PARAM_RECLASSIFY_GAMMA_ID, "--gamma", "Reclassify gamma", "Exponent applied to coverage confidence during reclassification", typeid(double), (void *) &reclassifyGamma, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
@@ -2668,8 +2668,8 @@ void Parameters::setDefaults() {
     unpackNameMode = Parameters::UNPACK_NAME_ACCESSION;
 
     // reclassify
-    reclassifyLambda = 1.0;
-    reclassifyAlpha = 1.0;
+    reclassifyLambda = 0.25;
+    reclassifyAlpha = 0.5;
     reclassifyGamma = 1.0;
     reclassifyMaxIterations = 100;
     reclassifyTolerance = 1e-5;

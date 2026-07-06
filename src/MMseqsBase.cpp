@@ -1073,7 +1073,7 @@ std::vector<Command> baseCommands = {
                 CITATION_MMSEQS2, {{"resultDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::resultDb },
                                           {"resultDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::resultDb }}},
         {"reclassify",           emreclassify,         &par.reclassify,           COMMAND_RESULT | COMMAND_FORMAT_CONVERSION,
-                "Reclassify alignments and write a new alignment DB with posterior probabilities(convertalis will convert it into column 3(instead of seqId))",
+                "Run EM (SQUAREM) over an alignment DB and write a new alignment DB whose 3rd column holds the posterior probability (convertalis writes it into column 3 instead of seqId). This only runs EM; low-abundance target dropping is done separately in 'mmseqs abundance --drop'.",
                 "mmseqs reclassify queryDB targetDB alignmentDB newDB\n",
                 "Yaeji Kim",
                 "<i:queryDB> <i:targetDB> <i:alignmentDB> <o:newDB>",
@@ -1082,10 +1082,12 @@ std::vector<Command> baseCommands = {
                                           {"alignmentDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA, &DbValidator::alignmentDb },
                                           {"newDB", DbType::ACCESS_MODE_OUTPUT, DbType::NEED_DATA, &DbValidator::alignmentDb }}},
         {"abundance",            emabundance,          &par.abundance,            COMMAND_RESULT | COMMAND_FORMAT_CONVERSION,
-                "Summarize abundance from reclassified alignment DB",
-                "mmseqs abundance queryDB targetDB newDB abundance.tsv\n"
+                "Summarize per-target abundance (and breadth of coverage) from a reclassified alignment DB; optionally drop the lowest-abundance targets with --drop.",
+                "mmseqs abundance queryDB targetDB reclassifiedDB abundance.tsv\n"
+                "# --drop N drops the lowest-abundance targets up to N% of cumulative abundance mass (0 = keep all)\n"
+                "mmseqs abundance queryDB targetDB reclassifiedDB abundance.tsv --drop 10\n"
                 "# targetDB_mapping and targetDB_taxonomy are only required with --taxonomy 1\n"
-                "mmseqs abundance queryDB targetDB newDB abundance.report --taxonomy 1\n",
+                "mmseqs abundance queryDB targetDB reclassifiedDB abundance.report --taxonomy 1\n",
                 "Yaeji Kim",
                 "<i:queryDB> <i:targetDB> <i:alignmentDB> <o:abundanceFile>",
                 CITATION_MMSEQS2 | CITATION_TAXONOMY, {{"queryDB", DbType::ACCESS_MODE_INPUT, DbType::NEED_DATA|DbType::NEED_HEADER, &DbValidator::sequenceDb },
