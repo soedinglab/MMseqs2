@@ -57,13 +57,10 @@ struct ReclassTaxContext {
 
 static const double STEP_MIN = -1.0;
 static const double STEP_MAX = 1.0;
-static const double EPS = 1e-12;
 static const double LOG_COMPATIBILITY_MIN = -60.0;
 static const double LOG_COMPATIBILITY_MAX = 60.0;
 static const double ABUNDANCE_EXP_TAU = 3.0;
 static const double ABUNDANCE_SMOOTH_EPS = 1e-8;
-static const size_t MIN_FILTER_TARGETS = 20;
-static const size_t MIN_TAIL_TARGETS = 2;
 
 static double clamp01(double value);
 
@@ -530,10 +527,12 @@ static void squarem(ReclassTaxContext &ctx,
             parameterChange = std::max(parameterChange, std::fabs(xNew[i] - x0[i]));
         }
 
-        Debug(Debug::INFO) << "Reclassify iteration " << iter << ": LL=" << currentLl << " delta=" << parameterChange << "\n";
+        Debug(Debug::INFO) << "-";
+        std::cout << std::flush;
         x0 = xNew;
         if (parameterChange < tol && iter > 5) {
-            Debug(Debug::INFO) << "Reclassify converged after " << (iter + 1) << " iterations." << "\n";
+            Debug(Debug::INFO) << "\n";
+            Debug(Debug::INFO) << "Converged after " << (iter + 1) << " iterations.\n";
             break;
         }
     }
@@ -673,166 +672,6 @@ static double clamp01(double value) {
     return std::max(0.0, std::min(1.0, value));
 }
 
-static bool tailQuantileCutoff(std::vector<double> values,
-                               bool useLowTail,
-                               double maxTailFraction,
-                               double &cutoff,
-                               size_t &tailCount) {
-    cutoff = 0.0;
-    tailCount = 0;
-    if (values.size() < MIN_FILTER_TARGETS) {
-        return false;
-    }
-
-    std::sort(values.begin(), values.end());
-    maxTailFraction = clamp01(maxTailFraction);
-    const double totalMass = std::accumulate(values.begin(), values.end(), 0.0);
-    if (totalMass <= EPS || maxTailFraction <= 0.0) {
-        return false;
-    }
-    const double maxTailMass = maxTailFraction * totalMass;
-
-    double accumulatedMass = 0.0;
-    size_t maxTailCount = 0;
-    for (size_t i = 0; i < values.size(); ++i) {
-        const double candidate = accumulatedMass + values[i];
-        if (candidate > (maxTailMass + EPS)) {
-            break;
-        }
-        accumulatedMass = candidate;
-        ++maxTailCount;
-    }
-    if (maxTailCount < MIN_TAIL_TARGETS || maxTailCount >= values.size()) {
-        return false;
-    }
-
-    tailCount = maxTailCount;
-    if (useLowTail) {
-        cutoff = values[tailCount - 1];
-    } else {
-        cutoff = values[values.size() - tailCount];
-    }
-    return true;
-}
-
-static std::unordered_set<unsigned int> selectTailTargets(const std::vector<TargetStats> &stats,
-                                                          bool useLowTail,
-                                                          size_t tailCount,
-                                                          double maxTailFraction) {
-    std::vector<const TargetStats *> ordered;
-    ordered.reserve(stats.size());
-    for (size_t i = 0; i < stats.size(); ++i) {
-        ordered.push_back(&stats[i]);
-    }
-
-    std::sort(ordered.begin(), ordered.end(), [useLowTail](const TargetStats *lhs, const TargetStats *rhs) {
-        const double lhsValue = useLowTail ? lhs->abundance : lhs->coverageConfidence;
-        const double rhsValue = useLowTail ? rhs->abundance : rhs->coverageConfidence;
-        if (lhsValue != rhsValue) {
-            return useLowTail ? (lhsValue < rhsValue) : (lhsValue > rhsValue);
-        }
-        return lhs->key < rhs->key;
-    });
-
-    double totalMass = 0.0;
-    for (size_t i = 0; i < ordered.size(); ++i) {
-        const double value = useLowTail ? ordered[i]->abundance : ordered[i]->coverageConfidence;
-        totalMass += value;
-    }
-    const double maxTailMass = clamp01(maxTailFraction) * totalMass;
-
-    std::unordered_set<unsigned int> selected;
-    const size_t limit = std::min(tailCount, ordered.size());
-    double selectedMass = 0.0;
-    selected.reserve(limit);
-    for (size_t i = 0; i < limit; ++i) {
-        const double value = useLowTail ? ordered[i]->abundance : ordered[i]->coverageConfidence;
-        if (selected.size() >= MIN_TAIL_TARGETS && (selectedMass + value) > (maxTailMass + EPS)) {
-            break;
-        }
-        selectedMass += value;
-        selected.insert(ordered[i]->key);
-    }
-    return selected;
-}
-
-static std::unordered_set<unsigned int> selectDroppedTargets(const std::vector<TargetStats> &stats,
-                                                             double maxDropPercentage,
-                                                             double &abundanceCutoff) {
-    std::unordered_set<unsigned int> dropped;
-    if (stats.empty()) {
-        abundanceCutoff = 0.0;
-        return dropped;
-    }
-    if (stats.size() < MIN_FILTER_TARGETS) {
-        abundanceCutoff = 0.0;
-        return dropped;
-    }
-
-    std::vector<double> abundances;
-    abundances.reserve(stats.size());
-    for (size_t i = 0; i < stats.size(); ++i) {
-        abundances.push_back(stats[i].abundance);
-    }
-
-    const double maxTailFraction = clamp01(maxDropPercentage / 100.0);
-    size_t abundanceTailCount = 0;
-    const bool hasAbundanceCutoff = tailQuantileCutoff(abundances, true, maxTailFraction, abundanceCutoff, abundanceTailCount);
-    if (hasAbundanceCutoff == false) {
-        abundanceCutoff = 0.0;
-        return dropped;
-    }
-
-    const std::unordered_set<unsigned int> lowAbundanceTargets = selectTailTargets(stats, true, abundanceTailCount, maxTailFraction);
-    for (std::unordered_set<unsigned int>::const_iterator it = lowAbundanceTargets.begin(); it != lowAbundanceTargets.end(); ++it) {
-        dropped.insert(*it);
-    }
-    if (dropped.size() == stats.size()) {
-        dropped.clear();
-    }
-    return dropped;
-}
-
-static void applyDroppedTargets(ReclassTaxContext &ctx,
-                                const std::unordered_set<unsigned int> &dropped,
-                                size_t totalTargets,
-                                double abundanceCutoff) {
-    if (dropped.empty()) {
-        Debug(Debug::INFO) << "Reclassify target filter kept all targets. abundance cutoff="
-                           << abundanceCutoff << "\n";
-        return;
-    }
-
-    for (MappingTable::iterator it = ctx.mappingTable.begin(); it != ctx.mappingTable.end();) {
-        std::vector<ReclassTaxEntry> &records = it->second;
-        records.erase(std::remove_if(records.begin(), records.end(), [&dropped](const ReclassTaxEntry &entry) {
-            return dropped.find(entry.result.dbKey) != dropped.end();
-        }), records.end());
-
-        if (records.empty()) {
-            it = ctx.mappingTable.erase(it);
-        } else {
-            ++it;
-        }
-    }
-
-    ctx.queryOrder.erase(std::remove_if(ctx.queryOrder.begin(), ctx.queryOrder.end(), [&ctx](unsigned int queryKey) {
-        return ctx.mappingTable.find(queryKey) == ctx.mappingTable.end();
-    }), ctx.queryOrder.end());
-
-    for (std::unordered_set<unsigned int>::const_iterator it = dropped.begin(); it != dropped.end(); ++it) {
-        ctx.targetSet.erase(*it);
-    }
-
-    const double removedPct = (totalTargets > 0)
-                                ? (100.0 * static_cast<double>(dropped.size()) / static_cast<double>(totalTargets))
-                                : 0.0;
-    Debug(Debug::INFO) << "Reclassify dropped " << dropped.size()
-                       << " of " << totalTargets
-                       << " targets (" << removedPct << "%)"
-                       << " using abundance <= " << abundanceCutoff << ".\n";
-}
-
 static bool compareByPosteriorThenBitScore(const ReclassTaxEntry &a, const ReclassTaxEntry &b) {
     if (a.posterior != b.posterior) {
         return a.posterior > b.posterior;
@@ -908,21 +747,9 @@ int emreclassify(int argc, const char **argv, const Command &command) {
             par.reclassifyGamma,
             par.threads);
 
+    // reclassify only runs EM; low-abundance target dropping is handled by `mmseqs abundance --drop`.
     std::vector<TargetStats> allTargetStats = collectTargetStats(ctx);
     printAbundanceDistribution(allTargetStats);
-    double abundanceCutoff = 0.0;
-    const std::unordered_set<unsigned int> dropped = selectDroppedTargets(allTargetStats,
-                                                                          par.reclassifyMaxDropPercentage,
-                                                                          abundanceCutoff);
-    applyDroppedTargets(ctx, dropped, allTargetStats.size(), abundanceCutoff);
-    const size_t totalTargets = allTargetStats.size();
-    const size_t removedTargets = dropped.size();
-    const double removedPct = (totalTargets > 0)
-                                ? (100.0 * static_cast<double>(removedTargets) / static_cast<double>(totalTargets))
-                                : 0.0;
-    Debug(Debug::INFO) << "Reclassify-drop summary: removed " << removedTargets
-                       << " / " << totalTargets
-                       << " targets (" << removedPct << "%).\n";
 
     writeReclassifiedDb(ctx, reader.getDbtype(), par.db4, par.db4Index, par.threads, par.compressed);
 

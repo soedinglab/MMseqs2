@@ -251,6 +251,43 @@ static void addInterval(std::vector<Interval> &intervals, int start, int end) {
     intervals.push_back(interval);
 }
 
+// Add covered target intervals from a (compressed) backtrace/CIGAR string.
+// Only 'M' columns place a read residue on a target position, so they count as covered.
+// 'D' advances the target position (gap in query, no residue) and 'I' consumes query only.
+// The backtrace is run-length encoded (e.g. "153M2D10M"); a missing count means 1.
+static void addCoveredIntervalsFromBacktrace(std::vector<Interval> &intervals,
+                                             const std::string &compressedBacktrace,
+                                             int dbStartPos) {
+    int targetPos = dbStartPos;
+    int runStart = -1;
+    size_t count = 0;
+    for (size_t i = 0; i < compressedBacktrace.size(); ++i) {
+        const char c = compressedBacktrace[i];
+        if (c >= '0' && c <= '9') {
+            count = count * 10 + static_cast<size_t>(c - '0');
+            continue;
+        }
+        const int n = (count == 0) ? 1 : static_cast<int>(count);
+        count = 0;
+        if (c == 'M') {
+            if (runStart < 0) {
+                runStart = targetPos;
+            }
+            targetPos += n;
+        } else if (c == 'D') {
+            if (runStart >= 0) {
+                addInterval(intervals, runStart, targetPos - 1);
+                runStart = -1;
+            }
+            targetPos += n;
+        }
+        // 'I' consumes query only: target position and coverage are unchanged.
+    }
+    if (runStart >= 0) {
+        addInterval(intervals, runStart, targetPos - 1);
+    }
+}
+
 static std::vector<Interval> mergeIntervals(std::vector<Interval> intervals) {
     if (intervals.empty()) {
         return intervals;
@@ -295,7 +332,12 @@ static std::vector<TargetStats> collectTargetStats(const ReclassTaxContext &ctx)
             stats.abundance = entry.abundance;
             stats.coverageConfidence = entry.coverageConfidence;
             stats.dropped = false;
-            addInterval(stats.intervals, entry.result.dbStartPos, entry.result.dbEndPos);
+            if (entry.result.backtrace.empty() == false) {
+                addCoveredIntervalsFromBacktrace(stats.intervals, entry.result.backtrace, entry.result.dbStartPos);
+            } else {
+                // No backtrace available: fall back to the aligned span [dbStartPos, dbEndPos].
+                addInterval(stats.intervals, entry.result.dbStartPos, entry.result.dbEndPos);
+            }
         }
     }
 
@@ -536,18 +578,23 @@ static void writeProteinStats(const std::vector<TargetStats> &stats,
                               DBReader<unsigned int> &targetHeaderReader,
                               const std::string &path) {
     FILE *handle = FileUtil::openFileOrDie(path.c_str(), "w", false);
-    fputs("target_key\ttarget_id\tabundance_pct\tcoverage_confidence\tDrop(y/n)\tmapped_length\ttarget_length\n", handle);
+    fputs("target_key\ttarget_id\tabundance_pct\tcoverage_confidence\tbreadth_of_coverage\tDrop(y/n)\tmapped_length\ttarget_length\n", handle);
 
     for (size_t i = 0; i < stats.size(); ++i) {
         const unsigned int key = stats[i].key;
         const std::string targetId = identifierForKey(targetHeaderReader, key, 0);
         const unsigned int mappedLength = intervalCoverage(stats[i].intervals);
+        // Fraction of the target that is covered by at least one aligned read residue.
+        const double breadthOfCoverage = (stats[i].targetLength > 0)
+                ? std::min(1.0, static_cast<double>(mappedLength) / static_cast<double>(stats[i].targetLength))
+                : 0.0;
 
-        fprintf(handle, "%u\t%s\t%.12g\t%.12g\t%s\t%u\t%u\n",
+        fprintf(handle, "%u\t%s\t%.12g\t%.12g\t%.12g\t%s\t%u\t%u\n",
                 key,
                 targetId.c_str(),
                 stats[i].abundance,
                 stats[i].coverageConfidence,
+                breadthOfCoverage,
                 stats[i].dropped ? "y" : "n",
                 mappedLength,
                 stats[i].targetLength);
