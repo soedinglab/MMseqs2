@@ -716,7 +716,11 @@ static void writeReclassifiedDb(const ReclassTaxContext &ctx,
             for (size_t j = 0; j < records.size(); ++j) {
                 Matcher::result_t res = records[j].result;
                 res.seqId = static_cast<float>(records[j].posterior);
-                size_t len = Matcher::resultToBuffer(buffer, res, ctx.hasBacktrace, ctx.hasOrfPosition);
+                // The backtrace was parsed with readCompressed=true, so res.backtrace already holds
+                // the compressed CIGAR (e.g. "55M"). resultToBuffer(..., compress, addOrfPosition):
+                // write it verbatim (compress=false) instead of re-compressing it into garbage
+                // (e.g. "46M" -> "0M14161M"), and forward hasOrfPosition to the addOrfPosition slot.
+                size_t len = Matcher::resultToBuffer(buffer, res, ctx.hasBacktrace, false, ctx.hasOrfPosition);
                 writer.writeAdd(buffer, len, thread_idx);
             }
             writer.writeEnd(queryKey, thread_idx);

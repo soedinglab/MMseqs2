@@ -31,18 +31,15 @@ struct ReclassTaxEntry {
 
 typedef std::unordered_map<unsigned int, std::vector<ReclassTaxEntry> > MappingTable;
 
-struct Interval {
-    int start;
-    int end;
-};
-
 struct TargetStats {
     unsigned int key;
     unsigned int targetLength;
     double abundance;
     double coverageConfidence;
     bool dropped;
-    std::vector<Interval> intervals;
+    // Number of distinct target residues covered by at least one aligned ('M') read column.
+    // Computed directly against the target's own length, so it can never exceed targetLength.
+    unsigned int mappedLength;
 };
 
 struct ReclassTaxContext {
@@ -118,7 +115,8 @@ static void loadAlignmentDb(DBReader<unsigned int> &reader, ReclassTaxContext &c
 
 struct TargetHitRef {
     const ReclassTaxEntry *entry;
-    double score;
+    // The hit score is reachable via entry->result.score, so it is not duplicated here;
+    // weight (score / per-query score sum) is not derivable from the target side, so it is kept.
     double weight;
 };
 
@@ -136,7 +134,9 @@ static void initCoverageConfidence(MappingTable &mappingTable,
         hitsByTarget.emplace(*it, std::vector<TargetHitRef>());
     }
 
+    Debug::Progress groupProgress(mappingTable.size());
     for (MappingTable::const_iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
+        groupProgress.updateProgress();
         double scoreSum = 0.0;
         for (size_t j = 0; j < it->second.size(); ++j) {
             scoreSum += static_cast<double>(it->second[j].result.score);
@@ -151,7 +151,7 @@ static void initCoverageConfidence(MappingTable &mappingTable,
             }
             const double score = static_cast<double>(it->second[j].result.score);
             const double weight = (scoreSum > 0.0) ? (score / scoreSum) : 0.0;
-            hitsByTarget[target].push_back(TargetHitRef{&it->second[j], score, weight});
+            hitsByTarget[target].push_back(TargetHitRef{&it->second[j], weight});
         }
     }
 
@@ -160,8 +160,10 @@ static void initCoverageConfidence(MappingTable &mappingTable,
     const std::vector<unsigned int> targetList = targetListFromSet(targetSet);
     std::vector<double> coverageFractionByIndex(targetList.size(), 0.0);
 
+    Debug::Progress covProgress(targetList.size());
 #pragma omp parallel for num_threads(threads) schedule(dynamic, 1)
     for (size_t i = 0; i < targetList.size(); ++i) {
+        covProgress.updateProgress();
         const unsigned int target = targetList[i];
         const int startPos = targetMin[target];
         const int endPos = targetMax[target];
@@ -179,7 +181,7 @@ static void initCoverageConfidence(MappingTable &mappingTable,
                     continue;
                 }
 
-                const double mq = hits[h].score / static_cast<double>(targetLen);
+                const double mq = static_cast<double>(result.score) / static_cast<double>(targetLen);
                 const int start = std::max(0, result.dbStartPos - startPos);
                 const int end = std::min(len - 1, result.dbEndPos - startPos);
                 for (int pos = start; pos <= end; ++pos) {
@@ -244,22 +246,17 @@ static void computeAbundanceFromPosterior(MappingTable &mappingTable,
     }
 }
 
-static void addInterval(std::vector<Interval> &intervals, int start, int end) {
-    Interval interval;
-    interval.start = std::min(start, end);
-    interval.end = std::max(start, end);
-    intervals.push_back(interval);
-}
-
-// Add covered target intervals from a (compressed) backtrace/CIGAR string.
-// Only 'M' columns place a read residue on a target position, so they count as covered.
-// 'D' advances the target position (gap in query, no residue) and 'I' consumes query only.
-// The backtrace is run-length encoded (e.g. "153M2D10M"); a missing count means 1.
-static void addCoveredIntervalsFromBacktrace(std::vector<Interval> &intervals,
-                                             const std::string &compressedBacktrace,
-                                             int dbStartPos) {
+// Mark the target residues covered by a single hit onto `covered` (indexed by target position).
+// The backtrace is a run-length-encoded CIGAR (e.g. "153M2D10M"; a missing count means 1).
+// Only 'M' columns place a read residue on a target position, so only they mark coverage.
+// 'M' and 'D' both advance the target position (a residue is consumed on the target);
+// 'I' consumes the query only. Positions outside [0, targetLength) are ignored, so a hit
+// can never contribute coverage beyond the target itself.
+static void markCoveredFromBacktrace(std::vector<bool> &covered,
+                                     const std::string &compressedBacktrace,
+                                     int dbStartPos) {
+    const int targetLength = static_cast<int>(covered.size());
     int targetPos = dbStartPos;
-    int runStart = -1;
     size_t count = 0;
     for (size_t i = 0; i < compressedBacktrace.size(); ++i) {
         const char c = compressedBacktrace[i];
@@ -270,58 +267,34 @@ static void addCoveredIntervalsFromBacktrace(std::vector<Interval> &intervals,
         const int n = (count == 0) ? 1 : static_cast<int>(count);
         count = 0;
         if (c == 'M') {
-            if (runStart < 0) {
-                runStart = targetPos;
+            for (int k = 0; k < n; ++k, ++targetPos) {
+                if (targetPos >= 0 && targetPos < targetLength) {
+                    covered[static_cast<size_t>(targetPos)] = true;
+                }
             }
-            targetPos += n;
         } else if (c == 'D') {
-            if (runStart >= 0) {
-                addInterval(intervals, runStart, targetPos - 1);
-                runStart = -1;
-            }
             targetPos += n;
         }
-        // 'I' consumes query only: target position and coverage are unchanged.
-    }
-    if (runStart >= 0) {
-        addInterval(intervals, runStart, targetPos - 1);
+        // 'I' consumes the query only: the target position and coverage are unchanged.
     }
 }
 
-static std::vector<Interval> mergeIntervals(std::vector<Interval> intervals) {
-    if (intervals.empty()) {
-        return intervals;
+// Mark the aligned span [dbStartPos, dbEndPos] as covered (fallback when no backtrace is present),
+// clipped to the valid target range [0, targetLength).
+static void markCoveredFromSpan(std::vector<bool> &covered, int dbStartPos, int dbEndPos) {
+    const int targetLength = static_cast<int>(covered.size());
+    const int start = std::max(0, std::min(dbStartPos, dbEndPos));
+    const int end = std::min(targetLength - 1, std::max(dbStartPos, dbEndPos));
+    for (int pos = start; pos <= end; ++pos) {
+        covered[static_cast<size_t>(pos)] = true;
     }
-
-    std::sort(intervals.begin(), intervals.end(), [](const Interval &lhs, const Interval &rhs) {
-        if (lhs.start != rhs.start) {
-            return lhs.start < rhs.start;
-        }
-        return lhs.end < rhs.end;
-    });
-
-    std::vector<Interval> merged;
-    merged.push_back(intervals[0]);
-    for (size_t i = 1; i < intervals.size(); ++i) {
-        if (intervals[i].start <= merged.back().end + 1) {
-            merged.back().end = std::max(merged.back().end, intervals[i].end);
-        } else {
-            merged.push_back(intervals[i]);
-        }
-    }
-    return merged;
 }
 
-static unsigned int intervalCoverage(const std::vector<Interval> &intervals) {
-    unsigned int covered = 0;
-    for (size_t i = 0; i < intervals.size(); ++i) {
-        covered += static_cast<unsigned int>(intervals[i].end - intervals[i].start + 1);
-    }
-    return covered;
-}
-
-static std::vector<TargetStats> collectTargetStats(const ReclassTaxContext &ctx) {
+static std::vector<TargetStats> collectTargetStats(const ReclassTaxContext &ctx, int threads) {
+    (void)threads;
+    // Group the hits by target and record the per-target metadata in one pass.
     std::unordered_map<unsigned int, TargetStats> statsByTarget;
+    std::unordered_map<unsigned int, std::vector<const Matcher::result_t *> > hitsByTarget;
 
     for (MappingTable::const_iterator it = ctx.mappingTable.begin(); it != ctx.mappingTable.end(); ++it) {
         for (size_t j = 0; j < it->second.size(); ++j) {
@@ -332,20 +305,44 @@ static std::vector<TargetStats> collectTargetStats(const ReclassTaxContext &ctx)
             stats.abundance = entry.abundance;
             stats.coverageConfidence = entry.coverageConfidence;
             stats.dropped = false;
-            if (entry.result.backtrace.empty() == false) {
-                addCoveredIntervalsFromBacktrace(stats.intervals, entry.result.backtrace, entry.result.dbStartPos);
-            } else {
-                // No backtrace available: fall back to the aligned span [dbStartPos, dbEndPos].
-                addInterval(stats.intervals, entry.result.dbStartPos, entry.result.dbEndPos);
-            }
+            stats.mappedLength = 0;
+            hitsByTarget[entry.result.dbKey].push_back(&entry.result);
         }
     }
 
     std::vector<TargetStats> out;
     out.reserve(statsByTarget.size());
-    for (std::unordered_map<unsigned int, TargetStats>::iterator it = statsByTarget.begin(); it != statsByTarget.end(); ++it) {
-        it->second.intervals = mergeIntervals(it->second.intervals);
+    for (std::unordered_map<unsigned int, TargetStats>::const_iterator it = statsByTarget.begin(); it != statsByTarget.end(); ++it) {
         out.push_back(it->second);
+    }
+
+    // Count covered residues per target on a boolean map sized to the target length. Because every
+    // position is bounded to [0, targetLength), mapped_length is always <= target_length by
+    // construction - no post-hoc clamping required.
+    Debug::Progress mappedProgress(out.size());
+#pragma omp parallel for num_threads(threads) schedule(dynamic, 1)
+    for (size_t i = 0; i < out.size(); ++i) {
+        mappedProgress.updateProgress();
+        TargetStats &stats = out[i];
+        if (stats.targetLength == 0) {
+            stats.mappedLength = 0;
+            continue;
+        }
+        std::vector<bool> covered(stats.targetLength, false);
+        const std::vector<const Matcher::result_t *> &hits = hitsByTarget[stats.key];
+        for (size_t h = 0; h < hits.size(); ++h) {
+            const Matcher::result_t *result = hits[h];
+            if (result->backtrace.empty() == false) {
+                markCoveredFromBacktrace(covered, result->backtrace, result->dbStartPos);
+            } else {
+                markCoveredFromSpan(covered, result->dbStartPos, result->dbEndPos);
+            }
+        }
+        unsigned int mapped = 0;
+        for (size_t pos = 0; pos < covered.size(); ++pos) {
+            mapped += covered[pos] ? 1u : 0u;
+        }
+        stats.mappedLength = mapped;
     }
 
     std::sort(out.begin(), out.end(), [](const TargetStats &lhs, const TargetStats &rhs) {
@@ -583,10 +580,11 @@ static void writeProteinStats(const std::vector<TargetStats> &stats,
     for (size_t i = 0; i < stats.size(); ++i) {
         const unsigned int key = stats[i].key;
         const std::string targetId = identifierForKey(targetHeaderReader, key, 0);
-        const unsigned int mappedLength = intervalCoverage(stats[i].intervals);
-        // Fraction of the target that is covered by at least one aligned read residue.
+        const unsigned int mappedLength = stats[i].mappedLength;
+        // Fraction of the target covered by at least one aligned read residue. mappedLength is
+        // bounded by targetLength (see collectTargetStats), so this is naturally in [0, 1].
         const double breadthOfCoverage = (stats[i].targetLength > 0)
-                ? std::min(1.0, static_cast<double>(mappedLength) / static_cast<double>(stats[i].targetLength))
+                ? static_cast<double>(mappedLength) / static_cast<double>(stats[i].targetLength)
                 : 0.0;
 
         fprintf(handle, "%u\t%s\t%.12g\t%.12g\t%.12g\t%s\t%u\t%u\n",
@@ -755,16 +753,20 @@ int emabundance(int argc, const char **argv, const Command &command) {
     loadAlignmentDb(reader, ctx);
     Debug(Debug::INFO) << "Loaded " << ctx.queryCount << " queries with hits and " << ctx.targetSet.size() << " unique targets.\n";
 
+    Debug(Debug::INFO) << "Computing coverage confidence...\n";
     initCoverageConfidence(ctx.mappingTable, ctx.targetSet, par.threads);
+    Debug(Debug::INFO) << "Computing abundance from posterior...\n";
     computeAbundanceFromPosterior(ctx.mappingTable, ctx.targetSet, ctx.queryCount);
 
-    std::vector<TargetStats> allTargetStats = collectTargetStats(ctx);
+    Debug(Debug::INFO) << "Collecting per-target statistics...\n";
+    std::vector<TargetStats> allTargetStats = collectTargetStats(ctx, par.threads);
     double abundanceCutoff = 0.0;
     const std::unordered_set<unsigned int> dropped = selectDroppedTargets(allTargetStats,
                                                                           par.reclassifyMaxDropPercentage,
                                                                           abundanceCutoff);
     markDroppedTargets(allTargetStats, dropped);
     convertAbundanceToPercent(allTargetStats);
+    Debug(Debug::INFO) << "Writing output...\n";
 
     if (withTaxonomy) {
         std::vector<TargetStats> targetStats = allTargetStats;

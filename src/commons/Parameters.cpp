@@ -354,11 +354,8 @@ Parameters::Parameters():
     reclassify.push_back(&PARAM_V);
 
     // abundance
-    abundance.push_back(&PARAM_RECLASSIFY_LAMBDA);
-    abundance.push_back(&PARAM_RECLASSIFY_ALPHA);
-    abundance.push_back(&PARAM_RECLASSIFY_GAMMA);
-    abundance.push_back(&PARAM_RECLASSIFY_MAX_ITER);
-    abundance.push_back(&PARAM_RECLASSIFY_TOL);
+    // abundance reads the posterior already computed by reclassify; it does not run EM, so the
+    // EM parameters (--lambda/--alpha/--gamma/--max-iter/--tol) are intentionally not registered here.
     abundance.push_back(&PARAM_RECLASSIFY_TAXONOMY);
     abundance.push_back(&PARAM_RECLASSIFY_MAX_DROP_PERCENTAGE);
     abundance.push_back(&PARAM_THREADS);
