@@ -1,15 +1,21 @@
 ARG TARGETARCH
 ARG APP=mmseqs
 ARG GPU=0
+ARG BUILDER_IMAGE_ARM64=ghcr.io/steineggerlab/build-containers:main-sbsa
+ARG BUILDER_IMAGE_AMD64=ghcr.io/steineggerlab/build-containers:main-x86_64
+ARG CUDA_ARCH_ARM64=75-real;80-real;86-real;89-real;90-real;100-real;103-real;120;121-real
+ARG CUDA_ARCH_AMD64=75-real;80-real;86-real;89-real;90-real;100-real;103-real;120
 
-FROM --platform=$BUILDPLATFORM ghcr.io/steineggerlab/build-containers:main-sbsa AS builder-arm64
+FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE_ARM64} AS builder-arm64
 
-FROM --platform=$BUILDPLATFORM ghcr.io/steineggerlab/build-containers:main-x86_64 AS builder-amd64
+FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE_AMD64} AS builder-amd64
 
 FROM builder-${TARGETARCH} AS builder
 ARG TARGETARCH
 ARG APP
 ARG GPU
+ARG CUDA_ARCH_ARM64
+ARG CUDA_ARCH_AMD64
 
 WORKDIR /opt/build
 ADD . .
@@ -28,7 +34,7 @@ RUN set -x; \
           -DRust_TOOLCHAIN=stable-x86_64-unknown-linux-gnu \
           -DRust_CARGO_TARGET=aarch64-unknown-linux-gnu \
           -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
-          -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=${GPU} -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..; \
+          -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=${GPU} -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCH_ARM64}" ..; \
       /usr/local/bin/cmake --build . -j$(nproc --all) -v; \
     else \
       if [ -e "${LIBGCC}/libgomp.so" ]; then \
@@ -41,7 +47,7 @@ RUN set -x; \
           -DATOMIC_LIB_OVERRIDE="${LIBGCC}/libatomic.a" \
           -DCMAKE_POLICY_DEFAULT_CMP0074=NEW -DCMAKE_POLICY_DEFAULT_CMP0144=NEW \
           -DZLIB_ROOT=/deps -DBZIP2_ROOT=/deps \
-          -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=${GPU} -DCMAKE_CUDA_ARCHITECTURES="75-real;80-real;86-real;89-real;90" ..; \
+          -DFORCE_STATIC_DEPS=1 -DENABLE_CUDA=${GPU} -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCH_AMD64}" ..; \
       /usr/local/bin/cmake --build . -j$(nproc --all) -v; \
     fi; \
     mv src/${APP} /opt/build/${APP};
