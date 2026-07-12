@@ -12,13 +12,11 @@
 #include "Alignment.h"
 #include "AlignmentSymmetry.h"
 #include <atomic>
-#include <chrono>
-#include <cstdio>
 #include <cstdlib>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include <queue>
+#include <algorithm>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -29,31 +27,13 @@
 
 struct ClusterResult {
     size_t sequenceIdx;
-    size_t representativeId;
+    DBLocalId representativeId;
     size_t prefSize;
-    std::vector<size_t> memberIds;
-
-    bool revalidated = false;
-    
-    bool operator<(const ClusterResult& other) const {
-        if (memberIds.size() > other.memberIds.size()) {
-            return true;
-        }
-        if (other.memberIds.size() > memberIds.size()) {
-            return false;
-        }
-        if (representativeId < other.representativeId) {
-            return true;
-        }
-        if (other.representativeId < representativeId) {
-            return false;            
-        }
-        return true;
-    }
+    std::vector<DBLocalId> memberIds;
 };
 
 struct PrefInfo {
-    size_t id;
+    DBLocalId id;
     size_t size;
 
     static bool compareBySizeAndId(const PrefInfo &first, const PrefInfo &second){
@@ -69,258 +49,168 @@ struct PrefInfo {
     }
 };
 
-struct GreedyComparator {
-    bool operator()(const ClusterResult& a, const ClusterResult& b) const {
-        return a.sequenceIdx > b.sequenceIdx;
-    }
+// Lightweight entry stored in the set-cover ready queue. Instead of carrying the
+// member id vector (as ClusterResult does) it only references the members, which
+// are kept in a single shared pool (setCoverMemberPool), by offset and count.
+struct SetCoverCandidate {
+    DBLocalId representativeId;
+    size_t memberCount;
+    size_t memberOffset;
 };
 
 struct SetCoverComparator {
-    bool operator()(const ClusterResult& a, const ClusterResult& b) const {
-        if (a.memberIds.size() < b.memberIds.size()) {
+    bool operator()(const SetCoverCandidate& a, const SetCoverCandidate& b) const {
+        if (a.memberCount < b.memberCount) {
             return true;
         }
-        if (b.memberIds.size() < a.memberIds.size()) {
+        if (b.memberCount < a.memberCount) {
             return false;
         }
         if (a.representativeId < b.representativeId) {
             return true;
         }
         if (b.representativeId < a.representativeId) {
-            return false;            
+            return false;
         }
-        return false; 
+        return false;
     }
 };
 
 static std::mutex clusterMutex;
 static std::condition_variable clusterCondition;
-static std::condition_variable align2clustQueueSpaceCondition;
-static std::priority_queue<ClusterResult, std::vector<ClusterResult>, GreedyComparator> clusterResultQueue;
-static std::priority_queue<ClusterResult, std::vector<ClusterResult>, SetCoverComparator> setCoverReadyQueue;
+static std::condition_variable reorderSpaceCondition;
+// In-order reorder buffer. Worker results carry a dense, contiguous sequenceIdx in
+// [0, endRange); instead of a heap we use a fixed-size ring indexed by
+// sequenceIdx % reorderCapacity. Publishing a result is O(1) under the lock, and the
+// slot for the next-in-order result is always free -> deadlock-free throttling.
+static std::vector<ClusterResult> reorderSlots;    // slot storage, size == reorderCapacity
+static std::vector<unsigned char> reorderFilled;   // 1 == slot holds an unconsumed result
+static size_t reorderCapacity = 0;                 // ring size == max out-of-order window
+static size_t reorderBufferedCount = 0;            // number of filled (unconsumed) slots
+// Binary heap (std::push_heap / pop_heap) of lightweight candidates. A plain
+// vector is used instead of std::priority_queue so the member pool can be
+// compacted by iterating over the live candidates.
+static std::vector<SetCoverCandidate> setCoverReadyQueue;
+static SetCoverComparator setCoverComparator;
+// Shared backing store for all member ids referenced by setCoverReadyQueue.
+static std::vector<DBLocalId> setCoverMemberPool;
+static size_t setCoverLiveMemberCount = 0;
 
-static std::unique_ptr<std::vector<ClusterResult>> elements;
 static size_t currentProcessPosition = 0;
 static size_t currentPrefSize = 0;
 static bool allCalculationsDone = false;
 
-static std::atomic<size_t> align2clustStartedEntries(0);
-static std::atomic<size_t> align2clustCompletedEntries(0);
-static std::atomic<size_t> align2clustAssignedEntries(0);
-static std::atomic<size_t> align2clustMaxLoopIndex(0);
-static std::mutex align2clustProgressMutex;
-static std::condition_variable align2clustProgressCondition;
-static bool align2clustProgressDone = false;
-static Timer align2clustProgressTimer;
-static const int ALIGN2CLUST_PROGRESS_REPORT_INTERVAL_SECONDS = 3600;
-static const size_t ALIGN2CLUST_DEFAULT_MAX_QUEUED_RESULTS = 1000000;
-static size_t align2clustMaxQueuedResults = ALIGN2CLUST_DEFAULT_MAX_QUEUED_RESULTS;
-static std::atomic<size_t> align2clustQueueWaits(0);
-static std::atomic<size_t> *align2clustThreadLoopIndex = nullptr;
-static std::atomic<DBKeyType> *align2clustThreadQueryKey = nullptr;
-static std::atomic<size_t> *align2clustThreadPrefEntryBytes = nullptr;
-static std::atomic<size_t> *align2clustThreadPrefHitCount = nullptr;
-static size_t align2clustThreadProgressCount = 0;
+typedef std::atomic<DBLocalId> ClusterAssignment;
 
+static DBLocalId loadAssignedCluster(const ClusterAssignment *assignedCluster, size_t sequenceId) {
+    return assignedCluster[sequenceId].load(std::memory_order_relaxed);
+}
+
+static void storeAssignedCluster(ClusterAssignment *assignedCluster, size_t sequenceId, DBLocalId representativeId) {
+    assignedCluster[sequenceId].store(representativeId, std::memory_order_relaxed);
+}
+
+// Serialize a single alignment record and append it to the per-representative buffer.
+static void appendAlignmentResult(std::string &alnResultBuffer, char *lineBuffer, const Matcher::result_t &result, bool addBacktrace) {
+    size_t len = Matcher::resultToBuffer(lineBuffer, result, addBacktrace);
+    alnResultBuffer.append(lineBuffer, len);
+}
+
+// Reclaim dead space in setCoverMemberPool once more than half of it is dead.
+// Live members are copied into a fresh pool and the candidates' offsets updated;
+// the heap order is preserved because only offsets (not the sort keys) change.
+static const size_t ALIGN2CLUST_MIN_COMPACTION_DEAD_MEMBERS = 16 * 1024 * 1024 / sizeof(DBLocalId);
+
+static void compactSetCoverMemberPool() {
+    const size_t deadMemberCount = setCoverMemberPool.size() - setCoverLiveMemberCount;
+    if (setCoverMemberPool.empty() ||
+        deadMemberCount < ALIGN2CLUST_MIN_COMPACTION_DEAD_MEMBERS ||
+        deadMemberCount * 2 <= setCoverMemberPool.size()) {
+        return;
+    }
+    std::vector<DBLocalId> compactedPool;
+    compactedPool.reserve(setCoverLiveMemberCount);
+    for (SetCoverCandidate &candidate : setCoverReadyQueue) {
+        const size_t newOffset = compactedPool.size();
+        compactedPool.insert(compactedPool.end(),
+                             setCoverMemberPool.begin() + candidate.memberOffset,
+                             setCoverMemberPool.begin() + candidate.memberOffset + candidate.memberCount);
+        candidate.memberOffset = newOffset;
+    }
+    setCoverMemberPool.swap(compactedPool);
+}
+
+// User override for the reorder-buffer capacity. Returns 0 when unset/invalid, meaning
+// "size automatically from the memory budget" (see computeReorderCapacity).
 static size_t parseAlign2clustMaxQueuedResults() {
     const char *envValue = getenv("MMSEQS_ALIGN2CLUST_MAX_QUEUE");
     if (envValue == nullptr || *envValue == '\0') {
-        return ALIGN2CLUST_DEFAULT_MAX_QUEUED_RESULTS;
+        return 0;
     }
 
     char *end = nullptr;
     unsigned long long parsedValue = strtoull(envValue, &end, 10);
     if (end == envValue || *end != '\0' || parsedValue == 0) {
         Debug(Debug::WARNING) << "Ignoring invalid MMSEQS_ALIGN2CLUST_MAX_QUEUE=" << envValue
-                              << "; using " << ALIGN2CLUST_DEFAULT_MAX_QUEUED_RESULTS << "\n";
-        return ALIGN2CLUST_DEFAULT_MAX_QUEUED_RESULTS;
+                              << "; sizing the reorder buffer automatically\n";
+        return 0;
     }
     return static_cast<size_t>(parsedValue);
 }
 
-static void initAlign2clustThreadProgress(size_t threadCount) {
-    delete[] align2clustThreadLoopIndex;
-    delete[] align2clustThreadQueryKey;
-    delete[] align2clustThreadPrefEntryBytes;
-    delete[] align2clustThreadPrefHitCount;
-    align2clustThreadProgressCount = threadCount;
-    align2clustThreadLoopIndex = new std::atomic<size_t>[threadCount];
-    align2clustThreadQueryKey = new std::atomic<DBKeyType>[threadCount];
-    align2clustThreadPrefEntryBytes = new std::atomic<size_t>[threadCount];
-    align2clustThreadPrefHitCount = new std::atomic<size_t>[threadCount];
-    for (size_t i = 0; i < threadCount; i++) {
-        align2clustThreadLoopIndex[i].store(SIZE_MAX, std::memory_order_relaxed);
-        align2clustThreadQueryKey[i].store(DB_KEY_INVALID, std::memory_order_relaxed);
-        align2clustThreadPrefEntryBytes[i].store(0, std::memory_order_relaxed);
-        align2clustThreadPrefHitCount[i].store(0, std::memory_order_relaxed);
+// Choose the reorder-buffer capacity from the available memory budget (mirrors the
+// kmermatcher OOM-aware split sizing). Reserve the per-sequence arrays that coexist
+// with the buffer (assignedCluster, plus prefRepSizePair in set-cover), keep 10%
+// headroom, and bound each buffered result by its worst case (a ClusterResult header
+// plus up to maxResListLen member ids). MMSEQS_ALIGN2CLUST_MAX_QUEUE, if set, caps it
+// further; the capacity never exceeds the number of results produced.
+static size_t computeReorderCapacity(const Parameters &par, size_t dbSize, int mode, size_t resultCount) {
+    const size_t memoryLimit = Util::computeMemory(par.splitMemoryLimit);
+
+    size_t fixedMemory = dbSize * sizeof(ClusterAssignment);
+    if (mode == Parameters::SET_COVER) {
+        fixedMemory += dbSize * sizeof(PrefInfo);
     }
+
+    const size_t budget = (memoryLimit > fixedMemory)
+        ? static_cast<size_t>(static_cast<double>(memoryLimit - fixedMemory) * 0.9)
+        : 0;
+    const size_t bytesPerResult = sizeof(ClusterResult) + (par.maxResListLen + 1) * sizeof(DBLocalId);
+
+    size_t capacity = std::min(resultCount, std::max<size_t>(1, budget / bytesPerResult));
+    const size_t userCap = parseAlign2clustMaxQueuedResults();  // 0 == auto
+    if (userCap != 0) {
+        capacity = std::min(capacity, userCap);
+    }
+    capacity = std::max<size_t>(1, capacity);
+
+    Debug(Debug::INFO) << "Reorder buffer sizing: memory limit " << memoryLimit << " byte, reserved (fixed) "
+                       << fixedMemory << " byte, budget " << budget << " byte, " << bytesPerResult
+                       << " byte/result\n";
+    Debug(Debug::INFO) << "Reorder buffer capacity: " << capacity << " results ("
+                       << capacity * sizeof(ClusterResult) << " byte pre-allocated slots)\n";
+    return capacity;
 }
 
-static void cleanupAlign2clustThreadProgress() {
-    delete[] align2clustThreadLoopIndex;
-    delete[] align2clustThreadQueryKey;
-    delete[] align2clustThreadPrefEntryBytes;
-    delete[] align2clustThreadPrefHitCount;
-    align2clustThreadLoopIndex = nullptr;
-    align2clustThreadQueryKey = nullptr;
-    align2clustThreadPrefEntryBytes = nullptr;
-    align2clustThreadPrefHitCount = nullptr;
-    align2clustThreadProgressCount = 0;
-}
-
-static void updateAlign2clustMaxLoopIndex(size_t loopIndex) {
-    size_t previous = align2clustMaxLoopIndex.load(std::memory_order_relaxed);
-    while (loopIndex > previous &&
-           align2clustMaxLoopIndex.compare_exchange_weak(previous, loopIndex,
-                                                         std::memory_order_relaxed,
-                                                         std::memory_order_relaxed) == false) {
-    }
-}
-
-struct Align2clustLoopProgress {
-    Align2clustLoopProgress(size_t loopIndex, unsigned int threadIdx)
-            : threadIdx(threadIdx) {
-        align2clustStartedEntries.fetch_add(1, std::memory_order_relaxed);
-        updateAlign2clustMaxLoopIndex(loopIndex);
-        if (threadIdx < align2clustThreadProgressCount) {
-            align2clustThreadLoopIndex[threadIdx].store(loopIndex, std::memory_order_relaxed);
-            align2clustThreadQueryKey[threadIdx].store(DB_KEY_INVALID, std::memory_order_relaxed);
-            align2clustThreadPrefEntryBytes[threadIdx].store(0, std::memory_order_relaxed);
-            align2clustThreadPrefHitCount[threadIdx].store(0, std::memory_order_relaxed);
-        }
-    }
-
-    ~Align2clustLoopProgress() {
-        align2clustCompletedEntries.fetch_add(1, std::memory_order_relaxed);
-        if (threadIdx < align2clustThreadProgressCount) {
-            align2clustThreadLoopIndex[threadIdx].store(SIZE_MAX, std::memory_order_relaxed);
-            align2clustThreadQueryKey[threadIdx].store(DB_KEY_INVALID, std::memory_order_relaxed);
-            align2clustThreadPrefEntryBytes[threadIdx].store(0, std::memory_order_relaxed);
-            align2clustThreadPrefHitCount[threadIdx].store(0, std::memory_order_relaxed);
-        }
-    }
-
-    unsigned int threadIdx;
-};
-
-static void updateAlign2clustThreadQueryInfo(unsigned int threadIdx, DBKeyType queryKey, size_t prefEntryBytes) {
-    if (threadIdx < align2clustThreadProgressCount) {
-        align2clustThreadQueryKey[threadIdx].store(queryKey, std::memory_order_relaxed);
-        align2clustThreadPrefEntryBytes[threadIdx].store(prefEntryBytes, std::memory_order_relaxed);
-    }
-}
-
-static void updateAlign2clustThreadPrefHitCount(unsigned int threadIdx, size_t prefHitCount) {
-    if (threadIdx < align2clustThreadProgressCount) {
-        align2clustThreadPrefHitCount[threadIdx].store(prefHitCount, std::memory_order_relaxed);
-    }
-}
-
-static void pushAlign2clustClusterResult(ClusterResult &&clusterResult) {
+static void pushClusterResult(ClusterResult &&clusterResult) {
+    const size_t idx = clusterResult.sequenceIdx;
     bool shouldNotifyClusterThread = false;
     {
         std::unique_lock<std::mutex> lock(clusterMutex);
-        if (clusterResult.sequenceIdx != currentProcessPosition &&
-            clusterResultQueue.size() >= align2clustMaxQueuedResults) {
-            align2clustQueueWaits.fetch_add(1, std::memory_order_relaxed);
-            align2clustQueueSpaceCondition.wait(lock, [&clusterResult] {
-                return allCalculationsDone ||
-                       clusterResult.sequenceIdx == currentProcessPosition ||
-                       clusterResultQueue.size() < align2clustMaxQueuedResults;
-            });
-        }
-        shouldNotifyClusterThread = (clusterResult.sequenceIdx == currentProcessPosition);
-        clusterResultQueue.push(std::move(clusterResult));
+        // Wait until this result's ring slot is free. Because reorderCapacity >= 1,
+        // idx == currentProcessPosition always satisfies the predicate immediately, so
+        // the producer of the result the consumer is waiting for never blocks (deadlock-free).
+        reorderSpaceCondition.wait(lock, [&] {
+            return allCalculationsDone || idx < currentProcessPosition + reorderCapacity;
+        });
+        const size_t slot = idx % reorderCapacity;
+        reorderSlots[slot] = std::move(clusterResult);   // O(1) vector move, no heap sift
+        reorderFilled[slot] = 1;
+        reorderBufferedCount++;
+        shouldNotifyClusterThread = (idx == currentProcessPosition);
     }
     if (shouldNotifyClusterThread) {
         clusterCondition.notify_one();
-    }
-}
-
-static void logAlign2clustProgress(const char *label, size_t endRange) {
-    size_t currentProcessPositionSnapshot = 0;
-    size_t currentPrefSizeSnapshot = 0;
-    size_t clusterResultQueueSize = 0;
-    size_t setCoverReadyQueueSize = 0;
-    bool allCalculationsDoneSnapshot = false;
-
-    {
-        std::lock_guard<std::mutex> lock(clusterMutex);
-        currentProcessPositionSnapshot = currentProcessPosition;
-        currentPrefSizeSnapshot = currentPrefSize;
-        clusterResultQueueSize = clusterResultQueue.size();
-        setCoverReadyQueueSize = setCoverReadyQueue.size();
-        allCalculationsDoneSnapshot = allCalculationsDone;
-    }
-
-    const size_t started = align2clustStartedEntries.load(std::memory_order_relaxed);
-    const size_t completed = align2clustCompletedEntries.load(std::memory_order_relaxed);
-    const size_t assigned = align2clustAssignedEntries.load(std::memory_order_relaxed);
-    const size_t maxLoopIndex = align2clustMaxLoopIndex.load(std::memory_order_relaxed);
-    const size_t queueWaits = align2clustQueueWaits.load(std::memory_order_relaxed);
-    const double elapsed = align2clustProgressTimer.getTimediff();
-    const double completedPercent = (endRange == 0) ? 100.0 : (100.0 * static_cast<double>(completed) / static_cast<double>(endRange));
-    const double completedPerSecond = (elapsed > 0.0) ? (static_cast<double>(completed) / elapsed) : 0.0;
-    size_t activeWorkers = 0;
-    size_t oldestActiveLoopIndex = SIZE_MAX;
-    size_t oldestActiveThread = SIZE_MAX;
-    DBKeyType oldestActiveQueryKey = DB_KEY_INVALID;
-    size_t oldestActivePrefEntryBytes = 0;
-    size_t oldestActivePrefHitCount = 0;
-
-    for (size_t i = 0; i < align2clustThreadProgressCount; i++) {
-        size_t activeLoopIndex = align2clustThreadLoopIndex[i].load(std::memory_order_relaxed);
-        if (activeLoopIndex == SIZE_MAX) {
-            continue;
-        }
-        activeWorkers++;
-        if (activeLoopIndex < oldestActiveLoopIndex) {
-            oldestActiveLoopIndex = activeLoopIndex;
-            oldestActiveThread = i;
-            oldestActiveQueryKey = align2clustThreadQueryKey[i].load(std::memory_order_relaxed);
-            oldestActivePrefEntryBytes = align2clustThreadPrefEntryBytes[i].load(std::memory_order_relaxed);
-            oldestActivePrefHitCount = align2clustThreadPrefHitCount[i].load(std::memory_order_relaxed);
-        }
-    }
-
-    char completedPercentBuffer[32];
-    char completedRateBuffer[32];
-    snprintf(completedPercentBuffer, sizeof(completedPercentBuffer), "%.2f", completedPercent);
-    snprintf(completedRateBuffer, sizeof(completedRateBuffer), "%.2f", completedPerSecond);
-
-    Debug(Debug::INFO) << "Align2clust progress (" << label << "): elapsed=" << align2clustProgressTimer.lapProgress()
-                       << " started=" << started << "/" << endRange
-                       << " completed=" << completed << "/" << endRange
-                       << " completedPercent=" << completedPercentBuffer
-                       << " completedPerSecond=" << completedRateBuffer
-                       << " maxLoopIndex=" << maxLoopIndex
-                       << " currentProcessPosition=" << currentProcessPositionSnapshot
-                       << " currentPrefSize=" << currentPrefSizeSnapshot
-                       << " clusterResultQueue=" << clusterResultQueueSize
-                       << " maxClusterResultQueue=" << align2clustMaxQueuedResults
-                       << " queueWaits=" << queueWaits
-                       << " setCoverReadyQueue=" << setCoverReadyQueueSize
-                       << " assignedClusterEntries=" << assigned
-                       << " activeWorkers=" << activeWorkers
-                       << " oldestActiveLoopIndex=" << oldestActiveLoopIndex
-                       << " oldestActiveThread=" << oldestActiveThread
-                       << " oldestActiveQueryKey=" << oldestActiveQueryKey
-                       << " oldestActivePrefEntryBytes=" << oldestActivePrefEntryBytes
-                       << " oldestActivePrefHitCount=" << oldestActivePrefHitCount
-                       << " allCalculationsDone=" << allCalculationsDoneSnapshot
-                       << "\n";
-}
-
-static void align2clustProgressThreadFunc(size_t endRange) {
-    while (true) {
-        std::unique_lock<std::mutex> lock(align2clustProgressMutex);
-        if (align2clustProgressCondition.wait_for(
-                lock, std::chrono::seconds(ALIGN2CLUST_PROGRESS_REPORT_INTERVAL_SECONDS),
-                [] { return align2clustProgressDone; })) {
-            break;
-        }
-        lock.unlock();
-        logAlign2clustProgress("periodic", endRange);
     }
 }
 
@@ -383,126 +273,141 @@ static void writeData(DBWriter *dbWriter, const std::pair<DBKeyType, DBKeyType> 
     }
 }
 
-static void (*clusterThreadFunc)(size_t*) = nullptr;
+static void (*clusterThreadFunc)(ClusterAssignment*) = nullptr;
 
-void clusterThreadFuncSetcover(size_t* assignedCluster) {
-    std::vector<size_t> valid;
-    valid.reserve(1024);
-    
+void clusterThreadFuncSetcover(ClusterAssignment* assignedCluster) {
     while (true) {
         std::unique_lock<std::mutex> lock(clusterMutex);
         
         clusterCondition.wait(lock, [] {
-            return ((!clusterResultQueue.empty() &&
-                     clusterResultQueue.top().sequenceIdx == currentProcessPosition) ||
-                    allCalculationsDone);
+            return reorderFilled[currentProcessPosition % reorderCapacity] != 0 ||
+                   allCalculationsDone;
         });
-        
-        // 1) clusterResultQueue → setCoverReadyQueue
-        while (!clusterResultQueue.empty() &&
-               clusterResultQueue.top().sequenceIdx == currentProcessPosition) {
-            ClusterResult result = clusterResultQueue.top();
-            clusterResultQueue.pop();
-            align2clustQueueSpaceCondition.notify_all();
+
+        // 1) reorder buffer → setCoverReadyQueue
+        while (reorderFilled[currentProcessPosition % reorderCapacity] != 0) {
+            const size_t slot = currentProcessPosition % reorderCapacity;
+            ClusterResult result = std::move(reorderSlots[slot]);
+            reorderFilled[slot] = 0;
+            reorderBufferedCount--;
             currentProcessPosition++;
+            reorderSpaceCondition.notify_all();
             currentPrefSize = result.prefSize;
-            
+
             if (result.memberIds.size() > 1) {
-                setCoverReadyQueue.push(std::move(result));
+                SetCoverCandidate candidate;
+                candidate.representativeId = result.representativeId;
+                candidate.memberCount = result.memberIds.size();
+                candidate.memberOffset = setCoverMemberPool.size();
+                setCoverMemberPool.insert(setCoverMemberPool.end(),
+                                          result.memberIds.begin(), result.memberIds.end());
+                setCoverLiveMemberCount += candidate.memberCount;
+                setCoverReadyQueue.push_back(candidate);
+                std::push_heap(setCoverReadyQueue.begin(), setCoverReadyQueue.end(), setCoverComparator);
             }
         }
-        
-        // 2) handle setCoverReadyQueue 
-        while (!setCoverReadyQueue.empty() &&
+
+        // 2) assign candidates guaranteed to be the currently largest set
+        while (setCoverReadyQueue.empty() == false &&
                (allCalculationsDone ||
-                setCoverReadyQueue.top().memberIds.size() > currentPrefSize)) {
-            
-            ClusterResult res = setCoverReadyQueue.top();
-            setCoverReadyQueue.pop();
-            
-            if (assignedCluster[res.representativeId] != SIZE_MAX) {
+                setCoverReadyQueue.front().memberCount > currentPrefSize)) {
+
+            std::pop_heap(setCoverReadyQueue.begin(), setCoverReadyQueue.end(), setCoverComparator);
+            SetCoverCandidate candidate = setCoverReadyQueue.back();
+            setCoverReadyQueue.pop_back();
+            setCoverLiveMemberCount -= candidate.memberCount;
+
+            if (loadAssignedCluster(assignedCluster, candidate.representativeId) != DB_LOCAL_ID_INVALID) {
                 continue;
             }
-            
-            valid.clear();
-            size_t originalSize = res.memberIds.size();
-            
-            for (size_t mem : res.memberIds) {
-                if (assignedCluster[mem] == SIZE_MAX) {
-                    valid.push_back(mem);
+
+            // Drop already-assigned members, compacting the survivors in place
+            // within the pool region [memberOffset, memberOffset + memberCount).
+            DBLocalId *members = setCoverMemberPool.data() + candidate.memberOffset;
+            size_t validCount = 0;
+            for (size_t i = 0; i < candidate.memberCount; i++) {
+                if (loadAssignedCluster(assignedCluster, members[i]) == DB_LOCAL_ID_INVALID) {
+                    members[validCount++] = members[i];
                 }
             }
-            
-            if (valid.size() <= 1) {
+
+            if (validCount <= 1) {
                 continue;
             }
-            
-            if (valid.size() != originalSize) {
-                res.memberIds.swap(valid);
-                setCoverReadyQueue.push(std::move(res));
+
+            if (validCount != candidate.memberCount) {
+                candidate.memberCount = validCount;
+                setCoverLiveMemberCount += validCount;
+                setCoverReadyQueue.push_back(candidate);
+                std::push_heap(setCoverReadyQueue.begin(), setCoverReadyQueue.end(), setCoverComparator);
                 continue;
             }
-            
-            for (size_t mem : res.memberIds) {
-                assignedCluster[mem] = res.representativeId;
-                align2clustAssignedEntries.fetch_add(1, std::memory_order_relaxed);
+
+            for (size_t i = 0; i < candidate.memberCount; i++) {
+                storeAssignedCluster(assignedCluster, members[i], candidate.representativeId);
             }
         }
-        
+
+        // Compaction only touches consumer-private structures (setCoverReadyQueue,
+        // setCoverMemberPool, setCoverLiveMemberCount), never shared state, so release
+        // the mutex during the copy so worker threads can keep pushing results.
+        lock.unlock();
+        compactSetCoverMemberPool();
+        lock.lock();
+
         if (allCalculationsDone &&
-            clusterResultQueue.empty() &&
+            reorderBufferedCount == 0 &&
             setCoverReadyQueue.empty()) {
             break;
         }
     }
 }
 
-void clusterThreadFuncGreedy(size_t* assignedCluster) {
+void clusterThreadFuncGreedy(ClusterAssignment* assignedCluster) {
     while (true) {
         std::unique_lock<std::mutex> lock(clusterMutex);
         
-        clusterCondition.wait(lock, [] { 
-            return (!clusterResultQueue.empty() && 
-                    clusterResultQueue.top().sequenceIdx == currentProcessPosition) 
-                   || allCalculationsDone; 
+        clusterCondition.wait(lock, [] {
+            return reorderFilled[currentProcessPosition % reorderCapacity] != 0 ||
+                   allCalculationsDone;
         });
 
-        if (allCalculationsDone && clusterResultQueue.empty()) {
+        if (allCalculationsDone && reorderBufferedCount == 0) {
             break;
         }
 
-        while (!clusterResultQueue.empty() && 
-               clusterResultQueue.top().sequenceIdx == currentProcessPosition) {
-            ClusterResult result = clusterResultQueue.top();
-            clusterResultQueue.pop();
-            align2clustQueueSpaceCondition.notify_all();
+        while (reorderFilled[currentProcessPosition % reorderCapacity] != 0) {
+            const size_t slot = currentProcessPosition % reorderCapacity;
+            ClusterResult result = std::move(reorderSlots[slot]);
+            reorderFilled[slot] = 0;
+            reorderBufferedCount--;
             currentProcessPosition++;
-            
-            if (assignedCluster[result.representativeId] != SIZE_MAX) {
-                continue;  
+            reorderSpaceCondition.notify_all();
+
+            if (loadAssignedCluster(assignedCluster, result.representativeId) != DB_LOCAL_ID_INVALID) {
+                continue;
             }
-                        
-            std::vector<size_t> validMemberIds;
+
+            std::vector<DBLocalId> validMemberIds;
             validMemberIds.reserve(result.memberIds.size());
-            for (size_t memberId : result.memberIds) {
-                if (assignedCluster[memberId] == SIZE_MAX) {
+            for (DBLocalId memberId : result.memberIds) {
+                if (loadAssignedCluster(assignedCluster, memberId) == DB_LOCAL_ID_INVALID) {
                     validMemberIds.push_back(memberId);
                 }
             }
-            
+
             if (validMemberIds.size() <= 1) {
                 continue;
             }
-            
-            for (size_t memberId : validMemberIds) {
-                assignedCluster[memberId] = result.representativeId;
-                align2clustAssignedEntries.fetch_add(1, std::memory_order_relaxed);
+
+            for (DBLocalId memberId : validMemberIds) {
+                storeAssignedCluster(assignedCluster, memberId, result.representativeId);
             }
         }
     }
 }
 
-int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &alnDbr) {
+int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &alnDbr, DBWriter *alnWriter) {
     DBReader<DBKeyType> *seqDbr = new DBReader<DBKeyType>(
         par.db1.c_str(), par.db1Index.c_str(), par.threads, 
         DBReader<DBKeyType>::USE_DATA | DBReader<DBKeyType>::USE_INDEX
@@ -549,9 +454,11 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
     EvalueComputation evaluer(seqDbr->getAminoAcidDBSize(), subMat);
     int32_t xDrop = (MIN_SIZE * par.gapExtend.values.aminoacid() + par.gapOpen.values.aminoacid());
     
-    size_t *assignedCluster = new(std::nothrow) size_t[dbSize];
+    ClusterAssignment *assignedCluster = new(std::nothrow) ClusterAssignment[dbSize];
     Util::checkAllocation(assignedCluster, "Can not allocate assignedCluster memory in Align2Clust");
-    std::fill_n(assignedCluster, dbSize, SIZE_MAX);
+    for (size_t i = 0; i < dbSize; ++i) {
+        storeAssignedCluster(assignedCluster, i, DB_LOCAL_ID_INVALID);
+    }
 
     int mode = par.clusteringMode;
     
@@ -572,26 +479,27 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
         return EXIT_FAILURE;
     }
 
+    // Ring size = out-of-order window, sized from the memory budget (OOM-aware) and
+    // capped by the result count. sequenceIdx runs over [0, endRange); every index
+    // publishes exactly one result.
+    const size_t align2clustResultCount = (mode == Parameters::SET_COVER) ? dbSize : alnDbr.getSize();
+    const size_t reorderCapacityChosen = computeReorderCapacity(par, dbSize, mode, align2clustResultCount);
     {
         std::lock_guard<std::mutex> lock(clusterMutex);
-        clusterResultQueue = std::priority_queue<ClusterResult, std::vector<ClusterResult>, GreedyComparator>();
-        setCoverReadyQueue = std::priority_queue<ClusterResult, std::vector<ClusterResult>, SetCoverComparator>();
+        reorderCapacity = reorderCapacityChosen;
+        reorderSlots.clear();
+        reorderSlots.resize(reorderCapacity);
+        reorderFilled.assign(reorderCapacity, 0);
+        reorderBufferedCount = 0;
+        setCoverReadyQueue.clear();
+        setCoverReadyQueue.shrink_to_fit();
+        setCoverMemberPool.clear();
+        setCoverMemberPool.shrink_to_fit();
+        setCoverLiveMemberCount = 0;
         currentProcessPosition = 0;
         currentPrefSize = 0;
         allCalculationsDone = false;
     }
-    align2clustStartedEntries.store(0, std::memory_order_relaxed);
-    align2clustCompletedEntries.store(0, std::memory_order_relaxed);
-    align2clustAssignedEntries.store(0, std::memory_order_relaxed);
-    align2clustMaxLoopIndex.store(0, std::memory_order_relaxed);
-    align2clustQueueWaits.store(0, std::memory_order_relaxed);
-    align2clustMaxQueuedResults = parseAlign2clustMaxQueuedResults();
-    initAlign2clustThreadProgress(static_cast<size_t>(std::max(par.threads, 1)));
-    {
-        std::lock_guard<std::mutex> lock(align2clustProgressMutex);
-        align2clustProgressDone = false;
-    }
-    align2clustProgressTimer.reset();
 
     std::thread clusterThread(clusterThreadFunc, assignedCluster);
     
@@ -627,12 +535,6 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
     size_t endRange = (mode == Parameters::SET_COVER) ? dbSize : alnDbr.getSize();
     unsigned int swMode = Alignment::initSWMode(par.alignmentMode, par.covThr, par.seqIdThr);
     Debug::Progress progress(endRange);
-    Debug(Debug::INFO) << "Align2clust progress reporting every "
-                       << ALIGN2CLUST_PROGRESS_REPORT_INTERVAL_SECONDS
-                       << " seconds: mainPassEntries=" << endRange
-                       << " sequenceDbSize=" << dbSize
-                       << " maxClusterResultQueue=" << align2clustMaxQueuedResults << "\n";
-    std::thread align2clustProgressThread(align2clustProgressThreadFunc, endRange);
     size_t db_maxseqlen = (cluSeqDbr != nullptr)
         ? std::max(seqDbr->getMaxSeqLen(), cluSeqDbr->getMaxSeqLen())
         : seqDbr->getMaxSeqLen();
@@ -652,70 +554,110 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
         BlockAligner blockAligner(Parameters::DBTYPE_AMINO_ACIDS, db_maxseqlen, subMat, &fastMatrix, 
                                  &evaluer, par.compBiasCorrection, par.compBiasCorrectionScale, 
                                  -par.gapOpen.values.aminoacid(), -par.gapExtend.values.aminoacid());
-        char buffer[1024 + 32768 * 4];
         std::vector<std::pair<DBKeyType, unsigned short>> targetsWithDiagonal;
         targetsWithDiagonal.reserve(1000);
+
+        const bool includeAlignFiles = (alnWriter != nullptr);
+        std::string alnResultBuffer;
+        std::vector<char> alnLineBuffer;
+        if (includeAlignFiles) {
+            alnLineBuffer.resize(1024 + 32768 * 4);
+        }
 
 #pragma omp for schedule(dynamic, 1) nowait
         for (size_t i = 0; i < endRange; i++) {
             progress.updateProgress();
-            Align2clustLoopProgress loopProgress(i, threadIdx);
             ClusterResult clusterResult;
             clusterResult.sequenceIdx = i;
             targetsWithDiagonal.clear();
-            
+            if (includeAlignFiles) {
+                alnResultBuffer.clear();
+            }
+
             size_t representativeId;
             DBKeyType queryKey;
-            
+
             if (mode == Parameters::SET_COVER) {
                 representativeId = prefRepSizePair[i].id;
                 queryKey = seqDbr->getDbKey(representativeId);
+                clusterResult.prefSize = prefRepSizePair[i].size;   // precomputed in the prefix pass
             } else { // GREEDY || GREEDY_MEM
                 queryKey = seqDbr->getDbKey(i);
                 representativeId = seqDbr->getId(queryKey);
+                clusterResult.prefSize = 0;                         // greedy has no currentPrefSize gate
             }
-            
-            const size_t alignmentId = alnDbr.getId(queryKey);
-            const size_t alignmentEntryLen = alnDbr.getEntryLen(alignmentId);
-            updateAlign2clustThreadQueryInfo(threadIdx, queryKey, alignmentEntryLen);
-            char *alignmentData = alnDbr.getData(alignmentId, threadIdx);
             clusterResult.representativeId = representativeId;
+
+            // Representative already assigned to another cluster: this cluster is discarded
+            // by the cluster thread anyway, so skip parsing and aligning it entirely. prefSize
+            // is already set (precomputed for set-cover), so the currentPrefSize gate stays
+            // correct.
+            if (loadAssignedCluster(assignedCluster, representativeId) != DB_LOCAL_ID_INVALID) {
+                pushClusterResult(std::move(clusterResult));
+                continue;
+            }
+
+            const size_t alignmentId = alnDbr.getId(queryKey);
+            char *alignmentData = alnDbr.getData(alignmentId, threadIdx);
             size_t queryId = representativeId;
             char *querySequence = seqDbr->getData(queryId, threadIdx);
             size_t queryLength = seqDbr->getSeqLen(queryId);
             query.mapSequence(queryId, queryKey, querySequence, queryLength);
             blockAligner.initQuery(&query);
             matcher.initQuery(&query);
-            
-            if (assignedCluster[representativeId] != SIZE_MAX) {
-                pushAlign2clustClusterResult(std::move(clusterResult));
-                continue;
-            }
 
             size_t prefSize = 0;
             while (*alignmentData != '\0') {
                 hit_t hit = QueryMatcher::parsePrefilterHit(alignmentData);
-                const size_t targetId = seqDbr->getId(hit.seqId);
-                if (assignedCluster[targetId] == SIZE_MAX) {
-                        targetsWithDiagonal.push_back(std::make_pair(hit.seqId, hit.diagonal));
+                if (mode == Parameters::SET_COVER) {
+                    targetsWithDiagonal.push_back(std::make_pair(hit.seqId, hit.diagonal));
+                } else {
+                    const size_t targetId = seqDbr->getId(hit.seqId);
+                    if (loadAssignedCluster(assignedCluster, targetId) == DB_LOCAL_ID_INVALID) {
+                            targetsWithDiagonal.push_back(std::make_pair(hit.seqId, hit.diagonal));
+                    }
                 }
                 alignmentData = Util::skipLine(alignmentData);
                 prefSize++;
             }
-            clusterResult.prefSize = prefSize;
-            updateAlign2clustThreadPrefHitCount(threadIdx, prefSize);
+            clusterResult.prefSize = prefSize;   // exact parsed count for the aligned path
 
             for (size_t targetIdx = 0; targetIdx < targetsWithDiagonal.size(); targetIdx++) {
+                // Representative assigned meanwhile: the cluster thread discards clusters
+                // whose representative is assigned, so this result (partial or empty) is
+                // never used; stop aligning the rest. Safe in set-cover too: prefSize is
+                // already fully counted, so this is just the k-th-target form of the
+                // (k=0) rep-skip above.
+                if (loadAssignedCluster(assignedCluster, representativeId) != DB_LOCAL_ID_INVALID) {
+                    break;
+                }
+
                 const DBKeyType targetKey = targetsWithDiagonal[targetIdx].first;
                 const unsigned short diagonal = targetsWithDiagonal[targetIdx].second;
                 const size_t targetId = seqDbr->getId(targetKey);
-                
+
                 const bool isIdentity = (queryKey == targetKey);
                 if (isIdentity) {
                     clusterResult.memberIds.push_back(queryId);
+                    if (includeAlignFiles) {
+                        // Identity hit: no alignment needed. mmseqs forces coverage/seqId to
+                        // 1.0 for identity (see Alignment.cpp), so emit a full-length self
+                        // record directly instead of running Smith-Waterman.
+                        std::string backtrace = par.addBacktrace ? std::string(query.L, 'M') : std::string();
+                        Matcher::result_t selfResult(queryKey, query.L, 1.0f, 1.0f, 1.0f, 0.0,
+                            query.L, 0, query.L - 1, query.L, 0, query.L - 1, query.L, backtrace);
+                        appendAlignmentResult(alnResultBuffer, alnLineBuffer.data(), selfResult, par.addBacktrace);
+                    }
                     continue;
                 }
-                
+
+                // Skip the (expensive) alignment if the target was assigned meanwhile.
+                // Safe in set-cover too: an assigned target is monotonic, so it would be
+                // dropped by the cluster thread's re-evaluation anyway.
+                if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) {
+                    continue;
+                }
+
                 char *targetSequence = seqDbr->getData(targetId, threadIdx);
                 size_t targetLength = seqDbr->getSeqLen(targetId);
                 target.mapSequence(targetId, targetKey, targetSequence, targetLength);
@@ -741,32 +683,11 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                     seqId = Util::computeSeqId(par.seqIdMode, identicalCount, query.L, target.L, ungappedAlignment.alnLen);
                 }
                 
-                char *bufferEnd = Itoa::i32toa_sse2(ungappedAlignment.alnLen, buffer);
-                size_t bufferLen = bufferEnd - buffer;
-                std::string backtrace = "";
-                if (par.addBacktrace) {
-                    backtrace = std::string(buffer, bufferLen - 1);
-                    backtrace.push_back('M');
-                }
-                
-                if (isIdentity) {
-                    ungappedAlignment.qcov = 1.0f;
-                    ungappedAlignment.tcov = 1.0f;
-                    seqId = 1.0f;
-                }
-                
                 bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
-                //ugly temporary gyuri
-                if (assignedCluster[targetId] != SIZE_MAX) continue;
+                if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) continue;
 
-                if (isIdentity || (hasAlnLen && hasCoverage && hasSeqId && hasEvalue)) {
-                    Matcher::result_t result = Matcher::result_t(
-                        targetKey, ungappedAlignment.bitScore, ungappedAlignment.qcov, ungappedAlignment.tcov, 
-                        seqId, ungappedAlignment.eval, ungappedAlignment.alnLen,
-                        ungappedAlignment.qStart, ungappedAlignment.qEnd, query.L, 
-                        ungappedAlignment.tStart, ungappedAlignment.tEnd, target.L, backtrace
-                    );
-                    if (assignedCluster[targetId] != SIZE_MAX) continue;
+                if (hasAlnLen && hasCoverage && hasSeqId && hasEvalue) {
+                    if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) continue;
                     if (par.filterCluDBFile.empty()== false && par.filterSeqDBFile.empty()== false){
                         // check all the member from filtering file
                         const size_t cluId = cluDbr->getId(targetKey);
@@ -826,10 +747,18 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                             continue;
                         }
                     }
+                    if (includeAlignFiles) {
+                        std::string backtrace = par.addBacktrace ? std::string(ungappedAlignment.alnLen, 'M') : std::string();
+                        Matcher::result_t ungappedResult(targetKey, ungappedAlignment.score, ungappedAlignment.qcov,
+                            ungappedAlignment.tcov, seqId, ungappedAlignment.eval, ungappedAlignment.alnLen,
+                            ungappedAlignment.qStart, ungappedAlignment.qEnd, query.L,
+                            ungappedAlignment.tStart, ungappedAlignment.tEnd, targetLength, backtrace);
+                        appendAlignmentResult(alnResultBuffer, alnLineBuffer.data(), ungappedResult, par.addBacktrace);
+                    }
                     clusterResult.memberIds.push_back(targetId);
                     continue;
                 }
-                
+
                 float currentScorePerCol = static_cast<float>(ungappedAlignment.score) / static_cast<float>(ungappedAlignment.diagonalLen);
                 if (currentScorePerCol < scorePerColThreshold) {
                     continue;
@@ -845,8 +774,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                     continue;
                 }
 
-                //ugly temporary gyuri
-                if (assignedCluster[targetId] != SIZE_MAX) continue;
+                if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) continue;
 
                 bool foundConsecutiveMatchSeed = false;
                 for (int blockIdx = 0; blockIdx <= alignmentLength - 3; ++blockIdx) {
@@ -881,7 +809,7 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                     );
                     if (Alignment::checkCriteria(result, isIdentity, par.evalThr, par.seqIdThr, 
                                                 par.alnLenThr, par.covMode, par.covThr)) {
-                        if (assignedCluster[targetId] != SIZE_MAX) continue;
+                        if (loadAssignedCluster(assignedCluster, targetId) != DB_LOCAL_ID_INVALID) continue;
                         if (par.filterCluDBFile.empty()== false && par.filterSeqDBFile.empty()== false){
                             // check all the member from filtering file
                             const size_t cluId = cluDbr->getId(targetKey);
@@ -941,12 +869,18 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
                                 continue;
                             }
                         }
+                        if (includeAlignFiles) {
+                            appendAlignmentResult(alnResultBuffer, alnLineBuffer.data(), result, par.addBacktrace);
+                        }
                         clusterResult.memberIds.push_back(targetId);
                     }
                 }
             }
-            
-            pushAlign2clustClusterResult(std::move(clusterResult));
+
+            if (includeAlignFiles) {
+                alnWriter->writeData(alnResultBuffer.c_str(), alnResultBuffer.length(), queryKey, threadIdx);
+            }
+            pushClusterResult(std::move(clusterResult));
         }
     }
 
@@ -955,29 +889,17 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
         allCalculationsDone = true;
     }
     clusterCondition.notify_one();
-    align2clustQueueSpaceCondition.notify_all();
+    reorderSpaceCondition.notify_all();
     
     if (clusterThread.joinable()) {
         clusterThread.join(); 
     }
 
-    {
-        std::lock_guard<std::mutex> lock(align2clustProgressMutex);
-        align2clustProgressDone = true;
-    }
-    align2clustProgressCondition.notify_one();
-    if (align2clustProgressThread.joinable()) {
-        align2clustProgressThread.join();
-    }
-    logAlign2clustProgress("final-main-pass", endRange);
-
     for (size_t i = 0; i < dbSize; ++i) {
-        if (assignedCluster[i] == SIZE_MAX) {
-            assignedCluster[i] = i;
-            align2clustAssignedEntries.fetch_add(1, std::memory_order_relaxed);
+        if (loadAssignedCluster(assignedCluster, i) == DB_LOCAL_ID_INVALID) {
+            storeAssignedCluster(assignedCluster, i, i);
         }
     }
-    logAlign2clustProgress("final-with-singletons", endRange);
 
     std::pair<DBKeyType, DBKeyType> *assignment = new std::pair<DBKeyType, DBKeyType>[dbSize];
     
@@ -985,13 +907,14 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
     {
 #pragma omp for schedule(static)
         for (size_t i = 0; i < dbSize; i++) {
-            if (assignedCluster[i] == SIZE_MAX) {
+            const DBLocalId representativeId = loadAssignedCluster(assignedCluster, i);
+            if (representativeId == DB_LOCAL_ID_INVALID) {
                 Debug(Debug::ERROR) << "There must be an error: " << i 
                                     << " is not assigned to a cluster\n";
                 continue;
             }
 
-            assignment[i].first = seqDbr->getDbKey(assignedCluster[i]);
+            assignment[i].first = seqDbr->getDbKey(representativeId);
             assignment[i].second = seqDbr->getDbKey(i);
         }
     }
@@ -1027,8 +950,6 @@ int doAlign2clust(Parameters &par, DBWriter &resultWriter, DBReader<DBKeyType> &
         cluSeqDbr->close();
         delete cluSeqDbr;
     }
-    cleanupAlign2clustThreadProgress();
-    
     return 0;
 }
 
@@ -1047,12 +968,25 @@ int align2clust(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(par.db3.c_str(), par.db3Index.c_str(), 1, par.compressed, dbtype);
     resultWriter.open();
 
-    int status = doAlign2clust(par, resultWriter, alnDbr);
-    
+    // Optional alignment-result output; path derived from the cluster DB (db3 + "_aln").
+    DBWriter *alnWriter = nullptr;
+    if (par.includeAlignFiles) {
+        std::string alnDb = par.db3 + "_aln";
+        std::string alnDbIndex = alnDb + ".index";
+        alnWriter = new DBWriter(alnDb.c_str(), alnDbIndex.c_str(), par.threads, par.compressed, Parameters::DBTYPE_ALIGNMENT_RES);
+        alnWriter->open();
+    }
+
+    int status = doAlign2clust(par, resultWriter, alnDbr, alnWriter);
+
     Debug(Debug::INFO) << "Time for run Align2Clust: " << timer.lap() << " sec\n";
-    
+
     resultWriter.close();
+    if (alnWriter != nullptr) {
+        alnWriter->close();
+        delete alnWriter;
+    }
     alnDbr.close();
-    
+
     return status;
 }
