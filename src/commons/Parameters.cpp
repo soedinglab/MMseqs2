@@ -340,7 +340,7 @@ Parameters::Parameters():
         PARAM_PROTEOME_SIMILARITY(PARAM_PROTEOME_SIMILARITY_ID, "--proteome-similarity", "Proteome similarity", "Proteome similarity threshold", typeid(float), (void *) &proteomeSimThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_PROTEOME_RELATIVE_SIMILARITY(PARAM_PROTEOME_RELATIVE_SIMILARITY_ID, "--proteome-relative-similarity", "Proteome relative similarity", "Proteome relative similarity threshold normalized by proteome size", typeid(float), (void *) &proteomeRelativeSimThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_CLUSTPROTEOME),
         PARAM_PROTEOME_CASCADED_CLUSTERING(PARAM_PROTEOME_CASCADED_CLUSTERING_ID, "--proteome-cascaded-clustering", "Proteome cascaded clustering", "Cascaded clustering", typeid(bool), (void *) &proteomeCascadedClustering, "", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_INCLUDE_ALIGN_FILES(PARAM_INCLUDE_ALIGN_FILES_ID, "--include-align-files", "Include align files in proteomecluster", "Include align files", typeid(bool), (void *) &includeAlignFiles, "", MMseqsParameter::COMMAND_HIDDEN),
+        PARAM_INCLUDE_ALIGN_FILES(PARAM_INCLUDE_ALIGN_FILES_ID, "--include-align-files", "Include align files", "Also write the alignment result DB", typeid(bool), (void *) &includeAlignFiles, "", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_PROTEOME_WEIGHT_FILE(PARAM_PROTEOME_WEIGHT_FILE_ID, "--proteome-weights", "Proteome Weight file name", "Weights used for proteome priorization", typeid(std::string), (void*) &proteomeWeightFile, "",MMseqsParameter::COMMAND_EXPERT ),
         PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT(PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT_ID, "--proteome-weight-clustercount", "Weight cluster count in proteome clustering", "Weight of cluster count in proteome clustering", typeid(float), (void *) &proteomeWeightClusterCount, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_PROTEOME_INCLUDE_ALIGN_FILES(PARAM_PROTEOME_INCLUDE_ALIGN_FILES_ID, "--proteome-include-align-files", "Include align files in proteomecluster", "Include align files", typeid(bool), (void *) &proteomeIncludeAlignFiles, "", MMseqsParameter::COMMAND_EXPERT),
@@ -463,7 +463,8 @@ Parameters::Parameters():
     align2clust.push_back(&PARAM_CLUSTER_MODE);
     align2clust.push_back(&PARAM_FILTER_CLUDB_FILE);
     align2clust.push_back(&PARAM_FILTER_SEQDB_FILE);
-    
+    align2clust.push_back(&PARAM_INCLUDE_ALIGN_FILES);
+
     // prefilter
     prefilter.push_back(&PARAM_SUB_MAT);
     prefilter.push_back(&PARAM_SEED_SUB_MAT);

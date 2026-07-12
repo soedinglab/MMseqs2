@@ -102,6 +102,13 @@ if [ "$LINCLUST_MODULE" = "linclust2" ]; then
             || fail "mergeclusters died"
     fi
 
+    # Expose alignment results (only produced when --include-align-files is set).
+    if [ -f "${TMP_PATH}/clu_aln.dbtype" ]; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" mvdb "${TMP_PATH}/clu_aln" "${2}_aln" ${VERBOSITY} \
+            || fail "mvdb clu_aln died"
+    fi
+
 elif [ "$LINCLUST_MODULE" = "linclust1" ]; then
     # 0. clusthash
     if [ -n "$CLUSTHASH" ]; then

@@ -66,6 +66,13 @@ if [ "$CLUSTER_MODULE" = "cluster2" ]; then
         "$MMSEQS" mergeclusters "$SOURCE" "$2" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu2_rep" $MERGECLU_PAR \
             || fail "Merging of clusters has died"
     fi
+
+    # Expose alignment results (only produced when --include-align-files is set).
+    if [ -f "${TMP_PATH}/clu2_rep_aln.dbtype" ]; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" mvdb "${TMP_PATH}/clu2_rep_aln" "${2}_aln" ${VERBOSITY} \
+            || fail "mvdb clu2_rep_aln died"
+    fi
 elif [ "$CLUSTER_MODULE" = "cluster1" ]; then
     INPUT="${TMP_PATH}/input_step_redundancy"
     STEP=0
