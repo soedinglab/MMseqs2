@@ -560,6 +560,9 @@ public:
     MultiParam<PseudoCounts> pcb;
     int profileOutputMode;
 
+    // pickrepprofile / pickconsensusrepfast
+    bool switchConsensusRep;
+
     // sequence2profile
     float neff;
     float tau;
@@ -663,6 +666,7 @@ public:
     // mergedbs
     std::string mergePrefixes;
     bool mergeStopEmpty;
+    bool mergeFilterTarget;
 
     // summarizetabs
     float overlap;
@@ -923,6 +927,9 @@ public:
     PARAMETER(PARAM_PCB)
     PARAMETER(PARAM_PROFILE_OUTPUT_MODE)
 
+    // pickrepprofile / pickconsensusrepfast
+    PARAMETER(PARAM_SWITCH_CONSENSUS_REP)
+
     // sequence2profile
     PARAMETER(PARAM_NEFF)
     PARAMETER(PARAM_TAU)
@@ -1082,6 +1089,7 @@ public:
     // mergedbs
     PARAMETER(PARAM_MERGE_PREFIXES)
     PARAMETER(PARAM_MERGE_STOP_EMPTY)
+    PARAMETER(PARAM_MERGE_FILTER_TARGET)
 
     // summarizetabs
     PARAMETER(PARAM_OVERLAP)
@@ -1228,6 +1236,8 @@ public:
     std::vector<MMseqsParameter*> convert2fasta;
     std::vector<MMseqsParameter*> result2flat;
     std::vector<MMseqsParameter*> result2repseq;
+    std::vector<MMseqsParameter*> pickrepprofile;
+    std::vector<MMseqsParameter*> pickconsensusrepfast;
     std::vector<MMseqsParameter*> gff2db;
     std::vector<MMseqsParameter*> clusthash;
     std::vector<MMseqsParameter*> kmermatcher;

@@ -27,6 +27,7 @@ set(GENERATED_WORKFLOWS
         workflow/linsearch.sh
         workflow/databases.sh
         workflow/pickconsensusrep.sh
+        workflow/pickconsensusrepfast.sh
         workflow/nucleotide_clustering.sh
         workflow/iterativepp.sh
         workflow/tsv2exprofiledb.sh

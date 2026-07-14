@@ -16,6 +16,7 @@ set(workflow_source_files
         workflow/Search.cpp
         workflow/Taxonomy.cpp
         workflow/PickConsensusRep.cpp
+        workflow/PickConsensusRepFast.cpp
         workflow/EasyTaxonomy.cpp
         workflow/CreateIndex.cpp
         PARENT_SCOPE

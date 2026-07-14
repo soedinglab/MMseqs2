@@ -50,6 +50,18 @@ int linclust(int argc, const char **argv, const Command& command) {
     } else if (par.linclustVersion == 2) {
         cmd.addVariable("LINCLUST_MODULE", "linclust2");
     }
+
+    // Optionally switch to profile-consensus representatives after clustering.
+    // This reuses the representative-to-member alignments, so force their creation.
+    const bool writeAlnFiles = par.PARAM_INCLUDE_ALIGN_FILES.wasSet;
+    if (par.switchConsensusRep && par.linclustVersion != Parameters::LINCLUST_VERSION2) {
+        Debug(Debug::WARNING) << "--switch-consensus-rep requires --linclust-version 2; ignoring.\n";
+        par.switchConsensusRep = false;
+    }
+    if (par.switchConsensusRep) {
+        par.includeAlignFiles = true;
+        par.addBacktrace = true;
+    }
     // save some values to restore them later
     MultiParam<NuclAA<int>>alphabetSize = par.alphabetSize;
     size_t kmerSize = par.kmerSize;
@@ -182,6 +194,10 @@ int linclust(int argc, const char **argv, const Command& command) {
     par.seqIdThr = prevSeqId;
     par.alphabetSize = alphabetSize;
     cmd.addVariable("CLUSTHASH_CLUST_PAR", par.createParameterString(par.clust).c_str());
+
+    cmd.addVariable("SWITCH_CONSENSUS_REP", par.switchConsensusRep ? "TRUE" : NULL);
+    cmd.addVariable("KEEP_SWITCH_ALN", (par.switchConsensusRep && writeAlnFiles) ? "TRUE" : NULL);
+    cmd.addVariable("PICKREP_PAR", par.createParameterString(par.pickrepprofile).c_str());
 
     std::string program = tmpDir + "/linclust.sh";
     FileUtil::writeFile(program, linclust_sh, linclust_sh_len);
