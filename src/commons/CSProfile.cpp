@@ -192,6 +192,12 @@ inline float CSProfile::computeProfileContextScore(float ** context_weights,
         vScore1 = simdf32_add(vScore2, vScore1);
         vScore1 = simdf32_add(vScore3, vScore1);
         vTotalScore = simdf32_add(vTotalScore, vScore1);
+#elif defined(AVX512)
+        simd_float w1 = simdf32_load(&context_weights[j][0]);
+        simd_float c1 = simdf32_load(&counts[i*(Sequence::PROFILE_AA_SIZE+4) + 0]);
+        simd_float w2 = _mm512_maskz_load_ps(0x00FF, &context_weights[j][VECSIZE_FLOAT]);
+        simd_float c2 = _mm512_maskz_load_ps(0x00FF, &counts[i*(Sequence::PROFILE_AA_SIZE+4) + VECSIZE_FLOAT]);
+        vTotalScore = simdf32_add(vTotalScore, simdf32_add(simdf32_mul(w1,c1), simdf32_mul(w2,c2)));
 #else
         simd_float vContextWeight1 = simdf32_load(&context_weights[j][0]);
         simd_float vCount1 = simdf32_load(&counts[i * (Sequence::PROFILE_AA_SIZE + 4) + 0]);
