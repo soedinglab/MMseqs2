@@ -49,9 +49,9 @@
 #define AVX512
 #endif
 
-// #if defined(AVX512) || defined(SIMDE_X86_AVX2_NATIVE)
-// #define AVX2
-// #endif
+#if defined(SIMDE_X86_AVX2_NATIVE) && !defined(AVX512)
+#define AVX2
+#endif
 
 #ifdef AVX512
 // FIXME: Remove after updating SIMDe, headers are buggy in this versions
@@ -155,64 +155,65 @@ inline __m512i _mm512_shift_left32(__m512i a) {
     return _mm512_alignr_epi32(a, _mm512_setzero_si512(), (64 - 32)/ 4);
 }
 
+// Materialize a compare mask (k-register) into an all-ones/all-zeros vector so the
+// result matches the AVX2/SSE contract (compares return vectors that callers and/or/blendv).
+// _mm512_maskz_set1_* is the idiomatic single-instruction spelling: it lowers to one
+// VPMOVM2{B,W,D,Q} on any AVX512(+DQ) compiler, whereas the older
+// _mm512_mask_mov(setzero, mask, set1(-1)) idiom relies on the compiler recognizing a
+// 3-input pattern (GCC does not always fold it, emitting an extra broadcast + merge-move).
 inline __m512i simdi32_gt_avx512(__m512i a, __m512i b) {
     __mmask16 mask = _mm512_cmp_epi32_mask(a, b, _MM_CMPINT_NLE);
-    return _mm512_mask_mov_epi32(_mm512_setzero_si512(), mask, _mm512_set1_epi32(-1));
+    return _mm512_maskz_set1_epi32(mask, -1);
 }
 
 inline __m512i simdi16_gt_avx512(__m512i a, __m512i b) {
     __mmask32 mask = _mm512_cmp_epi16_mask(a, b, _MM_CMPINT_NLE);
-    return _mm512_mask_mov_epi16(_mm512_setzero_si512(), mask, _mm512_set1_epi16(-1));
+    return _mm512_maskz_set1_epi16(mask, -1);
 }
 
 inline __m512i simdi8_gt_avx512(__m512i a, __m512i b) {
     __mmask64 mask = _mm512_cmp_epi8_mask(a, b, _MM_CMPINT_NLE);
-    return _mm512_mask_mov_epi8(_mm512_setzero_si512(), mask, _mm512_set1_epi8(-1));
+    return _mm512_maskz_set1_epi8(mask, -1);
 }
 
 inline __m512i simdi32_eq_avx512(__m512i a, __m512i b) {
     __mmask16 mask = _mm512_cmp_epi32_mask(a, b, _MM_CMPINT_EQ);
-    return _mm512_mask_mov_epi32(_mm512_setzero_si512(), mask, _mm512_set1_epi32(-1));
+    return _mm512_maskz_set1_epi32(mask, -1);
 }
 
 inline __m512i simdi16_eq_avx512(__m512i a, __m512i b) {
     __mmask32 mask = _mm512_cmp_epi16_mask(a, b, _MM_CMPINT_EQ);
-    return _mm512_mask_mov_epi16(_mm512_setzero_si512(), mask, _mm512_set1_epi16(-1));
+    return _mm512_maskz_set1_epi16(mask, -1);
 }
 
 inline __m512i simdi8_eq_avx512(__m512i a, __m512i b) {
     __mmask64 mask = _mm512_cmp_epi8_mask(a, b, _MM_CMPINT_EQ);
-    return _mm512_mask_mov_epi8(_mm512_setzero_si512(), mask, _mm512_set1_epi8(-1));
+    return _mm512_maskz_set1_epi8(mask, -1);
 }
 
 inline __m512 simdf32_gt_avx512(__m512 a, __m512 b) {
     __mmask16 mask = _mm512_cmp_ps_mask(a, b, _CMP_GT_OS);
-    return _mm512_mask_mov_ps(_mm512_setzero_ps(), mask, _mm512_castsi512_ps(_mm512_set1_epi32(-1)));
+    return _mm512_castsi512_ps(_mm512_maskz_set1_epi32(mask, -1));
 }
 
 inline __m512d simdf64_gt_avx512(__m512d a, __m512d b) {
     __mmask8 mask = _mm512_cmp_pd_mask(a, b, _CMP_GT_OS);
-    return _mm512_mask_mov_pd(_mm512_setzero_pd(), mask, _mm512_castsi512_pd(_mm512_set1_epi32(-1)));
+    return _mm512_castsi512_pd(_mm512_maskz_set1_epi64(mask, -1));
 }
 
 inline __m512d simdf64_lt_avx512(__m512d a, __m512d b) {
     __mmask8 mask = _mm512_cmp_pd_mask(a, b, _CMP_LT_OS);
-    return _mm512_mask_mov_pd(_mm512_setzero_pd(), mask, _mm512_castsi512_pd(_mm512_set1_epi32(-1)));
+    return _mm512_castsi512_pd(_mm512_maskz_set1_epi64(mask, -1));
 }
 
 inline __m512 simdf32_eq_avx512(__m512 a, __m512 b) {
     __mmask16 mask = _mm512_cmp_ps_mask(a, b, _CMP_EQ_OS);
-    return _mm512_mask_mov_ps(_mm512_setzero_ps(), mask, _mm512_castsi512_ps(_mm512_set1_epi32(-1)));
+    return _mm512_castsi512_ps(_mm512_maskz_set1_epi32(mask, -1));
 }
 
 inline __m512 simdf32_le_avx512(__m512 a, __m512 b) {
     __mmask16 mask = _mm512_cmp_ps_mask(a, b, _CMP_LE_OQ);
-    return _mm512_mask_mov_ps(_mm512_setzero_ps(), mask, _mm512_castsi512_ps(_mm512_set1_epi32(-1)));
-}
-
-inline __m512 simdf32_cmp_avx512(__m512 a, __m512 b, const int imm8) {
-    __mmask16 mask = _mm512_cmp_ps_mask(a, b, imm8);
-    return _mm512_mask_mov_ps(_mm512_setzero_ps(), mask, _mm512_castsi512_ps(_mm512_set1_epi32(-1)));
+    return _mm512_castsi512_ps(_mm512_maskz_set1_epi32(mask, -1));
 }
 
 // AI Idea to get around z in _mm512_mask_blend_ps(z,x,y) beeing __mmask16 
@@ -295,7 +296,7 @@ typedef __m512  simd_float;
 #define simdf32_eq(x,y)     simdf32_eq_avx512(x,y)
 #define simdf32_lt(x,y)     simdf32_gt_avx512(y,x)
 #define simdf32_le(x,y)     simdf32_le_avx512(x,y)
-#define simdf32_cmp(x,y,z)  _mm512_mask_mov_ps(_mm512_setzero_ps(), _mm512_cmp_ps_mask(x, y, z), _mm512_castsi512_ps(_mm512_set1_epi32(-1)))
+#define simdf32_cmp(x,y,z)  _mm512_castsi512_ps(_mm512_maskz_set1_epi32(_mm512_cmp_ps_mask(x, y, z), -1))
 #define simdf32_or(x,y)     _mm512_or_ps(x,y)
 #define simdf32_and(x,y)    _mm512_and_ps(x,y)
 #define simdf32_andnot(x,y) _mm512_andnot_ps(x,y)
@@ -873,6 +874,39 @@ typedef uint32_t            movemask_max_t;
 #define simdi32_i2f(x) 	    _mm_cvtepi32_ps(x)  // convert integer to s.p. float
 #define simdi_i2fcast(x)    _mm_castsi128_ps(x)
 #endif //SIMD_INT
+
+// ---------------------------------------------------------------------------
+// Fused compare + reduce-to-bool helpers.
+// These express "is any/all lane comparison true" as a single boolean, used by
+// the Striped-Smith-Waterman lazy-F early-exit and per-column change tests.
+// On AVX512 the comparison stays in a k-register (compare -> scalar test on the
+// mask), avoiding the compare -> all-ones vector -> movemask round-trip that the
+// generic simd_any(simdiX_gt(..)) / simdi8_movemask(simdiX_gt(..)) idiom incurs.
+// On AVX2/SSE they expand to exactly the previous idiom (unchanged codegen).
+// ---------------------------------------------------------------------------
+static inline bool simdi16_gt_any(const simd_int a, const simd_int b) {
+#ifdef AVX512
+    return _mm512_cmp_epi16_mask(a, b, _MM_CMPINT_NLE) != 0;
+#else
+    return simd_any(simdi16_gt(a, b));
+#endif
+}
+
+static inline bool simdi32_gt_any(const simd_int a, const simd_int b) {
+#ifdef AVX512
+    return _mm512_cmp_epi32_mask(a, b, _MM_CMPINT_NLE) != 0;
+#else
+    return simdi8_movemask(simdi32_gt(a, b)) != 0;
+#endif
+}
+
+static inline bool simdi32_eq_all(const simd_int a, const simd_int b) {
+#ifdef AVX512
+    return _mm512_cmp_epi32_mask(a, b, _MM_CMPINT_EQ) == 0xFFFF;
+#else
+    return (movemask_max_t) simdi8_movemask(simdi32_eq(a, b)) == SIMD_MOVEMASK_MAX;
+#endif
+}
 
 inline void *mem_align(size_t boundary, size_t size) {
     void *pointer;

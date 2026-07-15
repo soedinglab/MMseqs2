@@ -405,7 +405,7 @@ std::pair<alignment_end, alignment_end> sw_sse2_word(
 				simdi_store(pvHStore + j, vH);
 				vH = simdui16_subs(vH, vGapO);
 				vF = simdui16_subs(vF, vGapE);
-				if (UNLIKELY(!simd_any(simdi16_gt(vF, vH)))) goto end;
+				if (UNLIKELY(!simdi16_gt_any(vF, vH))) goto end;
 			}
 		}
 
@@ -517,7 +517,6 @@ std::pair<alignment_end, alignment_end> sw_sse2_int(
 
 	simd_int vMaxScore = vZero; /* Trace the highest score of the whole SW matrix. */
 	simd_int vMaxMark = vZero; /* Trace the highest score till the previous column. */
-	simd_int vTemp;
 	int32_t edge, begin = 0, end = db_length, step = 1;
 
 	/* outer loop to process the reference sequence */
@@ -584,14 +583,12 @@ std::pair<alignment_end, alignment_end> sw_sse2_int(
 				simdi_store(pvHStore + j, vH);
 				vH = simdui32_subs(vH, vGapO);
 				vF = simdui32_subs(vF, vGapE);
-				if (UNLIKELY(! simdi8_movemask(simdi32_gt(vF, vH)))) goto end;
+				if (UNLIKELY(! simdi32_gt_any(vF, vH))) goto end;
 			}
 		}
 		end:
 		vMaxScore = simdi32_max(vMaxScore, vMaxColumn);
-		vTemp = simdi32_eq(vMaxMark, vMaxScore);
-		movemask_max_t cmp = simdi8_movemask(vTemp);
-		if (cmp != SIMD_MOVEMASK_MAX) {
+		if (!simdi32_eq_all(vMaxMark, vMaxScore)) {
 			uint32_t temp;
 			vMaxMark = vMaxScore;
 			max4(temp, vMaxScore);
