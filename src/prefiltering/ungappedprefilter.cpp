@@ -25,13 +25,13 @@
 #include <omp.h>
 #endif
 // #define HAVE_CUDA 1
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_MPS)
 #include "GpuUtil.h"
 #include "Alignment.h"
 #include <signal.h>
 #endif
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_MPS)
 
 volatile sig_atomic_t keepRunningClient = 1;
 void intHandlerClient(int) {
@@ -168,6 +168,95 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
         sigaction(SIGTERM, &act, NULL);
     }
 
+    // Processes one query's hits (already sitting in `results`) and writes
+    // them out. Factored out so the MPS pipelined loop below can call it for
+    // the *previous* query while the current query's GPU work is in flight.
+    auto processResults = [&](const Marv::Stats& stats, size_t queryKeyForResults, int queryLenForResults) {
+        for(size_t i = 0; i < stats.results; i++){
+            DBKeyType targetKey = tdbr->getDbKey(results[i].id);
+            int score = results[i].score;
+            if(taxonomyHook != NULL){
+                TaxID currTax = taxonomyHook->taxonomyMapping->lookup(targetKey);
+                if (taxonomyHook->expression[0]->isAncestor(currTax) == false) {
+                    continue;
+                }
+            }
+            // check if evalThr != inf
+            // double evalue = 0.0;
+            // if (par.evalThr < std::numeric_limits<double>::max()) {
+            //     evalue = evaluer->computeEvalue(score, queryLenForResults);
+            // }
+            // bool hasEvalue = (evalue <= par.evalThr);
+            bool hasDiagScore = (score > par.minDiagScoreThr);
+
+            const bool isIdentity = (queryKeyForResults == targetKey && (par.includeIdentity || sameDB))? true : false;
+            // --filter-hits
+            if (isIdentity || hasDiagScore) {
+                if(par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED){
+                    Matcher::result_t res;
+                    res.dbKey = targetKey;
+                    res.eval = evaluer->computeEvalue(score, queryLenForResults);
+                    res.dbEndPos = results[i].dbEndPos;
+                    res.dbLen = tdbr->getSeqLen(results[i].id);
+                    res.qEndPos =  results[i].qEndPos;
+                    res.qLen = queryLenForResults;
+                    unsigned int qAlnLen = std::max(static_cast<unsigned int>(res.qEndPos), static_cast<unsigned int>(1));
+                    unsigned int dbAlnLen = std::max(static_cast<unsigned int>(res.dbEndPos), static_cast<unsigned int>(1));
+                    //seqId = (alignment.score1 / static_cast<float>(std::max(dbAlnLen, qAlnLen)))  * 0.1656 + 0.1141;
+                    res.seqId = Matcher::estimateSeqIdByScorePerCol(score, qAlnLen, dbAlnLen);
+                    res.qcov = SmithWaterman::computeCov(0, res.qEndPos, res.qLen );
+                    res.dbcov = SmithWaterman::computeCov(0, res.dbEndPos, res.dbLen );
+                    res.score = evaluer->computeBitScore(score);
+                    if(Alignment::checkCriteria(res, isIdentity, par.evalThr,  par.seqIdThr,  par.alnLenThr,  par.covMode,  par.covThr)){
+                        resultsAln.emplace_back(res);
+                    }
+                } else {
+                    hit_t hit;
+                    hit.seqId = targetKey;
+                    hit.prefScore = score;
+                    hit.diagonal = 0;
+                    shortResults.emplace_back(hit);
+                }
+            }
+        }
+        if(par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) {
+            SORT_PARALLEL(resultsAln.begin(), resultsAln.end(), Matcher::compareHits);
+            size_t maxSeqs = std::min(par.maxResListLen, resultsAln.size());
+            for (size_t i = 0; i < maxSeqs; ++i) {
+                size_t len = Matcher::resultToBuffer(buffer, resultsAln[i], false);
+                resultBuffer.append(buffer, len);
+            }
+        }else{
+            SORT_PARALLEL(shortResults.begin(), shortResults.end(), hit_t::compareHitsByScoreAndId);
+            size_t maxSeqs = std::min(par.maxResListLen, shortResults.size());
+            for (size_t i = 0; i < maxSeqs; ++i) {
+                size_t len = QueryMatcher::prefilterHitToBuffer(buffer, shortResults[i]);
+                resultBuffer.append(buffer, len);
+            }
+        }
+
+        resultWriter.writeData(resultBuffer.c_str(), resultBuffer.length(), queryKeyForResults, 0);
+        resultBuffer.clear();
+        shortResults.clear();
+        resultsAln.clear();
+        progress.updateProgress();
+    };
+
+    // On the Metal/MPS backend (non-server mode only), pipeline queries:
+    // submit query i's GPU work without blocking, then build query i+1's
+    // profile on the CPU while it runs, and only then collect query i's
+    // results. This overlaps CPU-side profile/composition-bias work with
+    // GPU execution instead of serializing them. The CUDA/HIP path and
+    // gpuserver shared-memory protocol are untouched.
+#ifdef HAVE_MPS
+    const bool pipeline = (serverMode == 0);
+#else
+    const bool pipeline = false;
+#endif
+    size_t prevQueryKey = 0;
+    int prevQueryLen = 0;
+    bool havePending = false;
+
     // marv.prefetch();
     for (size_t id = 0; id < qdbr->getSize(); id++) {
         if (!keepRunningClient) {
@@ -202,6 +291,24 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
                 }
             }
         }
+
+#ifdef HAVE_MPS
+        if (pipeline) {
+            if (havePending) {
+                Marv::Stats stats = marv->collectScan(results.data());
+                if (keepRunningClient == false) {
+                    EXIT(EXIT_FAILURE);
+                }
+                processResults(stats, prevQueryKey, prevQueryLen);
+            }
+            marv->submitScan(reinterpret_cast<const char *>(qSeq.numSequence), qSeq.L, profile);
+            prevQueryKey = queryKey;
+            prevQueryLen = qSeq.L;
+            havePending = true;
+            continue;
+        }
+#endif
+
         Marv::Stats stats;
         if (serverMode == 0) {
             stats = marv->scan(reinterpret_cast<const char *>(qSeq.numSequence), qSeq.L, profile, results.data());
@@ -259,75 +366,17 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
             EXIT(EXIT_FAILURE);
         }
 
-        for(size_t i = 0; i < stats.results; i++){
-            DBKeyType targetKey = tdbr->getDbKey(results[i].id);
-            int score = results[i].score;
-            if(taxonomyHook != NULL){
-                TaxID currTax = taxonomyHook->taxonomyMapping->lookup(targetKey);
-                if (taxonomyHook->expression[0]->isAncestor(currTax) == false) {
-                    continue;
-                }
-            }
-            // check if evalThr != inf
-            // double evalue = 0.0;
-            // if (par.evalThr < std::numeric_limits<double>::max()) {
-            //     evalue = evaluer->computeEvalue(score, qSeq.L);
-            // }
-            // bool hasEvalue = (evalue <= par.evalThr);
-            bool hasDiagScore = (score > par.minDiagScoreThr);
-
-            const bool isIdentity = (queryKey == targetKey && (par.includeIdentity || sameDB))? true : false;
-            // --filter-hits
-            if (isIdentity || hasDiagScore) {
-                if(par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED){
-                    Matcher::result_t res;
-                    res.dbKey = targetKey;
-                    res.eval = evaluer->computeEvalue(score, qSeq.L);
-                    res.dbEndPos = results[i].dbEndPos;
-                    res.dbLen = tdbr->getSeqLen(results[i].id);
-                    res.qEndPos =  results[i].qEndPos;
-                    res.qLen = qSeq.L;
-                    unsigned int qAlnLen = std::max(static_cast<unsigned int>(res.qEndPos), static_cast<unsigned int>(1));
-                    unsigned int dbAlnLen = std::max(static_cast<unsigned int>(res.dbEndPos), static_cast<unsigned int>(1));
-                    //seqId = (alignment.score1 / static_cast<float>(std::max(dbAlnLen, qAlnLen)))  * 0.1656 + 0.1141;
-                    res.seqId = Matcher::estimateSeqIdByScorePerCol(score, qAlnLen, dbAlnLen);
-                    res.qcov = SmithWaterman::computeCov(0, res.qEndPos, res.qLen );
-                    res.dbcov = SmithWaterman::computeCov(0, res.dbEndPos, res.dbLen );
-                    res.score = evaluer->computeBitScore(score);
-                    if(Alignment::checkCriteria(res, isIdentity, par.evalThr,  par.seqIdThr,  par.alnLenThr,  par.covMode,  par.covThr)){
-                        resultsAln.emplace_back(res);
-                    }
-                } else {
-                    hit_t hit;
-                    hit.seqId = targetKey;
-                    hit.prefScore = score;
-                    hit.diagonal = 0;
-                    shortResults.emplace_back(hit);
-                }
-            }
-        }
-        if(par.prefMode == Parameters::PREF_MODE_UNGAPPED_AND_GAPPED) {
-            SORT_PARALLEL(resultsAln.begin(), resultsAln.end(), Matcher::compareHits);
-            size_t maxSeqs = std::min(par.maxResListLen, resultsAln.size());
-            for (size_t i = 0; i < maxSeqs; ++i) {
-                size_t len = Matcher::resultToBuffer(buffer, resultsAln[i], false);
-                resultBuffer.append(buffer, len);
-            }
-        }else{
-            SORT_PARALLEL(shortResults.begin(), shortResults.end(), hit_t::compareHitsByScoreAndId);
-            size_t maxSeqs = std::min(par.maxResListLen, shortResults.size());
-            for (size_t i = 0; i < maxSeqs; ++i) {
-                size_t len = QueryMatcher::prefilterHitToBuffer(buffer, shortResults[i]);
-                resultBuffer.append(buffer, len);
-            }
-        }
-
-        resultWriter.writeData(resultBuffer.c_str(), resultBuffer.length(), queryKey, 0);
-        resultBuffer.clear();
-        shortResults.clear();
-        resultsAln.clear();
-        progress.updateProgress();
+        processResults(stats, queryKey, qSeq.L);
     }
+#ifdef HAVE_MPS
+    if (pipeline && havePending) {
+        Marv::Stats stats = marv->collectScan(results.data());
+        if (keepRunningClient == false) {
+            EXIT(EXIT_FAILURE);
+        }
+        processResults(stats, prevQueryKey, prevQueryLen);
+    }
+#endif
     if (marv != NULL) {
         delete marv;
     } else {
@@ -554,11 +603,11 @@ int prefilterInternal(int argc, const char **argv, const Command &command, int m
         taxonomyHook = new QueryMatcherTaxonomyHook(par.db2, tdbr, par.taxonList, par.threads);
     }
     if(par.gpu){
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_MPS)
         runFilterOnGpu(par, subMat, qdbr, tdbr, sameDB,
                        resultWriter, evaluer, taxonomyHook);
 #else
-        Debug(Debug::ERROR) << "MMseqs2 was compiled without CUDA support\n";
+        Debug(Debug::ERROR) << "MMseqs2 was compiled without GPU support (CUDA/HIP/MPS)\n";
         EXIT(EXIT_FAILURE);
 #endif
     }else{

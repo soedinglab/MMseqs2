@@ -2625,7 +2625,7 @@ void Parameters::setDefaults() {
 
     // gpu
     gpu = 0;
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_MPS)
     char* gpuEnv = getenv("MMSEQS_FORCE_GPU");
     if (gpuEnv != NULL) {
         gpu = 1;
@@ -2633,7 +2633,7 @@ void Parameters::setDefaults() {
 #endif
     gpuServer = 0;
     gpuServerWaitTimeout = 10 * 60;
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_MPS)
     char* gpuServerEnv = getenv("MMSEQS_FORCE_GPUSERVER");
     if (gpuServerEnv != NULL) {
         gpuServer = 1;
