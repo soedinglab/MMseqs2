@@ -11,10 +11,24 @@
 //
 // Algorithm: H[i][j] = max(0, H[i-1][j-1] + score(query[i], subject[j])),
 // boundary zero -- the same no-gap recurrence as libmarv's GAPLESS kernel
-// (pssmkernels_gapless.cuh). Subject bytes are folded with `& 31` to
-// collapse MMseqs2's soft-masked (lowercase, +32) residue encoding back to
-// the base alphabet, mirroring libmarv's CaseSensitive_to_CaseInsensitive
-// conversion (see convert.cuh).
+// (pssmkernels_gapless.cuh). Subject bytes outside the alphabet (masked --
+// makepaddedseqdb encodes soft-masked/lowercase residues as base+32 -- or
+// otherwise unrecognized) are clamped to the last valid alphabet index
+// ("X") once at DB-load time in loadDb(), matching how both the CPU
+// prefilter path and libmarv's real CUDA kernels treat masking: as
+// suppression (scored as X), not as a reversible case-encoding to fold
+// away. An earlier version of this file instead folded masked bytes back
+// to their unmasked identity via `& 31` (modeled on convert.cuh's
+// CaseSensitive_to_CaseInsensitive, which turned out not to be what the
+// gapless kernel's masking actually means) -- silently unmasking masked
+// residues instead of down-weighting them, which is the opposite of
+// masking's purpose. Confirmed and fixed by direct comparison against an
+// independent Metal implementation (github.com/milot-mirdita/mmseqs2,
+// branch metal-gpu-backend) that scores real database sequences correctly:
+// on a shared real query, this bug had been silently inflating ungapped
+// scores for any subject with masked residues (self-hits, near-duplicates,
+// and low-complexity regions worst affected -- observed ~15% too high on
+// one real self-alignment), not merely a rare edge case.
 //
 // Parallelism (v2, simdgroup-cooperative): a first version of this kernel
 // used one GPU thread per subject sequence, with its O(queryLen) DP state in
@@ -182,7 +196,7 @@ kernel void gaplessAlignCooperative(
 
         int32_t best = 0;
         for (uint32_t j = 0; j < len; j++) {
-            const uint8_t s = dbData[start + j] & 31;
+            const uint8_t s = dbData[start + j]; // pre-clamped to alphabet range in loadDb()
             device const int8_t* row = pssm + (size_t)s * paddedQueryLen;
 
             // The only cross-lane dependency: H[i-1][j-1] for this lane's
@@ -328,6 +342,25 @@ void* Marv::loadDb(char* data, size_t* offset, int32_t* length, size_t dbByteSiz
     if (!db->data) {
         delete db;
         throw std::runtime_error("Marv (MPS): failed to allocate GPU buffer for database");
+    }
+
+    // makepaddedseqdb encodes soft-masked (tantan-repeat-masked, lowercase)
+    // residues as base_value + 32, matching MMseqs2's own aa2num convention.
+    // The CPU prefilter path (StripedSmithWaterman/ungappedprefilter.cpp)
+    // treats any masked or otherwise out-of-alphabet byte as "X" -- clamped
+    // to the last valid alphabet index -- rather than unmasking it back to
+    // its original residue. Clamping (not folding via e.g. `& 31`) is what
+    // makes masking actually suppress scores in masked/low-complexity
+    // regions; done once here at load time (not per kernel access) since it
+    // depends only on alphabetSize, not on the query.
+    {
+        uint8_t* bytes = static_cast<uint8_t*>([db->data contents]);
+        const uint8_t maxValid = static_cast<uint8_t>(alphabetSize - 1);
+        for (size_t i = 0; i < dbByteSize; i++) {
+            if (bytes[i] > maxValid) {
+                bytes[i] = maxValid;
+            }
+        }
     }
 
     std::vector<uint64_t> offsets64(dbEntries);
