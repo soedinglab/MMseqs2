@@ -247,15 +247,16 @@ void runFilterOnGpu(Parameters & par, BaseMatrix * subMat,
     // profile on the CPU while it runs, and only then collect query i's
     // results. This overlaps CPU-side profile/composition-bias work with
     // GPU execution instead of serializing them. The CUDA/HIP path and
-    // gpuserver shared-memory protocol are untouched.
+    // gpuserver shared-memory protocol are untouched. These are only
+    // referenced from HAVE_MPS-guarded code below, so they're declared
+    // here under the same guard to avoid an unused-variable error on the
+    // CUDA/HIP build (which compiles with -Werror).
 #ifdef HAVE_MPS
     const bool pipeline = (serverMode == 0);
-#else
-    const bool pipeline = false;
-#endif
     size_t prevQueryKey = 0;
     int prevQueryLen = 0;
     bool havePending = false;
+#endif
 
     // marv.prefetch();
     for (size_t id = 0; id < qdbr->getSize(); id++) {
