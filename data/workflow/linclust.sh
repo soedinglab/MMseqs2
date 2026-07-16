@@ -102,6 +102,43 @@ if [ "$LINCLUST_MODULE" = "linclust2" ]; then
             || fail "mergeclusters died"
     fi
 
+    # Expose alignment results (only produced when --include-align-files is set).
+    # The two align2clust passes each emit their own alignments; union them keyed by the
+    # final representatives ($2) and keep only lines whose target is a member of that
+    # final cluster (--merge-filter-target), so the result has exactly one entry per
+    # cluster containing exactly that cluster's rep->member alignments.
+    if [ -f "${TMP_PATH}/clu_aln.dbtype" ]; then
+        if [ -f "${TMP_PATH}/clu_rep_aln.dbtype" ]; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" mergedbs "${2}" "${2}_aln" \
+                "${TMP_PATH}/clu_aln" "${TMP_PATH}/clu_rep_aln" \
+                --merge-filter-target 1 ${VERBOSITY} \
+                || fail "mergedbs clu_aln died"
+        else
+            # shellcheck disable=SC2086
+            "$MMSEQS" mvdb "${TMP_PATH}/clu_aln" "${2}_aln" ${VERBOSITY} \
+                || fail "mvdb clu_aln died"
+        fi
+    fi
+
+    # Optionally replace representatives by the most profile-consistent observed member,
+    # reusing the alignments in ${2}_aln (no profile-vs-member realignment).
+    if [ -n "$SWITCH_CONSENSUS_REP" ]; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" pickconsensusrepfast "$1" "$2" "${TMP_PATH}/clu_switched" "${TMP_PATH}/switch_tmp" ${PICKREP_PAR} \
+            || fail "pickconsensusrepfast (switch representatives) died"
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "$2" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" mvdb "${TMP_PATH}/clu_switched" "$2" ${VERBOSITY} \
+            || fail "mvdb switched clustering died"
+        if [ -z "$KEEP_SWITCH_ALN" ]; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${2}_aln" ${VERBOSITY}
+        fi
+        rm -rf "${TMP_PATH}/switch_tmp"
+    fi
+
 elif [ "$LINCLUST_MODULE" = "linclust1" ]; then
     # 0. clusthash
     if [ -n "$CLUSTHASH" ]; then
@@ -217,6 +254,25 @@ if [ -n "$REMOVE_TMP" ]; then
     if [ "$LINCLUST_MODULE" = "linclust2" ]; then
         # shellcheck disable=SC2086
         "$MMSEQS" rmdb "${TMP_PATH}/pref" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/clu" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/input_rep" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/input_rep_h" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/pref_rep" ${VERBOSITY}
+        # shellcheck disable=SC2086
+        "$MMSEQS" rmdb "${TMP_PATH}/clu_rep" ${VERBOSITY}
+        # align intermediates (only present with --include-align-files)
+        if [ -f "${TMP_PATH}/clu_aln.dbtype" ]; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/clu_aln" ${VERBOSITY}
+        fi
+        if [ -f "${TMP_PATH}/clu_rep_aln.dbtype" ]; then
+            # shellcheck disable=SC2086
+            "$MMSEQS" rmdb "${TMP_PATH}/clu_rep_aln" ${VERBOSITY}
+        fi
         if [ -n "$CLUSTHASH" ]; then
             # shellcheck disable=SC2086
             "$MMSEQS" rmdb "${TMP_PATH}/input_clusthash" ${VERBOSITY}
@@ -225,7 +281,7 @@ if [ -n "$REMOVE_TMP" ]; then
             # shellcheck disable=SC2086
             "$MMSEQS" rmdb "${TMP_PATH}/input_clusthash_redundancy" ${VERBOSITY}
             # shellcheck disable=SC2086
-            "$MMSEQS" rmdb "${TMP_PATH}/clu" ${VERBOSITY}
+            "$MMSEQS" rmdb "${TMP_PATH}/clu_merged" ${VERBOSITY}
             rm -f "${TMP_PATH}/order_clusthash_redundancy"
         fi
         rm -f "${TMP_PATH}/linclust.sh"

@@ -143,6 +143,8 @@ Parameters::Parameters():
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "Pseudo count admixture strength", typeid(MultiParam<PseudoCounts>), (void *) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "Pseudo counts: Neff at half of maximum admixture (range 0.0-inf)", typeid(MultiParam<PseudoCounts>), (void *) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
         PARAM_PROFILE_OUTPUT_MODE(PARAM_PROFILE_OUTPUT_MODE_ID, "--profile-output-mode", "Profile output mode", "Profile output mode: 0: binary log-odds 1: human-readable frequencies", typeid(int), (void *) &profileOutputMode, "^[0-1]{1}$", MMseqsParameter::COMMAND_PROFILE | MMseqsParameter::COMMAND_EXPERT),
+        // pickrepprofile / pickconsensusrepfast
+        PARAM_SWITCH_CONSENSUS_REP(PARAM_SWITCH_CONSENSUS_REP_ID, "--switch-consensus-rep", "Switch to consensus representatives", "After clustering, reuse the alignments to pick the most profile-consistent observed member as the new representative (linclust-version 2 / cluster-version 2 only)", typeid(bool), (void *) &switchConsensusRep, "", MMseqsParameter::COMMAND_CLUSTLINEAR | MMseqsParameter::COMMAND_EXPERT),
         // sequence2profile
         PARAM_NEFF(PARAM_NEFF_ID, "--neff", "Neff", "Neff included into context state profile (1.0,20.0)", typeid(float), (void *) &neff, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_TAU(PARAM_TAU_ID, "--tau", "Tau", "Tau: context state pseudo count mixture (0.0,1.0)", typeid(float), (void *) &tau, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
@@ -277,6 +279,7 @@ Parameters::Parameters():
         // mergedbs
         PARAM_MERGE_PREFIXES(PARAM_MERGE_PREFIXES_ID, "--prefixes", "Merge prefixes", "Comma separated list of prefixes for each entry", typeid(std::string), (void *) &mergePrefixes, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_MERGE_STOP_EMPTY(PARAM_MERGE_STOP_EMPTY_ID, "--merge-stop-empty", "Stop merge after empty", "Don't continue merging entries after an empty entry", typeid(bool), (void*)&mergeStopEmpty, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_MERGE_FILTER_TARGET(PARAM_MERGE_FILTER_TARGET_ID, "--merge-filter-target", "Filter merged lines by key DB", "Only keep merged lines whose target key is listed in the key-source DB (db1) entry", typeid(bool), (void*)&mergeFilterTarget, "", MMseqsParameter::COMMAND_EXPERT),
         // summarizeresult
         PARAM_OVERLAP(PARAM_OVERLAP_ID, "--overlap", "Overlap threshold", "Maximum overlap of covered regions", typeid(float), (void *) &overlap, "^[0-9]*(\\.[0-9]+)?$"),
         // msa2profile
@@ -340,7 +343,7 @@ Parameters::Parameters():
         PARAM_PROTEOME_SIMILARITY(PARAM_PROTEOME_SIMILARITY_ID, "--proteome-similarity", "Proteome similarity", "Proteome similarity threshold", typeid(float), (void *) &proteomeSimThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_PROTEOME_RELATIVE_SIMILARITY(PARAM_PROTEOME_RELATIVE_SIMILARITY_ID, "--proteome-relative-similarity", "Proteome relative similarity", "Proteome relative similarity threshold normalized by proteome size", typeid(float), (void *) &proteomeRelativeSimThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_CLUSTPROTEOME),
         PARAM_PROTEOME_CASCADED_CLUSTERING(PARAM_PROTEOME_CASCADED_CLUSTERING_ID, "--proteome-cascaded-clustering", "Proteome cascaded clustering", "Cascaded clustering", typeid(bool), (void *) &proteomeCascadedClustering, "", MMseqsParameter::COMMAND_EXPERT),
-        PARAM_INCLUDE_ALIGN_FILES(PARAM_INCLUDE_ALIGN_FILES_ID, "--include-align-files", "Include align files in proteomecluster", "Include align files", typeid(bool), (void *) &includeAlignFiles, "", MMseqsParameter::COMMAND_HIDDEN),
+        PARAM_INCLUDE_ALIGN_FILES(PARAM_INCLUDE_ALIGN_FILES_ID, "--include-align-files", "Include align files", "Also write the alignment result DB", typeid(bool), (void *) &includeAlignFiles, "", MMseqsParameter::COMMAND_HIDDEN),
         PARAM_PROTEOME_WEIGHT_FILE(PARAM_PROTEOME_WEIGHT_FILE_ID, "--proteome-weights", "Proteome Weight file name", "Weights used for proteome priorization", typeid(std::string), (void*) &proteomeWeightFile, "",MMseqsParameter::COMMAND_EXPERT ),
         PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT(PARAM_PROTEOME_WEIGHT_CLUSTER_COUNT_ID, "--proteome-weight-clustercount", "Weight cluster count in proteome clustering", "Weight of cluster count in proteome clustering", typeid(float), (void *) &proteomeWeightClusterCount, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_PROTEOME_INCLUDE_ALIGN_FILES(PARAM_PROTEOME_INCLUDE_ALIGN_FILES_ID, "--proteome-include-align-files", "Include align files in proteomecluster", "Include align files", typeid(bool), (void *) &proteomeIncludeAlignFiles, "", MMseqsParameter::COMMAND_EXPERT),
@@ -463,7 +466,8 @@ Parameters::Parameters():
     align2clust.push_back(&PARAM_CLUSTER_MODE);
     align2clust.push_back(&PARAM_FILTER_CLUDB_FILE);
     align2clust.push_back(&PARAM_FILTER_SEQDB_FILE);
-    
+    align2clust.push_back(&PARAM_INCLUDE_ALIGN_FILES);
+
     // prefilter
     prefilter.push_back(&PARAM_SUB_MAT);
     prefilter.push_back(&PARAM_SEED_SUB_MAT);
@@ -930,6 +934,30 @@ Parameters::Parameters():
     result2repseq.push_back(&PARAM_THREADS);
     result2repseq.push_back(&PARAM_V);
 
+    // pickrepprofile (scoring core)
+    pickrepprofile.push_back(&PARAM_C);
+    pickrepprofile.push_back(&PARAM_SUB_MAT);
+    pickrepprofile.push_back(&PARAM_NO_COMP_BIAS_CORR);
+    pickrepprofile.push_back(&PARAM_NO_COMP_BIAS_CORR_SCALE);
+    pickrepprofile.push_back(&PARAM_GAP_OPEN);
+    pickrepprofile.push_back(&PARAM_GAP_EXTEND);
+    pickrepprofile.push_back(&PARAM_WG);
+    pickrepprofile.push_back(&PARAM_PC_MODE);
+    pickrepprofile.push_back(&PARAM_PCA);
+    pickrepprofile.push_back(&PARAM_PCB);
+#ifdef GAP_POS_SCORING
+    pickrepprofile.push_back(&PARAM_GAP_PSEUDOCOUNT);
+#endif
+    pickrepprofile.push_back(&PARAM_PRELOAD_MODE);
+    pickrepprofile.push_back(&PARAM_COMPRESSED);
+    pickrepprofile.push_back(&PARAM_THREADS);
+    pickrepprofile.push_back(&PARAM_V);
+
+    // pickconsensusrepfast (workflow) = pickrepprofile core + cluster-DB rewrite
+    pickconsensusrepfast = combineList(pickrepprofile, onlyverbosity);
+    pickconsensusrepfast.push_back(&PARAM_REMOVE_TMP_FILES);
+    pickconsensusrepfast.push_back(&PARAM_REUSELATEST);
+
     // gff2db
     gff2db.push_back(&PARAM_GFF_TYPE);
     gff2db.push_back(&PARAM_ID_OFFSET);
@@ -1118,6 +1146,7 @@ Parameters::Parameters():
     // mergedbs
     mergedbs.push_back(&PARAM_MERGE_PREFIXES);
     mergedbs.push_back(&PARAM_MERGE_STOP_EMPTY);
+    mergedbs.push_back(&PARAM_MERGE_FILTER_TARGET);
     mergedbs.push_back(&PARAM_COMPRESSED);
     mergedbs.push_back(&PARAM_V);
 
@@ -1476,6 +1505,7 @@ Parameters::Parameters():
     linclustworkflow = combineList(linclustworkflow, rescorediagonal);
     linclustworkflow = combineList(linclustworkflow, align2clust);
     linclustworkflow = combineList(linclustworkflow, clusthash);
+    linclustworkflow.push_back(&PARAM_SWITCH_CONSENSUS_REP);
     linclustworkflow.push_back(&PARAM_CLUST_HASH);
     linclustworkflow.push_back(&PARAM_REMOVE_TMP_FILES);
     linclustworkflow.push_back(&PARAM_REUSELATEST);
@@ -2616,6 +2646,9 @@ void Parameters::setDefaults() {
     pcb = MultiParam<PseudoCounts>(PseudoCounts(4.1, 5.8));
     profileOutputMode = 0;
 
+    // pickrepprofile / pickconsensusrepfast
+    switchConsensusRep = false;
+
     // sequence2profile
     neff = 1.0;
     tau = 0.9;
@@ -2724,6 +2757,7 @@ void Parameters::setDefaults() {
     // mergedbs
     mergePrefixes = "";
     mergeStopEmpty = false;
+    mergeFilterTarget = false;
 
     // summarizetabs
     overlap = 0.0f;

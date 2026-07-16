@@ -122,7 +122,7 @@ struct __attribute__((__packed__)) KmerPosition {
             const KmerPosition &first, const KmerPosition &second) {
         if(first.kmer < second.kmer) return true;
         if(second.kmer < first.kmer) return false;
-        if(first.id != SIZE_T_MAX && second.id != SIZE_T_MAX) {
+        if(first.id != DB_KEY_INVALID && second.id != DB_KEY_INVALID) {
             T len1 = first.getSeqLen();
             T len2 = second.getSeqLen();
             if(len1 > len2) return true;
@@ -141,7 +141,7 @@ struct __attribute__((__packed__)) KmerPosition {
         size_t secondKmer = BIT_SET(second.kmer, 63);
         if(firstKmer < secondKmer) return true;
         if(secondKmer < firstKmer) return false;
-        if(first.id != SIZE_T_MAX && second.id != SIZE_T_MAX) {
+        if(first.id != DB_KEY_INVALID && second.id != DB_KEY_INVALID) {
             T len1 = first.getSeqLen();
             T len2 = second.getSeqLen(); 
             if(len1 > len2) return true;
