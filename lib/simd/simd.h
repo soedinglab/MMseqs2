@@ -53,6 +53,21 @@
 #define AVX2
 #endif
 
+// P3: a translation unit may define MMSEQS_FORCE_SIMD256 (before including simd.h) to run
+// at 256-bit vector width WITH AVX512VL mask features even inside an AVX512 build. Used by
+// StripedSmithWaterman: 256-bit avoids the 512-bit striped-SW penalties (halved segment
+// count amortizing per-column overhead, the cross-512-bit vpermt2 shift) while AVX512VL
+// still provides k-register lazy-F early-exit (vpcmp->kortest) that plain AVX2 lacks.
+// Safe per-TU because StripedSmithWaterman.h exposes no SIMD types across TU boundaries.
+#if defined(AVX512) && defined(MMSEQS_FORCE_SIMD256)
+#define SIMDE_X86_AVX512_CMPLE_H
+#define SIMDE_X86_AVX512_CMPGE_H
+#include <simde/x86/avx512.h>   // provides 256-bit AVX512VL mask intrinsics
+#undef AVX512
+#define AVX2
+#define MMSEQS_AVX512VL_MASKS
+#endif
+
 #ifdef AVX512
 // FIXME: Remove after updating SIMDe, headers are buggy in this versions
 #define SIMDE_X86_AVX512_CMPLE_H
@@ -403,11 +418,21 @@ uint8_t simd_hmax8_sse(const __m128i buffer);
 bool simd_any_sse(const __m128i buffer);
 
 inline uint32_t simd_hmax32_avx(const __m256i buffer) {
-    const __m128i abcd = _mm256_castsi256_si128(buffer);
-    const uint32_t first = simd_hmax32_sse(abcd);
-    const __m128i efgh = _mm256_extracti128_si256(buffer, 1);
-    const uint32_t second = simd_hmax32_sse(efgh);
-    return std::max(first, second);
+    #if defined(MMSEQS_AVX512VL_MASKS)
+        const __m256i shuffle1 = _mm256_shuffle_epi32(buffer, (_MM_PERM_ENUM)_MM_SHUFFLE(1, 0, 3, 2));
+        const __m256i max1 = _mm256_max_epi32(buffer, shuffle1);
+        const __m256i shuffle2 = _mm256_shuffle_epi32(max1, (_MM_PERM_ENUM)_MM_SHUFFLE(2, 3, 0, 1));
+        const __m256i max2 = _mm256_max_epi32(max1, shuffle2);
+        const __m256i shuffle3 = _mm256_shuffle_i32x4(max2, max2, 0b01);
+        const __m256i max3 = _mm256_max_epi32(max2, shuffle3);
+        return (uint32_t)_mm256_cvtsi256_si32(max3);
+    #else
+        const __m128i abcd = _mm256_castsi256_si128(buffer);
+        const uint32_t first = simd_hmax32_sse(abcd);
+        const __m128i efgh = _mm256_extracti128_si256(buffer, 1);
+        const uint32_t second = simd_hmax32_sse(efgh);
+        return std::max(first, second);
+    #endif
 }
 
 inline uint16_t simd_hmax16_avx(const __m256i buffer) {
@@ -457,11 +482,22 @@ inline bool simd_eq_all_avx(const __m256i a, const __m256i b) {
 float simdf32_hmax_sse(const __m128 buffer);
 
 inline float simdf32_hmax_avx(const __m256 buffer) {
-    const __m128 lower = _mm256_castps256_ps128(buffer); // Lower 128 bits
-    const __m128 upper = _mm256_extractf128_ps(buffer, 1); // Upper 128 bits
-    const float lower_max = simdf32_hmax_sse(lower);
-    const float upper_max = simdf32_hmax_sse(upper);
-    return std::max(lower_max, upper_max);
+    #if defined(MMSEQS_AVX512VL_MASKS)
+        const __m256 shuffle1 = _mm256_shuffle_ps(buffer, buffer,(_MM_PERM_ENUM)_MM_SHUFFLE(1, 0, 3, 2));
+        const __m256 max1 = _mm256_max_ps(buffer, shuffle1);
+        const __m256 shuffle2 = _mm256_shuffle_ps(max1, max1, (_MM_PERM_ENUM)_MM_SHUFFLE(2, 3, 0, 1));
+        const __m256 max2 = _mm256_max_ps(max1, shuffle2);
+        const __m256 shuffle3 = _mm256_shuffle_f32x4(max2, max2, 0b01);
+        const __m256 max3 = _mm256_max_ps(max2, shuffle3);
+        // const __m128 max128 = _mm512_castps512_ps128(max4);
+        return _mm256_cvtss_f32(max3);
+    #else
+        const __m128 lower = _mm256_castps256_ps128(buffer); // Lower 128 bits
+        const __m128 upper = _mm256_extractf128_ps(buffer, 1); // Upper 128 bits
+        const float lower_max = simdf32_hmax_sse(lower);
+        const float upper_max = simdf32_hmax_sse(upper);
+        return std::max(lower_max, upper_max);
+    #endif
 }
 __m128 simdf32_reverse_sse(const __m128 buffer);
 
@@ -490,6 +526,34 @@ inline __m256i _mm256_shift_left(__m256i a) {
     __m256i mask = _mm256_permute2x128_si256(a, a, _MM_SHUFFLE(0,0,3,0) );
     return _mm256_alignr_epi8(a,mask,16-N);
 }
+
+inline __m256i simdi8_shiftl_4(__m256i a) {
+    #if defined(MMSEQS_AVX512VL_MASKS)
+    return _mm256_alignr_epi32(a, _mm256_setzero_si256(), (64 - 4)/ 4);
+    #else 
+    __m256i mask = _mm256_permute2x128_si256(a, a, _MM_SHUFFLE(0,0,3,0) );
+    return _mm256_alignr_epi8(a,mask,16-4);
+    #endif
+}
+
+inline __m256i simdi8_shiftl_8(__m256i a) {
+    #if defined(MMSEQS_AVX512VL_MASKS)
+    return _mm256_alignr_epi32(a, _mm256_setzero_si256(), (64 - 8)/ 4);
+    #else 
+    __m256i mask = _mm256_permute2x128_si256(a, a, _MM_SHUFFLE(0,0,3,0) );
+    return _mm256_alignr_epi8(a,mask,16-8);
+    #endif
+}
+
+inline __m256i simdi8_shiftl_16(__m256i a) {
+    #if defined(MMSEQS_AVX512VL_MASKS)
+    return _mm256_alignr_epi32(a, _mm256_setzero_si256(), (64 - 16)/ 4);
+    #else 
+    __m256i mask = _mm256_permute2x128_si256(a, a, _MM_SHUFFLE(0,0,3,0) );
+    return _mm256_alignr_epi8(a,mask,16-16);
+    #endif
+}
+
 
 inline unsigned short extract_epi16(__m256i v, int pos) {
     switch(pos){
@@ -885,24 +949,30 @@ typedef uint32_t            movemask_max_t;
 // On AVX2/SSE they expand to exactly the previous idiom (unchanged codegen).
 // ---------------------------------------------------------------------------
 static inline bool simdi16_gt_any(const simd_int a, const simd_int b) {
-#ifdef AVX512
+#if defined(AVX512)
     return _mm512_cmp_epi16_mask(a, b, _MM_CMPINT_NLE) != 0;
+#elif defined(MMSEQS_AVX512VL_MASKS)   // P3: 256-bit width, AVX512VL k-register test
+    return _mm256_cmp_epi16_mask(a, b, _MM_CMPINT_NLE) != 0;
 #else
     return simd_any(simdi16_gt(a, b));
 #endif
 }
 
 static inline bool simdi32_gt_any(const simd_int a, const simd_int b) {
-#ifdef AVX512
+#if defined(AVX512)
     return _mm512_cmp_epi32_mask(a, b, _MM_CMPINT_NLE) != 0;
+#elif defined(MMSEQS_AVX512VL_MASKS)
+    return _mm256_cmp_epi32_mask(a, b, _MM_CMPINT_NLE) != 0;
 #else
     return simdi8_movemask(simdi32_gt(a, b)) != 0;
 #endif
 }
 
 static inline bool simdi32_eq_all(const simd_int a, const simd_int b) {
-#ifdef AVX512
+#if defined(AVX512)
     return _mm512_cmp_epi32_mask(a, b, _MM_CMPINT_EQ) == 0xFFFF;
+#elif defined(MMSEQS_AVX512VL_MASKS)   // 8 int32 lanes -> __mmask8 all-set = 0xFF
+    return _mm256_cmp_epi32_mask(a, b, _MM_CMPINT_EQ) == 0xFF;
 #else
     return (movemask_max_t) simdi8_movemask(simdi32_eq(a, b)) == SIMD_MOVEMASK_MAX;
 #endif
@@ -1094,7 +1164,7 @@ static inline simd_float simdf32_exp(simd_float x_init) {
     simd_float n2 = simdf32_pow2n(r);
     z = simdf32_fmadd(z, n2, n2);
 
-    #ifdef AVX512
+    #if defined(AVX512)
         //special cases
         const simd_float MAX_X = simdf32_set(87.3f);
         __mmask16 inrange = _mm512_cmp_ps_mask(simdf32_abs(x_init), MAX_X, _CMP_LT_OS);
@@ -1104,6 +1174,16 @@ static inline simd_float simdf32_exp(simd_float x_init) {
         r = _mm512_mask_blend_ps(signBit, InfVec, simdf32_set(0.0f)); // value in case of -
         z = _mm512_mask_blend_ps(inrange, r, z);     // +/- underflow
         z = _mm512_mask_blend_ps(isNan, z, x_init); // NAN goes through
+    #elif defined(MMSEQS_AVX512VL_MASKS)
+        //special cases
+        const simd_float MAX_X = simdf32_set(87.3f);
+        __mmask8 inrange = _mm256_cmp_ps_mask(simdf32_abs(x_init), MAX_X, _CMP_LT_OS);
+        const simd_float InfVec = simdf32_set(std::numeric_limits<float>::infinity());
+        const __mmask8 signBit = _mm256_cmp_epi32_mask(_mm256_castps_si256(x_init), _mm256_setzero_si256(), _MM_CMPINT_LT);
+        __mmask8 isNan = _mm256_cmp_ps_mask(x_init, x_init, 3);
+        r = _mm256_mask_blend_ps(signBit, InfVec, simdf32_set(0.0f)); // value in case of -
+        z = _mm256_mask_blend_ps(inrange, r, z);     // +/- underflow
+        z = _mm256_mask_blend_ps(isNan, z, x_init); // NAN goes through
     #else
         //special cases
         const simd_float MAX_X = simdf32_set(87.3f);
@@ -1176,6 +1256,66 @@ static inline simd_float simdf32_log(simd_float x_init) {
     // if x == 0 or subnormal gives -INF
     __mmask16 maskZeroOrSubnormal = _mm512_cmp_epi32_mask(x_exponent, _mm512_setzero_si512(), _MM_CMPINT_EQ); // x == 0 or subnormal
     res = _mm512_mask_blend_ps(maskZeroOrSubnormal, res, negInfVec );
+    return res;
+}
+#elif defined(MMSEQS_AVX512VL_MASKS)
+static inline simd_float simdf32_log(simd_float x_init) {
+    // Same as AVX2 but uses masked to avoid having to convert mask to vector back and forth 
+    // Constants
+    const simd_float LN2f_HI = simdf32_set(0.693359375f);
+    const simd_float LN2f_LO = simdf32_set(-2.12194440e-4f);
+    const simd_float P0LOGF  = simdf32_set(3.3333331174E-1f);
+    const simd_float P1LOGF  = simdf32_set(-2.4999993993E-1f);
+    const simd_float P2LOGF  = simdf32_set(2.0000714765E-1f);
+    const simd_float P3LOGF  = simdf32_set(-1.6668057665E-1f);
+    const simd_float P4LOGF  = simdf32_set(1.4249322787E-1f);
+    const simd_float P5LOGF  = simdf32_set(-1.2420140846E-1f);
+    const simd_float P6LOGF  = simdf32_set(1.1676998740E-1f);
+    const simd_float P7LOGF  = simdf32_set(-1.1514610310E-1f);
+    const simd_float P8LOGF  = simdf32_set(7.0376836292E-2f);
+    const simd_float SQRT2_threshold   = simdf32_set(1.41421356237309504880*0.5);
+    const simd_float one = simdf32_set(1.0f);
+
+    // separate mantissa from exponent
+    simd_int xi = simdf_f2icast(x_init);
+    simd_int mi = simdi_or(simdi_and(xi, simdi32_set(0x007FFFFF)), simdi32_set(0x3F000000));
+    simd_float m = simdi_i2fcast(mi);
+
+    simd_int ei = simdi32_sub(simdi32_srli(simdi32_slli(xi, 1), 24), simdi32_set(0x7F));
+    simd_float e = simdi32_i2f(ei);
+    __mmask8 blend_mask = _mm256_cmp_ps_mask(m, SQRT2_threshold, _CMP_GT_OS);
+    __mmask8 not_blend_mask = _mm256_cmp_ps_mask(m, SQRT2_threshold, _CMP_LE_OQ);
+    simd_float m_2 = simdf32_add(m, m);
+
+    m = _mm256_mask_blend_ps(not_blend_mask, m, m_2);
+    m = simdf32_sub(m, one);
+
+    simd_float e_1 = simdf32_add(e, one);
+    e = _mm256_mask_blend_ps(blend_mask, e, e_1);
+
+    simd_float res = polynomial_8(m, P0LOGF, P1LOGF, P2LOGF, P3LOGF, P4LOGF, P5LOGF, P6LOGF, P7LOGF, P8LOGF);
+    simd_float m2 = simdf32_mul(m, m);
+    res = simdf32_mul(res, simdf32_mul(m2, m));
+
+    res = simdf32_fmadd(e, LN2f_LO, res);
+    res = simdf32_add(res, simdf32_sub(m, simdf32_mul(m2, simdf32_set(0.5f))));
+    res = simdf32_fmadd(e, LN2f_HI, res);
+
+    // Special cases
+    const simd_float VM_SMALLEST_NORMALF = simdf32_set(1.17549435e-38f);
+    __mmask8 overflow =_mm256_cmp_epi32_mask(simdi32_is_finite(x_init), _mm256_setzero_si256(), _MM_CMPINT_EQ);
+    __mmask8 underflow = _mm256_cmp_ps_mask(x_init, VM_SMALLEST_NORMALF, _CMP_LT_OS);
+
+    const simd_float negNanVec = simdf32_set(-std::numeric_limits<float>::quiet_NaN());
+    const simd_float negInfVec = simdf32_set(-std::numeric_limits<float>::infinity());
+    // if overflow(+- INF or NaN) gives x_init
+    res = _mm256_mask_blend_ps(overflow, res, x_init);
+    // if underflow(<1.17549435e-38f) gives -NAN
+    res = _mm256_mask_blend_ps(underflow, res, negNanVec);
+    simd_int x_exponent = simdi_and(xi, simdi32_set(0x7F800000));
+    // if x == 0 or subnormal gives -INF
+    __mmask8 maskZeroOrSubnormal = _mm256_cmp_epi32_mask(x_exponent, _mm256_setzero_si256(), _MM_CMPINT_EQ); // x == 0 or subnormal
+    res = _mm256_mask_blend_ps(maskZeroOrSubnormal, res, negInfVec );
     return res;
 }
 #else

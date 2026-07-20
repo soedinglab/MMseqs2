@@ -23,6 +23,14 @@
    Written by Michael Farrar, 2006 (alignment), Mengyao Zhao (SSW Library) and Martin Steinegger (change structure add aa composition, profile and AVX2 support).
    Please send bug reports and/or suggestions to martin.steinegger@snu.ac.kr.
 */
+// P3 (AI_Agent): run the striped Smith-Waterman kernels at 256-bit width with AVX512VL
+// mask features even in AVX512 builds. Must be defined before any include so the first
+// inclusion of simd.h (via Parameters.h) selects the 256-bit+VL path for this TU only.
+// Non-AVX512 builds ignore it (already 256/128-bit). See simd.h MMSEQS_FORCE_SIMD256.
+// Build with -DMMSEQS_NO_SIMD256 to disable P3 (SW reverts to native 512-bit) for A/B tests.
+// #ifndef MMSEQS_NO_SIMD256
+// #define MMSEQS_FORCE_SIMD256 1
+// #endif
 #include "Parameters.h"
 #include "simd.h"
 #include "StripedSmithWaterman.h"
