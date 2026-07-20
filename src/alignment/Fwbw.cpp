@@ -1,3 +1,7 @@
+#ifndef MMSEQS_NO_SIMD256
+#define MMSEQS_FORCE_SIMD256 1
+#endif
+
 #include "Fwbw.h"
 #include "Debug.h"
 #include "DBReader.h"
@@ -45,9 +49,9 @@ inline void calculate_max4(float& max, float& term1, float& term2, float& term3,
 
 inline simd_float simdf32_prefixsum(simd_float a) {
 #if defined(AVX2)
-    a = simdf32_add(a, simdi_i2fcast(simdi8_shiftl(simdf_f2icast(a), 4)));
-    a = simdf32_add(a, simdi_i2fcast(simdi8_shiftl(simdf_f2icast(a), 8)));
-    a = simdf32_add(a, simdi_i2fcast(simdi8_shiftl(simdf_f2icast(a), 16)));
+    a = simdf32_add(a, simdi_i2fcast(simdi8_shiftl_4(simdf_f2icast(a))));
+    a = simdf32_add(a, simdi_i2fcast(simdi8_shiftl_8(simdf_f2icast(a))));
+    a = simdf32_add(a, simdi_i2fcast(simdi8_shiftl_16(simdf_f2icast(a))));
     return a; 
 #elif defined(AVX512)
     a = simdf32_add(a, simdi_i2fcast(_mm512_shift_left4(simdf_f2icast(a))));
