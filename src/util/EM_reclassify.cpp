@@ -267,33 +267,26 @@ static double maxQueryBitScore(const std::vector<ReclassTaxEntry> &entries) {
     return maxScore;
 }
 
-static double hitCoverage(const Matcher::result_t &result) {
-    return clamp01(std::min(static_cast<double>(result.qcov), static_cast<double>(result.dbcov)));
-}
-
 static double compatibilityLogTerm(const ReclassTaxEntry &entry,
                                    double queryMaxScore,
                                    double betaBit,
-                                   double betaSeqId,
-                                   double betaCov) {
+                                   double betaSeqId) {
     const double deltaBit = static_cast<double>(entry.result.score) - queryMaxScore;
     const double seqId = static_cast<double>(entry.result.seqId);
-    const double cov = hitCoverage(entry.result);
-    const double r = (betaBit * deltaBit) + (betaSeqId * seqId) + (betaCov * cov);
+    const double r = (betaBit * deltaBit) + (betaSeqId * seqId);
     return std::max(LOG_COMPATIBILITY_MIN, std::min(LOG_COMPATIBILITY_MAX, r));
 }
 
 static void computePosterior(MappingTable &mappingTable,
                              double betaBit,
                              double betaSeqId,
-                             double betaCov,
                              double abundanceExponent) {
     for (MappingTable::iterator it = mappingTable.begin(); it != mappingTable.end(); ++it) {
         const double queryMaxScore = maxQueryBitScore(it->second);
         std::vector<double> numerators(it->second.size(), 0.0);
         double denom = 0.0;
         for (size_t j = 0; j < it->second.size(); ++j) {
-            const double phi = std::exp(compatibilityLogTerm(it->second[j], queryMaxScore, betaBit, betaSeqId, betaCov));
+            const double phi = std::exp(compatibilityLogTerm(it->second[j], queryMaxScore, betaBit, betaSeqId));
             const double abundance = std::max(it->second[j].abundance, ABUNDANCE_SMOOTH_EPS);
             const double weighted = phi * std::pow(abundance, abundanceExponent);
             numerators[j] = weighted;
@@ -308,7 +301,6 @@ static void computePosterior(MappingTable &mappingTable,
 static double logLikelihood(const MappingTable &mappingTable,
                             double betaBit,
                             double betaSeqId,
-                            double betaCov,
                             double abundanceExponent,
                             size_t queryCount) {
     if (queryCount == 0) {
@@ -320,7 +312,7 @@ static double logLikelihood(const MappingTable &mappingTable,
         const double queryMaxScore = maxQueryBitScore(it->second);
         double mixture = 0.0;
         for (size_t j = 0; j < it->second.size(); ++j) {
-            const double phi = std::exp(compatibilityLogTerm(it->second[j], queryMaxScore, betaBit, betaSeqId, betaCov));
+            const double phi = std::exp(compatibilityLogTerm(it->second[j], queryMaxScore, betaBit, betaSeqId));
             const double abundance = std::max(it->second[j].abundance, ABUNDANCE_SMOOTH_EPS);
             mixture += phi * std::pow(abundance, abundanceExponent);
         }
@@ -367,12 +359,11 @@ static void setAbundance(MappingTable &mappingTable, const std::vector<unsigned 
 static std::vector<double> emUpdate(MappingTable &mappingTable,
                                     double betaBit,
                                     double betaSeqId,
-                                    double betaCov,
                                     const std::unordered_map<unsigned int, double> &fixedCoverageConfidence,
                                     const std::vector<unsigned int> &targetList,
                                     size_t queryCount,
                                     double abundanceExponent) {
-    computePosterior(mappingTable, betaBit, betaSeqId, betaCov, abundanceExponent);
+    computePosterior(mappingTable, betaBit, betaSeqId, abundanceExponent);
 
     std::unordered_map<unsigned int, double> nextAbundance;
     nextAbundance.reserve(targetList.size());
@@ -469,7 +460,6 @@ static void squarem(ReclassTaxContext &ctx,
         const std::vector<double> x1 = emUpdate(ctx.mappingTable,
                                                 betaBit,
                                                 1.0,
-                                                0.25,
                                                 fixedCoverageConfidence,
                                                 targetList,
                                                 ctx.queryCount,
@@ -477,7 +467,6 @@ static void squarem(ReclassTaxContext &ctx,
         const std::vector<double> x2 = emUpdate(ctx.mappingTable,
                                                 betaBit,
                                                 1.0,
-                                                0.25,
                                                 fixedCoverageConfidence,
                                                 targetList,
                                                 ctx.queryCount,
@@ -509,13 +498,13 @@ static void squarem(ReclassTaxContext &ctx,
         xNew = projectSimplex(xNew);
 
         setAbundance(ctx.mappingTable, targetList, xNew);
-        computePosterior(ctx.mappingTable, betaBit, 1.0, 0.25, abundanceExponent);
-        double currentLl = logLikelihood(ctx.mappingTable, betaBit, 1.0, 0.25, abundanceExponent, ctx.queryCount);
+        computePosterior(ctx.mappingTable, betaBit, 1.0, abundanceExponent);
+        double currentLl = logLikelihood(ctx.mappingTable, betaBit, 1.0, abundanceExponent, ctx.queryCount);
 
         if (!logLikelihoods.empty() && currentLl < logLikelihoods.back() - 1e-9) {
             setAbundance(ctx.mappingTable, targetList, x2);
-            computePosterior(ctx.mappingTable, betaBit, 1.0, 0.25, abundanceExponent);
-            currentLl = logLikelihood(ctx.mappingTable, betaBit, 1.0, 0.25, abundanceExponent, ctx.queryCount);
+            computePosterior(ctx.mappingTable, betaBit, 1.0, abundanceExponent);
+            currentLl = logLikelihood(ctx.mappingTable, betaBit, 1.0, abundanceExponent, ctx.queryCount);
             xNew = x2;
         }
 
