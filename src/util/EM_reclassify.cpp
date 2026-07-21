@@ -61,6 +61,9 @@ static const double LOG_COMPATIBILITY_MIN = -60.0;
 static const double LOG_COMPATIBILITY_MAX = 60.0;
 static const double ABUNDANCE_EXP_TAU = 3.0;
 static const double ABUNDANCE_SMOOTH_EPS = 1e-8;
+// Linear multiplicative weight applied to the coverage-confidence prior in the
+// abundance update (formerly the tunable --gamma parameter). Fixed at 1.0.
+static const double COVERAGE_PRIOR_WEIGHT = 1.0;
 
 static double clamp01(double value);
 
@@ -368,8 +371,7 @@ static std::vector<double> emUpdate(MappingTable &mappingTable,
                                     const std::unordered_map<unsigned int, double> &fixedCoverageConfidence,
                                     const std::vector<unsigned int> &targetList,
                                     size_t queryCount,
-                                    double abundanceExponent,
-                                    double coveragePriorWeight) {
+                                    double abundanceExponent) {
     computePosterior(mappingTable, betaBit, betaSeqId, betaCov, abundanceExponent);
 
     std::unordered_map<unsigned int, double> nextAbundance;
@@ -389,7 +391,7 @@ static std::vector<double> emUpdate(MappingTable &mappingTable,
     for (std::unordered_map<unsigned int, double>::iterator it = nextAbundance.begin(); it != nextAbundance.end(); ++it) {
         const std::unordered_map<unsigned int, double>::const_iterator fixed = fixedCoverageConfidence.find(it->first);
         const double confidence = (fixed != fixedCoverageConfidence.end()) ? fixed->second : 0.0;
-        it->second = it->second + (coveragePriorWeight * confidence) + ABUNDANCE_SMOOTH_EPS;
+        it->second = it->second + (COVERAGE_PRIOR_WEIGHT * confidence) + ABUNDANCE_SMOOTH_EPS;
         denom += it->second;
     }
     if (denom > 0.0) {
@@ -441,7 +443,6 @@ static void squarem(ReclassTaxContext &ctx,
                     int maxIter,
                     double tol,
                     double alphaMax,
-                    double coveragePriorWeight,
                     int threads) {
     if (ctx.queryCount == 0 || ctx.targetSet.empty()) {
         return;
@@ -472,8 +473,7 @@ static void squarem(ReclassTaxContext &ctx,
                                                 fixedCoverageConfidence,
                                                 targetList,
                                                 ctx.queryCount,
-                                                abundanceExponent,
-                                                coveragePriorWeight);
+                                                abundanceExponent);
         const std::vector<double> x2 = emUpdate(ctx.mappingTable,
                                                 betaBit,
                                                 1.0,
@@ -481,8 +481,7 @@ static void squarem(ReclassTaxContext &ctx,
                                                 fixedCoverageConfidence,
                                                 targetList,
                                                 ctx.queryCount,
-                                                abundanceExponent,
-                                                coveragePriorWeight);
+                                                abundanceExponent);
 
         std::vector<double> r(x0.size(), 0.0);
         std::vector<double> v(x0.size(), 0.0);
@@ -748,7 +747,6 @@ int emreclassify(int argc, const char **argv, const Command &command) {
             par.reclassifyMaxIterations,
             par.reclassifyTolerance,
             par.reclassifyAlpha,
-            par.reclassifyGamma,
             par.threads);
 
     // reclassify only runs EM; low-abundance target dropping is handled by `mmseqs abundance --drop`.
